@@ -2639,6 +2639,52 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
 });
 
+test("Direkt buchen als nicht steuerbare Einnahme: ohne Steuersatz, auch nach Wechsel von Erlöse 19 % (#1131)", async () => {
+  const zeile = (name: string, zweck: string, betrag: string) =>
+    [dkb(day(0)), dkb(day(0)), "Gebucht", betrag.startsWith("-") ? "Max Mustermann" : name, betrag.startsWith("-") ? name : "Max Mustermann", zweck]
+      .concat([betrag.startsWith("-") ? "Ausgang" : "Eingang", "", betrag, "", "", ""])
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Versandlager GmbH", "Erstattung verlorene Ware", "12,50")}\n${zeile("Versandlager GmbH", "Rückforderung Erstattung", "-4,20")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "schadenersatz.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  await page
+    .getByRole("link", { name: /Erstattung verlorene Ware/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Erstattung verlorene Ware")).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  // Vorbelegt bleibt Erlöse 19 %; der Wechsel setzt den Satz zurück, ein Steuersatz-Feld gibt es dann nicht
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await expect(panel.getByText("Gebucht als Einnahme ohne Umsatzsteuer, nicht in der Voranmeldung.", { exact: false })).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Danach steht die Rückforderung im Panel: Ausgang, vorbelegt als Ausgabe; ebenfalls nicht steuerbar, mindert die Einnahme
+  await expect(panel.getByText("Rückforderung Erstattung")).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Direkt: Nicht steuerbare Einnahme")).toBeVisible();
+});
+
 /** Beleg mit abweichender IBAN aus dem Test unten, für die Prüfung mit axe */
 let ibanBeleg = "";
 
