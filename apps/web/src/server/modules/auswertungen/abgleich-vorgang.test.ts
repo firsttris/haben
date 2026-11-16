@@ -28,9 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Vorgang gegen Buchung, Randfälle (Postgres)"
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04") {
-    await leeren(
-      sql,
-    )`truncate journal_umstellung, vat_return_submissions, vat_returns, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate journal_umstellung, vat_return_submissions, vat_returns, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
