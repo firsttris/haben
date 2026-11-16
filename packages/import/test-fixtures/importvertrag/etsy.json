@@ -1,0 +1,150 @@
+{
+  "contractVersion": 1,
+  "provider": "etsy",
+  "externalAccountId": "shop-beispiel",
+  "idempotencyKey": "verlauf-2026-10-01-bis-2026-10-31-seite-0",
+  "fetchedAt": "2026-11-05T06:00:00+01:00",
+  "coverage": { "from": "2026-10-01", "to": "2026-10-31" },
+  "part": { "fetchId": "verlauf-2026-10", "index": 0, "last": true },
+  "movements": [
+    {
+      "sourceEventId": "LEDGER-0001",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-04",
+      "sourceTimestamp": "2026-10-04T09:12:44Z",
+      "amount": 3400,
+      "currency": "EUR",
+      "purpose": "Verkauf Bestellung 1000000001",
+      "references": { "eventCode": "PAYMENT_GROSS", "providerReference": "payment:2000000001", "orderId": "1000000001" }
+    },
+    {
+      "sourceEventId": "LEDGER-0002",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-04",
+      "amount": -221,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Transaktionsgebühr zu Bestellung 1000000001",
+      "references": { "eventCode": "transaction", "orderId": "1000000001" }
+    },
+    {
+      "sourceEventId": "LEDGER-0003",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-04",
+      "amount": -166,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Zahlungsabwicklung zu Bestellung 1000000001",
+      "references": { "eventCode": "PAYMENT_PROCESSING_FEE", "orderId": "1000000001" }
+    },
+    {
+      "sourceEventId": "LEDGER-0004",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-09",
+      "amount": 4240,
+      "currency": "EUR",
+      "purpose": "Verkauf Bestellung 1000000002 (USA, inkl. 2,40 € Sales Tax)",
+      "references": { "eventCode": "PAYMENT_GROSS", "providerReference": "payment:2000000002", "orderId": "1000000002" }
+    },
+    {
+      "sourceEventId": "LEDGER-0005",
+      "component": "main",
+      "kind": "adjustment",
+      "bookingDate": "2026-10-09",
+      "amount": -240,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Sales Tax zu Bestellung 1000000002, von Etsy eingezogen und abgeführt",
+      "references": { "eventCode": "sales_tax", "orderId": "1000000002" }
+    },
+    {
+      "sourceEventId": "LEDGER-0006",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-09",
+      "amount": -260,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Transaktionsgebühr zu Bestellung 1000000002",
+      "references": { "eventCode": "transaction", "orderId": "1000000002" }
+    },
+    {
+      "sourceEventId": "LEDGER-0007",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-09",
+      "amount": -200,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Zahlungsabwicklung zu Bestellung 1000000002",
+      "references": { "eventCode": "PAYMENT_PROCESSING_FEE", "orderId": "1000000002" }
+    },
+    {
+      "sourceEventId": "LEDGER-0008",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-12",
+      "amount": -18,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Einstellgebühr",
+      "references": { "eventCode": "listing" }
+    },
+    {
+      "sourceEventId": "LEDGER-0009",
+      "component": "main",
+      "kind": "refund",
+      "bookingDate": "2026-10-15",
+      "amount": -1000,
+      "currency": "EUR",
+      "purpose": "Teilerstattung Bestellung 1000000001",
+      "references": { "eventCode": "REFUND_GROSS", "providerReference": "refund:3000000001", "orderId": "1000000001", "relatedEventId": "LEDGER-0001" }
+    },
+    {
+      "sourceEventId": "LEDGER-0010",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-15",
+      "amount": 65,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Gutschrift Transaktionsgebühr zur Teilerstattung",
+      "references": { "eventCode": "transaction_refund", "orderId": "1000000001", "relatedEventId": "LEDGER-0002" }
+    },
+    {
+      "sourceEventId": "LEDGER-0011",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-18",
+      "amount": -150,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Etsy Ads",
+      "references": { "eventCode": "prolist" }
+    },
+    {
+      "sourceEventId": "LEDGER-0012",
+      "component": "main",
+      "kind": "payout",
+      "bookingDate": "2026-10-20",
+      "amount": -5450,
+      "currency": "EUR",
+      "counterpartyName": "Etsy",
+      "purpose": "Auszahlung auf das Geschäftskonto",
+      "references": { "eventCode": "DISBURSE2" }
+    }
+  ],
+  "balances": [
+    { "date": "2026-09-30", "amount": 0, "currency": "EUR" },
+    { "date": "2026-10-04", "amount": 3013, "currency": "EUR" },
+    { "date": "2026-10-09", "amount": 6553, "currency": "EUR" },
+    { "date": "2026-10-12", "amount": 6535, "currency": "EUR" },
+    { "date": "2026-10-15", "amount": 5600, "currency": "EUR" },
+    { "date": "2026-10-18", "amount": 5450, "currency": "EUR" },
+    { "date": "2026-10-20", "amount": 0, "currency": "EUR" }
+  ]
+}

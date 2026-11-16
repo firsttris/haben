@@ -4,6 +4,7 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
+import { vertragHinweise } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -399,7 +400,8 @@ async function syncStart(account: BankConnectionAccount, today: string): Promise
 
 export interface SyncResult {
   added: number;
-  accounts: (ImportResult & { iban: string })[];
+  /** Je Konto mit den Hinweisen aus dem Importvertrag (#306); die stehen nicht im Importprotokoll */
+  accounts: (ImportResult & { iban: string; vertragHinweise: string[] })[];
   error: string | null;
 }
 
@@ -448,6 +450,16 @@ export async function syncConnection(actor: string, connectionId: string, today 
         dateFrom,
         dateTo: today,
       });
+      // Importvertrag (#306, Schritt 2): nur im Ergebnis des Abrufs, nicht in bank_imports (nur anhängbar, im Datenexport)
+      const hinweise = vertragHinweise({
+        iban: account.iban,
+        transactions,
+        balances,
+        dateFrom,
+        dateTo: today,
+        now: new Date(),
+        fetchId: randomBytes(8).toString("hex"),
+      });
       const stored = await withActor(actor, (tx) =>
         storeStatement(
           tx,
@@ -456,7 +468,7 @@ export async function syncConnection(actor: string, connectionId: string, today 
           account.bankAccountId,
         ),
       );
-      result.accounts.push({ ...stored, iban: account.iban });
+      result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: hinweise });
       result.added += stored.added;
       accounts[i] = { ...account, syncedTo: today };
     }
