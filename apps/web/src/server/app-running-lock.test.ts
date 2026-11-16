@@ -112,4 +112,27 @@ describe.skipIf(!testDatabaseUrl)("Sperre der laufenden App nach Verbindungsabbr
     }
     expect(await lockPid()).toBeNull();
   }, 25_000);
+
+  it("beendet die Wiederverbindung auch während eines Ausfalls und lässt beide CLIs danach wieder zu", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const release = await hold();
+    try {
+      const pid = await lockPid();
+      expect(pid).not.toBeNull();
+      await admin.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections false`);
+      await database`select pg_terminate_backend(${pid!})`;
+      await expect.poll(() => warning.mock.calls.length, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+    } finally {
+      // Der Close-Hook muss bei weiterhin gesperrter Datenbank enden können.
+      try {
+        await release();
+      } finally {
+        await admin.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections true`);
+        warning.mockRestore();
+      }
+    }
+    expect(await lockPid()).toBeNull();
+    expect(await database`select pid from pg_stat_activity where datname = ${databaseName} and pid <> pg_backend_pid()`).toHaveLength(0);
+    await guards(false);
+  }, 15_000);
 });
