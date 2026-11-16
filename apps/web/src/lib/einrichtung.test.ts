@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { aenderungen, type Antworten, antwortenAus, einrichtungsAufgaben, fragenFehlen, offeneFragen, type Stand, steuerangabenNach } from "./einrichtung.ts";
+import {
+  aenderungen,
+  type Antworten,
+  antwortenAus,
+  einrichtungsAufgaben,
+  fragenFehlen,
+  offeneFragen,
+  rueckfrageAenderungen,
+  type Stand,
+  steuerangabenNach,
+} from "./einrichtung.ts";
 
 const neu: Stand = {
   rechtsform: "einzelunternehmen",
@@ -131,6 +141,24 @@ describe("aenderungen", () => {
 
   it("ist leer, wenn sich nichts ändert", () => {
     expect(aenderungen(neu, steuerangabenNach(neu, nichts))).toEqual([]);
+  });
+});
+
+describe("rueckfrageAenderungen", () => {
+  const gmbh: Antworten = { ...nichts, selbstaendig: "gmbh" };
+
+  it("fragt beim ersten Mal nicht: Die Antworten ersetzen nur Vorgaben, die niemand gewählt hat", () => {
+    expect(rueckfrageAenderungen(neu, gmbh)).toEqual([]);
+  });
+
+  it("nennt beim erneuten Durchgehen jede Änderung", () => {
+    expect(rueckfrageAenderungen({ ...neu, eingerichtet: true }, gmbh)).toEqual([{ feld: "Rechtsform", von: "Einzelunternehmen", nach: "GmbH" }]);
+  });
+
+  // Instanzen von vor #266 haben Firmendaten, aber keine Zeile in `einrichtung`; ihr erster Weg zu den Fragen ist
+  // „Fragen erneut durchgehen“ unter Einstellungen › Bereiche
+  it("fragt auch, wenn die Firmendaten schon gespeichert sind, die Fragen aber noch nie durchgegangen", () => {
+    expect(rueckfrageAenderungen({ ...neu, firmendatenGespeichert: true }, gmbh)).toEqual([{ feld: "Rechtsform", von: "Einzelunternehmen", nach: "GmbH" }]);
   });
 });
 

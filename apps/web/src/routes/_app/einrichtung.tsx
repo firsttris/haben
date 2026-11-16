@@ -4,7 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { BereichFragen, StartFrage, UnternehmenFragen } from "../../components/EinrichtungFragen.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
-import { aenderungen, type Antworten, antwortenAus, steuerangabenNach } from "../../lib/einrichtung.ts";
+import { type Antworten, antwortenAus, rueckfrageAenderungen, steuerangabenNach } from "../../lib/einrichtung.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { getEinrichtung, saveEinrichtung } from "../../server/functions/einrichtung.ts";
 
@@ -42,7 +42,7 @@ function EinrichtungPage() {
 
   const setzen = <K extends keyof Antworten>(key: K, wert: Antworten[K]) => setAntworten((a) => ({ ...a, [key]: wert }));
   const nachher = steuerangabenNach(stand, antworten);
-  const geaendert = aenderungen(stand, nachher);
+  const geaendert = rueckfrageAenderungen(stand, antworten);
   const letzter = schritt === SCHRITTE.length - 1;
 
   function speichern() {
@@ -56,8 +56,7 @@ function EinrichtungPage() {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!letzter) return wechseln(schritt + 1);
-    // Erst beim erneuten Durchgehen: Beim ersten Mal ersetzen die Antworten nur Vorgaben, die niemand gewählt hat
-    if (stand.eingerichtet && geaendert.length > 0) return setRueckfrage(true);
+    if (geaendert.length > 0) return setRueckfrage(true);
     speichern();
   }
 

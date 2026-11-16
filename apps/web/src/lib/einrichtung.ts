@@ -119,6 +119,11 @@ export function aenderungen(vorher: Steuerangaben, nachher: Steuerangaben): { fe
     });
 }
 
+/** Was die Rückfrage vor dem Speichern nennt; beim ersten Mal ersetzen die Antworten nur Vorgaben, die niemand gewählt hat */
+export function rueckfrageAenderungen(stand: Stand, antworten: Antworten): { feld: string; von: string; nach: string }[] {
+  return stand.eingerichtet ? aenderungen(stand, steuerangabenNach(stand, antworten)) : [];
+}
+
 /** Woran die Startseite erinnert: was mit „weiß ich nicht“ offen bleibt */
 export function offeneFragen(antworten: Antworten): OffeneFrage[] {
   return [antworten.selbstaendig === null && ("rechtsform" as const), antworten.kleinunternehmer === null && ("kleinunternehmer" as const)].filter(
