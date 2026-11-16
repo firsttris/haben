@@ -15,8 +15,17 @@ const tagFormat = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", 
 export const zeit = (d: Date | string) => zeitFormat.format(new Date(d));
 export const tag = (d: Date | string) => tagFormat.format(new Date(d));
 
-/** Zugangsdaten in einer Adresse (scheme://nutzer:passwort@host) fallen weg, auch in Fehlermeldungen des Backups */
-export const ohneZugangsdaten = (text: string) => text.replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s@]+@/gi, "$1");
+/**
+ * Zugangsdaten in einem Ziel von restic fallen weg, auch in Fehlermeldungen des Backups: Nutzer und Passwort einer
+ * Adresse (scheme://nutzer:passwort@host, bis zum letzten @ vor dem Pfad wie bei Go url.Parse, das restic nutzt), der
+ * Nutzer der Kurzform sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad).
+ * Gleiche Regeln in deploy/backup/backup-status.sh.
+ */
+export const ohneZugangsdaten = (text: string) =>
+  text
+    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s]*@/gi, "$1")
+    .replace(/\b(sftp:)(?!\/\/)[^\s/@]+@/gi, "$1")
+    .replace(/\b(rclone::?[\w.-]+),(?:"[^"]*"|'[^']*'|[^\s:"'])*/gi, "$1");
 
 const VERSTEUERUNG = {
   ist: "Ist-Versteuerung: Umsatzsteuer nach vereinnahmten Entgelten (§ 20 UStG)",

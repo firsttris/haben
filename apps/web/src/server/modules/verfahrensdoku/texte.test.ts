@@ -12,6 +12,10 @@ describe("ohneZugangsdaten", () => {
     expect(ohneZugangsdaten("rclone:fern,pass='a:GEHEIM':haben")).toBe("rclone:fern:haben");
   });
 
+  it("entfernt Zugangsdaten auch in s3-Adressen", () => {
+    expect(ohneZugangsdaten("s3:https://SCHLUESSEL:GE@HEIM@s3.example.com/haben-backup")).toBe("s3:https://s3.example.com/haben-backup");
+  });
+
   it("entfernt den Nutzer der sftp-Kurzform", () => {
     expect(ohneZugangsdaten("sftp:nutzer@backup.example:/srv/restic")).toBe("sftp:backup.example:/srv/restic");
   });
