@@ -293,7 +293,7 @@ Haben nimmt die Angaben aus den [Firmendaten](einrichtung.md#firmendaten) und se
 
 ## Buchungen
 
-Beispiel: Rechnung über 1.000,00 € netto zu 19 %.
+Beispiel: bereits erbrachte Leistung, Rechnung über 1.000,00 € netto zu 19 %.
 
 **Soll-Versteuerung** (nach vereinbarten Entgelten):
 
@@ -326,6 +326,16 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 
 > [!IMPORTANT]
 > Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+
+### Vorauszahlung auf normale Rechnungen
+
+Bei neuen normalen Rechnungen in Euro mit regulärer deutscher Umsatzsteuer erfasst du den tatsächlichen Leistungstag unter **Leistung von**; bei einem Leistungszeitraum zählt **Leistung bis**. Dieser Tag wird beim Festschreiben gespeichert. Bei einer regulär in Deutschland steuerpflichtigen Leistung gilt der Weg auch für eine ausländische Kundenanschrift. Für die Zuordnung einer früheren Zahlung braucht es eine eindeutig bestimmte Leistung und ihren Zeitpunkt.
+
+Ordne eine bereits eingegangene Bank- oder Barzahlung mit ihrem tatsächlichen Zahlungstag zu. Liegt sie vor der Leistung, entsteht die Steuer auf diesen Betrag im Eingangsmonat, auch bei Soll-Versteuerung ([§ 13 Abs. 1 Nr. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). GmbH und UG führen den Nettobetrag bis zur Leistung als erhaltene Anzahlung und erst dann als Erlös. Die EÜR bleibt beim tatsächlichen Zufluss ([§ 11 Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__11.html)).
+
+Beispiel: Leistung und Rechnung am 20. Januar über 700 € netto und 133 € Steuer, Zahlung schon am 13. Dezember des Vorjahres. Im Dezember stehen bei GmbH/UG 700 € Anzahlung und 133 € fällige Steuer; der Erlös entsteht im Januar. Bei nur 119 € Vorauszahlung sind es zunächst 100 € Anzahlung und 19 € Steuer. Die verbleibende Steuer wird bei Soll mit der Leistung, bei Ist mit der Restzahlung fällig; die Vorauszahlung wird nicht erneut besteuert.
+
+Ein Storno oder eine Entgeltminderung allein nimmt die Steuer auf eine bereits erhaltene Zahlung nicht zurück. Erfasse auch die tatsächliche Erstattung; erst sie mindert diese Steuer ([§ 17 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Eine zuvor abgegebene Voranmeldung bleibt gespeichert. Bei geänderten Buchungswerten führt der Hinweis in der [Umsatzsteuerseite](umsatzsteuer.md) zur Berichtigung.
 
 ## Zahlung und Mahnung
 
@@ -384,7 +394,7 @@ Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue A
 
 Abweichende Beträge oder Abzüge, eine mehrdeutige Vorgängerkette und bereits vorhandene Entgeltkorrekturen werden beim Ersatz abgelehnt. Eine echte Entgeltminderung braucht eine eigene datierte Korrektur im Zeitraum der Änderung; das Datum des Ersatzbelegs weist diesen Zeitpunkt nicht nach ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Für den Ausfall einer noch unbilanzierten Anforderung gilt die Grenze unter [Anzahlungen vor Leistung](buchhaltung.md#anzahlungen-vor-leistung).
 
-Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Der allgemeine Vorauszahlungsfall auf normalen Rechnungen ist als [#853](https://github.com/firsttris/haben/issues/853) abgegrenzt.
+Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Für normale Rechnungen gilt der [eigene Vorauszahlungsweg](#vorauszahlung-auf-normale-rechnungen).
 
 Regeln:
 
