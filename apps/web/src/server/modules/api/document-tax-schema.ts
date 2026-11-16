@@ -3,11 +3,7 @@ import { z } from "zod";
 
 /** Steuerfelder der Belegantwort; die Satzanteile bleiben neben der ausgewiesenen Originalsteuer sichtbar. */
 export const documentTaxShape = {
-  vorsteuerAnteil: z
-    .number()
-    .int()
-    .min(0)
-    .max(10_000)
+  vorsteuerAnteil: inBasisPoints(z.number().int().min(0).max(10_000))
     .nullable()
     .describe("Abziehbarer Anteil in Basispunkten; bei Entwürfen null = Firmenvorgabe, gebucht historisch festgehalten"),
   vorsteuerAbzug: z.boolean().describe("Gespeichert: wenigstens ein Steuersatz erlaubt Vorsteuerabzug; Rückfall für Altbelege ohne Anteil"),

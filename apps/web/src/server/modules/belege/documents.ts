@@ -121,7 +121,7 @@ const documentFields = z.object({
   amounts: z
     .array(
       z.object({
-        taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
+        taxRate: inBasisPoints(z.union([z.literal(1900), z.literal(700), z.literal(0)])),
         net: cents,
         tax: cents,
         /** null erbt den Anteil des Belegs. */

@@ -14,6 +14,7 @@ import {
   type DauerbelegStatus,
   type RecurringInterval,
   inCents,
+  inBasisPoints,
 } from "@haben/core";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -42,7 +43,7 @@ export const dauerbelegInputSchema = z.object({
   payment: z.enum(["bank", "privat", "kasse"]),
   privateShare: z.number().int().min(0).max(100).default(0),
   amounts: z
-    .array(z.object({ taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]), net: cents, tax: cents }))
+    .array(z.object({ taxRate: inBasisPoints(z.union([z.literal(1900), z.literal(700), z.literal(0)])), net: cents, tax: cents }))
     .min(1, "Beträge fehlen")
     .max(3),
   taxShown: z.boolean(),

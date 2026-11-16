@@ -1,3 +1,4 @@
+import { inCents } from "@haben/core";
 import { notFound } from "@tanstack/react-router";
 import { invoicesSentByMail, leistungsmonatHinweisFuer, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
@@ -224,7 +225,12 @@ export const removeInvoiceDraft = createServerFn({ method: "POST" })
 export const finalizeInvoiceDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    z.object({ id: z.uuid(), bestaetigt: z.object({ umsatz: z.int(), rechnung: z.int(), grenze: z.int(), vorjahresumsatz: z.int().optional() }).optional() }),
+    z.object({
+      id: z.uuid(),
+      bestaetigt: z
+        .object({ umsatz: inCents(z.int()), rechnung: inCents(z.int()), grenze: inCents(z.int()), vorjahresumsatz: inCents(z.int()).optional() })
+        .optional(),
+    }),
   )
   .handler(async ({ data, context }) => {
     try {

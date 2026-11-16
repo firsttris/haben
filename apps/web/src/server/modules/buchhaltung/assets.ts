@@ -63,7 +63,7 @@ export const assetInputSchema = z.object({
     .object({
       listPrice: inCents(z.number().int().min(100).max(100_000_000_00)),
       drive: z.enum(CAR_DRIVE_KEYS),
-      rate: z.union([z.literal(100), z.literal(50), z.literal(25)]),
+      rate: inBasisPoints(z.union([z.literal(100), z.literal(50), z.literal(25)])),
       vat: z.boolean(),
     })
     .nullable()

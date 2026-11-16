@@ -1,11 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 import { z as zm } from "zod/mini";
-import { lateInterest } from "./dunning.ts";
+import { type dunningAmounts, lateInterest } from "./dunning.ts";
 import { inBasisPoints, inCents, inMillis } from "./einheit-schema.ts";
-import type { invoiceLineInputSchema, Millis } from "./invoice.ts";
+import type { invoiceLineInputSchema, Millis, TaxRate } from "./invoice.ts";
 import type { BasisPoints, Cents } from "./money.ts";
-import { discountFromColumns, type discountSchema } from "./rabatt.ts";
+import { discountColumns, discountFromColumns, type discountSchema } from "./rabatt.ts";
 import type { skontoStufeSchema } from "./skonto.ts";
 
 // Die Typen prüft der Typecheck (`bun run typecheck`): expectTypeOf tut zur Laufzeit nichts, und kompiliert eine Zeile unter
@@ -33,6 +33,7 @@ describe("Zod-Schemas mit Einheit", () => {
     expectTypeOf<z.output<typeof invoiceLineInputSchema>["unitPrice"]>().toEqualTypeOf<Cents>();
     expectTypeOf<z.output<typeof invoiceLineInputSchema>["quantity"]>().toEqualTypeOf<Millis>();
     expectTypeOf<z.input<typeof invoiceLineInputSchema>["quantity"]>().toEqualTypeOf<number>();
+    expectTypeOf<z.output<typeof invoiceLineInputSchema>["taxRate"]>().toEqualTypeOf<TaxRate & BasisPoints>();
     expectTypeOf<z.output<typeof skontoStufeSchema>["percent"]>().toEqualTypeOf<BasisPoints>();
     expectTypeOf<z.output<typeof discountSchema>>().toEqualTypeOf<{ kind: "prozent"; value: BasisPoints } | { kind: "betrag"; value: Cents }>();
     expectTypeOf<z.output<ReturnType<typeof nullbar>>>().toEqualTypeOf<Cents | null>();
@@ -52,5 +53,10 @@ describe("Spalten des Rabatts und Zinssatz der Mahnung", () => {
     expect(lateInterest(betrag, satz, 365)).toBe(500);
     // @ts-expect-error Cent sind kein Zinssatz
     expect(lateInterest(betrag, betrag, 365)).toBe(2500);
+  });
+
+  it("Spalten des Rabatts und Zinssatz der Mahnung tragen die Einheit", () => {
+    expectTypeOf(discountColumns(null)).toEqualTypeOf<{ discountPercent: BasisPoints | null; discountAmount: Cents | null }>();
+    expectTypeOf<ReturnType<typeof dunningAmounts>["interestRate"]>().toEqualTypeOf<BasisPoints>();
   });
 });
