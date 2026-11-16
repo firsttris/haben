@@ -1,6 +1,7 @@
 import { beitrag } from "./rechnen.ts";
 import { KEINE, type Minijob, mitSummen, type SvBeitraege } from "./typen.ts";
 import type { SvJahreswerte } from "./werte.ts";
+import type { Cents } from "../money.ts";
 
 /**
  * Rentenversicherung im Minijob. Der Arbeitgeber trägt 15 % des tatsächlichen Entgelts, ohne Befreiung der
@@ -10,7 +11,7 @@ import type { SvJahreswerte } from "./werte.ts";
  * des gerundeten Arbeitgeberanteils (§ 2 Abs. 1 Satz 5 BVV); Beispiel der Minijob-Zentrale: 100 € → 32,55 € −
  * 15,00 € = 17,55 €.
  */
-function rente(e: Minijob, w: SvJahreswerte): { bemessung: number; an: number; ag: number } {
+function rente(e: Minijob, w: SvJahreswerte): { bemessung: Cents; an: Cents; ag: Cents } {
   const ag = beitrag(e.entgelt, w.minijobRvAg);
   if (e.rvBefreit) return { bemessung: e.entgelt, an: 0, ag };
   if (e.entgelt > w.minijobRvMindestbemessung) return { bemessung: e.entgelt, an: beitrag(e.entgelt, w.rv - w.minijobRvAg), ag };

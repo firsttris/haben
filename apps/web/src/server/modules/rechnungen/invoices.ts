@@ -918,6 +918,7 @@ export function buyerFrom(contact: Contact, ansprechpartner?: Buyer["ansprechpar
     ...(contact.ustId ? { ustId: contact.ustId } : {}),
     ...(contact.leitwegId ? { leitwegId: contact.leitwegId } : {}),
     ...(contact.kundennummer ? { kundennummer: contact.kundennummer } : {}),
+    ...(contact.unsereLieferantennummer ? { unsereLieferantennummer: contact.unsereLieferantennummer } : {}),
     ...(ansprechpartner ? { ansprechpartner } : {}),
   };
 }

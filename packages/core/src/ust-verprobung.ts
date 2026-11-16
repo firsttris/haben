@@ -1,5 +1,5 @@
 import { kennzahlenAusJournal, type JournalKennzahl, type JournalZeile } from "./journal-kennzahlen.ts";
-import type { Cents } from "./money.ts";
+import type { BasisPoints, Cents } from "./money.ts";
 import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
 
 /*
@@ -17,12 +17,15 @@ import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
  * Einfuhrumsatzsteuer (der Bescheid nennt die Steuer, keine Bemessungsgrundlage) und Buchungen über das Zwischenkonto der
  * noch nicht abziehbaren Vorsteuer (Gutschrift, die bereits Bezahltes erstattet, #786; Leistung nach dem Belegdatum, #930).
  * Bei anteiligem Vorsteuerabzug (§ 15 Abs. 4 UStG, #926) steht der nicht abziehbare Teil mit „keineVSt“ auf dem Aufwand,
- * ohne Satz; dann darf die Vorsteuer je Satz nur nicht höher sein als Bemessungsgrundlage mal Satz.
+ * ohne Satz; dann darf die Vorsteuer je Satz nur nicht höher sein als Bemessungsgrundlage mal Satz. Denselben Schlüssel trägt
+ * eine Position zu 0 % (inputTaxCode(0)). Als anteilig gilt eine Buchung deshalb nur, wenn „keineVSt“-Zeilen die Lücke
+ * zwischen voller und gebuchter Vorsteuer genau füllen (#1230); sonst fiele zu wenig Vorsteuer neben einer 0-%-Position
+ * nicht auf.
  */
 
 export interface VerprobungsAbweichung {
   /** Satz in Basispunkten */
-  satz: 1900 | 700;
+  satz: BasisPoints & (1900 | 700);
   art: "umsatzsteuer" | "erwerbsteuer" | "vorsteuer";
   bemessung: Cents;
   /** Steuer auf den Steuerkonten */
@@ -38,9 +41,9 @@ export const VERPROBUNG_TOLERANZ = 1;
 const toleranz = (saetze: { bemessung: Cents; steuer: Cents }[]) =>
   VERPROBUNG_TOLERANZ * Math.max(1, saetze.filter((x) => x.bemessung !== 0 || x.steuer !== 0).length);
 
-const steuerZu = (bemessung: Cents, satz: number) => Math.round((bemessung * satz) / 10_000);
+const steuerZu = (bemessung: Cents, satz: BasisPoints) => Math.round((bemessung * satz) / 10_000);
 
-const PAARE: { art: VerprobungsAbweichung["art"]; satz: 1900 | 700; bemessung: JournalKennzahl; steuer: JournalKennzahl }[] = [
+const PAARE: { art: VerprobungsAbweichung["art"]; satz: BasisPoints & (1900 | 700); bemessung: JournalKennzahl; steuer: JournalKennzahl }[] = [
   { art: "umsatzsteuer", satz: 1900, bemessung: "kz81", steuer: "tax81" },
   { art: "umsatzsteuer", satz: 700, bemessung: "kz86", steuer: "tax86" },
   { art: "erwerbsteuer", satz: 1900, bemessung: "kz89", steuer: "tax89" },
@@ -69,11 +72,30 @@ export function verprobeBuchung(kontenrahmen: Kontenrahmen, versteuerung: Verste
     return { satz, bemessung, steuer, erwartet: steuerZu(bemessung, satz) };
   });
   const erlaubt = toleranz(vorsteuer);
-  const anteilig = zeilen.some((z) => z.taxCode === "keineVSt" && !steuerkonten.has(z.account));
+  // Nicht abziehbare Anteile oder Positionen ohne Vorsteuer, mit Vorzeichen wie die Vorsteuer (eine Gutschrift dreht beide)
+  const ohneAbzug = zeilen.filter((z) => z.taxCode === "keineVSt" && !steuerkonten.has(z.account)).map((z) => z.debit - z.credit);
+  const luecke = vorsteuer.reduce((s, v) => s + v.erwartet - v.steuer, 0);
+  const anteilig = ohneAbzug.length > 0 && fuelltLuecke(ohneAbzug, luecke, erlaubt);
   for (const v of vorsteuer) {
     // Anteilig: dem Betrag nach höchstens die volle Steuer, mit gleichem Vorzeichen (eine Gutschrift dreht beide)
     const zuViel = Math.abs(v.steuer) - Math.abs(v.erwartet) > erlaubt || v.steuer * v.erwartet < 0;
     if (anteilig ? zuViel : Math.abs(v.steuer - v.erwartet) > erlaubt) result.push({ ...v, art: "vorsteuer" });
   }
   return result;
+}
+
+/** Höchstens so viele Teilsummen; darüber gilt die Lücke als gefüllt (wie vor #1230), statt lange zu rechnen */
+const MAX_TEILSUMMEN = 4096;
+
+/**
+ * Ergeben einige der Beträge zusammen die Lücke, bis auf `toleranz`? Beim anteiligen Abzug ist jeder nicht abziehbare Anteil
+ * eine eigene Zeile, daneben können Positionen zu 0 % stehen; deshalb jede Auswahl, nicht nur die Summe aller.
+ */
+function fuelltLuecke(betraege: readonly Cents[], luecke: Cents, toleranz: Cents): boolean {
+  let summen = new Set<number>([0]);
+  for (const betrag of betraege) {
+    summen = new Set([...summen, ...[...summen].map((s) => s + betrag)]);
+    if (summen.size > MAX_TEILSUMMEN) return true;
+  }
+  return [...summen].some((s) => s !== 0 && Math.abs(s - luecke) <= toleranz);
 }

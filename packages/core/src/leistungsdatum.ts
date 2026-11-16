@@ -1,3 +1,5 @@
+import type { Cents } from "./money.ts";
+
 /**
  * Leistungsdatum eines Belegs (#693, #694, #622).
  *
@@ -37,7 +39,7 @@ export interface WarteAngabe {
   leistungBis?: string | null;
   reverseCharge: string | null;
   category: string | null;
-  gross: number;
+  gross: Cents;
   erstattetBezahltes: boolean;
 }
 

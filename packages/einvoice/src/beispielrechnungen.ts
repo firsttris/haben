@@ -98,6 +98,16 @@ export const BEISPIELRECHNUNGEN: Record<string, InvoiceDocument> = {
       { ...sampleDocument({ format }), seller: { ...sampleSeller, ustId: undefined } },
     ]),
   ),
+  // Unsere Lieferantennummer beim Kunden als Verkäuferkennung (BT-29, #711); ohne USt-IdNr. zusammen mit der Steuernummer
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => {
+      const buyer = { ...sampleBuyer, unsereLieferantennummer: "70815" };
+      return [
+        [`lieferantennummer-${format}`, sampleDocument({ format, buyer })],
+        [`lieferantennummer-nur-steuernummer-${format}`, { ...sampleDocument({ format, buyer }), seller: { ...sampleSeller, ustId: undefined } }],
+      ];
+    }),
+  ),
   ...Object.fromEntries(
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
       [`reverse-charge-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "reverse_charge" })],

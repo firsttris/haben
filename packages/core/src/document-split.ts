@@ -142,8 +142,10 @@ export function documentSplitPosting(
   const rcCode = reverseCharge ? REVERSE_CHARGE_IN[reverseCharge].code : null;
   if (rcCode && totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700)) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
   const expenses = new Map<string, { account: string; amount: Cents; code: TaxCode }>();
-  const add = (account: string, code: TaxCode, amount: Cents) => {
-    const key = `${account}|${code}`;
+  // Der nicht abziehbare Anteil (§ 15 Abs. 4 UStG) bleibt eine eigene Zeile: Zusammen mit einer Position zu 0 % oder einem
+  // Satz ohne Abzug auf demselben Konto (beide auch keineVSt) erkennte die Verprobung den Teilabzug sonst nicht (#1230)
+  const add = (account: string, code: TaxCode, amount: Cents, nichtAbziehbar = false) => {
+    const key = `${account}|${code}|${nichtAbziehbar}`;
     const seen = expenses.get(key);
     if (seen) seen.amount += amount;
     else expenses.set(key, { account, amount, code });
@@ -159,7 +161,7 @@ export function documentSplitPosting(
     const tax = deductible[i]!.tax;
     if (anteil > 0) {
       add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
-      add(account, "keineVSt", line.tax - tax);
+      add(account, "keineVSt", line.tax - tax, true);
     } else if (rcCode) {
       // § 13b ohne Vorsteuerabzug: Netto mit dem Steuerschlüssel, die Steuer als Aufwand daneben, damit das Journal die
       // Bemessungsgrundlage trägt (#542)

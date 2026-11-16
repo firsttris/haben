@@ -1947,6 +1947,13 @@
       "when": 1794833455977,
       "tag": "0277_einrichtung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 278,
+      "version": "7",
+      "when": 1794838416307,
+      "tag": "0278_unsere_lieferantennummer",
+      "breakpoints": true
     }
   ]
 }

@@ -22,6 +22,7 @@ export {
 } from "./dauerfrist.ts";
 export { loadZmProtocol, submitZm, zmOverview, zmQuartale, zmSubmissions, type ZmOverview } from "./zm.ts";
 export { VatError } from "./vat.ts";
+export { uebernommeneJahre } from "./uebernommen.ts";
 export { filingsFor, loadFilingProtocol, vermerkeAbgabe, type VatReturnFiling, type VermerkInput } from "./vermerk.ts";
 export { assertUstvaOffen, ustvaLabels, ustvaOpenItems, ustvaPosten, ustvaPostenForPeriod, type UstvaPostenUebersicht } from "./zahlung.ts";
 export { gesendeteAbweichungen, gesendetText, type GesendetAbweichung } from "./gesendet-pruefen.ts";

@@ -38,6 +38,8 @@ import { invoiceTaxReader } from "../rechnungen/index.ts";
 export interface VorgangZeile {
   zeitraum: string;
   posten: string;
+  /** Stabiler Schlüssel des Postens (AbgleichZeile.schluessel) */
+  schluessel: string;
   journal: Cents;
   vorgang: Cents;
 }
@@ -124,6 +126,7 @@ async function belege(year: number, q: Db | Tx, rechtsform: Rechtsform): Promise
         result.push({
           zeitraum: r.date.slice(0, 7),
           posten: `Beleg ${r.doc.invoiceNumber || r.doc.filename} (${r.doc.supplierName}): Konto ${konto}`,
+          schluessel: `buchung:${r.entryId}:${konto}`,
           journal: j,
           vorgang: b,
         });
@@ -155,7 +158,15 @@ async function zuordnungen(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
     const j = saldo(zeilen.get(r.entryId) ?? [], new Set([konto]));
     return j === r.amount
       ? []
-      : [{ zeitraum: r.date.slice(0, 7), posten: `Zuordnung vom ${r.date} (${r.name || "Bankumsatz"}): Konto ${konto}`, journal: j, vorgang: r.amount }];
+      : [
+          {
+            zeitraum: r.date.slice(0, 7),
+            posten: `Zuordnung vom ${r.date} (${r.name || "Bankumsatz"}): Konto ${konto}`,
+            schluessel: `buchung:${r.entryId}:${konto}`,
+            journal: j,
+            vorgang: r.amount,
+          },
+        ];
   });
 }
 
@@ -183,7 +194,17 @@ async function kasse(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
     const konto = ACCOUNTS[r.kontenrahmen as Kontenrahmen].kasse;
     const j = saldo(zeilen.get(r.entryId) ?? [], new Set([konto]));
     const v = Number(r.betrag);
-    return j === v ? [] : [{ zeitraum: r.date.slice(0, 7), posten: `Kassenbuch Nr. ${r.nummern}: Konto ${konto}`, journal: j, vorgang: v }];
+    return j === v
+      ? []
+      : [
+          {
+            zeitraum: r.date.slice(0, 7),
+            posten: `Kassenbuch Nr. ${r.nummern}: Konto ${konto}`,
+            schluessel: `buchung:${r.entryId}:${konto}`,
+            journal: j,
+            vorgang: v,
+          },
+        ];
   });
 }
 
@@ -205,7 +226,15 @@ async function pauschalen(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
     const aufwand = (zeilen.get(r.entryId) ?? []).filter((z) => z.account !== einlage).reduce((s, z) => s + z.debit - z.credit, 0);
     return aufwand === r.amount
       ? []
-      : [{ zeitraum: r.date.slice(0, 7), posten: `Pauschale vom ${r.date} (${r.description}): Aufwand`, journal: aufwand, vorgang: r.amount }];
+      : [
+          {
+            zeitraum: r.date.slice(0, 7),
+            posten: `Pauschale vom ${r.date} (${r.description}): Aufwand`,
+            schluessel: `buchung:${r.entryId}:aufwand`,
+            journal: aufwand,
+            vorgang: r.amount,
+          },
+        ];
   });
 }
 
@@ -268,7 +297,14 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
     const posten = `Rechnung ${invoice.number ?? "ohne Nummer"} (Ist, ganz erledigt)`;
     // Je Buchung die Konten ihres Kontenrahmens: Nach einem Wechsel zum Jahresbeginn bucht die Zahlung im neuen Rahmen
     const rest = eigene.reduce((s, b) => s + saldo(zeilen.get(b.entry_id) ?? [], new Set(Object.values(ACCOUNTS[b.kontenrahmen].ustNichtFaellig))), 0);
-    if (rest !== 0) result.push({ zeitraum: invoice.issueDate.slice(0, 7), posten: `${posten}: Umsatzsteuer nicht fällig`, journal: rest, vorgang: 0 });
+    if (rest !== 0)
+      result.push({
+        zeitraum: invoice.issueDate.slice(0, 7),
+        posten: `${posten}: Umsatzsteuer nicht fällig`,
+        schluessel: `rechnung:${invoice.id}:nicht-faellig`,
+        journal: rest,
+        vorgang: 0,
+      });
     if (summe.ausgebucht !== 0) continue;
     const gemeldet = (v: "ist" | "soll", typen: (b: (typeof eigene)[number]) => boolean) =>
       eigene.filter(typen).reduce((s, b) => {
@@ -278,7 +314,13 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
     const beiZahlung = gemeldet("ist", () => true);
     const laut = gemeldet("soll", (b) => b.typ === "invoice");
     if (beiZahlung !== laut)
-      result.push({ zeitraum: invoice.issueDate.slice(0, 7), posten: `${posten}: gemeldete Bemessungsgrundlage`, journal: beiZahlung, vorgang: laut });
+      result.push({
+        zeitraum: invoice.issueDate.slice(0, 7),
+        posten: `${posten}: gemeldete Bemessungsgrundlage`,
+        schluessel: `rechnung:${invoice.id}:bemessung`,
+        journal: beiZahlung,
+        vorgang: laut,
+      });
   }
   return result;
 }

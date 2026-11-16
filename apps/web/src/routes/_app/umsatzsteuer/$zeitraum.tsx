@@ -11,6 +11,7 @@ import { DauerfristCard } from "../../../components/umsatzsteuer/DauerfristCard.
 import { AbgabeVermerken } from "../../../components/umsatzsteuer/AbgabeVermerken.tsx";
 import { VatStatus } from "../../../components/umsatzsteuer/VatStatus.tsx";
 import { UstvaZahlung } from "../../../components/umsatzsteuer/UstvaZahlung.tsx";
+import { JournalVergleich } from "../../../components/umsatzsteuer/JournalVergleich.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
@@ -405,6 +406,7 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             und lege bei Bedarf eine berichtigte Anmeldung an.
           </div>
         )}
+        <JournalVergleich year={data.period.year} uebernommen={data.uebernommen} current={current} returns={data.returns} journal={computed} />
         {stale && mode === "berechnet" && (
           <div className="banner banner-info" role="status">
             Die Buchungen haben sich seit dem Speichern geändert; angezeigt sind die aktuellen Werte. Beim Senden werden sie übernommen.

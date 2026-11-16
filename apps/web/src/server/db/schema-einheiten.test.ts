@@ -1,4 +1,4 @@
-import type { BasisPoints, Cents, Millis } from "@haben/core";
+import type { BasisPoints, Cents, Millis, Prozent } from "@haben/core";
 import { describe, expectTypeOf, it } from "vitest";
 import type {
   company,
@@ -40,5 +40,11 @@ describe("Einheiten der Spalten", () => {
     expectTypeOf<NonNullable<Zeile<typeof vatReturns>["computed"]>["kz83"]>().toEqualTypeOf<Cents>();
     expectTypeOf<Zeile<typeof dividends>["empfaenger"][number]["anteil"]>().toEqualTypeOf<BasisPoints>();
     expectTypeOf<Zeile<typeof lexofficeVouchers>["taxes"][number]["rate"]>().toEqualTypeOf<BasisPoints>();
+  });
+
+  it("Privatanteil in ganzen Prozent", () => {
+    expectTypeOf<Zeile<typeof documents>["privateShare"]>().toEqualTypeOf<Prozent>();
+    expectTypeOf<Zeile<typeof recurringDocuments>["privateShare"]>().toEqualTypeOf<Prozent>();
+    expectTypeOf<Zeile<typeof company>["privateShares"][string]>().toEqualTypeOf<Prozent>();
   });
 });

@@ -1,6 +1,6 @@
 import { BASE_RATE_LIMITS } from "./base-rate.ts";
-import { type BasisPoints, type Cents, formatEuro, parseEuro, parseHundredths } from "./money.ts";
-import { formatPercent } from "./skonto.ts";
+import { amountError, type BasisPoints, type Cents, formatEuro, parseEuro } from "./money.ts";
+import { formatPercent, parsePercent } from "./skonto.ts";
 
 /** Mahnstufen; nach der letzten Mahnung bleibt nur Inkasso oder Mahnbescheid */
 export const DUNNING_LEVELS = {
@@ -43,16 +43,13 @@ export const MAX_DUNNING_FEE: Cents = 100_000;
 export function dunningFeeError(text: string): string | null {
   if (text.trim() === "") return null;
   const cents = parseEuro(text);
-  if (cents === null || cents < 0) return "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer.";
+  if (cents === null || cents < 0) return amountError("die Mahngebühr", 500, { optional: true });
   return cents > MAX_DUNNING_FEE ? `Die Mahngebühr beträgt höchstens ${formatEuro(MAX_DUNNING_FEE)}.` : null;
 }
 
-/**
- * Eingegebener Basiszinssatz in Basispunkten: „1,27“ oder „1,27 %“ → 127. Anders als parsePercent auch negativ, wie von
- * 2013 bis 2022 (§ 247 BGB); null, wenn die Eingabe kein Satz mit höchstens zwei Nachkommastellen ist.
- */
+/** Eingegebener Basiszinssatz in Basispunkten: wie jedes Prozentfeld über parsePercent, aber auch negativ (§ 247 BGB) */
 export function parseBaseRate(text: string): BasisPoints | null {
-  return parseHundredths(text.replace(/%/g, ""));
+  return parsePercent(text, { negative: true });
 }
 
 /** Fehler des eingegebenen Basiszinssatzes als Satz für das Feld, null wenn er stimmt; leer heißt keine Verzugszinsen */

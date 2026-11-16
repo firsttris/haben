@@ -1,4 +1,4 @@
-import type { Cents } from "./money.ts";
+import type { BasisPoints, Cents, Prozent } from "./money.ts";
 import { EXPENSE_CATEGORIES, type Kontenrahmen } from "./posting.ts";
 import { nichtAbziehbareNebenleistungen } from "./steuerzahlung.ts";
 
@@ -14,21 +14,21 @@ import { nichtAbziehbareNebenleistungen } from "./steuerzahlung.ts";
  */
 
 /** § 23 Abs. 1 KStG */
-export const KST_SATZ = 1500;
+export const KST_SATZ: BasisPoints = 1500;
 /** § 4 SolZG */
-export const SOLI_SATZ = 550;
+export const SOLI_SATZ: BasisPoints = 550;
 /** § 11 Abs. 2 GewStG */
-export const GEWST_MESSZAHL = 350;
+export const GEWST_MESSZAHL: BasisPoints = 350;
 /** § 8 Nr. 1 GewStG */
 export const GEWST_HINZURECHNUNG_FREIBETRAG: Cents = 20_000_000;
 /** Sockel der Mindestbesteuerung (§ 10d Abs. 2 EStG, § 10a GewStG) */
 export const VERLUST_SOCKEL: Cents = 100_000_000;
 /** Mindesthebesatz (§ 16 Abs. 4 GewStG) */
-export const MINDEST_HEBESATZ = 200;
+export const MINDEST_HEBESATZ: Prozent = 200;
 
 /** Über dem Sockel abziehbarer Anteil in Basispunkten: KSt 70 % für 2024 bis 2027 (Wachstumschancengesetz), sonst 60 % */
-const verlustQuoteKst = (year: number) => (year >= 2024 && year <= 2027 ? 7000 : 6000);
-const VERLUST_QUOTE_GEWST = 6000;
+const verlustQuoteKst = (year: number): BasisPoints => (year >= 2024 && year <= 2027 ? 7000 : 6000);
+const VERLUST_QUOTE_GEWST: BasisPoints = 6000;
 
 const KONTEN = {
   SKR03: {
@@ -71,7 +71,7 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
  * Die Konten tragen im DATEV-Kontenrahmen das Kennzeichen G.
  */
 export type HinzurechnungArt = "zinsen" | "beweglich" | "unbeweglich" | "rechte";
-const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: number, text: string][]> = {
+const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: BasisPoints, text: string][]> = {
   SKR03: [
     // Mit den Zinsen zur Finanzierung des Anlagevermögens aus dem Darlehen (darlehen.ts)
     ["zinsen", ["2100", "2110", "2120", "2126"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
@@ -94,11 +94,11 @@ export const GEWST_HINZURECHNUNG_KONTEN: Record<Kontenrahmen, Record<string, rea
 };
 
 /** Nicht abziehbarer Teil der Bewirtung (§ 4 Abs. 5 Nr. 2 EStG); Haben bucht sie voll auf das Bewirtungskonto */
-const BEWIRTUNG_NICHT_ABZIEHBAR = 3000;
+const BEWIRTUNG_NICHT_ABZIEHBAR: BasisPoints = 3000;
 
 export interface KapgSteuerAngaben {
   /** Hebesatz der Gemeinde in Prozent, z. B. 400 */
-  hebesatz: number;
+  hebesatz: Prozent;
   /** Verbleibender Verlustvortrag zum 31.12. des Vorjahres laut Bescheid */
   verlustvortragKst: Cents;
   /** Vortragsfähiger Gewerbeverlust zum 31.12. des Vorjahres laut Bescheid */
@@ -128,7 +128,7 @@ export interface KapgSteuern {
   soli: Cents;
   verlustvortragKst: Cents;
   /** Hinzurechnung je Gruppe: Aufwand in voller Höhe (brutto) und der Anteil daraus (betrag) */
-  gewstHinzurechnungen: (KapgSteuerZeile & { art: HinzurechnungArt; brutto: Cents; anteil: number })[];
+  gewstHinzurechnungen: (KapgSteuerZeile & { art: HinzurechnungArt; brutto: Cents; anteil: BasisPoints })[];
   /** Hinzurechnung nach § 8 Nr. 1 GewStG: ein Viertel der Summe über dem Freibetrag */
   hinzurechnungGewst: Cents;
   verlustabzugGewst: Cents;
@@ -143,10 +143,10 @@ export interface KapgSteuern {
   rueckstellung: { kst: Cents; gewst: Cents };
 }
 
-const anteil = (betrag: Cents, basispunkte: number) => Math.floor((betrag * basispunkte) / 10_000);
+const anteil = (betrag: Cents, basispunkte: BasisPoints): Cents => Math.floor((betrag * basispunkte) / 10_000);
 
 /** Verlustabzug mit Mindestbesteuerung: bis zum Sockel voll, darüber nur die Quote des übersteigenden Betrags */
-function verlustabzug(einkommen: Cents, vortrag: Cents, quote: number): Cents {
+function verlustabzug(einkommen: Cents, vortrag: Cents, quote: BasisPoints): Cents {
   if (einkommen <= 0 || vortrag <= 0) return 0;
   const grenze = Math.min(einkommen, VERLUST_SOCKEL) + anteil(Math.max(0, einkommen - VERLUST_SOCKEL), quote);
   return Math.min(vortrag, grenze);
