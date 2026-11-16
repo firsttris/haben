@@ -12,6 +12,8 @@ export type StatementFormat =
   | "c24-csv"
   | "camt053"
   | "enablebanking"
+  /** Abruf über FinTS (HKKAZ mit MT940 oder HKCAZ mit CAMT.052), #654 */
+  | "fints"
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
   | "accountable-xlsx"
   | "paypal-csv"
