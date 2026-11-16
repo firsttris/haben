@@ -44,7 +44,7 @@ export interface Steuerangaben {
 export interface Stand extends Steuerangaben {
   /** Fragen schon einmal durchgegangen */
   eingerichtet: boolean;
-  /** Firmendaten bewusst gespeichert: Dann sind Kleinunternehmer und Versteuerung entschieden, keine Vorgabe mehr */
+  /** Firmendaten bewusst gespeichert, auch vor v0.8.0: Dann sind Kleinunternehmer und Versteuerung entschieden, keine Vorgabe mehr */
   firmendatenGespeichert: boolean;
   einrichtungOffen: readonly OffeneFrage[];
   ausgeblendet: readonly string[];

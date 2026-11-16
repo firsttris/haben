@@ -40,7 +40,9 @@ async function standIn(today: string, q: Db | Tx): Promise<Stand> {
   return {
     ...steuerangaben(company, frequencyAt(await loadFrequencies(q), monat(today))),
     eingerichtet: einrichtung?.fragenAt != null,
-    firmendatenGespeichert: company.companySavedAt !== null,
+    // Bis v0.7.0 gab es den Zeitpunkt nicht (drizzle/0204 lässt ihn leer); einen Namen bekommt die Firma nur über die
+    // Firmendaten, wie bei fragenFehlen
+    firmendatenGespeichert: company.companySavedAt !== null || company.name.trim() !== "",
     einrichtungOffen: einrichtung?.offen ?? [],
     ausgeblendet: einrichtung?.ausgeblendeteBereiche ?? [],
     hatMitarbeiter: await hasEmployees(q),
