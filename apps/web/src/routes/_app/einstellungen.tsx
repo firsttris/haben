@@ -31,6 +31,7 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
+import { LatestVersionCard } from "../../components/LatestVersionCard.tsx";
 import { VersionsCard } from "../../components/VersionsCard.tsx";
 import { ProcedureDocCard } from "../../components/ProcedureDocCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
@@ -306,6 +307,7 @@ function SettingsPage() {
               <DatevCard years={exportYears} numbers={datev} />
               <ArchiveTargetCard data={ablage} />
               <IntegrityCard head={chainHead} />
+              <LatestVersionCard />
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
