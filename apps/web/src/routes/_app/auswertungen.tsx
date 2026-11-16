@@ -379,48 +379,53 @@ function OpenTable(props: {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => {
-                const vermerk = props.jahr == null ? null : vorjahresVermerk(item.date, props.jahr);
-                return (
-                  <tr key={item.id}>
-                    <th scope="row" className="mono small">
-                      {kind === "invoice" ? (
-                        <Link to="/rechnungen/$id" params={{ id: item.id }}>
-                          {item.number}
-                        </Link>
-                      ) : kind === "ustva" ? (
-                        <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: item.id }}>
-                          {item.number}
-                        </Link>
-                      ) : (
-                        <Link to="/belege/$id" params={{ id: item.id }}>
-                          {item.number}
-                        </Link>
-                      )}
-                    </th>
-                    <td className="ellipsis" title={item.party}>
-                      {item.party}
-                    </td>
-                    <td>{formatDate(item.date)}</td>
-                    {props.jahr != null && <td className={vermerk ? "jahr vorjahr" : "jahr"}>{item.date.slice(0, 4)}</td>}
-                    <td>
-                      {formatDate(item.dueDate)}
-                      {/* Am Handy steht die Spalte „Jahr“ nicht; dort hängt der Vermerk an der Fälligkeit */}
-                      {vermerk && <span className="vorjahr-handy"> · {vermerk}</span>}
-                    </td>
-                    <td className="num">{formatEuro(item.gross)}</td>
-                    <td className="num">{formatEuro(item.open)}</td>
-                    <td>
-                      <OpenStatus item={item} kind={kind} />
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map((item) => (
+                <OpenRow key={item.id} item={item} kind={kind} jahr={props.jahr} />
+              ))}
             </tbody>
           </ScrollTable>
         </div>
       )}
     </section>
+  );
+}
+
+/** Eine Zeile der offenen Posten; mit `jahr` kennzeichnet sie Posten aus früheren Jahren (#1110) */
+function OpenRow({ item, kind, jahr }: { item: OpenPosition; kind: "invoice" | "document" | "ustva"; jahr?: number }) {
+  const vermerk = jahr == null ? null : vorjahresVermerk(item.date, jahr);
+  return (
+    <tr>
+      <th scope="row" className="mono small">
+        {kind === "invoice" ? (
+          <Link to="/rechnungen/$id" params={{ id: item.id }}>
+            {item.number}
+          </Link>
+        ) : kind === "ustva" ? (
+          <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: item.id }}>
+            {item.number}
+          </Link>
+        ) : (
+          <Link to="/belege/$id" params={{ id: item.id }}>
+            {item.number}
+          </Link>
+        )}
+      </th>
+      <td className="ellipsis" title={item.party}>
+        {item.party}
+      </td>
+      <td>{formatDate(item.date)}</td>
+      {jahr != null && <td className={vermerk ? "jahr vorjahr" : "jahr"}>{item.date.slice(0, 4)}</td>}
+      <td>
+        {formatDate(item.dueDate)}
+        {/* Am Handy steht die Spalte „Jahr“ nicht; dort hängt der Vermerk an der Fälligkeit */}
+        {vermerk && <span className="vorjahr-handy"> · {vermerk}</span>}
+      </td>
+      <td className="num">{formatEuro(item.gross)}</td>
+      <td className="num">{formatEuro(item.open)}</td>
+      <td>
+        <OpenStatus item={item} kind={kind} />
+      </td>
+    </tr>
   );
 }
 
