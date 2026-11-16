@@ -20,7 +20,7 @@ export const procedureDetailsSchema = angabenZumBetrieb.pick({
 
 export type ProcedureDetails = z.infer<typeof procedureDetailsSchema>;
 
-export const PROCEDURE_FIELDS = Object.keys(procedureDetailsSchema.shape) as (keyof ProcedureDetails)[];
+const PROCEDURE_FIELDS = Object.keys(procedureDetailsSchema.shape) as (keyof ProcedureDetails)[];
 
 const EMPTY: ProcedureDetails = Object.fromEntries(PROCEDURE_FIELDS.map((name) => [name, ""])) as ProcedureDetails;
 

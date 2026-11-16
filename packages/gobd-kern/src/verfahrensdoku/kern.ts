@@ -32,7 +32,11 @@ export const KERN_TEXTE = {
 /** Wirksame Rechte der Datenbankanmeldung, mit der die Anwendung arbeitet, wie die App sie aus der Datenbank liest */
 export interface DatenbankZugriff {
   anmeldung: string;
-  /** Keine Rechte, mit denen die Anwendung Sperren, Protokoll oder Trigger umgehen könnte */
+  /**
+   * Die App hat ihre wirksamen Rechte geprüft und keine gefunden, mit denen sie Sperren, Protokoll oder Trigger umgehen
+   * könnte: kein Eigentum an Tabellen, keine Superuser- oder Rollenrechte, kein Anlegen von Objekten oder Triggern, kein
+   * Setzen von session_replication_role. datenbankRollenText sagt genau das zu; true nur, wenn die Prüfung das abdeckt.
+   */
   eingeschraenkt: boolean;
   /** Was die Prüfung der Rechte gefunden hat, je ein Satz */
   probleme: string[];
