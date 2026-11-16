@@ -510,4 +510,75 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     expect(proposal.warnings.join(" ")).toMatch(/Anzahlung/);
     await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file)).rejects.toThrow(/Anzahlung/);
   }, 30_000);
+
+  /*
+   * § 19 UStG in der E-Rechnung: EN 16931 (UNCL 5305) sieht Kategorie E vor, manche Erzeuger schreiben O. Beides muss sich
+   * als Kleinunternehmer übernehmen lassen; auf d1cc6cea ging das, die Prüfung der Kategorie darf es nicht verbauen.
+   */
+  it("übernimmt als Kleinunternehmer ein ZUGFeRD-PDF mit Kategorie O nach § 19", async () => {
+    await company("SKR03", "ist");
+    await sql`update company set kleinunternehmer = true where id = 1`;
+    const own = await invoices.finalizeInvoice(
+      actor,
+      (
+        await invoices.createDraft(actor, {
+          ...(await invoices.newDraftDefaults("2026-09-26")),
+          contactId: await customer(),
+          taxTreatment: "kleinunternehmer",
+          lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 0 }],
+        })
+      ).id,
+    );
+    // Wie ein Fremdsystem: ein PDF mit eingebettetem factur-x.xml, das O statt E nennt
+    const xml = own.xml!.replaceAll("<ram:CategoryCode>E</ram:CategoryCode>", "<ram:CategoryCode>O</ram:CategoryCode>");
+    expect(xml).not.toBe(own.xml);
+    const bytes = pdfWithXml(xml);
+    await company("SKR03", "ist");
+    await sql`update company set kleinunternehmer = true where id = 1`;
+    const contactId = await customer();
+    const file = { bytes, filename: "re.pdf", mimeType: "application/pdf" };
+    const proposal = await foreign.foreignInvoiceProposal(file);
+    expect(proposal).toMatchObject({ from: "zugferd", taxTreatment: "kleinunternehmer", taxes: [{ rate: 0, net: 10_000, tax: 0 }] });
+    await foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file);
+    expect(await sql`select tax_treatment from invoices`).toEqual([{ tax_treatment: "kleinunternehmer" }]);
+  }, 30_000);
 });
+
+/** Kleinstes PDF mit eingebetteter Rechnungs-XML (unkomprimiert, mit Querverweistabelle) */
+function pdfWithXml(xml: string): Uint8Array {
+  const enc = new TextEncoder();
+  const data = enc.encode(xml);
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(factur-x.xml) 4 0 R] >> >> >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >>",
+    "<< /Type /Filespec /F (factur-x.xml) /UF (factur-x.xml) /AFRelationship /Data /EF << /F 5 0 R >> >>",
+  ];
+  const parts: Uint8Array[] = [];
+  const offsets: number[] = [];
+  let length = 0;
+  const push = (chunk: string | Uint8Array) => {
+    const bytes = typeof chunk === "string" ? enc.encode(chunk) : chunk;
+    parts.push(bytes);
+    length += bytes.length;
+  };
+  push("%PDF-1.7\n");
+  objects.forEach((body, i) => {
+    offsets.push(length);
+    push(`${i + 1} 0 obj\n${body}\nendobj\n`);
+  });
+  offsets.push(length);
+  push(`5 0 obj\n<< /Type /EmbeddedFile /Subtype /text#2Fxml /Length ${data.length} >>\nstream\n`);
+  push(data);
+  push("\nendstream\nendobj\n");
+  const xref = length;
+  push(`xref\n0 6\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`);
+  push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  const out = new Uint8Array(length);
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
