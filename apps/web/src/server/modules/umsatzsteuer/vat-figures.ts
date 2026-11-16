@@ -154,6 +154,56 @@ async function ausDemJournal(period: VatPeriod, figures: VatFigures, q: Db | Tx)
  * zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach Rechnungsdatum.
  * Vorsteuer in beiden Fällen nach Belegdatum.
  */
+/**
+ * Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz.
+ * `ohneMinderung` sind die Skontos vor der Ausführung (vorsteuer-leistungsdatum.ts): Ihre Steuer war noch nicht abgezogen.
+ */
+async function skontoMinderung(q: Db | Tx, start: string, end: string, ohneMinderung: Set<string>): Promise<InputTaxSource[]> {
+  const discounts = await q
+    .select({
+      id: schema.writeOffs.id,
+      documentId: schema.documents.id,
+      date: schema.writeOffs.date,
+      amount: schema.writeOffs.amount,
+      supplier: schema.documents.supplierName,
+      number: schema.documents.invoiceNumber,
+      net: schema.documents.net,
+      tax: schema.documents.tax,
+      gross: schema.documents.gross,
+    })
+    .from(schema.writeOffs)
+    .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
+    .where(
+      and(
+        gte(schema.writeOffs.date, start),
+        lt(schema.writeOffs.date, end),
+        eq(schema.writeOffs.kind, "skontoErhalten"),
+        // Ausgebuchtes Skonto an einer Gutschrift „erstattet bereits Bezahltes“ schreibt das Zwischenkonto ab, ohne die
+        // Vorsteuer zu mindern (vorsteuer-ausgleich.ts); es zählt deshalb nicht hier (#786)
+        eq(schema.documents.erstattetBezahltes, false),
+        eq(schema.documents.vorsteuerAbzug, true),
+      ),
+    );
+  if (discounts.length === 0) return [];
+  const zeilen: InputTaxSource[] = [];
+  const docAmounts = await q
+    .select()
+    .from(schema.documentAmounts)
+    .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
+  // Skonto vor der Ausführung (#930) mindert nichts: seine Steuer war noch nicht abgezogen (vorsteuer-leistungsdatum.ts)
+  for (const d of discounts.filter((x) => !ohneMinderung.has(x.id))) {
+    const taxes = docAmounts
+      .filter((a) => a.documentId === d.documentId)
+      .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }))
+      .sort((a, b) => b.rate - a.rate);
+    for (const share of paidTaxShares({ net: d.net, tax: d.tax, gross: d.gross, taxes }, -d.amount)) {
+      if (share.tax === 0) continue;
+      zeilen.push({ documentId: d.documentId, date: d.date, supplier: d.supplier, number: d.number, rate: share.rate, base: -share.base, tax: -share.tax });
+    }
+  }
+  return zeilen;
+}
+
 /** Gemeinsame, auf diesen Leseaufruf begrenzte Caches, etwa für die Quartale einer ZM-Auswahl. */
 export function vatFiguresContext(q: Db | Tx = db) {
   const taxes = invoiceTaxReader(q);
@@ -547,49 +597,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     }))
     .filter((a) => a.tax !== 0);
   inputTax.push(...nachLeistungsdatum.zeilen);
-  // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
-  const discounts = await q
-    .select({
-      id: schema.writeOffs.id,
-      documentId: schema.documents.id,
-      date: schema.writeOffs.date,
-      amount: schema.writeOffs.amount,
-      supplier: schema.documents.supplierName,
-      number: schema.documents.invoiceNumber,
-      net: schema.documents.net,
-      tax: schema.documents.tax,
-      gross: schema.documents.gross,
-    })
-    .from(schema.writeOffs)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
-    .where(
-      and(
-        gte(schema.writeOffs.date, start),
-        lt(schema.writeOffs.date, end),
-        eq(schema.writeOffs.kind, "skontoErhalten"),
-        // Ausgebuchtes Skonto an einer Gutschrift „erstattet bereits Bezahltes“ schreibt das Zwischenkonto ab, ohne die
-        // Vorsteuer zu mindern (vorsteuer-ausgleich.ts); es zählt deshalb nicht hier (#786)
-        eq(schema.documents.erstattetBezahltes, false),
-        eq(schema.documents.vorsteuerAbzug, true),
-      ),
-    );
-  if (discounts.length > 0) {
-    const docAmounts = await q
-      .select()
-      .from(schema.documentAmounts)
-      .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
-    // Skonto vor der Ausführung (#930) mindert nichts: seine Steuer war noch nicht abgezogen (vorsteuer-leistungsdatum.ts)
-    for (const d of discounts.filter((x) => !nachLeistungsdatum.skontoOhneMinderung.has(x.id))) {
-      const taxes = docAmounts
-        .filter((a) => a.documentId === d.documentId)
-        .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }))
-        .sort((a, b) => b.rate - a.rate);
-      for (const share of paidTaxShares({ net: d.net, tax: d.tax, gross: d.gross, taxes }, -d.amount)) {
-        if (share.tax === 0) continue;
-        inputTax.push({ documentId: d.documentId, date: d.date, supplier: d.supplier, number: d.number, rate: share.rate, base: -share.base, tax: -share.tax });
-      }
-    }
-  }
+  inputTax.push(...(await skontoMinderung(q, start, end, nachLeistungsdatum.skontoOhneMinderung)));
   // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG),
   // je Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
   inputTax.push(...(await gutschriftAnteile(period, q)));

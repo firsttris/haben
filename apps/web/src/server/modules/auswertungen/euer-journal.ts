@@ -145,6 +145,17 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1)
   nach.gewerbesteuerNichtAbziehbar += vorzeichen * von.gewerbesteuerNichtAbziehbar;
 }
 
+/**
+ * Buchungen je Beleg samt seiner Freigaben zum Leistungsdatum (#693): Mit ihnen steht die Vorsteuer statt des
+ * Zwischenkontos in den Zeilen, die eine Zahlung anteilig ausgleicht.
+ */
+async function belegBuchungenMitFreigaben(q: Db | Tx, belegIds: string[]): Promise<Map<string, Buchung[]>> {
+  const freigaben = await buchungenJe(q, "freigabe", belegIds);
+  const belegBuchungen = await buchungenJe(q, "document", belegIds);
+  for (const [id, liste] of freigaben) belegBuchungen.set(id, [...(belegBuchungen.get(id) ?? []), ...liste]);
+  return belegBuchungen;
+}
+
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
 export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string): Promise<EuerJournal> {
   const e = schema.journalEntries;
@@ -192,12 +203,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   const verrechnet = (await verrechnungenImJahr(q, year)).filter((v) => !umsatzBis || v.date <= umsatzBis);
   const einfacheBelege = [...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : []));
   const belegIds = [...new Set([...einfacheBelege, ...verrechnet.map((v) => v.dokumentId)])];
-  // Die Freigabe zum Leistungsdatum (#693) gehört zur Buchung des Belegs: Mit ihr steht die Vorsteuer statt des
-  // Zwischenkontos in den Zeilen, die eine Zahlung anteilig ausgleicht
-  const freigaben = await buchungenJe(q, "freigabe", belegIds);
-  const belegBuchungen = await buchungenJe(q, "document", belegIds);
-  for (const [id, liste] of freigaben) belegBuchungen.set(id, [...(belegBuchungen.get(id) ?? []), ...liste]);
-  const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: belegBuchungen };
+  const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: await belegBuchungenMitFreigaben(q, belegIds) };
   const ausgleicheVon = await ausgleichsBuchungenJe(q, rechnungIds);
   // Verrechnungen des Jahres (#274): Sie nehmen das Entgelt der Gegenrechnung aus dem Steuermix, an ihrer Stelle in der
   // Reihenfolge der Buchungen — sonst teilt die EÜR eine Zahlung über die volle Rechnung (#877, Befund 3)

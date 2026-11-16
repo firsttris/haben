@@ -437,6 +437,29 @@ export function inputTaxCode(rate: BasisPoints): TaxCode {
 export type DocumentPayment = "bank" | "privat" | "kasse";
 
 /**
+ * Kommt die Vorsteuer des Belegs auf das Zwischenkonto (SKR03 1548, SKR04 1434)? Bei der Gutschrift, die bereits
+ * Bezahltes erstattet (#786), und bei der Leistung, die beim Buchen noch nicht ausgeführt ist (#693): Nach § 15 Abs. 1
+ * Satz 1 Nr. 1 UStG ist die Vorsteuer erst abziehbar, wenn die Leistung ausgeführt ist und die Rechnung vorliegt. Lehnt
+ * ab, was dazu nicht passt; § 13b und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt.
+ */
+function vorsteuerParken(
+  totals: InvoiceTotals,
+  category: ExpenseCategory,
+  reverseCharge: SelfAssessedTax | null,
+  erstattetBezahltes: boolean,
+  vorsteuerNochNichtAbziehbar: boolean,
+): boolean {
+  if (erstattetBezahltes) {
+    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
+    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
+    if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
+  }
+  if (vorsteuerNochNichtAbziehbar && (reverseCharge || category === "einfuhrumsatzsteuer"))
+    throw new RangeError("Noch nicht abziehbare Vorsteuer gibt es nicht bei § 13b oder Einfuhrumsatzsteuer; beide haben ihren eigenen Zeitpunkt");
+  return erstattetBezahltes || vorsteuerNochNichtAbziehbar;
+}
+
+/**
  * Buchung eines Belegs: Aufwand und Vorsteuer an Verbindlichkeiten
  * (oder Privateinlage bzw. Gesellschafter-Verrechnungskonto, wenn privat bezahlt). Gutschriften (negativ) drehen die Seiten.
  * Ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Teil des Aufwands.
@@ -464,27 +487,13 @@ export function documentPosting(
    * Zwischenkonto. Nur an Gutschriften (negativer Beleg); ohne die Angabe bleibt alles wie bisher.
    */
   erstattetBezahltes = false,
-  /**
-   * Leistung beim Buchen noch nicht ausgeführt (#693): Nach § 15 Abs. 1 Satz 1 Nr. 1 UStG ist die Vorsteuer erst
-   * abziehbar, wenn die Leistung ausgeführt ist (und die Rechnung vorliegt). Bis zum Ausgleich steht sie deshalb auf
-   * dem Zwischenkonto, wie bei einer Gutschrift, die bereits Bezahltes erstattet. Nur an einer Rechnung mit
-   * Vorsteuerabzug; § 13b und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt.
-   */
+  /** Leistung beim Buchen noch nicht ausgeführt (#693): Vorsteuer auf das Zwischenkonto, siehe vorsteuerParken */
   vorsteuerNochNichtAbziehbar = false,
 ): PostingLine[] {
   // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
   if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
   const accounts = ACCOUNTS[kontenrahmen];
-  if (erstattetBezahltes) {
-    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
-    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
-    if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
-  }
-  if (vorsteuerNochNichtAbziehbar && (reverseCharge || category === "einfuhrumsatzsteuer"))
-    throw new RangeError("Noch nicht abziehbare Vorsteuer gibt es nicht bei § 13b oder Einfuhrumsatzsteuer; beide haben ihren eigenen Zeitpunkt");
-  // Beides stellt die Vorsteuer auf das Zwischenkonto: die Gutschrift, die bereits Bezahltes erstattet, und die
-  // Leistung, die beim Buchen noch nicht ausgeführt ist
-  const parken = erstattetBezahltes || vorsteuerNochNichtAbziehbar;
+  const parken = vorsteuerParken(totals, category, reverseCharge, erstattetBezahltes, vorsteuerNochNichtAbziehbar);
   if (category === "einfuhrumsatzsteuer")
     return einfuhrumsatzsteuerPosting(totals, kontenrahmen, rechtsform, payment, vorsteuerAbzug, privateShare, reverseCharge);
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
