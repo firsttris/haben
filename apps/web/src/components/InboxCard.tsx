@@ -21,6 +21,9 @@ function abrufText(r: Abruf): string {
   return `${r.messages} ${r.messages === 1 ? "Mail" : "Mails"} gelesen: ${teile.filter(Boolean).join(", ")}.${ungelesen}`;
 }
 
+/** Absenderfreigabe aus dem Textfeld: Einträge durch Komma, Semikolon oder Leerraum getrennt */
+const absender = (text: string) => text.split(/[\s,;]+/).filter(Boolean);
+
 /** Postfach, aus dem Haben Belege abholt (IMAP) */
 export function InboxCard({ data }: { data: Data }) {
   const router = useRouter();
@@ -64,9 +67,7 @@ export function InboxCard({ data }: { data: Data }) {
           password: text("password") || undefined,
           folder: text("folder") || "INBOX",
           outboundFolder: text("outboundFolder") || null,
-          allowedSenders: text("allowedSenders")
-            .split(/[\s,;]+/)
-            .filter(Boolean),
+          allowedSenders: absender(text("allowedSenders")),
           enabled: form.get("enabled") === "on",
         },
       });
