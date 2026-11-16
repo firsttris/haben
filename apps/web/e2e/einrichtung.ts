@@ -71,6 +71,17 @@ export async function gehe(page: Page, path: string): Promise<void> {
   await page.waitForLoadState("networkidle");
 }
 
+/**
+ * Nach dem Konto die Fragen zur Einrichtung (#266) mit „Später“ überspringen und zu den Firmendaten wie vorher; die
+ * Fragen selbst prüft einrichtung.spec.ts
+ */
+export async function fragenUeberspringen(page: Page): Promise<void> {
+  await page.waitForURL("**/einrichtung");
+  await page.getByRole("link", { name: "Später" }).click();
+  await page.waitForURL((url) => url.pathname === "/");
+  await gehe(page, "/einstellungen");
+}
+
 /** Konto anlegen und die Firmendaten speichern; danach steht der Durchlauf in den Einstellungen */
 export async function einrichten(page: Page, kleinunternehmer = false): Promise<void> {
   await gehe(page, "/");
@@ -81,8 +92,7 @@ export async function einrichten(page: Page, kleinunternehmer = false): Promise<
   await page.getByLabel(/Passwort/).fill(USER.password);
   await page.getByRole("button", { name: "Konto anlegen" }).click();
   await page.getByRole("button", { name: "Später" }).click();
-  await page.waitForURL("**/einstellungen");
-  await page.waitForLoadState("networkidle");
+  await fragenUeberspringen(page);
 
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await firma.getByLabel("Name", { exact: true }).fill("Mustermann IT · Max Mustermann");

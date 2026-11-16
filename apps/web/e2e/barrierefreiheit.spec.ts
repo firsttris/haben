@@ -71,6 +71,8 @@ const PAGES = [
   "/archiv?ansicht=belege&richtung=ausgabe&ohneDatei=true",
   "/textbausteine",
   "/einstellungen",
+  "/einstellungen?bereich=bereiche",
+  "/einrichtung",
   "/einstellungen?bereich=rechnungen",
   "/einstellungen?bereich=gestaltung",
   "/einstellungen?bereich=elster",

@@ -238,6 +238,7 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
             : b.angabenAus < b.year
               ? `Abzüge aus deinen Angaben zur Einkommensteuer ${b.angabenAus}. `
               : ""}
+          {b.priorBenefitsOmitted && `Einkommensersatzleistungen aus ${b.angabenAus} sind in dieser Schätzung für ${b.year} nicht enthalten. `}
           Grundlage sind der Gewinn aus der Buchhaltung und der Arbeitslohn aus deinen Angaben; Vermietung und Kapitalerträge fehlen. Eine Schätzung, keine
           Steuerberechnung.{" "}
           <Link to="/jahreserklaerung/$jahr" params={{ jahr: String(b.year) }}>

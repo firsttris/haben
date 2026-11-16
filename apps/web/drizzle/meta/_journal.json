@@ -1937,15 +1937,29 @@
     {
       "idx": 276,
       "version": "7",
-      "when": 1794834560792,
-      "tag": "0276_etsy_zugang",
+      "when": 1794833452626,
+      "tag": "0276_einrichtung",
       "breakpoints": true
     },
     {
       "idx": 277,
       "version": "7",
-      "when": 1794834566020,
-      "tag": "0277_etsy_zugang_trigger",
+      "when": 1794833455977,
+      "tag": "0277_einrichtung_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 278,
+      "version": "7",
+      "when": 1794838943897,
+      "tag": "0278_etsy_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 279,
+      "version": "7",
+      "when": 1794838949100,
+      "tag": "0279_etsy_zugang_trigger",
       "breakpoints": true
     }
   ]
