@@ -62,12 +62,12 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     ).id;
   });
 
-  async function invoice(serviceFrom = "2026-01-20") {
+  async function invoice(serviceFrom = "2026-01-20", serviceTo: string | null = null, issueDate = "2026-01-20") {
     const draft = await invoices.createDraft(actor, {
       contactId,
-      issueDate: "2026-01-20",
+      issueDate,
       serviceFrom,
-      serviceTo: null,
+      serviceTo,
       paymentTermDays: 14,
       format: "zugferd",
       note: "Vereinbarte vollständige Softwareeinrichtung am angegebenen Leistungstag",
@@ -186,4 +186,96 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     }
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
+
+  it("Soll-EÜR: 119 € Vorauszahlung und 714 € Rest bleiben zuflussbezogen, Steuer fällt vor Leistung anteilig an", async () => {
+    await sql`update company set rechtsform = 'einzelunternehmen', kontenrahmen = 'SKR04'`;
+    const finalized = await invoice();
+    await pay(finalized.id, "bar", "2025-12-13", 11_900);
+    await pay(finalized.id, "bar", "2026-02-13", 71_400);
+    await tax(2025, 12, 10_000, 1_900);
+    await tax(2026, 1, 60_000, 11_400);
+    await tax(2026, 2, 0, 0);
+    for (const year of [2025, 2026]) {
+      const euer = await reports.euerForYear(year);
+      expect(euer.einnahmen.find((row) => row.key === "einnahmenSteuerpflichtig")?.amount).toBe(year === 2025 ? 10_000 : 60_000);
+      expect(euer.einnahmen.find((row) => row.key === "vereinnahmteUst")?.amount).toBe(year === 2025 ? 1_900 : 11_400);
+      expect((await reports.euerAbgleich(year)).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
+    }
+    expect(await balance(ACCOUNTS.SKR04.erhalteneAnzahlungen, "2025-12-31")).toBe(0);
+    expect((await reports.checkIntegrity("2026-03-01")).abgleich.abweichungen).toEqual([]);
+  }, 15_000);
+
+  it("ein dokumentierter Leistungszeitraum verwendet sein Leistungsende", async () => {
+    const finalized = await invoice("2026-01-01", "2026-01-20");
+    await pay(finalized.id, "bar", "2025-12-13", 83_300);
+    expect(finalized.advanceAccounting).toBe("deferred");
+    expect(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2025-12-31")).toBe(-70_000);
+    expect(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-19")).toBe(0);
+    expect(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-20")).toBe(-70_000);
+    await tax(2025, 12, 70_000, 13_300);
+    await tax(2026, 1, 0, 0);
+  });
+
+  it("Bankaufhebung vor Leistung bucht echte Gegenzeilen und lässt den ursprünglichen Geldumsatz bestehen", async () => {
+    const finalized = await invoice();
+    await pay(finalized.id, "bank", "2025-12-13", 83_300);
+    const [allocation] = await sql`select id from allocations`;
+    await bank.reverseAllocation(actor, allocation!.id, "2025-12-18");
+    expect(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2025-12-17")).toBe(-70_000);
+    expect(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2025-12-31")).toBe(0);
+    await tax(2025, 12, 0, 0);
+    await tax(2026, 1, 70_000, 13_300);
+    expect(await sql`select count(*)::int as n from bank_transactions`).toEqual([{ n: 1 }]);
+    expect(await sql`select amount from allocations where reverses_id = ${allocation!.id}`).toEqual([{ amount: -83_300 }]);
+    expect((await reports.checkIntegrity("2026-03-01")).abgleich.abweichungen).toEqual([]);
+  }, 15_000);
+
+  it("Kassengegenzeile vor Leistung nimmt den tatsächlichen Zufluss samt Anzahlungssteuer zurück", async () => {
+    await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'ist', rechtsform = 'ug'`;
+    const finalized = await invoice();
+    await pay(finalized.id, "bar", "2025-12-13", 83_300);
+    const [cash] = await sql`select id from cash_entries`;
+    const reversal = await bank.reverseCashEntry(actor, cash!.id, "2025-12-18");
+    expect(reversal).toMatchObject({ date: "2025-12-18", amount: -83_300, reversesId: cash!.id });
+    expect(await balance(ACCOUNTS.SKR04.erhalteneAnzahlungen, "2025-12-31")).toBe(0);
+    await tax(2025, 12, 0, 0);
+    await tax(2026, 1, 0, 0);
+    expect((await reports.checkIntegrity("2026-03-01")).abgleich.abweichungen).toEqual([]);
+  }, 15_000);
+
+  it("Storno vor Leistung hebt die vordatierte Leistung append-only auf; erhaltene Steuer bleibt bis zur Februarerstattung", async () => {
+    const finalized = await invoice("2026-01-20", null, "2025-12-01");
+    await pay(finalized.id, "bank", "2025-12-13", 83_300);
+    const original = await sql`select to_jsonb(i)::text as snapshot from invoices i where id = ${finalized.id}`;
+    const journal = await sql`select id, to_jsonb(e)::text as snapshot from journal_entries e order by id`;
+    const cancellation = await invoices.cancelInvoice(actor, finalized.id, "2025-12-20");
+    await tax(2025, 12, 70_000, 13_300);
+    await tax(2026, 1, 0, 0);
+    expect.soft(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-31")).toBe(0);
+    expect.soft(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2026-01-31")).toBe(-70_000);
+    expect.soft((await reports.openPositions("2026-01-31")).advanceRefunds).toMatchObject([{ open: -83_300 }]);
+    expect(await sql`select to_jsonb(i)::text as snapshot from invoices i where id = ${finalized.id}`).toEqual(original);
+    expect(await sql`select id, to_jsonb(e)::text as snapshot from journal_entries e where id in ${sql(journal.map((row) => row.id))} order by id`).toEqual(journal);
+    await pay(cancellation.id, "bank", "2026-02-13", -83_300);
+    await tax(2026, 2, -70_000, -13_300);
+    expect(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2026-02-28")).toBe(0);
+    expect((await reports.openPositions("2026-02-28")).advanceRefunds).toEqual([]);
+    const integrity = await reports.checkIntegrity("2026-03-01");
+    expect(integrity.problems).toEqual([]);
+    expect(integrity.abgleich.abweichungen).toEqual([]);
+  }, 15_000);
+
+  it("Storno nach Leistung entsteuert die erhaltenen 119 € erst bei tatsächlicher Rückzahlung", async () => {
+    const finalized = await invoice();
+    await pay(finalized.id, "bank", "2025-12-13", 11_900);
+    const cancellation = await invoices.cancelInvoice(actor, finalized.id, "2026-01-25");
+    await tax(2025, 12, 10_000, 1_900);
+    await tax(2026, 1, 0, 0);
+    expect.soft((await reports.openPositions("2026-01-31")).advanceRefunds).toMatchObject([{ open: -11_900 }]);
+    await pay(cancellation.id, "bank", "2026-02-13", -11_900);
+    await tax(2026, 2, -10_000, -1_900);
+    const integrity = await reports.checkIntegrity("2026-03-01");
+    expect(integrity.problems).toEqual([]);
+    expect(integrity.abgleich.abweichungen).toEqual([]);
+  }, 15_000);
 });
