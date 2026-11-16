@@ -21,13 +21,16 @@ import { belegNebenbuecher, belegTeilzahlung, type BelegNebenbuch } from "./euer
 const ohneEroeffnung = (where: SQL | undefined) => and(where, ne(schema.journalEntries.sourceType, "eroeffnung"));
 
 /**
- * Ob eine Zeile zur Formel gehört. Bei Rechnungen und Belegen außerdem: der Saldenvortrag einer aus Lexoffice übernommenen
- * Rechnung bzw. eines Belegs (er steht für Erlös bzw. Aufwand, der erst mit der Zahlung zufließt bzw. abfließt) und das
- * GWG-Konto, auf das die Kategorie „Hardware“ bucht (bei einer Anlage ist es Anlagevermögen, Herkunft „anlage“).
+ * Ob eine Zeile zur Formel gehört. Das Zwischenkonto der noch nicht abziehbaren Vorsteuer (#693, #786) zählt wie die
+ * Vorsteuer und die Umsatzsteuer „nicht fällig“: Die Freigabe zur Ausführung bucht nur auf die Vorsteuer um und ändert den
+ * Gewinn nicht, abgeflossen ist die Steuer mit der Zahlung (§ 11 Abs. 2 EStG). Bei Rechnungen und Belegen außerdem: der
+ * Saldenvortrag einer aus Lexoffice übernommenen Rechnung bzw. eines Belegs (er steht für Erlös bzw. Aufwand, der erst mit
+ * der Zahlung zufließt bzw. abfließt) und das GWG-Konto, auf das die Kategorie „Hardware“ bucht (bei einer Anlage ist es
+ * Anlagevermögen, Herkunft „anlage“).
  */
 function zaehlt(b: Buchung, account: string, anlagen: ReadonlySet<string>): boolean {
   const kr = b.kontenrahmen;
-  if (datevFormelKonto(kr, account)) return true;
+  if (datevFormelKonto(kr, account) || account === ACCOUNTS[kr].vorsteuerNochNichtAbziehbar) return true;
   if (b.sourceType !== "invoice" && b.sourceType !== "document") return false;
   if (account === ACCOUNTS[kr].saldenvortrag) return true;
   return b.sourceType === "document" && account === ASSET_ACCOUNTS[kr].gwg && !anlagen.has(b.sourceId);
