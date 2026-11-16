@@ -125,7 +125,7 @@ const EST_ANLAGEN: readonly { anlage: string; felder: Readonly<Record<string, st
       // Bescheid. Die Beschriftung sagt deshalb, woher sie stammt (#1084)
       festgesetzteSteuer: "Einkommensteuer laut Steuerprogramm",
       soli: "Solidaritätszuschlag laut Steuerprogramm",
-      // Die Richtung steht im Vordruck nur im Vorzeichen: negativ ist eine Erstattung, positiv eine Nachzahlung (#1083)
+      // Gespeichert wie eingetragen, samt Vorzeichen; Haben setzt keine Vorzeichenregel des Steuerprogramms voraus (#1083)
       erstattung: "Erstattung oder Nachzahlung laut Steuerprogramm",
     },
   },

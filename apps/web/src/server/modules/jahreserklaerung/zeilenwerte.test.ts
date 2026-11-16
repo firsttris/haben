@@ -109,8 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
   });
 
   it("behält das Vorzeichen der Erstattung in der Einkommensteuer (#1083)", async () => {
-    // Die Schlusszeile trägt die Richtung nur im Vorzeichen: negativ ist eine Erstattung. Gespeichert und
-    // angezeigt wird der Betrag unverändert, samt Vorzeichen — keine Umkehrung ins Positive.
+    // Gespeichert und angezeigt wird der Betrag so, wie er eingetragen ist, samt Vorzeichen — keine Umkehrung
     await jahresvermerk.vermerkeJahresabgabe(
       actor,
       "est",
