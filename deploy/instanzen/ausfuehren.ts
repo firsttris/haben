@@ -109,7 +109,13 @@ export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, ei
 };
 
 /** docker compose im Verzeichnis einer Instanz: Compose liest dort compose.yml, die Override-Datei und .env */
-export function compose(k: Kontext, dir: string, args: string[], sichtbar = false, eingabe?: string, binaer?: boolean, zeitlimit?: number): Promise<Ergebnis> {
+export function compose(
+  k: Kontext,
+  dir: string,
+  args: string[],
+  sichtbar = false,
+  { eingabe, binaer, zeitlimit }: Pick<AusfuehrenOptionen, "eingabe" | "binaer" | "zeitlimit"> = {},
+): Promise<Ergebnis> {
   return k.ausfuehren(["docker", "compose", ...args], {
     cwd: dir,
     env: umgebungFuerDocker(k.shell),

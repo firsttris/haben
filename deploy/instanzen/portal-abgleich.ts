@@ -118,7 +118,7 @@ async function logoHolen(
   const datei = `${i.name}.${zeichen.logo.format}`;
   const vorhanden = existsSync(join(logos, datei)) ? new Uint8Array(await readFile(join(logos, datei))) : null;
   if (vorhanden && sha256(vorhanden) === zeichen.logo.sha256) return { logo: datei };
-  const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "kennzeichen"], false, undefined, true, ABFRAGE_ZEITLIMIT_MS);
+  const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "kennzeichen"], false, { binaer: true, zeitlimit: ABFRAGE_ZEITLIMIT_MS });
   if (r.code === KEIN_LOGO) return { logo: null };
   if (r.code !== 0) return { logo: null, fehler: grundVon("haben kennzeichen", r.code) };
   const daten = r.daten ?? new Uint8Array();
@@ -165,7 +165,7 @@ async function eintraege(k: Kontext, portalDir: string, mitSso: { i: Instanz; la
       eintrag({ farbe: vorher.farbe, logo: null }, vorher.logo);
       continue;
     }
-    const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "status", "--json"], false, undefined, undefined, ABFRAGE_ZEITLIMIT_MS);
+    const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "status", "--json"], false, { zeitlimit: ABFRAGE_ZEITLIMIT_MS });
     if (r.code !== 0 && !keinBefehl(r)) {
       nichtDa(grundVon("haben status", r.code));
       eintrag({ farbe: vorher.farbe, logo: null }, vorher.logo);
