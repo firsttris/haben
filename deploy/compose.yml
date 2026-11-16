@@ -112,8 +112,8 @@ services:
       - eric-log:/var/lib/haben/eric-log
       # ERiC, von Haben heruntergeladen (Einstellungen › ELSTER › ERiC oder ERIC_AUTO_INSTALL=ja)
       - eric:/var/lib/haben/eric
-      # Die auskommentierten Zeilen hier und bei backup und restore nicht einkommentieren: compose.yml lädst du bei
-      # Updates neu. Sie gehören in compose.override.yml, siehe deploy/compose.override.example.yml.
+      # Die auskommentierten Zeilen hier und bei backup und restore gehören in compose.override.yml (siehe
+      # deploy/compose.override.example.yml), damit sich compose.yml bei Updates neu herunterladen lässt.
       # Alternativ ERiC von Hand: nach /opt/eric entpacken, ERIC_HOME=/opt/eric in .env
       # - /opt/eric:/opt/eric:ro
       # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, ERIC_WORKER_COMMAND in .env
