@@ -305,3 +305,33 @@ export async function setArchiveSearch(actor: string, enabled: boolean): Promise
   await loadCompany();
   await withActor(actor, (tx) => tx.update(schema.company).set({ archiveSearch: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
 }
+
+export type Einrichtung = typeof schema.einrichtung.$inferSelect;
+
+/** Fragen zur Einrichtung und Bereiche (#266); null ohne Zeile, also vor dem ersten Speichern und bei Instanzen von vor dem Update */
+export async function loadEinrichtung(q: Db | Tx = db): Promise<Einrichtung | null> {
+  const [row] = await q.select().from(schema.einrichtung).where(eq(schema.einrichtung.id, 1));
+  return row ?? null;
+}
+
+/** Schreibt die Zeile in der Transaktion des Aufrufers und legt sie beim ersten Mal an */
+export async function setEinrichtung(tx: Tx, werte: Partial<Pick<Einrichtung, "ausgeblendeteBereiche" | "fragenAt" | "offen">>): Promise<void> {
+  const set = { ...werte, updatedAt: new Date() };
+  await tx
+    .insert(schema.einrichtung)
+    .values({ id: 1, ...set })
+    .onConflictDoUpdate({ target: schema.einrichtung.id, set });
+}
+
+/** Rechtsform und Kleinunternehmer sind entschieden, etwa beim Speichern der Firmendaten; ohne offene Frage kein Eintrag im Audit-Log */
+export async function offeneFragenErledigt(tx: Tx): Promise<void> {
+  await tx.update(schema.einrichtung).set({ offen: [], updatedAt: new Date() }).where(sql`jsonb_array_length(${schema.einrichtung.offen}) > 0`);
+}
+
+/**
+ * Bereiche ohne Menüpunkt (#266). Nur die Navigation: Daten, Buchungen und Links bleiben, deshalb ohne Sperre. Die
+ * gültigen Namen prüft der Aufrufer (lib/bereiche.ts); gespeichert wird sortiert und ohne Doppelte.
+ */
+export async function saveBereiche(actor: string, ausgeblendet: readonly string[]): Promise<void> {
+  await withActor(actor, (tx) => setEinrichtung(tx, { ausgeblendeteBereiche: [...new Set(ausgeblendet)].sort() }));
+}

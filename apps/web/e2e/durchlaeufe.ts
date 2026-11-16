@@ -30,6 +30,8 @@ export const DURCHLAEUFE = {
   vorjahre: 22,
   steuerbefreiung: 23,
   ablage: 24,
+  // Fragen zur Einrichtung und ausgeblendete Bereiche (#266): braucht eine Ersteinrichtung ohne Firmendaten
+  einrichtung: 25,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
