@@ -52,7 +52,8 @@ describe("functionLengths", () => {
 
   it("lässt Getter und Setter aus wie Biome", () => {
     // nachgeprüft mit Biome 2.6.4 und maxLines 1: nur m wird gemeldet
-    const code = "class K {\n  get g() {\n    a();\n    b();\n  }\n  set s(v) {\n    a();\n    b();\n  }\n  m() {\n    a();\n    b();\n  }\n}\nconst o = {\n  get h() {\n    a();\n    b();\n  },\n};\n";
+    const code =
+      "class K {\n  get g() {\n    a();\n    b();\n  }\n  set s(v) {\n    a();\n    b();\n  }\n  m() {\n    a();\n    b();\n  }\n}\nconst o = {\n  get h() {\n    a();\n    b();\n  },\n};\n";
     expect([...functionLengths("x.ts", code).keys()]).toEqual(["K › m"]);
   });
 
@@ -92,6 +93,8 @@ describe("functionLengthHints", () => {
     expect(functionLengthHints([{ file: "scripts/x/y.ts", before, after }]).map(({ message }) => message)).toEqual([
       expect.stringContaining("wächst von 50 auf 95 Zeilen"),
     ]);
+    const kuerzer = functionLengthHints([{ file: "scripts/x/y.ts", before: callback(100), after: callback(50) + callback(90) }]);
+    expect(kuerzer.map(({ message }) => message)).toEqual([expect.stringContaining("„(anonym) #2“ ist neu mit 90 Zeilen")]);
   });
 
   it("schweigt bei unveränderten und geschrumpften langen Funktionen und bei 80 Zeilen", () => {
