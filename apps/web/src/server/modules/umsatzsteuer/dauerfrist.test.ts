@@ -136,7 +136,8 @@ describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
     expect(list.find((f) => f.id === "ustva-2026-12")?.datum).toBe("2027-02-10");
     expect(list.find((f) => f.id === "svz-2027")).toMatchObject({ datum: "2027-02-10", status: "offen" });
 
-    // Kz 39 nur im Dezember, und eine Berichtigung übernimmt ihn
+    // Kz 39 nur im Dezember, und eine Berichtigung übernimmt ihn. ELSTER, Anleitung zur UStVA 2026, #kz39: „Die festgesetzte
+    // Sondervorauszahlung ziehen Sie bitte grundsätzlich in der Voranmeldung für Dezember ab.“
     expect((await vat.computedValues({ year: 2026, month: 11 })).kz39).toBe(0);
     const december = await vat.saveDraft(actor, { year: 2026, month: 12 }, { mode: "berechnet" });
     expect(december).toMatchObject({ kz39: 400_000, kz83: -400_000 });

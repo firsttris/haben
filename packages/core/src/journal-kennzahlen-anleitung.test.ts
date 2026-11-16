@@ -7,7 +7,8 @@ import type { TaxTreatment } from "./treatment.ts";
 
 /*
  * Referenzfälle „Sachverhalt → Kennzahl“ nach der amtlichen Anleitung zur Umsatzsteuer-Voranmeldung 2026 (#1203, Vorschlag
- * von thomas-baumeister in #1144): Die Anleitung sagt je Kennzahl, was hineingehört. Die Fälle prüfen genau die Zuordnung
+ * von thomas-baumeister in #1144), je Kennzahl aus dem Journal (JOURNAL_KENNZAHLEN): Die Anleitung sagt je Kennzahl, was
+ * hineingehört. Kz 39 (Abzug der Sondervorauszahlung im Dezember) prüft dauerfrist.test.ts im Modul umsatzsteuer. Die Fälle prüfen genau die Zuordnung
  * von Konto und Steuerschlüssel zur Kennzahl (kennzahlenAusJournal), die die Verprobung nicht sieht, weil sie mit derselben
  * Zuordnung rechnet. Gebucht wird wie in Haben (invoicePosting, documentPosting); erwartet ist nur, in welcher Kennzahl der
  * Betrag landet, und dass keine andere etwas bekommt. Die Beträge sind erfunden, die Zuordnung steht in der Quelle.
@@ -71,8 +72,8 @@ describe.each(["SKR03", "SKR04"] as const)("Anleitung zur UStVA 2026: Sachverhal
     expect(eingang(1900, "eu")).toEqual({ kz46: 1_000_00, kz47: 190_00, kz67: 190_00 });
   });
 
-  // #kz84/#kz85: „Werklieferungen und die nicht in Zeile 30 einzutragenden sonstigen Leistungen eines im Ausland ansässigen
-  // Unternehmers“; Vorsteuer wie oben in #kz67
+  // #kz84: „Werklieferungen und die nicht in Zeile 30 einzutragenden sonstigen Leistungen eines im Ausland ansässigen
+  // Unternehmers“; Kz 85 ist die Steuer derselben Zeile und hat keinen eigenen Abschnitt. Vorsteuer wie oben in #kz67
   it("sonstige Leistung eines Unternehmers aus dem Drittland (§ 13b Abs. 2 Nr. 1) → #kz84, #kz85 und #kz67", () => {
     expect(eingang(1900, "drittland")).toEqual({ kz84: 1_000_00, kz85: 190_00, kz67: 190_00 });
   });
