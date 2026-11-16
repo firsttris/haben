@@ -76,7 +76,7 @@ Gesendete Voranmeldungen bleiben, wie sie sind. Passt eine gesendete Voranmeldun
 
 Jede Änderung der Einstellung steht im Änderungsprotokoll.
 
-Ein Wechsel im Jahr ist kein Beginn der Tätigkeit: Welche Monate die [Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung) als fehlend meldet, hängt davon ab, ob ein früheres Jahr einen Eintrag hat.
+Welche Monate die [Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung) als fehlend meldet, hängt davon ab, ob ein früheres Jahr einen Eintrag hat: Ohne ihn gilt der erste Eintrag des Jahres als Beginn der Tätigkeit, mit ihm als Wechsel.
 
 ## Dauerfristverlängerung
 
