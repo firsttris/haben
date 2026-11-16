@@ -26,12 +26,12 @@ export async function belegTotals(tx: Tx, doc: { id: string; net: number; tax: n
 }
 
 /** Der geschäftliche Teil eines Betrags, gerundet wie beim Buchen (splitPrivateShare) */
-function geschaeftlich(betrag: Cents, privateShare: number): Cents {
+export function geschaeftlich(betrag: Cents, privateShare: number): Cents {
   return privateShare === 0 ? betrag : splitPrivateShare(betrag, privateShare).business;
 }
 
 /** Steuersatz zum Steuerschlüssel der Vorsteuer; das Zwischenkonto trägt nur 19 % und 7 % */
-function satzZumSchluessel(code: string | null): number | null {
+export function satzZumSchluessel(code: string | null): number | null {
   if (code === "VSt19") return 1900;
   if (code === "VSt7") return 700;
   return null;
@@ -41,7 +41,7 @@ function satzZumSchluessel(code: string | null): number | null {
  * Beide Konten dieses Zwischenkontos: SKR03 1548 und SKR04 1434. Nach einem Wechsel des Kontenrahmens zum Jahreswechsel
  * steht die Buchung des Belegs noch im alten Rahmen; gesucht wird deshalb in beiden, gebucht wird im eingestellten.
  */
-const ZWISCHENKONTEN = [ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar];
+export const ZWISCHENKONTEN: readonly string[] = [ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar];
 
 /** Steht die Vorsteuer dieses Belegs auf dem Zwischenkonto? Die Buchung selbst ist der Beleg dafür */
 async function aufDemZwischenkonto(tx: Tx, documentId: string): Promise<boolean> {
@@ -69,6 +69,16 @@ async function steuerlichAusgeglichen(tx: Tx, documentId: string, ausfuehrung: s
   return Number(row?.summe ?? 0);
 }
 
+/** Trägt der Beleg eine Freigabe zum Leistungs- oder Rechnungsdatum (auch eine aufgehobene)? */
+export async function hatFreigabe(tx: Tx, documentId: string): Promise<boolean> {
+  const [freigabe] = await tx
+    .select({ id: schema.journalEntries.id })
+    .from(schema.journalEntries)
+    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, documentId)))
+    .limit(1);
+  return freigabe !== undefined;
+}
+
 /**
  * Tag der Ausführung, wenn der Beleg eine Freigabe zum Leistungs- oder Rechnungsdatum trägt oder trug (#693, #930); sonst
  * null, etwa bei der Gutschrift „erstattet bereits Bezahltes“ (#786), deren Kursdifferenz weiter ausgleicht
@@ -79,12 +89,7 @@ export async function ausfuehrungMitFreigabe(tx: Tx, documentId: string): Promis
     .from(schema.documents)
     .where(eq(schema.documents.id, documentId));
   if (!doc?.documentDate) return null;
-  const [freigabe] = await tx
-    .select({ id: schema.journalEntries.id })
-    .from(schema.journalEntries)
-    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, documentId)))
-    .limit(1);
-  if (!freigabe) return null;
+  if (!(await hatFreigabe(tx, documentId))) return null;
   return leistungsdatum({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
 }
 

@@ -29,3 +29,27 @@ export function leistungsdatum({ belegdatum, leistungVon, leistungBis }: Leistun
 export function leistungNichtAusgefuehrt(angabe: Leistungsangabe): boolean {
   return leistungsdatum(angabe).localeCompare(angabe.belegdatum) > 0;
 }
+
+/** Was am Beleg darüber entscheidet, ob seine Vorsteuer bis zur Ausführung wartet */
+export interface WarteAngabe {
+  belegdatum: string | null;
+  leistungVon?: string | null;
+  leistungBis?: string | null;
+  reverseCharge: string | null;
+  category: string | null;
+  gross: number;
+  erstattetBezahltes: boolean;
+}
+
+/**
+ * Wartet die Vorsteuer dieses Eingangsbelegs bis zur Ausführung der Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG)? Nur bei
+ * einem Leistungsdatum nach dem Belegdatum. § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren
+ * eigenen Zeitpunkt; eine Gutschrift berichtigt nach § 17 Abs. 1 UStG im Zeitraum der Änderung, also nach Belegdatum
+ * bzw. mit dem Ausgleich („erstattet bereits Bezahltes“). Die Zahlungsart prüft der Aufrufer.
+ */
+export function vorsteuerWartetAufAusfuehrung(b: WarteAngabe): boolean {
+  if (!b.belegdatum) return false;
+  if (b.reverseCharge || b.category === "einfuhrumsatzsteuer") return false;
+  if (b.erstattetBezahltes || b.gross < 0) return false;
+  return leistungNichtAusgefuehrt({ belegdatum: b.belegdatum, leistungVon: b.leistungVon, leistungBis: b.leistungBis });
+}

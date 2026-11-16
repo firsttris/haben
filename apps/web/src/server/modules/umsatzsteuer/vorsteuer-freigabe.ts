@@ -1,7 +1,7 @@
-import { ACCOUNTS, leistungsdatum, vorsteuerAusgleichPosting, type TaxCode, type TaxShare } from "@haben/core";
+import { leistungNichtAusgefuehrt, leistungsdatum, vorsteuerAusgleichPosting, type TaxCode, type TaxShare } from "@haben/core";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
-import { anteilZumRechnungsdatum, belegTotals } from "./vorsteuer-anteile.ts";
+import { anteilZumRechnungsdatum, belegTotals, hatFreigabe, satzZumSchluessel, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 import { post } from "../buchhaltung/index.ts";
 
 /** Buchhaltungsrahmen, wie `post` ihn erwartet (Kontenrahmen und Rechtsform der Firma) */
@@ -35,17 +35,8 @@ type Books = Parameters<typeof post>[1];
  * Zeitpunkt; `leistungNochNichtAusgefuehrt` in belegbuchung.ts lässt sie deshalb schon nicht auf das Zwischenkonto.
  */
 
-/** Trägt der Beleg schon eine Freigabe (auch eine aufgehobene)? */
-export async function hatFreigabe(tx: Tx, documentId: string): Promise<boolean> {
-  const [schon] = await tx
-    .select({ id: schema.journalEntries.id })
-    .from(schema.journalEntries)
-    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, documentId)));
-  return schon !== undefined;
-}
-
 /** Trägt der Beleg schon eine wirksame Freigabe (ein Storno zählt nicht)? */
-export async function schonFreigegeben(tx: Tx, documentId: string): Promise<boolean> {
+async function schonFreigegeben(tx: Tx, documentId: string): Promise<boolean> {
   const [schon] = await tx
     .select({ id: schema.journalEntries.id })
     .from(schema.journalEntries)
@@ -71,16 +62,6 @@ async function offeneFreigaben(tx: Tx, documentId: string) {
         sql`not exists (select 1 from journal_entries r where r.reverses_id = ${schema.journalEntries.id})`,
       ),
     );
-}
-
-/** Beide Konten dieses Zwischenkontos, damit ein Wechsel des Kontenrahmens die Buchung nicht verliert */
-const ZWISCHENKONTEN = [ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar];
-
-/** Steuersatz zum Steuerschlüssel; das Zwischenkonto trägt 19 % und 7 % */
-function satzZumSchluessel(code: string | null): number | null {
-  if (code === "VSt19") return 1900;
-  if (code === "VSt7") return 700;
-  return null;
 }
 
 /**
@@ -110,6 +91,30 @@ async function zwischenkontoSaldo(tx: Tx, documentId: string): Promise<TaxShare[
     return rate === null || tax === 0 ? [] : [{ rate, base: Number(r.basis), tax }];
   });
 }
+
+/** Beleg, wie ihn eine Freigabe für Text und Quelle braucht */
+interface FreigabeBeleg {
+  id: string;
+  invoiceNumber: string | null;
+  supplierName: string | null;
+}
+
+/**
+ * Bucht eine Freigabe vom Zwischenkonto auf die Vorsteuer. `anteile` mit dem Vorzeichen des Ausgleichs: negativ heißt
+ * frei, die Buchung geht dann Haben Zwischenkonto, Soll Vorsteuer.
+ */
+async function freigabeBuchen(tx: Tx, books: Books, doc: FreigabeBeleg, date: string, anteile: TaxShare[], zumRechnungsdatum = false) {
+  return await post(tx, books, {
+    date,
+    description: `Vorsteuer aus Leistungszeitraum${zumRechnungsdatum ? " zum Rechnungsdatum" : ""}: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+    sourceType: "freigabe",
+    sourceId: doc.id,
+    lines: vorsteuerAusgleichPosting(anteile, books.kontenrahmen),
+  });
+}
+
+/** Der Stand des Zwischenkontos als Freigabe: umgekehrte Richtung des Parkens */
+const alsFreigabe = (stand: TaxShare[]): TaxShare[] => stand.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax }));
 
 /** Dreht eine einzelne Freigabe mit ihren Zeilen um, am übergebenen Tag */
 async function freigabeUmkehren(
@@ -169,9 +174,10 @@ export async function freigabeAmAusfuehrung(
   books: Books,
 ): Promise<string | null> {
   if (!doc.documentDate) return null;
-  const am = leistungsdatum({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
+  const angabe = { belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo };
   // Nur ein Zeitraum nach dem Belegdatum parkt überhaupt; sonst gilt der Belegmonat
-  if (am <= doc.documentDate) return null;
+  if (!leistungNichtAusgefuehrt(angabe)) return null;
+  const am = leistungsdatum(angabe);
 
   const anteile = await zwischenkontoSaldo(tx, doc.id);
   if (anteile.length === 0) return null;
@@ -184,17 +190,7 @@ export async function freigabeAmAusfuehrung(
   // geänderten Firmendaten kommen, und der darf nicht stillschweigend eine Buchung verschlucken.
   if (await jahrGeschlossen(tx, am)) return null;
 
-  return await post(tx, books, {
-    date: am,
-    description: `Vorsteuer aus Leistungszeitraum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
-    sourceType: "freigabe",
-    sourceId: doc.id,
-    // Umgekehrte Richtung des Parkens: Haben Zwischenkonto, Soll Vorsteuer
-    lines: vorsteuerAusgleichPosting(
-      anteile.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax })),
-      books.kontenrahmen,
-    ),
-  });
+  return await freigabeBuchen(tx, books, doc, am, alsFreigabe(anteile));
 }
 
 /**
@@ -229,8 +225,9 @@ export async function freigabeStornieren(tx: Tx, books: Books, documentId: strin
 export async function freigabeNachziehen(tx: Tx, documentId: string, books: Books, datum: string): Promise<boolean> {
   const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, documentId));
   if (!doc?.documentDate) return false;
-  const am = leistungsdatum({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
-  if (am <= doc.documentDate) return false;
+  const angabe = { belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo };
+  if (!leistungNichtAusgefuehrt(angabe)) return false;
+  const am = leistungsdatum(angabe);
   // Nur Belege mit Freigabe zum Leistungsdatum; die Gutschrift nach § 17 Abs. 1 UStG hat keine
   if (!(await hatFreigabe(tx, doc.id))) return false;
 
@@ -241,16 +238,7 @@ export async function freigabeNachziehen(tx: Tx, documentId: string, books: Book
   // deckt die Freigabe zum Ausführungsdatum den Rest schon genau — es entstehen keine Buchungen ohne Anlass.
   if (datum >= am) {
     if (stand.length === 0) return true;
-    await post(tx, books, {
-      date: datum,
-      description: `Vorsteuer aus Leistungszeitraum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
-      sourceType: "freigabe",
-      sourceId: doc.id,
-      lines: vorsteuerAusgleichPosting(
-        stand.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax })),
-        books.kontenrahmen,
-      ),
-    });
+    await freigabeBuchen(tx, books, doc, datum, alsFreigabe(stand));
     return true;
   }
 
@@ -270,14 +258,7 @@ export async function freigabeNachziehen(tx: Tx, documentId: string, books: Book
   if (!(await jahrGeschlossen(tx, tag))) {
     const unterschied = await anteilZumRechnungsdatum(tx, doc, await belegTotals(tx, doc), tag);
     if (unterschied.some((a) => a.tax !== 0)) {
-      await post(tx, books, {
-        date: tag,
-        description: `Vorsteuer aus Leistungszeitraum zum Rechnungsdatum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
-        sourceType: "freigabe",
-        sourceId: doc.id,
-        // Vorzeichen wie beim Ausgleich: negativ heißt frei. Die Freigabe bucht damit Haben Zwischenkonto, Soll Vorsteuer
-        lines: vorsteuerAusgleichPosting(unterschied, books.kontenrahmen),
-      });
+      await freigabeBuchen(tx, books, doc, tag, unterschied, true);
     }
   }
 
@@ -286,15 +267,6 @@ export async function freigabeNachziehen(tx: Tx, documentId: string, books: Book
   if (rest.length === 0) return true;
   if (await jahrGeschlossen(tx, am)) return true;
 
-  await post(tx, books, {
-    date: am,
-    description: `Vorsteuer aus Leistungszeitraum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
-    sourceType: "freigabe",
-    sourceId: doc.id,
-    lines: vorsteuerAusgleichPosting(
-      rest.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax })),
-      books.kontenrahmen,
-    ),
-  });
+  await freigabeBuchen(tx, books, doc, am, alsFreigabe(rest));
   return true;
 }

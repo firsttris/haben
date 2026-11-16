@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import { ACCOUNTS, type PostingLine, type TaxCode, zeilenWieHeute } from "@haben/core";
+import { type PostingLine, type TaxCode, zeilenWieHeute } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -9,7 +9,7 @@ import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
-import { freigabeStornieren } from "../umsatzsteuer/index.ts";
+import { freigabeStornieren, ZWISCHENKONTEN } from "../umsatzsteuer/index.ts";
 
 export { vatPeriodsOf } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";
@@ -71,8 +71,6 @@ async function reverseConfirmedAllocations(tx: Tx, doc: Pick<Document, "id" | "p
   for (const allocationId of groups.values()) await reverseAllocationIn(tx, allocationId, date);
 }
 
-const ZWISCHENKONTEN = new Set<string>([ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar]);
-
 /**
  * Steht die Vorsteuer des Belegs auf dem Zwischenkonto (Leistung beim Buchen noch nicht ausgeführt, #693, oder Gutschrift
  * „erstattet bereits Bezahltes“, #786), hat jede Zahlung ihren Anteil auf die Vorsteuer umgebucht, und ihre Aufhebung
@@ -82,7 +80,7 @@ const ZWISCHENKONTEN = new Set<string>([ACCOUNTS.SKR03.vorsteuerNochNichtAbziehb
 async function nieVorDerUmbuchung(tx: Tx, entryId: string, doc: Pick<Document, "id" | "payment">, allocationIds: string[], date: string) {
   if (doc.payment !== "bank" || allocationIds.length === 0) return date;
   const zeilen = await tx.select({ account: schema.journalLines.account }).from(schema.journalLines).where(eq(schema.journalLines.entryId, entryId));
-  if (!zeilen.some((z) => ZWISCHENKONTEN.has(z.account))) return date;
+  if (!zeilen.some((z) => ZWISCHENKONTEN.includes(z.account))) return date;
   const tage = (await documentBankAllocations(doc.id, tx)).filter((a) => allocationIds.includes(a.id)).map((a) => a.date);
   return tage.reduce((spaetester, tag) => (tag.localeCompare(spaetester) > 0 ? tag : spaetester), date);
 }

@@ -1,9 +1,8 @@
 import {
-  ACCOUNTS,
   leistungsdatum,
+  vorsteuerWartetAufAusfuehrung,
   paidTaxShares,
   periodRange,
-  splitPrivateShare,
   type Cents,
   type InvoiceTotals,
   type TaxShare,
@@ -11,6 +10,7 @@ import {
 } from "@haben/core";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { geschaeftlich, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 
 /*
  * Vorsteuer nach Leistungsdatum (#693, Stufe 2): Bei einem Eingangsbeleg ist die Vorsteuer in dem Zeitraum abziehbar, in
@@ -143,22 +143,24 @@ async function kandidatenLaden(q: Db | Tx) {
         // bezahlte Belege bleiben beim Belegdatum wie im Journal; ein Update ändert keine gemeldeten Monate
         sql`exists (select 1 from journal_entries e join journal_lines l on l.entry_id = e.id
                      where e.source_type = 'document' and e.source_id = ${d.id} and e.reverses_id is null
-                       and l.account in (${ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar}, ${ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar}))`,
+                       and l.account in (${ZWISCHENKONTEN[0]!}, ${ZWISCHENKONTEN[1]!}))`,
       ),
     );
 }
 
 type Kandidat = Awaited<ReturnType<typeof kandidatenLaden>>[number];
 
-/** Zählt die Vorsteuer dieses Belegs nach dem Leistungsdatum statt nach dem Belegdatum? */
+/** Zählt die Vorsteuer dieses Belegs nach dem Leistungsdatum statt nach dem Belegdatum? Dieselbe Regel wie beim Buchen */
 function zaehltNachLeistungsdatum(k: Kandidat): boolean {
-  if (!k.datum) return false;
-  // § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt; er bleibt
-  if (k.reverseCharge || k.category === "einfuhrumsatzsteuer") return false;
-  // Gutschrift: Sie berichtigt nach § 17 Abs. 1 UStG im Zeitraum der Änderung, also nach Belegdatum bzw. mit dem
-  // Ausgleich („erstattet bereits Bezahltes“, #786), nicht nach § 15; der Leistungszeitraum spielt keine Rolle
-  if (k.erstattetBezahltes || k.gross < 0) return false;
-  return leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis }) > k.datum;
+  return vorsteuerWartetAufAusfuehrung({
+    belegdatum: k.datum,
+    leistungVon: k.von,
+    leistungBis: k.bis,
+    reverseCharge: k.reverseCharge,
+    category: k.category,
+    gross: k.gross,
+    erstattetBezahltes: k.erstattetBezahltes,
+  });
 }
 
 /** Zuordnung oder Verrechnung auf einen Beleg, mit dem Tag, an dem sie wirkt */
@@ -273,11 +275,6 @@ function zahlungenBisZurAusfuehrung(gezahlt: Zahlung[], erlass: Skonto[], ausgef
   return [...bisDahin, ...erlass.map((x) => ({ date: x.date, amount: x.reversesId ? -Math.abs(x.amount) : Math.abs(x.amount), erlass: true }))].sort(
     (x, y) => x.date.localeCompare(y.date) || Number(x.erlass ?? false) - Number(y.erlass ?? false),
   );
-}
-
-/** Der geschäftliche Teil eines Betrags, gerundet wie beim Buchen (splitPrivateShare) */
-function geschaeftlich(betrag: Cents, privateShare: number): Cents {
-  return privateShare === 0 ? betrag : splitPrivateShare(betrag, privateShare).business;
 }
 
 /**

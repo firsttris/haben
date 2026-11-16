@@ -2,11 +2,11 @@ import {
   assetAccount,
   documentPosting,
   documentSplitPosting,
-  leistungNichtAusgefuehrt,
   type ExpenseCategory,
   type Kontenrahmen,
   type PostingLine,
   type Rechtsform,
+  vorsteuerWartetAufAusfuehrung,
 } from "@haben/core";
 import type { schema } from "../../db/index.ts";
 import { splitLines, type DocumentSplit } from "./splits.ts";
@@ -35,17 +35,24 @@ export function belegSummen(doc: Pick<Document, "reverseCharge">, amounts: Amoun
 }
 
 /**
- * Die Leistung ist beim Buchen noch nicht ausgeführt (#693): Nach § 15 Abs. 1 Satz 1 Nr. 1 UStG ist die Vorsteuer erst
- * abziehbar, wenn Leistung und Rechnung vorliegen. Sie bleibt deshalb bis zum Ausgleich auf dem Zwischenkonto und geht
- * erst mit Zahlung oder Verrechnung auf die Vorsteuer. Nur über die Bank: bar und privat ist der Beleg mit der Buchung
- * bezahlt, da gäbe es kein Ereignis, das sie nachzieht. § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer
- * haben ihren eigenen Zeitpunkt, eine Gutschrift den ihren nach § 17 Abs. 1 UStG — dort gilt die Angabe „erstattet
- * bereits Bezahltes“.
+ * Die Leistung ist beim Buchen noch nicht ausgeführt (#693): Die Vorsteuer kommt auf das Zwischenkonto und wird im Monat
+ * der Ausführung frei, bei Zahlung vorher mit der Zahlung (umsatzsteuer/vorsteuer-freigabe.ts). Nur über die Bank: bar
+ * und privat ist der Beleg mit der Buchung bezahlt, da gäbe es kein Ereignis, das sie nachzieht. Welche Belege
+ * überhaupt warten, sagt vorsteuerWartetAufAusfuehrung.
  */
 export function leistungNochNichtAusgefuehrt(doc: Document): boolean {
-  if (doc.payment !== "bank" || doc.reverseCharge || doc.category === "einfuhrumsatzsteuer") return false;
-  if (!doc.documentDate || (doc.gross ?? 0) < 0) return false;
-  return leistungNichtAusgefuehrt({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
+  return (
+    doc.payment === "bank" &&
+    vorsteuerWartetAufAusfuehrung({
+      belegdatum: doc.documentDate,
+      leistungVon: doc.serviceFrom,
+      leistungBis: doc.serviceTo,
+      reverseCharge: doc.reverseCharge,
+      category: doc.category,
+      gross: doc.gross,
+      erstattetBezahltes: doc.erstattetBezahltes,
+    })
+  );
 }
 
 /** Die Zeilen der Belegbuchung; `vorsteuerAbzug` wie am Beleg festgehalten (Kleinunternehmer ziehen keine Vorsteuer ab) */
