@@ -1,4 +1,14 @@
-import { ACCOUNTS, leistungsdatum, paidTaxShares, periodRange, splitPrivateShare, type Cents, type VatPeriod } from "@haben/core";
+import {
+  ACCOUNTS,
+  leistungsdatum,
+  paidTaxShares,
+  periodRange,
+  splitPrivateShare,
+  type Cents,
+  type InvoiceTotals,
+  type TaxShare,
+  type VatPeriod,
+} from "@haben/core";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
@@ -98,16 +108,12 @@ function stornoDerSkontoAufhebung(
     );
 }
 
-/**
- * Vorsteuer der Belege, deren Leistung erst nach dem Belegdatum ausgeführt ist (#693). `belege` enthält alle solche
- * Belege, damit die gewöhnliche Abfrage sie nicht zusätzlich nach dem Belegdatum zählt.
- */
-export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx = db): Promise<VorsteuerNachLeistungsdatum> {
-  const { start, end } = periodRange(period);
+/** Belege mit Leistungszeitraum, deren Buchung die Vorsteuer auf das Zwischenkonto gelegt hat */
+async function kandidatenLaden(q: Db | Tx) {
   const d = schema.documents;
   // Auch Belege nach dem Periodenende: Ein Skonto zur Vorkasse kann vor dem Rechnungsdatum liegen und mindert dann nichts
   // (skontoOhneMinderung); ihre Zeilen liegen nie vor dem Belegdatum und fallen unten aus dem Zeitraum (#930).
-  const kandidaten = await q
+  return await q
     .select({
       id: d.id,
       supplier: d.supplierName,
@@ -140,21 +146,63 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
                        and l.account in (${ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar}, ${ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar}))`,
       ),
     );
+}
 
-  const vorzeitig = kandidaten.filter((k) => {
-    if (!k.datum) return false;
-    // § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt; er bleibt
-    if (k.reverseCharge || k.category === "einfuhrumsatzsteuer") return false;
-    // Gutschrift: Sie berichtigt nach § 17 Abs. 1 UStG im Zeitraum der Änderung, also nach Belegdatum bzw. mit dem
-    // Ausgleich („erstattet bereits Bezahltes“, #786), nicht nach § 15; der Leistungszeitraum spielt keine Rolle
-    if (k.erstattetBezahltes || k.gross < 0) return false;
-    return leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis }) > k.datum;
-  });
-  const belege = new Set(vorzeitig.map((k) => k.id));
-  const skontoOhneMinderung = new Set<string>();
-  if (vorzeitig.length === 0) return { belege, zeilen: [], skontoOhneMinderung };
+type Kandidat = Awaited<ReturnType<typeof kandidatenLaden>>[number];
 
-  const ids = [...belege];
+/** Zählt die Vorsteuer dieses Belegs nach dem Leistungsdatum statt nach dem Belegdatum? */
+function zaehltNachLeistungsdatum(k: Kandidat): boolean {
+  if (!k.datum) return false;
+  // § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt; er bleibt
+  if (k.reverseCharge || k.category === "einfuhrumsatzsteuer") return false;
+  // Gutschrift: Sie berichtigt nach § 17 Abs. 1 UStG im Zeitraum der Änderung, also nach Belegdatum bzw. mit dem
+  // Ausgleich („erstattet bereits Bezahltes“, #786), nicht nach § 15; der Leistungszeitraum spielt keine Rolle
+  if (k.erstattetBezahltes || k.gross < 0) return false;
+  return leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis }) > k.datum;
+}
+
+/** Zuordnung oder Verrechnung auf einen Beleg, mit dem Tag, an dem sie wirkt */
+interface Ausgleich {
+  documentId: string | null;
+  reversesId: string | null;
+  amount: number;
+  date: string;
+}
+
+/** Was die Nebenbücher zu den Belegen wissen: Beträge je Satz, Storno, Zahlungen, Barzahlung und Skonto */
+interface Nebenbuecher {
+  betraege: { documentId: string; rate: number; net: Cents; tax: Cents }[];
+  stornoAm: Map<string, string>;
+  zahlungen: Map<string, Zahlung[]>;
+  /** Zahlungen ohne ihre Aufhebungen: bei einem stornierten Beleg der Stand vor dem Storno */
+  zahlungenVorStorno: Map<string, Zahlung[]>;
+  barAm: Map<string, string>;
+  skontos: Skonto[];
+}
+
+/**
+ * Zahlungen je Beleg, nur die auf diesen Beleg (Ausgang, negativ), verteilt wird nach Betrag. Eine aufgehobene Zuordnung
+ * bleibt am Tag der Zahlung stehen, ihre Gegenzeile nimmt den Anteil am Tag der Aufhebung zurück (allocations.date, #782),
+ * damit ein gemeldeter Zeitraum unverändert bleibt. Bei einem stornierten Beleg hat der Storno die Zuordnungen aufgehoben;
+ * dort zählt der Stand vor dem Storno, die Rücknahme übernimmt die Stornozeile.
+ */
+function zahlungenJeBeleg(ausgleiche: Ausgleich[]): Pick<Nebenbuecher, "zahlungen" | "zahlungenVorStorno"> {
+  const zahlungen = new Map<string, Zahlung[]>();
+  const zahlungenVorStorno = new Map<string, Zahlung[]>();
+  const eintragen = (map: Map<string, Zahlung[]>, z: Ausgleich) => {
+    // Zahlung: negativer Betrag; Gegenzeile einer Aufhebung: positiver Betrag mit reverses_id
+    if (!z.documentId || (z.reversesId ? z.amount <= 0 : z.amount >= 0)) return;
+    map.set(z.documentId, [...(map.get(z.documentId) ?? []), { date: z.date, amount: -z.amount }]);
+  };
+  for (const z of ausgleiche) {
+    eintragen(zahlungen, z);
+    if (!z.reversesId) eintragen(zahlungenVorStorno, z);
+  }
+  return { zahlungen, zahlungenVorStorno };
+}
+
+/** Lädt die Nebenbücher zu diesen Belegen */
+async function nebenbuecherLaden(q: Db | Tx, ids: string[]): Promise<Nebenbuecher> {
   const a = schema.allocations;
   const t = schema.bankTransactions;
   const s = schema.documentSettlements;
@@ -189,112 +237,144 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       .from(w)
       .where(and(inArray(w.documentId, ids), eq(w.kind, "skontoErhalten"))),
   ]);
-  const stornoAm = new Map(stornos.map((x) => [x.documentId, x.date]));
-  // Nur die Zahlungen auf diesen Beleg (Ausgang, negativ), verteilt wird nach Betrag. Eine aufgehobene Zuordnung bleibt am
-  // Tag der Zahlung stehen, ihre Gegenzeile nimmt den Anteil am Tag der Aufhebung zurück (allocations.date, #782), damit
-  // ein gemeldeter Zeitraum unverändert bleibt. Bei einem stornierten Beleg hat der Storno die Zuordnungen aufgehoben;
-  // dort zählt der Stand vor dem Storno, die Rücknahme übernimmt die Stornozeile weiter unten.
   const zuordnungsTage = zuordnungen.map(({ wirktAm, bookingDate, ...z }) => ({ ...z, date: wirktAm ?? bookingDate }));
-  const zahlungen = new Map<string, Zahlung[]>();
-  const zahlungenVorStorno = new Map<string, Zahlung[]>();
-  const eintragen = (map: Map<string, Zahlung[]>, z: { documentId: string | null; reversesId: string | null; date: string; amount: number }) => {
-    // Zahlung: negativer Betrag; Gegenzeile einer Aufhebung: positiver Betrag mit reverses_id
-    if (!z.documentId || (z.reversesId ? z.amount <= 0 : z.amount >= 0)) return;
-    map.set(z.documentId, [...(map.get(z.documentId) ?? []), { date: z.date, amount: -z.amount }]);
+  return {
+    betraege,
+    stornoAm: new Map(stornos.map((x) => [x.documentId, x.date])),
+    ...zahlungenJeBeleg([...zuordnungsTage, ...verrechnungen]),
+    barAm: new Map(baren.flatMap((x) => (x.documentId ? [[x.documentId, x.date] as const] : []))),
+    skontos,
   };
-  for (const z of [...zuordnungsTage, ...verrechnungen]) {
-    eintragen(zahlungen, z);
-    if (!z.reversesId) eintragen(zahlungenVorStorno, z);
+}
+
+/** Zahlungen auf den Beleg, wie die Zahlungsart sie kennt; `datum` ist das Belegdatum */
+function zahlungenDesBelegs(k: Kandidat, datum: string, gross: Cents, nb: Nebenbuecher): Zahlung[] {
+  // Privat bezahlt ist der Beleg mit der Buchung ausgeglichen, wie im Journal (belegbuchung.ts parkt nichts): Zahltag ist
+  // das Belegdatum, an dem die Einlage gebucht wird
+  if (k.payment === "privat") return [{ date: datum, amount: gross }];
+  if (k.payment === "kasse") {
+    const bar = nb.barAm.get(k.id);
+    return bar ? [{ date: bar, amount: gross }] : [];
   }
-  const barAm = new Map(baren.flatMap((x) => (x.documentId ? [[x.documentId, x.date] as const] : [])));
+  // Am selben Tag die Zahlung vor ihrer Aufhebung
+  return [...((nb.stornoAm.has(k.id) ? nb.zahlungenVorStorno : nb.zahlungen).get(k.id) ?? [])].sort(
+    (x, y) => x.date.localeCompare(y.date) || y.amount - x.amount,
+  );
+}
 
+/**
+ * Die Zahlungen bis zur Ausführung, dazu der Rest am Tag der Ausführung und der Erlass durch Skonto davor, nach Tagen
+ * sortiert (am selben Tag die Zahlung vor dem Erlass).
+ */
+function zahlungenBisZurAusfuehrung(gezahlt: Zahlung[], erlass: Skonto[], ausgefuehrt: string, gross: Cents): Zahlung[] {
+  // Was bis zur Ausführung nicht gezahlt ist, zählt mit ihr: Dann sind Leistung und Rechnung da (§ 15 Abs. 1 Satz 1 Nr. 1
+  // Satz 1). Spätere Zahlungen und Aufhebungen ändern an der Vorsteuer nichts mehr.
+  const bisDahin = [...gezahlt.filter((z) => z.date.localeCompare(ausgefuehrt) <= 0), { date: ausgefuehrt, amount: gross }];
+  return [...bisDahin, ...erlass.map((x) => ({ date: x.date, amount: x.reversesId ? -Math.abs(x.amount) : Math.abs(x.amount), erlass: true }))].sort(
+    (x, y) => x.date.localeCompare(y.date) || Number(x.erlass ?? false) - Number(y.erlass ?? false),
+  );
+}
+
+/** Der geschäftliche Teil eines Betrags, gerundet wie beim Buchen (splitPrivateShare) */
+function geschaeftlich(betrag: Cents, privateShare: number): Cents {
+  return privateShare === 0 ? betrag : splitPrivateShare(betrag, privateShare).business;
+}
+
+/**
+ * Geschäftlicher Anteil je Steuersatz, der zwischen zwei erledigten Beträgen abziehbar wird. Kumuliert gerundet, wie im
+ * Journal (vorsteuer-ausgleich.ts): Je Teilbetrag gerundet ergäben die Zeilen zusammen nicht genau die geschäftliche
+ * Vorsteuer des Belegs.
+ */
+function anteilJeSatz(totals: InvoiceTotals, privateShare: number, vorher: Cents, nachher: Cents): TaxShare[] {
+  const bis = paidTaxShares(totals, nachher);
+  const von = paidTaxShares(totals, vorher);
+  return totals.taxes.map(({ rate }) => {
+    const n = bis.find((x) => x.rate === rate);
+    const v = von.find((x) => x.rate === rate);
+    return {
+      rate,
+      base: geschaeftlich(n?.base ?? 0, privateShare) - geschaeftlich(v?.base ?? 0, privateShare),
+      tax: geschaeftlich(n?.tax ?? 0, privateShare) - geschaeftlich(v?.tax ?? 0, privateShare),
+    };
+  });
+}
+
+/** Zeilen der Zahlungen: Jede Zahlung zieht ihren Anteil, ein Erlass durch Skonto erledigt ohne Zeile */
+function zeilenDerZahlungen(k: Kandidat & { datum: string }, totals: InvoiceTotals, zahlungen: Zahlung[], storno: string | undefined): VorsteuerZeile[] {
   const zeilen: VorsteuerZeile[] = [];
-  const geschaeftlich = (betrag: Cents, privateShare: number) => (privateShare === 0 ? betrag : splitPrivateShare(betrag, privateShare).business);
-
-  for (const k of vorzeitig) {
-    // Kleinunternehmer und Belege ohne Abzug: nichts abzuziehen, also auch nichts zu verteilen
-    if (!k.vorsteuerAbzug || !k.datum) continue;
-    const saetze = betraege
-      .filter((b) => b.documentId === k.id)
-      .map((b) => ({ rate: b.rate, base: Math.abs(b.net), tax: Math.abs(b.tax) }))
-      .sort((x, y) => y.rate - x.rate);
-    const gross = Math.abs(k.gross);
-    if (saetze.length === 0 || gross === 0) continue;
-    const totals = { net: Math.abs(k.net), tax: Math.abs(k.tax), gross, taxes: saetze };
-
-    const ausgefuehrt = leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis });
-    let zahlungenDesBelegs: Zahlung[];
-    if (k.payment === "privat") {
-      // Privat bezahlt ist der Beleg mit der Buchung ausgeglichen, wie im Journal (belegbuchung.ts parkt nichts): Zahltag
-      // ist das Belegdatum, an dem die Einlage gebucht wird
-      zahlungenDesBelegs = [{ date: k.datum, amount: gross }];
-    } else if (k.payment === "kasse") {
-      const bar = barAm.get(k.id);
-      zahlungenDesBelegs = bar ? [{ date: bar, amount: gross }] : [];
-    } else {
-      // Am selben Tag die Zahlung vor ihrer Aufhebung
-      zahlungenDesBelegs = [...((stornoAm.has(k.id) ? zahlungenVorStorno : zahlungen).get(k.id) ?? [])].sort(
-        (x, y) => x.date.localeCompare(y.date) || y.amount - x.amount,
-      );
-    }
-    // Was bis zur Ausführung nicht gezahlt ist, zählt mit ihr: Dann sind Leistung und Rechnung da (§ 15 Abs. 1 Satz 1 Nr. 1
-    // Satz 1). Spätere Zahlungen und Aufhebungen ändern an der Vorsteuer nichts mehr.
-    zahlungenDesBelegs = [...zahlungenDesBelegs.filter((z) => z.date.localeCompare(ausgefuehrt) <= 0), { date: ausgefuehrt, amount: gross }];
-    // Skonto vor der Ausführung erlässt den Rest, bevor seine Steuer abziehbar war: Es zählt als erledigt, ohne Zeile, und
-    // die gewöhnliche Minderung im Skontomonat entfällt (wie im Journal, vorsteuer-ausgleich.ts). Seine Aufhebung vor der
-    // Ausführung nimmt das zurück; eine Aufhebung danach zählt wie gewohnt im Monat der Aufhebung.
-    const erlass = skontos.filter((x) => x.documentId === k.id && x.date < ausgefuehrt);
-    for (const x of erlass) skontoOhneMinderung.add(x.id);
-    zahlungenDesBelegs = [
-      ...zahlungenDesBelegs,
-      ...erlass.map((x) => ({ date: x.date, amount: x.reversesId ? -Math.abs(x.amount) : Math.abs(x.amount), erlass: true })),
-    ].sort((x, y) => x.date.localeCompare(y.date) || Number(x.erlass ?? false) - Number(y.erlass ?? false));
-
-    const storno = stornoAm.get(k.id);
-    let erledigt = 0;
-    for (const z of zahlungenDesBelegs) {
-      const vorher = erledigt;
-      erledigt = Math.max(0, Math.min(gross, erledigt + z.amount));
-      if (erledigt === vorher || z.erlass) continue;
-      const bis = paidTaxShares(totals, erledigt);
-      const von = paidTaxShares(totals, vorher);
-      for (const { rate } of saetze) {
-        const nachher = bis.find((x) => x.rate === rate);
-        const vorheriger = von.find((x) => x.rate === rate);
-        // Der geschäftliche Teil wird kumuliert gerundet, wie im Journal (vorsteuer-ausgleich.ts): Je Teilbetrag gerundet
-        // ergäben die Zeilen zusammen nicht genau die geschäftliche Vorsteuer des Belegs
-        const base = geschaeftlich(nachher?.base ?? 0, k.privateShare) - geschaeftlich(vorheriger?.base ?? 0, k.privateShare);
-        const tax = geschaeftlich(nachher?.tax ?? 0, k.privateShare) - geschaeftlich(vorheriger?.tax ?? 0, k.privateShare);
-        // Die Rechnung muss vorliegen: nie früher als ihr Datum
-        const tag = spaetererTag(z.date, k.datum);
+  let erledigt = 0;
+  for (const z of zahlungen) {
+    const vorher = erledigt;
+    erledigt = Math.max(0, Math.min(totals.gross, erledigt + z.amount));
+    if (erledigt === vorher || z.erlass) continue;
+    // Die Rechnung muss vorliegen: nie früher als ihr Datum
+    const tag = spaetererTag(z.date, k.datum);
+    for (const { rate, base, tax } of anteilJeSatz(totals, k.privateShare, vorher, erledigt)) {
+      zeilen.push({ documentId: k.id, date: tag, supplier: k.supplier, number: k.number, rate, base, tax });
+      // Ein Storno nimmt den Anteil mit umgekehrtem Vorzeichen zurück, aber nie vor dem Stornodatum: Stand er in einem
+      // schon gemeldeten Zeitraum, berichtigt er dort, sonst hebt er sich im selben Zeitraum auf (§ 17 Abs. 1 UStG).
+      if (storno) {
         zeilen.push({
           documentId: k.id,
-          date: tag,
+          date: spaetererTag(storno, tag),
           supplier: k.supplier,
-          number: k.number,
+          number: `Storno ${k.number}`.trim(),
           rate,
-          base,
-          tax,
+          base: -base,
+          tax: -tax,
         });
-        // Ein Storno nimmt den Anteil mit umgekehrtem Vorzeichen zurück, aber nie vor dem Stornodatum: Stand er in einem
-        // schon gemeldeten Zeitraum, berichtigt er dort, sonst hebt er sich im selben Zeitraum auf (§ 17 Abs. 1 UStG).
-        if (storno) {
-          zeilen.push({
-            documentId: k.id,
-            date: spaetererTag(storno, tag),
-            supplier: k.supplier,
-            number: `Storno ${k.number}`.trim(),
-            rate,
-            base: -base,
-            tax: -tax,
-          });
-        }
       }
     }
-    // Ein Skonto vor der Ausführung, das erst nach ihr aufgehoben wird, gibt seine Steuer im Monat der Aufhebung frei; das
-    // zählt die gewöhnliche Skonto-Abfrage (vat-figures.ts). Ein späterer Storno nimmt auch das zurück.
-    if (storno) zeilen.push(...stornoDerSkontoAufhebung(k, betraege, erlass, skontos, ausgefuehrt, storno));
   }
+  return zeilen;
+}
 
+/**
+ * Zeilen eines Belegs über alle Zeiträume und die Skontos vor der Ausführung (`erlass`); null, wenn es nichts abzuziehen
+ * gibt (Kleinunternehmer, Beleg ohne Abzug, ohne Beträge).
+ */
+function zeilenDesBelegs(k: Kandidat, nb: Nebenbuecher): { zeilen: VorsteuerZeile[]; erlass: Skonto[] } | null {
+  if (!k.vorsteuerAbzug || !k.datum) return null;
+  const saetze = nb.betraege
+    .filter((b) => b.documentId === k.id)
+    .map((b) => ({ rate: b.rate, base: Math.abs(b.net), tax: Math.abs(b.tax) }))
+    .sort((x, y) => y.rate - x.rate);
+  const gross = Math.abs(k.gross);
+  if (saetze.length === 0 || gross === 0) return null;
+  const totals = { net: Math.abs(k.net), tax: Math.abs(k.tax), gross, taxes: saetze };
+
+  const ausgefuehrt = leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis });
+  // Skonto vor der Ausführung erlässt den Rest, bevor seine Steuer abziehbar war: Es zählt als erledigt, ohne Zeile, und
+  // die gewöhnliche Minderung im Skontomonat entfällt (wie im Journal, vorsteuer-ausgleich.ts). Seine Aufhebung vor der
+  // Ausführung nimmt das zurück; eine Aufhebung danach zählt wie gewohnt im Monat der Aufhebung.
+  const erlass = nb.skontos.filter((x) => x.documentId === k.id && x.date < ausgefuehrt);
+  const zahlungen = zahlungenBisZurAusfuehrung(zahlungenDesBelegs(k, k.datum, gross, nb), erlass, ausgefuehrt, gross);
+  const storno = nb.stornoAm.get(k.id);
+  const zeilen = zeilenDerZahlungen({ ...k, datum: k.datum }, totals, zahlungen, storno);
+  // Ein Skonto vor der Ausführung, das erst nach ihr aufgehoben wird, gibt seine Steuer im Monat der Aufhebung frei; das
+  // zählt die gewöhnliche Skonto-Abfrage (vat-figures.ts). Ein späterer Storno nimmt auch das zurück.
+  if (storno) zeilen.push(...stornoDerSkontoAufhebung(k, nb.betraege, erlass, nb.skontos, ausgefuehrt, storno));
+  return { zeilen, erlass };
+}
+
+/**
+ * Vorsteuer der Belege, deren Leistung erst nach dem Belegdatum ausgeführt ist (#693). `belege` enthält alle solche
+ * Belege, damit die gewöhnliche Abfrage sie nicht zusätzlich nach dem Belegdatum zählt.
+ */
+export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx = db): Promise<VorsteuerNachLeistungsdatum> {
+  const { start, end } = periodRange(period);
+  const vorzeitig = (await kandidatenLaden(q)).filter(zaehltNachLeistungsdatum);
+  const belege = new Set(vorzeitig.map((k) => k.id));
+  const skontoOhneMinderung = new Set<string>();
+  if (vorzeitig.length === 0) return { belege, zeilen: [], skontoOhneMinderung };
+
+  const nb = await nebenbuecherLaden(q, [...belege]);
+  const zeilen: VorsteuerZeile[] = [];
+  for (const k of vorzeitig) {
+    const beleg = zeilenDesBelegs(k, nb);
+    if (!beleg) continue;
+    for (const x of beleg.erlass) skontoOhneMinderung.add(x.id);
+    zeilen.push(...beleg.zeilen);
+  }
   return { belege, zeilen: zeilen.filter((z) => z.date >= start && z.date < end && z.tax !== 0), skontoOhneMinderung };
 }
