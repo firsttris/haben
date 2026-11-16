@@ -7,8 +7,9 @@ import { verprobeBuchung } from "./ust-verprobung.ts";
 /*
  * Referenzfälle mit Zahlen aus einer unabhängigen Quelle (#1116): Die Erwartungen stehen so in der Quelle, sie sind nicht
  * in Haben gerechnet. Die Buchung entsteht wie in Haben (computeInvoiceTotals, documentPosting bzw. invoicePosting), die
- * Kennzahlen kommen aus dem Journal (kennzahlenAusJournal). Ein Zahlenfall ohne Quelle ist als solcher benannt. Weitere
- * Fälle aus dem UStAE, DATEV oder einer zweiten Software: #1203.
+ * Kennzahlen kommen aus dem Journal (kennzahlenAusJournal). Ein Zahlenfall ohne Quelle ist als solcher benannt. Die
+ * Zuordnung „Sachverhalt → Kennzahl“ nach der amtlichen Anleitung: journal-kennzahlen-anleitung.test.ts. Weitere Fälle aus
+ * dem UStAE, DATEV oder einer zweiten Software: #1203.
  */
 
 describe.each(["SKR03", "SKR04"] as const)("Referenzfälle aus dem UStAE (%s)", (kr) => {

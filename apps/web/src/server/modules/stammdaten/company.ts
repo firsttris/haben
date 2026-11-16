@@ -17,6 +17,7 @@ import {
   type Versteuerung,
   inBasisPoints,
   inCents,
+  inProzent,
 } from "@haben/core";
 import { and, desc, eq, gte, lt, lte, min, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -103,7 +104,7 @@ export const companySchema = z
     /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
     /** Tageskurs statt der monatlichen USt-Umrechnungskurse, wenn das Finanzamt es gestattet hat */
     tageskurs: z.boolean().default(false),
-    privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
+    privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), inProzent(z.number().int().min(0).max(100))).default({}),
     dunning: z
       .object({
         baseRate: inBasisPoints(z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max)).nullable(),

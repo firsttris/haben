@@ -63,7 +63,9 @@ import {
   type SvBeitraege,
   type BasisPoints,
   type Cents,
+  type KirchensteuerSatz,
   type Millis,
+  type Prozent,
 } from "@haben/core";
 import type { LstbWerte } from "@haben/core";
 
@@ -177,7 +179,7 @@ export const company = pgTable(
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
-    privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
+    privateShares: jsonb("private_shares").$type<Record<string, Prozent>>().notNull().default({}),
     /**
      * Mahnwesen: Basiszinssatz (null = keine Verzugszinsen), Mahngebühr je Stufe,
      * Zahlungsfrist in Tagen. autoBaseRate: Basiszinssatz von der Bundesbank automatisch abrufen (ausdrücklich
@@ -599,7 +601,7 @@ export interface AusschuettungEmpfaenger {
   soli: Cents;
   kist: Cents;
   netto: Cents;
-  kirchensteuer: 0 | 8 | 9;
+  kirchensteuer: KirchensteuerSatz;
   religionsschluessel: string | null;
 }
 
@@ -1064,6 +1066,8 @@ export const contacts = pgTable(
     ustId: text("ust_id").notNull().default(""),
     iban: text("iban").notNull().default(""),
     leitwegId: text("leitweg_id").notNull().default(""),
+    /** Unsere Lieferantennummer bei diesem Kunden, vom Kunden vergeben (#711); steht auf der Rechnung, im XML als BT-29 */
+    unsereLieferantennummer: text("unsere_lieferantennummer").notNull().default(""),
     defaultFormat: invoiceFormatEnum("default_format"),
     /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
     skonto: jsonb("skonto").$type<SkontoStufe[]>(),
@@ -1980,7 +1984,7 @@ export const recurringDocuments = pgTable(
     payment: text("payment", { enum: ["bank", "privat", "kasse"] })
       .notNull()
       .default("bank"),
-    privateShare: smallint("private_share").notNull().default(0),
+    privateShare: smallint("private_share").$type<Prozent>().notNull().default(0),
     amounts: jsonb("amounts").$type<{ taxRate: BasisPoints; net: Cents; tax: Cents }[]>().notNull(),
     /** Das Dokument weist die Umsatzsteuer gesondert aus (Dauerrechnung, Vertrag mit Steuerbetrag); sonst keine Vorsteuer */
     taxShown: boolean("tax_shown").notNull().default(false),
@@ -2088,7 +2092,7 @@ export const documents = pgTable(
      */
     vorsteuerAnteil: smallint("vorsteuer_anteil").$type<BasisPoints>(),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
-    privateShare: smallint("private_share").notNull().default(0),
+    privateShare: smallint("private_share").$type<Prozent>().notNull().default(0),
     /**
      * Gutschrift erstattet bereits Bezahltes (#786), etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
      * schon bezahlte Rechnung: Die Vorsteuerminderung wird nach § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld
@@ -4240,7 +4244,13 @@ export const appVersions = pgTable("app_versions", {
 /** Befund der Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahr und was abweicht */
 export interface JournalUmstellungBefund {
   jahr: number;
+  /** Anzeigetext wie im Abgleich; bei Befunden ohne `schluessel` (vor #1229 gespeichert) auch das Merkmal zum Wiedererkennen */
   text: string;
+  /** Seit #1229: Bereich, stabiler Schlüssel und beide Beträge des Postens (AbgleichZeile), unabhängig vom Anzeigetext */
+  bereich?: string;
+  schluessel?: string;
+  journal?: number;
+  quelle?: number;
 }
 
 /**

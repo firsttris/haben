@@ -1,3 +1,5 @@
+import type { Cents } from "./money.ts";
+
 /*
  * Offene Posten und das gewählte Jahr (#1110): Die drei Tabellen der offenen Posten zeigen den Stand von heute,
  * unabhängig vom gewählten Jahr. Damit beim Abschluss sichtbar ist, was aus früheren Jahren stammt, kennzeichnet
@@ -11,14 +13,14 @@
 /** Was die Kennzeichnung je Posten braucht: Datum der Entstehung und der noch offene Betrag */
 export interface VorjahresPosten {
   date: string;
-  open: number;
+  open: Cents;
 }
 
 export interface VorjahresStand {
   /** Zahl der offenen Posten mit Datum vor dem gewählten Jahr */
   anzahl: number;
-  /** Summe ihrer offenen Beträge, als Zahl in Cent */
-  betrag: number;
+  /** Summe ihrer offenen Beträge */
+  betrag: Cents;
   /** Zeile über der Tabelle; null, wenn nichts aus früheren Jahren offen ist */
   text: string | null;
 }

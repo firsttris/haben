@@ -282,7 +282,7 @@ Stehen auf einer Rechnung Dinge, die auf verschiedene Konten gehören, etwa Hand
 1. Unter **Beträge je Steuersatz** die Beträge laut Rechnung eintragen, wie ohne Aufteilung.
 2. Unter dem Feld **Kategorie** auf **Auf mehrere Kategorien aufteilen** klicken. Darunter erscheint **Aufteilung auf Kategorien** mit einer Zeile je Steuersatz (die erste mit der bisherigen Kategorie und dem Netto des Satzes) und einer leeren Zeile.
 3. Je Zeile **Kategorie**, **Satz** und **Netto** eintragen. Mit **+ Zeile** kommt eine weitere dazu, mit dem Kreuz neben der Zeile fällt sie weg (mindestens zwei bleiben). Mehrere Zeilen mit demselben Satz und auch derselben Kategorie sind erlaubt.
-4. Unter den Zeilen steht je Steuersatz, wie viel schon verteilt ist, etwa „19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen“, bis es „stimmt“. Unter jedem Netto steht der Anteil an der Vorsteuer.
+4. Unter den Zeilen steht je Steuersatz, wie viel schon verteilt ist, etwa „19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen“, bis es „stimmt“. Unter jedem Netto steht der Anteil an der Vorsteuer, oder an der **Umsatzsteuer**, wenn von keinem Steuersatz etwas abziehbar ist ([Ohne Vorsteuerabzug](#ohne-vorsteuerabzug)).
 5. Gibt es zur Kategorie einer Zeile ein [eigenes Konto](buchhaltung.md#eigene-konten), wählst du es in der Zeile unter **Eigenes Konto**; Betrag und Vorsteuer bleiben, nur die Kontonummer der Aufwandszeile ist eine andere.
 6. **Speichern** oder **Bestätigen und buchen** wie sonst. Mit **Aufteilung aufheben** gilt wieder eine Kategorie für den ganzen Beleg, die der ersten Zeile.
 
@@ -302,7 +302,7 @@ Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 �
 
 **Rundung.** Haben rechnet die Vorsteuer nicht je Zeile neu aus, sondern verteilt die Vorsteuer des Satzes anteilig nach Netto auf seine Zeilen und rundet kaufmännisch. Den Rundungsrest bekommt die betragsmäßig größte Zeile des Satzes (bei gleich großen die erste), wie beim Netto einer Bruttorechnung und beim Steueranteil einer Teilzahlung. So ergeben die Zeilen je Satz auf den Cent Netto und Vorsteuer des Belegs. Beispiel: 3 × 33,33 € zu 19 % mit 19,00 € Vorsteuer auf der Rechnung ergeben 6,34 €, 6,33 € und 6,33 €. Die Anteile werden beim Speichern berechnet, mit den Zeilen gespeichert und beim Buchen mit dem Beleg festgeschrieben.
 
-**Buchung.** Je Kategorie und Steuersatz eine Aufwandszeile; zwei Zeilen mit gleicher Kategorie und gleichem Satz fasst Haben zusammen. Die Vorsteuer steht je Satz in einer Zeile, die Gegenbuchung (Verbindlichkeiten, Privateinlage, Gesellschafter oder Kasse) über den ganzen Betrag. Ohne Vorsteuerabzug gehört der Vorsteueranteil jeder Zeile zu ihrem Aufwand. Gutschriften gibst du mit negativen Zeilen ein; Plus und Minus in einem Satz gemischt nimmt Haben nicht an.
+**Buchung.** Je Kategorie und Steuersatz eine Aufwandszeile; zwei Zeilen mit gleicher Kategorie und gleichem Satz fasst Haben zusammen. Die Vorsteuer steht je Satz in einer Zeile, die Gegenbuchung (Verbindlichkeiten, Privateinlage, Gesellschafter oder Kasse) über den ganzen Betrag. Ohne Vorsteuerabzug gehört der Vorsteueranteil jeder Zeile zu ihrem Aufwand. Bei [anteiligem Vorsteuerabzug](#anteiliger-vorsteuerabzug) steht der nicht abziehbare Teil je Kategorie als eigene Aufwandszeile mit `keineVSt` daneben, getrennt von Zeilen zu 0 % oder ohne Abzug derselben Kategorie. Gutschriften gibst du mit negativen Zeilen ein; Plus und Minus in einem Satz gemischt nimmt Haben nicht an.
 
 **Zahlung, EÜR, DATEV.** Der Beleg steht einmal in den offenen Posten und im Bankabgleich, mit dem ganzen Betrag; Teilzahlungen und Skonto ordnest du ihm wie jedem Beleg zu. In der [EÜR](auswertungen.md) zählt jede Zahlung anteilig je Zeile in deren Kategorie; die Vorsteuer einer Teilzahlung ist dieselbe wie ohne Aufteilung, alle Zahlungen zusammen ergeben genau die Zeilen. Der DATEV-Export zerlegt die eine Buchung wie jede andere in Buchungssätze, je Aufwandskonto einer gegen die Verbindlichkeiten.
 
@@ -368,6 +368,8 @@ Die Zahlung selbst buchst du im Bankabgleich: Verbindlichkeiten an Bank (siehe [
 Ohne Vorsteuerabzug bucht Haben den Bruttobetrag auf das Aufwandskonto, ohne Vorsteuerzeile und mit dem Steuerschlüssel `keineVSt`; die Vorsteuer kommt nicht in Kz 66. Im Beispiel oben stünden 119,00 € auf 4964 bzw. 6837. Bei § 13b bleiben die Kennzahlen der geschuldeten Steuer (Kz 46/47 bzw. 84/85), nur wird sie Teil der Ausgabe statt Vorsteuer (Kz 67).
 
 Drei Wege führen dorthin: Als Kleinunternehmer nach § 19 UStG buchst du immer so. Mit dem Haken **Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)** in den Firmendaten gilt es als Vorgabe, etwa bei Heilbehandlung oder Unterricht. Am einzelnen Beleg gibst du dafür unter **Abziehbare Vorsteuer in %** den Wert 0 ein; die eigene Angabe geht der Firmenvorgabe vor.
+
+Ist für einen Steuersatz nichts abziehbar, heißt seine Spalte unter **Beträge je Steuersatz** **Umsatzsteuer** statt **Vorsteuer**: Es ist die Steuer, die der Lieferant ausweist.
 
 ### Anteiliger Vorsteuerabzug
 

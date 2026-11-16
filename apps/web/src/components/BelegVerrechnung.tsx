@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { formatDate } from "../lib/format.ts";
@@ -52,7 +52,7 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
   const cents = parseEuro(betrag);
   const verrechnenPruefung = useSubmitCheck({
     counter: counterId ? null : "Wähle den Gegenbeleg.",
-    betrag: cents !== null && cents > 0 ? null : "Trag einen Betrag über 0 ein, etwa 49,90.",
+    betrag: cents !== null && cents > 0 ? null : amountError("einen Betrag über 0", 4_990),
     datum: datum ? null : "Wähle den Tag der Aufrechnung.",
     grund: grund.trim() ? null : "Trag den Grund der Verrechnung ein, etwa „Gutschrift Rechnung 12345“.",
   });

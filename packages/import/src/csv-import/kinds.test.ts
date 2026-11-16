@@ -310,7 +310,7 @@ describe("Artikel", () => {
       ["Steuersatz fehlt"],
       ["Preis fehlt (Netto- oder Bruttopreis)"],
       ["Nettopreis 100,00 und Bruttopreis 100,00 passen nicht zum Steuersatz"],
-      ["Nettopreis: „1,234.00“ ist kein Betrag wie 1.234,56"],
+      ["Nettopreis: „1,234.00“ ist kein Betrag. Trag den Betrag ein, etwa 1.234,56."],
     ]);
   });
 

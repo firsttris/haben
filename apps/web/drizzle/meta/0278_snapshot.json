@@ -1,5 +1,5 @@
 {
-  "id": "94b3ed1b-0fa8-427f-bfc7-9dcf31c23c25",
+  "id": "afe6af6e-b985-467a-8adc-632218a1887b",
   "prevId": "36c60cf6-b24c-4d86-8186-4424b52c2f44",
   "version": "7",
   "dialect": "postgresql",
@@ -3930,6 +3930,13 @@
           "notNull": true,
           "default": "''"
         },
+        "unsere_lieferantennummer": {
+          "name": "unsere_lieferantennummer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "default_format": {
           "name": "default_format",
           "type": "invoice_format",
@@ -7111,13 +7118,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "direction": {
-          "name": "direction",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'eingang'"
-        },
         "sender": {
           "name": "sender",
           "type": "text",
@@ -7228,19 +7228,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'INBOX'"
-        },
-        "outbound_folder": {
-          "name": "outbound_folder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "allowed_senders": {
-          "name": "allowed_senders",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
         },
         "enabled": {
           "name": "enabled",

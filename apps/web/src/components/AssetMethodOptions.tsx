@@ -1,12 +1,11 @@
-import { allowsMemoValue, type AssetMethod, formatDegressiveRate, maxDegressiveRate } from "@haben/core";
+import { allowsMemoValue, type AssetMethod, formatDegressiveRate, maxDegressiveRate, parsePercent } from "@haben/core";
 import { Field } from "./Field.tsx";
 
 /** Degressiver Satz aus der Eingabe in Prozent („25“, „23,07“) als Basispunkte; leer = Höchstsatz, NaN = ungültig */
 export function parseRatePercent(text: string): number | null {
-  const value = text.replace("%", "").trim();
-  if (!value) return null;
-  const match = /^(\d{1,2})(?:[,.](\d{1,2}))?$/.exec(value);
-  return match ? Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0")) : Number.NaN;
+  if (!text.trim()) return null;
+  const rate = parsePercent(text);
+  return rate !== null && rate < 10_000 ? rate : Number.NaN;
 }
 
 export const ratePercentText = (rate: number | null) => (rate === null ? "" : formatDegressiveRate(rate).replace(" %", ""));
