@@ -10,7 +10,7 @@ import {
 } from "@haben/core";
 import { sql } from "drizzle-orm";
 import type { Tx } from "../../db/index.ts";
-import { belegTotals } from "../umsatzsteuer/index.ts";
+import { belegTotals, ZWISCHENKONTEN } from "../umsatzsteuer/index.ts";
 import { vorsteuerAbschreibung } from "./vorsteuer-ausgleich.ts";
 
 /** Gemeinsame Skontobuchung: Originalbeträge, kumulierter Abzug und gegebenenfalls der Rest des Zwischenkontos. */
@@ -46,6 +46,8 @@ export async function belegSkontoPosting(
  * Weitere Skonti berichtigen nur den noch nicht berichtigten Teil der gezogenen Vorsteuer (§ 17 Abs. 1 UStG).
  * Der Zielbetrag wird kumuliert gerundet; bereits gebuchte Cents kommen aus dem Journal, einschließlich Gegenbuchungen.
  * Bestände ohne Anteil behalten den bisherigen Weg. Kein gespeicherter Satz wird aus heutigen Firmendaten abgeleitet.
+ * Ein Skonto vor der Ausführung (#693) hat seinen Teil vom Zwischenkonto abgeschrieben statt von der Vorsteuer; er zählt
+ * deshalb mit, sonst minderte ein späteres Skonto diesen Teil ein zweites Mal.
  */
 async function skontoVorsteuer(
   tx: Tx,
@@ -55,7 +57,7 @@ async function skontoVorsteuer(
 ): Promise<TaxShare[] | null> {
   if (doc.vorsteuerAnteil === null) return null;
   // Auch frühere Skonti vor einem Kontenrahmenwechsel bleiben in der kumulierten Berichtigung enthalten.
-  const konten = [...new Set(Object.values(ACCOUNTS).flatMap((a) => Object.values(a.vorsteuer)))];
+  const konten = [...new Set([...Object.values(ACCOUNTS).flatMap((a) => Object.values(a.vorsteuer)), ...ZWISCHENKONTEN])];
   const [stand] = await tx.execute<{ amount: number }>(sql`
     select coalesce(sum(amount),0)::int as amount from write_offs where document_id=${doc.id} and kind='skontoErhalten'`);
   const bisher = await tx.execute<{ tax_code: string; tax: number }>(sql`

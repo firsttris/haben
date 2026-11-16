@@ -152,6 +152,17 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum mit Teilabzug (
       expect(await stand(id)).toEqual(erwartet([0, 931, 0, 0, 0]));
     });
 
+    // Erstes Skonto vor der Ausführung (vom Zwischenkonto), zweites danach (von der Vorsteuer): zusammen 50 % der
+    // Steuer beider Skonti, kumuliert gerundet
+    it(`${n} Skonto vor und nach der Ausführung: zweites Skonto mindert nur seinen eigenen Teil`, async () => {
+      await firma(p);
+      const id = await beleg();
+      await zahlung(id, -11_662, "2026-09-10");
+      await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, amount: -119, date: "2026-09-15" });
+      await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, amount: -119, date: "2026-11-05" });
+      expect(await stand(id)).toEqual(erwartet([0, 931, 9, -9, 0]));
+    });
+
     it(`${n} Zahlung vor der Ausführung aufgehoben: Monat der Zahlung gleicht aus, Freigabe mit der Ausführung`, async () => {
       await firma(p);
       const id = await beleg();
