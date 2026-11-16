@@ -87,7 +87,9 @@ function ReportsPage() {
                   der Router kennt den Stand nicht, und „Heute“ ohne stichtag ist in der Suche des zweiten Links enthalten */}
               <Link
                 to="/auswertungen"
-                search={{ jahr: year }}
+                // Der Router legt die Suche über die aktuelle: Ohne `stichtag: undefined` bliebe der Stand in der
+                // Adresse und der Link gälte als aktiv (#1110)
+                search={(vorher) => ({ ...vorher, jahr: year, stichtag: undefined })}
                 activeOptions={{ exact: true }}
                 activeProps={{}}
                 className={stichtag ? "chip" : "chip active"}
@@ -97,7 +99,7 @@ function ReportsPage() {
               </Link>
               <Link
                 to="/auswertungen"
-                search={{ jahr: year, stichtag: "31.12." }}
+                search={(vorher) => ({ ...vorher, jahr: year, stichtag: "31.12." })}
                 activeOptions={{ exact: true }}
                 activeProps={{}}
                 className={stichtag ? "chip active" : "chip"}
