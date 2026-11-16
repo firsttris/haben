@@ -210,8 +210,9 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     await pay(finalized.id, "bar", "2025-12-13", 83_300);
     expect(finalized.advanceAccounting).toBe("deferred");
     expect(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2025-12-31")).toBe(-70_000);
-    expect(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-19")).toBe(0);
-    expect(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-20")).toBe(-70_000);
+    // saldenliste verwendet die exklusive Obergrenze des Zeitraums.
+    expect(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-20")).toBe(0);
+    expect(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-21")).toBe(-70_000);
     await tax(2025, 12, 70_000, 13_300);
     await tax(2026, 1, 0, 0);
   });
@@ -273,6 +274,21 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     await tax(2026, 1, 0, 0);
     expect.soft((await reports.openPositions("2026-01-31")).advanceRefunds).toMatchObject([{ open: -11_900 }]);
     await pay(cancellation.id, "bank", "2026-02-13", -11_900);
+    await tax(2026, 2, -10_000, -1_900);
+    const integrity = await reports.checkIntegrity("2026-03-01");
+    expect(integrity.problems).toEqual([]);
+    expect(integrity.abgleich.abweichungen).toEqual([]);
+  }, 15_000);
+
+  it("eine datierte Entgeltkorrektur nach Leistung hält vereinnahmte Umsatzsteuer bis zur Rückgewähr", async () => {
+    const finalized = await invoice();
+    await pay(finalized.id, "bank", "2025-12-13", 11_900);
+    const draft = await invoices.createCorrection(actor, finalized.id, "2026-01-25");
+    const correction = await invoices.finalizeInvoice(actor, draft.id);
+    await tax(2025, 12, 10_000, 1_900);
+    await tax(2026, 1, 0, 0);
+    expect.soft((await reports.openPositions("2026-01-31")).advanceRefunds).toMatchObject([{ open: -11_900 }]);
+    await pay(correction.id, "bank", "2026-02-13", -11_900);
     await tax(2026, 2, -10_000, -1_900);
     const integrity = await reports.checkIntegrity("2026-03-01");
     expect(integrity.problems).toEqual([]);
