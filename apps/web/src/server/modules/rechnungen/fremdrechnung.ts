@@ -221,6 +221,13 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
   }
 }
 
+/**
+ * Anzahlungsrechnung (UNTDID 1001 Code 386): Bei Soll entsteht die Steuer mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a
+ * Satz 4 UStG), nicht mit der Leistung; als Rechnung gebucht stünde sie zu früh in der Voranmeldung.
+ */
+const PREPAYMENT = "386";
+const PREPAYMENT_TEXT = "Das ist eine Anzahlungsrechnung; Haben übernimmt hier nur Rechnungen über erbrachte Leistungen.";
+
 /** Steuerkategorie der E-Rechnung (UNCL 5305) und die Behandlung, die Haben dafür vorschlägt; der Nutzer bestätigt sie */
 const TREATMENT_OF_CATEGORY: Record<string, TaxTreatment> = { AE: "reverse_charge", K: "ig_lieferung", G: "ausfuhr", E: "steuerfrei", O: "drittland" };
 
@@ -271,6 +278,7 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
     warnings.push(`Die Rechnung nennt die USt-IdNr. ${sellerUst}, in den Firmendaten steht eine andere. Ist es wirklich deine Rechnung?`);
   if (invoice.isCreditNote) warnings.push("Das ist eine Gutschrift; Haben übernimmt hier nur Rechnungen.");
   if (invoice.currency !== "EUR") warnings.push(`Die Rechnung lautet auf ${invoice.currency}; Haben übernimmt hier nur Rechnungen in Euro.`);
+  if (invoice.typeCode === PREPAYMENT) warnings.push(PREPAYMENT_TEXT);
   const taxes = groupByRate(invoice.taxes.map((t) => ({ rate: t.rate, net: t.base, tax: t.tax })));
   const special = invoice.taxes.map((t) => TREATMENT_OF_CATEGORY[t.category]).find((t) => t !== undefined);
   const buyerUst = invoice.buyer?.ustId?.replace(/\s/g, "").toUpperCase();
@@ -303,6 +311,7 @@ export async function adoptForeignInvoiceFile(actor: string, raw: ForeignInvoice
     if (read.invoice.isCreditNote) throw new InvoiceError("Die E-Rechnung in der Datei ist eine Gutschrift; Haben übernimmt hier nur Rechnungen.");
     if (read.invoice.currency !== "EUR")
       throw new InvoiceError(`Die E-Rechnung in der Datei lautet auf ${read.invoice.currency}; Haben übernimmt hier nur Rechnungen in Euro.`);
+    if (read.invoice.typeCode === PREPAYMENT) throw new InvoiceError(PREPAYMENT_TEXT);
     const problem = xmlMismatch(read.invoice, foreignInvoiceSchema.parse(raw));
     if (problem) throw new InvoiceError(`Die E-Rechnung in der Datei passt nicht zu den Angaben: ${problem}. Das Original wird so nicht übernommen.`);
   }
