@@ -73,7 +73,7 @@ export function ArchiveTargetCard({ data }: { data: Data }) {
       <NoticeBanner notice={notice} />
       {t?.lastRunAt && (
         <p className="small muted" style={{ margin: 0 }}>
-          Zuletzt übertragen {formatDateTime(t.lastRunAt)}
+          Letzter Lauf {formatDateTime(t.lastRunAt)}
         </p>
       )}
       <FailedDeliveries failed={data.failed} />

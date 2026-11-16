@@ -43,7 +43,7 @@ function ArchiveStatus({ ablage }: { ablage: DeliveryStatus }) {
     );
   return (
     <span className="stack" style={{ gap: 2, alignItems: "flex-end" }}>
-      <Status tone="ok" inline detail={`am ${formatDateTime(ablage.deliveredAt)}`}>
+      <Status tone="ok" inline detail={`am ${formatDateTime(ablage.deliveredAt)}${ablage.httpStatus ? ` · HTTP ${ablage.httpStatus}` : ""}`}>
         Übertragen
       </Status>
       {ablage.link && (
