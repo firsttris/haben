@@ -61,6 +61,7 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
   let archive: typeof import("./archive.ts");
   let modul: typeof import("./datev-eroeffnung.ts");
   let legacy: typeof import("./legacy-open.ts");
+  let cutoffReader: typeof import("../auswertungen/altbestand-stichtag.ts");
   let manual: typeof import("../buchhaltung/manual.ts");
   let ledger: typeof import("../buchhaltung/ledger.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
@@ -79,6 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
     archive = await import("./archive.ts");
     modul = await import("./datev-eroeffnung.ts");
     legacy = await import("./legacy-open.ts");
+    cutoffReader = await import("../auswertungen/altbestand-stichtag.ts");
     manual = await import("../buchhaltung/manual.ts");
     ledger = await import("../buchhaltung/ledger.ts");
     assets = await import("../buchhaltung/assets.ts");
@@ -293,7 +295,7 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
         paidOn: `${year}-01-10`,
       });
       // Die Eröffnung legt den Stichtag fest; ein anderer gewählter zählt nicht
-      expect(await legacy.legacyTakeoverCutoff(`${schlussjahr}-06-30`)).toMatchObject({ date: `${schlussjahr}-12-31`, fixed: expect.any(String) });
+      expect(await cutoffReader.legacyTakeoverCutoff(`${schlussjahr}-06-30`)).toMatchObject({ date: `${schlussjahr}-12-31`, fixed: expect.any(String) });
       expect((await legacy.openLegacyItems(`${schlussjahr}-06-30`)).map((i) => [i.number, i.open, i.paidAfter, i.blocker])).toEqual([
         ["RE-7", 119_000, 119_000, null],
       ]);

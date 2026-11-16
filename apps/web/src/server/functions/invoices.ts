@@ -100,18 +100,22 @@ async function invoiceEditorContext() {
   ]);
   return {
     ...context,
-    abschlaege: abschlaege.map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode, propertyRetention }) => ({
-      id,
-      contactId,
-      quoteId,
-      number,
-      issueDate,
-      gross,
-      rates,
-      taxTreatment,
-      priceMode,
-      propertyRetention,
-    })),
+    abschlaege: abschlaege.map(
+      ({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, taxDetails, exemptionReason, priceMode, propertyRetention }) => ({
+        id,
+        contactId,
+        quoteId,
+        number,
+        issueDate,
+        gross,
+        rates,
+        taxTreatment,
+        taxDetails,
+        exemptionReason,
+        priceMode,
+        propertyRetention,
+      }),
+    ),
     lastFinalized,
     /** Festgeschriebene Angebote für den Bezug von Abschlags- und Schlussrechnungen */
     quotes: quotes.map((q) => ({ ...q, number: q.number ?? "" })),

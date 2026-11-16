@@ -65,6 +65,7 @@ const BEMESSUNG: Record<string, Ziel> = {
   USt7: { feld: "kz86", seite: "haben" },
   RC: { feld: "kz21", seite: "haben" },
   Drittland: { feld: "kz45", seite: "haben" },
+  NichtSteuerbar: { feld: "kz45", seite: "haben" },
   Steuerfrei: { feld: "kz48", seite: "haben" },
   IGL: { feld: "kz41", seite: "haben" },
   Ausfuhr: { feld: "kz43", seite: "haben" },

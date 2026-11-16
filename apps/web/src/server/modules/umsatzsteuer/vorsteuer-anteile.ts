@@ -1,4 +1,14 @@
-import { ACCOUNTS, leistungsdatum, paidTaxShares, splitPrivateShare, type Cents, type InvoiceTotals, type TaxShare } from "@haben/core";
+import {
+  ACCOUNTS,
+  abziehbareSteuer,
+  gespeicherterAnteil,
+  leistungsdatum,
+  paidTaxShares,
+  splitPrivateShare,
+  type Cents,
+  type InvoiceTotals,
+  type TaxShare,
+} from "@haben/core";
 import { and, eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 
@@ -21,7 +31,7 @@ import { schema, type Tx } from "../../db/index.ts";
 /** Beträge des Belegs je Steuersatz, wie sie auf der Rechnung stehen (nicht nachgerechnet) */
 export async function belegTotals(tx: Tx, doc: { id: string; net: number; tax: number; gross: number }): Promise<InvoiceTotals> {
   const rows = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, doc.id));
-  const taxes = rows.map((r) => ({ rate: r.taxRate, base: r.net, tax: r.tax })).sort((a, b) => b.rate - a.rate);
+  const taxes = rows.map((r) => ({ rate: r.taxRate, base: r.net, tax: r.tax, vorsteuerAnteil: r.vorsteuerAnteil })).sort((a, b) => b.rate - a.rate);
   return { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
 }
 
@@ -157,13 +167,13 @@ export async function vorsteuerAnteile(
   if (ausfuehrung !== null && datum >= ausfuehrung) return null;
   if (kursdifferenz && ausfuehrung !== null && datum < ausfuehrung) return [];
   const bisher = await bisherUmgebucht(tx, doc.id, ausfuehrung);
-  // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
-  // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den
-  // geschäftlichen Teil der Vorsteuer fort, und das Konto endet bei null statt um den Privatanteil im Soll.
+  // Der Privatanteil und der nicht abziehbare Teil (§ 15 Abs. 4 UStG) stehen schon beim Buchen nicht auf dem
+  // Zwischenkonto: Das Ziel wird deshalb vor dem Abzug der bisherigen Umbuchungen auf den geschäftlichen, abziehbaren
+  // Teil gebracht, kumuliert gerundet. So endet das Konto bei null statt um diese Teile im Soll.
   const ziel = paidTaxShares(totals, (await steuerlichAusgeglichen(tx, doc.id, ausfuehrung)) + amount).map((s) => ({
     rate: s.rate,
     base: geschaeftlich(s.base, doc.privateShare),
-    tax: geschaeftlich(s.tax, doc.privateShare),
+    tax: abziehbareSteuer(geschaeftlich(s.tax, doc.privateShare), gespeicherterAnteil({}, totals.taxes.find((t) => t.rate === s.rate)?.vorsteuerAnteil)),
   }));
   return ziel.map((t) => {
     const recorded = bisher.filter((r) => r.rate === t.rate);

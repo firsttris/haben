@@ -13,7 +13,6 @@ import {
   directPosting,
   ustPrivatPosting,
   documentOpen,
-  documentWriteOffPosting,
   exchangeDifferenceBankPosting,
   exchangeDifferencePosting,
   invoiceWriteOffPosting,
@@ -85,8 +84,9 @@ import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
+import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
-import { vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
+import { vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 import { bankTransactionMatch } from "./search.ts";
 import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";
@@ -1621,16 +1621,9 @@ async function skontoErhalten(
   if (open === 0 || Math.sign(open) !== Math.sign(amount) || Math.abs(amount) > Math.abs(open)) {
     throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
   }
-  const totals = await belegTotals(tx, doc);
-  // Gutschrift „erstattet bereits Bezahltes“ (#786): Der Rest erstattet nichts mehr, die Steuerzeile schreibt den Rest
-  // des Zwischenkontos ab; aus dem Betrag dieses Skontos allein gerechnet bliebe ein Cent darauf stehen
-  const lines = documentWriteOffPosting(
-    totals,
-    amount,
-    company.kontenrahmen,
-    doc.vorsteuerAbzug,
-    await vorsteuerAbschreibung(tx, doc, totals, amount, input.date),
-  );
+  // Gutschrift „erstattet bereits Bezahltes“ (#786) und Skonto vor der Ausführung (#693): Die Steuerzeile schreibt den
+  // Anteil vom Zwischenkonto ab; aus dem Betrag dieses Skontos allein gerechnet bliebe ein Cent darauf stehen
+  const lines = await belegSkontoPosting(tx, doc, amount, company.kontenrahmen, input.date);
   return {
     amount,
     lines,

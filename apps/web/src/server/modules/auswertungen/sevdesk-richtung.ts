@@ -1,7 +1,7 @@
 import { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "@haben/import";
 import { sql, type SQL } from "drizzle-orm";
 import type { LegacyTaxRow } from "../../db/schema.ts";
-import { accountingTypeExpense } from "./sevdesk-kontoart.ts";
+import { accountingTypeExpense } from "./altbestand-kontoart.ts";
 
 /*
  * Richtung und Belegart von sevDesk-Belegen, zur Laufzeit aus der gespeicherten API-Antwort. Frühere Abrufe haben C als
@@ -18,7 +18,7 @@ function sevdeskVoucher(alias: string) {
 
 /**
  * Honorar und Provision bucht sevDesk im Soll eines Aufwandskontos mit Vorsteuer, belegt am DATEV-Export (#472), ebenso
- * eine Gutschrift auf ein Buchungskonto, das ein Aufwandskonto ist (sevdesk-kontoart.ts). Der Abruf speichert jede
+ * eine Gutschrift auf ein Buchungskonto, das ein Aufwandskonto ist (altbestand-kontoart.ts). Der Abruf speichert jede
  * Gutschrift als negative Einnahme; die Zeile bleibt, Richtung und Vorzeichen folgen zur Laufzeit.
  */
 const EXPENSE_CREDIT_NOTE_CATEGORIES = ["ROYALTY_ASSIGNED", "ROYALTY_UNASSIGNED", "PROVISION"];

@@ -1,4 +1,6 @@
 import {
+  abziehbareSteuer,
+  gespeicherterAnteil,
   leistungsdatum,
   vorsteuerWartetAufAusfuehrung,
   paidTaxShares,
@@ -22,8 +24,9 @@ import { geschaeftlich, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
  *
  * Ein Beleg kann mehrere Zahlungen haben (Strom- und Gasabschläge im Ablesezeitraum): Jede Zahlung zieht ihren Anteil,
  * anteilig je Steuersatz und fortgeschrieben wie bei den Rechnungen (paidTaxShares), damit alle zusammen genau die
- * Vorsteuer des Belegs ergeben. Belege ohne Leistungsdatum nach dem Belegdatum zählt die gewöhnliche Abfrage nach dem
- * Belegdatum.
+ * Vorsteuer des Belegs ergeben. Bei Teilabzug (§ 15 Abs. 4 UStG) zählt je Satz nur der abziehbare Teil, ebenso
+ * kumuliert gerundet wie im Journal. Belege ohne Leistungsdatum nach dem Belegdatum zählt die gewöhnliche Abfrage nach
+ * dem Belegdatum (vorsteuer-belege.ts).
  *
  * Ein Storno bleibt beim Stornodatum mit umgekehrtem Vorzeichen (§ 17 Abs. 1 UStG); es trifft aber nie früher als die
  * Zahlung, deren Anteil es zurücknimmt, sonst entstünde in einem Zeitraum eine Minderung, in dem nichts stand.
@@ -62,6 +65,28 @@ function spaetererTag(a: string, b: string): string {
   return a.localeCompare(b) < 0 ? b : a;
 }
 
+/** Beträge des Belegs je Satz, mit dem beim Buchen festgehaltenen abziehbaren Anteil */
+interface Betrag {
+  documentId: string;
+  rate: number;
+  net: Cents;
+  tax: Cents;
+  vorsteuerAnteil: number | null;
+}
+
+/** Steuersätze des Belegs, mit Vorzeichen wie gebucht oder als Beträge (`betrag`) */
+function belegSaetze(betraege: Betrag[], documentId: string, betrag: (x: number) => number = (x) => x): InvoiceTotals["taxes"] {
+  return betraege
+    .filter((b) => b.documentId === documentId)
+    .map((b) => ({ rate: b.rate, base: betrag(b.net), tax: betrag(b.tax), vorsteuerAnteil: b.vorsteuerAnteil }))
+    .sort((x, y) => y.rate - x.rate);
+}
+
+/** Abziehbarer Teil einer Steuer dieses Satzes (§ 15 Abs. 4 UStG), wie beim Buchen festgehalten */
+function abziehbar(totals: InvoiceTotals, rate: number, tax: Cents): Cents {
+  return abziehbareSteuer(tax, gespeicherterAnteil({}, totals.taxes.find((t) => t.rate === rate)?.vorsteuerAnteil));
+}
+
 /** Skonto-Ausbuchung des Belegs (write_offs, kind skontoErhalten); `reversesId` bei der Gegenzeile einer Aufhebung */
 interface Skonto {
   id: string;
@@ -78,7 +103,7 @@ interface Skonto {
  */
 function stornoDerSkontoAufhebung(
   k: { id: string; supplier: string; number: string; net: Cents; tax: Cents; gross: Cents },
-  betraege: { documentId: string; rate: number; net: Cents; tax: Cents }[],
+  betraege: Betrag[],
   erlass: Skonto[],
   skontos: Skonto[],
   ausgefuehrt: string,
@@ -86,15 +111,7 @@ function stornoDerSkontoAufhebung(
 ): VorsteuerZeile[] {
   const erlassen = new Set(erlass.filter((x) => !x.reversesId).map((x) => x.id));
   // Mit Vorzeichen, gerechnet wie die Zeile der Skonto-Abfrage
-  const totals = {
-    net: k.net,
-    tax: k.tax,
-    gross: k.gross,
-    taxes: betraege
-      .filter((b) => b.documentId === k.id)
-      .map((b) => ({ rate: b.rate, base: b.net, tax: b.tax }))
-      .sort((x, y) => y.rate - x.rate),
-  };
+  const totals = { net: k.net, tax: k.tax, gross: k.gross, taxes: belegSaetze(betraege, k.id) };
   return skontos
     .filter((r) => r.reversesId && erlassen.has(r.reversesId) && r.date.localeCompare(ausgefuehrt) >= 0)
     .flatMap((x) =>
@@ -105,7 +122,7 @@ function stornoDerSkontoAufhebung(
         number: `Storno ${k.number}`.trim(),
         rate: share.rate,
         base: share.base,
-        tax: share.tax,
+        tax: abziehbar(totals, share.rate, share.tax),
       })),
     );
 }
@@ -175,7 +192,7 @@ interface Ausgleich {
 
 /** Was die Nebenbücher zu den Belegen wissen: Beträge je Satz, Storno, Zahlungen, Barzahlung und Skonto */
 interface Nebenbuecher {
-  betraege: { documentId: string; rate: number; net: Cents; tax: Cents }[];
+  betraege: Betrag[];
   stornoAm: Map<string, string>;
   zahlungen: Map<string, Zahlung[]>;
   /** Zahlungen ohne ihre Aufhebungen: bei einem stornierten Beleg der Stand vor dem Storno */
@@ -219,6 +236,7 @@ async function nebenbuecherLaden(q: Db | Tx, ids: string[]): Promise<Nebenbueche
         rate: schema.documentAmounts.taxRate,
         net: schema.documentAmounts.net,
         tax: schema.documentAmounts.tax,
+        vorsteuerAnteil: schema.documentAmounts.vorsteuerAnteil,
       })
       .from(schema.documentAmounts)
       .where(inArray(schema.documentAmounts.documentId, ids)),
@@ -280,9 +298,9 @@ function zahlungenBisZurAusfuehrung(gezahlt: Zahlung[], erlass: Skonto[], ausgef
 }
 
 /**
- * Geschäftlicher Anteil je Steuersatz, der zwischen zwei erledigten Beträgen abziehbar wird. Kumuliert gerundet, wie im
- * Journal (vorsteuer-ausgleich.ts): Je Teilbetrag gerundet ergäben die Zeilen zusammen nicht genau die geschäftliche
- * Vorsteuer des Belegs.
+ * Geschäftlicher, abziehbarer Anteil je Steuersatz, der zwischen zwei erledigten Beträgen abziehbar wird. Kumuliert
+ * gerundet, wie im Journal (vorsteuer-anteile.ts): Je Teilbetrag gerundet ergäben die Zeilen zusammen nicht genau die
+ * abziehbare Vorsteuer des Belegs.
  */
 function anteilJeSatz(totals: InvoiceTotals, privateShare: number, vorher: Cents, nachher: Cents): TaxShare[] {
   const bis = paidTaxShares(totals, nachher);
@@ -293,7 +311,7 @@ function anteilJeSatz(totals: InvoiceTotals, privateShare: number, vorher: Cents
     return {
       rate,
       base: geschaeftlich(n?.base ?? 0, privateShare) - geschaeftlich(v?.base ?? 0, privateShare),
-      tax: geschaeftlich(n?.tax ?? 0, privateShare) - geschaeftlich(v?.tax ?? 0, privateShare),
+      tax: abziehbar(totals, rate, geschaeftlich(n?.tax ?? 0, privateShare)) - abziehbar(totals, rate, geschaeftlich(v?.tax ?? 0, privateShare)),
     };
   });
 }
@@ -334,10 +352,7 @@ function zeilenDerZahlungen(k: Kandidat & { datum: string }, totals: InvoiceTota
  */
 function zeilenDesBelegs(k: Kandidat, nb: Nebenbuecher): { zeilen: VorsteuerZeile[]; erlass: Skonto[] } | null {
   if (!k.vorsteuerAbzug || !k.datum) return null;
-  const saetze = nb.betraege
-    .filter((b) => b.documentId === k.id)
-    .map((b) => ({ rate: b.rate, base: Math.abs(b.net), tax: Math.abs(b.tax) }))
-    .sort((x, y) => y.rate - x.rate);
+  const saetze = belegSaetze(nb.betraege, k.id, Math.abs);
   const gross = Math.abs(k.gross);
   if (saetze.length === 0 || gross === 0) return null;
   const totals = { net: Math.abs(k.net), tax: Math.abs(k.tax), gross, taxes: saetze };

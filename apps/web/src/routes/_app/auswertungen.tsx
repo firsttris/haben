@@ -1,4 +1,4 @@
-import { currentYear, MONTHS, formatEuro, isKapitalgesellschaft, type EuerLine } from "@haben/core";
+import { currentYear, MONTHS, formatEuro, isKapitalgesellschaft, type EuerLine, type VorjahresStand, vorjahresStand, vorjahresVermerk } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod/mini";
@@ -9,6 +9,7 @@ import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Icon } from "../../components/Icon.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
+import { Gesamtumsatz } from "../../components/Gesamtumsatz.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 import { Status } from "../../components/Status.tsx";
 
@@ -25,7 +26,7 @@ type Data = Awaited<ReturnType<typeof getReports>>;
 const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 function ReportsPage() {
-  const { euer, open, years, today, versteuerung } = Route.useLoaderData();
+  const { euer, open, years, today, versteuerung, gesamtumsatz } = Route.useLoaderData();
   // GmbH und UG bilanzieren (§ 238 HGB): Die Zahlen nach Zahlung sind dort keine EÜR, den Gewinn zeigt der Jahresabschluss
   const { rechtsform, user } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
@@ -35,6 +36,8 @@ function ReportsPage() {
   const receivables = [...open.receivables, ...open.unbilledReceivables].sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.number.localeCompare(b.number));
   const overdueCount = receivables.filter((r) => r.daysOverdue > 0).length;
   const yearOptions = [...new Set([...years, year, currentYear()])].sort((a, b) => b - a);
+  // Was vor dem gewählten Jahr entstanden und noch offen ist (#1110), für Forderungen und Verbindlichkeiten getrennt
+  const vorjahr = { forderungen: vorjahresStand(receivables, year), verbindlichkeiten: vorjahresStand(open.payables, year) };
 
   return (
     <>
@@ -110,6 +113,8 @@ function ReportsPage() {
         </div>
       </div>
 
+      {gesamtumsatz && <Gesamtumsatz result={gesamtumsatz} />}
+
       <section className="card" aria-labelledby="monthly-heading">
         <div className="chart-head">
           <div>
@@ -181,6 +186,8 @@ function ReportsPage() {
         total={open.receivablesTotal}
         overdue={open.receivablesOverdue}
         kind="invoice"
+        jahr={year}
+        vorjahr={vorjahr.forderungen}
         hint={open.unbilledReceivables.length ? "„Ersatzrechnung offen“: Die Leistung ist erbracht; die Nummer öffnet den bisherigen Schlussbeleg." : undefined}
       />
       <AdvanceOpenTables open={open} />
@@ -193,6 +200,8 @@ function ReportsPage() {
         total={open.payablesTotal}
         overdue={open.payablesOverdue}
         kind="document"
+        jahr={year}
+        vorjahr={vorjahr.verbindlichkeiten}
       />
       <OpenTable
         id="umsatzsteuer"
@@ -318,6 +327,10 @@ function OpenTable(props: {
   overdue: number;
   kind: "invoice" | "document" | "ustva";
   hint?: string;
+  /** Gewähltes Jahr: Posten mit Datum davor bekommen ihre Kennzeichnung, ohne die Tabellen zu filtern (#1110) */
+  jahr?: number;
+  /** Wie viel davon aus früheren Jahren stammt; steht als Zeile über der Tabelle */
+  vorjahr?: VorjahresStand;
 }) {
   const { id, title, items, kind } = props;
   return (
@@ -339,19 +352,25 @@ function OpenTable(props: {
           {props.hint}
         </p>
       )}
+      {props.vorjahr?.text && (
+        <p className="small vorjahres-hinweis" style={{ margin: 0 }}>
+          {props.vorjahr.text} · <span className="amount">{formatEuro(props.vorjahr.betrag)}</span>
+        </p>
+      )}
       {items.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           {props.empty}
         </p>
       ) : (
         <div className="table-scroll">
-          <ScrollTable className="report-table open-table">
+          <ScrollTable className={props.jahr == null ? "report-table open-table" : "report-table open-table mit-jahr"}>
             <caption className="visually-hidden">{title}, nach Fälligkeit sortiert</caption>
             <thead>
               <tr>
                 <th scope="col">Nummer</th>
                 <th scope="col">{props.partyLabel}</th>
                 <th scope="col">Datum</th>
+                {props.jahr != null && <th scope="col">Jahr</th>}
                 <th scope="col">Fällig</th>
                 <th scope="col" className="num">
                   Betrag
@@ -364,39 +383,52 @@ function OpenTable(props: {
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id}>
-                  <th scope="row" className="mono small">
-                    {kind === "invoice" ? (
-                      <Link to="/rechnungen/$id" params={{ id: item.id }}>
-                        {item.number}
-                      </Link>
-                    ) : kind === "ustva" ? (
-                      <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: item.id }}>
-                        {item.number}
-                      </Link>
-                    ) : (
-                      <Link to="/belege/$id" params={{ id: item.id }}>
-                        {item.number}
-                      </Link>
-                    )}
-                  </th>
-                  <td className="ellipsis" title={item.party}>
-                    {item.party}
-                  </td>
-                  <td>{formatDate(item.date)}</td>
-                  <td>{formatDate(item.dueDate)}</td>
-                  <td className="num">{formatEuro(item.gross)}</td>
-                  <td className="num">{formatEuro(item.open)}</td>
-                  <td>
-                    <OpenStatus item={item} kind={kind} />
-                  </td>
-                </tr>
+                <OpenRow key={item.id} item={item} kind={kind} jahr={props.jahr} />
               ))}
             </tbody>
           </ScrollTable>
         </div>
       )}
     </section>
+  );
+}
+
+/** Eine Zeile der offenen Posten; mit `jahr` kennzeichnet sie Posten aus früheren Jahren (#1110) */
+function OpenRow({ item, kind, jahr }: { item: OpenPosition; kind: "invoice" | "document" | "ustva"; jahr?: number }) {
+  const vermerk = jahr == null ? null : vorjahresVermerk(item.date, jahr);
+  return (
+    <tr>
+      <th scope="row" className="mono small">
+        {kind === "invoice" ? (
+          <Link to="/rechnungen/$id" params={{ id: item.id }}>
+            {item.number}
+          </Link>
+        ) : kind === "ustva" ? (
+          <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: item.id }}>
+            {item.number}
+          </Link>
+        ) : (
+          <Link to="/belege/$id" params={{ id: item.id }}>
+            {item.number}
+          </Link>
+        )}
+      </th>
+      <td className="ellipsis" title={item.party}>
+        {item.party}
+      </td>
+      <td>{formatDate(item.date)}</td>
+      {jahr != null && <td className={vermerk ? "jahr vorjahr" : "jahr"}>{item.date.slice(0, 4)}</td>}
+      <td>
+        {formatDate(item.dueDate)}
+        {/* Am Handy steht die Spalte „Jahr“ nicht; dort hängt der Vermerk an der Fälligkeit */}
+        {vermerk && <span className="vorjahr-handy"> · {vermerk}</span>}
+      </td>
+      <td className="num">{formatEuro(item.gross)}</td>
+      <td className="num">{formatEuro(item.open)}</td>
+      <td>
+        <OpenStatus item={item} kind={kind} />
+      </td>
+    </tr>
   );
 }
 
