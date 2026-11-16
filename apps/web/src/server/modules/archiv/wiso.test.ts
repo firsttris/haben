@@ -77,6 +77,47 @@ describe.skipIf(!testDatabaseUrl)("WISO-Import (Postgres)", () => {
     ]);
   });
 
+  it.each(["SKR03", "SKR04"] as const)("%s: archiviert ohne Leistungsdatum und erhält Zahlung, Original und Dublettenkennung", async (skr) => {
+    await sql`update company set kontenrahmen = ${skr}`;
+    const revenue = skr === "SKR03" ? "8400" : "4400";
+    const bank = skr === "SKR03" ? "1200" : "1800";
+    const bytes = wisoBytes([
+      `81;1;15.01.2026;16.01.2026;Leistung Dezember 2025;${revenue};Erlöse;${bank};Bank;0,00;119,00;USt 19 %;19,00;Umsatzsteuer;FIKTIV-81;03.02.2026;;0`,
+    ]);
+    await wiso.startWisoImport("test-user", bytes, "fiktiv.csv");
+    const [row] = await sql`select * from lexoffice_vouchers where lexoffice_id = 'wiso/2026/81'`;
+    expect(row).toMatchObject({ date: "2026-01-15", service_from: null, service_to: null, net: 10000, tax: 1900, gross: 11900 });
+    expect(row!.raw.rows[0]).toMatchObject({ zahlungsdatum: "2026-01-15", wertstellungsdatum: "2026-01-16", buchungsdatum: "2026-02-03" });
+    expect(row!.payment).toEqual({ status: "paid", openAmount: 0, paidDate: "2026-01-15", items: [{ type: "payment", date: "2026-01-15", amount: 11900 }] });
+    const { loadFile, sha256Of } = await import("../../storage.ts");
+    const [original] = await sql`select sha256 from archive_files`;
+    expect(original!.sha256).toBe(sha256Of(bytes));
+    expect(new Uint8Array(await loadFile(original!.sha256))).toEqual(bytes);
+    expect(await wiso.startWisoImport("test-user", bytes, "fiktiv.csv")).toMatchObject({ imported: 0, skipped: 1 });
+    expect(await sql`select * from lexoffice_vouchers where id = ${row!.id}`).toEqual([row]);
+    expect(await sql`select count(*)::int as n from archive_files`).toEqual([{ n: 1 }]);
+  });
+
+  it.each(["wiso", "lexoffice", "import"] as const)("%s: liest alte Leistungsfelder nach Herkunft, ohne die Archivzeile zu ändern", async (source) => {
+    const [run] = await sql`insert into lexoffice_imports (source, status, progress) values (${source}, 'fertig', '{"phase":"fertig"}') returning id`;
+    const [row] = await sql`insert into lexoffice_vouchers
+      (lexoffice_id, import_id, source, type, direction, number, date, service_from, service_to, status, net, tax, gross, taxes, categories, payment, raw)
+      values ('wiso/2026/81', ${run!.id}, ${source}, 'salesinvoice', 'einnahme', 'FIKTIV-ALT-81', '2026-01-15', '2026-01-15', '2026-01-15', 'archiviert',
+        10000, 1900, 11900, '[{"rate":1900,"net":10000,"tax":1900}]', '[]',
+        '{"status":"paid","openAmount":0,"paidDate":"2026-01-15","items":[{"type":"payment","date":"2026-01-15","amount":11900}]}',
+        '{"ohneBeleg":true,"rows":[{"zahlungsdatum":"2026-01-15","buchungsdatum":"2026-02-03"}]}') returning *`;
+    const before = await sql`select * from audit_log order by id`;
+    const { legacyVoucherDetail, findLegacyVouchers } = await import("./lexoffice.ts");
+    const dates = source === "wiso" ? { serviceFrom: null, serviceTo: null } : { serviceFrom: "2026-01-15", serviceTo: "2026-01-15" };
+    const detail = await legacyVoucherDetail(row!.id);
+    expect(detail!.voucher).toMatchObject({ source, date: "2026-01-15", ...dates, net: 10000, tax: 1900, gross: 11900 });
+    if (source === "wiso") expect(detail!.voucher.payment).toEqual(row!.payment);
+    expect((await findLegacyVouchers("FIKTIV-ALT-81"))[0]!.voucher).toMatchObject(dates);
+    expect((await findLegacyVouchers("FIKTIV-ALT-81"))[0]!.raw).toEqual(row!.raw);
+    expect(await sql`select * from lexoffice_vouchers where id = ${row!.id}`).toEqual([row]);
+    expect(await sql`select * from audit_log order by id`).toEqual(before);
+  });
+
   // WISO EÜR rechnet nach Zahlung: Die Spalte „Zahlungsdatum“ ist der Zufluss. Bei Ist-Versteuerung zählt die Umsatzsteuer
   // im Abgleich nach Zahlungen (legacyVatByMonth, § 13 Abs. 1 Nr. 1 Buchst. b UStG); ohne sie fehlte die Einnahme in Kz 81,
   // während die Vorsteuer in Kz 66 steht

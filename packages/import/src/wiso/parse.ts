@@ -273,8 +273,10 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
     number: first.belegnummer,
     date: first.zahlungsdatum,
     dueDate: null,
-    serviceFrom: first.zahlungsdatum,
-    serviceTo: first.zahlungsdatum,
+    // Der Buchungs-CSV fehlt ein Leistungsdatum (#565); auch das Buchungsdatum belegt keine Leistung.
+    // WISO-Felddokumentation, S. 1: https://github.com/user-attachments/files/34627535/EUR-Felddokumentation-2025-03-01.pdf
+    serviceFrom: null,
+    serviceTo: null,
     status: "archiviert",
     contactLexofficeId: null,
     contactName: "",
