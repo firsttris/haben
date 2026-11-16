@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { type Bundesland, lohnabrechnung, type LohnabrechnungErgebnis, monatsgrenzen, monatsname } from "@haben/core";
+import { type Bundesland, lohnabrechnung, type LohnabrechnungErgebnis, monatsgrenzen, monatsname, inCents } from "@haben/core";
 import { and, asc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -26,7 +26,7 @@ export const abrechnenSchema = monthSchema.extend({ zahltag: z.iso.date("Zahltag
 export const entwurfSchema = z.object({
   id: z.uuid(),
   /** Entgelt dieses Monats in Cent; ohne Angabe das Monatsgehalt aus den Stammdaten */
-  entgelt: z.number().int().min(1, "Entgelt fehlt").max(10_000_000_00).nullable().default(null),
+  entgelt: inCents(z.number().int().min(1, "Entgelt fehlt").max(10_000_000_00)).nullable().default(null),
 });
 export const festschreibenSchema = z.object({ id: z.uuid(), gegengeprueft: z.boolean().default(false) });
 export const stornoSchema = z.object({ id: z.uuid(), grund: z.string().trim().max(500).default("") });

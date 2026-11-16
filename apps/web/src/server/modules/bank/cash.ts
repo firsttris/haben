@@ -13,6 +13,7 @@ import {
   type Cents,
   type Kontenrahmen,
   type PostingLine,
+  inCents,
 } from "@haben/core";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -47,7 +48,7 @@ export const cashInputSchema = z.object({
   kind: z.enum(Object.keys(CASH_BOOKINGS) as [CashBooking, ...CashBooking[]]),
   date: z.iso.date(),
   /** Cent, immer positiv; die Richtung folgt aus der Art */
-  amount: z.number().int().min(1, "Betrag fehlt").max(100_000_000),
+  amount: inCents(z.number().int().min(1, "Betrag fehlt").max(100_000_000)),
   text: z.string().trim().max(300).default(""),
 });
 

@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { ITEM_NUMBER_MAX, LINE_DETAIL_MAX, UNIT_LABEL_MAX } from "@haben/core";
+import { ITEM_NUMBER_MAX, LINE_DETAIL_MAX, UNIT_LABEL_MAX, inCents, inBasisPoints } from "@haben/core";
 import { asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -19,8 +19,8 @@ export const articleInputSchema = z.object({
   detail: z.string().trim().max(LINE_DETAIL_MAX).default(""),
   /** Feste oder eigene Einheit (#748); ob es sie gibt, prüft assertKnownUnit beim Speichern */
   unit: z.string().trim().min(1, "Einheit fehlt").max(UNIT_LABEL_MAX),
-  unitPrice: z.number().int().min(-100_000_000_00).max(100_000_000_00),
-  taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
+  unitPrice: inCents(z.number().int().min(-100_000_000_00).max(100_000_000_00)),
+  taxRate: inBasisPoints(z.union([z.literal(1900), z.literal(700), z.literal(0)])),
   /** Preis inklusive Umsatzsteuer; beim Einfügen in eine Rechnung mit anderem Preismodus umgerechnet */
   priceIncludesTax: z.boolean().default(false),
   note: z.string().trim().max(1000).default(""),

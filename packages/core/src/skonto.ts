@@ -1,4 +1,5 @@
 import { z } from "zod/mini";
+import { inBasisPoints } from "./einheit-schema.ts";
 import { addDays, naechsterWerktag } from "./holidays.ts";
 import { parseHundredths, roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
@@ -66,7 +67,7 @@ export const MAX_SKONTO_STUFEN = 3;
 
 export const skontoStufeSchema = z.object({
   days: z.int().check(z.minimum(1, "Skontofrist mindestens 1 Tag"), z.maximum(120, "Skontofrist höchstens 120 Tage")),
-  percent: z.int().check(z.minimum(1, "Skonto mindestens 0,01 %"), z.maximum(9_999, "Skonto unter 100 %")),
+  percent: inBasisPoints(z.int().check(z.minimum(1, "Skonto mindestens 0,01 %"), z.maximum(9_999, "Skonto unter 100 %"))),
 });
 
 export const SKONTO_STUFEN_MAX_MESSAGE = `Höchstens ${MAX_SKONTO_STUFEN} Skontostufen`;

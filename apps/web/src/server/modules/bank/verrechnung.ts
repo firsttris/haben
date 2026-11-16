@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { formatEuro, verrechnungPosting, type Kontenrahmen, type PostingLine } from "@haben/core";
+import { formatEuro, verrechnungPosting, type Kontenrahmen, type PostingLine, inCents } from "@haben/core";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -38,7 +38,7 @@ export const settlementSchema = z.object({
   /** Der Gegenbeleg, etwa die Gutschrift des Lieferanten */
   counterDocumentId: z.uuid(),
   /** Betrag ohne Vorzeichen; die Richtung ergibt sich aus den offenen Resten */
-  amount: z.number().int().positive(),
+  amount: inCents(z.number().int().positive()),
   /** Tag der Aufrechnung; verrechnet wird, wenn aufgerechnet wird, nicht rückwirkend */
   date: z.iso.date(),
   /** Grund der Verrechnung, etwa die Nummer der Gutschrift */

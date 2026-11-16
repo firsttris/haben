@@ -80,7 +80,7 @@ export function daysOverdue(dueDate: string, until: string): number {
  * Verzugszinsen auf den offenen Betrag, taggenau, kaufmännisch gerundet. Bewusst vereinfacht mit 365 Tagen
  * je Jahr, auch im Schaltjahr (dort wären es 366); der Unterschied liegt bei rund 0,3 % der Zinsen.
  */
-export function lateInterest(open: Cents, rateBasisPoints: number, days: number): Cents {
+export function lateInterest(open: Cents, rateBasisPoints: BasisPoints, days: number): Cents {
   if (open <= 0 || rateBasisPoints <= 0 || days <= 0) return 0;
   return Math.round((open * rateBasisPoints * days) / (10_000 * 365));
 }
@@ -91,7 +91,7 @@ export interface DunningAmounts {
   fee: Cents;
   flatFee: Cents;
   interest: Cents;
-  interestRate: number;
+  interestRate: BasisPoints;
   interestDays: number;
   total: Cents;
 }
@@ -102,8 +102,8 @@ export function dunningAmounts(input: {
   date: string;
   fee: Cents;
   flatFee: boolean;
-  /** Basiszinssatz plus Aufschlag in Basispunkten; null = keine Zinsen */
-  interestRate: number | null;
+  /** Basiszinssatz plus Aufschlag; null = keine Zinsen */
+  interestRate: BasisPoints | null;
 }): DunningAmounts {
   const interestDays = input.interestRate === null ? 0 : daysOverdue(input.dueDate, input.date);
   const interest = input.interestRate === null ? 0 : lateInterest(input.open, input.interestRate, interestDays);
