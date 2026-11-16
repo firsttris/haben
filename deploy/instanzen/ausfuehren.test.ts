@@ -67,6 +67,14 @@ describe("bunAusfuehren", () => {
     expect(Date.now() - start).toBeLessThan(4000);
   });
 
+  it("kommt nach dem Zeitlimit auch zurück, wenn der Befehl endet, ein Kindprozess aber die Ausgabe offen hält", async () => {
+    // Das Ergebnis ist bis zum Zeitlimit nicht vollständig: Auch dann bricht das Lesen nach der Nachfrist ab
+    const start = Date.now();
+    const r = await bunAusfuehren(["/bin/sh", "-c", "sleep 10 & exit 0"], { cwd: "/", env: {}, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+    expect(Date.now() - start).toBeLessThan(4000);
+  }, 15_000);
+
   it("lässt einen Befehl innerhalb des Zeitlimits unberührt", async () => {
     expect(await bunAusfuehren(["/bin/sh", "-c", "exit 3"], { cwd: "/", env: {}, zeitlimit: 5000 })).toEqual({ code: 3, stdout: "", stderr: "" });
   });
