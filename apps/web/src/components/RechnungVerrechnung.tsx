@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { formatDate } from "../lib/format.ts";
@@ -56,7 +56,7 @@ export function RechnungVerrechnung({ invoiceId, readOnly }: { invoiceId: string
       .run(async () => {
         const cents = parseEuro(betrag);
         if (!counterId) throw new Error("Bitte den Gegenbeleg wählen.");
-        if (cents === null || cents <= 0) throw new Error("Bitte einen Betrag größer null eintragen.");
+        if (cents === null || cents <= 0) throw new Error(amountError("einen Betrag über 0"));
         if (!datum) throw new Error("Bitte den Tag der Aufrechnung angeben.");
         if (!grund.trim()) throw new Error("Bitte den Grund der Verrechnung angeben.");
         await verrechnen({ data: { invoiceId, counterInvoiceId: counterId, amount: cents, date: datum, note: grund.trim() } });

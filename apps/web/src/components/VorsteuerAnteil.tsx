@@ -6,6 +6,7 @@ import {
   gespeicherterAnteil,
   parsePercent,
   splitPrivateShare,
+  type Prozent,
   type SelfAssessedTax,
 } from "@haben/core";
 import { Field } from "./Field.tsx";
@@ -61,7 +62,7 @@ interface Props {
   booked: boolean;
   storedDeduction: boolean;
   /** Privatanteil in ganzen Prozent; null, wenn die Eingabe ungültig ist, dann ohne Vorschau */
-  privateShare: number | null;
+  privateShare: Prozent | null;
   asset: boolean;
   importVat?: boolean;
   onChange: (value: string) => void;

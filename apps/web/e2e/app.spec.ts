@@ -428,6 +428,18 @@ test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in F
   await expect(blatt.locator('[data-teil="summen"]')).not.toContainText("Mahngebühr");
 });
 
+test("Mahnung: „5€00“ als Gebühr steht am Feld, statt still 500,00 € zu werden (#1242)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Mahngebühr (€)").fill("5€00");
+  await page.getByRole("button", { name: "Zahlungserinnerung erstellen" }).click();
+  await expect(page.getByLabel("Mahngebühr (€)")).toBeFocused();
+  await expect(page.getByLabel("Mahngebühr (€)")).toHaveAccessibleDescription("Trag die Mahngebühr ein, etwa 5,00, oder lass das Feld leer.");
+  await expect(page.getByRole("region", { name: "Forderung" }).getByText("Mahngebühr", { exact: true })).toHaveCount(0);
+});
+
 test("Mahnung: Das Zahnrad zeigt nur Schalter, die auf das Blatt wirken", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();

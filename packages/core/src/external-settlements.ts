@@ -1,4 +1,5 @@
 import { kontoart } from "./ledger.ts";
+import type { Cents } from "./money.ts";
 import { isPrivateAccount } from "./manual.ts";
 import { ACCOUNTS, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
 
@@ -37,7 +38,7 @@ export function isExternalSettlementPayment(kr: Kontenrahmen, lines: ExternalSet
 /** Ein Zahlungsbezug gilt einer ursprünglichen Buchung derselben Quelle, nicht einem anderen Ausgleich. */
 export function externalSettlementProblem(kr: Kontenrahmen, journals: readonly ExternalSettlementJournal[]): string | null {
   const byId = new Map(journals.map((e) => [e.externalId, e]));
-  const days = new Map<string, { id: string; gross: number; amount: number }>();
+  const days = new Map<string, { id: string; gross: Cents; amount: Cents }>();
   for (const payment of [...journals].sort((a, b) => a.date.localeCompare(b.date) || a.externalId.localeCompare(b.externalId))) {
     if (!payment.settles) continue;
     const original = byId.get(payment.settles);

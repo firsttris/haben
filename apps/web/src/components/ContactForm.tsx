@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { formatDecimal, parseEuro, parsePersonenkonto } from "@haben/core";
+import { amountError, formatDecimal, parseEuro, parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { UstIdHinweis } from "./UstIdHinweis.tsx";
 import { saveContact } from "../server/functions/contacts.ts";
@@ -107,7 +107,7 @@ export function ContactForm({
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
       if (!debitor.ok) throw new Error(debitor.error);
       if (!kreditor.ok) throw new Error(kreditor.error);
-      if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error("Der Stundensatz ist kein gültiger Betrag.");
+      if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error(amountError("den Stundensatz", 9_500));
       if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       const input = {
         ...textFields(text),

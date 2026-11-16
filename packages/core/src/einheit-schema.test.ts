@@ -1,12 +1,25 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 import { z as zm } from "zod/mini";
+import type { maxDegressiveRate } from "./afa-methoden.ts";
+import type { ScheduleAsset } from "./afa.ts";
+import type { KirchensteuerSatz } from "./ausschuettung.ts";
+import type { PublishedBaseRate } from "./base-rate.ts";
+import type { DauerbelegBetrag } from "./dauerbeleg.ts";
 import { type dunningAmounts, lateInterest } from "./dunning.ts";
-import { inBasisPoints, inCents, inMillis } from "./einheit-schema.ts";
+import { inBasisPoints, inCents, inMillis, inProzent } from "./einheit-schema.ts";
+import type { EuerPayment } from "./euer.ts";
 import type { invoiceLineInputSchema, Millis, TaxRate } from "./invoice.ts";
-import type { BasisPoints, Cents } from "./money.ts";
-import { discountColumns, discountFromColumns, type discountSchema } from "./rabatt.ts";
-import type { skontoStufeSchema } from "./skonto.ts";
+import type { KST_SATZ, KapgSteuerAngaben } from "./koerperschaft.ts";
+import type { WarteAngabe } from "./leistungsdatum.ts";
+import type { VorjahresStand } from "./offene-posten-vorjahre.ts";
+import { splitPrivateShare, type BasisPoints, type Cents, type Prozent } from "./money.ts";
+import type { PrivateUseRate } from "./private-use.ts";
+import { discountColumns, discountFromColumns, type DiscountableLine, type discountSchema } from "./rabatt.ts";
+import type { CentRange } from "./search-money.ts";
+import type { parseWholePercent, skontoStufeSchema } from "./skonto.ts";
+import type { treatmentIssues } from "./treatment.ts";
+import type { VerprobungsAbweichung } from "./ust-verprobung.ts";
 
 // Die Typen prüft der Typecheck (`bun run typecheck`): expectTypeOf tut zur Laufzeit nichts, und kompiliert eine Zeile unter
 // `@ts-expect-error` doch, meldet tsc die Direktive als unbenutzt (#1132).
@@ -20,6 +33,7 @@ describe("Zod-Schemas mit Einheit", () => {
     const mini = zm.int().check(zm.maximum(10_000));
     expect(inBasisPoints(mini)).toBe(mini);
     expect(inMillis(mini)).toBe(mini);
+    expect(inProzent(mini)).toBe(mini);
   });
 
   it("Zod prüft schon auf eine ganze Zahl im sicheren Bereich", () => {
@@ -58,5 +72,49 @@ describe("Spalten des Rabatts und Zinssatz der Mahnung", () => {
   it("Spalten des Rabatts und Zinssatz der Mahnung tragen die Einheit", () => {
     expectTypeOf(discountColumns(null)).toEqualTypeOf<{ discountPercent: BasisPoints | null; discountAmount: Cents | null }>();
     expectTypeOf<ReturnType<typeof dunningAmounts>["interestRate"]>().toEqualTypeOf<BasisPoints>();
+  });
+});
+
+describe("Privatanteil in Prozent und die übrigen Felder in core", () => {
+  const privatanteil: Prozent = 20;
+  const satz: BasisPoints = 2000;
+  const prozentSchema = inProzent(z.number().int().min(0).max(100));
+
+  it("Prozent und Basispunkte passen nicht zueinander", () => {
+    expect(splitPrivateShare(10_000, privatanteil)).toEqual({ business: 8000, private: 2000 });
+    // @ts-expect-error 20 % in Basispunkten sind kein Privatanteil in Prozent: privat wären 2000 %
+    expect(splitPrivateShare(10_000, satz)).toEqual({ business: -190_000, private: 200_000 });
+    expectTypeOf<z.output<typeof prozentSchema>>().toEqualTypeOf<Prozent>();
+    expectTypeOf<ReturnType<typeof parseWholePercent>>().toEqualTypeOf<Prozent | null>();
+  });
+
+  it("Sätze, Mengen und Hebesatz tragen ihre Einheit", () => {
+    expectTypeOf<NonNullable<ScheduleAsset["degressiveRate"]>>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<ReturnType<typeof maxDegressiveRate>>().toEqualTypeOf<BasisPoints | null>();
+    expectTypeOf<DauerbelegBetrag["taxRate"]>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<Extract<EuerPayment, { kind: "document" }>["vorsteuerAnteil"]>().toEqualTypeOf<BasisPoints | null | undefined>();
+    expectTypeOf<Extract<EuerPayment, { kind: "document" }>["privateShare"]>().toEqualTypeOf<Prozent | undefined>();
+    expectTypeOf<Extract<EuerPayment, { kind: "kategorie" }>["steuersatz"]>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<DiscountableLine["quantity"]>().toEqualTypeOf<Millis>();
+    expectTypeOf<KapgSteuerAngaben["hebesatz"]>().toEqualTypeOf<Prozent>();
+    expectTypeOf<PrivateUseRate>().toEqualTypeOf<BasisPoints & (100 | 50 | 25)>();
+    expectTypeOf<NonNullable<VerprobungsAbweichung["satz"]>>().toEqualTypeOf<BasisPoints & (1900 | 700)>();
+  });
+
+  it("Kirchensteuersatz der Ausschüttung in ganzen Prozent, nicht in Basispunkten wie beim Lohn", () => {
+    expectTypeOf<KirchensteuerSatz>().toEqualTypeOf<Prozent & (0 | 8 | 9)>();
+    const kirchensteuer: KirchensteuerSatz = 9;
+    // @ts-expect-error 9 % Kirchensteuer der Ausschüttung sind keine 9 Basispunkte
+    const alsBasispunkte: BasisPoints = kirchensteuer;
+    expect(alsBasispunkte).toBe(9);
+  });
+
+  it("Steuersätze der Körperschaft, Basiszinssatz, Suchbereich und Eingaben der Prüfungen", () => {
+    expectTypeOf<typeof KST_SATZ>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<PublishedBaseRate["basisPoints"]>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<CentRange["min"]>().toEqualTypeOf<Cents>();
+    expectTypeOf<VorjahresStand["betrag"]>().toEqualTypeOf<Cents>();
+    expectTypeOf<WarteAngabe["gross"]>().toEqualTypeOf<Cents>();
+    expectTypeOf<Parameters<typeof treatmentIssues>[1]["rates"]>().toEqualTypeOf<BasisPoints[]>();
   });
 });

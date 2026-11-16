@@ -8,6 +8,7 @@ import {
   type Cents,
   type InvoiceTotals,
   type TaxShare,
+  type Prozent,
 } from "@haben/core";
 import { and, eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
@@ -36,7 +37,7 @@ export async function belegTotals(tx: Tx, doc: { id: string; net: number; tax: n
 }
 
 /** Der geschäftliche Teil eines Betrags, gerundet wie beim Buchen (splitPrivateShare) */
-export function geschaeftlich(betrag: Cents, privateShare: number): Cents {
+export function geschaeftlich(betrag: Cents, privateShare: Prozent): Cents {
   return privateShare === 0 ? betrag : splitPrivateShare(betrag, privateShare).business;
 }
 
@@ -154,7 +155,7 @@ async function bisherUmgebucht(tx: Tx, documentId: string, ausfuehrung: string |
  */
 export async function vorsteuerAnteile(
   tx: Tx,
-  doc: { id: string; privateShare: number },
+  doc: { id: string; privateShare: Prozent },
   totals: InvoiceTotals,
   amount: number,
   datum: string,
@@ -194,7 +195,7 @@ export async function vorsteuerAnteile(
  */
 export async function anteilZumRechnungsdatum(
   tx: Tx,
-  doc: { id: string; privateShare: number; documentDate: string | null },
+  doc: { id: string; privateShare: Prozent; documentDate: string | null },
   totals: InvoiceTotals,
   tag: string,
 ): Promise<TaxShare[]> {

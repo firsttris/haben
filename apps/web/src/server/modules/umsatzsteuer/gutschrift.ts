@@ -1,4 +1,14 @@
-import { abziehbareSteuer, gespeicherterAnteil, paidTaxShares, periodRange, splitPrivateShare, type Cents, type TaxShare, type VatPeriod } from "@haben/core";
+import {
+  abziehbareSteuer,
+  gespeicherterAnteil,
+  paidTaxShares,
+  periodRange,
+  splitPrivateShare,
+  type Cents,
+  type TaxShare,
+  type VatPeriod,
+  type Prozent,
+} from "@haben/core";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
@@ -67,7 +77,7 @@ interface Vorgang {
   net: Cents;
   tax: Cents;
   gross: Cents;
-  privateShare: number;
+  privateShare: Prozent;
   vorsteuerAnteil: number | null;
   vorsteuerAbzug: boolean;
   createdAt: Date;
