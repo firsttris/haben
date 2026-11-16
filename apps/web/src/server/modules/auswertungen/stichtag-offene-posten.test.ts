@@ -163,7 +163,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     expect(heute).toMatchObject({ receivablesTotal: 0, payablesTotal: 11_900 });
   }, 30_000);
 
-  it("Umsatzsteuer: spätere Zahlungen und später abgegebene Anmeldungen zählen am 31.12. nicht", async () => {
+  it("Umsatzsteuer: spätere Zahlungen zählen am 31.12. nicht, eine im Januar abgegebene Dezember-Anmeldung steht dort offen", async () => {
     const manuell = (kz81: number) => ({ mode: "manuell" as const, kz81, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
     const abgabe = (kz83: number, filedOn: string, ticket: string) => ({
       filedOn,
@@ -174,7 +174,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     // Q3/2025: im Oktober 2025 abgegeben, erst im Januar 2026 bezahlt
     const q3 = await vat.saveDraft(actor, { year: 2025, month: 9 }, manuell(100_000));
     await vermerk.vermerkeAbgabe(actor, q3.id, abgabe(q3.kz83, "2025-10-09", "etQ320251111"), "2025-10-09");
-    // Q4/2025: am 31.12.2025 noch nicht abgegeben, also kein Posten im Abschlussstand
+    // Dezember 2025: erst am 03.01.2026 abgegeben; zum 31.12. trotzdem offen, weil der Zeitraum geendet hat
     const q4 = await vat.saveDraft(actor, { year: 2025, month: 12 }, manuell(129_222));
     await vermerk.vermerkeAbgabe(actor, q4.id, abgabe(q4.kz83, "2026-01-03", "etQ420251112"), "2026-01-03");
 
@@ -182,10 +182,12 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     const [ustZahlung] = await sql`select id from bank_transactions where amount = -19_000`;
     await bank.allocate(actor, { kind: "ustva", transactionId: ustZahlung!.id as string, vatReturnId: q3.id, amount: -19_000 });
 
-    // Abschlussstand 31.12.2025: nur die damals abgegebene Q3, die Zahlung im Januar zählt nicht
+    // Abschlussstand 31.12.2025: Q3 und die Dezember-Anmeldung, die erst im Januar abgegeben wurde (#1110); die
+    // Zahlung im Januar zählt nicht, deshalb ist Q3 dort noch offen
     const stichtag = await zahlung.ustvaPosten(undefined, { bis: "2025-12-31" });
-    expect(stichtag.posten.map((p) => p.month)).toEqual([9]);
+    expect(stichtag.posten.map((p) => p.month)).toEqual([9, 12]);
     expect(stichtag.posten[0]).toMatchObject({ betrag: q3.kz83, offen: q3.kz83 });
+    expect(stichtag.posten[1]).toMatchObject({ betrag: q4.kz83, offen: q4.kz83 });
     // Die Zahlung im Januar ist nicht dabei; der Betrag rechnet sich zu -0, deshalb mit Toleranz
     expect(stichtag.posten[0]!.bezahlt).toBeCloseTo(0, 2);
 
