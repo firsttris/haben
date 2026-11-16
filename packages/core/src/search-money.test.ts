@@ -9,12 +9,21 @@ describe("parseEuroSearchRange", () => {
     expect(parseEuroSearchRange("19.99")).toEqual({ min: 1999, max: 1999 });
     expect(parseEuroSearchRange("19.99 €")).toEqual({ min: 1999, max: 1999 });
     expect(parseEuroSearchRange("-42.5€")).toEqual({ min: -4250, max: -4250 });
+    expect(parseEuroSearchRange("12,50 EUR")).toEqual({ min: 1250, max: 1250 });
+    expect(parseEuroSearchRange("1 234,56")).toEqual({ min: 123456, max: 123456 });
+  });
+
+  it("liest wie die Betragsfelder: „12€50“ und „1 2,50“ sind kein Betrag (#1242)", () => {
+    expect(parseEuroSearchRange("12€50")).toBeNull();
+    expect(parseEuroSearchRange("1 2,50")).toBeNull();
+    expect(parseEuroSearchRange("12 34")).toBeNull();
   });
 
   it("trifft mit ganzem Euro alle Cent-Beträge dieses Euros", () => {
     expect(parseEuroSearchRange("1190")).toEqual({ min: 119000, max: 119099 });
     expect(parseEuroSearchRange("1.190")).toEqual({ min: 119000, max: 119099 });
     expect(parseEuroSearchRange("1190 €")).toEqual({ min: 119000, max: 119099 });
+    expect(parseEuroSearchRange("EUR 1.190")).toEqual({ min: 119000, max: 119099 });
     expect(parseEuroSearchRange("-1190")).toEqual({ min: -119099, max: -119000 });
     expect(parseEuroSearchRange("0")).toEqual({ min: 0, max: 99 });
   });

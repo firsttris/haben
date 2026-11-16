@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDeduction, formatEuro, formatHundredths, parseEuro, parseHundredths, taxOf } from "./money.ts";
+import { amountError, formatDeduction, formatEuro, formatHundredths, parseEuro, parseHundredths, taxOf } from "./money.ts";
 
 describe("Hundertstel ohne Einheit", () => {
   it("liest und schreibt Prozent wie Euro mit zwei Nachkommastellen", () => {
@@ -17,12 +17,61 @@ describe("parseEuro", () => {
     ["12 €", 1200],
     ["-3.000,00", -300000],
     ["−45,90", -4590],
-  ])("%s → %i", (input, cents) => {
+    // Währung vorn oder hinten, auch „EUR“ und mit dem geschützten Leerzeichen aus formatEuro (#1242)
+    [" 12,50 € ", 1250],
+    ["€ 12,50", 1250],
+    ["€12,50", 1250],
+    ["12,50 EUR", 1250],
+    ["EUR 12,50", 1250],
+    [formatEuro(123456), 123456],
+    // Ein Punkt mit einer oder zwei Ziffern dahinter ist Dezimaltrenner, mit drei Ziffern Tausenderpunkt
+    ["12.50", 1250],
+    ["12.5", 1250],
+    ["12.34", 1234],
+    ["1.500", 150000],
+    ["1.234.567", 123456700],
+    // Leerzeichen als Tausendertrenner ist eindeutig, wenn danach je drei Ziffern folgen
+    ["1 234,56", 123456],
+    ["1 234 567 €", 123456700],
+    // Vorzeichen vorn, auch vor der Währung
+    ["+12,50", 1250],
+    ["- 12,50 €", -1250],
+    ["-€ 12,50", -1250],
+    ["€ -12,50", -1250],
+    ["–12,50", -1250],
+  ])("%j → %i", (input, cents) => {
     expect(parseEuro(input)).toBe(cents);
   });
 
-  it.each(["", "abc", "1,234", "12.34", "1.23,00"])("lehnt %j ab", (input) => {
-    expect(parseEuro(input)).toBeNull();
+  it("liest „-0,00“ als 0, nicht als −0", () => {
+    expect(Object.is(parseEuro("-0,00"), 0)).toBe(true);
+  });
+
+  it.each(["", "abc", "1,234", "1.23,00", "€", "12 %", ",50", "12.", "12,", "12,505", "1.234.56", "1,234.56", "99999999999999999999"])(
+    "lehnt %j ab",
+    (input) => {
+      expect(parseEuro(input)).toBeNull();
+    },
+  );
+
+  it.each(["12€50", "1€2", "12EUR50", "1 2,50", "12 34", "1.234 567", "€ 12,50 €", "--12", "-€-12", "12,50-"])(
+    "lehnt %j ab: Währung nur am Rand, Leerzeichen sonst nur zwischen Dreiergruppen, Vorzeichen nur vorn (#1242)",
+    (input) => {
+      expect(parseEuro(input)).toBeNull();
+    },
+  );
+});
+
+describe("amountError", () => {
+  it("meldet einen ungültigen Betrag in einer Form, mit Beispiel aus Cent", () => {
+    expect(amountError()).toBe("Trag den Betrag ein, etwa 1.234,56.");
+    expect(amountError("den Preis", 12050)).toBe("Trag den Preis ein, etwa 120,50.");
+    expect(amountError("einen Betrag über 0", 4990)).toBe("Trag einen Betrag über 0 ein, etwa 49,90.");
+    expect(amountError("den Betrag", -12050)).toBe("Trag den Betrag ein, etwa -120,50.");
+  });
+
+  it("nennt bei einem Feld, das leer bleiben darf, auch das", () => {
+    expect(amountError("die Mahngebühr", 500, { optional: true })).toBe("Trag die Mahngebühr ein, etwa 5,00, oder lass das Feld leer.");
   });
 });
 

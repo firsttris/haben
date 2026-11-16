@@ -1,5 +1,5 @@
-import { type Cents, UNITS, type UnitLabel } from "@haben/core";
-import { parseDate, parseDotAmount, parseGermanAmount } from "../text.ts";
+import { amountError, type Cents, parseEuro, UNITS, type UnitLabel } from "@haben/core";
+import { parseDate } from "../text.ts";
 
 /**
  * Werte aus Zellen einer Import-Datei. Jede Funktion liefert den Wert oder eine Meldung für die Vorschau; leere Zellen
@@ -12,22 +12,17 @@ const ok = <T>(value: T): Parsed<T> => ({ ok: true, value });
 const fail = <T>(error: string): Parsed<T> => ({ ok: false, error });
 
 /**
- * Betrag in Cent, deutsch geschrieben („1.234,56“, „12,5“, „100 €“). Ein Punkt gilt nur als Dezimalpunkt, wenn er mit
- * ein oder zwei Nachkommastellen eindeutig ist („12.50“). „1.234“ ist deutsch 1.234 €, englisch 1,234 €; in einer Datei
- * mit Dezimalpunkt („1.500“ = 1,50 €) ergäbe das deutsche Lesen das Tausendfache, also lieber ablehnen.
+ * Betrag in Cent, gelesen wie in den Betragsfeldern über parseEuro (#1242): „1.234,56“, „12,5“, „100 €“, „12.50“.
+ * Dazu lehnt der Import „1.234“ ab: deutsch 1.234 €, englisch 1,234 €; in einer Datei mit Dezimalpunkt („1.500“ =
+ * 1,50 €) ergäbe das deutsche Lesen das Tausendfache. Im Formular ist „1.234“ eindeutig 1.234 €.
  */
 export function parseImportAmount(raw: string, label: string): Parsed<Cents> {
-  if (/^[+-]?\d{1,3}\.\d{3}-?$/.test(raw.replace(/[\s  €]|EUR/gi, ""))) {
+  const cents = parseEuro(raw);
+  if (cents === null) return fail(`${label}: „${raw}“ ist kein Betrag. ${amountError()}`);
+  if (/^\d{1,3}\.\d{3}$/.test(raw.replace(/[\s€+\-−–]|EUR/gi, ""))) {
     return fail(`${label}: „${raw}“ ist mehrdeutig; bitte mit Dezimalkomma schreiben wie 1.234,00`);
   }
-  const german = parseGermanAmount(raw);
-  if (german !== null) return ok(german);
-  const compact = raw.replace(/[\s €]|EUR/gi, "");
-  if (/^-?\d+\.\d{1,2}$/.test(compact)) {
-    const dot = parseDotAmount(compact);
-    if (dot !== null) return ok(dot);
-  }
-  return fail(`${label}: „${raw}“ ist kein Betrag wie 1.234,56`);
+  return ok(cents);
 }
 
 /** Datum als TT.MM.JJJJ oder JJJJ-MM-TT; zweistellige Jahre sind bei Anschaffungen von 1999 oder 2099 nicht eindeutig */

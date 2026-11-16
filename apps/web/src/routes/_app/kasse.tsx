@@ -1,4 +1,5 @@
 import {
+  amountError,
   bareinnahmeText,
   currentYear,
   CASH_BOOKINGS,
@@ -161,7 +162,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
     const values = new FormData(form);
     const amount = parseEuro(String(values.get("amount") ?? ""));
     if (amount === null || amount <= 0) {
-      onNotice({ tone: "danger", text: "Bitte einen positiven Betrag eingeben." });
+      onNotice({ tone: "danger", text: amountError("einen Betrag über 0") });
       return;
     }
     setBusy(true);

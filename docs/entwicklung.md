@@ -291,7 +291,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 
 ## Konventionen
 
-- **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
+- **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um. Eingegebene Beträge liest `parseEuro`, in Formularen, Schnellsuche und CSV-Import; einen ungültigen meldet `amountError`. Kontoauszüge und Exporte anderer Programme lesen die Parser in `packages/import` nach deren Format.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln** (`Millis`): 152 Stunden = 152000, 0,5 Tage = 500.
 - **Einheit im Typ:** `Cents`, `BasisPoints` und `Millis` tragen ihre Einheit (`packages/core/src/einheit.ts`, #1132), verschiedene Einheiten passen nicht zueinander.

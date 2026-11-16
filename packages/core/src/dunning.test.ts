@@ -52,6 +52,10 @@ describe("Mahngebühr prüfen", () => {
     expect(dunningFeeError("-5,00")).toContain("etwa 5,00");
     expect(dunningFeeError("1.000,01")).toMatch(/höchstens 1\.000,00\s€/);
   });
+
+  it("nimmt „5€00“ nicht als 500,00 € (#1242)", () => {
+    expect(dunningFeeError("5€00")).toBe("Trag die Mahngebühr ein, etwa 5,00, oder lass das Feld leer.");
+  });
 });
 
 describe("Basiszinssatz prüfen (#1143)", () => {

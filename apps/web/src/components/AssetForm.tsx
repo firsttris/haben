@@ -1,4 +1,5 @@
 import {
+  amountError,
   ASSET_KINDS,
   ASSET_METHODS,
   CAR_DRIVES,
@@ -140,13 +141,13 @@ export function AssetForm({
   const { form, error, check } = useSubmitCheck({
     name: name.trim() === "" ? "Trag eine Bezeichnung ein." : null,
     acquisitionDate: acquisitionDate ? null : "Wähle das Anschaffungsdatum.",
-    cost: parsedCost !== null && parsedCost > 0 ? null : "Trag die Anschaffungskosten netto ein, etwa 1.200,00.",
+    cost: parsedCost !== null && parsedCost > 0 ? null : amountError("die Anschaffungskosten netto", 120_000),
     years: lifeValid ? null : "Trag die Nutzungsdauer in Jahren ein, etwa 3 oder 2,5.",
     rate: method !== "degressiv" ? null : Number.isNaN(parsedRate) ? "Trag den Satz als Zahl ein, etwa 20 oder 23,07." : rateAboveMax,
     linearFrom: method === "degressiv" && Number.isNaN(parsedLinearFrom) ? "Trag das Jahr vierstellig ein, etwa 2027." : null,
     openingDate: showOpening && !openingDate ? "Wähle den Übernahmestichtag." : null,
-    opening: showOpening && (parsedOpening === null || parsedOpening < 0) ? "Trag den Restbuchwert ein, etwa 850,00." : null,
-    listPrice: privateUseValid ? null : "Trag den Bruttolistenpreis ein, etwa 45.000,00.",
+    opening: showOpening && (parsedOpening === null || parsedOpening < 0) ? amountError("den Restbuchwert", 85_000) : null,
+    listPrice: privateUseValid ? null : amountError("den Bruttolistenpreis", 4_500_000),
   });
 
   function submit(event: FormEvent) {
