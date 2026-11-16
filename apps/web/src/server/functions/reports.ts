@@ -14,7 +14,7 @@ export const getReports = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const now = today();
     // Der Schalter „31.12.“ zeigt den Abschlussstand des gewählten Jahres: Offen und überfällig rechnen zum Jahresende,
-    // Zahlungen und Belege danach zählen nicht (#1110). Ein Abschlussstand gibt es nur für ein vergangenes Jahr; steht
+    // Zahlungen und Belege danach zählen nicht (#1110). Einen Abschlussstand gibt es nur für ein vergangenes Jahr; steht
     // der Parameter bei einem laufenden oder künftigen Jahr in der Adresse, gilt der Stand von heute.
     const abschluss = data.stichtag && data.year < currentYear() ? `${data.year}-12-31` : null;
     const stand = abschluss ?? now;
