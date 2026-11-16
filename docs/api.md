@@ -1,8 +1,8 @@
 ---
-title: "REST-API für Kontakte und Rechnungsentwürfe"
+title: "REST-API für Kontakte, Artikel und Rechnungsentwürfe"
 description: >-
-  Über die REST-API von Haben Kontakte und Rechnungsentwürfe aus eigenen Werkzeugen anlegen, etwa
-  Bestellungen aus Shops – mit OpenAPI-Beschreibung.
+  Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen über die REST-API in Haben pflegen.
+  Mit OpenAPI-Beschreibung.
 ---
 
 # REST-API
@@ -18,6 +18,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | Kontakte | auflisten und suchen, lesen, anlegen, ändern (nicht löschen: Kontakte sind versioniert) |
 | Rechnungen | alle lesen, auch festgeschriebene; Entwürfe anlegen, ändern und löschen, solange sie Entwurf sind |
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
+| Artikel | Katalogartikel auflisten, suchen, lesen, anlegen und ändern |
 | Leistungen | Zeiteinträge je Kunde auflisten, lesen, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
 
 Die vollständige Beschreibung als OpenAPI 3.1 liefert Haben selbst unter `https://<deine Adresse>/api/v1/openapi.json`, ohne Token. Werkzeuge wie Swagger UI, Bruno oder Postman lesen sie ein.
@@ -38,6 +39,8 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `rechnungen:entwuerfe` | dazu `POST /rechnungen`, `PATCH /rechnungen/{id}`, `DELETE /rechnungen/{id}` |
 | `belege:lesen` | `GET /belege`, `GET /belege/{id}` |
 | `belege:anlegen` | dazu `POST /belege` |
+| `artikel:lesen` | `GET /artikel`, `GET /artikel/{id}` |
+| `artikel:schreiben` | dazu `POST /artikel`, `PATCH /artikel/{id}` |
 | `leistungen:lesen` | `GET /leistungen`, `GET /leistungen/{id}` |
 | `leistungen:schreiben` | dazu `POST /leistungen`, `DELETE /leistungen/{id}` |
 | `haben:lesen` | nur die Werkzeuge über [MCP](ki-assistenten.md), nicht die REST-API |
@@ -205,6 +208,14 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 2. `GET /kontakte?q=<E-Mail>`; ist `total` 0, den Kontakt mit `POST /kontakte` anlegen.
 3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
 4. In Haben die Entwürfe prüfen und festschreiben, dann wie gewohnt versenden.
+
+## Artikelkatalog
+
+`GET /artikel` listet aktive Artikel nach Nummer und Bezeichnung. Mit `q` suchst du nach beiden Feldern. Mit `archived=true` enthält die Liste auch archivierte Artikel. `GET /artikel/{id}` liefert den Artikel zur ID.
+
+Für `POST /artikel` brauchst du Bezeichnung (`description`), Einheit (`unit`), Einzelpreis in Cent (`unitPrice`) und Steuersatz in Basispunkten (`taxRate`). Die Einheit muss in Haben vorhanden sein. Mit `priceIncludesTax: true` gibst du einen Bruttopreis an. Du kannst Artikelnummer (`number`), Positionstext (`detail`) und interne Notiz (`note`) mitsenden. Bei Erfolg liefert Haben `201`, den angelegten Artikel und seinen API-Pfad im Header `Location`. Jeder erfolgreiche POST legt einen Artikel an.
+
+`PATCH /artikel/{id}` speichert die gesendeten Felder und liefert den Artikel mit `200` zurück. Für eine Preisänderung genügt etwa `{"unitPrice": 2380}`. Zum Archivieren öffnest du den Artikelkatalog in Haben.
 
 ## Leistungen und Zeiterfassung
 

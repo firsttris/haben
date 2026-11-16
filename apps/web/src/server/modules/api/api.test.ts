@@ -8,6 +8,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
   let mcp: typeof import("../mcp/index.ts");
   let mcpServer: typeof import("../mcp/server.ts");
   let rechnungen: typeof import("../rechnungen/index.ts");
+  let stammdaten: typeof import("../stammdaten/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
@@ -21,6 +22,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
     mcp = await import("../mcp/index.ts");
     mcpServer = await import("../mcp/server.ts");
     rechnungen = await import("../rechnungen/index.ts");
+    stammdaten = await import("../stammdaten/index.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -30,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
   beforeEach(async () => {
     mcpServer.resetRateLimitForTests();
     await leeren(sql)`truncate mcp_calls, mcp_tokens, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
-      contact_versions, contacts, company cascade`;
+      contact_versions, contacts, articles, units, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
               'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
@@ -512,6 +514,83 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
     });
   });
 
+  describe("Artikel", () => {
+    const artikel = {
+      number: "M-01",
+      description: "Mühle",
+      detail: "Aus Buche",
+      unit: "Stk.",
+      unitPrice: 11_900,
+      taxRate: 1900,
+      priceIncludesTax: true,
+      note: "Lager A",
+    };
+
+    it("legt Artikel an und listet sie gefiltert und seitenweise", async () => {
+      const schreiben = await token(["artikel:schreiben"]);
+      const lesen = await token(["artikel:lesen"]);
+      const erster = await call(schreiben, "POST", "/artikel", artikel);
+      const zweiter = await call(schreiben, "POST", "/artikel", { ...artikel, number: "M-02", description: "Mühle, klein" });
+      expect(erster.status).toBe(201);
+      expect(erster.json).toMatchObject({ ...artikel, archived: false });
+      expect(zweiter.status).toBe(201);
+      expect(erster.headers.get("location")).toBe(`/api/v1/artikel/${erster.json!.id}`);
+
+      const liste = await call(lesen, "GET", "/artikel?q=MUHLE&limit=1&offset=1");
+      expect(liste.status).toBe(200);
+      expect(liste.json).toMatchObject({ data: [{ id: zweiter.json!.id }], total: 2, limit: 1, offset: 1 });
+      const treffer = await call(lesen, "GET", "/artikel?q=m-01");
+      expect(treffer.json).toMatchObject({ data: [{ id: erster.json!.id }], total: 1 });
+
+      await stammdaten.setArticleArchived(actor, zweiter.json!.id as string, true);
+      expect((await call(lesen, "GET", "/artikel")).json).toMatchObject({ data: [{ id: erster.json!.id }], total: 1 });
+      expect((await call(lesen, "GET", "/artikel?archived=true")).json).toMatchObject({
+        data: [{ id: erster.json!.id }, { id: zweiter.json!.id, archived: true }],
+        total: 2,
+      });
+      expect((await call(lesen, "GET", `/artikel/${zweiter.json!.id}`)).json).toMatchObject({ archived: true });
+    });
+
+    it("bewahrt bei parallelen Teiländerungen die übrigen Felder und protokolliert das Token als Akteur", async () => {
+      const schreiben = await token(["artikel:schreiben"]);
+      await stammdaten.createUnit(actor, { label: "Schachtel", code: "C62" });
+      const created = await call(schreiben, "POST", "/artikel", { ...artikel, unit: "Schachtel" });
+      expect(created.status).toBe(201);
+      const id = created.json!.id as string;
+      const path = `/artikel/${id}`;
+      const edits = await Promise.all([
+        call(schreiben, "PATCH", path, { unitPrice: 23_800 }),
+        call(schreiben, "PATCH", path, { description: "Getreidemühle" }),
+      ]);
+      expect(edits.map((edit) => edit.status)).toEqual([200, 200]);
+      const stored = await call(schreiben, "GET", path);
+      expect(stored.json).toMatchObject({ ...artikel, unit: "Schachtel", unitPrice: 23_800, description: "Getreidemühle", archived: false });
+      expect(await call(schreiben, "PATCH", path, {})).toMatchObject({ status: 200, json: stored.json });
+
+      const [zugang] = await mcp.listMcpTokens();
+      const audit = await sql`select action, actor from audit_log where table_name = 'articles' and new_value->>'id' = ${id} order by seq`;
+      expect(audit.map((entry) => entry.action)).toEqual(["INSERT", "UPDATE", "UPDATE"]);
+      expect(audit.every((entry) => entry.actor === `api:${zugang!.id}:Shop-Automation`)).toBe(true);
+    });
+
+    it("prüft Artikelrechte und ungültige Daten vor dem Schreiben", async () => {
+      const lesen = await token(["artikel:lesen"]);
+      const schreiben = await token(["artikel:schreiben"]);
+      const unrelated = await token(["haben:lesen", "kontakte:schreiben"]);
+      const missing = "/artikel/00000000-0000-4000-8000-000000000000";
+      expect((await call(null, "GET", "/artikel")).status).toBe(401);
+      expect((await call(unrelated, "GET", "/artikel")).status).toBe(403);
+      expect((await call(lesen, "POST", "/artikel", artikel)).status).toBe(403);
+      expect((await call(lesen, "PATCH", missing, {})).status).toBe(403);
+      expect((await call(schreiben, "POST", "/artikel", { ...artikel, unitPrice: 2_147_483_648 })).status).toBe(400);
+      expect((await call(schreiben, "POST", "/artikel", { ...artikel, unit: "XYZ" })).status).toBe(422);
+      expect((await call(schreiben, "POST", "/artikel", { ...artikel, archived: true })).status).toBe(400);
+      expect((await call(lesen, "GET", missing)).status).toBe(404);
+      expect((await call(schreiben, "PATCH", missing, { unitPrice: 500 })).status).toBe(404);
+      expect((await call(lesen, "GET", "/artikel")).json).toMatchObject({ data: [], total: 0 });
+    });
+  });
+
   describe("OpenAPI", () => {
     it("liefert die Beschreibung ohne Token, mit allen Endpunkten und Rechten", async () => {
       const response = await call(null, "GET", "/openapi.json");
@@ -519,6 +598,8 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       const doc = response.json as { openapi: string; paths: Record<string, Record<string, { security: { token: string[] }[] }>> };
       expect(doc.openapi).toBe("3.1.0");
       expect(Object.keys(doc.paths).sort()).toEqual([
+        "/artikel",
+        "/artikel/{id}",
         "/belege",
         "/belege/{id}",
         "/kontakte",
