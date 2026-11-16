@@ -46,7 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   beforeEach(async () => {
     sent.length = 0;
     await leeren(sql)`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, elster_certificates, mail_log,
-      mail_settings, company cascade`;
+      mail_settings, vat_frequencies, vat_extensions, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland) values (1, 'Testfirma', 'Musterstraße 1', '77815', 'Bühl', '35/123/45678', 'BW')`;
     await taxpayer.saveTaxpayer(actor, {
       a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },

@@ -26,7 +26,7 @@ import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
-import { keineVorauszahlungenAusFormular } from "../../server/modules/stammdaten/taxpayer.ts";
+import { keineVorauszahlungenAusFormular } from "../../server/modules/stammdaten/index.ts";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
@@ -956,21 +956,23 @@ function TaxpayerForm() {
                 </Field>
               )}
             </div>
-            <div className="checkbox-hinted" hidden={!taxpayer.a}>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  name="keineVorauszahlungen"
-                  defaultChecked={taxpayer.keineVorauszahlungen ?? false}
-                  aria-describedby="keine-vorauszahlungen-hint"
-                />
-                <span>Keine Einkommensteuer-Vorauszahlungen festgesetzt</span>
-              </label>
-              <span id="keine-vorauszahlungen-hint" className="field-hint">
-                Ohne Haken steht je Quartal ein Hinweis im Fristenkalender. Das ist nur eine Erinnerung: Ob und wie viel zu zahlen ist, steht im
-                Vorauszahlungsbescheid.
-              </span>
-            </div>
+            {taxpayer.a && (
+              <div className="checkbox-hinted">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    name="keineVorauszahlungen"
+                    defaultChecked={taxpayer.keineVorauszahlungen ?? false}
+                    aria-describedby="keine-vorauszahlungen-hint"
+                  />
+                  <span>Keine Einkommensteuer-Vorauszahlungen festgesetzt</span>
+                </label>
+                <span id="keine-vorauszahlungen-hint" className="field-hint">
+                  Ohne Haken steht je Quartal ein Hinweis im Fristenkalender. Das ist nur eine Erinnerung: Ob und wie viel zu zahlen ist, steht im
+                  Vorauszahlungsbescheid.
+                </span>
+              </div>
+            )}
           </fieldset>
           {veranlagung === "zusammen" && (
             <fieldset className="form-section">
