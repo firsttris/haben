@@ -2353,12 +2353,17 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
   await go("/kontakte");
-  await go(
-    (await page
-      .getByRole("link", { name: /Alpenblick Media AG/ })
-      .first()
-      .getAttribute("href"))!,
-  );
+  const kontaktPfad = (await page
+    .getByRole("link", { name: /Alpenblick Media AG/ })
+    .first()
+    .getAttribute("href"))!;
+  // Ohne Mandat erklärt der Editor das Mandat und verlinkt auf die Stelle beim Kontakt, an der es angelegt wird
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Alpenblick Media AG · München");
+  await page.getByLabel("Zahlungsart").selectOption("lastschrift");
+  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toBeVisible();
+  await expect(page.getByRole("link", { name: "SEPA-Lastschriftmandate" })).toHaveAttribute("href", `${kontaktPfad}#mandate-heading`);
+  await go(kontaktPfad);
   const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
   await karte.getByRole("button", { name: "Mandat anlegen" }).click();
   const mandat = karte.getByRole("form", { name: "Neues Mandat" });
@@ -2379,6 +2384,7 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   const mandatFeld = page.getByRole("combobox", { name: "Mandat", exact: true });
   await expect(mandatFeld).toHaveValue(/.+/);
   await expect(mandatFeld.locator("option:checked")).toHaveText("AB-2026-01 · CORE");
+  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toBeVisible();
   await expect(page.getByRole("button", { name: "Skontostufe hinzufügen" })).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
   await page.getByLabel("Menge Position 1").fill("1");

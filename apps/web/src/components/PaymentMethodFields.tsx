@@ -1,4 +1,5 @@
 import type { InvoicePaymentMethod } from "@haben/core";
+import { Link } from "@tanstack/react-router";
 import { formatDate } from "../lib/format.ts";
 import type { MandateOption } from "../server/modules/stammdaten/index.ts";
 import { Field } from "./Field.tsx";
@@ -31,7 +32,7 @@ export function PaymentMethodFields({
   method,
   mandateId,
   mandates,
-  contactChosen,
+  contactId,
   disabled = false,
   paidVia,
   paidOn,
@@ -46,7 +47,8 @@ export function PaymentMethodFields({
   mandateId: string;
   /** Gültige Mandate des gewählten Kunden, das jüngste zuerst */
   mandates: MandateOption[];
-  contactChosen: boolean;
+  /** Gewählter Kunde, leer solange keiner gewählt ist */
+  contactId: string;
   disabled?: boolean;
   paidVia: string;
   paidOn: string;
@@ -102,11 +104,24 @@ export function PaymentMethodFields({
       )}
       {method === "lastschrift" && (
         <p id={hintId} className="field-hint" style={{ gridColumn: "1 / -1" }}>
-          {!contactChosen
-            ? "Erst den Kunden wählen."
-            : mandates.length === 0
-              ? "Für diesen Kunden gibt es kein gültiges Mandat; leg es auf der Seite des Kontakts an."
-              : "Die Rechnung kündigt den Einzug am Fälligkeitstag an. Ohne andere Absprache muss sie 14 Kalendertage vorher beim Kunden sein (SEPA-Rulebook); Skonto entfällt."}
+          {contactId === "" ? (
+            "Erst den Kunden wählen."
+          ) : (
+            <>
+              Das Mandat ist die Einzugsermächtigung deines Kunden: Er erlaubt dir damit, den Betrag per SEPA-Lastschrift von seinem Konto einzuziehen.{" "}
+              {mandates.length === 0 ? (
+                <>
+                  Für diesen Kunden gibt es kein gültiges Mandat. Du legst es beim Kontakt unter{" "}
+                  <Link to="/kontakte/$id" params={{ id: contactId }} hash="mandate-heading" target="_blank" rel="noopener">
+                    SEPA-Lastschriftmandate
+                  </Link>{" "}
+                  an.
+                </>
+              ) : (
+                "Die Rechnung kündigt den Einzug am Fälligkeitstag an. Ohne andere Absprache muss sie 14 Kalendertage vorher beim Kunden sein (so verlangt es das SEPA-Rulebook); Skonto entfällt."
+              )}
+            </>
+          )}
         </p>
       )}
     </>

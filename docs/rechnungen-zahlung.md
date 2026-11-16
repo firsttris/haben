@@ -44,7 +44,7 @@ Das PDF nennt die erfolgte Zahlung und enthält weder Zahlungsfrist noch Bankver
 
 ## Lastschrift
 
-Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](kontakte.md#sepa-lastschriftmandate).
+Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](kontakte.md#sepa-lastschriftmandate), seine Einzugsermächtigung.
 
 Im Rechnungseditor stellst du die **Zahlungsart** auf **SEPA-Lastschrift**; das jüngste gültige Mandat des Kunden ist vorgewählt. Eingezogen wird am Fälligkeitstag, also Rechnungsdatum plus Zahlungsziel.
 
