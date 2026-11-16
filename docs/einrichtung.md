@@ -354,7 +354,7 @@ Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im 
 - Die Verprobung: Jede Steuer braucht ihre Bemessungsgrundlage. Genau das fehlt älteren Buchungen ohne Steuerschlüssel oder ohne Bemessungsgrundlage an der Zahlung.
 - Gesendete [Zusammenfassende Meldungen](umsatzsteuer.md#zusammenfassende-meldung) gegen Kz 21 und 41 des Quartals aus dem Journal.
 - Rechnung und Vorgang gegen ihre Buchung.
-- Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Steuer (Abschlusszahlung plus die beim Vermerk gesendeten Vorauszahlungen), bei neueren Vermerken jede damals gerechnete Zahl.
+- Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Steuer, bei neueren Vermerken jede damals gerechnete Zahl.
 
 Offene Zeiträume und nicht abgegebene Jahreserklärungen rechnen ohne Vergleich aus dem Journal. Stimmt alles, ändert sich nichts, was beim Finanzamt ist, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
 
