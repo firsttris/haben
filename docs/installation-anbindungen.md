@@ -195,7 +195,7 @@ Optional. Über FinTS (früher HBCI) holt Haben die Umsätze direkt bei der Bank
 
 ### Produkt registrieren
 
-FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (DK) registriert ist. Haben bringt keine Registrierungsnummer mit: Wer Haben betreibt, registriert sich selbst, wie bei der [Hersteller-ID für ELSTER](einrichtung-elster.md#hersteller-id-wer-ist-hersteller). Die DK hat das für Haben bestätigt: Wer die Software selbst baut und auf einem eigenen Server betreibt, registriert sich selbst; die Nummer gilt nur im registrierten Produkt und gehört nicht in den veröffentlichten Quellcode. „Betreiber tragen ihre eigene Registrierungsnummer ein.“ ([Antwort der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6820986969))
+FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (DK) registriert ist. Haben bringt keine Registrierungsnummer mit: Wer Haben betreibt, registriert sich selbst, wie bei der [Hersteller-ID für ELSTER](einrichtung-elster.md#hersteller-id-wer-ist-hersteller). Das hat die DK für Haben bestätigt; die Nummer gilt nur im registrierten Produkt und gehört nicht in den veröffentlichten Quellcode ([Antwort der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6820986969)).
 
 1. Das Formular der [Produktregistrierung](https://www.fints.org/de/hersteller/produktregistrierung) ausfüllen und an die DK schicken, Produktkategorie **Web-Server**. Die Registrierung ist derzeit kostenlos; die DK nennt 10 bis 15 Werktage.
 2. Die Registrierungsnummer aus der Antwort als `FINTS_PRODUKT_ID` eintragen und Haben neu starten:
