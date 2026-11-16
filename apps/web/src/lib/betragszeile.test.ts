@@ -190,6 +190,12 @@ describe("Dauerbeleg: Haken setzt 0 % auf 19 % (#1100)", () => {
     expect(umschalten(row, false).taxRate).toBe(0);
     expect(umschalten(umschalten(betragszeileAus(1, 700, 10000, 700, false, false), true), false).taxRate).toBe(700);
   });
+
+  it("mit Haken 0 % gewählt, Haken aus und wieder an: ohne Zeile mit 19 % springt sie erneut auf 19 %", () => {
+    // Ohne Haken gilt 0 % nicht als gewählt; wer 0 % neben 19 % braucht, hat die Zeile mit 19 % und behält 0 %
+    const row = aendereBetragszeile(umschalten(aendereBetragszeile(neu(), { net: "100,00" }, false), true), { taxRate: 0 }, false);
+    expect(umschalten(umschalten(row, false), true)).toMatchObject({ taxRate: 1900, tax: "19,00", gross: "119,00" });
+  });
 });
 
 describe("Beleg: gespeicherte Zeilen beim erneuten Öffnen (#1099)", () => {
