@@ -83,30 +83,15 @@ function ReportsPage() {
           </nav>
           {stichtagMoeglich && (
             <div className="mode-switch" role="group" aria-label="Stand der offenen Posten">
-              {/* Klasse und aria-current setzt die Seite aus dem Stand, wie die Jahresleiste es mit dem Jahr tut:
-                  der Router kennt den Stand nicht, und „Heute“ ohne stichtag ist in der Suche des zweiten Links enthalten */}
-              <Link
-                to="/auswertungen"
-                // Der Router legt die Suche über die aktuelle: Ohne `stichtag: undefined` bliebe der Stand in der
-                // Adresse und der Link gälte als aktiv (#1110)
-                search={(vorher) => ({ ...vorher, jahr: year, stichtag: undefined })}
-                activeOptions={{ exact: true }}
-                activeProps={{}}
-                className={stichtag ? "chip" : "chip active"}
-                aria-current={stichtag ? undefined : "page"}
-              >
+              {/* Absichtlich ein <a>: Der Router setzt an einem Link, dessen Suche in der aktuellen enthalten ist, selbst
+                  aria-current, dann bliebe „Heute“ neben „31.12.“ als aktiv markiert. Der Stand ist ein Zustand in der
+                  Adresse; so setzt ihn die Seite, und der Schalter funktioniert ohne JavaScript. */}
+              <a href={`/auswertungen?jahr=${year}`} className={stichtag ? "chip" : "chip active"} aria-current={stichtag ? undefined : "page"}>
                 Heute
-              </Link>
-              <Link
-                to="/auswertungen"
-                search={(vorher) => ({ ...vorher, jahr: year, stichtag: "31.12." })}
-                activeOptions={{ exact: true }}
-                activeProps={{}}
-                className={stichtag ? "chip active" : "chip"}
-                aria-current={stichtag ? "page" : undefined}
-              >
+              </a>
+              <a href={`/auswertungen?jahr=${year}&stichtag=31.12.`} className={stichtag ? "chip active" : "chip"} aria-current={stichtag ? "page" : undefined}>
                 31.12.{year}
-              </Link>
+              </a>
             </div>
           )}
           {!gesellschaft && (
