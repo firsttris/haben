@@ -92,6 +92,9 @@ describe.skipIf(!testDatabaseUrl)("Eigene Steuerarten aus sevDesk im Abgleich (P
             if (path === "/Voucher") return list(vouchers.map((v) => v.voucher));
             if (path === "/VoucherPos") return list(vouchers.find((v) => v.voucher.id === url.searchParams.get("voucher[id]"))?.positions ?? []);
             if (path === "/TaxSet") return taxSets === "fehler" ? json({ error: { message: "kaputt" } }, 500) : list(taxSets);
+            // Kontostamm der Positionen (Kategorie, #1182): ein Aufwandskonto, damit er die Steuerart nicht berührt
+            const konto = /^\/AccountingType\/(.+)$/.exec(path);
+            if (konto) return json({ objects: [{ id: konto[1], objectName: "AccountingType", skr03: "3100", skr04: "5900" }] });
             if (!path.slice(1).includes("/")) return list([]);
             return json({ error: { message: `unbekannt ${path}` } }, 404);
           }) as typeof fetch,

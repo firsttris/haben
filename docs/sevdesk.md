@@ -100,9 +100,9 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 8. **Dateien aus Vorlagen:** Belege, die sevDesk aus einer Vorlage für wiederkehrende Belege anlegt, tragen in der API keine eigene Datei, nur den Verweis auf die Vorlage (`origin`). Hat ein Beleg keine Datei und seine Vorlage eine, hängt Haben diese an, auch an Belege aus früheren Abrufen:
     - Nur, wenn sevDesk den Beleg nach dem Hochladen der Datei angelegt hat: Eine später an die Vorlage gehängte Datei, etwa ein Zahlplan, gehört nicht zu früheren Monaten. Ältere Belege bleiben ohne Datei und zählen im Abgleich „Jeder Beleg hat eine Datei“ weiter als Beleg ohne Datei.
     - Eine eigene Datei des Belegs ersetzt Haben nie, die Archivkopie bleibt unverändert, und ein weiterer Abruf hängt nichts doppelt an.
-    - Hat der Beleg in sevDesk inzwischen eine eigene Datei, etwa nach dem ersten Abruf hochgeladen, bekommt er die Datei der Vorlage nicht. Seine eigene Datei holt Haben für schon archivierte Belege nicht nach.
+    - Hat der Beleg in sevDesk inzwischen eine eigene Datei, etwa nach dem ersten Abruf hochgeladen, bekommt er die Datei der Vorlage nicht. Hat er sie schon, kommt die eigene Datei dazu (Punkt 9); die Datei der Vorlage bleibt.
     - Die Belegansicht nennt die Datei „aus der Vorlage“.
-9. **Fehlende Dateien:** Zu früher übernommenen Belegen holt jeder Abruf die Dateien noch einmal, deren Abruf fehlgeschlagen war, und hängt sie an denselben Beleg, siehe [Dateistand](#dateistand).
+9. **Fehlende und neue Dateien:** Zu früher übernommenen Belegen holt jeder Abruf die Dateien noch einmal, deren Abruf fehlgeschlagen war, und hängt sie an denselben Beleg. Nennt sevDesk an einem Beleg eine Datei, die Haben noch nicht hat, weil sie erst nach dem ersten Abruf hochgeladen wurde, hängt der Abruf sie zusätzlich an, auch an einen als „ohne Datei“ bestätigten Beleg. Die Belegansicht zeigt sie als nachgeladen, siehe [Dateistand](#dateistand).
 10. **Wiederkehrende Rechnungen:** die Vorlagen mit ihren Positionen, als pausierte [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen), siehe [unten](#wiederkehrende-rechnungen).
 
 Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine Rechnung als versendet. Die Antwort der API wird je Beleg samt Positionen gespeichert, zum Nachweis.
@@ -113,14 +113,14 @@ Fehlt einem Beleg eine Datei, hält Haben fest, warum. Fortschritt, Belegliste, 
 
 | Stand | Wann | Im Abgleich |
 | --- | --- | --- |
-| Abruf fehlgeschlagen | sevDesk nennt eine Datei (`document`), gibt sie aber nicht heraus, oder eine Rechnung bzw. Gutschrift kommt ohne PDF | offen; ein neuer Abruf versucht es noch einmal |
+| Abruf fehlgeschlagen | sevDesk nennt eine Datei (`document`), gibt sie aber nicht heraus, oder eine Rechnung bzw. Gutschrift kommt ohne PDF | offen; ein neuer Abruf versucht es noch einmal. Nennt sevDesk die Datei dann nicht mehr, ist nichts mehr offen, wenn der Beleg eine andere Datei hat; sonst gilt „Ohne Datei, zu prüfen“, auch nach einer früheren Bestätigung |
 | Ohne Datei, zu prüfen | Ein Beleg nennt keine Datei | offen, bis du es bestätigst |
 | Ohne Datei, bestätigt | Du hast in sevDesk nachgesehen und es in der Belegansicht bestätigt | zählt getrennt, blockiert nicht |
 | Anhang fehlt | Das PDF ist da, das XML der E-Rechnung kam mit einem Fehler | offen; ein neuer Abruf versucht es noch einmal, meldet sevDesk dann ohne Fehler kein XML, ist nichts mehr offen |
 
 Ein Beleg ohne Verweis auf eine Datei hat nicht sicher nie eine gehabt: In der API unterscheidet ihn kein Feld von einem Beleg, dessen Datei entfernt wurde. Deshalb bestätigst du „ohne Datei“ selbst; Haben speichert dazu deinen Namen, die Uhrzeit und deine Notiz. Eine Rechnung oder Gutschrift lässt sich nicht als „ohne Datei“ bestätigen: Jede fertige hat in sevDesk ein PDF. Die Bestätigung ändert nichts an der Steuer; für den Vorsteuerabzug braucht es weiter die Rechnung ([§ 15 Abs. 1 Nr. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__15.html)).
 
-Weitere Anhänge eines Belegs nennt die API nicht, nur die eine Datei unter `document`. Ob einem Beleg in sevDesk mehr Dateien gehören, sieht Haben deshalb nicht. Ein Stand wird nie überschrieben: Jede Feststellung, Bestätigung und nachgeladene Datei ist eine neue Zeile, der Jahresexport führt sie in `lexoffice/dateistand.csv`. Offene Posten ohne Datei übernimmt Haben nicht; die Liste nennt den Grund nach dem Stand.
+Weitere Anhänge eines Belegs nennt die API nicht, nur die eine Datei unter `document`. Ob einem Beleg in sevDesk mehr Dateien gehören, sieht Haben deshalb nicht. Eine dort später hochgeladene Datei erkennt Haben am geänderten `document` in der Belegliste ([Schritt 2, Punkt 9](#schritt-2-kontakte-rechnungen-und-belege-abrufen)); Archivkopie und frühere Dateien bleiben. Ein Stand wird nie überschrieben: Jede Feststellung, Bestätigung und nachgeladene Datei ist eine neue Zeile, der Jahresexport führt sie in `lexoffice/dateistand.csv`. Offene Posten ohne Datei übernimmt Haben nicht; die Liste nennt den Grund nach dem Stand.
 
 ### Artikel
 
