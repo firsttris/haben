@@ -913,6 +913,8 @@ function TaxpayerForm() {
               b: zusammen ? person("b") : undefined,
               veranlagung,
               verheiratetSeit: zusammen && text("verheiratetSeit") ? text("verheiratetSeit") : undefined,
+              // Nur setzen, nie auf false ablegen: die Bedeutung hängt am Fehlen des Feldes
+              keineVorauszahlungen: form.get("keineVorauszahlungen") === "on" ? true : undefined,
             }
           : { ...taxpayer, a: person("a") },
       });
@@ -952,6 +954,21 @@ function TaxpayerForm() {
                   {(control) => <input {...control} name="verheiratetSeit" type="date" defaultValue={taxpayer.verheiratetSeit ?? ""} />}
                 </Field>
               )}
+            </div>
+            <div className="checkbox-hinted">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="keineVorauszahlungen"
+                  defaultChecked={taxpayer.keineVorauszahlungen ?? false}
+                  aria-describedby="keine-vorauszahlungen-hint"
+                />
+                <span>Keine Einkommensteuer-Vorauszahlungen festgesetzt</span>
+              </label>
+              <span id="keine-vorauszahlungen-hint" className="field-hint">
+                Ohne Haken steht je Quartal ein Hinweis im Fristenkalender. Das ist nur eine Erinnerung, ob und wie viel zu zahlen ist, steht im
+                Vorauszahlungsbescheid.
+              </span>
             </div>
           </fieldset>
           {veranlagung === "zusammen" && (

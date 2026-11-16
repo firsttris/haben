@@ -80,6 +80,21 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     // Kleinunternehmer: je Monat bzw. Jahr der Stand laut Änderungsprotokoll, siehe vorjahr.test.ts
   });
 
+  it("lässt die Vorauszahlungshinweise weg, wenn keine festgesetzt sind (#1240)", async () => {
+    await taxpayer.saveTaxpayer(actor, {
+      a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },
+      keineVorauszahlungen: true,
+    });
+    // Der Wert kommt aus dem Formular und wird wieder gelesen
+    expect((await taxpayer.loadTaxpayer()).keineVorauszahlungen).toBe(true);
+    const list = await fristen.listFristen("2026-10-03");
+    expect(list.filter((f) => f.art === "vorauszahlung")).toEqual([]);
+    // Die Erklärung bleibt, nur die Zahlungshinweise fallen weg
+    expect(list.some((f) => f.id === "est-2026")).toBe(true);
+    // Und der Kalenderexport enthält keinen Vorauszahlungstermin
+    expect(fristen.fristenToIcs(list, "https://haben.example")).not.toContain("Vorauszahlung");
+  });
+
   it("GmbH: Voranmeldungen, Umsatz-, Körperschaft- und Gewerbesteuererklärung und E-Bilanz, keine EÜR, Einkommensteuer oder Vorauszahlungen dafür", async () => {
     // Die Rechtsform ist ab der ersten Buchung fest; deshalb vor der Buchung umstellen
     const [entry] = await sql`select date, description, source_type, source_id from journal_entries`;

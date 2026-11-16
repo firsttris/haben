@@ -99,6 +99,8 @@ export interface TaxpayerData {
   veranlagung?: "einzel" | "zusammen";
   /** JJJJ-MM-TT */
   verheiratetSeit?: string;
+  /** Keine Einkommensteuer-Vorauszahlungen festgesetzt: dann keine Hinweise im Fristenkalender (#1240) */
+  keineVorauszahlungen?: boolean;
 }
 
 /** Firmendaten, genau eine Zeile (id = 1). */
