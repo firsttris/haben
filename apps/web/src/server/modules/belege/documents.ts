@@ -31,6 +31,7 @@ import {
   type OwnInvoiceVerdict,
   inBasisPoints,
   inCents,
+  inProzent,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
@@ -82,7 +83,7 @@ const documentFields = z.object({
   payment: z.enum(["bank", "privat", "kasse"]),
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
-  privateShare: z.number().int().min(0).max(100).default(0),
+  privateShare: inProzent(z.number().int().min(0).max(100)).default(0),
   /** § 15 Abs. 4 UStG: wirtschaftlich zugeordneter Anteil in Basispunkten; null erbt die Firmendaten. */
   vorsteuerAnteil: inBasisPoints(z.number().int().min(0).max(VOLLER_ABZUG)).nullable().default(null),
   /**

@@ -1,4 +1,4 @@
-import type { Cents } from "./money.ts";
+import type { BasisPoints, Cents } from "./money.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 
 /**
@@ -43,7 +43,7 @@ export function degressiveWindow(acquisitionDate: string): DegressiveWindow | nu
  * Höchster Satz in Basispunkten: das Vielfache des linearen Satzes (12 / Nutzungsdauer in Monaten), gedeckelt;
  * abgerundet, damit er die Grenze nie überschreitet. null: für das Datum nicht zulässig.
  */
-export function maxDegressiveRate(acquisitionDate: string, usefulLifeMonths: number): number | null {
+export function maxDegressiveRate(acquisitionDate: string, usefulLifeMonths: number): BasisPoints | null {
   const window = degressiveWindow(acquisitionDate);
   if (!window || usefulLifeMonths < 1) return null;
   return Math.min(window.cap, Math.floor((window.factor * 120_000) / usefulLifeMonths));
@@ -82,6 +82,6 @@ export function elektroCumulative(cost: Cents, k: number): Cents {
 export const MEMO_VALUE: Cents = 100;
 
 /** Satz in Basispunkten als Text, z. B. 2307 → „23,07 %“ */
-export function formatDegressiveRate(rate: number): string {
+export function formatDegressiveRate(rate: BasisPoints): string {
   return `${(rate / 100).toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} %`;
 }

@@ -7,6 +7,7 @@ import {
   VORSTEUER_HINWEIS,
   type RecurringInterval,
   type Rechtsform,
+  type Prozent,
 } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { FilePicker } from "./FilePicker.tsx";
@@ -27,7 +28,7 @@ export interface DauerbelegValues {
   reference: string;
   category: string;
   payment: "bank" | "privat" | "kasse";
-  privateShare: number;
+  privateShare: Prozent;
   amounts: { taxRate: Rate; net: number; tax: number }[];
   taxShown: boolean;
   note: string;

@@ -1,6 +1,6 @@
 import type * as zc from "zod/v4/core";
 import type { Millis } from "./invoice.ts";
-import type { BasisPoints, Cents } from "./money.ts";
+import type { BasisPoints, Cents, Prozent } from "./money.ts";
 
 /*
  * Zod-Schemas, deren Ergebnis die Einheit trägt (#1132): inCents(z.int().check(…)). Zurück kommt dasselbe Schema, zur
@@ -18,5 +18,9 @@ export function inBasisPoints<T extends zc.$ZodType<number, number>>(schema: T):
 }
 
 export function inMillis<T extends zc.$ZodType<number, number>>(schema: T): T & zc.$ZodType<Millis, number> {
+  return schema;
+}
+
+export function inProzent<T extends zc.$ZodType<number, number>>(schema: T): T & zc.$ZodType<Prozent, number> {
   return schema;
 }

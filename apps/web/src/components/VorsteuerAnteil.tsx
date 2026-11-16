@@ -1,4 +1,4 @@
-import { abziehbarerAnteil, abziehbareSteuer, formatDecimal, formatEuro, gespeicherterAnteil, parseEuro, splitPrivateShare } from "@haben/core";
+import { abziehbarerAnteil, abziehbareSteuer, formatDecimal, formatEuro, gespeicherterAnteil, parseEuro, splitPrivateShare, type Prozent } from "@haben/core";
 import { Field } from "./Field.tsx";
 
 /** Prozenttext direkt in Basispunkte lesen, ohne Zwischenwert als Dezimalzahl. Leer übernimmt die Vorgabe. */
@@ -30,7 +30,7 @@ interface Props {
   company: { kleinunternehmer: boolean; ohneVorsteuerabzug: boolean };
   booked: boolean;
   storedDeduction: boolean;
-  privateShare: number;
+  privateShare: Prozent;
   asset: boolean;
   importVat?: boolean;
   onChange: (value: string) => void;

@@ -1,11 +1,17 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 import { z as zm } from "zod/mini";
+import type { maxDegressiveRate } from "./afa-methoden.ts";
+import type { ScheduleAsset } from "./afa.ts";
+import type { DauerbelegBetrag } from "./dauerbeleg.ts";
 import { type dunningAmounts, lateInterest } from "./dunning.ts";
-import { inBasisPoints, inCents, inMillis } from "./einheit-schema.ts";
+import { inBasisPoints, inCents, inMillis, inProzent } from "./einheit-schema.ts";
+import type { EuerPayment } from "./euer.ts";
 import type { invoiceLineInputSchema, Millis, TaxRate } from "./invoice.ts";
-import type { BasisPoints, Cents } from "./money.ts";
-import { discountColumns, discountFromColumns, type discountSchema } from "./rabatt.ts";
+import type { KapgSteuerAngaben } from "./koerperschaft.ts";
+import { splitPrivateShare, type BasisPoints, type Cents, type Prozent } from "./money.ts";
+import type { PrivateUseRate } from "./private-use.ts";
+import { discountColumns, discountFromColumns, type DiscountableLine, type discountSchema } from "./rabatt.ts";
 import type { skontoStufeSchema } from "./skonto.ts";
 
 // Die Typen prüft der Typecheck (`bun run typecheck`): expectTypeOf tut zur Laufzeit nichts, und kompiliert eine Zeile unter
@@ -20,6 +26,7 @@ describe("Zod-Schemas mit Einheit", () => {
     const mini = zm.int().check(zm.maximum(10_000));
     expect(inBasisPoints(mini)).toBe(mini);
     expect(inMillis(mini)).toBe(mini);
+    expect(inProzent(mini)).toBe(mini);
   });
 
   it("Zod prüft schon auf eine ganze Zahl im sicheren Bereich", () => {
@@ -58,5 +65,30 @@ describe("Spalten des Rabatts und Zinssatz der Mahnung", () => {
   it("Spalten des Rabatts und Zinssatz der Mahnung tragen die Einheit", () => {
     expectTypeOf(discountColumns(null)).toEqualTypeOf<{ discountPercent: BasisPoints | null; discountAmount: Cents | null }>();
     expectTypeOf<ReturnType<typeof dunningAmounts>["interestRate"]>().toEqualTypeOf<BasisPoints>();
+  });
+});
+
+describe("Privatanteil in Prozent und die übrigen Felder in core", () => {
+  const privatanteil: Prozent = 20;
+  const satz: BasisPoints = 2000;
+  const prozentSchema = inProzent(z.number().int().min(0).max(100));
+
+  it("Prozent und Basispunkte passen nicht zueinander", () => {
+    expect(splitPrivateShare(10_000, privatanteil)).toEqual({ business: 8000, private: 2000 });
+    // @ts-expect-error 20 % in Basispunkten sind kein Privatanteil in Prozent: privat wären 2000 %
+    expect(splitPrivateShare(10_000, satz)).toEqual({ business: -190_000, private: 200_000 });
+    expectTypeOf<z.output<typeof prozentSchema>>().toEqualTypeOf<Prozent>();
+  });
+
+  it("Sätze, Mengen und Hebesatz tragen ihre Einheit", () => {
+    expectTypeOf<NonNullable<ScheduleAsset["degressiveRate"]>>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<ReturnType<typeof maxDegressiveRate>>().toEqualTypeOf<BasisPoints | null>();
+    expectTypeOf<DauerbelegBetrag["taxRate"]>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<Extract<EuerPayment, { kind: "document" }>["vorsteuerAnteil"]>().toEqualTypeOf<BasisPoints | null | undefined>();
+    expectTypeOf<Extract<EuerPayment, { kind: "document" }>["privateShare"]>().toEqualTypeOf<Prozent | undefined>();
+    expectTypeOf<Extract<EuerPayment, { kind: "kategorie" }>["steuersatz"]>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<DiscountableLine["quantity"]>().toEqualTypeOf<Millis>();
+    expectTypeOf<KapgSteuerAngaben["hebesatz"]>().toEqualTypeOf<Prozent>();
+    expectTypeOf<PrivateUseRate>().toEqualTypeOf<BasisPoints & (100 | 50 | 25)>();
   });
 });

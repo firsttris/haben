@@ -6,6 +6,9 @@ export type Cents = Einheit<"Cents">;
 /** Steuersätze in Basispunkten: 1900 = 19 %. */
 export type BasisPoints = Einheit<"BasisPoints">;
 
+/** Ganze Prozent: 100 = 100 %, etwa der Privatanteil eines Belegs oder der Hebesatz. Bei Basispunkten ist 100 = 1 %. */
+export type Prozent = Einheit<"Prozent">;
+
 /** Kaufmännisch runden, symmetrisch zur Null: 2,5 → 3, −2,5 → −3 (Math.round ergäbe −2). So heben sich Beleg und Storno exakt auf. */
 export function roundHalfAwayFromZero(value: number): number {
   return Math.sign(value) * Math.round(Math.abs(value));
@@ -88,7 +91,7 @@ export function parseHundredths(input: string): number | null {
 }
 
 /** Aufteilung eines Betrags nach Privatanteil in Prozent: privat wird gerundet, betrieblich ist der Rest */
-export function splitPrivateShare(amount: Cents, percent: number): { business: Cents; private: Cents } {
+export function splitPrivateShare(amount: Cents, percent: Prozent): { business: Cents; private: Cents } {
   const privatePart = roundHalfAwayFromZero((amount * percent) / 100);
   return { business: amount - privatePart, private: privatePart };
 }
