@@ -73,11 +73,24 @@ function idAus(bytes: Uint8Array | null): string | null {
 // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
 const STEUERZEICHEN = /[\u0000-\u001f\u007f]+/g;
 
-/** Kurzer Auszug einer Fehlerantwort für die Anzeige, ohne Steuerzeichen */
-function auszug(bytes: Uint8Array | null): string {
+/**
+ * Kurzer Auszug einer Fehlerantwort für die Anzeige, ohne Steuerzeichen und ohne den Wert der Kopfzeile: Manche Archive
+ * wiederholen das abgelehnte Token in der Meldung, und der Auszug steht in der Datenbank und an der Rechnung.
+ */
+function auszug(bytes: Uint8Array | null, header: Sendung["header"]): string {
   if (!bytes?.byteLength) return "";
-  const text = new TextDecoder().decode(bytes.subarray(0, 600)).replace(STEUERZEICHEN, " ").trim();
+  // Mehr dekodieren als angezeigt, damit ein Token an der Schnittkante ganz erkannt wird
+  let text = new TextDecoder().decode(bytes.subarray(0, 16_384)).replace(STEUERZEICHEN, " ");
+  for (const geheim of geheimeTeile(header)) text = text.replaceAll(geheim, "***");
+  text = text.trim();
   return text ? `: ${text.slice(0, 200)}` : "";
+}
+
+/** Der Wert der Kopfzeile und seine längeren Teile (das Token nach „Bearer“), längste zuerst */
+function geheimeTeile(header: Sendung["header"]): string[] {
+  if (!header?.value) return [];
+  const teile = header.value.split(/\s+/).filter((teil) => teil.length >= 8);
+  return [header.value, ...teile].sort((a, b) => b.length - a.length);
 }
 
 export async function sendFile(sendung: Sendung, timeoutMs = SENDEN_TIMEOUT_MS): Promise<SendeErgebnis> {
@@ -109,6 +122,6 @@ export async function sendFile(sendung: Sendung, timeoutMs = SENDEN_TIMEOUT_MS):
     };
   }
   const answer = await readAtMost(response.body, MAX_ANTWORT).catch(() => null);
-  if (!response.ok) return { ok: false, httpStatus: response.status, error: `HTTP ${response.status}${auszug(answer)}` };
+  if (!response.ok) return { ok: false, httpStatus: response.status, error: `HTTP ${response.status}${auszug(answer, sendung.header)}` };
   return { ok: true, httpStatus: response.status, archiveId: idAus(answer) };
 }
