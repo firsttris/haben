@@ -1,10 +1,9 @@
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+import { setupTestDb, testDatabaseUrl, testTempDir } from "../test-db.ts";
 
 const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 
@@ -21,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
       await admin.end();
     }
     // Wirklichen Vorversionsstand migrieren, nicht alte Audit-JSONs in einer neuen Datenbank erfinden.
-    const previous = mkdtempSync(join(tmpdir(), "haben-firmendaten-migration-"));
+    const previous = testTempDir("firmendaten-migration-");
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta", "_journal.json"), "utf8"));
     const next = full.entries.findIndex((entry: { tag: string }) => entry.tag.endsWith("_firmendaten_gespeichert"));

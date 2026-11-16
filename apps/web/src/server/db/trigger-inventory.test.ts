@@ -1,5 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql as query } from "drizzle-orm";
@@ -7,7 +6,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+import { setupTestDb, testDatabaseUrl, testTempDir } from "../test-db.ts";
 
 const migrationsFolder = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 
@@ -85,7 +84,7 @@ describe.skipIf(!testDatabaseUrl)("Sollbestand der Sperrtrigger (Postgres, #764)
   });
 
   it("bleibt nach einem Update von 0191 auf den aktuellen Stand befundfrei", async () => {
-    const previous = mkdtempSync(join(tmpdir(), "haben-trigger-update-"));
+    const previous = testTempDir("trigger-update-");
     cpSync(migrationsFolder, previous, { recursive: true });
     const journalPath = join(previous, "meta/_journal.json");
     const journal = JSON.parse(readFileSync(journalPath, "utf8"));

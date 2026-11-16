@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,50 @@ function templateName(url: string): string {
 
 /** Die Datenbank dieses Workers (VITEST_POOL_ID: 1 bis maxWorkers); ohne TEST_DATABASE_URL undefined */
 export const testDatabaseUrl = baseUrl && withDatabase(baseUrl, `${databaseName(baseUrl)}_${process.env.VITEST_POOL_ID ?? "1"}`);
+
+/*
+ * Temp-Ordner der Tests liegen unter einem Ordner je Lauf (haben-test-<PID>-…), den `setup` anlegt und am Ende löscht.
+ * Bricht ein Lauf ab, ohne aufzuräumen, löscht der nächste Lauf dessen Ordner, sobald der Prozess nicht mehr lebt.
+ */
+const RUN_PREFIX = "haben-test-";
+const RUN_DIR_ENV = "HABEN_TEST_TMP";
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/** Löscht Ordner abgebrochener Läufe, deren Prozess nicht mehr läuft; Ordner laufender Läufe bleiben */
+export function removeAbandonedRunDirs(base = tmpdir()): void {
+  for (const name of readdirSync(base)) {
+    const pid = Number(new RegExp(`^${RUN_PREFIX}(\\d+)-`).exec(name)?.[1]);
+    if (pid && pid !== process.pid && !processAlive(pid)) rmSync(join(base, name), { recursive: true, force: true });
+  }
+}
+
+/** Neuer leerer Temp-Ordner unter dem Ordner des Laufs; `setup` löscht ihn am Ende des Laufs mit */
+export function testTempDir(prefix: string): string {
+  const root = process.env[RUN_DIR_ENV];
+  if (!root) throw new Error(`${RUN_DIR_ENV} fehlt: Die Tests laufen nur mit dem globalSetup aus vitest.config.ts`);
+  return mkdtempSync(join(root, prefix));
+}
+
+/**
+ * Belegordner des Workers: je Worker einer, beim nächsten Aufruf geleert. Ein Ordner je Testdatei sammelte sich sonst
+ * bis zum Ende des Laufs an.
+ */
+export function workerDocumentsDir(): string {
+  const root = process.env[RUN_DIR_ENV];
+  if (!root) throw new Error(`${RUN_DIR_ENV} fehlt: Die Tests laufen nur mit dem globalSetup aus vitest.config.ts`);
+  const dir = join(root, `belege-${process.env.VITEST_POOL_ID ?? "1"}`);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
 
 /** Wendet alle Migrationen auf die Datenbank hinter `url` an */
 async function migrateTestDb(url: string): Promise<void> {
@@ -63,7 +107,7 @@ export async function setupTestDb(): Promise<postgres.Sql> {
     BETTER_AUTH_SECRET: "x".repeat(32),
     BETTER_AUTH_URL: "http://localhost:3000",
     HABEN_ENCRYPTION_KEY: process.env.HABEN_ENCRYPTION_KEY ?? randomBytes(32).toString("base64"),
-    DOCUMENTS_DIR: mkdtempSync(join(tmpdir(), "haben-belege-")),
+    DOCUMENTS_DIR: workerDocumentsDir(),
   });
   await recreateDatabase(baseUrl!, databaseName(testDatabaseUrl!), templateName(baseUrl!));
   const sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
@@ -90,10 +134,23 @@ export function leeren(sql: postgres.Sql) {
   };
 }
 
-/** globalSetup von Vitest: migriert einmal je Lauf die Vorlage; ohne TEST_DATABASE_URL nichts zu tun */
-export async function setup(): Promise<void> {
-  if (!baseUrl) return;
-  const template = templateName(baseUrl);
-  await recreateDatabase(baseUrl, template);
-  await migrateTestDb(withDatabase(baseUrl, template));
+/**
+ * globalSetup von Vitest: legt den Temp-Ordner des Laufs an (die Worker erben ihn über die Umgebung) und migriert mit
+ * TEST_DATABASE_URL einmal je Lauf die Vorlage. Die zurückgegebene Funktion löscht den Temp-Ordner am Ende des Laufs.
+ */
+export async function setup(): Promise<() => void> {
+  removeAbandonedRunDirs();
+  const root = mkdtempSync(join(tmpdir(), `${RUN_PREFIX}${process.pid}-`));
+  process.env[RUN_DIR_ENV] = root;
+  const teardown = () => rmSync(root, { recursive: true, force: true });
+  if (!baseUrl) return teardown;
+  try {
+    const template = templateName(baseUrl);
+    await recreateDatabase(baseUrl, template);
+    await migrateTestDb(withDatabase(baseUrl, template));
+  } catch (error) {
+    teardown();
+    throw error;
+  }
+  return teardown;
 }

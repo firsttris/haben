@@ -1,11 +1,10 @@
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+import { setupTestDb, testDatabaseUrl, testTempDir } from "../test-db.ts";
 import { readAppVersion } from "./app-version.ts";
 import { readDatabaseAccess } from "./roles.ts";
 
@@ -59,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
   }
 
   function futureMigration(statement: string, when = 9_000_000_000_000): string {
-    const fixture = mkdtempSync(join(tmpdir(), "haben-migration-619-"));
+    const fixture = testTempDir("migration-619-");
     const source = fileURLToPath(new URL("./", import.meta.url));
     const db = join(fixture, "src/server/db");
     const meta = join(fixture, "drizzle/meta");

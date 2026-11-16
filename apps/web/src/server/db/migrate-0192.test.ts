@@ -1,10 +1,9 @@
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
-import { testDatabaseUrl } from "../test-db.ts";
+import { testDatabaseUrl, testTempDir } from "../test-db.ts";
 
 const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 const journal = (folder: string) => JSON.parse(readFileSync(join(folder, "meta", "_journal.json"), "utf8"));
@@ -21,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Migration 0192: Stichjahr auf einer bestehend
     await admin`drop database if exists ${admin(name)} with (force)`;
     await admin`create database ${admin(name)}`;
     await admin.end();
-    const previous = mkdtempSync(join(tmpdir(), "haben-migrationen-"));
+    const previous = testTempDir("migrationen-");
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = journal(MIGRATIONS);
     const idx = full.entries.findIndex((e: { idx: number }) => e.idx === 192);
