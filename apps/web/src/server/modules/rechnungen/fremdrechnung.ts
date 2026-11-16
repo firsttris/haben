@@ -56,11 +56,23 @@ export const foreignInvoiceSchema = z.object({
     .array(z.strictObject({ rate: z.number().int().min(0).max(10_000), net: cents, tax: cents }))
     .min(1)
     .max(20),
+  /** Bestätigung der Umsatzgrenze wie beim Festschreiben: gilt nur für die Werte, die Haben zuvor gemeldet hat */
+  bestaetigt: z.strictObject({ umsatz: cents, rechnung: cents, grenze: cents, vorjahresumsatz: cents.optional() }).optional(),
 });
 
 export type ForeignInvoiceInput = z.input<typeof foreignInvoiceSchema>;
 
 const RATES = new Set([0, 700, 1900]);
+
+/** Zeilen mit demselben Satz zählen als einer: Eine E-Rechnung kann zwei 0-%-Kategorien (etwa E und Z) nennen, gebucht wird je Satz */
+function groupByRate(taxes: { rate: number; net: number; tax: number }[]): { rate: number; net: number; tax: number }[] {
+  const sums = new Map<number, { rate: number; net: number; tax: number }>();
+  for (const t of taxes) {
+    const sum = sums.get(t.rate) ?? { rate: t.rate, net: 0, tax: 0 };
+    sums.set(t.rate, { rate: t.rate, net: sum.net + t.net, tax: sum.tax + t.tax });
+  }
+  return [...sums.values()];
+}
 
 /** Je Steuersatz, nicht nur in der Summe: +1 Cent bei 19 % und −1 Cent bei 7 % verschöbe sonst die Kennzahlen der Voranmeldung */
 function rebuild(taxes: { rate: number; net: number; tax: number }[], number: string) {
@@ -104,7 +116,13 @@ async function assertAdoptable(
     }),
   ];
   if (issues.length > 0) throw new InvoiceError(`Noch nicht bereit: ${issues.join(", ")}.`);
-  await pruefeUmsatzgrenze(tx, { kind: "rechnung", issueDate: input.issueDate, taxTreatment: input.taxTreatment }, totals.net, company.foundedOn);
+  await pruefeUmsatzgrenze(
+    tx,
+    { kind: "rechnung", issueDate: input.issueDate, taxTreatment: input.taxTreatment },
+    totals.net,
+    company.foundedOn,
+    input.bestaetigt,
+  );
 }
 
 /**
@@ -243,7 +261,7 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
     warnings.push(`Die Rechnung nennt die USt-IdNr. ${sellerUst}, in den Firmendaten steht eine andere. Ist es wirklich deine Rechnung?`);
   if (invoice.isCreditNote) warnings.push("Das ist eine Gutschrift; Haben übernimmt hier nur Rechnungen.");
   if (invoice.currency !== "EUR") warnings.push(`Die Rechnung lautet auf ${invoice.currency}; Haben übernimmt hier nur Rechnungen in Euro.`);
-  const taxes = invoice.taxes.map((t) => ({ rate: t.rate, net: t.base, tax: t.tax }));
+  const taxes = groupByRate(invoice.taxes.map((t) => ({ rate: t.rate, net: t.base, tax: t.tax })));
   const special = invoice.taxes.map((t) => TREATMENT_OF_CATEGORY[t.category]).find((t) => t !== undefined);
   const buyerUst = invoice.buyer?.ustId?.replace(/\s/g, "").toUpperCase();
   const buyerName = invoice.buyer?.name?.trim() ?? null;
@@ -258,7 +276,8 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
     dueDate: invoice.dueDate ?? addDays(invoice.issueDate, 14),
     serviceFrom: invoice.serviceFrom ?? null,
     serviceTo: invoice.serviceTo ?? null,
-    taxTreatment: special === "steuerfrei" && company.kleinunternehmer ? "kleinunternehmer" : (special ?? "regulaer"),
+    // Ein Kleinunternehmer übernimmt nur Rechnungen nach § 19 UStG (andere Behandlungen braucht strukturierte Angaben, die das Formular nicht abfragt)
+    taxTreatment: company.kleinunternehmer ? "kleinunternehmer" : (special ?? "regulaer"),
     taxes,
     contactId: matches.length === 1 ? matches[0]!.id : null,
     buyerName,
@@ -284,8 +303,9 @@ export async function adoptForeignInvoiceFile(actor: string, raw: ForeignInvoice
 function xmlMismatch(invoice: IncomingInvoice, input: AdoptInput): string | null {
   if (invoice.number !== input.number) return `Nummer ${invoice.number} statt ${input.number}`;
   if (invoice.issueDate !== input.issueDate) return `Rechnungsdatum ${invoice.issueDate} statt ${input.issueDate}`;
-  const same = (x: { rate: number; net: number; tax: number }) => input.taxes.some((t) => t.rate === x.rate && t.net === x.net && t.tax === x.tax);
-  const xmlTaxes = invoice.taxes.map((t) => ({ rate: t.rate, net: t.base, tax: t.tax }));
-  if (xmlTaxes.length !== input.taxes.length || !xmlTaxes.every(same)) return "Netto oder Steuer je Steuersatz weichen ab";
+  const given = groupByRate(input.taxes);
+  const same = (x: { rate: number; net: number; tax: number }) => given.some((t) => t.rate === x.rate && t.net === x.net && t.tax === x.tax);
+  const xmlTaxes = groupByRate(invoice.taxes.map((t) => ({ rate: t.rate, net: t.base, tax: t.tax })));
+  if (xmlTaxes.length !== given.length || !xmlTaxes.every(same)) return "Netto oder Steuer je Steuersatz weichen ab";
   return null;
 }

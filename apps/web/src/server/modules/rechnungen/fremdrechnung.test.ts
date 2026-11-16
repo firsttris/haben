@@ -10,6 +10,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  */
 describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres)", () => {
   let foreign: typeof import("./fremdrechnung.ts");
+  let UmsatzgrenzeError: typeof import("./umsatzgrenze.ts").UmsatzgrenzeError;
   let invoices: typeof import("./invoices.ts");
   let cash: typeof import("../bank/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
@@ -23,6 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
   beforeAll(async () => {
     sql = await setupTestDb();
     foreign = await import("./fremdrechnung.ts");
+    ({ UmsatzgrenzeError } = await import("./umsatzgrenze.ts"));
     invoices = await import("./invoices.ts");
     cash = await import("../bank/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
@@ -272,7 +274,36 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         }),
         pdf,
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow(UmsatzgrenzeError);
+  }, 30_000);
+
+  it("übernimmt eine Rechnung über der Umsatzgrenze erst mit der Bestätigung der gemeldeten Werte", async () => {
+    await company("SKR03", "ist");
+    const contactId = await customer();
+    await sql`update company set kleinunternehmer = true where id = 1`;
+    const year = new Date().getFullYear();
+    const big = input(contactId, {
+      number: "K2",
+      issueDate: `${year}-01-10`,
+      dueDate: `${year}-01-24`,
+      taxTreatment: "kleinunternehmer",
+      exemptionReason: "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
+      taxes: [{ rate: 0, net: 12_000_000, tax: 0 }],
+    });
+    const warning = await foreign.adoptForeignInvoice(actor, big, pdf).catch((e: unknown) => e);
+    expect(warning).toBeInstanceOf(UmsatzgrenzeError);
+    const { umsatz, rechnung, grenze, vorjahresumsatz } = warning as InstanceType<typeof UmsatzgrenzeError>;
+    expect(await sql`select 1 from invoices`).toHaveLength(0);
+    // Abweichende Werte bestätigen nichts
+    await expect(foreign.adoptForeignInvoice(actor, { ...big, bestaetigt: { umsatz, rechnung: rechnung + 1, grenze } }, pdf)).rejects.toThrow(
+      UmsatzgrenzeError,
+    );
+    await foreign.adoptForeignInvoice(
+      actor,
+      { ...big, bestaetigt: { umsatz, rechnung, grenze, ...(vorjahresumsatz === undefined ? {} : { vorjahresumsatz }) } },
+      pdf,
+    );
+    expect(await sql`select 1 from invoices where number = ${"K2"}`).toHaveLength(1);
   }, 30_000);
 
   it("bucht bei Soll im Monat der Leistung und nimmt keine E-Rechnung an, die zu den Angaben nicht passt", async () => {
@@ -360,5 +391,43 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       ),
     ).rejects.toThrow(/nur einmal/);
     expect(await sql`select 1 from invoices`).toHaveLength(0);
+  }, 30_000);
+  it("fasst Zeilen desselben Satzes aus der E-Rechnung zusammen und nimmt die Datei dann an", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer("DE", "DE811128135");
+    const draft = await invoices.createDraft(actor, {
+      ...(await invoices.newDraftDefaults("2026-09-26")),
+      contactId,
+      lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
+    });
+    const own = await invoices.finalizeInvoice(actor, draft.id);
+    // Die Steuer 19 % als zwei Aufschlüsselungen (50 € + 50 € netto): nach EN 16931 eigentlich eine, andere Systeme schreiben es so
+    const block = [...own.xml!.matchAll(/<ram:ApplicableTradeTax>[\s\S]*?<\/ram:ApplicableTradeTax>/g)]
+      .map((m) => m[0])
+      .find((b) => b.includes("<ram:CalculatedAmount>"))!;
+    const half = (net: string, tax: string) => block.replace(/(<ram:BasisAmount>)[^<]*/, `$1${net}`).replace(/(<ram:CalculatedAmount>)[^<]*/, `$1${tax}`);
+    const split = own.xml!.replace(block, half("50.00", "9.50") + half("50.00", "9.50"));
+    expect(split).not.toBe(own.xml);
+    const file = { bytes: new TextEncoder().encode(split), filename: "re.xml", mimeType: "application/xml" };
+    const proposal = await foreign.foreignInvoiceProposal(file);
+    expect(proposal.taxes).toEqual([{ rate: 1900, net: 10_000, tax: 1_900 }]);
+    // Die E-Rechnung passt zu den Angaben; abgelehnt wird erst, dass eine reine XML kein Original-PDF ist
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file)).rejects.toThrow(/PDF/);
+  }, 30_000);
+
+  it("schlägt für einen Kleinunternehmer nur die Behandlung nach § 19 vor", async () => {
+    await company("SKR03", "ist");
+    const contactId = await customer("DE", "DE811128135");
+    const draft = await invoices.createDraft(actor, {
+      ...(await invoices.newDraftDefaults("2026-09-26")),
+      contactId,
+      lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
+    });
+    const own = await invoices.finalizeInvoice(actor, draft.id);
+    // Die Umstellung auf Kleinunternehmer geht nur ohne Buchungen im Jahr: Firma neu anlegen, die E-Rechnung bleibt
+    await company("SKR03", "ist");
+    await sql`update company set kleinunternehmer = true where id = 1`;
+    const proposal = await foreign.foreignInvoiceProposal({ bytes: new TextEncoder().encode(own.xml!), filename: "re.xml", mimeType: "application/xml" });
+    expect(proposal.taxTreatment).toBe("kleinunternehmer");
   }, 30_000);
 });

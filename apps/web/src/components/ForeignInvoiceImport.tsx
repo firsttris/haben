@@ -1,11 +1,13 @@
 import { formatDecimal, parseEuro, TAX_TREATMENTS, type TaxTreatment } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
+import type { UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
 import { adoptForeignInvoiceFn, readForeignInvoice } from "../server/functions/fremdrechnung.ts";
 import { ContactCombobox, savedAsChoice } from "./ContactCombobox.tsx";
 import { Field } from "./Field.tsx";
 import { FilePicker } from "./FilePicker.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
+import { UmsatzgrenzeDialog } from "./UmsatzgrenzeDialog.tsx";
 
 type Read = Awaited<ReturnType<typeof readForeignInvoice>>;
 type TaxRow = { rate: string; net: string; tax: string };
@@ -69,11 +71,39 @@ export function ForeignInvoiceImport({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; onClose: () => void }) {
+/** Absenden an den Server; meldet er die Umsatzgrenze, wartet die Rechnung auf die Bestätigung (`pending`) */
+function useAdopt(file: File) {
   const router = useRouter();
-  const p = read.proposal;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<{ payload: object; warning: UmsatzgrenzeBestaetigung } | null>(null);
+
+  async function adopt(payload: object) {
+    const form = new FormData();
+    form.set("file", file);
+    form.set("rechnung", JSON.stringify(payload));
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await adoptForeignInvoiceFn({ data: form });
+      if (result.status === "umsatzgrenze") {
+        const { umsatz, rechnung, grenze, vorjahresumsatz } = result;
+        setPending({ payload, warning: { umsatz, rechnung, grenze, ...(vorjahresumsatz === undefined ? {} : { vorjahresumsatz }) } });
+        setBusy(false);
+        return;
+      }
+      await router.navigate({ to: "/rechnungen/$id", params: { id: result.id } });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Die Rechnung konnte nicht übernommen werden.");
+      setBusy(false);
+    }
+  }
+  return { error, setError, busy, pending, setPending, adopt };
+}
+
+function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; onClose: () => void }) {
+  const p = read.proposal;
+  const { error, setError, busy, pending, setPending, adopt } = useAdopt(file);
   const [basics, setBasics] = useState<Basics>({
     number: p.number,
     issueDate: p.issueDate,
@@ -85,7 +115,7 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   const [contactId, setContactId] = useState(p.contactId ?? "");
   /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
   const [newContactName, setNewContactName] = useState<string | null>(null);
-  const [treatment, setTreatment] = useState<TaxTreatment>(p.taxTreatment);
+  const [treatment, setTreatment] = useState<TaxTreatment>(read.kleinunternehmer ? "kleinunternehmer" : p.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState("");
   const [rows, setRows] = useState<TaxRow[]>(
     p.taxes.length > 0
@@ -104,31 +134,17 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
       setError("Bitte einen Kunden wählen oder neu anlegen.");
       return;
     }
-    const form = new FormData();
-    form.set("file", file);
-    form.set(
-      "rechnung",
-      JSON.stringify({
-        number: basics.number,
-        issueDate: basics.issueDate,
-        dueDate: basics.dueDate,
-        contactId,
-        taxTreatment: treatment,
-        exemptionReason,
-        serviceFrom: basics.serviceFrom || null,
-        serviceTo: basics.serviceTo || null,
-        taxes,
-      }),
-    );
-    setBusy(true);
-    setError(null);
-    try {
-      const { id } = await adoptForeignInvoiceFn({ data: form });
-      await router.navigate({ to: "/rechnungen/$id", params: { id } });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Die Rechnung konnte nicht übernommen werden.");
-      setBusy(false);
-    }
+    await adopt({
+      number: basics.number,
+      issueDate: basics.issueDate,
+      dueDate: basics.dueDate,
+      contactId,
+      taxTreatment: treatment,
+      exemptionReason,
+      serviceFrom: basics.serviceFrom || null,
+      serviceTo: basics.serviceTo || null,
+      taxes,
+    });
   }
 
   return (
@@ -153,6 +169,7 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         <TaxSection
           treatment={treatment}
           onTreatment={setTreatment}
+          kleinunternehmer={read.kleinunternehmer}
           exemptionReason={exemptionReason}
           onExemptionReason={setExemptionReason}
           rows={rows}
@@ -178,6 +195,16 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         onPickExisting={setContactId}
         onClose={() => setNewContactName(null)}
       />
+      {pending && (
+        <UmsatzgrenzeDialog
+          warnung={pending.warning}
+          action="übernehmen"
+          onClose={() => setPending(null)}
+          onConfirm={() => void adopt({ ...pending.payload, bestaetigt: pending.warning })}
+        >
+          <p>Bei Abbruch wird nichts übernommen.</p>
+        </UmsatzgrenzeDialog>
+      )}
     </>
   );
 }
@@ -256,18 +283,27 @@ function BasicsSection({ value, onChange }: { value: Basics; onChange: (value: B
   );
 }
 
-/** Behandlungen, die das Formular nicht abbildet: Bei sonstigen Leistungen im EU-Ausland fehlt die Bestätigung des Leistungsorts */
-const NOT_OFFERED: TaxTreatment[] = ["eu_sonstige"];
+/**
+ * Behandlungen, die die Übernahme annimmt: Ein Kleinunternehmer übernimmt nur Rechnungen nach § 19 UStG, alle anderen nicht diese.
+ * Sonstige Leistungen im EU-Ausland und die übrigen Befreiungen von Kleinunternehmern brauchen strukturierte Angaben (Leistungsort,
+ * Vorschrift), die das Formular nicht abfragt; der Server lehnt sie ab, also werden sie nicht angeboten.
+ */
+function offeredTreatments(kleinunternehmer: boolean): TaxTreatment[] {
+  const all = Object.keys(TAX_TREATMENTS) as TaxTreatment[];
+  return kleinunternehmer ? ["kleinunternehmer"] : all.filter((key) => key !== "eu_sonstige" && key !== "kleinunternehmer");
+}
 
 function TaxSection({
   treatment,
   onTreatment,
+  kleinunternehmer,
   exemptionReason,
   onExemptionReason,
   rows,
   onRows,
 }: {
   treatment: TaxTreatment;
+  kleinunternehmer: boolean;
   onTreatment: (treatment: TaxTreatment) => void;
   exemptionReason: string;
   onExemptionReason: (reason: string) => void;
@@ -277,16 +313,14 @@ function TaxSection({
   return (
     <section className="form-section" aria-labelledby="fremdrechnung-steuer">
       <h2 id="fremdrechnung-steuer">Steuer</h2>
-      <Field label="Steuerbehandlung">
+      <Field label="Steuerbehandlung" hint={kleinunternehmer ? "Als Kleinunternehmer übernimmt Haben hier nur Rechnungen nach § 19 UStG." : undefined}>
         {(control) => (
           <select {...control} value={treatment} onChange={(e) => onTreatment(e.target.value as TaxTreatment)}>
-            {Object.entries(TAX_TREATMENTS)
-              .filter(([key]) => !NOT_OFFERED.includes(key as TaxTreatment))
-              .map(([key, t]) => (
-                <option key={key} value={key}>
-                  {t.label}
-                </option>
-              ))}
+            {offeredTreatments(kleinunternehmer).map((key) => (
+              <option key={key} value={key}>
+                {TAX_TREATMENTS[key].label}
+              </option>
+            ))}
           </select>
         )}
       </Field>

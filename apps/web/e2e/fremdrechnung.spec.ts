@@ -132,6 +132,20 @@ test("E-Rechnung im PDF: Nummer, Datum, Betrag und Kunde kommen aus der Datei", 
   await expect(page.getByRole("alert")).toContainText("gibt es in Haben schon");
 });
 
+test("Steuerbehandlung: nur, was die Übernahme annimmt; die Befreiungsvorschrift ist nur bei „steuerfrei“ Pflicht", async () => {
+  await formularOeffnen();
+  await datei("FS-1003.pdf", await fremdesPdf("FS-1003"));
+  const behandlung = page.getByLabel("Steuerbehandlung");
+  const vorschrift = page.getByLabel("Befreiungsvorschrift");
+  // Nicht angeboten: sonstige Leistung im EU-Ausland (Leistungsort fehlt im Formular) und Kleinunternehmer ohne eingeschaltete Einstellung
+  await expect(behandlung.locator("option[value=eu_sonstige]")).toHaveCount(0);
+  await expect(behandlung.locator("option[value=kleinunternehmer]")).toHaveCount(0);
+  await expect(behandlung.locator("option[value=steuerfrei]")).toHaveCount(1);
+  await expect(vorschrift).toHaveCount(0);
+  await behandlung.selectOption("steuerfrei");
+  await expect(vorschrift).toHaveJSProperty("required", true);
+});
+
 test("Keine Seitenfehler im ganzen Durchlauf", () => {
   expect(pageErrors).toEqual([]);
 });
