@@ -1,0 +1,22 @@
+/* Verfahrensdokumentation (routes/_app/einstellungen_.verfahrensdokumentation.tsx, components/ProcedureDocument.tsx) */
+.procedure-doc { display: flex; flex-direction: column; gap: 24px; max-width: 72ch; }
+.procedure-doc header { display: flex; flex-direction: column; gap: 4px; }
+.procedure-doc h2 { margin: 0; font-size: 24px; }
+.procedure-doc h3 { margin: 0 0 8px; font-size: 18px; }
+.procedure-doc p { margin: 0 0 12px; overflow-wrap: anywhere; }
+.procedure-doc ul { margin: 0 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.procedure-doc .procedure-gaps { list-style: none; padding: 12px 16px; border-radius: 8px; background: var(--warn-soft); color: var(--warn-ink); }
+
+/* Gedruckt oder als PDF gesichert bleibt nur das Blatt, hell und ohne Rahmen */
+@media print {
+  :root { color-scheme: light; }
+  body, .shell, .main { background: Canvas; color: CanvasText; }
+  .shell { display: block; }
+  .nav, .skip-link, .page-head, .procedure-form, .procedure-hint { display: none !important; }
+  .main { padding: 0; }
+  .procedure-doc { max-width: none; border: 0; box-shadow: none; padding: 0; background: Canvas; color: CanvasText; }
+  .procedure-doc .procedure-gaps { background: none; color: CanvasText; border: 1px solid CanvasText; }
+  .procedure-doc .muted { color: CanvasText; }
+  .procedure-doc section { break-inside: auto; }
+  .procedure-doc h3 { break-after: avoid; }
+}

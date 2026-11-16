@@ -1,9 +1,9 @@
-import { postenOf, taxIncluded } from "@haben/core";
+import { type BasisPoints, type Cents, postenOf, taxIncluded } from "@haben/core";
 import { isBlankRow, parseCsv } from "../csv.ts";
 import type { Kontenrahmen } from "../datev.ts";
 import { decodeText } from "../decode.ts";
 import type { LegacyVoucher } from "../lexoffice/map.ts";
-import { normalizeText, parseDate, parseGermanAmount } from "../text.ts";
+import { normalizeText, parseDate, parseGermanAmount, parseGermanRate } from "../text.ts";
 import { WisoParseError, type WisoCsvRow, type WisoPreview, type WisoVoucher } from "./types.ts";
 
 const REQUIRED_COLUMNS = [
@@ -65,8 +65,9 @@ function cell(row: string[], cols: Map<ColumnName, number>, name: ColumnName): s
   return normalizeText(row[cols.get(name)!]);
 }
 
-function parseAmountField(value: string, rowNumber: number, label: string): number {
-  const parsed = parseGermanAmount(value || "0");
+/** Betrag oder Steuersatz aus einer Zelle; leer ist 0 */
+function parseNumberField<T extends number>(parse: (input: string) => T | null, value: string, rowNumber: number, label: string): T {
+  const parsed = parse(value || "0");
   if (parsed === null) {
     throw new WisoParseError(`Zeile ${rowNumber}: ungültiger Betrag in ${label} („${value}“).`);
   }
@@ -101,9 +102,9 @@ export function parseWisoCsv(bytes: Uint8Array): { rows: WisoCsvRow[]; unreadabl
     const buchungsdatum = buchungsdatumRaw ? parseDate(buchungsdatumRaw) : null;
     if (buchungsdatumRaw && !buchungsdatum) unreadableBookingDates += 1;
 
-    const soll = parseAmountField(cell(raw, cols, "Soll"), rowNumber, "Soll");
-    const haben = parseAmountField(cell(raw, cols, "Haben"), rowNumber, "Haben");
-    const steuersatz = parseAmountField(cell(raw, cols, "Steuersatz") || "0", rowNumber, "Steuersatz");
+    const soll = parseNumberField(parseGermanAmount, cell(raw, cols, "Soll"), rowNumber, "Soll");
+    const haben = parseNumberField(parseGermanAmount, cell(raw, cols, "Haben"), rowNumber, "Haben");
+    const steuersatz = parseNumberField(parseGermanRate, cell(raw, cols, "Steuersatz") || "0", rowNumber, "Steuersatz");
     if (steuersatz < 0) {
       throw new WisoParseError(`Zeile ${rowNumber}: negativer Steuersatz.`);
     }
@@ -187,7 +188,7 @@ function classifyRow(row: WisoCsvRow, skr: Kontenrahmen): { direction: "einnahme
 }
 
 /** Beträge einer Zeile; `paid` ist der tatsächliche Zu- oder Abfluss, bei § 13b und EU-Erwerb das Netto */
-function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean): { rate: number; net: number; tax: number; gross: number; paid: number } {
+function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean): { rate: BasisPoints; net: Cents; tax: Cents; gross: Cents; paid: Cents } {
   const amount = Math.abs(row.soll - row.haben);
   const sign = positive ? 1 : -1;
   if (neutral || row.steuersatz === 0) {
@@ -228,7 +229,7 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
   const neutral = group.every((r) => classifyRow(r, skr).neutral);
   const direction = groupDirection(group, skr);
 
-  const taxByRate = new Map<number, { rate: number; net: number; tax: number }>();
+  const taxByRate = new Map<BasisPoints, { rate: BasisPoints; net: Cents; tax: Cents }>();
   const categories: LegacyVoucher["categories"] = [];
   let totalNet = 0;
   let totalTax = 0;

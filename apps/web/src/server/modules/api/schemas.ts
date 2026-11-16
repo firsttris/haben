@@ -3,6 +3,7 @@ import { z } from "zod";
 import { documentReferenceSchema, MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { draftSchema, externalReferenceSchema } from "../rechnungen/index.ts";
 import { contactSchema as contactInputSchema } from "../stammdaten/index.ts";
+import { documentTaxShape } from "./document-tax-schema.ts";
 
 /*
  * Schemas der REST-API: Eingaben, Antworten und Fehler. Die Eingaben bauen auf den Schemas der Module auf (contactSchema,
@@ -185,6 +186,7 @@ const draftApiFields = {
   despatchAdviceReference: draftFields.despatchAdviceReference.describe("Lieferscheinnummer, in der E-Rechnung BT-16; leer = keine"),
   taxTreatment: draftFields.taxTreatment,
   exemptionReason: draftFields.exemptionReason,
+  taxDetails: draftFields.taxDetails,
   priceMode: draftFields.priceMode.describe("Einzelpreise netto oder brutto inkl. USt"),
   language: draftFields.language.describe("Sprache des PDFs, Vorgabe die des Kontakts"),
   currency: draftFields.currency.describe("Währung als dreistelliger Code, Vorgabe EUR"),
@@ -270,6 +272,7 @@ export const invoiceSchema = z
     language: z.enum(["de", "en"]),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS),
     exemptionReason: z.string(),
+    taxDetails: draftFields.taxDetails,
     priceMode: z.enum(PRICE_MODES),
     currency: z.string(),
     exchangeRate: z.string().nullable().describe("1 EUR = Kurs; Beträge in Cent sind bei Fremdwährung in Euro umgerechnet"),
@@ -371,9 +374,7 @@ export const documentSchema = z
     note: z.string(),
     net: z.number().int().describe(`Netto in Euro; ${CENTS}`),
     tax: z.number().int().describe(`Steuer in Euro; ${CENTS}`),
-    amounts: z
-      .array(z.object({ taxRate: z.number().int().describe("Basispunkte"), net: z.number().int(), tax: z.number().int() }))
-      .describe("Beträge je Steuersatz in Euro-Cent"),
+    ...documentTaxShape,
     issues: z.array(z.string()).describe("Was vor dem Buchen noch fehlt; leer, wenn bereit oder gebucht"),
     replacedById: z.uuid().nullable().describe("Bei einem stornierten Beleg: der neu erfasste Beleg mit derselben Datei"),
     replacesId: z.uuid().nullable().describe("Bei einer Neuerfassung: der stornierte Beleg, den dieser ersetzt"),

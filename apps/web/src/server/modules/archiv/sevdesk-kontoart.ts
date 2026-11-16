@@ -1,5 +1,4 @@
-import { RANGES } from "@haben/import";
-import { sql, type SQL } from "drizzle-orm";
+import type { AccountingKind, AccountingTypeKinds } from "../auswertungen/index.ts";
 import type { ReconciliationCheck } from "./lexoffice.ts";
 
 /*
@@ -23,78 +22,6 @@ export const ACCOUNTING_TYPE_ISSUE =
 
 export const ACCOUNTING_TYPE_VAT_ISSUE =
   "Buchungskonto nicht erkannt bei Gutschriften aus sevDesk: Der Monatsabgleich der Umsatzsteuer ist gesperrt, bis „Erneut abrufen“ die Konten klärt oder die Kontoart in der Belegansicht festgelegt ist.";
-
-const ranges = (list: [number, number][]) => `array[${list.map(([from, to]) => `int4range(${from}, ${to}, '[]')`).join(", ")}]`;
-
-/**
- * Art einer Kontonummer wie datevAccountKind mit vierstelligen Sachkonten: 'erloes', 'aufwand', sonst 'sonstig' (auch
- * Steuerkonten, längere Nummern und Text); ohne Nummer null. `value` ist ein SQL-Ausdruck vom Typ text.
- */
-export function accountingTypeNumberKind(kontenrahmen: keyof typeof RANGES, value: string): string {
-  const { erloese, aufwand } = RANGES[kontenrahmen];
-  return `(case when coalesce(${value}, '') = '' then null
-    when ${value} !~ '^[0-9]{1,4}$' then 'sonstig'
-    when (${value})::int <@ any(${ranges(erloese)}) then 'erloes'
-    when (${value})::int <@ any(${ranges(aufwand)}) then 'aufwand'
-    else 'sonstig' end)`;
-}
-
-/** Art einer gespeicherten Antwort von GET /AccountingType */
-function answerKind(raw: string): string {
-  return `(select case when k.k03 is null and k.k04 is null then 'unklar'
-      when coalesce(k.k03, k.k04) = coalesce(k.k04, k.k03) and coalesce(k.k03, k.k04) in ('erloes', 'aufwand') then coalesce(k.k03, k.k04)
-      else 'unklar' end
-    from (select ${accountingTypeNumberKind("SKR03", `${raw}->>'skr03'`)} as k03, ${accountingTypeNumberKind("SKR04", `${raw}->>'skr04'`)} as k04) k)`;
-}
-
-function isAccountingTypeNote(alias: string): string {
-  return `(${alias}.source = 'sevdesk' and ${alias}.lexoffice_id like 'creditnote/%' and upper(coalesce(${alias}.raw->>'bookingCategory', '')) = 'ACCOUNTING_TYPE')`;
-}
-
-/** Art aller Antworten zum Konto der Gutschrift, ohne Antwort null; ein späterer Abruf kann einen neuen Stand anhängen */
-function stammKind(alias: string): string {
-  return `(select case when count(*) = 0 then null when count(distinct sat_kind.kind) = 1 then min(sat_kind.kind) else 'unklar' end as kind
-    from (select ${answerKind("sat.raw")} as kind from sevdesk_accounting_types sat
-      where sat.accounting_type_id = ${alias}.raw->'accountingType'->>'id') sat_kind)`;
-}
-
-/** Jüngste Entscheidung von Hand, sonst null */
-function manualKind(alias: string): string {
-  return `(select d.kind from sevdesk_accounting_type_decisions d where d.voucher_id = ${alias}.id order by d.created_at desc, d.id desc limit 1)`;
-}
-
-/**
- * Erkannter Kontostamm geht vor, ein Widerspruch zur Entscheidung von Hand bleibt unklar; ohne erkannten Kontostamm die
- * Entscheidung. Beide stehen in `from`, nicht in der Spaltenliste einer Unterabfrage: Die zöge Postgres hoch und setzte für
- * jedes `stamm` und `hand` im `case` die ganze Unterabfrage neu ein. Mit den sieben Einsätzen je Beleg im Abgleich trieb
- * das die Kostenschätzung über die Schwellen des JIT; das Übersetzen kostete Sekunden.
- */
-function noteKind(alias: string): string {
-  return `(select case when s.kind in ('erloes', 'aufwand') then case when h.kind is null or h.kind = s.kind then s.kind else 'unklar' end
-      else coalesce(h.kind, 'unklar') end
-    from ${stammKind(alias)} s left join ${manualKind(alias)} h on true)`;
-}
-
-/** Gutschrift auf Buchungskonto mit Aufwandskonto: Ausgabe-Gutschrift wie Honorar (expenseCreditNote) */
-export function accountingTypeExpense(alias: string): string {
-  return `(${isAccountingTypeNote(alias)} and ${noteKind(alias)} = 'aufwand')`;
-}
-
-export function accountingTypeUnclear(alias: string): SQL<boolean> {
-  return sql.raw(`coalesce(${isAccountingTypeNote(alias)} and ${noteKind(alias)} = 'unklar', false)`) as SQL<boolean>;
-}
-
-export type AccountingKind = "erloes" | "aufwand";
-
-/** Kontostamm (null ohne Antwort) und Entscheidung von Hand einer Gutschrift auf ein Buchungskonto */
-export type AccountingTypeKinds = { stamm: AccountingKind | "unklar" | null; hand: AccountingKind | null };
-
-/** Beide Quellen der Kontoart, nur für Gutschriften auf ein Buchungskonto, sonst null */
-export function accountingTypeKinds(alias: string): SQL<AccountingTypeKinds | null> {
-  return sql.raw(
-    `case when ${isAccountingTypeNote(alias)} then json_build_object('stamm', ${stammKind(alias)}, 'hand', ${manualKind(alias)}) end`,
-  ) as SQL<AccountingTypeKinds | null>;
-}
 
 export const ACCOUNTING_KIND_LABEL: Record<AccountingKind, string> = { erloes: "Erlöskonto", aufwand: "Aufwandskonto" };
 

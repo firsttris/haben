@@ -3,8 +3,8 @@ import { mitIndexXml } from "./beschreibung.ts";
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { bankAccountIncludedSql } from "../../db/bank-open.ts";
-import { effectivePayment } from "./payment-history.ts";
-import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+import { effectivePayment } from "../auswertungen/index.ts";
+import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
@@ -33,6 +33,7 @@ import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
+import { procedureMarkdown } from "../verfahrensdoku/index.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -230,6 +231,8 @@ const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-c
 /** Herkunft einer Buchung im Journal, wie sie die Datenbank zulässt */
 type JournalSource = (typeof schema.journalEntries.$inferInsert)["sourceType"];
 const SOURCE_LABELS: Record<JournalSource, string> = {
+  // Eigene Buchung neben dem Beleg, wenn dessen Leistung beim Buchen noch nicht ausgeführt war (#693)
+  freigabe: "Vorsteuerfreigabe",
   invoice: "Rechnung",
   document: "Beleg",
   allocation: "Zahlung",
@@ -276,7 +279,13 @@ const SUBMISSION_LABELS: Record<string, string> = { validate: "Prüfung", test: 
 
 /** Das ZIP-Archiv eines Kalenderjahrs als Byte-Stücke */
 export function exportYear(year: number, now = new Date()): AsyncGenerator<Uint8Array> {
-  return zipArchive(withIndex(yearFiles(year, now), year), now);
+  return zipArchive(withIndex(withProcedure(yearFiles(year, now), now), year), now);
+}
+
+/** Hängt die Verfahrensdokumentation in der Fassung beim Erstellen des Archivs an (#860, GoBD Rz. 154), wie unter Einstellungen › Export */
+async function* withProcedure(files: AsyncIterable<ArchiveFile>, now: Date): AsyncGenerator<ArchiveFile> {
+  yield* files;
+  yield { path: "verfahrensdokumentation.md", content: encoder.encode(await procedureMarkdown(now)), compress: true };
 }
 
 /** Hängt die index.xml (Beschreibungsstandard der Finanzverwaltung, #546) hinter die Dateien des Jahres */
@@ -1846,6 +1855,9 @@ protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Arch
                          Ende des Jahres.
 protokoll/versionen.csv  Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt
                          (einschließlich fortgeführtem Vorjahresstand und Verweis auf Hinweise).
+verfahrensdokumentation.md
+                         Verfahrensdokumentation in der Fassung beim Erstellen des Archivs
+                         (Markdown), mit Stand und Haben-Version.
 index.xml                Beschreibung aller CSV-Dateien (Pfad, Zeichensatz, Trenner, Spalten,
                          Beträge und Daten) nach dem Beschreibungsstandard der Finanzverwaltung
                          (GDPdU), mit der eine Prüfsoftware die Dateien einliest. Die DTD

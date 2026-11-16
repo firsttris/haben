@@ -1,0 +1,273 @@
+import { leistungNichtAusgefuehrt, leistungsdatum, vorsteuerAusgleichPosting, type TaxCode, type TaxShare } from "@haben/core";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { schema, type Tx } from "../../db/index.ts";
+import { anteilZumRechnungsdatum, belegTotals, hatFreigabe, satzZumSchluessel, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
+import { post } from "../buchhaltung/index.ts";
+
+/** Buchhaltungsrahmen, wie `post` ihn erwartet (Kontenrahmen und Rechtsform der Firma) */
+type Books = Parameters<typeof post>[1];
+
+/*
+ * Vorsteuer aus einem Leistungszeitraum, der beim Buchen noch nicht ausgeführt war (#693): Sie liegt auf dem
+ * Zwischenkonto (SKR03 1548, SKR04 1434) und gehört in den Monat der Ausführung, nicht in den der Zahlung. Wer auf Ziel
+ * zahlt, bekäme sie sonst erst im Folgejahr — bei Zahlungsziel Januar ginge die Vorsteuer des Vorjahres an der
+ * Voranmeldung vorbei, obwohl § 15 Abs. 1 Satz 1 Nr. 1 UStG mit Leistung und Rechnung erfüllt ist.
+ *
+ * Deshalb schreibt Haben beim Buchen eine zweite Buchung mit dem Datum der Ausführung; sie zieht die Vorsteuer vom
+ * Zwischenkonto auf das Vorsteuerkonto, und Kz 66 sieht sie in diesem Monat. Eine Zahlung nach der Ausführung bucht
+ * dann nur noch Verbindlichkeit gegen Bank: Der Ausgleich (vorsteuer-ausgleich.ts) findet nichts mehr vor, weil er das
+ * Journal liest.
+ *
+ * Wird vor der Ausführung gezahlt, ist der bezahlte Anteil schon mit der Zahlung abziehbar: § 15 Abs. 1 Satz 1 Nr. 1
+ * Satz 3 UStG verlangt Rechnung und Zahlung, nicht die Ausführung (UStAE 15.3 Abs. 1 Satz 2), frühestens also zum
+ * Rechnungsdatum. Weil die vorausdatierte Freigabe dann schon im Journal steht, wird sie beim Ereignis nachgezogen
+ * (freigabeNachziehen): Die Zahlung hebt sie auf, ihr Anteil wird an ihrem eigenen Tag frei (bei Zahlung vor dem
+ * Rechnungsdatum mit einer eigenen Freigabe zum Rechnungsdatum), und der Rest wird wieder zum Ausführungsdatum
+ * festgeschrieben. Dasselbe gilt für Aufhebung, Verrechnung und Ausbuchung. So steht keine Steuer zweimal in der
+ * Voranmeldung, und das Zwischenkonto endet bei null.
+ *
+ * Nicht hierher gehören Gutschriften, die bereits Bezahltes erstatten (#786, § 17 Abs. 1 UStG): Ihre Minderung hängt am
+ * Ausgleich, nicht an der Ausführung. § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen
+ * Zeitpunkt; vorsteuerWartetAufAusfuehrung (@haben/core) lässt sie deshalb schon nicht auf das Zwischenkonto.
+ */
+
+/** Trägt der Beleg schon eine wirksame Freigabe (ein Storno zählt nicht)? */
+async function schonFreigegeben(tx: Tx, documentId: string): Promise<boolean> {
+  const [schon] = await tx
+    .select({ id: schema.journalEntries.id })
+    .from(schema.journalEntries)
+    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, documentId), isNull(schema.journalEntries.reversesId)));
+  return schon !== undefined;
+}
+
+/** Freigaben des Belegs, die noch stehen: nicht storniert und ohne Gegenbuchung */
+async function offeneFreigaben(tx: Tx, documentId: string) {
+  return await tx
+    .select({
+      id: schema.journalEntries.id,
+      date: schema.journalEntries.date,
+      description: schema.journalEntries.description,
+      kontenrahmen: schema.journalEntries.kontenrahmen,
+    })
+    .from(schema.journalEntries)
+    .where(
+      and(
+        eq(schema.journalEntries.sourceType, "freigabe"),
+        eq(schema.journalEntries.sourceId, documentId),
+        isNull(schema.journalEntries.reversesId),
+        sql`not exists (select 1 from journal_entries r where r.reverses_id = ${schema.journalEntries.id})`,
+      ),
+    );
+}
+
+/**
+ * Was zu diesem Beleg noch auf dem Zwischenkonto steht, je Steuersatz, mit dem Vorzeichen der Buchung: bei einer
+ * Rechnung positiv (Soll), bei einer Gutschrift negativ. Gelesen wird das ganze Journal des Belegs — Buchung,
+ * Zuordnungen, Verrechnungen, Ausbuchungen samt Skonto und die Freigaben selbst. Der Saldo ist die Wahrheit über das, was noch
+ * wartet; er stimmt auch nach einer Aufhebung oder einem Wechsel des Kontenrahmens.
+ *
+ * Nicht dasselbe wie bisherUmgebucht (vorsteuer-anteile.ts): Hier zählen die Buchung des Belegs, jedes Skonto und
+ * alle Freigaben mit, die Bemessungsgrundlage trägt das Vorzeichen von Soll und Haben, und Sätze ohne Steuer fallen weg.
+ * Das ergibt, was noch freizugeben ist; dort, was die Ausgleiche schon gezogen haben. Ein Parameter für beides hätte
+ * drei Schalter und eine andere Rechnung der Grundlage, deshalb sind es zwei Abfragen.
+ */
+async function zwischenkontoSaldo(tx: Tx, documentId: string): Promise<TaxShare[]> {
+  const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
+    select l.tax_code,
+           sum(l.debit - l.credit)::int as bewegt,
+           sum(case when l.debit <> 0 then coalesce(l.basis, 0) else -coalesce(l.basis, 0) end)::int as basis
+      from journal_lines l
+      join journal_entries e on e.id = l.entry_id
+     where (l.account = ${ZWISCHENKONTEN[0]!} or l.account = ${ZWISCHENKONTEN[1]!})
+       and ((e.source_type = 'document' and e.source_id = ${documentId})
+         or (e.source_type = 'allocation' and e.source_id in (select id from allocations where document_id = ${documentId}))
+         or (e.source_type = 'freigabe' and e.source_id = ${documentId})
+         or (e.source_type = 'verrechnung' and e.source_id in (select id from document_settlements where document_id = ${documentId}))
+         -- Auch Skonto: Es schreibt seinen Anteil vom Zwischenkonto ab, und die Freigabe darf ihn nicht noch einmal ziehen
+         or (e.source_type = 'ausbuchung' and e.source_id in (select id from write_offs where document_id = ${documentId})))
+     group by l.tax_code`);
+  return [...rows].flatMap((r) => {
+    const rate = satzZumSchluessel(r.tax_code);
+    const tax = Number(r.bewegt);
+    return rate === null || tax === 0 ? [] : [{ rate, base: Number(r.basis), tax }];
+  });
+}
+
+/** Beleg, wie ihn eine Freigabe für Text und Quelle braucht */
+interface FreigabeBeleg {
+  id: string;
+  invoiceNumber: string | null;
+  supplierName: string | null;
+}
+
+/**
+ * Bucht eine Freigabe vom Zwischenkonto auf die Vorsteuer. `anteile` mit dem Vorzeichen des Ausgleichs: negativ heißt
+ * frei, die Buchung geht dann Haben Zwischenkonto, Soll Vorsteuer.
+ */
+async function freigabeBuchen(tx: Tx, books: Books, doc: FreigabeBeleg, date: string, anteile: TaxShare[], zumRechnungsdatum = false) {
+  return await post(tx, books, {
+    date,
+    description: `Vorsteuer aus Leistungszeitraum${zumRechnungsdatum ? " zum Rechnungsdatum" : ""}: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+    sourceType: "freigabe",
+    sourceId: doc.id,
+    lines: vorsteuerAusgleichPosting(anteile, books.kontenrahmen),
+  });
+}
+
+/** Der Stand des Zwischenkontos als Freigabe: umgekehrte Richtung des Parkens */
+const alsFreigabe = (stand: TaxShare[]): TaxShare[] => stand.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax }));
+
+/** Dreht eine einzelne Freigabe mit ihren Zeilen um, am übergebenen Tag */
+async function freigabeUmkehren(
+  tx: Tx,
+  books: Books,
+  documentId: string,
+  freigabe: { id: string; description: string | null; date: string },
+  am: string,
+): Promise<void> {
+  const zeilen = await tx
+    .select({
+      account: schema.journalLines.account,
+      debit: schema.journalLines.debit,
+      credit: schema.journalLines.credit,
+      taxCode: schema.journalLines.taxCode,
+      basis: schema.journalLines.basis,
+    })
+    .from(schema.journalLines)
+    .where(eq(schema.journalLines.entryId, freigabe.id));
+  await post(tx, books, {
+    date: am,
+    description: `Storno: ${freigabe.description ?? "Vorsteuer aus Leistungszeitraum"}`,
+    sourceType: "freigabe",
+    sourceId: documentId,
+    reversesId: freigabe.id,
+    lines: zeilen.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode as TaxCode | null, basis: l.basis })),
+  });
+}
+
+/**
+ * Ist das Jahr des Tages abgeschlossen? Dann bucht Haben dort nichts mehr; die Steuer bleibt lieber beim Ausgleich mit
+ * der Zahlung, statt die Buchung des Belegs scheitern zu lassen.
+ */
+async function jahrGeschlossen(tx: Tx, tag: string): Promise<boolean> {
+  const [geschlossen] = await tx
+    .select({ year: schema.yearClosings.year })
+    .from(schema.yearClosings)
+    .where(eq(schema.yearClosings.year, Number(tag.slice(0, 4))));
+  return geschlossen !== undefined;
+}
+
+/**
+ * Gibt die beim Buchen geparkte Vorsteuer im Monat der Ausführung frei. Liefert die ID der Buchung oder null, wenn es
+ * nichts freizugeben gibt: keine Leistung nach dem Belegdatum, keine Steuer auf dem Zwischenkonto, schon freigegeben,
+ * oder das Jahr der Ausführung ist abgeschlossen (dann bleibt es beim Ausgleich mit der Zahlung).
+ */
+export async function freigabeAmAusfuehrung(
+  tx: Tx,
+  doc: {
+    id: string;
+    documentDate: string | null;
+    serviceFrom: string | null;
+    serviceTo: string | null;
+    invoiceNumber: string | null;
+    supplierName: string | null;
+  },
+  books: Books,
+): Promise<string | null> {
+  if (!doc.documentDate) return null;
+  const angabe = { belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo };
+  // Nur ein Zeitraum nach dem Belegdatum parkt überhaupt; sonst gilt der Belegmonat
+  if (!leistungNichtAusgefuehrt(angabe)) return null;
+  const am = leistungsdatum(angabe);
+
+  const anteile = await zwischenkontoSaldo(tx, doc.id);
+  if (anteile.length === 0) return null;
+
+  // Je Beleg eine Freigabe; ein Storno der Freigabe zählt nicht als Freigabe
+  if (await schonFreigegeben(tx, doc.id)) return null;
+
+  // Abgeschlossenes Jahr: Dann bleibt es beim Ausgleich mit der Zahlung, statt die Buchung des Belegs scheitern zu
+  // lassen. Nur dieser eine Fall wird vorher geprüft; ein LedgerError kann auch vom Wechsel des Kontenrahmens oder von
+  // geänderten Firmendaten kommen, und der darf nicht stillschweigend eine Buchung verschlucken.
+  if (await jahrGeschlossen(tx, am)) return null;
+
+  return await freigabeBuchen(tx, books, doc, am, alsFreigabe(anteile));
+}
+
+/**
+ * Dreht die Freigaben beim Storno eines Belegs zurück. Am Tag des Stornos, aber nie vor der Freigabe selbst: Eine
+ * Freigabe, die erst mit der Ausführung fällig wäre, wird in ihrem eigenen Monat aufgehoben, damit dort keine Minderung
+ * ohne Gegenstück entsteht.
+ */
+export async function freigabeStornieren(tx: Tx, books: Books, documentId: string, stornoAm: string): Promise<number> {
+  let anzahl = 0;
+  for (const freigabe of await offeneFreigaben(tx, documentId)) {
+    await freigabeUmkehren(tx, books, documentId, freigabe, freigabe.date > stornoAm ? freigabe.date : stornoAm);
+    anzahl += 1;
+  }
+  return anzahl;
+}
+
+/**
+ * Zieht die Freigabe nach einer Zahlung oder deren Aufhebung nach: Eine Zahlung vor
+ * der Ausführung nimmt die vorausdatierte Freigabe zurück, gibt ihren Anteil an ihrem eigenen Tag frei (das bucht
+ * vorsteuer-ausgleich.ts in der Zeile der Zuordnung) und schreibt den Rest wieder zum Ausführungsdatum fest. Kein Lauf im
+ * Scheduler: die Voranmeldung soll nicht davon abhängen, wann er gelaufen ist.
+ *
+ * Hat sich am Stand nichts geändert — etwa eine Zahlung nach der Ausführung —, bleibt die Freigabe stehen und es
+ * entstehen keine Buchungen. Ohne Freigabe (Gutschrift „erstattet bereits Bezahltes“, abgeschlossenes Jahr) passiert
+ * nichts; dann bleibt es beim Ausgleich mit der Zahlung.
+ *
+ * `datum` ist der Tag des Ereignisses (Zahlung, Aufhebung, Verrechnung, Ausbuchung). Liegt er an oder nach der
+ * Ausführung, ist die Vorsteuer mit Leistung und Rechnung abziehbar und das Ereignis ändert daran nichts mehr: Was es
+ * auf das Zwischenkonto zurücklegt, wird am selben Tag wieder frei. Der Monat der Ausführung bleibt unberührt, er kann
+ * schon gemeldet sein.
+ */
+export async function freigabeNachziehen(tx: Tx, documentId: string, books: Books, datum: string): Promise<boolean> {
+  const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, documentId));
+  if (!doc?.documentDate) return false;
+  const angabe = { belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo };
+  if (!leistungNichtAusgefuehrt(angabe)) return false;
+  const am = leistungsdatum(angabe);
+  // Nur Belege mit Freigabe zum Leistungsdatum; die Gutschrift nach § 17 Abs. 1 UStG hat keine
+  if (!(await hatFreigabe(tx, doc.id))) return false;
+
+  // Was gerade noch auf dem Zwischenkonto steht.
+  const stand = await zwischenkontoSaldo(tx, doc.id);
+
+  // Nach der Ausführung: den zurückgelegten Stand am Tag des Ereignisses freigeben, nichts rückwirkend. Ist er null,
+  // deckt die Freigabe zum Ausführungsdatum den Rest schon genau — es entstehen keine Buchungen ohne Anlass.
+  if (datum >= am) {
+    if (stand.length === 0) return true;
+    await freigabeBuchen(tx, books, doc, datum, alsFreigabe(stand));
+    return true;
+  }
+
+  // 1. Die Freigaben zum Ausführungsdatum zurücknehmen, in ihrem eigenen Monat: Sie deckten den Stand von vor diesem
+  //    Ereignis. Rückwirkend gemindert wird dabei nichts — Aufhebung und neue Freigabe stehen am selben Tag. Die Freigaben
+  //    zum Rechnungsdatum (früher datiert) bleiben stehen; ihr Monat kann schon gemeldet sein.
+  for (const freigabe of await offeneFreigaben(tx, doc.id)) {
+    if (freigabe.date >= am) await freigabeUmkehren(tx, books, doc.id, freigabe, freigabe.date);
+  }
+
+  // 2. Vorkasse vor dem Rechnungsdatum: Der Ausgleich hat nichts gezogen, weil die Rechnung noch nicht vorlag
+  //    (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2). Der bezahlte Anteil wird deshalb mit eigener
+  //    Freigabe zum Rechnungsdatum abziehbar. Ändert ein späteres Ereignis diesen Anteil (Aufhebung, weitere Vorkasse),
+  //    bucht es nur den Unterschied, an seinem eigenen Tag, frühestens zum Rechnungsdatum: Eine Aufhebung wirkt an ihrem
+  //    Tag (#782) und ändert keinen schon gemeldeten Monat.
+  const tag = datum > doc.documentDate ? datum : doc.documentDate;
+  if (!(await jahrGeschlossen(tx, tag))) {
+    const unterschied = await anteilZumRechnungsdatum(tx, doc, await belegTotals(tx, doc), tag);
+    if (unterschied.some((a) => a.tax !== 0)) {
+      await freigabeBuchen(tx, books, doc, tag, unterschied, true);
+    }
+  }
+
+  // 3. Was jetzt wartet, wieder zum Ausführungsdatum freigeben
+  const rest = await zwischenkontoSaldo(tx, doc.id);
+  if (rest.length === 0) return true;
+  if (await jahrGeschlossen(tx, am)) return true;
+
+  await freigabeBuchen(tx, books, doc, am, alsFreigabe(rest));
+  return true;
+}

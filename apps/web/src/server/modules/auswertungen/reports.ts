@@ -1,3 +1,4 @@
+import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import {
   isKapitalgesellschaft,
   bareinnahmeTotals,
@@ -6,11 +7,9 @@ import {
   type EuerPayment,
   type EuerResult,
   type ExpenseCategory,
-  type InvoiceTotals,
   isLohnZahlung,
   LOHN_ZAHLUNGEN,
   recordedTaxShares,
-  totalsFromTaxes,
   documentOpen,
   periodKey,
   vatPostenLabel,
@@ -29,43 +28,10 @@ import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 import { ustvaPosten } from "../umsatzsteuer/index.ts";
 import { advanceOpenPositions } from "./advance-open-positions.ts";
+import { documentTotalsById } from "./euer-belege.ts";
+import { belegZahlungsWirkungen } from "./euer-belegzahlungen.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
-
-/** Summen aus den Beträgen eines Belegs je Steuersatz */
-function documentTotals(amounts: { taxRate: number; net: number; tax: number }[]): InvoiceTotals {
-  return totalsFromTaxes(amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })));
-}
-
-/** Summen je Beleg; reverseCharge sind die Belege mit selbst geschuldeter Steuer (§ 13b, innergemeinschaftlicher Erwerb) */
-async function documentTotalsById(
-  ids: string[],
-  q: Db | Tx = db,
-): Promise<{ totals: Map<string, InvoiceTotals>; reverseCharge: Set<string>; selbstGeschuldet: Map<string, number[]> }> {
-  if (ids.length === 0) return { totals: new Map(), reverseCharge: new Set(), selbstGeschuldet: new Map() };
-  const amounts = await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
-  const reverseCharge = new Set(
-    (
-      await q
-        .select({ id: schema.documents.id })
-        .from(schema.documents)
-        .where(and(inArray(schema.documents.id, ids), isNotNull(schema.documents.reverseCharge)))
-    ).map((d) => d.id),
-  );
-  // § 13b: Gezahlt ist nur netto. Die selbst geschuldete Steuer und die Vorsteuer daraus heben sich auf;
-  // ohne Vorsteuerabzug zählt die Steuer, wenn sie mit der Voranmeldung ans Finanzamt geht.
-  const totals = new Map(
-    ids.map((id) => {
-      const rows = amounts.filter((a) => a.documentId === id);
-      return [id, documentTotals(reverseCharge.has(id) ? rows.map((a) => ({ ...a, tax: 0 })) : rows)];
-    }),
-  );
-  return {
-    totals,
-    reverseCharge,
-    selbstGeschuldet: new Map([...reverseCharge].map((id) => [id, amounts.filter((a) => a.documentId === id).map((a) => a.tax)])),
-  };
-}
 
 /**
  * Alle Zahlungen eines Jahres für die EÜR: Zuordnungen im Bankabgleich nach Buchungsdatum
@@ -173,6 +139,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
   const exchangeDifferences = await q
     .select({
+      id: schema.writeOffs.id,
       amount: schema.writeOffs.amount,
       taxShares: schema.writeOffs.taxShares,
       taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
@@ -243,10 +210,11 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   );
   // Aufgeteilte Belege (#271): Ausgaben je Kontierungszeile statt je Kategorie des Belegs; § 13b: die selbst geschuldete Steuer
   const docSplits = await splitsByDocument([...docTotals.keys()], q);
-  const belegAngaben = (documentId: string) => {
+  const effects = await belegZahlungsWirkungen(q, [...docTotals.keys()]);
+  const belegAngaben = (documentId: string, eventId?: string) => {
     const splits = docSplits.get(documentId);
     const steuer = selbstGeschuldet.get(documentId);
-    const rc = steuer ? { selbstGeschuldet: steuer } : {};
+    const rc = { ...(steuer ? { selbstGeschuldet: steuer } : {}), ...(eventId && effects.has(eventId) ? { effect: effects.get(eventId)! } : {}) };
     if (!splits) return rc;
     // § 13b (#508): Die Zeilen tragen ihren Anteil der selbst geschuldeten Steuer; gezahlt ist wie in docTotals nur netto
     return { ...rc, splits: reverseCharge.has(documentId) ? splits.map((line) => ({ ...line, tax: 0 })) : splits };
@@ -287,7 +255,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(a.category) ? a.category : "sonstiges",
         vorsteuerAbzug: a.vorsteuerAbzug ?? true,
         privateShare: a.privateShare ?? 0,
-        ...belegAngaben(a.documentId),
+        ...belegAngaben(a.documentId, a.id),
         group,
       });
     } else if (
@@ -312,7 +280,16 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
       // Je Zuordnung, nicht je Umsatz: Die Wirkung hängt am Vorzeichen jedes Teils (Erstattungszinsen sind Einnahme,
       // Nachzahlungszinsen zur Gewerbesteuer nicht); nur Zuordnung und Gegenzeile heben sich auf
-      payments.push({ kind: "steuer", date: a.date, amount: a.amount, art: a.taxType, posten: a.taxItem, group: a.reversesId ?? a.id });
+      payments.push({
+        kind: "steuer",
+        date: a.date,
+        amount: a.amount,
+        art: a.taxType,
+        posten: a.taxItem,
+        group: a.reversesId ?? a.id,
+        // Wie ustAbfluss oben: Nur die echte Gegenzeile erhält die ursprüngliche Richtung (EÜR-Anleitung, Zeilen 18/58).
+        ...(a.reversesId ? { steuerErstattung: a.amount < 0 } : {}),
+      });
     } else if (a.kind === "darlehen" && a.loanPart && a.loanPurpose) {
       // Zinsen und Gebühren als Schuldzinsen, wenn sie abfließen; Auszahlung und Tilgung sind erfolgsneutral
       payments.push({ kind: "darlehen", date: a.date, amount: a.amount, zweck: a.loanPurpose, teil: a.loanPart, group });
@@ -342,7 +319,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       category: isCategory(s.category) ? s.category : "sonstiges",
       vorsteuerAbzug: s.vorsteuerAbzug ?? true,
       privateShare: s.privateShare ?? 0,
-      ...belegAngaben(s.documentId),
+      ...belegAngaben(s.documentId, s.id),
     });
   }
   for (const w of exchangeDifferences) {
@@ -375,7 +352,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(w.category) ? w.category : "sonstiges",
         vorsteuerAbzug: w.vorsteuerAbzug ?? true,
         privateShare: w.privateShare ?? 0,
-        ...belegAngaben(w.documentId),
+        ...belegAngaben(w.documentId, w.id),
         group,
       });
     }
@@ -471,7 +448,8 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
 
 /** Die EÜR aus den Nebenbüchern (Zahlungen, Belege, Pauschalen, Anlagenverzeichnis); ab dem Stichjahr die Gegenprobe */
 export async function euerAusNebenbuechern(year: number, q: Db | Tx = db): Promise<EuerResult> {
-  const euer = computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+  const monate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
+  const euer = computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q), monate);
   // Freie Buchungen gibt es in der EÜR nur im Einzelunternehmen; manuelle Buchungen einer GmbH sind Abschlussbuchungen
   return isKapitalgesellschaft((await loadCompany(q)).rechtsform) ? euer : mitFreienBuchungen(euer, q);
 }

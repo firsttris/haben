@@ -17,6 +17,7 @@ const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../../test-fi
 const ebay: SourceBinding = { provider: "ebay", externalAccountId: "verkaeufer-beispiel", accountKind: "psp" };
 const bank: SourceBinding = { provider: "enablebanking", externalAccountId: "beispielbank-konto-1", accountKind: "bank", cutoverDate: "2026-10-01" };
 const paypal: SourceBinding = { provider: "paypal", externalAccountId: "haendler-beispiel", accountKind: "psp" };
+const etsy: SourceBinding = { provider: "etsy", externalAccountId: "shop-beispiel", accountKind: "psp" };
 
 function accept(input: unknown, binding: SourceBinding) {
   const result = validateBatch(input, binding);
@@ -118,5 +119,28 @@ describe("Beispiel PayPal", () => {
     expect(reversal.references.relatedEventId).toBe(payment.sourceEventId);
     expect(payment.amount + reversal.amount).toBe(0);
     expect(result.hints).toEqual([]);
+  });
+});
+
+describe("Beispiel Etsy", () => {
+  const result = accept(fixture("etsy"), etsy);
+
+  it("übernimmt Gebühren und Sales Tax als eigene Ereignisse; zusammen ergeben sie 0", () => {
+    expect(result.accepted).toHaveLength(12);
+    expect(result.hints).toEqual([]);
+    expect(result.blocking).toBe(0);
+    expect(sum(result.accepted)).toBe(0);
+    expect(result.accepted.every((m) => m.component === "main")).toBe(true);
+  });
+
+  it("der Kontostand je Tag folgt aus dem Anfangsstand und den Bewegungen", () => {
+    const anfang = result.balances.find((b) => b.date < result.batch.coverage.from)!.amount;
+    let stand = anfang;
+    const tage = [...new Set(result.accepted.map((m) => m.bookingDate))].sort();
+    for (const tag of tage) {
+      stand += sum(result.accepted.filter((m) => m.bookingDate === tag));
+      const saldo = result.balances.find((b) => b.date === tag);
+      if (saldo) expect([tag, saldo.amount]).toEqual([tag, stand]);
+    }
   });
 });

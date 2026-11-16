@@ -56,6 +56,7 @@ import { Route as AppBuchungenNeuRouteImport } from './routes/_app/buchungen/neu
 import { Route as AppDauerbelegeIndexRouteImport } from './routes/_app/dauerbelege/index'
 import { Route as AppDauerbelegeIdRouteImport } from './routes/_app/dauerbelege/$id'
 import { Route as AppDauerbelegeNeuRouteImport } from './routes/_app/dauerbelege/neu'
+import { Route as AppEinstellungenVerfahrensdokumentationRouteImport } from './routes/_app/einstellungen_.verfahrensdokumentation'
 import { Route as AppJahreserklaerungIndexRouteImport } from './routes/_app/jahreserklaerung/index'
 import { Route as AppJahreserklaerungJahrRouteImport } from './routes/_app/jahreserklaerung/$jahr'
 import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
@@ -363,6 +364,12 @@ const AppDauerbelegeNeuRoute = AppDauerbelegeNeuRouteImport.update({
   path: '/dauerbelege/neu',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEinstellungenVerfahrensdokumentationRoute =
+  AppEinstellungenVerfahrensdokumentationRouteImport.update({
+    id: '/einstellungen_/verfahrensdokumentation',
+    path: '/einstellungen/verfahrensdokumentation',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppJahreserklaerungIndexRoute =
   AppJahreserklaerungIndexRouteImport.update({
     id: '/jahreserklaerung/',
@@ -763,6 +770,7 @@ export interface FileRoutesByFullPath {
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
   '/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
+  '/einstellungen/verfahrensdokumentation': typeof AppEinstellungenVerfahrensdokumentationRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -880,6 +888,7 @@ export interface FileRoutesByTo {
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
   '/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
+  '/einstellungen/verfahrensdokumentation': typeof AppEinstellungenVerfahrensdokumentationRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -999,6 +1008,7 @@ export interface FileRoutesById {
   '/_app/buchungen/neu': typeof AppBuchungenNeuRoute
   '/_app/dauerbelege/$id': typeof AppDauerbelegeIdRoute
   '/_app/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
+  '/_app/einstellungen_/verfahrensdokumentation': typeof AppEinstellungenVerfahrensdokumentationRoute
   '/_app/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
@@ -1118,6 +1128,7 @@ export interface FileRouteTypes {
     | '/buchungen/neu'
     | '/dauerbelege/$id'
     | '/dauerbelege/neu'
+    | '/einstellungen/verfahrensdokumentation'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -1235,6 +1246,7 @@ export interface FileRouteTypes {
     | '/buchungen/neu'
     | '/dauerbelege/$id'
     | '/dauerbelege/neu'
+    | '/einstellungen/verfahrensdokumentation'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -1353,6 +1365,7 @@ export interface FileRouteTypes {
     | '/_app/buchungen/neu'
     | '/_app/dauerbelege/$id'
     | '/_app/dauerbelege/neu'
+    | '/_app/einstellungen_/verfahrensdokumentation'
     | '/_app/jahreserklaerung/$jahr'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
@@ -1818,6 +1831,13 @@ declare module '@tanstack/react-router' {
       path: '/dauerbelege/neu'
       fullPath: '/dauerbelege/neu'
       preLoaderRoute: typeof AppDauerbelegeNeuRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/einstellungen_/verfahrensdokumentation': {
+      id: '/_app/einstellungen_/verfahrensdokumentation'
+      path: '/einstellungen/verfahrensdokumentation'
+      fullPath: '/einstellungen/verfahrensdokumentation'
+      preLoaderRoute: typeof AppEinstellungenVerfahrensdokumentationRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/jahreserklaerung/': {
@@ -2332,6 +2352,7 @@ interface AppRouteChildren {
   AppBuchungenNeuRoute: typeof AppBuchungenNeuRoute
   AppDauerbelegeIdRoute: typeof AppDauerbelegeIdRoute
   AppDauerbelegeNeuRoute: typeof AppDauerbelegeNeuRoute
+  AppEinstellungenVerfahrensdokumentationRoute: typeof AppEinstellungenVerfahrensdokumentationRoute
   AppJahreserklaerungJahrRoute: typeof AppJahreserklaerungJahrRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
@@ -2396,6 +2417,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppBuchungenNeuRoute: AppBuchungenNeuRoute,
   AppDauerbelegeIdRoute: AppDauerbelegeIdRoute,
   AppDauerbelegeNeuRoute: AppDauerbelegeNeuRoute,
+  AppEinstellungenVerfahrensdokumentationRoute:
+    AppEinstellungenVerfahrensdokumentationRoute,
   AppJahreserklaerungJahrRoute: AppJahreserklaerungJahrRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,

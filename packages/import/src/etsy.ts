@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { finish, indexed, requireAmount, type Tx } from "./common.ts";
 import { isBlankRow } from "./csv.ts";
 import { StatementParseError } from "./errors.ts";
@@ -88,7 +89,7 @@ const isPayout = (kind: string) => /^(deposit|überweisung|ueberweisung|auszahlu
 /** Betrag der Auszahlung aus dem Titel, etwa „€1,225.76 sent to your bank account“, als negativer Umsatz */
 const PAYOUT_AMOUNT = /€\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/;
 
-function payoutAmount(title: string, where: string): number {
+function payoutAmount(title: string, where: string): Cents {
   const found = PAYOUT_AMOUNT.exec(title);
   const cents = found ? parseDotAmount(found[1]!) : null;
   if (cents === null) throw new StatementParseError(`Der Betrag der Auszahlung steht nicht im Titel „${title}“ (${where}).`);
@@ -125,7 +126,7 @@ const settlementKey = (order: string, day: string) => `${day} ${order}`;
  * Zeilen steht in `unsettled`.
  */
 function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled: number } {
-  const adjustment = new Map<Tx, number>();
+  const adjustment = new Map<Tx, Cents>();
   const settled = new Set<Tx>();
   const taxes = list.filter((t) => t.type === "Umsatzsteuer");
   for (const tax of taxes) {

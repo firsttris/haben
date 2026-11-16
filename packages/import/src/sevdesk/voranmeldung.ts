@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { lexToCents } from "../lexoffice/map.ts";
 import { sevNumber } from "./map.ts";
 import type { SevVatReport } from "./types.ts";
@@ -33,9 +34,9 @@ export interface SevMappedVatReport {
   /** ID des Protokolls (Document) in sevDesk */
   documentId: string | null;
   /** Kennzahlen in Cent, auch die in ganzen Euro gemeldeten Bemessungsgrundlagen; nach Kennzahl aufsteigend */
-  kennzahlen: { kz: string; cents: number }[];
-  /** Kz 83 in Cent; null, wenn sie fehlt */
-  kz83: number | null;
+  kennzahlen: { kz: string; cents: Cents }[];
+  /** null, wenn sie fehlt */
+  kz83: Cents | null;
 }
 
 type Loose = Record<string, unknown>;
@@ -60,7 +61,7 @@ function month(code: string | null, period: number): number | null {
 }
 
 /** reportingValues: JSON als Text, Werte als Zahl oder Text; was keine Zahl ist, fehlt */
-function kennzahlen(value: unknown): { kz: string; cents: number }[] {
+function kennzahlen(value: unknown): { kz: string; cents: Cents }[] {
   let parsed: unknown = value;
   if (typeof value === "string") {
     try {

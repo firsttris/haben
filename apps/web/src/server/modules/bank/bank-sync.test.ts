@@ -30,7 +30,7 @@ function tx(ref: string, date: string, amount: string, indicator: "CRDT" | "DBIT
 /** Nachgebaute Enable-Banking-API mit zwei Konten und einer Kreditkarte ohne IBAN; mit newAccount ein drittes Konto ohne Umsätze */
 function fakeApi() {
   const calls: { method: string; path: string; query: URLSearchParams; body: unknown }[] = [];
-  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false, newAccount: false };
+  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false, newAccount: false, ohneReferenz: false };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -76,6 +76,9 @@ function fakeApi() {
               tx("a1", "2026-09-05", "100.00", "CRDT", "Altbestand"),
               tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"),
               tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1"),
+              ...(state.ohneReferenz
+                ? [{ ...tx("", today(), "5.00", "DBIT", "Kontoführung ohne Referenz"), entry_reference: null, transaction_id: "T-1" }]
+                : []),
             ]
           : [tx("b1", "2026-09-30", "10.00", "CRDT", "Zinsen")];
       return json({ transactions: all.filter((t) => t.booking_date >= from), continuation_key: null });
@@ -384,12 +387,31 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(fromC! >= "2026-10-15").toBe(true);
   });
 
+  it("prüft den Abruf nach dem Importvertrag: ein Umsatz ohne entry_reference wird wie bisher gespeichert, genannt, aber nicht ins Importprotokoll geschrieben (#306)", async () => {
+    const [connection] = await sync.listConnections();
+    api.state.ohneReferenz = true;
+    const result = await sync.syncConnection(actor, connection!.id);
+    api.state.ohneReferenz = false;
+    expect(result.error).toBeNull();
+    const kontoA = result.accounts.find((a) => a.iban === IBAN_A)!;
+    expect(kontoA.added).toBe(1);
+    expect(kontoA.vertragHinweise).toEqual([
+      "1 Umsatz ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
+    ]);
+    expect(result.accounts.find((a) => a.iban === IBAN_B)!.vertragHinweise).toEqual([]);
+    // bank_imports nimmt nur Neues an und steht im Datenexport: Die Hinweise aus Schritt 2 gehören nicht hinein
+    const [protokoll] = await sql`select count(*)::int as n from bank_imports where warnings::text like '%Importvertrag%'`;
+    expect(protokoll!.n).toBe(0);
+    const [row] = await sql`select amount from bank_transactions where purpose = 'Kontoführung ohne Referenz'`;
+    expect(row!.amount).toBe(-500);
+  });
+
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {
     for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
     expect(await sync.listConnections()).toEqual([]);
     const [count] = await sql`select count(*)::int as n from bank_transactions`;
-    // vier abgerufene bzw. per CSV importierte, dazu der Umsatz aus der Datei für Konto B
-    expect(count!.n).toBe(5);
+    // vier abgerufene bzw. per CSV importierte, der Umsatz aus der Datei für Konto B und der ohne entry_reference (#306)
+    expect(count!.n).toBe(6);
     const audit = await sql`select action, new_value from audit_log where table_name = 'bank_connections' and action = 'INSERT' limit 1`;
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
   });

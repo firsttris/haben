@@ -102,6 +102,6 @@ Unter dem Formular siehst du die Forderung mit Gesamtbetrag. **Vorschau**, **Ent
 
 Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfälligen Rechnungen auch der Knopf für die nächste Stufe.
 
-**Gebühren und Zinsen buchen:** Sie sind keine Rechnung und erhöhen nicht die Forderung. Zahlt der Kunde mehr als die Rechnung, ordnest du im Bankabgleich die Rechnung und den Rest als **Mahngebühren und Verzugszinsen** zu. Gebucht wird Bank an 2650 bzw. 7100 „Sonstige Zinsen und ähnliche Erträge“, ohne Umsatzsteuer (Schadensersatz, kein Entgelt). In der EÜR zählt das als umsatzsteuerfreie Betriebseinnahme.
+**Gebühren und Zinsen buchen:** Sie sind keine Rechnung und erhöhen nicht die Forderung. Zahlt der Kunde mehr als die Rechnung, ordnest du im Bankabgleich die Rechnung und den Rest als **Mahngebühren und Verzugszinsen** zu. Gebucht wird Bank an 2650 bzw. 7100 „Sonstige Zinsen und ähnliche Erträge“, ohne Umsatzsteuer (Schadensersatz, kein Entgelt). Zur Zuordnung in der EÜR siehe [Bruttomethode](auswertungen.md#bruttomethode).
 
 Jede Mahnung lässt sich auf der Seite der Rechnung **per E-Mail** schicken, mit dem PDF der Mahnung im Anhang (siehe [Per E-Mail versenden](rechnungen.md#per-e-mail-versenden)).

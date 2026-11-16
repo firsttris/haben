@@ -1,6 +1,6 @@
-import { taxIncluded } from "@haben/core";
+import { type BasisPoints, taxIncluded } from "@haben/core";
 import { AUTOMATIC, BU_RATES, parseDatevBuchungsstapel, shortAccount, type Kontenrahmen } from "../datev.ts";
-import { parseDate, parseGermanAmount } from "../text.ts";
+import { parseDate, parseGermanRate } from "../text.ts";
 import type { LegacyVoucher } from "../lexoffice/map.ts";
 import { joinRows } from "./datev-info.ts";
 import { directionOf, type DirectionMapping } from "./direction.ts";
@@ -93,10 +93,10 @@ function mapVoucher(
   return { voucher, bookingId: row.info.bookingId, files, raw, neutral: mapping.neutral };
 }
 
-function taxRate(row: BuchhaltungsbutlerJoinedRow, account: string, skr: Kontenrahmen): number {
+function taxRate(row: BuchhaltungsbutlerJoinedRow, account: string, skr: Kontenrahmen): BasisPoints {
   const text = row.info.taxRateText || row.bb.Umsatzsteuer;
   if (text) {
-    const rate = parseGermanAmount(text);
+    const rate = parseGermanRate(text);
     if (rate === null || rate < 0) throw new BuchhaltungsbutlerError(`Buchung ${row.info.bookingId}: ungültiger Steuersatz „${text}“.`);
     return rate;
   }

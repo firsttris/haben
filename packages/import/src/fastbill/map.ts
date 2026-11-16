@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { type ImportedPayments, type LegacyVoucher, type LegacyVoucherType, lexDate, lexToBasisPoints, lexToCents } from "../lexoffice/map.ts";
 import { taxesFromPositions } from "../sevdesk/steuersaetze.ts";
 import type { FbCustomer, FbExpense, FbInvoice, FbInvoiceItem, FbPayment, FbVatItem } from "./types.ts";
@@ -42,7 +43,7 @@ export function fbNumber(value: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function cents(value: string | number | null | undefined): number {
+function cents(value: string | number | null | undefined): Cents {
   return lexToCents(fbNumber(value));
 }
 
@@ -116,7 +117,7 @@ export function mapFbCustomer(c: FbCustomer): FbImportedContact {
  * Netto und Steuer je Satz. VAT_ITEMS ist die Aufteilung des Belegs selbst und hat Vorrang; fehlt sie, zählen die
  * Positionen. Maßgeblich bleiben die Summen des Kopfs, Rundungsdifferenzen verteilt taxesFromPositions.
  */
-function taxes(vatItems: FbVatItem[] | null | undefined, items: FbInvoiceItem[] | null | undefined, net: number, tax: number, sign: (n: number) => number) {
+function taxes(vatItems: FbVatItem[] | null | undefined, items: FbInvoiceItem[] | null | undefined, net: Cents, tax: Cents, sign: (n: number) => number) {
   const fromVat = (vatItems ?? []).map((v) => ({
     rate: lexToBasisPoints(fbNumber(v.VAT_PERCENT)),
     net: sign(cents(v.COMPLETE_NET)),
@@ -152,7 +153,7 @@ const VOIDED_PAYMENT = "storniert";
  * offen ist. Ein Storno ist ausgeglichen, ohne dass Geld floss; Zahlungen an ihm bleiben als Einzelzahlungen sichtbar,
  * etwa eine bezahlte und danach stornierte Rechnung, damit der Altbestand die Erstattung nicht verschweigt.
  */
-function payments(gross: number, items: ImportedPayments["items"], settled: "paid" | "voided" | null, paidDate: string | null): ImportedPayments {
+function payments(gross: Cents, items: ImportedPayments["items"], settled: "paid" | "voided" | null, paidDate: string | null): ImportedPayments {
   if (settled === "voided") return { status: "balanced", openAmount: 0, paidDate: null, items: items.map((i) => ({ ...i, type: VOIDED_PAYMENT })) };
   const lastPayment = items.at(-1)?.date ?? null;
   if (settled === "paid") {

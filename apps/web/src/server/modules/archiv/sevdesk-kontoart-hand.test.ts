@@ -225,7 +225,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschrift auf Buchungskonto: Kontoar
     // die beiden Tabellen mehrfach, stieg die Kostenschätzung über die Schwellen des JIT von Postgres: Übersetzen dauerte
     // mit 1000 Belegen über 7 s statt unter 0,5 s bei einer Ausführung von wenigen Millisekunden.
     const { PgDialect } = await import("drizzle-orm/pg-core");
-    const { accountingTypeExpense, accountingTypeUnclear } = await import("./sevdesk-kontoart.ts");
+    const { accountingTypeExpense, accountingTypeUnclear } = await import("../auswertungen/altbestand-kontoart.ts");
     const unclear = new PgDialect().sqlToQuery(accountingTypeUnclear("v")).sql;
     const [row] = await sql.unsafe(`explain (format json) select ${unclear} as u, ${accountingTypeExpense("v")} as e from lexoffice_vouchers v`);
     const relations = JSON.stringify(row!["QUERY PLAN"]).match(/"Relation Name":"sevdesk_accounting_type[^"]*"/g) ?? [];

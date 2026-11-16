@@ -1,4 +1,4 @@
-import { ITEM_NUMBER_MAX, LINE_DETAIL_MAX, TAX_RATES, UNITS, type TaxRate } from "@haben/core";
+import { type Cents, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, TAX_RATES, UNITS, type TaxRate } from "@haben/core";
 import { parseImportUnit } from "../csv-import/values.ts";
 import { lexToBasisPoints, lexToCents } from "../lexoffice/map.ts";
 import { sevNumber } from "./map.ts";
@@ -28,7 +28,7 @@ export interface SevArticle {
   description: string;
   detail: string;
   unit: string;
-  unitPrice: number;
+  unitPrice: Cents;
   taxRate: TaxRate;
   priceIncludesTax: boolean;
   note: string;

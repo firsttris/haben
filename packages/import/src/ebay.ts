@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { finish, indexed, requireAmount, type Tx } from "./common.ts";
 import { isBlankRow } from "./csv.ts";
 import { StatementParseError } from "./errors.ts";
@@ -53,8 +54,8 @@ const isPayout = (type: string) => /^(auszahlung|payout)$/i.test(type);
  * Prüft je Auszahlung, ob ihre Zeilen zusammen die Auszahlung ergeben. Weicht die Summe ab, fehlt ein Teil (Zeilen im
  * Bericht des Vormonats) oder eine Zeile zählt doppelt; der Import bleibt, Haben weist nur darauf hin.
  */
-function payoutWarnings(rows: { payoutId: string; type: string; amount: number }[]): string[] {
-  const sums = new Map<string, number>();
+function payoutWarnings(rows: { payoutId: string; type: string; amount: Cents }[]): string[] {
+  const sums = new Map<string, Cents>();
   const withPayoutRow = new Set<string>();
   for (const r of rows) {
     if (!r.payoutId) continue;
@@ -91,13 +92,13 @@ export function parseEbay(rows: string[][], headerRow: number): ParsedStatement 
   // Bruttobetrag, nicht im Nettobetrag, und gehört nie dem Verkäufer
   const ebayTax = value(c.getter("vonebayeingezogenesteuer", "ebaycollectedtax"));
 
-  const withoutEbayTax = (grossAmount: number, row: string[], where: string) => {
+  const withoutEbayTax = (grossAmount: Cents, row: string[], where: string): Cents => {
     const tax = ebayTax(row) ? Math.abs(requireAmount(amount(ebayTax(row)), ebayTax(row), where)) : 0;
     return grossAmount - Math.sign(grossAmount) * tax;
   };
 
   const list: Tx[] = [];
-  const payoutRows: { payoutId: string; type: string; amount: number }[] = [];
+  const payoutRows: { payoutId: string; type: string; amount: Cents }[] = [];
   let foreign = 0;
   let foreignBuyer = 0;
   let details = 0;

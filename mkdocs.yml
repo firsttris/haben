@@ -93,6 +93,7 @@ nav:
       - Eigene Seiten: eigene-seiten.md
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md
+      - Verfahrensdokumentation: verfahrensdokumentation.md
       - Buchungssätze: buchhaltung-buchungssaetze.md
       - Architektur: architektur.md
       - Datenmodell: architektur-datenmodell.md
