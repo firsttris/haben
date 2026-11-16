@@ -4,9 +4,9 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * § 13b und innergemeinschaftlicher Erwerb mit Privatanteil: Der private Teil der selbst geschuldeten Steuer ist keine
- * Vorsteuer, geht aber mit der Voranmeldung ans Finanzamt. Die EÜR zählt ihn als Umsatzsteuer auf die Entnahme
- * (Zeile 17), wie die DATEV-Formel, die die Konten der selbst geschuldeten Steuer mitzählt. Ohne die Zeile zeigte der
- * Abgleich beim Gewinn nach der DATEV-Formel eine Abweichung in Höhe dieses Teils (#542).
+ * Vorsteuer, geht aber mit der Voranmeldung ans Finanzamt. Die EÜR aus dem Journal zählt ihn als Umsatzsteuer auf die
+ * Entnahme (Zeile 17), wie die DATEV-Formel, die die Konten der selbst geschuldeten Steuer mitzählt. Ohne die Zeile zeigte
+ * der Abgleich beim Gewinn nach der DATEV-Formel eine Abweichung in Höhe dieses Teils (#542).
  */
 
 describe.skipIf(!testDatabaseUrl)("EÜR: privater Teil der selbst geschuldeten Steuer, Sachentnahme auf 4630", () => {
@@ -71,22 +71,23 @@ describe.skipIf(!testDatabaseUrl)("EÜR: privater Teil der selbst geschuldeten S
     return id;
   }
 
+  /** Umsatzsteuer der Bareinnahme von 3.000 € brutto zu 19 % aus reset */
+  const VORHER = 47_899;
   const ustZeile = (euer: { einnahmen: { key: string; amount: number }[] }) => euer.einnahmen.find((l) => l.key === "vereinnahmteUst")?.amount ?? 0;
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const)
     for (const versteuerung of ["soll", "ist"] as const) {
       it(`§ 13b mit 30 % Privatanteil: Zeile 17 um den privaten Teil höher, Abgleich ohne Abweichung, auch nach dem Storno (${kontenrahmen}, ${versteuerung})`, async () => {
         await reset(versteuerung, kontenrahmen);
-        const vorher = ustZeile(await reports.euerAusNebenbuechern(2025, db));
+        const vorher = ustZeile(await reports.euerForYear(2025, db));
+        expect(vorher).toBe(VORHER);
         const id = await selbstGeschuldet("2025-12-05", "eu", 30);
-        const nebenbuch = await reports.euerAusNebenbuechern(2025, db);
-        expect(ustZeile(nebenbuch) - vorher).toBe(5_700);
-        expect(ustZeile(await quelle.euerAusDemJournal(2025, db))).toBe(ustZeile(nebenbuch));
+        const euer = await reports.euerForYear(2025, db);
+        expect(ustZeile(euer) - vorher).toBe(5_700);
         expect(abgleich.abweichungen((await abgleich.euerAbgleich(2025)).zeilen)).toEqual([]);
 
         await cancellation.cancelDocument(actor, id, { reason: "Falsch erfasst" } as never, "2026-01-15");
-        expect(ustZeile(await reports.euerAusNebenbuechern(2026, db))).toBe(-5_700);
-        expect(ustZeile(await quelle.euerAusDemJournal(2026, db))).toBe(-5_700);
+        expect(ustZeile(await reports.euerForYear(2026, db))).toBe(-5_700);
         expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
       }, 60_000);
     }
@@ -94,22 +95,20 @@ describe.skipIf(!testDatabaseUrl)("EÜR: privater Teil der selbst geschuldeten S
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     it(`Innergemeinschaftlicher Erwerb zu 7 % und Drittland mit Privatanteil (${kontenrahmen})`, async () => {
       await reset("soll", kontenrahmen);
-      const vorher = ustZeile(await reports.euerAusNebenbuechern(2025, db));
+      const vorher = ustZeile(await reports.euerForYear(2025, db));
       await selbstGeschuldet("2025-12-05", "ig_erwerb", 50, 700);
       await selbstGeschuldet("2025-12-06", "drittland", 25);
-      const nebenbuch = await reports.euerAusNebenbuechern(2025, db);
+      const euer = await reports.euerForYear(2025, db);
       // 50 % von 70 € und 25 % von 190 €
-      expect(ustZeile(nebenbuch) - vorher).toBe(3_500 + 4_750);
-      expect(ustZeile(await quelle.euerAusDemJournal(2025, db))).toBe(ustZeile(nebenbuch));
+      expect(ustZeile(euer) - vorher).toBe(3_500 + 4_750);
       expect(abgleich.abweichungen((await abgleich.euerAbgleich(2025)).zeilen)).toEqual([]);
     }, 60_000);
 
     it(`§ 13b ohne Privatanteil: keine Umsatzsteuer in der EÜR (${kontenrahmen})`, async () => {
       await reset("soll", kontenrahmen);
-      const vorher = ustZeile(await reports.euerAusNebenbuechern(2025, db));
+      const vorher = ustZeile(await reports.euerForYear(2025, db));
       await selbstGeschuldet("2025-12-05", "eu", 0);
-      expect(ustZeile(await reports.euerAusNebenbuechern(2025, db))).toBe(vorher);
-      expect(ustZeile(await quelle.euerAusDemJournal(2025, db))).toBe(vorher);
+      expect(ustZeile(await reports.euerForYear(2025, db))).toBe(vorher);
       expect(abgleich.abweichungen((await abgleich.euerAbgleich(2025)).zeilen)).toEqual([]);
     }, 60_000);
   }
@@ -135,7 +134,6 @@ describe.skipIf(!testDatabaseUrl)("EÜR: privater Teil der selbst geschuldeten S
     );
     const zeile = (euer: { einnahmen: { key: string; amount: number }[] }) => euer.einnahmen.find((l) => l.key === "sachentnahmen")?.amount ?? 0;
     expect(zeile(await quelle.euerAusDemJournal(2026, db))).toBe(1_000);
-    expect(zeile(await reports.euerAusNebenbuechern(2026, db))).toBe(1_000);
     expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
   }, 60_000);
 });

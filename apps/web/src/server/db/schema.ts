@@ -169,8 +169,9 @@ export const company = pgTable(
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
     /**
-     * Voranmeldung und EÜR aus dem Journal ab diesem Jahr (#542, docs/adr/journal-als-quelle.md); null = ab dem Jahr der ersten
-     * Buchung. Davor rechnen sie aus den Nebenbüchern. Bestehende Instanzen beginnen mit dem Jahr nach dem Update (Migration).
+     * Früheres Stichjahr (#542). Haben liest es nicht mehr (#1116): Migration 0275 hat es nach journal_umstellung übernommen.
+     * Die Spalte bleibt, damit eine Instanz, die die Prüfung beim Update nicht besteht, auf derselben Datenbank mit der
+     * bisherigen Version weiterlaufen kann; sie entfällt mit modules/umstellung.
      */
     journalAb: integer("journal_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
@@ -4226,6 +4227,28 @@ export const appVersions = pgTable("app_versions", {
   postgresVersion: text("postgres_version").notNull(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   note: text("note"),
+});
+
+/** Befund der Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahr und was abweicht */
+export interface JournalUmstellungBefund {
+  jahr: number;
+  text: string;
+}
+
+/**
+ * Umstellung von Voranmeldung und EÜR auf das Journal als einzige Quelle (#1116, docs/adr/journal-als-quelle.md): je
+ * Prüfung beim Start eine Zeile, nur anhängen und im Änderungsprotokoll. Die letzte Zeile gilt: „offen“ nach der Migration,
+ * solange Jahre vor dem früheren Stichjahr (`stichjahr_vorher`, bis dahin company.journal_ab) ungeprüft sind; „bestanden“,
+ * wenn sie aus dem Journal so herauskommen wie vorher; „uebernommen“, wenn die Abweichungen ausdrücklich übernommen sind
+ * (HABEN_ABWEICHUNG_UEBERNEHMEN), mit den Befunden.
+ */
+export const journalUmstellung = pgTable("journal_umstellung", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  stichjahrVorher: integer("stichjahr_vorher"),
+  ergebnis: text("ergebnis", { enum: ["offen", "bestanden", "uebernommen"] }).notNull(),
+  befunde: jsonb("befunde").$type<JournalUmstellungBefund[]>().notNull().default([]),
+  version: text("version"),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /**

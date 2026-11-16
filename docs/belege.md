@@ -417,9 +417,9 @@ Erstattung im Januar mindern die Voranmeldung im Januar, nicht rückwirkend im D
 
 Was das Zwischenkonto für die Auswertungen bedeutet:
 
-- **Voranmeldung:** Kz 66 sieht die Minderung im Zeitraum des Ausgleichs, aus dem Journal wie aus den Nebenbüchern
-  ([Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66)). Die Zeile auf 1548/1434 trägt ihren Steuerschlüssel, aber
-  keine Kennzahl.
+- **Voranmeldung:** Kz 66 sieht die Minderung genau im Zeitraum des Ausgleichs. Die Zeile auf 1548/1434 trägt ihren
+  Steuerschlüssel, aber keine Kennzahl; die Verprobung im [Abgleich](buchhaltung.md#abgleich-im-journal) lässt beide
+  Buchungen aus.
 - **EÜR:** 1548/1434 ist ein Bestandskonto und ändert die EÜR nicht — weder Einnahmen noch Ausgaben. Die Vorsteuerzeile
   der EÜR folgt der Umbuchung.
 - **E-Bilanz:** Das Konto steht unter den sonstigen Vermögensgegenständen aus Umsatzsteuer, mit Haben-Saldo (die

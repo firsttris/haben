@@ -183,7 +183,8 @@ describe.skipIf(!testDatabaseUrl)("Teilabzug der Vorsteuer (Postgres, #433)", ()
     for (const amount of [-4, -4, -5]) await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, date: "2026-10-05", amount });
     const before = await vat.computeVatFigures({ year: 2026, month: 10 });
     expect(before.kz66).toBe(-2);
-    expect(before.nebenbuecher?.kz66).toBe(-2);
+    // Die Erläuterung (Vorsteuer aus den Belegen) ergibt dieselbe Summe
+    expect(before.inputTax.reduce((sum, a) => sum + a.tax, 0)).toBe(-2);
     const [last] = await sql`select id from write_offs where document_id=${id} order by created_at desc limit 1`;
     await bank.reverseWriteOff(actor, last!.id as string, "2026-11-05");
     expect((await vat.computeVatFigures({ year: 2026, month: 11 })).kz66).toBe(1);
@@ -197,7 +198,7 @@ describe.skipIf(!testDatabaseUrl)("Teilabzug der Vorsteuer (Postgres, #433)", ()
     for (const [i, amount] of [4, 4, 5].entries()) await pay(id, amount, `2026-${10 + i}-05`);
     const figures = await Promise.all([10, 11, 12].map((month) => vat.computeVatFigures({ year: 2026, month })));
     expect(figures.map((f) => f.kz66)).toEqual([-1, 0, -1]);
-    expect(figures.map((f) => f.nebenbuecher?.kz66)).toEqual([-1, 0, -1]);
+    expect(figures.map((f) => f.inputTax.reduce((sum, a) => sum + a.tax, 0))).toEqual([-1, 0, -1]);
     expect(await sql`select coalesce(sum(debit-credit),0)::int as rest from journal_lines where account='1434'`).toEqual([{ rest: 0 }]);
   });
 
@@ -260,6 +261,6 @@ describe.skipIf(!testDatabaseUrl)("Teilabzug der Vorsteuer (Postgres, #433)", ()
     await documents.bookDocument(actor, id);
     for (const amount of [-3, -3, -5]) await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, date: "2026-10-05", amount });
     const figures = await vat.computeVatFigures({ year: 2026, month: 10 });
-    expect([figures.kz66, figures.nebenbuecher?.kz66]).toEqual([-1, -1]);
+    expect([figures.kz66, figures.inputTax.reduce((sum, a) => sum + a.tax, 0)]).toEqual([-1, -1]);
   });
 });

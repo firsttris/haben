@@ -29,8 +29,6 @@ export {
   sellerIssues,
   setArchiveSearch,
   versteuerungForYear,
-  journalAbJahr,
-  setJournalAb,
   type Company,
   type CompanyInput,
 } from "./company.ts";

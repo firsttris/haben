@@ -200,4 +200,4 @@ systemctl --user restart haben-db haben-app
 journalctl --user -u haben-db -n 20    # „Upgrade auf PostgreSQL 18 fertig“
 ```
 
-Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an; erst danach startet der Server. Schlägt eine Migration fehl, startet die App nicht, und der Fehler steht im Log.
+Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an, dann einmalig die Prüfung beim [Update auf das Journal](einrichtung.md#update-auf-das-journal); erst danach startet der Server. Schlägt eine Migration oder die Prüfung fehl, startet die App nicht, und der Grund steht im Log.

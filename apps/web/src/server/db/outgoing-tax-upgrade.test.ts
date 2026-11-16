@@ -150,6 +150,9 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
       if (!addition) throw new Error("Migration der Ausgangszuordnung fehlt.");
       const older = full.entries.filter((entry) => entry.idx < addition.idx);
       writeFileSync(join(previous, "meta/_journal.json"), JSON.stringify({ ...full, entries: older }));
+      const bis = mkdtempSync(join(tmpdir(), "haben-migration-outgoing-tax-bis-"));
+      cpSync(MIGRATIONS, bis, { recursive: true });
+      writeFileSync(join(bis, "meta/_journal.json"), JSON.stringify({ ...full, entries: [...older, addition] }));
       const sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
       try {
         const database = drizzle(sql);
@@ -173,9 +176,11 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
         expect(old.audit.length).toBeGreaterThan(20);
         expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
 
-        await migrate(database, { migrationsFolder: MIGRATIONS });
-        expect(await sql`select count(*)::int as n from drizzle.__drizzle_migrations`).toEqual([{ n: full.entries.length }]);
-        // Genau diese Migration, nicht die letzte: spätere Migrationen kommen danach hinzu
+        // Bis einschließlich dieser Migration: Spätere Migrationen (etwa 0275 mit ihrer eigenen Zeile im Änderungsprotokoll)
+        // gehören nicht zu dem, was hier geprüft wird
+        await migrate(database, { migrationsFolder: bis });
+        expect(await sql`select count(*)::int as n from drizzle.__drizzle_migrations`).toEqual([{ n: older.length + 1 }]);
+        // Die Migration selbst mit ihrem Hash, unabhängig davon, ob spätere Migrationen folgen
         expect(await sql`select hash,created_at::text from drizzle.__drizzle_migrations where created_at = ${addition.when}`).toEqual([
           {
             hash: createHash("sha256")
@@ -246,6 +251,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
       } finally {
         await sql.end();
         rmSync(previous, { recursive: true });
+        rmSync(bis, { recursive: true });
       }
     },
     120_000,

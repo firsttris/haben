@@ -19,15 +19,14 @@ import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadOwnAccountParents } from "../eigene-konten/index.ts";
-import { journalAbJahr, kleinunternehmerHistory } from "../stammdaten/index.ts";
+import { kleinunternehmerHistory } from "../stammdaten/index.ts";
 import { today } from "../../today.ts";
 import { activeOpenings, lockOpenings, openingDependents } from "./eroeffnung.ts";
 import { periodReported } from "./gemeldet.ts";
 import { openBooks, post } from "./ledger.ts";
 
 /*
- * Manuelle Buchungen (Umbuchungen) für GmbH und UG, ab dem Stichjahr auch im Einzelunternehmen und mit Steuerschlüssel
- * (freie Buchungen, docs/adr/journal-als-quelle.md, Entscheidung 4). Sie haben keine eigene Tabelle: Die Buchung im Journal ist schon
+ * Manuelle Buchungen (Umbuchungen) für GmbH und UG, auch im Einzelunternehmen und mit Steuerschlüssel (freie Buchungen, docs/adr/journal-als-quelle.md, Entscheidung 4). Sie haben keine eigene Tabelle: Die Buchung im Journal ist schon
  * festgeschrieben und versiegelt, die Herkunft „manuell“ und ihre eigene ID als sourceId genügen. Korrigiert wird per
  * Gegenbuchung (reversesId) wie überall im Hauptbuch.
  */
@@ -62,9 +61,8 @@ export const manualEntrySchema = z.object({
 export type ManualEntryInput = z.input<typeof manualEntrySchema>;
 
 /**
- * Bucht eine manuelle Buchung. In GmbH und UG jederzeit, mit Steuerschlüssel ab dem Stichjahr. Im Einzelunternehmen nur
- * ab dem Stichjahr: Davor rechnet die EÜR aus Rechnungen, Belegen und Zahlungen, eine Buchung nur im Journal käme dort nie
- * an. Eine freie Buchung (Einzelunternehmen oder mit Steuerschlüssel) liegt nicht in einem gemeldeten Zeitraum.
+ * Bucht eine manuelle Buchung. Eine freie Buchung (Einzelunternehmen oder mit Steuerschlüssel) liegt nicht in einem
+ * gemeldeten Zeitraum.
  */
 export async function createManualEntry(actor: string, input: ManualEntryInput, today: string): Promise<string> {
   const parsed = manualEntrySchema.parse(input);
@@ -80,11 +78,8 @@ export async function createManualEntry(actor: string, input: ManualEntryInput, 
     const mitSchluessel = parsed.lines.some((l) => l.taxCode);
     if (!gmbh || mitSchluessel) {
       const kleinunternehmer = (await kleinunternehmerHistory(tx))(parsed.date);
-      const ausDemJournal = Number(parsed.date.slice(0, 4)) >= (await journalAbJahr(tx));
       const eigene = await loadOwnAccountParents(books.kontenrahmen, tx);
-      issues.push(
-        ...freieBuchungIssues(parsed.lines, { kontenrahmen: books.kontenrahmen, rechtsform: books.rechtsform, kleinunternehmer, ausDemJournal, eigene }),
-      );
+      issues.push(...freieBuchungIssues(parsed.lines, { kontenrahmen: books.kontenrahmen, rechtsform: books.rechtsform, kleinunternehmer, eigene }));
       if (await periodReported(tx, parsed.date)) issues.push("Der Zeitraum des Datums ist schon gemeldet; die Buchung gehört in den laufenden Zeitraum");
     }
     if (issues.length > 0) throw new ManualEntryError(`${issues.join(". ")}.`);

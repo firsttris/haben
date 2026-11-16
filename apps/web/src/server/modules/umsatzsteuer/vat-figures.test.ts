@@ -428,8 +428,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
 
     // EÜR: Ausgabe ist der gezahlte Nettobetrag, keine Vorsteuer aus § 13b
     const reports = await import("../auswertungen/reports.ts");
-    const payments = (await reports.euerPayments(2026)).filter((p) => p.kind === "document");
-    expect(payments).toEqual([expect.objectContaining({ paid: 5_000, totals: expect.objectContaining({ tax: 0, gross: 5_000 }) })]);
+    const euer = await reports.euerForYear(2026);
+    expect(euer.ausgaben.filter((l) => l.amount !== 0).map((l) => [l.key, l.amount])).toEqual([["ausgabe:software", 5_000]]);
+    expect(euer.monthly.ausgaben[9]).toBe(5_000);
     // Die Jahreserklärung summiert § 13b über die Monate und übermittelt ihn
     const annual = await import("../jahreserklaerung/annual.ts");
     expect((await annual.ustYear(2026)).figures).toMatchObject({ kz46: 10_000, kz47: 1_900, kz84: 5_000, kz85: 950, kz67: 2_850 });

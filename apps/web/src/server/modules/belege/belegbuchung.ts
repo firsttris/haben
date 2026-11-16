@@ -12,8 +12,8 @@ import type { schema } from "../../db/index.ts";
 import { splitLines, type DocumentSplit } from "./splits.ts";
 
 /*
- * Buchungszeilen eines Belegs: beim Buchen und, für Belege aus der Zeit vor dem Stichjahr, beim Storno (Gegenbuchung im
- * heutigen Format, docs/adr/journal-als-quelle.md). Die Beträge kommen je Satz vom Beleg, nicht nachgerechnet: die Steuer
+ * Buchungszeilen eines Belegs: beim Buchen und beim Storno (Gegenbuchung im heutigen Format, wenn es auf jedem Konto
+ * dasselbe ergibt, docs/adr/journal-als-quelle.md). Die Beträge kommen je Satz vom Beleg, nicht nachgerechnet: die Steuer
  * steht auf der Rechnung.
  */
 

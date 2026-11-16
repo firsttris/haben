@@ -6,9 +6,8 @@ import { buchungen, type Buchung } from "./euer-journal-buchungen.ts";
 
 /*
  * Umsatzsteuer-Vorauszahlung für Dezember bzw. das vierte Quartal, gezahlt vom 1. bis 10. Januar: In der EÜR zählt sie im
- * Vorjahr (§ 11 Abs. 2 Satz 2 EStG, ustVorauszahlungImVorjahr in @haben/core, #583). Beide Wege der EÜR verschieben dieselben
- * Zuordnungen: die Nebenbücher (euerPayments in reports.ts) und das Journal (euer-journal.ts, euer-formel.ts); der Abgleich
- * (abgleich.ts) rechnet die Buchungen ebenso um. Die Buchung selbst behält ihr Datum, Voranmeldung und Konten bleiben gleich.
+ * Vorjahr (§ 11 Abs. 2 Satz 2 EStG, ustVorauszahlungImVorjahr in @haben/core, #583). Die EÜR aus dem Journal
+ * (euer-journal.ts) und der Gewinn nach der DATEV-Formel (euer-formel.ts) verschieben dieselben Zuordnungen. Die Buchung selbst behält ihr Datum, Voranmeldung und Konten bleiben gleich.
  *
  * GoBD: Eine übermittelte Anlage EÜR bzw. Einkommensteuererklärung oder ein abgeschlossenes Jahr ändert Haben nicht, auch nicht
  * über später geänderte Einstellungen wie die Dauerfristverlängerung. Jede Übermittlung hält dafür im Kennzeichen

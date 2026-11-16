@@ -3,6 +3,7 @@ import { dateiBefund, dateienText } from "../../../lib/pruefbericht.ts";
 import { db, schema } from "../../db/index.ts";
 import { baseUrl, berlinHour, escapeHtml, loadMailSettings, MAIL_ACTOR, MailError, send } from "../mail/index.ts";
 import { chainHead, checkIntegrity, formatPruefwert, type IntegrityReport } from "./integrity.ts";
+import type { AbgleichZeile } from "./abgleich.ts";
 
 /** Wöchentliche Mail mit dem Prüfwert des Änderungsprotokolls; Versand und Protokoll über mail */
 
@@ -46,7 +47,7 @@ let quietCheckAt = 0;
  * Prüfung etwas findet; auch Manipulationen ohne neuen Eintrag fallen so auf. Ohne Anlass wird höchstens einmal am
  * Tag geprüft, nach einem Fehlschlag frühestens am nächsten Tag wieder gesendet.
  */
-export async function runDuePruefwertMail(now = new Date()) {
+export async function runDuePruefwertMail(now = new Date(), zusatz?: () => Promise<AbgleichZeile[]>) {
   const settings = await loadMailSettings();
   if (!settings?.pruefwertMail || berlinHour(now) < 7) return null;
   const [lastOk] = await db
@@ -74,7 +75,7 @@ export async function runDuePruefwertMail(now = new Date()) {
   const changed = !known || (await changedSince(lastSeq));
   const lastNow = known ? await rowHashAt(lastSeq) : null;
   const rewritten = known && lastHash !== undefined && lastNow !== lastHash;
-  const report = await checkIntegrity();
+  const report = await checkIntegrity(undefined, zusatz);
   if (!changed && !rewritten && report.problems.length === 0 && report.abgleich.abweichungen.length === 0 && !report.files?.problemCount) {
     quietCheckAt = now.getTime();
     return null;
@@ -99,7 +100,7 @@ export async function runDuePruefwertMail(now = new Date()) {
       : []),
     ...(report.abgleich.abweichungen.length > 0
       ? [
-          `Abgleich von Journal und Steuerwerten: ${report.abgleich.abweichungen.length} ${report.abgleich.abweichungen.length === 1 ? "Abweichung" : "Abweichungen"} (${report.abgleich.abweichungen
+          `Abgleich im Journal: ${report.abgleich.abweichungen.length} ${report.abgleich.abweichungen.length === 1 ? "Abweichung" : "Abweichungen"} (${report.abgleich.abweichungen
             .slice(0, 3)
             .map((a) => `${a.zeitraum} ${a.posten}`)
             .join("; ")}${report.abgleich.abweichungen.length > 3 ? " …" : ""}).`,

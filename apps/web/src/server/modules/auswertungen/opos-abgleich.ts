@@ -33,7 +33,14 @@ export async function oposAbgleich(cutoff: string, q: Db | Tx = db): Promise<Abg
     if (row.account === accounts.forderungen) receivables += Number(row.saldo);
     if (row.account === accounts.erhalteneAnzahlungen) advances -= Number(row.saldo);
   }
-  const row = (posten: string, journal: number, quelle: number): AbgleichZeile => ({ bereich: "opos", zeitraum: cutoff, posten, journal, quelle });
+  const row = (posten: string, journal: number, quelle: number): AbgleichZeile => ({
+    bereich: "opos",
+    zeitraum: cutoff,
+    posten,
+    journal,
+    quelle,
+    gegen: "laut offenen Posten",
+  });
   const hinweise: string[] = [];
   if (stand.requests !== 0) hinweise.push(`${cutoff}: Unbilanzierte Anzahlungsanforderungen ${formatEuro(stand.requests)}; nicht im Forderungssaldo.`);
   if (stand.unbilled !== 0)

@@ -1,6 +1,6 @@
 {
-  "id": "2e36967c-fe51-4b9e-8aa7-58bb233e3309",
-  "prevId": "a771a633-573c-479c-81bc-b592aca009da",
+  "id": "e954abe9-f6a8-43e9-9ccf-91cc1d55edcd",
+  "prevId": "6eff1d6d-4fae-43bf-98df-298353c56fba",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5947,58 +5947,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.einrichtung": {
-      "name": "einrichtung",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "smallint",
-          "primaryKey": true,
-          "notNull": true,
-          "default": 1
-        },
-        "ausgeblendete_bereiche": {
-          "name": "ausgeblendete_bereiche",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "fragen_at": {
-          "name": "fragen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "offen": {
-          "name": "offen",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "einrichtung_single_row": {
-          "name": "einrichtung_single_row",
-          "value": "\"einrichtung\".\"id\" = 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.elster_certificates": {
       "name": "elster_certificates",
       "schema": "",
@@ -9044,6 +8992,57 @@
           "value": "(\"journal_lines\".\"debit\" >= 0 and \"journal_lines\".\"credit\" >= 0) and (\"journal_lines\".\"debit\" = 0 or \"journal_lines\".\"credit\" = 0)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.journal_umstellung": {
+      "name": "journal_umstellung",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "stichjahr_vorher": {
+          "name": "stichjahr_vorher",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ergebnis": {
+          "name": "ergebnis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "befunde": {
+          "name": "befunde",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.kapest_submissions": {
