@@ -20,7 +20,7 @@ export {
 export { datevAbschluss, type DatevAbschluss, type DatevVortrag } from "./datev-abschluss.ts";
 export { searchArchive, type ArchiveHit } from "./search.ts";
 export { exportFilename, exportYear, exportYears, toReadableStream } from "./export.ts";
-export { legacyTakeoverCutoff, openItemsOverview, openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
+export { openItemsOverview, openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
 export { legacyVouchersForContact } from "./kontakt-altbestand.ts";
 export { externalImportOverview, storeLegacyVoucher, storeLegacyOrder, type LegacyOriginalFile, type LegacyKnownPayment } from "./legacy-store.ts";
 export {
@@ -93,8 +93,5 @@ export { bookDatevEroeffnung, datevEroeffnung, DatevEroeffnungError, datevEroeff
 export { legacyDunningFile, legacyDunningsFor, type LegacyDunningRow } from "./mahnungen-archiv.ts";
 export { legacyVatReportFile, legacyVatReports, legacyVatReportYears, type LegacyVatReportRow } from "./voranmeldungen-archiv.ts";
 export { attachOrderPdf, listOrderDocuments, orderArchiveOverview, orderDocumentDetail, orderDocumentFile, ORDER_KINDS, ORDER_STATUSES } from "./orders.ts";
-export { effectivePayment, paymentHistoryIssue, unclearFrom } from "./payment-history.ts";
-export { effectiveDirection, effectiveAmount, effectiveTaxes } from "./sevdesk-richtung.ts";
-export { taxTypeOf } from "./lexoffice.ts";
 export { contactHistory, type ContactHistoryRow, type ContactHistorySection } from "./kontakt-historie.ts";
 export { confirmWithoutFile, FileStateError } from "./dateistand.ts";

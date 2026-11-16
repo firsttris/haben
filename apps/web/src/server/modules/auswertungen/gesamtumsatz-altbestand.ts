@@ -1,16 +1,10 @@
 import { LEGACY_PAYMENT_TYPES, settlementTaxShares, type TaxShare, type TurnoverClassification } from "@haben/core";
 import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
-import {
-  effectiveAmount,
-  effectiveDirection,
-  effectivePayment,
-  effectiveTaxes,
-  legacyTakeoverCutoff,
-  paymentHistoryIssue,
-  taxTypeOf,
-  unclearFrom,
-} from "../archiv/index.ts";
+import { effectiveAmount, effectiveDirection, effectiveTaxes } from "./sevdesk-richtung.ts";
+import { effectivePayment, paymentHistoryIssue, unclearFrom } from "./payment-history.ts";
+import { legacyTakeoverCutoff } from "./altbestand-stichtag.ts";
+import { taxTypeOf } from "./altbestand-steuerart.ts";
 import { turnoverRange, unknownTurnover, type GesamtumsatzItem } from "./gesamtumsatz-quellen.ts";
 
 /** Nur die ausdrücklich gespeicherte Steuerart, nie Konto, Rechnungstext oder Kundenland. */
