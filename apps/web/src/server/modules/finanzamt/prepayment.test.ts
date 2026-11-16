@@ -41,10 +41,11 @@ describe.skipIf(!testDatabaseUrl)("Jahresangaben in der Vorauszahlungsprognose (
   });
 
   it.each([
-    ["Person A", { a: ersatzleistungen.a }],
-    ["Person B", { b: ersatzleistungen.b }],
-    ["beide Personen", ersatzleistungen],
-  ] as const)("übernimmt Ersatzleistungen aus dem Vorjahr nicht für %s", async (_person, leistungen) => {
+    ["Person A", "SKR03", "ist", { a: ersatzleistungen.a }],
+    ["Person B", "SKR04", "soll", { b: ersatzleistungen.b }],
+    ["beide Personen", "SKR04", "ist", ersatzleistungen],
+  ] as const)("übernimmt Ersatzleistungen aus dem Vorjahr nicht für %s (%s/%s)", async (_person, kontenrahmen, versteuerung, leistungen) => {
+    await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
     await incomeTax.saveEstAngaben(actor, 2025, { ...angaben, ersatzleistungen: leistungen });
     const [vorher] = await sql`select data, updated_at from income_tax_inputs where year = 2025`;
     const basis = await finanzamt.prepaymentBasis("2026-07-02");
@@ -78,6 +79,9 @@ describe.skipIf(!testDatabaseUrl)("Jahresangaben in der Vorauszahlungsprognose (
     expect(mit.prognose.vorsorge).toBe(500_000);
     expect(mit.prognose.zvE).toBe(ohne.prognose.zvE);
     expect(mit.prognose.einkommensteuer).toBeGreaterThan(ohne.prognose.einkommensteuer);
+    // § 32b Abs. 2: A verbraucht den Pauschbetrag beim Lohn, B hat 6.000 € − 1.230 € Leistungen.
+    // Besonderer Steuersatz aus 68.468 € auf 53.698 €: floor(10.882 € × 53.698 / 68.468) = 8.534,52 €.
+    expect(mit.prognose.einkommensteuer).toBe(853_452);
     const erklaerung = await annual.annualOverview(2026, "2027-07-02");
     expect(erklaerung.est.prognose).toEqual(mit.prognose);
     // Auch jede Person allein erhöht den Satz: der Test würde ein versehentliches Weglassen von B bemerken.
