@@ -152,6 +152,7 @@ Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für de
             <label for="cg-extraction-model">EXTRACTION_MODEL</label>
             <input id="cg-extraction-model" class="cg-input cg-input--mono" type="text" placeholder="qwen2.5vl:7b">
           </div>
+          <span class="cg-hint">Ollama auf dem Server muss auf der Docker-Bridge lauschen, siehe <a href="installation-anbindungen.html#den-dienst-aus-dem-container-erreichen">Den Dienst aus dem Container erreichen</a>.</span>
         </div>
       </details>
 
