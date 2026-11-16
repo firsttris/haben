@@ -297,7 +297,7 @@ Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die 
 ## Die Seite „Buchungen“
 
 Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung ist eine Zeile:
-- Datum und Herkunft („Rechnung“, „Beleg“, „Verrechnung“, „Bank“, „Anlage“, „Pauschale“, „Kasse“, „Ausbuchung“, „Lohn“, „Manuell“ (in GmbH und UG immer, im Einzelunternehmen ab dem Stichjahr), „Import“ (aus dem [Datenimport](belegimport.md)), in GmbH und UG „Eröffnung“ und „Ausschüttung“, oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
+- Datum und Herkunft („Rechnung“, „Beleg“, „Verrechnung“, „Bank“, „Anlage“, „Pauschale“, „Kasse“, „Ausbuchung“, „Vorsteuerfreigabe“ (Vorsteuer eines Belegs mit Leistungsdatum nach dem Belegdatum, [Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66)), „Lohn“, „Manuell“ (in GmbH und UG immer, im Einzelunternehmen ab dem Stichjahr), „Import“ (aus dem [Datenimport](belegimport.md)), in GmbH und UG „Eröffnung“ und „Ausschüttung“, oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
 - Buchungstext.
 - Soll- und Habenkonto, jeweils das größte. Weitere Konten stehen als „+n“ daneben.
 - Betrag und Steuerschlüssel.
