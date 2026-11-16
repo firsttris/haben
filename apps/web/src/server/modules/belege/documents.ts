@@ -29,6 +29,8 @@ import {
   type AssetMethod,
   type Cents,
   type OwnInvoiceVerdict,
+  inBasisPoints,
+  inCents,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
@@ -61,7 +63,7 @@ export class DocumentError extends UserError {}
 export { MAX_DOCUMENT_SIZE };
 
 const isoDate = z.iso.date();
-const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
+const cents = inCents(z.number().int().min(-100_000_000_00).max(100_000_000_00));
 
 const documentFields = z.object({
   supplierName: z.string().trim().max(200),
@@ -82,7 +84,7 @@ const documentFields = z.object({
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
   /** § 15 Abs. 4 UStG: wirtschaftlich zugeordneter Anteil in Basispunkten; null erbt die Firmendaten. */
-  vorsteuerAnteil: z.number().int().min(0).max(VOLLER_ABZUG).nullable().default(null),
+  vorsteuerAnteil: inBasisPoints(z.number().int().min(0).max(VOLLER_ABZUG)).nullable().default(null),
   /**
    * Gutschrift erstattet bereits Bezahltes (#786): etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
    * schon bezahlte Rechnung. Die Vorsteuerminderung wird dann erst mit der Erstattung oder Verrechnung gezogen
@@ -123,7 +125,7 @@ const documentFields = z.object({
         net: cents,
         tax: cents,
         /** null erbt den Anteil des Belegs. */
-        vorsteuerAnteil: z.number().int().min(0).max(VOLLER_ABZUG).nullable().default(null),
+        vorsteuerAnteil: inBasisPoints(z.number().int().min(0).max(VOLLER_ABZUG)).nullable().default(null),
         /** Nur bei Fremdwährung: Beträge laut Beleg in der Fremdwährung */
         originalNet: cents.nullable().default(null),
         originalTax: cents.nullable().default(null),

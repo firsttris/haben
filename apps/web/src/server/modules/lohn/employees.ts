@@ -1,4 +1,4 @@
-import { BESCHAEFTIGUNGSARTEN, isKapitalgesellschaft, KONFESSIONEN, type Beschaeftigungsart, type Konfession, type LohnStammdaten } from "@haben/core";
+import { BESCHAEFTIGUNGSARTEN, isKapitalgesellschaft, KONFESSIONEN, type Beschaeftigungsart, type Konfession, type LohnStammdaten, inBasisPoints, inCents } from "@haben/core";
 import { isValidIban, isValidIdnr } from "@haben/elster";
 import { asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -21,17 +21,21 @@ export type Employee = typeof schema.employees.$inferSelect;
 
 const isoDate = z.iso.date("Datum im Format JJJJ-MM-TT");
 const cents = (label: string) =>
-  z
-    .number({ error: `${label} fehlt` })
-    .int(`${label} in Cent`)
-    .min(0, `${label} darf nicht negativ sein`)
-    .max(10_000_000_00);
+  inCents(
+    z
+      .number({ error: `${label} fehlt` })
+      .int(`${label} in Cent`)
+      .min(0, `${label} darf nicht negativ sein`)
+      .max(10_000_000_00),
+  );
 const basisPoints = (label: string) =>
-  z
-    .number({ error: `${label} fehlt` })
-    .int(`${label} in Basispunkten`)
-    .min(0)
-    .max(10_000);
+  inBasisPoints(
+    z
+      .number({ error: `${label} fehlt` })
+      .int(`${label} in Basispunkten`)
+      .min(0)
+      .max(10_000),
+  );
 const digits = (n: number, label: string) =>
   z
     .string()

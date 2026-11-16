@@ -1,4 +1,4 @@
-import { formatEuro, isKapitalgesellschaft, type Cents } from "@haben/core";
+import { formatEuro, isKapitalgesellschaft, type Cents, inCents } from "@haben/core";
 import { ERSTES_ERKLAERUNGSJAHR, transferticketProblem } from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -45,7 +45,7 @@ export interface JahresvermerkInput {
 }
 
 /** Betrag in Cent; die Grenze hält einen Tippfehler davon ab, den Jahresüberblick zu sprengen */
-export const vermerkBetrag = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
+export const vermerkBetrag = inCents(z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00));
 
 /**
  * Die Feldregeln des Vermerks an einer Stelle: Der Validator der Server-Funktion (functions/annual.ts) und das Modul

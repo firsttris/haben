@@ -1,5 +1,5 @@
 import { insertCashEntry } from "./settlement-store.ts";
-import { BAREINNAHME_BEHANDLUNG_KEYS, bareinnahmeFehler, bareinnahmePosting, bareinnahmeText, type BareinnahmeAngabe, type Cents } from "@haben/core";
+import { BAREINNAHME_BEHANDLUNG_KEYS, bareinnahmeFehler, bareinnahmePosting, bareinnahmeText, type BareinnahmeAngabe, type Cents, inBasisPoints, inCents } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import type { Tx } from "../../db/index.ts";
@@ -15,13 +15,13 @@ import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
 /** Behandlung und Satz einer Bareinnahme, wie im Formular gewählt; welche gilt, prüft bareinnahmeFehler */
 export const bareinnahmeSteuerSchema = z.object({
   behandlung: z.enum(BAREINNAHME_BEHANDLUNG_KEYS),
-  steuersatz: z.number().int().min(0).max(10_000),
+  steuersatz: inBasisPoints(z.number().int().min(0).max(10_000)),
 });
 
 export const cashIncomeInputSchema = z.object({
   date: z.iso.date(),
   /** Cent, immer positiv: Geld kommt in die Kasse */
-  amount: z.number().int().min(1, "Betrag fehlt").max(100_000_000),
+  amount: inCents(z.number().int().min(1, "Betrag fehlt").max(100_000_000)),
   /** Pflicht: Ohne Rechnung ist die Notiz der Nachweis, etwa „Weihnachtsmarkt 28.11., Tagessumme“ */
   text: z.string().trim().min(1, "Notiz fehlt: Wofür ist die Einnahme?").max(300),
   steuer: bareinnahmeSteuerSchema,

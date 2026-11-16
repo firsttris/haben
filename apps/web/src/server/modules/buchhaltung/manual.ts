@@ -12,6 +12,7 @@ import {
   type TaxCode,
   reverseManualPosting,
   zeilenImKontenrahmen,
+  inCents,
 } from "@haben/core";
 import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
@@ -34,7 +35,7 @@ import { openBooks, post } from "./ledger.ts";
 
 export class ManualEntryError extends UserError {}
 
-const cents = z.number().int().min(0).max(100_000_000_00);
+const cents = inCents(z.number().int().min(0).max(100_000_000_00));
 
 export const manualEntrySchema = z.object({
   /** Umbuchung oder Eröffnungsbuchung (Saldenvortrag aus der bisherigen Buchhaltung), siehe ManualKind in @haben/core */

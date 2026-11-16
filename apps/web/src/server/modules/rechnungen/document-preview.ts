@@ -14,6 +14,9 @@ import {
   skontoStufeSchema,
   TAX_TREATMENT_KEYS,
   type UnitLabel,
+  inBasisPoints,
+  inCents,
+  inMillis,
 } from "@haben/core";
 import {
   asDraft,
@@ -86,10 +89,10 @@ export const documentPreviewSchema = z.object({
         detail: z.string().max(LINE_DETAIL_MAX).default(""),
         itemNumber: z.string().max(ITEM_NUMBER_MAX).default(""),
         // Ganzzahlig, aber ohne Vorzeichenprüfung: Abzüge der Schlussrechnung, Storno und Korrektur sind negativ
-        quantity: z.number().int(),
+        quantity: inMillis(z.number().int()),
         unit: z.string().max(20),
-        unitPrice: z.number().int(),
-        taxRate: z.number().int(),
+        unitPrice: inCents(z.number().int()),
+        taxRate: inBasisPoints(z.number().int()),
         discount: z.nullable(discountSchema).default(null),
         kind: z.enum(QUOTE_LINE_KINDS).nullable().default(null),
         /** Abzug einer Abschlagsrechnung: zählt nicht zur Grundlage des Gesamtrabatts (discountBasis) */
@@ -113,7 +116,7 @@ export const documentPreviewSchema = z.object({
   currency: z.string().max(3),
   // Beim Tippen lässt der Editor auch Fristen über 120 Tage durch; solche Stufen fehlen auf dem Blatt, wie das Speichern sie ablehnt
   skonto: z
-    .array(z.object({ days: z.number(), percent: z.number() }))
+    .array(z.object({ days: z.number(), percent: inBasisPoints(z.number()) }))
     .max(10)
     .transform((stufen) => stufen.filter((stufe) => skontoStufeSchema.safeParse(stufe).success)),
   sepaMandateId: z.uuid().nullable(),
