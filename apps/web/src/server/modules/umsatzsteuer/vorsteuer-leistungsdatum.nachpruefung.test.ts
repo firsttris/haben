@@ -229,6 +229,19 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
       });
     }
 
+    // Nachgereichte Teilzahlung nach der Aufhebung einer anderen: Die Gegenbuchung der Aufhebung (10.12.) liegt nach dem Tag
+    // der nachgereichten Zahlung (20.11.), ist aber schon gebucht und zählt mit. Sonst zieht die Zahlung nichts, Kz 66
+    // November fehlt ihr Anteil und Journal und Nebenbücher laufen auseinander (UStAE 15.3 Abs. 1 Satz 2). Review #930
+    it(`${n} Teilzahlung vor der Rechnung am 10.12. aufgehoben, danach Teilzahlung vom 20.11. nachgereicht`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      const z = await zahlung(id, -1_928, "2026-10-30");
+      await bank.reverseAllocation(actor, z, "2026-12-10");
+      await zahlung(id, -1_928, "2026-11-20");
+      const q = await beideQuellen(M([2026, 10], 3));
+      expect({ ...q, zw: await zw() }).toEqual({ journal: [0, 616, 0], nebenbuecher: [0, 616, 0], zw: 0 });
+    });
+
     // Vorkasse im Dezember, Rechnung im Januar: Kz 66 im Januar (UStAE 15.3 Abs. 1 Satz 2), in der EÜR bleibt die
     // gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG). Review #930
     it(`${n} Zahlung im Dezember, Rechnung im Januar: Kz 66 im Januar, EÜR im Jahr der Zahlung`, async () => {
