@@ -1,5 +1,6 @@
 import { z } from "zod/mini";
 import type { Einheit } from "./einheit.ts";
+import { inCents, inMillis } from "./einheit-schema.ts";
 import { roundHalfAwayFromZero, taxIncluded, taxOf, type BasisPoints, type Cents } from "./money.ts";
 import { discountBasis, discountedLineAmount, netOf, splitDocumentDiscount, type Discount, type DocumentAllowance } from "./rabatt.ts";
 
@@ -24,10 +25,10 @@ export type UnitLabel = keyof typeof UNITS;
 
 export const invoiceLineInputSchema = z.object({
   description: z.string().check(z.trim(), z.minLength(1, "Beschreibung fehlt"), z.maxLength(500)),
-  quantity: z.int().check(z.minimum(1), z.maximum(1_000_000_000)),
+  quantity: inMillis(z.int().check(z.minimum(1), z.maximum(1_000_000_000))),
   // Feste (UNITS) oder eigene Einheit (#748); ob es die eigene gibt, prüft der Server
   unit: z.string().check(z.trim(), z.minLength(1, "Einheit fehlt"), z.maxLength(10, "Einheit höchstens 10 Zeichen")),
-  unitPrice: z.int().check(z.minimum(-100_000_000_00), z.maximum(100_000_000_00)),
+  unitPrice: inCents(z.int().check(z.minimum(-100_000_000_00), z.maximum(100_000_000_00))),
   taxRate: z.literal(TAX_RATES),
 });
 
