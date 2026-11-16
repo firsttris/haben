@@ -35,9 +35,8 @@ import { oposAbgleichJahr, oposYears } from "./opos-abgleich.ts";
  * - EÜR: AfA und Privatnutzung gegen das Anlagenverzeichnis, der Gewinn nach der DATEV-Formel gegen den Gewinn der Zeilen;
  * - OPOS-Abgleich der Anzahlungsbestände (opos-abgleich.ts).
  * Eine Abweichung heißt: eine Buchung passt nicht zu ihrem Beleg oder zur gesendeten Anmeldung, oder Daten wurden an Haben
- * vorbei geändert. Jahre, deren Abweichung beim Update ausdrücklich übernommen wurde (journal_umstellung), prüfen
- * Verprobung, gesendete Voranmeldungen und die gemeldete Bemessungsgrundlage erledigter Ist-Rechnungen nicht; ältere
- * Buchungen dort tragen die Bemessungsgrundlage nicht.
+ * vorbei geändert. Befunde, die beim Update ausdrücklich übernommen wurden (journal_umstellung), meldet der Abgleich
+ * nicht wieder; neue Abweichungen im selben Jahr schon.
  */
 
 export interface AbgleichZeile {
@@ -96,13 +95,41 @@ function saldo(sums: Summe[], accounts: (kr: Kontenrahmen) => string[], filter: 
 
 const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-01-01` });
 
-/** Jahre, deren Abweichungen beim Update auf das Journal ausdrücklich übernommen wurden (#1116) */
-async function uebernommeneJahre(q: Db | Tx): Promise<Set<number>> {
+/** Text einer Abweichung, wie ihn die Prüfung beim Update als Befund speichert (journal_umstellung.befunde) */
+export const befundText = (z: AbgleichZeile) => `${z.zeitraum} ${z.posten}: im Journal ${formatEuro(z.journal)}, ${z.gegen} ${formatEuro(z.quelle)}`;
+
+/** Ohne den Zeitraum vorn: Die Vorprüfung eines Quartals nennt dieselbe Buchung mit dem Quartal statt dem Monat */
+const ohneZeitraum = (text: string) => text.slice(text.indexOf(" ") + 1);
+
+/** Je Jahr die Befunde, die beim Update auf das Journal ausdrücklich übernommen wurden (#1116), ohne Zeitraum */
+export type Uebernommen = Map<number, Set<string>>;
+
+async function uebernommeneBefunde(q: Db | Tx): Promise<Uebernommen> {
   const [stand] = await q.select().from(schema.journalUmstellung).orderBy(desc(schema.journalUmstellung.id)).limit(1);
-  return new Set(stand?.ergebnis === "uebernommen" ? stand.befunde.map((b) => b.jahr) : []);
+  const result: Uebernommen = new Map();
+  if (stand?.ergebnis !== "uebernommen") return result;
+  for (const b of stand.befunde) result.set(b.jahr, (result.get(b.jahr) ?? new Set()).add(ohneZeitraum(b.text)));
+  return result;
 }
 
-/** Verprobung eines Zeitraums der Voranmeldung */
+/**
+ * Ohne die übernommenen Befunde des Jahres (Vorschlag von thomas-baumeister in #1144): Sie meldet der Abgleich nicht jede
+ * Woche wieder, jede neue Abweichung schon. Der Hinweis nennt, wie viele ausgeblendet sind.
+ */
+function ohneUebernommene(year: number, abgleich: Abgleich, uebernommen: Uebernommen): Abgleich {
+  const texte = uebernommen.get(year);
+  if (!texte) return abgleich;
+  const zeilen = abgleich.zeilen.filter((z) => z.journal === z.quelle || !texte.has(ohneZeitraum(befundText(z))));
+  const n = texte.size;
+  return {
+    zeilen,
+    hinweise: [
+      `Für ${year} sind beim Update auf das Journal ${n} ${n === 1 ? "Abweichung" : "Abweichungen"} übernommen worden; der Abgleich meldet sie nicht mehr, neue Abweichungen schon.`,
+      ...abgleich.hinweise,
+    ],
+  };
+}
+
 /** Verprobung eines Zeitraums: Abweichungen im Journal als Zeilen, die Vorsteuer eines Belegs als Hinweis */
 function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], versteuerung: "ist" | "soll"): Abgleich {
   const alle = verprobungsZeilen(period, buchungen, versteuerung);
@@ -123,9 +150,9 @@ function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], verste
 
 /** Abgleich für einen Zeitraum der Voranmeldung (Monat oder Quartal), z. B. in der Vorprüfung vor dem Senden */
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
-  if ((await uebernommeneJahre(db)).has(period.year)) return { zeilen: [], hinweise: [] };
   const { from, to } = yearRange(period.year);
-  return vatRows(period, await journalBuchungen(from, to), await versteuerungForYear(period.year));
+  const abgleich = vatRows(period, await journalBuchungen(from, to), await versteuerungForYear(period.year));
+  return ohneUebernommene(period.year, abgleich, await uebernommeneBefunde(db));
 }
 
 /** Abgleich für die EÜR eines Jahres: AfA und Privatnutzung, Gewinn nach der DATEV-Formel */
@@ -216,41 +243,35 @@ async function journalYears(q: Db | Tx): Promise<number[]> {
  * Ein Jahr: Verprobung je Monat (bis zum laufenden), gesendete Voranmeldungen, Rechnungen gegen ihre Buchung, EÜR und
  * Anzahlungsbestände
  */
-export async function abgleichJahr(year: number, today: string, q: Db | Tx = db, uebernommen?: Set<number>): Promise<Abgleich> {
+export async function abgleichJahr(year: number, today: string, q: Db | Tx = db, uebernommen?: Uebernommen): Promise<Abgleich> {
   const { from, to } = yearRange(year);
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
-  const uebernommenesJahr = (uebernommen ?? (await uebernommeneJahre(q))).has(year);
-  if (uebernommenesJahr) {
-    hinweise.push(
-      `Für ${year} sind beim Update auf das Journal Abweichungen zu den Nebenbüchern übernommen worden; Verprobung, gesendete Voranmeldungen und die gemeldete Bemessungsgrundlage erledigter Ist-Rechnungen werden für ${year} nicht abgeglichen.`,
-    );
-  } else {
-    const buchungen = await journalBuchungen(from, to, q);
-    const versteuerung = await versteuerungForYear(year, q);
-    const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
-    for (let month = 1; month <= lastMonth; month++) {
-      const verprobung = vatRows({ year, month }, buchungen, versteuerung);
-      zeilen.push(...verprobung.zeilen);
-      hinweise.push(...verprobung.hinweise);
-    }
-    for (const a of await gesendeteAbweichungen([year], q))
-      zeilen.push({
-        bereich: "ustva",
-        zeitraum: periodKey(a.period),
-        posten: `Gesendete Voranmeldung, ${a.feld}`,
-        journal: a.journal,
-        quelle: a.gesendet,
-        gegen: "gesendet",
-      });
+  const buchungen = await journalBuchungen(from, to, q);
+  const versteuerung = await versteuerungForYear(year, q);
+  const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
+  for (let month = 1; month <= lastMonth; month++) {
+    const verprobung = vatRows({ year, month }, buchungen, versteuerung);
+    zeilen.push(...verprobung.zeilen);
+    hinweise.push(...verprobung.hinweise);
   }
+  for (const a of await gesendeteAbweichungen([year], q))
+    zeilen.push({
+      bereich: "ustva",
+      zeitraum: periodKey(a.period),
+      posten: `Gesendete Voranmeldung, ${a.feld}`,
+      journal: a.journal,
+      quelle: a.gesendet,
+      gegen: "gesendet",
+    });
   for (const b of await belegZeilen(year, q))
     zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Rechnung" });
-  for (const v of await vorgangZeilen(year, q, uebernommenesJahr))
+  for (const v of await vorgangZeilen(year, q))
     zeilen.push({ bereich: "beleg", zeitraum: v.zeitraum, posten: v.posten, journal: v.journal, quelle: v.vorgang, gegen: "laut Vorgang" });
   const euer = await euerAbgleich(year, q);
   const opos = await oposAbgleichJahr(year, today, q);
-  return { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...hinweise, ...euer.hinweise, ...opos.hinweise] };
+  const jahr = { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...hinweise, ...euer.hinweise, ...opos.hinweise] };
+  return ohneUebernommene(year, jahr, uebernommen ?? (await uebernommeneBefunde(q)));
 }
 
 /**
@@ -262,7 +283,7 @@ export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgle
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
   const journal = new Set(await journalYears(q));
-  const uebernommen = await uebernommeneJahre(q);
+  const uebernommen = await uebernommeneBefunde(q);
   const years = [...new Set([...journal, ...(await oposYears(today, q))])].sort((a, b) => a - b);
   for (const year of years) {
     // Ohne Journal nur den lesenden OPOS-Weg: EÜR-/Anlagenleser könnten sonst fehlende Firmendaten erst anlegen.

@@ -10,6 +10,9 @@ import { umstellungPruefen } from "./pruefung.ts";
  * Jahre ausdrücklich; sie stehen dann im Änderungsprotokoll und in der Integritätsprüfung.
  */
 
+/** Wer eine Abweichung übernimmt, erkennt, dass eine Meldung falsch gewesen sein kann (Hinweis von Dudeplayz in #1144) */
+const BERICHTIGUNG = "Prüfe, ob die damals gemeldeten Werte falsch waren. Dann ist eine berichtigte Voranmeldung bzw. Erklärung abzugeben (§ 153 AO).";
+
 const uebernehmen = (process.env.HABEN_ABWEICHUNG_UEBERNEHMEN ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -32,7 +35,9 @@ try {
         "",
         "Entweder auf der bisherigen Version bleiben, bis das Jahr erklärt ist, oder die Abweichung ausdrücklich übernehmen:",
         `HABEN_ABWEICHUNG_UEBERNEHMEN=${jahre} setzen und neu starten. Gesendete Voranmeldungen bleiben dann, wie sie gesendet`,
-        "sind; alles Offene rechnet aus dem Journal. Siehe https://haben.app/einrichtung.html#update-auf-das-journal",
+        "sind; alles Offene rechnet aus dem Journal.",
+        BERICHTIGUNG,
+        "Siehe https://haben.app/einrichtung.html#update-auf-das-journal",
       ].join("\n"),
     );
     code = 1;
@@ -40,7 +45,7 @@ try {
     console.log(
       ergebnis.stand.ergebnis === "bestanden"
         ? "Umstellung auf das Journal geprüft: Gemeldetes und Gespeichertes passt zum Journal"
-        : `Umstellung auf das Journal: Abweichungen für ${[...new Set(ergebnis.stand.befunde.map((b) => b.jahr))].join(", ")} übernommen`,
+        : `Umstellung auf das Journal: Abweichungen für ${[...new Set(ergebnis.stand.befunde.map((b) => b.jahr))].join(", ")} übernommen. ${BERICHTIGUNG}`,
     );
   }
 } finally {

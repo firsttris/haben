@@ -1,9 +1,8 @@
-import { formatEuro } from "@haben/core";
 import { desc, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import type { JournalUmstellungBefund } from "../../db/schema.ts";
-import { abgleichJahr, abweichungen } from "../auswertungen/index.ts";
+import { abgleichJahr, abweichungen, befundText } from "../auswertungen/index.ts";
 import { erklaerteAbweichungen, erklaertText } from "../jahreserklaerung/index.ts";
 
 /*
@@ -48,9 +47,8 @@ async function jahreVor(stichjahr: number, q: Db | Tx): Promise<number[]> {
 export async function umstellungBefunde(stichjahr: number, today: string, q: Db | Tx = db): Promise<JournalUmstellungBefund[]> {
   const befunde: JournalUmstellungBefund[] = [];
   for (const jahr of await jahreVor(stichjahr, q)) {
-    const { zeilen } = await abgleichJahr(jahr, today, q, new Set());
-    for (const z of abweichungen(zeilen).filter((x) => x.bereich === "ustva" || x.bereich === "beleg"))
-      befunde.push({ jahr, text: `${z.zeitraum} ${z.posten}: im Journal ${formatEuro(z.journal)}, ${z.gegen} ${formatEuro(z.quelle)}` });
+    const { zeilen } = await abgleichJahr(jahr, today, q, new Map());
+    for (const z of abweichungen(zeilen).filter((x) => x.bereich === "ustva" || x.bereich === "beleg")) befunde.push({ jahr, text: befundText(z) });
     for (const x of await erklaerteAbweichungen([jahr])) befunde.push({ jahr, text: erklaertText(x) });
   }
   return befunde;
