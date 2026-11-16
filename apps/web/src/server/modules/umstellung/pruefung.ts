@@ -3,7 +3,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import type { JournalUmstellungBefund } from "../../db/schema.ts";
 import { abgleichJahr, abweichungen, befundText } from "../auswertungen/index.ts";
-import { erklaerteAbweichungen, erklaertText } from "../jahreserklaerung/index.ts";
+import { erklaerteAbweichungen, erklaertZeile } from "../jahreserklaerung/index.ts";
 
 /*
  * Prüfung beim Update auf das Journal als einzige Quelle von Voranmeldung und EÜR (#1116, docs/adr/journal-einzige-quelle.md).
@@ -49,7 +49,7 @@ export async function umstellungBefunde(stichjahr: number, today: string, q: Db 
   for (const jahr of await jahreVor(stichjahr, q)) {
     const { zeilen } = await abgleichJahr(jahr, today, q, new Map());
     for (const z of abweichungen(zeilen).filter((x) => x.bereich === "ustva" || x.bereich === "beleg")) befunde.push({ jahr, text: befundText(z) });
-    for (const x of await erklaerteAbweichungen([jahr])) befunde.push({ jahr, text: erklaertText(x) });
+    for (const x of await erklaerteAbweichungen([jahr])) befunde.push({ jahr, text: befundText(erklaertZeile(x)) });
   }
   return befunde;
 }

@@ -1,6 +1,6 @@
 import { reservedAccountNumbers, type Kontenrahmen } from "@haben/core";
 import { count, eq, sql } from "drizzle-orm";
-import { abgleichAll, abweichungen, type AbgleichZeile } from "./abgleich.ts";
+import { abgleichAll, abweichungen, ohneUebernommeneZeilen, type AbgleichZeile } from "./abgleich.ts";
 import { lastFileCheck, type FileCheck } from "./file-integrity.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
@@ -97,13 +97,17 @@ function readSnapshot(now: string) {
   );
 }
 
-/** Prüft die ganze Kette, alle Siegel und gleicht Journal und Steuerwerte ab. Dauert bei großen Datenbanken einige Sekunden. */
-export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
+/**
+ * Prüft die ganze Kette, alle Siegel und gleicht Journal und Steuerwerte ab. Dauert bei großen Datenbanken einige Sekunden.
+ * `zusatz`: weitere Zeilen des Abgleichs aus Modulen über auswertungen (übermittelte Jahreserklärungen, erklaerteAbweichungsZeilen).
+ */
+export async function checkIntegrity(now = today(), zusatz: () => Promise<AbgleichZeile[]> = async () => []): Promise<IntegrityReport> {
   // Mit Buchungen liest der Abgleich die Firmendaten. Fehlen sie, legt loadCompany sie an; das ist ein Schreibzugriff
   // und geht in der Transaktion mit festem Stand nicht. Ohne Buchungen bleibt die Prüfung ohne jeden Schreibzugriff.
   const [booking] = await db.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
   if (booking) await loadCompany();
   const { rows, triggerHints, head, entries, seals, abgleich, accountCollisions } = await readSnapshot(now);
+  const weitere = await ohneUebernommeneZeilen(await zusatz());
   const files = await lastFileCheck();
   const problems = [...rows].map((r) => ({ ...r, seq: r.seq === null ? null : Number(r.seq) }));
   const perKind = new Map<string, number>();
@@ -114,7 +118,7 @@ export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
     seals,
     problems,
     truncated: [...perKind.values()].some((n) => n >= MAX_ROWS),
-    abgleich: { abweichungen: abweichungen(abgleich.zeilen), hinweise: abgleich.hinweise },
+    abgleich: { abweichungen: abweichungen([...abgleich.zeilen, ...weitere.zeilen]), hinweise: abgleich.hinweise },
     accountCollisions,
     triggerHints,
     files,

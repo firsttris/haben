@@ -4,6 +4,7 @@ import { databaseAccessInfo } from "../db/index.ts";
 import { UserError } from "../errors.ts";
 import { chainHead, checkIntegrity, checkPruefwert, parsePruefwert, runFileCheck } from "../modules/auswertungen/index.ts";
 import { listAppVersions } from "../modules/betrieb/index.ts";
+import { erklaerteAbweichungsZeilen } from "../modules/jahreserklaerung/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Rechte der tatsächlich verwendeten Verbindung für die Einstellungen. */
@@ -24,14 +25,14 @@ export const getChainHead = createServerFn({ method: "GET" })
 /** Prüft Kette und Siegel vollständig */
 export const runIntegrityCheck = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(() => checkIntegrity());
+  .handler(() => checkIntegrity(undefined, erklaerteAbweichungsZeilen));
 
 /** Prüft alle Dateien im Dokumentenspeicher jetzt und danach Kette und Siegel; dauert bei vielen Dateien länger */
 export const runFileAndIntegrityCheck = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async () => {
     await runFileCheck();
-    return checkIntegrity();
+    return checkIntegrity(undefined, erklaerteAbweichungsZeilen);
   });
 
 /** Vergleicht einen Prüfwert aus Mail oder Jahresarchiv mit dem Audit-Log */

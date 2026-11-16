@@ -6,7 +6,7 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { AnnualError, annualOverview, loadAnnualProtocol, submitAnnual } from "./annual.ts";
-export { erklaerteAbweichungen, erklaertText, type ErklaertAbweichung } from "./erklaert-pruefen.ts";
+export { erklaerteAbweichungen, erklaerteAbweichungsZeilen, erklaertZeile, type ErklaertAbweichung } from "./erklaert-pruefen.ts";
 export { ebilanzOverview, submitEbilanz } from "./ebilanz.ts";
 export { kapgErklaerungen, submitKapg, type KapgForm } from "./kapg-erklaerung.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";

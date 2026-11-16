@@ -1,6 +1,7 @@
-import { formatEuro, type Cents } from "@haben/core";
+import type { Cents } from "@haben/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
+import type { AbgleichZeile } from "../auswertungen/index.ts";
 import { euerYear, ustYear } from "./annual.ts";
 import { vermerkPruefung } from "./vermerk.ts";
 
@@ -16,6 +17,10 @@ import { vermerkPruefung } from "./vermerk.ts";
  *   heute den Betrag laut Protokoll, passt das Journal zur Abgabe: etwa wenn Voranmeldungen erst nach dem Vermerk
  *   nachgetragen wurden und damit das Vorauszahlungssoll der Abschlusszahlung.
  * Die Einkommensteuer hat keine eigenen Zahlen aus dem Journal; sie folgt der EÜR.
+ *
+ * Läuft bei der Prüfung beim Update und jede Woche mit der Integritätsprüfung (erklaerteAbweichungsZeilen, übergeben von
+ * scheduler.ts und functions/integrity.ts, weil jahreserklaerung über auswertungen steht). Eine Codeänderung an der
+ * Zuordnung einer EÜR-Zeile, die keine Voranmeldung berührt, fiele sonst nirgends auf (thomas-baumeister in #1144).
  */
 
 export interface ErklaertAbweichung {
@@ -69,8 +74,22 @@ export async function erklaerteAbweichungen(years: readonly number[]): Promise<E
 
 const FORM = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR" } as const;
 
-/** Kurztext einer Abweichung, z. B. für den Befund der Prüfung beim Update */
-export function erklaertText(x: ErklaertAbweichung): string {
-  const wert = x.art === "übermittelt" ? "übermittelt" : "beim Vermerk gerechnet";
-  return `${FORM[x.form]} ${x.year} (${x.art}), ${x.feld}: ${wert} ${formatEuro(x.erklaert)}, aus dem Journal ${formatEuro(x.journal)}`;
+/** Eine Abweichung als Zeile des Abgleichs im Journal (Zeitraum ist das Jahr) */
+export const erklaertZeile = (x: ErklaertAbweichung): AbgleichZeile => ({
+  bereich: x.form === "ust" ? "ustva" : "euer",
+  zeitraum: String(x.year),
+  posten: `${FORM[x.form]} (${x.art}), ${x.feld}`,
+  journal: x.journal,
+  quelle: x.erklaert,
+  gegen: x.art === "übermittelt" ? "übermittelt" : "beim Vermerk gerechnet",
+});
+
+/** Abweichungen aller übermittelten bzw. vermerkten Erklärungen als Zeilen, für die Integritätsprüfung */
+export async function erklaerteAbweichungsZeilen(): Promise<AbgleichZeile[]> {
+  const a = schema.annualSubmissions;
+  const jahre = await db
+    .selectDistinct({ year: a.year })
+    .from(a)
+    .where(and(inArray(a.form, ["ust", "euer"]), inArray(a.kind, ["send", "vermerk"]), eq(a.ok, true)));
+  return (await erklaerteAbweichungen(jahre.map((j) => j.year))).map(erklaertZeile);
 }

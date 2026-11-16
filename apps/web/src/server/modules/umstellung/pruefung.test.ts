@@ -253,15 +253,26 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           befunde: [
             {
               jahr: 2026,
-              text: `Anlage EÜR 2026 (übermittelt), gewinn: übermittelt ${formatEuro(euer.gewinn + 100)}, aus dem Journal ${formatEuro(euer.gewinn)}`,
+              text: `2026 Anlage EÜR (übermittelt), gewinn: im Journal ${formatEuro(euer.gewinn)}, übermittelt ${formatEuro(euer.gewinn + 100)}`,
             },
             {
               jahr: 2026,
-              text: `Umsatzsteuererklärung 2026 (vermerkt), abschluss: beim Vermerk gerechnet ${formatEuro(ust.abschluss - 200)}, aus dem Journal ${formatEuro(ust.abschluss)}`,
+              text: `2026 Umsatzsteuererklärung (vermerkt), abschluss: im Journal ${formatEuro(ust.abschluss)}, beim Vermerk gerechnet ${formatEuro(ust.abschluss - 200)}`,
             },
           ],
         });
         expect((await stand())!.ergebnis).toBe("offen");
+        // Auch jede Woche, nicht nur beim Update (Vorschlag von thomas-baumeister in #1144): Integritätsprüfung und Prüfwert-Mail
+        // bekommen die Jahreserklärungen dazu; übernommene Befunde meldet sie danach nicht wieder
+        const jahreserklaerung = await import("../jahreserklaerung/index.ts");
+        const integrity = await import("../auswertungen/integrity.ts");
+        const erklaerte = async () =>
+          (await integrity.checkIntegrity(today, jahreserklaerung.erklaerteAbweichungsZeilen)).abgleich.abweichungen.filter(
+            (z) => z.zeitraum === "2026" && z.posten.includes("("),
+          );
+        expect((await erklaerte()).map((z) => z.posten)).toEqual(["Anlage EÜR (übermittelt), gewinn", "Umsatzsteuererklärung (vermerkt), abschluss"]);
+        expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
+        expect(await erklaerte()).toEqual([]);
       }, 60_000);
 
       it(`Beleg aus 0.9 mit Leistungsdatum nach dem Belegdatum, vor #930 gebucht: Vorsteuer im Belegmonat, kein Befund (${kr}, ${v})`, async () => {

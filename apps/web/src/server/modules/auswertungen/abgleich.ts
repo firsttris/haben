@@ -166,6 +166,17 @@ function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], verste
   };
 }
 
+/** Zusätzliche Zeilen (übermittelte Jahreserklärungen, Zeitraum ist das Jahr) ohne die beim Update übernommenen Befunde */
+export async function ohneUebernommeneZeilen(zeilen: AbgleichZeile[], q: Db | Tx = db): Promise<Abgleich> {
+  const uebernommen = await uebernommeneBefunde(q);
+  const result: Abgleich = { zeilen: [], hinweise: [] };
+  for (const year of new Set(zeilen.map((z) => Number(z.zeitraum.slice(0, 4))))) {
+    const jahr = ohneUebernommene(year, { zeilen: zeilen.filter((z) => Number(z.zeitraum.slice(0, 4)) === year), hinweise: [] }, uebernommen);
+    result.zeilen.push(...jahr.zeilen);
+  }
+  return result;
+}
+
 /** Abgleich für einen Zeitraum der Voranmeldung (Monat oder Quartal), z. B. in der Vorprüfung vor dem Senden */
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
   const { from, to } = yearRange(period.year);

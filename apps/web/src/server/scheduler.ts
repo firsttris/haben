@@ -1,5 +1,6 @@
 import { formatHundredths } from "@haben/core";
 import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
+import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
@@ -114,7 +115,8 @@ async function runFileCheckAndPruefwertMail(): Promise<void> {
       console.error("Vollprüfung der Dateien", error);
     }
     try {
-      const result = await runDuePruefwertMail();
+      // Übermittelte Jahreserklärungen gegen das Journal: jahreserklaerung steht über auswertungen (erklaert-pruefen.ts)
+      const result = await runDuePruefwertMail(undefined, erklaerteAbweichungsZeilen);
       if (result)
         console.log(
           `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.fileProblems ? `, ${result.fileProblems} Dateien fehlen oder sind verändert` : ""}${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,
