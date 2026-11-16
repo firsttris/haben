@@ -212,7 +212,7 @@ FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (
 3. Unter **Einstellungen › Bank** steht dann bei **Kontoabruf über FinTS** „Eingerichtet“ (die Nummer zeigt Haben nicht), unter **Bank** der Knopf **Über FinTS verbinden**. Ablauf, TAN und Fehler stehen in [Abruf über FinTS](bank-fints.md).
 
 > [!NOTE]
-> Die Nummer gilt nicht sofort bei allen Banken. Die DK gibt neue Registrierungen gesammelt an die Institute weiter, derzeit etwa einmal pro Woche, und wann eine Bank sie übernimmt, entscheidet die Bank: Das dauert Tage bis Wochen ([Hinweis der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6915898298)). Lehnt eine Bank die Anmeldung kurz nach der Registrierung ab, bei einer anderen aber nicht, später noch einmal versuchen.
+> Die Nummer gilt nicht sofort bei allen Banken. Die DK gibt neue Registrierungen gesammelt an die Institute weiter, derzeit etwa einmal pro Woche, und wann eine Bank sie übernimmt, entscheidet die Bank: Das dauert Tage bis Wochen ([Hinweis der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6915898298)). Bis dahin lehnt die Bank die Anmeldung ab, etwa mit „Das Kundenprodukt wird nicht unterstützt.“ (9952); Haben weist dann darauf hin. Stimmt die Nummer in `FINTS_PRODUKT_ID`, später noch einmal versuchen.
 
 Ohne `FINTS_PRODUKT_ID` bleibt FinTS aus; Enable Banking und der Dateiimport laufen weiter. Haben prüft beim Start nur die Form (bis 25 Buchstaben und Ziffern), ob die Nummer gilt, sagt erst die Bank. Die Nummer ist kein Geheimnis, sie geht mit jeder Anmeldung an die Bank. Trag sie trotzdem nur in `.env` bzw. `haben.env` ein, nicht ins Repository oder Image.
 

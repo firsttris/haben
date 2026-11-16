@@ -60,6 +60,19 @@ export function vorgangVerwerfen(actor: string, id: string): void {
   if (vorgaenge.get(id)?.actor === actor) vorgaenge.delete(id);
 }
 
+/**
+ * „Das Kundenprodukt wird nicht unterstützt“ (9952): So lehnte eine Bank in #654 eine neue Registrierungsnummer ab, die
+ * sie noch nicht übernommen hatte. Die DK gibt neue Nummern etwa wöchentlich weiter, und die Banken übernehmen sie nach
+ * Tagen bis Wochen (Hinweis der DK in ihrer Mail zur Registrierung).
+ */
+const PRODUKT_UNBEKANNT = 9952;
+
+/** Text einer Ablehnung, bei bekannten Codes mit Erklärung */
+export function fintsAblehnung(antwort: { meldung: string; codes: number[] }): string {
+  if (!antwort.codes.includes(PRODUKT_UNBEKANNT)) return antwort.meldung;
+  return `${antwort.meldung} Die Bank kennt die Registrierungsnummer aus FINTS_PRODUKT_ID nicht oder noch nicht. Stimmt die Nummer, hat die Bank sie wohl noch nicht übernommen: Das dauert nach der Registrierung Tage bis Wochen, bei jeder Bank verschieden.`;
+}
+
 /** Was nach einer Antwort der Bank geschieht; ausfall bei Netz- oder Protokollfehlern in einer Fortsetzung */
 export interface FintsFolge<T> {
   weiter: (w: FintsWeiter) => Promise<FintsAntwort<T>>;
@@ -75,7 +88,7 @@ export interface FintsFolge<T> {
  */
 export async function mitTan<T>(actor: string, antwort: FintsAntwort<T>, folge: FintsFolge<T>, hinweis: string | null = null): Promise<FintsSchritt> {
   if (antwort.art === "ok") return folge.fertig(antwort.wert);
-  if (antwort.art === "abgelehnt") return folge.abgelehnt(antwort.meldung);
+  if (antwort.art === "abgelehnt") return folge.abgelehnt(fintsAblehnung(antwort));
   const { anfrage } = antwort;
   const vorgang = vorgangMerken(actor, "tan", async ({ tan }) => {
     if (!anfrage.entkoppelt && !tan?.trim()) return mitTan(actor, antwort, folge, "Bitte die TAN eingeben.");

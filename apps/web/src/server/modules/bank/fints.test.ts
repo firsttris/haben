@@ -233,6 +233,21 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     expect(await sql`select id from fints_connections`).toHaveLength(0);
   });
 
+  it("erklärt beim Verbinden, wenn die Bank die Registrierungsnummer noch nicht kennt", async () => {
+    const andere = await startFintsTestbank({ produktId: "ANDERESPRODUKT", konten: [{ iban: IBAN_A, nummer: "0000202051", name: "Girokonto" }] });
+    try {
+      const antwort = await fints.fintsVerbinden(ACTOR, { ...zugang(), url: andere.url }, "2026-10-29");
+      expect(antwort).toMatchObject({ art: "fertig", ok: false });
+      if (antwort.art !== "fertig") return;
+      expect(antwort.meldung).toMatch(
+        /^Das Kundenprodukt wird nicht unterstützt\. \(9952\) Die Bank kennt die Registrierungsnummer aus FINTS_PRODUKT_ID nicht/,
+      );
+      expect(await sql`select id from fints_connections`).toHaveLength(0);
+    } finally {
+      await andere.schliessen();
+    }
+  });
+
   it("nimmt nur https an, http allein zur eigenen Maschine", async () => {
     await expect(fints.fintsVerbinden(ACTOR, { ...zugang(), url: "http://bank.example/fints" }, "2026-10-29")).rejects.toThrow(/https/);
     await expect(fints.fintsVerbinden(ACTOR, { ...zugang(), blz: "1203" }, "2026-10-29")).rejects.toThrow(/acht Ziffern/);

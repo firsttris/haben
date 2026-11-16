@@ -64,7 +64,7 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
     if (zweite.art !== "tan") throw new Error("TAN erwartet");
 
     const falsch = await fintsSynchronisieren(client, { referenz: zweite.anfrage.referenz, tan: "999999" });
-    expect(falsch).toEqual({ art: "abgelehnt", meldung: "TAN ungültig. (9941)" });
+    expect(falsch).toEqual({ art: "abgelehnt", meldung: "TAN ungültig. (9941)", codes: [9050, 9941] });
     const richtig = await fintsSynchronisieren(client, { referenz: zweite.anfrage.referenz, tan: "123456" });
     expect(richtig.art).toBe("ok");
 
@@ -121,7 +121,12 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
 
   it("meldet eine falsche PIN mit dem Text der Bank", async () => {
     const antwort = await fintsSynchronisieren(fintsClient(PRODUKT, { ...zugang, pin: "00000" }));
-    expect(antwort).toEqual({ art: "abgelehnt", meldung: "Anmeldename oder PIN ist falsch. (9931)" });
+    expect(antwort).toEqual({ art: "abgelehnt", meldung: "Anmeldename oder PIN ist falsch. (9931)", codes: [9800, 9931] });
+  });
+
+  it("meldet, wenn die Bank die Produktnummer nicht kennt", async () => {
+    const antwort = await fintsSynchronisieren(fintsClient({ ...PRODUKT, id: "UNBEKANNT" }, zugang));
+    expect(antwort).toEqual({ art: "abgelehnt", meldung: "Das Kundenprodukt wird nicht unterstützt. (9952)", codes: [9050, 9952] });
   });
 
   it("wirft, wenn die Bank nicht erreichbar ist", async () => {

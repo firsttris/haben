@@ -1,6 +1,6 @@
 import type { FintsAntwort } from "@haben/import";
 import { describe, expect, it, vi } from "vitest";
-import { type FintsFolge, type FintsSchritt, mitTan, vorgangFortsetzen, vorgangMerken, vorgangVerwerfen } from "./fints-vorgang.ts";
+import { type FintsFolge, type FintsSchritt, fintsAblehnung, mitTan, vorgangFortsetzen, vorgangMerken, vorgangVerwerfen } from "./fints-vorgang.ts";
 
 const fertig: FintsSchritt = { art: "fertig", ok: true, meldung: "fertig", hinweise: [], neu: 0 };
 
@@ -56,7 +56,7 @@ describe("mitTan", () => {
     const weiter = vi
       .fn<FintsFolge<string>["weiter"]>()
       .mockResolvedValueOnce(anfrage(true))
-      .mockResolvedValueOnce({ art: "abgelehnt", meldung: "Freigabe abgelehnt." });
+      .mockResolvedValueOnce({ art: "abgelehnt", meldung: "Freigabe abgelehnt.", codes: [9942] });
     const schritt = await mitTan("anna", anfrage(true), folge(weiter));
     if (schritt.art !== "tan") throw new Error("TAN erwartet");
     const ausstehend = await vorgangFortsetzen("anna", schritt.vorgang, { tan: "egal" });
@@ -76,5 +76,19 @@ describe("mitTan", () => {
     );
     if (schritt.art !== "tan") throw new Error("TAN erwartet");
     await expect(vorgangFortsetzen("anna", schritt.vorgang, { tan: "1" })).resolves.toMatchObject({ ok: false, meldung: "Ausfall: fetch failed" });
+  });
+});
+
+describe("Ablehnungen der Bank", () => {
+  it("erklärt, wenn die Bank die Registrierungsnummer nicht kennt (9952)", () => {
+    const text = fintsAblehnung({ meldung: "Das Kundenprodukt wird nicht unterstützt. (9952)", codes: [9050, 9952] });
+    expect(text).toMatch(
+      /^Das Kundenprodukt wird nicht unterstützt\. \(9952\) Die Bank kennt die Registrierungsnummer aus FINTS_PRODUKT_ID nicht oder noch nicht\./,
+    );
+    expect(text).toContain("Tage bis Wochen");
+  });
+
+  it("lässt andere Ablehnungen, wie die Bank sie schreibt", () => {
+    expect(fintsAblehnung({ meldung: "TAN ungültig. (9941)", codes: [9050, 9941] })).toBe("TAN ungültig. (9941)");
   });
 });

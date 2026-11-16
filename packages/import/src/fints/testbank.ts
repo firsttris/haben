@@ -230,6 +230,10 @@ function antworte(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage): A
   const hktan = feld<{ tanProcess: string; orderRef?: string }>(segmente, "HKTAN");
   const ende = feld(segmente, "HKEND");
   const dialogId = idn ? `D${++bank.zaehler}` : (feld<{ dialogId: string }>(segmente, "HNHBK")?.dialogId ?? "0");
+  // Wie eine Bank, die die Registrierungsnummer (noch) nicht kennt (so antwortete eine echte Bank in #654)
+  if (idn && anfrage.produktId !== bank.optionen.produktId) {
+    return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", "HIRMS:{n}:2+9952::Das Kundenprodukt wird nicht unterstützt."] };
+  }
   if (anfrage.pin !== bank.pin || (idn && (idn.customerId !== bank.benutzer || idn.bank.bankId !== bank.blz))) {
     return { dialogId, segmente: ["HIRMG:{n}:2+9800::Dialog abgebrochen.", "HIRMS:{n}:2+9931::Anmeldename oder PIN ist falsch."] };
   }

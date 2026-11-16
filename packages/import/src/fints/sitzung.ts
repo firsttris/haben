@@ -39,7 +39,8 @@ export interface FintsTanAnfrage {
   bild?: string;
 }
 
-export type FintsAntwort<T> = { art: "ok"; wert: T } | { art: "tan"; anfrage: FintsTanAnfrage } | { art: "abgelehnt"; meldung: string };
+/** abgelehnt: Text der Bank und alle Rückmeldungscodes, damit die App bekannte Fälle erklären kann */
+export type FintsAntwort<T> = { art: "ok"; wert: T } | { art: "tan"; anfrage: FintsTanAnfrage } | { art: "abgelehnt"; meldung: string; codes: number[] };
 
 /** Fortsetzung nach einer TAN-Anfrage; ohne tan bei entkoppelten Verfahren */
 export interface FintsWeiter {
@@ -123,7 +124,7 @@ function antwort<T>(client: FinTSClient, response: ClientResponse, wert: () => T
       },
     };
   }
-  if (!response.success) return { art: "abgelehnt", meldung: fintsBankMeldung(response.bankAnswers) };
+  if (!response.success) return { art: "abgelehnt", meldung: fintsBankMeldung(response.bankAnswers), codes: response.bankAnswers.map((a) => a.code) };
   return { art: "ok", wert: wert() };
 }
 
