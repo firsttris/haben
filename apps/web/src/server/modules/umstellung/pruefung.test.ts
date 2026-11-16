@@ -182,6 +182,19 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         ]);
       }, 60_000);
 
+      it(`übernommene Abweichung im März blendet dieselbe Abweichung im April nicht aus (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        await invoice("2026-03-10");
+        await invoice("2026-04-10");
+        await gesendet(3, 100);
+        expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
+        // Gleiche Kennzahl, gleiche Beträge, anderer Monat: eine neue Abweichung
+        await gesendet(4, 100);
+        expect(abgleich.abweichungen((await abgleich.abgleichJahr(2026, today)).zeilen)).toEqual([
+          expect.objectContaining({ bereich: "ustva", zeitraum: "2026-04", posten: "Gesendete Voranmeldung, Kz 81" }),
+        ]);
+      }, 60_000);
+
       it(`ältere Buchungen ohne Steuerschlüssel bzw. Bemessungsgrundlage: die Verprobung nennt Monat und Buchung (${kr}, ${v})`, async () => {
         await reset(kr, v);
         const inv = await invoice("2026-03-10");
