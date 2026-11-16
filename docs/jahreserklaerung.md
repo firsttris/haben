@@ -37,7 +37,7 @@ Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintrag
 
 Gibst du die Umsatzsteuererklärung, die Anlage EÜR oder die Einkommensteuererklärung außerhalb von Haben ab, etwa mit WISO, über Accountable oder im ELSTER-Portal, hältst du das je Erklärung in der Karte **Außerhalb von Haben abgegeben** mit **Abgabe vermerken** fest. Der Dialog fragt nach dem Tag der Abgabe laut Übermittlungsprotokoll, dem Transferticket, dem Betrag und einer kurzen Begründung; das Protokoll kannst du als PDF anhängen. Vorgeschlagen ist der aus den Buchungen gerechnete Betrag. Weicht der Betrag laut Protokoll davon ab, nennt Haben die Differenz, und der Vermerk geht erst durch, wenn du die Abweichung ausdrücklich bestätigst. Gespeichert wird der Betrag laut Protokoll.
 
-Bei der Einkommensteuererklärung fragt der Dialog nach keinem Betrag: Das Übermittlungsprotokoll nennt keinen Steuerbetrag, und eine Schätzung von Haben gehört nicht in den Vermerk. Statt eines Vergleichs sagt die Seite, dass das Ergebnis erst mit dem Steuerbescheid feststeht.
+Bei der Einkommensteuererklärung fragt der Dialog nach keinem Betrag: Das Übermittlungsprotokoll nennt keinen Steuerbetrag, und eine Schätzung von Haben gehört nicht in den Vermerk. Ist die Zeile „Einkommensteuer laut Steuerprogramm“ nicht eingetragen, sagt die Seite statt eines Vergleichs, dass das Ergebnis erst mit dem Steuerbescheid feststeht.
 
 Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 
