@@ -520,9 +520,11 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
 /**
  * Der ESt-Vermerk trägt keinen Betrag (#1073). Dann gibt es nichts zu vergleichen, und die Seite sagt das
  * auch: Ohne diesen Satz stünde Habens Schätzung allein da und sähe aus wie das Ergebnis der Veranlagung.
+ * Ist die Einkommensteuer laut Steuerprogramm als Zeile erklärt, vergleicht estAbweichungHinweis mit ihr (#1083);
+ * dann entfällt dieser Satz, sonst stünde „kein Vergleich“ neben dem Vergleich.
  */
-export function ohneBetragHinweis(vermerk: { amount: number | null } | null): Issue[] {
-  if (!vermerk || vermerk.amount !== null) return [];
+export function ohneBetragHinweis(vermerk: { amount: number | null } | null, zeilen: Record<string, number> = {}): Issue[] {
+  if (!vermerk || vermerk.amount !== null || zeilen.festgesetzteSteuer !== undefined) return [];
   return [
     {
       tone: "hinweis",
@@ -618,10 +620,15 @@ async function arbeitszimmerIssues(year: number, est: EstYear): Promise<Issue[]>
     const betrag = p.werbungskosten.arbeitszimmer ?? 0;
     const grenze = arbeitszimmerPauschale(monate);
     if (monate >= 12 || betrag <= grenze) return [];
+    // Ohne einen Monat als Mittelpunkt gilt das Abzugsverbot ganz, auch für die Aufwendungen (Nr. 6b Satz 1 und 2)
+    const rest =
+      monate === 0
+        ? "Ohne einen Monat als Mittelpunkt ist das Arbeitszimmer nicht abziehbar, auch nicht mit tatsächlichen Kosten."
+        : "Höher geht nur mit tatsächlichen Aufwendungen.";
     return [
       {
         tone: "hinweis" as const,
-        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. Höher geht nur mit tatsächlichen Aufwendungen.`,
+        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. ${rest}`,
       },
     ];
   });
@@ -759,7 +766,7 @@ export async function annualOverview(year: number, today: string) {
       issues: [
         ...base,
         ...estIssues(company, euer),
-        ...ohneBetragHinweis(estVermerk),
+        ...ohneBetragHinweis(estVermerk, estZeilen),
         ...estAbweichungHinweis(estZeilen, est),
         ...(await homeofficeIssues(year, est)),
         ...(await arbeitszimmerIssues(year, est)),

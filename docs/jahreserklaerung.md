@@ -37,7 +37,7 @@ Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintrag
 
 Gibst du die Umsatzsteuererklärung, die Anlage EÜR oder die Einkommensteuererklärung außerhalb von Haben ab, etwa mit WISO, über Accountable oder im ELSTER-Portal, hältst du das je Erklärung in der Karte **Außerhalb von Haben abgegeben** mit **Abgabe vermerken** fest. Der Dialog fragt nach dem Tag der Abgabe laut Übermittlungsprotokoll, dem Transferticket, dem Betrag und einer kurzen Begründung; das Protokoll kannst du als PDF anhängen. Vorgeschlagen ist der aus den Buchungen gerechnete Betrag. Weicht der Betrag laut Protokoll davon ab, nennt Haben die Differenz, und der Vermerk geht erst durch, wenn du die Abweichung ausdrücklich bestätigst. Gespeichert wird der Betrag laut Protokoll.
 
-Bei der Einkommensteuererklärung fragt der Dialog nach keinem Betrag: Das Übermittlungsprotokoll nennt keinen Steuerbetrag, und eine Schätzung von Haben gehört nicht in den Vermerk. Statt eines Vergleichs sagt die Seite, dass das Ergebnis erst mit dem Steuerbescheid feststeht.
+Bei der Einkommensteuererklärung fragt der Dialog nach keinem Betrag: Das Übermittlungsprotokoll nennt keinen Steuerbetrag, und eine Schätzung von Haben gehört nicht in den Vermerk. Ist die Zeile „Einkommensteuer laut Steuerprogramm“ nicht eingetragen, sagt die Seite statt eines Vergleichs, dass das Ergebnis erst mit dem Steuerbescheid feststeht.
 
 Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 
@@ -220,7 +220,7 @@ Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Perso
 
 Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeitergeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung. Steuerfreie Zuschüsse des Arbeitgebers zur Kranken- und Pflegeversicherung (Nr. 24 a, 24 b und 24 c) stehen in der Anlage Vorsorgeaufwand, siehe [Was die Vorsorgezeilen bedeuten](#was-die-vorsorgezeilen-bedeuten).
 
-Beträge gehen in vollen Euro an ELSTER, mit Cent nur die Steuern auf Kapitalerträge und die Lohnsteuerbescheinigungen außer der Summe des Bruttoarbeitslohns (Jahresdokumentation E10 2025: `E0200201` „GeldBetragOhneCent“). Pflicht sind die IBAN in den Firmendaten und je Kind die Familienkasse. Lohn- und Kirchensteuer einer Lohnsteuerbescheinigung schickt Haben auch mit 0, wenn das Feld leer ist; so verlangt es ELSTER.
+Beträge gehen in vollen Euro an ELSTER, mit Cent nur die Steuern auf Kapitalerträge und Nr. 3 bis 7 der Lohnsteuerbescheinigungen, die Summe des Bruttoarbeitslohns ohne Cent (Jahresdokumentation E10 2025: `E0200201` „GeldBetragOhneCent“). Pflicht sind die IBAN in den Firmendaten und je Kind die Familienkasse. Lohn- und Kirchensteuer einer Lohnsteuerbescheinigung schickt Haben auch mit 0, wenn das Feld leer ist; so verlangt es ELSTER.
 
 Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kinder bei Einzelveranlagung (ELSTER verlangt dann Angaben zum anderen Elternteil) sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
 

@@ -514,6 +514,22 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(hinweis?.text).toContain("20.127,00");
   });
 
+  it("Einkommensteuer ohne Betrag vermerkt, Zeile laut Steuerprogramm erklärt: Vergleich ohne widersprechenden Hinweis (#1073, #1083)", async () => {
+    await year2025();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const [vermerk] = (await sql`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`) as { id: string }[];
+    if (!vermerk) throw new Error("Der Vermerk fehlt, obwohl er eben angelegt wurde.");
+    await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', 2012700)`;
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.submitted?.amount).toBeNull();
+    const texte = overview.est.issues.map((i) => i.text);
+    expect(texte.some((t) => t.includes("im Vordruck stehen"))).toBe(true);
+    // Der Vergleich steht da; ein Satz, es gebe keinen, widerspräche ihm
+    expect(texte.filter((t) => t.includes("kein Vergleich"))).toEqual([]);
+  });
+
   it("Einkommensteuer: Abweichungshinweis vergleicht die festgesetzte Einkommensteuer ohne Soli und Kirchensteuer (#1083)", async () => {
     const taxpayer = await import("../stammdaten/taxpayer.ts");
     const incomeTax = await import("./income-tax.ts");
@@ -900,6 +916,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 0 } } },
     });
     expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text).toContain("Bei 0 von 12 Monaten");
+    // Ohne einen Monat als Mittelpunkt sind auch die tatsächlichen Aufwendungen nicht abziehbar (§ 4 Abs. 5 Satz 1
+    // Nr. 6b Satz 1 und 2 EStG); der Hinweis darf nicht auf sie verweisen
+    const keiner = (await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text;
+    expect(keiner).not.toContain("tatsächlichen Aufwendungen");
+    expect(keiner).toContain("nicht abziehbar");
 
     // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
     await incomeTax.saveEstAngaben(actor, 2025, {
