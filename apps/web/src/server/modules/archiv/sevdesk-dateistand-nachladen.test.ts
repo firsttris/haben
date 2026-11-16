@@ -117,7 +117,9 @@ describe.skipIf(!testDatabaseUrl).each([
             const own = /^\/Document\/(ID_60\d)\/download$/.exec(path);
             if (own) return download(`%PDF-1.4\n% ${own[1]}\n`, `${own[1]}.pdf`);
             if (
-              /^\/(Contact|ContactAddress|CommunicationWay|Invoice|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport|Part|TaxSet)$/.test(path)
+              /^\/(Contact|ContactAddress|CommunicationWay|Invoice|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport|Part|TaxSet)$/.test(
+                path,
+              )
             )
               return list([]);
             return json({ error: { message: `unbekannt ${path}` } }, 404);
