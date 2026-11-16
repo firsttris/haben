@@ -112,11 +112,13 @@ services:
       - eric-log:/var/lib/haben/eric-log
       # ERiC, von Haben heruntergeladen (Einstellungen › ELSTER › ERiC oder ERIC_AUTO_INSTALL=ja)
       - eric:/var/lib/haben/eric
-      # Alternativ ERiC von Hand: nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
+      # Die auskommentierten Zeilen hier und bei backup und restore gehören in compose.override.yml (siehe
+      # deploy/compose.override.example.yml), damit sich compose.yml bei Updates neu herunterladen lässt.
+      # Alternativ ERiC von Hand: nach /opt/eric entpacken, ERIC_HOME=/opt/eric in .env
       # - /opt/eric:/opt/eric:ro
-      # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, Zeile einkommentieren, ERIC_WORKER_COMMAND in .env
+      # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, ERIC_WORKER_COMMAND in .env
       # - /opt/haben-x86_64:/opt/haben-x86_64:ro
-      # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, Zeile einkommentieren
+      # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung
       # - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
     # KI-Dienst (z. B. Ollama) direkt auf dem Server: unter Linux kennt der Container host.docker.internal nur so
     # extra_hosts:
@@ -129,7 +131,7 @@ services:
     volumes:
       - belege:/belege:ro
       - backups:/backups
-      # Repository über sftp: SSH-Schlüssel einhängen, Zeile einkommentieren
+      # Repository über sftp: SSH-Schlüssel einhängen (in compose.override.yml, wie beim Dienst app beschrieben)
       # - ~/.ssh:/root/.ssh:ro
     healthcheck:
       # Ungesund, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief; vor dem ersten Lauf gesund

@@ -1,7 +1,8 @@
 {
   // deploy/ ist kein Workspace: das Werkzeug für mehrere Instanzen läuft ohne bun install aus dem Checkout. Die Typen
-  // für Node kommen aus den Dev-Abhängigkeiten der Wurzel, der benutzte Teil von Bun steht in instanzen/bun.d.ts
+  // für Node kommen aus den Dev-Abhängigkeiten der Wurzel, der benutzte Teil von Bun steht in instanzen/bun.d.ts.
+  // Dazu der Compose-Generator der Doku: reines JavaScript mit // @ts-check, weil die Doku-Seite nichts übersetzt
   "extends": "../tsconfig.base.json",
-  "compilerOptions": { "types": ["node"] },
-  "include": ["instanzen"]
+  "compilerOptions": { "types": ["node"], "allowJs": true },
+  "include": ["instanzen", "../docs/assets/javascripts/compose-generator*.js"]
 }
