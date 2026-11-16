@@ -583,6 +583,23 @@ describe.skipIf(!testDatabaseUrl)("Abgleich im Journal (Postgres)", () => {
     }
   }, 120_000);
 
+  // Lieferant rundet die Steuer je Position (30 × 0,85 € mit je 0,16 € = 4,80 € statt 4,85 €; Beispiel von
+  // thomas-baumeister in #1144): Haben bucht die Vorsteuer wie auf dem Beleg, „Vorgang gegen Buchung“ prüft das. Die
+  // Verprobung prüft hier die Rechnung des Lieferanten; abziehbar ist nur die gesetzlich geschuldete Steuer (UStAE 15.2
+  // Abs. 1). Deshalb ein Hinweis zum Prüfen, keine Abweichung: keine Warnung vor dem Senden, kein Halt beim Update.
+  for (const kr of ["SKR03", "SKR04"] as const)
+    for (const v of ["ist", "soll"] as const)
+      it(`Beleg mit Vorsteuer abweichend von Netto mal Satz: Hinweis, keine Abweichung (${kr}, ${v})`, async () => {
+        await reset(v, kr);
+        await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 25_50, tax: 4_80 }]);
+        const jahr = await abgleich.abgleichJahr(2026, "2026-03-31");
+        expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
+        const hinweis = expect.stringMatching(/^Bitte prüfen: Vorsteuer 19 % zur Bemessungsgrundlage 25,50 €: Buchung .* vom 10\.02\.2026 trägt 4,80 €, Netto mal Satz wären 4,85 €\./);
+        expect(jahr.hinweise).toContainEqual(hinweis);
+        const februar = await abgleich.vatAbgleich({ year: 2026, month: 2 });
+        expect(abgleich.abgleichIssues(februar)).toEqual([{ tone: "info", text: hinweis, link: "/konten" }]);
+      }, 60_000);
+
   // #274: Eine Verrechnung zweier Belege wirkt in der EÜR wie eine Zahlung; der Gewinn nach der DATEV-Formel sieht dasselbe
   it("Verrechnung zweier Belege ohne Abweichung", async () => {
     await reset("ist");
