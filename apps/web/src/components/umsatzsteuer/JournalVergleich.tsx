@@ -26,12 +26,29 @@ const KENNZAHLEN = [
 /** Gespeicherte Anmeldung oder berechnete Kennzahlen; was keine Zahl ist, zählt als 0 */
 type Werte = object;
 
+type Anmeldung = { id: string; status: string; berichtigt: boolean; correctsId: string | null };
+
+interface JournalVergleichProps {
+  year: number;
+  /** Abweichungen des Jahres beim Update auf das Journal übernommen */
+  uebernommen: boolean;
+  /** Angezeigte Anmeldung des Zeitraums */
+  current: Anmeldung | null;
+  /** Alle Anmeldungen des Zeitraums; die berichtigte steht darunter */
+  returns: readonly Anmeldung[];
+  /** Kennzahlen aus dem Journal */
+  journal: Werte;
+}
+
 /**
  * Berichtigung in einem beim Update auf das Journal übernommenen Jahr (#1200): je Kennzahl die gesendete Anmeldung, die
  * Rechnung aus dem Journal und die Differenz. Die Berichtigung beginnt mit den gesendeten Werten; die Differenz kann aus der
  * Übernahme stammen und gehört dann nicht in die Berichtigung.
  */
-export function JournalVergleich({ year, gesendet, journal }: { year: number; gesendet: Werte; journal: Werte }) {
+export function JournalVergleich({ year, uebernommen, current, returns, journal }: JournalVergleichProps) {
+  // Nur für einen Entwurf, der eine gesendete Anmeldung berichtigt, in einem übernommenen Jahr
+  const gesendet = uebernommen && current?.status === "draft" && current.berichtigt ? returns.find((r) => r.id === current.correctsId) : undefined;
+  if (!gesendet) return null;
   const wert = (werte: Werte, kz: string) => {
     const v = (werte as Record<string, unknown>)[kz];
     return typeof v === "number" ? v : 0;

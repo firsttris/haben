@@ -244,8 +244,6 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
   // Gesendete Anmeldung, deren Buchungen sich danach geändert haben (z. B. Zuordnung aufgehoben)
   const sentBasis = locked ? (current!.source === "berechnet" ? current! : current!.computed) : null;
   const drift = sentBasis !== null && sentBasis !== undefined && !sameFigures(sentBasis, computed);
-  // Berichtigung in einem beim Update übernommenen Jahr: die gesendete Anmeldung, mit der sie beginnt (#1200)
-  const gesendet = !locked && current?.berichtigt && data.uebernommen ? data.returns.find((r) => r.id === current.correctsId) : undefined;
 
   function update(field: FieldKey, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -408,7 +406,7 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             und lege bei Bedarf eine berichtigte Anmeldung an.
           </div>
         )}
-        {gesendet && <JournalVergleich year={data.period.year} gesendet={gesendet} journal={computed} />}
+        <JournalVergleich year={data.period.year} uebernommen={data.uebernommen} current={current} returns={data.returns} journal={computed} />
         {stale && mode === "berechnet" && (
           <div className="banner banner-info" role="status">
             Die Buchungen haben sich seit dem Speichern geändert; angezeigt sind die aktuellen Werte. Beim Senden werden sie übernommen.
