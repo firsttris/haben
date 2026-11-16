@@ -1086,7 +1086,9 @@ type Part =
   | z.infer<typeof splitPartSchema>
   | { kind: "kursdifferenz"; amount: number }
   // Rücklastschrift (#445): negative Zahlung auf die Rechnung mit Bezug auf die zurückgegebene Lastschrift
-  | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number };
+  | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number }
+  // Eine Zeile der Sammelzuordnung mit Gutschriften (allocateFeesToDocument): Die Summe aller Zeilen ist dort geprüft
+  | { kind: "document"; documentId: string; amount: number; sammel: true };
 
 const PRIVAT_NICHT_BUCHBAR =
   "Auf einem privaten Konto ergeben Kontoführung, Zinserträge, Privat und Geldtransit keinen Geschäftsvorfall; diese Buchung ist dort nicht möglich.";
@@ -1209,7 +1211,7 @@ async function documentBooking(
   tx: Tx,
   company: Awaited<ReturnType<typeof openBooks>>,
   bank: LockedTransaction,
-  part: { documentId: string; amount: number },
+  part: { documentId: string; amount: number; sammel?: true },
 ): Promise<{ lines: PostingLine[]; description: string; target: Zuordnungsziel }> {
   // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
   const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
@@ -1217,7 +1219,7 @@ async function documentBooking(
   if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
   await assertNotCancelled(tx, doc.id);
   const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
-  if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
+  if (!part.sammel && (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open))) {
     throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
   }
   const lines = documentPaymentPosting(part.amount, company.kontenrahmen);
@@ -1495,7 +1497,12 @@ export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid
 /**
  * Gebühren eines Zahlungsdienstleisters gegen seine Sammelrechnung: ordnet alle noch offenen Gebühren (Umsätze „Gebühr …“)
  * desselben Kontos aus dem Monat des gewählten Umsatzes dem Beleg zu, wie Teilzahlungen, bis der Beleg erledigt ist.
- * Vorsteuer bzw. § 13b laufen dann einmal über den Beleg. Gibt die Zahl der zugeordneten Gebühren zurück.
+ * Vorsteuer bzw. § 13b laufen dann einmal über den Beleg. Gibt die Zahl der zugeordneten Zeilen zurück.
+ *
+ * Gutschriften (#680, positive Zeilen „Gebühr …“, etwa die Gutschrift einer Gebühr bei Erstattung) rechnet der Dienstleister
+ * in die Rechnung ein. Sie gehen nur mit, wenn alle offenen Gebühren und Gutschriften des Monats zusammen genau den offenen
+ * Betrag des Belegs ergeben: Dann wird jede Zeile ganz zugeordnet, jede als eigene Buchung, und der Beleg steht auf 0,00 €.
+ * Sonst bleibt es bei den Gebühren; eine Gutschrift wird nie mit einer Gebühr verrechnet.
  */
 export async function allocateFeesToDocument(actor: string, input: z.infer<typeof feesSchema>): Promise<number> {
   return withActor(actor, async (tx) => {
@@ -1508,19 +1515,32 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
     if (!chosen) throw new BankError("Umsatz nicht gefunden.");
     if (chosen.purpose !== "zahlungsdienstleister") throw new BankError("Sammelrechnungen gibt es nur für Gebühren eines Zahlungsdienstleisters.");
     const month = chosen.bookingDate.slice(0, 7);
-    const fees = await tx
-      .select({ id: schema.bankTransactions.id })
+    const rows = await tx
+      .select({ id: schema.bankTransactions.id, amount: schema.bankTransactions.amount, open: openAmountSql.mapWith(Number) })
       .from(schema.bankTransactions)
       .where(
         and(
           eq(schema.bankTransactions.bankAccountId, chosen.bankAccountId),
           sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${month}`,
           sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
-          sql`${schema.bankTransactions.amount} < 0`,
           sql`${openAmountSql} <> 0`,
         ),
       )
       .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
+    const fees = rows.filter((row) => row.amount < 0);
+    if (rows.length > fees.length) {
+      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
+      if (!doc) throw new BankError("Beleg nicht gefunden.");
+      const open = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
+      if (open !== 0 && rows.reduce((sum, row) => sum + row.open, 0) === open) {
+        // Die Summe stimmt erst nach der letzten Zeile; dazwischen darf der Beleg über- oder unterschritten sein
+        for (const row of rows) {
+          const bank = await lockTransaction(tx, row.id);
+          await bookPart(tx, company, bank, { kind: "document", documentId: input.documentId, amount: bank.open, sammel: true }, null);
+        }
+        return rows.length;
+      }
+    }
     let count = 0;
     for (const fee of fees) {
       const bank = await lockTransaction(tx, fee.id);
