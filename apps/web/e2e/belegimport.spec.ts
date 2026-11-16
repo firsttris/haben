@@ -484,6 +484,59 @@ test("Beleg aus sevDesk ohne Datei: in der Belegansicht prüfen und bestätigen 
   await expect(karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" })).toHaveCount(0);
 });
 
+test("Beleg aus sevDesk: später hochgeladene Datei zeigt die Belegansicht als nachgeladen (#472)", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { storeLegacyVoucher } = await import("../src/server/modules/archiv/index.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  // Aufbau wie nach einem späteren Abruf, der die eigene Datei nachgeladen hat (sevdesk-dateien.ts); die Archivkopie nennt keine
+  const voucher = await withActor("e2e-import", async (tx) => {
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "sevdesk",
+        importId: run!.id,
+        lexofficeId: "voucher/9472",
+        type: "purchaseinvoice",
+        direction: "ausgabe",
+        number: "B-NACH-1",
+        date: "2026-01-07",
+        status: "paid",
+        contactName: "Frida Import",
+        net: 1000,
+        tax: 0,
+        gross: 1000,
+        taxes: [{ rate: 0, net: 1000, tax: 0 }],
+        categories: [],
+        raw: { voucherType: "VOU", document: null },
+      },
+      [{ role: "anhang", sourceFileId: "9602", filename: "rechnung-januar.pdf", mimeType: "application/pdf", bytes: pdf }],
+    );
+    await tx.insert(schema.legacyFileStates).values([
+      { voucherId: stored!.id, importId: run!.id, state: "ohne_datei", message: "sevDesk nennt keine Datei.", createdBy: "e2e-import" },
+      {
+        voucherId: stored!.id,
+        importId: run!.id,
+        state: "nachgeladen",
+        role: "anhang",
+        sourceFileId: "9602",
+        message: "sevDesk nennt die Datei erst nach dem ersten Abruf; ein späterer Abruf hat sie angehängt.",
+        createdBy: "e2e-import",
+      },
+    ]);
+    return stored!;
+  });
+
+  await gehe(page, `/archiv/beleg/${voucher.id}`);
+  const datei = page.getByRole("region", { name: "Datei", exact: true });
+  await expect(datei).toContainText("Nachgeladen am");
+  await expect(datei).toContainText("Ein späterer Abruf aus sevDesk hat die Datei angehängt.");
+  await expect(datei.getByRole("link", { name: "rechnung-januar.pdf herunterladen" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Dateistand" })).toContainText("sevDesk nennt die Datei erst nach dem ersten Abruf");
+  // Die PDF-Vorschau ist ein eigenes Dokument ohne Landmarke
+  expect((await new AxeBuilder({ page }).include("main").exclude(".doc-preview").analyze()).violations).toEqual([]);
+});
+
 test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", async () => {
   const { createCashIncome } = await import("../src/server/modules/bank/index.ts");
   const date = currentDay();

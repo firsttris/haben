@@ -12,6 +12,7 @@ export type {
   SevFile,
   SevInvoice,
   SevOrder,
+  SevTaxSet,
   SevVatReport,
   SevVoucher,
   SevVoucherPos,
@@ -36,6 +37,7 @@ export { mapSevRecurringVoucher, type SevDauerbeleg, type SevDauerbelegErgebnis 
 export { sevFileExpectation, sevFileFinding, type SevFileExpectation, type SevFileFinding } from "./dateistand.ts";
 export { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "./steuersaetze.ts";
 export { isSevDunning, mapSevDunning, type SevMappedDunning } from "./mahnung.ts";
+export { sevTaxSetFields, type SevTaxSetFields } from "./steuerart.ts";
 export { isSevVatReportArchivable, mapSevVatReport, type SevMappedVatReport } from "./voranmeldung.ts";
 export * from "./export/index.ts";
 export {
@@ -58,3 +60,4 @@ export {
   type SevAnlage,
   type SevAnlageStand,
 } from "./anlagen.ts";
+export { sevAccountCategory, type SevAccountCategory, type SevAccountNumbers } from "./kategorie.ts";

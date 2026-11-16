@@ -325,6 +325,13 @@ export const sevRelatedObjectsResponseSchema = z.looseObject({
 export const sevVatReportSchema = z.looseObject({ id, objectName: str });
 export type SevVatReport = z.infer<typeof sevVatReportSchema>;
 
+/**
+ * Steuerart (GET /TaxSet, in der OpenAPI nicht beschrieben, Version 1.0 belegt): eigene Steuerarten des Kontos mit den Kennzahlen der Voranmeldung für
+ * Bemessungsgrundlage (vatReportFieldNet) und Steuer (vatReportFieldTax, mehrere durch Komma). Wird unverändert archiviert.
+ */
+export const sevTaxSetSchema = z.looseObject({ id, objectName: str, taxRate: numeric, vatReportFieldNet: numeric, vatReportFieldTax: numeric });
+export type SevTaxSet = z.infer<typeof sevTaxSetSchema>;
+
 export const sevDocumentSchema = z.looseObject({ id, objectName: str, create: str, update: str, filename: str, mimeType: str, filesize: numeric });
 export type SevDocument = z.infer<typeof sevDocumentSchema>;
 

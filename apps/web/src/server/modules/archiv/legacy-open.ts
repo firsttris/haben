@@ -17,6 +17,8 @@ import {
 import { and, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
+import { ohneJit } from "../../db/ohne-jit.ts";
+import { loadSevdeskAccountCategories, sevdeskExpenseCategory, sevdeskPositionAccountsOf } from "./sevdesk-kategorie.ts";
 import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
@@ -192,25 +194,28 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
 }
 
 async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
-  const vouchers = await db
-    .select({
-      ...getTableColumns(schema.lexofficeVouchers),
-      type: effectiveType("lexoffice_vouchers"),
-      direction: effectiveDirection("lexoffice_vouchers"),
-      contactName: effectiveContactName("lexoffice_vouchers"),
-      taxes: effectiveTaxes("lexoffice_vouchers"),
-      payment: effectivePayment("lexoffice_vouchers"),
-    })
-    .from(schema.lexofficeVouchers)
-    // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar. Belege aus der
-    // Export-ZIP von sevDesk kennen keinen Zahlungsstand; offene Posten von dort trägt man von Hand ein (#1105)
-    .where(
-      and(
-        ne(schema.lexofficeVouchers.source, "sevdesk-export"),
-        or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])),
-      ),
-    )
-    .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
+  // Alle Archivbelege mit korrelierten Unterabfragen: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
+  const vouchers = await ohneJit((tx) =>
+    tx
+      .select({
+        ...getTableColumns(schema.lexofficeVouchers),
+        type: effectiveType("lexoffice_vouchers"),
+        direction: effectiveDirection("lexoffice_vouchers"),
+        contactName: effectiveContactName("lexoffice_vouchers"),
+        taxes: effectiveTaxes("lexoffice_vouchers"),
+        payment: effectivePayment("lexoffice_vouchers"),
+      })
+      .from(schema.lexofficeVouchers)
+      // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar. Belege aus der
+      // Export-ZIP von sevDesk kennen keinen Zahlungsstand; offene Posten von dort trägt man von Hand ein (#1105)
+      .where(
+        and(
+          ne(schema.lexofficeVouchers.source, "sevdesk-export"),
+          or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])),
+        ),
+      )
+      .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number),
+  );
   const [invoices, documents] = await Promise.all([
     db
       .select({ id: schema.invoices.id, voucherId: schema.invoices.lexofficeVoucherId })
@@ -527,6 +532,12 @@ async function takeOverDocument(
 ): Promise<{ kind: "document"; id: string }> {
   const file = files.find((f) => f.mimeType === "application/pdf") ?? files[0];
   if (!file) throw new TakeoverError("Zu diesem Beleg fehlt die Datei.");
+  // sevDesk: Kategorie aus dem Kontostamm des Buchungskontos (#472), sonst wie bisher aus dem Namen
+  const fromAccount =
+    voucher.source === "sevdesk"
+      ? sevdeskExpenseCategory(voucher.categories, sevdeskPositionAccountsOf(voucher.raw), await loadSevdeskAccountCategories())
+      : null;
+  const category = fromAccount ?? categoryFor(voucher.categories);
   return withActor(actor, async (tx) => {
     const covering = await lockedCovering(tx, voucher, cutoff);
     const company = await openBooks(tx);
@@ -545,7 +556,7 @@ async function takeOverDocument(
         invoiceNumber: voucher.number,
         documentDate: voucher.date,
         dueDate: voucher.dueDate,
-        category: categoryFor(voucher.categories),
+        category,
         payment: "bank",
         note: `Aus ${SOURCE_LABEL[voucher.source]} übernommen; die Vorsteuer ist dort schon angemeldet.`,
         net: voucher.net,

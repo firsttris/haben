@@ -42,6 +42,8 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
+import { ohneJit } from "../../db/ohne-jit.ts";
+import { loadSevdeskAccountCategories, sevdeskCategories, sevdeskPositionAccounts } from "./sevdesk-kategorie.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LegacyCategoryRow, LegacyFileState, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
@@ -52,6 +54,7 @@ import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillTax
 import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
+import { customTaxSetId, legacyTaxSetFields, vatFieldsOf } from "./sevdesk-steuerarten.ts";
 import { FILE_STATUS_LABELS, fileCheck, fileCounts, fileStateHistory, latestFileStateSql, legacyFileStatus, OPEN_FILE_STATUSES } from "./dateistand.ts";
 
 export class LexofficeError extends UserError {}
@@ -472,6 +475,7 @@ export async function legacyVoucherDetail(id: string) {
       createdAt: schema.lexofficeVouchers.createdAt,
       accountingType: accountingTypeKinds("lexoffice_vouchers"),
       ohneBeleg: WITHOUT_RECEIPT,
+      positionAccounts: sevdeskPositionAccounts("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
     .where(eq(schema.lexofficeVouchers.id, id));
@@ -484,20 +488,25 @@ export async function legacyVoucherDetail(id: string) {
       mimeType: schema.lexofficeVoucherFiles.mimeType,
       size: schema.lexofficeVoucherFiles.size,
       sha256: schema.lexofficeVoucherFiles.sha256,
+      lexofficeFileId: schema.lexofficeVoucherFiles.lexofficeFileId,
     })
     .from(schema.lexofficeVoucherFiles)
-    .where(eq(schema.lexofficeVoucherFiles.voucherId, id));
+    .where(eq(schema.lexofficeVoucherFiles.voucherId, id))
+    .orderBy(schema.lexofficeVoucherFiles.createdAt, schema.lexofficeVoucherFiles.id);
   // Mahnstufen der Rechnung aus der Quelle; nur Archiv, ohne Wirkung auf Betrag und Zahlungsstand
   const dunnings = voucher.direction === "einnahme" ? await legacyDunningsFor([voucher.lexofficeId]) : [];
   // Dateistand mit Verlauf (#345); bestätigen lässt sich nur ein Beleg aus sevDesk mit dem offenen Stand „ohne Datei“
   const fileStates = await fileStateHistory(id);
   const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
   const canConfirmWithoutFile = fileStatus === "ohne_datei_offen" && voucher.source === "sevdesk" && voucher.lexofficeId.startsWith("voucher/");
+  const { positionAccounts, ...shown } = voucher;
+  const categories = positionAccounts ? sevdeskCategories(voucher.categories, positionAccounts, await loadSevdeskAccountCategories()) : voucher.categories;
   // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).
   // Nur lesend korrigieren; die unveränderliche Archivzeile bleibt erhalten. Quelle: https://github.com/firsttris/haben/issues/565
   return {
     voucher: {
-      ...voucher,
+      ...shown,
+      categories,
       serviceFrom: voucher.source === "wiso" ? null : voucher.serviceFrom,
       serviceTo: voucher.source === "wiso" ? null : voucher.serviceTo,
       payment: visiblePayment(voucher),
@@ -505,7 +514,13 @@ export async function legacyVoucherDetail(id: string) {
       accountingTypeIssue: accountingTypeIssue(voucher.accountingType),
       accountingTypeDecidable: accountingTypeDecidable(voucher.accountingType),
     },
-    files,
+    // Von einem späteren Abruf angehängt: Zeitpunkt des Stands „nachgeladen“ zu Rolle und Quell-ID der Datei
+    files: files.map((f) => ({
+      ...f,
+      reloadedAt:
+        fileStates.find((s) => s.state === "nachgeladen" && s.role === f.role && s.sourceFileId === (f.role === "anhang" ? f.lexofficeFileId : null))
+          ?.createdAt ?? null,
+    })),
     dunnings,
     fileState: { status: fileStatus, label: FILE_STATUS_LABELS[fileStatus], history: fileStates, canConfirmWithoutFile },
   };
@@ -530,7 +545,8 @@ function legacyPayments(v: { source: LegacySource; gross: number; status: string
 /**
  * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
  * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
- * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt. FastBill: VAT_CASE (fastbill-abgleich.ts).
+ * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt; eine eigene Steuerart (taxType custom) ordnet
+ * sevdesk-steuerarten.ts über ihre Kennzahlen zu. FastBill: VAT_CASE (fastbill-abgleich.ts).
  */
 function taxTypeOf(t: string) {
   return sql.raw(`case when ${t}.source = 'fastbill' then ${fastbillTaxType(t)}
@@ -565,37 +581,46 @@ export async function reconciliation() {
   const company = await loadCompany();
   const versteuerung: Versteuerung = company.versteuerung;
 
-  const voucherRows = await db
-    .select({
-      source: schema.lexofficeVouchers.source,
-      lexofficeId: schema.lexofficeVouchers.lexofficeId,
-      direction: effectiveDirection("lexoffice_vouchers"),
-      type: effectiveType("lexoffice_vouchers"),
-      number: schema.lexofficeVouchers.number,
-      date: schema.lexofficeVouchers.date,
-      status: schema.lexofficeVouchers.status,
-      net: effectiveAmount("lexoffice_vouchers", "net"),
-      tax: effectiveAmount("lexoffice_vouchers", "tax"),
-      gross: effectiveAmount("lexoffice_vouchers", "gross"),
-      taxes: effectiveTaxes("lexoffice_vouchers"),
-      categories: schema.lexofficeVouchers.categories,
-      payment: effectivePayment("lexoffice_vouchers"),
-      payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
-      taxType: TAX_TYPE,
-      taxSubType: TAX_SUB_TYPE,
-      ohneBeleg: WITHOUT_RECEIPT,
-      fileState: latestFileStateSql("lexoffice_vouchers"),
-      ohneBelegbild: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBelegbild')::boolean, false)`,
-      privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
-      bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
-      accountingTypeUnclear: accountingTypeUnclear("lexoffice_vouchers"),
-      // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
-      files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
-    })
-    .from(schema.lexofficeVouchers);
+  // Die geschätzten Kosten wachsen mit dem Quadrat der Belege; mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
+  const voucherRows = await ohneJit((tx) =>
+    tx
+      .select({
+        source: schema.lexofficeVouchers.source,
+        lexofficeId: schema.lexofficeVouchers.lexofficeId,
+        direction: effectiveDirection("lexoffice_vouchers"),
+        type: effectiveType("lexoffice_vouchers"),
+        number: schema.lexofficeVouchers.number,
+        date: schema.lexofficeVouchers.date,
+        status: schema.lexofficeVouchers.status,
+        net: effectiveAmount("lexoffice_vouchers", "net"),
+        tax: effectiveAmount("lexoffice_vouchers", "tax"),
+        gross: effectiveAmount("lexoffice_vouchers", "gross"),
+        taxes: effectiveTaxes("lexoffice_vouchers"),
+        categories: schema.lexofficeVouchers.categories,
+        payment: effectivePayment("lexoffice_vouchers"),
+        payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
+        taxType: TAX_TYPE,
+        taxSubType: TAX_SUB_TYPE,
+        taxSetId: customTaxSetId("lexoffice_vouchers"),
+        ohneBeleg: WITHOUT_RECEIPT,
+        fileState: latestFileStateSql("lexoffice_vouchers"),
+        ohneBelegbild: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBelegbild')::boolean, false)`,
+        privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
+        bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
+        accountingTypeUnclear: accountingTypeUnclear("lexoffice_vouchers"),
+        positionAccounts: sevdeskPositionAccounts("lexoffice_vouchers"),
+        // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
+        files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
+      })
+      .from(schema.lexofficeVouchers),
+  );
   // Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, in GmbH und UG
   // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
-  const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) ?? (v.bbNeutral ? ("geldtransit" as const) : null) }));
+  const known = await loadSevdeskAccountCategories();
+  const classified = voucherRows.map((v) => {
+    const categories = sevdeskCategories(v.categories, v.positionAccounts, known);
+    return { ...v, categories, neutral: neutralKindOf({ ...v, categories }, company.rechtsform) ?? (v.bbNeutral ? ("geldtransit" as const) : null) };
+  });
   // BuchhaltungsButler-Belege nur als Archiv (Suche, PDF): Einnahme, Ausgabe oder neutral ließe sich aus den Konten nur
   // schätzen. Summen und Steuer kommen für diese Jahre aus dem DATEV-Buchungsstapel desselben Exports. Ebenso die Belege aus
   // der Export-ZIP von sevDesk: Darlehen, Privates, Steuern und Zinsen stehen dort als Beleg ohne Kategorie (#1105).
@@ -629,6 +654,8 @@ export async function reconciliation() {
     .from(schema.legacyVatReportFiles)
     .innerJoin(schema.legacyVatReports, eq(schema.legacyVatReportFiles.vatReportId, schema.legacyVatReports.id));
   const lastImport = await latestImport();
+  // Eigene Steuerarten aus sevDesk: Kennzahlen aus dem jüngsten Abruf, auch für früher abgerufene Belege
+  const taxSets = await legacyTaxSetFields();
   // Für Jahre ohne Belege per API (Umzug nur über DATEV): Summen aus dem Buchungsstapel
   const datevRows = await db
     .select({
@@ -725,6 +752,7 @@ export async function reconciliation() {
                 payments: legacyPayments(v),
                 taxType: v.taxType,
                 taxSubType: v.taxSubType,
+                vatFields: vatFieldsOf(v.taxSetId, taxSets),
               })),
             versteuerung,
           ).filter((m) => m.month.startsWith(`${year}-`));
@@ -851,17 +879,20 @@ export async function legacyVouchersForPeriod(filter: {
   limit: number;
 }): Promise<{ total: number; vouchers: LegacyVoucherForVat[]; neutral: LegacyNeutralSum[] }> {
   if (filter.withPayments) {
-    const sevdeskRows = await db
-      .select({
-        source: schema.lexofficeVouchers.source,
-        direction: effectiveDirection("lexoffice_vouchers"),
-        gross: effectiveAmount("lexoffice_vouchers", "gross"),
-        status: schema.lexofficeVouchers.status,
-        payment: effectivePayment("lexoffice_vouchers"),
-        payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
-      })
-      .from(schema.lexofficeVouchers)
-      .where(eq(schema.lexofficeVouchers.source, "sevdesk"));
+    // Ausdrücke über alle sevDesk-Belege: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
+    const sevdeskRows = await ohneJit((tx) =>
+      tx
+        .select({
+          source: schema.lexofficeVouchers.source,
+          direction: effectiveDirection("lexoffice_vouchers"),
+          gross: effectiveAmount("lexoffice_vouchers", "gross"),
+          status: schema.lexofficeVouchers.status,
+          payment: effectivePayment("lexoffice_vouchers"),
+          payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
+        })
+        .from(schema.lexofficeVouchers)
+        .where(eq(schema.lexofficeVouchers.source, "sevdesk")),
+    );
     // Wie der Abgleich: Bei Ist-Versteuerung zählen die Zahlungen nur auf der Einnahmenseite
     if (sevdeskRows.some((v) => v.direction === "einnahme" && unclearFrom(v, filter.period))) {
       throw new LexofficeError(
@@ -871,34 +902,38 @@ export async function legacyVouchersForPeriod(filter: {
   }
   const like = `${filter.period}%`;
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
-  const rows = await db.execute<{
-    id: string;
-    source: LegacySource;
-    type: string;
-    direction: "einnahme" | "ausgabe";
-    number: string;
-    date: string;
-    status: string;
-    contact_name: string;
-    currency: string;
-    net: number;
-    tax: number;
-    gross: number;
-    taxes: LegacyTaxRow[];
-    payment: LegacyPayment | null;
-    categories: LegacyCategoryRow[];
-    privat: boolean;
-    tax_type: string | null;
-    tax_sub_type: string | null;
-    files: number;
-    accounting_type: AccountingTypeKinds | null;
-  }>(sql`
+  // Mit Zahlungen prüft die Bedingung jeden Archivbeleg mit effectivePayment; mit JIT dauerte das Kompilieren Sekunden
+  const rows = await ohneJit((tx) =>
+    tx.execute<{
+      id: string;
+      source: LegacySource;
+      type: string;
+      direction: "einnahme" | "ausgabe";
+      number: string;
+      date: string;
+      status: string;
+      contact_name: string;
+      currency: string;
+      net: number;
+      tax: number;
+      gross: number;
+      taxes: LegacyTaxRow[];
+      payment: LegacyPayment | null;
+      categories: LegacyCategoryRow[];
+      privat: boolean;
+      tax_type: string | null;
+      tax_sub_type: string | null;
+      files: number;
+      accounting_type: AccountingTypeKinds | null;
+      position_accounts: (string | null)[] | null;
+    }>(sql`
     select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
       ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${latestFileStateSql("v")} as file_state,
-      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeKinds("v")} as accounting_type
+      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeKinds("v")} as accounting_type,
+      ${sevdeskPositionAccounts("v")} as position_accounts
     from lexoffice_vouchers v
     where (v.date::text like ${like}
       ${
@@ -915,10 +950,15 @@ export async function legacyVouchersForPeriod(filter: {
       and v.source not in ('buchhaltungsbutler', 'sevdesk-export')
       ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
-    order by v.date, v.number`);
+    order by v.date, v.number`),
+  );
   // Was weder Einnahme noch Ausgabe ist, geht nicht in die Umsatzsteuer ein, wie im Abgleich; es steht summiert daneben
   const { rechtsform } = await loadCompany();
-  const classified = [...rows].map((r) => ({ ...r, neutral: neutralKindOf(r, rechtsform) }));
+  const known = await loadSevdeskAccountCategories();
+  const classified = [...rows].map((r) => ({
+    ...r,
+    neutral: neutralKindOf({ ...r, categories: sevdeskCategories(r.categories, r.position_accounts, known) }, rechtsform),
+  }));
   const neutral = legacyNeutralSums(classified.flatMap((r) => (r.neutral ? [{ kind: r.neutral, direction: r.direction, gross: Number(r.gross) }] : [])));
   const all = classified
     .filter((r) => !r.neutral)
