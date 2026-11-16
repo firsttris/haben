@@ -321,7 +321,8 @@ Solange die Anmeldung nicht gesendet ist, prüft Haben, was im Monat noch fehlt 
 | … Belege sind noch nicht gebucht | Warnung | Ungebuchte Belege mit Belegdatum im Monat oder ganz ohne Belegdatum. |
 | … Rechnungsentwürfe mit Datum im Zeitraum | Hinweis | Nicht festgeschriebene Rechnungen mit Rechnungsdatum im Monat. |
 | Regulär besteuerte Umsätze zu 0 % | Warnung | Im Monat gibt es regulär besteuerte Umsätze zu 0 %, die Haben nicht meldet. Ist es Reverse Charge, eine Leistung ins Drittland oder steuerfrei, stellst du das an der Rechnung ein. |
-| Im Journal passt etwas nicht | Warnung | Eine Buchung im Zeitraum, deren Steuer nicht zur Bemessungsgrundlage passt (Verprobung), mit gebuchtem und erwartetem Betrag. Was verglichen wird, steht unter [Abgleich im Journal](buchhaltung.md#abgleich-im-journal). Der Link führt zu den Konten. |
+| Im Journal passt etwas nicht | Warnung | Eine Buchung im Zeitraum, deren Steuer nicht zur Bemessungsgrundlage passt (Verprobung), oder die gesendete ZM des Quartals passt nicht zu Kz 21 bzw. 41, mit beiden Beträgen. Was verglichen wird, steht unter [Abgleich im Journal](buchhaltung.md#abgleich-im-journal). Der Link führt zu den Konten. |
+| Bitte prüfen: Vorsteuer … | Hinweis | Die Vorsteuer eines Belegs weicht von Netto mal Satz ab, meist weil der Lieferant je Position rundet. |
 
 Verrechnete und als [privat gekennzeichnete](bank.md#privates-konto-umsätze-ohne-buchungsart) Bankumsätze zählen bei Ein- und Ausgängen nicht.
 
