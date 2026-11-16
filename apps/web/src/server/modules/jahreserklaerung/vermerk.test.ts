@@ -98,6 +98,26 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     });
   });
 
+  // Vorschlag von thomas-baumeister in #1144: Ein neuer Vermerk hält alle gerechneten Zahlen fest wie eine Übermittlung, damit
+  // die Prüfung gegen das Journal später jede Zeile vergleicht und nicht nur Gewinn bzw. Abschlusszahlung
+  it("hält alle gerechneten Zahlen fest; die Prüfung gegen das Journal vergleicht jede davon", async () => {
+    const berechnet = await gerechnet();
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456780", { amount: berechnet }), TODAY);
+    const [zeile] = await sql`select figures from annual_submissions where form = 'euer'`;
+    expect(zeile!.figures).toMatchObject({ amount: berechnet, gerechnet: expect.objectContaining({ gewinn: berechnet }) });
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    // Gleicher Gewinn, aber eine Zeile anders als heute gerechnet: fällt nur über die festgehaltenen Zahlen auf
+    await leeren(sql)`truncate annual_submissions`;
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456781', '2026-05-20', 'x',
+              ${JSON.stringify({ amount: berechnet, gerechnet: { gewinn: berechnet, "ausgabe:software": 100_00, einnahmen: 100_00 } })}::jsonb, '', '', '')`;
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([
+      { year: 2025, form: "euer", art: "vermerkt", feld: "ausgabe:software", erklaert: 100_00, journal: 0 },
+      { year: 2025, form: "euer", art: "vermerkt", feld: "einnahmen", erklaert: 100_00, journal: 0 },
+    ]);
+  });
+
   it("nimmt bei der Einkommensteuererklärung keinen Betrag an, auch nicht Habens Schätzung (#1073)", async () => {
     // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag; eine Schätzung gehört nicht in den Vermerk
     const geschaetzt = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
