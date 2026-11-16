@@ -34,7 +34,7 @@ flowchart LR
   Packages -.->|optional| Stores["Google Play, App Store Connect<br/>Finanzberichte"]
 ```
 
-Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über Server Functions; Dateien (Rechnungs-PDFs, Belege, Protokolle, CSV, ZIP) kommen über eigene API-Routen. Nach außen verbindet sich der Server nur mit ELSTER (über ERiC, dazu `download.elster.de` für das ERiC-Paket), optional mit der Anthropic-API oder einem OpenAI-kompatiblen KI-Dienst (selbst betrieben oder in der Cloud), mit Enable Banking für den Kontoabruf, mit Google Play und App Store Connect für die Finanzberichte der App-Stores, dem Datenportal des BMF für die Umrechnungskurse, dem eigenen Mailserver (SMTP, IMAP) und während des Umzugs mit Lexware Office oder sevDesk.
+Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über Server Functions; Dateien (Rechnungs-PDFs, Belege, Protokolle, CSV, ZIP) kommen über eigene API-Routen. Nach außen verbindet sich der Server nur mit ELSTER (über ERiC, dazu `download.elster.de` für das ERiC-Paket), optional mit der Anthropic-API oder einem OpenAI-kompatiblen KI-Dienst (selbst betrieben oder in der Cloud), mit Enable Banking für den Kontoabruf, mit Google Play und App Store Connect für die Finanzberichte der App-Stores, dem Datenportal des BMF für die Umrechnungskurse, GitHub (`api.github.com`) für die neueste stabile Version (abschaltbar mit `HABEN_UPDATE_CHECK=off`), dem eigenen Mailserver (SMTP, IMAP) und während des Umzugs mit Lexware Office oder sevDesk.
 
 ## Module
 

@@ -362,6 +362,23 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
 });
 
+test("Version: installierte Version ohne Fehlermeldung, Update-Anleitung verlinkt (#1239)", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Version", exact: true });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText(/Installiert: v\d+\.\d+\.\d+/);
+  await expect(card.getByRole("alert")).toHaveCount(0);
+  await expect(card.getByRole("link", { name: "Versionshinweise" })).toHaveAttribute(
+    "href",
+    /^https:\/\/github\.com\/firsttris\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
+  );
+  await card.getByText("So aktualisierst du").click();
+  await expect(card.getByRole("link", { name: "Docker Compose und Podman Quadlets" })).toHaveAttribute(
+    "href",
+    "https://haben.app/installation-backup.html#updates",
+  );
+});
+
 test("Eingesetzte Versionen: Verlauf und Versionshinweise anzeigen (#841)", async () => {
   await go("/einstellungen?bereich=export");
   const card = page.getByRole("region", { name: "Eingesetzte Versionen" });

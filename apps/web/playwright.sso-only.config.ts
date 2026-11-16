@@ -73,6 +73,7 @@ export default defineConfig({
         BETTER_AUTH_SECRET: "e2e-oidc-secret-mindestens-32-zeichen",
         HABEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
         HABEN_SCHEDULER: "off",
+        HABEN_UPDATE_CHECK: "off",
         PORT: "3218",
         OIDC_ONLY: "true",
         OIDC_ISSUER: issuer,

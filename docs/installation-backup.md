@@ -151,7 +151,7 @@ Die alten Stände zeigt `restore.sh` ohne Argument unter dem Hostnamen des Serve
 
 ## Updates
 
-Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
+Welche Version die neueste ist, zeigt **Einstellungen › Export › Version**. Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
 
 ```sh
 docker compose exec backup backup.sh   # Stand vor dem Update sichern
