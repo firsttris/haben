@@ -171,10 +171,15 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         expect((await umstellung.umstellungPruefen(today, [2025])).status).toBe("abweichung");
         expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
         expect(await stand()).toEqual({ ergebnis: "uebernommen", stichjahr_vorher: 2027, befunde: (ergebnis as { befunde: unknown }).befunde });
-        // Die Integritätsprüfung gleicht das übernommene Jahr nicht mehr ab und sagt es
+        // Die Integritätsprüfung blendet nur die übernommenen Befunde aus und sagt es (Vorschlag von thomas-baumeister in
+        // #1144); eine neue Abweichung im selben Jahr meldet sie weiter, in der Integritätsprüfung wie vor dem Senden
         const jahr = await abgleich.abgleichJahr(2026, today);
         expect(jahr.zeilen.filter((z) => z.bereich === "ustva")).toEqual([]);
-        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal Abweichungen/);
+        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal 1 Abweichung übernommen worden/);
+        await gesendet(4, 200);
+        expect(abgleich.abweichungen((await abgleich.abgleichJahr(2026, today)).zeilen)).toEqual([
+          expect.objectContaining({ bereich: "ustva", zeitraum: "2026-04", posten: "Gesendete Voranmeldung, Kz 81" }),
+        ]);
       }, 60_000);
 
       it(`ältere Buchungen ohne Steuerschlüssel bzw. Bemessungsgrundlage: die Verprobung nennt Monat und Buchung (${kr}, ${v})`, async () => {
@@ -221,12 +226,11 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           ],
         });
         expect((await stand())!.ergebnis).toBe("offen");
-        // Übernommen: Wie Verprobung und gesendete Voranmeldungen prüft die Integritätsprüfung die gemeldete Bemessungsgrundlage
-        // in diesem Jahr nicht mehr; sonst meldete sie die übernommene Abweichung jede Woche wieder
+        // Übernommen: Die übernommene Abweichung meldet die Integritätsprüfung nicht jede Woche wieder
         expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
         const jahr = await abgleich.abgleichJahr(2026, today);
         expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
-        expect(jahr.hinweise.join()).toMatch(/gemeldete Bemessungsgrundlage erledigter Ist-Rechnungen/);
+        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal 1 Abweichung übernommen worden/);
       }, 60_000);
 
       it(`übermittelte bzw. vermerkte Jahreserklärung: gleich besteht, abweichend nennt sie Erklärung und Feld (${kr}, ${v})`, async () => {
