@@ -33,6 +33,7 @@ export const DURCHLAEUFE = {
   // Fragen zur Einrichtung und ausgeblendete Bereiche (#266): braucht eine Ersteinrichtung ohne Firmendaten
   einrichtung: 25,
   umstellung: 26,
+  fremdrechnung: 27,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
