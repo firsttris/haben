@@ -93,6 +93,12 @@ import { UnitsCard } from "../../components/UnitsCard.tsx";
 import { getUnits } from "../../server/functions/units.ts";
 import { Status } from "../../components/Status.tsx";
 
+/** Anbindungen unter Bank: Kontoabruf über Enable Banking, Finanzberichte der Stores und Etsy Payments */
+async function loadBankConnections() {
+  const [enableBanking, stores, etsy] = await Promise.all([getEnableBankingSettings(), getStoreConnections(), getEtsySettings()]);
+  return { enableBanking, stores, etsy };
+}
+
 export const Route = createFileRoute("/_app/einstellungen")({
   beforeLoad: ({ context, search }) => {
     if (context.oidc.only && search.bereich === "sicherheit") throw redirect({ to: "/einstellungen", search: { bereich: "zugaenge" }, replace: true });
@@ -117,9 +123,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       backup,
       mcp,
       rates,
-      enableBanking,
-      stores,
-      etsy,
+      bankConnections,
       customPages,
       zugaenge,
       extraction,
@@ -145,9 +149,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getBackupStatus(),
       getMcpSettings(),
       getExchangeRates(),
-      getEnableBankingSettings(),
-      getStoreConnections(),
-      getEtsySettings(),
+      loadBankConnections(),
       getCustomPages(),
       getZugaenge(),
       getExtractionSettings(),
@@ -176,9 +178,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       backup,
       mcp,
       rates,
-      enableBanking,
-      stores,
-      etsy,
+      ...bankConnections,
       customPages,
       zugaenge,
       extraction,
