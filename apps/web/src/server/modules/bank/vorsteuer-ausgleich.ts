@@ -151,16 +151,25 @@ async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise
  * schreibt umsatzsteuer/vorsteuer-freigabe.ts danach für den Rest fort. Ein Ausgleich nach der Ausführung zieht nichts mehr, weil die
  * Freigabe dann steht (siehe `vorsteuerRest`). `kursdifferenz`: Der Ausgleich ist eine Kursdifferenz; vor der Ausführung
  * zieht sie nichts.
+ *
+ * Liegt der Tag des Ausgleichs vor dem Rechnungsdatum, zieht er ebenfalls nichts: Abziehbar ist die Vorsteuer erst, wenn
+ * Rechnung und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2; Befund der
+ * Selbstprüfung in #930). Den Anteil gibt umsatzsteuer/vorsteuer-freigabe.ts mit eigener Freigabe zum Rechnungsdatum
+ * frei, damit er nicht rückwirkend in einem Zeitraum steht, in dem die Rechnung noch nicht vorlag.
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
-  doc: { id: string; privateShare: number },
+  doc: { id: string; privateShare: number; documentDate: string | null },
   totals: InvoiceTotals,
   amount: number,
   kontenrahmen: Kontenrahmen,
   datum: string,
   kursdifferenz = false,
 ): Promise<PostingLine[]> {
+  // Vorkasse vor dem Rechnungsdatum: nichts umbuchen, sondern die Freigabe abwarten, die den Anteil zum Rechnungsdatum
+  // zieht. Nur bei einem Beleg, der seine Vorsteuer über eine Freigabe führt; ohne sie (Jahr der Ausführung
+  // abgeschlossen) bleibt es beim Ausgleich mit der Zahlung, sonst wäre die Steuer nirgends mehr abziehbar.
+  if (doc.documentDate && datum < doc.documentDate && (await ausfuehrungMitFreigabe(tx, doc.id)) !== null) return [];
   const anteile = await vorsteuerRest(tx, doc, totals, amount, datum, kursdifferenz);
   return anteile === null ? [] : vorsteuerAusgleichPosting(anteile, kontenrahmen);
 }
@@ -183,22 +192,6 @@ export async function vorsteuerAbschreibung(
   return anteile?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
 }
 
-/**
- * Tag der Freigabe zum Leistungsdatum (#693, umsatzsteuer/vorsteuer-freigabe.ts), wenn sie steht; null ohne Freigabe oder
- * wenn ein Storno sie aufgehoben hat
- */
-async function freigabeAm(tx: Tx, documentId: string): Promise<string | null> {
-  const [row] = await tx.execute<{ date: string }>(sql`
-    select e.date::text as date
-      from journal_entries e
-     where e.source_type = 'freigabe' and e.source_id = ${documentId} and e.reverses_id is null
-       and not exists (select 1 from journal_entries r where r.reverses_id = e.id)
-     -- Nach einer Aufhebung nach der Ausführung kann eine zweite Freigabe dazukommen; es zählt die erste
-     order by e.date
-     limit 1`);
-  return row?.date ?? null;
-}
-
 /** Der Anteil dieses Ausgleichs je Steuersatz, mit dem Vorzeichen des Ausgleichs; null ohne Zwischenkonto-Buchung */
 async function vorsteuerRest(
   tx: Tx,
@@ -211,12 +204,13 @@ async function vorsteuerRest(
   // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
   // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
   if (!(await aufDemZwischenkonto(tx, doc.id))) return null;
-  // Ab der Freigabe ist die ganze Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, Leistung und Rechnung liegen vor):
-  // Ein Ausgleich an oder nach ihrem Tag bucht nichts mehr um, auch eine Teilzahlung nicht, und ein Skonto mindert die
-  // Vorsteuer wie bei jedem Beleg (§ 17 Abs. 1 Satz 2 UStG)
-  const freigabe = await freigabeAm(tx, doc.id);
-  if (freigabe !== null && datum >= freigabe) return null;
+  // Ab der Ausführung ist die ganze Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, Leistung und Rechnung liegen
+  // vor): Ein Ausgleich an oder nach ihrem Tag bucht nichts mehr um, auch eine Teilzahlung nicht, und ein Skonto mindert
+  // die Vorsteuer wie bei jedem Beleg (§ 17 Abs. 1 Satz 2 UStG). Maßgeblich ist die Ausführung selbst, nicht der Tag der
+  // Freigabe: Eine Zahlung vor dem Rechnungsdatum wird schon zum Rechnungsdatum freigegeben (#930), abziehbar wird die
+  // ganze Steuer aber erst mit der Leistung.
   const ausfuehrung = await ausfuehrungMitFreigabe(tx, doc.id);
+  if (ausfuehrung !== null && datum >= ausfuehrung) return null;
   if (kursdifferenz && ausfuehrung !== null && datum < ausfuehrung) return [];
   const bisher = await bisherUmgebucht(tx, doc.id, datum);
   // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
@@ -235,4 +229,19 @@ async function vorsteuerRest(
       tax: t.tax - recorded.reduce((sum, r) => sum + r.tax, 0),
     };
   });
+}
+
+/**
+ * Anteil einer Zahlung, die vor dem Rechnungsdatum liegt (#930): Er ist mit der Rechnung abziehbar, nicht schon mit der
+ * Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2), und deshalb bucht ihn
+ * umsatzsteuer/vorsteuer-freigabe.ts als eigene Freigabe zum Rechnungsdatum. Zurück kommt, was die Ausgleiche nach dem
+ * Rechnungsdatum schon gezogen haben nicht mehr — also genau der noch offene Vorkasse-Anteil; leer, wenn es keinen gibt.
+ */
+export async function anteilZumRechnungsdatum(
+  tx: Tx,
+  doc: { id: string; privateShare: number; documentDate: string | null },
+  totals: InvoiceTotals,
+): Promise<TaxShare[]> {
+  if (!doc.documentDate) return [];
+  return (await vorsteuerRest(tx, doc, totals, 0, doc.documentDate)) ?? [];
 }

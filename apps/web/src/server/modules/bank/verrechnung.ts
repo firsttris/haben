@@ -61,6 +61,8 @@ async function beleg(tx: Tx, id: string, sperren = false) {
     .select({
       id: schema.documents.id,
       date: schema.documents.documentDate,
+      // Rechnungsdatum für den Vorsteuerzeitpunkt: Der Ausgleich zieht nichts, wenn die Zahlung davor liegt (#930)
+      documentDate: schema.documents.documentDate,
       supplier: schema.documents.supplierName,
       invoiceNumber: schema.documents.invoiceNumber,
       filename: schema.documents.filename,

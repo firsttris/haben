@@ -1,6 +1,7 @@
 import { ACCOUNTS, leistungsdatum, vorsteuerAusgleichPosting, type TaxCode, type TaxShare } from "@haben/core";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
+import { anteilZumRechnungsdatum, belegTotals } from "../bank/vorsteuer-ausgleich.ts";
 import { post } from "../buchhaltung/index.ts";
 
 /** Buchhaltungsrahmen, wie `post` ihn erwartet (Kontenrahmen und Rechtsform der Firma) */
@@ -19,7 +20,9 @@ type Books = Parameters<typeof post>[1];
  * Wird vor der Ausführung gezahlt, ist die Vorsteuer schon mit der Zahlung abziehbar: § 15 Abs. 1 Satz 1 Nr. 1 Satz 3
  * UStG verlangt Rechnung und Zahlung, nicht die Ausführung (Abschnitt 15.3 UStAE). Dann gibt die Zahlung selbst frei,
  * und die Freigabe zur Ausführung unterbleibt — sonst stünde dieselbe Steuer zweimal in der Voranmeldung. Bei
- * Teilzahlungen gilt das je Zahlung für ihren Anteil; der Rest kommt mit der Ausführung.
+ * Teilzahlungen gilt das je Zahlung für ihren Anteil; der Rest kommt mit der Ausführung. Beides gilt erst ab dem
+ * Rechnungsdatum: Liegt die Zahlung davor, gibt eine eigene Freigabe zum Rechnungsdatum den bezahlten Anteil frei, denn
+ * abziehbar ist die Steuer erst, wenn Rechnung und Zahlung vorliegen (UStAE 15.3 Abs. 1 Satz 2; #930).
  *
  * Die vorausdatierte Freigabe steht ab dem Buchen im Journal, die Zahlung kommt später. Sie lässt sich deshalb nicht
  * beim Buchen entscheiden, sondern wird beim Ereignis nachgezogen (#930, Entscheidung des Maintainers): Eine Zahlung vor
@@ -137,6 +140,18 @@ async function freigabeUmkehren(
 }
 
 /**
+ * Ist das Jahr des Tages abgeschlossen? Dann bucht Haben dort nichts mehr; die Steuer bleibt lieber beim Ausgleich mit
+ * der Zahlung, statt die Buchung des Belegs scheitern zu lassen.
+ */
+async function jahrGeschlossen(tx: Tx, tag: string): Promise<boolean> {
+  const [geschlossen] = await tx
+    .select({ year: schema.yearClosings.year })
+    .from(schema.yearClosings)
+    .where(eq(schema.yearClosings.year, Number(tag.slice(0, 4))));
+  return geschlossen !== undefined;
+}
+
+/**
  * Gibt die beim Buchen geparkte Vorsteuer im Monat der Ausführung frei. Liefert die ID der Buchung oder null, wenn es
  * nichts freizugeben gibt: keine Leistung nach dem Belegdatum, keine Steuer auf dem Zwischenkonto, schon freigegeben,
  * oder das Jahr der Ausführung ist abgeschlossen (dann bleibt es beim Ausgleich mit der Zahlung).
@@ -167,11 +182,7 @@ export async function freigabeAmAusfuehrung(
   // Abgeschlossenes Jahr: Dann bleibt es beim Ausgleich mit der Zahlung, statt die Buchung des Belegs scheitern zu
   // lassen. Nur dieser eine Fall wird vorher geprüft; ein LedgerError kann auch vom Wechsel des Kontenrahmens oder von
   // geänderten Firmendaten kommen, und der darf nicht stillschweigend eine Buchung verschlucken.
-  const [geschlossen] = await tx
-    .select({ year: schema.yearClosings.year })
-    .from(schema.yearClosings)
-    .where(eq(schema.yearClosings.year, Number(am.slice(0, 4))));
-  if (geschlossen) return null;
+  if (await jahrGeschlossen(tx, am)) return null;
 
   return await post(tx, books, {
     date: am,
@@ -223,13 +234,13 @@ export async function freigabeNachziehen(tx: Tx, documentId: string, books: Book
   // Nur Belege mit Freigabe zum Leistungsdatum; die Gutschrift nach § 17 Abs. 1 UStG hat keine
   if (!(await hatFreigabe(tx, doc.id))) return false;
 
-  // Was gerade noch auf dem Zwischenkonto steht. Null heißt: Die Freigabe zum Ausführungsdatum deckt den Rest schon
-  // genau — nach der Ausführung gezahlt ändert sich nichts, und es entstehen keine Buchungen ohne Anlass.
+  // Was gerade noch auf dem Zwischenkonto steht.
   const stand = await zwischenkontoSaldo(tx, doc.id);
-  if (stand.length === 0) return true;
 
-  // Nach der Ausführung: den zurückgelegten Stand am Tag des Ereignisses freigeben, nichts rückwirkend
+  // Nach der Ausführung: den zurückgelegten Stand am Tag des Ereignisses freigeben, nichts rückwirkend. Ist er null,
+  // deckt die Freigabe zum Ausführungsdatum den Rest schon genau — es entstehen keine Buchungen ohne Anlass.
   if (datum >= am) {
+    if (stand.length === 0) return true;
     await post(tx, books, {
       date: datum,
       description: `Vorsteuer aus Leistungszeitraum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
@@ -247,14 +258,27 @@ export async function freigabeNachziehen(tx: Tx, documentId: string, books: Book
   //    Ereignis. Rückwirkend gemindert wird dabei nichts — Aufhebung und neue Freigabe stehen am selben Tag.
   for (const freigabe of await offeneFreigaben(tx, doc.id)) await freigabeUmkehren(tx, books, doc.id, freigabe, freigabe.date);
 
-  // 2. Was jetzt wartet, wieder zum Ausführungsdatum freigeben
+  // 2. Vorkasse vor dem Rechnungsdatum (#930): Der Ausgleich hat nichts gezogen, weil die Rechnung noch nicht vorlag
+  //    (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2). Der bezahlte Anteil wird deshalb mit eigener
+  //    Freigabe zum Rechnungsdatum abziehbar; Heben der Zahlung nimmt sie über `offeneFreigaben` wieder zurück.
+  if (doc.documentDate && !(await jahrGeschlossen(tx, doc.documentDate))) {
+    const bezahlt = await anteilZumRechnungsdatum(tx, doc, await belegTotals(tx, doc));
+    if (bezahlt.some((a) => a.tax !== 0)) {
+      await post(tx, books, {
+        date: doc.documentDate,
+        description: `Vorsteuer aus Leistungszeitraum zum Rechnungsdatum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+        sourceType: "freigabe",
+        sourceId: doc.id,
+        // Vorzeichen wie beim Ausgleich: negativ heißt frei. Die Freigabe bucht damit Haben Zwischenkonto, Soll Vorsteuer
+        lines: vorsteuerAusgleichPosting(bezahlt, books.kontenrahmen),
+      });
+    }
+  }
+
+  // 3. Was jetzt wartet, wieder zum Ausführungsdatum freigeben
   const rest = await zwischenkontoSaldo(tx, doc.id);
   if (rest.length === 0) return true;
-  const [geschlossen] = await tx
-    .select({ year: schema.yearClosings.year })
-    .from(schema.yearClosings)
-    .where(eq(schema.yearClosings.year, Number(am.slice(0, 4))));
-  if (geschlossen) return true;
+  if (await jahrGeschlossen(tx, am)) return true;
 
   await post(tx, books, {
     date: am,
