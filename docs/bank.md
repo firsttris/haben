@@ -52,7 +52,7 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 | N26-CSV | Komma-CSV mit Booking Date bzw. Date, Amount, Partner Name bzw. Payee | nein | nein |
 | Swan-CSV | Komma-CSV mit Kopfblock (IBAN, Alter und Neuer Kontostand, Von, Bis) und den Spalten Datum, Name, Verwendungszweck, Kredit EUR, Debit EUR | ja | Alter und Neuer Kontostand aus dem Kopfblock |
 | Commerzbank-CSV | Semikolon-CSV aus dem Online-Banking mit den Spalten Buchungstag, Umsatzart, Buchungstext, Betrag, IBAN Kontoinhaber, Sender, Empfänger, Verwendungszweck | ja, in jeder Zeile | nein |
-| ING-CSV | Umsatzanzeige: Semikolon-CSV mit Kopfblock (IBAN, Kontoname, Zeitraum, Saldo) und den Spalten Buchung, Wertstellungsdatum (älter: Valuta), Auftraggeber/Empfänger, Buchungstext, Verwendungszweck, Saldo, Betrag | ja, im Kopf | aus der Spalte „Saldo“; nicht bei einem gefilterten Export |
+| ING-CSV | Umsatzanzeige: Semikolon-CSV mit Kopfblock (IBAN, Kontoname, Zeitraum) und den Spalten Buchung, Wertstellungsdatum (älter: Valuta), Auftraggeber/Empfänger, Buchungstext, Verwendungszweck, Saldo, Betrag | ja, im Kopf | aus der Spalte „Saldo“ |
 | C24-CSV | Komma-CSV mit den Spalten Transaktionstyp, Buchungsdatum, Betrag, Zahlungsempfänger, Verwendungszweck, Beschreibung, Kontonummer | nein, nur die Kontonummer | nein |
 | CAMT.053 (XML) | Tagesauszug `BkToCstmrStmt` | ja | Anfangs- und Endsaldo des Auszugs |
 | PayPal | Aktivitätenexport (CSV), Spalten deutsch (Brutto, Gebühr, Netto, Transaktionscode) oder englisch (Gross, Fee, Net, Transaction ID) | nein, in das Konto des [Zahlungsdienstleisters](bank-zahlungsdienstleister.md) | Guthaben aus den Umsätzen |
@@ -63,14 +63,14 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 
 Bank und Format erkennt Haben am Inhalt, nicht am Dateinamen. CAMT.052 und CAMT.054 werden mit einer eigenen Meldung abgelehnt; nur der Tagesauszug CAMT.053 wird gelesen.
 
-Die Zeichenkodierung wird ebenfalls erkannt: UTF-8 mit oder ohne BOM, UTF-16 mit BOM, und alles, was kein gültiges UTF-8 ist, als Windows-1252 (ältere DKB-Exporte).
+Die Zeichenkodierung wird ebenfalls erkannt: UTF-8 mit oder ohne BOM, UTF-16 mit BOM, und alles, was kein gültiges UTF-8 ist, als Windows-1252 (ältere DKB-Exporte, ING).
 
 Beim Lesen gilt außerdem:
 
 - Vorgemerkte Umsätze (DKB, CAMT-Status `PDNG`) werden übersprungen; Haben meldet ihre Anzahl.
 - CAMT-Sammelbuchungen mit eigenen Einzelbeträgen werden in einzelne Umsätze aufgeteilt. Ergeben die Einzelbeträge nicht den Gesamtbetrag, kommt ein Hinweis.
 - Commerzbank-CSV: Den Export holst du im Online-Banking bei den Umsätzen über **PDF / CSV**, Format CSV ([Commerzbank-Hilfe](https://www.commerzbank.de/service/wie-kann-ich-meine-umsaetze-exportieren/)). Name der Gegenseite und Verwendungszweck stehen in eigenen Spalten. Die IBAN der Gegenseite nennt der Export nur im Buchungstext, und nur bei Ausgängen, Daueraufträgen und Lastschriften, die du selbst einziehst; Eingänge haben keine: Für die [Vorschläge](#vorschläge) zählen dort Betrag, Rechnungsnummer im Verwendungszweck und Name, und am Kontakt merkt sich Haben keine IBAN. Haben nimmt nur eine IBAN mit gültiger Prüfziffer, nie die eigene, eine Gläubiger-ID oder eine strukturierte Referenz (RF…) aus dem Verwendungszweck. End-to-End-Referenz, Kundenreferenz, Mandatsreferenz und Gläubiger-ID liest Haben aus demselben Text; über die End-to-End-Referenz findet es auch [Überweisungen aus Haben](#überweisungen-aus-haben) wieder. Eine Datei mit Umsätzen mehrerer Konten lehnt Haben ab; exportiere je Konto eine Datei.
-- ING-CSV: Die Umsatzanzeige exportierst du im Online-Banking bei den Umsätzen als CSV. Exportierst du ein Suchergebnis (Zeile „Filter“ im Kopf), übernimmt Haben genau diese Umsätze, etwa einen einzelnen Zahlungseingang, und keine Salden: Der Saldo im Kopf gilt fürs ganze Konto. Die IBAN der Gegenseite nennt der Export nicht; vorgemerkte Umsätze stehen nicht darin.
+- ING-CSV: Die Umsatzanzeige exportierst du im Online-Banking bei den Umsätzen als CSV. Exportierst du ein Suchergebnis (Zeile „Filter“ im Kopf), übernimmt Haben genau diese Umsätze, etwa einen einzelnen Zahlungseingang, und keine Salden: Der Saldo im Kopf gilt fürs ganze Konto. Die IBAN der Gegenseite nennt der Export nicht: Für die [Vorschläge](#vorschläge) zählen Betrag, Rechnungsnummer im Verwendungszweck und Name, und den [Geldtransit](#vorschläge-ohne-rechnung-und-geldtransit) zu einem eigenen Konto schlägt Haben nicht von selbst vor; du wählst ihn im Abgleich. Vorgemerkte Umsätze stehen nicht darin.
 - C24-CSV: Der Export (`Transaktionen.csv`) enthält die Umsätze eines Kontos oder einer Pocket. Gegenseite ist in beiden Richtungen die Spalte „Zahlungsempfänger“; der Zweck setzt sich aus Verwendungszweck und Beschreibung zusammen, bei Kartenzahlungen steht dort der Text des Händlers. Die eigene IBAN nennt die Datei nicht, nur die Kontonummer: Lege das Konto vorher an und wähle es beim Import aus (wie bei N26). Umbuchungen zwischen Pockets nennen keine Gegen-IBAN; den [Geldtransit](#vorschläge-ohne-rechnung-und-geldtransit) schlägt Haben dort nicht von selbst vor, du wählst ihn im Abgleich. Eine Datei mit Umsätzen mehrerer Konten lehnt Haben ab; exportiere je Konto bzw. Pocket eine Datei.
 - Fremdwährungen in der Datei werden gemeldet; Bankkonten führt Haben nur in Euro. Rechnungen und Belege in Fremdwährung gleichst du mit dem Euro-Betrag aus (siehe [Kursdifferenz](#kursdifferenz-bei-fremdwährung)).
 
@@ -144,7 +144,7 @@ Liegen im Zeitraum einer neuen Datei schon Umsätze aus einem anderen Format ode
 
 Haben vergleicht den Anfangssaldo der neuen Datei mit dem Endsaldo des vorigen Imports desselben Kontos. Passen sie nicht zusammen und überschneiden sich die Zeiträume nicht, meldet Haben eine Lücke mit Differenz, etwa: „Lücke: Anfangssaldo … passt nicht zum Endsaldo … des vorigen Imports. … vermutlich fehlen Umsätze dazwischen.“ Importiert wird trotzdem.
 
-Bei DKB-CSV leitet Haben die Salden aus dem Kontostand im Dateikopf ab, wenn dessen Datum zum Zeitraum der Umsätze passt. Swan-CSV nennt beide Salden im Kopfblock. ING-CSV führt den Kontostand nach jeder Buchung; Haben übernimmt die Salden, wenn diese Spalte lückenlos aufgeht, also nicht bei einem gefilterten Export. N26-, Commerzbank- und C24-CSV haben keine Salden; dort entfällt die Prüfung.
+Bei DKB-CSV leitet Haben die Salden aus dem Kontostand im Dateikopf ab, wenn dessen Datum zum Zeitraum der Umsätze passt. Swan-CSV nennt beide Salden im Kopfblock. ING-CSV führt den Kontostand nach jeder Buchung; Haben übernimmt die Salden, wenn diese Spalte lückenlos aufgeht, sonst kommt ein Hinweis. N26-, Commerzbank- und C24-CSV und ein gefilterter ING-Export haben keine Salden; dort entfällt die Prüfung.
 
 ### Unveränderlichkeit
 
