@@ -27,6 +27,28 @@ export function fintsDay(date: Date | undefined): string | undefined {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/**
+ * Buchungstag eines Umsatzes. MT940 nennt in :61: die Wertstellung mit Jahr (JJMMTT), den Buchungstag nur als MMTT
+ * (SWIFT MT940, Feld 61, Unterfeld 2). lib-fints ergänzt das Jahr der Wertstellung und nimmt das Vorjahr, sobald der
+ * Monat der Buchung nach dem der Wertstellung liegt: Eine Kartenzahlung vom 30.04., gebucht am 02.05., käme ein Jahr zu
+ * früh an. Haben nimmt deshalb Monat und Tag der Buchung und das Jahr, in dem sie der Wertstellung am nächsten liegt.
+ * CAMT nennt das Jahr selbst; dort ändert das nichts, solange beide weniger als ein halbes Jahr auseinanderliegen.
+ */
+export function fintsBookingDay(entryDate: Date | undefined, valueDate: Date | undefined): string | undefined {
+  const entry = fintsDay(entryDate);
+  const value = fintsDay(valueDate);
+  if (!entry || !value) return entry ?? value;
+  const days = (day: string) => Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / 86_400_000;
+  const year = Number(value.slice(0, 4));
+  return (
+    [year - 1, year, year + 1]
+      .map((y) => `${y}${entry.slice(4)}`)
+      // Der 29.02. nur in Schaltjahren
+      .filter((day) => new Date(days(day) * 86_400_000).toISOString().slice(0, 10) === day)
+      .reduce((best, day) => (Math.abs(days(day) - days(value)) < Math.abs(days(best) - days(value)) ? day : best), entry)
+  );
+}
+
 /** „NOTPROVIDED“ steht in SEPA-Feldern, die der Auftraggeber leer gelassen hat */
 const reference = (value: string | undefined) => {
   const text = normalizeText(value);
@@ -35,7 +57,7 @@ const reference = (value: string | undefined) => {
 
 /** Ein gebuchter Umsatz aus MT940 oder CAMT; null ohne gültigen Buchungstag oder Betrag */
 export function mapFintsTransaction(t: Transaction, currency: string, index: number): ParsedTransaction | null {
-  const bookingDate = fintsDay(t.entryDate) ?? fintsDay(t.valueDate);
+  const bookingDate = fintsBookingDay(t.entryDate, t.valueDate);
   const amount = fintsCents(t.amount);
   if (!bookingDate || amount === null) return null;
   const mandateReference = reference(t.mandateReference);
