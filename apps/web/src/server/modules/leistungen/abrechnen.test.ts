@@ -231,7 +231,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
       const anderer = await neuerKunde("Rheinpixel GmbH", 8000);
 
       await expect(invoices.updateDraft(actor, invoiceId, await entwurf(anderer))).rejects.toThrow(
-        "Der Entwurf enthält Leistungen von Nordwerk Software GmbH; zum Kundenwechsel den Entwurf löschen und neu abrechnen.",
+        "Der Entwurf enthält Leistungen von Nordwerk Software GmbH; für einen anderen Kunden den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen.",
       );
       // auch kein Entwurf ohne Kunden, der danach einen anderen bekäme
       await expect(invoices.updateDraft(actor, invoiceId, await entwurf(null))).rejects.toThrow(/enthält Leistungen von Nordwerk Software GmbH/);
@@ -249,7 +249,8 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
       // So stehen Entwürfe da, deren Kunde vor der Sperre gewechselt wurde
       await sql`update invoices set contact_id = ${anderer} where id = ${invoiceId}`;
 
-      const meldung = "Der Entwurf enthält Leistungen von Nordwerk Software GmbH; diesen Kunden wählen oder den Entwurf löschen und neu abrechnen";
+      const meldung =
+        "Der Entwurf enthält Leistungen von Nordwerk Software GmbH; diesen Kunden wählen oder den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen";
       expect(await invoices.finalizeIssues(invoiceId)).toContain(meldung);
       await expect(invoices.finalizeInvoice(actor, invoiceId)).rejects.toThrow(meldung);
       expect((await sql`select status from invoices where id = ${invoiceId}`)[0]!.status).toBe("draft");

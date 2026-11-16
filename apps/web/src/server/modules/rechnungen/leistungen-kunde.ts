@@ -22,11 +22,15 @@ async function foreignEntryCustomers(q: Db | Tx, invoiceId: string, contactId: s
 /** Neuer Kunde am Entwurf (auch keiner): geht nur, wenn ihm alle verknüpften Einträge gehören */
 export async function customerChangeProblem(tx: Tx, invoiceId: string, contactId: string | null): Promise<string | null> {
   const names = await foreignEntryCustomers(tx, invoiceId, contactId);
-  return names ? `Der Entwurf enthält Leistungen von ${names}; zum Kundenwechsel den Entwurf löschen und neu abrechnen.` : null;
+  return names
+    ? `Der Entwurf enthält Leistungen von ${names}; für einen anderen Kunden den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen.`
+    : null;
 }
 
 /** Vor dem Festschreiben: Einträge eines anderen Kunden als dem der Rechnung */
 export async function serviceEntryCustomerIssues(q: Db | Tx, invoiceId: string, contactId: string | null): Promise<string[]> {
   const names = await foreignEntryCustomers(q, invoiceId, contactId);
-  return names ? [`Der Entwurf enthält Leistungen von ${names}; diesen Kunden wählen oder den Entwurf löschen und neu abrechnen`] : [];
+  return names
+    ? [`Der Entwurf enthält Leistungen von ${names}; diesen Kunden wählen oder den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen`]
+    : [];
 }
