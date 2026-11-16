@@ -1,7 +1,7 @@
 import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { VorsteuerAnteil, parseVorsteuerAnteil } from "./VorsteuerAnteil.tsx";
+import { VorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "./VorsteuerAnteil.tsx";
 
 function render(patch: Partial<ComponentProps<typeof VorsteuerAnteil>> = {}) {
   return renderToStaticMarkup(
@@ -70,5 +70,45 @@ describe("Vorsteueranteil im Beleg", () => {
     const html = render({ value: "100,01" });
     expect(html).toContain('aria-invalid="true"');
     expect(html).toContain("Vorschau nach gültiger Eingabe");
+  });
+});
+
+describe("Beschriftung der Steuerspalte (#978)", () => {
+  const beleg = { value: "", company: { kleinunternehmer: false, ohneVorsteuerabzug: false }, booked: false, storedDeduction: true };
+  const kleinunternehmer = { ...beleg, company: { kleinunternehmer: true, ohneVorsteuerabzug: false } };
+  const ohneAbzug = { ...beleg, company: { kleinunternehmer: false, ohneVorsteuerabzug: true } };
+
+  it("heißt ohne Vorsteuerabzug „Umsatzsteuer“: die Steuer auf dem Beleg ist die des Lieferanten, keine Vorsteuer", () => {
+    for (const [fall, b, satz] of [
+      ["Kleinunternehmer", kleinunternehmer, ""],
+      ["Kleinunternehmer mit 100 % am Steuersatz", kleinunternehmer, "100"],
+      ["Vorgabe der Firmendaten", ohneAbzug, ""],
+      ["0 % am Beleg", { ...beleg, value: "0" }, ""],
+      ["0 % am Steuersatz", { ...beleg, value: "100" }, "0"],
+      ["gebucht ohne Abzug", { ...beleg, booked: true, storedDeduction: false }, ""],
+    ] as const)
+      expect(steuerSpalte(null, b, [{ vorsteuerAnteil: satz }]), fall).toBe("Umsatzsteuer");
+  });
+
+  it("bleibt mit Vorsteuerabzug „Vorsteuer“, auch bei einem Teilabzug; § 13b und Erwerb unverändert", () => {
+    for (const [fall, b, satz] of [
+      ["voller Abzug", beleg, ""],
+      ["50 % am Beleg", { ...beleg, value: "50" }, ""],
+      ["Vorgabe ohne Abzug, aber 100 % am Steuersatz", ohneAbzug, "100"],
+      ["gebucht mit Abzug, inzwischen Kleinunternehmer", { ...kleinunternehmer, booked: true }, ""],
+    ] as const)
+      expect(steuerSpalte(null, b, [{ vorsteuerAnteil: satz }]), fall).toBe("Vorsteuer");
+    for (const [art, spalte] of [
+      ["eu", "Steuer § 13b"],
+      ["drittland", "Steuer § 13b"],
+      ["ig_erwerb", "Erwerbsteuer"],
+    ] as const)
+      expect(steuerSpalte(art, kleinunternehmer, [{ vorsteuerAnteil: "" }]), art).toBe(spalte);
+  });
+
+  it("Aufteilung auf Kategorien: „Umsatzsteuer“ nur, wenn kein Steuersatz Vorsteuerabzug hat", () => {
+    const satz = (vorsteuerAnteil: string) => ({ vorsteuerAnteil });
+    expect(steuerSpalte(null, { ...beleg, value: "0" }, [satz(""), satz("")])).toBe("Umsatzsteuer");
+    expect(steuerSpalte(null, { ...beleg, value: "0" }, [satz(""), satz("100")])).toBe("Vorsteuer");
   });
 });

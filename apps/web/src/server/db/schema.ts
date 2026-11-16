@@ -4233,7 +4233,13 @@ export const appVersions = pgTable("app_versions", {
 /** Befund der Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahr und was abweicht */
 export interface JournalUmstellungBefund {
   jahr: number;
+  /** Anzeigetext wie im Abgleich; bei Befunden ohne `schluessel` (vor #1229 gespeichert) auch das Merkmal zum Wiedererkennen */
   text: string;
+  /** Seit #1229: Bereich, stabiler Schlüssel und beide Beträge des Postens (AbgleichZeile), unabhängig vom Anzeigetext */
+  bereich?: string;
+  schluessel?: string;
+  journal?: number;
+  quelle?: number;
 }
 
 /**
