@@ -147,7 +147,7 @@ export const envBlocks = (cfg) => [
       ["ERIC_AUTO_INSTALL", cfg.ericAutoInstall ? "ja" : ""],
       ["ERIC_SHA256", ""],
       ["ERIC_HOME", ""],
-      ["ERIC_WORKER_COMMAND", cfg.arm64 ? "/opt/haben-x86_64/start.sh" : ""],
+      ["ERIC_WORKER_COMMAND", cfg.arm64 ? "/opt/haben-x86_64/worker.sh" : ""],
       ["ELSTER_HERSTELLER_ID", ""],
     ],
   },
