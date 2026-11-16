@@ -1954,6 +1954,20 @@
       "when": 1794838416307,
       "tag": "0278_unsere_lieferantennummer",
       "breakpoints": true
+    },
+    {
+      "idx": 279,
+      "version": "7",
+      "when": 1794856472015,
+      "tag": "0279_inbox_absender",
+      "breakpoints": true
+    },
+    {
+      "idx": 280,
+      "version": "7",
+      "when": 1794856479953,
+      "tag": "0280_inbox_audit_spalten",
+      "breakpoints": true
     }
   ]
 }
