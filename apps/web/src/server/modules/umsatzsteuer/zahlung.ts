@@ -76,7 +76,11 @@ async function vatPayments(q: Db | Tx, bis?: string): Promise<VatPayment[]> {
       and(
         eq(a.kind, "ustVorauszahlung"),
         isNull(a.reversesId),
-        sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`,
+        // Im Abschlussstand (#1110) hebt nur eine Aufhebung auf, die es bis zum Stichtag schon gab
+        bis
+          ? sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id}
+              and coalesce(r.date, (select b.booking_date from bank_transactions b where b.id = r.transaction_id)) <= ${bis})`
+          : sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`,
         // Abschlussstand (#1110): der Tag der Zuordnung, sonst der Buchungstag des Umsatzes (#782), bis einschließlich
         bis ? sql`coalesce(${a.date}, ${schema.bankTransactions.bookingDate}) <= ${bis}` : undefined,
       ),

@@ -274,6 +274,13 @@ export function invoiceTitle(invoice: Pick<Invoice, "kind" | "variant">): string
 const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null`;
 
 /**
+ * Dieselbe Menge im Abschlussstand (#1110): nur Stornos, die es am Stichtag schon gab. Ein Storno im Folgejahr
+ * nimmt die Forderung zum 31.12. nicht weg — sie war an diesem Tag offen.
+ */
+const cancelledIdsUpTo = (bis: string) => sql`select corrects_id from invoices
+  where kind = 'storno' and status = 'final' and corrects_id is not null and issue_date <= ${bis}`;
+
+/**
  * Schlussrechnungen, die eine Abschlagsrechnung schon abziehen (festgeschrieben, nicht storniert),
  * je Abschlagsrechnung die Nummer der Schlussrechnung
  */
@@ -816,8 +823,10 @@ export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL |
 }
 
 async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, bis?: string) {
-  // Abschlussstand (#1110): Rechnungen, die es am Stichtag noch nicht gab, stehen dort nicht
-  return withListStatus(await invoiceListQuery(invoiceListFields, bis ? and(filter, lte(schema.invoices.issueDate, bis)) : filter, q), today, q, bis);
+  // Abschlussstand (#1110): Rechnungen, die es am Stichtag noch nicht gab, stehen dort nicht, und eine erst danach
+  // ausgestellte Stornorechnung hebt die Forderung nicht rückwirkend auf
+  const fields = bis ? { ...invoiceListFields, cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIdsUpTo(bis)})` } : invoiceListFields;
+  return withListStatus(await invoiceListQuery(fields, bis ? and(filter, lte(schema.invoices.issueDate, bis)) : filter, q), today, q, bis);
 }
 
 /** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */

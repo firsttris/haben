@@ -37,6 +37,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
+  let cancellation: typeof import("../belege/cancellation.ts");
   let reports: typeof import("./reports.ts");
   let vat: typeof import("../umsatzsteuer/vat.ts");
   let vermerk: typeof import("../umsatzsteuer/vermerk.ts");
@@ -50,6 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
+    cancellation = await import("../belege/cancellation.ts");
     reports = await import("./reports.ts");
     vat = await import("../umsatzsteuer/vat.ts");
     vermerk = await import("../umsatzsteuer/vermerk.ts");
@@ -197,5 +199,70 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
       [9, 0],
       [12, q4.kz83],
     ]);
+  }, 60_000);
+
+  it("Storno und Aufhebung nach dem Stichtag lassen den Stand zum 31.12. stehen", async () => {
+    const contact = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "buchhaltung@nordwerk.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const draft = await invoices.createDraft(actor, {
+      contactId: contact.id,
+      issueDate: "2025-11-03",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      lines: [{ description: "Wartung Oktober", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+    });
+    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const beleg = await bookedDocument(3, { supplierName: "Hafenwerft Druck GmbH", documentDate: "2025-12-10", net: 25_000, tax: 4_750 });
+
+    // Beides erst im Folgejahr aufgehoben: am 31.12.2025 waren Forderung und Verbindlichkeit offen
+    await invoices.cancelInvoice(actor, invoice.id, "2026-01-10");
+    await cancellation.cancelDocument(actor, beleg, { reason: "Doppelt erfasst" }, "2026-02-15");
+
+    // Umsatzsteuer 11/2025: am 05.12.2025 abgegeben, am 10.12.2025 bezahlt, die Zuordnung am 20.02.2026 aufgehoben
+    const manuell = { mode: "manuell" as const, kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" };
+    const ust = await vat.saveDraft(actor, { year: 2025, month: 11 }, manuell);
+    await vermerk.vermerkeAbgabe(
+      actor,
+      ust.id,
+      {
+        filedOn: "2025-12-05",
+        transferTicket: "et1120251111",
+        kz83: ust.kz83,
+        file: { bytes: new TextEncoder().encode("%PDF-1.4\n% et1120251111\n%%EOF\n"), filename: "UStVA_2025-12-05_Protokoll.pdf" },
+      },
+      "2025-12-05",
+    );
+    await bank.importStatement(actor, { bytes: dkbCsv([row("10.12.25", "Finanzamt Regensburg", "USt 11/25", "-190,00")]), filename: "ust.csv" }, null);
+    const [ustZahlung] = await sql`select id from bank_transactions where amount = -19_000`;
+    await bank.allocate(actor, { kind: "ustva", transactionId: ustZahlung!.id as string, vatReturnId: ust.id, amount: -19_000 });
+    const [zuordnung] = await sql`select id from allocations where vat_return_id = ${ust.id}`;
+    await bank.reverseAllocation(actor, zuordnung!.id as string, "2026-02-20");
+
+    const stichtag = await reports.openPositions("2025-12-31", { bis: "2025-12-31" });
+    expect(stichtag.receivables).toEqual([expect.objectContaining({ id: invoice.id, gross: 119_000, open: 119_000 })]);
+    expect(stichtag.payables).toEqual([expect.objectContaining({ id: beleg, gross: 29_750, open: 29_750 })]);
+    // Die Voranmeldungen der anderen Fälle stehen in derselben Datenbank; geprüft wird der Posten 11/2025
+    const ustStichtag = await zahlung.ustvaPosten(undefined, { bis: "2025-12-31" });
+    expect(ustStichtag.posten.find((p) => p.month === 11)?.offen).toBe(0);
+
+    // Stand von heute: Rechnung und Beleg sind storniert, die USt-Zahlung ist wieder offen
+    const heute = await reports.openPositions("2026-03-01");
+    expect(heute.receivables).toEqual([]);
+    expect(heute.payables).toEqual([]);
+    expect((await zahlung.ustvaPosten()).posten.find((p) => p.month === 11)?.offen).toBe(ust.kz83);
   }, 60_000);
 });

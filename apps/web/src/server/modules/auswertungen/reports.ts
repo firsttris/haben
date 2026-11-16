@@ -525,7 +525,7 @@ async function openPayables(today: string, bis: string | undefined): Promise<Ope
       and(
         eq(schema.documents.status, "gebucht"),
         eq(schema.documents.payment, "bank"),
-        documentNotCancelled(),
+        documentNotCancelled(bis),
         // Belege, die es am Stichtag noch nicht gab, stehen im Abschlussstand nicht (#1110)
         bis ? sql`coalesce(${schema.documents.documentDate}, (${schema.documents.uploadedAt} at time zone 'Europe/Berlin')::date) <= ${bis}` : undefined,
       ),

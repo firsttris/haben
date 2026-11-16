@@ -22,7 +22,7 @@ Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwisch
 | Einnahmen (netto) | Summe der Monatswerte, ohne Umsatzsteuer; darunter der Bruttowert laut EÜR |
 | Ausgaben (netto) | Summe der Monatswerte, ohne Vorsteuer (Belege ohne Vorsteuerabzug brutto); darunter der Bruttowert laut EÜR mit Vorsteuer und gezahlter Umsatzsteuer |
 | Gewinn bzw. Verlust | Betriebseinnahmen minus Betriebsausgaben laut EÜR |
-| Offene Forderungen | Summe aller offenen Rechnungen heute, mit Anzahl und Zahl der überfälligen |
+| Offene Forderungen | Summe aller offenen Rechnungen zum gewählten Stand (heute oder 31.12.), mit Anzahl und Zahl der überfälligen |
 
 ## EÜR nach Zufluss und Abfluss
 
@@ -132,7 +132,7 @@ Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten
 
 Was vor dem gewählten Jahr entstanden und noch offen ist, steht in beiden Tabellen der Forderungen und Verbindlichkeiten als Zeile über der Liste („2 offene Posten aus früheren Jahren“, dazu ihr Betrag); die Spalte **Jahr** kennzeichnet die betroffenen Zeilen. Am Handy fehlt die Spalte, dort hängt der Vermerk an der Fälligkeit („fällig 17.06.2026 · aus 2025“).
 
-Für ein vergangenes Jahr steht in der Jahresleiste der Schalter **Heute** / **31.12.<Jahr>**. Auf **31.12.** rechnen alle drei Tabellen zum Jahresende: Offen ist, was bis einschließlich dieses Tages gezahlt war, spätere Zahlungen zählen nicht und der Posten steht wieder offen. Belege und Rechnungen, die es damals noch nicht gab, fehlen in der Liste; eine Rechnung gilt mit ihrem Rechnungsdatum, ein Beleg mit seinem Belegdatum (ohne Datum mit dem Tag des Hochladens). „Fällig“ und „Überfällig“ beziehen sich auf denselben Tag. Der Stand steht in der Adresse (`?jahr=2025&stichtag=31.12.`): Ein Link auf den Abschlussstand lässt sich weitergeben, und die Seite bleibt ohne JavaScript bedienbar. Im laufenden Jahr erscheint der Schalter nicht, dort sind beide Stände derselbe.
+Auf **31.12.** rechnen alle drei Tabellen zum Jahresende: Offen ist, was bis einschließlich dieses Tages gezahlt war, spätere Zahlungen zählen nicht und der Posten steht wieder offen. Belege und Rechnungen, die es damals noch nicht gab, fehlen in der Liste; eine Rechnung gilt mit ihrem Rechnungsdatum, ein Beleg mit seinem Belegdatum (ohne Datum mit dem Tag des Hochladens). Eine Voranmeldung zählt dagegen mit dem Ende ihres Zeitraums, nicht mit dem Tag der Abgabe: Die Anmeldung für Dezember oder das vierte Quartal, im Januar abgegeben, ist zum 31.12. eine offene Verbindlichkeit (§ 13 Abs. 1 Nr. 1a UStG). Ein Storno oder eine Aufhebung, die erst nach dem Stichtag erklärt wurde, lässt den Stand unverändert. „Fällig“ und „Überfällig“ beziehen sich auf denselben Tag. Der Stand steht in der Adresse (`?jahr=2025&stichtag=31.12.`): Ein Link auf den Abschlussstand lässt sich weitergeben, und die Seite bleibt ohne JavaScript bedienbar. Im laufenden Jahr erscheint der Schalter nicht, dort sind beide Stände derselbe.
 
 Ob ein Vorjahresposten in eine Abschlusskontrolle gehört, hängt von der Rechtsform ab: Bei GmbH und UG steht eine offene Forderung aus 2025 am 31.12.2026 in Inventar und Bilanz (§ 240 Abs. 2, § 242 HGB), in der EÜR wirkt ein offener Posten gar nicht auf den Gewinn (§ 4 Abs. 3, § 11 EStG).
 
