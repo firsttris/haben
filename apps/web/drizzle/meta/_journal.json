@@ -1870,6 +1870,13 @@
       "when": 1794783409485,
       "tag": "0266_sevdesk_steuerarten_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 267,
+      "version": "7",
+      "when": 1794787595377,
+      "tag": "0267_sevdesk_artikel",
+      "breakpoints": true
     }
   ]
 }
