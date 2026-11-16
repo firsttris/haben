@@ -104,7 +104,7 @@ Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selb
 
 - **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; steht das andere Modul höher, gehört der Code meist woanders hin ([Module im Server](architektur.md#module-im-server)); was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
-- **Funktionslänge:** in neuem Code einen Teil in eine eigene Funktion mit Namen auslagern; ältere lange Funktionen werden nur in einem eigenen Pull Request geteilt.
+- **Funktionslänge:** eine neue oder über 80 Zeilen gewachsene Funktion vor dem Merge teilen, indem ein Teil in eine eigene Funktion mit Namen kommt; wächst eine schon lange, kommt das Neue in eine eigene. Ein Grund in der Beschreibung reicht hier nicht. Ältere lange Funktionen, die der Pull Request nicht verlängert, werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
 - **Alte große Datei wächst, Doku-Seite zu lang, Code ohne Doku, Fix ohne Test:** beheben, oder der Grund steht in der Beschreibung (bleibt in der Datei, weil …; Refactor ohne neues Verhalten; Fix an nichts Testbarem wie der CI).
 

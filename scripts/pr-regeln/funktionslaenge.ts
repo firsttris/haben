@@ -59,6 +59,8 @@ type Found = { functions: { path: string[]; body: Node }[]; noToken: [number, nu
  */
 function collect(program: Node): Found {
   const found: Found = { functions: [], noToken: [] };
+  // Getter und Setter prüft Biome nicht, Funktionen in ihnen schon
+  const accessors = new Set<unknown>();
   const walk = (value: unknown, path: string[], named: boolean): void => {
     if (Array.isArray(value)) {
       for (const item of value) walk(item, path, false);
@@ -69,10 +71,11 @@ function collect(program: Node): Found {
       walk(value.expression, path, named);
       return;
     }
+    if ((value.type === "MethodDefinition" || value.type === "Property") && (value.kind === "get" || value.kind === "set")) accessors.add(value.value);
     if (value.type === "TemplateElement") found.noToken.push([value.start + 1, value.end - 1]);
     if (value.type === "JSXText") found.noToken.push([value.start, value.end]);
     let inner = path;
-    if (FUNCTIONS.has(value.type) && isNode(value.body)) {
+    if (FUNCTIONS.has(value.type) && isNode(value.body) && !accessors.has(value)) {
       inner = named ? path : [...path, keyName(value.id) ?? "(anonym)"];
       found.functions.push({ path: inner, body: value.body });
     }
@@ -158,6 +161,34 @@ export function checksFunctions(file: string): boolean {
 }
 
 /**
+ * Alte Länge je Funktion des Kopfs, undefined für neue. Gleichnamige (`#2`) ordnet das nicht nach ihrer Reihenfolge zu,
+ * denn eine davor eingefügte verschöbe die Nummern: zuerst gleich lange (unverändert), dann von der kürzesten an die
+ * kürzeste übrige alte, die mindestens so lang war, sonst die längste übrige.
+ */
+function previousLengths(old: Map<string, number>, now: Map<string, number>): Map<string, number | undefined> {
+  const group = (name: string) => name.replace(/ #\d+$/, "");
+  const left = new Map<string, number[]>();
+  for (const [name, lines] of old) left.set(group(name), [...(left.get(group(name)) ?? []), lines]);
+  const result = new Map<string, number | undefined>();
+  const open: [string, number][] = [];
+  for (const [name, lines] of now) {
+    const rest = left.get(group(name)) ?? [];
+    const same = rest.indexOf(lines);
+    if (same === -1) open.push([name, lines]);
+    else {
+      rest.splice(same, 1);
+      result.set(name, lines);
+    }
+  }
+  for (const [name, lines] of open.sort((a, b) => a[1] - b[1])) {
+    const rest = (left.get(group(name)) ?? []).sort((a, b) => a - b);
+    const longer = rest.findIndex((was) => was >= lines);
+    result.set(name, longer === -1 ? rest.pop() : rest.splice(longer, 1)[0]);
+  }
+  return result;
+}
+
+/**
  * Hinweis auf Funktionen über der Grenze, die es vorher nicht gab, die vorher darunter lagen oder die gewachsen sind.
  * `before` ist null bei einer neuen Datei. Wächst eine schon lange Funktion, gehört das Neue in eine eigene; alte lange
  * Funktionen, die der Pull Request nicht verlängert, bleiben still: geteilt werden sie in einem eigenen Pull Request.
@@ -166,8 +197,9 @@ export function functionLengthHints(changes: { file: string; before: string | nu
   return changes
     .filter(({ file }) => checksFunctions(file))
     .flatMap(({ file, before, after }) => {
-      const old = before === null ? new Map<string, number>() : functionLengths(file, before);
-      return [...functionLengths(file, after)]
+      const now = functionLengths(file, after);
+      const old = previousLengths(before === null ? new Map() : functionLengths(file, before), now);
+      return [...now]
         .filter(([name, lines]) => lines > MAX_FUNCTION_LINES && lines > (old.get(name) ?? 0))
         .map(([name, lines]): Report => {
           const was = old.get(name);
