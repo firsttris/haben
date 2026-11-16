@@ -1,4 +1,4 @@
-import { vorsteuerAusgleichPosting, type InvoiceTotals, type Kontenrahmen, type PostingLine, type TaxShare } from "@haben/core";
+import { vorsteuerAusgleichPosting, type InvoiceTotals, type Kontenrahmen, type PostingLine, type TaxShare, type Prozent } from "@haben/core";
 import type { Tx } from "../../db/index.ts";
 import { ausfuehrungMitFreigabe, vorsteuerAnteile } from "../umsatzsteuer/index.ts";
 
@@ -30,7 +30,7 @@ import { ausfuehrungMitFreigabe, vorsteuerAnteile } from "../umsatzsteuer/index.
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
-  doc: { id: string; privateShare: number; documentDate: string | null },
+  doc: { id: string; privateShare: Prozent; documentDate: string | null },
   totals: InvoiceTotals,
   amount: number,
   kontenrahmen: Kontenrahmen,
@@ -54,7 +54,7 @@ export async function vorsteuerAusgleich(
  */
 export async function vorsteuerAbschreibung(
   tx: Tx,
-  doc: { id: string; privateShare: number },
+  doc: { id: string; privateShare: Prozent },
   totals: InvoiceTotals,
   amount: number,
   datum: string,

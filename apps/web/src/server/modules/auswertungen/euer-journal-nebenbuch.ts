@@ -13,6 +13,7 @@ import {
   type Kontenrahmen,
   type TaxTreatment,
   type DocumentEuerEffect,
+  type Prozent,
 } from "@haben/core";
 import { eq, inArray } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
@@ -32,7 +33,7 @@ export interface BelegNebenbuch {
   totals: ReturnType<typeof totalsFromTaxes>;
   category: ExpenseCategory;
   vorsteuerAbzug: boolean;
-  privateShare: number;
+  privateShare: Prozent;
   splits?: AllocatedSplitLine[];
   /** § 13b und Erwerb: selbst geschuldete Steuer je Steuersatz */
   selbstGeschuldet?: number[];

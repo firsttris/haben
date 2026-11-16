@@ -20,7 +20,11 @@ export async function zuletztGesendet(year: number, bis?: Date): Promise<Map<num
   return latest;
 }
 
-/** Vorauszahlungssoll einschließlich der Sondervorauszahlung: Um sie ist die Voranmeldung für Dezember gemindert (Kz 39) */
+/**
+ * Vorauszahlungssoll einschließlich der Sondervorauszahlung: Um sie ist die Voranmeldung für Dezember gemindert (Kz 39).
+ * Quelle: ELSTER-Anleitung USt 2025, Zeile 119 (einschließlich Sondervorauszahlung, unabhängig vom tatsächlichen Geldfluss).
+ * https://www.elster.de/eportal/helpGlobal?themaGlobal=help_ust_ufa_50_2025
+ */
 export async function vorauszahlungssoll(year: number, latest: ReadonlyMap<number, Cents>): Promise<Cents> {
   return [...latest.values()].reduce((s, v) => s + v, 0) + sondervorauszahlungFor(await loadDauerfrist(), year);
 }

@@ -1,3 +1,5 @@
+import type { BasisPoints } from "./money.ts";
+
 /*
  * Basiszinssatz nach § 247 BGB aus dem SDMX-Webservice der Deutschen Bundesbank
  * (https://statistiken.bundesbank.de/statistiken-de/hilfe-970224?article=bundesbank-sdmx-web-service-api-991208).
@@ -12,7 +14,7 @@ export interface PublishedBaseRate {
   /** Monat des Werts, JJJJ-MM */
   month: string;
   /** Basiszinssatz in Basispunkten, kann negativ sein (z. B. −88 ab 1. Juli 2016) */
-  basisPoints: number;
+  basisPoints: BasisPoints;
 }
 
 /**

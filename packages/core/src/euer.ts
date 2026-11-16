@@ -1,5 +1,5 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { toCsv, type Cents } from "./money.ts";
+import { toCsv, type BasisPoints, type Cents, type Prozent } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
 import { addDocumentEffects, documentEuer, type DocumentEuerEffect } from "./euer-beleg.ts";
 export { documentEuerEffects, type DocumentEuerEffect, type DocumentEuerEvent } from "./euer-beleg.ts";
@@ -42,13 +42,13 @@ export type EuerPayment =
       /** false bei Kleinunternehmern: die Steuer auf dem Beleg ist Teil der Ausgabe */
       vorsteuerAbzug?: boolean;
       /** Gespeicherter Abzugsanteil in Basispunkten; null fällt bei Altbelegen auf vorsteuerAbzug zurück */
-      vorsteuerAnteil?: number | null;
+      vorsteuerAnteil?: BasisPoints | null;
       /** Bisheriger Zahlbetrag: neue Teilabzüge runden kumuliert, auch bei Zahlungen über den Jahreswechsel */
       paidBefore?: Cents;
       /** Aus vorhandenen Zahlungen berechnete Wirkung; Rücknahmen behalten den gerundeten Anteil ihres Ursprungs */
       effect?: DocumentEuerEffect;
       /** Privatanteil in Prozent: nur der betriebliche Teil ist Ausgabe bzw. Vorsteuer */
-      privateShare?: number;
+      privateShare?: Prozent;
       /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
       splits?: AllocatedSplitLine[];
       /** § 13b und Erwerb: selbst geschuldete Steuer des ganzen Belegs je Steuersatz (totals tragen dann keine Steuer) */
@@ -114,7 +114,7 @@ export type EuerPayment =
       date: string;
       amount: Cents;
       kategorie: DirektKategorie;
-      steuersatz: number;
+      steuersatz: BasisPoints;
       group?: string;
     };
 

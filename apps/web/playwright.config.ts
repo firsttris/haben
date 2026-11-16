@@ -46,6 +46,7 @@ function webServer(durchlauf?: Durchlauf) {
       DOCUMENTS_DIR: `${process.env.E2E_DOCUMENTS_DIR ?? "test-results/e2e-belege"}${suffix}`,
       ERIC_DIR: `test-results/e2e-eric${suffix}`,
       HABEN_SCHEDULER: "off",
+      HABEN_UPDATE_CHECK: "off",
       // muss zu SETUP_CODE in e2e/app.spec.ts passen
       HABEN_SETUP_CODE: "e2e-einrichtungscode",
       // Vorlage und Schriften für das Rechnungs-PDF; der gebaute Server findet sie sonst nicht

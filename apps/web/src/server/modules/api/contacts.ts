@@ -21,6 +21,7 @@ export function contactOut(contact: Contact, baseUrl: string): ContactOut {
     ustId: contact.ustId,
     iban: contact.iban,
     leitwegId: contact.leitwegId,
+    unsereLieferantennummer: contact.unsereLieferantennummer,
     hourlyRateCents: contact.hourlyRateCents,
     defaultFormat: contact.defaultFormat,
     language: contact.language,
@@ -55,6 +56,7 @@ function inputOf(contact: Contact) {
     isCustomer,
     isSupplier,
     lieferantennummer: contact.lieferantennummer ?? "",
+    unsereLieferantennummer: contact.unsereLieferantennummer,
   };
 }
 

@@ -1,6 +1,6 @@
 import { dueDate } from "./period.ts";
 import type { Bundesland } from "./steuernummer.ts";
-import type { Cents } from "./money.ts";
+import type { Cents, Prozent } from "./money.ts";
 import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
 import { VORTRAG_ACCOUNTS } from "./vortrag.ts";
 
@@ -14,7 +14,7 @@ import { VORTRAG_ACCOUNTS } from "./vortrag.ts";
  */
 
 /** Kirchensteuersatz in Prozent: 8 in Bayern und Baden-Württemberg, 9 sonst; 0 ohne Kirchensteuerabzug */
-export type KirchensteuerSatz = 0 | 8 | 9;
+export type KirchensteuerSatz = Prozent & (0 | 8 | 9);
 
 export interface Abzug {
   kapest: Cents;

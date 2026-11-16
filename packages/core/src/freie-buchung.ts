@@ -1,7 +1,7 @@
 import { euerZuordnung } from "./journal-euer.ts";
 import { kontoart } from "./ledger.ts";
 import { FREIE_STEUERSCHLUESSEL, isPrivateAccount, type ManualLine } from "./manual.ts";
-import { roundHalfAwayFromZero } from "./money.ts";
+import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 import { resolveOwnAccount } from "./own-accounts.ts";
 import { ACCOUNTS, type ExpenseCategory, type Kontenrahmen, type PostingLine } from "./posting.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
@@ -75,7 +75,7 @@ export function freieBuchungPosting(lines: readonly ManualLine[], kontenrahmen: 
     const brutto = l.debit - l.credit;
     const steuer = satz === 0 ? 0 : roundHalfAwayFromZero((brutto * satz) / (10_000 + satz));
     const netto = brutto - steuer;
-    const seite = (account: string, betrag: number, taxCode: PostingLine["taxCode"]): PostingLine => ({
+    const seite = (account: string, betrag: Cents, taxCode: PostingLine["taxCode"]): PostingLine => ({
       account,
       debit: Math.max(betrag, 0),
       credit: Math.max(-betrag, 0),

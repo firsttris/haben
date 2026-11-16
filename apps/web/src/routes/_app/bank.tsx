@@ -1,4 +1,5 @@
 import {
+  amountError,
   formatDecimal,
   formatEuro,
   isKapitalgesellschaft,
@@ -1064,7 +1065,7 @@ function AllocationPanel({
     error,
     check,
   } = useSubmitCheck({
-    amount: parsedAmount === null ? "Trag den Betrag ein, etwa 120,50." : parsedAmount === 0 ? "Der Betrag darf nicht 0 sein." : null,
+    amount: parsedAmount === null ? amountError("den Betrag", 12_050) : parsedAmount === 0 ? "Der Betrag darf nicht 0 sein." : null,
     candidate:
       mode !== "other" || selectedCandidate
         ? null
@@ -1619,7 +1620,7 @@ function SplitForm({
         [
           `betrag-${r.key}`,
           parsed[i] === null
-            ? "Trag den Betrag ein, etwa -120,50."
+            ? amountError("den Betrag", -12_050)
             : parsed[i] === 0
               ? "Der Betrag darf nicht 0 sein."
               : i === rows.length - 1 && rest !== 0

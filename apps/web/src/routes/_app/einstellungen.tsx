@@ -20,6 +20,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { BereicheCard } from "../../components/BereicheCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
+import { PrivatanteilVorgaben, privatanteilFehler, privatanteilTexte, privatanteilWerte } from "../../components/PrivatanteilVorgaben.tsx";
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
@@ -32,6 +33,7 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
+import { LatestVersionCard } from "../../components/LatestVersionCard.tsx";
 import { VersionsCard } from "../../components/VersionsCard.tsx";
 import { ProcedureDocCard } from "../../components/ProcedureDocCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
@@ -313,6 +315,7 @@ function SettingsPage() {
               <DatevCard years={exportYears} numbers={datev} />
               <ArchiveTargetCard data={ablage} />
               <IntegrityCard head={chainHead} />
+              <LatestVersionCard />
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
@@ -347,7 +350,16 @@ function CompanyForm() {
   const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
   const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
   const [email, setEmail] = useState(company.email);
-  const { form: checkScope, error, check } = useSubmitCheck({ email: emailFehler(email), ...dunningErrors(baseRate, fees) });
+  const [privatanteile, setPrivatanteile] = useState(() => privatanteilTexte(company.privateShares));
+  const {
+    form: checkScope,
+    error,
+    check,
+  } = useSubmitCheck({
+    email: emailFehler(email),
+    ...dunningErrors(baseRate, fees),
+    ...privatanteilFehler(privatanteile, gesellschaft),
+  });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -405,11 +417,7 @@ function CompanyForm() {
             deadlineDays: Number(text("dunning-deadlineDays") || 10),
             autoBaseRate: form.get("dunning-autoBaseRate") === "on",
           },
-          privateShares: Object.fromEntries(
-            (["telefon", "internet"] as const)
-              .map((key) => [key, Number(text(`privateShare-${key}`) || 0)] as const)
-              .filter(([, value]) => Number.isInteger(value) && value > 0 && value <= 100),
-          ),
+          privateShares: privatanteilWerte(privatanteile, gesellschaft),
         },
       });
       await router.invalidate();
@@ -719,27 +727,7 @@ function CompanyForm() {
         </p>
       </section>
 
-      {!gesellschaft && (
-        <section className="form-section" aria-labelledby="company-private">
-          <h3 id="company-private">Privatanteile</h3>
-          <div className="form-row cols-2">
-            <Field label="Privatanteil Telefon in %" describedBy="private-share-hint">
-              {(control) => (
-                <input {...control} name="privateShare-telefon" inputMode="numeric" defaultValue={company.privateShares.telefon ?? ""} placeholder="0" />
-              )}
-            </Field>
-            <Field label="Privatanteil Internet in %" describedBy="private-share-hint">
-              {(control) => (
-                <input {...control} name="privateShare-internet" inputMode="numeric" defaultValue={company.privateShares.internet ?? ""} placeholder="0" />
-              )}
-            </Field>
-          </div>
-          <p id="private-share-hint" className="field-hint">
-            Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme. Am einzelnen
-            Beleg lässt sich der Anteil ändern.
-          </p>
-        </section>
-      )}
+      {!gesellschaft && <PrivatanteilVorgaben texte={privatanteile} onChange={setPrivatanteile} error={error} />}
 
       <section className="form-section" aria-labelledby="company-dunning">
         <h3 id="company-dunning">Mahnwesen</h3>

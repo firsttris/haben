@@ -51,6 +51,7 @@ import {
   createCorrection,
   recentSentReturns,
   returnsForPeriod,
+  uebernommeneJahre,
   saveDraft,
   submissionsFor,
   submitReturn,
@@ -108,6 +109,8 @@ export const getVatPeriod = createServerFn({ method: "GET" })
       today: today(),
       /** Zahllast bzw. Erstattung je abgegebener Anmeldung des Zeitraums mit Zahlungen (offener Posten) */
       posten: await ustvaPostenForPeriod(period),
+      /** Abweichungen des Jahres beim Update auf das Journal übernommen (#1200): Berichtigung mit gesendeten Werten und Vergleich */
+      uebernommen: (await uebernommeneJahre()).has(period.year),
       recent,
       certificate: certificateSummary(certificate),
       companyIssues: companyIssues(company),

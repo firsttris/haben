@@ -1,4 +1,14 @@
-import { ACCOUNTS, abziehbareSteuer, gespeicherterAnteil, paidTaxShares, periodRange, splitPrivateShare, type Cents, type VatPeriod } from "@haben/core";
+import {
+  ACCOUNTS,
+  abziehbareSteuer,
+  gespeicherterAnteil,
+  paidTaxShares,
+  periodRange,
+  splitPrivateShare,
+  type Cents,
+  type VatPeriod,
+  type Prozent,
+} from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { gutschriftAnteile } from "./gutschrift.ts";
@@ -14,7 +24,7 @@ export async function vorsteuerAusBelegen(period: VatPeriod, q: Db | Tx) {
   // kommen aus vorsteuer-leistungsdatum.ts; die gewöhnliche Abfrage lässt die Belege aus, sonst zählten sie doppelt
   const nachLeistungsdatum = await vorsteuerNachLeistungsdatum(period, q);
   // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
-  const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
+  const business = (amount: Cents, privateShare: Prozent, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
   // Eine Gutschrift „erstattet bereits Bezahltes“ mindert die Vorsteuer erst mit dem Ausgleich (#690, #786, gutschrift.ts);
   // ohne die Angabe gilt wie bei jedem Beleg das Belegdatum
   const inputTax = amounts

@@ -1951,15 +1951,22 @@
     {
       "idx": 278,
       "version": "7",
-      "when": 1794838943897,
-      "tag": "0278_etsy_zugang",
+      "when": 1794838416307,
+      "tag": "0278_unsere_lieferantennummer",
       "breakpoints": true
     },
     {
       "idx": 279,
       "version": "7",
-      "when": 1794838949100,
-      "tag": "0279_etsy_zugang_trigger",
+      "when": 1794856316407,
+      "tag": "0279_etsy_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 280,
+      "version": "7",
+      "when": 1794856330773,
+      "tag": "0280_etsy_zugang_trigger",
       "breakpoints": true
     }
   ]
