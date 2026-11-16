@@ -58,7 +58,9 @@ export function KategorieFelder({
               {(["einnahme", "ausgabe"] as const).map((art) => (
                 <optgroup key={art} label={art === "einnahme" ? "Einnahmen" : "Ausgaben"}>
                   {options.kategorien
-                    .filter((k) => k.art === art && !(options.kleinunternehmer && k.value === "nichtSteuerbar"))
+                    // Kleinunternehmer bekommen die nicht steuerbare Einnahme nicht angeboten; eine schon gewählte (gelernter
+                    // Vorschlag) bleibt sichtbar, sonst zeigte das Feld „Erlöse“ (#1131). Den Stand am Tag der Zahlung prüft der Server
+                    .filter((k) => k.art === art && !(options.kleinunternehmer && k.value === "nichtSteuerbar" && !nichtSteuerbar))
                     .map((k) => (
                       <option key={k.value} value={k.value}>
                         {k.label}
