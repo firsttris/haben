@@ -109,6 +109,8 @@ Bis 900 px ist die Liste eine eigene Seite, wie in den Einstellungen von iOS und
 
 Beim Tippen auf einen Bereich schiebt sich am Handy die Seite von rechts herein, bei Zurück wieder hinaus (View Transition mit Typ, `SettingsNav.tsx`); die Navigation fährt nicht mit, auch nicht die Seitenleiste zwischen 861 und 900 px. Wischen am Rand animiert der Browser selbst, dort läuft keine zweite Bewegung. Alle anderen Seitenwechsel bleiben ohne Übergang, ebenso mit „Bewegung reduzieren“.
 
+Die Fragen zur Einrichtung (`/einrichtung`, aus „Einstellungen › Bereiche“ erneut zu öffnen) sind eine Seite in Schritten: über dem Titel „Schritt n von m“, nach „Weiter“ und „Zurück“ der Fokus auf dem Titel. Jede Frage ist eine Gruppe von Optionsfeldern mit „Weiß ich nicht“ als letzter Antwort (`Frage` in `components/EinrichtungFragen.tsx`); ein weiterer Ablauf in Schritten nutzt dieselbe Komponente.
+
 ### Befehlspalette
 
 **Schnellsuche** sitzt am Desktop unter der Marke außerhalb des rollenden Menüs, am Handy als Lupe neben **Menü**. `Strg+K`, am Mac `⌘+K`, oder `/` außerhalb von Eingabefeldern öffnet die Suche auf jeder Seite, solange kein anderer Dialog offen ist.

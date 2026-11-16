@@ -2,12 +2,19 @@ import { createElement, type ComponentType, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ data: {} as Record<string, unknown> }));
+const state = vi.hoisted(() => ({
+  data: {} as Record<string, unknown>,
+  einrichtung: null as { fehlt: boolean; offen: ("rechtsform" | "kleinunternehmer")[] } | null,
+}));
 vi.mock("../../server/functions/backup.ts", () => ({}));
 vi.mock("../../server/functions/invoices.ts", () => ({}));
 vi.mock("../../server/functions/vat.ts", () => ({}));
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => (options: unknown) => ({ options, useLoaderData: () => state.data }),
+  createFileRoute: () => (options: unknown) => ({
+    options,
+    useLoaderData: () => state.data,
+    useRouteContext: () => ({ einrichtung: state.einrichtung }),
+  }),
   Link: ({ children, to }: { children: ReactNode; to: string }) => createElement("a", { href: to }, children),
 }));
 import { Route } from "./index.tsx";
@@ -109,5 +116,35 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     expect(html).toContain("/umsatzsteuer/$zeitraum");
     expect(html).not.toContain("Voranmeldung Oktober 2026 senden");
     expect(html).not.toContain("Voranmeldung fällig");
+  });
+});
+
+// Fragen zur Einrichtung (#266): Die Übersicht erinnert, solange sie fehlen oder etwas offen ist
+describe("Übersicht: Fragen zur Einrichtung", () => {
+  beforeEach(() => {
+    state.data = fixture();
+    state.einrichtung = null;
+  });
+
+  it("erinnert eine neue Instanz an die Fragen", () => {
+    state.einrichtung = { fehlt: true, offen: [] };
+    const html = render();
+    expect(html).toContain("Haben einrichten");
+    expect(html).toContain('href="/einrichtung"');
+  });
+
+  it("erinnert an Rechtsform und Kleinunternehmer, solange sie offen sind", () => {
+    state.einrichtung = { fehlt: false, offen: ["rechtsform", "kleinunternehmer"] };
+    const html = render();
+    expect(html).toContain("Rechtsform festlegen");
+    expect(html).toContain("Kleinunternehmer klären");
+    expect(html).not.toContain("Haben einrichten");
+  });
+
+  it("ohne Fragen und Offenes kein Hinweis", () => {
+    state.einrichtung = { fehlt: false, offen: [] };
+    const html = render();
+    expect(html).not.toContain("Haben einrichten");
+    expect(html).not.toContain("Kleinunternehmer klären");
   });
 });

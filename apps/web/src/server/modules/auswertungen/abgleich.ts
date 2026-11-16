@@ -57,6 +57,12 @@ export interface AbgleichZeile {
   quelle: Cents;
   /** Wogegen verglichen wird, z. B. „erwartet“, „gesendet“, „laut Rechnung“ */
   gegen: string;
+  /**
+   * Stabiler Schlüssel des Postens, unabhängig vom Anzeigetext (#1229): Buchung mit Konto bzw. Art und Satz, Rechnung,
+   * Zeitraum mit Kennzahl, Jahr mit Formular und Feld. Damit erkennt der Abgleich übernommene Befunde wieder, auch wenn eine
+   * spätere Version den Text ändert. Fehlt bei Zeilen, die die Prüfung beim Update nicht speichert.
+   */
+  schluessel?: string;
 }
 
 export interface Abgleich {
@@ -108,6 +114,7 @@ const zmZeile = (a: ZmAbweichung): AbgleichZeile => ({
   bereich: "ustva",
   zeitraum: periodKey(a.period),
   posten: ZM_POSTEN[a.art],
+  schluessel: `zm:${periodKey(a.period)}:${a.art}`,
   journal: a.journal * 100,
   quelle: a.gemeldet * 100,
   gegen: "laut ZM",
@@ -125,32 +132,45 @@ const ohneZeitraum = (text: string) => text.slice(text.indexOf(" ") + 1);
  */
 const mitTag = (posten: string) => posten.includes(": Buchung „");
 
-/** Je Jahr die Befunde, die beim Update auf das Journal ausdrücklich übernommen wurden (#1116): Texte wie gespeichert und, für die Verprobung, ohne Zeitraum */
-export type Uebernommen = Map<number, Set<string>>;
+/**
+ * Je Jahr die Befunde, die beim Update auf das Journal ausdrücklich übernommen wurden (#1116). Seit #1229 mit Bereich, Schlüssel
+ * und Beträgen (`merkmale`), unabhängig vom Anzeigetext; ältere Befunde nur mit Text (`texte`, für die Verprobung auch ohne
+ * Zeitraum).
+ */
+export type Uebernommen = Map<number, { merkmale: Set<string>; texte: Set<string>; anzahl: number }>;
+
+/** Bereich, Schlüssel und beide Beträge: derselbe Posten mit denselben Beträgen ist derselbe Befund */
+const merkmal = (z: { bereich?: string; schluessel?: string; journal?: number; quelle?: number }) => `${z.bereich}|${z.schluessel}|${z.journal}|${z.quelle}`;
 
 async function uebernommeneBefunde(q: Db | Tx): Promise<Uebernommen> {
   const [stand] = await q.select().from(schema.journalUmstellung).orderBy(desc(schema.journalUmstellung.id)).limit(1);
   const result: Uebernommen = new Map();
   if (stand?.ergebnis !== "uebernommen") return result;
   for (const b of stand.befunde) {
-    const texte = result.get(b.jahr) ?? new Set<string>();
-    texte.add(b.text);
-    if (mitTag(b.text)) texte.add(ohneZeitraum(b.text));
-    result.set(b.jahr, texte);
+    const jahr = result.get(b.jahr) ?? { merkmale: new Set<string>(), texte: new Set<string>(), anzahl: 0 };
+    jahr.anzahl++;
+    if (b.schluessel) jahr.merkmale.add(merkmal(b));
+    else {
+      jahr.texte.add(b.text);
+      if (mitTag(b.text)) jahr.texte.add(ohneZeitraum(b.text));
+    }
+    result.set(b.jahr, jahr);
   }
   return result;
 }
 
 /**
  * Ohne die übernommenen Befunde des Jahres (Vorschlag von thomas-baumeister in #1144): Sie meldet der Abgleich nicht jede
- * Woche wieder, jede neue Abweichung schon. Der Hinweis nennt, wie viele ausgeblendet sind.
+ * Woche wieder, jede neue Abweichung schon. Der Hinweis nennt, wie viele ausgeblendet sind. Wiedererkannt wird an Bereich,
+ * Schlüssel und Beträgen (#1229), bei älteren Befunden ohne Schlüssel am Text.
  */
 function ohneUebernommene(year: number, abgleich: Abgleich, uebernommen: Uebernommen): Abgleich {
-  const texte = uebernommen.get(year);
-  if (!texte) return abgleich;
-  const bekannt = (z: AbgleichZeile) => texte.has(befundText(z)) || (mitTag(z.posten) && texte.has(ohneZeitraum(befundText(z))));
+  const jahr = uebernommen.get(year);
+  if (!jahr) return abgleich;
+  const amText = (z: AbgleichZeile) => jahr.texte.has(befundText(z)) || (mitTag(z.posten) && jahr.texte.has(ohneZeitraum(befundText(z))));
+  const bekannt = (z: AbgleichZeile) => (z.schluessel !== undefined && jahr.merkmale.has(merkmal(z))) || amText(z);
   const zeilen = abgleich.zeilen.filter((z) => z.journal === z.quelle || !bekannt(z));
-  const n = [...texte].filter((t) => /^\d{4}/.test(t)).length;
+  const n = jahr.anzahl;
   return {
     zeilen,
     hinweise: [
@@ -170,6 +190,7 @@ function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], verste
         bereich: "ustva",
         zeitraum: periodKey(period),
         posten: z.posten,
+        schluessel: z.schluessel,
         journal: z.journal,
         quelle: z.erwartet,
         gegen: "aus der Bemessungsgrundlage",
@@ -303,15 +324,32 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db,
       bereich: "ustva",
       zeitraum: periodKey(a.period),
       posten: `Gesendete Voranmeldung, ${a.feld}`,
+      schluessel: `gesendet:${periodKey(a.period)}:${a.feld}`,
       journal: a.journal,
       quelle: a.gesendet,
       gegen: "gesendet",
     });
   zeilen.push(...(await zmAbweichungenImJahr(year, q)).map(zmZeile));
   for (const b of await belegZeilen(year, q))
-    zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Rechnung" });
+    zeilen.push({
+      bereich: "beleg",
+      zeitraum: b.zeitraum,
+      posten: b.posten,
+      schluessel: b.schluessel,
+      journal: b.journal,
+      quelle: b.rechnung,
+      gegen: "laut Rechnung",
+    });
   for (const v of await vorgangZeilen(year, q))
-    zeilen.push({ bereich: "beleg", zeitraum: v.zeitraum, posten: v.posten, journal: v.journal, quelle: v.vorgang, gegen: "laut Vorgang" });
+    zeilen.push({
+      bereich: "beleg",
+      zeitraum: v.zeitraum,
+      posten: v.posten,
+      schluessel: v.schluessel,
+      journal: v.journal,
+      quelle: v.vorgang,
+      gegen: "laut Vorgang",
+    });
   const euer = await euerAbgleich(year, q);
   const opos = await oposAbgleichJahr(year, today, q);
   const jahr = { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...hinweise, ...euer.hinweise, ...opos.hinweise] };

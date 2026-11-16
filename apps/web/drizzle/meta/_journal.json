@@ -1933,6 +1933,20 @@
       "when": 1794830232051,
       "tag": "0275_journal_umstellung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 276,
+      "version": "7",
+      "when": 1794833452626,
+      "tag": "0276_einrichtung",
+      "breakpoints": true
+    },
+    {
+      "idx": 277,
+      "version": "7",
+      "when": 1794833455977,
+      "tag": "0277_einrichtung_trigger",
+      "breakpoints": true
     }
   ]
 }

@@ -310,6 +310,8 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
             journal: 500_000,
             quelle: 300_000,
             gegen: "laut ZM",
+            // Stabiler Schlüssel des Postens (#1229): Quartal und Art
+            schluessel: "zm:2026-Q3:L",
           },
         ]);
         // Vor dem Senden der Voranmeldung für September (das Quartal ist dann vollständig) warnt die Vorprüfung

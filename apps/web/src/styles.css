@@ -681,6 +681,15 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .kz-row.total { border-top: 2px solid var(--ink); font-weight: 600; }
 .kz-num { font-family: var(--mono); font-size: 13px; color: var(--muted); }
 .kz-amount { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* Berichtigung in einem übernommenen Jahr: gesendet, Journal und Differenz je Kennzahl (JournalVergleich, #1200) */
+.journal-vergleich { flex-direction: column; }
+@media (max-width: 720px) { .journal-vergleich { padding: 12px; } .vergleich-table { font-size: 13px; } }
+.vergleich-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.vergleich-table th, .vergleich-table td { padding: 6px 0 6px 8px; border-top: 1px solid var(--line-soft); text-align: left; font-weight: 400; }
+.vergleich-table th:first-child { padding-left: 0; }
+.vergleich-table thead th { border-top: 0; font-size: 13px; }
+.vergleich-table .num { text-align: right; }
+.vergleich-table td.num { white-space: nowrap; }
 .kz-row input { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-family: var(--mono); font-size: 14px; text-align: right; color: var(--ink); background-color: var(--surface); }
 .kz-row input:read-only { border-color: transparent; background: transparent; }
 .kz-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
@@ -1202,6 +1211,13 @@ summary { cursor: pointer; min-height: 24px; }
 /* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
 .choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+/* Fragen zur Einrichtung (#266): die Frage in Textfarbe, mehr Abstand zwischen den Fragen als zwischen den Antworten */
+.einrichtung-fragen { gap: 28px; }
+.frage { gap: 0; }
+.frage > legend:not(.visually-hidden) { font-size: 14px; font-weight: 500; color: var(--ink); }
+.frage > .field-hint { margin-bottom: 4px; }
+/* Einstellungen › Bereiche */
+.bereiche-liste { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 720px) {
   .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .plan-amount { grid-column: 1 / -1; }

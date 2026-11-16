@@ -158,6 +158,14 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`, son
 > [!IMPORTANT]
 > `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
 
+Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>-…` und löscht ihn am Ende; was Tests mit `tmpdir()` anlegen, verschwindet mit. Den Ordner eines abgebrochenen Laufs löscht ein späterer Lauf bei seinem Start, wenn der Prozess des abgebrochenen nicht mehr läuft.
+
+Ältere Versionen ließen ihre Temp-Ordner direkt in `$TMPDIR` liegen. Einmalig löschen, wenn gerade kein Testlauf läuft, auch keiner in einem anderen Worktree:
+
+```sh
+find "${TMPDIR:-/tmp}" -maxdepth 1 -type d \( -name 'haben-belege-*' -o -name 'haben-migration*' -o -name 'haben-mandate-*' -o -name 'haben-trigger-*' -o -name 'haben-firmendaten-migration-*' -o -name 'eric-test-*' -o -name 'eric-review-*' \) -exec rm -rf {} +
+```
+
 Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
 
 | Fehlt | Folge | Im Dev-Container | In der CI |
@@ -224,7 +232,7 @@ bun run e2e barrierefreiheit  # eine Datei
 
 Playwright startet selbst die Server ab Port 3100 (`E2E_PORT`), leert vorher die Datenbanken und spielt die Migrationen ein; lokal ist das der Entwicklungsserver, in der CI der gebaute (`E2E_SERVER_COMMAND`). Die Datenbanken der eigenen Durchläufe legt `e2e/reset-db.ts` neben der genannten an; dafür braucht der Benutzer `CREATEDB`. Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`, oder ein vorhandenes über `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-Für den vollständigen Browserlauf mit getrennten App-Rollen braucht die eigene Testinstanz `max_connections=250`; die CI setzt dies bei der Initialisierung. Die parallelen Server und zusätzliche Server für Beenden und verzögerte Anfragen überschreiten das Standardlimit von 100 Verbindungen. Diese Einstellung betrifft nur die Testdatenbank.
+Für den vollständigen Browserlauf mit getrennten App-Rollen braucht die eigene Testinstanz `max_connections=300`; die CI setzt dies bei der Initialisierung. Jeder Durchlauf startet einen eigenen Server mit bis zu zehn Verbindungen, dazu kommen zusätzliche Server für Beenden und verzögerte Anfragen. Diese Einstellung betrifft nur die Testdatenbank.
 
 Die Tests sind auf Projekte in `apps/web/playwright.config.ts` verteilt; was eine Datei prüft, steht in ihrem Kopf:
 

@@ -164,7 +164,17 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         const ergebnis = await umstellung.umstellungPruefen(today);
         expect(ergebnis).toEqual({
           status: "abweichung",
-          befunde: [{ jahr: 2026, text: expect.stringMatching(/^2026-03 Gesendete Voranmeldung, Kz 81: im Journal .*, gesendet /) }],
+          befunde: [
+            {
+              jahr: 2026,
+              text: expect.stringMatching(/^2026-03 Gesendete Voranmeldung, Kz 81: im Journal .*, gesendet /),
+              // Seit #1229 auch Bereich, Schlüssel und Beträge, unabhängig vom Text
+              bereich: "ustva",
+              schluessel: "gesendet:2026-03:Kz 81",
+              journal: expect.any(Number),
+              quelle: expect.any(Number),
+            },
+          ],
         });
         expect((await stand())!.ergebnis).toBe("offen");
         // Ein anderes Jahr zu übernehmen reicht nicht
@@ -212,8 +222,46 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
               `^2026-${v === "ist" ? "04" : "03"} Umsatzsteuer 19 % zur Bemessungsgrundlage ${formatEuro(0)}: Buchung .*: im Journal ${formatEuro(19_00)}, aus der Bemessungsgrundlage ${formatEuro(0)}$`,
             ),
           ),
+          bereich: "ustva",
+          schluessel: expect.stringMatching(/^buchung:[0-9a-f-]+:umsatzsteuer:1900$/),
+          journal: 19_00,
+          quelle: 0,
         });
         expect((await stand())!.ergebnis).toBe("offen");
+      }, 60_000);
+
+      // #1229: Übernommene Befunde erkennt der Abgleich an Bereich, Schlüssel und Beträgen wieder, nicht am Anzeigetext. Eine
+      // spätere Version kann den Text ändern (formatEuro, Posten), ohne dass alle übernommenen Befunde wieder auftauchen; ein
+      // gleicher Text an einer anderen Buchung bleibt ein neuer Befund. Ältere Befunde ohne Schlüssel erkennt er weiter am Text.
+      it(`übernommener Befund: erkannt an Schlüssel und Beträgen, nicht am Text; ältere am Text (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "119,00");
+        await alteBuchung(kr, v);
+        expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
+        const befunde = (await stand())!.befunde as { jahr: number; text: string; schluessel?: string }[];
+        const verprobung = befunde.filter((b) => b.schluessel?.endsWith(":umsatzsteuer:1900"));
+        expect(verprobung).toHaveLength(1);
+        const mitBuchung = (zeilen: Parameters<typeof abgleich.abweichungen>[0]) =>
+          abgleich.abweichungen(zeilen).filter((z) => z.posten.includes(": Buchung „"));
+        // Im Jahr je Monat und in der Vorprüfung des Quartals (der Schlüssel nennt keinen Zeitraum)
+        const quartal = { year: 2026, month: v === "ist" ? 42 : 41 };
+        const offen = async () => [
+          ...mitBuchung((await abgleich.abgleichJahr(2026, today)).zeilen),
+          ...mitBuchung((await abgleich.vatAbgleich(quartal)).zeilen),
+        ];
+        expect(await offen()).toEqual([]);
+        const uebernommen = (liste: unknown[]) =>
+          sql`insert into journal_umstellung (stichjahr_vorher, ergebnis, befunde) values (2027, 'uebernommen', ${JSON.stringify(liste)}::jsonb)`;
+        // Anderer Anzeigetext, derselbe Posten: bleibt ausgeblendet
+        await uebernommen(befunde.map((b) => ({ ...b, text: `${b.text} (Text einer späteren Version)` })));
+        expect(await offen()).toEqual([]);
+        // Gleicher Text, aber eine andere Buchung: ein neuer Befund
+        await uebernommen(befunde.map((b) => ({ ...b, schluessel: b.schluessel?.replace(/^buchung:[^:]+/, "buchung:00000000-0000-0000-0000-000000000000") })));
+        expect(await offen()).toHaveLength(2);
+        // Gespeichert vor #1229, nur mit Text: weiter am Text erkannt
+        await uebernommen(befunde.map(({ jahr, text }) => ({ jahr, text })));
+        expect(await offen()).toEqual([]);
       }, 60_000);
 
       it(`ältere Zahlung auf eine steuerfreie Rechnung ohne Bemessungsgrundlage: fehlt in der Voranmeldung, Befund (${kr}, ${v})`, async () => {
@@ -235,6 +283,10 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
             {
               jahr: 2026,
               text: `2026-03 Rechnung ${inv.number} (Ist, ganz erledigt): gemeldete Bemessungsgrundlage: im Journal ${formatEuro(0)}, laut Vorgang ${formatEuro(100_00)}`,
+              bereich: "beleg",
+              schluessel: `rechnung:${inv.id}:bemessung`,
+              journal: 0,
+              quelle: 100_00,
             },
           ],
         });
@@ -256,7 +308,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         await erklaert("euer", "send", { ...euer.figures, gewinn: euer.gewinn, anlagen: [] });
         await erklaert("ust", "send", { ...ust.figures, steuer: ust.steuer, abschluss: ust.abschluss });
         expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
-        // Übermittelt mit 1 € mehr Gewinn, vermerkt mit einer bestätigten Abweichung und 2 € weniger Abschlusszahlung damals
+        // Übermittelt mit 1 € mehr Gewinn, vermerkt mit einer bestätigten Abweichung und 2 € weniger Abschlusszahlung damals, also 2 € weniger Steuer
         await leeren(sql)`truncate annual_submission_figures, annual_submissions`;
         await erklaert("euer", "send", { ...euer.figures, gewinn: euer.gewinn + 100 });
         await erklaert("ust", "vermerk", { amount: 5_00, berechnet: ust.abschluss - 200, abweichung: 5_00 - ust.abschluss + 200, abweichungBestaetigt: true });
@@ -267,10 +319,19 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
             {
               jahr: 2026,
               text: `2026 Anlage EÜR (übermittelt), gewinn: im Journal ${formatEuro(euer.gewinn)}, übermittelt ${formatEuro(euer.gewinn + 100)}`,
+              bereich: "euer",
+              schluessel: "erklaert:2026:euer:übermittelt:gewinn",
+              journal: euer.gewinn,
+              quelle: euer.gewinn + 100,
             },
             {
               jahr: 2026,
-              text: `2026 Umsatzsteuererklärung (vermerkt), abschluss: im Journal ${formatEuro(ust.abschluss)}, beim Vermerk gerechnet ${formatEuro(ust.abschluss - 200)}`,
+              // Älterer Vermerk ohne festgehaltene Zahlen: verglichen wird die Steuer, damals Abschlusszahlung plus Vorauszahlungen (#1231)
+              text: `2026 Umsatzsteuererklärung (vermerkt), steuer: im Journal ${formatEuro(ust.steuer)}, beim Vermerk gerechnet ${formatEuro(ust.steuer - 200)}`,
+              bereich: "ustva",
+              schluessel: "erklaert:2026:ust:vermerkt:steuer",
+              journal: ust.steuer,
+              quelle: ust.steuer - 200,
             },
           ],
         });
@@ -283,7 +344,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           (await integrity.checkIntegrity(today, jahreserklaerung.erklaerteAbweichungsZeilen)).abgleich.abweichungen.filter(
             (z) => z.zeitraum === "2026" && z.posten.includes("("),
           );
-        expect((await erklaerte()).map((z) => z.posten)).toEqual(["Anlage EÜR (übermittelt), gewinn", "Umsatzsteuererklärung (vermerkt), abschluss"]);
+        expect((await erklaerte()).map((z) => z.posten)).toEqual(["Anlage EÜR (übermittelt), gewinn", "Umsatzsteuererklärung (vermerkt), steuer"]);
         expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
         expect(await erklaerte()).toEqual([]);
       }, 60_000);
@@ -320,6 +381,10 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           text: expect.stringMatching(
             new RegExp(`^2026-04 Beleg R\\d+ \\(Lieferant\\): Konto ${aufwandskonto}: im Journal ${formatEuro(101_00)}, laut Vorgang ${formatEuro(100_00)}$`),
           ),
+          bereich: "beleg",
+          schluessel: expect.stringMatching(new RegExp(`^buchung:[0-9a-f-]+:${aufwandskonto}$`)),
+          journal: 101_00,
+          quelle: 100_00,
         });
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);

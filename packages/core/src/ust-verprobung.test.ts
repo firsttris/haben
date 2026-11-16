@@ -42,6 +42,50 @@ describe.each(["SKR03", "SKR04"] as const)("Umsatzsteuer-Verprobung %s", (kr: Ko
     expect(verprobeBuchung(kr, "soll", zeilen)).toEqual([{ satz: 1900, art: "vorsteuer", bemessung: 1_000_00, steuer: 200_00, erwartet: 190_00 }]);
   });
 
+  // #1230: Auch eine Position zu 0 % bucht „keineVSt“ (inputTaxCode(0)). Sie ist kein nicht abziehbarer Anteil: Zu wenig
+  // Vorsteuer auf einer 19-%-Position daneben muss auffallen. Beim anteiligen Abzug füllen die „keineVSt“-Zeilen genau die
+  // Lücke zur vollen Steuer, eine 0-%-Position nicht
+  describe("Position zu 0 % neben einer mit Vorsteuer (#1230)", () => {
+    const mitVorsteuer = (zeilen: ReturnType<typeof documentPosting>, satz: 1900 | 700, betrag: number) =>
+      zeilen.map((z) => (z.account === ACCOUNTS[kr].vorsteuer[satz] ? { ...z, debit: betrag } : z));
+
+    it("volle Vorsteuer, aber zu wenig: fällt auf", () => {
+      const beleg = totalsFromTaxes([
+        { rate: 0, base: 100_00, tax: 0 },
+        { rate: 1900, base: 1_000_00, tax: 190_00 },
+      ]);
+      const zeilen = documentPosting(beleg, "buero", kr, "einzelunternehmen", "bank");
+      expect(verprobeBuchung(kr, "soll", zeilen)).toEqual([]);
+      expect(verprobeBuchung(kr, "soll", mitVorsteuer(zeilen, 1900, 150_00))).toEqual([
+        { satz: 1900, art: "vorsteuer", bemessung: 1_000_00, steuer: 150_00, erwartet: 190_00 },
+      ]);
+    });
+
+    it("anteiliger Abzug neben einer Position zu 0 %: kein Fehlalarm, weniger als der Anteil fällt auf", () => {
+      const beleg = totalsFromTaxes([
+        { rate: 0, base: 100_00, tax: 0 },
+        { rate: 1900, base: 1_000_00, tax: 190_00, vorsteuerAnteil: 6000 },
+      ]);
+      const zeilen = documentPosting(beleg, "buero", kr, "einzelunternehmen", "bank");
+      expect(verprobeBuchung(kr, "soll", zeilen)).toEqual([]);
+      // 60 % Abzug sind 114 €, nicht abziehbar 76 €; mit 100 € Vorsteuer fehlen 14 €, die keine Zeile erklärt
+      expect(verprobeBuchung(kr, "soll", mitVorsteuer(zeilen, 1900, 100_00))).toEqual([
+        { satz: 1900, art: "vorsteuer", bemessung: 1_000_00, steuer: 100_00, erwartet: 190_00 },
+      ]);
+    });
+
+    it("Gutschrift mit Position zu 0 % und zu wenig Vorsteuer: fällt auf", () => {
+      const gutschrift = totalsFromTaxes([
+        { rate: 0, base: -100_00, tax: 0 },
+        { rate: 700, base: -200_00, tax: -14_00 },
+      ]);
+      const zeilen = documentPosting(gutschrift, "buero", kr, "einzelunternehmen", "bank");
+      expect(verprobeBuchung(kr, "soll", zeilen)).toEqual([]);
+      const zuWenig = zeilen.map((z) => (z.account === ACCOUNTS[kr].vorsteuer[700] ? { ...z, credit: 10_00 } : z));
+      expect(verprobeBuchung(kr, "soll", zuWenig)).toEqual([{ satz: 700, art: "vorsteuer", bemessung: -200_00, steuer: -10_00, erwartet: -14_00 }]);
+    });
+  });
+
   it("Teilzahlungen auf eine Rechnung mit zwei Sätzen: der Rundungsrest beider Sätze beim größten, kein Fehlalarm", () => {
     // Die dritte Zahlung bucht 435,68 € Steuer auf 2.292,97 € Bemessungsgrundlage (19 % wären 435,66 €): Der Anteil je Satz
     // wird gerundet, der Rest beider Sätze landet beim größten (paidTaxShares). Über die ganze Rechnung stimmt es auf den Cent.

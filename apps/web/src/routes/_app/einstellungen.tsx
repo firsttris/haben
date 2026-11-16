@@ -18,6 +18,7 @@ import { redirect, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
+import { BereicheCard } from "../../components/BereicheCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { PrivatanteilVorgaben, privatanteilFehler, privatanteilTexte, privatanteilWerte } from "../../components/PrivatanteilVorgaben.tsx";
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
@@ -187,7 +188,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { oidc } = Route.useRouteContext();
+  const { oidc, ausgeblendet } = Route.useRouteContext();
   const {
     company,
     numbering,
@@ -238,6 +239,7 @@ function SettingsPage() {
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}
+          {bereich === "bereiche" && <BereicheCard ausgeblendet={ausgeblendet} />}
           {bereich === "rechnungen" && (
             <>
               <NumberingCard numbering={numbering.invoice} />

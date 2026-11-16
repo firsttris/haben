@@ -15,7 +15,8 @@ export { gesamtumsatzForYear, type GesamtumsatzItem, type GesamtumsatzResult } f
 export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.ts";
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 export { runDuePruefwertMail } from "./pruefwert-mail.ts";
-export { saveCompany, settingsLocks } from "./settings-guard.ts";
+export { saveCompany, settingsLocks, type SettingsLocks } from "./settings-guard.ts";
+export { einrichtungSchema, einrichtungSpeichern, einrichtungStand } from "./einrichtung.ts";
 export { effectivePayment, paymentHistoryIssue, settledOn, unclearFrom, visiblePayment } from "./payment-history.ts";
 export { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 export {

@@ -2,7 +2,7 @@ import { filePickerPruefen } from "./dateiauswahl.ts";
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { bestaetigen, faktenZeigen, kundeWaehlen } from "./einrichtung.ts";
+import { bestaetigen, fragenUeberspringen, faktenZeigen, kundeWaehlen } from "./einrichtung.ts";
 import { currentDay, currentYear, vorschauAnheften } from "./daten.ts";
 import { anzahlungsbilanzPruefen } from "./anzahlung-bilanz.ts";
 
@@ -52,8 +52,7 @@ test("Einrichtung als GmbH mit SKR04", async () => {
   await page.getByLabel(/Passwort/).fill(USER.password);
   await page.getByRole("button", { name: "Konto anlegen" }).click();
   await page.getByRole("button", { name: "Später" }).click();
-  await page.waitForURL("**/einstellungen");
-  await page.waitForLoadState("networkidle");
+  await fragenUeberspringen(page);
 
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await firma.getByLabel("Name", { exact: true }).fill("Nordlicht Software GmbH");

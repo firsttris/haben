@@ -18,6 +18,8 @@ const ERLOES_SCHLUESSEL = new Set(["USt19", "USt7", "frei", "RC", "Drittland", "
 export interface BelegZeile {
   zeitraum: string;
   posten: string;
+  /** Stabiler Schlüssel des Postens (AbgleichZeile.schluessel) */
+  schluessel: string;
   journal: Cents;
   rechnung: Cents;
 }
@@ -77,8 +79,10 @@ export async function belegZeilen(year: number, q: Db | Tx = db): Promise<BelegZ
     const rechnungSteuer = eigeneSteuern.reduce((s, t) => s + t.tax, 0);
     const name = `Rechnung ${entry.number ?? "ohne Nummer"}`;
     const zeitraum = entry.date.slice(0, 7);
-    if (netto !== rechnungNetto) result.push({ zeitraum, posten: `${name}: Netto`, journal: netto, rechnung: rechnungNetto });
-    if (steuer !== rechnungSteuer) result.push({ zeitraum, posten: `${name}: Umsatzsteuer`, journal: steuer, rechnung: rechnungSteuer });
+    if (netto !== rechnungNetto)
+      result.push({ zeitraum, posten: `${name}: Netto`, schluessel: `buchung:${entry.id}:netto`, journal: netto, rechnung: rechnungNetto });
+    if (steuer !== rechnungSteuer)
+      result.push({ zeitraum, posten: `${name}: Umsatzsteuer`, schluessel: `buchung:${entry.id}:steuer`, journal: steuer, rechnung: rechnungSteuer });
   }
   return result;
 }
