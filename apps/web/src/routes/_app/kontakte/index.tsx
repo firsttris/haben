@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
-import { FORMAT_LABEL } from "../../../lib/invoice.ts";
+import { FORMAT_LABEL, type InvoiceFormat } from "../../../lib/invoice.ts";
 import { getContacts } from "../../../server/functions/contacts.ts";
 import { Field } from "../../../components/Field.tsx";
 import { Tag } from "../../../components/Status.tsx";
@@ -30,6 +30,10 @@ export const Route = createFileRoute("/_app/kontakte/")({
 
 const richtungText = (dir: "auf" | "ab") => (dir === "ab" ? "absteigend" : "aufsteigend");
 
+/** Text der Spalte Rechnungsformat; die Sortierung nimmt denselben, damit die Liste so sortiert ist, wie sie aussieht */
+const formatText = (c: { leitwegId: string | null; defaultFormat: InvoiceFormat | null }) =>
+  c.leitwegId ? "XRechnung (Leitweg-ID)" : c.defaultFormat ? FORMAT_LABEL[c.defaultFormat] : "wie in den Einstellungen";
+
 const ROLE_FILTERS = [
   { label: "Alle", role: undefined },
   { label: "Kunden", role: "kunde" },
@@ -50,7 +54,7 @@ function ContactsPage() {
       : needle
         ? contacts.filter((c) => [c.name, c.kundennummer, c.lieferantennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
         : contacts;
-  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112)
+  // Spaltenkopf sortiert: Ohne Auswahl nach Name aufsteigend, ein anderer Kopf aufsteigend, derselbe Kopf nochmal dreht die Richtung (#1112)
   const { sort = "name", dir = "auf" } = Route.useSearch();
   const richtung = dir === "auf" ? 1 : -1;
   const sorted = [...shown].sort((a, b) => {
@@ -60,7 +64,7 @@ function ContactsPage() {
       case "ort":
         return richtung * [a.plz, a.ort].filter(Boolean).join(" ").localeCompare([b.plz, b.ort].filter(Boolean).join(" "), "de");
       case "format":
-        return richtung * (a.defaultFormat ?? "").localeCompare(b.defaultFormat ?? "");
+        return richtung * formatText(a).localeCompare(formatText(b), "de");
       default:
         return richtung * a.name.localeCompare(b.name, "de");
     }
@@ -161,9 +165,7 @@ function ContactsPage() {
                   {contact.telefon && <span style={{ display: "block" }}>{contact.telefon}</span>}
                 </div>
                 <div className="muted">{[contact.plz, contact.ort].filter(Boolean).join(" ") || "–"}</div>
-                <div className="small muted">
-                  {contact.leitwegId ? "XRechnung (Leitweg-ID)" : contact.defaultFormat ? FORMAT_LABEL[contact.defaultFormat] : "wie in den Einstellungen"}
-                </div>
+                <div className="small muted">{formatText(contact)}</div>
               </Link>
             ))}
           </div>

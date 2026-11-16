@@ -25,6 +25,11 @@ export const Route = createFileRoute("/_app/belege/")({
 
 const richtungText = (dir: "auf" | "ab") => (dir === "ab" ? "absteigend" : "aufsteigend");
 
+/* Texte der Spalten Lieferant und Kategorie; die Sortierung nimmt dieselben, damit die Liste so sortiert ist, wie sie aussieht */
+const lieferantText = (doc: { supplierName: string; filename: string }) => doc.supplierName || doc.filename;
+const kategorieText = (doc: { category: string | null; splitCount: number }) =>
+  doc.category ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label : doc.splitCount > 0 ? `Aufgeteilt auf ${doc.splitCount} Zeilen` : "–";
+
 function DocumentsPage() {
   const { documents, aiAvailable, inbox } = Route.useLoaderData();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
@@ -52,9 +57,9 @@ function DocumentsPage() {
     : [...shown].sort((a, b) => {
         switch (sort) {
           case "lieferant":
-            return richtung * (a.supplierName ?? a.filename).localeCompare(b.supplierName ?? b.filename, "de");
+            return richtung * lieferantText(a).localeCompare(lieferantText(b), "de");
           case "kategorie":
-            return richtung * (a.category ?? "").localeCompare(b.category ?? "", "de");
+            return richtung * kategorieText(a).localeCompare(kategorieText(b), "de");
           case "brutto":
             return richtung * (a.gross - b.gross);
           case "status":
@@ -166,18 +171,14 @@ function DocumentsPage() {
               <Link key={doc.id} to="/belege/$id" params={{ id: doc.id }} className="table-row document-cols">
                 <div className="muted small">{doc.documentDate ? formatDate(doc.documentDate) : "–"}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                  <span className="ellipsis">{doc.supplierName || doc.filename}</span>
+                  <span className="ellipsis">{lieferantText(doc)}</span>
                   <span className="small muted ellipsis">
                     {doc.invoiceNumber || doc.filename}
                     {doc.recurringDocumentId ? " · Dauerbeleg" : doc.extractedBy ? ` · ${SOURCE_LABEL[doc.extractedBy]}` : ""}
                   </span>
                 </div>
                 <div className="small">
-                  {doc.category
-                    ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label
-                    : doc.splitCount > 0
-                      ? `Aufgeteilt auf ${doc.splitCount} Zeilen`
-                      : "–"}
+                  {kategorieText(doc)}
                   {doc.ownAccount && <div className="muted">{doc.ownAccount}</div>}
                 </div>
                 <div className="num">{doc.gross ? formatEuro(doc.gross) : "–"}</div>
