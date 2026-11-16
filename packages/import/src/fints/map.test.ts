@@ -185,6 +185,23 @@ describe("fintsStatement", () => {
     expect(result.openingBalance).toBe(50000);
   });
 
+  it("setzt das Jahr des Buchungstags aus MT940 nach der Wertstellung, auch wenn die Buchung im Folgemonat liegt", () => {
+    // :61: nennt die Wertstellung mit Jahr (JJMMTT), den Buchungstag ohne (MMTT): Kartenzahlung am 30.04., gebucht am 02.05.;
+    // Entgelt mit Wertstellung 31.12., gebucht am 04.01. des Folgejahres
+    const auszug = (zeilen: string[]) => [":20:STARTUMSE", ":25:12030000/0000202051", ":28C:00000/001", ...zeilen, "-"].join("\r\n");
+    const statements = new Mt940Parser(
+      [
+        auszug([":60F:C260430EUR1000,00", ":61:2604300502DR12,50NMSCNONREF", ":86:106?00KARTENZAHLUNG?20SVWZ+Baeckerei 30.04.", ":62F:C260502EUR987,50"]),
+        auszug([":60F:C261231EUR987,50", ":61:2612310104DR3,00NCHGNONREF", ":86:805?00ENTGELT?20SVWZ+Kontofuehrung 4. Quartal", ":62F:C270104EUR984,50"]),
+      ].join("\r\n"),
+    ).parse();
+    const result = fintsStatement({ iban: "DE02120300000000202051", statements, dateFrom: "2026-04-01", dateTo: "2027-01-04" });
+    expect(result.transactions.map((t) => [t.bookingDate, t.valueDate, t.amount])).toEqual([
+      ["2026-05-02", "2026-04-30", -1250],
+      ["2027-01-04", "2026-12-31", -300],
+    ]);
+  });
+
   it("übernimmt keinen Saldo in Fremdwährung und meldet einen Stichtag nach dem Abruf", () => {
     const fremd = fintsStatement({
       iban: "DE02120300000000202051",
