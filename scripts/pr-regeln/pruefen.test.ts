@@ -115,3 +115,27 @@ describe("pruefen.ts: mehrere umbenannte Seiten", () => {
     expect(ausgabe).not.toMatch(/docs\/(ohne-leer|einsb|zweib)\.md hat/);
   });
 });
+
+describe("pruefen.ts: lange Funktionen", () => {
+  const funktion = (name: string, zeilen: number) =>
+    `export function ${name}() {\n${Array.from({ length: zeilen }, (_, i) => `  const v${i} = ${i};\n`).join("")}}\n`;
+
+  beforeAll(() => {
+    git("checkout", "-q", "main");
+    datei("scripts/x/alt.ts", funktion("alt", 100));
+    git("add", ".");
+    git("commit", "-qm", "Code");
+    git("checkout", "-qb", "funktionen");
+  });
+
+  it("weist auf eine neue lange Funktion hin, nicht auf eine alte in einer umbenannten Datei", () => {
+    git("mv", "scripts/x/alt.ts", "scripts/x/umbenannt.ts");
+    datei("scripts/x/neu.ts", funktion("neu", 90));
+    git("add", ".");
+    git("commit", "-qm", "Code: neue Funktion");
+    const { code, ausgabe } = pruefen("--basis", "main");
+    expect(code).toBe(0);
+    expect(ausgabe).toMatch(/^Hinweis: scripts\/x\/neu\.ts: Funktion „neu“ ist neu mit 90 Zeilen/m);
+    expect(ausgabe).not.toContain("umbenannt.ts");
+  });
+});
