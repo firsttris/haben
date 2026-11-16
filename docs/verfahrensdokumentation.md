@@ -29,7 +29,7 @@ Fehlt eine Angabe, steht im Dokument „Fehlt: …“, und der Kopf zeigt „Unv
 
 ## Fassungen
 
-Jede Fassung trägt das Datum und die Haben-Version. Das [Jahresarchiv](auswertungen.md#jahresexport) enthält die Fassung vom Tag, an dem es erstellt wird, als `verfahrensdokumentation.md`; zusammen mit dem Änderungsprotokoll der Angaben und `protokoll/versionen.csv` bleiben Änderungen so nachvollziehbar, wie Rz. 154 es verlangt.
+Jede Fassung trägt das Datum und die Haben-Version. Das [Jahresarchiv](auswertungen.md#jahresexport) enthält die Fassung vom Tag, an dem es erstellt wird, als `verfahrensdokumentation.md`. Änderungen an den Angaben stehen im Änderungsprotokoll, die Versionen in `protokoll/versionen.csv`. API-Tokens und Läufe des Backups führt Haben ohne Änderungsprotokoll; Fassungen zwischen zwei Jahresarchiven bewahrst du selbst auf, etwa als PDF, damit die Änderungshistorie nach Rz. 154 vollständig ist.
 
 Zum Weitergeben druckst du die Seite oder sicherst sie im Druckdialog als PDF; Navigation und Formular erscheinen dabei nicht, auch im dunklen Modus kommt das Blatt hell. „Als Markdown“ lädt dieselbe Fassung als Text.
 
