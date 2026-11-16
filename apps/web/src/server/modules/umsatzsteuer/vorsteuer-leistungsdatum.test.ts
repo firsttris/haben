@@ -134,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Nebenbücher (
     expect((await monat(1, 2027)).kz66).toBe(0);
   });
 
-  it("Zahlung erst nach der Ausführung: Vorsteuer bleibt im Monat der Ausführung", async () => {
+  it("Leistung ganz nach dem Belegdatum, Zahlung erst nach der Ausführung: Vorsteuer bleibt im Monat der Ausführung", async () => {
     await firma();
     const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
     await zahlung(id, -3_856, "2027-01-15");
@@ -191,7 +191,9 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Nebenbücher (
     expect((await monat(1, 2027)).kz66).toBe(0);
   });
 
-  it("ohne Zahlung keine Vorsteuer, solange die Leistung nicht ausgeführt ist", async () => {
+  // § 15 Abs. 1 Satz 1 Nr. 1 Satz 1 UStG: Leistung ausgeführt und Rechnung liegt vor; UStAE 15.2 Abs. 2 Satz 7 bzw. 15.3
+  // Abs. 1 Satz 2: abziehbar im Zeitraum, in dem beide Voraussetzungen erstmals erfüllt sind (Akzeptanzkriterium in #693)
+  it("Rechnung vor der Leistung, nie bezahlt: keine Vorsteuer vor der Ausführung, dann im Monat der Ausführung", async () => {
     await firma();
     await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
 
@@ -201,7 +203,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Nebenbücher (
     expect((await monat(1, 2027)).kz66).toBe(0);
   });
 
-  it("Storno bleibt beim Stornodatum mit umgekehrtem Vorzeichen", async () => {
+  it("ohne Leistungsdatum: Storno bleibt beim Stornodatum mit umgekehrtem Vorzeichen", async () => {
     await firma();
     const id = await beleg({ datum: "2026-11-20", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
     await zahlung(id, -3_856, "2026-11-25");
@@ -214,7 +216,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Nebenbücher (
     expect((await monat(12)).kz66).toBe(-616);
   });
 
-  it("Storno eines Belegs mit künftigem Leistungsdatum: berichtigt im Monat des Stornos", async () => {
+  it("Leistungsdatum nach dem Belegdatum, vor der Leistung bezahlt: Storno berichtigt im Monat des Stornos", async () => {
     await firma();
     const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
     await zahlung(id, -3_856, "2026-11-25");
@@ -251,19 +253,8 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Nebenbücher (
     expect((await monat(12)).kz66).toBe(308);
   });
 
-  // § 15 Abs. 1 Satz 1 Nr. 1 Satz 1 UStG: Leistung ausgeführt und Rechnung liegt vor; UStAE 15.2 Abs. 2 Satz 7 bzw. 15.3
-  // Abs. 1 Satz 2: abziehbar im Zeitraum, in dem beide Voraussetzungen erstmals erfüllt sind (Akzeptanzkriterium in #693)
-  it("Rechnung vor der Leistung, unbezahlt bis zur Ausführung: Vorsteuer im Monat der Ausführung", async () => {
-    await firma();
-    await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
-
-    expect((await monat(11)).kz66).toBe(0);
-    expect((await monat(12)).kz66).toBe(616);
-    expect((await monat(1, 2027)).kz66).toBe(0);
-  });
-
   // Beispiel aus #693, Vorschlag 4: Wartung 15.11. bis 14.12., Rechnung 20.11., bezahlt 10.01. → Vorsteuer im Dezember
-  it("nach der Ausführung bezahlt: Vorsteuer im Monat der Ausführung, nicht der Zahlung", async () => {
+  it("Leistungszeitraum beginnt vor dem Belegdatum und endet danach, nach der Ausführung bezahlt: Vorsteuer im Monat der Ausführung", async () => {
     await firma();
     const id = await beleg({ datum: "2026-11-20", von: "2026-11-15", bis: "2026-12-14", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
     await zahlung(id, -3_856, "2027-01-10");
