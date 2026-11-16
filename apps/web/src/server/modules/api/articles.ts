@@ -3,8 +3,9 @@ import { articleInputSchema, articlePatchSchema, createArticle, getArticle, list
 import { notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { page, pageQuery, requestSchemas, responseSchemas, timestamp } from "./schemas.ts";
 
-const articleCreateSchema = articleInputSchema.strict().register(requestSchemas, { id: "ArticleCreate" });
-articlePatchSchema.register(requestSchemas, { id: "ArticlePatch" });
+const articleDescription = articleInputSchema.shape.description.regex(/^[^\r\n]+$/, "Die Bezeichnung muss in einer Zeile stehen.");
+const articleCreateSchema = articleInputSchema.extend({ description: articleDescription }).strict().register(requestSchemas, { id: "ArticleCreate" });
+const articleUpdateSchema = articlePatchSchema.extend({ description: articleDescription.optional() }).register(requestSchemas, { id: "ArticlePatch" });
 
 const articleSchema = articleInputSchema
   .extend({
@@ -63,7 +64,7 @@ export async function createArticleHandler(request: ApiRequest): Promise<ApiResu
 }
 
 export async function updateArticleHandler(request: ApiRequest): Promise<ApiResult> {
-  const input = validate(articlePatchSchema, request.body);
+  const input = validate(articleUpdateSchema, request.body);
   if ("failure" in input) return input.failure;
   const article = await patchArticle(request.actor, request.params.id!, input.data);
   return article ? ok(articleOut(article)) : notFound("Artikel nicht gefunden.");
