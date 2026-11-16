@@ -88,6 +88,7 @@ function ReportsPage() {
               <Link
                 to="/auswertungen"
                 search={{ jahr: year }}
+                activeOptions={{ exact: true }}
                 activeProps={{}}
                 className={stichtag ? "chip" : "chip active"}
                 aria-current={stichtag ? undefined : "page"}
@@ -97,6 +98,7 @@ function ReportsPage() {
               <Link
                 to="/auswertungen"
                 search={{ jahr: year, stichtag: "31.12." }}
+                activeOptions={{ exact: true }}
                 activeProps={{}}
                 className={stichtag ? "chip active" : "chip"}
                 aria-current={stichtag ? "page" : undefined}
