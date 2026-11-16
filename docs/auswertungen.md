@@ -124,7 +124,7 @@ Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlung
 
 ## Offene Posten
 
-Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten Jahr; für ein vergangenes Jahr lässt sich in der Jahresleiste der Abschlussstand zum 31.12. wählen. Sortiert wird nach Fälligkeit.
+Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten Jahr. Den Abschlussstand zum 31.12. gibt es nur für ein vergangenes Jahr; im laufenden und in künftigen Jahren fehlt der Schalter in der Jahresleiste. Sortiert wird nach Fälligkeit.
 
 - **Offene Forderungen:** festgeschriebene Rechnungen und Rechnungskorrekturen, die nicht storniert sind, mit Betrag abzüglich zugeordneter Zahlungen. Eine Korrektur erscheint mit negativem offenem Betrag, ebenso eine Stornorechnung, solange die Zahlung auf die stornierte Rechnung noch nicht erstattet ist. Offen heißt hier dasselbe wie in der Rechnungsliste und im Bankabgleich.
 - **Offene Verbindlichkeiten:** gebuchte Belege mit Zahlung „Bank“, abzüglich zugeordneter Zahlungen. Ohne Fälligkeitsdatum gilt das Belegdatum.
@@ -132,7 +132,14 @@ Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten
 
 Was vor dem gewählten Jahr entstanden und noch offen ist, steht in beiden Tabellen der Forderungen und Verbindlichkeiten als Zeile über der Liste („2 offene Posten aus früheren Jahren“, dazu ihr Betrag); die Spalte **Jahr** kennzeichnet die betroffenen Zeilen. Am Handy fehlt die Spalte, dort hängt der Vermerk an der Fälligkeit („fällig 17.06.2026 · aus 2025“).
 
-Auf **31.12.** rechnen alle drei Tabellen zum Jahresende: Offen ist, was bis einschließlich dieses Tages gezahlt war, spätere Zahlungen zählen nicht und der Posten steht wieder offen. Belege und Rechnungen, die es damals noch nicht gab, fehlen in der Liste; eine Rechnung gilt mit ihrem Rechnungsdatum, ein Beleg mit seinem Belegdatum (ohne Datum mit dem Tag des Hochladens). Eine Voranmeldung zählt dagegen mit dem Ende ihres Zeitraums, nicht mit dem Tag der Abgabe: Die Anmeldung für Dezember oder das vierte Quartal, im Januar abgegeben, ist zum 31.12. eine offene Verbindlichkeit (§ 13 Abs. 1 Nr. 1a UStG). Ein Storno oder eine Aufhebung, die erst nach dem Stichtag erklärt wurde, lässt den Stand unverändert. „Fällig“ und „Überfällig“ beziehen sich auf denselben Tag. Der Stand steht in der Adresse (`?jahr=2025&stichtag=31.12.`): Ein Link auf den Abschlussstand lässt sich weitergeben, und die Seite bleibt ohne JavaScript bedienbar. Im laufenden Jahr erscheint der Schalter nicht, dort sind beide Stände derselbe.
+Auf **31.12.** rechnen alle drei Tabellen zum Jahresende:
+
+- **Zahlungen:** Offen ist, was bis einschließlich dieses Tages gezahlt war. Spätere Zahlungen zählen nicht, der Posten steht wieder offen.
+- **Belege und Rechnungen:** Was es damals noch nicht gab, fehlt in der Liste. Eine Rechnung gilt mit ihrem Rechnungsdatum, ein Beleg mit seinem Belegdatum, ohne Datum mit dem Tag des Hochladens.
+- **Voranmeldungen:** Sie zählen mit dem Ende ihres Zeitraums, nicht mit dem Tag der Abgabe. Die Anmeldung für Dezember oder das vierte Quartal, im Januar abgegeben, ist zum 31.12. eine offene Verbindlichkeit; die Steuer entsteht mit Ablauf des Voranmeldungszeitraums (§ 13 Abs. 1 Nr. 1 Buchst. a und b UStG).
+- **Storno und Aufhebung:** Erst nach dem Stichtag erklärt, lassen sie den Stand unverändert.
+- **Fälligkeit:** „Fällig“ und „Überfällig“ beziehen sich auf denselben Tag.
+- **Adresse:** Der Stand steht in der Adresse (`?jahr=2025&stichtag=31.12.`). Ein Link lässt sich weitergeben, die Seite bleibt ohne JavaScript bedienbar.
 
 Ob ein Vorjahresposten in eine Abschlusskontrolle gehört, hängt von der Rechtsform ab: Bei GmbH und UG steht eine offene Forderung aus 2025 am 31.12.2026 in Inventar und Bilanz (§ 240 Abs. 2, § 242 HGB), in der EÜR wirkt ein offener Posten gar nicht auf den Gewinn (§ 4 Abs. 3, § 11 EStG).
 

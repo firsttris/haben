@@ -42,7 +42,7 @@ function zeitraumEnde(period: { year: number; month: number }): string {
  * Abgegebene Voranmeldungen mit dem Tag der Abgabe: vermerkt der eingetragene, über ERiC der Tag der Übermittlung.
  * Mit `bis` nur, was diesem Tag dem Zeitraum nach gehörte: Eine Voranmeldung steht im Abschlussstand, sobald ihr
  * Voranmeldungszeitraum geendet hat, nicht erst mit dem Tag der Abgabe. Eine Q4- bzw. Dezember-Anmeldung, die erst im
- * Januar abgegeben wird, ist zum 31.12. eine offene Verbindlichkeit (§ 13 Abs. 1 Nr. 1a UStG, § 252 Abs. 1 Nr. 4 HGB);
+ * Januar abgegeben wird, ist zum 31.12. eine offene Verbindlichkeit (§ 13 Abs. 1 Nr. 1 Buchst. a und b UStG, § 252 Abs. 1 Nr. 4 HGB);
  * die Fälligkeit bleibt trotzdem nicht vor dem Eingang (§ 240 Abs. 1 Satz 3 AO, `vatPostenFaelligkeit`).
  */
 async function filedReturns(q: Db | Tx, bis?: string) {
