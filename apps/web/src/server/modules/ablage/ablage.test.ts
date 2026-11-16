@@ -281,6 +281,32 @@ describe.skipIf(!testDatabaseUrl)("Ablage im Archiv (Postgres)", () => {
     expect(await ablage.deliveryForInvoice(invoice)).toBeNull();
   });
 
+  it("entfernt Ziel und Geheimnis, behält erfolgreiche Weitergaben und schickt keine neue Rechnung", async () => {
+    await ablage.saveArchiveTarget(actor, zielMitId());
+    const alt = await festschreiben();
+    await ablage.deliverInvoices(actor);
+    const bisher = await ablage.deliveryForInvoice(alt);
+    expect(bisher).toMatchObject({ status: "uebertragen", httpStatus: 201, link: expect.stringContaining("/dokumente/") });
+    expect((await sql`select ciphertext from archive_target`)[0]!.ciphertext).not.toBeNull();
+
+    await ablage.deleteArchiveTarget(actor);
+    expect(await sql`select * from archive_target`).toHaveLength(0);
+    expect((await ablage.archiveTargetSummary()).target).toBeNull();
+    expect(await ablage.deliveryForInvoice(alt)).toEqual(bisher);
+    const audit = await sql`select old_value::text as data from audit_log where table_name = 'archive_target' and action = 'DELETE'`;
+    expect(audit).toHaveLength(1);
+    expect(audit[0]!.data).not.toContain("ciphertext");
+    expect(audit[0]!.data).not.toContain("archiv_geheim_1");
+
+    const neu = await festschreiben();
+    expect(await ablage.runDueArchiveDeliveries()).toBeNull();
+    expect(await ablage.deliverInvoices(actor, true)).toEqual({ uebertragen: 0, fehler: 0 });
+    expect(mitId.received).toHaveLength(1);
+    expect(await zeile(neu.id)).toBeUndefined();
+    expect(await ablage.deliveryForInvoice(neu)).toBeNull();
+    expect(await ablage.deliveryForInvoice(alt)).toEqual(bisher);
+  });
+
   it("lehnt ungültige Einstellungen ab", async () => {
     const fehler = (input: object) => ablage.saveArchiveTarget(actor, { ...zielMitId(), ...input });
     await expect(fehler({ url: "ftp://archiv.example/upload" })).rejects.toThrow(/http/);

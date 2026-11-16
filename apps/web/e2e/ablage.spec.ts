@@ -139,3 +139,26 @@ test("Einstellungen und Rechnung ohne Verstöße, hell und dunkel, am Desktop un
       }
     }
 });
+
+test("entfernt die Ablage über die Rückfrage und behält den Stand früherer Übertragungen", async () => {
+  const bisherMitId = mitId.received.length;
+  const bisherOhneId = ohneId.received.length;
+  await gehe(page, "/einstellungen?bereich=export");
+  await karte().getByRole("button", { name: "Entfernen", exact: true }).click();
+  const rueckfrage = page.getByRole("dialog", { name: "Ablage entfernen?" });
+  await expect(rueckfrage).toContainText("Was schon übertragen ist, bleibt im Archiv und an der Rechnung vermerkt.");
+  await rueckfrage.getByRole("button", { name: "Entfernen", exact: true }).click();
+  await expect(karte().getByRole("status").filter({ hasText: "Ablage entfernt." })).toBeVisible();
+  await expect(karte().getByRole("button", { name: "Entfernen", exact: true })).toHaveCount(0);
+  await expect(karte().getByRole("button", { name: "Jetzt übertragen" })).toHaveCount(0);
+
+  await gehe(page, rechnungMitLink.replace(/^https?:\/\/[^/]+/, ""));
+  expect(await archivStatus()).toContain("HTTP 201");
+  await expect(page.getByRole("link", { name: "Im Archiv öffnen" })).toHaveAttribute("href", "https://archiv.example/dokumente/4711");
+
+  await rechnungFestschreiben(page, INVOICES[0]!);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.locator("dt", { hasText: /^Archiv$/ })).toHaveCount(0);
+  expect(mitId.received).toHaveLength(bisherMitId);
+  expect(ohneId.received).toHaveLength(bisherOhneId);
+});
