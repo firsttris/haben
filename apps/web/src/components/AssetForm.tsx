@@ -214,6 +214,10 @@ export function AssetForm({
 
       <section className="form-section" aria-labelledby="asset-depreciation">
         <h3 id="asset-depreciation">Abschreibung</h3>
+        <p className="field-hint">
+          Abschreibung: Kosten auf mehrere Jahre verteilen. Eine Anlage zählt nicht nur im Jahr des Kaufs als Ausgabe, sondern Jahr für Jahr ein Stück
+          (Fachwort: AfA, Absetzung für Abnutzung).
+        </p>
         <div className="form-row cols-2">
           <Field label="Abschreibung">
             {(control) => (

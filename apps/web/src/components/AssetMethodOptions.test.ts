@@ -1,5 +1,42 @@
+import { formatEuro, GWG_LIMIT, SAMMELPOSTEN_MAX, SAMMELPOSTEN_MIN, type AssetMethod } from "@haben/core";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { parseRatePercent } from "./AssetMethodOptions.tsx";
+import { AssetMethodOptions, parseRatePercent } from "./AssetMethodOptions.tsx";
+
+const render = (method: AssetMethod) =>
+  renderToStaticMarkup(
+    createElement(AssetMethodOptions, {
+      method,
+      acquisitionDate: "2026-02-10",
+      lifeMonths: 72,
+      rate: "",
+      onRate: () => undefined,
+      linearFrom: "",
+      onLinearFrom: () => undefined,
+      memo: false,
+      onMemo: () => undefined,
+      locked: false,
+      switchEditable: true,
+    }),
+  );
+
+describe("Erklärung der Methoden in Alltagssprache", () => {
+  it("GWG und Sammelposten: erst die Erklärung, dann das Fachwort, Grenzen aus den Konstanten von @haben/core", () => {
+    const gwg = render("gwg");
+    expect(gwg).toContain(`bis ${formatEuro(GWG_LIMIT)} netto`);
+    expect(gwg.indexOf("sofort als Kosten")).toBeLessThan(gwg.indexOf("(GWG)"));
+    const sammelposten = render("sammelposten");
+    expect(sammelposten).toContain(`${formatEuro(SAMMELPOSTEN_MIN)} bis ${formatEuro(SAMMELPOSTEN_MAX)} netto`);
+    expect(sammelposten.indexOf("über fünf Jahre")).toBeLessThan(sammelposten.indexOf("Sammelposten."));
+  });
+
+  it("degressiv: Erklärung vor dem Höchstsatz; linear braucht keine", () => {
+    const degressiv = render("degressiv");
+    expect(degressiv.indexOf("festen Prozentsatz vom Restwert")).toBeLessThan(degressiv.indexOf("Höchstens"));
+    expect(render("linear")).not.toContain("field-hint");
+  });
+});
 
 describe("Satz der degressiven AfA", () => {
   it("liest wie jedes Prozentfeld über parsePercent, auch mit „%“ (#1222)", () => {
