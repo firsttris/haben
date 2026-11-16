@@ -387,7 +387,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(fromC! >= "2026-10-15").toBe(true);
   });
 
-  it("prüft den Abruf nach dem Importvertrag: ein Umsatz ohne entry_reference wird wie bisher gespeichert und genannt (#306)", async () => {
+  it("prüft den Abruf nach dem Importvertrag: ein Umsatz ohne entry_reference wird wie bisher gespeichert, genannt, aber nicht ins Importprotokoll geschrieben (#306)", async () => {
     const [connection] = await sync.listConnections();
     api.state.ohneReferenz = true;
     const result = await sync.syncConnection(actor, connection!.id);
@@ -395,10 +395,13 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(result.error).toBeNull();
     const kontoA = result.accounts.find((a) => a.iban === IBAN_A)!;
     expect(kontoA.added).toBe(1);
-    expect(kontoA.warnings).toContain(
+    expect(kontoA.vertragHinweise).toEqual([
       "1 Umsatz ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
-    );
-    expect(result.accounts.find((a) => a.iban === IBAN_B)!.warnings.filter((w) => w.includes("Importvertrag"))).toEqual([]);
+    ]);
+    expect(result.accounts.find((a) => a.iban === IBAN_B)!.vertragHinweise).toEqual([]);
+    // bank_imports nimmt nur Neues an und steht im Datenexport: Die Hinweise aus Schritt 2 gehören nicht hinein
+    const [protokoll] = await sql`select count(*)::int as n from bank_imports where warnings::text like '%Importvertrag%'`;
+    expect(protokoll!.n).toBe(0);
     const [row] = await sql`select amount from bank_transactions where purpose = 'Kontoführung ohne Referenz'`;
     expect(row!.amount).toBe(-500);
   });

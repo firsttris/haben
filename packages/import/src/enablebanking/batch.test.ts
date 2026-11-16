@@ -95,8 +95,13 @@ describe("enableBankingBatch", () => {
     expect(batch.movements[0]!.purpose).toBe("");
   });
 
-  it("übernimmt keinen Saldo ohne gebuchten Stichtag", () => {
+  it("übernimmt keinen verfügbaren Saldo", () => {
     const batch = enableBankingBatch(input([tx()], { balances: [{ balance_amount: { currency: "EUR", amount: "10.00" }, balance_type: "ITAV" }] }));
+    expect(batch.balances).toEqual([]);
+  });
+
+  it("übernimmt einen gebuchten Saldo ohne Stichtag nicht", () => {
+    const batch = enableBankingBatch(input([tx()], { balances: [{ balance_amount: { currency: "EUR", amount: "10.00" }, balance_type: "CLBD" }] }));
     expect(batch.balances).toEqual([]);
   });
 });
