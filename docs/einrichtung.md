@@ -352,6 +352,7 @@ Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im 
 
 - Zeiträume mit gesendeter Voranmeldung: Die gesendeten Werte müssen mit der Rechnung aus dem Journal übereinstimmen; bei von Hand überschriebenen Werten die beim Speichern berechneten.
 - Die Verprobung: Jede Steuer braucht ihre Bemessungsgrundlage. Genau das fehlt älteren Buchungen ohne Steuerschlüssel oder ohne Bemessungsgrundlage an der Zahlung.
+- Gesendete [Zusammenfassende Meldungen](umsatzsteuer.md#zusammenfassende-meldung) gegen Kz 21 und 41 des Quartals aus dem Journal.
 - Rechnung und Vorgang gegen ihre Buchung.
 - Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Abschlusszahlung, bei neueren Vermerken jede damals gerechnete Zahl.
 
