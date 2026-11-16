@@ -48,13 +48,15 @@ export async function bankZeilen(q: Db | Tx = db): Promise<BankZeile[]> {
       .limit(1);
     if (erster?.openingBalance == null || !erster.periodFrom || letzter?.closingBalance == null || !letzter.periodTo) continue;
     // Nur Umsätze, die beim letzten Auszug schon da waren: Ein späterer Import (etwa eine einzelne Zahlung als CSV) mit
-    // einem Umsatz im Zeitraum steckt nicht in dessen Endsaldo
+    // einem Umsatz im Zeitraum steckt nicht in dessen Endsaldo. Umsätze eines Auszugs mit Salden zählen immer: Ein älterer
+    // Auszug, der erst nach dem neueren importiert wird, liegt vor dessen Anfangssaldo und steckt damit in dessen Endsaldo.
     const imZeitraum = and(
       eq(t.bankAccountId, account.id),
       gte(t.bookingDate, erster.periodFrom),
       lte(t.bookingDate, letzter.periodTo),
       // In SQL verglichen: Date in JavaScript kennt nur Millisekunden, der Zeitstempel in Postgres Mikrosekunden
-      sql`${t.createdAt} <= (select created_at from bank_imports where id = ${letzter.id})`,
+      sql`(${t.createdAt} <= (select created_at from bank_imports where id = ${letzter.id})
+        or ${t.importId} in (select id from bank_imports where bank_account_id = ${account.id} and closing_balance is not null))`,
     );
     const [offen] = await q
       .select({ betrag: sql<string>`coalesce(sum(${bankOpenAmountSql}), 0)` })
