@@ -39,8 +39,14 @@ export function FileStatusCell({ status, files }: { status: FileStatus; files: n
   );
 }
 
-/** Ersetzt die leere Vorschau: was fehlt und was als Nächstes zu tun ist */
-export function MissingFileBanner({ status, product }: { status: FileStatus; product: string }) {
+/**
+ * Ersetzt die leere Vorschau: was fehlt und was als Nächstes zu tun ist.
+ *
+ * `bestaetigbar` unterscheidet die beiden Fälle hinter `ohne_beleg`: eine Buchung ohne Beleglink kommt ohne Einzelbeleg,
+ * eine Buchung mit Beleg-GUID, deren Datei nur im Export fehlt, kann dagegen einen haben. Dort steht deshalb kein Satz,
+ * der zum Bestätigen einlädt, obwohl kein Knopf erscheint.
+ */
+export function MissingFileBanner({ status, product, bestaetigbar = false }: { status: FileStatus; product: string; bestaetigbar?: boolean }) {
   switch (status) {
     case "abruf_fehlgeschlagen":
       return (
@@ -58,10 +64,15 @@ export function MissingFileBanner({ status, product }: { status: FileStatus; pro
     case "ohne_datei_bestaetigt":
       return <div className="banner banner-info">In {product} ohne Datei, bestätigt. Ein Rechnungsoriginal für den Vorsteuerabzug ersetzt das nicht.</div>;
     case "ohne_beleg":
-      return (
+      return bestaetigbar ? (
         <div className="banner banner-info">
           Diese Buchung kommt ohne Einzelbeleg; {product} führt dazu keine Datei. Wer das geprüft hat, hält es hier fest. Für den Vorsteuerabzug braucht es
           weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
+        </div>
+      ) : (
+        <div className="banner banner-info">
+          {product} nennt zu dieser Buchung keine Datei. Ob es einen Einzelbeleg gibt, sagt das nicht: Die Buchung trägt eine Beleg-GUID, die Datei fehlt nur im
+          Export. Bestätigen lässt sich das hier nicht.
         </div>
       );
     default:
