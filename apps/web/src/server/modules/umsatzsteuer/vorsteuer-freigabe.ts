@@ -65,6 +65,11 @@ async function offeneFreigaben(tx: Tx, documentId: string) {
  * Rechnung positiv (Soll), bei einer Gutschrift negativ. Gelesen wird das ganze Journal des Belegs — Buchung,
  * Zuordnungen, Verrechnungen, Ausbuchungen samt Skonto und die Freigaben selbst. Der Saldo ist die Wahrheit über das, was noch
  * wartet; er stimmt auch nach einer Aufhebung oder einem Wechsel des Kontenrahmens.
+ *
+ * Nicht dasselbe wie bisherUmgebucht (vorsteuer-anteile.ts): Hier zählen die Buchung des Belegs, jedes Skonto und
+ * alle Freigaben mit, die Bemessungsgrundlage trägt das Vorzeichen von Soll und Haben, und Sätze ohne Steuer fallen weg.
+ * Das ergibt, was noch freizugeben ist; dort, was die Ausgleiche schon gezogen haben. Ein Parameter für beides hätte
+ * drei Schalter und eine andere Rechnung der Grundlage, deshalb sind es zwei Abfragen.
  */
 async function zwischenkontoSaldo(tx: Tx, documentId: string): Promise<TaxShare[]> {
   const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`

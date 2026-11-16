@@ -104,6 +104,9 @@ export async function ausfuehrungMitFreigabe(tx: Tx, documentId: string): Promis
  * Mal — bei Teilzahlungen mit negativem Vorzeichen. Alle anderen Buchungen zählen unabhängig vom Datum, auch die Freigabe
  * zum Rechnungsdatum vor einem Skonto zur Vorkasse und die Gegenbuchung einer Aufhebung nach dem Tag des Ausgleichs: Ein
  * nachgereichter, älterer Auszug soll den Anteil nicht neu verteilen.
+ *
+ * Anders als zwischenkontoSaldo (vorsteuer-freigabe.ts) ohne die Buchung des Belegs und ohne Skonto, mit der Grundlage
+ * so, wie sie gebucht ist, und mit Sätzen ohne Steuer: Es geht um das schon Umgebuchte, nicht um den Rest.
  */
 async function bisherUmgebucht(tx: Tx, documentId: string, ausfuehrung: string | null): Promise<TaxShare[]> {
   const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
