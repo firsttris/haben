@@ -1,3 +1,4 @@
+import { invoicePaymentList } from "./invoice-payment-history.ts";
 import { UserError } from "../../errors.ts";
 import {
   addDays,
@@ -229,7 +230,8 @@ async function dunningDocument(
     seller: withCurrentLegalInfo(invoice.seller, company),
     buyer: invoice.buyer,
     // Gemahnt wird erst nach der Fälligkeit, also nach jeder Skontofrist: dann gilt der volle Betrag
-    invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0 },
+    invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0, gross: invoice.gross },
+    payments: await invoicePaymentList(invoice.id, q),
     amounts: dunningAmounts({
       open,
       dueDate: invoice.dueDate,

@@ -86,7 +86,12 @@ export function layoutBeispiele(): LayoutBeispiel[] {
     dueDate: "2026-10-26",
     seller: gmbhSeller,
     buyer: sampleBuyer,
-    invoice: { number: "2026-034", issueDate: "2026-09-02", dueDate: "2026-09-16" },
+    invoice: { number: "2026-034", issueDate: "2026-09-02", dueDate: "2026-09-16", gross: 1_800_958 },
+    payments: [
+      { date: "2026-09-10", amount: 50_000, via: "bank" as const, text: "Teilzahlung", reversed: false },
+      { date: "2026-09-11", amount: 10_000, via: "bar" as const, text: "Bareinnahme", reversed: false },
+      { date: "2026-09-12", amount: 20_000, via: "bank" as const, text: "Aufgehobene Zuordnung", reversed: true },
+    ],
     amounts: dunningAmounts({ open: 1_740_958, dueDate: "2026-09-16", date: "2026-10-16", fee: 5_000, flatFee: true, interestRate: 1_027 }),
     intro: "leider haben wir *keinen* Zahlungseingang erhalten.",
     closing: "Sollten Sie bereits gezahlt haben, ist dieses Schreiben gegenstandslos.",
