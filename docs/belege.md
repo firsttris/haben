@@ -372,7 +372,8 @@ Umsätze, der Vorsteuerabzug hängt nicht an der Zahlung. Bei einem schon bezahl
 fällig, wenn das Geld zurückkommt oder verrechnet wird (§ 17 Abs. 1 Satz 2 und 8 UStG).
 
 Deshalb setzt du an der Gutschrift den Haken **Erstattet bereits Bezahltes**. Er steht nur an negativen Belegen, die über
-die Bank bezahlt sind — nur sie lassen sich ausgleichen. Haben
+die Bank bezahlt sind — nur sie lassen sich ausgleichen —, und nicht bei § 13b, innergemeinschaftlichem Erwerb oder
+Einfuhrumsatzsteuer. Haben
 bucht die Vorsteuerminderung dann nicht im Belegmonat auf die Vorsteuer, sondern auf ein Zwischenkonto, mit
 dem Steuerschlüssel des Satzes:
 
@@ -383,8 +384,7 @@ dem Steuerschlüssel des Satzes:
 | 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | 119,00 | |
 
 Das Konto steht wie „Umsatzsteuer nicht fällig“ (SKR03 1766 und 1761, SKR04 3816 und 3811) auf der Erlösseite in keiner Kennzahl: Kz 66 mindert erst
-die Umbuchung beim Ausgleich. Ohne den Haken bleibt alles wie bisher, die Gutschrift mindert die Vorsteuer im
-Belegmonat. Den Haken setzt du ausdrücklich; Haben leitet ihn nicht aus dem Zahlungsstand ab, denn der kann sich nach
+die Umbuchung beim Ausgleich. Ohne den Haken mindert die Gutschrift die Vorsteuer im Belegmonat. Den Haken setzt du ausdrücklich; Haben leitet ihn nicht aus dem Zahlungsstand ab, denn der kann sich nach
 dem Belegdatum noch ändern.
 
 Ein gemeldeter Zeitraum nimmt die Angabe nicht mehr an: Steht der Belegmonat schon in einer abgegebenen Voranmeldung
