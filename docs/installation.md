@@ -87,7 +87,7 @@ Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den en
 ## Docker Compose
 
 > [!TIP]
-> Für den schnellen Einstieg erzeugt der [Docker-Compose-Generator](compose-generator.md) `compose.yml`, `.env` (mit frisch generierten Schlüsseln) und die passenden Startbefehle direkt im Browser.
+> Der [Compose-Generator](compose-generator.md) erzeugt dir `.env` mit frischen Schlüsseln, bei Bedarf `compose.override.yml` und die Befehle unten im Browser.
 
 ```sh
 mkdir haben && cd haben
