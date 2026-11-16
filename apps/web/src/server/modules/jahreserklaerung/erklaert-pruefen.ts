@@ -89,6 +89,9 @@ async function ustVermerkZeilen(year: number, gerechnet: Record<string, number>,
  * die damals gerechnete Abschlusszahlung: die Steuer damals (Abschlusszahlung plus Vorauszahlungen bis zum Vermerk) gegen
  * die Steuer heute. Kein Befund, wenn Haben heute die Steuer laut Protokoll rechnet. Die Sondervorauszahlung zählt mit dem
  * heutigen Stand der Dauerfristverlängerung; einen früheren hält Haben nicht fest.
+ * Quelle: ELSTER-Anleitung USt 2025, Zeilen 119/120, und § 18 Abs. 4 UStG: Abschlusszahlung = Steuer - Vorauszahlungssoll.
+ * https://www.elster.de/eportal/helpGlobal?themaGlobal=help_ust_ufa_50_2025
+ * https://www.gesetze-im-internet.de/ustg_1980/__18.html
  */
 async function ustVermerkSteuer(year: number, vermerktAm: Date, amount?: number, berechnet?: number): Promise<ErklaertAbweichung[]> {
   const abschlussDamals = berechnet ?? amount;
