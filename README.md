@@ -209,8 +209,9 @@ deiner Steuerberatung.
 
 Haben setzt die technischen Anforderungen der GoBD um: Gebuchtes wird festgeschrieben und lässt sich nur per Storno
 korrigieren, jede Änderung steht im Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Zur Ordnungsmäßigkeit
-gehören außerdem dein Betrieb (Backups, Aufbewahrung) und deine Verfahrensdokumentation; ein Testat für die Software gibt
-es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
+gehören außerdem dein Betrieb (Backups, Aufbewahrung) und deine Verfahrensdokumentation: Haben erzeugt sie als Vorlage aus
+der eigenen Instanz, zum Ergänzen und Gegenlesen durch die Steuerberatung ([Verfahrensdokumentation](https://haben.app/verfahrensdokumentation.html)).
+Ein Testat für die Software gibt es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 </details>
 
 <details>
