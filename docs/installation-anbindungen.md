@@ -116,7 +116,7 @@ Das betrifft nur selbst betriebene Dienste; ein Cloud-Dienst ist über seine öf
 
 | Betrieb | Adresse | Was noch nötig ist |
 | --- | --- | --- |
-| Docker Compose unter Linux | `http://host.docker.internal:11434/v1` | in `compose.yml` beim Dienst `app` die Zeilen `extra_hosts: - host.docker.internal:host-gateway` einkommentieren; Ollama muss auf der Docker-Bridge lauschen: `OLLAMA_HOST=0.0.0.0:11434` (oder die Adresse der Bridge, meist `172.17.0.1`) |
+| Docker Compose unter Linux | `http://host.docker.internal:11434/v1` | in `compose.override.yml` beim Dienst `app` `extra_hosts` mit `host.docker.internal:host-gateway` eintragen, wie unter [Ollama mit Qwen-VL](einrichtung.md#beispiel-ollama-mit-qwen-vl) oder vom [Compose-Generator](compose-generator.md) erzeugt; Ollama muss auf der Docker-Bridge lauschen: `OLLAMA_HOST=0.0.0.0:11434` (oder die Adresse der Bridge, meist `172.17.0.1`) |
 | Docker Desktop (macOS, Windows) | `http://host.docker.internal:11434/v1` | nichts |
 | Podman (Quadlets) | `http://host.containers.internal:11434/v1` | Ollama mit `OLLAMA_HOST=0.0.0.0:11434`; den Namen trägt Podman selbst im Container ein |
 | Dienst auf einem anderen Rechner im Netz | `http://192.168.178.20:11434/v1` | Firewall für den Port öffnen, nur für den Server |

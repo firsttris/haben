@@ -118,7 +118,9 @@ services:
       # - /opt/haben-x86_64:/opt/haben-x86_64:ro
       # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, Zeile einkommentieren
       # - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
-    # KI-Dienst (z. B. Ollama) direkt auf dem Server: unter Linux kennt der Container host.docker.internal nur so
+    # KI-Dienst (z. B. Ollama) direkt auf dem Server: unter Linux kennt der Container host.docker.internal nur so.
+    # Nicht hier einkommentieren, sondern in compose.override.yml beim Dienst app eintragen; diese Datei lädst du bei
+    # Updates neu (docs/einrichtung.md, „Beispiel: Ollama mit Qwen-VL“):
     # extra_hosts:
     #   - host.docker.internal:host-gateway
 
