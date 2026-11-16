@@ -112,7 +112,13 @@ Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in 
 
 ## Issues schreiben
 
-Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. Fragen und lockerer Austausch gehen auf [Discord](https://discord.gg/CT2GQytSYH); entschieden wird im Issue, auch über Ideen von dort. In keinem Issue und keinem Beitrag auf Discord stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. Was wohin gehört:
+
+- **[Discord](https://discord.gg/CT2GQytSYH):** schnelle Hilfe und lockerer Austausch, etwa eine kurze Rückfrage zur Einrichtung. Flüchtig und nicht über Suchmaschinen auffindbar.
+- **[GitHub Discussions](https://github.com/firsttris/haben/discussions):** Fragen und Ideen, deren Antwort bleiben soll: durchsuchbar und verlinkbar, eine Antwort lässt sich als Lösung markieren. Dazu Ankündigungen und Meinungsbilder. Stellt sich eine Frage als Fehler heraus, wird aus der Discussion ein Issue; ein Issue, das eigentlich eine Frage ist, wird zur Discussion.
+- **Issues:** bestätigte Fehler und konkrete Wünsche; sie kommen ins [Board](https://github.com/users/firsttris/projects/2). Entschieden wird im Issue, auch über Ideen aus Discord oder Discussions.
+
+In keinem Issue, keiner Discussion und keinem Beitrag auf Discord stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
 Größere Vorhaben und Issues von Agenten folgen dieser Gliederung:
 
