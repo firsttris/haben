@@ -32,7 +32,7 @@ function nextPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 }
 
-/** Herkunft als Link auf Rechnung, Beleg, Anlage oder Bank; ein Verweis, kein Status (DESIGN.md › Status) */
+/** Herkunft als Link auf Rechnung, Beleg (auch Vorsteuerfreigabe), Anlage oder Bank; ein Verweis, kein Status (DESIGN.md › Status) */
 function SourceLink({ entry }: { entry: Entry }) {
   const label = entry.reversal ? "Gegenbuchung" : JOURNAL_SOURCE[entry.sourceType];
   const vorgang = vorgangZurHerkunft(entry);

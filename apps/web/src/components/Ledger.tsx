@@ -56,7 +56,8 @@ export type Vorgang = { to: "/rechnungen/$id" | "/belege/$id" | "/anlagen/$id"; 
  */
 export function vorgangZurHerkunft(e: { sourceType: string; sourceId: string; invoiceId: string | null; documentId: string | null }): Vorgang | null {
   if (e.sourceType === "invoice") return { to: "/rechnungen/$id", id: e.sourceId };
-  if (e.sourceType === "document") return { to: "/belege/$id", id: e.sourceId };
+  // Freigabe der Vorsteuer zum Leistungsdatum (#693): Quelle ist der Beleg selbst (vorsteuer-freigabe.ts)
+  if (e.sourceType === "document" || e.sourceType === "freigabe") return { to: "/belege/$id", id: e.sourceId };
   // Verrechnung mit einer Kundenkorrektur (#877) bzw. zweier Belege (#786): auf den Vorgang, nicht auf die Bank
   if (e.sourceType === "verrechnung" && e.invoiceId) return { to: "/rechnungen/$id", id: e.invoiceId };
   if (e.sourceType === "verrechnung" && e.documentId) return { to: "/belege/$id", id: e.documentId };
