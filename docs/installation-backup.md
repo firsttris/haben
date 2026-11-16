@@ -58,7 +58,7 @@ Am Beispiel Docker Compose; die Befehle laufen als der Benutzer, der `docker com
 
 1. **Schlüssel anlegen:** `ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519`. Den öffentlichen Teil (`~/.ssh/id_ed25519.pub`) beim Anbieter des Ziels für den SFTP- bzw. SSH-Zugang hinterlegen.
 2. **Host in `known_hosts` eintragen:** `ssh-keyscan -t ed25519 <host> >> ~/.ssh/known_hosts`, danach einmal `ssh <benutzer>@<host>`; das muss ohne Passwortabfrage klappen.
-3. **Einhängen:** in `compose.override.yml` neben `compose.yml`, damit ein Update es nicht überschreibt (gibt es die Datei schon, kommen die Dienste dazu; Beispiele in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml)):
+3. **Einhängen:** in [`compose.override.yml`](installation.md#docker-compose) bei `backup` und `restore`:
 
     ```yaml
     services:

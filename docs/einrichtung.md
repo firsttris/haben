@@ -477,7 +477,7 @@ Es gilt immer genau ein Dienst: Ist `EXTRACTION_BASE_URL` gesetzt, gehen Belege 
 Läuft Haben mit Docker Compose und Ollama auf demselben Server:
 
 1. Ollama installieren, so einstellen, dass es für Container erreichbar ist (`OLLAMA_HOST=0.0.0.0:11434`, Port per Firewall nur für den Server freigeben), und ein Vision-Modell laden: `ollama pull qwen2.5vl:7b`.
-2. Unter Linux kennt der Container `host.docker.internal` nur mit `extra_hosts`; Docker Desktop braucht das nicht. Die Zeilen gehören in `compose.override.yml` neben `compose.yml`, damit `compose.yml` bei Updates unverändert bleibt; der [Compose-Generator](compose-generator.md) erzeugt sie mit „Lokales Modell auf dem Server“. Gibt es die Datei schon, etwa für einen eigenen Proxy, kommen sie unter den vorhandenen Dienst `app`:
+2. Unter Linux kennt der Container `host.docker.internal` nur mit `extra_hosts`; Docker Desktop braucht das nicht. Die Zeilen gehören in [`compose.override.yml`](installation.md#docker-compose); der [Compose-Generator](compose-generator.md) erzeugt sie mit „Lokales Modell auf dem Server“. Gibt es die Datei schon, kommen sie unter den vorhandenen Dienst `app`:
 
     ```yaml
     services:

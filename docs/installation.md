@@ -128,6 +128,8 @@ Der Dienst `backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr, siehe [
 
 **Updates:** `docker compose exec backup backup.sh && docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
 
+**Abweichungen** von `compose.yml`, etwa ein eigener Proxy, zusätzliche Mounts, `extra_hosts` oder eine feste Version, gehören in eine `compose.override.yml` daneben: Compose liest sie automatisch mit, und `compose.yml` lässt sich bei Updates neu herunterladen. Gibt es die Datei schon, kommen neue Einträge unter die vorhandenen Dienste; Beispiele stehen in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml).
+
 ## Podman Quadlets
 
 Die Quadlets betreiben Haben rootless unter systemd: Zugangsdaten als Podman Secrets, ein täglicher Backup-Timer mit restic und Updates über `podman auto-update`.
@@ -227,7 +229,7 @@ Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-Fo
 
 ### Compose
 
-Neben `compose.yml` eine `compose.override.yml` ablegen; Compose liest sie automatisch mit, `compose.yml` bleibt unverändert und lässt sich bei Updates neu herunterladen:
+Neben `compose.yml` eine `compose.override.yml` ablegen ([Abweichungen](#docker-compose)):
 
 ```sh
 curl -o compose.override.yml https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.override.example.yml
