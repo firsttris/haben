@@ -1,15 +1,17 @@
 ---
 title: "Docker-Compose-Generator"
 description: >-
-  Erzeugt compose.yml, .env und passende Startbefehle für Haben direkt im Browser – mit
-  automatisch generierten Schlüsseln und optionalem Reverse Proxy, ELSTER, KI und SSO.
+  Erzeugt .env, compose.override.yml und die Startbefehle für Haben im Browser, mit frischen
+  Schlüsseln, eigenem Reverse Proxy, ELSTER, KI und SSO.
 hide:
   - toc
 ---
 
 # Docker-Compose-Generator
 
-Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für deinen Server. Alle Passwörter und Schlüssel entstehen direkt in deinem Browser und verlassen dein Gerät nicht.
+<link rel="stylesheet" href="assets/stylesheets/compose-generator.css">
+
+Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für den ersten Start nach [Docker Compose](installation.md#docker-compose). Passwörter und Schlüssel erzeugt dein Browser; sie verlassen dein Gerät nicht. `compose.yml` lädst du unverändert aus dem Repository, damit ein Update sie einfach ersetzen kann; alles, was du hier abweichend wählst, steht im Override.
 
 > [!IMPORTANT]
 > **Schlüssel sichern:** Speichere `ENCRYPTION_KEY` und `RESTIC_PASSWORD` aus `.env` zusätzlich in deinem Passwortmanager. Ohne `ENCRYPTION_KEY` sind ELSTER-Zertifikat und API-Schlüssel nach einer Wiederherstellung verloren; ohne `RESTIC_PASSWORD` lässt sich kein Backup entschlüsseln.
@@ -29,7 +31,7 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
         <div class="cg-field">
           <label for="cg-registry">Registry</label>
           <select id="cg-registry" class="cg-select">
-            <option value="tristanteu" selected>Docker Hub (tristanteu)</option>
+            <option value="dockerhub" selected>Docker Hub (tristanteu)</option>
             <option value="ghcr">GitHub (ghcr.io/firsttris)</option>
           </select>
         </div>
@@ -92,28 +94,31 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
 
       <div class="cg-field">
         <label for="cg-db-password">DB_PASSWORD (Datenbank-Eigentümer)</label>
-        <input id="cg-db-password" class="cg-input cg-input--mono" type="text" autocomplete="off">
+        <input id="cg-db-password" class="cg-input cg-input--mono" type="text" autocomplete="off" aria-describedby="cg-db-password-fehler">
+        <span id="cg-db-password-fehler" class="cg-error"></span>
       </div>
       <div class="cg-field">
         <label for="cg-app-db-password">App-Passwort für <code>haben_app</code> (in DATABASE_URL)</label>
-        <input id="cg-app-db-password" class="cg-input cg-input--mono" type="text" autocomplete="off">
+        <input id="cg-app-db-password" class="cg-input cg-input--mono" type="text" autocomplete="off" aria-describedby="cg-app-db-password-fehler">
+        <span id="cg-app-db-password-fehler" class="cg-error"></span>
       </div>
       <div class="cg-field">
         <label for="cg-auth-secret">AUTH_SECRET</label>
-        <input id="cg-auth-secret" class="cg-input cg-input--mono" type="text" autocomplete="off">
+        <input id="cg-auth-secret" class="cg-input cg-input--mono" type="text" autocomplete="off" readonly>
       </div>
       <div class="cg-field">
         <label for="cg-encryption-key">ENCRYPTION_KEY</label>
-        <input id="cg-encryption-key" class="cg-input cg-input--mono" type="text" autocomplete="off">
+        <input id="cg-encryption-key" class="cg-input cg-input--mono" type="text" autocomplete="off" readonly>
       </div>
       <div class="cg-field">
         <label for="cg-restic-password">RESTIC_PASSWORD</label>
-        <input id="cg-restic-password" class="cg-input cg-input--mono" type="text" autocomplete="off">
+        <input id="cg-restic-password" class="cg-input cg-input--mono" type="text" autocomplete="off" readonly>
       </div>
     </fieldset>
 
     <fieldset class="cg-section">
       <div class="cg-section-title">4. Optionale Erweiterungen</div>
+      <p class="cg-hint">Schlüssel von Anthropic, S3 oder dem SSO-Anbieter fragt der Generator nicht ab. In der <code>.env</code> steht dafür <code>hier-eintragen</code>; den Wert trägst du auf dem Server ein.</p>
 
       <details class="cg-details">
         <summary>ELSTER (ERiC)</summary>
@@ -123,7 +128,7 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
         </label>
         <label class="cg-check">
           <input id="cg-arm64" type="checkbox">
-          <span><strong>ARM64-Server (z. B. Raspberry Pi)</strong> – bindet <code>/opt/haben-x86_64</code> ein und setzt <code>ERIC_WORKER_COMMAND</code>.</span>
+          <span><strong>arm64-Server (z. B. Raspberry Pi)</strong> – bindet <code>/opt/haben-x86_64</code> ein und setzt <code>ERIC_WORKER_COMMAND</code>; die Laufzeit legst du vorher nach <a href="installation-anbindungen.html#elster-auf-arm64">ELSTER auf arm64</a> an.</span>
         </label>
       </details>
 
@@ -138,10 +143,6 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
             <option value="openai">OpenAI-kompatible Cloud (z. B. OpenRouter)</option>
           </select>
         </div>
-        <div id="cg-ai-anthropic-wrap" class="cg-field cg-hidden">
-          <label for="cg-anthropic-key">ANTHROPIC_API_KEY</label>
-          <input id="cg-anthropic-key" class="cg-input cg-input--mono" type="password" placeholder="sk-ant-...">
-        </div>
         <div id="cg-ai-url-wrap" class="cg-hidden">
           <div class="cg-field">
             <label for="cg-extraction-url">EXTRACTION_BASE_URL</label>
@@ -151,10 +152,6 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
             <label for="cg-extraction-model">EXTRACTION_MODEL</label>
             <input id="cg-extraction-model" class="cg-input cg-input--mono" type="text" placeholder="qwen2.5vl:7b">
           </div>
-        </div>
-        <div id="cg-ai-key-wrap" class="cg-field cg-hidden">
-          <label for="cg-extraction-key">EXTRACTION_API_KEY</label>
-          <input id="cg-extraction-key" class="cg-input cg-input--mono" type="password" placeholder="sk-...">
         </div>
       </details>
 
@@ -171,16 +168,6 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
         <div id="cg-backup-repo-wrap" class="cg-field cg-hidden">
           <label for="cg-restic-repo">RESTIC_REPOSITORY</label>
           <input id="cg-restic-repo" class="cg-input cg-input--mono" type="text" placeholder="sftp:backup@example.de:/srv/restic/haben">
-        </div>
-        <div id="cg-backup-s3-wrap" class="cg-grid-2 cg-hidden">
-          <div class="cg-field">
-            <label for="cg-aws-key">AWS_ACCESS_KEY_ID</label>
-            <input id="cg-aws-key" class="cg-input cg-input--mono" type="text">
-          </div>
-          <div class="cg-field">
-            <label for="cg-aws-secret">AWS_SECRET_ACCESS_KEY</label>
-            <input id="cg-aws-secret" class="cg-input cg-input--mono" type="password">
-          </div>
         </div>
         <div class="cg-grid-2">
           <div class="cg-field">
@@ -205,15 +192,9 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
             <label for="cg-oidc-issuer">OIDC_ISSUER</label>
             <input id="cg-oidc-issuer" class="cg-input cg-input--mono" type="text" placeholder="https://auth.example.de">
           </div>
-          <div class="cg-grid-2">
-            <div class="cg-field">
-              <label for="cg-oidc-client-id">OIDC_CLIENT_ID</label>
-              <input id="cg-oidc-client-id" class="cg-input cg-input--mono" type="text" placeholder="haben">
-            </div>
-            <div class="cg-field">
-              <label for="cg-oidc-client-secret">OIDC_CLIENT_SECRET</label>
-              <input id="cg-oidc-client-secret" class="cg-input cg-input--mono" type="password">
-            </div>
+          <div class="cg-field">
+            <label for="cg-oidc-client-id">OIDC_CLIENT_ID</label>
+            <input id="cg-oidc-client-id" class="cg-input cg-input--mono" type="text" placeholder="haben">
           </div>
           <div class="cg-grid-2">
             <div class="cg-field">
@@ -243,7 +224,6 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
   <div class="cg-panel cg-output-sticky">
     <div class="cg-tabs" role="tablist" aria-label="Generierte Dateien">
       <button type="button" class="cg-tab" role="tab" aria-selected="true" data-cg-tab="env">.env</button>
-      <button type="button" class="cg-tab" role="tab" aria-selected="false" data-cg-tab="compose">compose.yml</button>
       <button type="button" class="cg-tab" role="tab" aria-selected="false" data-cg-tab="override" hidden>compose.override.yml</button>
       <button type="button" class="cg-tab" role="tab" aria-selected="false" data-cg-tab="commands">Startbefehle</button>
     </div>
@@ -257,17 +237,6 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
         </div>
       </div>
       <pre id="cg-out-env" class="cg-pre"></pre>
-    </div>
-
-    <div data-cg-panel="compose" class="cg-hidden">
-      <div class="cg-code-actions">
-        <span class="cg-filename">compose.yml</span>
-        <div class="cg-code-actions-btns">
-          <button type="button" class="cg-btn cg-btn--sm" data-cg-copy="compose">Kopieren</button>
-          <button type="button" class="cg-btn cg-btn--sm cg-btn--primary" data-cg-download="compose">Herunterladen</button>
-        </div>
-      </div>
-      <pre id="cg-out-compose" class="cg-pre"></pre>
     </div>
 
     <div data-cg-panel="override" class="cg-hidden">
@@ -294,19 +263,12 @@ Hier erstellst du `compose.yml`, `.env` und die passenden Startbefehle für dein
     <div class="cg-steps">
       <h3>Nächste Schritte</h3>
       <ol>
-        <li>Dateien herunterladen und in einem Ordner <code>haben/</code> auf dem Server ablegen (Rechte der <code>.env</code> mit <code>chmod 600 .env</code> einschränken).</li>
-        <li>Datenbank starten und einmalig die App-Rolle <code>haben_app</code> anlegen (Passwort: <code id="cg-step-app-password"></code> <button id="cg-copy-app-pw" type="button" class="cg-btn cg-btn--sm">Kopieren</button>).</li>
-        <li>Mit <code>docker compose up -d</code> starten und mit <code>docker compose logs -f app</code> den Einrichtungscode ablesen.</li>
+        <li>Die Startbefehle der Reihe nach auf dem Server ausführen; <code>.env</code> und gegebenenfalls <code>compose.override.yml</code> legst du nach dem <code>curl</code> in den Ordner <code>haben/</code>.</li>
+        <li>Bei <code>createuser</code> zweimal das App-Passwort eingeben: <button id="cg-copy-app-pw" type="button" class="cg-btn cg-btn--sm">App-Passwort kopieren</button></li>
+        <li>Mit dem Einrichtungscode aus dem Log das <a href="einrichtung.html#konto-anlegen">Konto anlegen</a>.</li>
       </ol>
-      <div class="cg-warning">
-        Weitere Hinweise zu Firewall, Updates und Wiederherstellung stehen unter <a href="installation.html">Installation</a> und <a href="installation-backup.html">Backup und Updates</a>.
-      </div>
     </div>
   </div>
 </div>
 
-<script>
-if (typeof window.initComposeGenerator === "function") {
-  window.initComposeGenerator();
-}
-</script>
+<script type="module" src="assets/javascripts/compose-generator-seite.js"></script>

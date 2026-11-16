@@ -1,563 +1,225 @@
-/* Statischer Docker-Compose-Generator für Haben (docs/compose-generator.md).
-   Alle Schlüssel entstehen lokal im Browser über crypto.getRandomValues. */
+// @ts-check
+/*
+ * Logik des Compose-Generators (docs/compose-generator.md): .env, compose.override.yml und Startbefehle aus den Angaben
+ * im Formular. Reines JavaScript ohne Build, weil die Doku-Seite nichts übersetzt; die Typen prüft `bun run typecheck`
+ * über deploy/tsconfig.json, den Abgleich mit deploy/compose.env.example scripts/compose-generator/.
+ *
+ * compose.yml erzeugt der Generator nicht: Sie kommt unverändert aus deploy/compose.yml und wird bei jedem Update neu
+ * geladen. Jede Abweichung steht deshalb im Override (wie deploy/compose.override.example.yml).
+ */
 
-(() => {
-  const HEX_ALPHABET = "0123456789abcdef";
+/**
+ * @typedef {object} Config
+ * @property {string} domain
+ * @property {"dockerhub" | "ghcr"} registry
+ * @property {string} imageTag
+ * @property {"caddy" | "proxy-docker" | "proxy-host"} proxyMode
+ * @property {string} proxyNetwork
+ * @property {string} dbPassword
+ * @property {string} appDbPassword
+ * @property {string} authSecret
+ * @property {string} encryptionKey
+ * @property {string} resticPassword
+ * @property {boolean} ericAutoInstall
+ * @property {boolean} arm64
+ * @property {"none" | "anthropic" | "ollama" | "openai"} aiMode
+ * @property {string} extractionBaseUrl
+ * @property {string} extractionModel
+ * @property {"local" | "s3" | "remote"} backupMode
+ * @property {string} resticRepository
+ * @property {string} backupTime
+ * @property {string} restoreCheckDays
+ * @property {boolean} oidcOnly
+ * @property {string} oidcIssuer
+ * @property {string} oidcClientId
+ * @property {string} oidcDisplayName
+ * @property {string} oidcGroupsClaim
+ * @property {string} oidcGroupInhaber
+ * @property {string} oidcGroupSteuerberatung
+ */
 
-  /** Erzeugt eine zufällige Hex-Zeichenkette (nur 0-9 und a-f, sicher für Datenbank-URLs). */
-  function randomHex(byteCount) {
-    const bytes = new Uint8Array(byteCount);
-    window.crypto.getRandomValues(bytes);
-    let out = "";
-    for (let i = 0; i < bytes.length; i += 1) {
-      out += HEX_ALPHABET[bytes[i] >> 4] + HEX_ALPHABET[bytes[i] & 0x0f];
-    }
-    return out;
-  }
+/** @typedef {{ titel: string, variablen: [string, string][] }} EnvBlock */
 
-  /** Erzeugt eine Base64-Zeichenkette aus Zufallsbytes (wie openssl rand -base64). */
-  function randomBase64(byteCount) {
-    const bytes = new Uint8Array(byteCount);
-    window.crypto.getRandomValues(bytes);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i += 1) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-  }
+/** Steht in der .env statt der Schlüssel von Anthropic, S3 und SSO: Die tippt niemand auf einer öffentlichen Seite ein. */
+export const PLATZHALTER = "hier-eintragen";
 
-  /** Bereinigt die Domain: entfernt Protokoll, Schrägstriche und Leerzeichen. */
-  function normalizeDomain(raw) {
-    return (
-      (raw || "")
-        .trim()
-        .replace(/^https?:\/\//i, "")
-        .replace(/\/+$/, "") || "haben.example.de"
-    );
-  }
+/** @param {number} byteCount */
+const randomBytes = (byteCount) => globalThis.crypto.getRandomValues(new Uint8Array(byteCount));
 
-  /** Maskiert einfache Werte für YAML, wenn Sonderzeichen vorkommen. */
-  function yamlScalar(value) {
-    if (/^[A-Za-z0-9._:/-]+$/.test(value)) {
-      return value;
-    }
-    return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  }
+/** Wie `openssl rand -hex`: nur 0-9 und a-f, passt in die Datenbank-URL. @param {number} byteCount */
+export const randomHex = (byteCount) => Array.from(randomBytes(byteCount), (b) => b.toString(16).padStart(2, "0")).join("");
 
-  /** Liest alle Formularfelder aus dem DOM in ein Konfigurationsobjekt. */
-  function readConfig(root) {
-    const val = (id) => root.querySelector(`#${id}`)?.value ?? "";
-    const checked = (id) => Boolean(root.querySelector(`#${id}`)?.checked);
-    const proxyMode = root.querySelector('input[name="cg-proxy-mode"]:checked')?.value || "caddy";
+/** Wie `openssl rand -base64`. @param {number} byteCount */
+export const randomBase64 = (byteCount) => btoa(String.fromCharCode(...randomBytes(byteCount)));
 
-    const imageTagChoice = val("cg-image-tag");
-    const customTag = val("cg-image-tag-custom").trim();
-    const imageTag = imageTagChoice === "custom" ? customTag || "latest" : imageTagChoice || "latest";
+/** Passwörter und Schlüssel in derselben Stärke wie in docs/installation.md (`-hex 24`, `-base64 32`). */
+export const newSecrets = () => ({
+  dbPassword: randomHex(24),
+  appDbPassword: randomHex(24),
+  authSecret: randomBase64(32),
+  encryptionKey: randomBase64(32),
+  resticPassword: randomBase64(32),
+});
 
-    return {
-      domain: normalizeDomain(val("cg-domain")),
-      registry: val("cg-registry") || "tristanteu",
-      imageTag,
-      proxyMode,
-      proxyNetwork: val("cg-proxy-network").trim() || "proxy",
-      dbPassword: val("cg-db-password").trim() || randomHex(24),
-      appDbPassword: val("cg-app-db-password").trim() || randomHex(24),
-      authSecret: val("cg-auth-secret").trim() || randomBase64(32),
-      encryptionKey: val("cg-encryption-key").trim() || randomBase64(32),
-      resticPassword: val("cg-restic-password").trim() || randomBase64(32),
-      ericAutoInstall: checked("cg-eric-auto"),
-      arm64: checked("cg-arm64"),
-      aiMode: val("cg-ai-mode") || "none",
-      anthropicKey: val("cg-anthropic-key").trim(),
-      extractionBaseUrl: val("cg-extraction-url").trim(),
-      extractionModel: val("cg-extraction-model").trim(),
-      extractionApiKey: val("cg-extraction-key").trim(),
-      backupMode: val("cg-backup-mode") || "local",
-      resticRepository: val("cg-restic-repo").trim(),
-      awsAccessKey: val("cg-aws-key").trim(),
-      awsSecretKey: val("cg-aws-secret").trim(),
-      backupTime: val("cg-backup-time").trim() || "03:15",
-      restoreCheckDays: val("cg-restore-days").trim() || "7",
-      oidcOnly: checked("cg-oidc-only"),
-      oidcIssuer: val("cg-oidc-issuer").trim(),
-      oidcClientId: val("cg-oidc-client-id").trim(),
-      oidcClientSecret: val("cg-oidc-client-secret").trim(),
-      oidcDisplayName: val("cg-oidc-display-name").trim() || "Authelia",
-      oidcGroupsClaim: val("cg-oidc-groups-claim").trim() || "groups",
-      oidcGroupInhaber: val("cg-oidc-group-inhaber").trim() || "haben-inhaber",
-      oidcGroupSteuer: val("cg-oidc-group-steuer").trim() || "haben-steuerberatung",
-    };
-  }
+/**
+ * Ein eigenes Datenbank-Passwort steht in der Verbindungs-URL; andere Zeichen als Buchstaben und Ziffern brechen sie.
+ * @param {string} value
+ * @returns {string | null} Meldung oder null
+ */
+export const passwordError = (value) => {
+  if (value === "") return "Passwort fehlt.";
+  return /^[A-Za-z0-9]+$/.test(value) ? null : "Nur Buchstaben und Ziffern, sonst bricht die Datenbank-URL.";
+};
 
-  /** Baut den Inhalt der .env-Datei passend zu deploy/compose.env.example. */
-  function buildEnvFile(cfg) {
-    const lines = [
-      "# Domain, unter der Haben läuft (ohne https://). Passkeys hängen an dieser Domain.",
-      `DOMAIN=${cfg.domain}`,
-      "",
-      "# Datenbank-Passwörter (nur Buchstaben und Ziffern für die Verbindungs-URL)",
-      `DB_PASSWORD=${cfg.dbPassword}`,
-      `DATABASE_URL=postgres://haben_app:${cfg.appDbPassword}@db:5432/haben`,
-      `MIGRATION_DATABASE_URL=postgres://haben:\${DB_PASSWORD}@db:5432/haben`,
-      "",
-      "# Sitzungs- und Verschlüsselungsschlüssel (ENCRYPTION_KEY und RESTIC_PASSWORD sicher aufbewahren!)",
-      `AUTH_SECRET=${cfg.authSecret}`,
-      `ENCRYPTION_KEY=${cfg.encryptionKey}`,
-      `RESTIC_PASSWORD=${cfg.resticPassword}`,
-    ];
+/** Domain ohne Protokoll und Schrägstriche. @param {string} raw */
+export const normalizeDomain = (raw) =>
+  raw
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/, "");
 
-    appendBackupEnv(lines, cfg);
-    appendElsterAndAiEnv(lines, cfg);
-    appendOidcEnv(lines, cfg);
-    return `${lines.join("\n")}\n`;
-  }
+/** Wert für YAML, in Anführungszeichen, wenn er Sonderzeichen enthält. @param {string} value */
+const yamlScalar = (value) => (/^[A-Za-z0-9._:/-]+$/.test(value) ? value : JSON.stringify(value));
 
-  function appendBackupEnv(lines, cfg) {
-    if (cfg.backupMode !== "local" && cfg.resticRepository) {
-      lines.push(`RESTIC_REPOSITORY=${cfg.resticRepository}`);
-    }
-    if (cfg.backupMode === "s3") {
-      lines.push(`AWS_ACCESS_KEY_ID=${cfg.awsAccessKey}`);
-      lines.push(`AWS_SECRET_ACCESS_KEY=${cfg.awsSecretKey}`);
-    }
-    if (cfg.backupTime && cfg.backupTime !== "03:15") {
-      lines.push(`BACKUP_TIME=${cfg.backupTime}`);
-    }
-    if (cfg.restoreCheckDays && cfg.restoreCheckDays !== "7") {
-      lines.push(`RESTORE_CHECK_DAYS=${cfg.restoreCheckDays}`);
-    }
-  }
+/** @param {Config} cfg @returns {[string, string][]} */
+const aiVariables = (cfg) => {
+  const ollama = cfg.aiMode === "ollama";
+  const compatible = ollama || cfg.aiMode === "openai";
+  return [
+    ["ANTHROPIC_API_KEY", cfg.aiMode === "anthropic" ? PLATZHALTER : ""],
+    ["EXTRACTION_BASE_URL", compatible ? cfg.extractionBaseUrl || (ollama ? "http://host.docker.internal:11434/v1" : PLATZHALTER) : ""],
+    ["EXTRACTION_MODEL", compatible ? cfg.extractionModel || (ollama ? "qwen2.5vl:7b" : PLATZHALTER) : ""],
+    ["EXTRACTION_API_KEY", cfg.aiMode === "openai" ? PLATZHALTER : ""],
+    ["EXTRACTION_EXTRA_BODY", ""],
+  ];
+};
 
-  function appendElsterAndAiEnv(lines, cfg) {
-    if (cfg.ericAutoInstall) {
-      lines.push("", "# ERiC beim Start von download.elster.de laden (Zustimmung zu den Nutzungsbedingungen)", "ERIC_AUTO_INSTALL=ja");
-    }
-    if (cfg.arm64) {
-      lines.push("", "# ELSTER auf arm64 über statisches QEMU (nach deploy/eric-x86_64/einrichten.sh)", "ERIC_WORKER_COMMAND=/opt/haben-x86_64/start.sh");
-    }
-    if (cfg.aiMode === "anthropic" && cfg.anthropicKey) {
-      lines.push("", "# KI-Belegauslesung mit Claude (Anthropic)", `ANTHROPIC_API_KEY=${cfg.anthropicKey}`);
-    } else if (cfg.aiMode === "ollama") {
-      lines.push(
-        "",
-        "# KI-Belegauslesung über lokales Modell (Ollama)",
-        `EXTRACTION_BASE_URL=${cfg.extractionBaseUrl || "http://host.docker.internal:11434/v1"}`,
-        `EXTRACTION_MODEL=${cfg.extractionModel || "qwen2.5vl:7b"}`,
-      );
-    } else if (cfg.aiMode === "openai") {
-      lines.push(
-        "",
-        "# KI-Belegauslesung über OpenAI-kompatible Schnittstelle",
-        `EXTRACTION_BASE_URL=${cfg.extractionBaseUrl}`,
-        `EXTRACTION_MODEL=${cfg.extractionModel}`,
-        `EXTRACTION_API_KEY=${cfg.extractionApiKey}`,
-      );
-    }
-  }
+/** @param {Config} cfg @returns {[string, string][]} */
+const oidcVariables = (cfg) => {
+  /** @param {string} value */
+  const sso = (value) => (cfg.oidcOnly ? value : "");
+  return [
+    ["OIDC_ONLY", cfg.oidcOnly ? "true" : "false"],
+    ["OIDC_ISSUER", sso(cfg.oidcIssuer || PLATZHALTER)],
+    ["OIDC_CLIENT_ID", sso(cfg.oidcClientId || PLATZHALTER)],
+    ["OIDC_CLIENT_SECRET", sso(PLATZHALTER)],
+    ["OIDC_DISPLAY_NAME", sso(cfg.oidcDisplayName)],
+    ["OIDC_GROUPS_CLAIM", sso(cfg.oidcGroupsClaim)],
+    ["OIDC_GROUP_INHABER", sso(cfg.oidcGroupInhaber)],
+    ["OIDC_GROUP_STEUERBERATUNG", sso(cfg.oidcGroupSteuerberatung)],
+    ["HABEN_FIRMENPORTAL_URL", ""],
+  ];
+};
 
-  function appendOidcEnv(lines, cfg) {
-    if (!cfg.oidcOnly) {
-      return;
-    }
-    lines.push(
-      "",
-      "# Single Sign-on (ausschließlich OpenID Connect)",
-      "OIDC_ONLY=true",
-      `OIDC_ISSUER=${cfg.oidcIssuer}`,
-      `OIDC_CLIENT_ID=${cfg.oidcClientId}`,
-      `OIDC_CLIENT_SECRET=${cfg.oidcClientSecret}`,
-      `OIDC_DISPLAY_NAME=${cfg.oidcDisplayName}`,
-      `OIDC_GROUPS_CLAIM=${cfg.oidcGroupsClaim}`,
-      `OIDC_GROUP_INHABER=${cfg.oidcGroupInhaber}`,
-      `OIDC_GROUP_STEUERBERATUNG=${cfg.oidcGroupSteuer}`,
-    );
-  }
+/**
+ * Alle Variablen aus deploy/compose.env.example in deren Reihenfolge; leer heißt nicht gesetzt.
+ * @param {Config} cfg
+ * @returns {EnvBlock[]}
+ */
+export const envBlocks = (cfg) => [
+  {
+    titel: "Domain, Datenbank und Schlüssel; ENCRYPTION_KEY und RESTIC_PASSWORD zusätzlich im Passwortmanager sichern",
+    variablen: [
+      ["DOMAIN", cfg.domain],
+      ["DB_PASSWORD", cfg.dbPassword],
+      ["DATABASE_URL", `postgres://haben_app:${cfg.appDbPassword}@db:5432/haben`],
+      // Den Platzhalter löst Compose aus der Zeile DB_PASSWORD auf, wie in deploy/compose.env.example
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: Variable für Compose, kein Template-String
+      ["MIGRATION_DATABASE_URL", "postgres://haben:${DB_PASSWORD}@db:5432/haben"],
+      ["AUTH_SECRET", cfg.authSecret],
+      ["ENCRYPTION_KEY", cfg.encryptionKey],
+      ["RESTIC_PASSWORD", cfg.resticPassword],
+    ],
+  },
+  {
+    titel: "Backup",
+    variablen: [
+      ["RESTIC_REPOSITORY", cfg.backupMode === "local" ? "" : cfg.resticRepository || PLATZHALTER],
+      ["AWS_ACCESS_KEY_ID", cfg.backupMode === "s3" ? PLATZHALTER : ""],
+      ["AWS_SECRET_ACCESS_KEY", cfg.backupMode === "s3" ? PLATZHALTER : ""],
+      ["BACKUP_TIME", cfg.backupTime],
+      ["RESTORE_CHECK_DAYS", cfg.restoreCheckDays],
+    ],
+  },
+  {
+    titel: "ELSTER",
+    variablen: [
+      ["ERIC_AUTO_INSTALL", cfg.ericAutoInstall ? "ja" : ""],
+      ["ERIC_SHA256", ""],
+      ["ERIC_HOME", ""],
+      ["ERIC_WORKER_COMMAND", cfg.arm64 ? "/opt/haben-x86_64/start.sh" : ""],
+      ["ELSTER_HERSTELLER_ID", ""],
+    ],
+  },
+  { titel: "KI-Auslesung von Belegen", variablen: aiVariables(cfg) },
+  {
+    titel: "Kontoabruf und mehrere Firmen",
+    variablen: [
+      ["ENABLE_BANKING_APP_ID", ""],
+      ["HABEN_FIRMEN", ""],
+    ],
+  },
+  { titel: "Single Sign-on", variablen: oidcVariables(cfg) },
+];
 
-  /** Baut compose.yml auf Basis von deploy/compose.yml mit gewähltem Image/Tag und Optionen. */
-  function buildComposeFile(cfg) {
+/** @param {Config} cfg */
+export const envFile = (cfg) => {
+  const kopf = [
+    "# Erzeugt mit dem Compose-Generator (https://haben.app/compose-generator.html).",
+    "# Was jede Variable bedeutet: https://haben.app/installation.html#docker-compose",
+  ];
+  const bloecke = envBlocks(cfg).map(({ titel, variablen }) => [`# ${titel}`, ...variablen.map(([name, value]) => `${name}=${value}`)].join("\n"));
+  return `${[kopf.join("\n"), ...bloecke].join("\n\n")}\n`;
+};
+
+/** @param {Config} cfg @returns {[string, string[]][]} Dienst und seine Zeilen im Override */
+const overrideServices = (cfg) => {
+  /** @type {Map<string, string[]>} */
+  const services = new Map();
+  /** @param {string} service @param {string[]} lines */
+  const add = (service, ...lines) => services.set(service, [...(services.get(service) ?? []), ...lines]);
+
+  if (cfg.registry !== "dockerhub" || cfg.imageTag !== "latest") {
     const prefix = cfg.registry === "ghcr" ? "ghcr.io/firsttris" : "tristanteu";
-    const tag = yamlScalar(cfg.imageTag);
-    const arm64Volume = cfg.arm64 ? "      - /opt/haben-x86_64:/opt/haben-x86_64:ro\n" : "";
-    const ollamaHosts = cfg.aiMode === "ollama" ? "    extra_hosts:\n      - host.docker.internal:host-gateway\n" : "";
-
-    return `# Erzeugt mit dem Haben Compose-Generator (https://haben.app/compose-generator.html)
-# Braucht Docker Compose 2.23 oder neuer.
-name: haben
-
-x-backup: &backup
-  image: ${prefix}/haben-backup:${tag}
-  depends_on:
-    db:
-      condition: service_healthy
-  environment:
-    PGPASSWORD: \${DB_PASSWORD}
-    RESTIC_REPOSITORY: \${RESTIC_REPOSITORY:-/backups}
-    RESTIC_PASSWORD: \${RESTIC_PASSWORD:?RESTIC_PASSWORD fehlt in .env}
-    BACKUP_HOST: \${BACKUP_HOST:-haben}
-    BACKUP_TIME: \${BACKUP_TIME:-03:15}
-    RESTORE_CHECK_DAYS: \${RESTORE_CHECK_DAYS:-7}
-    AWS_ACCESS_KEY_ID: \${AWS_ACCESS_KEY_ID:-}
-    AWS_SECRET_ACCESS_KEY: \${AWS_SECRET_ACCESS_KEY:-}
-
-services:
-  db:
-    image: ${prefix}/haben-db:${tag}
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: haben
-      POSTGRES_DB: haben
-      POSTGRES_PASSWORD: \${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
-    volumes:
-      - db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "haben"]
-      interval: 5s
-      retries: 20
-      start_period: 10m
-
-  app:
-    image: ${prefix}/haben:${tag}
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    read_only: true
-    tmpfs:
-      - /tmp
-    cap_drop: [ALL]
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      DATABASE_URL: \${DATABASE_URL:-postgres://haben:\${DB_PASSWORD}@db:5432/haben}
-      MIGRATION_DATABASE_URL: \${MIGRATION_DATABASE_URL:-}
-      OIDC_ONLY: \${OIDC_ONLY:-false}
-      OIDC_ISSUER: \${OIDC_ISSUER:-}
-      OIDC_CLIENT_ID: \${OIDC_CLIENT_ID:-}
-      OIDC_CLIENT_SECRET: \${OIDC_CLIENT_SECRET:-}
-      OIDC_SCOPES: \${OIDC_SCOPES:-}
-      OIDC_DISPLAY_NAME: \${OIDC_DISPLAY_NAME:-}
-      OIDC_GROUPS_CLAIM: \${OIDC_GROUPS_CLAIM:-groups}
-      OIDC_GROUP_INHABER: \${OIDC_GROUP_INHABER:-}
-      OIDC_GROUP_STEUERBERATUNG: \${OIDC_GROUP_STEUERBERATUNG:-}
-      BETTER_AUTH_URL: https://\${DOMAIN:?DOMAIN fehlt in .env}
-      BETTER_AUTH_SECRET: \${AUTH_SECRET:?AUTH_SECRET fehlt in .env}
-      HABEN_ENCRYPTION_KEY: \${ENCRYPTION_KEY:?ENCRYPTION_KEY fehlt in .env}
-      ERIC_HOME: \${ERIC_HOME:-}
-      ERIC_AUTO_INSTALL: \${ERIC_AUTO_INSTALL:-}
-      ERIC_SHA256: \${ERIC_SHA256:-}
-      ERIC_WORKER_COMMAND: \${ERIC_WORKER_COMMAND:-}
-      ELSTER_HERSTELLER_ID: \${ELSTER_HERSTELLER_ID:-}
-      ANTHROPIC_API_KEY: \${ANTHROPIC_API_KEY:-}
-      EXTRACTION_PROVIDER: \${EXTRACTION_PROVIDER:-}
-      EXTRACTION_BASE_URL: \${EXTRACTION_BASE_URL:-}
-      EXTRACTION_MODEL: \${EXTRACTION_MODEL:-}
-      EXTRACTION_API_KEY: \${EXTRACTION_API_KEY:-}
-      EXTRACTION_TIMEOUT_SECONDS: \${EXTRACTION_TIMEOUT_SECONDS:-}
-      EXTRACTION_MAX_PAGES: \${EXTRACTION_MAX_PAGES:-}
-      EXTRACTION_INPUT: \${EXTRACTION_INPUT:-}
-      EXTRACTION_EXTRA_BODY: \${EXTRACTION_EXTRA_BODY:-}
-      LAYOUTS_MAX_COUNT: \${LAYOUTS_MAX_COUNT:-}
-      LAYOUTS_MAX_MB: \${LAYOUTS_MAX_MB:-}
-      LAYOUTS_PACKAGES_URL: \${LAYOUTS_PACKAGES_URL:-}
-      ENABLE_BANKING_APP_ID: \${ENABLE_BANKING_APP_ID:-}
-      ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
-      HABEN_FIRMEN: \${HABEN_FIRMEN:-}
-    volumes:
-      - belege:/var/lib/haben/belege
-      - eric-log:/var/lib/haben/eric-log
-      - eric:/var/lib/haben/eric
-${arm64Volume}${ollamaHosts}
-  backup:
-    <<: *backup
-    restart: unless-stopped
-    volumes:
-      - belege:/belege:ro
-      - backups:/backups
-    healthcheck:
-      test: ["CMD-SHELL", "s=/var/lib/haben-backup/status; [ ! -f $$s ] || { grep -q '^ok' $$s && [ -n \\"$$(find $$s -mmin -2880)\\" ]; }"]
-      interval: 5m
-
-  restore:
-    <<: *backup
-    profiles: [restore]
-    entrypoint: ["restore.sh"]
-    volumes:
-      - belege:/belege
-      - backups:/backups
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    depends_on:
-      - app
-    ports:
-      - "80:80"
-      - "443:443"
-    configs:
-      - source: caddyfile
-        target: /etc/caddy/Caddyfile
-    volumes:
-      - caddy:/data
-
-configs:
-  caddyfile:
-    content: |
-      \${DOMAIN} {
-        encode zstd gzip
-        header {
-          Strict-Transport-Security "max-age=31536000; includeSubDomains"
-          X-Content-Type-Options nosniff
-          Referrer-Policy same-origin
-          X-Frame-Options SAMEORIGIN
-        }
-        request_body {
-          max_size 250MB
-        }
-        reverse_proxy app:3000
-      }
-
-volumes:
-  db:
-  belege:
-  eric-log:
-  eric:
-  caddy:
-  backups:
-`;
+    const images = { db: "haben-db", app: "haben", backup: "haben-backup", restore: "haben-backup" };
+    for (const [service, image] of Object.entries(images)) add(service, `image: ${prefix}/${image}:${yamlScalar(cfg.imageTag)}`);
   }
+  if (cfg.proxyMode !== "caddy") add("caddy", "profiles: [eigener-proxy]");
+  if (cfg.proxyMode === "proxy-docker") add("app", "networks:", "  default:", "  proxy:", "    aliases: [haben-app]");
+  if (cfg.proxyMode === "proxy-host") add("app", "ports:", '  - "127.0.0.1:3000:3000"');
+  if (cfg.arm64) add("app", "volumes:", "  - /opt/haben-x86_64:/opt/haben-x86_64:ro");
+  if (cfg.aiMode === "ollama") add("app", "extra_hosts:", "  - host.docker.internal:host-gateway");
+  return [...services];
+};
 
-  /** Baut compose.override.yml für einen eigenen Reverse Proxy (Docker-Netz oder Host). */
-  function buildOverrideFile(cfg) {
-    if (cfg.proxyMode === "proxy-docker") {
-      return `# Eigener Reverse Proxy in einem Docker-Netz (leitet an haben-app:3000 weiter)
-services:
-  caddy:
-    profiles: [eigener-proxy]
-  app:
-    networks:
-      default:
-      proxy:
-        aliases: [haben-app]
+/**
+ * compose.override.yml mit allen Abweichungen von deploy/compose.yml, leer ohne Abweichung.
+ * @param {Config} cfg
+ */
+export const overrideFile = (cfg) => {
+  const services = overrideServices(cfg);
+  if (services.length === 0) return "";
+  const lines = [
+    "# Erzeugt mit dem Compose-Generator (https://haben.app/compose-generator.html).",
+    "# compose.yml bleibt unverändert und wird bei Updates neu geladen; Abweichungen stehen nur hier.",
+    "services:",
+    ...services.flatMap(([service, own]) => [`  ${service}:`, ...own.map((line) => `    ${line}`)]),
+  ];
+  if (cfg.proxyMode === "proxy-docker") lines.push("", "networks:", "  proxy:", "    external: true", `    name: ${yamlScalar(cfg.proxyNetwork)}`);
+  return `${lines.join("\n")}\n`;
+};
 
-networks:
-  proxy:
-    external: true
-    name: ${yamlScalar(cfg.proxyNetwork)}
-`;
-    }
-    if (cfg.proxyMode === "proxy-host") {
-      return `# Eigener Reverse Proxy direkt auf dem Server (leitet an 127.0.0.1:3000 weiter)
-services:
-  caddy:
-    profiles: [eigener-proxy]
-  app:
-    ports:
-      - "127.0.0.1:3000:3000"
-`;
-    }
-    return "";
-  }
-
-  /** Baut die passenden Shell-Befehle für den ersten Start. */
-  function buildStartCommands(cfg) {
-    const lines = [
-      "mkdir -p haben && cd haben",
-      "# compose.yml und .env (sowie ggf. compose.override.yml) hier ablegen",
-      "chmod 600 .env",
-      "docker compose up -d --wait db",
-      `docker compose exec db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app`,
-      `# Beim Passwort-Prompt dieses App-Passwort eingeben: ${cfg.appDbPassword}`,
-      "docker compose up -d",
-      "docker compose logs -f app",
-    ];
-    return `${lines.join("\n")}\n`;
-  }
-
-  /** Lädt eine generierte Textdatei im Browser herunter. */
-  function downloadText(filename, content) {
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  /** Kopiert Text in die Zwischenablage und zeigt kurzes Feedback am Button. */
-  async function copyWithFeedback(button, text) {
-    const original = button.textContent;
-    try {
-      await navigator.clipboard.writeText(text);
-      button.textContent = "Kopiert";
-    } catch {
-      button.textContent = "Kopieren fehlgeschlagen";
-    }
-    window.setTimeout(() => {
-      button.textContent = original;
-    }, 1600);
-  }
-
-  /** Schaltet bedingte Formularbereiche passend zur Auswahl sichtbar. */
-  function updateVisibility(root) {
-    const toggle = (id, show) => {
-      const el = root.querySelector(`#${id}`);
-      if (el) {
-        el.classList.toggle("cg-hidden", !show);
-      }
-    };
-
-    const proxyMode = root.querySelector('input[name="cg-proxy-mode"]:checked')?.value || "caddy";
-    const imageTagChoice = root.querySelector("#cg-image-tag")?.value || "latest";
-    const aiMode = root.querySelector("#cg-ai-mode")?.value || "none";
-    const backupMode = root.querySelector("#cg-backup-mode")?.value || "local";
-    const oidcOnly = Boolean(root.querySelector("#cg-oidc-only")?.checked);
-
-    toggle("cg-proxy-network-wrap", proxyMode === "proxy-docker");
-    toggle("cg-image-tag-custom-wrap", imageTagChoice === "custom");
-    toggle("cg-ai-anthropic-wrap", aiMode === "anthropic");
-    toggle("cg-ai-url-wrap", aiMode === "ollama" || aiMode === "openai");
-    toggle("cg-ai-key-wrap", aiMode === "openai");
-
-    const urlInput = root.querySelector("#cg-extraction-url");
-    const modelInput = root.querySelector("#cg-extraction-model");
-    if (urlInput && modelInput) {
-      if (aiMode === "openai") {
-        urlInput.placeholder = "https://openrouter.ai/api/v1";
-        modelInput.placeholder = "qwen/qwen2.5-vl-72b-instruct";
-      } else {
-        urlInput.placeholder = "http://host.docker.internal:11434/v1";
-        modelInput.placeholder = "qwen2.5vl:7b";
-      }
-    }
-    toggle("cg-backup-repo-wrap", backupMode !== "local");
-    toggle("cg-backup-s3-wrap", backupMode === "s3");
-    toggle("cg-oidc-fields-wrap", oidcOnly);
-
-    const overrideTab = root.querySelector('[data-cg-tab="override"]');
-    if (overrideTab) {
-      const hasOverride = proxyMode !== "caddy";
-      overrideTab.hidden = !hasOverride;
-      if (!hasOverride && overrideTab.getAttribute("aria-selected") === "true") {
-        activateTab(root, "env");
-      }
-    }
-  }
-
-  function activateTab(root, tabName) {
-    root.querySelectorAll("[data-cg-tab]").forEach((tab) => {
-      const active = tab.getAttribute("data-cg-tab") === tabName;
-      tab.setAttribute("aria-selected", active ? "true" : "false");
-    });
-    root.querySelectorAll("[data-cg-panel]").forEach((panel) => {
-      const active = panel.getAttribute("data-cg-panel") === tabName;
-      panel.classList.toggle("cg-hidden", !active);
-    });
-  }
-
-  function regenerateSecrets(root) {
-    const setVal = (id, value) => {
-      const el = root.querySelector(`#${id}`);
-      if (el) {
-        el.value = value;
-      }
-    };
-    setVal("cg-db-password", randomHex(24));
-    setVal("cg-app-db-password", randomHex(24));
-    setVal("cg-auth-secret", randomBase64(32));
-    setVal("cg-encryption-key", randomBase64(32));
-    setVal("cg-restic-password", randomBase64(32));
-  }
-
-  function renderOutputs(root) {
-    updateVisibility(root);
-    const cfg = readConfig(root);
-    const files = {
-      env: buildEnvFile(cfg),
-      compose: buildComposeFile(cfg),
-      override: buildOverrideFile(cfg),
-      commands: buildStartCommands(cfg),
-    };
-
-    const setCode = (id, text) => {
-      const el = root.querySelector(`#${id}`);
-      if (el) {
-        el.textContent = text;
-      }
-    };
-    setCode("cg-out-env", files.env);
-    setCode("cg-out-compose", files.compose);
-    setCode("cg-out-override", files.override);
-    setCode("cg-out-commands", files.commands);
-
-    const appPassEl = root.querySelector("#cg-step-app-password");
-    if (appPassEl) {
-      appPassEl.textContent = cfg.appDbPassword;
-    }
-    root._cgFiles = files;
-  }
-
-  function bindEvents(root) {
-    root.addEventListener("input", () => renderOutputs(root));
-    root.addEventListener("change", () => renderOutputs(root));
-
-    root.querySelectorAll("[data-cg-tab]").forEach((tab) => {
-      tab.addEventListener("click", () => activateTab(root, tab.getAttribute("data-cg-tab")));
-    });
-
-    root.querySelector("#cg-regen-all")?.addEventListener("click", () => {
-      regenerateSecrets(root);
-      renderOutputs(root);
-    });
-
-    root.querySelectorAll("[data-cg-copy]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const key = btn.getAttribute("data-cg-copy");
-        const text = root._cgFiles?.[key] || "";
-        if (text) {
-          copyWithFeedback(btn, text);
-        }
-      });
-    });
-
-    root.querySelectorAll("[data-cg-download]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const key = btn.getAttribute("data-cg-download");
-        const names = { env: ".env", compose: "compose.yml", override: "compose.override.yml" };
-        const text = root._cgFiles?.[key] || "";
-        if (text && names[key]) {
-          downloadText(names[key], text);
-        }
-      });
-    });
-
-    root.querySelector("#cg-copy-app-pw")?.addEventListener("click", (ev) => {
-      const pw = root.querySelector("#cg-app-db-password")?.value || "";
-      if (pw) {
-        copyWithFeedback(ev.currentTarget, pw);
-      }
-    });
-  }
-
-  /** Initialisiert den Generator auf der Seite, falls das Container-Element vorhanden ist. */
-  function initComposeGenerator() {
-    const root = document.getElementById("cg-app");
-    if (!root || root.dataset.cgReady === "true") {
-      return;
-    }
-    root.dataset.cgReady = "true";
-    regenerateSecrets(root);
-    bindEvents(root);
-    renderOutputs(root);
-  }
-
-  window.initComposeGenerator = initComposeGenerator;
-
-  if (typeof document$ !== "undefined" && document$?.subscribe) {
-    document$.subscribe(() => initComposeGenerator());
-  } else {
-    document.addEventListener("DOMContentLoaded", initComposeGenerator);
-  }
-})();
+/** Befehle für den ersten Start wie in docs/installation.md, „Docker Compose“. @param {boolean} withOverride */
+export const startCommands = (withOverride) =>
+  [
+    "mkdir haben && cd haben",
+    "curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml",
+    withOverride ? "# .env und compose.override.yml aus dem Generator hier ablegen" : "# .env aus dem Generator hier ablegen",
+    "chmod 600 .env",
+    "docker compose up -d --wait db",
+    "docker compose exec db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app",
+    "# Zweimal das App-Passwort aus DATABASE_URL eingeben; die Rolle nur einmal anlegen.",
+    "docker compose up -d",
+    "docker compose logs -f app",
+    "",
+  ].join("\n");

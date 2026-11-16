@@ -149,10 +149,6 @@ theme:
 extra_css:
   - assets/stylesheets/extra.css
   - assets/stylesheets/startseite.css
-  - assets/stylesheets/compose-generator.css
-
-extra_javascript:
-  - assets/javascripts/compose-generator.js
 
 plugins:
   # Zensical setzt viele MkDocs-Plugins selbst um, git-revision-date-localized (Änderungsdatum
