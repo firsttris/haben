@@ -79,6 +79,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Formularfelder über `Field`, kein eigenes Element mit der Klasse `field` (außer `<fieldset className="field">` für eine Gruppe) | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
 | Auswahllisten über `Field`, kein `<select>` außerhalb | `scripts/felder/keine-nackte-auswahl.grit` (Biome-Regel) in `bun run lint`; Ausnahmen mit `// biome-ignore lint/plugin: Grund` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
+| Funktion über 80 Zeilen neu oder gewachsen, außer in Tests | `scripts/pr-regeln/`, gezählt wie die Biome-Regel | Hinweis |
 | Seite unter `docs/` wächst über 8.000 Wörter oder darüber um 300 und mehr ([Seiten der Doku](entwicklung.md#befehle)) | `scripts/pr-regeln/` | Hinweis |
 | Titel `Bereich: was sich ändert`, `(#Issue)` für jedes Issue aus `Umgesetzt` (fehlt eins aus `Refs`: Hinweis) | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
