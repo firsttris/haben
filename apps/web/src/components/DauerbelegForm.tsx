@@ -135,7 +135,7 @@ export function DauerbelegForm({
 
   function chooseTaxShown(an: boolean) {
     setTaxShown(an);
-    setAmounts((prev) => prev.map((a) => steuerausweisUmschalten(a, an)));
+    setAmounts((prev) => steuerausweisUmschalten(prev, an));
   }
 
   function addRate() {
