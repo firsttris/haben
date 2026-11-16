@@ -52,7 +52,7 @@ Ohne E-Rechnung und ohne KI füllst du die Felder von Hand aus.
 
 Unter **Einstellungen › E-Mail › Belege per E-Mail** trägst du ein Postfach ein, aus dem Haben sie selbst abholt:
 
-- **Zugang:** IMAP-Server, Port, Verschlüsselung, Benutzername, Passwort und Ordner. Für Gmail, GMX, web.de, Posteo und mailbox.org sind Server und Port vorbelegt; Gmail, GMX und web.de brauchen ein App-Passwort bzw. freigeschaltetes IMAP. Das Passwort liegt verschlüsselt in der Datenbank.
+- **Zugang:** IMAP-Server, Port, Verschlüsselung, Benutzername, Passwort und Ordner für Eingangsrechnungen. Für Gmail, GMX, web.de, Posteo und mailbox.org sind Server und Port vorbelegt; Gmail, GMX und web.de brauchen ein App-Passwort bzw. freigeschaltetes IMAP. Das Passwort liegt verschlüsselt in der Datenbank.
 - **Freigegebene Absender:** optional.
     - **Einträge:** je eine Adresse (`rechnung@lieferant.example`) oder eine Domain (`lieferant.example`), durch Komma oder Zeilenumbruch getrennt. Groß- und Kleinschreibung zählt nicht, Unterdomains sind nicht mitgemeint. Ist die Liste leer, holt Haben Mails aller Absender.
     - **Andere Absender:** ihre Mails bleiben **ungelesen im Postfach**. Haben legt nichts ab, liest nur den Umschlag und vermerkt die Mail einmal im Abrufprotokoll („Absender nicht freigegeben“). Sie zählen nicht zu den 50 je Lauf. Damit lässt sich auch ein Hauptpostfach anbinden. Gibst du einen Absender nachträglich frei, holt der nächste Abruf seine ungelesenen Mails nach.

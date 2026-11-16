@@ -119,7 +119,9 @@ export function InboxCard({ data }: { data: Data }) {
         <Field label="Passwort">
           {(control) => <input {...control} name="password" type="password" autoComplete="new-password" placeholder={s ? "unverändert lassen" : undefined} />}
         </Field>
-        <Field label="Ordner">{(control) => <input {...control} name="folder" defaultValue={s?.folder ?? "INBOX"} placeholder="INBOX" />}</Field>
+        <Field label="Ordner für Eingangsrechnungen">
+          {(control) => <input {...control} name="folder" defaultValue={s?.folder ?? "INBOX"} placeholder="INBOX" />}
+        </Field>
       </div>
       <InboxFilterFelder settings={s} />
       <label className="checkbox">

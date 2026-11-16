@@ -451,7 +451,7 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
   await card.getByLabel("Verschlüsselung").selectOption("starttls");
   await card.getByLabel("Benutzername").fill("belege@mustermann.example");
   await card.getByLabel("Passwort").fill("geheim");
-  await card.getByLabel("Ordner", { exact: true }).fill("Belege");
+  await card.getByLabel("Ordner für Eingangsrechnungen").fill("Belege");
   await card.getByLabel("Freigegebene Absender").fill("rechnung@funknetz.example, @lieferant.example");
   await card.getByLabel("Ordner für Ausgangsrechnungen").fill("Ausgang");
   await card.getByRole("button", { name: "Speichern" }).click();
