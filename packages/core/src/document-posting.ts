@@ -19,6 +19,30 @@ import {
 } from "./posting.ts";
 
 /**
+ * Kommt die Vorsteuer des Belegs auf das Zwischenkonto (SKR03 1548, SKR04 1434)? Bei der Gutschrift, die bereits
+ * Bezahltes erstattet (#786), und bei der Leistung, die beim Buchen noch nicht ausgeführt ist (#693): Nach § 15 Abs. 1
+ * Satz 1 Nr. 1 UStG ist die Vorsteuer erst abziehbar, wenn die Leistung ausgeführt ist und die Rechnung vorliegt. Lehnt
+ * ab, was dazu nicht passt; § 13b und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt. Geparkt wird nur der abziehbare
+ * Teil (§ 15 Abs. 4 UStG); der übrige ist sofort Aufwand.
+ */
+function vorsteuerParken(
+  totals: InvoiceTotals,
+  category: ExpenseCategory,
+  reverseCharge: SelfAssessedTax | null,
+  erstattetBezahltes: boolean,
+  vorsteuerNochNichtAbziehbar: boolean,
+): boolean {
+  if (erstattetBezahltes) {
+    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
+    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
+    if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
+  }
+  if (vorsteuerNochNichtAbziehbar && (reverseCharge || category === "einfuhrumsatzsteuer"))
+    throw new RangeError("Noch nicht abziehbare Vorsteuer gibt es nicht bei § 13b oder Einfuhrumsatzsteuer; beide haben ihren eigenen Zeitpunkt");
+  return erstattetBezahltes || vorsteuerNochNichtAbziehbar;
+}
+
+/**
  * Buchung eines Belegs: Aufwand und Vorsteuer an Verbindlichkeiten
  * (oder Privateinlage bzw. Gesellschafter-Verrechnungskonto, wenn privat bezahlt). Gutschriften (negativ) drehen die Seiten.
  * Ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Teil des Aufwands.
@@ -46,15 +70,13 @@ export function documentPosting(
    * Zwischenkonto. Nur an Gutschriften (negativer Beleg); ohne die Angabe bleibt alles wie bisher.
    */
   erstattetBezahltes = false,
+  /** Leistung beim Buchen noch nicht ausgeführt (#693): Vorsteuer auf das Zwischenkonto, siehe vorsteuerParken */
+  vorsteuerNochNichtAbziehbar = false,
 ): PostingLine[] {
   // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
   if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
   const accounts = ACCOUNTS[kontenrahmen];
-  if (erstattetBezahltes) {
-    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
-    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
-    if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
-  }
+  const parken = vorsteuerParken(totals, category, reverseCharge, erstattetBezahltes, vorsteuerNochNichtAbziehbar);
   if (category === "einfuhrumsatzsteuer")
     return einfuhrumsatzsteuerPosting(
       totals,
@@ -69,7 +91,7 @@ export function documentPosting(
   const lines: PostingLine[] = [];
   let privatePart = 0;
   for (const row of totals.taxes) {
-    const result = documentRatePosting(row, { expense, kontenrahmen, vorsteuerAbzug, privateShare, reverseCharge, erstattetBezahltes });
+    const result = documentRatePosting(row, { expense, kontenrahmen, vorsteuerAbzug, privateShare, reverseCharge, parken });
     lines.push(...result.lines);
     privatePart += result.privatePart;
   }
@@ -89,10 +111,11 @@ function documentRatePosting(
     vorsteuerAbzug: boolean | BasisPoints;
     privateShare: number;
     reverseCharge: SelfAssessedTax | null;
-    erstattetBezahltes: boolean;
+    /** Vorsteuer auf das Zwischenkonto, siehe vorsteuerParken */
+    parken: boolean;
   },
 ) {
-  const { expense, kontenrahmen, vorsteuerAbzug, privateShare, reverseCharge, erstattetBezahltes } = options;
+  const { expense, kontenrahmen, vorsteuerAbzug, privateShare, reverseCharge, parken } = options;
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [];
   let privatePart = 0;
@@ -129,8 +152,9 @@ function documentRatePosting(
   if (base !== 0) lines.push(side(expense, base, true, code));
   if (tax - deductible !== 0) lines.push(side(expense, tax - deductible, true, "keineVSt"));
   if (deductible !== 0) {
-    // Mit der Angabe bleibt die Vorsteuerminderung auf dem Zwischenkonto, mit Steuerschlüssel und Bemessungsgrundlage
-    const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
+    // Geparkt (vorsteuerParken) steht die Vorsteuer bzw. ihre Minderung auf dem Zwischenkonto, mit Steuerschlüssel und
+    // Bemessungsgrundlage
+    const konto = parken ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
     lines.push(side(konto, deductible, true, code));
   }
   return { lines, privatePart };

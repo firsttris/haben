@@ -3,7 +3,7 @@ import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-ro
 import { Fragment } from "react";
 import { z } from "zod/mini";
 import { BalanceChart } from "../../../components/BalanceChart.tsx";
-import { JOURNAL_SOURCE, SaldoBetrag, ZEITRAEUME, lastDayBefore, shortDate } from "../../../components/Ledger.tsx";
+import { JOURNAL_SOURCE, SaldoBetrag, ZEITRAEUME, lastDayBefore, shortDate, vorgangZurHerkunft } from "../../../components/Ledger.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { getKontenblatt } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
@@ -37,34 +37,10 @@ function SourceLink({
   documentId: string | null;
 }) {
   const label = reversal ? "Gegenbuchung" : (JOURNAL_SOURCE[type as keyof typeof JOURNAL_SOURCE] ?? type);
-  if (type === "invoice")
+  const vorgang = vorgangZurHerkunft({ sourceType: type, sourceId: id, invoiceId, documentId });
+  if (vorgang)
     return (
-      <Link to="/rechnungen/$id" params={{ id }}>
-        {label}
-      </Link>
-    );
-  if (type === "document")
-    return (
-      <Link to="/belege/$id" params={{ id }}>
-        {label}
-      </Link>
-    );
-  // Verrechnung mit einer Kundenkorrektur (#877) bzw. zweier Belege (#786): wie im Journal auf den Vorgang, nicht auf die Bank
-  if (type === "verrechnung" && invoiceId)
-    return (
-      <Link to="/rechnungen/$id" params={{ id: invoiceId }}>
-        {label}
-      </Link>
-    );
-  if (type === "verrechnung" && documentId)
-    return (
-      <Link to="/belege/$id" params={{ id: documentId }}>
-        {label}
-      </Link>
-    );
-  if (type === "asset")
-    return (
-      <Link to="/anlagen/$id" params={{ id }}>
+      <Link to={vorgang.to} params={{ id: vorgang.id }}>
         {label}
       </Link>
     );
