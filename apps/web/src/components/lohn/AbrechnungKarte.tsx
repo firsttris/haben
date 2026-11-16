@@ -1,4 +1,4 @@
-import { formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -85,7 +85,7 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
           event.preventDefault();
           const betrag = entgelt.trim() ? parseEuro(entgelt) : null;
           if (entgelt.trim() && !betrag) {
-            setNotice({ tone: "danger", text: "Das Entgelt ist kein gültiger Betrag." });
+            setNotice({ tone: "danger", text: amountError("das Entgelt") });
             return;
           }
           void run(async () => {

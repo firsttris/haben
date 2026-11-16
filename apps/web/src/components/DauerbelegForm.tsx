@@ -1,4 +1,5 @@
 import {
+  amountError,
   dauerbelegSummen,
   formatEuro,
   ownerLabels,
@@ -107,7 +108,7 @@ export function DauerbelegForm({
   const due = Number(dueDays);
   const usedRates = new Set(amounts.map((a) => a.taxRate));
 
-  const BETRAG = "Trag den Betrag als Zahl ein, etwa 850,00.";
+  const BETRAG = amountError("den Betrag", 85_000);
   const { form, error, check } = useSubmitCheck({
     ...Object.fromEntries(
       amounts.flatMap((a, i) => [

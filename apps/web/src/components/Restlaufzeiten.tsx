@@ -1,4 +1,4 @@
-import { formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -116,7 +116,7 @@ export function Restlaufzeiten({ year, data }: { year: number; data: Restlaufzei
     const j = lesen(jahr);
     const v = data.vorjahr ? lesen(vorjahr) : [];
     if (!j || !v) {
-      setNotice({ tone: "danger", text: "Bitte je Konto einen Betrag von 0,00 bis zum Saldo eingeben." });
+      setNotice({ tone: "danger", text: amountError("je Konto einen Betrag von 0,00 bis zum Saldo") });
       return;
     }
     void run(async () => {

@@ -1,4 +1,5 @@
 import {
+  amountError,
   ASSET_KINDS,
   ASSET_METHODS,
   convertForeignAmounts,
@@ -404,7 +405,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     [vorsteuerAnteil, ...rows.map((row) => row.vorsteuerAnteil)].every((text) => text.trim() === "" || parseVorsteuerAnteil(text) !== null) &&
     currencyValid &&
     parsedSplits !== null;
-  const BETRAG_FEHLER = "Trag den Betrag als Zahl ein, etwa 120,50.";
+  const BETRAG_FEHLER = amountError("den Betrag", 12_050);
   const { form, error, check } = useSubmitCheck({
     ...Object.fromEntries(
       rows.flatMap((r, i) => [

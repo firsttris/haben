@@ -1,4 +1,4 @@
-import { formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -43,7 +43,7 @@ export function AbgabeVermerken({
   const { form, error, check } = useSubmitCheck({
     filedOn: filedOn === "" ? "Wähle den Tag der Abgabe." : filedOn > today ? `Wähle einen Tag bis ${formatDate(today)}.` : null,
     ticket: ticket.trim() === "" ? "Trag das Transferticket aus dem Übermittlungsprotokoll ein." : null,
-    zahllast: parsed === null || zahllast.trim() === "" ? "Trag Kz 83 laut Protokoll ein, etwa 1.234,56." : null,
+    zahllast: parsed === null || zahllast.trim() === "" ? amountError("Kz 83 laut Protokoll") : null,
     file: file ? null : "Wähle das Übermittlungsprotokoll.",
   });
 

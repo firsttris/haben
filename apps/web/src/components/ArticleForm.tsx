@@ -1,4 +1,4 @@
-import { formatDecimal, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, parseEuro } from "@haben/core";
+import { amountError, formatDecimal, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -49,7 +49,7 @@ export function ArticleForm({
     const text = (name: string) => String(form.get(name) ?? "").trim();
     const price = parseEuro(text("unitPrice"));
     if (price === null) {
-      setError("Der Preis ist kein gültiger Betrag.");
+      setError(amountError("den Preis", 12_050));
       return;
     }
     setBusy(true);

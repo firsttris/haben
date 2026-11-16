@@ -32,7 +32,7 @@ Für selbst vorbereitete Listen aus WISO EÜR & Kasse beachtest du die [Hinweise
 
 | Art | Format |
 | --- | --- |
-| Beträge | Deutsch, `1.234,56`, auch `12,5` oder `100 €`. Ein Punkt gilt nur als Dezimalpunkt, wenn er eindeutig ist (`12.50`). `1.234` lehnt Haben als mehrdeutig ab: deutsch sind das 1.234 €, englisch 1,234 €; schreibe `1.234,00` oder `1234`. `1.234.567` ist eindeutig. Englische Tausendertrenner wie `1,234.56` lehnt Haben ab. Gerechnet wird in ganzen Cent. |
+| Beträge | Deutsch, `1.234,56`, auch `12,5`, `100 €` oder `EUR 100`, wie in den Betragsfeldern von Haben. „€“ und „EUR“ stehen am Anfang oder Ende, ein Minus vorn; `12€50` und `12,50-` lehnt Haben ab. Ein Punkt gilt nur als Dezimalpunkt, wenn er eindeutig ist (`12.50`). `1.234` lehnt Haben als mehrdeutig ab: deutsch sind das 1.234 €, englisch 1,234 €; schreibe `1.234,00` oder `1234`. `1.234.567` ist eindeutig. Englische Tausendertrenner wie `1,234.56` lehnt Haben ab. Gerechnet wird in ganzen Cent. |
 | Datum | `TT.MM.JJJJ` oder `JJJJ-MM-TT`. Zweistellige Jahre lehnt Haben ab, weil eine Anschaffung von `99` 1999 oder 2099 sein könnte. |
 | Steuersatz | `19`, `19 %`, `19,00`, `7`, `0`, auch `USt 19%` wie in der Artikelvorlage von Lexware Office. Andere Sätze (16 %, 5 %) kennt der Artikelkatalog nicht. |
 | Land | Ländercode nach ISO 3166-1 (`DE`), die Ziffern daraus wie in Lexware Office (`276`) oder der deutsche Name (`Deutschland`, `Österreich`, `Schweiz` …). Leer ist Deutschland. |

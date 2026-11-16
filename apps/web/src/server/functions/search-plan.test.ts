@@ -14,6 +14,8 @@ describe("paletteGroups (#617)", () => {
     expect(paletteGroups("1.190,00", "inhaber")).toEqual(mitBetrag);
     expect(paletteGroups("19.99", "inhaber")).toEqual(mitBetrag);
     expect(paletteGroups("89 €", "inhaber")).toEqual(mitBetrag);
+    // „EUR“ gilt wie „€“, seit parseEuro es liest (#1242)
+    expect(paletteGroups("89 EUR", "inhaber")).toEqual(mitBetrag);
     expect(paletteGroups("1.190,00", "steuerberatung")).toEqual(["invoices", "documents", "bookings"]);
   });
 
