@@ -68,6 +68,8 @@ Bei Zusammenveranlagung gilt der Splittingtarif. Für Kinder vergleicht Haben Ki
 
 Die Abzüge stammen aus den [Angaben zur Einkommensteuererklärung](jahreserklaerung.md#einkommensteuererklärung) des laufenden Jahres, sonst aus denen des Vorjahres. Gibt es keine, rechnet Haben nur mit dem Pauschbetrag. Einbehaltene Lohnsteuer samt Soli und Kirchensteuer wird angerechnet; die Vorauszahlungen beziehen sich nur auf den Rest. Vermietung, Renten und Kapitalerträge fehlen; die Prognose ist eine Schätzung, keine Steuerberechnung des Finanzamts. Die Nennung im Antrag lässt sich abschalten.
 
+Einkommensersatzleistungen wie Eltern- oder Krankengeld aus den Angaben des laufenden Jahres berücksichtigt Haben beim Progressionsvorbehalt ([§ 32b EStG](https://www.gesetze-im-internet.de/estg/__32b.html)). Bei übernommenen Vorjahresangaben lässt Haben diese Leistungen für beide Personen weg und nennt bei positiven Beträgen das Herkunftsjahr im Hinweis. In der Jahreserklärung ihres Bezugsjahres bleiben sie berücksichtigt. Erwartest du im laufenden Jahr ebenfalls Leistungen, trage sie in dessen Angaben zur Einkommensteuer ein.
+
 Die Herabsetzung wirkt ab dem nächsten Fälligkeitstermin. Die Antwort kommt als geänderter Vorauszahlungsbescheid, per Brief oder in dein ELSTER-Postfach.
 
 ## Freie Nachricht
