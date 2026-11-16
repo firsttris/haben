@@ -451,11 +451,17 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
   await card.getByLabel("Verschlüsselung").selectOption("starttls");
   await card.getByLabel("Benutzername").fill("belege@mustermann.example");
   await card.getByLabel("Passwort").fill("geheim");
-  await card.getByLabel("Ordner").fill("Belege");
+  await card.getByLabel("Ordner", { exact: true }).fill("Belege");
+  await card.getByLabel("Freigegebene Absender").fill("rechnung@funknetz.example, @lieferant.example");
+  await card.getByLabel("Ordner für Ausgangsrechnungen").fill("Ausgang");
   await card.getByRole("button", { name: "Speichern" }).click();
   await expect(card.getByRole("status")).toHaveText("Postfach gespeichert.");
   await card.getByRole("button", { name: "Jetzt abrufen" }).click();
   await expect(card.getByRole("alert")).toContainText("Abruf fehlgeschlagen");
+  // Freigegebene Absender und Ausgangsordner sind gespeichert
+  await go("/einstellungen?bereich=email");
+  await expect(card.getByLabel("Freigegebene Absender")).toHaveValue("rechnung@funknetz.example\n@lieferant.example");
+  await expect(card.getByLabel("Ordner für Ausgangsrechnungen")).toHaveValue("Ausgang");
 
   await go("/belege");
   await expect(page.getByText(/Belege per E-Mail: Anhänge an belege@mustermann\.example \(Ordner Belege\)/)).toBeVisible();

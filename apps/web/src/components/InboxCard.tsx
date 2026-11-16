@@ -53,6 +53,10 @@ export function InboxCard({ data }: { data: Data }) {
           username: text("username"),
           password: text("password") || undefined,
           folder: text("folder") || "INBOX",
+          outboundFolder: text("outboundFolder") || null,
+          allowedSenders: text("allowedSenders")
+            .split(/[\s,;]+/)
+            .filter(Boolean),
           enabled: form.get("enabled") === "on",
         },
       });
@@ -106,6 +110,28 @@ export function InboxCard({ data }: { data: Data }) {
         </Field>
         <Field label="Ordner">{(control) => <input {...control} name="folder" defaultValue={s?.folder ?? "INBOX"} placeholder="INBOX" />}</Field>
       </div>
+      <div className="form-row cols-2">
+        <Field
+          label="Freigegebene Absender"
+          hint="Adresse oder Domain, durch Komma oder Zeilenumbruch getrennt. Leer: jeder Absender. Mails anderer Absender bleiben ungelesen im Postfach und stehen im Protokoll. Bei Weiterleitungen zählt der Absender der Mail."
+        >
+          {(control) => (
+            <textarea
+              {...control}
+              name="allowedSenders"
+              rows={3}
+              defaultValue={(s?.allowedSenders ?? []).join("\n")}
+              placeholder={"rechnung@lieferant.example\nshop.example"}
+            />
+          )}
+        </Field>
+        <Field
+          label="Ordner für Ausgangsrechnungen"
+          hint="Für Rechnungen aus Fremdsystemen, etwa ein Shop im Bcc. Leer: aus. Haben übernimmt sie erst, wenn die Übernahme fremder Ausgangsrechnungen eingebaut ist (#660); bis dahin bleibt der Ordner unberührt."
+        >
+          {(control) => <input {...control} name="outboundFolder" defaultValue={s?.outboundFolder ?? ""} placeholder="Ausgang" />}
+        </Field>
+      </div>
       <label className="checkbox">
         <input type="checkbox" name="enabled" defaultChecked={s?.enabled ?? true} />
         Stündlich abrufen
@@ -142,8 +168,8 @@ export function InboxCard({ data }: { data: Data }) {
                     tone: "ok",
                     text:
                       r.messages === 0
-                        ? "Keine neuen Mails."
-                        : `${r.messages} ${r.messages === 1 ? "Mail" : "Mails"} gelesen: ${r.documents} neue Belege${r.duplicates ? `, ${r.duplicates} schon vorhanden` : ""}${r.skipped ? `, ${r.skipped} übersprungen` : ""}.`,
+                        ? `Keine neuen Mails${r.rejected ? `, ${r.rejected} von nicht freigegebenen Absendern ungelesen gelassen` : ""}.`
+                        : `${r.messages} ${r.messages === 1 ? "Mail" : "Mails"} gelesen: ${r.documents} neue Belege${r.duplicates ? `, ${r.duplicates} schon vorhanden` : ""}${r.skipped ? `, ${r.skipped} übersprungen` : ""}${r.rejected ? `, ${r.rejected} von nicht freigegebenen Absendern` : ""}.`,
                   };
                 })
               }

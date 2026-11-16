@@ -1947,6 +1947,13 @@
       "when": 1794833455977,
       "tag": "0277_einrichtung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 278,
+      "version": "7",
+      "when": 1794841647792,
+      "tag": "0278_inbox_absender",
+      "breakpoints": true
     }
   ]
 }

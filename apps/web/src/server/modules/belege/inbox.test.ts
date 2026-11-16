@@ -1,3 +1,4 @@
+import { simpleParser } from "mailparser";
 import nodemailer from "nodemailer";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -10,10 +11,14 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
   let sql: postgres.Sql;
   const actor = "test-user";
   /** Postfach im Speicher: UID → Quelltext, gelesen ja/nein */
-  let box: Map<number, { source: Buffer; seen: boolean; tooLarge?: boolean }>;
+  type Box = Map<number, { source: Buffer; seen: boolean; tooLarge?: boolean }>;
+  let box: Box;
+  /** Ordner „Ausgang“ */
+  let ausgangBox: Box;
   let failConnect = false;
   let lastPassword = "";
 
+  const boxEingang = () => box;
   const pdf = (text: string) => Buffer.from(`%PDF-1.4\n% ${text}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`);
   const composer = nodemailer.createTransport({ streamTransport: true, buffer: true });
   const build = async (mail: Mail) =>
@@ -25,10 +30,15 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     inbox = await import("./inbox.ts");
-    inbox.setInboxConnectorForTests(async (_settings, password) => {
+    inbox.setInboxConnectorForTests(async (_settings, password, folder) => {
       lastPassword = password;
       if (failConnect) throw new Error("AUTHENTICATIONFAILED");
+      const box = folder === "Ausgang" ? ausgangBox : boxEingang();
       return {
+        envelope: async (uid) => {
+          const mail = await simpleParser(box.get(uid)!.source);
+          return { address: mail.from?.value[0]?.address ?? "", messageId: mail.messageId ?? "", subject: mail.subject ?? "", date: mail.date ?? null };
+        },
         unseen: async () => [...box].filter(([, m]) => !m.seen).map(([uid]) => uid),
         source: async (uid) => {
           const { source, tooLarge = false } = box.get(uid)!;
@@ -50,6 +60,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
 
   beforeEach(async () => {
     box = new Map();
+    ausgangBox = new Map();
     failConnect = false;
     await leeren(sql)`truncate inbox_messages, inbox_settings, document_amounts, documents cascade`;
   });
@@ -78,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     );
 
     const result = await inbox.fetchInbox(actor);
-    expect(result).toEqual({ messages: 3, documents: 1, duplicates: 1, skipped: 2 });
+    expect(result).toEqual({ messages: 3, documents: 1, duplicates: 1, skipped: 2, rejected: 0 });
     expect(lastPassword).toBe("geheim");
     expect([...box.values()].every((m) => m.seen)).toBe(true);
 
@@ -97,7 +108,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
 
     // Wieder ungelesen markiert: schon verarbeitet, kein zweiter Eintrag
     box.get(1)!.seen = false;
-    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0 });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 0 });
     expect(box.get(1)!.seen).toBe(true);
     expect(await sql`select 1 from inbox_messages`).toHaveLength(3);
     const summary = await inbox.inboxSummary();
@@ -109,7 +120,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     await inbox.saveInboxSettings(actor, settings);
     await deliver({ subject: "Riesig", messageId: "<riesig@funknetz.example>", attachments: [{ filename: "Rechnung.pdf", content: pdf("gross") }] });
     box.get(1)!.tooLarge = true;
-    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1 });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1, rejected: 0 });
     expect(box.get(1)!.seen).toBe(true);
     const [log] = await sql`select subject, skipped from inbox_messages where message_id = '<riesig@funknetz.example>'`;
     expect(log).toEqual({ subject: "Riesig", skipped: ["Mail größer als 60 MB, Anhänge bitte einzeln hochladen"] });
@@ -125,7 +136,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       messageId: "<nul@funknetz.example>",
       attachments: [{ filename: "Rech\u0000nung.pdf", content: pdf("MF-1") }],
     });
-    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0 });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0, rejected: 0 });
     const [doc] = await sql`select filename, note from documents`;
     expect(doc).toEqual({ filename: "Rechnung.pdf", note: "Per E-Mail von Funknetz <rechnung@funknetz.example>, Betreff „Rechnung MF-1“" });
   });
@@ -138,7 +149,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     );
     await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
     try {
-      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 2, documents: 1, duplicates: 0, skipped: 1 });
+      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 2, documents: 1, duplicates: 0, skipped: 1, rejected: 0 });
     } finally {
       await sql`alter table documents drop constraint test_kaputt`;
     }
@@ -155,13 +166,13 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     await deliver({ subject: "Kaputt", messageId: "<nochmal@funknetz.example>", attachments: [{ filename: "kaputt.pdf", content: pdf("nochmal") }] });
     await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
     try {
-      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1 });
+      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1, rejected: 0 });
     } finally {
       await sql`alter table documents drop constraint test_kaputt`;
     }
     // Ursache behoben (z. B. Speicher wieder da), Mail im Postfach wieder auf ungelesen gesetzt
     box.get(1)!.seen = false;
-    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0 });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0, rejected: 0 });
     expect((await sql`select filename from documents`).map((d) => d.filename)).toEqual(["kaputt.pdf"]);
     // inbox_messages ist nur zu ergänzen: der Fehlschlag bleibt protokolliert, das Nachholen kommt dazu
     const logs =
@@ -172,7 +183,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     ]);
     // Danach gilt sie als abgerufen
     box.get(1)!.seen = false;
-    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0 });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 0 });
   });
 
   it("merkt sich Fehler beim Verbinden und hält das Passwort aus dem Protokoll", async () => {
@@ -187,5 +198,108 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
     await sql`update inbox_settings set enabled = false`;
     expect(await inbox.runDueInboxFetch()).toBeNull();
+  });
+
+  it("holt nur Mails freigegebener Absender, lässt die übrigen ungelesen und protokolliert sie einmal", async () => {
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: ["Rechnung@Funknetz.example", "@Lieferant.example"] });
+    await deliver(
+      { subject: "Funknetz", messageId: "<a@funknetz.example>", attachments: [{ filename: "a.pdf", content: pdf("a") }] },
+      {
+        from: "Buchhaltung <buchhaltung@lieferant.example>",
+        subject: "Lieferant",
+        messageId: "<b@lieferant.example>",
+        attachments: [{ filename: "b.pdf", content: pdf("b") }],
+      },
+      { from: "Spam <chef@fremd.example>", subject: "Gewinn", messageId: "<c@fremd.example>", attachments: [{ filename: "c.pdf", content: pdf("c") }] },
+      // Nur die Domain eines Eintrags mit Adresse reicht nicht, Unterdomains auch nicht
+      {
+        from: "Funknetz <andere@funknetz.example>",
+        subject: "Andere Adresse",
+        messageId: "<d@funknetz.example>",
+        attachments: [{ filename: "d.pdf", content: pdf("d") }],
+      },
+      { from: "x@sub.lieferant.example", subject: "Unterdomain", messageId: "<e@lieferant.example>", attachments: [{ filename: "e.pdf", content: pdf("e") }] },
+    );
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 2, documents: 2, duplicates: 0, skipped: 0, rejected: 3 });
+    expect([...box.values()].map((m) => m.seen)).toEqual([true, true, false, false, false]);
+    expect((await sql`select filename from documents order by filename`).map((d) => d.filename)).toEqual(["a.pdf", "b.pdf"]);
+    const rejected = await sql`select message_id, sender, skipped from inbox_messages where skipped[1] like 'Absender nicht freigegeben%' order by message_id`;
+    expect(rejected.map((r) => [r.message_id, r.skipped[0]])).toEqual([
+      ["<c@fremd.example>", "Absender nicht freigegeben: chef@fremd.example"],
+      ["<d@funknetz.example>", "Absender nicht freigegeben: andere@funknetz.example"],
+      ["<e@lieferant.example>", "Absender nicht freigegeben: x@sub.lieferant.example"],
+    ]);
+
+    // Zweiter Abruf: wieder abgelehnt, aber nicht noch einmal protokolliert
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 3 });
+    expect(await sql`select 1 from inbox_messages`).toHaveLength(5);
+
+    // Absender nachträglich freigegeben: die ungelesene Mail wird nachgeholt
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: ["fremd.example"] });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0, rejected: 2 });
+    expect(box.get(3)!.seen).toBe(true);
+    expect(await sql`select 1 from inbox_messages where message_id like '<c@fremd.example>%'`).toHaveLength(2);
+  });
+
+  it("zählt Mails nicht freigegebener Absender nicht gegen die Obergrenze je Abruf", async () => {
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: ["funknetz.example"] });
+    const fremd = Array.from({ length: 60 }, (_, i) => ({ from: "x@fremd.example", subject: `Fremd ${i}`, messageId: `<f${i}@fremd.example>`, text: "Hallo" }));
+    await deliver(...fremd, { subject: "Echt", messageId: "<echt@funknetz.example>", attachments: [{ filename: "echt.pdf", content: pdf("echt") }] });
+    const result = await inbox.fetchInbox(actor);
+    expect(result).toMatchObject({ messages: 1, documents: 1, rejected: 60 });
+  });
+
+  it("lässt eine leere Absenderliste jeden Absender zu und prüft die Einträge", async () => {
+    await expect(inbox.saveInboxSettings(actor, { ...settings, allowedSenders: ["zwei wörter"] })).rejects.toThrow(/ohne Leerzeichen/);
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: [" A@B.example ", "a@b.example", ""] });
+    expect((await inbox.inboxSummary()).settings?.allowedSenders).toEqual(["a@b.example"]);
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: [] });
+    await deliver({
+      from: "irgendwer@fremd.example",
+      subject: "Egal",
+      messageId: "<egal@fremd.example>",
+      attachments: [{ filename: "egal.pdf", content: pdf("egal") }],
+    });
+    expect(await inbox.fetchInbox(actor)).toMatchObject({ messages: 1, documents: 1, rejected: 0 });
+  });
+
+  it("liest den Ausgangsordner nur mit Übernahme, getrennt vom Eingang und ohne Eingangsbeleg", async () => {
+    await inbox.saveInboxSettings(actor, { ...settings, outboundFolder: "Ausgang" });
+    expect((await inbox.inboxSummary()).settings).toMatchObject({ outboundFolder: "Ausgang" });
+    ausgangBox.set(1, {
+      source: await build({
+        from: "Shop <shop@mustermann.example>",
+        subject: "RE-1",
+        messageId: "<re-1@mustermann.example>",
+        attachments: [{ filename: "RE-1.pdf", content: pdf("RE-1") }],
+      }),
+      seen: false,
+    });
+
+    // Ohne Übernahme (heute): Ordner unberührt
+    expect(await inbox.fetchInbox(actor)).toMatchObject({ messages: 0 });
+    expect(ausgangBox.get(1)!.seen).toBe(false);
+
+    const taken: string[] = [];
+    inbox.setOutboundHandler(async (_actor, file) => {
+      taken.push(file.filename);
+      return { id: "rechnung-1", duplicate: false };
+    });
+    try {
+      // Dieselbe Mail liegt auch im Eingang: zwei getrennte Einträge
+      box.set(1, { source: ausgangBox.get(1)!.source, seen: false });
+      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 2, documents: 2, duplicates: 0, skipped: 0, rejected: 0 });
+    } finally {
+      inbox.setOutboundHandler(null);
+    }
+    expect(taken).toEqual(["RE-1.pdf"]);
+    expect(ausgangBox.get(1)!.seen).toBe(true);
+    // Der Anhang aus dem Ausgang ist kein Eingangsbeleg
+    expect((await sql`select filename from documents`).map((d) => d.filename)).toEqual(["RE-1.pdf"]);
+    const log = await sql`select direction, cardinality(document_ids) as docs from inbox_messages order by direction`;
+    expect(log.map((r) => [r.direction, r.docs])).toEqual([
+      ["ausgang", 0],
+      ["eingang", 1],
+    ]);
   });
 });
