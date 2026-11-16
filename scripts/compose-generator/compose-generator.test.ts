@@ -81,6 +81,13 @@ describe(".env", () => {
     expect([sso.OIDC_ONLY, sso.OIDC_ISSUER, sso.OIDC_CLIENT_ID]).toEqual(["true", "https://auth.example.de", "haben"]);
   });
 
+  test("arm64: ERIC_WORKER_COMMAND ist das worker.sh aus deploy/eric-x86_64/einrichten.sh", () => {
+    const anleitung = text("docs/installation-anbindungen.md");
+    const env = variablen(envFile({ ...standard, arm64: true }));
+    expect(anleitung).toContain(`\`ERIC_WORKER_COMMAND=${env.ERIC_WORKER_COMMAND}\` in \`.env\``);
+    expect(text("deploy/eric-x86_64/einrichten.sh")).toContain("ERIC_WORKER_COMMAND=$ZIEL/worker.sh");
+  });
+
   test("Ollama auf dem Server mit den Werten aus der Vorlage", () => {
     const env = variablen(envFile({ ...standard, aiMode: "ollama" }));
     expect([env.EXTRACTION_BASE_URL, env.EXTRACTION_MODEL]).toEqual(["http://host.docker.internal:11434/v1", "qwen2.5vl:7b"]);
