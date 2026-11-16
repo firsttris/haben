@@ -7,7 +7,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * das 119,29 € Gebühren minus 2,72 € Gutschriften, Rechnung über 116,57 €. Bisher nahm der Knopf nur die Gebühren und
  * ließ 2,72 € Gebühren und 2,72 € Gutschriften offen. Ergeben alle offenen Gebühren und Gutschriften des Monats genau
  * den offenen Betrag des Belegs, ordnet er alle Zeilen in einem Schritt zu; jede bleibt eine eigene Buchung.
- * Beleg nach § 13b (Etsy Ireland UC), SKR03 und SKR04, Ist und Soll.
+ * Beleg nach § 13b Abs. 1 und Abs. 5 Satz 1 UStG (Etsy Ireland UC, Leistung aus dem EU-Ausland), SKR03 und SKR04, Ist und Soll.
  */
 
 const ETSY_OKTOBER = [

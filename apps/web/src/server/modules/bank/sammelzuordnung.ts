@@ -17,7 +17,8 @@ export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid
  * Gutschriften (#680, positive Zeilen „Gebühr …“, etwa die Gutschrift einer Gebühr bei Erstattung) rechnet der Dienstleister
  * in die Rechnung ein. Sie gehen nur mit, wenn alle offenen Gebühren und Gutschriften des Monats zusammen genau den offenen
  * Betrag des Belegs ergeben: Dann wird jede Zeile ganz zugeordnet, jede als eigene Buchung, und der Beleg steht auf 0,00 €.
- * Sonst bleibt es bei den Gebühren; eine Gutschrift wird nie mit einer Gebühr verrechnet.
+ * Sonst bleibt es bei den Gebühren; eine Gutschrift wird nie mit einer Gebühr verrechnet. Einzelaufzeichnung nach § 146
+ * Abs. 1 Satz 1 AO (https://www.gesetze-im-internet.de/ao_1977/__146.html) und GoBD Rz. 36 ff.
  */
 export async function allocateFeesToDocument(actor: string, input: z.infer<typeof feesSchema>): Promise<number> {
   return withActor(actor, async (tx) => {
@@ -44,15 +45,19 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
       .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
     const fees = rows.filter((row) => row.amount < 0);
     if (rows.length > fees.length) {
-      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
+      // Gesperrt wie in documentBooking: Eine gleichzeitige Zuordnung auf denselben Beleg wartet bis zum Ende
+      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
       if (!doc) throw new BankError("Beleg nicht gefunden.");
-      const open = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
+      const offen = async () => documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
+      const open = await offen();
       if (open !== 0 && rows.reduce((sum, row) => sum + row.open, 0) === open) {
         // Die Summe stimmt erst nach der letzten Zeile; dazwischen darf der Beleg über- oder unterschritten sein
         for (const row of rows) {
           const bank = await lockTransaction(tx, row.id);
           await bookPart(tx, company, bank, { kind: "document", documentId: input.documentId, amount: bank.open, sammel: true }, null);
         }
+        // Ersetzt die Prüfung je Zeile: Am Ende steht der Beleg genau auf 0,00 €, sonst wird nichts gebucht
+        if ((await offen()) !== 0) throw new BankError("Der Beleg oder die Zeilen haben sich zwischenzeitlich geändert; bitte erneut zuordnen.");
         return rows.length;
       }
     }
