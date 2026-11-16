@@ -284,25 +284,25 @@ export const vatReturns = pgTable(
     overrideReason: text("override_reason"),
     /** Berechnete Werte zum Zeitpunkt des Speicherns, zum Nachvollziehen einer Überschreibung */
     computed: jsonb("computed").$type<{
-      kz81: number;
-      kz86: number;
-      kz21?: number;
-      kz45?: number;
-      kz48?: number;
-      kz66: number;
-      kz46?: number;
-      kz47?: number;
-      kz84?: number;
-      kz85?: number;
-      kz67?: number;
-      kz41?: number;
-      kz43?: number;
-      kz89?: number;
-      kz93?: number;
-      kz61?: number;
-      kz62?: number;
-      kz39?: number;
-      kz83: number;
+      kz81: Cents;
+      kz86: Cents;
+      kz21?: Cents;
+      kz45?: Cents;
+      kz48?: Cents;
+      kz66: Cents;
+      kz46?: Cents;
+      kz47?: Cents;
+      kz84?: Cents;
+      kz85?: Cents;
+      kz67?: Cents;
+      kz41?: Cents;
+      kz43?: Cents;
+      kz89?: Cents;
+      kz93?: Cents;
+      kz61?: Cents;
+      kz62?: Cents;
+      kz39?: Cents;
+      kz83: Cents;
     }>(),
     correctsId: uuid("corrects_id"),
     transferTicket: text("transfer_ticket"),
@@ -344,7 +344,7 @@ export const vatFrequencies = pgTable(
 export const vatExtensions = pgTable("vat_extensions", {
   year: smallint("year").primaryKey(),
   active: boolean("active").notNull(),
-  /** Angemeldete Sondervorauszahlung in Cent (volle Euro); null bei vierteljährlicher Abgabe oder ohne Anmeldung */
+  /** Angemeldete Sondervorauszahlung (volle Euro); null bei vierteljährlicher Abgabe oder ohne Anmeldung */
   sondervorauszahlung: integer("sondervorauszahlung").$type<Cents>(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -570,15 +570,14 @@ export const residualTerms = pgTable("residual_terms", {
 /** Ein Gesellschafter in einer Ausschüttung: Anteil, Beträge und Kirchensteuerabzugsmerkmal zum Zeitpunkt des Beschlusses */
 export interface AusschuettungEmpfaenger {
   name: string;
-  /** Hundertstel Prozent */
-  anteil: number;
-  brutto: number;
-  ausEinlagekonto: number;
-  ertrag: number;
-  kapest: number;
-  soli: number;
-  kist: number;
-  netto: number;
+  anteil: BasisPoints;
+  brutto: Cents;
+  ausEinlagekonto: Cents;
+  ertrag: Cents;
+  kapest: Cents;
+  soli: Cents;
+  kist: Cents;
+  netto: Cents;
   kirchensteuer: 0 | 8 | 9;
   religionsschluessel: string | null;
 }
@@ -3028,8 +3027,8 @@ export type AccountableProgress = {
   privateRows: number;
   missingReceipts: number;
   unknownTaxRows: number;
-  invoices: { number: string; documentDate: string; gross: number; text: string; row: number }[];
-  openItems: { number: string; supplier: string; gross: number; date: string; reason: string }[];
+  invoices: { number: string; documentDate: string; gross: Cents; text: string; row: number }[];
+  openItems: { number: string; supplier: string; gross: Cents; date: string; reason: string }[];
   /** Wie viele Buchungen ohne Belegdatei; openItems ist gekürzt */
   openItemCount: number;
   archivedFileId?: string;
@@ -3123,13 +3122,13 @@ export const lexofficeImports = pgTable(
   (t) => [uniqueIndex("lexoffice_imports_one_running").on(t.status).where(sql`${t.status} = 'laeuft'`)],
 );
 
-export type LegacyTaxRow = { rate: number; net: number; tax: number };
-export type LegacyCategoryRow = { categoryId: string; name: string; rate: number; net: number; tax: number };
+export type LegacyTaxRow = { rate: BasisPoints; net: Cents; tax: Cents };
+export type LegacyCategoryRow = { categoryId: string; name: string; rate: BasisPoints; net: Cents; tax: Cents };
 export type LegacyPayment = {
   status: string;
-  openAmount: number;
+  openAmount: Cents;
   paidDate: string | null;
-  items: { type: string; date: string; amount: number; account?: string | null }[];
+  items: { type: string; date: string; amount: Cents; account?: string | null }[];
   /** Nur gelesen, nie gespeichert: items aus legacy_voucher_payments (sevdesk) bzw. Rechnung und ihr Storno ohne Zahlung */
   history?: "sevdesk" | "import" | "storno";
   /** Nur gelesen: Datum der Stornorechnung bei history "storno" */
