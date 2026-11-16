@@ -202,6 +202,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
                 case "/Order":
                 case "/VatReport":
                 case "/Part":
+                case "/TaxSet":
                   return list([]);
                 case "/Invoice/9003/getPositions":
                 case "/Invoice/9001/getPositions":

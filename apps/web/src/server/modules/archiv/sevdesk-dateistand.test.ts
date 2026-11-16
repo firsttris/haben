@@ -103,7 +103,11 @@ describe.skipIf(!testDatabaseUrl).each([
               case "/Invoice/ID_302/getXml":
                 return xml();
             }
-            if (/^\/(Contact|ContactAddress|CommunicationWay|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport|Part)$/.test(path))
+            if (
+              /^\/(Contact|ContactAddress|CommunicationWay|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport|Part|TaxSet)$/.test(
+                path,
+              )
+            )
               return list([]);
             if (/^\/Invoice\/[^/]+\/getPositions$/.test(path)) return list([]);
             return json({ error: { message: `unbekannt ${path}` } }, 404);

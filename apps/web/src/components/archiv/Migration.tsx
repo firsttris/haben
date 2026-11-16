@@ -634,6 +634,19 @@ const SPECIAL_COLUMNS = [
   { key: "kz87", label: "Kz 87", title: "Umsätze zu 0 % nach § 12 Abs. 3 UStG (Photovoltaik)" },
   { key: "steuerfrei", label: "Steuerfrei", title: "In der bisherigen Buchhaltung als steuerfrei markiert: Kz 48 oder Kleinunternehmer" },
   { key: "oss", label: "OSS", title: "Fernverkäufe und elektronische Dienstleistungen über das OSS-Verfahren" },
+  { key: "kz46", label: "Kz 46", title: "Bezogene sonstige Leistungen nach § 13b Abs. 1 UStG (Bemessungsgrundlage)" },
+  { key: "kz47", label: "Kz 47", title: "Steuer zu Kz 46" },
+  { key: "kz84", label: "Kz 84", title: "Andere bezogene Leistungen nach § 13b UStG (Bemessungsgrundlage)" },
+  { key: "kz85", label: "Kz 85", title: "Steuer zu Kz 84" },
+  { key: "kz67", label: "Kz 67", title: "Vorsteuer aus Leistungen nach § 13b UStG" },
+  { key: "kz89", label: "Kz 89", title: "Innergemeinschaftliche Erwerbe zu 19 % (Bemessungsgrundlage)" },
+  { key: "kz93", label: "Kz 93", title: "Innergemeinschaftliche Erwerbe zu 7 % (Bemessungsgrundlage)" },
+  { key: "kz61", label: "Kz 61", title: "Vorsteuer aus innergemeinschaftlichem Erwerb" },
+  {
+    key: "otherPurchases",
+    label: "Andere Bezüge",
+    title: "Ausgaben mit eigener Steuerart aus sevDesk, deren Kennzahlen Haben nicht kennt oder nicht abgerufen hat",
+  },
 ] as const;
 
 /** Spalten für Sonderfälle nur, wenn im Jahr etwas drinsteht */
@@ -783,10 +796,10 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
           </div>
           <p className="small muted">
             Aus den übernommenen Belegen berechnet:{" "}
-            {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"}, Vorsteuer nach
-            Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48, wenn die Umsätze nach § 4 Nr. 8–28 UStG steuerfrei sind,
-            und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine Abweichungen entstehen, wenn in {product} nachträglich
-            korrigiert wurde.
+            {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"}, Ausgaben
+            (Vorsteuer, § 13b, innergemeinschaftlicher Erwerb) nach Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48,
+            wenn die Umsätze nach § 4 Nr. 8–28 UStG steuerfrei sind, und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine
+            Abweichungen entstehen, wenn in {product} nachträglich korrigiert wurde.
           </p>
         </details>
       )}

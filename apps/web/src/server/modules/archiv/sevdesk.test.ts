@@ -101,6 +101,7 @@ function fakeApi(options: { failVoucher?: boolean } = {}) {
       case "/Order":
       case "/VatReport":
       case "/Part":
+      case "/TaxSet":
         return list([]);
       case "/Voucher":
         return list(VOUCHERS);

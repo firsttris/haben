@@ -1,5 +1,5 @@
 {
-  "id": "0abf736e-ca7b-4124-8919-9430f904bfc9",
+  "id": "cdd905ae-534e-4493-b928-dcdcca9b9a71",
   "prevId": "e5e79512-5b91-4d94-aa99-937cee807675",
   "version": "7",
   "dialect": "postgresql",
@@ -985,12 +985,6 @@
           "notNull": true,
           "default": "''"
         },
-        "sevdesk_id": {
-          "name": "sevdesk_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -1046,15 +1040,7 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "articles_sevdesk_id_unique": {
-          "name": "articles_sevdesk_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sevdesk_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -15708,6 +15694,67 @@
           "nullsNotDistinct": false,
           "columns": [
             "sevdesk_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sevdesk_tax_sets": {
+      "name": "sevdesk_tax_sets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "import_id": {
+          "name": "import_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw": {
+          "name": "raw",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sevdesk_tax_sets_import_id_lexoffice_imports_id_fk": {
+          "name": "sevdesk_tax_sets_import_id_lexoffice_imports_id_fk",
+          "tableFrom": "sevdesk_tax_sets",
+          "tableTo": "lexoffice_imports",
+          "columnsFrom": [
+            "import_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sevdesk_tax_sets_import_id_unique": {
+          "name": "sevdesk_tax_sets_import_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "import_id"
           ]
         }
       },

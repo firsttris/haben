@@ -23,6 +23,7 @@ import {
   sevUnitySchema,
   sevVoucherPosSchema,
   sevVatReportSchema,
+  sevTaxSetSchema,
   sevVoucherSchema,
   type SevAccountingType,
   type SevAsset,
@@ -40,6 +41,7 @@ import {
   type SevPart,
   type SevUnity,
   type SevVatReport,
+  type SevTaxSet,
   type SevVoucher,
   type SevVoucherPos,
 } from "./types.ts";
@@ -150,6 +152,11 @@ export class SevdeskClient {
   /** Übermittelte Umsatzsteuer-Voranmeldungen samt Testfällen (testCase 1); Protokoll-PDF unter document (Version 1.0 belegt). */
   vatReports(): AsyncGenerator<SevVatReport> {
     return this.#pages("/VatReport", {}, sevVatReportSchema);
+  }
+
+  /** Eigene Steuerarten (taxType custom eines Belegs verweist per taxSet darauf), mit den Kennzahlen der Voranmeldung (Version 1.0 belegt). */
+  taxSets(): AsyncGenerator<SevTaxSet> {
+    return this.#pages("/TaxSet", {}, sevTaxSetSchema);
   }
 
   /** Vorlagen wiederkehrender Rechnungen; ohne den Filter invoiceType=WKR fehlen sie in GET /Invoice (Version 1.0 belegt). */
