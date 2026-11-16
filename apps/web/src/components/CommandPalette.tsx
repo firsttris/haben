@@ -258,18 +258,7 @@ function handlePaletteNavigation(
   }
 }
 
-export function CommandPalette({
-  open,
-  onOpen,
-  onClose,
-  onNavigate,
-  inhaber,
-  gesellschaft,
-  hatMitarbeiter,
-  ausgeblendet,
-  eigeneSeiten,
-  oidcOnly,
-}: CommandPaletteProps) {
+export function CommandPalette({ open, onOpen, onClose, onNavigate, ...navigation }: CommandPaletteProps) {
   const router = useRouter();
   const baseId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -280,14 +269,7 @@ export function CommandPalette({
   const pointerActive = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const trimmed = query.trim();
-  const { sections, items, loading, resetRemote } = usePaletteSections(open, trimmed, {
-    inhaber,
-    gesellschaft,
-    hatMitarbeiter,
-    ausgeblendet,
-    eigeneSeiten,
-    oidcOnly,
-  });
+  const { sections, items, loading, resetRemote } = usePaletteSections(open, trimmed, navigation);
   const safeActive = items.length === 0 ? -1 : Math.min(activeIndex, items.length - 1);
   const activeItem = safeActive >= 0 ? items[safeActive] : undefined;
 

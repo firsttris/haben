@@ -142,8 +142,9 @@ export function fragenFehlen({
   return !eingerichtet && !firmendatenGespeichert && firmenname.trim() === "";
 }
 
-/** Woran die Übersicht erinnert, solange die Fragen fehlen oder etwas offen ist */
-export function einrichtungsAufgaben({ fehlt, offen }: { fehlt: boolean; offen: readonly OffeneFrage[] }) {
+/** Woran die Übersicht erinnert, solange die Fragen fehlen oder etwas offen ist; null für die Steuerberatung */
+export function einrichtungsAufgaben(einrichtung: { fehlt: boolean; offen: readonly OffeneFrage[] } | null) {
+  const { fehlt, offen } = einrichtung ?? { fehlt: false, offen: [] };
   const aufgaben: {
     title: string;
     detail: string;

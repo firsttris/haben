@@ -44,15 +44,12 @@ const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--
 
 function OverviewPage() {
   const data = Route.useLoaderData();
-  const { einrichtung } = Route.useRouteContext();
   const key = periodKey(data.period);
   const sent = data.current?.status === "sent";
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
   const vatRequired = !data.kleinunternehmer && !data.exempt;
 
-  const todos: Todo[] = [];
-  // Fragen zur Einrichtung (#266): noch nie durchgegangen, oder Rechtsform bzw. Kleinunternehmer mit „weiß ich nicht“
-  if (einrichtung) todos.push(...einrichtungsAufgaben(einrichtung));
+  const todos: Todo[] = einrichtungsAufgaben(Route.useRouteContext().einrichtung);
   if (!sent && vatRequired) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,
