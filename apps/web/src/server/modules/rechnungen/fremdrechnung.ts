@@ -1,4 +1,4 @@
-import { addDays, invoicePosting, leistungsdatum, outgoingTaxIssues, TAX_TREATMENT_KEYS, treatmentIssues, type TaxTreatment } from "@haben/core";
+import { addDays, formatEuro, invoicePosting, leistungsdatum, outgoingTaxIssues, TAX_TREATMENT_KEYS, treatmentIssues, type TaxTreatment } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -71,7 +71,7 @@ function rebuild(taxes: { rate: number; net: number; tax: number }[], number: st
   );
   if (result.ok) return result;
   throw new InvoiceError(
-    `Die Steuer lässt sich nicht centgenau nachbilden (Rechnung ${taxes.reduce((n, t) => n + t.tax, 0) / 100} €, Haben ${result.netTax / 100} €). Netto und Steuer je Satz bitte wie auf der Rechnung eintragen.`,
+    `Die Steuer lässt sich nicht centgenau nachbilden (Rechnung ${formatEuro(taxes.reduce((n, t) => n + t.tax, 0))}, Haben ${formatEuro(result.netTax)}). Netto und Steuer je Satz bitte wie auf der Rechnung eintragen.`,
   );
 }
 
@@ -118,6 +118,8 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
   if (Date.parse(input.dueDate) - Date.parse(input.issueDate) > 365 * 86_400_000) throw new InvoiceError("Das Zahlungsziel darf höchstens 365 Tage betragen.");
   if (input.taxes.some((t) => !RATES.has(t.rate))) throw new InvoiceError("Haben kennt für Rechnungen nur die Steuersätze 0 %, 7 % und 19 %.");
   if (input.serviceFrom && input.serviceTo && input.serviceFrom > input.serviceTo) throw new InvoiceError("Der Leistungszeitraum endet vor seinem Beginn.");
+  if (new Set(input.taxes.map((t) => t.rate)).size !== input.taxes.length)
+    throw new InvoiceError("Jeder Steuersatz darf nur einmal vorkommen; Zeilen mit demselben Satz bitte zusammenrechnen.");
   const { priceMode, totals, lines } = rebuild(input.taxes, input.number);
   // Wie beim Festschreiben: eine Rechnung über 0 € gibt es nicht (und die Buchung wäre leer)
   if (totals.gross <= 0) throw new InvoiceError("Der Gesamtbetrag muss größer als 0 sein.");

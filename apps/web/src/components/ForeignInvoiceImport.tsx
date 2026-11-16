@@ -188,31 +188,14 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
             </button>
           </div>
         </section>
-        <section className="form-section" aria-labelledby="fremdrechnung-steuer">
-          <h2 id="fremdrechnung-steuer">Steuer</h2>
-          <Field label="Steuerbehandlung">
-            {(control) => (
-              <select {...control} value={treatment} onChange={(e) => setTreatment(e.target.value as TaxTreatment)}>
-                {Object.entries(TAX_TREATMENTS).map(([key, t]) => (
-                  <option key={key} value={key}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          {(treatment === "steuerfrei" || treatment === "kleinunternehmer") && (
-            <Field label="Befreiungsvorschrift" hint="Wie auf der Rechnung, etwa „Steuerfrei nach § 4 Nr. 14 UStG“">
-              {(control) => <input {...control} value={exemptionReason} onChange={(e) => setExemptionReason(e.target.value)} required />}
-            </Field>
-          )}
-          <TaxRowFields rows={rows} onChange={setRows} />
-          <div className="actions">
-            <button type="button" className="btn btn-sm" onClick={() => setRows([...rows, { rate: "0", net: "", tax: "0,00" }])}>
-              Weiteren Steuersatz
-            </button>
-          </div>
-        </section>
+        <TaxSection
+          treatment={treatment}
+          onTreatment={setTreatment}
+          exemptionReason={exemptionReason}
+          onExemptionReason={setExemptionReason}
+          rows={rows}
+          onRows={setRows}
+        />
         <div className="actions form-footer">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Übernehmen
@@ -234,6 +217,57 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         onClose={() => setNewContactName(null)}
       />
     </>
+  );
+}
+
+/** Behandlungen, die das Formular nicht abbildet: Bei sonstigen Leistungen im EU-Ausland fehlt die Bestätigung des Leistungsorts */
+const NOT_OFFERED: TaxTreatment[] = ["eu_sonstige"];
+
+function TaxSection({
+  treatment,
+  onTreatment,
+  exemptionReason,
+  onExemptionReason,
+  rows,
+  onRows,
+}: {
+  treatment: TaxTreatment;
+  onTreatment: (treatment: TaxTreatment) => void;
+  exemptionReason: string;
+  onExemptionReason: (reason: string) => void;
+  rows: TaxRow[];
+  onRows: (rows: TaxRow[]) => void;
+}) {
+  return (
+    <section className="form-section" aria-labelledby="fremdrechnung-steuer">
+      <h2 id="fremdrechnung-steuer">Steuer</h2>
+      <Field label="Steuerbehandlung">
+        {(control) => (
+          <select {...control} value={treatment} onChange={(e) => onTreatment(e.target.value as TaxTreatment)}>
+            {Object.entries(TAX_TREATMENTS)
+              .filter(([key]) => !NOT_OFFERED.includes(key as TaxTreatment))
+              .map(([key, t]) => (
+                <option key={key} value={key}>
+                  {t.label}
+                </option>
+              ))}
+          </select>
+        )}
+      </Field>
+      {(treatment === "steuerfrei" || treatment === "kleinunternehmer") && (
+        <Field label="Befreiungsvorschrift" hint="Wie auf der Rechnung, etwa „Steuerfrei nach § 4 Nr. 14 UStG“">
+          {(control) => (
+            <input {...control} value={exemptionReason} onChange={(e) => onExemptionReason(e.target.value)} required={treatment === "steuerfrei"} />
+          )}
+        </Field>
+      )}
+      <TaxRowFields rows={rows} onChange={onRows} />
+      <div className="actions">
+        <button type="button" className="btn btn-sm" onClick={() => onRows([...rows, { rate: "0", net: "", tax: "0,00" }])}>
+          Weiteren Steuersatz
+        </button>
+      </div>
+    </section>
   );
 }
 

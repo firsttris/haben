@@ -343,4 +343,22 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     await expect(adopt(usd)).rejects.toThrow(/USD/);
     expect(await sql`select 1 from invoices`).toHaveLength(1);
   }, 30_000);
+
+  it("lehnt zwei Zeilen mit demselben Steuersatz mit klarer Meldung ab", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer();
+    await expect(
+      foreign.adoptForeignInvoice(
+        actor,
+        input(contactId, {
+          taxes: [
+            { rate: 1900, net: 100_000, tax: 19_000 },
+            { rate: 1900, net: 50_000, tax: 9_500 },
+          ],
+        }),
+        pdf,
+      ),
+    ).rejects.toThrow(/nur einmal/);
+    expect(await sql`select 1 from invoices`).toHaveLength(0);
+  }, 30_000);
 });
