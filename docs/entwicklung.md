@@ -160,6 +160,12 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`, son
 
 Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>-…` und löscht ihn am Ende; was Tests mit `tmpdir()` anlegen, verschwindet mit. Den Ordner eines abgebrochenen Laufs löscht ein späterer Lauf bei seinem Start, wenn der Prozess des abgebrochenen nicht mehr läuft.
 
+Ältere Versionen ließen ihre Temp-Ordner direkt in `$TMPDIR` liegen. Einmalig löschen, wenn gerade kein Testlauf läuft, auch keiner in einem anderen Worktree:
+
+```sh
+find "${TMPDIR:-/tmp}" -maxdepth 1 -type d \( -name 'haben-belege-*' -o -name 'haben-migration*' -o -name 'haben-mandate-*' -o -name 'haben-trigger-*' -o -name 'haben-firmendaten-migration-*' -o -name 'eric-test-*' -o -name 'eric-review-*' \) -exec rm -rf {} +
+```
+
 Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
 
 | Fehlt | Folge | Im Dev-Container | In der CI |
