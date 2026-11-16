@@ -2412,6 +2412,9 @@ test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danac
 
   await go("/lastschriften");
   const form = page.getByRole("form", { name: "SEPA-Lastschrift erzeugen" });
+  // Einleitung in drei Schritten statt Dateiformat und Fachwort
+  await expect(page.getByRole("list").filter({ hasText: "Online-Banking hochladen" }).getByRole("listitem")).toHaveCount(3);
+  await expect(form.getByLabel("Konto, auf das das Geld kommt")).toContainText("Girokonto · DE89 3704 0044 0532 0130 00");
   const zeile = form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ });
   await expect(form).toContainText("AB-2026-01");
   await expect(form).toContainText("CORE · Erstlastschrift");
