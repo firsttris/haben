@@ -15,11 +15,13 @@ und Beträge sind erfunden. Sie zeigen, wie ein Connector die Daten seines Anbie
   `entry_reference`, den der Connector nicht einordnet. Nach der
   [API-Referenz](https://enablebanking.com/docs/api/reference/) ist `entry_reference` eindeutig für Konten mit demselben
   `identification_hash`, `transaction_id` kann sich ändern; als Kontokennung dient deshalb der `identification_hash`.
-- `etsy.json` (von @Niruthan96, Aufbau nach dem echten Zahlungsverlauf, Kennungen und Beträge erfunden): Zahlungs-
-  dienstleister, bei dem jede Gebühr und die von Etsy abgeführte Sales Tax eine eigene Zeile mit eigener `entry_id`
-  haben. Sie sind deshalb eigene Ereignisse (`fee`, Steuer als `adjustment`), verbunden über `orderId`; eine dritte
-  Komponente neben `main` und `fee` braucht es nicht. Der Saldo vom 30.09. ist der Anfangsstand vor dem Fenster, die
-  Tagessalden folgen aus den Bewegungen.
+- `etsy.json` (von @Niruthan96, Aufbau nach dem echten Zahlungsverlauf): Zahlungsdienstleister, bei dem jede Gebühr
+  und die von Etsy abgeführte Sales Tax eine eigene Zeile mit eigener `entry_id` haben
+  ([getShopPaymentAccountLedgerEntries](https://developers.etsy.com/documentation/reference/#operation/getShopPaymentAccountLedgerEntries),
+  Zeilenarten nach der [Auswertung in #306](https://github.com/firsttris/haben/issues/306#issuecomment-6900551383)). Sie
+  sind deshalb eigene Ereignisse mit der Komponente `main` (Art `fee`, die Steuer `adjustment`), verbunden über
+  `orderId`, die der Connector ergänzt, wo der Verlauf sie nicht nennt; eine eigene Komponente für die Steuer braucht es
+  nicht. Der Saldo vom 30.09. ist der Anfangsstand vor dem Fenster, die Tagessalden folgen aus den Bewegungen.
 - `paypal.json`: Zahlungsdienstleister mit dem Beispiel aus #306 (+100,00 € Zahlung, −3,00 € Gebühr), Teilerstattung,
   Abbuchung auf die Bank, ein ausstehendes Ereignis, das der Connector nicht einordnet, und eine nachträglich
   zurückgebuchte Zahlung (Status V): Die Zahlung bleibt gebucht, die Rückbuchung ist ein eigenes Ereignis mit
