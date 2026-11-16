@@ -437,6 +437,35 @@ export function inputTaxCode(rate: BasisPoints): TaxCode {
 export type DocumentPayment = "bank" | "privat" | "kasse";
 
 /**
+ * Zeilen einer Steuersatz-Zeile bei § 13b oder innergemeinschaftlichem Erwerb: Aufwand mit dem Steuerschlüssel, die
+ * Vorsteuer (ohne Vorsteuerabzug als Aufwand) und die selbst geschuldete Steuer. `base` und `tax` sind der betriebliche
+ * Teil, `voll` die ganze Steuer der Zeile.
+ */
+function selbstGeschuldeteZeilen(
+  kontenrahmen: Kontenrahmen,
+  expense: string,
+  reverseCharge: SelfAssessedTax,
+  vorsteuerAbzug: boolean,
+  { rate, base, tax, voll }: { rate: number; base: Cents; tax: Cents; voll: Cents },
+): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [];
+  const ige = reverseCharge === "ig_erwerb";
+  if (rate === 0) throw new RangeError(`${ige ? "Innergemeinschaftlicher Erwerb" : "§ 13b"}: Steuersatz muss 19 % oder 7 % sein`);
+  const code = ige ? IG_ERWERB.code[vatRate(rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
+  if (!vorsteuerAbzug) {
+    // Ohne Vorsteuerabzug ist die Steuer Aufwand; als eigene Zeile, damit die Bemessungsgrundlage im Journal stimmt (#542)
+    if (base !== 0) lines.push(side(expense, base, true, code));
+    if (tax !== 0) lines.push(side(expense, tax, true, "keineVSt"));
+  } else {
+    if (base !== 0) lines.push(side(expense, base, true, code));
+    if (tax !== 0) lines.push(ige ? side(accounts.vorsteuerIge[vatRate(rate)], tax, true, "VStIGE") : side(accounts.vorsteuerRc, tax, true, "VSt13b"));
+  }
+  if (voll !== 0) lines.push(side(ige ? accounts.ustIge[vatRate(rate)] : accounts.ustRc, voll, false, code));
+  return lines;
+}
+
+/**
  * Kommt die Vorsteuer des Belegs auf das Zwischenkonto (SKR03 1548, SKR04 1434)? Bei der Gutschrift, die bereits
  * Bezahltes erstattet (#786), und bei der Leistung, die beim Buchen noch nicht ausgeführt ist (#693): Nach § 15 Abs. 1
  * Satz 1 Nr. 1 UStG ist die Vorsteuer erst abziehbar, wenn die Leistung ausgeführt ist und die Rechnung vorliegt. Lehnt
@@ -513,18 +542,7 @@ export function documentPosting(
     const base = baseSplit.business;
     const tax = taxSplit.business;
     if (reverseCharge) {
-      const ige = reverseCharge === "ig_erwerb";
-      if (rate === 0) throw new RangeError(`${ige ? "Innergemeinschaftlicher Erwerb" : "§ 13b"}: Steuersatz muss 19 % oder 7 % sein`);
-      const code = ige ? IG_ERWERB.code[vatRate(rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
-      if (!vorsteuerAbzug) {
-        // Ohne Vorsteuerabzug ist die Steuer Aufwand; als eigene Zeile, damit die Bemessungsgrundlage im Journal stimmt (#542)
-        if (base !== 0) lines.push(side(expense, base, true, code));
-        if (tax !== 0) lines.push(side(expense, tax, true, "keineVSt"));
-      } else {
-        if (base !== 0) lines.push(side(expense, base, true, code));
-        if (tax !== 0) lines.push(ige ? side(accounts.vorsteuerIge[vatRate(rate)], tax, true, "VStIGE") : side(accounts.vorsteuerRc, tax, true, "VSt13b"));
-      }
-      if (row.tax !== 0) lines.push(side(ige ? accounts.ustIge[vatRate(rate)] : accounts.ustRc, row.tax, false, code));
+      lines.push(...selbstGeschuldeteZeilen(kontenrahmen, expense, reverseCharge, vorsteuerAbzug, { rate, base, tax, voll: row.tax }));
       continue;
     }
     if (!vorsteuerAbzug) {
