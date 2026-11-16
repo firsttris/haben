@@ -196,6 +196,20 @@ describe("EÜR", () => {
     expect(euer.einnahmen.find((l) => l.key === "vereinnahmteUst")?.amount).toBe(0);
   });
 
+  it("Nicht steuerbare Einnahme in einem Monat als Kleinunternehmer: Zeile 12 wie im Journal (#1131)", () => {
+    // Etwa die Aufhebung einer Buchung aus der Zeit mit Regelbesteuerung im Monat nach dem Wechsel (euerZuordnung mit KU)
+    const kleinunternehmerMonate = [true];
+    const euer = computeEuer(
+      2026,
+      [{ kind: "kategorie", date: "2026-01-06", amount: -12_50, kategorie: "nichtSteuerbar", steuersatz: 0 }],
+      undefined,
+      undefined,
+      kleinunternehmerMonate,
+    );
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount).toBe(-12_50);
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount ?? 0).toBe(0);
+  });
+
   it("Ausgabe: brutto auf der Zeile der Kategorie, ohne Vorsteuer; eine Erstattung mindert sie", () => {
     const euer = computeEuer(2026, [
       { kind: "kategorie", date: "2026-05-02", amount: -35_70, kategorie: "telefon", steuersatz: 0 },
