@@ -214,6 +214,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         "protokoll/audit.csv",
         "protokoll/pruefwert.txt",
         "protokoll/versionen.csv",
+        "verfahrensdokumentation.md",
         "umsatzsteuer/2026-09/anmeldung.json",
         "umsatzsteuer/2026-09/übermittlungen.csv",
         `umsatzsteuer/2026-09/2026-10-02_validate_${vatSubmissionPrefix}_protokoll.pdf`,
