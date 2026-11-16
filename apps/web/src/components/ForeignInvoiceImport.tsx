@@ -2,7 +2,10 @@ import { formatDecimal, parseEuro, TAX_TREATMENTS, type TaxTreatment } from "@ha
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { adoptForeignInvoiceFn, readForeignInvoice } from "../server/functions/fremdrechnung.ts";
+import { ContactCombobox, savedAsChoice } from "./ContactCombobox.tsx";
 import { Field } from "./Field.tsx";
+import { FilePicker } from "./FilePicker.tsx";
+import { NewContactDialog } from "./NewContactDialog.tsx";
 
 type Read = Awaited<ReturnType<typeof readForeignInvoice>>;
 type TaxRow = { rate: string; net: string; tax: string };
@@ -18,40 +21,50 @@ const RATES = [
  * aus der Datei) und übernehmen. Nummer und PDF bleiben, gebucht wird wie beim Festschreiben einer eigenen Rechnung.
  */
 export function ForeignInvoiceImport({ onClose }: { onClose: () => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [read, setRead] = useState<Read | null>(null);
+  const [read, setRead] = useState<{ file: File; data: Read } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function choose(next: File | null) {
-    setFile(next);
+  async function choose(file: File | null) {
     setRead(null);
     setError(null);
-    if (!next) return;
+    if (!file) return;
     const form = new FormData();
-    form.set("file", next);
+    form.set("file", file);
     try {
-      setRead(await readForeignInvoice({ data: form }));
+      setRead({ file, data: await readForeignInvoice({ data: form }) });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Die Datei lässt sich nicht lesen.");
     }
   }
 
   return (
-    <section className="card" aria-labelledby="fremdrechnung-heading" style={{ maxWidth: 720 }}>
-      <h2 id="fremdrechnung-heading">Rechnung aus einem Fremdsystem übernehmen</h2>
-      <p className="muted">
-        Für Rechnungen, die ein anderes Programm geschrieben und verschickt hat. Nummer und PDF bleiben unverändert, die Rechnung wird wie eine eigene gebucht
-        und läuft danach durch Bankabgleich und Mahnwesen.
-      </p>
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
+    <section className="card form-card" aria-labelledby="fremdrechnung-heading" style={{ maxWidth: 720 }}>
+      <div className="form-card-head">
+        <h2 id="fremdrechnung-heading">Ausgangsrechnung hochladen</h2>
+        <p className="muted">
+          Für Rechnungen, die ein anderes Programm geschrieben und verschickt hat. Nummer und PDF bleiben unverändert, die Rechnung wird wie eine eigene gebucht
+          und läuft danach durch Bankabgleich und Mahnwesen.
+        </p>
+      </div>
+      <div className="form-section">
+        {error && (
+          <div className="banner banner-danger" role="alert">
+            {error}
+          </div>
+        )}
+        <Field label="Original der Rechnung (PDF, auch ZUGFeRD)">
+          {(control) => <FilePicker {...control} accept="application/pdf,.pdf" onChange={(e) => void choose(e.target.files?.[0] ?? null)} />}
+        </Field>
+      </div>
+      {read ? (
+        <ForeignInvoiceForm key={read.file.name + read.file.size + read.file.lastModified} file={read.file} read={read.data} onClose={onClose} />
+      ) : (
+        <div className="actions form-footer">
+          <button type="button" className="btn" onClick={onClose}>
+            Abbrechen
+          </button>
         </div>
       )}
-      <Field label="Original der Rechnung (PDF, auch ZUGFeRD)">
-        {(control) => <input {...control} type="file" accept="application/pdf,.pdf" onChange={(e) => void choose(e.target.files?.[0] ?? null)} />}
-      </Field>
-      {file && read && <ForeignInvoiceForm file={file} read={read} onClose={onClose} />}
     </section>
   );
 }
@@ -64,9 +77,10 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   const [number, setNumber] = useState(p.number);
   const [issueDate, setIssueDate] = useState(p.issueDate);
   const [dueDate, setDueDate] = useState(p.dueDate);
-  const [serviceFrom, setServiceFrom] = useState(p.serviceFrom ?? "");
-  const [serviceTo, setServiceTo] = useState(p.serviceTo ?? "");
+  const [customers, setCustomers] = useState(read.customers);
   const [contactId, setContactId] = useState(p.contactId ?? "");
+  /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
+  const [newContactName, setNewContactName] = useState<string | null>(null);
   const [treatment, setTreatment] = useState<TaxTreatment>(p.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState("");
   const [rows, setRows] = useState<TaxRow[]>(
@@ -82,6 +96,10 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
       setError("Netto und Steuer bitte als Betrag in Euro eintragen, etwa 1.000,00.");
       return;
     }
+    if (!contactId) {
+      setError("Bitte einen Kunden wählen oder neu anlegen.");
+      return;
+    }
     const form = new FormData();
     form.set("file", file);
     form.set(
@@ -93,8 +111,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         contactId,
         taxTreatment: treatment,
         exemptionReason,
-        serviceFrom: serviceFrom || null,
-        serviceTo: serviceTo || null,
+        serviceFrom: p.serviceFrom,
+        serviceTo: p.serviceTo,
         taxes,
       }),
     );
@@ -110,81 +128,109 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   }
 
   return (
-    <form onSubmit={(e) => void submit(e)} aria-label="Angaben zur Rechnung">
-      {p.warnings.map((w) => (
-        <div key={w} className="banner banner-warn" role="status">
-          {w}
-        </div>
-      ))}
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
-      <Field label="Rechnungsnummer">{(control) => <input {...control} value={number} onChange={(e) => setNumber(e.target.value)} required />}</Field>
-      <Field label="Rechnungsdatum">
-        {(control) => <input {...control} type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} required />}
-      </Field>
-      <Field label="Fällig am">{(control) => <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />}</Field>
-      <Field
-        label="Leistung von (optional)"
-        hint="Bei Soll-Versteuerung entscheidet der Leistungszeitraum, in welcher Voranmeldung die Umsatzsteuer steht. Ohne Angabe gilt das Rechnungsdatum."
-      >
-        {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />}
-      </Field>
-      <Field label="Leistung bis (optional)">
-        {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => setServiceTo(e.target.value)} />}
-      </Field>
-      <Field label="Kunde" hint={p.buyerName && !p.contactId ? `Auf der Rechnung: ${p.buyerName}. Dazu gibt es keinen eindeutigen Kontakt.` : undefined}>
-        {(control) => (
-          <select {...control} value={contactId} onChange={(e) => setContactId(e.target.value)} required>
-            <option value="">Bitte wählen</option>
-            {read.customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.ort ? `${c.name}, ${c.ort}` : c.name}
-              </option>
+    <>
+      <form onSubmit={(e) => void submit(e)} aria-label="Angaben zur Rechnung" style={{ display: "flex", flexDirection: "column" }}>
+        {(p.warnings.length > 0 || error) && (
+          <div className="form-section">
+            {p.warnings.map((w) => (
+              <div key={w} className="banner banner-warn" role="status">
+                {w}
+              </div>
             ))}
-          </select>
+            {error && (
+              <div className="banner banner-danger" role="alert">
+                {error}
+              </div>
+            )}
+          </div>
         )}
-      </Field>
-      <Field label="Steuerbehandlung">
-        {(control) => (
-          <select {...control} value={treatment} onChange={(e) => setTreatment(e.target.value as TaxTreatment)}>
-            {Object.entries(TAX_TREATMENTS)
-              .filter(([key]) => key !== "eu_sonstige")
-              .map(([key, t]) => (
-                <option key={key} value={key}>
-                  {t.label}
-                </option>
-              ))}
-          </select>
-        )}
-      </Field>
-      {(treatment === "steuerfrei" || treatment === "kleinunternehmer") && (
-        <Field label="Befreiungsvorschrift" hint="Wie auf der Rechnung, etwa „Steuerfrei nach § 4 Nr. 14 UStG“">
-          {(control) => <input {...control} value={exemptionReason} onChange={(e) => setExemptionReason(e.target.value)} required />}
-        </Field>
-      )}
-      <TaxRowFields rows={rows} onChange={setRows} />
-      <div className="actions">
-        <button type="button" className="btn" onClick={() => setRows([...rows, { rate: "0", net: "", tax: "0,00" }])}>
-          Weiteren Steuersatz
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          Übernehmen
-        </button>
-        <button type="button" className="btn" onClick={onClose}>
-          Abbrechen
-        </button>
-      </div>
-    </form>
+        <section className="form-section" aria-labelledby="fremdrechnung-basis">
+          <h2 id="fremdrechnung-basis">Rechnung</h2>
+          <div className="form-grid">
+            <Field label="Rechnungsnummer">{(control) => <input {...control} value={number} onChange={(e) => setNumber(e.target.value)} required />}</Field>
+            <Field label="Rechnungsdatum">
+              {(control) => <input {...control} type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} required />}
+            </Field>
+            <Field label="Fällig am">
+              {(control) => <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />}
+            </Field>
+          </div>
+        </section>
+        <section className="form-section" aria-labelledby="fremdrechnung-kunde">
+          <h2 id="fremdrechnung-kunde">Kunde</h2>
+          <Field label="Kunde" hint={p.buyerName && !p.contactId ? `Auf der Rechnung: ${p.buyerName}. Dazu gibt es keinen eindeutigen Kontakt.` : undefined}>
+            {(control) => (
+              <ContactCombobox
+                {...control}
+                rolle="kunde"
+                contacts={customers}
+                contactId={contactId}
+                required
+                onChoose={setContactId}
+                onCreate={(name) => setNewContactName(name || p.buyerName || "")}
+              />
+            )}
+          </Field>
+          <div className="actions">
+            <button type="button" className="btn btn-sm" onClick={() => setNewContactName(p.buyerName ?? "")}>
+              Neuen Kunden anlegen
+            </button>
+          </div>
+        </section>
+        <section className="form-section" aria-labelledby="fremdrechnung-steuer">
+          <h2 id="fremdrechnung-steuer">Steuer</h2>
+          <Field label="Steuerbehandlung">
+            {(control) => (
+              <select {...control} value={treatment} onChange={(e) => setTreatment(e.target.value as TaxTreatment)}>
+                {Object.entries(TAX_TREATMENTS).map(([key, t]) => (
+                  <option key={key} value={key}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          {(treatment === "steuerfrei" || treatment === "kleinunternehmer") && (
+            <Field label="Befreiungsvorschrift" hint="Wie auf der Rechnung, etwa „Steuerfrei nach § 4 Nr. 14 UStG“">
+              {(control) => <input {...control} value={exemptionReason} onChange={(e) => setExemptionReason(e.target.value)} required />}
+            </Field>
+          )}
+          <TaxRowFields rows={rows} onChange={setRows} />
+          <div className="actions">
+            <button type="button" className="btn btn-sm" onClick={() => setRows([...rows, { rate: "0", net: "", tax: "0,00" }])}>
+              Weiteren Steuersatz
+            </button>
+          </div>
+        </section>
+        <div className="actions form-footer">
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            Übernehmen
+          </button>
+          <button type="button" className="btn" onClick={onClose}>
+            Abbrechen
+          </button>
+        </div>
+      </form>
+      {/* Neben dem Formular, nicht darin: Das Formular im Dialog schickte sonst auch dieses ab */}
+      <NewContactDialog
+        rolle="kunde"
+        name={newContactName}
+        onSaved={(saved) => {
+          setCustomers((list) => [...list.filter((c) => c.id !== saved.id), savedAsChoice(saved)]);
+          setContactId(saved.id);
+        }}
+        onPickExisting={setContactId}
+        onClose={() => setNewContactName(null)}
+      />
+    </>
   );
 }
 
 function TaxRowFields({ rows, onChange }: { rows: TaxRow[]; onChange: (rows: TaxRow[]) => void }) {
   const set = (i: number, patch: Partial<TaxRow>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   return rows.map((row, i) => (
-    <div key={i} className="field-row">
+    // Zeilen werden nur angehängt, nie umsortiert: der Index ist ein stabiler Schlüssel
+    <div key={i} className="form-grid">
       <Field label={`Steuersatz ${i + 1}`}>
         {(control) => (
           <select {...control} value={row.rate} onChange={(e) => set(i, { rate: e.target.value })}>

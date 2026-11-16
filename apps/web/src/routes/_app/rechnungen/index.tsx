@@ -48,7 +48,7 @@ function InvoicesPage() {
         {inhaber && (
           <div className="actions">
             <button type="button" className="btn" onClick={() => setImporting(true)}>
-              Aus Fremdsystem übernehmen
+              Ausgangsrechnung hochladen
             </button>
             <Link to="/rechnungen/neu" className="btn btn-primary">
               Neue Rechnung
