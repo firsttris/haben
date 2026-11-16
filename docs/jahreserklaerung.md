@@ -27,7 +27,7 @@ Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körpers
 
 Jede Prüfung und Übermittlung speichert Haben mit XML, Antwort, Protokoll und den gesendeten Werten; ändern oder löschen lässt sich das nicht. Je Erklärung und Jahr ist nur eine Echtübermittlung möglich. Eine berichtigte Erklärung gibst du über das ELSTER-Portal ab.
 
-Fristen: ohne Steuerberatung bis 31. Juli des Folgejahres, mit Steuerberatung später.
+Fristen: [Fristen und Erinnerungen](fristen.md#welche-fristen).
 
 ## Ohne Hersteller-ID: in Mein ELSTER eintragen
 
