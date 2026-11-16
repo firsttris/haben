@@ -26,7 +26,7 @@ Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/
 
 | | Compose | Quadlet |
 | --- | --- | --- |
-| Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/eric:/opt/eric:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
+| Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/eric:/opt/eric:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml)) | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
 | Variable | `ERIC_HOME=/opt/eric` in `.env` | `ERIC_HOME=/opt/eric` in `haben.env` einkommentieren |
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
@@ -50,7 +50,7 @@ Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund
 
    | | Compose | Quadlet |
    | --- | --- | --- |
-   | Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
+   | Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/haben-x86_64:/opt/haben-x86_64:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml); der [Compose-Generator](compose-generator.md) erzeugt Mount und Variable) | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
    | Variable | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `.env` | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `haben.env` einkommentieren |
    | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
@@ -174,7 +174,7 @@ Schlüssel und ID an Haben übergeben, am einfachsten in der Oberfläche: Unter 
 Alternativ über die Umgebung, etwa wenn du die Einrichtung automatisierst. Was in den Einstellungen gespeichert ist, geht vor:
 
 ```sh
-# Compose: Datei neben compose.yml legen, Volume-Zeile in compose.yml einkommentieren, ID in .env
+# Compose: Datei neben compose.yml legen, in compose.override.yml einhängen (wie in compose.override.example.yml), ID in .env
 cp ~/Downloads/<Application ID>.pem ./enablebanking.pem && chown 1000:1000 enablebanking.pem && chmod 400 enablebanking.pem
 echo 'ENABLE_BANKING_APP_ID=<Application ID>' >> .env
 docker compose up -d
