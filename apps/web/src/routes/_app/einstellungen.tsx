@@ -17,6 +17,7 @@ import { redirect, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
+import { BereicheCard } from "../../components/BereicheCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
@@ -245,6 +246,7 @@ function SettingsPage() {
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}
+          {bereich === "bereiche" && <BereicheCard ausgeblendet={company.ausgeblendeteBereiche} />}
           {bereich === "rechnungen" && (
             <>
               <NumberingCard numbering={numbering.invoice} />

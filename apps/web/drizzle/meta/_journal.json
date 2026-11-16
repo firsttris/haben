@@ -1905,6 +1905,13 @@
       "when": 1794815185109,
       "tag": "0271_verfahrensdoku_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 272,
+      "version": "7",
+      "when": 1794821643571,
+      "tag": "0272_einrichtung_bereiche",
+      "breakpoints": true
     }
   ]
 }

@@ -1202,6 +1202,13 @@ summary { cursor: pointer; min-height: 24px; }
 /* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
 .choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+/* Fragen zur Einrichtung (#266): die Frage in Textfarbe, mehr Abstand zwischen den Fragen als zwischen den Antworten */
+.einrichtung-fragen { gap: 28px; }
+.frage { gap: 0; }
+.frage > legend:not(.visually-hidden) { font-size: 14px; font-weight: 500; color: var(--ink); }
+.frage > .field-hint { margin-bottom: 4px; }
+/* Einstellungen › Bereiche */
+.bereiche-liste { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 720px) {
   .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .plan-amount { grid-column: 1 / -1; }

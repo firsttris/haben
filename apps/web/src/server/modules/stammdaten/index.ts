@@ -21,6 +21,7 @@ export {
   lastDayOfMonth,
   letterIssues,
   loadCompany,
+  saveBereiche,
   sellerIssues,
   setArchiveSearch,
   versteuerungForYear,

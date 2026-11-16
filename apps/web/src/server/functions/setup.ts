@@ -38,6 +38,10 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name, url, openInNewTab }) => ({ id, name, url, openInNewTab })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
+    // Bereiche ohne Menüpunkt (#266); die Steuerberatung hat ihre eigene Navigation
+    ausgeblendet: user?.role === "inhaber" && company ? company.ausgeblendeteBereiche : [],
+    // Fragen zur Einrichtung (#266): noch nie durchgegangen bzw. mit „weiß ich nicht“ offen; daran erinnert die Startseite
+    einrichtung: company ? { fehlt: company.einrichtungAt === null, offen: company.einrichtungOffen } : null,
     // Firma wechseln (#504): die Instanzen der anderen Firmen, nur für den Inhaber
     firmen: user ? andereFirmen(env().HABEN_FIRMEN, env().BETTER_AUTH_URL, user.role) : [],
     // Mit Firmenportal (#504, Stufe 2) führt „Zum Firmenportal“ dorthin, ebenfalls nur für den Inhaber

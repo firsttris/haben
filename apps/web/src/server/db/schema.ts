@@ -215,6 +215,12 @@ export const company = pgTable(
     navLogo: boolean("nav_logo").notNull().default(false),
     /** Archiv aus dem Umzug in der Schnellsuche mitdurchsuchen (#617); Vorgabe an */
     archiveSearch: boolean("archive_search").notNull().default(true),
+    /** Bereiche ohne Menüpunkt (#266, lib/bereiche.ts); nur die Navigation, Daten und Links bleiben. Leer = alle sichtbar */
+    ausgeblendeteBereiche: jsonb("ausgeblendete_bereiche").$type<string[]>().notNull().default([]),
+    /** Fragen zur Einrichtung zuletzt durchgegangen (#266); null = noch nie, dann erinnert die Startseite. Bestehende Instanzen setzt die Migration */
+    einrichtungAt: timestamp("einrichtung_at", { withTimezone: true }),
+    /** Fragen, die mit „weiß ich nicht“ beantwortet sind; die Startseite erinnert, bis die Firmendaten gespeichert werden */
+    einrichtungOffen: jsonb("einrichtung_offen").$type<("rechtsform" | "kleinunternehmer")[]>().notNull().default([]),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

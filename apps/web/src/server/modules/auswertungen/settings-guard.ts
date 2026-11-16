@@ -89,7 +89,11 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
 }
 
 /** Fehlermeldung, wenn die Eingabe eine gesperrte Einstellung ändert */
-export function lockedChange(current: Company, next: CompanyInput, locks: SettingsLocks): string | null {
+export function lockedChange(
+  current: Company,
+  next: Pick<CompanyInput, "kontenrahmen" | "versteuerung" | "kleinunternehmer" | "rechtsform">,
+  locks: SettingsLocks,
+): string | null {
   if (next.kontenrahmen !== current.kontenrahmen && locks.kontenrahmen) return `Kontenrahmen: ${locks.kontenrahmen}`;
   if (next.versteuerung !== current.versteuerung && locks.versteuerung) return `Versteuerung: ${locks.versteuerung}`;
   if (next.kleinunternehmer && !current.kleinunternehmer && locks.kleinunternehmer) return `Kleinunternehmer: ${locks.kleinunternehmer}`;
@@ -129,6 +133,8 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
         ...input,
         dunning: keptBaseRateState(current!, input),
         companySavedAt: sql`clock_timestamp()`,
+        // Wer die Firmendaten speichert, hat Rechtsform und Kleinunternehmer selbst entschieden (#266)
+        einrichtungOffen: [],
         updatedAt: new Date(),
       })
       .where(eq(schema.company.id, 1));

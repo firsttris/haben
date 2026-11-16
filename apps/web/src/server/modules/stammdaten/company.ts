@@ -320,3 +320,17 @@ export async function setArchiveSearch(actor: string, enabled: boolean): Promise
   await loadCompany();
   await withActor(actor, (tx) => tx.update(schema.company).set({ archiveSearch: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
 }
+
+/**
+ * Bereiche ohne Menüpunkt (#266). Nur die Navigation: Daten, Buchungen und Links bleiben, deshalb ohne Sperre. Die
+ * gültigen Namen prüft der Aufrufer (lib/bereiche.ts); gespeichert wird sortiert und ohne Doppelte.
+ */
+export async function saveBereiche(actor: string, ausgeblendet: readonly string[]): Promise<void> {
+  await loadCompany();
+  await withActor(actor, (tx) =>
+    tx
+      .update(schema.company)
+      .set({ ausgeblendeteBereiche: [...new Set(ausgeblendet)].sort(), updatedAt: new Date() })
+      .where(eq(schema.company.id, 1)),
+  );
+}

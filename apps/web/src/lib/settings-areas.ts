@@ -3,6 +3,7 @@
 export const SETTINGS_AREAS = [
   { id: "firma", label: "Firma", hint: "Anschrift, Steuern, Bank, Mahnwesen" },
   { id: "persoenlich", label: "Persönliche Angaben", hint: "Steuer-ID, Veranlagung, Ehegatte" },
+  { id: "bereiche", label: "Bereiche", hint: "Menüpunkte ein- und ausblenden" },
   { id: "rechnungen", label: "Rechnungen", hint: "Nummern, Zahlungspläne, Anhänge" },
   { id: "gestaltung", label: "Beleggestaltung", hint: "Logo, Briefpapier, Farbe, Fußzeile" },
   { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },

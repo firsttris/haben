@@ -7,6 +7,7 @@ import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
 import type { SettingsArea } from "../../lib/settings-areas.ts";
+import { einrichtungsAufgaben } from "../../lib/einrichtung.ts";
 
 export const Route = createFileRoute("/_app/")({
   loader: async () => {
@@ -24,7 +25,7 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/einrichtung" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
   /** Bereich der Einstellungen, wenn to „/einstellungen“ ist */
   bereich?: SettingsArea;
 }
@@ -43,12 +44,15 @@ const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--
 
 function OverviewPage() {
   const data = Route.useLoaderData();
+  const { einrichtung } = Route.useRouteContext();
   const key = periodKey(data.period);
   const sent = data.current?.status === "sent";
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
   const vatRequired = !data.kleinunternehmer && !data.exempt;
 
   const todos: Todo[] = [];
+  // Fragen zur Einrichtung (#266): noch nie durchgegangen, oder Rechtsform bzw. Kleinunternehmer mit „weiß ich nicht“
+  if (einrichtung) todos.push(...einrichtungsAufgaben(einrichtung));
   if (!sent && vatRequired) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,

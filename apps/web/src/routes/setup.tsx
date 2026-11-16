@@ -51,7 +51,8 @@ function SetupPage() {
     try {
       const result = await authClient.passkey.addPasskey({ name: "Haben" });
       if (result?.error) throw new Error(result.error.message);
-      await router.navigate({ to: "/einstellungen" });
+      // Danach ein paar Fragen zur Einrichtung (#266); sie lassen sich überspringen, die Übersicht erinnert daran
+      await router.navigate({ to: "/einrichtung" });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -81,7 +82,7 @@ function SetupPage() {
             <button type="button" className="btn btn-primary" onClick={addPasskey} disabled={busy}>
               Passkey hinzufügen
             </button>
-            <button type="button" className="btn" onClick={() => router.navigate({ to: "/einstellungen" })}>
+            <button type="button" className="btn" onClick={() => router.navigate({ to: "/einrichtung" })}>
               Später
             </button>
           </>
