@@ -72,7 +72,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       const [head] = await sql`select max(seq) as seq from audit_log`;
       const oldState = async () => ({
         invoice:
-          await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'paid_via'-'paid_on')::text as bytes from invoices i where id=${oldId}`,
+          await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on')::text as bytes from invoices i where id=${oldId}`,
         invoiceLines: await sql`select to_jsonb(l)::text as bytes from invoice_lines l where invoice_id=${oldId} order by id`,
         invoiceTaxes: await sql`select to_jsonb(t)::text as bytes from invoice_taxes t where invoice_id=${oldId} order by rate`,
         entry: await sql`select to_jsonb(e)::text as bytes from journal_entries e where id=${entryId}`,
@@ -85,6 +85,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
       await migrate(database, { migrationsFolder: MIGRATIONS });
       expect(await oldState()).toEqual(unchanged);
+      expect(await sql`select tax_details from invoices where id=${oldId}`).toEqual([{ tax_details: null }]);
       expect(await sql`select advance_accounting from invoices where id=${oldId}`).toEqual([{ advance_accounting: null }]);
 
       ({ closeDatabase: closeAppDatabase } = await import("../../db/index.ts"));

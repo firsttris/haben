@@ -15,6 +15,7 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 8, 7]);
 
 describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () => {
   let legacy: typeof import("./legacy-open.ts");
+  let cutoffReader: typeof import("../auswertungen/altbestand-stichtag.ts");
   let bank: typeof import("../bank/bank.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
@@ -26,6 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   beforeAll(async () => {
     sql = await setupTestDb();
     legacy = await import("./legacy-open.ts");
+    cutoffReader = await import("../auswertungen/altbestand-stichtag.ts");
     bank = await import("../bank/bank.ts");
     invoices = await import("../rechnungen/invoices.ts");
     figures = await import("../umsatzsteuer/vat-figures.ts");
@@ -577,9 +579,9 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
           await legacy.takeOverLegacyItem(actor, juni, a);
 
           const fixed = { date: a, bookingDate: `${alt}-07-01`, fixed: expect.stringMatching(/übernommen/) };
-          expect(await legacy.legacyTakeoverCutoff()).toEqual(fixed);
-          expect(await legacy.legacyTakeoverCutoff(a)).toEqual(fixed);
-          await expect(legacy.legacyTakeoverCutoff(b)).rejects.toThrow(/Stichtag/);
+          expect(await cutoffReader.legacyTakeoverCutoff()).toEqual(fixed);
+          expect(await cutoffReader.legacyTakeoverCutoff(a)).toEqual(fixed);
+          await expect(cutoffReader.legacyTakeoverCutoff(b)).rejects.toThrow(/Stichtag/);
           await expect(legacy.takeOverLegacyItem(actor, mai, b)).rejects.toThrow(/Stichtag/);
           await expect(legacy.takeOverAll(actor, b)).rejects.toThrow(/Stichtag/);
           expect(await legacy.openItemsOverview(b)).toMatchObject({ cutoff: fixed, cutoffError: expect.stringMatching(/Stichtag/) });
@@ -695,7 +697,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
       });
       await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE-N", date: `${year}-01-10`, net: 100_000, tax: 19_000, file: PDF });
       // Reicht die alte Buchhaltung ins neue Jahr, schlägt Haben den Tag vor heute vor; hier endet sie am 31.12.
-      expect((await legacy.legacyTakeoverCutoff()).date).toBe(addDays(heute(), -1));
+      expect((await cutoffReader.legacyTakeoverCutoff()).date).toBe(addDays(heute(), -1));
       const cutoff = `${alt}-12-31`;
       expect((await legacy.openLegacyItems(cutoff)).map((i) => [i.number, i.open, i.paidAfter, i.blocker])).toEqual([
         ["RE-T1", 69_000, 0, expect.stringMatching(/^bis zum Stichtag teilweise bezahlt/)],
@@ -720,7 +722,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         file: PDF,
       });
       expect(await legacy.openLegacyItems()).toEqual([]);
-      const cutoff = await legacy.legacyTakeoverCutoff(`${alt}-06-30`);
+      const cutoff = await cutoffReader.legacyTakeoverCutoff(`${alt}-06-30`);
       expect(cutoff).toEqual({ date: `${alt}-06-30`, bookingDate: `${alt}-07-01`, fixed: null });
       expect((await legacy.openLegacyItems(`${alt}-06-30`)).map((i) => [i.number, i.blocker])).toEqual([["RE-M", null]]);
       await expect(legacy.openLegacyItems(heute())).rejects.toThrow(/vor heute/);
@@ -733,7 +735,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
 
     it("GmbH: der Stichtag ist ein 31.12.; mit gebuchter Eröffnung steht er fest", async () => {
       await sql`update company set rechtsform = 'gmbh'`;
-      await expect(legacy.legacyTakeoverCutoff(`${alt}-06-30`)).rejects.toThrow(/31\. Dezember/);
+      await expect(cutoffReader.legacyTakeoverCutoff(`${alt}-06-30`)).rejects.toThrow(/31\. Dezember/);
       const manual = await import("../buchhaltung/manual.ts");
       await manual.createManualEntry(
         actor,
@@ -748,7 +750,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         },
         heute(),
       );
-      expect(await legacy.legacyTakeoverCutoff(`${alt}-06-30`)).toEqual({
+      expect(await cutoffReader.legacyTakeoverCutoff(`${alt}-06-30`)).toEqual({
         date: `${alt}-12-31`,
         bookingDate: `${year}-01-01`,
         fixed: expect.stringMatching(/Eröffnung am 01\.01\./),

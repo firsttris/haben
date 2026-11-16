@@ -1,5 +1,5 @@
 {
-  "id": "c9f060a3-86d7-4b6e-bb98-8a09ab3adb4b",
+  "id": "1f955c5a-f3d8-45bc-8eac-414de881a237",
   "prevId": "8acd3521-9f2d-4ab9-ad75-8ca31cfefce3",
   "version": "7",
   "dialect": "postgresql",
@@ -4449,6 +4449,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "vorsteuer_anteil": {
+          "name": "vorsteuer_anteil",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
         "original_net": {
           "name": "original_net",
           "type": "bigint",
@@ -4503,7 +4509,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "document_amounts_vorsteuer_anteil_range": {
+          "name": "document_amounts_vorsteuer_anteil_range",
+          "value": "\"document_amounts\".\"vorsteuer_anteil\" between 0 and 10000"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.document_cancellations": {
@@ -8736,57 +8747,6 @@
           "value": "(\"journal_lines\".\"debit\" >= 0 and \"journal_lines\".\"credit\" >= 0) and (\"journal_lines\".\"debit\" = 0 or \"journal_lines\".\"credit\" = 0)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.journal_umstellung": {
-      "name": "journal_umstellung",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigserial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "stichjahr_vorher": {
-          "name": "stichjahr_vorher",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ergebnis": {
-          "name": "ergebnis",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "befunde": {
-          "name": "befunde",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "version": {
-          "name": "version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.kapest_submissions": {

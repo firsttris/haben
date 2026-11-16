@@ -1,4 +1,4 @@
-import { UserError } from "../../errors.ts";
+import { legacyTakeoverCutoff, TakeoverError } from "../auswertungen/index.ts";
 import {
   addDays,
   computeInvoice,
@@ -6,34 +6,26 @@ import {
   legacyOpenAt,
   openingDocumentPosting,
   openingInvoicePosting,
-  takeoverCutoff,
-  takeoverCutoffConflict,
-  takeoverCutoffIssue,
   type ExpenseCategory,
   type LegacyOpenAt,
   type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
-import { and, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { ohneJit } from "../../db/ohne-jit.ts";
 import { loadSevdeskAccountCategories, sevdeskExpenseCategory, sevdeskPositionAccountsOf } from "./sevdesk-kategorie.ts";
-import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
-import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadCompany } from "../stammdaten/index.ts";
-import { lastStapelYear } from "./datev-eroeffnung.ts";
+import { openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import { storeInvoiceTaxes } from "../rechnungen/index.ts";
 import type { LegacyCategoryRow, LegacyFileState } from "../../db/schema.ts";
 import { latestFileStates, takeoverFileIssue } from "./dateistand.ts";
 import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
-import { today } from "../../today.ts";
-import { effectivePayment, paymentHistoryIssue, settledOn } from "./payment-history.ts";
+import { effectivePayment, paymentHistoryIssue, settledOn } from "../auswertungen/index.ts";
 import { importedTaxTreatment } from "./legacy-import-tax.ts";
-import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
-
-export class TakeoverError extends UserError {}
+import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 
 type LegacyVoucher = typeof schema.lexofficeVouchers.$inferSelect;
 
@@ -73,62 +65,6 @@ export interface OpenLegacyItem {
   takenOver: { kind: "invoice" | "document"; id: string } | null;
   /** Warum sich der Posten nicht übernehmen lässt */
   blocker: string | null;
-}
-
-async function lastVoucherDate(q: Db | Tx): Promise<string | null> {
-  const [row] = await q.select({ last: sql<string | null>`max(${schema.lexofficeVouchers.date})::text` }).from(schema.lexofficeVouchers);
-  return row?.last ?? null;
-}
-
-/**
- * Buchungstag der ersten Übernahme eines offenen Postens: die früheste Buchung einer übernommenen Rechnung bzw. eines
- * übernommenen Belegs. Andere Buchungen haben diese Quellen nicht (Zahlungen buchen über die Zuordnung, Korrekturen als
- * eigene Rechnung); Stornobuchungen zählen nicht.
- */
-async function firstTakeoverDate(q: Db | Tx): Promise<string | null> {
-  const e = schema.journalEntries;
-  const [row] = await q
-    .select({ first: sql<string | null>`min(${e.date})::text` })
-    .from(e)
-    .where(
-      and(
-        isNull(e.reversesId),
-        sql`(${e.sourceType} = 'invoice' and exists (select 1 from ${schema.invoices} i where i.id = ${e.sourceId} and i.lexoffice_voucher_id is not null))
-          or (${e.sourceType} = 'document' and exists (select 1 from ${schema.documents} d where d.id = ${e.sourceId} and d.lexoffice_voucher_id is not null))`,
-      ),
-    );
-  return row?.first ?? null;
-}
-
-/**
- * Stichtag der Übernahme aus Firmendaten, Journal und Archiv (takeoverCutoff in @haben/core). Ein gewählter Stichtag
- * gilt nur, wenn weder eine Eröffnung noch die erste Übernahme noch bei GmbH und UG der DATEV-Stapel ihn festlegt; weicht
- * er von dem der ersten Übernahme ab, lehnt Haben ihn ab.
- */
-export async function legacyTakeoverCutoff(requested?: string | null, q: Db | Tx = db): Promise<TakeoverCutoff> {
-  const [company, openings, stapelYear, lastVoucher, firstTakeover] = await Promise.all([
-    loadCompany(q),
-    activeOpenings(q),
-    lastStapelYear(q),
-    lastVoucherDate(q),
-    firstTakeoverDate(q),
-  ]);
-  const input = {
-    rechtsform: company.rechtsform,
-    openingDate: openings[0]?.date ?? null,
-    stapelYear,
-    lastVoucherDate: lastVoucher,
-    firstTakeoverDate: firstTakeover,
-    today: today(),
-  };
-  const cutoff = takeoverCutoff(input);
-  if (!requested) return cutoff;
-  const conflict = takeoverCutoffConflict(requested, input);
-  if (conflict) throw new TakeoverError(conflict);
-  if (cutoff.fixed) return cutoff;
-  const issue = takeoverCutoffIssue(requested, company.rechtsform, input.today);
-  if (issue) throw new TakeoverError(issue);
-  return takeoverCutoff({ ...input, requested });
 }
 
 function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string, hasPdf: boolean, fileState: LegacyFileState | null = null): string | null {

@@ -1881,15 +1881,29 @@
     {
       "idx": 268,
       "version": "7",
-      "when": 1794811769674,
-      "tag": "0268_journal_umstellung",
+      "when": 1794793142253,
+      "tag": "0268_vorsteuer_teilabzug",
       "breakpoints": true
     },
     {
       "idx": 269,
       "version": "7",
-      "when": 1794811773668,
-      "tag": "0269_journal_umstellung_trigger",
+      "when": 1794802727031,
+      "tag": "0269_outgoing_tax_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 270,
+      "version": "7",
+      "when": 1794815445253,
+      "tag": "0270_journal_umstellung",
+      "breakpoints": true
+    },
+    {
+      "idx": 271,
+      "version": "7",
+      "when": 1794815448608,
+      "tag": "0271_journal_umstellung_trigger",
       "breakpoints": true
     }
   ]

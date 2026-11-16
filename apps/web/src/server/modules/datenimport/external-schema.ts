@@ -78,6 +78,7 @@ const taxCodes = [
   "frei",
   "RC",
   "Drittland",
+  "NichtSteuerbar",
   "Steuerfrei",
   "KU",
   "VSt19",

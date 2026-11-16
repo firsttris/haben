@@ -20,7 +20,7 @@ Einleitung, Texte zu Positionen und Hinweis unterstützen [fett, kursiv und unte
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
 - optional **Bestellnummer**, **Eigene Auftragsnummer** und **Lieferscheinnummer**; sie stehen im Kopfblock des PDFs und gehen in die Rechnung aus dem Angebot über ([wie bei der Rechnung](rechnungen.md#bestellnummer-auftrag-und-lieferschein))
-- Umsatzsteuer: dieselbe Auswahl wie bei der [Rechnung](rechnungen.md#umsatzsteuer-auf-der-rechnung), etwa regulär, Kleinunternehmer, Reverse Charge, steuerfrei
+- Umsatzsteuer: dieselbe Auswahl und ausdrückliche Zuordnung wie bei der [Rechnung](rechnungen.md#umsatzsteuer-auf-der-rechnung), auch eine eigene §-4-Befreiung neben § 19 oder ein geklärter ausländischer Leistungsort. Die Rechnung übernimmt die gespeicherte Zuordnung.
 - Sprache, vorbelegt vom Kunden (siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch))
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
 - Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine); die Einleitung ist mit der Standard-Einleitung für Angebote aus den [Firmendaten](einrichtung.md) vorbelegt

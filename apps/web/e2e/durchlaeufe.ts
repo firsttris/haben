@@ -25,6 +25,10 @@ export const DURCHLAEUFE = {
   "wiso-import": 18,
   "sevdesk-export": 19,
   "sevdesk-anlagen": 21,
+  // Der Abstand 19 gehört sevdesk-export, 20 der nachgebauten sevDesk-API (SEVDESK_PORT), 21 dem
+  // Durchlauf sevdesk-anlagen; vorjahre bekommt deshalb 22
+  vorjahre: 22,
+  steuerbefreiung: 23,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

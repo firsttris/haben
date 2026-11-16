@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Review #585: freie Buchungen gegen Privat auf Konten, die der EÜR-Abgleich nur aus Zahlungen (sourceType allocation)
- * liest. Die Gegenprobe aus den Nebenbüchern zählt die freie Buchung (mitFreienBuchungen), das Journal im Abgleich nicht.
+ * liest. Seit #1116 rechnet die EÜR nur aus dem Journal; der Abgleich darf die freie Buchung nicht als Abweichung melden.
  */
 const KONTEN = {
   SKR03: { einlage: "1890", gewst: "4320", zinsen: "2110", zuschlag: "2107", ustVorjahr: "1790" },

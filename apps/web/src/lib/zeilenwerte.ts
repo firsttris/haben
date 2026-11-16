@@ -212,7 +212,7 @@ const EUER_ARBEITSZIMMER = {
 export const ERKLAERTE_ZEILEN = {
   ust: UST_REIHENFOLGE.map(ustZeile),
   euer: [
-    ...EUER_EINNAHMEN.map(euerZeile),
+    ...EUER_EINNAHMEN.flatMap((field) => (field === "kleinunternehmer" ? [euerZeile(field), euerZeile("kleinunternehmerAbzuege")] : [euerZeile(field)])),
     EUER_SUMMEN.einnahmen,
     // Im Vordruck steht das Arbeitszimmer vor der Tagespauschale
     ...EUER_AUSGABEN.flatMap((field) => (field === "tagespauschale" ? [EUER_ARBEITSZIMMER, euerZeile(field)] : [euerZeile(field)])),
