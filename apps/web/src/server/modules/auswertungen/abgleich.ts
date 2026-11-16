@@ -16,7 +16,7 @@ import { versteuerungForYear } from "../stammdaten/index.ts";
 import { bankZeilen } from "./abgleich-bank.ts";
 import { belegZeilen } from "./abgleich-beleg.ts";
 import { vorgangZeilen } from "./abgleich-vorgang.ts";
-import { journalBuchungen, verprobungsZeilen, type JournalBuchung } from "./abgleich-verprobung.ts";
+import { belegVorsteuerHinweis, journalBuchungen, verprobungsZeilen, type JournalBuchung } from "./abgleich-verprobung.ts";
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
 import { euerAusJournal } from "./euer-journal.ts";
 import { euerForYear } from "./reports.ts";
@@ -103,22 +103,29 @@ async function uebernommeneJahre(q: Db | Tx): Promise<Set<number>> {
 }
 
 /** Verprobung eines Zeitraums der Voranmeldung */
-function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], versteuerung: "ist" | "soll"): AbgleichZeile[] {
-  return verprobungsZeilen(period, buchungen, versteuerung).map((z) => ({
-    bereich: "ustva",
-    zeitraum: periodKey(period),
-    posten: z.posten,
-    journal: z.journal,
-    quelle: z.erwartet,
-    gegen: "aus der Bemessungsgrundlage",
-  }));
+/** Verprobung eines Zeitraums: Abweichungen im Journal als Zeilen, die Vorsteuer eines Belegs als Hinweis */
+function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], versteuerung: "ist" | "soll"): Abgleich {
+  const alle = verprobungsZeilen(period, buchungen, versteuerung);
+  return {
+    zeilen: alle
+      .filter((z) => !z.beleg)
+      .map((z) => ({
+        bereich: "ustva",
+        zeitraum: periodKey(period),
+        posten: z.posten,
+        journal: z.journal,
+        quelle: z.erwartet,
+        gegen: "aus der Bemessungsgrundlage",
+      })),
+    hinweise: alle.filter((z) => z.beleg).map(belegVorsteuerHinweis),
+  };
 }
 
 /** Abgleich für einen Zeitraum der Voranmeldung (Monat oder Quartal), z. B. in der Vorprüfung vor dem Senden */
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
   if ((await uebernommeneJahre(db)).has(period.year)) return { zeilen: [], hinweise: [] };
   const { from, to } = yearRange(period.year);
-  return { zeilen: vatRows(period, await journalBuchungen(from, to), await versteuerungForYear(period.year)), hinweise: [] };
+  return vatRows(period, await journalBuchungen(from, to), await versteuerungForYear(period.year));
 }
 
 /** Abgleich für die EÜR eines Jahres: AfA und Privatnutzung, Gewinn nach der DATEV-Formel */
@@ -222,7 +229,11 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db,
     const buchungen = await journalBuchungen(from, to, q);
     const versteuerung = await versteuerungForYear(year, q);
     const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
-    for (let month = 1; month <= lastMonth; month++) zeilen.push(...vatRows({ year, month }, buchungen, versteuerung));
+    for (let month = 1; month <= lastMonth; month++) {
+      const verprobung = vatRows({ year, month }, buchungen, versteuerung);
+      zeilen.push(...verprobung.zeilen);
+      hinweise.push(...verprobung.hinweise);
+    }
     for (const a of await gesendeteAbweichungen([year], q))
       zeilen.push({
         bereich: "ustva",

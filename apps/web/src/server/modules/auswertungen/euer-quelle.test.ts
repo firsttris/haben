@@ -230,16 +230,12 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal (Postgres)", () => {
       });
       // Bisher 100 € Aufwand und 19 € Vorsteuer, jetzt 1 € Aufwand mehr
       expect((await reports.euerForYear(2026)).gewinn).toBe(-12_000);
-      // Die Vorsteuer passt nicht mehr zur Bemessungsgrundlage
-      expect(abgleich.abweichungen((await abgleich.abgleichJahr(2026, "2026-12-31")).zeilen)).toEqual([
-        expect.objectContaining({
-          bereich: "ustva",
-          zeitraum: "2026-03",
-          journal: 1_900,
-          quelle: 1_919,
-          posten: expect.stringMatching(/^Vorsteuer 19 % zur Bemessungsgrundlage /),
-        }),
-        // Und die Buchung passt nicht mehr zum Beleg: 101 € Aufwand statt 100 €
+      // Die Vorsteuer passt nicht mehr zur Bemessungsgrundlage: Bei einem Beleg ein Hinweis zum Prüfen (die Buchung folgt sonst
+      // dem Beleg); die Abweichung zeigt „Vorgang gegen Buchung“
+      const jahr = await abgleich.abgleichJahr(2026, "2026-12-31");
+      expect(jahr.hinweise).toContainEqual(expect.stringMatching(/^Bitte prüfen: Vorsteuer 19 % zur Bemessungsgrundlage /));
+      expect(abgleich.abweichungen(jahr.zeilen)).toEqual([
+        // Die Buchung passt nicht mehr zum Beleg: 101 € Aufwand statt 100 €
         expect.objectContaining({
           bereich: "beleg",
           zeitraum: "2026-03",

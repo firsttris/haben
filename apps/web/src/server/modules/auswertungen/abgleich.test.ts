@@ -594,7 +594,11 @@ describe.skipIf(!testDatabaseUrl)("Abgleich im Journal (Postgres)", () => {
         await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 25_50, tax: 4_80 }]);
         const jahr = await abgleich.abgleichJahr(2026, "2026-03-31");
         expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
-        const hinweis = expect.stringMatching(/^Bitte prüfen: Vorsteuer 19 % zur Bemessungsgrundlage 25,50 €: Buchung .* vom 10\.02\.2026 trägt 4,80 €, Netto mal Satz wären 4,85 €\./);
+        const hinweis = expect.stringMatching(
+          new RegExp(
+            `^Bitte prüfen: Vorsteuer 19 % zur Bemessungsgrundlage ${formatEuro(25_50)}: Buchung .* vom 10\\.02\\.2026 trägt ${formatEuro(4_80)}, Netto mal Satz wären ${formatEuro(4_85)}\\.`,
+          ),
+        );
         expect(jahr.hinweise).toContainEqual(hinweis);
         const februar = await abgleich.vatAbgleich({ year: 2026, month: 2 });
         expect(abgleich.abgleichIssues(februar)).toEqual([{ tone: "info", text: hinweis, link: "/konten" }]);

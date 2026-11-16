@@ -8,6 +8,11 @@ import { invoiceTaxReader } from "../rechnungen/index.ts";
  * gegen Bemessungsgrundlage mal Satz aus Konto und Steuerschlüssel. Ohne Eröffnungen (im Vorjahr angemeldet) und ohne die
  * Buchungen des Anlagenverzeichnisses: Die Privatnutzung von Fahrzeugen trägt an der Erlöszeile keinen Steuerschlüssel,
  * wenn die Bemessungsgrundlage der Umsatzsteuer von der Entnahme abweicht (Hybrid- und Elektroautos, privateUsePosting).
+ *
+ * Die Vorsteuer eines Belegs bucht Haben so, wie sie auf dem Beleg steht; dass die Buchung dem Beleg folgt, prüft „Vorgang
+ * gegen Buchung“. Weicht sie von Netto mal Satz ab, hat meist der Lieferant je Position gerundet. Das ist ein Hinweis zum
+ * Prüfen, keine Abweichung im Journal: Abziehbar ist nur die gesetzlich geschuldete Steuer (UStAE 15.2 Abs. 1, § 14c UStG),
+ * bei einer E-Rechnung zählen die Werte aus dem XML (EN 16931 BR-CO-17 lässt einen Cent je Satz zu).
  */
 
 export interface JournalBuchung {
@@ -93,12 +98,15 @@ const ART = { umsatzsteuer: "Umsatzsteuer", erwerbsteuer: "Erwerbsteuer", vorste
 
 const datum = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
 
-/** Abweichungen der Verprobung in den Buchungen eines Zeitraums, je Buchung und Satz eine Zeile */
+/**
+ * Abweichungen der Verprobung in den Buchungen eines Zeitraums, je Buchung und Satz eine Zeile; `beleg`: Vorsteuer eines
+ * Belegs, nur ein Hinweis (siehe oben)
+ */
 export function verprobungsZeilen(
   period: VatPeriod,
   buchungen: readonly JournalBuchung[],
   versteuerung: Versteuerung,
-): { posten: string; journal: Cents; erwartet: Cents }[] {
+): { posten: string; journal: Cents; erwartet: Cents; beleg: boolean }[] {
   const months = new Set(monthsOfPeriod(period).map((m) => m.month));
   return buchungen
     .filter((b) => months.has(b.month) && b.sourceType !== "asset")
@@ -107,6 +115,12 @@ export function verprobungsZeilen(
         posten: `${ART[a.art]} ${a.satz / 100} % zur Bemessungsgrundlage ${formatEuro(a.bemessung)}: Buchung „${b.description}“ vom ${datum(b.date)}`,
         journal: a.steuer,
         erwartet: a.erwartet,
+        beleg: a.art === "vorsteuer" && b.sourceType === "document",
       })),
     );
+}
+
+/** Hinweis zur Vorsteuer eines Belegs, die von Netto mal Satz abweicht */
+export function belegVorsteuerHinweis(z: { posten: string; journal: Cents; erwartet: Cents }): string {
+  return `Bitte prüfen: ${z.posten} trägt ${formatEuro(z.journal)}, Netto mal Satz wären ${formatEuro(z.erwartet)}. Abziehbar ist nur die gesetzlich geschuldete Steuer (UStAE 15.2 Abs. 1); weist der Lieferant mehr aus, etwa weil er je Position rundet, schuldet er den Mehrbetrag (§ 14c UStG). Bei einer E-Rechnung zählen die Werte aus dem XML.`;
 }
