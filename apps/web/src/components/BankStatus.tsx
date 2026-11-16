@@ -59,7 +59,7 @@ const CONNECTION_STATUS: Record<"aktiv" | "abgelaufen" | "fehler" | "widerrufen"
 
 const FINTS_STATUS: Record<"aktiv" | "tan" | "fehler", StatusLook> = {
   aktiv: { text: "Aktiv", tone: "ok" },
-  // Der nächtliche Abruf wartet, bis jemand mit TAN abruft
+  // Der Abruf im Hintergrund wartet, bis jemand mit TAN abruft
   tan: { text: "TAN nötig", tone: "warn", emphasis: "urgent" },
   fehler: { text: "Fehler", tone: "danger", emphasis: "urgent" },
 };

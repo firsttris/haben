@@ -13,7 +13,7 @@ import { today as todayInGermany } from "../../today.ts";
 
 /*
  * Kontoabruf über FinTS (#654): Umsätze der Konten einer Verbindung holen, je Konto wie eine Datei speichern. Der Abruf
- * auf Knopfdruck fragt eine TAN im Browser ab; der nächtliche Abruf wartet nie auf eine TAN, sondern setzt den Status
+ * auf Knopfdruck fragt eine TAN im Browser ab; der Abruf im Hintergrund wartet nie auf eine TAN, sondern setzt den Status
  * „tan“. Lehnt die Bank ab (etwa eine falsche PIN), steht die Verbindung auf „fehler“ und der Hintergrund versucht es
  * nicht wieder: Banken sperren den Zugang nach wenigen Fehlversuchen.
  */
@@ -132,7 +132,7 @@ export function fintsAbrufen(actor: string, id: string, today = todayInGermany()
 }
 
 /**
- * Nächtlicher Abruf: aktive Verbindungen, deren letzter Versuch lange genug her ist. Ein Fehlschlag zählt als Versuch,
+ * Abruf im Hintergrund (Scheduler, je Verbindung höchstens alle 20 Stunden): aktive Verbindungen, deren letzter Versuch lange genug her ist. Ein Fehlschlag zählt als Versuch,
  * damit der nächste erst am nächsten Tag kommt; nach „tan“ oder „fehler“ wartet die Verbindung auf die Person.
  */
 export async function runDueFintsSyncs(now = new Date()): Promise<{ synced: number; added: number; errors: string[] }> {

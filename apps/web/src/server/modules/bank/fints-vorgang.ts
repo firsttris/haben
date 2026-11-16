@@ -63,7 +63,7 @@ export function vorgangVerwerfen(actor: string, id: string): void {
 /**
  * „Das Kundenprodukt wird nicht unterstützt“ (9952): So lehnte eine Bank in #654 eine neue Registrierungsnummer ab, die
  * sie noch nicht übernommen hatte. Die DK gibt neue Nummern etwa wöchentlich weiter, und die Banken übernehmen sie nach
- * Tagen bis Wochen (Hinweis der DK in ihrer Mail zur Registrierung).
+ * Tagen bis Wochen (Hinweis der DK zur Registrierung, zitiert in firsttris/haben#654).
  */
 const PRODUKT_UNBEKANNT = 9952;
 

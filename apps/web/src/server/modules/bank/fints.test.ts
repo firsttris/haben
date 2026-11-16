@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     [IBAN_B]: [{ tag: "2026-10-01", betrag: "5,00", name: "Bank", zweck: "Zinsen", ref: "B1" }],
   };
   const zugang = () => ({ blz: BLZ, url: bank.url, benutzer: "max", pin: "12345" });
-  // Der nächtliche Abruf vergleicht mit „Zuletzt abgerufen“, das die echte Uhr setzt; deshalb Zeitpunkte ab jetzt
+  // Der Abruf im Hintergrund vergleicht mit „Zuletzt abgerufen“, das die echte Uhr setzt; deshalb Zeitpunkte ab jetzt
   const spaeter = (tage: number, stunden = 0) => new Date(Date.now() + tage * 86_400_000 + stunden * 3_600_000);
 
   async function verbindung() {
