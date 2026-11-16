@@ -125,7 +125,7 @@ export function documentSplitPosting(
   reverseCharge: ReverseChargeIn | null = null,
   /** Gutschrift erstattet bereits Bezahltes (#786): Vorsteuerminderung erst mit dem Ausgleich, bis dahin Zwischenkonto */
   erstattetBezahltes = false,
-  /** Leistung beim Buchen noch nicht ausgeführt (#693): Vorsteuer erst mit dem Ausgleich, bis dahin Zwischenkonto */
+  /** Leistung beim Buchen noch nicht ausgeführt (#693): Vorsteuer auf das Zwischenkonto bis zur Freigabe oder Zahlung */
   vorsteuerNochNichtAbziehbar = false,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];

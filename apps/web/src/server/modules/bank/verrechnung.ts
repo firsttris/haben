@@ -196,7 +196,7 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
         lines: [...verrechnungPosting(betraege[seite]!, company.kontenrahmen), ...steuer[seite]!],
       });
     }
-    // Verrechnung vor der Ausführung (#930): was noch wartet, bleibt zum Ausführungsdatum freigegeben
+    // Verrechnung vor der Ausführung (#693): was noch wartet, bleibt zum Ausführungsdatum freigegeben
     for (const doc of [a, b]) await freigabeNachziehen(tx, doc.id, company, date);
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
   });
@@ -317,7 +317,7 @@ export async function reverseSettlement(actor: string, id: string, date: string,
     // nicht rückwirkend. Ältere Verrechnungen ohne Buchung bleiben ohne Gegenbuchung.
     const company = await openBooks(tx);
     for (const [i, verrechnung] of [row, partner].entries()) await storniereVerrechnung(tx, company, verrechnung.id, gegen[i]!.id, parsed.date);
-    // Aufhebung vor der Ausführung (#930): Der zurückgelegte Anteil gehört wieder zur Freigabe zum Ausführungsdatum
+    // Aufhebung vor der Ausführung (#693): Der zurückgelegte Anteil gehört wieder zur Freigabe zum Ausführungsdatum
     for (const id of [row.documentId, partner.documentId]) await freigabeNachziehen(tx, id, company, parsed.date);
     return { ok: true as const, date: parsed.date };
   });

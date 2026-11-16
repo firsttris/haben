@@ -1282,7 +1282,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     sourceId: allocation!.id,
     lines: onLedger(lines, company.kontenrahmen, bank.ledgerIndex),
   });
-  // Zahlung vor der Ausführung (#930): Die vorausdatierte Freigabe zurücknehmen, den Rest wieder festschreiben —
+  // Zahlung vor der Ausführung (#693): Die vorausdatierte Freigabe zurücknehmen, den Rest wieder festschreiben —
   // nach der Buchung, damit der gezogene Anteil im Journal steht und der Saldo den Rest zeigt
   if (part.kind === "document") await freigabeNachziehen(tx, part.documentId, company, bank.bookingDate);
 }
@@ -1483,7 +1483,7 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       ),
       reversesId: entry.id,
     });
-    // Aufgehobene Zahlung vor der Ausführung (#930): Der Vorgang ist wieder offen; der freigegebene Anteil fällt am Tag
+    // Aufgehobene Zahlung vor der Ausführung (#693): Der Vorgang ist wieder offen; der freigegebene Anteil fällt am Tag
     // der Aufhebung zurück, der Rest gehört wieder zum Ausführungsdatum
     if (allocation.documentId) await freigabeNachziehen(tx, allocation.documentId, books, date);
   }
@@ -1593,7 +1593,7 @@ async function kursdifferenzBeleg(tx: Tx, company: Awaited<ReturnType<typeof ope
   const lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
   // Die Steuer bleibt beim Kurs des Belegs; der ausgeglichene Anteil geht trotzdem vom Zwischenkonto, wenn dort
   // etwas steht: geparkte Vorsteuer (#693) oder eine Gutschrift „erstattet bereits Bezahltes“ (#786). Vor der
-  // Ausführung bleibt er dort und wird mit ihr frei (#930)
+  // Ausführung bleibt er dort und wird mit ihr frei (§ 16 Abs. 6 UStG)
   lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen, input.date, true)));
   return {
     amount,
@@ -1711,7 +1711,7 @@ export async function bookWriteOff(
     cashEntryId: "cashEntryId" in input ? (input.cashEntryId ?? null) : null,
   });
   await post(tx, company, { date: input.date, description, sourceType: "ausbuchung", sourceId: row!.id, lines });
-  // Skonto oder Kursdifferenz vor der Ausführung (#930): Die Freigabe zum Ausführungsdatum deckt nur noch, was wartet
+  // Skonto oder Kursdifferenz vor der Ausführung (#693): Die Freigabe zum Ausführungsdatum deckt nur noch, was wartet
   if (target.documentId) await freigabeNachziehen(tx, target.documentId, company, input.date);
   return amount;
 }
@@ -1875,7 +1875,7 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
       ),
       reversesId: entry.id,
     });
-    // Aufgehobene Ausbuchung auf einen Beleg (#930): wie bei der Zuordnung die Freigabe zum Leistungsdatum nachziehen
+    // Aufgehobene Ausbuchung auf einen Beleg (#693): wie bei der Zuordnung die Freigabe zum Leistungsdatum nachziehen
     if (row.documentId) await freigabeNachziehen(tx, row.documentId, books, date);
   }
 }

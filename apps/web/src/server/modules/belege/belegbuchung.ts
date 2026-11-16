@@ -84,7 +84,7 @@ export function belegZeilen(
         doc.reverseCharge === "eu" || doc.reverseCharge === "drittland" ? doc.reverseCharge : null,
         // Gutschrift, die bereits Bezahltes erstattet: Vorsteuerminderung erst mit dem Ausgleich (#786)
         doc.erstattetBezahltes,
-        // Leistung beim Buchen noch nicht ausgeführt: Vorsteuer erst mit dem Ausgleich (#693)
+        // Leistung beim Buchen noch nicht ausgeführt: Vorsteuer auf das Zwischenkonto bis zur Freigabe oder Zahlung (#693)
         spaeter,
       )
     : documentPosting(

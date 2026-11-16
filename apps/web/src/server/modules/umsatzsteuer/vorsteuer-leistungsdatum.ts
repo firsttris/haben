@@ -16,12 +16,14 @@ import { geschaeftlich, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
  * Vorsteuer nach Leistungsdatum (#693, Stufe 2): Bei einem Eingangsbeleg ist die Vorsteuer in dem Zeitraum abziehbar, in
  * dem erstmalig beide Voraussetzungen erfüllt sind — die Leistung ist ausgeführt und eine Rechnung liegt vor (§ 15 Abs. 1
  * Satz 1 Nr. 1 UStG). Liegt das Leistungsdatum vor oder am Belegdatum, bleibt es deshalb beim Belegmonat. Liegt es
- * danach (Anzahlung, Abschlag vor der Leistung), zählt der gezahlte Anteil im Monat der Zahlung (UStAE 15.3 Abs. 1
- * Satz 2), der Rest mit der Ausführung; eine Zahlung nach der Ausführung zählt deshalb ebenfalls im Monat der Ausführung.
+ * danach (Anzahlung, Abschlag vor der Leistung), zählt der gezahlte Anteil im Monat der Zahlung, frühestens in dem der
+ * Rechnung (UStAE 15.3 Abs. 1 Satz 2), der Rest mit der Ausführung; eine Zahlung nach der Ausführung zählt deshalb
+ * ebenfalls im Monat der Ausführung.
  *
  * Ein Beleg kann mehrere Zahlungen haben (Strom- und Gasabschläge im Ablesezeitraum): Jede Zahlung zieht ihren Anteil,
  * anteilig je Steuersatz und fortgeschrieben wie bei den Rechnungen (paidTaxShares), damit alle zusammen genau die
- * Vorsteuer des Belegs ergeben. Ohne Leistungsdatum bleibt alles wie bisher: Das erledigt die gewöhnliche Abfrage.
+ * Vorsteuer des Belegs ergeben. Belege ohne Leistungsdatum nach dem Belegdatum zählt die gewöhnliche Abfrage nach dem
+ * Belegdatum.
  *
  * Ein Storno bleibt beim Stornodatum mit umgekehrtem Vorzeichen (§ 17 Abs. 1 UStG); es trifft aber nie früher als die
  * Zahlung, deren Anteil es zurücknimmt, sonst entstünde in einem Zeitraum eine Minderung, in dem nichts stand.
@@ -112,7 +114,7 @@ function stornoDerSkontoAufhebung(
 async function kandidatenLaden(q: Db | Tx) {
   const d = schema.documents;
   // Auch Belege nach dem Periodenende: Ein Skonto zur Vorkasse kann vor dem Rechnungsdatum liegen und mindert dann nichts
-  // (skontoOhneMinderung); ihre Zeilen liegen nie vor dem Belegdatum und fallen unten aus dem Zeitraum (#930).
+  // (skontoOhneMinderung); ihre Zeilen liegen nie vor dem Belegdatum und fallen am Ende aus dem Zeitraum.
   return await q
     .select({
       id: d.id,
@@ -139,7 +141,7 @@ async function kandidatenLaden(q: Db | Tx) {
         isNotNull(d.documentDate),
         or(isNotNull(d.serviceFrom), isNotNull(d.serviceTo)),
         // Nachweis ist die Buchung, wie im Ausgleich (vorsteuer-ausgleich.ts): Nur ein Beleg, dessen Buchung die Vorsteuer
-        // auf das Zwischenkonto gelegt hat, zählt nach dem Leistungsdatum. Altbestand von vor #930, bar oder privat
+        // auf das Zwischenkonto gelegt hat, zählt nach dem Leistungsdatum. Altbestand ohne Zwischenkonto, bar oder privat
         // bezahlte Belege bleiben beim Belegdatum wie im Journal; ein Update ändert keine gemeldeten Monate
         sql`exists (select 1 from journal_entries e join journal_lines l on l.entry_id = e.id
                      where e.source_type = 'document' and e.source_id = ${d.id} and e.reverses_id is null

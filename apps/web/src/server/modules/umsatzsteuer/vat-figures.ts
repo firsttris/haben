@@ -190,7 +190,6 @@ async function skontoMinderung(q: Db | Tx, start: string, end: string, ohneMinde
     .select()
     .from(schema.documentAmounts)
     .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
-  // Skonto vor der Ausführung (#930) mindert nichts: seine Steuer war noch nicht abgezogen (vorsteuer-leistungsdatum.ts)
   for (const d of discounts.filter((x) => !ohneMinderung.has(x.id))) {
     const taxes = docAmounts
       .filter((a) => a.documentId === d.documentId)
@@ -581,8 +580,9 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     ...booked.map((a) => ({ ...a, date: a.date!, sign: 1 })),
     ...cancelled.map((a) => ({ ...a, number: `Storno ${a.number}`.trim(), sign: -1 })),
   ];
-  // Leistungsdatum nach dem Belegdatum (#693): Die Vorsteuer zählt dann nach der Zahlung, ihre Zeilen kommen aus
-  // vorsteuer-leistungsdatum.ts; die gewöhnliche Abfrage lässt diese Belege aus, sonst zählten sie doppelt
+  // Leistungsdatum nach dem Belegdatum (#693): Die Vorsteuer zählt im Monat der Ausführung, ein vorher gezahlter Anteil
+  // im Monat der Zahlung, frühestens in dem der Rechnung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, UStAE 15.3). Diese Zeilen
+  // kommen aus vorsteuer-leistungsdatum.ts; die gewöhnliche Abfrage lässt die Belege aus, sonst zählten sie doppelt
   const nachLeistungsdatum = await vorsteuerNachLeistungsdatum(period, q);
   // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
   const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;

@@ -25,8 +25,7 @@ import { ausfuehrungMitFreigabe, vorsteuerAnteile } from "../umsatzsteuer/index.
  * hat oder auf diesen Ausgleich kein Anteil entfällt.
  *
  * Liegt der Tag des Ausgleichs vor dem Rechnungsdatum, zieht er nichts: Abziehbar ist die Vorsteuer erst, wenn Rechnung
- * und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2; Befund der Selbstprüfung in
- * #930). Den Anteil gibt umsatzsteuer/vorsteuer-freigabe.ts mit eigener Freigabe zum Rechnungsdatum frei, damit er nicht
+ * und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2). Den Anteil gibt umsatzsteuer/vorsteuer-freigabe.ts mit eigener Freigabe zum Rechnungsdatum frei, damit er nicht
  * rückwirkend in einem Zeitraum steht, in dem die Rechnung noch nicht vorlag.
  */
 export async function vorsteuerAusgleich(

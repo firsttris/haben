@@ -14,25 +14,21 @@ type Books = Parameters<typeof post>[1];
  * Voranmeldung vorbei, obwohl § 15 Abs. 1 Satz 1 Nr. 1 UStG mit Leistung und Rechnung erfüllt ist.
  *
  * Deshalb schreibt Haben beim Buchen eine zweite Buchung mit dem Datum der Ausführung; sie zieht die Vorsteuer vom
- * Zwischenkonto auf das Vorsteuerkonto, und Kz 66 sieht sie in diesem Monat. Die Zahlung bucht danach nur noch
- * Verbindlichkeit gegen Bank: Der Ausgleich (vorsteuer-ausgleich.ts) findet nichts mehr vor, weil er das Journal liest.
+ * Zwischenkonto auf das Vorsteuerkonto, und Kz 66 sieht sie in diesem Monat. Eine Zahlung nach der Ausführung bucht
+ * dann nur noch Verbindlichkeit gegen Bank: Der Ausgleich (vorsteuer-ausgleich.ts) findet nichts mehr vor, weil er das
+ * Journal liest.
  *
- * Wird vor der Ausführung gezahlt, ist die Vorsteuer schon mit der Zahlung abziehbar: § 15 Abs. 1 Satz 1 Nr. 1 Satz 3
- * UStG verlangt Rechnung und Zahlung, nicht die Ausführung (Abschnitt 15.3 UStAE). Dann gibt die Zahlung selbst frei,
- * und die Freigabe zur Ausführung unterbleibt — sonst stünde dieselbe Steuer zweimal in der Voranmeldung. Bei
- * Teilzahlungen gilt das je Zahlung für ihren Anteil; der Rest kommt mit der Ausführung. Beides gilt erst ab dem
- * Rechnungsdatum: Liegt die Zahlung davor, gibt eine eigene Freigabe zum Rechnungsdatum den bezahlten Anteil frei, denn
- * abziehbar ist die Steuer erst, wenn Rechnung und Zahlung vorliegen (UStAE 15.3 Abs. 1 Satz 2; #930).
- *
- * Die vorausdatierte Freigabe steht ab dem Buchen im Journal, die Zahlung kommt später. Sie lässt sich deshalb nicht
- * beim Buchen entscheiden, sondern wird beim Ereignis nachgezogen (#930, Entscheidung des Maintainers): Eine Zahlung vor
- * der Ausführung hebt die Freigabe zum Ausführungsdatum auf, gibt ihren Anteil an ihrem eigenen Tag frei und schreibt
- * den Rest wieder zum Ausführungsdatum fest. Dasselbe gilt für die Aufhebung einer Zahlung. So bleibt der Monat der
- * Ausführung bei der Steuer, die erst dann abziehbar wird, und das Zwischenkonto steht am Ende auf null.
+ * Wird vor der Ausführung gezahlt, ist der bezahlte Anteil schon mit der Zahlung abziehbar: § 15 Abs. 1 Satz 1 Nr. 1
+ * Satz 3 UStG verlangt Rechnung und Zahlung, nicht die Ausführung (UStAE 15.3 Abs. 1 Satz 2), frühestens also zum
+ * Rechnungsdatum. Weil die vorausdatierte Freigabe dann schon im Journal steht, wird sie beim Ereignis nachgezogen
+ * (freigabeNachziehen): Die Zahlung hebt sie auf, ihr Anteil wird an ihrem eigenen Tag frei (bei Zahlung vor dem
+ * Rechnungsdatum mit einer eigenen Freigabe zum Rechnungsdatum), und der Rest wird wieder zum Ausführungsdatum
+ * festgeschrieben. Dasselbe gilt für Aufhebung, Verrechnung und Ausbuchung. So steht keine Steuer zweimal in der
+ * Voranmeldung, und das Zwischenkonto endet bei null.
  *
  * Nicht hierher gehören Gutschriften, die bereits Bezahltes erstatten (#786, § 17 Abs. 1 UStG): Ihre Minderung hängt am
  * Ausgleich, nicht an der Ausführung. § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen
- * Zeitpunkt; `leistungNochNichtAusgefuehrt` in belegbuchung.ts lässt sie deshalb schon nicht auf das Zwischenkonto.
+ * Zeitpunkt; vorsteuerWartetAufAusfuehrung (@haben/core) lässt sie deshalb schon nicht auf das Zwischenkonto.
  */
 
 /** Trägt der Beleg schon eine wirksame Freigabe (ein Storno zählt nicht)? */
@@ -208,7 +204,7 @@ export async function freigabeStornieren(tx: Tx, books: Books, documentId: strin
 }
 
 /**
- * Zieht die Freigabe nach einer Zahlung oder deren Aufhebung nach (#930, Entscheidung des Maintainers): Eine Zahlung vor
+ * Zieht die Freigabe nach einer Zahlung oder deren Aufhebung nach: Eine Zahlung vor
  * der Ausführung nimmt die vorausdatierte Freigabe zurück, gibt ihren Anteil an ihrem eigenen Tag frei (das bucht
  * vorsteuer-ausgleich.ts in der Zeile der Zuordnung) und schreibt den Rest wieder zum Ausführungsdatum fest. Kein Lauf im
  * Scheduler: die Voranmeldung soll nicht davon abhängen, wann er gelaufen ist.
@@ -249,7 +245,7 @@ export async function freigabeNachziehen(tx: Tx, documentId: string, books: Book
     if (freigabe.date >= am) await freigabeUmkehren(tx, books, doc.id, freigabe, freigabe.date);
   }
 
-  // 2. Vorkasse vor dem Rechnungsdatum (#930): Der Ausgleich hat nichts gezogen, weil die Rechnung noch nicht vorlag
+  // 2. Vorkasse vor dem Rechnungsdatum: Der Ausgleich hat nichts gezogen, weil die Rechnung noch nicht vorlag
   //    (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2). Der bezahlte Anteil wird deshalb mit eigener
   //    Freigabe zum Rechnungsdatum abziehbar. Ändert ein späteres Ereignis diesen Anteil (Aufhebung, weitere Vorkasse),
   //    bucht es nur den Unterschied, an seinem eigenen Tag, frühestens zum Rechnungsdatum: Eine Aufhebung wirkt an ihrem

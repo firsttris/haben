@@ -80,7 +80,7 @@ export async function hatFreigabe(tx: Tx, documentId: string): Promise<boolean> 
 }
 
 /**
- * Tag der Ausführung, wenn der Beleg eine Freigabe zum Leistungs- oder Rechnungsdatum trägt oder trug (#693, #930); sonst
+ * Tag der Ausführung, wenn der Beleg eine Freigabe zum Leistungs- oder Rechnungsdatum trägt oder trug (#693); sonst
  * null, etwa bei der Gutschrift „erstattet bereits Bezahltes“ (#786), deren Kursdifferenz weiter ausgleicht
  */
 export async function ausfuehrungMitFreigabe(tx: Tx, documentId: string): Promise<string | null> {
@@ -103,7 +103,7 @@ export async function ausfuehrungMitFreigabe(tx: Tx, documentId: string): Promis
  * auf einen Tag, der noch kommen kann (#693), und eine Zahlung vor der Ausführung zöge ihren Anteil sonst ein zweites
  * Mal — bei Teilzahlungen mit negativem Vorzeichen. Alle anderen Buchungen zählen unabhängig vom Datum, auch die Freigabe
  * zum Rechnungsdatum vor einem Skonto zur Vorkasse und die Gegenbuchung einer Aufhebung nach dem Tag des Ausgleichs: Ein
- * nachgereichter, älterer Auszug soll den Anteil nicht neu verteilen (#930).
+ * nachgereichter, älterer Auszug soll den Anteil nicht neu verteilen.
  */
 async function bisherUmgebucht(tx: Tx, documentId: string, ausfuehrung: string | null): Promise<TaxShare[]> {
   const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
@@ -136,7 +136,7 @@ async function bisherUmgebucht(tx: Tx, documentId: string, ausfuehrung: string |
  * Ab der Ausführung ist die ganze Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, Leistung und Rechnung liegen vor):
  * Ein Ausgleich an oder nach ihrem Tag bucht nichts mehr um, auch eine Teilzahlung nicht, und ein Skonto mindert die
  * Vorsteuer wie bei jedem Beleg (§ 17 Abs. 1 Satz 2 UStG). Maßgeblich ist die Ausführung selbst, nicht der Tag der
- * Freigabe: Eine Zahlung vor dem Rechnungsdatum wird schon zum Rechnungsdatum freigegeben (#930), abziehbar wird die
+ * Freigabe: Eine Zahlung vor dem Rechnungsdatum wird schon zum Rechnungsdatum freigegeben, abziehbar wird die
  * ganze Steuer aber erst mit der Leistung. Eine Kursdifferenz vor der Ausführung zieht nichts.
  */
 export async function vorsteuerAnteile(
@@ -173,7 +173,7 @@ export async function vorsteuerAnteile(
 }
 
 /**
- * Anteil der Zahlungen, die vor dem Rechnungsdatum liegen (#930): Er ist mit der Rechnung abziehbar, nicht schon mit der
+ * Anteil der Zahlungen, die vor dem Rechnungsdatum liegen: Er ist mit der Rechnung abziehbar, nicht schon mit der
  * Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2), und deshalb bucht ihn
  * umsatzsteuer/vorsteuer-freigabe.ts als eigene Freigabe zum Rechnungsdatum. Zurück kommt, was die Ausgleiche und die
  * Freigaben bis `tag` (frühestens das Rechnungsdatum) noch nicht gezogen haben — also der noch offene Unterschied, nach
