@@ -82,7 +82,8 @@ function SetupPage() {
           <>
             <h1 style={{ fontSize: 24 }}>Passkey einrichten</h1>
             <p className="muted">
-              Ein Passkey ist das Anmelden mit Fingerabdruck, Gesicht oder PIN deines Geräts, ohne Passwort. Das Passwort bleibt als Rückfallebene.
+              Mit einem Passkey meldest du dich künftig mit Fingerabdruck, Gesicht oder PIN deines Geräts an, ohne Passwort. Das Passwort bleibt als
+              Rückfallebene.
             </p>
             <button type="button" className="btn btn-primary" onClick={addPasskey} disabled={busy}>
               Passkey hinzufügen
@@ -101,7 +102,7 @@ function SetupPage() {
               {(control) => <input {...control} name="setupCode" required autoComplete="off" spellCheck={false} />}
             </Field>
             <p id="setup-code-hint" className="field-hint">
-              Den Code hat, wer Haben installiert hat.{" "}
+              Den Code hat, wer Haben installiert hat. Er steht beim Start im Log des Servers.{" "}
               <a href={CODE_DOCS} target="_blank" rel="noreferrer">
                 So findest du ihn
               </a>

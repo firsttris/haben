@@ -178,7 +178,7 @@ export function StartFrage({
           { value: false, label: "Ich fange neu an" },
           { value: true, label: "Ich wechsle von einem anderen Programm" },
         ]}
-        hinweis="Bei „Später entscheiden“ bleibt alles, wie es ist. Den Umzug startest du jederzeit im Archiv unter „Umzug“."
+        hinweis="Dieser Schritt speichert nichts. Den Umzug startest du jederzeit im Archiv unter „Umzug“."
         wert={wechsel}
         onChange={setWechsel}
         unbekannt="Später entscheiden"

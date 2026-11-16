@@ -27,7 +27,7 @@ test.afterAll(() => {
 test("Ersteinrichtung fragt Rechtsform und Bereiche, „weiß ich nicht“ erinnert auf der Übersicht", async () => {
   await gehe(page, "/");
   // Der Hinweis am Code sagt, wer ihn hat, und führt zur Anleitung
-  await expect(page.getByText("Den Code hat, wer Haben installiert hat.")).toBeVisible();
+  await expect(page.getByText("Den Code hat, wer Haben installiert hat. Er steht beim Start im Log des Servers.")).toBeVisible();
   await expect(page.getByRole("link", { name: "So findest du ihn" })).toHaveAttribute("href", /\/einrichtung\.html#konto-anlegen$/);
   await page.getByLabel("Einrichtungscode").fill(SETUP_CODE);
   await page.getByLabel("Name").fill(USER.name);
