@@ -325,7 +325,15 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
       currency: "EUR",
       taxTreatment: "regulaer" as const,
       note: "Verkehrswertgutachten für den Erwerb des Grundstücks Musterstraße 1, 93047 Regensburg, Deutschland",
-      lines: [{ description: "Grundstücksgutachten zum Erwerb, Musterstraße 1, Regensburg", quantity: 1000, unit: "Psch.", unitPrice: 70_000, taxRate: 1900 }],
+      lines: [
+        {
+          description: "Grundstücksgutachten zum Erwerb, Musterstraße 1, Regensburg",
+          quantity: 1000,
+          unit: "Psch.",
+          unitPrice: 70_000,
+          taxRate: 1900 as const,
+        },
+      ],
     };
     const draft = await invoices.createDraft(actor, input);
     expect(await invoices.finalizeIssues(draft.id)).toEqual([]);
