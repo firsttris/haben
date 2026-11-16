@@ -2,6 +2,7 @@ import { ACCOUNTS, abziehbareSteuer, gespeicherterAnteil, paidTaxShares, periodR
 import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { gutschriftAnteile } from "./gutschrift.ts";
+import { ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 import { vorsteuerNachLeistungsdatum } from "./vorsteuer-leistungsdatum.ts";
 import type { InputTaxSource, ReverseChargeSource, IgErwerbSource } from "./vat-figures.ts";
 
@@ -104,6 +105,24 @@ async function belegBetraege(period: VatPeriod, q: Db | Tx) {
   return amounts;
 }
 
+/**
+ * Gebuchte Minderung der Vorsteuer eines Skontos oder seiner Aufhebung zu diesem Satz (Haben positiv). Mit dem
+ * Zwischenkonto: Die Aufhebung eines Skontos vor der Ausführung (#693) bucht dorthin zurück, und die Freigabe am Tag der
+ * Aufhebung zieht den Betrag als Vorsteuer (vorsteuer-freigabe.ts). Das Skonto selbst lässt `ohneMinderung` aus.
+ */
+function gebuchteSkontoSteuer(
+  recorded: { account: string; debit: number; credit: number; code: string | null; kontenrahmen: keyof typeof ACCOUNTS }[],
+  rate: number,
+): number {
+  return recorded
+    .filter(
+      (l) =>
+        (Object.values(ACCOUNTS[l.kontenrahmen].vorsteuer).some((konto) => konto === l.account) || ZWISCHENKONTEN.includes(l.account)) &&
+        l.code === (rate === 1900 ? "VSt19" : "VSt7"),
+    )
+    .reduce((sum, l) => sum + l.credit - l.debit, 0);
+}
+
 /** § 17 UStG: bei neuen Belegen genau die kumuliert gerundete Berichtigung aus der Buchung. */
 async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx, ohneMinderung: ReadonlySet<string>): Promise<InputTaxSource[]> {
   const { start, end } = periodRange(period);
@@ -171,13 +190,7 @@ async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx, ohneMinderu
         const recorded = journal.filter((l) => l.id === d.id);
         const tax =
           d.vorsteuerAnteil !== null && recorded.length > 0
-            ? recorded
-                .filter(
-                  (l) =>
-                    Object.values(ACCOUNTS[l.kontenrahmen].vorsteuer).some((konto) => konto === l.account) &&
-                    l.code === (share.rate === 1900 ? "VSt19" : "VSt7"),
-                )
-                .reduce((sum, l) => sum + l.credit - l.debit, 0)
+            ? gebuchteSkontoSteuer(recorded, share.rate)
             : abziehbareSteuer(share.tax, gespeicherterAnteil(d, taxes.find((t) => t.rate === share.rate)?.vorsteuerAnteil));
         if (tax === 0) continue;
         result.push({ documentId: d.documentId, date: d.date, supplier: d.supplier, number: d.number, rate: share.rate, base: -share.base, tax: -tax });
