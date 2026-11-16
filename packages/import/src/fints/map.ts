@@ -32,7 +32,9 @@ export function fintsDay(date: Date | undefined): string | undefined {
  * (SWIFT MT940, Feld 61, Unterfeld 2). lib-fints ergänzt das Jahr der Wertstellung und nimmt das Vorjahr, sobald der
  * Monat der Buchung nach dem der Wertstellung liegt: Eine Kartenzahlung vom 30.04., gebucht am 02.05., käme ein Jahr zu
  * früh an. Haben nimmt deshalb Monat und Tag der Buchung und das Jahr, in dem sie der Wertstellung am nächsten liegt.
- * CAMT nennt das Jahr selbst; dort ändert das nichts, solange beide weniger als ein halbes Jahr auseinanderliegen.
+ * Das nur, wenn das Jahr genau das ist, das lib-fints bei MT940 ergänzt hätte. Ein anderes Jahr nennt die Bank selbst
+ * (CAMT) und bleibt, etwa bei der Erstattung einer nicht autorisierten Lastschrift: bis 13 Monate nach der Belastung,
+ * wertgestellt zum Tag der Belastung (Richtlinie (EU) 2015/2366, Art. 71 Abs. 1 und Art. 73 Abs. 1).
  */
 export function fintsBookingDay(entryDate: Date | undefined, valueDate: Date | undefined): string | undefined {
   const entry = fintsDay(entryDate);
@@ -40,6 +42,8 @@ export function fintsBookingDay(entryDate: Date | undefined, valueDate: Date | u
   if (!entry || !value) return entry ?? value;
   const days = (day: string) => Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / 86_400_000;
   const year = Number(value.slice(0, 4));
+  const libFintsYear = Number(entry.slice(5, 7)) <= Number(value.slice(5, 7)) ? year : year - 1;
+  if (Number(entry.slice(0, 4)) !== libFintsYear) return entry;
   return (
     [year - 1, year, year + 1]
       .map((y) => `${y}${entry.slice(4)}`)
