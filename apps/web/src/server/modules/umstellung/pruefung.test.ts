@@ -65,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
               'DE123456789', 'BY', 'DE89370400440532013000', ${v}, ${kr})`;
     await sql`insert into journal_umstellung (stichjahr_vorher, ergebnis) values (2027, 'offen')`;
   }
-  async function invoice(issueDate: string) {
+  async function invoice(issueDate: string, steuerfrei = false) {
     const c = await contacts.createContact(actor, {
       kundennummer: "",
       name: "Nordwerk",
@@ -87,7 +87,8 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
       paymentTermDays: 14,
       format: "zugferd",
       note: "",
-      lines: [{ description: "L", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 }],
+      lines: [{ description: "L", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: steuerfrei ? 0 : 1900 }],
+      ...(steuerfrei ? { taxTreatment: "steuerfrei" as const, exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG" } : {}),
     });
     return invoices.finalizeInvoice(actor, d.id);
   }
@@ -183,6 +184,31 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
               `^2026-${v === "ist" ? "04" : "03"} Umsatzsteuer 19 % zur Bemessungsgrundlage ${formatEuro(0)}: Buchung .*: im Journal ${formatEuro(19_00)}, aus der Bemessungsgrundlage ${formatEuro(0)}$`,
             ),
           ),
+        });
+        expect((await stand())!.ergebnis).toBe("offen");
+      }, 60_000);
+
+      it(`ältere Zahlung auf eine steuerfreie Rechnung ohne Bemessungsgrundlage: fehlt in der Voranmeldung, Befund (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        const inv = await invoice("2026-03-10", true);
+        await pay(inv.id, "20.04.2026", "100,00");
+        // Bei Ist meldet erst die Zahlung Kz 48, über die Bemessungsgrundlage an der Forderungszeile; vor v0.7.0 trug sie keine.
+        // Ohne Steuer findet die Verprobung nichts, also vergleicht „Vorgang gegen Buchung“ die gemeldete Bemessungsgrundlage
+        // der erledigten Rechnung mit der Rechnung. Bei Soll meldet die Rechnung selbst, die Zahlung ändert nichts.
+        await alteBuchung(kr, v);
+        const ergebnis = await umstellung.umstellungPruefen(today);
+        if (v === "soll") {
+          expect(ergebnis.status).toBe("gespeichert");
+          return;
+        }
+        expect(ergebnis).toEqual({
+          status: "abweichung",
+          befunde: [
+            {
+              jahr: 2026,
+              text: `2026-03 Rechnung ${inv.number} (Ist, ganz erledigt): gemeldete Bemessungsgrundlage: im Journal ${formatEuro(0)}, laut Vorgang ${formatEuro(100_00)}`,
+            },
+          ],
         });
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);
