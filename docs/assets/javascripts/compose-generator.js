@@ -78,6 +78,15 @@ export const normalizeDomain = (raw) =>
     .replace(/^https?:\/\//i, "")
     .replace(/\/+$/, "");
 
+/**
+ * Wert für die .env. Ohne Anführungszeichen liest Compose nur bis „ #“ und ersetzt „$…“; in doppelten gelten \\, \"
+ * und $$ (mit docker compose config geprüft). Einfache gingen nicht: Ein \ am Ende ließe sich darin nicht schreiben.
+ * Schlüssel in Base64 und Hex sowie Adressen ohne Sonderzeichen bleiben, wie sie sind.
+ * @param {string} value
+ */
+const envValue = (value) =>
+  /^[A-Za-z0-9._:/@+=,-]*$/.test(value) ? value : `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll("$", "$$$$")}"`;
+
 /** Wert für YAML, in Anführungszeichen, wenn er Sonderzeichen enthält. @param {string} value */
 const yamlScalar = (value) => (/^[A-Za-z0-9._:/-]+$/.test(value) ? value : JSON.stringify(value));
 
@@ -164,11 +173,15 @@ export const envBlocks = (cfg) => [
 
 /** @param {Config} cfg */
 export const envFile = (cfg) => {
+  // Den Verweis auf DB_PASSWORD in MIGRATION_DATABASE_URL soll Compose auflösen
+  const roh = new Set(["MIGRATION_DATABASE_URL"]);
   const kopf = [
     "# Erzeugt mit dem Compose-Generator (https://haben.app/compose-generator.html).",
     "# Was jede Variable bedeutet: https://haben.app/installation.html#docker-compose",
   ];
-  const bloecke = envBlocks(cfg).map(({ titel, variablen }) => [`# ${titel}`, ...variablen.map(([name, value]) => `${name}=${value}`)].join("\n"));
+  const bloecke = envBlocks(cfg).map(({ titel, variablen }) =>
+    [`# ${titel}`, ...variablen.map(([name, value]) => `${name}=${roh.has(name) ? value : envValue(value)}`)].join("\n"),
+  );
   return `${[kopf.join("\n"), ...bloecke].join("\n\n")}\n`;
 };
 
