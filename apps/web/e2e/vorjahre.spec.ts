@@ -201,7 +201,10 @@ test("Der Stichtag 31.12. steht in der Adresse und bleibt beim Jahreswechsel", a
   await expect(verbindlichkeit(page)).toHaveCount(1);
 
   // Ein anderes Jahr erbt den Stichtag; im laufenden Jahr gibt es den Schalter nicht
-  await page.getByRole("navigation", { name: "Jahr wählen" }).getByRole("link", { name: String(BELEG_JAHR - 1), exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Jahr wählen" })
+    .getByRole("link", { name: String(BELEG_JAHR - 1), exact: true })
+    .click();
   await page.waitForLoadState("networkidle");
   const adresse = new URL(page.url());
   expect(adresse.searchParams.get("jahr")).toBe(String(BELEG_JAHR - 1));

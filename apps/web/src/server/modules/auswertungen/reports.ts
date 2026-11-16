@@ -23,7 +23,7 @@ import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { splitsByDocument } from "../belege/index.ts";
-import { invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
+import { invoiceTotalsById, mixNachVerrechnungen, paidByTarget } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 import { ustvaPosten } from "../umsatzsteuer/index.ts";
@@ -483,27 +483,6 @@ function daysBetween(from: string, to: string): number {
 }
 
 /**
- * Erledigt je Beleg: Zuordnungen und Ausbuchungen (erhaltenes Skonto), wie im Bankabgleich. Mit `bis` zählt nur, was
- * bis einschließlich dieses Tages wirkt (Abschlussstand, #1110): Zuordnungen an ihrem eigenen Tag, sonst am Buchungstag
- * des Umsatzes (#782), Ausbuchungen und Verrechnungen an ihrem Datum.
- */
-async function paidSums(ids: string[], bis?: string) {
-  if (ids.length === 0) return new Map<string, number>();
-  const zuordnungen = bis
-    ? sql`select a.document_id as id, a.amount from allocations a join bank_transactions b on b.id = a.transaction_id
-          where a.document_id in ${ids} and coalesce(a.date, b.booking_date) <= ${bis}`
-    : sql`select document_id as id, amount from allocations where document_id in ${ids}`;
-  const rows = await db.execute<{ id: string; paid: string }>(
-    sql`select id, sum(amount) as paid from (
-          ${zuordnungen}
-          union all select document_id as id, amount from write_offs where document_id in ${ids}${bis ? sql` and date <= ${bis}` : sql``}
-          union all select document_id as id, amount from document_settlements where document_id in ${ids}${bis ? sql` and date <= ${bis}` : sql``}
-        ) settled group by 1`,
-  );
-  return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
-}
-
-/**
  * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert, dazu zu erstattende Beträge aus
  * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
  * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
@@ -512,7 +491,8 @@ async function paidSums(ids: string[], bis?: string) {
  * einschließlich dahin wirkt — spätere Zahlungen fehlen, Belege und Rechnungen, die es damals noch nicht gab, auch.
  */
 export async function openPositions(today: string, { bis }: { bis?: string } = {}) {
-  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(today);
+  // Auch die Anzahlungen und ihre Forderungen rechnen zum Stichtag, wenn einer gesetzt ist (#1110)
+  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(bis ?? today);
   const separate = new Set(invoiceIds);
   const receivables: OpenPosition[] = [
     ...(await listInvoices(today, undefined, db, bis))
@@ -552,8 +532,11 @@ export async function openPositions(today: string, { bis }: { bis?: string } = {
         bis ? sql`coalesce(${schema.documents.documentDate}, (${schema.documents.uploadedAt} at time zone 'Europe/Berlin')::date) <= ${bis}` : undefined,
       ),
     );
-  const documentPaid = await paidSums(
+  // „Offen“ heißt überall dasselbe: bezahlt rechnet paidByTarget, wie Rechnungsliste und Bankabgleich (#1110)
+  const documentPaid = await paidByTarget(
+    "document_id",
     documents.map((d) => d.id),
+    db,
     bis,
   );
   const payables: OpenPosition[] = documents

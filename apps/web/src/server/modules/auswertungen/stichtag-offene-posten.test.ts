@@ -38,6 +38,9 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let reports: typeof import("./reports.ts");
+  let vat: typeof import("../umsatzsteuer/vat.ts");
+  let vermerk: typeof import("../umsatzsteuer/vermerk.ts");
+  let zahlung: typeof import("../umsatzsteuer/zahlung.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
@@ -48,6 +51,9 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     reports = await import("./reports.ts");
+    vat = await import("../umsatzsteuer/vat.ts");
+    vermerk = await import("../umsatzsteuer/vermerk.ts");
+    zahlung = await import("../umsatzsteuer/zahlung.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -156,4 +162,38 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     expect(heute.payables).toEqual([expect.objectContaining({ id: neuBeleg, party: "JetBrains", gross: 11_900, open: 11_900, daysOverdue: 55 })]);
     expect(heute).toMatchObject({ receivablesTotal: 0, payablesTotal: 11_900 });
   }, 30_000);
+
+  it("Umsatzsteuer: spätere Zahlungen und später abgegebene Anmeldungen zählen am 31.12. nicht", async () => {
+    const manuell = (kz81: number) => ({ mode: "manuell" as const, kz81, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
+    const abgabe = (kz83: number, filedOn: string, ticket: string) => ({
+      filedOn,
+      transferTicket: ticket,
+      kz83,
+      file: { bytes: new TextEncoder().encode(`%PDF-1.4\n% ${ticket}\n%%EOF\n`), filename: `UStVA_${filedOn}_Protokoll.pdf` },
+    });
+    // Q3/2025: im Oktober 2025 abgegeben, erst im Januar 2026 bezahlt
+    const q3 = await vat.saveDraft(actor, { year: 2025, month: 9 }, manuell(100_000));
+    await vermerk.vermerkeAbgabe(actor, q3.id, abgabe(q3.kz83, "2025-10-09", "etQ320251111"), "2025-10-09");
+    // Q4/2025: am 31.12.2025 noch nicht abgegeben, also kein Posten im Abschlussstand
+    const q4 = await vat.saveDraft(actor, { year: 2025, month: 12 }, manuell(129_222));
+    await vermerk.vermerkeAbgabe(actor, q4.id, abgabe(q4.kz83, "2026-01-03", "etQ420251112"), "2026-01-03");
+
+    await bank.importStatement(actor, { bytes: dkbCsv([row("15.01.26", "Finanzamt Regensburg", "USt 09/25", "-190,00")]), filename: "ust.csv" }, null);
+    const [ustZahlung] = await sql`select id from bank_transactions where amount = -19_000`;
+    await bank.allocate(actor, { kind: "ustva", transactionId: ustZahlung!.id as string, vatReturnId: q3.id, amount: -19_000 });
+
+    // Abschlussstand 31.12.2025: nur die damals abgegebene Q3, die Zahlung im Januar zählt nicht
+    const stichtag = await zahlung.ustvaPosten(undefined, { bis: "2025-12-31" });
+    expect(stichtag.posten.map((p) => p.month)).toEqual([9]);
+    expect(stichtag.posten[0]).toMatchObject({ betrag: q3.kz83, offen: q3.kz83 });
+    // Die Zahlung im Januar ist nicht dabei; der Betrag rechnet sich zu -0, deshalb mit Toleranz
+    expect(stichtag.posten[0]!.bezahlt).toBeCloseTo(0, 2);
+
+    // Stand von heute: Q3 ist bezahlt, Q4 steht offen
+    const heute = await zahlung.ustvaPosten();
+    expect(heute.posten.map((p) => [p.month, p.offen])).toEqual([
+      [9, 0],
+      [12, q4.kz83],
+    ]);
+  }, 60_000);
 });

@@ -12,7 +12,7 @@ import {
   vatPostenLabel,
   vatPostenStand,
 } from "@haben/core";
-import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { today } from "../../today.ts";
@@ -31,8 +31,12 @@ export interface UstvaPostenUebersicht {
   ohneBezug: VatPayment[];
 }
 
-/** Abgegebene Voranmeldungen mit dem Tag der Abgabe: vermerkt der eingetragene, über ERiC der Tag der Übermittlung */
-async function filedReturns(q: Db | Tx) {
+/**
+ * Abgegebene Voranmeldungen mit dem Tag der Abgabe: vermerkt der eingetragene, über ERiC der Tag der Übermittlung.
+ * Mit `bis` nur, was bis einschließlich dahin abgegeben war — im Abschlussstand zum 31.12. steht keine Voranmeldung,
+ * die erst im Folgejahr abgegeben wurde (#1110).
+ */
+async function filedReturns(q: Db | Tx, bis?: string) {
   const rows = await q
     .select({
       id: schema.vatReturns.id,
@@ -46,7 +50,7 @@ async function filedReturns(q: Db | Tx) {
     .from(schema.vatReturns)
     .leftJoin(schema.vatReturnFilings, eq(schema.vatReturnFilings.vatReturnId, schema.vatReturns.id))
     .where(eq(schema.vatReturns.status, "sent"));
-  return rows.map((r) => ({ ...r, abgabeTag: r.filedOn ?? today(r.sentAt!) }));
+  return rows.map((r) => ({ ...r, abgabeTag: r.filedOn ?? today(r.sentAt!) })).filter((r) => !bis || r.abgabeTag <= bis);
 }
 
 /**
@@ -64,8 +68,8 @@ async function vatPayments(q: Db | Tx, bis?: string): Promise<VatPayment[]> {
         eq(a.kind, "ustVorauszahlung"),
         isNull(a.reversesId),
         sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`,
-        // Abschlussstand (#1110): Zahlungen nach dem Stichtag zählen nicht
-        bis ? lte(schema.bankTransactions.bookingDate, bis) : undefined,
+        // Abschlussstand (#1110): der Tag der Zuordnung, sonst der Buchungstag des Umsatzes (#782), bis einschließlich
+        bis ? sql`coalesce(${a.date}, ${schema.bankTransactions.bookingDate}) <= ${bis}` : undefined,
       ),
     );
   return rows;
@@ -90,7 +94,7 @@ export async function ustvaPosten(
   { mitAltbestand = false, bis }: { mitAltbestand?: boolean; bis?: string } = {},
 ): Promise<UstvaPostenUebersicht> {
   // Nacheinander: in einer Transaktion teilen sich die Abfragen eine Verbindung
-  const returns = await filedReturns(q);
+  const returns = await filedReturns(q, bis);
   const payments = await vatPayments(q, bis);
   const company = await loadCompany(q);
   const dauerfrist = await loadDauerfrist(q);

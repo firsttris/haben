@@ -83,12 +83,24 @@ function ReportsPage() {
           </nav>
           {stichtagMoeglich && (
             <div className="mode-switch" role="group" aria-label="Stand der offenen Posten">
-              {/* Klasse und aria-current setzt der Router aus der Adresse; exact, weil er sonst auch den Link ohne
-                  stichtag als aktiv markiert — dessen Suche ist in der aktuellen enthalten */}
-              <Link to="/auswertungen" search={{ jahr: year }} activeOptions={{ exact: true }} className="chip">
+              {/* Klasse und aria-current setzt die Seite aus dem Stand, wie die Jahresleiste es mit dem Jahr tut:
+                  der Router kennt den Stand nicht, und „Heute“ ohne stichtag ist in der Suche des zweiten Links enthalten */}
+              <Link
+                to="/auswertungen"
+                search={{ jahr: year }}
+                activeProps={{}}
+                className={stichtag ? "chip" : "chip active"}
+                aria-current={stichtag ? undefined : "page"}
+              >
                 Heute
               </Link>
-              <Link to="/auswertungen" search={{ jahr: year, stichtag: "31.12." }} activeOptions={{ exact: true }} className="chip">
+              <Link
+                to="/auswertungen"
+                search={{ jahr: year, stichtag: "31.12." }}
+                activeProps={{}}
+                className={stichtag ? "chip active" : "chip"}
+                aria-current={stichtag ? "page" : undefined}
+              >
                 31.12.{year}
               </Link>
             </div>
