@@ -430,4 +430,59 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     const proposal = await foreign.foreignInvoiceProposal({ bytes: new TextEncoder().encode(own.xml!), filename: "re.xml", mimeType: "application/xml" });
     expect(proposal.taxTreatment).toBe("kleinunternehmer");
   }, 30_000);
+
+  /*
+   * Steuerkategorie der E-Rechnung gegen die gewählte Behandlung: Steuerfreie Umsätze nach § 4 Nr. 8 bis 29 UStG gehören in
+   * Kz 48 der Voranmeldung (Anleitung zur Umsatzsteuer-Voranmeldung 2026, Zeile 21), regulär zu 0 % gebucht stehen sie in
+   * keiner Kennzahl. Kategorie E (UNCL 5305, „Exempt from tax“) verträgt sich nur mit „steuerfrei“ oder „Kleinunternehmer“.
+   */
+  it("übernimmt eine steuerfreie E-Rechnung (Kategorie E) nicht als regulär zu 0 %, sondern nur als steuerfrei mit Kz 48", async () => {
+    await company("SKR03", "soll");
+    const own = await invoices.finalizeInvoice(
+      actor,
+      (
+        await invoices.createDraft(actor, {
+          ...(await invoices.newDraftDefaults("2026-09-26")),
+          contactId: await customer(),
+          taxTreatment: "steuerfrei",
+          exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG",
+          lines: [{ description: "Heilbehandlung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 0 }],
+        })
+      ).id,
+    );
+    // Dieselbe Rechnung als Original aus dem Fremdsystem: eigene Bücher leer, das PDF trägt die E-Rechnung mit Kategorie E
+    await company("SKR03", "soll");
+    const contactId = await customer();
+    const file = { bytes: new Uint8Array(own.pdf!), filename: "re.pdf", mimeType: "application/pdf" };
+    const base = { number: own.number!, issueDate: "2026-09-26", dueDate: "2026-10-10", contactId, taxes: [{ rate: 0, net: 10_000, tax: 0 }] };
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...base, taxTreatment: "regulaer" }, file)).rejects.toThrow(/passt nicht/);
+    expect(await sql`select 1 from invoices`).toHaveLength(0);
+    await foreign.adoptForeignInvoiceFile(actor, { ...base, taxTreatment: "steuerfrei", exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG" }, file);
+    expect(await vat.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz48: 10_000 });
+  }, 30_000);
+
+  it("lehnt eine E-Rechnung mit steuerpflichtigen und steuerfreien Zeilen (S und E) ab, statt den steuerfreien Teil ohne Kennzahl zu buchen", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer("DE", "DE811128135");
+    const own = await invoices.finalizeInvoice(
+      actor,
+      (
+        await invoices.createDraft(actor, {
+          ...(await invoices.newDraftDefaults("2026-09-26")),
+          contactId,
+          lines: [
+            { description: "Gutachten", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 },
+            { description: "Heilbehandlung", quantity: 1000, unit: "Psch.", unitPrice: 5_000, taxRate: 0 },
+          ],
+        })
+      ).id,
+    );
+    // So schreibt eine Praxissoftware Gutachten (19 %) und Heilbehandlung (§ 4 Nr. 14 UStG) auf eine Rechnung
+    const xml = own.xml!.replace(/<ram:CategoryCode>Z<\/ram:CategoryCode>/g, "<ram:CategoryCode>E</ram:CategoryCode>");
+    expect(xml).not.toBe(own.xml);
+    const file = { bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" };
+    const proposal = await foreign.foreignInvoiceProposal(file);
+    // Abgelehnt werden muss die Steuerkategorie, nicht erst die reine XML-Datei
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId, taxTreatment: "regulaer" }, file)).rejects.toThrow(/passt nicht/);
+  }, 30_000);
 });
