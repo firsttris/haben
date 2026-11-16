@@ -96,7 +96,7 @@ Viele Selbständige haben bei derselben Bank mehrere Konten, etwa ein Geschäfts
 | Rücklagen- oder Sparkonto | Überträge zu und von eigenen Konten bekommen „Geldtransit“ als Vorschlag |
 | Privatkonto | Umsätze dort bleiben zuordenbar; Umsatzsteuer und Steuerzahlungen bucht Haben gegen Entnahme bzw. Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Auf deinen anderen Konten bekommen Überweisungen dorthin oder von dort „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, denn ungebuchte stehen unter „offen“. |
 
-Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ buchte privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
+Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat, Spende und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ und „Spende“ buchten privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
 
 Jedes Konto hat einen Zweck. Gebucht wird weiter auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
 
