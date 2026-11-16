@@ -153,12 +153,10 @@ export async function advanceProcedure(invoice: Invoice, lines: readonly Deducti
   // § 13 Abs. 1 Nr. 1 a Satz 4 UStG gilt auch bei Rechnung und Leistung am selben Tag: Eine später zugeordnete
   // frühere Zahlung bleibt eine Vorauszahlung. Ein dokumentierter Leistungstag oder das Ende eines eindeutigen
   // Leistungszeitraums trägt den neuen Weg; fehlende Leistungsangaben werden nicht aus dem Rechnungsdatum erraten.
-  if (invoice.variant === null && invoice.currency === "EUR" && invoice.taxTreatment === "regulaer") {
-    const service = invoice.serviceFrom ?? invoice.serviceTo;
-    if (service) {
-      const [contact] = await tx.select({ land: schema.contacts.land }).from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId!));
-      if (contact?.land === "DE") return deferredProcedure;
-    }
+  // Die gespeicherte Steuerbehandlung zählt, nicht die Rechnungsanschrift: Eine Inlandsleistung kann an einen
+  // ausländischen Kunden gehen (§ 3a Abs. 3 UStG, https://www.gesetze-im-internet.de/ustg_1980/__3a.html).
+  if (invoice.variant === null && invoice.currency === "EUR" && invoice.taxTreatment === "regulaer" && (invoice.serviceFrom || invoice.serviceTo)) {
+    return deferredProcedure;
   }
   if (!isKapitalgesellschaft(company.rechtsform)) return previousProcedure;
   if (invoice.variant === "abschlag" && invoice.advanceType !== "teilleistung") return deferredProcedure;
