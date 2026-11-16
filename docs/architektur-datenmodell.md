@@ -29,6 +29,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `beleg_layouts` | Eigene Belegvorlagen (#113): Name, Art (`beleg` oder `mahnung`), Typst-Quelltext, SHA-256, Version des Feldvertrags, Pakete und `approved_sha256` (Freigabe der Pakete für genau diesen Quelltext); Paket-Cache je Layout unter `DOCUMENTS_DIR/vorlagen/<id>/pakete` | Audit mit Quelltext |
 | `letterhead_profiles` | Gestaltung der Belege als JSON (`settings`: Layout je Belegart, Akzentfarbe, Logo-Größe und -Seite, Schalter, eigene Fußzeile); heute genau ein Standardprofil (`is_default`), ohne Zeile gelten die Vorgaben aus `packages/core` | höchstens ein Standardprofil, Akzentfarbe nur `#RRGGBB`, Audit |
 | `custom_pages` | [Eigene Seiten](eigene-seiten.md): Name, Adresse und ob der Menüeintrag die Seite im Rahmen zeigt oder in einem neuen Tab öffnet (`open_in_new_tab`) | Audit |
+| `procedure_details` | [Angaben zum Betrieb](verfahrensdokumentation.md#angaben-zum-betrieb) für die Verfahrensdokumentation (Verantwortliche, Ort der Aufbewahrung, Papierbelege, Betrieb des Servers, Datensicherung, Ablage von Schlüsseln, Ergänzungen); genau eine Zeile | Audit, kein `TRUNCATE` |
 | `exchange_rates` | Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat, vom BMF abgerufen oder von Hand eingetragen; Belege und Rechnungen speichern ihren Kurs selbst | Audit |
 
 ## Rechnungen und Belege
@@ -168,5 +169,5 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `mcp_tokens` | API-Tokens für MCP und REST-API: Name, SHA-256 des Tokens, Anfang zum Wiedererkennen, Rechte, Ablauf, letzte Nutzung, Widerruf; eine OAuth-Verbindung (Connector) zusätzlich mit Client, Ablauf des Access-Tokens und SHA-256 des aktuellen und vorigen Refresh-Tokens | ohne Audit (Zugangsdaten wie die Passkeys) |
 | `mcp_oauth_clients` | Per Dynamic Client Registration angemeldete OAuth-Clients: `client_id`, SHA-256 des Secrets, Name, Redirect-URIs; ohne Verbindung nach einem Tag gelöscht | ohne Audit (Zugangsdaten) |
 | `mcp_calls` | Aufrufe über MCP und REST-API ohne Inhalte: Token, Werkzeug, Erfolg, Dauer; nach 90 Tagen gelöscht | ohne Audit |
-| `backup_status` | Läufe des Backup-Containers (tägliches Backup, wöchentlicher Test-Restore) mit Ergebnis, Snapshot und Größe; der Container schreibt, die App liest | ohne Audit und Siegel (Betriebsdaten) |
+| `backup_status` | Läufe des Backup-Containers (tägliches Backup, wöchentlicher Test-Restore) mit Ergebnis, Snapshot, Größe und Ziel ohne Zugangsdaten (`target`, für die [Verfahrensdokumentation](verfahrensdokumentation.md)); der Container schreibt, die App liest | ohne Audit und Siegel (Betriebsdaten) |
 | `file_checks` | Läufe der Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl der Dateien, Zahl der Befunde und die ersten 100 davon (Tabelle, Datensatz, Dateiname, Befund); nach 90 Tagen gelöscht | ohne Audit und Siegel (Betriebsdaten) |

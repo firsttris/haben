@@ -8,6 +8,7 @@ Bausteine für unveränderbare Aufbewahrung nach GoBD, aus [Haben](https://githu
 | `@firsttris/gobd-kern/dateityp` | Dateityp am Inhalt erkennen (PDF, JPEG, PNG, WebP, HEIC, XML) |
 | `@firsttris/gobd-kern/pruefwert` | Prüfwert der Hash-Kette schreiben und lesen („Nr. 1234 · <SHA-256>“) |
 | `@firsttris/gobd-kern/beschreibung` | `index.xml` nach dem Beschreibungsstandard der Finanzverwaltung (Datenträgerüberlassung, § 147 Abs. 6 AO) |
+| `@firsttris/gobd-kern/verfahrensdoku` | Bausteine der Verfahrensdokumentation (GoBD Rz. 151 bis 155): Datenmodell mit Lücken, Schema der Angaben zum Betrieb, Texte zu dem, was dieses Paket leistet, und Markdown |
 | `@firsttris/gobd-kern/sql` | SQL-Vorlage für Audit-Log als Hash-Kette, Siegel, Sperren gegen Ändern, Löschen und `TRUNCATE` und die Prüfung in Postgres |
 
 ```ts
@@ -41,12 +42,44 @@ Eine Transaktion setzt ihren Akteur mit `select set_config('belegt.actor', $1, t
 
 Getrennte Rollen (die App darf Trigger nicht abschalten) richtet das Projekt selbst ein, wie Haben unter [Getrennte Datenbankrollen](https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen).
 
+## Verfahrensdokumentation
+
+Jede App erzeugt ihre Verfahrensdokumentation aus dem eigenen Stand; gleich sind Form, Angaben zum Betrieb und der Teil zur Unveränderbarkeit. Das Dokument ist reines JSON (Titel, Stand mit Datum, Programm und Version, Abschnitte mit Absätzen, Liste und Lücken), eine Druckansicht stellt es direkt dar.
+
+```ts
+import { abschnitt, alsMarkdown, angabenAbsaetze, angabenZumBetrieb, kernAbschnitt, tagInDeutschland, verfahrensdoku } from "@firsttris/gobd-kern/verfahrensdoku";
+
+const schema = angabenZumBetrieb.pick({ verantwortlich: true, datensicherung: true }); // was die App speichert
+const angaben = schema.parse(eingabe);
+const betrieb = angabenAbsaetze(angaben, ["verantwortlich", "datensicherung"]); // Absätze und Lücken
+const doku = verfahrensdoku({
+  titel: "Verfahrensdokumentation",
+  stand: { datum: tagInDeutschland(new Date()), programm: "Archiv", version: "1.2.3" },
+  abschnitte: [
+    abschnitt("1. Allgemeine Beschreibung", { absaetze: ["…", ...betrieb.absaetze], luecken: betrieb.luecken }),
+    kernAbschnitt("2. Unveränderbarkeit", { versiegelt: ["Dokumente ab dem Einfügen"], pruefwert, dateien: true, zugriff }),
+  ],
+});
+doku.vollstaendig; // false, solange eine Lücke offen ist
+const markdown = alsMarkdown(doku);
+```
+
+| Baustein | Inhalt |
+| --- | --- |
+| `verfahrensdoku`, `abschnitt` | Dokument zusammensetzen, leere Absätze fallen weg, Lücken werden gezählt |
+| `ANGABEN_FELDER`, `angabenZumBetrieb` | Firma, Rechtsform, Anschrift, Verantwortliche, Datensicherung, Ort der Aufbewahrung, Papierbelege und Scannen, Betrieb des Servers, Ablage von Schlüsseln, Ergänzungen: Beschriftung, Hinweis, Lücke, Höchstlänge und Quelle je Feld, dazu das Zod-Schema |
+| `fehlendeAngaben`, `angabenAbsaetze` | Lücken der leeren Felder; Angaben als Absätze „Beschriftung: Text“ |
+| `KERN_TEXTE`, `kernAbschnitt`, `datenbankRollenText` | Texte zu Sperren, Audit-Log, Hash-Kette, Siegel, Prüfung, Prüfwert und Dateispeicher mit Randziffern der GoBD, nur was dieses Paket zusagt; dazu die wirksamen Rechte der Datenbankanmeldung |
+| `alsMarkdown`, `markdownText`, `standText` | Ausgabe als CommonMark, Text aus Angaben maskiert |
+
+Geheimnisse gehören nicht in das Dokument; die App gibt nur Namen, Rollen und Zeitpunkte hinein.
+
 ## Installieren
 
 Nicht auf npm, sondern als Datei an den Releases `gobd-kern-vX.Y.Z` von Haben (Actions → *GoBD-Kern als Release*):
 
 ```sh
-bun add https://github.com/firsttris/haben/releases/download/gobd-kern-v0.1.0/firsttris-gobd-kern-0.1.0.tgz
+bun add https://github.com/firsttris/haben/releases/download/gobd-kern-v0.2.0/firsttris-gobd-kern-0.2.0.tgz
 ```
 
-Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite.
+Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite. Ab 0.2.0 braucht es `zod` (Version 4) für das Schema der Angaben.

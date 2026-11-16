@@ -3704,6 +3704,8 @@ export const backupStatus = pgTable(
     bytes: bigint("bytes", { mode: "number" }),
     /** Zusammenfassung oder Fehlermeldung */
     message: text("message").notNull().default(""),
+    /** Ziel der Sicherung (RESTIC_REPOSITORY ohne Zugangsdaten), für die Verfahrensdokumentation; null bei älteren Images */
+    target: text("target"),
   },
   (t) => [check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`), index("backup_status_kind_at").on(t.kind, t.at)],
 );
@@ -4206,3 +4208,24 @@ export const appVersions = pgTable("app_versions", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   note: text("note"),
 });
+
+/**
+ * Angaben zum Betrieb für die Verfahrensdokumentation (#860), genau eine Zeile (id = 1): was Haben nicht wissen kann.
+ * Felder und Längen aus dem gemeinsamen Schema in @firsttris/gobd-kern/verfahrensdoku; Firma, Rechtsform und Anschrift
+ * kommen aus den Firmendaten. Jede Änderung steht im Audit-Log (Rz. 154: nachvollziehbare Änderungshistorie).
+ */
+export const procedureDetails = pgTable(
+  "procedure_details",
+  {
+    id: smallint("id").primaryKey().default(1),
+    verantwortlich: text("verantwortlich").notNull().default(""),
+    datensicherung: text("datensicherung").notNull().default(""),
+    aufbewahrungsort: text("aufbewahrungsort").notNull().default(""),
+    papierbelege: text("papierbelege").notNull().default(""),
+    serverbetrieb: text("serverbetrieb").notNull().default(""),
+    schluesselablage: text("schluesselablage").notNull().default(""),
+    ergaenzungen: text("ergaenzungen").notNull().default(""),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("procedure_details_single_row", sql`${t.id} = 1`)],
+);
