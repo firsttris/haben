@@ -215,6 +215,23 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
       expect({ ...q, zw: await zw() }).toEqual({ journal: [0, 616, 0], nebenbuecher: [0, 616, 0], zw: 0 });
     });
 
+    // Altbestand aus v0.9.0 (#879): Belege mit Leistungszeitraum, die vor diesem Stand gebucht wurden, haben die Vorsteuer
+    // im Journal am Belegdatum, ohne Zwischenkonto. Die Nebenbücher dürfen sie nicht nachträglich verschieben, sonst
+    // ändert ein Update schon gemeldete Monate und Journal und Gegenprobe fallen auseinander. Nachweis ist die Buchung,
+    // wie in vorsteuer-ausgleich.ts („ein nachträglich gesetztes Leistungsdatum bucht nicht rückwirkend um“).
+    // Gefunden in der Selbstprüfung von TheLord83, Frage 1
+    it(`${n} Altbestand: vor diesem Stand gebuchter Beleg mit Leistungszeitraum bleibt im Belegmonat, Journal wie Nebenbücher`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({ datum: "2026-11-20", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      // So stand ein solcher Beleg nach v0.9.0 in der Datenbank: Leistungszeitraum am Beleg, Buchung ohne Zwischenkonto
+      await sql.begin(async (t) => {
+        await t`set local session_replication_role = replica`;
+        await t`update documents set service_from = '2026-12-01', service_to = '2026-12-31' where id = ${id}`;
+      });
+      const q = await beideQuellen(M([2026, 11], 2));
+      expect({ ...q, zw: await zw() }).toEqual({ journal: [616, 0], nebenbuecher: [616, 0], zw: 0 });
+    });
+
     it(`${n} Privatanteil, zwei Steuersätze, Teilzahlung vor der Ausführung: kumuliert gerundet`, async () => {
       await firma({ journalAb: 2026, ...p });
       const id = await beleg({
