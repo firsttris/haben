@@ -155,10 +155,10 @@ bun --bun vitest run packages/core     # nur ein Bereich
 
 Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`, sonst werden sie übersprungen. Jeder Worker bekommt eine eigene Datenbank neben der genannten, geklont aus einer einmal migrierten Vorlage (`apps/web/src/server/test-db.ts`); der Benutzer braucht `CREATEDB` und, damit die Tests gesperrte Tabellen leeren können, Superuser-Rechte. Der aus `compose.yml` hat beides.
 
-Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>-…` und löscht ihn am Ende; was Tests mit `tmpdir()` anlegen, verschwindet mit. Den Ordner eines abgebrochenen Laufs löscht ein späterer Lauf bei seinem Start, wenn der Prozess des abgebrochenen nicht mehr läuft.
-
 > [!IMPORTANT]
 > `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
+
+Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>-…` und löscht ihn am Ende; was Tests mit `tmpdir()` anlegen, verschwindet mit. Den Ordner eines abgebrochenen Laufs löscht ein späterer Lauf bei seinem Start, wenn der Prozess des abgebrochenen nicht mehr läuft.
 
 Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
 
