@@ -19,7 +19,7 @@ Die GoBD verlangen für jedes DV-System eine Verfahrensdokumentation, aus der In
 - **System:** wie Festschreibung, Siegel, Hash-Kette und Prüfwert arbeiten ([Manipulationserkennung](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)), mit welcher Datenbankrolle die App läuft und ob ihre Rechte eingeschränkt sind ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), ob die Prüfwert-Mail an ist, und alle eingesetzten Versionen mit Link auf ihre Versionshinweise.
 - **Betrieb:** jeder Zugang mit Rolle, Beginn, letzter Anmeldung und Sperre ([Anmeldung](architektur-anmeldung.md)), gültige API-Tokens mit Rechten, wenn der Zugang für Programme an ist, dazu Ziel, letzte Sicherung und letzter [Test-Restore](installation-backup.md#test-restore) des Backup-Containers.
 
-Geheimnisse stehen nicht darin: keine Passwörter, Schlüssel, Token oder das Zertifikat. Aus der Adresse des Backup-Ziels fallen Nutzer und Passwort hinter `://` weg (`rest:https://nutzer:passwort@…`); den Nutzer einer SFTP-Adresse wie `sftp:backup@example.de:/srv/restic/haben` nennt das Dokument. Das Ziel trägt erst ein Backup-Image ein, das so neu ist wie diese Version; bis dahin fehlt es, und die Angabe „Datensicherung“ beschreibt es.
+Geheimnisse stehen nicht darin: keine Passwörter, Schlüssel, Token oder das Zertifikat. Aus der Adresse des Backup-Ziels fallen Nutzer und Passwort weg, auch bei SFTP (`sftp:backup@example.de:…`) und rclone. Das Ziel trägt erst ein Backup-Image ein, das so neu ist wie diese Version; bis dahin fehlt es, und die Angabe „Datensicherung“ beschreibt es.
 
 ## Angaben zum Betrieb
 
