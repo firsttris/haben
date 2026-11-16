@@ -118,7 +118,7 @@ Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für de
 
     <fieldset class="cg-section">
       <div class="cg-section-title">4. Optionale Erweiterungen</div>
-      <p class="cg-hint">Schlüssel von Anthropic, S3 oder dem SSO-Anbieter fragt der Generator nicht ab. In der <code>.env</code> steht dafür <code>hier-eintragen</code>; den Wert trägst du auf dem Server ein.</p>
+      <p class="cg-hint">Schlüssel von Anthropic, eines OpenAI-kompatiblen Dienstes, S3 oder dem SSO-Anbieter fragt der Generator nicht ab. In der <code>.env</code> steht dafür <code>hier-eintragen</code>; den Wert trägst du auf dem Server ein.</p>
 
       <details class="cg-details">
         <summary>ELSTER (ERiC)</summary>
