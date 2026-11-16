@@ -29,6 +29,7 @@ export const DURCHLAEUFE = {
   // Durchlauf sevdesk-anlagen; vorjahre bekommt deshalb 22
   vorjahre: 22,
   steuerbefreiung: 23,
+  ablage: 24,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

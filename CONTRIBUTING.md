@@ -42,15 +42,15 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/mitwirken.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
-- Vor „Ready for review“ die **Selbstprüfung** (mit KI-Agenten Skill `beitrag-pruefen`): passt die Änderung zu
+- Vor „Ready for review“ die erforderliche **Selbstprüfung** (mit KI-Agenten Skill `beitrag-pruefen`): passt die Änderung zu
   Haben, ist sie gegen die Quellen geprüft, die einfachste Lösung, mit Tests und Doku? Das Ergebnis kommt als
   Kommentar in den Pull Request; ein Maintainer oder Collaborator prüft es nur nach
-  ([Beiträge annehmen](https://haben.app/mitwirken.html#beiträge-annehmen)).
+  (Voraussetzungen und Ausnahmen: [Beiträge annehmen](https://haben.app/mitwirken.html#beiträge-annehmen)).
 - Vor dem Merge ein unabhängiges **TDD-Review** (`tdd-review`) für Code, eine **Doku-Prüfung** (`doku-pruefen`) für Markdown,
   durch jemand anderen oder einen frischen Agenten. Im TDD-Review zählt ein Befund nur mit einem Test, der auf dem
   Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf
   ([Review](https://haben.app/mitwirken.html#review)). Bringst du es mit, reviewen wir nicht noch einmal.
-- Fehlt eins davon oder ist es älter als dein letzter Commit, prüfen wir den Pull Request nicht und bitten dich
+- Fehlt eine erforderliche Prüfung oder ist sie älter als dein letzter Commit, prüfen wir den Pull Request nicht und bitten dich
   darum. Gemergt wird von einem Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Ein Issue vorab
   spart dir Arbeit an etwas, das wir nicht übernehmen können.
 
