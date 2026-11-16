@@ -19,3 +19,9 @@ describe("Herkunft einer Buchung öffnet den Vorgang (Journal und Kontenblatt)",
     for (const sourceType of ["allocation", "kasse", "lohn", "pauschale", "manuell"]) expect(vorgangZurHerkunft({ ...buchung, sourceType })).toBeNull();
   });
 });
+
+describe("Vorsteuerfreigabe zum Leistungsdatum (#693)", () => {
+  it("führt auf den Beleg: ihre Quelle ist der Beleg selbst, nicht die Bank", () => {
+    expect(vorgangZurHerkunft({ sourceType: "freigabe", sourceId: "b1", invoiceId: null, documentId: null })).toEqual({ to: "/belege/$id", id: "b1" });
+  });
+});
