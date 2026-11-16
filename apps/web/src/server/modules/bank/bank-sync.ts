@@ -4,6 +4,7 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
+import { fintsKontenAbgeben } from "./fints-uebernahme.ts";
 import { vertragHinweise } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
@@ -23,7 +24,7 @@ const OVERLAP_DAYS = 7;
 /** Ohne vorhandene Umsätze: ab dem gewählten Tag (Vorgabe Jahresbeginn), und wenn die Bank das ablehnt, die letzten 89 Tage */
 const FALLBACK_HISTORY_DAYS = 89;
 /** Der automatische Abruf läuft höchstens so oft (PSD2 erlaubt ohne Nutzer etwa vier Abrufe am Tag) */
-const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
+export const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
 /** So lange gilt die Rückleitung der Bank nach dem Start der Verbindung */
 const STATE_MAX_AGE_MS = 60 * 60 * 1000;
 /** Hinweis zum Erneuern der Zustimmung so viele Tage vor Ablauf */
@@ -294,6 +295,8 @@ export async function completeConnection(
       });
     }
     const ids = new Set(accounts.map((a) => a.bankAccountId));
+    // Ein Konto kommt aus einem Abruf: Dieselben Konten aus einer FinTS-Verbindung holt ab jetzt Enable Banking
+    await fintsKontenAbgeben(tx, ids);
     for (const other of others) {
       const remaining = other.accounts.filter((a) => !ids.has(a.bankAccountId));
       if (remaining.length === other.accounts.length) continue;
@@ -339,7 +342,7 @@ export async function completeConnection(
  * ginge der Folgeabruf nach dem Erneuern der Zustimmung wieder davor zurück (siehe followUpStart). Der neu gewählte Tag
  * gilt nur für Konten, die noch nie abgerufen wurden.
  */
-function accountFetchFrom(previous: BankConnectionAccount | undefined, chosen: string | null): { fetchFrom?: string } {
+export function accountFetchFrom(previous: BankConnectionAccount | undefined, chosen: string | null): { fetchFrom?: string } {
   if (previous?.syncedTo) return previous.fetchFrom ? { fetchFrom: previous.fetchFrom } : {};
   return chosen ? { fetchFrom: chosen } : {};
 }
@@ -358,13 +361,13 @@ export function followUpStart(syncedTo: string, lastFileBooking: string | null, 
   return fetchFrom && fetchFrom > from ? fetchFrom : from;
 }
 
-/** Letzter Buchungstag aus einem Dateiimport (nicht aus dem Abruf) */
-async function lastFileBooking(bankAccountId: string): Promise<string | null> {
+/** Letzter Buchungstag aus einem Dateiimport oder einem anderen Abrufweg (nicht aus diesem Abruf) */
+async function lastFileBooking(bankAccountId: string, format: "enablebanking" | "fints"): Promise<string | null> {
   const [row] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })
     .from(schema.bankTransactions)
     .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
-    .where(and(eq(schema.bankTransactions.bankAccountId, bankAccountId), ne(schema.bankImports.format, "enablebanking")));
+    .where(and(eq(schema.bankTransactions.bankAccountId, bankAccountId), ne(schema.bankImports.format, format)));
   return row?.date ?? null;
 }
 
@@ -386,10 +389,14 @@ export function firstSyncStart(latestBooking: string | null, fetchFrom: string |
   return { from, fallback: recent > from ? recent : null };
 }
 
-/** Erster Tag des Abrufs für ein Konto */
-async function syncStart(account: BankConnectionAccount, today: string): Promise<{ from: string; fallback: string | null }> {
+/** Erster Tag des Abrufs für ein Konto; format ist der Abrufweg, dessen eigene Importe nicht als Datei zählen */
+export async function syncStart(
+  account: BankConnectionAccount,
+  today: string,
+  format: "enablebanking" | "fints" = "enablebanking",
+): Promise<{ from: string; fallback: string | null }> {
   if (account.syncedTo) {
-    return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId), today, account.fetchFrom), fallback: null };
+    return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId, format), today, account.fetchFrom), fallback: null };
   }
   const [latest] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })

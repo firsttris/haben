@@ -1,0 +1,80 @@
+import type { FintsAntwort } from "@haben/import";
+import { describe, expect, it, vi } from "vitest";
+import { type FintsFolge, type FintsSchritt, mitTan, vorgangFortsetzen, vorgangMerken, vorgangVerwerfen } from "./fints-vorgang.ts";
+
+const fertig: FintsSchritt = { art: "fertig", ok: true, meldung: "fertig", hinweise: [], neu: 0 };
+
+describe("Laufende FinTS-Vorgänge", () => {
+  it("gilt einmal und nur für die Person, die ihn begonnen hat", async () => {
+    const weiter = vi.fn(async (): Promise<FintsSchritt> => fertig);
+    const id = vorgangMerken("anna", "tan", weiter);
+    await expect(vorgangFortsetzen("bernd", id, { tan: "1" })).rejects.toThrow("Der Vorgang ist abgelaufen oder unbekannt. Bitte neu beginnen.");
+    await expect(vorgangFortsetzen("anna", id, { tan: "1" })).resolves.toEqual(fertig);
+    await expect(vorgangFortsetzen("anna", id, { tan: "1" })).rejects.toThrow(/abgelaufen oder unbekannt/);
+    expect(weiter).toHaveBeenCalledOnce();
+  });
+
+  it("läuft nach zehn Minuten ab", async () => {
+    const id = vorgangMerken("anna", "tan", async () => fertig, 0);
+    await expect(vorgangFortsetzen("anna", id, { tan: "1" }, 10 * 60 * 1000)).rejects.toThrow(/abgelaufen/);
+  });
+
+  it("verlangt bei der Wahl ein Verfahren und bei der TAN keines", async () => {
+    const wahl = vorgangMerken("anna", "verfahren", async () => fertig);
+    await expect(vorgangFortsetzen("anna", wahl, {})).rejects.toThrow("Bitte ein TAN-Verfahren wählen.");
+    const tan = vorgangMerken("anna", "tan", async () => fertig);
+    await expect(vorgangFortsetzen("anna", tan, { verfahren: 921 })).rejects.toThrow(/kein TAN-Verfahren/);
+  });
+
+  it("verwirft nur eigene Vorgänge", async () => {
+    const id = vorgangMerken("anna", "tan", async () => fertig);
+    vorgangVerwerfen("bernd", id);
+    vorgangVerwerfen("anna", id);
+    await expect(vorgangFortsetzen("anna", id, { tan: "1" })).rejects.toThrow(/abgelaufen/);
+  });
+});
+
+describe("mitTan", () => {
+  const anfrage = (entkoppelt: boolean): FintsAntwort<string> => ({ art: "tan", anfrage: { referenz: "R1", text: "TAN bitte", entkoppelt } });
+  const folge = (weiter: FintsFolge<string>["weiter"]): FintsFolge<string> => ({
+    weiter,
+    fertig: async (wert) => ({ art: "fertig", ok: true, meldung: wert, hinweise: [], neu: 0 }),
+    abgelehnt: async (meldung) => ({ art: "fertig", ok: false, meldung, hinweise: [], neu: 0 }),
+    ausfall: async (error) => ({ art: "fertig", ok: false, meldung: `Ausfall: ${(error as Error).message}`, hinweise: [], neu: 0 }),
+  });
+
+  it("gibt die TAN an die Bank und meldet, was die Bank antwortet", async () => {
+    const weiter = vi.fn(async (): Promise<FintsAntwort<string>> => ({ art: "ok", wert: "Umsätze" }));
+    const schritt = await mitTan("anna", anfrage(false), folge(weiter));
+    expect(schritt).toMatchObject({ art: "tan", text: "TAN bitte", entkoppelt: false, bild: null, hinweis: null });
+    if (schritt.art !== "tan") return;
+    await expect(vorgangFortsetzen("anna", schritt.vorgang, { tan: " 123456 " })).resolves.toMatchObject({ meldung: "Umsätze" });
+    expect(weiter).toHaveBeenCalledWith({ referenz: "R1", tan: "123456" });
+  });
+
+  it("schickt bei pushTAN keine TAN mit und meldet ausstehende Freigaben", async () => {
+    const weiter = vi
+      .fn<FintsFolge<string>["weiter"]>()
+      .mockResolvedValueOnce(anfrage(true))
+      .mockResolvedValueOnce({ art: "abgelehnt", meldung: "Freigabe abgelehnt." });
+    const schritt = await mitTan("anna", anfrage(true), folge(weiter));
+    if (schritt.art !== "tan") throw new Error("TAN erwartet");
+    const ausstehend = await vorgangFortsetzen("anna", schritt.vorgang, { tan: "egal" });
+    expect(ausstehend).toMatchObject({ art: "tan", hinweis: "Noch nicht freigegeben. Bitte in der App der Bank bestätigen und dann weiter." });
+    expect(weiter).toHaveBeenLastCalledWith({ referenz: "R1", tan: undefined });
+    if (ausstehend.art !== "tan") return;
+    await expect(vorgangFortsetzen("anna", ausstehend.vorgang, {})).resolves.toMatchObject({ ok: false, meldung: "Freigabe abgelehnt." });
+  });
+
+  it("gibt Netzfehler in der Fortsetzung an ausfall", async () => {
+    const schritt = await mitTan(
+      "anna",
+      anfrage(false),
+      folge(async () => {
+        throw new Error("fetch failed");
+      }),
+    );
+    if (schritt.art !== "tan") throw new Error("TAN erwartet");
+    await expect(vorgangFortsetzen("anna", schritt.vorgang, { tan: "1" })).resolves.toMatchObject({ ok: false, meldung: "Ausfall: fetch failed" });
+  });
+});

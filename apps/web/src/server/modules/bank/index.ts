@@ -19,6 +19,10 @@ export {
   startConnection,
   syncConnection,
 } from "./bank-sync.ts";
+export { fintsVerbinden, fintsVerbindenSchema, listFintsConnections, removeFintsConnection } from "./fints.ts";
+export { fintsAbrufen, runDueFintsSyncs } from "./fints-abruf.ts";
+export { fintsConfigured } from "./fints-produkt.ts";
+export { type FintsSchritt, vorgangFortsetzen as fintsFortsetzen, vorgangVerwerfen as fintsVerwerfen } from "./fints-vorgang.ts";
 export {
   accountSchema,
   allocate,

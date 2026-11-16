@@ -1954,6 +1954,20 @@
       "when": 1794838416307,
       "tag": "0278_unsere_lieferantennummer",
       "breakpoints": true
+    },
+    {
+      "idx": 279,
+      "version": "7",
+      "when": 1794863852689,
+      "tag": "0279_fints_abruf",
+      "breakpoints": true
+    },
+    {
+      "idx": 280,
+      "version": "7",
+      "when": 1794863855624,
+      "tag": "0280_fints_abruf_trigger",
+      "breakpoints": true
     }
   ]
 }
