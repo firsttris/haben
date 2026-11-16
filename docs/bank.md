@@ -94,7 +94,7 @@ Viele Selbständige haben bei derselben Bank mehrere Konten, etwa ein Geschäfts
 | Geschäftskonto (Standard) | wie bisher; sein Kontostand steht in der Übersicht |
 | Steuerkonto | Vorbelegung für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern); Lastschriften und Erstattungen der Umsatzsteuer auf diesem Konto bekommen „Umsatzsteuer an das Finanzamt“ als Vorschlag; die Übersicht zeigt den Stand neben der noch offenen Zahllast (abzüglich schon zugeordneter Zahlungen an das Finanzamt nach Ende des Zeitraums) und warnt, wenn er nicht reicht |
 | Rücklagen- oder Sparkonto | Überträge zu und von eigenen Konten bekommen „Geldtransit“ als Vorschlag |
-| Privatkonto | Umsätze dort bleiben zuordenbar; Umsatzsteuer und Steuerzahlungen bucht Haben gegen Entnahme bzw. Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Auf deinen anderen Konten bekommen Überweisungen dorthin oder von dort „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, denn ungebuchte stehen unter „offen“. |
+| Privatkonto | Umsätze dort bleiben zuordenbar; Umsatzsteuer und Steuerzahlungen bucht Haben gegen Entnahme bzw. Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Auf deinen anderen Konten bekommen Überweisungen dorthin oder von dort „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, denn ungebuchte stehen unter „offen“, bis du sie [kennzeichnest](#privates-konto-umsätze-ohne-buchungsart). |
 
 Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat, Spende und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ und „Spende“ buchten privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
 
@@ -105,6 +105,12 @@ N26-Exporte enthalten keine eigene IBAN. Dafür legst du das Konto vorher mit **
 Wählst du ein Konto aus und die Datei nennt eine andere IBAN, bricht der Import mit einer Meldung ab.
 
 Über der Liste steht je Konto ein Reiter mit Format und Datum des letzten Imports und dem Endsaldo. Ist der letzte Import älter als sieben Tage, ist die Angabe hervorgehoben.
+
+### Privates Konto: Umsätze ohne Buchungsart
+
+Für manche Umsätze auf einem privaten Konto gibt es keine Buchungsart, etwa für eine private Einkommensteuer-Erstattung: Die Arten oben fehlen dort, und die Steuern des Inhabers lehnt Haben ab ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Einen solchen Umsatz kennzeichnest du rechts mit **Privat, kein Betriebsvorgang**. Gebucht wird nichts, die EÜR bleibt unberührt. Der Umsatz zählt nicht mehr als offener Posten, steht in der Liste nur unter **Alle** mit dem Status „Privat“ und darunter „kein Betriebsvorgang“, und die [Vorprüfung der Voranmeldung](umsatzsteuer.md#vorprüfung_1) mahnt ihn nicht an. **Kennzeichnung aufheben** macht ihn wieder offen.
+
+Kennzeichnen lässt sich nur ein ganz offener Umsatz. Zuordnen, Direkt buchen, Aufteilen und Verrechnen gehen erst nach dem Aufheben; als Gegenstück einer Verrechnung bietet Haben einen gekennzeichneten Umsatz nicht an. Die Kennzeichnung wirkt nur auf einem privaten Konto: Änderst du den Zweck des Kontos, etwa auf geschäftlich, zählt der Umsatz dort wieder als offen; wird das Konto wieder privat, gilt sie wieder. Ist der Umsatz inzwischen teilweise zugeordnet, bleibt der Rest offen.
 
 ### Fremdes Konto ausschließen
 
@@ -160,6 +166,7 @@ Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. 
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
 | Zugeordnet | Der ganze Betrag ist zugeordnet. |
 | Verrechnet | Mit einem gegenläufigen Umsatz verrechnet, ohne Buchung (siehe [Gegenläufige Umsätze verrechnen](#gegenläufige-umsätze-verrechnen)). |
+| Privat | Auf einem privaten Konto als kein Betriebsvorgang gekennzeichnet; darunter „kein Betriebsvorgang“ (siehe [Umsätze ohne Buchungsart](#privates-konto-umsätze-ohne-buchungsart)). |
 
 Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auch mit der IBAN der Gegenseite.
 
@@ -513,9 +520,3 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 - Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.
 - Zuordnungen werden mit dem Buchungsdatum des Umsatzes gebucht, ihre Aufhebung am gewählten Tag (siehe [Zuordnung aufheben](#zuordnung-aufheben)). Eine schon gesendete Voranmeldung bleibt, wie sie ist (siehe [umsatzsteuer.md](umsatzsteuer.md)).
-
-## Privates Konto: Umsätze ohne Buchungsart
-
-Auf einem Konto mit dem Zweck **privat** sind „Privat", Bankgebühren, Zinserträge, Geldtransit und Spenden gesperrt ([#873](https://github.com/firsttris/haben/issues/873)); eine private Einkommensteuer-Erstattung lässt sich dort also nicht buchen, ohne sie zum Betriebsvorgang zu machen. Solche Umsätze bleiben ungebucht und lassen sich im Umsatz als **privat, kein Betriebsvorgang** kennzeichnen ([#1088](https://github.com/firsttris/haben/issues/1088)): Sie zählen dann nicht mehr als offene Posten, tragen in der Liste den Status **privat, kein Betriebsvorgang** statt „Offen" und lassen sich jederzeit wieder öffnen. Auch die [Vorprüfung der Voranmeldung](umsatzsteuer.md#vorprüfung_1) mahnt sie nicht an. Gebucht wird dabei nichts, die EÜR bleibt unberührt.
-
-Zuordnen, Direkt buchen, Aufteilen und Verrechnen gehen erst, wenn du die Kennzeichnung aufgehoben hast; als Gegenstück einer Verrechnung bietet Haben einen gekennzeichneten Umsatz nicht an. Die Kennzeichnung wirkt nur auf einem privaten Konto: Änderst du den Zweck des Kontos, etwa auf geschäftlich, zählt der Umsatz dort wieder als offen; wird das Konto wieder privat, gilt sie wieder. Ist der Umsatz inzwischen teilweise zugeordnet, bleibt der Rest offen.
