@@ -2,7 +2,7 @@ import {
   abschluss,
   isKapitalgesellschaft,
   kapgSteuern,
-  MINDEST_HEBESATZ,
+  mindestHebesatz,
   steuerKonten,
   type KapgSteuerAngaben,
   type KapgSteuern,
@@ -27,14 +27,9 @@ export class KoerperschaftError extends UserError {}
 
 const cents = inCents(z.number().int().min(0).max(100_000_000_000_00));
 
+/** Den Mindesthebesatz prüft saveKapgAngaben, denn er hängt vom Jahr ab */
 export const kapgAngabenSchema = z.object({
-  hebesatz: inProzent(
-    z
-      .number()
-      .int("Hebesatz in ganzen Prozent")
-      .min(MINDEST_HEBESATZ, `Der Hebesatz beträgt mindestens ${MINDEST_HEBESATZ} %.`)
-      .max(1500, "Hebesatz bitte prüfen"),
-  ),
+  hebesatz: inProzent(z.number().int("Hebesatz in ganzen Prozent").max(1500, "Hebesatz bitte prüfen")),
   verlustvortragKst: cents,
   verlustvortragGewst: cents,
   verlustruecktrag: cents.default(0),
@@ -148,7 +143,10 @@ async function merge(actor: string, year: number, patch: Record<string, unknown>
 }
 
 export async function saveKapgAngaben(actor: string, year: number, input: KapgAngabenInput): Promise<void> {
-  await merge(actor, year, kapgAngabenSchema.parse(input));
+  const angaben = kapgAngabenSchema.parse(input);
+  const mindest = mindestHebesatz(year);
+  if (angaben.hebesatz < mindest) throw new KoerperschaftError(`Der Hebesatz beträgt ${year} mindestens ${mindest} %.`);
+  await merge(actor, year, angaben);
 }
 
 export async function saveKapgErklaerungAngaben(actor: string, year: number, input: KapgErklaerungInput): Promise<void> {
@@ -171,8 +169,9 @@ async function berechne(year: number, angaben: KapgSteuerAngaben): Promise<KapgS
 }
 
 /**
- * Angaben des Jahres. Ohne gespeicherte gelten die des Vorjahres fortgeschrieben: derselbe Hebesatz, die Verlustvorträge
- * nach der Berechnung des Vorjahres. Ohne beides fehlt der Hebesatz.
+ * Angaben des Jahres. Ohne gespeicherte gelten die des Vorjahres fortgeschrieben: derselbe Hebesatz, mindestens der
+ * Mindesthebesatz des Jahres (§ 16 Abs. 4 Satz 2 GewStG), die Verlustvorträge nach der Berechnung des Vorjahres. Ohne
+ * beides fehlt der Hebesatz.
  */
 async function angabenFor(year: number): Promise<{ angaben: KapgSteuerAngaben | null; gespeichert: boolean }> {
   const stored = await storedAngaben(year);
@@ -182,7 +181,7 @@ async function angabenFor(year: number): Promise<{ angaben: KapgSteuerAngaben | 
   const s = await berechne(year - 1, vorjahr);
   return {
     angaben: {
-      hebesatz: vorjahr.hebesatz,
+      hebesatz: Math.max(vorjahr.hebesatz, mindestHebesatz(year)),
       verlustvortragKst: s?.verlustvortragKst ?? 0,
       verlustvortragGewst: s?.verlustvortragGewst ?? 0,
       verlustruecktrag: 0,
