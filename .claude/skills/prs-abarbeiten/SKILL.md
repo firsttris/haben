@@ -44,7 +44,7 @@ Hat der Maintainer nur gefragt, endet der Skill hier; Schritt 3 erst auf sein Wo
 
 ## 3. Von oben nach unten
 
-Platz 7 bekommt keinen Agenten, nur einmal eine freundliche Bitte mit Link auf Skill `beitrag`, Schritt 6. Sie nennt immer alle drei Prüfungen mit Stand: `beitrag-pruefen` (Selbstprüfung), `tdd-review` für Code und `doku-pruefen` für Markdown, je in einem frischen Agenten auf dem letzten Commit des Autors; was schon vorliegt oder nicht nötig ist, steht dabei. Je übrigem Pull Request einen frischen Agenten mit `beitrag-pruefen` in der Rolle des Maintainers. Unabhängige Pull Requests laufen parallel. Der Auftrag an den Agenten:
+Platz 7 bekommt keinen Agenten, nur einmal eine freundliche Bitte mit Link auf Skill `beitrag`, Schritt 6. Sie nennt immer alle drei Prüfungen mit Stand: `beitrag-pruefen` (Selbstprüfung), `tdd-review` für Code und `doku-pruefen` für Markdown, je durch jemand anderen oder einen frischen Agenten und bis zum letzten Commit des Autors; was schon vorliegt oder nicht nötig ist, steht dabei. Je übrigem Pull Request einen frischen Agenten mit `beitrag-pruefen` in der Rolle des Maintainers. Unabhängige Pull Requests laufen parallel. Der Auftrag an den Agenten:
 
 - eigener Worktree und eigene Test-Datenbank, nie die Compose-Instanz `haben-dev`
 - nichts posten, pushen oder mergen
