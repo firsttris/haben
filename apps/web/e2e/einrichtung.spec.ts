@@ -86,6 +86,8 @@ test("Einstellungen › Bereiche schaltet sofort wieder ein", async () => {
   await gehe(page, "/einstellungen?bereich=bereiche");
   const karte = page.getByRole("region", { name: "Bereiche im Menü" });
   await expect(karte.getByRole("checkbox", { name: /Kasse/ })).not.toBeChecked();
+  // Der Name bleibt gleich, der Zustand steht in der Beschreibung (WCAG 4.1.2: der Haken trägt ihn schon)
+  await expect(karte.getByRole("checkbox", { name: "Kasse", exact: true })).toHaveAccessibleDescription(/^Ausgeblendet · Im Menü: Kasse$/);
   await karte.getByRole("checkbox", { name: /Kasse/ }).check();
   await expect(page.getByText("Kasse steht wieder im Menü.")).toBeVisible();
   await expect(menue().getByRole("link", { name: "Kasse", exact: true })).toBeVisible();

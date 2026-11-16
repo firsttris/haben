@@ -50,9 +50,17 @@ export function BereicheCard({ ausgeblendet }: { ausgeblendet: readonly string[]
               <label className="checkbox">
                 <input type="checkbox" checked={sichtbar} disabled={busy} aria-describedby={hint} onChange={(e) => umschalten(bereich.id, e.target.checked)} />
                 <span>{bereich.label}</span>
-                {!sichtbar && <Status tone="neutral">Ausgeblendet</Status>}
               </label>
+              {/* Der Status steht in der Beschreibung, nicht im Label: Sonst hieße das Kästchen je nach Zustand anders */}
               <span id={hint} className="field-hint">
+                {!sichtbar && (
+                  <>
+                    <Status tone="neutral" inline>
+                      Ausgeblendet
+                    </Status>{" "}
+                    ·{" "}
+                  </>
+                )}
                 Im Menü: {bereich.menue}
               </span>
             </li>
