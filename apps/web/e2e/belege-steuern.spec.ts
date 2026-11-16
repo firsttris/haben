@@ -1092,8 +1092,11 @@ test("Beleg gespeichert und neu geöffnet: Vorsteuer folgt Netto und Satz, ein B
   await page.waitForLoadState("networkidle");
   const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
   const speichernUndNeuLaden = async () => {
+    const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
     await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
-    await page.waitForLoadState("networkidle");
+    const antwort = await gespeichert;
+    expect(antwort.ok()).toBe(true);
+    expect(await antwort.finished()).toBeNull();
     await page.reload();
     await page.waitForLoadState("networkidle");
   };
