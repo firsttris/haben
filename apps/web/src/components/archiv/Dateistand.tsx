@@ -8,6 +8,7 @@ import { ConfirmDialog, type ConfirmFact } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Status } from "../Status.tsx";
+import { ohneBelegText, type OhneBelegGrund } from "./dateistand-texte.ts";
 
 /*
  * Dateistand eines archivierten Belegs (#345): ohne Datei laut Quelle (offen bis zur Bestätigung), bestätigt ohne Datei,
@@ -42,11 +43,21 @@ export function FileStatusCell({ status, files }: { status: FileStatus; files: n
 /**
  * Ersetzt die leere Vorschau: was fehlt und was als Nächstes zu tun ist.
  *
- * `bestaetigbar` unterscheidet die beiden Fälle hinter `ohne_beleg`: eine Buchung ohne Beleglink kommt ohne Einzelbeleg,
- * eine Buchung mit Beleg-GUID, deren Datei nur im Export fehlt, kann dagegen einen haben. Dort steht deshalb kein Satz,
- * der zum Bestätigen einlädt, obwohl kein Knopf erscheint.
+ * `grund` unterscheidet die Fälle hinter `ohne_beleg`: Buchung ohne Beleglink, Buchung mit Beleg-GUID und fehlender Datei
+ * im Export, und Buchungen fremder Quellen, die das Merkmal ohne GUID setzen. Nur im ersten Fall lädt der Satz zum
+ * Bestätigen ein; dort erscheint auch der Knopf.
  */
-export function MissingFileBanner({ status, product, bestaetigbar = false }: { status: FileStatus; product: string; bestaetigbar?: boolean }) {
+export function MissingFileBanner({
+  status,
+  product,
+  grund,
+  bestaetigbar = false,
+}: {
+  status: FileStatus;
+  product: string;
+  grund?: OhneBelegGrund;
+  bestaetigbar?: boolean;
+}) {
   switch (status) {
     case "abruf_fehlgeschlagen":
       return (
@@ -64,17 +75,7 @@ export function MissingFileBanner({ status, product, bestaetigbar = false }: { s
     case "ohne_datei_bestaetigt":
       return <div className="banner banner-info">In {product} ohne Datei, bestätigt. Ein Rechnungsoriginal für den Vorsteuerabzug ersetzt das nicht.</div>;
     case "ohne_beleg":
-      return bestaetigbar ? (
-        <div className="banner banner-info">
-          Diese Buchung kommt ohne Einzelbeleg; {product} führt dazu keine Datei. Wer das geprüft hat, hält es hier fest. Für den Vorsteuerabzug braucht es
-          weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
-        </div>
-      ) : (
-        <div className="banner banner-info">
-          {product} nennt zu dieser Buchung keine Datei. Ob es einen Einzelbeleg gibt, sagt das nicht: Die Buchung trägt eine Beleg-GUID, die Datei fehlt nur im
-          Export. Bestätigen lässt sich das hier nicht.
-        </div>
-      );
+      return <div className="banner banner-info">{ohneBelegText(grund ?? "quelle_ohne_beleg", product, bestaetigbar)}</div>;
     default:
       return <div className="banner banner-info">Zu diesem Beleg hat {product} keine Datei geliefert.</div>;
   }

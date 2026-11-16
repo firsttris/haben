@@ -522,7 +522,18 @@ export async function legacyVoucherDetail(id: string) {
           ?.createdAt ?? null,
     })),
     dunnings,
-    fileState: { status: fileStatus, label: FILE_STATUS_LABELS[fileStatus], history: fileStates, canConfirmWithoutFile },
+    fileState: {
+      status: fileStatus,
+      label: FILE_STATUS_LABELS[fileStatus],
+      history: fileStates,
+      canConfirmWithoutFile,
+      // Warum keine Datei da ist, hängt an der Beleg-GUID und an der Quelle (#1235)
+      ohneBelegGrund: !voucher.rawGuid
+        ? ("kein_beleglink" as const)
+        : voucher.source === "accountable"
+          ? ("datei_fehlt_im_export" as const)
+          : ("quelle_ohne_beleg" as const),
+    },
   };
 }
 
