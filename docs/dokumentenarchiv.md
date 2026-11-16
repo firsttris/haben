@@ -19,7 +19,7 @@ Unter **Einstellungen › Export › Ablage im Dokumentenarchiv**:
 | --- | --- |
 | Adresse | Die Adresse, an die das Archiv neue Dokumente annimmt, mit `https://` (oder `http://` im eigenen Netz) |
 | Feld für die Datei | Name des Formularfelds mit der Datei, wie ihn das Archiv erwartet |
-| Kopfzeile, Wert der Kopfzeile | Die Anmeldung, meist `Authorization` mit einem Token. Der Wert liegt verschlüsselt in der Datenbank, steht nicht im Änderungsprotokoll und wird nicht wieder angezeigt; leer gelassen bleibt der gespeicherte |
+| Kopfzeile, Wert der Kopfzeile | Die Anmeldung, meist `Authorization` mit einem Token. Leer gelassen bleibt der gespeicherte Wert ([Sicherheit](#sicherheit)) |
 | Zusatzfelder | Feste Felder, die mitgehen, etwa ein Titel. Im Wert ersetzt Haben `{nummer}`, `{art}` (Rechnung, Stornorechnung, …), `{datum}` (Rechnungsdatum als JJJJ-MM-TT), `{kunde}` und `{dateiname}` |
 | Datei | **E-Rechnung im Original**: das ZUGFeRD-PDF bzw. bei XRechnung das XML. **Immer das PDF**: für Archive, die kein XML annehmen |
 | Link zum Dokument | Optional. Antwortet das Archiv mit JSON und einer `id`, setzt Haben sie für `{id}` ein und zeigt an der Rechnung **Im Archiv öffnen** |
