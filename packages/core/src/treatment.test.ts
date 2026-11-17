@@ -33,9 +33,9 @@ describe("treatmentIssues", () => {
 });
 
 describe("Namen in der Auswahl", () => {
-  it("sind eindeutig, am Handy kurz genug und ohne Paragrafen (die stehen im Hinweis unter der Auswahl)", () => {
+  it("unterscheiden sich in den ersten 30 Zeichen (am Handy sieht man nicht mehr), sind kurz und ohne Paragrafen (die stehen im Hinweis unter der Auswahl)", () => {
     const labels = Object.values(TAX_TREATMENTS).map((treatment) => treatment.label);
-    expect(new Set(labels).size).toBe(labels.length);
+    expect(new Set(labels.map((label) => label.slice(0, 30))).size).toBe(labels.length);
     expect(labels.filter((label) => label.length > 60 || label.includes("§"))).toEqual([]);
   });
 

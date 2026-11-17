@@ -15,13 +15,13 @@ export const TAX_TREATMENTS = {
     note: null,
   },
   reverse_charge: {
-    label: "Dienstleistung oder Nutzungsrecht in die EU (Reverse Charge)",
+    label: "EU, Reverse Charge: Dienstleistung oder Nutzungsrecht",
     category: "AE",
     reasonCode: "VATEX-EU-AE",
     note: "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL).",
   },
   drittland: {
-    label: "Dienstleistung oder Nutzungsrecht ins Nicht-EU-Ausland",
+    label: "Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht",
     category: "O",
     reasonCode: "VATEX-EU-O",
     note: "Im Inland nicht steuerbare Leistung (Leistungsort im Drittland).",
@@ -30,7 +30,7 @@ export const TAX_TREATMENTS = {
   // Nur ohne auszuweisende ausländische Umsatzsteuer; EU-B2C ist kein B2B-Reverse-Charge.
   // https://www.gesetze-im-internet.de/ustg_1980/__3a.html
   eu_sonstige: {
-    label: "Dienstleistung oder Nutzungsrecht mit Leistungsort in der EU",
+    label: "Leistungsort EU: Dienstleistung oder Nutzungsrecht",
     category: "O",
     reasonCode: "VATEX-EU-O",
     note: "Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland).",

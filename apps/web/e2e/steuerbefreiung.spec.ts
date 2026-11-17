@@ -120,6 +120,9 @@ for (const editor of editors) {
     test(`${editor.kind}: KU-Befreiung ${provision} speichern, erneut öffnen und Vorschau`, async () => {
       await newDraft(editor);
       await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("steuerfrei");
+      await expect(page.getByLabel("Umsatzsteuer", { exact: true })).toHaveAccessibleDescription(
+        /§ 4 UStG.*Die Kleinunternehmerregelung lässt eine eigene Befreiung/,
+      );
       await taxActionRejected(editor);
       await page.getByLabel("Befreiungsvorschrift", { exact: true }).selectOption(provision);
       await expect(page.getByLabel("Hinweis zur Steuerbefreiung", { exact: true })).toHaveValue(`Steuerfreie Leistung nach ${note}.`);

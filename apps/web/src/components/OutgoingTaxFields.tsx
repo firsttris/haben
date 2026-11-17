@@ -237,6 +237,8 @@ function TurnoverFields({ values, disabled, update, treatment }: DetailsProps & 
   );
 }
 
+const KU_HINT = "Die Kleinunternehmerregelung lässt eine eigene Befreiung oder einen geklärten ausländischen Leistungsort zu.";
+
 function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): string | undefined {
   switch (treatment) {
     case "kleinunternehmer":
@@ -250,10 +252,10 @@ function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): stri
     case "ig_lieferung":
       return "Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG): nur für Ware an einen Kunden mit USt-IdNr. in einem anderen EU-Land. Den Gelangensnachweis (§ 17a UStDV) zur Rechnung aufbewahren; Haben meldet Kz 41 und die Zusammenfassende Meldung.";
     case "ausfuhr":
-      return "Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG): nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§§ 8–11 UStDV). Dienstleistungen ins Drittland sind „Dienstleistung oder Nutzungsrecht ins Nicht-EU-Ausland“.";
+      return "Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG): nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§§ 8–11 UStDV). Dienstleistungen ins Drittland sind „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“.";
     case "steuerfrei":
-      return "Steuerbefreiung nach § 4 UStG; die Vorschrift wählst du darunter.";
+      return `Steuerbefreiung nach § 4 UStG; die Vorschrift wählst du darunter.${kleinunternehmer ? ` ${KU_HINT}` : ""}`;
     default:
-      return kleinunternehmer ? "Die Kleinunternehmerregelung lässt eine eigene Befreiung oder einen geklärten ausländischen Leistungsort zu." : undefined;
+      return kleinunternehmer ? KU_HINT : undefined;
   }
 }
