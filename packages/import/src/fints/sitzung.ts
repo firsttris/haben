@@ -1,4 +1,5 @@
 import { type BankAccount, type BankAnswer, type BankingInformation, type ClientResponse, FinTSClient, FinTSConfig, type Statement } from "lib-fints";
+import { lesefehler, lesefehlerMerken } from "./lesefehler.ts";
 
 /**
  * Dünne Schicht über lib-fints (FinTS 3.0 mit PIN/TAN): baut den Client, übersetzt Antworten der Bank in
@@ -72,7 +73,9 @@ export function fintsClient(produkt: FintsProdukt, zugang: FintsZugang, gespeich
       )
     : FinTSConfig.forFirstTimeUse(produkt.id, produkt.version, zugang.url, zugang.blz, zugang.benutzer, zugang.pin, kundenId);
   config.debugEnabled = false;
-  return new FinTSClient(config);
+  const client = new FinTSClient(config);
+  lesefehlerMerken(client);
+  return client;
 }
 
 /** Sammelmeldungen zur ganzen Nachricht (HIRMG), die neben dem eigentlichen Grund nichts sagen */
@@ -143,7 +146,10 @@ function datum(tag: string): Date {
   return new Date(jahr!, monat! - 1, t);
 }
 
-/** Gebuchte Umsätze eines Kontos von bis einschließlich (CAMT, wenn die Bank es für das Konto anbietet, sonst MT940) */
+/**
+ * Gebuchte Umsätze eines Kontos von bis einschließlich (CAMT, wenn die Bank es für das Konto anbietet, sonst MT940).
+ * Wirft, wenn lib-fints die Umsätze nicht lesen kann (lesefehler.ts), statt sie als leer zu melden.
+ */
 export async function fintsUmsaetze(
   client: FinTSClient,
   konto: BankAccount,
@@ -154,6 +160,12 @@ export async function fintsUmsaetze(
   const response = weiter
     ? await client.getAccountStatementsWithTan(weiter.referenz, weiter.tan)
     : await client.getAccountStatements(konto, datum(von), datum(bis));
+  const fehler = lesefehler(response);
+  if (fehler) {
+    throw new Error(
+      `Die Bank hat die Umsätze von Konto …${(konto.iban ?? "").slice(-4)} als ${fehler.format} geschickt, Haben kann sie nicht lesen (lib-fints: ${fehler.grund}). Bleibt der Fehler, die fehlenden Umsätze als Datei aus dem Online-Banking importieren.`,
+    );
+  }
   return antwort(client, response, () => ("statements" in response ? (response.statements as Statement[]) : []));
 }
 
