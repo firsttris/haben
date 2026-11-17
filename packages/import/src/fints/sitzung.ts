@@ -1,10 +1,12 @@
 import { type BankAccount, type BankAnswer, type BankingInformation, type ClientResponse, FinTSClient, FinTSConfig, type Statement } from "lib-fints";
+import { bankdatenNichtLoggen } from "./log.ts";
 import { lesefehler, lesefehlerMerken, type UmsatzFormat, umsatzFormat } from "./lesefehler.ts";
 
 /**
  * Dünne Schicht über lib-fints (FinTS 3.0 mit PIN/TAN): baut den Client, übersetzt Antworten der Bank in
  * „fertig / TAN nötig / abgelehnt“ und hält die Texte der Bank fest. Was gespeichert wird und wann wer gefragt wird,
  * entscheidet die App. Das Debug-Log von lib-fints bleibt aus: Es schriebe jede Nachricht samt PIN auf die Konsole.
+ * Was lib-fints auch ohne Debug-Log über Antworten der Bank schreibt, filtert log.ts.
  */
 
 /** Produktregistrierung bei der Deutschen Kreditwirtschaft: Nummer an..25 und Version an..5 (HKVVB, FinTS 3.0 Formals) */
@@ -73,6 +75,7 @@ export function fintsClient(produkt: FintsProdukt, zugang: FintsZugang, gespeich
       )
     : FinTSConfig.forFirstTimeUse(produkt.id, produkt.version, zugang.url, zugang.blz, zugang.benutzer, zugang.pin, kundenId);
   config.debugEnabled = false;
+  bankdatenNichtLoggen();
   const client = new FinTSClient(config);
   lesefehlerMerken(client);
   return client;
