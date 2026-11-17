@@ -138,6 +138,15 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
   await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
 
+  // Der Testabruf des Postfachs liefert einen Bescheid; unter der Tabelle steht, was „Einspruch bis“ heißt
+  await go("/finanzamt");
+  const postfach = page.getByRole("form", { name: "Postfach abrufen" });
+  await postfach.getByLabel("Zertifikats-PIN").fill("123456");
+  await postfach.getByRole("button", { name: "Testweise abrufen" }).click();
+  const bescheide = page.getByRole("region", { name: "Bescheide aus dem ELSTER-Postfach" });
+  await expect(bescheide.getByRole("columnheader", { name: "Einspruch bis" })).toBeVisible();
+  await expect(bescheide.getByText("Bis zum Datum unter „Einspruch bis“ kannst du Einspruch einlegen.")).toBeVisible();
+
   // Ohne ERiC läuft der Abruf simuliert und liefert Beispielbelege
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const vast = page.getByRole("region", { name: `Belege von ELSTER ${YEAR - 1}` });
@@ -602,6 +611,7 @@ test("Fristen und Kalender-Abo", async () => {
   await expect(spaeter.getByRole("button", { name: /^Alle \d+ zeigen$/ })).toHaveCount(0);
   expect(await spaeter.getByRole("row").count()).toBeGreaterThan(7);
   await expect(page.getByText(/Umsatzsteuer-Voranmeldung/).first()).toBeVisible();
+  await expect(page.getByText("Umsatzsteuer melden und zahlen").first()).toBeVisible();
   const abo = page.getByRole("region", { name: "Erinnerungen im Kalender" });
   await abo.getByRole("button", { name: "Kalender-Abo einrichten" }).click();
   const url = await abo.getByLabel(/Abo-Link/).inputValue();
@@ -1867,6 +1877,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await kundeWaehlen(page, "Donaublick GmbH · Wien");
   await page.getByLabel("Rechnungsdatum").fill(`${next}-02-10`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
+  // Der Paragraf steht im Hinweis unter der Auswahl, nicht im Namen der Auswahl
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/sonstige Leistungen, § 3 Abs\. 9 UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung Cloud-Architektur");
   await page.getByLabel("Menge Position 1").fill("2");
   await page.getByLabel(/Einzelpreis Position 1/).fill("1.200,50");
@@ -1906,6 +1918,7 @@ test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart 
   await page.getByLabel("Rechnungsdatum").fill(`${next}-05-12`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("ig_lieferung");
   await expect(page.getByText(/Gelangensnachweis \(§ 17a UStDV\)/)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/§ 4 Nr\. 1 Buchst\. b, § 6a UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Industrierechner");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("3.000,00");

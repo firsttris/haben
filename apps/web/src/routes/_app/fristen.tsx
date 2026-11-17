@@ -33,6 +33,19 @@ const ART_LABEL: Record<Frist["art"], string> = {
   sv: "Sozialversicherung",
 };
 
+const ART_KLARTEXT: Record<Frist["art"], string> = {
+  ustva: "Umsatzsteuer melden und zahlen",
+  zm: "Leistungen und Lieferungen an Firmen im EU-Ausland melden",
+  kapest: "Steuer auf Gewinnausschüttungen anmelden und zahlen",
+  lsta: "Lohnsteuer deiner Mitarbeiter anmelden und zahlen",
+  lstb: "Jahresbescheinigung über den Lohn je Mitarbeiter",
+  erklaerung: "Steuererklärung für das ganze Jahr",
+  vorauszahlung: "Einkommensteuer im Voraus, wenn das Finanzamt sie festsetzt",
+  einspruch: "Einspruch gegen einen Bescheid einlegen",
+  zertifikat: "Zertifikat für das Senden an ELSTER erneuern",
+  sv: "Beiträge und Meldungen für Mitarbeiter an die Sozialversicherung",
+};
+
 /** Zustand einer Frist: erledigt, Hinweis (Haben prüft es nicht) oder offen, ab 7 Tagen vorher dringend */
 function FristStatus({ frist, today }: { frist: Frist; today: string }) {
   const tage = tageBis(frist.datum, today);
@@ -64,6 +77,7 @@ function FristRow({ frist, today }: { frist: Frist; today: string }) {
       </td>
       <td data-label="Art" className="small">
         {ART_LABEL[frist.art]}
+        <div className="muted">{ART_KLARTEXT[frist.art]}</div>
       </td>
       <td data-label="Status">
         <FristStatus frist={frist} today={today} />
@@ -97,7 +111,7 @@ function Gruppe({ titel, fristen, today, leer, kurz }: { titel: string; fristen:
                 Datum
               </th>
               <th scope="col">Frist</th>
-              <th scope="col" style={{ width: 140 }}>
+              <th scope="col" style={{ width: 220 }}>
                 Art
               </th>
               <th scope="col" style={{ width: 150 }}>

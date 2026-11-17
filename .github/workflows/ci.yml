@@ -511,6 +511,15 @@ jobs:
           docker compose exec -T db psql -U haben_app -d haben -X -q < tests/rollen-db.sql
           docker compose run --rm --no-deps -T --entrypoint sh restore -c \
             'test "$(cat /belege/ab/cd)" = beleg && test ! -e /belege/neu && test "$(stat -c %u /belege/ab/cd)" = 1000'
+          # Wie im Helm-Chart: restore.sh als Nutzer 1000; den Wurzelordner des Volumes legt Kubernetes mit fsGroup als
+          # root:1000 an, das Repository gehört nach dem Schritt aus docs/kubernetes.md (Updates) dem Nutzer 1000
+          docker compose run --rm --no-deps -T --entrypoint sh restore -c \
+            'chown 0:1000 /belege && chmod 2775 /belege && chown -R 1000:1000 /backups && rm /belege/ab/cd'
+          docker compose exec -T db psql -U haben -d haben -qc "UPDATE t SET x = 'nachher'"
+          echo ja | docker compose run --rm -T --user 1000:1000 -e HOME=/tmp restore latest
+          test "$(docker compose exec -T db psql -U haben -d haben -Atc 'SELECT x FROM t')" = vorher
+          docker compose run --rm --no-deps -T --entrypoint sh restore -c \
+            'test "$(cat /belege/ab/cd)" = beleg && test "$(stat -c %u:%g /belege/ab/cd)" = 1000:1000'
       - if: failure()
         run: docker compose logs
 

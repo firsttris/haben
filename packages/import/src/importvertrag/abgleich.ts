@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { formatEuro } from "@haben/core";
 import type { ImportBatch, ImportMovement, SourceBinding } from "./types.ts";
 
 /*
@@ -69,6 +70,13 @@ const CORE_LABELS: [keyof Core, string][] = [
   ["kind", "Art"],
 ];
 
+/** Für die Meldung an Nutzer: Betrag in Euro, Tag wie in Deutschland üblich */
+function shown(field: keyof Core, core: Core): string {
+  if (field === "amount") return formatEuro(core.amount);
+  if (field === "bookingDate") return core.bookingDate.split("-").reverse().join(".");
+  return core[field];
+}
+
 /**
  * Ordnet die Bewegungen einer geprüften Lieferung gegen die schon übernommenen ein. Eine Beobachtung (gleicher Kern, andere
  * Angaben, etwa ein später geschwärzter Name) ergänzt nur die Herkunft, ein Konflikt überschreibt nichts; mit einem
@@ -86,7 +94,7 @@ export function classifyMovements(
     if (!before) return { key, movement, outcome: "new" as const };
     const changed = CORE_LABELS.filter(([field]) => before.core[field] !== movement[field]);
     if (changed.length > 0) {
-      const list = changed.map(([field, name]) => `${name} ${before.core[field]} → ${movement[field]}`).join(", ");
+      const list = changed.map(([field, name]) => `${name} ${shown(field, before.core)} → ${shown(field, movement)}`).join(", ");
       conflicts.push(`${movement.sourceEventId}/${movement.component}: ${list}; nichts überschrieben.`);
       return { key, movement, outcome: "conflict" as const };
     }
