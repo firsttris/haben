@@ -76,16 +76,17 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
  * Hälfte von 20 % (d Satz 2); ob ein Vertrag dazu gehört, entscheidet, wer auf das Konto bucht.
  *
  * Die Konten tragen im DATEV-Kontenrahmen 2026 (SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175) das Kennzeichen G; die Gruppen
- * sind in beiden Kontenrahmen gleich groß (koerperschaft.test.ts). Das G ist nur die Programmverbindung (Fußnote 4), nicht
- * alle Konten damit gehören hierher: Nicht dabei sind die Zinsen nach §§ 233a bis 237 AO, Abschreibungen auf ein Disagio,
- * Vergütungen an Mitunternehmer und Aufwendungen nach § 3 Nr. 40 EStG bzw. § 8b KStG.
+ * sind in beiden Kontenrahmen gleich groß (koerperschaft.test.ts). Das G bildet nur die Programmverbindung ab, nicht den
+ * steuerlichen Ursprung (Fußnote 4 und „Erläuterungen zur Kennzeichnung“); nicht alle Konten damit gehören hierher. Nicht
+ * dabei sind die Zinsen nach §§ 233a bis 237 AO, Abschreibungen auf ein Disagio, Vergütungen an Mitunternehmer und
+ * Aufwendungen nach §§ 3 Nr. 40, 3c EStG bzw. § 8b KStG (etwa 2115, 2116 / 7350, 7351, Fußnote 9).
  */
 export type HinzurechnungArt = "zinsen" | "renten" | "beweglich" | "elektro" | "unbeweglich" | "rechte";
 const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: BasisPoints, text: string][]> = {
   SKR03: [
     // Mit den Zinsen zur Finanzierung des Anlagevermögens aus dem Darlehen (darlehen.ts), an verbundene Unternehmen,
     // auf Kontokorrentkonten und für Gebäude
-    ["zinsen", ["2100", "2109", "2110", "2116", "2118", "2119", "2120", "2125", "2126", "2129"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["zinsen", ["2100", "2109", "2110", "2118", "2119", "2120", "2125", "2126", "2129"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["renten", ["2127"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
     // Mit Mietleasing für technische Anlagen und Maschinen (4810) und Betriebs- und Geschäftsausstattung (4965)
     ["beweglich", ["4570", "4810", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
@@ -95,7 +96,7 @@ const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konte
     ["rechte", ["4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
   SKR04: [
-    ["zinsen", ["7300", "7309", "7310", "7318", "7319", "7320", "7325", "7326", "7329", "7351"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["zinsen", ["7300", "7309", "7310", "7318", "7319", "7320", "7325", "7326", "7329"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["renten", ["7327"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
     ["beweglich", ["6498", "6560", "6835", "6836", "6838", "6840"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
     ["elektro", ["6565"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],

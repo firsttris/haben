@@ -23,7 +23,7 @@ const POSITIONEN: Record<Kontenrahmen, readonly [konten: string, position: strin
     ["4960 4961 4963", `${OC}.leaseMoveable.other`],
     ["4215", `${OC}.leasingAll.immovable.other`],
     ["4211 4220 4550", `${OC}.leaseFix.other`],
-    ["2100 2109 2116 2118 2119 2125 2129", ZINSEN],
+    ["2100 2109 2118 2119 2125 2129", ZINSEN],
     ["2127", `${FIN}.annuities`],
   ],
   SKR04: [
@@ -31,7 +31,7 @@ const POSITIONEN: Record<Kontenrahmen, readonly [konten: string, position: strin
     ["6835 6836 6838", `${OC}.leaseMoveable.other`],
     ["6316", `${OC}.leasingAll.immovable.other`],
     ["6315 6317 6550", `${OC}.leaseFix.other`],
-    ["7300 7309 7318 7319 7325 7329 7351", ZINSEN],
+    ["7300 7309 7318 7319 7325 7329", ZINSEN],
     ["7327", `${FIN}.annuities`],
   ],
 };
