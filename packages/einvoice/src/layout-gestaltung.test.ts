@@ -126,4 +126,15 @@ describe("Hinweise in der Beleggestaltung", () => {
     const hinweise = gestaltungsHinweise({ rechnung: alt, angebot: alt, auftragsbestaetigung: alt, lieferschein: alt, mahnung: alt });
     expect(hinweise.logoMitte).toEqual({ aus: true, text: "Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts." });
   });
+
+  it("„Mitte“ ist auch aus, wenn die übrigen Belege die Stelle des Logos gar nicht lesen", () => {
+    const alt = { name: "Alt", ungenutzt: ["logoMitte"] as const };
+    const fest = { name: "Fest", ungenutzt: ["logoPosition"] as const };
+    const hinweise = gestaltungsHinweise({ rechnung: alt, angebot: fest, auftragsbestaetigung: fest, lieferschein: fest, mahnung: fest });
+    expect(hinweise.logoPosition?.aus).toBe(false);
+    expect(hinweise.logoMitte).toEqual({
+      aus: true,
+      text: "Wirkt nicht auf Rechnungen: Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts.",
+    });
+  });
 });
