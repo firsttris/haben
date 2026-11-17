@@ -198,13 +198,17 @@ export async function openPositions(today: string, { bis }: { bis?: string } = {
   };
 }
 
-/** Jahre mit Bankumsätzen, Rechnungen oder Belegen, für die Jahresauswahl */
+/**
+ * Jahre mit Bankumsätzen, Rechnungen, Belegen oder Buchungen, für die Jahresauswahl. Die EÜR rechnet aus dem Journal
+ * (#1116); ein Jahr, das nur über den Datenimport gebucht ist, gehört deshalb ebenso in die Auswahl.
+ */
 export async function reportYears(): Promise<number[]> {
   const rows = await db.execute<{ year: number }>(sql`
     select distinct extract(year from d)::int as year from (
       select booking_date as d from bank_transactions where bank_account_id not in (select id from bank_accounts where excluded_at is not null)
       union all select issue_date from invoices where status = 'final'
       union all select document_date from documents where status = 'gebucht' and document_date is not null
+      union all select date from journal_entries
     ) dates order by 1`);
   return [...rows].map((r) => Number(r.year));
 }
