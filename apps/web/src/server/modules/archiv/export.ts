@@ -317,6 +317,56 @@ export async function exportYears(now = new Date()): Promise<number[]> {
   return [...years].sort((a, b) => b - a);
 }
 
+/**
+ * Importprotokoll (`bank/importe.csv`) und Herkunft der abgerufenen Umsätze (`bank/quellen.csv`) eines Jahres; eigene
+ * Funktion, damit `yearFiles` nicht weiter wächst
+ */
+async function* bankImportFiles(
+  year: number,
+  imports: (typeof schema.bankImports.$inferSelect)[],
+  accountById: ReadonlyMap<string, { iban: string | null; name: string }>,
+): AsyncGenerator<ArchiveFile> {
+  yield {
+    path: "bank/importe.csv",
+    content: csv(
+      [
+        "Konto",
+        "Datei",
+        "SHA-256",
+        "Format",
+        "Zeitraum von",
+        "Zeitraum bis",
+        "Anfangssaldo",
+        "Endsaldo",
+        "Neu",
+        "Übersprungen",
+        "Hinweise",
+        "Importiert",
+        "Import-ID",
+      ],
+      imports.map((i) => [
+        accountById.get(i.bankAccountId)?.iban ?? accountById.get(i.bankAccountId)?.name,
+        i.filename,
+        i.sha256,
+        i.format,
+        i.periodFrom,
+        i.periodTo,
+        money(i.openingBalance),
+        money(i.closingBalance),
+        i.added,
+        i.skipped,
+        i.warnings.join(" | "),
+        iso(i.createdAt),
+        i.id,
+      ]),
+    ),
+    compress: true,
+  };
+  // Herkunft der abgerufenen Umsätze nach dem Importvertrag (#306): eigene Datei, siehe export-importvertrag.ts
+  const quellen = await quellenFuerArchiv({ von: yearStart(year), bis: yearEnd(year), money, iso });
+  if (quellen) yield { path: "bank/quellen.csv", content: csv(QUELLEN_HEADER, quellen), compress: true };
+}
+
 async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> {
   const [company] = await db.select().from(schema.company).where(eq(schema.company.id, 1));
   const problems: string[] = [];
@@ -1071,45 +1121,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       compress: true,
     };
   }
-  yield {
-    path: "bank/importe.csv",
-    content: csv(
-      [
-        "Konto",
-        "Datei",
-        "SHA-256",
-        "Format",
-        "Zeitraum von",
-        "Zeitraum bis",
-        "Anfangssaldo",
-        "Endsaldo",
-        "Neu",
-        "Übersprungen",
-        "Hinweise",
-        "Importiert",
-        "Import-ID",
-      ],
-      imports.map((i) => [
-        accountById.get(i.bankAccountId)?.iban ?? accountById.get(i.bankAccountId)?.name,
-        i.filename,
-        i.sha256,
-        i.format,
-        i.periodFrom,
-        i.periodTo,
-        money(i.openingBalance),
-        money(i.closingBalance),
-        i.added,
-        i.skipped,
-        i.warnings.join(" | "),
-        iso(i.createdAt),
-        i.id,
-      ]),
-    ),
-    compress: true,
-  };
-  // Herkunft der abgerufenen Umsätze nach dem Importvertrag (#306): eigene Datei, siehe export-importvertrag.ts
-  const quellen = await quellenFuerArchiv({ von: yearStart(year), bis: yearEnd(year), money, iso });
-  if (quellen) yield { path: "bank/quellen.csv", content: csv(QUELLEN_HEADER, quellen), compress: true };
+  yield* bankImportFiles(year, imports, accountById);
 
   // Umsatzsteuer ----------------------------------------------------------
   const vatReturns = await db
