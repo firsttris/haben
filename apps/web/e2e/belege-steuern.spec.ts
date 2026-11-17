@@ -138,6 +138,15 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
   await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
 
+  // Der Testabruf des Postfachs liefert einen Bescheid; unter der Tabelle steht, was „Einspruch bis“ heißt
+  await go("/finanzamt");
+  const postfach = page.getByRole("form", { name: "Postfach abrufen" });
+  await postfach.getByLabel("Zertifikats-PIN").fill("123456");
+  await postfach.getByRole("button", { name: "Testweise abrufen" }).click();
+  const bescheide = page.getByRole("region", { name: "Bescheide aus dem ELSTER-Postfach" });
+  await expect(bescheide.getByRole("columnheader", { name: "Einspruch bis" })).toBeVisible();
+  await expect(bescheide.getByText("Bis zum Datum unter „Einspruch bis“ kannst du Einspruch einlegen.")).toBeVisible();
+
   // Ohne ERiC läuft der Abruf simuliert und liefert Beispielbelege
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const vast = page.getByRole("region", { name: `Belege von ELSTER ${YEAR - 1}` });
@@ -602,6 +611,7 @@ test("Fristen und Kalender-Abo", async () => {
   await expect(spaeter.getByRole("button", { name: /^Alle \d+ zeigen$/ })).toHaveCount(0);
   expect(await spaeter.getByRole("row").count()).toBeGreaterThan(7);
   await expect(page.getByText(/Umsatzsteuer-Voranmeldung/).first()).toBeVisible();
+  await expect(page.getByText("Umsatzsteuer melden und zahlen").first()).toBeVisible();
   const abo = page.getByRole("region", { name: "Erinnerungen im Kalender" });
   await abo.getByRole("button", { name: "Kalender-Abo einrichten" }).click();
   const url = await abo.getByLabel(/Abo-Link/).inputValue();

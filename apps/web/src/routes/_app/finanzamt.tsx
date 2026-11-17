@@ -588,6 +588,11 @@ function Postfach({ data }: { data: Data }) {
             </tbody>
           </ScrollTable>
         )}
+        {data.documents.length > 0 && (
+          <p className="small muted" style={{ margin: 0 }}>
+            Bis zum Datum unter „Einspruch bis“ kannst du Einspruch einlegen.
+          </p>
+        )}
       </section>
       <form ref={form} className="card" onSubmit={onSubmit} aria-label="Postfach abrufen" noValidate>
         <h2>Postfach abrufen</h2>
