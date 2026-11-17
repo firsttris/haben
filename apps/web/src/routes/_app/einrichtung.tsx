@@ -88,8 +88,7 @@ function EinrichtungPage() {
           </h2>
           {schritt === 0 && (
             <p className="small muted">
-              Jede Frage lässt sich überspringen; bei „Weiß ich nicht“ bleibt die bisherige Angabe, die Übersicht fragt später nach. Die Antworten stehen danach
-              in den Firmendaten und lassen sich dort ändern; Steuernummer, Bank und ELSTER folgen später.
+              Jede Frage lässt sich überspringen; bei „Weiß ich nicht“ bleibt die bisherige Angabe, die Übersicht fragt später nach.
             </p>
           )}
         </div>
