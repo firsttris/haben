@@ -54,7 +54,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{ include "haben.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Values.image.tag | toString | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
+{{- /* Label-Werte: höchstens 63 Zeichen, kein „+“ (Kubernetes, Labels and Selectors); Flux baut das Chart aus Git als
+0.1.0+<Commit>. Wie helm create und Helm Best Practices, Labels */}}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end -}}
 
 {{- define "haben.dbHost" -}}

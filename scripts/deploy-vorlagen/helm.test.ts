@@ -1,7 +1,8 @@
 // Das Helm-Chart (deploy/helm) beschreibt denselben Stack wie deploy/compose.yml. Gerendert mit `helm template`; ohne
 // helm übersprungen (docs/entwicklung.md, Tests), der Runner der CI bringt es mit.
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
@@ -24,7 +25,7 @@ type Pod = {
 };
 type Manifest = {
   kind: string;
-  metadata: { name: string; annotations?: Record<string, string> };
+  metadata: { name: string; labels?: Record<string, string>; annotations?: Record<string, string> };
   stringData?: Record<string, string>;
   data?: Record<string, string>;
   spec: {
@@ -59,10 +60,10 @@ const extern: Werte = {
   backup: { secretEnv: { RESTIC_PASSWORD: "restic3", PGPASSWORD: "eigentuemer1" }, env: { PGHOST: "haben-rw" } },
 };
 
-const rendern = (werte: Werte) =>
-  spawnSync("helm", ["template", "haben", join(root, "deploy/helm"), "-f", "-"], { input: JSON.stringify(werte), encoding: "utf8" });
-const manifeste = (werte: Werte) => {
-  const lauf = rendern(werte);
+const rendern = (werte: Werte, chart = join(root, "deploy/helm")) =>
+  spawnSync("helm", ["template", "haben", chart, "-f", "-"], { input: JSON.stringify(werte), encoding: "utf8" });
+const manifeste = (werte: Werte, chart?: string) => {
+  const lauf = rendern(werte, chart);
   expect(lauf.stderr).toBe("");
   return (Bun.YAML.parse(lauf.stdout) as (Manifest | null)[]).filter((m): m is Manifest => m !== null);
 };
@@ -77,6 +78,15 @@ const container = (pod: Pod, name: string) => {
   return c;
 };
 const variable = (c: Container, name: string) => c.env?.find((e) => e.name === name);
+// Alle Werte unter labels und matchLabels, auch in Pod-Vorlagen und Selektoren
+const labelWerte = (knoten: unknown): unknown[] =>
+  typeof knoten === "object" && knoten !== null
+    ? Object.entries(knoten).flatMap(([schluessel, wert]) =>
+        ["labels", "matchLabels"].includes(schluessel) ? Object.values(wert as object) : labelWerte(wert),
+      )
+    : [];
+// Syntax eines Label-Werts laut Kubernetes-Doku (Labels and Selectors, „Syntax and character set“)
+const gueltigesLabel = (wert: unknown) => typeof wert === "string" && wert.length <= 63 && /^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$/.test(wert);
 const ohneTag = (image: string) => image.replace(/^docker\.io\//, "").replace(/:[^/]*$/, "");
 
 type ComposeService = { image: string; volumes?: string[]; read_only?: boolean; cap_drop?: string[]; tmpfs?: string[] };
@@ -222,6 +232,34 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     const pod = finde(alle, "Deployment", "haben").spec.template.spec;
     expect(container(pod, "app").envFrom?.[0].secretRef.name).toBe("a");
     expect(variable(container(pod, "backup"), "PGPASSWORD")?.valueFrom?.secretKeyRef.name).toBe("d");
+  });
+
+  // Flux baut ein Chart aus Git mit reconcileStrategy: Revision als 0.1.0+<Commit>; mit „+“ in helm.sh/chart lehnte der
+  // API-Server jedes Objekt ab
+  const suffix = "9dd43b86d64c";
+  test.each([
+    { fall: "Chart-Version ohne Suffix", version: "0.1.0", chart: "haben-0.1.0" },
+    { fall: "Build-Suffix von Flux in der Chart-Version", version: `0.1.0+${suffix}`, chart: `haben-0.1.0_${suffix}` },
+    { fall: "Chart-Version über 63 Zeichen", version: `0.1.0+${suffix.repeat(6)}`, chart: `haben-0.1.0_${suffix.repeat(6)}`.slice(0, 63) },
+  ])("schreibt gültige Label-Werte mit $fall", ({ version, chart }) => {
+    const kopie = mkdtempSync(join(tmpdir(), "haben-chart-"));
+    try {
+      cpSync(join(root, "deploy/helm"), kopie, { recursive: true });
+      const datei = join(kopie, "Chart.yaml");
+      writeFileSync(datei, readFileSync(datei, "utf8").replace(/^version: .*$/m, `version: ${version}`));
+      const werte = {
+        ...basis,
+        ingress: { enabled: true },
+        httpRoute: { enabled: true, parentRefs: [{ name: "gw" }] },
+        networkPolicy: { enabled: true, ingressFrom: [{ podSelector: { matchLabels: { "app.kubernetes.io/name": "traefik" } } }] },
+        restore: { enabled: true },
+      };
+      const alle = manifeste(werte, kopie);
+      expect(labelWerte(alle).filter((wert) => !gueltigesLabel(wert))).toEqual([]);
+      for (const manifest of alle) expect(manifest.metadata.labels?.["helm.sh/chart"]).toBe(chart);
+    } finally {
+      rmSync(kopie, { recursive: true, force: true });
+    }
   });
 
   // Wie das eigene Netz in Compose: Port 3000 erreicht nur der Proxy, die Datenbank nur der Pod der App mit dem Backup und
