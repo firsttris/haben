@@ -252,8 +252,9 @@ function ust2aBerechnung(
   teile: { umsatzsteuer: Cents; igErwerbSteuer: Cents; s13bSteuer: Cents; vorsteuer: Cents; steuer: Cents; abschluss: Cents },
 ): XmlNode {
   const ustGesamt = teile.umsatzsteuer + teile.igErwerbSteuer + teile.s13bSteuer;
-  // Je Summe der Erklärung ihr Übertrag, auch mit 0,00; die Zwischensumme, sobald einer der Umsatzsteuer dasteht, und das
-  // Ergebnis, sobald Zwischensumme oder Vorsteuer dastehen (ERiC lehnt sonst ab, USt_30907, USt_30909, USt_30914)
+  // Je Summe der Erklärung ihr Übertrag, auch mit 0,00 (ERiC-Regeln USt_30142 Umsätze, USt_30180 Erwerbe, USt_30146 § 13b,
+  // USt_30150 Vorsteuer); die Zwischensumme, sobald einer der Umsatzsteuer dasteht (USt_30912), und das Ergebnis, sobald
+  // Zwischensumme oder Vorsteuer dastehen (USt_30907, USt_30909, USt_30914)
   const zwischensumme = hatUmsatzZeilen(f) || hatIgErwerbZeilen(f) || hat13bZeilen(f);
   const ergebnis = zwischensumme || hatVorsteuerZeilen(f);
   return [
