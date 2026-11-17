@@ -336,7 +336,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
-| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Accountable-Export (`accountable/`), WISO-Buchungs-CSV (`wiso/`), Finanzberichte von Google Play und App Store Connect (`stores/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
+| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Accountable-Export (`accountable/`), WISO-Buchungs-CSV (`wiso/`), Finanzberichte von Google Play und App Store Connect (`stores/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`), Spaltenzuordnung für Kontoauszüge unbekannter Banken (`bank-zuordnung/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
 | `apps/firmenportal` | Firmenportal über den Instanzen (#504): Anmeldung per SSO, Links auf die Firmen der Person, ohne Datenbank (Bun, HTML auf dem Server); `deploy/firmenportal`: Compose-Vorlage |
@@ -345,7 +345,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 
 ## Neues Bankformat
 
-Die Parser liegen in `packages/import/src/`.
+Die Parser liegen in `packages/import/src/`. Ohne eigenen Parser liest Haben eine CSV über die [Spaltenzuordnung](bank.md#andere-banken-spalten-zuordnen) (`bank-zuordnung/`); ein eigener Parser lohnt sich für verbreitete Banken und für alles, was eine Zuordnung nicht kann: eigene IBAN und Kontostand aus dem Kopfblock, Referenzen aus einem Buchungstext.
 
 1. Eigene Datei anlegen, z. B. `meinebank.ts`, mit einer Erkennungsfunktion für die Kopfzeile (`isMeinebankHeader`) und einem Parser, der ein `ParsedStatement` liefert. `dkb.ts` und `n26.ts` sind gute Vorlagen; Hilfen für Beträge, Datum und IBAN stehen in `text.ts`, `table.ts` und `common.ts`.
 2. Das Format in `StatementFormat` in `types.ts` ergänzen.

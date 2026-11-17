@@ -51,7 +51,15 @@ import {
   type TaxShare,
   inCents,
 } from "@haben/core";
-import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
+import {
+  checkBalanceContinuity,
+  parseStatement,
+  PSP_FORMATS,
+  StatementParseError,
+  withDedupHashes,
+  type BankCsvMapping,
+  type ParsedStatement,
+} from "@haben/import";
 import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -249,7 +257,7 @@ export async function importStatement(actor: string, file: { bytes: Uint8Array; 
 export async function storeStatement(
   tx: Tx,
   statement: ParsedStatement,
-  source: { filename: string; sha256: string },
+  source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
   accountId: string | null,
 ): Promise<ImportResult> {
   let account: typeof schema.bankAccounts.$inferSelect | undefined;
@@ -329,6 +337,7 @@ export async function storeStatement(
       added,
       skipped: transactions.length - added,
       warnings: statement.warnings,
+      csvMapping: source.csvMapping ?? null,
     })
     .returning();
   if (fresh.length > 0) {

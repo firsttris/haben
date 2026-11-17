@@ -31,7 +31,8 @@ import {
   createAccount,
   createProviderAccount,
   providerAccountSchema,
-  importStatement,
+  importStatementFile,
+  UnbekannteCsvError,
   listAccounts,
   hebePrivatAuf,
   markierePrivat,
@@ -152,11 +153,12 @@ export const importStatements = createServerFn({ method: "POST" })
     const results = [];
     for (const file of data.files) {
       try {
-        const result = await importStatement(context.user.id, { bytes: new Uint8Array(await file.arrayBuffer()), filename: file.name }, data.accountId);
+        const result = await importStatementFile(context.user.id, { bytes: new Uint8Array(await file.arrayBuffer()), filename: file.name }, data.accountId);
         results.push({ filename: file.name, ...result });
       } catch (error) {
-        if (!(error instanceof BankError)) throw error;
-        results.push({ filename: file.name, error: error.message });
+        if (error instanceof UnbekannteCsvError) results.push({ filename: file.name, error: error.message, zuordnen: true });
+        else if (error instanceof BankError) results.push({ filename: file.name, error: error.message, zuordnen: false });
+        else throw error;
       }
     }
     return results;

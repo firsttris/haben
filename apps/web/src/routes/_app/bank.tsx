@@ -59,6 +59,8 @@ import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
+import { BankCsvZuordnung, type ImportedCsv } from "../../components/BankCsvZuordnung.tsx";
+import reportStyles from "../../styles/auswertungen.css?url";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
@@ -97,7 +99,8 @@ export const Route = createFileRoute("/_app/bank")({
         dir: deps.dir ?? "ab",
       },
     }),
-  head: () => ({ meta: [{ title: "Bank · Haben" }] }),
+  // auswertungen.css für die Vorschau der Spaltenzuordnung (.report-table)
+  head: () => ({ meta: [{ title: "Bank · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
   component: BankPage,
 });
 
@@ -841,7 +844,9 @@ function ImportControls({ data }: { data: Data }) {
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
-  const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
+  const [messages, setMessages] = useState<ImportMessage[]>([]);
+  // Datei, deren Spalten gerade zugeordnet werden (#1275)
+  const [zuordnen, setZuordnen] = useState<File | null>(null);
 
   async function onFiles(files: File[]) {
     if (files.length === 0) return;
@@ -853,19 +858,11 @@ function ImportControls({ data }: { data: Data }) {
       if (targetAccount) form.append("accountId", targetAccount);
       const results = await importFiles({ data: form });
       setMessages(
-        results.flatMap((r) =>
+        results.flatMap((r, i) =>
           "error" in r && r.error
-            ? [{ tone: "danger" as const, text: r.error }]
+            ? [{ tone: "danger" as const, text: r.error, zuordnen: r.zuordnen ? files[i] : undefined }]
             : "added" in r
-              ? [
-                  {
-                    tone: "ok" as const,
-                    text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.`,
-                  },
-                  ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
-                  ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
-                  ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
-                ]
+              ? importMessages(r)
               : [],
         ),
       );
@@ -972,12 +969,45 @@ function ImportControls({ data }: { data: Data }) {
           {messages.map((m, i) => (
             <li key={i} className={`banner banner-${m.tone}`}>
               {m.text}
+              {m.zuordnen && (
+                <>
+                  {" "}
+                  <button type="button" className="btn btn-sm" style={{ whiteSpace: "nowrap" }} onClick={() => setZuordnen(m.zuordnen ?? null)}>
+                    Spalten zuordnen
+                  </button>
+                </>
+              )}
             </li>
           ))}
         </ul>
       )}
+      {zuordnen && (
+        <BankCsvZuordnung
+          file={zuordnen}
+          accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
+          accountId={targetAccount}
+          onClose={() => setZuordnen(null)}
+          onImported={(result) => {
+            setZuordnen(null);
+            setTargetAccount(result.accountId);
+            setMessages(importMessages(result));
+            void router.invalidate();
+          }}
+        />
+      )}
     </div>
   );
+}
+
+type ImportMessage = { tone: "ok" | "danger" | "info"; text: string; zuordnen?: File };
+
+function importMessages(r: ImportedCsv): ImportMessage[] {
+  return [
+    { tone: "ok", text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.` },
+    ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
+    ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
+    ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
+  ];
 }
 
 /** Nächster offener Umsatz nach dem gewählten, am Ende der Liste wieder von vorn */
