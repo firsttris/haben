@@ -4,6 +4,7 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
+import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
 import { vertragHinweise } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
@@ -23,7 +24,7 @@ const OVERLAP_DAYS = 7;
 /** Ohne vorhandene Umsätze: ab dem gewählten Tag (Vorgabe Jahresbeginn), und wenn die Bank das ablehnt, die letzten 89 Tage */
 const FALLBACK_HISTORY_DAYS = 89;
 /** Der automatische Abruf läuft höchstens so oft (PSD2 erlaubt ohne Nutzer etwa vier Abrufe am Tag) */
-const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
+export const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
 /** So lange gilt die Rückleitung der Bank nach dem Start der Verbindung */
 const STATE_MAX_AGE_MS = 60 * 60 * 1000;
 /** Hinweis zum Erneuern der Zustimmung so viele Tage vor Ablauf */
@@ -263,10 +264,9 @@ export async function completeConnection(
   const withIban = session.accounts.filter((a) => a.account_id?.iban && euro(a));
   const foreign = session.accounts.filter((a) => a.account_id?.iban && !euro(a)).map((a) => a.currency!.toUpperCase());
   const skipped = session.accounts.length - withIban.length - foreign.length;
-  const replaced: { id: string; sessionId: string | null }[] = [];
+  let beenden: string[] = [];
   const created: string[] = [];
-  const foreignNote =
-    foreign.length > 0 ? `${foreign.length} Konten in Fremdwährung (${[...new Set(foreign)].join(", ")}) werden nicht abgerufen, Haben bucht nur in Euro.` : "";
+  const foreignNote = fremdwaehrung(foreign) ?? "";
   const noAccount = foreignNote ? `Die Bank hat kein Euro-Konto freigegeben. ${foreignNote}` : "Die Bank hat kein Konto mit IBAN freigegeben.";
 
   await withActor(actor, async (tx) => {
@@ -293,17 +293,8 @@ export async function completeConnection(
         ...accountFetchFrom(previous, connection.fetchFrom),
       });
     }
-    const ids = new Set(accounts.map((a) => a.bankAccountId));
-    for (const other of others) {
-      const remaining = other.accounts.filter((a) => !ids.has(a.bankAccountId));
-      if (remaining.length === other.accounts.length) continue;
-      if (remaining.length === 0) {
-        replaced.push({ id: other.id, sessionId: other.ciphertext ? decrypt(other.ciphertext).toString("utf8") : null });
-        await tx.delete(schema.bankConnections).where(eq(schema.bankConnections.id, other.id));
-      } else {
-        await tx.update(schema.bankConnections).set({ accounts: remaining }).where(eq(schema.bankConnections.id, other.id));
-      }
-    }
+    // Ein Konto, ein Abruf: Dieselben Konten fallen aus jeder anderen Zustimmung und jeder FinTS-Verbindung
+    beenden = await kontenUebernehmen(tx, new Set(accounts.map((a) => a.bankAccountId)), connection.id);
     await tx
       .update(schema.bankConnections)
       .set({
@@ -316,17 +307,13 @@ export async function completeConnection(
       .where(eq(schema.bankConnections.id, connection.id));
   });
 
-  // Abgelöste Zustimmungen auch bei Enable Banking beenden; schlägt das fehl, laufen sie einfach aus
-  for (const old of replaced) {
-    if (old.sessionId) await (await client()).deleteSession(old.sessionId).catch(() => undefined);
-  }
+  await zustimmungenBeenden(beenden);
 
   if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: noAccount };
   const sync = await syncConnection(actor, connection.id);
-  const note =
-    (created.length > 0 ? ` Neu angelegt: ${created.join(", ")}. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.` : "") +
-    (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "") +
-    (foreignNote ? ` ${foreignNote}` : "");
+  const note = [neuAngelegt(created), skipped > 0 ? `${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : null, foreignNote || null]
+    .map((n) => (n ? ` ${n}` : ""))
+    .join("");
   return {
     connectionId: connection.id,
     ok: sync.error === null,
@@ -339,7 +326,7 @@ export async function completeConnection(
  * ginge der Folgeabruf nach dem Erneuern der Zustimmung wieder davor zurück (siehe followUpStart). Der neu gewählte Tag
  * gilt nur für Konten, die noch nie abgerufen wurden.
  */
-function accountFetchFrom(previous: BankConnectionAccount | undefined, chosen: string | null): { fetchFrom?: string } {
+export function accountFetchFrom(previous: BankConnectionAccount | undefined, chosen: string | null): { fetchFrom?: string } {
   if (previous?.syncedTo) return previous.fetchFrom ? { fetchFrom: previous.fetchFrom } : {};
   return chosen ? { fetchFrom: chosen } : {};
 }
@@ -358,13 +345,13 @@ export function followUpStart(syncedTo: string, lastFileBooking: string | null, 
   return fetchFrom && fetchFrom > from ? fetchFrom : from;
 }
 
-/** Letzter Buchungstag aus einem Dateiimport (nicht aus dem Abruf) */
-async function lastFileBooking(bankAccountId: string): Promise<string | null> {
+/** Letzter Buchungstag aus einem Dateiimport oder einem anderen Abrufweg (nicht aus diesem Abruf) */
+async function lastFileBooking(bankAccountId: string, format: "enablebanking" | "fints"): Promise<string | null> {
   const [row] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })
     .from(schema.bankTransactions)
     .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
-    .where(and(eq(schema.bankTransactions.bankAccountId, bankAccountId), ne(schema.bankImports.format, "enablebanking")));
+    .where(and(eq(schema.bankTransactions.bankAccountId, bankAccountId), ne(schema.bankImports.format, format)));
   return row?.date ?? null;
 }
 
@@ -386,10 +373,14 @@ export function firstSyncStart(latestBooking: string | null, fetchFrom: string |
   return { from, fallback: recent > from ? recent : null };
 }
 
-/** Erster Tag des Abrufs für ein Konto */
-async function syncStart(account: BankConnectionAccount, today: string): Promise<{ from: string; fallback: string | null }> {
+/** Erster Tag des Abrufs für ein Konto; format ist der Abrufweg, dessen eigene Importe nicht als Datei zählen */
+export async function syncStart(
+  account: BankConnectionAccount,
+  today: string,
+  format: "enablebanking" | "fints" = "enablebanking",
+): Promise<{ from: string; fallback: string | null }> {
   if (account.syncedTo) {
-    return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId), today, account.fetchFrom), fallback: null };
+    return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId, format), today, account.fetchFrom), fallback: null };
   }
   const [latest] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })
@@ -539,6 +530,12 @@ export async function listConnections() {
       createdAt: r.createdAt.toISOString(),
       renewSoon: r.status === "aktiv" && r.validUntil !== null && r.validUntil.getTime() - Date.now() < RENEW_WARNING_DAYS * DAY,
     }));
+}
+
+/** Beendet abgelöste Zustimmungen auch bei Enable Banking; schlägt das fehl, laufen sie einfach aus */
+export async function zustimmungenBeenden(sitzungen: string[]): Promise<void> {
+  if (sitzungen.length === 0 || !(await enableBankingConfigured())) return;
+  for (const sitzung of sitzungen) await (await client()).deleteSession(sitzung).catch(() => undefined);
 }
 
 /** Trennt eine Verbindung: Zustimmung bei Enable Banking beenden und Eintrag löschen. Umsätze bleiben. */

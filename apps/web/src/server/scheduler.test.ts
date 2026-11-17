@@ -5,11 +5,12 @@ const jobs = vi.hoisted(() => ({
   runDueFileCheck: vi.fn(),
   runDuePruefwertMail: vi.fn(),
   runDueBankSyncs: vi.fn(),
+  runDueFintsSyncs: vi.fn(),
   runDueInboxFetch: vi.fn(),
 }));
 
 vi.mock("./modules/auswertungen/index.ts", () => ({ runDueFileCheck: jobs.runDueFileCheck, runDuePruefwertMail: jobs.runDuePruefwertMail }));
-vi.mock("./modules/bank/index.ts", () => ({ runDueBankSyncs: jobs.runDueBankSyncs }));
+vi.mock("./modules/bank/index.ts", () => ({ runDueBankSyncs: jobs.runDueBankSyncs, runDueFintsSyncs: jobs.runDueFintsSyncs }));
 vi.mock("./modules/elster/index.ts", () => ({ elsterClient: vi.fn(), elsterMode: () => "simuliert" }));
 vi.mock("./env.ts", () => ({ env: () => ({}) }));
 vi.mock("./modules/belege/index.ts", () => ({
@@ -46,6 +47,7 @@ describe("Scheduler", () => {
     vi.clearAllMocks();
     jobs.runDuePruefwertMail.mockResolvedValue(null);
     jobs.runDueBankSyncs.mockResolvedValue({ synced: 0, added: 0, errors: [] });
+    jobs.runDueFintsSyncs.mockResolvedValue({ synced: 0, added: 0, errors: [] });
     jobs.runDueInboxFetch.mockResolvedValue(null);
     scheduler = await import("./scheduler.ts");
   });
@@ -58,6 +60,7 @@ describe("Scheduler", () => {
     // Eine Stunde später, die Vollprüfung liest noch
     await scheduler.runScheduledJobs();
     expect(jobs.runDueBankSyncs).toHaveBeenCalledTimes(2);
+    expect(jobs.runDueFintsSyncs).toHaveBeenCalledTimes(2);
     expect(jobs.runDueInboxFetch).toHaveBeenCalledTimes(2);
     beenden();
   });

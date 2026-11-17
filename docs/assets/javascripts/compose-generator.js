@@ -165,6 +165,7 @@ export const envBlocks = (cfg) => [
     titel: "Kontoabruf und mehrere Firmen",
     variablen: [
       ["ENABLE_BANKING_APP_ID", ""],
+      ["FINTS_PRODUKT_ID", ""],
       ["HABEN_FIRMEN", ""],
     ],
   },

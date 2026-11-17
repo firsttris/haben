@@ -2285,7 +2285,7 @@ export const bankImports = pgTable("bank_imports", {
 });
 
 export type BankConnectionAccount = {
-  /** Kennung des Kontos bei Enable Banking, gilt für die Dauer der Zustimmung */
+  /** Kennung des Kontos bei Enable Banking, gilt für die Dauer der Zustimmung; bei FinTS die IBAN */
   uid: string;
   iban: string;
   name: string;
@@ -2313,6 +2313,36 @@ export const bankConnections = pgTable("bank_connections", {
   validUntil: timestamp("valid_until", { withTimezone: true }),
   /** Beim Verbinden gewählt: erster Abruf neuer Konten ab diesem Tag; geht beim Abschluss an die Konten */
   fetchFrom: date("fetch_from", { mode: "string" }),
+  accounts: jsonb("accounts").$type<BankConnectionAccount[]>().notNull().default([]),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Verbindungen für den Kontoabruf über FinTS (#654): Zugang zum Online-Banking einer Bank. `ciphertext` hält PIN und
+ * Bankdaten (BPD, UPD, Kundensystem-ID; modules/bank/fints-geheim.ts); ohne die gespeicherte Kundensystem-ID hielte die
+ * Bank jeden Abruf für ein neues Gerät. Status „tan“: Der Abruf im Hintergrund brauchte eine TAN; „fehler“: Die Bank
+ * hat abgelehnt (etwa eine falsche PIN), der Hintergrund versucht es nicht wieder, damit die Bank den Zugang nicht sperrt.
+ */
+export const fintsConnections = pgTable("fints_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bankName: text("bank_name").notNull(),
+  /** Bankleitzahl, acht Ziffern */
+  bankCode: text("bank_code").notNull(),
+  /** FinTS-Adresse, wie beim Verbinden eingetragen; danach gilt die aus den BPD */
+  url: text("url").notNull(),
+  /** Anmeldename (Benutzerkennung) im Online-Banking */
+  login: text("login").notNull(),
+  /** Kunden-ID, nur wenn die Bank sie getrennt vom Anmeldenamen nennt */
+  customerId: text("customer_id"),
+  /** PIN und Bankdaten (BPD, UPD, Kundensystem-ID) als JSON, AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
+  ciphertext: bytea("ciphertext").notNull(),
+  tanMethod: integer("tan_method"),
+  tanMedium: text("tan_medium"),
+  status: text("status", { enum: ["aktiv", "tan", "fehler"] })
+    .notNull()
+    .default("aktiv"),
   accounts: jsonb("accounts").$type<BankConnectionAccount[]>().notNull().default([]),
   lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
   lastError: text("last_error"),
@@ -3505,7 +3535,8 @@ export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
  * - ohne_datei: sevDesk nennt keine Datei (`document` leer). Das beweist nicht, dass es nie eine gab; offen, bis jemand bestätigt.
  * - abruf_fehlgeschlagen: sevDesk nennt eine Datei (oder bei Rechnung und Gutschrift ist das PDF Pflicht), der Abruf scheiterte.
  * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
- * - bestaetigt_ohne_datei: eine Person hat in sevDesk geprüft, dass der Beleg keine Datei hat (created_by, Zeitpunkt).
+ * - bestaetigt_ohne_datei: eine Person hat geprüft, dass der Beleg keine Datei hat (bei sevDesk der Abruf, beim
+ *   Accountable-Stapel der fehlende Einzelbeleg), festgehalten mit created_by und Zeitpunkt.
  * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
  * - kein_anhang: ein späterer Abruf sagt ohne Fehler, dass es den fehlenden Anhang nicht gibt (keine E-Rechnung).
  */

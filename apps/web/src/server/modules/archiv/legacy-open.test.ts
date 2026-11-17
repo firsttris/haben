@@ -56,6 +56,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     mime?: string;
     contact?: string;
     category?: string;
+    /** Kennung im Quellprogramm; ohne Nummer bildet Haben daraus die Ersatznummer (SD-, FB-, LX-) */
+    lexofficeId?: string;
   }) {
     const rate = values.rate ?? 1900;
     const gross = values.net + values.tax;
@@ -68,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     const [contact] = values.contact ? await sql`select id from contacts where name = ${values.contact}` : [];
     const [row] = await sql`insert into lexoffice_vouchers (source, lexoffice_id, import_id, type, direction, number, date, due_date, status, contact_id,
         contact_name, net, tax, gross, taxes, categories, payment, raw)
-      values (${values.source ?? "lexoffice"}, ${crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
+      values (${values.source ?? "lexoffice"}, ${values.lexofficeId ?? crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
         ${values.date}, ${values.date}, ${values.status ?? "open"}, ${contact?.id ?? null}, ${values.contact ?? "Bürobedarf Schmidt KG"},
         ${values.net}, ${values.tax}, ${gross}, ${JSON.stringify([{ rate, net: values.net, tax: values.tax }])}::jsonb,
         ${JSON.stringify(values.direction === "ausgabe" ? [{ categoryId: "x", name: values.category ?? "Bürobedarf", rate, net: values.net, tax: values.tax }] : [])}::jsonb,
@@ -117,6 +119,49 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
       expect(Buffer.from(detail!.invoice.pdf!).toString()).toBe(new TextDecoder().decode(PDF));
     },
   );
+
+  it("lehnt eine Nummer ab, die es in Haben schon gibt: keine zweite Rechnung, kein neuer Kontakt", async () => {
+    const first = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 10_000, tax: 1_900, file: PDF });
+    await legacy.takeOverLegacyItem(actor, first);
+    const contacts = await sql`select count(*)::int as n from contacts`;
+    const second = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-21", net: 20_000, tax: 3_800, file: PDF });
+    const error = await legacy.takeOverLegacyItem(actor, second).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf((await import("../auswertungen/index.ts")).TakeoverError);
+    expect(error).toHaveProperty("message", "Die Rechnungsnummer RE1019 gibt es in Haben schon.");
+    expect(await sql`select number, gross from invoices`).toEqual([{ number: "RE1019", gross: 11_900 }]);
+    expect(await sql`select count(*)::int as n from contacts`).toEqual(contacts);
+  });
+
+  it.each([
+    ["sevdesk", "abc/77", "def/77", "SD-77"],
+    ["lexoffice", "a1b2c3d4-0001", "a1b2c3d4-0002", "LX-a1b2c3d4"],
+  ] as const)("meldet bei %s ohne Nummer eine schon vergebene Ersatznummer klar", async (source, a, b, number) => {
+    const first = await legacyVoucher({
+      source,
+      lexofficeId: a,
+      type: "invoice",
+      direction: "einnahme",
+      number: "",
+      date: "2026-09-20",
+      net: 10_000,
+      tax: 1_900,
+      file: PDF,
+    });
+    await legacy.takeOverLegacyItem(actor, first);
+    const second = await legacyVoucher({
+      source,
+      lexofficeId: b,
+      type: "invoice",
+      direction: "einnahme",
+      number: "",
+      date: "2026-09-21",
+      net: 10_000,
+      tax: 1_900,
+      file: PDF,
+    });
+    await expect(legacy.takeOverLegacyItem(actor, second)).rejects.toThrow(`Die Rechnungsnummer ${number} gibt es in Haben schon.`);
+    expect(await sql`select number from invoices`).toEqual([{ number }]);
+  });
 
   it("listet offene Posten mit Gründen, wenn etwas nicht geht", async () => {
     await legacyVoucher({

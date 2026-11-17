@@ -167,7 +167,7 @@ describe.skipIf(!testDatabaseUrl).each([
       message: "In sevDesk geprüft: Kassenbon verloren",
       by: "test-user",
     });
-    expect((await fileCheck()).detail).toBe("2 Abruf fehlgeschlagen, 1 mit fehlendem Anhang, 1 in sevDesk ohne Datei (bestätigt)");
+    expect((await fileCheck()).detail).toBe("2 Abruf fehlgeschlagen, 1 mit fehlendem Anhang, 1 ohne Datei (bestätigt)");
     const list = await archiv.listLegacyVouchers({ year: 2024, direction: "alle", search: "", ohneDatei: true });
     expect(list.map((r) => r.number)).not.toContain("B-2024-0002");
   });
@@ -188,7 +188,7 @@ describe.skipIf(!testDatabaseUrl).each([
       { voucher: "voucher/ID_101", role: "anhang", fileId: "ID_5" },
       { voucher: "voucher/ID_103", role: "anhang", fileId: "ID_203" },
     ]);
-    expect(await fileCheck()).toMatchObject({ ok: true, detail: "1 in sevDesk ohne Datei (bestätigt), übrige mit Datei" });
+    expect(await fileCheck()).toMatchObject({ ok: true, detail: "1 ohne Datei (bestätigt), übrige mit Datei" });
     // Ein dritter Lauf fragt nichts mehr nach und schreibt keinen Stand doppelt
     calls.length = 0;
     const [{ n }] = (await sql`select count(*)::int as n from legacy_file_states`) as unknown as [{ n: number }];
@@ -215,7 +215,7 @@ describe.skipIf(!testDatabaseUrl).each([
     const files = unzipSync(Buffer.concat(chunks));
     const belege = new TextDecoder().decode(files["lexoffice/belege.csv"]);
     expect(belege.split("\n")[0]).toMatch(/;Dateistand\r?$/);
-    expect(belege).toContain("in sevDesk ohne Datei, bestätigt");
+    expect(belege).toContain("ohne Datei, bestätigt");
     const verlauf = new TextDecoder().decode(files["lexoffice/dateistand.csv"]);
     expect(verlauf).toContain("ohne Datei bestätigt");
     expect(verlauf).toContain("In sevDesk geprüft: Kassenbon verloren");

@@ -1,6 +1,6 @@
 {
-  "id": "713bca8f-b493-4b51-8230-70a9999a5b82",
-  "prevId": "88493422-35cc-4194-a708-d6f099e4085e",
+  "id": "15e587cd-a889-4786-8002-d15dd30fb6ea",
+  "prevId": "26108174-b140-4eb2-b745-67f7b0c54bb9",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7113,6 +7113,107 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.fints_connections": {
+      "name": "fints_connections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "bank_name": {
+          "name": "bank_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_code": {
+          "name": "bank_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "login": {
+          "name": "login",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tan_method": {
+          "name": "tan_method",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tan_medium": {
+          "name": "tan_medium",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'aktiv'"
+        },
+        "accounts": {
+          "name": "accounts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.inbox_messages": {
       "name": "inbox_messages",
       "schema": "",
@@ -7129,13 +7230,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "direction": {
-          "name": "direction",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'eingang'"
         },
         "sender": {
           "name": "sender",
@@ -7248,19 +7342,6 @@
           "notNull": true,
           "default": "'INBOX'"
         },
-        "outbound_folder": {
-          "name": "outbound_folder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "allowed_senders": {
-          "name": "allowed_senders",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
-        },
         "enabled": {
           "name": "enabled",
           "type": "boolean",
@@ -7273,13 +7354,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "last_rejected": {
-          "name": "last_rejected",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "last_error": {
           "name": "last_error",

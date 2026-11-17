@@ -1,6 +1,6 @@
 import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
-import { UserError } from "../../errors.ts";
+import { BankError } from "./bank-error.ts";
 import {
   ACCOUNTS,
   paymentProviderAccount,
@@ -93,7 +93,7 @@ import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from ".
 import { bankTransactionMatch } from "./search.ts";
 import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";
 
-export class BankError extends UserError {}
+export { BankError };
 
 /** Eine CSV, die keiner bekannten Bank gehört; die Seite bietet dann die Spaltenzuordnung an (#1275) */
 export class UnbekannteCsvError extends BankError {}

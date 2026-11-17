@@ -6,6 +6,7 @@ import {
   databaseUrlFuer,
   type Durchlauf,
   ENABLE_BANKING_PORT,
+  FINTS_PRODUKT_E2E,
   habenFirmen,
   LAYOUT_PAKETE_PORT,
   portFuer,
@@ -65,6 +66,8 @@ function webServer(durchlauf?: Durchlauf) {
       SEVDESK_API_URL: `http://127.0.0.1:${SEVDESK_PORT}/api/v1`,
       // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
       LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
+      // Kontoabruf über FinTS (#654) nur im Durchlauf „fints-abruf“; sonst bleibt FinTS aus wie ohne Registrierungsnummer
+      FINTS_PRODUKT_ID: durchlauf === "fints-abruf" ? FINTS_PRODUKT_E2E : "",
       // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
       HABEN_FIRMEN: durchlauf === "firmen" ? habenFirmen(serverURL) : "",
     },

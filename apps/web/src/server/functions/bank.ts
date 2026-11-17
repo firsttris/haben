@@ -63,6 +63,7 @@ import {
 } from "../modules/bank/index.ts";
 import { deleteEnableBankingSettings, enableBankingSettingsSchema, enableBankingSettingsSummary, saveEnableBankingSettings } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
+import { fintsConfigured, listFintsConnections } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
@@ -132,6 +133,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
         ),
       ),
       sync: { configured: await enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
+      fints: { configured: fintsConfigured(), connections: await listFintsConnections() },
     };
   });
 
@@ -336,10 +338,10 @@ export const disconnectBank = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Zugang zu Enable Banking (Einstellungen › Bank) */
+/** Zugang zu Enable Banking und, ob FinTS eingerichtet ist (#654); nie die Registrierungsnummer */
 export const getEnableBankingSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => enableBankingSettingsSummary());
+  .handler(async () => ({ ...(await enableBankingSettingsSummary()), fints: fintsConfigured() }));
 
 export const saveEnableBanking = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
