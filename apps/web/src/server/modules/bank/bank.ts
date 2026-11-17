@@ -102,6 +102,9 @@ import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzei
 
 export class BankError extends UserError {}
 
+/** Eine CSV, die keiner bekannten Bank gehört; die Seite bietet dann die Spaltenzuordnung an (#1275) */
+export class UnbekannteCsvError extends BankError {}
+
 const normalizeIban = (iban: string) => iban.replace(/\s/g, "").toUpperCase();
 
 const purposeSchema = z.enum(["geschaeft", "steuer", "ruecklage", "privat"]);
@@ -251,15 +254,10 @@ export async function importStatement(actor: string, file: { bytes: Uint8Array; 
 }
 
 /**
- * Speichert einen Kontoauszug, egal ob aus einer Datei oder vom automatischen Abruf. Ohne `accountId`
- * wird das Konto über die IBAN gefunden oder angelegt.
+ * Konto für einen Kontoauszug: das gewählte (passend zu IBAN und Art der Datei) oder, ohne Wahl, das zur IBAN der Datei;
+ * fehlt es, wird es angelegt. Ein ausgeschlossenes Konto nimmt nichts an.
  */
-export async function storeStatement(
-  tx: Tx,
-  statement: ParsedStatement,
-  source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
-  accountId: string | null,
-): Promise<ImportResult> {
+async function importAccount(tx: Tx, statement: ParsedStatement, filename: string, accountId: string | null) {
   let account: typeof schema.bankAccounts.$inferSelect | undefined;
   const fileIban = statement.accountIban ? normalizeIban(statement.accountIban) : null;
   if (accountId) {
@@ -273,21 +271,35 @@ export async function storeStatement(
     if (providerFile !== (account.purpose === "zahlungsdienstleister")) {
       throw new BankError(
         providerFile
-          ? `${source.filename}: Das ist der Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`
-          : `${source.filename}: ${account.name} ist ein Zahlungsdienstleister; dorthin gehört nur dessen Export.`,
+          ? `${filename}: Das ist der Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`
+          : `${filename}: ${account.name} ist ein Zahlungsdienstleister; dorthin gehört nur dessen Export.`,
       );
     }
   } else if (fileIban) {
     account = await accountForIban(tx, fileIban, statement.accountName);
   } else if (PSP_FORMATS.includes(statement.format)) {
-    throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
+    throw new BankError(`${filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
   } else {
-    throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
+    throw new BankError(`${filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
   }
   // Ein Konto, das nicht zu dieser Firma gehört (#462), nimmt nichts mehr an: weder eine Datei noch der Abruf
   if (account.excludedAt) {
-    throw new BankError(`${source.filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
+    throw new BankError(`${filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
   }
+  return account;
+}
+
+/**
+ * Speichert einen Kontoauszug, egal ob aus einer Datei oder vom automatischen Abruf. Ohne `accountId`
+ * wird das Konto über die IBAN gefunden oder angelegt.
+ */
+export async function storeStatement(
+  tx: Tx,
+  statement: ParsedStatement,
+  source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
+  accountId: string | null,
+): Promise<ImportResult> {
+  const account = await importAccount(tx, statement, source.filename, accountId);
 
   const [previous] = await tx
     .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })

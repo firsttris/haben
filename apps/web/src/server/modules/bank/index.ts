@@ -29,6 +29,7 @@ export {
   allocateSplit,
   allocationSchema,
   BankError,
+  UnbekannteCsvError,
   createAccount,
   createProviderAccount,
   providerAccountSchema,
@@ -146,12 +147,4 @@ export {
   type SettlementInput,
 } from "./verrechnung.ts";
 export { gemeldeteVoranmeldungen } from "./bank.ts";
-export {
-  bankCsvMappingSchema,
-  csvZuordnungSchema,
-  importCsvZuordnung,
-  importStatementFile,
-  previewCsvZuordnung,
-  UnbekannteCsvError,
-  type CsvZuordnungVorschau,
-} from "./csv-zuordnung.ts";
+export { bankCsvMappingSchema, csvZuordnungSchema, importCsvZuordnung, importStatementFile, type CsvImportResult } from "./csv-zuordnung.ts";

@@ -77,16 +77,15 @@ Beim Lesen gilt außerdem:
 
 ### Andere Banken: Spalten zuordnen
 
-Erkennt Haben eine CSV nicht, meldet es „Haben kennt diese Bank nicht“ mit dem Knopf **Spalten zuordnen**. Im Dialog wählst du:
+Erkennt Haben eine CSV nicht, meldet es „Haben kennt diese Bank nicht“ mit dem Knopf **Spalten zuordnen**. Im Dialog wählst du das **Konto**; die Datei nennt keine eigene IBAN, Konten von Zahlungsdienstleistern stehen nicht zur Wahl. Kopfzeile, Spalten und Zahlenformat schlägt Haben vor:
 
-- **Konto:** Die Datei nennt keine eigene IBAN; Konten von Zahlungsdienstleistern stehen nicht zur Wahl.
-- **Kopfzeile:** die Zeile mit den Spaltennamen. Steht ein Kopfblock davor („Umsätze Girokonto“, „Zeitraum …“), schlägt Haben die erste Zeile ohne Datum mit den meisten gefüllten Zellen vor.
-- **Zahlenformat:** `1.234,56` oder `1,234.56`; Haben schlägt es nach den Beträgen vor.
-- **Spalten:** Pflicht sind Buchungstag und Betrag. Der Betrag steht in einer Spalte mit Vorzeichen oder in zwei Spalten für Soll und Haben; Soll gilt als Ausgang, auch ohne Minus. Optional sind Wertstellung, Währung, Name und IBAN der Gegenseite, Verwendungszweck, Buchungsart und Referenz. Eine IBAN der Gegenseite übernimmt Haben nur mit gültiger Prüfziffer. Haben schlägt die Spalten nach ihren Namen vor.
+- **Buchungstag und Betrag** sind Pflicht. Der Betrag steht in einer Spalte mit Vorzeichen oder in zwei Spalten für Soll und Haben; Soll gilt als Ausgang, auch ohne Minus.
+- **Gegenseite:** Name, IBAN und Verwendungszweck. Eine IBAN übernimmt Haben nur mit gültiger Prüfziffer.
+- **Weitere Spalten** (Wertstellung, Währung, Buchungsart, Referenz), **Kopfzeile** und **Zahlenformat** (`1.234,56` oder `1,234.56`) sind eingeklappt. Als Kopfzeile schlägt Haben die erste Zeile ohne Datum mit den meisten gefüllten Zellen vor, auch hinter einem Kopfblock wie „Umsätze Girokonto“ oder „Zeitraum …“.
 
-Die Vorschau rechnet nach jeder Änderung neu. Zeilen mit Fehlern, etwa ein Kontostand am Ende der Datei oder eine Zeile mit Soll und Haben zugleich, übernimmt Haben nicht; sie stehen in der Vorschau oben und nach dem Import als Hinweis.
+Jede Auswahl zeigt neben dem Spaltennamen einen Wert aus der Datei, die Vorschau darüber rechnet nach jeder Änderung neu. Zeilen mit Fehlern übernimmt Haben nicht; sie stehen in der Vorschau oben und nach dem Import als Hinweis. Das sind etwa ein Kontostand am Ende der Datei, eine Zeile mit Soll und Haben zugleich, ein Betrag von 0,00 € und eine andere Währung als Euro: Bankkonten führt Haben nur in Euro.
 
-Haben speichert die Zuordnung am Konto. Der nächste Export mit genau derselben Kopfzeile geht ohne Dialog durch, wenn du beim Import das Konto wählst; [Dubletten](#dubletten) erkennt Haben dabei wie bei jeder anderen Datei. Ändert die Bank ihre Spalten, erscheint der Dialog wieder. Salden nennt die Zuordnung nicht, die [Saldenprüfung](#saldenprüfung) entfällt.
+Haben speichert die Zuordnung am Konto und sagt es in der Meldung nach dem Import. Der nächste Export mit genau derselben Kopfzeile geht ohne Dialog durch, wenn du beim Import das Konto wählst; [Dubletten](#dubletten) erkennt Haben dabei wie bei jeder anderen Datei. An dessen Meldung steht **Zuordnung ändern**: Der Dialog öffnet sich mit der gespeicherten Zuordnung, und eine geänderte gilt ab diesem Import. Änderst du Buchungstag, Betrag, IBAN oder Verwendungszweck, weist der Dialog darauf hin, dass Haben schon importierte Umsätze dann nicht mehr als Dubletten erkennt. Ändert die Bank ihre Spalten, erscheint der Dialog wieder. Salden nennt die Zuordnung nicht, die [Saldenprüfung](#saldenprüfung) entfällt.
 
 ## So gehst du vor
 

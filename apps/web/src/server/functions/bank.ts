@@ -156,9 +156,8 @@ export const importStatements = createServerFn({ method: "POST" })
         const result = await importStatementFile(context.user.id, { bytes: new Uint8Array(await file.arrayBuffer()), filename: file.name }, data.accountId);
         results.push({ filename: file.name, ...result });
       } catch (error) {
-        if (error instanceof UnbekannteCsvError) results.push({ filename: file.name, error: error.message, zuordnen: true });
-        else if (error instanceof BankError) results.push({ filename: file.name, error: error.message, zuordnen: false });
-        else throw error;
+        if (!(error instanceof BankError)) throw error;
+        results.push({ filename: file.name, error: error.message, zuordnen: error instanceof UnbekannteCsvError });
       }
     }
     return results;

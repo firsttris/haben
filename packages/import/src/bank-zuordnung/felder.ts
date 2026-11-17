@@ -9,24 +9,24 @@ export const BANK_CSV_FIELDS = [
   {
     key: "bookingDate",
     label: "Buchungstag",
-    hint: "Pflicht. TT.MM.JJJJ, TT.MM.JJ oder JJJJ-MM-TT",
+    hint: "TT.MM.JJJJ, TT.MM.JJ oder JJJJ-MM-TT",
     aliases: ["Buchungstag", "Buchungsdatum", "Buchung", "Datum", "Booking Date", "Date"],
   },
   { key: "valueDate", label: "Wertstellung", aliases: ["Wertstellung", "Wert", "Valuta", "Valutadatum", "Wertstellungsdatum", "Value Date"] },
   {
     key: "amount",
     label: "Betrag",
-    hint: "Mit Vorzeichen, Ausgänge negativ; sonst Soll und Haben",
+    hint: "Mit Vorzeichen; sonst Soll und Haben",
     aliases: ["Betrag", "Betrag (EUR)", "Betrag in EUR", "Betrag (€)", "Umsatz", "Amount"],
   },
   {
     key: "debit",
     label: "Soll (Ausgänge)",
-    hint: "Statt Betrag; gilt als Ausgang, auch ohne Minus",
+    hint: "Gilt als Ausgang, auch ohne Minus",
     aliases: ["Soll", "Ausgang", "Ausgaben", "Belastung", "Debit", "Debit EUR"],
   },
-  { key: "credit", label: "Haben (Eingänge)", hint: "Statt Betrag", aliases: ["Haben", "Eingang", "Einnahmen", "Gutschrift", "Credit", "Kredit EUR"] },
-  { key: "currency", label: "Währung", hint: "Leer ist Euro", aliases: ["Währung", "Waehrung", "Currency"] },
+  { key: "credit", label: "Haben (Eingänge)", aliases: ["Haben", "Eingang", "Einnahmen", "Gutschrift", "Credit", "Kredit EUR"] },
+  { key: "currency", label: "Währung", hint: "Leer ist Euro; andere Währungen übernimmt Haben nicht", aliases: ["Währung", "Waehrung", "Currency"] },
   {
     key: "counterpartyName",
     label: "Name der Gegenseite",
@@ -48,7 +48,6 @@ export const BANK_CSV_FIELDS = [
   {
     key: "type",
     label: "Buchungsart",
-    hint: "Etwa Überweisung, Lastschrift",
     aliases: ["Umsatzart", "Buchungsart", "Buchungstext", "Transaktionstyp", "Type"],
   },
   { key: "bankReference", label: "Referenz", aliases: ["Kundenreferenz", "Referenz", "End-to-End-Referenz", "Reference"] },
@@ -68,4 +67,15 @@ export interface BankCsvMapping {
   header: string[];
   columns: ColumnMapping;
   amountFormat: AmountFormat;
+}
+
+/** Felder, aus denen der Dubletten-Hash entsteht (dedup.ts), dazu das Zahlenformat, das den Betrag liest */
+const HASH_FIELDS: readonly BankCsvField[] = ["bookingDate", "amount", "debit", "credit", "counterpartyIban", "purpose"];
+
+/**
+ * Ändert die neue Zuordnung gegenüber der gespeicherten etwas, das in den Dubletten-Hash eingeht? Dann erkennt Haben
+ * schon importierte Umsätze derselben Datei nicht mehr als Dubletten.
+ */
+export function changesDuplicateDetection(stored: BankCsvMapping, next: BankCsvMapping): boolean {
+  return stored.amountFormat !== next.amountFormat || HASH_FIELDS.some((key) => (stored.columns[key] ?? null) !== (next.columns[key] ?? null));
 }

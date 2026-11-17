@@ -36,6 +36,9 @@ export function readBankCsv(bytes: Uint8Array): BankCsvFile | { error: string } 
   const decoded = decodeCsvBytes(bytes, "auto");
   if ("error" in decoded) return decoded;
   if (decoded.text.trimStart().startsWith("<")) return { error: "Die Datei ist XML, keine CSV." };
+  // PDF, XLSX (ZIP) und andere Binärdateien: sonst böte der Bankimport für sie die Spaltenzuordnung an
+  const binary = ["%PDF", "PK\u0003\u0004"].some((magic) => decoded.text.startsWith(magic)) || decoded.text.includes("\u0000");
+  if (binary) return { error: "Die Datei ist keine CSV." };
   const delimiter = detectDelimiter(decoded.text);
   const records = parseCsv(decoded.text, delimiter)
     .map((cells, i) => ({ line: i + 1, cells }))
@@ -67,10 +70,14 @@ export function guessHeaderRow(records: CsvRow[]): number {
   return undated.find((c) => c.filled === widest && widest >= 2)?.index ?? 0;
 }
 
+/** Gleiche Kopfzeile: dieselben Namen in derselben Reihenfolge */
+export function sameHeader(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((name, i) => name === b[i]);
+}
+
 /** Zeile mit genau der gespeicherten Kopfzeile, oder -1 */
 export function findSavedHeader(records: CsvRow[], header: readonly string[]): number {
-  const wanted = header.join("\u0000");
-  return records.slice(0, HEADER_SEARCH).findIndex((r) => headerOf(r.cells).join("\u0000") === wanted);
+  return records.slice(0, HEADER_SEARCH).findIndex((r) => sameHeader(headerOf(r.cells), header));
 }
 
 /** Datenzeilen unter der Kopfzeile, bis zu `limit` */
@@ -110,4 +117,24 @@ export function suggestBankMapping(records: CsvRow[], headerRow: number): BankCs
   }
   const amounts = ["amount", "debit", "credit"].flatMap((key) => sampleCells(records, headerRow, columns[key]));
   return { header, columns, amountFormat: guessAmountFormat(amounts) };
+}
+
+/**
+ * Kopfzeile und Zuordnung, mit denen der Dialog beginnt: die am Konto gespeicherte, wenn ihre Kopfzeile in der Datei
+ * steht, sonst ein Vorschlag. `chosen` ist eine von Hand gewählte Kopfzeile.
+ */
+export function initialMapping(
+  records: CsvRow[],
+  stored: BankCsvMapping | null,
+  chosen?: number,
+): { headerRow: number; mapping: BankCsvMapping; saved: boolean } {
+  const storedRow = stored ? findSavedHeader(records, stored.header) : -1;
+  const headerRow = Math.max(0, Math.min(chosen ?? (storedRow >= 0 ? storedRow : guessHeaderRow(records)), records.length - 2));
+  if (stored && storedRow === headerRow) return { headerRow, mapping: stored, saved: true };
+  return { headerRow, mapping: suggestBankMapping(records, headerRow), saved: false };
+}
+
+/** Erster Wert der Spalte unter der Kopfzeile, als Beispiel in der Auswahl */
+export function sampleValue(records: CsvRow[], headerRow: number, index: number): string {
+  return sampleCells(records, headerRow, index, 20)[0] ?? "";
 }

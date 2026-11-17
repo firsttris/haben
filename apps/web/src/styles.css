@@ -982,6 +982,10 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .dropzone { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 16px; border: 2px dashed var(--line-strong); border-radius: 12px; color: var(--ink-2); background: var(--ground); }
 .dropzone.dragging { border-color: var(--accent); background: var(--accent-tint); }
 .upload-messages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Vorschau der Spaltenzuordnung (BankCsvZuordnung): Liste statt Tabelle, damit sie am Handy nicht seitlich scrollt */
+.csv-vorschau { list-style: none; margin: 0; padding: 0; }
+.csv-vorschau > li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--line-soft); overflow-wrap: anywhere; }
+.csv-vorschau-kopf { display: flex; justify-content: space-between; gap: 12px; }
 .document-cols { grid-template-columns: 96px minmax(0, 1fr) 160px 120px 170px; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .camera-only { display: none; }

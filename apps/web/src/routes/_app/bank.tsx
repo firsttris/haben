@@ -60,7 +60,6 @@ import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrech
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
 import { ImportMeldungen, importMessages, type ImportMessage } from "../../components/BankImportMeldungen.tsx";
-import reportStyles from "../../styles/auswertungen.css?url";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
@@ -99,8 +98,7 @@ export const Route = createFileRoute("/_app/bank")({
         dir: deps.dir ?? "ab",
       },
     }),
-  // auswertungen.css für die Vorschau der Spaltenzuordnung (.report-table)
-  head: () => ({ meta: [{ title: "Bank · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
+  head: () => ({ meta: [{ title: "Bank · Haben" }] }),
   component: BankPage,
 });
 
@@ -858,9 +856,9 @@ function ImportControls({ data }: { data: Data }) {
       setMessages(
         results.flatMap((r, i) =>
           "error" in r && r.error
-            ? [{ tone: "danger" as const, text: r.error, zuordnen: r.zuordnen ? files[i] : undefined }]
+            ? [{ tone: "danger" as const, text: r.error, datei: r.zuordnen ? { file: files[i]!, aktion: "Spalten zuordnen" as const } : undefined }]
             : "added" in r
-              ? importMessages(r)
+              ? importMessages(r, files[i])
               : [],
         ),
       );
@@ -966,9 +964,9 @@ function ImportControls({ data }: { data: Data }) {
         messages={messages}
         accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
         accountId={targetAccount}
-        onImported={(result) => {
+        onImported={(result, file) => {
           setTargetAccount(result.accountId);
-          setMessages(importMessages(result));
+          setMessages(importMessages(result, file));
           void router.invalidate();
         }}
       />

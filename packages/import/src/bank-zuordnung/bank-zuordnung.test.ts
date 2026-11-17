@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { detectStatementFormat, withDedupHashes } from "../index.ts";
-import { type BankCsvFile, type BankCsvMapping, findSavedHeader, guessHeaderRow, parseMappedStatement, readBankCsv, suggestBankMapping } from "./index.ts";
+import {
+  type BankCsvFile,
+  type BankCsvMapping,
+  changesDuplicateDetection,
+  findSavedHeader,
+  guessHeaderRow,
+  initialMapping,
+  parseMappedStatement,
+  readBankCsv,
+  sampleValue,
+  suggestBankMapping,
+} from "./index.ts";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../../test-fixtures/${name}`, import.meta.url)));
 const encode = (text: string) => new TextEncoder().encode(text);
@@ -151,12 +162,27 @@ describe("parseMappedStatement", () => {
     expect(findSavedHeader(file.records, other.header)).toBe(-1);
   });
 
-  it("nimmt nur eine gültige IBAN als Gegen-IBAN, die Währung aus der Spalte", () => {
-    const file = csv("Datum;Betrag;IBAN;Währung\n01.10.2026;1,00;1234567890;eur\n02.10.2026;1,00;DE02 1203 0000 0000 2020 51;USD\n");
-    const s = parseMappedStatement(file.records, 0, mapping(file, { amount: 1, counterpartyIban: 2, currency: 3 })).statement!;
+  it("nimmt nur eine gültige IBAN als Gegen-IBAN", () => {
+    const file = csv("Datum;Betrag;IBAN\n01.10.2026;1,00;1234567890\n02.10.2026;1,00;DE02 1203 0000 0000 2020 51\n");
+    const s = parseMappedStatement(file.records, 0, mapping(file, { amount: 1, counterpartyIban: 2 })).statement!;
     expect(s.transactions.map((t) => t.counterpartyIban)).toEqual([undefined, "DE02120300000000202051"]);
-    expect(s.transactions.map((t) => t.currency)).toEqual(["EUR", "USD"]);
-    expect(s.warnings).toEqual(["Fremdwährung in der Datei: USD. Haben bucht nur in Euro."]);
+  });
+
+  it("übernimmt nur Euro: eine Zeile in anderer Währung ist ein Fehler, kein Euro-Betrag (#1275)", () => {
+    const file = csv("Datum;Betrag;Währung\n01.10.2026;1,00;eur\n02.10.2026;5,00;USD\n03.10.2026;2,00;\n");
+    const result = parseMappedStatement(file.records, 0, mapping(file, { amount: 1, currency: 2 }));
+    expect(result.statement!.transactions.map((t) => [t.amount, t.currency])).toEqual([
+      [100, "EUR"],
+      [200, "EUR"],
+    ]);
+    expect(result.rows[1]!.errors).toEqual(["Währung USD: Haben bucht Bankkonten nur in Euro."]);
+  });
+
+  it("übernimmt keinen Umsatz über 0,00 €", () => {
+    const file = csv("Datum;Soll;Haben\n01.10.2026;0,00;\n02.10.2026;1,00;\n");
+    const result = parseMappedStatement(file.records, 0, mapping(file, { debit: 1, credit: 2 }));
+    expect(result.statement!.transactions.map((t) => t.amount)).toEqual([-100]);
+    expect(result.rows[0]!.errors).toEqual(["Der Betrag ist 0,00 €."]);
   });
 
   it("findet bei Komma das Trennzeichen auch hinter einem Kopfblock ohne Komma", () => {
@@ -168,5 +194,43 @@ describe("parseMappedStatement", () => {
   it("lehnt XML und Dateien ohne Tabelle ab", () => {
     expect(readBankCsv(encode("<?xml version='1.0'?><Document/>"))).toEqual({ error: "Die Datei ist XML, keine CSV." });
     expect(readBankCsv(encode("nur eine Zeile\n"))).toEqual({ error: "Die Datei enthält keine Tabelle mit Kopfzeile und Umsätzen." });
+  });
+
+  it.each([
+    ["PDF", "%PDF-1.7\n1 0 obj;x\n2 0 obj;y\n"],
+    ["XLSX (ZIP)", "PK\u0003\u0004;a\nb;c\n"],
+    ["Binärdaten", "a;b\u0000\nc;d\n"],
+  ])("lehnt %s ab, statt eine Zuordnung anzubieten", (_name, text) => {
+    expect(readBankCsv(encode(text))).toEqual({ error: "Die Datei ist keine CSV." });
+  });
+});
+
+describe("Beginn des Dialogs", () => {
+  const file = read(fixture("unbekannte-bank-soll-haben.csv"));
+  const vorschlag = initialMapping(file.records, null);
+
+  it("nimmt ohne gespeicherte Zuordnung den Vorschlag", () => {
+    expect(vorschlag).toEqual({ headerRow: 2, mapping: suggestBankMapping(file.records, 2), saved: false });
+  });
+
+  it("nimmt die gespeicherte Zuordnung, wenn ihre Kopfzeile in der Datei steht, sonst den Vorschlag", () => {
+    const gespeichert = { ...vorschlag.mapping, columns: { ...vorschlag.mapping.columns, bankReference: null } };
+    expect(initialMapping(file.records, gespeichert)).toEqual({ headerRow: 2, mapping: gespeichert, saved: true });
+    const fremd = { ...gespeichert, header: ["Datum", "Betrag"] };
+    expect(initialMapping(file.records, fremd)).toEqual(vorschlag);
+    // Eine von Hand gewählte andere Kopfzeile verwirft die gespeicherte
+    expect(initialMapping(file.records, gespeichert, 0)).toMatchObject({ headerRow: 0, saved: false });
+  });
+
+  it("zeigt je Spalte einen Beispielwert aus den Umsätzen", () => {
+    expect(sampleValue(file.records, 2, 15)).toBe("-1.190,00");
+    expect(sampleValue(file.records, 2, 11)).toBe("");
+  });
+
+  it("meldet nur Änderungen, die den Dubletten-Hash berühren", () => {
+    const m = vorschlag.mapping;
+    expect(changesDuplicateDetection(m, { ...m, columns: { ...m.columns, bankReference: null, type: null, valueDate: null } })).toBe(false);
+    expect(changesDuplicateDetection(m, { ...m, columns: { ...m.columns, purpose: null } })).toBe(true);
+    expect(changesDuplicateDetection(m, { ...m, amountFormat: "en" })).toBe(true);
   });
 });

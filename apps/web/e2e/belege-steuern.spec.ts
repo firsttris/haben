@@ -3504,12 +3504,16 @@ test("Unbekannte Bank-CSV: Spalten zuordnen, importieren, der nächste Export ge
   await page.getByRole("button", { name: "Spalten zuordnen" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Spalten zuordnen" });
-  // Die leere dritte Zeile zählt nicht mit: Index 2 ist Zeile 4
-  await expect(dialog.getByLabel("Kopfzeile")).toHaveValue("2");
-  await expect(dialog.getByLabel("Soll (Ausgänge)")).toHaveValue("15");
-  await expect(dialog.getByLabel("Haben (Eingänge)")).toHaveValue("16");
+  // Die Vorschau steht oben; Spalten mit einem Wert aus der Datei, Kopfzeile und Zahlenformat eingeklappt
   await expect(dialog.getByRole("status")).toContainText("4 Umsätze, 1 Zeile mit Fehlern, die Haben nicht übernimmt");
   await expect(dialog.getByRole("row", { name: /Kontostand/ })).toContainText("ist kein Datum");
+  await expect(dialog.getByLabel("Soll (Ausgänge)")).toHaveValue("15");
+  await expect(dialog.getByLabel("Soll (Ausgänge)").locator("option:checked")).toHaveText("Soll – -1.190,00");
+  await expect(dialog.getByLabel("Haben (Eingänge)")).toHaveValue("16");
+  await expect(dialog.getByLabel("Kopfzeile")).toBeHidden();
+  await dialog.getByText("Weitere Spalten, Kopfzeile und Zahlenformat").click();
+  // Die leere dritte Zeile zählt nicht mit: Index 2 ist Zeile 4
+  await expect(dialog.getByLabel("Kopfzeile")).toHaveValue("2");
   expect(await axeVerstoesse(page)).toEqual([]);
 
   // Ohne Konto meldet das Feld den Fehler und bekommt den Fokus
@@ -3520,17 +3524,26 @@ test("Unbekannte Bank-CSV: Spalten zuordnen, importieren, der nächste Export ge
   // Betrag statt Soll und Haben: die Spalte „Betrag“ ist leer, die Vorschau sagt es
   await dialog.getByLabel("Soll (Ausgänge)").selectOption("");
   await expect(dialog.getByRole("alert")).toHaveText("Ordne den Betrag zu oder Soll und Haben.");
-  await dialog.getByLabel("Soll (Ausgänge)").selectOption({ label: "Soll" });
+  await dialog.getByLabel("Soll (Ausgänge)").selectOption("15");
   await expect(dialog.getByRole("status")).toContainText("4 Umsätze");
   await dialog.getByRole("button", { name: "4 Umsätze importieren" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByText("umsaetze.csv: 4 neue Umsätze für Konto ohne Format.")).toBeVisible();
+  await expect(page.getByText("umsaetze.csv: 4 neue Umsätze für Konto ohne Format. Spaltenzuordnung für Konto ohne Format gespeichert.")).toBeVisible();
   await expect(page.getByText(/Zeile 9 nicht übernommen: Buchungstag „Kontostand“ ist kein Datum/)).toBeVisible();
 
   // Der nächste Export mit derselben Kopfzeile: ohne Dialog, ohne Dubletten
   await upload.setInputFiles([{ name: "umsaetze-november.csv", mimeType: "text/csv", buffer: datei }]);
   await expect(page.getByText("umsaetze-november.csv: 0 neue Umsätze für Konto ohne Format, 4 schon vorhanden.")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: "Spalten zuordnen" })).toHaveCount(0);
+
+  // Zuordnung ändern: der Dialog beginnt mit der gespeicherten und warnt, wenn eine Änderung die Dubletten berührt
+  await page.getByRole("button", { name: "Zuordnung ändern" }).click();
+  await expect(dialog.getByText("Zuordnung vom letzten Import in dieses Konto.")).toBeVisible();
+  await expect(dialog.getByLabel("Konto", { exact: true })).toHaveValue(/.+/);
+  await dialog.getByLabel("Verwendungszweck").selectOption("");
+  await expect(dialog.getByText(/Umsätze, die schon importiert sind, erkennt Haben dann nicht mehr als Dubletten/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(dialog).toBeHidden();
 
   await go("/bank?filter=alle");
   await page.getByRole("link", { name: /^Konto ohne Format/ }).click();

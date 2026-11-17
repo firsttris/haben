@@ -5,7 +5,7 @@ import type { CsvRow } from "../csv-import/read.ts";
 import { normalizeIban, normalizeText, parseDate, parseDotAmount, parseGermanAmount } from "../text.ts";
 import type { ParsedStatement } from "../types.ts";
 import { BANK_CSV_FIELDS, type BankCsvField, type BankCsvMapping } from "./felder.ts";
-import { headerOf } from "./lesen.ts";
+import { headerOf, sameHeader } from "./lesen.ts";
 
 export interface MappedRow {
   /** Zeile in der Datei, die erste ist 1 */
@@ -69,6 +69,10 @@ function readMappedRow(row: CsvRow, mapping: BankCsvMapping): MappedRow {
     amount = hasCredit ? Math.abs(credit) : hasDebit ? -Math.abs(debit) : 0;
   }
 
+  if (amount === 0 && errors.length === 0) errors.push("Der Betrag ist 0,00 €.");
+  // Bankkonten führt Haben nur in Euro; ein Betrag in US-Dollar darf nicht als Euro-Betrag auf das Konto
+  const currency = raw("currency").toUpperCase() || "EUR";
+  if (currency !== "EUR") errors.push(`Währung ${currency}: Haben bucht Bankkonten nur in Euro.`);
   if (errors.length > 0 || !bookingDate || amount === null) return { line: row.line, errors, transaction: null };
   const iban = normalizeIban(raw("counterpartyIban"));
   return {
@@ -78,7 +82,7 @@ function readMappedRow(row: CsvRow, mapping: BankCsvMapping): MappedRow {
       bookingDate,
       valueDate: valueDate ?? undefined,
       amount,
-      currency: raw("currency").toUpperCase() || "EUR",
+      currency,
       counterpartyName: normalizeText(raw("counterpartyName")),
       // Manche Banken schreiben die Kontonummer in die Spalte; nur eine gültige IBAN zählt
       counterpartyIban: iban && isValidIban(iban) ? iban : undefined,
@@ -95,7 +99,7 @@ function readMappedRow(row: CsvRow, mapping: BankCsvMapping): MappedRow {
  */
 export function parseMappedStatement(records: CsvRow[], headerRow: number, mapping: BankCsvMapping): MappedStatement {
   const header = headerOf(records[headerRow]?.cells ?? []);
-  if (header.join("\u0000") !== mapping.header.join("\u0000")) {
+  if (!sameHeader(header, mapping.header)) {
     return { problem: "Die Zuordnung gilt für eine andere Kopfzeile.", rows: [], statement: null };
   }
   const problem = bankMappingProblem(mapping);
