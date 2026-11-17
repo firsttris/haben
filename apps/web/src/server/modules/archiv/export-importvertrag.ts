@@ -6,7 +6,8 @@ import { db, schema } from "../../db/index.ts";
  * Herkunft der abgerufenen Umsätze im Jahresarchiv (#306, 3b): je Bewegung des Importvertrags die Quelle (Anbieter,
  * Kontokennung, Stichtag), das Ereignis der Bank und der Umsatz, den Haben daraus angelegt oder per Alias verbunden hat.
  * Der Inhalt der drei Tabellen steht schon in `protokoll/audit.csv`; ohne diese Datei ließe sich aber nicht ohne Weiteres
- * nachvollziehen, warum ein Umsatz kein zweites Mal angelegt wurde. Die Lieferungen selbst stehen in `bank/importe.csv`.
+ * nachvollziehen, warum ein Umsatz kein zweites Mal angelegt wurde. Die Lieferungen selbst stehen in `bank/importe.csv`; die
+ * Spalte „Import-ID“ verweist auf ihre Zeile dort.
  */
 
 export const QUELLEN_HEADER = [
@@ -20,7 +21,7 @@ export const QUELLEN_HEADER = [
   "Buchungstag",
   "Betrag",
   "Währung",
-  "Abruf",
+  "Import-ID",
   "Übernommen",
   "Umsatz-ID",
   "Bewegungs-ID",
@@ -47,7 +48,7 @@ export async function quellenFuerArchiv(umgebung: QuellenUmgebung): Promise<(str
       externalAccountId: schema.importSources.externalAccountId,
       cutoverDate: schema.importSources.cutoverDate,
       movement: schema.importMovements,
-      fetchId: schema.importBatches.fetchId,
+      importId: schema.importBatches.bankImportId,
     })
     .from(schema.importMovements)
     .innerJoin(schema.importSources, eq(schema.importSources.id, schema.importMovements.sourceId))
@@ -78,7 +79,7 @@ export async function quellenFuerArchiv(umgebung: QuellenUmgebung): Promise<(str
     r.movement.bookingDate,
     umgebung.money(r.movement.amount),
     r.movement.currency,
-    r.fetchId,
+    r.importId,
     umgebung.iso(r.movement.createdAt),
     r.movement.transactionId,
     r.movement.id,
