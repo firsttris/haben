@@ -115,16 +115,27 @@ async function aliasCandidates(tx: Tx, accountId: string, source: { createdAt: D
 }
 
 /**
- * Letzter Buchungstag aus Dateien und FinTS (wie `lastFileBooking` in bank-sync.ts): Diese Tage holt der Abruf absichtlich
- * nicht (`followUpStart`). Ein Umsatz, den die Bank mit so einem Tag vor dem Fenster mitliefert, gehört der Datei.
+ * Umsätze aus Dateien und FinTS (nicht aus Enable Banking) an diesen Tagen, je Tag und Betrag gezählt. Deren Tage holt der
+ * Abruf absichtlich nicht (`followUpStart`); liefert die Bank einen Umsatz mit so einem Tag vor dem Fenster mit, steht er
+ * meist schon aus der Datei da, oft mit anders geschriebenem Verwendungszweck. Zeilen, die schon einer Bewegung gehören, zählen nicht.
  */
-async function lastOtherBooking(tx: Tx, accountId: string): Promise<string | null> {
-  const [row] = await tx
-    .select({ date: sql<string | null>`max(${schema.bankTransactions.bookingDate})::text` })
+async function otherImports(tx: Tx, accountId: string, dates: string[]): Promise<Map<string, number>> {
+  if (dates.length === 0) return new Map();
+  const rows = await tx
+    .select({ date: schema.bankTransactions.bookingDate, amount: schema.bankTransactions.amount })
     .from(schema.bankTransactions)
     .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
-    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), ne(schema.bankImports.format, "enablebanking")));
-  return row?.date ?? null;
+    .where(
+      and(
+        eq(schema.bankTransactions.bankAccountId, accountId),
+        ne(schema.bankImports.format, "enablebanking"),
+        inArray(schema.bankTransactions.bookingDate, [...new Set(dates)]),
+        sql`not exists (select 1 from import_movements m where m.transaction_id = ${schema.bankTransactions.id})`,
+      ),
+    );
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(`${r.date}|${r.amount}`, (counts.get(`${r.date}|${r.amount}`) ?? 0) + 1);
+  return counts;
 }
 
 /** Bisheriges Ergebnis einer wiederholten Lieferung, ohne etwas neu zu speichern */
@@ -167,7 +178,12 @@ async function planRows(
     source,
     rows.filter((r) => fresh.has(eventOf(r) ?? "")).map((r) => r.dedupHash),
   );
-  const fileUntil = await lastOtherBooking(tx, accountId);
+  const beforeWindow = (m: ImportMovement) => windowFrom !== undefined && m.bookingDate < windowFrom;
+  const inFiles = await otherImports(
+    tx,
+    accountId,
+    [...fresh.values()].filter(beforeWindow).map((m) => m.bookingDate),
+  );
   const insert: Row[] = [];
   const linked: Linked[] = [];
   const fileDays: string[] = [];
@@ -186,13 +202,16 @@ async function planRows(
     // Bekannt, abgelehnt oder schon einmal in dieser Lieferung: kein Umsatz
     if (!movement) continue;
     fresh.delete(event);
-    if (windowFrom && fileUntil && movement.bookingDate < windowFrom && movement.bookingDate <= fileUntil) {
-      fileDays.push(`${event}: Buchungstag ${movement.bookingDate} vor dem Fenster, den Tag deckt schon eine Datei oder FinTS ab; nicht übernommen.`);
-      continue;
-    }
     const alias = aliases.get(row.dedupHash);
+    const inFile = `${movement.bookingDate}|${movement.amount}`;
     if (alias) linked.push({ movement, transactionId: alias });
-    else {
+    else if (beforeWindow(movement) && (inFiles.get(inFile) ?? 0) > 0) {
+      // Je Umsatz der Datei höchstens einmal: Zwei gleiche Beträge am Tag aus dem Abruf brauchen zwei in der Datei
+      inFiles.set(inFile, inFiles.get(inFile)! - 1);
+      fileDays.push(
+        `${event}: Buchungstag ${movement.bookingDate} vor dem Fenster, Umsatz mit diesem Tag und Betrag schon aus Datei oder FinTS; nicht übernommen.`,
+      );
+    } else {
       const hash = known.has(row.dedupHash) || taken.has(row.dedupHash) ? await freeHash(tx, accountId, row, taken) : row.dedupHash;
       taken.add(hash);
       insert.push({ ...row, dedupHash: hash });

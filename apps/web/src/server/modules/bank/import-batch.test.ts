@@ -228,6 +228,17 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-4999, -1200, -7700]);
   });
 
+  it("rechnet jeden Umsatz der Datei vor dem Fenster nur einmal an", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
+    const datei = { ...abruf(konto, [tx("ER-2", "2026-10-30", "12.00")], { from: "2026-10-11" }).statement, format: "camt053" as const };
+    await db.db.transaction((t) => bank.storeStatement(t, datei, { filename: "auszug.xml", sha256: `datei-${konto.hash}` }, null));
+    // Zwei gleiche Beträge am 30.10., die Datei kennt einen davon
+    const zwei = [tx("ER-2", "2026-10-30", "12.00", { value_date: "2026-11-01" }), tx("ER-4", "2026-10-30", "12.00", { value_date: "2026-11-01" })];
+    expect((await speichere(abruf(konto, zwei, { from: "2026-11-01", to: "2026-11-05" }))).added).toBe(1);
+    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-4999, -1200, -1200]);
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();
