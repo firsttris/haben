@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { postenOf } from "./hgb.ts";
-import { KAPG_STEUER_KONTEN, kapgSteuern, mindestHebesatz } from "./koerperschaft.ts";
+import { GEWST_HINZURECHNUNG_KONTEN, KAPG_STEUER_KONTEN, kapgSteuern, mindestHebesatz } from "./koerperschaft.ts";
 
 const ohneVortrag = { hebesatz: 400, verlustvortragKst: 0, verlustvortragGewst: 0 };
 
@@ -207,6 +207,50 @@ describe("Körperschaft- und Gewerbesteuer", () => {
       ohneVortrag,
     );
     expect(s.hinzurechnungGewst).toBe(125_000);
+  });
+
+  /*
+   * Weitere Konten mit Kennzeichen G im DATEV-Kontenrahmen 2026 (#1265): Zinsen an verbundene Unternehmen, auf
+   * Kontokorrentkonten und für Gebäude (§ 8 Nr. 1 a), Mietleasing für technische Anlagen und Maschinen und für
+   * Betriebs- und Geschäftsausstattung (d), Garagenmiete (e)
+   */
+  it.each([
+    ["SKR03", ["2109", "2116", "2118", "2119", "2125", "2129"], ["4810", "4965"], ["4550"]],
+    ["SKR04", ["7309", "7351", "7318", "7319", "7325", "7329"], ["6498", "6840"], ["6550"]],
+  ] as const)("%s: Zinsen, bewegliche und unbewegliche Wirtschaftsgüter aus allen Konten mit Kennzeichen G", (kontenrahmen, zinsen, beweglich, unbeweglich) => {
+    const brutto = (account: string, art: string) =>
+      kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag).gewstHinzurechnungen.find((z) => z.art === art)?.brutto;
+    for (const account of zinsen) expect(brutto(account, "zinsen"), account).toBe(100_000);
+    for (const account of beweglich) expect(brutto(account, "beweglich"), account).toBe(100_000);
+    for (const account of unbeweglich) expect(brutto(account, "unbeweglich"), account).toBe(100_000);
+  });
+
+  it.each([
+    ["SKR03", "2118", "2127"],
+    ["SKR04", "7318", "7327"],
+  ] as const)("%s: Renten und dauernde Lasten voll vor dem Freibetrag (§ 8 Nr. 1 b GewStG)", (kontenrahmen, kontokorrent, renten) => {
+    // Kontokorrentzinsen 150.000 € und Renten 100.000 € voll: 250.000 € − 200.000 € Freibetrag, davon ein Viertel
+    const s = kapgSteuern(
+      kontenrahmen,
+      2026,
+      [
+        { account: kontokorrent, saldo: 15_000_000 },
+        { account: renten, saldo: 10_000_000 },
+      ],
+      1_000_000,
+      ohneVortrag,
+    );
+    expect(s.gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag])).toEqual([
+      ["zinsen", 15_000_000, 15_000_000],
+      ["renten", 10_000_000, 10_000_000],
+    ]);
+    expect(s.hinzurechnungGewst).toBe(1_250_000);
+  });
+
+  it("Jede Gruppe der Hinzurechnung hat in SKR03 und SKR04 gleich viele Konten", () => {
+    const anzahl = (kontenrahmen: "SKR03" | "SKR04") =>
+      Object.fromEntries(Object.entries(GEWST_HINZURECHNUNG_KONTEN[kontenrahmen]).map(([art, konten]) => [art, konten.length]));
+    expect(anzahl("SKR04")).toEqual(anzahl("SKR03"));
   });
 
   it.each(["SKR03", "SKR04"] as const)("%s: die Konten stehen im DATEV-Kontenrahmen, wo die Berechnung sie erwartet", (kontenrahmen) => {

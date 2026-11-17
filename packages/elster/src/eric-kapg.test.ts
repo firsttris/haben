@@ -32,7 +32,7 @@ const gewst = (year: number, over: Partial<GewStXmlInput> = {}): GewStXmlInput =
   gegenstand: "Entwicklung von Software",
   betriebsstaette: { plz: "70173", ort: "Stuttgart" },
   gewinn: 5_930_000,
-  hinzurechnungen: { zinsen: 0, beweglich: 0, elektro: 0, unbeweglich: 0, rechte: 0 },
+  hinzurechnungen: { zinsen: 0, renten: 0, beweglich: 0, elektro: 0, unbeweglich: 0, rechte: 0 },
   rechteBeschraenktStpfl: 0,
   verlustvortrag: 0,
   ...over,
@@ -79,7 +79,7 @@ describe.skipIf(!ericHome)("Erklärungen der GmbH mit ERiC", () => {
       await pruefe(
         buildGewStXml(
           gewst(year, {
-            hinzurechnungen: { zinsen: 15_000_000, beweglich: 1_200_000, elektro: 960_000, unbeweglich: 20_000_000, rechte: 500_000 },
+            hinzurechnungen: { zinsen: 15_000_000, renten: 240_000, beweglich: 1_200_000, elektro: 960_000, unbeweglich: 20_000_000, rechte: 500_000 },
             verlustvortrag: 1_000_000,
           }),
         ),
