@@ -69,6 +69,9 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `cash_entries` | Kassenbuch: jede Bewegung der Barkasse mit lückenloser Nummer, Beleg oder Art (Einlage, Entnahme, Geldtransit, Bareinnahme auf eine Rechnung mit `invoice_id` und Steueranteil wie bei `allocations`, Bareinnahme ohne Rechnung mit Behandlung und Satz in `tax_treatment`, `tax_rate`, nur zusammen und nur dort), Buchung; Storno als Gegenzeile | nur anhängen, Bareinnahme nur auf eine festgeschriebene Rechnung, Audit |
 | `bank_imports` | Jede importierte Auszugsdatei mit SHA-256, Zeitraum, Salden, bei einer eigenen Zuordnung mit dieser (`csv_mapping`) | nur anhängen, Audit |
 | `bank_transactions` | Importierte Umsätze mit Hash zur Deduplizierung; EndToEndId, soweit der Auszug sie nennt | nur anhängen |
+| `import_sources` | Quellenbindung des Importvertrags ([#306](https://github.com/firsttris/haben/issues/306)): Konto und Kennung beim Anbieter, eindeutig je Anbieter und Kennung | nur anhängen, Audit |
+| `import_batches` | Angenommene Lieferungen mit Prüfwert, Fenster, offenen Ereignissen und dem Abrufstand danach | nur anhängen, Audit |
+| `import_movements` | Quellenidentität: Ereignis und Komponente mit buchungsrelevantem Kern und dem Umsatz in `bank_transactions` | nur anhängen, Audit |
 | `sepa_transfers` | Erzeugte SEPA-Dateien (pain.001) mit Auftraggeberkonto, Ausführungsdatum, Anzahl, Summe und XML | nur anhängen, Audit |
 | `sepa_transfer_items` | Je Beleg eine Überweisung der Datei: EndToEndId (eindeutig), Betrag, Skonto, Empfänger, IBAN, Verwendungszweck | nur anhängen, Audit |
 | `sepa_direct_debits` | Erzeugte Lastschriftdateien (pain.008, #445) mit Gläubigerkonto, Anzahl, Summe und XML | nur anhängen, Audit |
