@@ -437,9 +437,14 @@ export async function syncConnection(actor: string, connectionId: string, today 
       try {
         transactions = await api.transactions(account.uid, dateFrom, today);
       } catch (error) {
+        const refused = error instanceof EnableBankingApiError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 403;
+        if (!refused) throw error;
+        // Ohne Rückfall (Folgeabruf, etwa eines Kontos, das ein Konflikt anhält) nur dieses Konto anhalten
+        if (!fallback) {
+          konflikte.push(`${account.name}: Abruf fehlgeschlagen: ${apiMessage(error)}`);
+          continue;
+        }
         // Manche Banken geben ohne frische Anmeldung nur 90 Tage heraus
-        if (!fallback || !(error instanceof EnableBankingApiError) || error.status < 400 || error.status >= 500 || error.status === 401 || error.status === 403)
-          throw error;
         dateFrom = fallback;
         transactions = await api.transactions(account.uid, dateFrom, today);
       }
