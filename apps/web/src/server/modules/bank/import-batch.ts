@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
 import {
   advanceCheckpoint,
   batchFingerprint,
@@ -119,7 +119,7 @@ async function aliasCandidates(tx: Tx, accountId: string, source: { createdAt: D
  * Abruf absichtlich nicht (`followUpStart`); liefert die Bank einen Umsatz mit so einem Tag vor dem Fenster mit, steht er
  * meist schon aus der Datei da, oft mit anders geschriebenem Verwendungszweck. Zeilen, die schon einer Bewegung gehören, zählen nicht.
  */
-async function otherImports(tx: Tx, accountId: string, dates: string[]): Promise<Map<string, number>> {
+async function otherImports(tx: Tx, accountId: string, dates: string[], aliased: string[]): Promise<Map<string, number>> {
   if (dates.length === 0) return new Map();
   const rows = await tx
     .select({ date: schema.bankTransactions.bookingDate, amount: schema.bankTransactions.amount })
@@ -131,6 +131,8 @@ async function otherImports(tx: Tx, accountId: string, dates: string[]): Promise
         ne(schema.bankImports.format, "enablebanking"),
         inArray(schema.bankTransactions.bookingDate, [...new Set(dates)]),
         sql`not exists (select 1 from import_movements m where m.transaction_id = ${schema.bankTransactions.id})`,
+        // Zeilen, die in diesem Abruf per Alias eine Bewegung bekommen, gehören schon dieser
+        ...(aliased.length > 0 ? [notInArray(schema.bankTransactions.id, aliased)] : []),
       ),
     );
   const counts = new Map<string, number>();
@@ -183,6 +185,7 @@ async function planRows(
     tx,
     accountId,
     [...fresh.values()].filter(beforeWindow).map((m) => m.bookingDate),
+    [...aliases.values()],
   );
   const insert: Row[] = [];
   const linked: Linked[] = [];
