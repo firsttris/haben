@@ -296,6 +296,24 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect(r).toMatchObject({ added: 1, checkpoint: "2026-10-31", complete: true });
   });
 
+  it("verbreitert das Fenster nicht um einen verspäteten Umsatz vor ihm", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
+    // 11.10. bis 19.10. hat kein Abruf geholt; ER-2 vom 05.10. kommt verspätet im Fenster ab 20.10.
+    const r = await speichere(abruf(konto, [tx("ER-2", "2026-10-05", "3.00")], { from: "2026-10-20", to: "2026-10-31" }));
+    expect(r).toMatchObject({ added: 1, checkpoint: "2026-10-10", complete: false });
+  });
+
+  it("zählt Tage einer Datei nur, wenn sie lückenlos an das abgerufene Fenster anschließen", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
+    // Die Datei deckt 15.10. bis 31.10.; 11.10. bis 14.10. hat weder ein Abruf noch eine Datei
+    const datei = { ...abruf(konto, [tx("ER-7", "2026-10-20", "7.00")], { from: "2026-10-15" }).statement, format: "camt053" as const };
+    await db.db.transaction((t) => bank.storeStatement(t, datei, { filename: "auszug.xml", sha256: `luecke-${konto.hash}` }, null));
+    const r = await speichere(abruf(konto, [tx("ER-8", "2026-11-03", "8.00")], { from: "2026-11-01", to: "2026-11-05" }));
+    expect(r).toMatchObject({ added: 1, checkpoint: "2026-10-10", complete: false });
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();

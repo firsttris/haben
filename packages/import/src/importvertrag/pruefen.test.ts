@@ -97,6 +97,15 @@ describe("validateBatch", () => {
     ]);
   });
 
+  it("nimmt eine verspätete Bewegung vor dem Fenster an, ohne das Fenster zu verbreitern", () => {
+    const result = validateBatch(batch({ movements: [movement({ bookingDate: "2026-09-28" })] }), binding);
+    expect(result.ok && [result.accepted.map((m) => m.bookingDate), result.batch.coverage, result.blocking]).toEqual([
+      ["2026-09-28"],
+      { from: "2026-10-01", to: "2026-10-31" },
+      0,
+    ]);
+  });
+
   it("lehnt dieselbe Kennung und Komponente zweimal in einer Lieferung ab", () => {
     expect(problems(batch({ movements: [movement(), movement({ amount: -500 })] }))).toEqual(["E-1/main steht zweimal in der Lieferung."]);
   });
