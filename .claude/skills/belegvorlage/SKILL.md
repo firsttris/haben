@@ -112,7 +112,6 @@ Ein Layout läuft ohne Änderung weiter, solange seine Version des Feldvertrags 
 
   „mitte“ meint die Mitte des Blatts. Sind der linke und der rechte Rand verschieden, gleicht `dx` das aus, bei 25 und 20 mm etwa `dx: -2.5mm`.
 - **Gruppen im Infoblock:** Jede Zeile in `meta` hat `group`: „kern“ für die Kerndaten, „referenz“ für weitere Referenzen wie Auftrag, Lieferschein oder Leitweg-ID. Ein Layout kann die Referenzen gesondert setzen, etwa zweispaltig vor dem Betreff, wenn sie neben der Anschrift keinen Platz mehr haben. Alle Zeilen untereinander bleiben richtig.
-- `look.options` gilt nur für die eingebauten Layouts; bei eigenen ist es leer.
 
 ## Felder (Feldvertrag v1)
 
