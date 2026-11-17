@@ -131,6 +131,8 @@ test("Leere Belegliste: Satz mit Beispiel, Weg zum Postfach, kein Filter und kei
   const liste = page.getByRole("region", { name: "Belegliste" });
   await expect(liste).toContainText("Noch keine Belege. Lege den ersten oben ab");
   await expect(liste).toContainText("Stromrechnung");
+  // Ob Haben ausliest, sagt die Ablagefläche darüber (ohne KI nur E-Rechnungen); die leere Liste verspricht es nicht
+  await expect(liste).not.toContainText("liest die Angaben aus");
   await expect(page.getByRole("navigation", { name: "Filter" })).toHaveCount(0);
   // Der Weg zum Postfach steht im Leerzustand, nicht noch einmal darüber
   await expect(page.getByText("Rechnungen per E-Mail?")).toHaveCount(0);

@@ -6,10 +6,9 @@ import { z } from "zod/mini";
 import { DocumentStatus, SOURCE_LABEL, documentStatusText } from "../../../components/DocumentStatus.tsx";
 import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
-import { BelegFilterChips, BelegeLeer, filterBelege } from "../../../components/BelegeFilter.tsx";
+import { BelegFilterChips, BelegeLeer, filterBelege, filterName, sucheBelege } from "../../../components/BelegeFilter.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
-import { inCentRange, parseEuroSearchRange } from "@haben/core";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({
@@ -45,16 +44,8 @@ function DocumentsPage() {
   useEffect(() => {
     setQuery(suche ?? "");
   }, [suche]);
-  const needle = query.trim().toLowerCase();
-  const range = needle ? parseEuroSearchRange(query) : null;
   const gefiltert = filterBelege(documents, filter);
-  const shown = needle
-    ? gefiltert.filter(
-        (doc) =>
-          [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) ||
-          (range !== null && inCentRange(range, doc.gross)),
-      )
-    : gefiltert;
+  const shown = sucheBelege(gefiltert, query);
   // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112). Ohne gewählte Spalte
   // bleibt die Reihenfolge von listDocuments: ungebuchte zuerst, dann nach Belegdatum, wie die Navigation am Beleg.
   const { sort, dir = "ab" } = Route.useSearch();
@@ -154,7 +145,7 @@ function DocumentsPage() {
               />
             )}
           </Field>
-          <BelegFilterChips filter={filter} openCount={open} />
+          <BelegFilterChips openCount={open} />
         </div>
       )}
       <section className="card" aria-label="Belegliste">
@@ -164,7 +155,7 @@ function DocumentsPage() {
           <BelegeLeer filter={filter} inhaber={inhaber} hatPostfach={Boolean(inbox)} />
         ) : shown.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Kein Beleg passt zu „{query}“.
+            Kein Beleg passt zu „{query}“{filter ? ` unter „${filterName(filter)}“` : ""}.
           </p>
         ) : (
           <div className="table">

@@ -1,13 +1,8 @@
+import { inCentRange, parseEuroSearchRange } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 
 /** Filter der Belegliste in der Adresse; ohne Angabe „Alle“. „Gebucht“ zählt auch stornierte Belege, die im Code „gebucht“ bleiben. */
 export type BelegFilter = "pruefen" | "gebucht";
-
-/** „Zu prüfen“ sind alle Belege mit Status „neu“, wie die Zahl im Seitenkopf */
-export function filterBelege<T extends { status: "neu" | "gebucht" }>(documents: T[], filter: BelegFilter | undefined): T[] {
-  if (!filter) return documents;
-  return documents.filter((doc) => doc.status === (filter === "pruefen" ? "neu" : "gebucht"));
-}
 
 const FILTER: { filter: BelegFilter | undefined; label: string }[] = [
   { filter: undefined, label: "Alle" },
@@ -15,8 +10,31 @@ const FILTER: { filter: BelegFilter | undefined; label: string }[] = [
   { filter: "gebucht", label: "Gebucht" },
 ];
 
+/** Name des Filters wie auf dem Chip */
+export const filterName = (filter: BelegFilter) => FILTER.find((f) => f.filter === filter)?.label ?? "";
+
+/** „Zu prüfen“ sind alle Belege mit Status „neu“, wie die Zahl im Seitenkopf */
+export function filterBelege<T extends { status: "neu" | "gebucht" }>(documents: T[], filter: BelegFilter | undefined): T[] {
+  if (!filter) return documents;
+  return documents.filter((doc) => doc.status === (filter === "pruefen" ? "neu" : "gebucht"));
+}
+
+/** Suchfeld über der Liste: Lieferant, Belegnummer, Dateiname oder Betrag (auch als Spanne) */
+export function sucheBelege<T extends { supplierName: string; invoiceNumber: string | null; filename: string; gross: number }>(
+  documents: T[],
+  query: string,
+): T[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return documents;
+  const range = parseEuroSearchRange(query);
+  return documents.filter(
+    (doc) =>
+      [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) || (range !== null && inCentRange(range, doc.gross)),
+  );
+}
+
 /** Chips wie in der Bank und bei den Kontakten; Suche und Sortierung bleiben beim Wechsel in der Adresse */
-export function BelegFilterChips({ filter, openCount }: { filter: BelegFilter | undefined; openCount: number }) {
+export function BelegFilterChips({ openCount }: { openCount: number }) {
   return (
     <nav aria-label="Filter" className="chip-row">
       {FILTER.map((f) => (
@@ -24,10 +42,9 @@ export function BelegFilterChips({ filter, openCount }: { filter: BelegFilter | 
           key={f.label}
           to="/belege"
           search={(prev: Record<string, unknown>) => ({ ...prev, status: f.filter }) as { status?: BelegFilter }}
-          // activeProps leer: Sonst setzt der Link „active“ auch an „Alle“, weil die Adresse ohne Filter zu jedem Filter passt
-          activeProps={{}}
-          className={filter === f.filter ? "chip active" : "chip"}
-          aria-current={filter === f.filter ? "page" : undefined}
+          // exact: Sonst gälte „Alle“ (Adresse ohne Filter) auch bei „Zu prüfen“ als aktuell, mit Klasse „active“ und aria-current
+          activeOptions={{ exact: true }}
+          className="chip"
         >
           {f.filter === "pruefen" ? `${f.label} · ${openCount}` : f.label}
         </Link>
@@ -36,33 +53,22 @@ export function BelegFilterChips({ filter, openCount }: { filter: BelegFilter | 
   );
 }
 
+/** Der Satz der leeren Liste; ohne Aussage über die Auslesung, die hängt davon ab, ob eine KI eingerichtet ist */
+export function leerSatz(filter: BelegFilter | undefined, inhaber: boolean): string {
+  if (filter === "pruefen") return "Alles geprüft. Kein Beleg wartet auf dich.";
+  if (filter === "gebucht") return "Noch kein Beleg gebucht. Gebucht wird, sobald du einen Beleg prüfst und bestätigst.";
+  if (!inhaber) return "Noch keine Belege.";
+  return "Noch keine Belege. Lege den ersten oben ab, zum Beispiel die PDF einer Stromrechnung oder ein Foto vom Tankbeleg. Danach prüfst du die Angaben und buchst den Beleg.";
+}
+
 /** Leere Liste: der erste Schritt mit Beispiel und der zweite Weg (Postfach); mit Filter der Satz zum Filter */
 export function BelegeLeer({ filter, inhaber, hatPostfach }: { filter: BelegFilter | undefined; inhaber: boolean; hatPostfach: boolean }) {
-  if (filter === "pruefen")
-    return (
-      <p className="muted" style={{ margin: 0 }}>
-        Alles geprüft. Kein Beleg wartet auf dich.
-      </p>
-    );
-  if (filter === "gebucht")
-    return (
-      <p className="muted" style={{ margin: 0 }}>
-        Noch kein Beleg gebucht. Gebucht wird, sobald du einen Beleg prüfst und bestätigst.
-      </p>
-    );
-  if (!inhaber)
-    return (
-      <p className="muted" style={{ margin: 0 }}>
-        Noch keine Belege.
-      </p>
-    );
   return (
     <>
       <p className="muted" style={{ margin: 0 }}>
-        Noch keine Belege. Lege den ersten oben ab: Ziehe eine Rechnung oder Quittung auf das Feld oder wähle „Dateien auswählen“, zum Beispiel die PDF einer
-        Stromrechnung oder ein Foto vom Tankbeleg. Haben liest die Angaben aus; du prüfst und buchst sie.
+        {leerSatz(filter, inhaber)}
       </p>
-      {!hatPostfach && (
+      {!filter && inhaber && !hatPostfach && (
         <p style={{ margin: "12px 0 0" }}>
           <Link to="/einstellungen" search={{ bereich: "email" }} className="btn">
             Postfach für Belege einrichten

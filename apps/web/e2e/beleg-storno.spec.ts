@@ -322,14 +322,15 @@ test("Belegliste: Filter „Zu prüfen“ und „Gebucht“ stehen in der Adress
   browser,
 }) => {
   await receipt(browser, "Filterwerk Offen", "FI-1", currentDay(), false);
-  await receipt(browser, "Filterwerk Gebucht", "FI-2", currentDay(), true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/belege");
   const zeilen = page.locator("a.table-row.document-cols");
   const filter = page.getByRole("navigation", { name: "Filter" });
   const offen = Number((await sql`select count(*) from documents where status = 'neu'`)[0]!.count);
   const gebucht = Number((await sql`select count(*) from documents where status = 'gebucht'`)[0]!.count);
+  // Gebuchte Belege stammen aus den Tests davor; hier lässt sich nichts mehr buchen, weil das Jahr weiter oben abgeschlossen ist
   expect(offen).toBeGreaterThan(0);
+  expect(gebucht).toBeGreaterThan(0);
   // Ohne Filter alle, „Alle“ ist gewählt und „Zu prüfen“ trägt die Zahl der ungebuchten
   await expect(zeilen).toHaveCount(offen + gebucht);
   await expect(filter.getByRole("link", { name: "Alle", exact: true })).toHaveAttribute("aria-current", "page");
@@ -340,9 +341,11 @@ test("Belegliste: Filter „Zu prüfen“ und „Gebucht“ stehen in der Adress
   await expect(zeilen).toHaveCount(offen);
   await expect(zeilen.filter({ hasText: "FI-1" })).toHaveCount(1);
   expect(await belegSpalte(5)).not.toContain("Gebucht");
-  // Nur der gewählte Filter sieht aktiv aus; „Alle“ passt zwar zur Adresse, ist es aber nicht
+  // Nur der gewählte Filter ist aktuell, für Auge und Screenreader; „Alle“ passt zwar zur Adresse, ist es aber nicht
+  await expect(filter.getByRole("link", { name: /^Zu prüfen/ })).toHaveAttribute("aria-current", "page");
+  await expect(filter.getByRole("link", { name: "Alle", exact: true })).not.toHaveAttribute("aria-current", "page");
   await expect(filter.getByRole("link", { name: "Alle", exact: true })).not.toHaveClass(/active/);
-  await expect(filter.getByRole("link", { name: /^Zu prüfen/ })).toHaveClass(/active/);
+  await expect(filter.locator("a[aria-current=page]")).toHaveCount(1);
 
   // Sortierung und Suche bleiben beim Wechsel des Filters
   await page.goto("/belege?status=pruefen&sort=lieferant&dir=auf");
@@ -354,7 +357,7 @@ test("Belegliste: Filter „Zu prüfen“ und „Gebucht“ stehen in der Adress
   // Erst nach dem Hydratisieren tippen, sonst setzt React das Feld zurück
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Belege durchsuchen").fill("FI-1");
-  await expect(page.getByRole("region", { name: "Belegliste" })).toContainText("Kein Beleg passt zu „FI-1“.");
+  await expect(page.getByRole("region", { name: "Belegliste" })).toContainText("Kein Beleg passt zu „FI-1“ unter „Gebucht“.");
 
   await filter.getByRole("link", { name: "Alle", exact: true }).click();
   await expect(page).not.toHaveURL(/status=/);

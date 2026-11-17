@@ -502,7 +502,7 @@ Nicht stornieren lassen sich:
 
 Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“, darunter ein [eigenes Konto](buchhaltung.md#eigene-konten), wenn der Beleg eines hat), Bruttobetrag und Status. Ungebuchte Belege stehen oben, solange du nicht nach einer Spalte sortierst; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
 
-Über der Liste filtern **Alle**, **Zu prüfen** (mit der Zahl der ungebuchten Belege) und **Gebucht** (auch stornierte). Der Filter steht als `status` in der Adresse, bleibt bei Sortierung und Suche erhalten und lässt sich verlinken. Ist die Liste leer, sagt sie, wie der erste Beleg hineinkommt: hochladen oder ein Postfach für Belege einrichten.
+Über der Liste filtern **Alle**, **Zu prüfen** (mit der Zahl der ungebuchten Belege) und **Gebucht** (auch stornierte). Der Filter steht als `status` in der Adresse, bleibt bei Sortierung und Suche erhalten und lässt sich verlinken. Die Suche gilt innerhalb des gewählten Filters; findet sie dort nichts, nennt die Meldung den Filter. Ist die Liste leer, sagt sie, wie der erste Beleg hineinkommt: hochladen oder ein Postfach für Belege einrichten.
 
 Die Spaltenköpfe Datum, Lieferant, Kategorie, Brutto und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Die Sortierung steht als `sort` und `dir` in der Adresse, lässt sich also verlinken und bleibt beim Neuladen erhalten.
 
