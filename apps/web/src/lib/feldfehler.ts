@@ -6,7 +6,11 @@ import { createSerializationAdapter } from "@tanstack/react-router";
  */
 export const feldfehlerAdapter = createSerializationAdapter({
   key: "haben/feldfehler",
-  test: (value): value is Error & { felder: string[] } => value instanceof Error && Array.isArray((value as { felder?: unknown }).felder),
+  // Ohne Felder bleibt es beim eingebauten Weg, der nur die Meldung überträgt
+  test: (value): value is Error & { felder: string[] } => {
+    const felder = (value as { felder?: unknown } | null)?.felder;
+    return value instanceof Error && Array.isArray(felder) && felder.length > 0;
+  },
   toSerializable: (error) => ({ message: error.message, felder: error.felder }),
   fromSerializable: ({ message, felder }) => Object.assign(new Error(message), { felder }),
 });
