@@ -116,7 +116,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Miete für Geschäftsräume | Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke (Zeile 39, Kz 150) |
 | Reparatur und Instandhaltung (Ausstattung, ohne EDV und Kfz) | Erhaltungsaufwendungen, ohne solche für Gebäude und Kfz (Zeile 48, Kz 225) |
 | Beiträge zur Berufsgenossenschaft, Versorgungskassen | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge für Arbeitnehmer) |
-| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer) bzw. die Zeile der Kategorie wie bei einem Beleg |
+| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer; nicht steuerbare Einnahme: Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen) bzw. die Zeile der Kategorie wie bei einem Beleg |
 | AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
@@ -228,7 +228,7 @@ Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kind
 
 Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](gmbh-abschluss.md#körperschaft--und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
 
-- **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil; die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
+- **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil in Prozent mit höchstens zwei Nachkommastellen (etwa 33,33); die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
 - Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern, dazu der Name der kirchensteuererhebenden Religionsgemeinschaft (etwa „römisch-katholisch“): Den Schlüssel braucht die Kapitalertragsteuer-Anmeldung, den Namen die [Steuerbescheinigung](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) nach Muster II. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.
 - **Verträge mit Anteilseignern** und nahestehenden Personen (Geschäftsführer-, Miet-, Darlehensvertrag) mit Datum und Vergütung im Jahr (Anlage WA).
 - Im Gründungsjahr das **Gründungsdatum**: Damit beginnen Steuerpflicht und erstes Wirtschaftsjahr.

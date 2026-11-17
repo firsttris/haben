@@ -108,9 +108,18 @@ export function betragszeileAusVorlage(key: number, a: { taxRate: BetragsSatz; n
 
 /**
  * Haken „Das Dokument weist die Umsatzsteuer gesondert aus“ am Dauerbeleg (#1059). Aus: Das Brutto ist nicht mehr zu sehen,
- * Grundlage ist wieder das Netto (wie bei § 13b am Beleg). An: Nichts wird neu gerechnet; die verborgene Steuer folgt dem Netto
- * ohnehin, und ein zuvor eingegebenes Brutto bleibt auf den Cent erhalten.
+ * Grundlage ist wieder das Netto (wie bei § 13b am Beleg); kein Satz ändert sich. An: Gibt es noch keine Zeile mit 19 %, springt
+ * die Zeile mit 0 % auf 19 % und die Steuer wird aus dem Netto vorgeschlagen (#1100), denn 0 % ohne Haken ist kein gewählter Satz.
+ * Sonst wird nichts neu gerechnet; die verborgene Steuer folgt dem Netto ohnehin, und ein zuvor eingegebenes Brutto bleibt auf
+ * den Cent erhalten.
  */
-export function steuerausweisUmschalten(row: Betragszeile, an: boolean): Betragszeile {
-  return an ? row : { ...row, basis: "net" };
+export function steuerausweisUmschalten(rows: Betragszeile[], an: boolean): Betragszeile[] {
+  if (!an) return rows.map((row) => ({ ...row, basis: "net" }));
+  if (rows.some((row) => row.taxRate === 1900)) return rows;
+  return rows.map((row) => {
+    if (row.taxRate !== 0) return row;
+    // Eine leere Zeile bleibt leer, statt 0,00 als Steuer und Brutto zu zeigen
+    if (!row.net.trim()) return { ...row, taxRate: 1900, taxTouched: false };
+    return aendereBetragszeile(row, { taxRate: 1900, taxTouched: false }, false);
+  });
 }

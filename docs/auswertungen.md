@@ -44,7 +44,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Kontoführung und Bankgebühren“ | Buchungstag | Ausgabe „Kontoführung und Gebühren“ |
 | Bankumsatz „Mahngebühren und Verzugszinsen“ oder „Zinserträge“ | Buchungstag | Betriebseinnahmen; zur steuerlichen Zuordnung siehe [Bruttomethode](#bruttomethode) |
 | Bankumsatz „Steuerzahlung oder Erstattung“ | Buchungstag | je nach Steuerart und Teil: Umsatzsteuer früherer Jahre als gezahlte bzw. erstattete Umsatzsteuer, Zinsen und Zuschläge als „Zinsen und Zuschläge zu betrieblichen Steuern“, Erstattungszinsen als Einnahme; Gewerbesteuer nur nachrichtlich, private Steuern gar nicht ([Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen)) |
-| Bankumsatz „Einnahme oder Ausgabe (Kategorie, Steuersatz)“ | Buchungstag | Einnahme netto (als Kleinunternehmer ohne Steuer) und vereinnahmte Umsatzsteuer; Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen)) |
+| Bankumsatz „Einnahme oder Ausgabe (Kategorie, Steuersatz)“ | Buchungstag | Einnahme netto (als Kleinunternehmer ohne Steuer) und vereinnahmte Umsatzsteuer; nicht steuerbare Einnahme unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“; Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen)) |
 | Bankumsatz „Darlehen“ | Buchungstag | Zinsen und Gebühren als „Schuldzinsen zur Finanzierung von Anlagevermögen“ bzw. „Übrige Schuldzinsen“; Auszahlung und Tilgung zählen nicht ([Darlehen](bank-steuern-darlehen.md#darlehen)) |
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
@@ -280,6 +280,8 @@ Zusätzlich stehen in `rechnungen.csv` und `belege.csv` die SHA-256-Werte, die H
 ### Änderungsprotokoll prüfen
 
 Unter **Einstellungen › Export › Änderungsprotokoll prüfen** rechnet „Kette prüfen“ die Hash-Kette des Audit-Logs und die Siegel aller festgeschriebenen Datensätze nach, prüft die Trigger und Funktionen von Haben und gleicht das Journal mit Umsatzsteuer und EÜR ab ([Abgleich](buchhaltung.md#abgleich-im-journal)). In das Feld darunter fügst du einen aufbewahrten Prüfwert ein, etwa aus `protokoll/pruefwert.txt` oder aus der wöchentlichen Mail, und vergleichst ihn mit dem Protokoll. Was die Prüfung erkennt und was nicht, steht unter [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel).
+
+Die Karte **Version** zeigt die installierte und die neueste stabile Version mit Links zu den Versionshinweisen und zu den Anleitungen zum Aktualisieren. Wie du die Abfrage abschaltest, steht bei `HABEN_UPDATE_CHECK` unter [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen).
 
 Darunter zeigt **Eingesetzte Versionen** den protokollierten Verlauf der Haben- und PostgreSQL-Versionen mit Startzeitpunkt und Link zu den Versionshinweisen. Bei Bestandsinstanzen gilt die Aufzeichnung erst ab der Einführung dieser Funktion; für frühere Zeiträume liegt kein Verlauf vor (vermerkt im ersten Eintrag).
 

@@ -1,4 +1,13 @@
-import { allocateSplitTax, EXPENSE_CATEGORY_KEYS, splitIssues, type AllocatedSplitLine, type ExpenseCategory, inCents, inBasisPoints } from "@haben/core";
+import {
+  allocateSplitTax,
+  EXPENSE_CATEGORY_KEYS,
+  splitIssues,
+  type AllocatedSplitLine,
+  type ExpenseCategory,
+  inCents,
+  inBasisPoints,
+  type Prozent,
+} from "@haben/core";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -78,7 +87,7 @@ export async function splitsByDocument(
  * sie lehnt Haben mit Aufteilung ab.
  */
 export function splitBookingIssues(
-  doc: { reverseCharge: string | null; privateShare: number; currency: string },
+  doc: { reverseCharge: string | null; privateShare: Prozent; currency: string },
   amounts: { taxRate: number; net: number; tax: number }[],
   splits: Pick<DocumentSplit, "category" | "taxRate" | "net" | "tax">[],
 ): string[] {

@@ -1,4 +1,4 @@
-import { formatEuro, parseEuro, type KapgSteuerAngaben, type KapgSteuern as Steuern } from "@haben/core";
+import { formatEuro, parseEuro, parseWholePercent, type KapgSteuerAngaben, type KapgSteuern as Steuern } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -35,12 +35,13 @@ export function KapgSteuern({ year, data, closed }: { year: number; data: KapgSt
     const kst = vortragKst.trim() === "" ? 0 : parseEuro(vortragKst);
     const gewst = vortragGewst.trim() === "" ? 0 : parseEuro(vortragGewst);
     const rueck = ruecktrag.trim() === "" ? 0 : parseEuro(ruecktrag);
-    if (kst === null || gewst === null || rueck === null || !/^\d+$/.test(hebesatz.trim())) {
+    const satz = parseWholePercent(hebesatz);
+    if (kst === null || gewst === null || rueck === null || satz === null) {
       setNotice({ tone: "danger", text: "Hebesatz in ganzen Prozent und Verlustvorträge als Betrag eingeben." });
       return;
     }
     void run(async () => {
-      await save({ data: { year, angaben: { hebesatz: Number(hebesatz), verlustvortragKst: kst, verlustvortragGewst: gewst, verlustruecktrag: rueck } } });
+      await save({ data: { year, angaben: { hebesatz: satz, verlustvortragKst: kst, verlustvortragGewst: gewst, verlustruecktrag: rueck } } });
       await router.invalidate();
     }, "Angaben gespeichert.");
   }

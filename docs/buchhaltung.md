@@ -101,7 +101,7 @@ Nicht verglichen werden:
 - **Abschlags- und Schlussrechnungen, Rechnungen im Bilanzverfahren, aus Lexoffice übernommene Rechnungen und Belege** bei Rechnung bzw. Vorgang gegen Buchung: Ihre Buchungen rechnen Anzahlungen gegen bzw. stehen gegen den Saldenvortrag. Bei erledigten Ist-Rechnungen außerdem Rechnungen mit Korrektur oder Verrechnung; Zuordnungen auf privaten Konten, Kassenzeilen aus dem Datenimport und Belege, die die heutige Buchungslogik nicht mehr annimmt (eine später verschärfte Regel).
 - **Private, ausgeschlossene Bankkonten und Zahlungsdienstleister** sowie Auszüge ohne Salden (manche CSV) beim Abgleich der Bank. Der automatische Abruf bringt den Kontostand mit und wird geprüft.
 - **Eröffnungen.** Was eine Eröffnung (etwa aus dem DATEV-Stapel) auf Umsatz- und Vorsteuer vorträgt, ist in den Voranmeldungen der bisherigen Buchhaltung angemeldet und gehört nicht zum Januar.
-- **Befunde, die beim [Update auf das Journal](einrichtung.md#update-auf-das-journal) übernommen wurden:** Der Abgleich meldet genau diese nicht wieder und sagt das als Hinweis; jede neue Abweichung im selben Jahr meldet er.
+- **Befunde, die beim [Update auf das Journal](einrichtung.md#update-auf-das-journal) übernommen wurden:** Der Abgleich meldet genau diese nicht wieder und sagt das als Hinweis; jede neue Abweichung im selben Jahr meldet er. Wiedererkannt wird ein Befund an Bereich, Posten (Buchung, Rechnung, Zeitraum und Kennzahl bzw. Erklärung und Feld) und beiden Beträgen, nicht am Text: Ändert eine spätere Version einen Anzeigetext, bleibt er ausgeblendet, und ein gleich lautender Befund an einer anderen Buchung wird gemeldet.
 
 **Wo der Abgleich erscheint:** unter **Einstellungen › Export › Änderungsprotokoll prüfen** und in der wöchentlichen Mail mit dem Prüfwert; die Verprobung des Zeitraums und die gesendete ZM seines Quartals auch in der [Vorprüfung](umsatzsteuer.md#vorprüfung) der Voranmeldung. Eine Abweichung ist kein Beweis für eine Manipulation, aber ein Widerspruch in den Büchern. Kläre ihn, bevor du die Voranmeldung sendest.
 
@@ -184,13 +184,14 @@ Ein Wechsel zum Jahreswechsel gilt nur für künftige Buchungen. Ein noch offene
 | Geldtransit | 1360 | 1460 |
 | Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe, eBay …) | 1361–1369 | 1461–1469 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
+| Versicherungsentschädigungen und Schadenersatzleistungen ([nicht steuerbare Einnahme](bank.md#auf-eine-kategorie-buchen)) | 2742 | 4970 |
 | Gewährte Skonti | 8730 | 4730 |
 | Erhaltene Skonti | 3730 | 5730 |
 | Forderungsverluste | 2400 | 6930 |
 | Erträge bzw. Aufwendungen aus Kursdifferenzen (Fremdwährung) | 2660 bzw. 2150 | 4840 bzw. 6880 |
 | Saldenvorträge Sachkonten | 9000 | 9000 |
 
-Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank.
+Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank; 4970 sind in SKR03 die Nebenkosten des Geldverkehrs, in SKR04 die Schadenersatzleistungen.
 
 Neue Kleinunternehmererlöse verwenden die Standardkonten 8192/4184 aus den DATEV-Kontenrahmen 2026 ([SKR03, Seite 26](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf#page=26), [SKR04, Seite 14](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf#page=14)). Bisherige Buchungen auf 8195/4185 bleiben unverändert und zählen in EÜR und E-Bilanz weiter als Kleinunternehmererlöse. Auch der DATEV-Export behält ihre Nummern. Stimme deren Kontenfunktion in der DATEV-Zielbuchhaltung mit der Steuerberatung ab: DATEV führt diese Nummern mit Kennzeichen R; sie sind dort erst nach Zuweisung einer anderen Kontenfunktion bebuchbar (Erläuterung auf Seite 37).
 

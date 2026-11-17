@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { formatDecimal, parseEuro, parsePersonenkonto } from "@haben/core";
+import { amountError, formatDecimal, parseEuro, parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { UstIdHinweis } from "./UstIdHinweis.tsx";
 import { saveContact } from "../server/functions/contacts.ts";
@@ -23,6 +23,7 @@ const EMPTY: ContactInput = {
   ustId: "",
   iban: "",
   leitwegId: "",
+  unsereLieferantennummer: "",
   defaultFormat: null,
   language: "de",
   isCustomer: true,
@@ -106,26 +107,15 @@ export function ContactForm({
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
       if (!debitor.ok) throw new Error(debitor.error);
       if (!kreditor.ok) throw new Error(kreditor.error);
-      if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error("Der Stundensatz ist kein gültiger Betrag.");
+      if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error(amountError("den Stundensatz", 9_500));
       if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       const input = {
-        kundennummer: text("kundennummer"),
-        name: text("name"),
-        strasse: text("strasse"),
-        plz: text("plz"),
-        ort: text("ort"),
-        land: text("land").toUpperCase() || "DE",
-        email: text("email"),
-        telefon: text("telefon"),
-        ustId: text("ustId").replace(/\s/g, "").toUpperCase(),
-        iban: text("iban").replace(/\s/g, "").toUpperCase(),
-        leitwegId: text("leitwegId"),
+        ...textFields(text),
         defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
         language: text("language") === "en" ? "en" : "de",
         skonto: ownSkonto ? skonto.stufen : null,
         isCustomer,
         isSupplier,
-        lieferantennummer: text("lieferantennummer"),
         debitorNr: debitor.value,
         kreditorNr: kreditor.value,
         hourlyRateCents: rate,
@@ -287,6 +277,7 @@ export function ContactForm({
 
       <section className="form-section" aria-labelledby="contact-invoices">
         <h2 id="contact-invoices">Rechnungen</h2>
+        <UnsereLieferantennummerField defaultValue={initial.unsereLieferantennummer ?? ""} />
         <div className="form-row cols-2">
           <Field label="Standardformat für Rechnungen">
             {(control) => (
@@ -349,6 +340,37 @@ export function ContactForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/** Die Textfelder des Formulars, wie sie gespeichert werden: USt-IdNr. und IBAN ohne Leerzeichen, Land in Großbuchstaben */
+function textFields(text: (name: keyof ContactInput) => string) {
+  return {
+    kundennummer: text("kundennummer"),
+    name: text("name"),
+    strasse: text("strasse"),
+    plz: text("plz"),
+    ort: text("ort"),
+    land: text("land").toUpperCase() || "DE",
+    email: text("email"),
+    telefon: text("telefon"),
+    ustId: text("ustId").replace(/\s/g, "").toUpperCase(),
+    iban: text("iban").replace(/\s/g, "").toUpperCase(),
+    leitwegId: text("leitwegId"),
+    unsereLieferantennummer: text("unsereLieferantennummer"),
+    lieferantennummer: text("lieferantennummer"),
+  };
+}
+
+/** Die Nummer, unter der uns der Kunde führt (#711); nicht die Lieferantennummer oben, die meint die Gegenrichtung */
+function UnsereLieferantennummerField({ defaultValue }: { defaultValue: string }) {
+  return (
+    <Field
+      label="Unsere Lieferantennummer bei diesem Kunden"
+      hint="Vom Kunden vergeben. Steht im Kopf der Rechnung und in der E-Rechnung als Verkäuferkennung (BT-29)."
+    >
+      {(control) => <input {...control} name="unsereLieferantennummer" defaultValue={defaultValue} placeholder="optional" />}
+    </Field>
   );
 }
 

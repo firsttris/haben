@@ -36,3 +36,27 @@ networks:
 #   app:
 #     ports:
 #       - "127.0.0.1:3000:3000"
+
+# Weitere Abweichungen von compose.yml gehören ebenfalls hierher, nicht in compose.yml. Ohne eigenen Proxy enthält die
+# Datei nur diese Blöcke; mit Proxy kommen sie unter die vorhandenen Dienste. Compose fügt Volumes und extra_hosts zu
+# denen aus compose.yml hinzu. Der Compose-Generator (https://haben.app/compose-generator.html) erzeugt arm64 und Ollama.
+#
+# services:
+#   app:
+#     volumes:
+#       # ERiC von Hand: nach /opt/eric entpacken, ERIC_HOME=/opt/eric in .env
+#       - /opt/eric:/opt/eric:ro
+#       # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, ERIC_WORKER_COMMAND in .env
+#       - /opt/haben-x86_64:/opt/haben-x86_64:ro
+#       # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, ENABLE_BANKING_APP_ID in .env
+#       - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
+#     # KI-Dienst (z. B. Ollama) direkt auf dem Server: unter Linux kennt der Container host.docker.internal nur so
+#     extra_hosts:
+#       - host.docker.internal:host-gateway
+#   # Repository über sftp: SSH-Schlüssel für Backup und Wiederherstellen
+#   backup:
+#     volumes:
+#       - ~/.ssh:/root/.ssh:ro
+#   restore:
+#     volumes:
+#       - ~/.ssh:/root/.ssh:ro

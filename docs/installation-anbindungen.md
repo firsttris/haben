@@ -26,7 +26,7 @@ Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/
 
 | | Compose | Quadlet |
 | --- | --- | --- |
-| Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/eric:/opt/eric:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
+| Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/eric:/opt/eric:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml)) | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
 | Variable | `ERIC_HOME=/opt/eric` in `.env` | `ERIC_HOME=/opt/eric` in `haben.env` einkommentieren |
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
@@ -50,7 +50,7 @@ Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund
 
    | | Compose | Quadlet |
    | --- | --- | --- |
-   | Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
+   | Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/haben-x86_64:/opt/haben-x86_64:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml); der [Compose-Generator](compose-generator.md) erzeugt Mount und Variable) | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
    | Variable | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `.env` | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `haben.env` einkommentieren |
    | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
@@ -116,7 +116,7 @@ Das betrifft nur selbst betriebene Dienste; ein Cloud-Dienst ist über seine öf
 
 | Betrieb | Adresse | Was noch nötig ist |
 | --- | --- | --- |
-| Docker Compose unter Linux | `http://host.docker.internal:11434/v1` | in `compose.yml` beim Dienst `app` die Zeilen `extra_hosts: - host.docker.internal:host-gateway` einkommentieren; Ollama muss auf der Docker-Bridge lauschen: `OLLAMA_HOST=0.0.0.0:11434` (oder die Adresse der Bridge, meist `172.17.0.1`) |
+| Docker Compose unter Linux | `http://host.docker.internal:11434/v1` | in `compose.override.yml` beim Dienst `app` `extra_hosts` mit `host.docker.internal:host-gateway` eintragen, wie unter [Ollama mit Qwen-VL](einrichtung.md#beispiel-ollama-mit-qwen-vl) oder vom [Compose-Generator](compose-generator.md) erzeugt; Ollama muss auf der Docker-Bridge lauschen: `OLLAMA_HOST=0.0.0.0:11434` (oder die Adresse der Bridge, meist `172.17.0.1`) |
 | Docker Desktop (macOS, Windows) | `http://host.docker.internal:11434/v1` | nichts |
 | Podman (Quadlets) | `http://host.containers.internal:11434/v1` | Ollama mit `OLLAMA_HOST=0.0.0.0:11434`; den Namen trägt Podman selbst im Container ein |
 | Dienst auf einem anderen Rechner im Netz | `http://192.168.178.20:11434/v1` | Firewall für den Port öffnen, nur für den Server |
@@ -174,7 +174,7 @@ Schlüssel und ID an Haben übergeben, am einfachsten in der Oberfläche: Unter 
 Alternativ über die Umgebung, etwa wenn du die Einrichtung automatisierst. Was in den Einstellungen gespeichert ist, geht vor:
 
 ```sh
-# Compose: Datei neben compose.yml legen, Volume-Zeile in compose.yml einkommentieren, ID in .env
+# Compose: Datei neben compose.yml legen, in compose.override.yml einhängen (wie in compose.override.example.yml), ID in .env
 cp ~/Downloads/<Application ID>.pem ./enablebanking.pem && chown 1000:1000 enablebanking.pem && chmod 400 enablebanking.pem
 echo 'ENABLE_BANKING_APP_ID=<Application ID>' >> .env
 docker compose up -d

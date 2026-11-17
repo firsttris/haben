@@ -26,7 +26,7 @@ import {
   presentReferences,
   servicePeriod,
 } from "./format.ts";
-import type { Allowance, DocumentAllowance, Invoice, InvoiceLine } from "./modell.ts";
+import type { Allowance, DocumentAllowance, Invoice, InvoiceLine, PartyIdentification } from "./modell.ts";
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument } from "./types.ts";
 import { ublXml } from "./ubl.ts";
@@ -105,6 +105,21 @@ function sellerLegalEntity(seller: InvoiceDocument["seller"]) {
 }
 
 /**
+ * Verkäuferkennungen (BT-29, 0..n): zuerst unsere Lieferantennummer beim Kunden (#711), ohne schemeID, denn der Kunde
+ * vergibt sie selbst; das Schema (BT-29-1) ist laut EN 16931-1 optional und stammt sonst aus ISO/IEC 6523, das solche
+ * Nummern nicht kennt. BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung. Bei Lastschrift die
+ * Gläubiger-ID als Bank assigned creditor identifier (BT-90, schemeID SEPA); cii.ts setzt sie im CII als ram:CreditorReferenceID.
+ */
+function sellerIdentifiers(doc: InvoiceDocument, outOfScope: boolean): PartyIdentification[] {
+  const { seller, buyer } = doc;
+  return [
+    ...(buyer.unsereLieferantennummer ? [{ "cbc:ID": buyer.unsereLieferantennummer }] : []),
+    ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId) ? [{ "cbc:ID": seller.steuernummer || seller.ustId! }] : []),
+    ...(collectedByDirectDebit(doc) ? [{ "cbc:ID": doc.directDebit.creditorId, "cbc:ID@schemeID": "SEPA" as const }] : []),
+  ];
+}
+
+/**
  * InvoiceDocument → Rechnungsmodell nach EN 16931 (modell.ts), aus dem cii.ts und ubl.ts das XML schreiben.
  * Storno und Korrektur werden als Gutschrift (381) mit umgekehrtem Vorzeichen abgebildet.
  */
@@ -124,12 +139,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   if (seller.ustId && !outOfScope) sellerTax.push({ "cbc:CompanyID": seller.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } });
   if (seller.steuernummer) sellerTax.push({ "cbc:CompanyID": seller.steuernummer, "cac:TaxScheme": { "cbc:ID": "FC" } });
 
-  // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29). Bei Lastschrift die Gläubiger-ID als
-  // Bank assigned creditor identifier (BT-90, schemeID SEPA); cii.ts setzt sie im CII als ram:CreditorReferenceID
-  const sellerIds = [
-    ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId) ? [{ "cbc:ID": seller.steuernummer || seller.ustId! }] : []),
-    ...(collectedByDirectDebit(doc) ? [{ "cbc:ID": doc.directDebit.creditorId, "cbc:ID@schemeID": "SEPA" as const }] : []),
-  ];
+  const sellerIds = sellerIdentifiers(doc, outOfScope);
   const sellerContact: NonNullable<Invoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:Contact"]> = {
     "cbc:Name": seller.name,
     "cbc:ElectronicMail": seller.email,
@@ -194,7 +204,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       "cac:Party": {
         "cbc:EndpointID": seller.email,
         "cbc:EndpointID@schemeID": "EM",
-        // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29)
+        // Verkäuferkennungen (BT-29) und Gläubiger-ID (BT-90), siehe sellerIds
         ...(sellerIds.length > 0 ? { "cac:PartyIdentification": sellerIds } : {}),
         "cac:PostalAddress": {
           "cbc:StreetName": seller.strasse,

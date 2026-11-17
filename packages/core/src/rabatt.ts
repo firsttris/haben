@@ -1,6 +1,6 @@
 import { z } from "zod/mini";
 import { inBasisPoints, inCents } from "./einheit-schema.ts";
-import type { InvoiceTotals, PriceMode } from "./invoice.ts";
+import type { InvoiceTotals, Millis, PriceMode } from "./invoice.ts";
 import { formatEuro, parseEuro, roundHalfAwayFromZero, taxIncluded, type BasisPoints, type Cents } from "./money.ts";
 import { formatPercent, parsePercent } from "./skonto.ts";
 
@@ -94,7 +94,7 @@ export function lineDiscountAmount(amount: Cents, discount: Discount | null | un
 }
 
 export interface DiscountableLine {
-  quantity: number;
+  quantity: Millis;
   unitPrice: Cents;
   discount?: Discount | null | undefined;
 }

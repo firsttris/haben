@@ -117,7 +117,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | --- | --- |
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
-| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) |
+| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) und den [Compose-Generator](compose-generator.md) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bunx knip@5.88.1 --include files,dependencies,unlisted` | Unbenutzte Dateien und Abhängigkeiten (Einstiegspunkte in `knip.jsonc`); nicht in der CI, vor dem Löschen mit `git grep` gegenprüfen |
@@ -163,7 +163,7 @@ Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>
 Ältere Versionen ließen ihre Temp-Ordner direkt in `$TMPDIR` liegen. Einmalig löschen, wenn gerade kein Testlauf läuft, auch keiner in einem anderen Worktree:
 
 ```sh
-find "${TMPDIR:-/tmp}" -maxdepth 1 -type d \( -name 'haben-belege-*' -o -name 'haben-migration*' -o -name 'haben-mandate-*' -o -name 'haben-trigger-*' -o -name 'haben-firmendaten-migration-*' -o -name 'eric-test-*' -o -name 'eric-review-*' \) -exec rm -rf {} +
+find "${TMPDIR:-${TMP:-${TEMP:-/tmp}}}" -mindepth 1 -maxdepth 1 -type d \( -name 'haben-belege-*' -o -name 'haben-migration*' -o -name 'haben-mandate-*' -o -name 'haben-trigger-*' -o -name 'haben-firmendaten-migration-*' -o -name 'eric-test-*' -o -name 'eric-review-*' \) -exec rm -rf {} +
 ```
 
 Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
@@ -291,13 +291,14 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 
 ## Konventionen
 
-- **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
+- **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um. Eingegebene Beträge liest `parseEuro`, in Formularen, Schnellsuche und CSV-Import; einen ungültigen meldet `amountError`. Kontoauszüge und Exporte anderer Programme lesen die Parser in `packages/import` nach deren Format.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln** (`Millis`): 152 Stunden = 152000, 0,5 Tage = 500.
-- **Einheit im Typ:** `Cents`, `BasisPoints` und `Millis` tragen ihre Einheit (`packages/core/src/einheit.ts`, #1132), verschiedene Einheiten passen nicht zueinander.
-    - Spalten für Beträge, Sätze und Mengen tragen sie in `apps/web/src/server/db/schema.ts` mit `.$type<Cents>()`, `.$type<BasisPoints>()` oder `.$type<Millis>()`, Felder in JSON-Spalten mit denselben Typen; eine Migration entsteht dadurch nicht.
-    - Zod-Schemas bekommen sie über `inCents`, `inBasisPoints` und `inMillis` (`packages/core/src/einheit-schema.ts`): `inCents(z.number().int().min(0)).nullable()`; Prüfung, Meldungen und JSON-Schema bleiben gleich.
-    - Basispunkte als Text gehen nicht über `parseEuro` und `formatDecimal`, die nur Cent kennen, sondern über `parsePercent` und `formatPercent` oder, ohne `%` und auch negativ, über `parseHundredths` und `formatHundredths`. In den Importen gilt das auch für `parseGermanAmount`; für einen Satz in derselben Schreibweise („19,00“) gibt es `parseGermanRate`.
+- **Privatanteil, Hebesatz und Kirchensteuersatz der Ausschüttung in ganzen Prozent** (`Prozent`): 20 = 20 %; bei Basispunkten ist 100 = 1 %.
+- **Einheit im Typ:** `Cents`, `BasisPoints`, `Millis` und `Prozent` tragen ihre Einheit (`packages/core/src/einheit.ts`, #1132), verschiedene Einheiten passen nicht zueinander. Eine schlichte Zahl passt weiter, auch ohne `as`. `as Cents` deutet dagegen auch eine andere Einheit um; `bun run lint` meldet es für alle vier.
+    - Spalten für Beträge, Sätze und Mengen tragen sie in `apps/web/src/server/db/schema.ts` mit `.$type<Cents>()`, `.$type<BasisPoints>()`, `.$type<Millis>()` oder `.$type<Prozent>()`, Felder in JSON-Spalten mit denselben Typen; eine Migration entsteht dadurch nicht.
+    - Zod-Schemas bekommen sie über `inCents`, `inBasisPoints`, `inMillis` und `inProzent` (`packages/core/src/einheit-schema.ts`): `inCents(z.number().int().min(0)).nullable()`; Prüfung, Meldungen und JSON-Schema bleiben gleich.
+    - Basispunkte gehen nicht über `parseEuro` und `formatDecimal`, die nur Cent kennen: Prozentfelder lesen über `parsePercent` (mit `negative` auch negativ) oder für ganze Prozent über `parseWholePercent`; angezeigt wird mit `formatPercent` oder, ohne `%`, mit `formatHundredths`. In den Importen gilt das auch für `parseGermanAmount`; für einen Satz in derselben Schreibweise („19,00“) gibt es `parseGermanRate`.
 - **Daten der Belegvorlagen:** Jedes Feld, das eine Vorlage bekommt, steht mit Beschreibung im Feldvertrag (`packages/einvoice/src/layout-schema.ts`). Danach schreibt `bun scripts/feldvertrag/schreiben.ts` den Skill `belegvorlage` und die Feldtabellen in [Eigene Belegvorlagen](belegvorlagen.md) neu. Felder kommen nur dazu: Wegfallen, umbenennen oder den Typ wechseln darf keines einer veröffentlichten Version, sonst brechen eigene Layouts. Steigt `LAYOUT_SCHEMA_VERSION`, friert `bun scripts/feldvertrag/einfrieren.ts` den neuen Stand einmal als `layout-schema.v<n>.json` ein; eine vorhandene Datei überschreibt es nie.
 - **Formatierung mit Biome:** `bun run format` formatiert JavaScript, TypeScript und JSON (160 Zeichen breit, doppelte Anführungszeichen); `bun run lint` und die CI prüfen das. CSS und Markdown formatiert Biome nicht. Reine Formatier-Commits stehen in `.git-blame-ignore-revs`; damit `git blame` sie lokal überspringt, einmal `git config blame.ignoreRevsFile .git-blame-ignore-revs` und `git config blame.markIgnoredLines true`.
 - **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.

@@ -1,5 +1,5 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { toCsv, type Cents } from "./money.ts";
+import { toCsv, type BasisPoints, type Cents, type Prozent } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
 import { addDocumentEffects, documentEuer, type DocumentEuerEffect } from "./euer-beleg.ts";
 export { documentEuerEffects, type DocumentEuerEffect, type DocumentEuerEvent } from "./euer-beleg.ts";
@@ -42,13 +42,13 @@ export type EuerPayment =
       /** false bei Kleinunternehmern: die Steuer auf dem Beleg ist Teil der Ausgabe */
       vorsteuerAbzug?: boolean;
       /** Gespeicherter Abzugsanteil in Basispunkten; null fällt bei Altbelegen auf vorsteuerAbzug zurück */
-      vorsteuerAnteil?: number | null;
+      vorsteuerAnteil?: BasisPoints | null;
       /** Bisheriger Zahlbetrag: neue Teilabzüge runden kumuliert, auch bei Zahlungen über den Jahreswechsel */
       paidBefore?: Cents;
       /** Aus vorhandenen Zahlungen berechnete Wirkung; Rücknahmen behalten den gerundeten Anteil ihres Ursprungs */
       effect?: DocumentEuerEffect;
       /** Privatanteil in Prozent: nur der betriebliche Teil ist Ausgabe bzw. Vorsteuer */
-      privateShare?: number;
+      privateShare?: Prozent;
       /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
       splits?: AllocatedSplitLine[];
       /** § 13b und Erwerb: selbst geschuldete Steuer des ganzen Belegs je Steuersatz (totals tragen dann keine Steuer) */
@@ -114,7 +114,7 @@ export type EuerPayment =
       date: string;
       amount: Cents;
       kategorie: DirektKategorie;
-      steuersatz: number;
+      steuersatz: BasisPoints;
       group?: string;
     };
 
@@ -243,6 +243,14 @@ export interface EuerWithdrawals {
   ustEntnahmen: Cents;
 }
 
+/**
+ * Zeile einer direkt gebuchten Einnahme (Netto): nicht steuerbare Einnahme (#1131) ohne Umsatzsteuer in der Zeile der
+ * steuerfreien Einnahmen des Monats (16, als Kleinunternehmer 12) wie im Journal (journal-euer.ts), Erlöse mit 0 % als
+ * Kleinunternehmer, sonst umsatzsteuerpflichtig
+ */
+const direktEinnahmeZeile = (kategorie: DirektKategorie, steuersatz: number, steuerfrei: EuerLineKey): EuerLineKey =>
+  kategorie === "nichtSteuerbar" ? steuerfrei : steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig";
+
 export function computeEuer(
   year: number,
   payments: EuerPayment[],
@@ -348,7 +356,7 @@ export function computeEuer(
         // Zufluss bzw. Abfluss am Tag der Zahlung (§ 11 EStG); die Gegenrichtung (Erstattung) mindert die Zeile
         const { base, tax } = kategorieAnteil({ kategorie: p.kategorie, steuersatz: p.steuersatz }, p.sum);
         if (kategorieArt(p.kategorie) === "einnahme") {
-          add(p.steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig", base);
+          add(direktEinnahmeZeile(p.kategorie, p.steuersatz, steuerfrei), base);
           add("vereinnahmteUst", tax);
           monthlyIn[month]! += base;
         } else if (kategorieArt(p.kategorie) === "ausgabe") {

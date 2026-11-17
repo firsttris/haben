@@ -1,5 +1,5 @@
 import { kennzahlenAusJournal, type JournalKennzahl, type JournalZeile } from "./journal-kennzahlen.ts";
-import type { Cents } from "./money.ts";
+import type { BasisPoints, Cents } from "./money.ts";
 import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
 
 /*
@@ -25,7 +25,7 @@ import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
 
 export interface VerprobungsAbweichung {
   /** Satz in Basispunkten */
-  satz: 1900 | 700;
+  satz: BasisPoints & (1900 | 700);
   art: "umsatzsteuer" | "erwerbsteuer" | "vorsteuer";
   bemessung: Cents;
   /** Steuer auf den Steuerkonten */
@@ -41,9 +41,9 @@ export const VERPROBUNG_TOLERANZ = 1;
 const toleranz = (saetze: { bemessung: Cents; steuer: Cents }[]) =>
   VERPROBUNG_TOLERANZ * Math.max(1, saetze.filter((x) => x.bemessung !== 0 || x.steuer !== 0).length);
 
-const steuerZu = (bemessung: Cents, satz: number) => Math.round((bemessung * satz) / 10_000);
+const steuerZu = (bemessung: Cents, satz: BasisPoints) => Math.round((bemessung * satz) / 10_000);
 
-const PAARE: { art: VerprobungsAbweichung["art"]; satz: 1900 | 700; bemessung: JournalKennzahl; steuer: JournalKennzahl }[] = [
+const PAARE: { art: VerprobungsAbweichung["art"]; satz: BasisPoints & (1900 | 700); bemessung: JournalKennzahl; steuer: JournalKennzahl }[] = [
   { art: "umsatzsteuer", satz: 1900, bemessung: "kz81", steuer: "tax81" },
   { art: "umsatzsteuer", satz: 700, bemessung: "kz86", steuer: "tax86" },
   { art: "erwerbsteuer", satz: 1900, bemessung: "kz89", steuer: "tax89" },

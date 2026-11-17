@@ -173,8 +173,9 @@ export async function listFristen(today: string): Promise<Frist[]> {
     }
   }
 
-  // Einkommensteuer-Vorauszahlungen; ob welche festgesetzt sind, steht im Bescheid
-  if (company.taxpayer.a && !isKapitalgesellschaft(company.rechtsform)) {
+  // Einkommensteuer-Vorauszahlungen; ob welche festgesetzt sind, steht im Bescheid. Wer keine zahlt, schaltet die
+  // Hinweise in den Einstellungen ab (#1240) und bekommt dann auch keinen Kalendereintrag
+  if (company.taxpayer.a && !isKapitalgesellschaft(company.rechtsform) && !company.taxpayer.keineVorauszahlungen) {
     for (const year of [Number(today.slice(0, 4)), Number(today.slice(0, 4)) + 1]) {
       for (const [index, datum] of vorauszahlungstermine(year, bundesland).entries()) {
         if (datum < today || datum > bis) continue;

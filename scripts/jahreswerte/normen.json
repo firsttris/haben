@@ -141,6 +141,14 @@
       "sha256": "558fd8774dea1d95eb170620e5e60cc3806f5d385ee73e9d93b823eac3fa1d7a"
     },
     {
+      "id": "gewstg-16",
+      "norm": "§ 16 GewStG",
+      "url": "https://www.gesetze-im-internet.de/gewstg/__16.html",
+      "zweck": "Mindesthebesatz der Gewerbesteuer (200 % bis 2026, 280 % ab 2027): Prüfung und Vorschlag des Hebesatzes einer GmbH oder UG",
+      "stellen": ["packages/core/src/koerperschaft.ts", "apps/web/src/server/modules/koerperschaft/koerperschaft.ts", "docs/gmbh-abschluss.md"],
+      "sha256": "0417e1743f74ad9942502cf736959ee5fd56c037931c6fbfca31b5f6b49e52f9"
+    },
+    {
       "id": "ao-146a",
       "norm": "§ 146a AO",
       "url": "https://www.gesetze-im-internet.de/ao_1977/__146a.html",

@@ -1,4 +1,5 @@
 import {
+  amountError,
   dauerbelegSummen,
   formatEuro,
   ownerLabels,
@@ -7,6 +8,7 @@ import {
   VORSTEUER_HINWEIS,
   type RecurringInterval,
   type Rechtsform,
+  type Prozent,
 } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { FilePicker } from "./FilePicker.tsx";
@@ -27,7 +29,7 @@ export interface DauerbelegValues {
   reference: string;
   category: string;
   payment: "bank" | "privat" | "kasse";
-  privateShare: number;
+  privateShare: Prozent;
   amounts: { taxRate: Rate; net: number; tax: number }[];
   taxShown: boolean;
   note: string;
@@ -107,7 +109,7 @@ export function DauerbelegForm({
   const due = Number(dueDays);
   const usedRates = new Set(amounts.map((a) => a.taxRate));
 
-  const BETRAG = "Trag den Betrag als Zahl ein, etwa 850,00.";
+  const BETRAG = amountError("den Betrag", 85_000);
   const { form, error, check } = useSubmitCheck({
     ...Object.fromEntries(
       amounts.flatMap((a, i) => [
@@ -135,7 +137,7 @@ export function DauerbelegForm({
 
   function chooseTaxShown(an: boolean) {
     setTaxShown(an);
-    setAmounts((prev) => prev.map((a) => steuerausweisUmschalten(a, an)));
+    setAmounts((prev) => steuerausweisUmschalten(prev, an));
   }
 
   function addRate() {

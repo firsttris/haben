@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createRunDir, redirectTempDirs, removeAbandonedRunDirs, workerDocumentsDir } from "./test-db.ts";
 
@@ -41,7 +41,7 @@ describe("Temp-Ordner der Tests", () => {
     writeFileSync(join(first, "datei"), "x");
     const second = workerDocumentsDir();
     expect(second).toBe(first);
-    expect(second.startsWith(`${tmpdir()}/`)).toBe(true);
+    expect(dirname(second)).toBe(tmpdir());
     expect(readdirSync(second)).toEqual([]);
   });
 
