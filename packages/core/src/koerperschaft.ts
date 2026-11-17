@@ -94,13 +94,17 @@ const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konte
   ],
 };
 
-/** § 8 Nr. 1 Buchst. d Satz 2 GewStG gilt letztmals für den Erhebungszeitraum 2030 (§ 36 Abs. 4 Satz 3 GewStG) */
+/**
+ * § 8 Nr. 1 Buchst. d Satz 2 GewStG gilt nur für Verträge, die nach dem 31.12.2019 abgeschlossen worden sind, und
+ * letztmals für den Erhebungszeitraum 2030 (§ 36 Abs. 4 Sätze 1 und 3 GewStG)
+ */
+const ELEKTRO_AB = 2020;
 const ELEKTRO_BIS = 2030;
 
-/** Die Gruppen eines Jahres; nach 2030 zählt das Leasing für Elektrofahrzeuge und Fahrräder zum übrigen beweglichen */
+/** Die Gruppen eines Jahres; vor 2020 und nach 2030 zählt das Leasing für Elektrofahrzeuge und Fahrräder zum übrigen beweglichen */
 function hinzurechnungGruppen(kontenrahmen: Kontenrahmen, year: number) {
   const gruppen = HINZURECHNUNG[kontenrahmen];
-  if (year <= ELEKTRO_BIS) return gruppen;
+  if (year >= ELEKTRO_AB && year <= ELEKTRO_BIS) return gruppen;
   const elektro = gruppen.find(([art]) => art === "elektro")?.[1] ?? [];
   return gruppen
     .filter(([art]) => art !== "elektro")
