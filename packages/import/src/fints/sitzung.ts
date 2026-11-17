@@ -2,6 +2,7 @@ import { type BankAccount, type BankAnswer, type BankingInformation, type Client
 import { bankdatenNichtLoggen } from "./log.ts";
 import { lesefehler, lesefehlerMerken, type UmsatzFormat, umsatzFormat } from "./lesefehler.ts";
 import { mitEingetippterTan } from "./tan-eintippen.ts";
+import { umsatzabrufMitTanSchritt } from "./tan-schritt.ts";
 
 /**
  * Dünne Schicht über lib-fints (FinTS 3.0 mit PIN/TAN): baut den Client, übersetzt Antworten der Bank in
@@ -166,7 +167,8 @@ function datum(tag: string): Date {
 
 /**
  * Gebuchte Umsätze eines Kontos von bis einschließlich (CAMT, wenn die Bank es für das Konto anbietet, sonst MT940).
- * Wirft, wenn lib-fints die Umsätze nicht lesen kann (lesefehler.ts), statt sie als leer zu melden.
+ * Wirft, wenn lib-fints die Umsätze nicht lesen kann (lesefehler.ts), statt sie als leer zu melden. Verlangt die Bank
+ * entgegen HIPINS einen TAN-Schritt (9075), fragt sie Haben einmal mit TAN-Schritt neu (tan-schritt.ts).
  */
 export async function fintsUmsaetze(
   client: FinTSClient,
@@ -175,9 +177,9 @@ export async function fintsUmsaetze(
   bis: string,
   weiter?: FintsWeiter,
 ): Promise<FintsAntwort<FintsAuszug[]>> {
-  const response = weiter
-    ? await mitEingetippterTan(client, weiter.tan, () => client.getAccountStatementsWithTan(weiter.referenz, weiter.tan))
-    : await client.getAccountStatements(konto, datum(von), datum(bis));
+  const abrufen = () => client.getAccountStatements(konto, datum(von), datum(bis));
+  let response = weiter ? await mitEingetippterTan(client, weiter.tan, () => client.getAccountStatementsWithTan(weiter.referenz, weiter.tan)) : await abrufen();
+  if (!weiter && umsatzabrufMitTanSchritt(client, response)) response = await abrufen();
   const fehler = lesefehler(response);
   if (fehler) {
     throw new Error(
