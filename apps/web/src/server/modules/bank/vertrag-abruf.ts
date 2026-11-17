@@ -49,10 +49,16 @@ export function abrufNachVertrag(abruf: {
     fetchId: abruf.fetchId,
   });
   const ohneReferenz = batch.unsupported.filter((u) => u.reason.includes(OHNE_ENTRY_REFERENCE)).length;
-  const hinweise =
-    ohneReferenz > 0
-      ? [`${ohneReferenz} ${ohneReferenz === 1 ? "Umsatz" : "Umsätze"} ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt.`]
-      : [];
+  // Vorgemerkte Umsätze und andere Status meldet schon der Kontoauszug (enableBankingStatement), die nicht doppelt
+  const ausserhalb = batch.unsupported.filter((u) => u.reason.includes("dem abgerufenen Fenster")).length;
+  const gebucht = abruf.transactions.filter((t) => (!t.status || t.status === "BOOK") && t.entry_reference?.trim());
+  const doppelt = gebucht.length - new Set(gebucht.map((t) => t.entry_reference!.trim())).size;
+  const umsaetze = (n: number) => `${n} ${n === 1 ? "Umsatz" : "Umsätze"}`;
+  const hinweise = [
+    ...(ohneReferenz > 0 ? [`${umsaetze(ohneReferenz)} ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt.`] : []),
+    ...(ausserhalb > 0 ? [`${umsaetze(ausserhalb)} außerhalb des abgerufenen Zeitraums nicht übernommen; ihre Tage deckt ein anderer Abruf ab.`] : []),
+    ...(doppelt > 0 ? [`${umsaetze(doppelt)} mit derselben Referenz der Bank doppelt geliefert und einmal übernommen.`] : []),
+  ];
   return {
     input: {
       batch: { ...batch, unsupported: batch.unsupported.filter((u) => !u.reason.includes(OHNE_ENTRY_REFERENCE)) },
