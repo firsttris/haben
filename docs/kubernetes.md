@@ -55,7 +55,9 @@ unter `haben/deploy/helm/values.yaml`.
 Mit dem Code legst du dein Konto an, siehe [Erste Schritte](einrichtung.md). Weitere Variablen aus
 [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen) trägst du unter `app.env` ein, geheime wie
 `ANTHROPIC_API_KEY` oder `OIDC_CLIENT_SECRET` unter `app.secretEnv`. Jeden Wert schreibst du in Anführungszeichen, sonst
-liest YAML etwa `off` als `false`; das Chart bricht dann mit einer Meldung ab.
+liest YAML etwa `off` als `false`; das Chart bricht dann mit einer Meldung ab. Ebenso bei einem Schlüssel, den das
+Chart nicht kennt, etwa nach einem Tippfehler oder aus einer neueren Fassung dieser Seite; das Chart aus v0.10.0
+übergeht ihn noch ohne Meldung.
 
 Die mitgelieferte Datenbank legt beim ersten Start die App-Rolle `haben_app` an
 ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)). Ein späteres neues Passwort in

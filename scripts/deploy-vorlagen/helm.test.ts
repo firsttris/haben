@@ -19,6 +19,7 @@ type Container = {
   volumeMounts?: Mount[];
 };
 type Pod = {
+  nodeSelector?: Record<string, string>;
   containers: Container[];
   initContainers?: Container[];
   volumes: { name: string; emptyDir?: { medium?: string }; persistentVolumeClaim?: { claimName: string } }[];
@@ -88,6 +89,17 @@ const labelWerte = (knoten: unknown): unknown[] =>
 // Syntax eines Label-Werts laut Kubernetes-Doku (Labels and Selectors, „Syntax and character set“)
 const gueltigesLabel = (wert: unknown) => typeof wert === "string" && wert.length <= 63 && /^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$/.test(wert);
 const ohneTag = (image: string) => image.replace(/^docker\.io\//, "").replace(/:[^/]*$/, "");
+type Schema = { additionalProperties?: boolean; properties?: Record<string, Schema> };
+// Wo Schema und values.yaml verschiedene feste Schlüssel haben; ganz oben erlaubt das Schema zusätzlich global
+const abweichungen = (schema: Schema, werte: Werte, pfad = ""): string[] => {
+  const eigenschaften = schema.properties;
+  if (!eigenschaften) return [];
+  const imSchema = Object.keys(eigenschaften).filter((k) => pfad !== "" || k !== "global");
+  const offen = schema.additionalProperties === false ? [] : [`${pfad.slice(0, -1) || "."} ohne additionalProperties: false`];
+  const anders = [...new Set([...imSchema, ...Object.keys(werte)])].filter((k) => !imSchema.includes(k) || !(k in werte));
+  const darunter = imSchema.flatMap((k) => abweichungen(eigenschaften[k], (werte[k] ?? {}) as Werte, `${pfad}${k}.`));
+  return [...offen, ...anders.map((k) => `${pfad}${k}`), ...darunter];
+};
 
 type ComposeService = { image: string; volumes?: string[]; read_only?: boolean; cap_drop?: string[]; tmpfs?: string[] };
 const compose = (Bun.YAML.parse(readFileSync(join(root, "deploy/compose.yml"), "utf8")) as { services: Record<string, ComposeService> }).services;
@@ -234,6 +246,31 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     expect(variable(container(pod, "backup"), "PGPASSWORD")?.valueFrom?.secretKeyRef.name).toBe("d");
   });
 
+  // values.schema.json lehnt unbekannte Schlüssel ab; Variablen, Annotationen und Kubernetes-Objekte bleiben frei, und
+  // global setzt Helm, wenn das Chart Abhängigkeit eines anderen ist
+  test("nimmt freie Maps, Listen und global an", () => {
+    const x86 = "/opt/haben-x86_64";
+    const werte = {
+      ...basis,
+      global: { imageRegistry: "registry.example.de" },
+      app: { ...(basis.app as object), resources: { limits: { memory: "1Gi" } }, extraVolumeMounts: [{ name: "x86", mountPath: x86 }] },
+      ingress: { enabled: true, annotations: { "traefik.ingress.kubernetes.io/router.middlewares": "haben-haben-header@kubernetescrd" } },
+      extraVolumes: [{ name: "x86", hostPath: { path: x86 } }],
+      nodeSelector: { "kubernetes.io/arch": "amd64" },
+      tolerations: [{ key: "arch", operator: "Exists" }],
+      affinity: { nodeAffinity: {} },
+    };
+    expect(finde(manifeste(werte), "Deployment", "haben").spec.template.spec.nodeSelector).toEqual({ "kubernetes.io/arch": "amd64" });
+  });
+
+  // Fehlt ein Schlüssel aus values.yaml im Schema, scheitert schon jeder Render, weil Helm auch die Vorgaben prüft. Das hier
+  // fängt die andere Richtung: ein Objekt, das fremde Schlüssel annimmt, oder einen Schlüssel, den das Chart nicht mehr kennt
+  test("kennt im Schema dieselben festen Schlüssel wie values.yaml", () => {
+    const schema = JSON.parse(readFileSync(join(root, "deploy/helm/values.schema.json"), "utf8")) as Schema;
+    const werte = Bun.YAML.parse(readFileSync(join(root, "deploy/helm/values.yaml"), "utf8")) as Werte;
+    expect(abweichungen(schema, werte)).toEqual([]);
+  });
+
   // Flux baut ein Chart aus Git mit reconcileStrategy: Revision als 0.1.0+<Commit>; mit „+“ in helm.sh/chart lehnte der
   // API-Server jedes Objekt ab
   const suffix = "9dd43b86d64c";
@@ -362,6 +399,15 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
       fall: "mit postgresql.existingSecret ohne app.existingSecret",
       werte: { ...basis, postgresql: { existingSecret: "d" } },
       meldung: "app.existingSecret mit DATABASE_URL",
+    },
+    // Ein Tippfehler oder ein Wert aus einer neueren Anleitung bliebe sonst still wirkungslos. Erwartet wird nur der Name,
+    // den Wortlaut der Meldung bestimmt die Version von Helm
+    { fall: "mit einem unbekannten Wert", werte: { ...basis, ingres: { enabled: true } }, meldung: "ingres" },
+    { fall: "mit einem Tippfehler unter app", werte: { ...basis, app: { ...(basis.app as object), secretenv: {} } }, meldung: "secretenv" },
+    {
+      fall: "mit einem unbekannten Wert eine Ebene tiefer",
+      werte: { ...basis, app: { ...(basis.app as object), persistence: { belege: { size: "1Gi", accessMode: "ReadWriteMany" } } } },
+      meldung: "accessMode",
     },
   ])("bricht $fall mit Meldung ab", ({ werte, meldung }) => {
     const lauf = rendern(werte);
