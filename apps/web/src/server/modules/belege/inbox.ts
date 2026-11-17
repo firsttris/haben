@@ -156,10 +156,13 @@ const retryKey = (messageId: string, n: number) => `${messageId.slice(0, 970)}${
  * `onConflictDoNothing` den Eintrag eines Fehlschlags nach einem Nachholen.
  */
 async function freeKey(base: string): Promise<string | null> {
-  const earlier = await db
+  const prefix = retryKey(base, 1).slice(0, -1);
+  const rows = await db
     .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
     .from(schema.inboxMessages)
-    .where(or(eq(schema.inboxMessages.messageId, base), sql`starts_with(${schema.inboxMessages.messageId}, ${retryKey(base, 1).slice(0, -1)})`));
+    .where(or(eq(schema.inboxMessages.messageId, base), sql`starts_with(${schema.inboxMessages.messageId}, ${prefix})`));
+  // Nur Schlüssel aus retryKey; eine andere Mail kann eine Message-ID haben, die genauso beginnt
+  const earlier = rows.filter((row) => row.messageId === base || /^(?:\)| [1-9]\d*\))$/.test(row.messageId.slice(prefix.length)));
   // inbox_messages ist nur zu ergänzen: der Eintrag eines Fehlschlags bleibt stehen,
   // und wer die Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
   if (earlier.some((row) => !isRetryable(row))) return null;
