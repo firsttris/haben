@@ -268,7 +268,10 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect(await stichtag(konto)).toBe("2026-10-31");
     expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-1200]);
     const [lauf] = await sql<{ warnings: string[] }[]>`select warnings from bank_imports where filename = ${`Abruf stichtag-${konto.hash}`}`;
-    expect(lauf!.warnings).toEqual([expect.stringContaining("ER-2: Vor dem Stichtag 2026-10-31"), expect.stringContaining("ER-4: Vor dem Stichtag 2026-10-31")]);
+    expect(lauf!.warnings).toEqual([
+      expect.stringContaining("ER-2: Vor dem Stichtag 2026-10-31"),
+      expect.stringContaining("ER-4: Vor dem Stichtag 2026-10-31"),
+    ]);
   });
 
   it("nimmt als Stichtag den gewählten Tag „Umsätze abrufen ab“, wenn er nach der Datei liegt", async () => {
@@ -287,7 +290,9 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     await db.db.transaction((t) => bank.storeStatement(t, alt, { filename: "alter Abruf", sha256: `alt-${konto.hash}` }, null));
     // Folgeabruf mit sieben Tagen Überlappung; ER-3 hat die Bank am 20.10. nach dem alten Abruf gebucht
     const spaet = tx("ER-3", "2026-10-20", "3.00", { remittance_information: ["Nachgebucht"] });
-    const r = await speichere(abruf(konto, [tx("ER-2", "2026-10-20", "2.00"), spaet, tx("ER-5", "2026-10-24", "5.00")], { from: "2026-10-13", to: "2026-10-25" }));
+    const r = await speichere(
+      abruf(konto, [tx("ER-2", "2026-10-20", "2.00"), spaet, tx("ER-5", "2026-10-24", "5.00")], { from: "2026-10-13", to: "2026-10-25" }),
+    );
     expect(r.added).toBe(2);
     expect((await umsaetze(konto.iban)).map((u) => u.bank_reference)).toEqual(["ER-1", "ER-2", "ER-3", "ER-5"]);
     // Die Überlappung mit dem alten Abruf deckt der Alias ab; ein Stichtag nach dem 20.10. ließe ER-3 fallen

@@ -37,6 +37,7 @@ export function abrufNachVertrag(abruf: {
   now: Date;
   fetchId: string;
   source: StoreBatchInput["source"];
+  fetchFrom?: string;
 }): { input: StoreBatchInput; hinweise: string[] } {
   const batch = enableBankingBatch({
     externalAccountId: abruf.identificationHash,
@@ -66,6 +67,7 @@ export function abrufNachVertrag(abruf: {
       statement: abruf.statement,
       eventOf: entryReferenceOf(abruf.transactions),
       source: abruf.source,
+      ...(abruf.fetchFrom ? { fetchFrom: abruf.fetchFrom } : {}),
     },
     hinweise,
   };

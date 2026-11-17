@@ -1,5 +1,5 @@
 import { addDays } from "@haben/core";
-import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, max, ne, notInArray, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 
 /*
@@ -8,12 +8,33 @@ import { schema, type Tx } from "../../db/index.ts";
  */
 
 /**
+ * Stichtag einer neuen Quellenbindung: der Tag, ab dem der Abruf das Konto abdeckt. Das ist der Tag nach dem letzten
+ * Umsatz aus Datei oder FinTS, nicht vor „Umsätze abrufen ab“ und nicht nach dem Beginn dieses Fensters; ohne beides das
+ * Fenster selbst. Umsätze aus Enable Banking vor der Bindung zählen nicht: Die Überlappung mit ihnen deckt der Alias ab,
+ * und ein Stichtag nach ihrem letzten Tag ließe einen später am selben Tag gebuchten Umsatz fallen.
+ */
+export async function cutoverFor(tx: Tx, accountId: string, windowFrom: string, fetchFrom: string | undefined): Promise<string> {
+  const [row] = await tx
+    .select({ date: max(schema.bankTransactions.bookingDate) })
+    .from(schema.bankTransactions)
+    .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
+    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), ne(schema.bankImports.format, "enablebanking")));
+  const afterOther = row?.date ? addDays(row.date, 1) : undefined;
+  const floor = [fetchFrom, afterOther]
+    .filter((d): d is string => d !== undefined)
+    .sort()
+    .at(-1);
+  return floor && floor < windowFrom ? floor : windowFrom;
+}
+
+/**
  * Umsätze aus Dateien und FinTS (nicht aus Enable Banking) an diesen Tagen, je Tag und Betrag. Deren Tage holt der Abruf
  * absichtlich nicht (`followUpStart`); liefert die Bank einen Umsatz mit so einem Tag vor dem Fenster mit, steht er meist
  * schon aus der Datei da, oft mit anders geschriebenem Verwendungszweck. Zeilen, die schon einer Bewegung gehören oder in
- * diesem Abruf per Alias eine bekommen, zählen nicht.
+ * diesem Abruf per Alias eine bekommen, zählen nicht. Mit `since` nur Zeilen ab diesem Zeitpunkt: Was vor der Bindung
+ * importiert wurde, liegt vor ihrem Stichtag, und Bewegungen davor lehnt der Vertrag schon ab.
  */
-export async function otherImports(tx: Tx, accountId: string, dates: string[], aliased: string[]): Promise<Map<string, string[]>> {
+export async function otherImports(tx: Tx, accountId: string, dates: string[], aliased: string[], since?: Date): Promise<Map<string, string[]>> {
   if (dates.length === 0) return new Map();
   const rows = await tx
     .select({ id: schema.bankTransactions.id, date: schema.bankTransactions.bookingDate, amount: schema.bankTransactions.amount })
@@ -26,6 +47,7 @@ export async function otherImports(tx: Tx, accountId: string, dates: string[], a
         inArray(schema.bankTransactions.bookingDate, [...new Set(dates)]),
         sql`not exists (select 1 from import_movements m where m.transaction_id = ${schema.bankTransactions.id})`,
         ...(aliased.length > 0 ? [notInArray(schema.bankTransactions.id, aliased)] : []),
+        ...(since ? [gte(schema.bankTransactions.createdAt, since)] : []),
       ),
     )
     .orderBy(schema.bankTransactions.createdAt, schema.bankTransactions.id);

@@ -31,6 +31,7 @@ import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
+import { QUELLEN_HEADER, quellenFuerArchiv } from "./export-importvertrag.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 import { procedureMarkdown } from "../verfahrensdoku/index.ts";
@@ -1106,6 +1107,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
+  // Herkunft der abgerufenen Umsätze nach dem Importvertrag (#306): eigene Datei, siehe export-importvertrag.ts
+  const quellen = await quellenFuerArchiv({ von: yearStart(year), bis: yearEnd(year), money, iso });
+  if (quellen) yield { path: "bank/quellen.csv", content: csv(QUELLEN_HEADER, quellen), compress: true };
 
   // Umsatzsteuer ----------------------------------------------------------
   const vatReturns = await db
@@ -1835,6 +1839,9 @@ bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA
                          Zeitraum, Salden und Hinweisen; abgelehnte Abrufe ohne Zeitraum
                          nach dem Tag des Abrufs. Die Auszugsdateien selbst speichert
                          Haben nicht.
+bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
+                         Ereignis der Bank die Quelle mit Stichtag, der Abruf und der
+                         Umsatz, den Haben angelegt oder verbunden hat.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),
                          jede Prüfung und Übermittlung (übermittlungen.csv) mit
                          ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML;

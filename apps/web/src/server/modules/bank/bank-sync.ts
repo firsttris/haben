@@ -485,6 +485,7 @@ export async function syncConnection(actor: string, connectionId: string, today 
         now: new Date(),
         fetchId: randomBytes(8).toString("hex"),
         source,
+        ...(account.fetchFrom ? { fetchFrom: account.fetchFrom } : {}),
       });
       try {
         const stored = await withActor(actor, (tx) => storeBatch(tx, input, account.bankAccountId));
