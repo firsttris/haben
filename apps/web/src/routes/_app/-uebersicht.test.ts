@@ -63,7 +63,7 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     const html = render();
     expect(html).not.toContain("Voranmeldung Oktober 2026");
     expect(html).not.toContain("USt-Zahllast");
-    expect(html).not.toContain("Senden an das Finanzamt ist noch nicht eingerichtet");
+    expect(html).not.toContain("ERiC ist nicht eingerichtet");
     expect(html).not.toContain("Letzte Voranmeldungen");
     expect(html).not.toContain("ELSTER-Zertifikat");
     expect(html).toContain("Offene Forderungen");
@@ -77,7 +77,7 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     expect(html).toContain("Voranmeldung Oktober 2026 senden");
     expect(html).toContain("Voranmeldung fällig 10.11.2026");
     expect(html).toContain("USt-Zahllast Oktober 2026");
-    expect(html).toContain("Senden an das Finanzamt ist noch nicht eingerichtet");
+    expect(html).toContain("ERiC ist nicht eingerichtet");
   });
 
   it("bei Befreiung ohne vorhandene Anmeldung entsteht keine Voranmeldungsaufforderung", () => {
@@ -86,7 +86,7 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     const html = render();
     expect(html).not.toContain("Voranmeldung Oktober 2026");
     expect(html).not.toContain("USt-Zahllast");
-    expect(html).not.toContain("Senden an das Finanzamt ist noch nicht eingerichtet");
+    expect(html).not.toContain("ERiC ist nicht eingerichtet");
   });
 
   it("vorhandene übermittelte Anmeldung bleibt auch für einen Kleinunternehmer erreichbar", () => {
@@ -159,10 +159,10 @@ describe("Übersicht: Hinweise in Klartext", () => {
   it("Geldtransit: sagt, was zwischen den Konten fehlt, in beiden Richtungen", () => {
     state.data.transit = 50000;
     let html = render();
-    expect(html).toContain("Umbuchung zwischen deinen Konten ist nicht ausgeglichen");
+    expect(html).toContain("Geldtransit nicht ausgeglichen");
     expect(html).toContain("500,00");
     expect(html).toContain("abgegangen, aber auf keinem deiner Konten angekommen");
-    expect(html).toContain("Zum Geldtransit fehlt die Gegenbuchung");
+    expect(html).toContain("Beim Geldtransit, dem Geld zwischen deinen eigenen Konten, fehlt die Gegenbuchung");
     expect(html).toContain('href="/bank"');
     state.data.transit = -50000;
     html = render();

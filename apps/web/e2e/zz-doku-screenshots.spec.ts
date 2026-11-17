@@ -65,11 +65,7 @@ async function theme(mode: "light" | "dark") {
  * Ohne ERiC und Hersteller-ID, wie hier, zeigen die Seiten zwei Hinweise zur Einrichtung. Die Bilder zeigen Haben
  * eingerichtet, deshalb fallen nur diese beiden Hinweise heraus; alle anderen Meldungen bleiben im Bild.
  */
-const EINRICHTUNGSHINWEISE = [
-  "ERiC ist nicht eingerichtet",
-  "Senden an das Finanzamt ist noch nicht eingerichtet",
-  "Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab",
-];
+const EINRICHTUNGSHINWEISE = ["ERiC ist nicht eingerichtet", "Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab"];
 
 async function einrichtungshinweiseAusblenden() {
   await page.evaluate((texte) => {

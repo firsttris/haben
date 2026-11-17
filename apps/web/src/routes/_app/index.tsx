@@ -91,8 +91,8 @@ function OverviewPage() {
   }
   if (data.transit !== 0) {
     todos.push({
-      title: "Umbuchung zwischen deinen Konten ist nicht ausgeglichen",
-      detail: `${formatEuro(Math.abs(data.transit))} ${data.transit > 0 ? "abgegangen, aber auf keinem deiner Konten angekommen" : "angekommen, ohne dass es woanders abgegangen ist"}: Zum Geldtransit fehlt die Gegenbuchung`,
+      title: "Geldtransit nicht ausgeglichen",
+      detail: `${formatEuro(Math.abs(data.transit))} ${data.transit > 0 ? "abgegangen, aber auf keinem deiner Konten angekommen" : "angekommen, ohne dass es woanders abgegangen ist"}: Beim Geldtransit, dem Geld zwischen deinen eigenen Konten, fehlt die Gegenbuchung`,
       action: "Zur Bank",
       tone: "warn",
       to: "/bank",
@@ -237,8 +237,7 @@ function OverviewPage() {
 
       {data.mode === "simuliert" && vatRequired && (
         <div className="banner banner-info" role="status">
-          Senden an das Finanzamt ist noch nicht eingerichtet: Es fehlt ERiC, die Übermittlungssoftware der Finanzverwaltung (Einstellungen › ELSTER › ERiC).
-          Prüfen und Senden laufen nur simuliert, nichts geht an das Finanzamt.
+          ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
         </div>
       )}
 

@@ -114,7 +114,7 @@ test("Kleinunternehmer-Ersteinrichtung: Übersicht ohne reguläre UStVA-Aufforde
         await expect(page.getByText(/^Voranmeldung .* senden$/)).toHaveCount(0);
         await expect(page.getByText(/^USt-Zahllast /)).toHaveCount(0);
         await expect(page.getByText(/Voranmeldung fällig/)).toHaveCount(0);
-        await expect(page.getByText(/Senden an das Finanzamt ist noch nicht eingerichtet/)).toHaveCount(0);
+        await expect(page.getByText(/ERiC ist nicht eingerichtet/)).toHaveCount(0);
         await expect(page.getByRole("heading", { name: "Letzte Voranmeldungen" })).toHaveCount(0);
         await expect(page.getByRole("link", { name: "Neue Rechnung", exact: true })).toBeVisible();
         await expect(page.getByText("Offene Forderungen", { exact: true })).toBeVisible();
