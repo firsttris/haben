@@ -136,7 +136,7 @@
         "@haben/core": "workspace:*",
         "fast-xml-parser": "^5.11.2",
         "fflate": "^0.8.3",
-        "lib-fints": "^1.5.3",
+        "lib-fints": "1.5.3",
         "zod": "^4.6.5",
       },
       "devDependencies": {
