@@ -413,7 +413,7 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
           </div>
         )}
         <p className="small muted" style={{ margin: 0 }}>
-          Kz = Kennzahl, die Nummer der Zeile im ELSTER-Formular.
+          Kz = Kennzahl, die Nummer des Felds im ELSTER-Formular.
         </p>
         <div className="kz-table">
           <div className="kz-row head">
