@@ -258,6 +258,22 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     }
   });
 
+  /*
+   * Miete, Pacht und Lizenzen als Fremdleistungen tragen im DATEV-Kontenrahmen 2026 ebenfalls „G K“ (SKR03 S. 20,
+   * SKR04 S. 21): Miet- und Pachtzinsen für bewegliche (§ 8 Nr. 1 d) und unbewegliche Wirtschaftsgüter (e), Entgelte für
+   * Rechte und Lizenzen (f)
+   */
+  it.each([
+    ["SKR03", "3170", "3175", "3180"],
+    ["SKR04", "5970", "5975", "5980"],
+  ] as const)("%s: Miete, Pacht und Lizenzen als Fremdleistungen zählen zur Hinzurechnung", (kontenrahmen, beweglich, unbeweglich, rechte) => {
+    const brutto = (account: string, art: string) =>
+      kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag).gewstHinzurechnungen.find((z) => z.art === art)?.brutto;
+    expect(brutto(beweglich, "beweglich"), beweglich).toBe(100_000);
+    expect(brutto(unbeweglich, "unbeweglich"), unbeweglich).toBe(100_000);
+    expect(brutto(rechte, "rechte"), rechte).toBe(100_000);
+  });
+
   it("Jede Gruppe der Hinzurechnung hat in SKR03 und SKR04 gleich viele Konten", () => {
     const anzahl = (kontenrahmen: "SKR03" | "SKR04") =>
       Object.fromEntries(Object.entries(GEWST_HINZURECHNUNG_KONTEN[kontenrahmen]).map(([art, konten]) => [art, konten.length]));

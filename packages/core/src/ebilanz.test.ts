@@ -131,6 +131,15 @@ describe("ebilanzPosition: Miete, Pacht, Leasing und Zinsen", () => {
     for (const account of konten) expect(ebilanzPosition(kontenrahmen, account, 100_00), account).toBe(position);
   });
 
+  // Fremdleistungen für Miete, Pacht und Lizenzen bei den bezogenen Leistungen wie die Kategorie Fremdleistungen (3100/5900)
+  it.each([
+    ["SKR03", ["3100", "3170", "3175", "3180"]],
+    ["SKR04", ["5900", "5970", "5975", "5980"]],
+  ] as const)("%s %j → bezogene Leistungen", (kontenrahmen, konten) => {
+    const position = "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.services.unknownVAT";
+    for (const account of konten) expect(ebilanzPosition(kontenrahmen, account, 100_00), account).toBe(position);
+  });
+
   it.each(["SKR03", "SKR04"] as const)("%s: kein Konto der Hinzurechnung auf einer Auffangposition", (kontenrahmen) => {
     const auffang = new Set(Object.values(EBILANZ_AUFFANG));
     const konten = Object.values(GEWST_HINZURECHNUNG_KONTEN[kontenrahmen]).flat();
