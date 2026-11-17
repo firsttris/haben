@@ -15,7 +15,9 @@ const LIST_STATUS = ["entwurf", "offen", "abgelaufen", "angenommen", "abgelehnt"
 const quoteSummaryShape = {
   id: z.uuid(),
   status: z.enum(["draft", "final"]).describe("draft = Entwurf, änderbar; final = festgeschrieben, unveränderlich"),
-  listStatus: z.enum(LIST_STATUS).describe("Stand wie in der Angebotsliste von Haben; abgerechnet, sobald aus dem Angebot eine Rechnung entstanden ist"),
+  listStatus: z
+    .enum(LIST_STATUS)
+    .describe("Stand wie in der Angebotsliste von Haben; abgerechnet erst mit der Rechnung über das ganze Angebot, nach Abschlägen bleibt es angenommen"),
   number: z.string().nullable().describe("Angebotsnummer, erst ab dem Festschreiben"),
   contactId: z.uuid().nullable(),
   customer: z.string().describe("Name des Kunden"),
@@ -24,7 +26,10 @@ const quoteSummaryShape = {
   net: inCents(z.number().int()).describe(`Ohne optionale und alternative Positionen; ${CENTS}`),
   gross: inCents(z.number().int()).describe(`Ohne optionale und alternative Positionen; ${CENTS}`),
   decision: z.enum(["angenommen", "abgelehnt"]).nullable().describe("Antwort des Kunden, in Haben eingetragen; null = noch keine"),
-  invoiceId: z.uuid().nullable().describe("Rechnung, die aus dem Angebot entstanden ist"),
+  invoiceId: z
+    .uuid()
+    .nullable()
+    .describe("Rechnung über das ganze Angebot (Rechnung aus dem Angebot oder Schlussrechnung), auch als Entwurf; Abschlagsrechnungen nicht"),
   invoiceNumber: z.string().nullable().describe("Nummer dieser Rechnung; null, solange sie Entwurf ist"),
   url: z.url().describe("Seite des Angebots in Haben, dort wird festgeschrieben, versendet und abgerechnet"),
 };
