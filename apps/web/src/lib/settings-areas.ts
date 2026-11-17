@@ -12,7 +12,7 @@ export const SETTINGS_AREAS = [
   { id: "bank", label: "Bank", hint: "Kontoabruf, Google Play, App Store" },
   { id: "konten", label: "Eigene Konten", hint: "Sachkonten mit eigener Nummer" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys, Passwort, Zugänge" },
-  { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse zur Umsatzsteuer", keywords: "USt BMF" },
+  { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse zur Umsatzsteuer", keywords: "USt-Umrechnungskurse BMF" },
   { id: "ki", label: "KI-Assistenten und API", hint: "Zugang, Schlüssel, Belegauslesung", keywords: "Assistenten MCP API-Tokens Belege auslesen" },
   { id: "seiten", label: "Eigene Seiten", hint: "Eigene Werkzeuge im Menü" },
   { id: "export", label: "Export", hint: "Jahresarchiv, Steuerberatung", keywords: "DATEV Ablage Backup Prüfung Version" },
