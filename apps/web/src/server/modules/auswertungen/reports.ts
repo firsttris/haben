@@ -4,7 +4,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { euerAusDemJournal } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
-import { listInvoices } from "../rechnungen/index.ts";
+import { listInvoices, paidByTarget } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 import { ustvaPosten } from "../umsatzsteuer/index.ts";
 import { advanceOpenPositions } from "./advance-open-positions.ts";
@@ -79,43 +79,24 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
-/** Erledigt je Beleg: Zuordnungen und Ausbuchungen (erhaltenes Skonto), wie im Bankabgleich */
-async function paidSums(ids: string[]) {
-  if (ids.length === 0) return new Map<string, number>();
-  const rows = await db.execute<{ id: string; paid: string }>(
-    sql`select id, sum(amount) as paid from (
-          select document_id as id, amount from allocations where document_id in ${ids}
-          union all select document_id as id, amount from write_offs where document_id in ${ids}
-          union all select document_id as id, amount from document_settlements where document_id in ${ids}
-        ) settled group by 1`,
-  );
-  return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
+/** Offene Forderungen: festgeschriebene Rechnungen, die die Rechnungsliste als offen zeigt; `bis` ist der Stichtag des Abschlussstands (#1110) */
+async function openReceivables(today: string, bis: string | undefined, separate: Set<string>): Promise<OpenPosition[]> {
+  return (await listInvoices(today, undefined, db, bis))
+    .filter((i) => i.status === "final" && i.open !== 0 && !separate.has(i.id))
+    .map((i) => ({
+      id: i.id,
+      number: i.number ?? "",
+      party: i.customer,
+      date: i.issueDate,
+      dueDate: i.dueDate,
+      gross: i.gross,
+      open: i.open,
+      daysOverdue: daysBetween(i.dueDate, today),
+    }));
 }
 
-/**
- * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert, dazu zu erstattende Beträge aus
- * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
- * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
- */
-export async function openPositions(today: string) {
-  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(today);
-  const separate = new Set(invoiceIds);
-  const receivables: OpenPosition[] = [
-    ...(await listInvoices(today))
-      .filter((i) => i.status === "final" && i.open !== 0 && !separate.has(i.id))
-      .map((i) => ({
-        id: i.id,
-        number: i.number ?? "",
-        party: i.customer,
-        date: i.issueDate,
-        dueDate: i.dueDate,
-        gross: i.gross,
-        open: i.open,
-        daysOverdue: daysBetween(i.dueDate, today),
-      })),
-    ...newReceivables,
-  ];
-
+/** Offene Verbindlichkeiten: gebuchte, über die Bank zu zahlende Belege, die es am Stichtag schon gab und nicht storniert waren */
+async function openPayables(today: string, bis: string | undefined): Promise<OpenPosition[]> {
   const documents = await db
     .select({
       id: schema.documents.id,
@@ -128,10 +109,24 @@ export async function openPositions(today: string) {
       gross: schema.documents.gross,
     })
     .from(schema.documents)
-    // Storniert ist nichts mehr zu zahlen (#237)
-    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
-  const documentPaid = await paidSums(documents.map((d) => d.id));
-  const payables: OpenPosition[] = documents
+    // Storniert ist nichts mehr zu zahlen (#237); im Abschlussstand erst, wenn das Storno bis zum Stichtag erklärt war (#1110)
+    .where(
+      and(
+        eq(schema.documents.status, "gebucht"),
+        eq(schema.documents.payment, "bank"),
+        documentNotCancelled(bis),
+        // Belege, die es am Stichtag noch nicht gab, stehen im Abschlussstand nicht (#1110)
+        bis ? sql`coalesce(${schema.documents.documentDate}, (${schema.documents.uploadedAt} at time zone 'Europe/Berlin')::date) <= ${bis}` : undefined,
+      ),
+    );
+  // „Offen“ heißt überall dasselbe: bezahlt rechnet paidByTarget, wie Rechnungsliste und Bankabgleich (#1110)
+  const documentPaid = await paidByTarget(
+    "document_id",
+    documents.map((d) => d.id),
+    db,
+    bis,
+  );
+  return documents
     .map((d) => {
       const date = d.documentDate ?? todayInGermany(d.uploadedAt);
       const dueDate = d.dueDate ?? date;
@@ -149,9 +144,11 @@ export async function openPositions(today: string) {
       };
     })
     .filter((d) => d.open !== 0);
+}
 
-  // Zahllast (positiv) und Erstattung (negativ) abgegebener Voranmeldungen; id ist der Zeitraum für den Link
-  const vat: OpenPosition[] = (await ustvaPosten()).posten
+/** Zahllast (positiv) und Erstattung (negativ) abgegebener Voranmeldungen; id ist der Zeitraum für den Link */
+async function openVatPosten(today: string, bis: string | undefined): Promise<OpenPosition[]> {
+  return (await ustvaPosten(db, { bis })).posten
     .filter((p) => p.offen !== 0)
     .map((p) => ({
       id: periodKey(p),
@@ -164,6 +161,23 @@ export async function openPositions(today: string) {
       // Eine Erstattung ist nicht überfällig: Wann sie kommt, entscheidet das Finanzamt
       daysOverdue: p.offen > 0 ? daysBetween(p.faellig, today) : -1,
     }));
+}
+
+/**
+ * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert, dazu zu erstattende Beträge aus
+ * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
+ * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
+ *
+ * Mit `bis` gilt der Abschlussstand zum Stichtag (#1110): `today` ist dann derselbe Tag, und es zählt nur, was bis
+ * einschließlich dahin wirkt — spätere Zahlungen fehlen, Belege und Rechnungen, die es damals noch nicht gab, auch.
+ */
+export async function openPositions(today: string, { bis }: { bis?: string } = {}) {
+  // Auch die Anzahlungen und ihre Forderungen rechnen zum Stichtag, wenn einer gesetzt ist (#1110)
+  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(bis ?? today);
+  const separate = new Set(invoiceIds);
+  const receivables: OpenPosition[] = [...(await openReceivables(today, bis, separate)), ...newReceivables];
+  const payables = await openPayables(today, bis);
+  const vat = await openVatPosten(today, bis);
 
   const byDue = (a: OpenPosition, b: OpenPosition) => a.dueDate.localeCompare(b.dueDate) || a.number.localeCompare(b.number);
   receivables.sort(byDue);
