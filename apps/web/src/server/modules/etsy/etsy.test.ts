@@ -255,6 +255,30 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     }
   });
 
+  it("übernimmt eine Zeile mit unbekanntem Typ weiter einzeln, statt sie still zu verwerfen", async () => {
+    // Der Vertrag führt einen unbekannten Typ unter unsupported; der Umsatz kommt trotzdem an, erkannt am Inhalt
+    imAbruf = [
+      {
+        entry_id: 20,
+        amount: -99,
+        currency: "EUR",
+        ledger_type: "neue_gebuehr",
+        reference_type: "x",
+        reference_id: "1",
+        created_timestamp: am("2023-06-25"),
+      },
+    ];
+    try {
+      const result = await etsy.syncEtsy(actor, new Date("2023-07-07T10:00:00Z"));
+      expect(result.error).toBeNull();
+      expect(result.messages.join(" ")).toContain("unbekanntem Typ");
+      const zeilen = await sql`select amount from bank_transactions where bank_reference = 'etsy-20'`;
+      expect(zeilen.map((z) => Number(z.amount))).toEqual([-99]);
+    } finally {
+      imAbruf = verlauf;
+    }
+  });
+
   it("trennt die Verbindung, ohne den Schlüssel zu verlieren", async () => {
     await etsy.disconnectEtsyConnection(actor);
     const stand = await etsy.etsySummary();
