@@ -2977,6 +2977,47 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
 });
 
+test("Jahreserklärung: Summen stehen offen, die Einzelzeilen hinter „Zeilen anzeigen“, auch per Tastatur (#1253)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
+  const euer = page.getByRole("region", { name: "Anlage EÜR", exact: true });
+  await expect(ust.getByRole("row", { name: /^Umsatzsteuer|^Überschuss/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abschlusszahlung|^Erstattung/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Summe Betriebseinnahmen/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Gewinn|^Verlust/ })).toBeVisible();
+  // Zugeklappt: die Zeilen sind nicht zu sehen, der Knopf zum Aufklappen schon
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeHidden();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeHidden();
+  // Mit der Tastatur: Fokus auf „Zeilen anzeigen“, Enter klappt auf
+  const summary = ust.locator("summary").filter({ hasText: "Zeilen anzeigen" });
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abziehbare Vorsteuer aus Rechnungen/ })).toBeVisible();
+  await euer.locator("summary").filter({ hasText: "Zeilen anzeigen" }).click();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeVisible();
+});
+
+test("Jahreserklärung: die Erklärungen stehen in einer nummerierten Reihenfolge, der nächste Schritt führt zum Abschnitt (#1253)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const reihenfolge = page.getByRole("region", { name: "Reihenfolge der Erklärungen" });
+  const eintraege = reihenfolge.getByRole("listitem");
+  await expect(eintraege).toHaveCount(3);
+  await expect(eintraege.nth(0)).toContainText("Umsatzsteuer");
+  await expect(eintraege.nth(1)).toContainText("Anlage EÜR");
+  await expect(eintraege.nth(2)).toContainText("Einkommensteuer");
+  // Die Sprungleiste ist darin aufgegangen: nur noch die Abschnitte darunter
+  await expect(page.getByRole("navigation", { name: "Abschnitte der Jahreserklärung" })).toHaveCount(0);
+  await expect(reihenfolge.getByRole("link", { name: "Verlauf" })).toBeVisible();
+  // Der nächste Schritt ist die erste Erklärung ohne Übermittlung und ohne Vermerk und verlinkt auf ihren Abschnitt
+  const schritt = reihenfolge.locator("p", { hasText: "Nächster Schritt:" });
+  await expect(schritt).toBeVisible();
+  const ziel = await schritt.getByRole("link").getAttribute("href");
+  expect(ziel).toMatch(/^#(ust|euer|est)$/);
+  await schritt.getByRole("link").click();
+  await expect(page.locator(ziel!)).toBeInViewport();
+});
+
 test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Knopfzeile, der Dialog selbst scrollt nicht (WCAG 2.4.11)", async () => {
   const jahr = YEAR - 1;
   for (const [breite, hoehe] of [
