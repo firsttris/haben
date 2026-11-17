@@ -113,7 +113,7 @@ describe("Anlegen des Repositorys (init_repository, von backup.sh beim ersten La
     [
       "#!/bin/sh",
       '[ "$1" = init ] || exit 2',
-      'if [ -n "${INIT_FEHLER:-}" ]; then echo "Fatal: create repository at $RESTIC_REPOSITORY failed: connection refused" >&2; exit 1; fi',
+      'if [ -n "$INIT_FEHLER" ]; then echo "Fatal: create repository at $RESTIC_REPOSITORY failed: connection refused" >&2; exit 1; fi',
       'printf "created restic repository 1234567890 at %s\\n\\nPlease note that knowledge of your password is required to access\\n" "$RESTIC_REPOSITORY"',
     ].join("\n"),
   );
