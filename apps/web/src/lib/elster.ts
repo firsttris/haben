@@ -8,27 +8,31 @@ export const ELSTER_KIND_LABEL = { validate: "Prüfung", test: "Testübermittlun
 
 /** Pille über einer Jahreserklärung */
 export interface AbgabePille {
-  /** grün: die Erklärung liegt beim Finanzamt */
+  /** grün: nichts mehr zu tun, die Erklärung liegt beim Finanzamt oder ist nicht geschuldet */
   ok: boolean;
   text: string;
 }
 
 /**
- * Stand einer Jahreserklärung für die Pille: in Haben übermittelt, außerhalb abgegeben oder offen. Bei der
+ * Stand einer Jahreserklärung für die Pille: in Haben übermittelt, außerhalb abgegeben, nicht geschuldet oder offen. Bei der
  * Einkommensteuererklärung ist „offen“ ohne Übermittlung aus Haben und ohne Vermerk keine Pflicht, sondern der Normalfall,
- * und die Pille sagt das neutral (#869).
+ * und die Pille sagt das neutral (#869). Nicht geschuldet ist die Umsatzsteuererklärung eines Kleinunternehmers ab 2024
+ * (§ 18 Abs. 3 UStG): Ohne Sendung und Vermerk ist dann nichts zu tun.
  */
 export function abgabePille({
   sent,
   submitted,
   verwaltet = true,
+  geschuldet = true,
 }: {
   sent: string | Date | null;
   submitted: { filedOn: string | null } | null;
   verwaltet?: boolean;
+  geschuldet?: boolean;
 }): AbgabePille {
   if (sent) return { ok: true, text: `Übermittelt am ${formatDate(sent)}` };
   if (submitted) return { ok: true, text: `Außerhalb abgegeben${submitted.filedOn ? ` am ${formatDate(submitted.filedOn)}` : ""}` };
+  if (!geschuldet) return { ok: true, text: "Keine Erklärung nötig" };
   return { ok: false, text: verwaltet ? "Noch nicht übermittelt" : "Nicht aus Haben übermittelt" };
 }
 

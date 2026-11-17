@@ -159,7 +159,7 @@ function UstSection({ data }: { data: Data }) {
           <h2 id="ust-heading" style={{ margin: 0 }}>
             Umsatzsteuererklärung
           </h2>
-          <SentPill sent={ust.sent} submitted={ust.submitted} />
+          <SentPill teil={ust} />
         </div>
         <Issues issues={ust.issues} />
         <ErklaerteZeilen form="ust" year={data.year} zeilen={ust.erklaert} vermerkt={ust.submitted !== null} />
@@ -179,7 +179,7 @@ function EuerSection({ data }: { data: Data }) {
           <h2 id="euer-heading" style={{ margin: 0 }}>
             Anlage EÜR
           </h2>
-          <SentPill sent={euer.sent} submitted={euer.submitted} />
+          <SentPill teil={euer} />
         </div>
         <Issues issues={euer.issues} />
         <ErklaerteZeilen form="euer" year={data.year} zeilen={euer.erklaert} vermerkt={euer.submitted !== null} />
@@ -393,7 +393,7 @@ function EstSection({ data }: { data: Data }) {
       <form className="card" onSubmit={onSubmit} onInvalidCapture={aufklappenBisZumFeld} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
-          <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
+          <SentPill teil={est} />
         </div>
         <Issues issues={est.issues} />
         <ScrollTable className="report-table">

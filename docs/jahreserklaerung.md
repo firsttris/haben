@@ -11,7 +11,7 @@ Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **U
 
 Die Seite zeigt je Erklärung Hinweise, die Summen und einen eigenen Bereich zum Übermitteln. Bei der Umsatzsteuererklärung sind das die Umsatzsteuer, das Vorauszahlungssoll und die Abschlusszahlung bzw. Erstattung, bei der Anlage EÜR die Summe der Betriebseinnahmen und -ausgaben und der Gewinn. Die einzelnen Zeilen mit Kennzahl bzw. Feldkennung stehen eingeklappt hinter **Zeilen anzeigen**. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
-Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Bei der Einkommensteuererklärung steht ohne Übermittlung und ohne Vermerk „Nicht aus Haben übermittelt“; senden lässt sie sich trotzdem über den Kasten **Einkommensteuererklärung übermitteln**.
+Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“, bei der Umsatzsteuererklärung eines Kleinunternehmers ab 2024 „Keine Erklärung nötig“. Bei der Einkommensteuererklärung steht ohne Übermittlung und ohne Vermerk „Nicht aus Haben übermittelt“; senden lässt sie sich trotzdem über den Kasten **Einkommensteuererklärung übermitteln**.
 
 Oben auf der Seite stehen die Erklärungen in der Reihenfolge, in der sie anstehen: Umsatzsteuer, Anlage EÜR, Einkommensteuer. Zu jeder gehört eine kurze Angabe, woher sie ihre Zahlen hat, der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt.
 

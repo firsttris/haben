@@ -5,9 +5,15 @@ import type { Data } from "./typen.ts";
 
 type Teil = Data["ust"];
 
-/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, deren Abgabe Haben ohne Vermerk nicht kennt (#869) */
-export function SentPill({ sent, submitted, verwaltet }: { sent: Teil["sent"]; submitted: Teil["submitted"]; verwaltet?: boolean }) {
-  const pille = abgabePille({ sent: sent?.createdAt ?? null, submitted, verwaltet });
+type Stand = Pick<Teil, "sent" | "submitted" | "issues"> & { verwaltet?: boolean; geschuldet?: boolean };
+
+/**
+ * Stand der Abgabe aus dem ganzen Teil der Daten, damit keine Stelle eine Angabe vergisst: `verwaltet` ist false für die
+ * Einkommensteuer, deren Abgabe Haben ohne Vermerk nicht kennt (#869), `geschuldet` false für die Umsatzsteuererklärung
+ * eines Kleinunternehmers ab 2024 (§ 18 Abs. 3 UStG)
+ */
+export function SentPill({ teil }: { teil: Pick<Stand, "sent" | "submitted" | "verwaltet" | "geschuldet"> }) {
+  const pille = abgabePille({ sent: teil.sent?.createdAt ?? null, submitted: teil.submitted, verwaltet: teil.verwaltet, geschuldet: teil.geschuldet });
   return (
     <Status tone={pille.ok ? "ok" : undefined} inline>
       {pille.text}
@@ -27,8 +33,6 @@ const SCHRITTE: readonly { id: Id; label: string; woher: string }[] = [
     woher: "übernimmt den Gewinn aus der EÜR; Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein",
   },
 ];
-
-type Stand = Pick<Teil, "sent" | "submitted" | "issues"> & { verwaltet?: boolean; geschuldet?: boolean };
 
 const erledigt = (teil: Stand) => Boolean(teil.sent || teil.submitted);
 
@@ -64,7 +68,7 @@ export function Reihenfolge({ data }: { data: Data }) {
                   <a href={`#${s.id}`}>{s.label}</a>
                   <span className="small muted">{s.woher}</span>
                 </span>
-                <SentPill sent={teil.sent} submitted={teil.submitted} verwaltet={"verwaltet" in teil ? teil.verwaltet : true} />
+                <SentPill teil={teile[s.id]} />
                 {betrag !== null && betrag !== undefined && <span className="num">{formatEuro(betrag)}</span>}
               </div>
             </li>
