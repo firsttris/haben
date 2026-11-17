@@ -35,6 +35,9 @@ export const DURCHLAEUFE = {
   umstellung: 26,
   // Belege ohne Datei aus dem Accountable-Stapel (#1235, #1236): eigener Server und eigene Wegwerf-Datenbank
   "accountable-ohne-beleg": 27,
+  fremdrechnung: 28,
+  // Kleinunternehmer wechseln nur ohne Buchungen im Jahr: eigene Firma für die Rückfrage zur Umsatzgrenze
+  "fremdrechnung-kleinunternehmer": 29,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
