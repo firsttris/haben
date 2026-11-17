@@ -10,17 +10,18 @@ import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
-import { ELSTER_KIND_LABEL, abgabePille, elsterNotice } from "../../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, elsterNotice } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../../components/ScrollTable.tsx";
 import { Field } from "../../../components/Field.tsx";
-import { Status, OutcomeStatus } from "../../../components/Status.tsx";
+import { OutcomeStatus } from "../../../components/Status.tsx";
 import { Block } from "../../../components/jahreserklaerung/Block.tsx";
 import { ErklaerteZeilen } from "../../../components/jahreserklaerung/ErklaerteZeilen.tsx";
 import { EuerTabelle } from "../../../components/jahreserklaerung/EuerTabelle.tsx";
+import { Reihenfolge, SentPill } from "../../../components/jahreserklaerung/Reihenfolge.tsx";
 import { Row } from "../../../components/jahreserklaerung/Row.tsx";
 import type { Data } from "../../../components/jahreserklaerung/typen.ts";
 import { UstTabelle } from "../../../components/jahreserklaerung/UstTabelle.tsx";
@@ -85,31 +86,24 @@ function AnnualPage() {
         </div>
       )}
 
-      {gesellschaft ? (
-        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-          Umsatzsteuer-, Körperschaftsteuer- und Gewerbesteuererklärung rechnet Haben aus den Buchungen und dem <Link to="/abschluss">Jahresabschluss</Link>.
-          Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht.
-        </p>
-      ) : (
-        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-          Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge,
-          Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
-        </p>
+      {gesellschaft && (
+        <>
+          <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+            Umsatzsteuer-, Körperschaftsteuer- und Gewerbesteuererklärung rechnet Haben aus den Buchungen und dem <Link to="/abschluss">Jahresabschluss</Link>.
+            Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht.
+          </p>
+          <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
+            <a href="#ust">Umsatzsteuer</a>
+            <a href="#kst">Körperschaftsteuer</a>
+            <a href="#gewst">Gewerbesteuer</a>
+            <a href="#kapg-angaben">Angaben</a>
+            <a href="#verlauf">Verlauf</a>
+          </nav>
+        </>
       )}
 
-      <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
-        <a href="#ust">Umsatzsteuer</a>
-        {!gesellschaft && <a href="#euer">Anlage EÜR</a>}
-        {!gesellschaft && <a href="#est">Einkommensteuer</a>}
-        {gesellschaft && <a href="#kst">Körperschaftsteuer</a>}
-        {gesellschaft && <a href="#gewst">Gewerbesteuer</a>}
-        {gesellschaft && <a href="#kapg-angaben">Angaben</a>}
-        {!gesellschaft && <a href="#vast">Belege von ELSTER</a>}
-        <a href="#verlauf">Verlauf</a>
-      </nav>
-
       <div className="stack" style={{ gap: 24 }}>
-        {!gesellschaft && <StatusUebersicht data={data} />}
+        {!gesellschaft && <Reihenfolge data={data} />}
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
@@ -153,52 +147,6 @@ function Issues({ issues }: { issues: Issue[] }) {
         </div>
       ))}
     </>
-  );
-}
-
-/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, deren Abgabe Haben ohne Vermerk nicht kennt (#869) */
-function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"]; verwaltet?: boolean }) {
-  const pille = abgabePille({ sent: sent?.createdAt ?? null, submitted, verwaltet });
-  return (
-    <Status tone={pille.ok ? "ok" : undefined} inline>
-      {pille.text}
-    </Status>
-  );
-}
-
-function StatusUebersicht({ data }: { data: Data }) {
-  const zeilen = [
-    { id: "ust", label: "Umsatzsteuer", teil: data.ust },
-    { id: "euer", label: "Anlage EÜR", teil: data.euer },
-    { id: "est", label: "Einkommensteuer", teil: data.est },
-  ];
-  return (
-    <section className="card" aria-label="Stand der Erklärungen">
-      <table className="report-table stack-table">
-        <thead>
-          <tr>
-            <th scope="col">Erklärung</th>
-            <th scope="col">Stand</th>
-            <th scope="col" className="num">
-              Betrag
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {zeilen.map((z) => (
-            <tr key={z.id}>
-              <th scope="row">
-                <a href={`#${z.id}`}>{z.label}</a>
-              </th>
-              <td>
-                <SentPill sent={z.teil.sent} submitted={z.teil.submitted} verwaltet={"verwaltet" in z.teil ? z.teil.verwaltet : false} />
-              </td>
-              <td className="num">{z.teil.submitted?.amount === null || z.teil.submitted?.amount === undefined ? "–" : formatEuro(z.teil.submitted.amount)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
   );
 }
 

@@ -1,0 +1,64 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { naechsterSchritt, Reihenfolge } from "./Reihenfolge.tsx";
+import type { Data } from "./typen.ts";
+
+const offen = { sent: null, submitted: null, issues: [] };
+const gesendet = { sent: { createdAt: "2026-03-01T10:00:00Z" }, submitted: null, issues: [] };
+const vermerkt = (amount: number | null) => ({ sent: null, submitted: { filedOn: "2026-02-10", amount }, issues: [] });
+const fehler = { sent: null, submitted: null, issues: [{ tone: "fehler", text: "Steuernummer fehlt" }] };
+const stand = (ust: object, euer: object, est: object) => ({ ust, euer, est }) as unknown as Data;
+
+describe("naechsterSchritt", () => {
+  it("beginnt bei der Umsatzsteuer", () => {
+    expect(naechsterSchritt(stand(offen, offen, offen))).toEqual({ id: "ust", text: "Umsatzsteuer prüfen und übermitteln" });
+  });
+
+  it("überspringt übermittelte und vermerkte Erklärungen", () => {
+    expect(naechsterSchritt(stand(gesendet, vermerkt(null), offen))?.id).toBe("est");
+    expect(naechsterSchritt(stand(gesendet, offen, offen))?.id).toBe("euer");
+  });
+
+  it("verlangt bei einem Fehler zuerst, die Hinweise zu klären", () => {
+    expect(naechsterSchritt(stand(gesendet, fehler, offen))).toEqual({ id: "euer", text: "Hinweise zu Anlage EÜR klären" });
+  });
+
+  it("zählt einen bloßen Hinweis nicht als Fehler", () => {
+    const hinweis = { ...offen, issues: [{ tone: "hinweis", text: "Voranmeldung fehlt" }] };
+    expect(naechsterSchritt(stand(hinweis, offen, offen))?.text).toBe("Umsatzsteuer prüfen und übermitteln");
+  });
+
+  it("meldet nichts, wenn alle drei erledigt sind", () => {
+    expect(naechsterSchritt(stand(gesendet, gesendet, vermerkt(null)))).toBeNull();
+  });
+});
+
+describe("Reihenfolge", () => {
+  const html = (data: Data) => renderToStaticMarkup(createElement(Reihenfolge, { data }));
+
+  it("nummeriert die Erklärungen in ihrer Reihenfolge und nennt den nächsten Schritt", () => {
+    const markup = html(stand(gesendet, offen, offen));
+    expect(markup).toMatch(/<ol class="reihenfolge">/);
+    const ust = markup.indexOf('href="#ust"');
+    const euer = markup.indexOf('href="#euer"');
+    const est = markup.indexOf('href="#est"');
+    expect(ust).toBeGreaterThan(-1);
+    expect(euer).toBeGreaterThan(ust);
+    expect(est).toBeGreaterThan(euer);
+    expect(markup).toContain('Nächster Schritt:</strong> <a href="#euer">Anlage EÜR prüfen und übermitteln</a>');
+  });
+
+  it("zeigt den vermerkten Betrag und, wenn alles erledigt ist, keinen nächsten Schritt", () => {
+    const markup = html(stand(vermerkt(123456), gesendet, vermerkt(null)));
+    expect(markup).toContain("1.234,56");
+    expect(markup).not.toContain("Nächster Schritt");
+    expect(markup).toContain("Alle drei Erklärungen sind abgegeben.");
+  });
+
+  it("führt zu Belegen von ELSTER und zum Verlauf", () => {
+    const markup = html(stand(offen, offen, offen));
+    expect(markup).toContain('href="#vast"');
+    expect(markup).toContain('href="#verlauf"');
+  });
+});
