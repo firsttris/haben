@@ -223,7 +223,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(thisYear, `${thisYear + 1}-03-01`)).ust.issues.some((i) => i.tone === "fehler" && /ab 2024 keine/.test(i.text))).toBe(
       true,
     );
+    expect((await annual.annualOverview(thisYear, `${thisYear + 1}-03-01`)).ust.geschuldet).toBe(false);
     expect((await annual.annualOverview(2025, TODAY)).ust.issues.some((i) => /Kleinunternehmer/.test(i.text))).toBe(false);
+    expect((await annual.annualOverview(2025, TODAY)).ust.geschuldet).toBe(true);
     // Die Texte je nach Jahr: ab 2024 keine Erklärung, für 2023 noch eine (übers ELSTER-Portal)
     const issue = (ku: boolean, year: number) =>
       annual

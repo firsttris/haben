@@ -28,7 +28,7 @@ const SCHRITTE: readonly { id: Id; label: string; woher: string }[] = [
   },
 ];
 
-type Stand = Pick<Teil, "sent" | "submitted" | "issues"> & { verwaltet?: boolean };
+type Stand = Pick<Teil, "sent" | "submitted" | "issues"> & { verwaltet?: boolean; geschuldet?: boolean };
 
 const erledigt = (teil: Stand) => Boolean(teil.sent || teil.submitted);
 
@@ -36,18 +36,21 @@ const erledigt = (teil: Stand) => Boolean(teil.sent || teil.submitted);
  * Die erste Erklärung in der Reihenfolge, die weder übermittelt noch als abgegeben vermerkt ist, und was dort zu tun ist:
  * mit Fehlern in den Hinweisen zuerst diese klären, sonst prüfen und übermitteln. Eine Erklärung, die Haben nicht verwaltet
  * (die Einkommensteuer ohne Vermerk: Haben weiß nicht, ob sie außerhalb abgegeben wurde, #869), ist keine offene Pflicht
- * und wird nie der nächste Schritt. Null, wenn nichts bleibt.
+ * und wird nie der nächste Schritt; ebenso nicht eine Erklärung, die gar nicht geschuldet ist (die Umsatzsteuererklärung
+ * eines Kleinunternehmers ab 2024, § 18 Abs. 3 UStG): ihr Fehlerhinweis lässt sich nicht klären. Null, wenn nichts bleibt.
  */
 export function naechsterSchritt(data: Record<Id, Stand>): { id: Id; text: string } | null {
-  const offen = SCHRITTE.find((s) => !erledigt(data[s.id]) && data[s.id].verwaltet !== false);
+  const offen = SCHRITTE.find((s) => !erledigt(data[s.id]) && data[s.id].verwaltet !== false && data[s.id].geschuldet !== false);
   if (!offen) return null;
   const blockiert = data[offen.id].issues.some((i) => i.tone === "fehler");
-  return { id: offen.id, text: blockiert ? `Hinweise zu ${offen.label} klären` : `${offen.label} prüfen und übermitteln` };
+  return { id: offen.id, text: blockiert ? `Hinweise zur ${offen.label} klären` : `${offen.label} prüfen und übermitteln` };
 }
 
 /** Stand der drei Erklärungen in der Reihenfolge, in der sie anstehen, mit dem nächsten Schritt; die Namen führen zum Abschnitt */
 export function Reihenfolge({ data }: { data: Data }) {
   const schritt = naechsterSchritt(data);
+  const teile: Record<Id, Stand> = data;
+  const geschuldet = SCHRITTE.filter((s) => teile[s.id].geschuldet !== false);
   return (
     <section className="card" aria-label="Reihenfolge der Erklärungen" style={{ gap: 12 }}>
       <ol className="reihenfolge">
@@ -73,8 +76,8 @@ export function Reihenfolge({ data }: { data: Data }) {
           <>
             <strong>Nächster Schritt:</strong> <a href={`#${schritt.id}`}>{schritt.text}</a>
           </>
-        ) : SCHRITTE.every((s) => erledigt(data[s.id])) ? (
-          <strong>Alle drei Erklärungen sind abgegeben.</strong>
+        ) : geschuldet.every((s) => erledigt(teile[s.id])) ? (
+          <strong>{`Alle ${geschuldet.length === SCHRITTE.length ? "drei " : ""}Erklärungen sind abgegeben.`}</strong>
         ) : (
           <>
             <strong>Nächster Schritt:</strong> keiner, den Haben kennt. Die Einkommensteuer gilt erst mit Übermittlung oder Vermerk als abgegeben.

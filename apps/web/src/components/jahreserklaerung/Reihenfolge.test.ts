@@ -8,6 +8,13 @@ const offen = { sent: null, submitted: null, issues: [] };
 const gesendet = { sent: { createdAt: "2026-03-01T10:00:00Z" }, submitted: null, issues: [] };
 const vermerkt = (amount: number | null) => ({ sent: null, submitted: { filedOn: "2026-02-10", amount }, issues: [] });
 const estUnbekannt = { sent: null, submitted: null, issues: [], verwaltet: false };
+// Kleinunternehmer ab 2024: der Fehlerhinweis lässt sich nicht klären, die Erklärung ist nicht geschuldet (§ 18 Abs. 3 UStG)
+const ustNichtGeschuldet = {
+  sent: null,
+  submitted: null,
+  issues: [{ tone: "fehler", text: "Als Kleinunternehmer gibst du ab 2024 keine Umsatzsteuererklärung mehr ab" }],
+  geschuldet: false,
+};
 const fehler = { sent: null, submitted: null, issues: [{ tone: "fehler", text: "Steuernummer fehlt" }] };
 const stand = (ust: object, euer: object, est: object) => ({ ust, euer, est }) as unknown as Data;
 
@@ -22,7 +29,7 @@ describe("naechsterSchritt", () => {
   });
 
   it("verlangt bei einem Fehler zuerst, die Hinweise zu klären", () => {
-    expect(naechsterSchritt(stand(gesendet, fehler, offen))).toEqual({ id: "euer", text: "Hinweise zu Anlage EÜR klären" });
+    expect(naechsterSchritt(stand(gesendet, fehler, offen))).toEqual({ id: "euer", text: "Hinweise zur Anlage EÜR klären" });
   });
 
   it("zählt einen bloßen Hinweis nicht als Fehler", () => {
@@ -33,6 +40,10 @@ describe("naechsterSchritt", () => {
   it("nennt die Einkommensteuer nicht, wenn Haben ihren Stand nicht kennt (#869)", () => {
     expect(naechsterSchritt(stand(gesendet, gesendet, estUnbekannt))).toBeNull();
     expect(naechsterSchritt(stand(offen, gesendet, estUnbekannt))?.id).toBe("ust");
+  });
+
+  it("überspringt die nicht geschuldete Umsatzsteuererklärung eines Kleinunternehmers, die EÜR wird der nächste Schritt", () => {
+    expect(naechsterSchritt(stand(ustNichtGeschuldet, offen, offen))).toEqual({ id: "euer", text: "Anlage EÜR prüfen und übermitteln" });
   });
 
   it("meldet nichts, wenn alle drei erledigt sind", () => {
@@ -60,6 +71,13 @@ describe("Reihenfolge", () => {
     expect(markup).toContain("1.234,56");
     expect(markup).not.toContain("Nächster Schritt");
     expect(markup).toContain("Alle drei Erklärungen sind abgegeben.");
+  });
+
+  it("nennt bei nicht geschuldeter Umsatzsteuer die EÜR als nächsten Schritt und sagt, wenn alles Geschuldete abgegeben ist, nicht „drei“", () => {
+    expect(html(stand(ustNichtGeschuldet, offen, offen))).toContain('Nächster Schritt:</strong> <a href="#euer">Anlage EÜR prüfen und übermitteln</a>');
+    const fertig = html(stand(ustNichtGeschuldet, gesendet, vermerkt(null)));
+    expect(fertig).toContain("Alle Erklärungen sind abgegeben.");
+    expect(fertig).not.toContain("Nächster Schritt");
   });
 
   it("sagt ohne Vermerk zur Einkommensteuer weder „nächster Schritt: Einkommensteuer“ noch „alle abgegeben“", () => {

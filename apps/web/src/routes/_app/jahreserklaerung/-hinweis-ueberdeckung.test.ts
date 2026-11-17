@@ -32,6 +32,7 @@ describe("Bestätigungsdialog vor dem Senden einer Jahreserklärung (#1253)", ()
   it("nennt das Ergebnis der Erklärung unter den Fakten, wie die Voranmeldung die Zahllast", () => {
     const fakten = quelle.slice(stelle("confirmFacts={["));
     expect(fakten.slice(0, fakten.indexOf("]}"))).toContain("...(ergebnis ? [ergebnis] : [])");
-    expect(quelle).toContain('jahresergebnisFakt(form, form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn)');
+    // dieselbe Zahl wie die Tabelle: UstSummen zeigt anzeige.abschluss (mit Vermerk der erklärte Betrag)
+    expect(quelle).toContain('jahresergebnisFakt(form, form === "ust" ? data.ust.anzeige.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn)');
   });
 });

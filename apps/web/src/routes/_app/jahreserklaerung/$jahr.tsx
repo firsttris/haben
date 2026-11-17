@@ -664,7 +664,8 @@ function SubmitPanel({
   const loadWerte = useServerFn(getMeinElsterWerte);
   const { busy, notice, setNotice, run } = useAction();
   const berechnet = form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : 0;
-  const ergebnis = jahresergebnisFakt(form, form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn);
+  // Die Zahl der Tabelle: mit Vermerk der erklärte Betrag (der Dialog fehlt dann ohnehin)
+  const ergebnis = jahresergebnisFakt(form, form === "ust" ? data.ust.anzeige.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn);
 
   return (
     <div className="stack sticky-panel">

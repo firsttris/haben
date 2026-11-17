@@ -88,7 +88,7 @@ describe("jahresergebnisFakt", () => {
     expect(jahresergebnisFakt("euer", 0)).toMatchObject({ label: "Gewinn" });
   });
 
-  it("nennt bei der Einkommensteuer den Gewinn laut EÜR und lässt die Zeile ohne Gewinn weg", () => {
+  it("nennt bei der Einkommensteuer den Gewinn laut EÜR und lässt die Zeile bei 0 € weg", () => {
     expect(jahresergebnisFakt("est", 609280)).toMatchObject({ label: "Gewinn laut EÜR" });
     expect(jahresergebnisFakt("est", -100)).toMatchObject({ label: "Verlust laut EÜR" });
     expect(jahresergebnisFakt("est", 0)).toBeNull();
