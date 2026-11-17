@@ -88,20 +88,21 @@ const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konte
     // auf Kontokorrentkonten und für Gebäude
     ["zinsen", ["2100", "2109", "2110", "2118", "2119", "2120", "2125", "2126", "2129"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["renten", ["2127"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
-    // Mit Mietleasing für technische Anlagen und Maschinen (4810) und Betriebs- und Geschäftsausstattung (4965)
-    ["beweglich", ["4570", "4810", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    // Mit Mietleasing für technische Anlagen und Maschinen (4810) und Betriebs- und Geschäftsausstattung (4965); Miete,
+    // Pacht und Lizenzen auch als Fremdleistungen (3170, 3175, 3180)
+    ["beweglich", ["3170", "4570", "4810", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
     ["elektro", ["4575"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
     // Mit Garagenmiete
-    ["unbeweglich", ["4210", "4211", "4215", "4220", "4550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
-    ["rechte", ["4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
+    ["unbeweglich", ["3175", "4210", "4211", "4215", "4220", "4550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    ["rechte", ["3180", "4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
   SKR04: [
     ["zinsen", ["7300", "7309", "7310", "7318", "7319", "7320", "7325", "7326", "7329"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["renten", ["7327"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
-    ["beweglich", ["6498", "6560", "6835", "6836", "6838", "6840"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    ["beweglich", ["5970", "6498", "6560", "6835", "6836", "6838", "6840"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
     ["elektro", ["6565"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
-    ["unbeweglich", ["6310", "6315", "6316", "6317", "6550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
-    ["rechte", ["6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
+    ["unbeweglich", ["5975", "6310", "6315", "6316", "6317", "6550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    ["rechte", ["5980", "6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
 };
 

@@ -8,7 +8,9 @@ import type { Kontenrahmen } from "./posting.ts";
  * „ohne Abschreibungen, Zinsen und Leasingkosten“, Leasing beweglich „Inkl. Aufwendungen für Kfz-Leasing“); Mietleasing
  * ist kein Finanzierungsleasing, daher jeweils „übrige“. Renten und dauernde Lasten haben eine eigene Position
  * (`annuities`), Garagenmiete steht bei Miete und Pacht für unbewegliche Wirtschaftsgüter, Zinsen an verbundene Unternehmen
- * bei den übrigen Zinsaufwendungen (`expenses.assoc` ist ein Davon-Vermerk außerhalb der Rechenregeln). Miete unbeweglich
+ * bei den übrigen Zinsaufwendungen (`expenses.assoc` ist ein Davon-Vermerk außerhalb der Rechenregeln). Miete, Pacht und
+ * Lizenzen als Fremdleistungen bleiben bei den bezogenen Leistungen wie die Kategorie Fremdleistungen in ebilanz.ts; eine
+ * eigene Position für Miete hat die Taxonomie dort nicht. Miete unbeweglich
  * (4210/6310) und Kfz-Leasing (4570/6560) stehen bei den Kategorien in ebilanz.ts, die übrigen Zinsen beim Darlehen. Ein
  * Konto, das koerperschaft.ts neu hinzurechnet, braucht hier oder in ebilanz.ts eine Position (ebilanz.test.ts).
  */
@@ -16,6 +18,7 @@ import type { Kontenrahmen } from "./posting.ts";
 const OC = "is.netIncome.regular.operatingTC.otherCost";
 const FIN = "is.netIncome.regular.fin.netInterest.expenses";
 const ZINSEN = `${FIN}.regularInterest.other`;
+const FREMDLEISTUNGEN = "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.services.unknownVAT";
 
 const POSITIONEN: Record<Kontenrahmen, readonly [konten: string, position: string][]> = {
   SKR03: [
@@ -25,6 +28,7 @@ const POSITIONEN: Record<Kontenrahmen, readonly [konten: string, position: strin
     ["4211 4220 4550", `${OC}.leaseFix.other`],
     ["2100 2109 2118 2119 2125 2129", ZINSEN],
     ["2127", `${FIN}.annuities`],
+    ["3170 3175 3180", FREMDLEISTUNGEN],
   ],
   SKR04: [
     ["6498 6565 6840", `${OC}.leasingAll.moveable.other`],
@@ -33,6 +37,7 @@ const POSITIONEN: Record<Kontenrahmen, readonly [konten: string, position: strin
     ["6315 6317 6550", `${OC}.leaseFix.other`],
     ["7300 7309 7318 7319 7325 7329", ZINSEN],
     ["7327", `${FIN}.annuities`],
+    ["5970 5975 5980", FREMDLEISTUNGEN],
   ],
 };
 
