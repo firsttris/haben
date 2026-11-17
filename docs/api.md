@@ -215,9 +215,9 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 
 `GET /angebote` listet alle Angebote, Entwürfe zuerst, dann nach Nummer absteigend; `status` (`draft` oder `final`), `contactId` und `number` grenzen die Liste ein. Mit `number` prüft etwa eine Auftragsverwaltung die Angebotsnummer an einem Auftrag. `GET /angebote/{id}` liefert das Angebot mit Positionen.
 
-`listStatus` ist der Stand wie in der Angebotsliste: `entwurf`, `offen`, `abgelaufen` (nach `validUntil`), `angenommen`, `abgelehnt` oder `abgerechnet`, sobald es die Rechnung über das ganze Angebot gibt, also die Rechnung aus dem Angebot oder die Schlussrechnung (`invoiceId`, `invoiceNumber`, auch als Entwurf). Abschlagsrechnungen zählen dabei nicht: Nach einem Abschlag bleibt das Angebot `angenommen` und `invoiceId` leer. Optionale Positionen und Alternativen tragen `kind` (`optional` oder `alternative`) und zählen nicht zu `net`, `tax` und `gross`; welche davon der Kunde gewählt hat, steht in `choices` (Positionsnummern). Rabatte sind wie bei Rechnungen in den Beträgen enthalten, aber nicht einzeln ausgewiesen.
+`listStatus` ist der Stand wie in der Angebotsliste: `entwurf`, `offen`, `abgelaufen` (nach `validUntil`), `angenommen`, `abgelehnt` oder `abgerechnet`, sobald es eine nicht stornierte Rechnung über das ganze Angebot gibt, also die Rechnung aus dem Angebot oder die Schlussrechnung (`invoiceId`, `invoiceNumber`, auch als Entwurf). Abschlagsrechnungen zählen dabei nicht: Nach einem Abschlag bleibt das Angebot `angenommen` und `invoiceId` leer. Optionale Positionen und Alternativen tragen `kind` (`optional` oder `alternative`) und zählen nicht zu `net`, `tax` und `gross`; welche davon der Kunde gewählt hat, steht in `choices` (Positionsnummern). Rabatte sind wie bei Rechnungen in den Beträgen enthalten, aber nicht einzeln ausgewiesen.
 
-Festschreiben, Versenden, die Antwort des Kunden und die Rechnung aus dem Angebot bleiben ein Klick in [Angebote](angebote.md); `url` führt zur Seite des Angebots.
+Die Antwort des Kunden und die Rechnung aus dem Angebot bleiben ein Klick in [Angebote](angebote.md); `url` führt zur Seite des Angebots.
 
 ## Artikelkatalog
 
