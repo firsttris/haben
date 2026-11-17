@@ -314,7 +314,7 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
             {c.lastError && <span className="field-error">{c.lastError}</span>}
           </div>
           <div className="actions">
-            <button type="button" className="btn" disabled={busy !== null} onClick={() => setTrennt(c)}>
+            <button type="button" className="btn btn-danger" disabled={busy !== null} onClick={() => setTrennt(c)}>
               Trennen
             </button>
             {c.status === "fehler" && fints.configured && (
