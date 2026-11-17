@@ -63,6 +63,8 @@ Statt „Belege und Rechnungen per API abgerufen“ zeigt der Abgleich „Belege
 - **Datei fehlt im Export:** Die Buchung hat einen Beleglink, die Datei fehlt in der ZIP-Datei. Das hält „Jeder Beleg hat eine Datei“ offen;
 - **ohne Belegbild im Export:** Belegdaten ohne Beleglink. Kein Fehler, denn auch sevDesk hat dazu kein Bild.
 
+In Buchhaltungsversion 2.0 hat auch ein Beleg ohne Bild einen Beleglink; seine Kennung steht dann in keiner `document.xml`. Haben zählt ihn heute noch als „Datei fehlt im Export“ ([#1374](https://github.com/firsttris/haben/issues/1374)). Prüfe solche Belege in sevDesk, bevor du den Punkt als Fehler behandelst.
+
 Bei „Jede Buchung mit Belegnummer findet ihren Beleg“ findet eine Buchung mit Beleglink ihren Beleg nur über dessen Kennung, auch die weiteren Zeilen desselben Belegs. Zwei Belege mit derselben Nummer zählen so getrennt; Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
 
 Ein Jahr aus dem Export wird bei **Soll-Versteuerung** vollständig, wenn alle Prüfungen aufgehen. Bei **Ist-Versteuerung** bleibt „Zahlungshistorie vollständig“ offen: Der Export ordnet Zahlungen keinem Beleg zu, die Umsatzsteuer je Monat lässt sich daraus nicht ableiten. Vergleiche sie mit den Voranmeldungen in sevDesk.
@@ -209,9 +211,11 @@ Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in d
 | Regel 21 „Reverse Charge gem. § 18b UStG“ | Kz 21 |
 | Regel 5 „Reverse Charge § 13b“ und alles andere | Andere Sätze |
 
+Regel 21 nennt die [OpenAPI](https://api.sevdesk.de/openapi.yaml) selbst „field 21 in VAT return“ (§ 18b Satz 1 Nr. 2 UStG); Regel 17 bucht sevDesk im DATEV-Export auf 8338 (SKR03), das Konto für nicht steuerbare Leistungen im Drittland.
+
 Reverse Charge nach Regel 5 lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60 zuordnen; vergleiche diese Umsätze von Hand.
 
-**Eigene Steuerarten:** Ein Beleg mit taxType `custom` verweist per `taxSet` auf eine Steuerart, die in sevDesk die Kennzahlen der Voranmeldung nennt: `vatReportFieldNet` für die Bemessungsgrundlage, `vatReportFieldTax` für die Steuer, mehrere durch Komma. Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt nur taxType `custom` („Using custom tax set“), den Endpunkt `GET /TaxSet` beschreibt sie nicht; das Verhalten ist mit echten Antworten der Buchhaltungsversion 1.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Haben ruft die Steuerarten bei jedem Abruf ab (`GET /TaxSet`), speichert sie unverändert und nimmt im Abgleich die des jüngsten Abrufs, auch für früher abgerufene Belege.
+**Eigene Steuerarten:** Ein Beleg mit taxType `custom` verweist per `taxSet` auf eine Steuerart, die in sevDesk die Kennzahlen der Voranmeldung nennt: `vatReportFieldNet` für die Bemessungsgrundlage, `vatReportFieldTax` für die Steuer, mehrere durch Komma. Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt nur taxType `custom` („Using custom tax set“), den Endpunkt `GET /TaxSet` beschreibt sie nicht; das Verhalten ist mit echten Antworten der Buchhaltungsversion 1.0 und 2.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Haben ruft die Steuerarten bei jedem Abruf ab (`GET /TaxSet`), speichert sie unverändert und nimmt im Abgleich die des jüngsten Abrufs, auch für früher abgerufene Belege.
 
 - **Ausgaben:** Das Netto zählt in die genannte Kennzahl der Bemessungsgrundlage (Kz 46, 84, 89 oder 93). Die Steuer rechnet Haben wie sevDesk je Beleg aus Netto und Satz der Steuerart und zählt sie in jede genannte Steuerkennzahl (Kz 47, 85, 67, 61 oder 66), bei Reverse Charge also als Steuer (Kz 47) und Vorsteuer (Kz 67); als Vorsteuer Kz 66 zählt die Steuer im Beleg dann nicht.
 - **Einnahmen:** Die Kennzahl der Bemessungsgrundlage ordnet den Umsatz zu wie die Regeln oben, etwa Kz 41 oder 60.
@@ -305,7 +309,7 @@ sevDesk liefert die Vorlagen nur mit dem Filter `invoiceType=WKR`; belegt ist da
 
 **Platzhalter** wie `[%KONTAKTPERSON%]`, `[%ZAHLUNGSZIEL%]` oder `[%Rechnungsnummer%]` stehen als Text in der Vorlage; Haben ersetzt sie nicht. Der Abruf und die Seite der Vorlage listen, welche vorkommen. Ersetze sie vor dem Aktivieren, etwa durch die [Platzhalter von Haben](rechnungen.md#wiederkehrende-rechnungen) oder festen Text.
 
-**Nachfällig oder vorschüssig** steht in sevDesk in keinem Feld der Vorlage. Haben liest es an den Rechnungen ab, die sevDesk aus ihr erzeugt hat (`origin` zeigt auf die Vorlage): Rechnungsdatum gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Belegt ist das für das Monatsintervall in Version 1.0, an 39 Rechnungen einer nachfälligen Vorlage und einer Rechnung einer vorschüssigen, und in Version 2.0 an vorschüssigen Vorlagen mit Monats-, Quartals- und Jahresintervall. Hat jemand eine aus der Vorlage erzeugte Rechnung später fertiggestellt, weicht ihr Rechnungsdatum ab; die Vorlage bleibt dann unklar, und du setzt den Leistungszeitraum selbst.
+**Nachfällig oder vorschüssig** steht in sevDesk in keinem Feld der Vorlage. Haben liest es an den Rechnungen ab, die sevDesk aus ihr erzeugt hat (`origin` zeigt auf die Vorlage): Rechnungsdatum gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Belegt ist das für das Monatsintervall in Version 1.0, an 39 Rechnungen einer nachfälligen Vorlage und einer Rechnung einer vorschüssigen, und in Version 2.0 an vorschüssigen Vorlagen mit Monats- und Quartalsintervall. Weicht das Rechnungsdatum einer erzeugten Rechnung vom Beginn und vom Ende des Zeitraums ab, etwa weil sie später fertiggestellt wurde, bleibt die Vorlage unklar, und du setzt den Leistungszeitraum selbst.
 
 | Ergebnis | Leistungszeitraum in Haben |
 | --- | --- |
