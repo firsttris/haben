@@ -1831,8 +1831,10 @@ bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufi
 bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen und Belegen
                          (Skonto, Forderungsausfall); aufgehobene als Gegenzeile; bei
                          Skonto zu einer Bareinnahme die Nummer im Kassenbuch.
-bank/importe.csv         Importierte Kontoauszugsdateien mit SHA-256, Zeitraum und Salden.
-                         Die Auszugsdateien selbst speichert Haben nicht.
+bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA-256,
+                         Zeitraum, Salden und Hinweisen; abgelehnte Abrufe ohne Zeitraum
+                         nach dem Tag des Abrufs. Die Auszugsdateien selbst speichert
+                         Haben nicht.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),
                          jede Prüfung und Übermittlung (übermittlungen.csv) mit
                          ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML;
