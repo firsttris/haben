@@ -355,6 +355,28 @@ describe("Etsy-Monatsabrechnung", () => {
     expect(s.warnings).toEqual(["1 Zeile mit unbekannter Art (Shipping label) mit dem Nettobetrag übernommen."]);
   });
 
+  // Die Art „Zahlung“ sind zwei Vorgänge, die der Etsy-Zahlungsverlauf getrennt führt (#1313): der Einzug von der Karte
+  // (billing_payment) und der Ausgleich des negativen Guthabens nach einer Erstattung (RECOUP). Beides ist keine Gebühr.
+  it("liest „Zahlung“ als Karteneinzug oder Verrechnung, je nach Titel, und nicht als Gebühr", () => {
+    const s = parseStatement(
+      german([
+        `"02. October 2022",Zahlung,"Gebühr für Rückerstattung 2618701358",,EUR,€6.62,--,€6.62,--`,
+        `"23. August 2022",Zahlung,Kartenzahlung,"Visa mit den Endziffern 7950",EUR,--,€0.20,€0.20,--`,
+      ]),
+    );
+    expect(s.transactions.map((t) => [t.bookingDate, t.amount, t.type, t.purpose])).toEqual([
+      ["2022-08-23", 20, "Karteneinzug", "Karteneinzug · Kartenzahlung · Visa mit den Endziffern 7950"],
+      ["2022-10-02", 662, "Verrechnung", "Verrechnung · Gebühr für Rückerstattung 2618701358"],
+    ]);
+    expect(s.warnings).toEqual([]);
+  });
+
+  it("meldet eine „Zahlung“ mit unbekanntem Titel weiter als unbekannte Art", () => {
+    const s = parseStatement(english([`"March 31, 2025",Payment,"Something new",,EUR,€1.00,--,€1.00,--`]));
+    expect(s.transactions.map((t) => [t.amount, t.type])).toEqual([[100, "Payment"]]);
+    expect(s.warnings).toEqual(["1 Zeile mit unbekannter Art (Payment) mit dem Nettobetrag übernommen."]);
+  });
+
   it("gleiche Zeilen am selben Tag bleiben erhalten und bekommen verschiedene Hashes", () => {
     const hashed = withDedupHashes(parseStatement(fixture("etsy-de.csv")).transactions);
     // Zwei gleiche Einstellgebühren für Artikel XXX-B am 03.11., zwei für Artikel XXX-A am 01.11.
