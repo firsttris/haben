@@ -391,9 +391,11 @@ Für Ausgaben mit Rechnung gilt: erst den Beleg unter [Belege](belege.md) hochla
 
 Bei manchen Anbietern zahlst du Geld ein, das dort als Guthaben liegt und erst später über eine Rechnung verbraucht wird: die Aufladung eines Mobilfunk-Guthabens, ein Guthaben beim Kiosk oder beim Hosting-Anbieter. Für die Aufladung selbst gibt es keine Rechnung, deshalb ordnest du den Umsatz unter **Direkt buchen** als **Aufladung Guthaben** zu und wählst die **Kategorie**, zu der der Aufwand gehört; einen Steuersatz gibt es dort nicht.
 
-Gebucht wird Bank gegen das Konto der gewählten Ausgabekategorie, ohne Vorsteuer. Damit ist die Aufladung im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG), und die Vorsteuer entsteht erst mit der Rechnung über die Leistung, also mit dem Verbrauch des Guthabens (§ 3 Abs. 15 UStG). Eine Aufladung trägt nie einen Steuersatz; Haben lehnt eine Einnahmekategorie und jede andere Kategorie ab, die einen Beleg verlangt.
+Gebucht wird Bank gegen das Konto der gewählten Ausgabekategorie, ohne Vorsteuer. Damit ist die Aufladung im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG), und die Vorsteuer entsteht erst mit der Rechnung über die Leistung, also mit dem Verbrauch des Guthabens (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Eine Aufladung trägt nie einen Steuersatz; Haben lehnt eine Einnahmekategorie und jede andere Kategorie ab, die einen Beleg verlangt.
 
-Die Aufladung braucht keinen Beleg: Sie steht in der EÜR als Ausgabe ihrer Kategorie und im DATEV-Buchungsstapel ohne Belegnummer. Verbraucht die spätere Rechnung das Guthaben, buchst du sie wie jede andere Rechnung unter [Belege](belege.md); ihre Zeile für die Verrechnung bleibt eine Position der Rechnung. Der Bezug zwischen Aufladung und späterer Rechnung ist noch nicht Teil von Haben.
+Die Aufladung braucht keinen Beleg: Sie steht in der EÜR als Ausgabe ihrer Kategorie und im DATEV-Buchungsstapel ohne Belegnummer. Verbraucht die spätere Rechnung das Guthaben, buchst du sie wie jede andere Rechnung unter [Belege](belege.md). Der Bezug zwischen Aufladung und späterer Rechnung ist noch nicht Teil von Haben.
+
+Die Buchung als Ausgabe gilt für die EÜR des Einzelunternehmens (§ 11 Abs. 2 EStG). In der Bilanz einer GmbH oder UG bleibt der gezahlte Betrag bis zur Rechnung ein Vermögensgegenstand (§ 246 Abs. 1 Satz 1 HGB); dieser Fall ist noch nicht gebaut ([#1281](https://github.com/firsttris/haben/issues/1281)).
 
 ### Auf eine Kategorie buchen
 

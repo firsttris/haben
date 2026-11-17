@@ -60,7 +60,7 @@ export async function kategoriebuchung(
  * Aufladung eines Guthabens (#1356): eine Zahlung ohne Beleg an einen Anbieter, bei dem das Geld als Guthaben liegt und
  * erst über eine spätere Rechnung verbraucht wird. Gebucht wie „Direkt buchen“ mit 0 %: Bank gegen das Konto der
  * Pflicht-Kostenkategorie, keine Vorsteuer, kein Beleg. Einen Steuersatz nimmt sie nicht an, auch keinen mitgegebenen:
- * Vorsteuer entsteht erst mit der Rechnung über die Leistung (§ 3 Abs. 15 UStG).
+ * Vorsteuer entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG).
  */
 export function aufladungBuchung(
   bank: { counterpartyName: string },
