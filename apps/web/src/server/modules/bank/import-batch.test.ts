@@ -133,7 +133,7 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     const konto = neuesKonto();
     await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
     await expect(speichere(abruf(konto, [tx("ER-1", "2026-10-05", "50.00"), tx("ER-2", "2026-10-20")]))).rejects.toThrow(
-      "ER-1/main: Betrag -4999 → -5000; nichts überschrieben.",
+      "ER-1/main: Betrag -49,99 € → -50,00 €; nichts überschrieben.",
     );
     expect(await umsaetze(konto.iban)).toHaveLength(1);
     const [stand] = await sql`select max(b.checkpoint)::text as c from import_batches b join import_sources s on s.id = b.source_id
@@ -177,6 +177,21 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     const konto = neuesKonto();
     const r = await speichere(abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-2", "2026-10-20", "1.00", { status: "PDNG" })]));
     expect(r).toMatchObject({ added: 1, checkpoint: "2026-10-19", complete: false });
+  });
+
+  it("behält den Stand der Quelle, auch wenn eine frühere Lieferung keinen hatte", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-P", "2026-10-01", "1.00", { status: "PDNG" })]));
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-P", "2026-10-01", "1.00")]));
+    const r = await speichere(abruf(konto, [tx("ER-Q", "2026-10-26", "2.00", { status: "PDNG" })], { from: "2026-10-24", to: "2026-11-05" }));
+    expect(r.checkpoint).toBe("2026-10-31");
+  });
+
+  it("speichert einen Abruf mit einem Umsatz nach dem Fenster und lässt diesen Umsatz für den Folgeabruf", async () => {
+    const konto = neuesKonto();
+    const r = await speichere(abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-2", "2026-11-02", "1.00")]));
+    expect(r).toMatchObject({ added: 1, checkpoint: "2026-10-31", complete: true });
+    expect((await speichere(abruf(konto, [tx("ER-2", "2026-11-02", "1.00")], { from: "2026-10-25", to: "2026-11-05" }))).added).toBe(1);
   });
 
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {

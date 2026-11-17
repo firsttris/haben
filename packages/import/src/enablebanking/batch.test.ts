@@ -124,6 +124,21 @@ describe("enableBankingBatch", () => {
     expect(batch.balances).toEqual([]);
   });
 
+  it("lässt einen Saldo mit einem Tag, den es nicht gibt, weg, statt die Lieferung abzulehnen", () => {
+    const balances = [{ balance_amount: { currency: "EUR", amount: "1.00" }, balance_type: "CLBD", reference_date: "2026-02-30" }];
+    const result = validateBatch(enableBankingBatch(input([tx()], { balances })), binding);
+    expect(result.ok && result.balances).toEqual([]);
+  });
+
+  it("nimmt einen Umsatz nach dem Fenster nicht an, ohne den Zeitraum offenzuhalten", () => {
+    const result = validateBatch(enableBankingBatch(input([tx({ booking_date: "2026-11-02", value_date: null })])), binding);
+    expect(result.ok && [result.accepted, result.batch.unsupported, result.blocking]).toEqual([
+      [],
+      [{ sourceEventId: "ER-1", bookingDate: "2026-11-02", reason: "Buchungstag 2026-11-02 nach dem abgerufenen Fenster bis 2026-10-31." }],
+      0,
+    ]);
+  });
+
   it("übernimmt einen gebuchten Saldo ohne Stichtag nicht", () => {
     const batch = enableBankingBatch(input([tx()], { balances: [{ balance_amount: { currency: "EUR", amount: "10.00" }, balance_type: "CLBD" }] }));
     expect(batch.balances).toEqual([]);

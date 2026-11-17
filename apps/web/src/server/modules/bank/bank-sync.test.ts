@@ -72,8 +72,10 @@ function fakeApi() {
     }
     if (url.pathname.startsWith("/sessions/") && method === "DELETE") return new Response(null, { status: 204 });
     const match = /^\/accounts\/([^/]+)\/(transactions|balances|details)$/.exec(url.pathname);
-    if (match?.[2] === "details")
+    if (match?.[2] === "details") {
+      if (state.detailsFehler) return json({ message: "Bank nicht erreichbar" }, 503);
       return match[1]!.startsWith("uid-b") ? json({ uid: match[1], identification_hash: "hash-b" }) : json({ message: "unbekannt" }, 404);
+    }
     if (match?.[2] === "balances")
       return json({ balances: [{ balance_amount: { currency: "EUR", amount: "1500.00" }, balance_type: "CLBD", reference_date: "2026-10-01" }] });
     if (match?.[2] === "transactions") {
@@ -88,6 +90,8 @@ function fakeApi() {
               tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"),
               tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1"),
               ...(state.aktuell ? [tx("a4", today(), state.aktuell === "anders" ? "6.00" : "5.00", "DBIT", "Gebühr aktuell")] : []),
+              // Dieselbe entry_reference zweimal mit anderem Betrag: Der Vertrag lehnt die Lieferung ab
+              ...(state.doppelt ? [tx("a5", today(), "1.00", "DBIT", "Doppelt"), tx("a5", today(), "2.00", "DBIT", "Doppelt")] : []),
               ...(state.ohneReferenz
                 ? [{ ...tx("", today(), "5.00", "DBIT", "Kontoführung ohne Referenz"), entry_reference: null, transaction_id: "T-1" }]
                 : []),
@@ -439,7 +443,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     api.state.aktuell = "anders";
     const result = await sync.syncConnection(actor, connection!.id);
     api.state.aktuell = "";
-    expect(result.error).toContain("a4/main: Betrag -500 → -600; nichts überschrieben.");
+    expect(result.error).toContain("a4/main: Betrag -5,0000a0€ → -6,0000a0€; nichts überschrieben.");
     expect(result.accounts.map((a) => a.iban)).toEqual([IBAN_B, IBAN_C]);
     const [after] = await sync.listConnections();
     expect(after!.accounts[0]!.syncedTo).toBe(vorher[0]);
@@ -447,6 +451,27 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(after!.lastError).toContain("Konflikt mit schon übernommenen Umsätzen");
     const [gebuehr] = await sql`select count(*)::int as n, min(amount) as amount from bank_transactions where purpose = 'Gebühr aktuell'`;
     expect([gebuehr!.n, gebuehr!.amount]).toEqual([1, -500]);
+  });
+
+  it("lehnt eine Lieferung nach dem Vertrag ab, meldet sie an der Verbindung und ruft die anderen Konten weiter ab (#306)", async () => {
+    const [connection] = await sync.listConnections();
+    api.state.doppelt = true;
+    const result = await sync.syncConnection(actor, connection!.id);
+    api.state.doppelt = false;
+    expect(result.error).toContain("Abruf nach dem Importvertrag abgelehnt: a5/main steht zweimal in der Lieferung.");
+    expect(result.accounts.map((a) => a.iban)).toEqual([IBAN_B, IBAN_C]);
+    const [doppelt] = await sql`select count(*)::int as n from bank_transactions where purpose = 'Doppelt'`;
+    expect(doppelt!.n).toBe(0);
+  });
+
+  it("fällt bei einem gebundenen Konto nicht auf den Weg ohne Vertrag zurück, auch wenn die Bank keine Kennung nennt (#306)", async () => {
+    // Neue Zustimmung: Konto B nennt den Hash nur in den Kontodetails, und die sind gerade nicht erreichbar
+    api.state.detailsFehler = true;
+    const result = await connect("code-3");
+    api.state.detailsFehler = false;
+    expect(result.ok).toBe(true);
+    const [connection] = await sync.listConnections();
+    expect(connection!.accounts.find((a) => a.iban === IBAN_B)!.identificationHash).toBe("hash-b");
   });
 
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {
