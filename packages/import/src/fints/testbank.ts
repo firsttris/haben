@@ -6,7 +6,8 @@ import { fintsDay } from "./map.ts";
  * Nachgebaute FinTS-Bank für Tests (nur über `@haben/import/fints-testbank`, nicht im Paket): ein HTTP-Server, der
  * Nachrichten von lib-fints liest und mit echten FinTS-Segmenten antwortet. Er kennt Dialogaufbau mit BPD, UPD und
  * Kundensystem-ID, zwei TAN-Verfahren (pushTAN entkoppelt, chipTAN mit TAN), starke Kundenauthentifizierung bei der
- * Anmeldung oder beim Umsatzabruf (je einmal, wie die 90-Tage-Ausnahme nach PSD2) und Umsätze als MT940 (HKKAZ).
+ * Anmeldung oder beim Umsatzabruf (je einmal, wie die 90-Tage-Ausnahme nach PSD2) und Umsätze als MT940 (HKKAZ), auf
+ * Wunsch so, dass lib-fints sie nicht lesen kann.
  * Segmente und Rückmeldungen nach FinTS 3.0 (Formals, PIN/TAN); die Codes der Fehler sind nachgestellt, nicht die
  * einer bestimmten Bank.
  */
@@ -64,6 +65,8 @@ export interface FintsTestbank {
     freigegeben: boolean;
     /** Antwortet mit HTTP 503 */
     nichtErreichbar: boolean;
+    /** HKKAZ: :61: ohne Kundenreferenz, die SWIFT MT940 verlangt (sonst NONREF); lib-fints kann das MT940 dann nicht lesen */
+    mt940Unlesbar: boolean;
     anfragen: FintsTestbankAnfrage[];
   };
   schliessen(): Promise<void>;
@@ -96,7 +99,7 @@ function cents(betrag: string): number {
   return negativ ? -wert : wert;
 }
 
-function mt940(blz: string, konto: FintsTestbankKonto, umsaetze: FintsTestbankUmsatz[], von: string, bis: string): string {
+function mt940(blz: string, konto: FintsTestbankKonto, umsaetze: FintsTestbankUmsatz[], von: string, bis: string, unlesbar: boolean): string {
   const vorher = umsaetze.filter((u) => u.tag < von).reduce((s, u) => s + cents(u.betrag), 0);
   const imZeitraum = umsaetze.filter((u) => u.tag >= von && u.tag <= bis).sort((a, b) => a.tag.localeCompare(b.tag));
   const nachher = vorher + imZeitraum.reduce((s, u) => s + cents(u.betrag), 0);
@@ -107,7 +110,7 @@ function mt940(blz: string, konto: FintsTestbankKonto, umsaetze: FintsTestbankUm
     const zweck = `SVWZ+${u.zweck}`;
     const teile = zweck.match(/.{1,27}/g) ?? [];
     const felder = teile.map((t, i) => `?${20 + i}${t}`).join("");
-    zeilen.push(`:61:${yymmdd(u.tag)}${u.tag.slice(5).replace("-", "")}${cd(c)}R${betragMt940(c)}NTRFNONREF//${u.ref}`);
+    zeilen.push(`:61:${yymmdd(u.tag)}${u.tag.slice(5).replace("-", "")}${cd(c)}R${betragMt940(c)}NTRF${unlesbar ? "" : "NONREF"}//${u.ref}`);
     zeilen.push(`:86:166?00${c < 0 ? "SEPA-UEBERWEISUNG" : "SEPA-GUTSCHRIFT"}${felder}${u.iban ? `?31${u.iban}` : ""}?32${u.name.slice(0, 27)}`);
   }
   zeilen.push(`:62F:${cd(nachher)}${yymmdd(bis)}EUR${betragMt940(nachher)}`, "-");
@@ -162,7 +165,7 @@ const upd = (bank: Bank, r: number) => [
 function umsatzAntwort(bank: Bank, r: number, iban = "", von = "2000-01-01", bis = "2099-12-31"): string[] {
   const konto = bank.konten.find((k) => k.iban === iban);
   if (!konto) return [`HIRMS:{n}:2:${r}+9210::Konto unbekannt.`];
-  const daten = mt940(bank.blz, konto, bank.optionen.umsaetze?.[iban] ?? [], von, bis);
+  const daten = mt940(bank.blz, konto, bank.optionen.umsaetze?.[iban] ?? [], von, bis, bank.zustand.mt940Unlesbar);
   return [`HIRMS:{n}:2:${r}+0020::Der Auftrag wurde ausgeführt.`, `HIKAZ:{n}:7:${r}+@${Buffer.byteLength(daten, "latin1")}@${daten}`];
 }
 
@@ -270,7 +273,7 @@ export async function startFintsTestbank(optionen: FintsTestbankOptionen): Promi
     tan: optionen.tan ?? "123456",
     optionen,
     konten: optionen.konten ?? [],
-    zustand: { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, anfragen: [] },
+    zustand: { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, mt940Unlesbar: false, anfragen: [] },
     offen: new Map(),
     zaehler: 0,
   };

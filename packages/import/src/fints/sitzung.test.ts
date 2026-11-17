@@ -41,7 +41,7 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
   });
 
   beforeEach(() => {
-    Object.assign(bank.zustand, { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false });
+    Object.assign(bank.zustand, { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, mt940Unlesbar: false });
   });
 
   it("verbindet mit TAN bei der Anmeldung und ruft danach Umsätze ab", async () => {
@@ -99,6 +99,31 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
     const fertig = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31", { referenz: anfrage.anfrage.referenz });
     expect(fertig.art).toBe("ok");
     if (fertig.art === "ok") expect(fertig.wert[0]?.transactions).toHaveLength(2);
+  });
+
+  it("wirft, wenn lib-fints die Umsätze nicht lesen kann, statt keine zu melden", async () => {
+    const client = fintsClient(PRODUKT, zugang);
+    await fintsSynchronisieren(client);
+    client.selectTanMethod(921);
+    expect((await fintsSynchronisieren(client)).art).toBe("ok");
+    const konto = fintsKonten(client).abrufbar[0]!;
+    const unlesbar = /^Die Bank hat die Umsätze von Konto …2051 als MT940 geschickt, Haben kann sie nicht lesen \(lib-fints: Expected CustomerReference token/;
+
+    bank.zustand.mt940Unlesbar = true;
+    await expect(fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31")).rejects.toThrow(unlesbar);
+
+    // Ebenso, wenn die Umsätze erst nach der Freigabe kommen
+    bank.zustand.scaBeiUmsaetzen = true;
+    const anfrage = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31");
+    if (anfrage.art !== "tan") throw new Error("TAN erwartet");
+    bank.zustand.freigegeben = true;
+    await expect(fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31", { referenz: anfrage.anfrage.referenz })).rejects.toThrow(unlesbar);
+
+    // Ohne Umsatz im Zeitraum bleibt nichts Unlesbares: keine Umsätze, kein Fehler
+    expect(await fintsUmsaetze(client, konto, "2026-10-21", "2026-10-31")).toMatchObject({ art: "ok", wert: [{ transactions: [] }] });
+    bank.zustand.mt940Unlesbar = false;
+    const wieder = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31");
+    expect(wieder.art === "ok" && wieder.wert[0]?.transactions).toHaveLength(2);
   });
 
   it("arbeitet mit gespeicherten Bankdaten ohne neue Synchronisierung weiter", async () => {

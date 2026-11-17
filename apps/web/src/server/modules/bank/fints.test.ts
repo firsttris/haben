@@ -62,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
   });
 
   beforeEach(() => {
-    Object.assign(bank.zustand, { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false });
+    Object.assign(bank.zustand, { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, mt940Unlesbar: false });
   });
 
   it("verbindet mit gewähltem TAN-Verfahren und TAN, legt die Konten an und holt die ersten Umsätze", async () => {
@@ -195,6 +195,30 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     const ibans = bank.zustand.anfragen.slice(vorher).flatMap((a) => (a.iban ? [a.iban] : []));
     expect(ibans).toEqual([IBAN_A]);
     await sql`update bank_accounts set excluded_at = null where iban = ${IBAN_B}`;
+  });
+
+  it("meldet Umsätze, die lib-fints nicht lesen kann, und lässt den Abrufstand stehen, damit kein Tag verloren geht", async () => {
+    umsaetze[IBAN_A]!.push({ tag: "2026-10-30", betrag: "80,00", name: "Kunde AG", zweck: "RE-2026-0051", ref: "A4" });
+    const { id, accounts: vorher } = await verbindung();
+    const stand = (accounts: { iban: string; syncedTo: string }[]) => accounts.map((a) => [a.iban, a.syncedTo]);
+    const importe = async () => (await sql`select count(*)::int as n from bank_imports`)[0]!.n;
+    const importeVorher = await importe();
+
+    bank.zustand.mt940Unlesbar = true;
+    const fehler = await abruf.fintsAbrufen(ACTOR, id, "2026-11-02");
+    expect(fehler).toMatchObject({ art: "fertig", ok: false, neu: 0 });
+    if (fehler.art !== "fertig") return;
+    expect(fehler.meldung).toMatch(/^Abruf fehlgeschlagen: Die Bank hat die Umsätze von Konto …2051 als MT940 geschickt, Haben kann sie nicht lesen/);
+    const row = await verbindung();
+    expect(row).toMatchObject({ status: "aktiv", last_error: fehler.meldung });
+    expect(stand(row.accounts)).toEqual(stand(vorher));
+    expect(await importe()).toBe(importeVorher);
+
+    // Der nächste Abruf, den lib-fints lesen kann, beginnt beim alten Stand und holt den Umsatz
+    bank.zustand.mt940Unlesbar = false;
+    expect(await abruf.fintsAbrufen(ACTOR, id, "2026-11-03")).toMatchObject({ art: "fertig", ok: true, neu: 1 });
+    const kaz = bank.zustand.anfragen.filter((a) => a.segmente.includes("HKKAZ") && a.iban === IBAN_A).at(-1);
+    expect(kaz).toMatchObject({ von: "2026-10-22", bis: "2026-11-03" });
   });
 
   it("übernimmt Konten aus Enable Banking und gibt sie an Enable Banking ab", async () => {
