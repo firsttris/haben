@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import antworten from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/dateistand.json";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * Randfälle zum Dateistand (#345), gefunden im Review von #1168:
@@ -17,7 +18,6 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 type Raw = Record<string, unknown>;
 const fx = antworten as unknown as { rechnungMitDokument: { invoice: Raw } };
 const TOKEN = "0123456789abcdef0123456789abcdef";
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const pdf = (text: string) =>
   json({
     objects: { base64Encoded: true, content: Buffer.from(`%PDF-1.4\n% ${text}\n`).toString("base64"), filename: `${text}.pdf`, mimetype: "application/pdf" },
@@ -63,13 +63,8 @@ describe.skipIf(!testDatabaseUrl).each([
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL) => {
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
-            const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
+          fetch: sevdeskFakeFetch(({ path, url, list }) => {
             switch (path) {
-              case "/Tools/bookkeepingSystemVersion":
-                return json({ objects: { version: "1.0" } });
               case "/Invoice":
                 return list(url.searchParams.get("invoiceType") ? [] : mitERechnung ? [rechnung, eRechnung] : [rechnung]);
               case "/Invoice/ID_401/getPdf":
@@ -83,13 +78,7 @@ describe.skipIf(!testDatabaseUrl).each([
               case "/Invoice/ID_401/getXml":
                 return json({ error: { message: xmlStatus === 404 ? "keine E-Rechnung" : "Serverfehler" } }, xmlStatus);
             }
-            if (
-              /^\/(Voucher|Contact|ContactAddress|CommunicationWay|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport)$/.test(path)
-            )
-              return list([]);
-            if (/^\/Invoice\/[^/]+\/getPositions$/.test(path)) return list([]);
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
     await sevdesk.saveSevdeskKey("test-user", TOKEN);

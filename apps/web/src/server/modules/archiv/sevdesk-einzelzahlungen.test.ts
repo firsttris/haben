@@ -10,6 +10,7 @@ import unlinkedInvoiceFixture from "../../../../../../packages/import/test-fixtu
 };
 import invoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/invoice-teilzahlungen.json" with { type: "json" };
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 // #343: Einzelzahlungen aus sevDesk mit Datum, Betrag, Konto und Belegbezug statt einer Verdichtung am letzten Zahltag.
 describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
@@ -171,7 +172,6 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
 
   describe("Abruf aus sevDesk mit echten V1-Antworten", () => {
     const TOKEN = "0123456789abcdef0123456789abcdef";
-    const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
     const calls: string[] = [];
 
     beforeAll(async () => {
@@ -182,28 +182,14 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
             minIntervalMs: 0,
             maxRetries: 0,
             sleep: async () => {},
-            fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
-              const url = new URL(String(input));
-              const path = url.pathname.replace(/^\/api\/v1/, "");
+            fetch: sevdeskFakeFetch(({ path, method, list }) => {
               calls.push(path);
-              expect(init?.method ?? "GET").toBe("GET");
-              const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
+              expect(method).toBe("GET");
               switch (path) {
-                case "/Tools/bookkeepingSystemVersion":
-                  return json({ objects: { version: "1.0" } });
                 case "/Contact":
                   return list([{ id: "1", name: "Kunde GmbH", customerNumber: "1001" }]);
                 case "/Invoice":
                   return list([...invoiceFixture.objects, ...unlinkedInvoiceFixture.objects]);
-                case "/ContactAddress":
-                case "/CommunicationWay":
-                case "/CreditNote":
-                case "/Voucher":
-                case "/Order":
-                case "/VatReport":
-                case "/Part":
-                case "/TaxSet":
-                  return list([]);
                 case "/Invoice/9003/getPositions":
                 case "/Invoice/9001/getPositions":
                   return list([{ id: 1, taxRate: "19", sumNet: "1000", sumTax: "190" }]);
@@ -225,8 +211,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
                     },
                   });
               }
-              return json({ error: { message: `unbekannt ${path}` } }, 404);
-            }) as typeof fetch,
+            }),
           }),
       );
       await sevdesk.saveSevdeskKey("test-user", TOKEN);

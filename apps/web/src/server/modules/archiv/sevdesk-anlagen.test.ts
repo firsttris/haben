@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import mitKontoart from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/asset-mit-kontoart.json";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * #472: Anlagenverzeichnis aus sevDesk als Vorschlag zum 01.01., übernommen wie „Anlage übernehmen“. Nichts wird
@@ -22,8 +23,6 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Anlagen übernehmen (Postgres)", () 
   const calls: string[] = [];
   let served: unknown[] = mitKontoart.objects;
 
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-
   beforeAll(async () => {
     sql = await setupTestDb();
     sevdesk = await import("./sevdesk.ts");
@@ -37,14 +36,10 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Anlagen übernehmen (Postgres)", () 
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
-            calls.push(`${init?.method ?? "GET"} ${path}?embed=${url.searchParams.get("embed") ?? ""}`);
-            if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "1.0" } });
+          fetch: sevdeskFakeFetch(({ path, url, method }) => {
+            calls.push(`${method} ${path}?embed=${url.searchParams.get("embed") ?? ""}`);
             if (path === "/Asset") return json({ objects: url.searchParams.get("offset") === "0" ? served : [] });
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
   }, 30_000);
