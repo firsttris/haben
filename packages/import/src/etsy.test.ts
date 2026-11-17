@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { detectStatementFormat, PSP_FORMATS, parseStatement, StatementParseError, withDedupHashes } from "./index.ts";
+import { detectStatementFormat, PSP_FORMATS, parseStatement, StatementParseError, transactionHash, withDedupHashes } from "./index.ts";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
 const bytes = (text: string) => new TextEncoder().encode(text);
@@ -365,10 +365,17 @@ describe("Etsy-Monatsabrechnung", () => {
       ]),
     );
     expect(s.transactions.map((t) => [t.bookingDate, t.amount, t.type, t.purpose])).toEqual([
-      ["2022-08-23", 20, "Karteneinzug", "Karteneinzug · Kartenzahlung · Visa mit den Endziffern 7950"],
-      ["2022-10-02", 662, "Verrechnung", "Verrechnung · Gebühr für Rückerstattung 2618701358"],
+      ["2022-08-23", 20, "Karteneinzug", "Zahlung · Kartenzahlung · Visa mit den Endziffern 7950"],
+      ["2022-10-02", 662, "Verrechnung", "Zahlung · Gebühr für Rückerstattung 2618701358"],
     ]);
     expect(s.warnings).toEqual([]);
+  });
+
+  it("lässt den Zweck der „Zahlung“-Zeilen wie bisher, damit ein schon importierter Monat nicht doppelt ankommt", () => {
+    // Der Dedup-Hash rechnet mit dem Zweck (dedup.ts); vor #1313 hieß er „Zahlung · …“
+    const s = parseStatement(german([`"23. August 2022",Zahlung,Kartenzahlung,"Visa mit den Endziffern 7950",EUR,--,€0.20,€0.20,--`]));
+    const vorher = { bookingDate: "2022-08-23", amount: 20, purpose: "Zahlung · Kartenzahlung · Visa mit den Endziffern 7950" };
+    expect(withDedupHashes(s.transactions).map((t) => t.dedupHash)).toEqual([transactionHash(vorher, 0)]);
   });
 
   it("meldet eine „Zahlung“ mit unbekanntem Titel weiter als unbekannte Art", () => {
