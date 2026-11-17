@@ -112,7 +112,10 @@ export async function ustvaPosten(
   const company = await loadCompany(q);
   const dauerfrist = await loadDauerfrist(q);
   const alle = vatPosten(returns, (period) => dueDate(period, company.bundesland, dauerfristActive(dauerfrist, period.year)));
-  const posten = mitAltbestand ? alle : ohneAltbestand(alle, await altbestand(q, returns), payments);
+  // Ob ein Altbestand Posten ist, hängt an der Zahlung mit Bezug, gleich wann sie kam: Im Abschlussstand (#1110)
+  // zählt sie nicht als bezahlt, macht die Voranmeldung aber zum Posten
+  const mitBezug = bis ? await vatPayments(q) : payments;
+  const posten = mitAltbestand ? alle : ohneAltbestand(alle, await altbestand(q, returns), mitBezug);
   return vatPostenStand(posten, payments);
 }
 
