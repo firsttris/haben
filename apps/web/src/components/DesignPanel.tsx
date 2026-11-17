@@ -168,7 +168,9 @@ export function DesignOptionFields({
             value={design.logoPosition}
             onChange={(logoPosition) => onChange({ logoPosition })}
             disabled={hint("logoPosition")?.aus}
-            describedBy={layoutHintId("logoPosition", hint("logoPosition"))}
+            describedBy={
+              [layoutHintId("logoPosition", hint("logoPosition")), layoutHintId("logoMitte", hint("logoMitte"))].filter(Boolean).join(" ") || undefined
+            }
           />
         </div>
         <LayoutHintText option="logoSize" hint={hint("logoSize")} />

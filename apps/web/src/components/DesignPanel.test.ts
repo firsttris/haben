@@ -10,9 +10,7 @@ vi.mock("../server/functions/logo.ts", () => ({ saveLetterheadDesign: () => unde
 
 /** aria-describedby der Gruppe mit diesem Namen, aus dem HTML gelesen; ein DOM braucht die Prüfung nicht */
 function beschreibung(hints: LayoutHints, gruppe: string): string[] {
-  const html = renderToStaticMarkup(
-    createElement(() => DesignOptionFields({ design: DEFAULT_DESIGN, onChange: () => {}, logoUpload: null, hints })),
-  );
+  const html = renderToStaticMarkup(createElement(() => DesignOptionFields({ design: DEFAULT_DESIGN, onChange: () => {}, logoUpload: null, hints })));
   const tag = new RegExp(`<div[^>]*aria-label="${gruppe}"[^>]*>`).exec(html)?.[0] ?? "";
   return /aria-describedby="([^"]*)"/.exec(tag)?.[1]?.split(" ") ?? [];
 }
