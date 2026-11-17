@@ -238,9 +238,16 @@ describe("fintsStatement", () => {
   it("lässt das Jahr aus dem Tagesauszug weg, wenn der Auszug mehr als ein Jahr umfasst oder aus CAMT kommt", () => {
     // Ein einziger Auszug über mehr als ein Jahr passt für zwei Jahre: dann wie bisher das Jahr nächst der Wertstellung
     const lang = new Mt940Parser(
-      [":20:STARTUMSE", ":25:12030000/0000202051", ":28C:00000/001", ":60F:C251101EUR0,00", ":61:2611201122DR5,00NCHGNONREF", ":86:805?20SVWZ+Entgelt", ":62F:C261130EUR-5,00", "-"].join(
-        "\r\n",
-      ),
+      [
+        ":20:STARTUMSE",
+        ":25:12030000/0000202051",
+        ":28C:00000/001",
+        ":60F:C251101EUR0,00",
+        ":61:2611201122DR5,00NCHGNONREF",
+        ":86:805?20SVWZ+Entgelt",
+        ":62F:D261130EUR5,00",
+        "-",
+      ].join("\r\n"),
     ).parse();
     expect(
       fintsStatement({
@@ -253,8 +260,8 @@ describe("fintsStatement", () => {
     // CAMT nennt das Jahr selbst: Ein 01.03. bleibt der 01.03., auch wenn der Bericht am 29.02. endet
     const camt = statement([tx({ entryDate: new Date(2027, 2, 1, 12), valueDate: new Date(2028, 0, 20, 12) })], { date: new Date(2028, 1, 29), value: 0 });
     expect(
-      fintsStatement({ iban: "DE02120300000000202051", statements: [{ ...camt, format: "CAMT" as const }], dateFrom: "2026-10-01", dateTo: "2028-02-29" }).transactions[0]
-        ?.bookingDate,
+      fintsStatement({ iban: "DE02120300000000202051", statements: [{ ...camt, format: "CAMT" as const }], dateFrom: "2026-10-01", dateTo: "2028-02-29" })
+        .transactions[0]?.bookingDate,
     ).toBe("2027-03-01");
   });
 

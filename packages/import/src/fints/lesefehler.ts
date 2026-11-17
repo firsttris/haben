@@ -7,17 +7,25 @@ import type { ClientResponse, FinTSClient } from "lib-fints";
  * Deshalb hält Haben fest, was lib-fints beim Lesen einer Antwort meldet, und fintsUmsaetze macht daraus einen Fehler.
  * Die Datei fällt weg, sobald lib-fints den Fehler selbst meldet; der Test mit unlesbarem MT940 in sitzung.test.ts zeigt
  * dann, ob das stimmt.
+ *
+ * Dieselbe Stelle hält auch fest, in welchem Format die Bank geantwortet hat: lib-fints wählt CAMT oder MT940 selbst
+ * (getAccountStatements, preferCamt) und sagt es nicht. map.ts braucht es für das Jahr des Buchungstags aus MT940.
  */
 
+/** MT940 (HKKAZ) oder CAMT (HKCAZ) */
+export type UmsatzFormat = "MT940" | "CAMT";
+
 export interface Lesefehler {
-  /** MT940 (HKKAZ) oder CAMT (HKCAZ) */
-  format: string;
+  format: UmsatzFormat;
   /** Text des Fehlers aus lib-fints */
   grund: string;
 }
 
 /** Antwort von lib-fints → was beim Lesen schiefging */
 const fehler = new WeakMap<object, Lesefehler>();
+
+/** Antwort von lib-fints → Format der Umsätze darin */
+const formate = new WeakMap<object, UmsatzFormat>();
 
 /** Ein Auftrag in lib-fints (CustomerOrderInteraction), soweit Haben ihn hier braucht */
 interface Auftrag {
@@ -36,12 +44,14 @@ export function lesefehlerMerken(client: FinTSClient): void {
   const starten = intern.startCustomerOrderInteraction.bind(client);
   intern.startCustomerOrderInteraction = (auftrag) => {
     const lesen = auftrag.handleResponse.bind(auftrag);
+    const format: UmsatzFormat | undefined = auftrag.segId === "HKCAZ" ? "CAMT" : auftrag.segId === "HKKAZ" ? "MT940" : undefined;
     auftrag.handleResponse = (message, response) => {
+      if (format) formate.set(response, format);
       const warn = console.warn;
       console.warn = (...args: unknown[]) => {
         const error = args.find((a) => a instanceof Error);
         if (!fehler.has(response)) {
-          fehler.set(response, { format: auftrag.segId === "HKCAZ" ? "CAMT" : "MT940", grund: error instanceof Error ? error.message : args.join(" ") });
+          fehler.set(response, { format: format ?? "MT940", grund: error instanceof Error ? error.message : args.join(" ") });
         }
       };
       try {
@@ -57,4 +67,9 @@ export function lesefehlerMerken(client: FinTSClient): void {
 /** Was lib-fints beim Lesen dieser Antwort gemeldet hat; undefined, wenn sie sich lesen ließ */
 export function lesefehler(response: object): Lesefehler | undefined {
   return fehler.get(response);
+}
+
+/** Format der Umsätze in dieser Antwort; undefined, wenn sie keine Umsätze enthielt */
+export function umsatzFormat(response: object): UmsatzFormat | undefined {
+  return formate.get(response);
 }

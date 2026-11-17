@@ -1,5 +1,6 @@
 import type { Cents } from "@haben/core";
 import type { Balance, Statement, Transaction } from "lib-fints";
+import type { FintsAuszug } from "./sitzung.ts";
 import { applyStatedBalance } from "../common.ts";
 import { normalizeIban, normalizeText, parseDotAmount } from "../text.ts";
 import type { ParsedStatement, ParsedTransaction } from "../types.ts";
@@ -27,30 +28,63 @@ export function fintsDay(date: Date | undefined): string | undefined {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** Tage als Zahl, um Abstände zu rechnen */
+const tagZahl = (day: string) => Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / 86_400_000;
+
+/** Gibt es den Tag im Kalender (der 29.02. nur in Schaltjahren)? */
+const gibtEs = (day: string) => new Date(tagZahl(day) * 86_400_000).toISOString().slice(0, 10) === day;
+
+/** Zeitraum eines MT940-Auszugs: Stichtag des Anfangssaldos (:60F:) bis Stichtag des Endsaldos (:62F:), beide mit Jahr */
+export interface AuszugZeitraum {
+  von: string;
+  bis: string;
+}
+
 /**
  * Buchungstag eines Umsatzes. MT940 nennt in :61: die Wertstellung mit Jahr (JJMMTT), den Buchungstag nur als MMTT
  * (SWIFT MT940, Feld 61, Unterfeld 2). lib-fints ergänzt das Jahr der Wertstellung und nimmt das Vorjahr, sobald der
  * Monat der Buchung nach dem der Wertstellung liegt: Eine Kartenzahlung vom 30.04., gebucht am 02.05., käme ein Jahr zu
- * früh an. Haben nimmt deshalb Monat und Tag der Buchung und das Jahr, in dem sie der Wertstellung am nächsten liegt.
- * Das nur, wenn das Jahr genau das ist, das lib-fints bei MT940 ergänzt hätte. Ein anderes Jahr nennt die Bank selbst
- * (CAMT) und bleibt, etwa bei der Erstattung einer nicht autorisierten Lastschrift: bis 13 Monate nach der Belastung,
- * wertgestellt zum Tag der Belastung (Richtlinie (EU) 2015/2366, Art. 71 Abs. 1 und Art. 73 Abs. 1).
+ * früh an. Einen 29.02. legt es dabei im Vorjahr an, also als 01.03.
+ *
+ * Haben nimmt deshalb Monat und Tag der Buchung und sucht das Jahr selbst:
+ * - Aus dem Auszug (zeitraum, nur MT940): Anfangs- und Endsaldo (:60F:, :62F:, Feld 60a und 62a, JJMMTT) nennen das Jahr,
+ *   und ein gebuchter Umsatz liegt zwischen ihnen. Passt genau ein Jahr hinein, gilt es; ein 01.03. kann dabei auch ein
+ *   29.02. sein. So stimmt auch eine Erstattung, deren Wertstellung über ein halbes Jahr zurückliegt (nicht autorisierte
+ *   Lastschrift: bis 13 Monate nach der Belastung, wertgestellt zum Tag der Belastung, Richtlinie (EU) 2015/2366,
+ *   Art. 71 Abs. 1 und Art. 73 Abs. 1).
+ * - Sonst das Jahr, in dem der Tag der Wertstellung am nächsten liegt.
+ * Bei CAMT nennt die Bank das Jahr selbst (BookgDt), es bleibt. Ist das Format unbekannt, ändert Haben nur ein Jahr, das
+ * genau das ist, das lib-fints bei MT940 ergänzt hätte.
  */
-export function fintsBookingDay(entryDate: Date | undefined, valueDate: Date | undefined): string | undefined {
+export function fintsBookingDay(
+  entryDate: Date | undefined,
+  valueDate: Date | undefined,
+  quelle: { format?: "MT940" | "CAMT"; zeitraum?: AuszugZeitraum } = {},
+): string | undefined {
   const entry = fintsDay(entryDate);
   const value = fintsDay(valueDate);
-  if (!entry || !value) return entry ?? value;
-  const days = (day: string) => Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / 86_400_000;
+  if (!entry || !value || quelle.format === "CAMT") return entry ?? value;
   const year = Number(value.slice(0, 4));
   const libFintsYear = Number(entry.slice(5, 7)) <= Number(value.slice(5, 7)) ? year : year - 1;
   if (Number(entry.slice(0, 4)) !== libFintsYear) return entry;
-  return (
-    [year - 1, year, year + 1]
-      .map((y) => `${y}${entry.slice(4)}`)
-      // Der 29.02. nur in Schaltjahren
-      .filter((day) => new Date(days(day) * 86_400_000).toISOString().slice(0, 10) === day)
-      .reduce((best, day) => (Math.abs(days(day) - days(value)) < Math.abs(days(best) - days(value)) ? day : best), entry)
-  );
+  const jahre = [year - 1, year, year + 1];
+  const { zeitraum } = quelle;
+  if (zeitraum) {
+    const tage = entry.slice(5) === "03-01" ? ["03-01", "02-29"] : [entry.slice(5)];
+    const passend = jahre.flatMap((y) => tage.map((t) => `${y}-${t}`)).filter((day) => gibtEs(day) && day >= zeitraum.von && day <= zeitraum.bis);
+    if (passend.length === 1) return passend[0];
+  }
+  return jahre
+    .map((y) => `${y}${entry.slice(4)}`)
+    .filter(gibtEs)
+    .reduce((best, day) => (Math.abs(tagZahl(day) - tagZahl(value)) < Math.abs(tagZahl(best) - tagZahl(value)) ? day : best), entry);
+}
+
+/** Zeitraum eines MT940-Auszugs aus Anfangs- und Endsaldo; ohne beide Stichtage keiner */
+function auszugZeitraum(s: FintsAuszug): AuszugZeitraum | undefined {
+  const von = fintsDay(s.openingBalance?.date);
+  const bis = fintsDay(s.closingBalance?.date);
+  return s.format === "MT940" && von && bis && von <= bis ? { von, bis } : undefined;
 }
 
 /** „NOTPROVIDED“ steht in SEPA-Feldern, die der Auftraggeber leer gelassen hat */
@@ -60,8 +94,13 @@ const reference = (value: string | undefined) => {
 };
 
 /** Ein gebuchter Umsatz aus MT940 oder CAMT; null ohne gültigen Buchungstag oder Betrag */
-export function mapFintsTransaction(t: Transaction, currency: string, index: number): ParsedTransaction | null {
-  const bookingDate = fintsBookingDay(t.entryDate, t.valueDate);
+export function mapFintsTransaction(
+  t: Transaction,
+  currency: string,
+  index: number,
+  quelle: Parameters<typeof fintsBookingDay>[2] = {},
+): ParsedTransaction | null {
+  const bookingDate = fintsBookingDay(t.entryDate, t.valueDate, quelle);
   const amount = fintsCents(t.amount);
   if (!bookingDate || amount === null) return null;
   const mandateReference = reference(t.mandateReference);
@@ -111,7 +150,7 @@ export function fintsStatement(input: {
   iban: string;
   accountName?: string;
   currency?: string;
-  statements: Statement[];
+  statements: FintsAuszug[];
   dateFrom: string;
   dateTo: string;
 }): ParsedStatement {
@@ -119,9 +158,9 @@ export function fintsStatement(input: {
   const warnings: string[] = [];
   const mapped: ParsedTransaction[] = [];
   input.statements
-    .flatMap((s) => s.transactions ?? [])
-    .forEach((t, i) => {
-      const tx = mapFintsTransaction(t, currency, i);
+    .flatMap((s) => (s.transactions ?? []).map((t) => ({ t, quelle: { format: s.format, zeitraum: auszugZeitraum(s) } })))
+    .forEach(({ t, quelle }, i) => {
+      const tx = mapFintsTransaction(t, currency, i, quelle);
       if (tx) mapped.push(tx);
       else warnings.push(`Umsatz ${reference(t.bankReference) ?? i + 1} ohne gültiges Datum oder Betrag übersprungen.`);
     });

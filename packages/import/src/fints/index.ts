@@ -7,6 +7,7 @@ export {
   fintsTanVerfahren,
   fintsUmsaetze,
   type FintsAntwort,
+  type FintsAuszug,
   type FintsGespeichert,
   type FintsProdukt,
   type FintsTanAnfrage,

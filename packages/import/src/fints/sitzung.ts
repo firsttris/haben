@@ -1,5 +1,5 @@
 import { type BankAccount, type BankAnswer, type BankingInformation, type ClientResponse, FinTSClient, FinTSConfig, type Statement } from "lib-fints";
-import { lesefehler, lesefehlerMerken } from "./lesefehler.ts";
+import { lesefehler, lesefehlerMerken, type UmsatzFormat, umsatzFormat } from "./lesefehler.ts";
 
 /**
  * Dünne Schicht über lib-fints (FinTS 3.0 mit PIN/TAN): baut den Client, übersetzt Antworten der Bank in
@@ -140,6 +140,9 @@ export async function fintsSynchronisieren(client: FinTSClient, weiter?: FintsWe
   return antwort(client, response, () => client.config.bankingInformation);
 }
 
+/** Auszug aus lib-fints mit dem Format, in dem die Bank ihn geschickt hat */
+export type FintsAuszug = Statement & { format?: UmsatzFormat };
+
 /** Tag als lokales Datum, wie lib-fints es in HKKAZ und HKCAZ schreibt */
 function datum(tag: string): Date {
   const [jahr, monat, t] = tag.split("-").map(Number);
@@ -156,7 +159,7 @@ export async function fintsUmsaetze(
   von: string,
   bis: string,
   weiter?: FintsWeiter,
-): Promise<FintsAntwort<Statement[]>> {
+): Promise<FintsAntwort<FintsAuszug[]>> {
   const response = weiter
     ? await client.getAccountStatementsWithTan(weiter.referenz, weiter.tan)
     : await client.getAccountStatements(konto, datum(von), datum(bis));
@@ -166,7 +169,8 @@ export async function fintsUmsaetze(
       `Die Bank hat die Umsätze von Konto …${(konto.iban ?? "").slice(-4)} als ${fehler.format} geschickt, Haben kann sie nicht lesen (lib-fints: ${fehler.grund}). Bleibt der Fehler, die fehlenden Umsätze als Datei aus dem Online-Banking importieren.`,
     );
   }
-  return antwort(client, response, () => ("statements" in response ? (response.statements as Statement[]) : []));
+  const format = umsatzFormat(response);
+  return antwort(client, response, () => ("statements" in response ? (response.statements as Statement[]) : []).map((s) => ({ ...s, format })));
 }
 
 /** Die TAN-Verfahren, die die Bank diesem Zugang erlaubt (Rückmeldung 3920); das Einschrittverfahren 999 nie */
