@@ -3536,6 +3536,54 @@ test("Beleg prüfen: Erwerb mit einer zu kurzen USt-IdNr. aus der EU legt das Fe
   await expect(page).not.toHaveURL(belegUrl);
 });
 
+test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben“ klappt den Bereich auf (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "erwerb-server.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Bordeaux SARL") }]);
+  await expect(page.getByText("erwerb-server.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /erwerb-server\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  const ustId = page.getByLabel(/^USt-IdNr\. des Lieferanten/);
+  // Gespeicherter Erwerb, dem nur eine gültige USt-IdNr. fehlt: „FR1234“ hat nach dem Länderkennzeichen zu wenig Zeichen
+  await page.getByLabel("Lieferant", { exact: true }).fill("Papeterie Bordeaux SARL");
+  await page.getByLabel("Belegdatum").fill(day(-5));
+  await page.getByLabel("Kategorie").selectOption("buero");
+  await page.getByLabel("Netto", { exact: true }).fill("100,00");
+  await weitereAngabenOeffnen(page);
+  await ustId.fill("FR1234");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Speichern", exact: true })).toBeDisabled();
+
+  // Der Hinweis „Vor dem Buchen“ nennt die USt-IdNr.: Das Feld liegt offen
+  await expect(page.locator(".doc-editor .banner").filter({ hasText: "Vor dem Buchen:" })).toContainText("FR1234");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(ustId).toBeVisible();
+
+  // Zugeklappt lehnt der Server das Buchen ab: Seine Meldung klappt den Bereich wieder auf
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.locator(".doc-actions").getByText(/Noch nicht bereit: .*FR1234/)).toBeVisible();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(ustId).toBeVisible();
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
 test("Beleg prüfen: Zuklappen und Wahl im selben Bild lassen „Weitere Angaben“ offen (#1253)", async ({ browser }) => {
   await go("/belege");
   await page
