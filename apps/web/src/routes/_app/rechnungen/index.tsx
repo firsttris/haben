@@ -3,6 +3,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
 import { Field } from "../../../components/Field.tsx";
+import { ForeignInvoiceImport } from "../../../components/ForeignInvoiceImport.tsx";
 import { InvoiceTabs } from "../../../components/InvoiceTabs.tsx";
 import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { formatDate } from "../../../lib/format.ts";
@@ -22,6 +23,7 @@ function InvoicesPage() {
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const { suche } = Route.useSearch();
   const [query, setQuery] = useState(suche ?? "");
+  const [importing, setImporting] = useState(false);
   useEffect(() => {
     setQuery(suche ?? "");
   }, [suche]);
@@ -45,6 +47,9 @@ function InvoicesPage() {
         </div>
         {inhaber && (
           <div className="actions">
+            <button type="button" className="btn" onClick={() => setImporting(true)}>
+              Ausgangsrechnung hochladen
+            </button>
             <Link to="/rechnungen/neu" className="btn btn-primary">
               Neue Rechnung
             </Link>
@@ -53,6 +58,7 @@ function InvoicesPage() {
       </div>
       {/* Wiederkehrend und Mahnwesen sind Arbeit des Inhabers */}
       {inhaber && <InvoiceTabs />}
+      {inhaber && importing && <ForeignInvoiceImport onClose={() => setImporting(false)} />}
       {invoices.length > 0 && (
         <div className="filter-row" style={{ marginBottom: 0 }}>
           <Field label="Rechnungen durchsuchen" hideLabel style={{ flex: "1 1 260px", maxWidth: 420 }}>
