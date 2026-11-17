@@ -5,6 +5,10 @@ import { Field } from "./Field.tsx";
 const REVERSE_CHARGE_KURZ =
   "Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge, § 13b UStG). Die Steuer schuldest du selbst; Haben rechnet sie aus dem Netto und zieht sie, soweit abziehbar, als Vorsteuer wieder ab. Bezahlt wird nur der Nettobetrag.";
 
+/** Der Normalfall; der Satz steht im Hinweis statt in der Option, damit sie am Handy nicht abgeschnitten wird */
+const LIEFERANT_KURZ =
+  "Mit oder ohne deutsche Umsatzsteuer auf der Rechnung, auch bei Kleinunternehmern und 0 %. Vorsteuer gibt es, soweit die Steuer ausgewiesen ist.";
+
 const ERKLAERUNG: Record<SelfAssessedTax, { kurz: string; details: string }> = {
   eu: {
     kurz: REVERSE_CHARGE_KURZ,
@@ -22,8 +26,9 @@ const ERKLAERUNG: Record<SelfAssessedTax, { kurz: string; details: string }> = {
 };
 
 /**
- * Die Frage am Beleg, ob deutsche Umsatzsteuer auf der Rechnung steht, mit der Antwort in Alltagssprache; Kennzahlen der
- * Voranmeldung stehen unter „Details“ (#1253). Gewählt wird derselbe Wert wie zuvor, nur die Beschriftung ist neu.
+ * Die Frage am Beleg, wer die Umsatzsteuer schuldet, mit der Antwort in Alltagssprache; Kennzahlen der Voranmeldung
+ * stehen unter „Details“ (#1253). Leer heißt: der Lieferant, also ein normaler Beleg mit oder ohne deutsche Umsatzsteuer
+ * (auch Kleinunternehmer, 0 %); die drei anderen Werte schuldest du selbst.
  */
 export function BelegUmsatzsteuer({
   value,
@@ -38,24 +43,30 @@ export function BelegUmsatzsteuer({
   return (
     <>
       <Field
-        label="Steht deutsche Umsatzsteuer auf der Rechnung?"
+        label="Wer schuldet die Umsatzsteuer?"
         hint={
-          value
-            ? ERKLAERUNG[value].kurz
-            : looksLikeReverseCharge && (
+          value ? (
+            ERKLAERUNG[value].kurz
+          ) : (
+            <>
+              {LIEFERANT_KURZ}
+              {looksLikeReverseCharge && (
                 <>
+                  {" "}
                   Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung? Bei einer Dienstleistung, etwa von Google, Microsoft oder AWS, ist es meist
                   Reverse Charge (§ 13b), bei Ware ein innergemeinschaftlicher Erwerb (§ 1a).
                 </>
-              )
+              )}
+            </>
+          )
         }
       >
         {(control) => (
           <select {...control} value={value ?? ""} onChange={(e) => onChange((e.target.value || null) as SelfAssessedTax | null)}>
-            <option value="">Ja (mit Vorsteuer, auch bei 0 %)</option>
-            <option value="eu">Nein, EU-Leistung (§ 13b)</option>
-            <option value="drittland">Nein, Drittland-Leistung (§ 13b)</option>
-            <option value="ig_erwerb">Nein, Ware aus der EU (§ 1a)</option>
+            <option value="">Der Lieferant (normaler Beleg)</option>
+            <option value="eu">Ich (§ 13b, EU-Leistung)</option>
+            <option value="drittland">Ich (§ 13b, Drittland-Leistung)</option>
+            <option value="ig_erwerb">Ich (§ 1a, Ware aus der EU)</option>
           </select>
         )}
       </Field>

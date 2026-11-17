@@ -48,7 +48,7 @@ import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpa
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
 import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
 import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
-import { WeitereAngaben, isEuVatId, weitereAngabenKurz, weitereAngabenMeldung } from "../../../components/WeitereAngaben.tsx";
+import { WeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
@@ -355,11 +355,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [currency, setCurrency] = useState(doc.currency);
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
-  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs), beim Erwerb ohne USt-IdNr. aus der EU
-  // und wenn ein Hinweis „Vor dem Buchen“ ein Feld darin nennt
-  const [weitereOffen, setWeitereOffen] = useState(
-    () => doc.currency !== "EUR" || (doc.reverseCharge === "ig_erwerb" && !isEuVatId(doc.supplierUstId)) || issues.some(weitereAngabenMeldung),
-  );
+  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs) und beim Erwerb ohne USt-IdNr. aus der EU
+  const [weitereOffen, setWeitereOffen] = useState(() => doc.currency !== "EUR" || (doc.reverseCharge === "ig_erwerb" && !isEuVatId(doc.supplierUstId)));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null, vorsteuerAnteil: null }]).map((a) => {
@@ -387,10 +384,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const continueAfterBooking = useSyncExternalStore(subscribeContinuePreference, readContinuePreference, () => true);
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
-  // Meldet der Server einen Fehler zu einem Feld in „Weitere Angaben“, etwa ein Leistungsende vor dem Beginn, liegt es offen
-  useEffect(() => {
-    if (notice?.tone === "danger" && weitereAngabenMeldung(notice.text)) setWeitereOffen(true);
-  }, [notice]);
 
   const parsed = rows.map((r) => ({
     taxRate: r.taxRate,
@@ -417,7 +410,14 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     currencyValid &&
     parsedSplits !== null;
   const BETRAG_FEHLER = amountError("den Betrag", 12_050);
+  // Felder in „Weitere Angaben“, deren Fehler den Bereich aufklappen
+  const weitereFehler = {
+    waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
+    kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
+    leistungsende: leistungsendeFehler(serviceFrom, serviceTo),
+  };
   const { form, error, check } = useSubmitCheck({
+    ...weitereFehler,
     ...Object.fromEntries(
       rows.flatMap((r, i) => [
         [`satz-${r.key}`, rows.findIndex((x) => x.taxRate === r.taxRate) < i ? "Diesen Satz gibt es schon in einer Zeile darüber." : null],
@@ -436,15 +436,13 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         [`aufteilung-${r.key}`, parseEuro(r.net || "0") === null ? BETRAG_FEHLER : null],
       ]),
     ),
-    waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
-    kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
     privatanteil: privateShareValid ? null : PRIVATANTEIL_FEHLER,
     vorsteuer: vorsteuerAnteil.trim() === "" || parseVorsteuerAnteil(vorsteuerAnteil) !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
   } as Record<string, string | null>);
-  // Fehler in „Weitere Angaben“ (Währung, Kurs) klappen den Bereich auf, bevor der Fokus das Feld sucht: Im zugeklappten
+  // Fehler in „Weitere Angaben“ klappen den Bereich auf, bevor der Fokus das Feld sucht: Im zugeklappten
   // Bereich fände er es nicht, und die Meldung bliebe unsichtbar
   const pruefen = () => {
-    if (!currencyValid) flushSync(() => setWeitereOffen(true));
+    if (Object.values(weitereFehler).some(Boolean)) flushSync(() => setWeitereOffen(true));
     return check();
   };
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
@@ -853,7 +851,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             <Field label="Leistung von" describedBy="leistung-hint">
               {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
             </Field>
-            <Field label="Leistung bis" describedBy="leistung-hint">
+            <Field label="Leistung bis" describedBy="leistung-hint" error={error("leistungsende")}>
               {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
             </Field>
             <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>

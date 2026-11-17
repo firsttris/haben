@@ -1054,7 +1054,7 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
   await expect(page.getByText(/meist Reverse Charge \(§ 13b\)/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("19,00");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   await expect(page.getByLabel("Steuer § 13b")).toHaveAttribute("readonly", "");
@@ -1068,7 +1068,7 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("38,00");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("14,00");
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("drittland");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("drittland");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
@@ -1096,7 +1096,7 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   // Auch gespeicherte Zeilen müssen bei einer Änderung weiter automatisch rechnen.
   await page.getByLabel("Netto", { exact: true }).fill("300");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("21,00");
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("20,99");
   await page.getByLabel("Netto", { exact: true }).fill("400");
@@ -1139,9 +1139,9 @@ test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel beh�
   await amounts.getByLabel("Vorsteuer", { exact: true }).fill("7,78");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Bei § 13b gibt es kein Brutto, gezahlt wird netto; die Steuer rechnet Haben aus dem Netto (111,21 € zu 7 % = 7,78 €)
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveCount(0);
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1416,11 +1416,11 @@ test("Beleg mit § 13b aufteilen: Steuer § 13b je Zeile, innergemeinschaftliche
   await page.getByLabel("Kategorie").selectOption("geldverkehr");
   await page.getByLabel("Netto", { exact: true }).fill("250,00");
 
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   await expect(page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" })).toBeDisabled();
   await expect(page.getByText("mit innergemeinschaftlichem Erwerb noch nicht möglich")).toBeVisible();
 
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("47,50");
   await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
   const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
@@ -1962,7 +1962,7 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await page.getByLabel("Netto", { exact: true }).fill("500");
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
   await expect(page.getByText(/bei Ware ein innergemeinschaftlicher Erwerb/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   const tax = page.getByLabel(/^Erwerbsteuer/);
   await expect(tax).toHaveValue("95,00");
   await expect(tax).toHaveAttribute("readonly", "");
@@ -3379,10 +3379,10 @@ test("Beleg prüfen: Seltenes ist eingeklappt, zeigt Gesetztes in der Überschri
   await expect(ueberschrift).toContainText(/EUR · fällig \d{2}\.\d{2}\.\d{4}/);
 
   // Pflicht: Der Erwerb braucht die USt-IdNr. des Lieferanten aus der EU, das Feld liegt dann offen
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   await expect(bereich).toHaveJSProperty("open", true);
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
 
   // Fehler: Ein zugeklappter Bereich verschluckt ihn nicht, „Bestätigen und buchen“ klappt auf und setzt den Fokus aufs Feld
   await page.getByLabel("Währung").fill("EU");
@@ -3394,7 +3394,7 @@ test("Beleg prüfen: Seltenes ist eingeklappt, zeigt Gesetztes in der Überschri
   await expect(page.getByLabel("Währung")).toHaveAccessibleDescription(/drei Buchstaben/);
 
   // Barrierefrei mit aufgeklapptem Bereich, Fehlermeldung und den Details zur Umsatzsteuer, am Desktop und am Handy
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await page.getByText("Details zur Voranmeldung", { exact: true }).click();
   const vorher = page.viewportSize();
   for (const width of [1440, 390]) {
@@ -3475,7 +3475,7 @@ test("Beleg prüfen: Der Hinweis „Vor dem Buchen“ bleibt bei Änderungen ste
   await expect(page).not.toHaveURL(belegUrl);
 });
 
-test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben“ klappt den Bereich auf (#1253)", async ({ browser }) => {
+test("Beleg prüfen: Ein Leistungsende vor dem Beginn klappt „Weitere Angaben“ auf und setzt den Fokus aufs Feld (#1253)", async ({ browser }) => {
   await go("/belege");
   await page
     .locator("input[type=file][multiple]")
@@ -3488,7 +3488,7 @@ test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben�
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   const bereich = page.locator("details.weitere-angaben");
-  // Der Leistungszeitraum endet vor seinem Beginn; die Prüfung im Browser kennt das nicht, erst der Server meldet es
+  // Der Leistungszeitraum endet vor seinem Beginn, der Bereich ist zugeklappt: Speichern klappt ihn auf, wo der Fehler steht
   await weitereAngabenOeffnen(page);
   await page.getByLabel("Leistung von").fill(day(-5));
   await page.getByLabel("Leistung bis").fill(day(-20));
@@ -3496,9 +3496,9 @@ test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben�
   await expect(bereich).toHaveJSProperty("open", false);
   await page.getByLabel("Rechnungsnummer").fill("RG-4711");
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
-  await expect(page.getByText(/Leistungszeitraum endet vor seinem Beginn/)).toBeVisible();
   await expect(bereich).toHaveJSProperty("open", true);
-  await expect(page.getByLabel("Leistung bis")).toBeVisible();
+  await expect(page.getByLabel("Leistung bis")).toBeFocused();
+  await expect(page.getByLabel("Leistung bis")).toHaveAccessibleDescription(/Ende der Leistung liegt vor dem Beginn/);
 
   // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
   const belegUrl = page.url();
@@ -3525,7 +3525,7 @@ test("Beleg prüfen: Erwerb mit einer zu kurzen USt-IdNr. aus der EU legt das Fe
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
   await bereich.locator("summary").click();
   await expect(bereich).toHaveJSProperty("open", false);
-  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   await expect(bereich).toHaveJSProperty("open", true);
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
 

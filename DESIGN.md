@@ -211,7 +211,7 @@ Auswahllisten sind Formularfelder wie die übrigen: `<select>` steht in `Field` 
 
 Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen und bei denen der Fokus bleibt, etwa eine Antwort des Servers; beim Tippen bleibt es aus, ebenso bei Fehlern aus `useSubmitCheck`: Deren erstes Feld bekommt den Fokus, der Screenreader liest den Fehler dabei, und `role="alert"` an allen Feldern läse alle auf einmal. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
-Seltene Felder stehen in einem zugeklappten Bereich (`<details>`, am Beleg `WeitereAngaben` in `components/WeitereAngaben.tsx`), nichts davon fällt weg: Die Überschrift nennt, was gesetzt ist („Weitere Angaben: EUR · fällig 30.11.2026“). Die Seite hält den Zustand selbst und klappt den Bereich auf, wenn ein Feld darin einen Fehler meldet, und zwar vor `check` von `useSubmitCheck`, denn im zugeklappten Bereich fände der Fokus das Feld nicht; ebenso, wenn eine Meldung des Servers ein Feld darin nennt (Fehler beim Speichern, Hinweis „Vor dem Buchen“), und wenn die Eingabe dort gebraucht wird oder vom Üblichen abweicht (Fremdwährung, USt-IdNr. beim innergemeinschaftlichen Erwerb). Was jeder Beleg braucht, bleibt draußen.
+Seltenes steht eingeklappt, Gesetztes in der Überschrift („Weitere Angaben: EUR · fällig 30.11.2026“), und ein Fehler klappt den Bereich auf; was jeder Beleg braucht, bleibt draußen.
 
 ### Datei-Felder
 

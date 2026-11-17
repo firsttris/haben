@@ -14,7 +14,9 @@ const details = (html: string) => /<details>(.*?)<\/details>/.exec(html)?.[1] ??
 describe("Umsatzsteuer am Beleg als Frage", () => {
   it("fragt in Alltagssprache und behält die Werte der Auswahl", () => {
     const html = render(null);
-    expect(html).toContain("Steht deutsche Umsatzsteuer auf der Rechnung?");
+    expect(html).toContain("Wer schuldet die Umsatzsteuer?");
+    expect(html).toContain("Der Lieferant (normaler Beleg)");
+    expect(hinweis(html)).toContain("Kleinunternehmern");
     for (const value of ["", "eu", "drittland", "ig_erwerb"]) expect(html).toContain(`<option value="${value}"`);
     expect(details(html)).toBe("");
   });
@@ -32,8 +34,10 @@ describe("Umsatzsteuer am Beleg als Frage", () => {
   it("nennt die Kennzahlen je Wahl wie die Voranmeldung", () => {
     expect(details(render("eu"))).toContain("Kz 46");
     expect(details(render("eu"))).toContain("Kz 47");
+    expect(details(render("eu"))).toContain("Kz 67");
     expect(details(render("drittland"))).toContain("Kz 84");
     expect(details(render("drittland"))).toContain("Kz 85");
+    expect(details(render("drittland"))).toContain("Kz 67");
     expect(details(render("ig_erwerb"))).toContain("Kz 89");
     expect(details(render("ig_erwerb"))).toContain("Kz 93");
     expect(details(render("ig_erwerb"))).toContain("Kz 61");
@@ -41,6 +45,6 @@ describe("Umsatzsteuer am Beleg als Frage", () => {
 
   it("rät bei Lieferant aus der EU ohne Steuer zu Reverse Charge oder Erwerb", () => {
     expect(hinweis(render(null, true))).toContain("Reverse Charge (§ 13b)");
-    expect(hinweis(render(null, false))).toBe("");
+    expect(hinweis(render(null, false))).not.toContain("Reverse Charge");
   });
 });

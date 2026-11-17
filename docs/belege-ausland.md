@@ -12,14 +12,14 @@ Was Haben bei § 13b und beim innergemeinschaftlichen Erwerb nicht abdeckt, steh
 
 Viele Anbieter von Software und Cloud-Diensten aus dem EU-Ausland (Google, Microsoft, AWS, JetBrains, Adobe aus Irland oder den Niederlanden) stellen Unternehmern Rechnungen ohne Umsatzsteuer mit dem Hinweis „Reverse Charge“. Die Steuer schuldest dann du (§ 13b UStG) und ziehst sie im selben Zug als Vorsteuer wieder ab.
 
-Unter **Steht deutsche Umsatzsteuer auf der Rechnung?** wählst du bei einer Rechnung ohne deutsche Umsatzsteuer:
+Unter **Wer schuldet die Umsatzsteuer?** wählst du bei einer Rechnung ohne deutsche Umsatzsteuer, wenn die Steuer bei dir liegt:
 
 | Auswahl | Wann | Kennzahlen |
 | --- | --- | --- |
-| Nein, EU-Leistung (§ 13b) | sonstige Leistung eines Unternehmers mit Sitz in einem anderen EU-Land | Kz 46 (netto) und 47 (Steuer) |
-| Nein, Drittland-Leistung (§ 13b) | Leistung eines Unternehmers ohne Sitz in der EU, z. B. aus den USA, ohne deutsche Umsatzsteuer | Kz 84 (netto) und 85 (Steuer) |
+| Ich (§ 13b, EU-Leistung) | sonstige Leistung eines Unternehmers mit Sitz in einem anderen EU-Land | Kz 46 (netto) und 47 (Steuer) |
+| Ich (§ 13b, Drittland-Leistung) | Leistung eines Unternehmers ohne Sitz in der EU, z. B. aus den USA, ohne deutsche Umsatzsteuer | Kz 84 (netto) und 85 (Steuer) |
 
-Ohne Wahl bleibt es bei **Ja (mit Vorsteuer, auch bei 0 %)**. Unter dem Feld erklärt ein kurzer Text die Wahl in Alltagssprache; die Kennzahlen der Voranmeldung stehen eingeklappt unter **Details zur Voranmeldung**.
+Ohne Wahl bleibt es bei **Der Lieferant (normaler Beleg)**, mit oder ohne deutsche Umsatzsteuer auf der Rechnung, auch bei der Rechnung eines Kleinunternehmers oder bei 0 %. Unter dem Feld erklärt ein kurzer Text die Wahl in Alltagssprache; die Kennzahlen der Voranmeldung stehen eingeklappt unter **Details zur Voranmeldung**.
 
 Du trägst nur das Netto aus der Rechnung ein und wählst den zutreffenden deutschen Steuersatz (19 % oder 7 %). **Steuer § 13b (automatisch)** zeigt die daraus berechnete Steuer schreibgeschützt an. Änderungen am Netto oder am Satz aktualisieren sie automatisch, auch nach dem erneuten Öffnen eines gespeicherten Entwurfs. Beim Speichern rechnet Haben die Steuer selbst noch einmal aus Netto und Satz, auch bei der Erwerbsteuer; ein älterer Entwurf mit abweichender Steuer lässt sich erst buchen, wenn du ihn geöffnet und gespeichert hast. Bezahlt wird der Nettobetrag, der Bankabgleich erwartet also netto. Hat der Lieferant eine USt-IdNr. aus einem anderen EU-Land und steht keine Steuer auf dem Beleg, weist Haben darauf hin. Erkennt die [KI-Auslesung](belege.md#ki-auslesung) einen Reverse-Charge-Hinweis auf dem Beleg, schlägt sie § 13b (EU oder Drittland) oder den innergemeinschaftlichen Erwerb vor und setzt statt der ausgewiesenen 0 % den Satz 19 %; ist am Beleg schon etwas gewählt, bleibt es. Gebucht wird erst, wenn du bestätigst. Keinen Vorschlag gibt es, wenn der Beleg Umsatzsteuer ausweist, der Rechnungssteller eine deutsche USt-IdNr. hat oder es deine eigene Ausgangsrechnung ist.
 
@@ -34,7 +34,7 @@ In der [Voranmeldung](umsatzsteuer.md#-13b-als-leistungsempfänger) heben sich S
 
 Kaufst du als Unternehmer **Ware** bei einem Unternehmer aus einem anderen EU-Land und gelangt sie aus diesem Land nach Deutschland, stellt er dir die Rechnung ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. Die Umsatzsteuer (Erwerbsteuer) schuldest dann du und ziehst sie im selben Zug als Vorsteuer wieder ab. Ein Beispiel: Hardware von einem Händler aus den Niederlanden für 500 € netto; daraus entstehen 95 € Erwerbsteuer und 95 € Vorsteuer, an den Händler gehen 500 €.
 
-Unter **Steht deutsche Umsatzsteuer auf der Rechnung?** wählst du **Nein, Ware aus der EU (§ 1a)**. Die Steuerbehandlung ist unabhängig von der Kategorie: Ware zum Weiterverkauf („Wareneinkauf (Handelsware)“), Büroausstattung, Hardware und auch ein **Anlagegut** gehen. Bei einem Anlagegut kommt der Nettobetrag wie sonst ins [Anlagenverzeichnis](anlagen.md), Erwerbsteuer und Vorsteuer stehen daneben; dafür ist vollständiger Vorsteuerabzug nötig (siehe [Grenzen](belege.md#grenzen)).
+Unter **Wer schuldet die Umsatzsteuer?** wählst du **Ich (§ 1a, Ware aus der EU)**. Die Steuerbehandlung ist unabhängig von der Kategorie: Ware zum Weiterverkauf („Wareneinkauf (Handelsware)“), Büroausstattung, Hardware und auch ein **Anlagegut** gehen. Bei einem Anlagegut kommt der Nettobetrag wie sonst ins [Anlagenverzeichnis](anlagen.md), Erwerbsteuer und Vorsteuer stehen daneben; dafür ist vollständiger Vorsteuerabzug nötig (siehe [Grenzen](belege.md#grenzen)).
 
 Du trägst das Netto aus der Rechnung ein und wählst 19 % oder 7 %. **Erwerbsteuer (automatisch)** zeigt die berechnete Steuer schreibgeschützt an; bei Änderungen am Netto oder am Satz wird sie automatisch aktualisiert. Bezahlt wird der Nettobetrag. Zum Buchen braucht Haben die **USt-IdNr. des Lieferanten** aus einem anderen EU-Land; mit einer deutschen USt-IdNr. ist es kein innergemeinschaftlicher Erwerb.
 
