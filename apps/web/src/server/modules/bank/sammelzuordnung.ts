@@ -45,20 +45,27 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
       .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
     const fees = rows.filter((row) => row.amount < 0);
     if (rows.length > fees.length) {
-      // Gesperrt wie in documentBooking: Eine gleichzeitige Zuordnung auf denselben Beleg wartet bis zum Ende
+      // Wie die Einzelzuordnung zuerst die Umsätze, dann den Beleg sperren; umgekehrt entstünde ein Deadlock
+      // (PostgreSQL 18, 13.3.4: https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-DEADLOCKS).
+      for (const row of rows) await lockTransaction(tx, row.id);
       const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
       if (!doc) throw new BankError("Beleg nicht gefunden.");
       const offen = async () => documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
+      // Nach einer Wartezeit können die offenen Beträge aus der ersten Abfrage veraltet sein; unter den Sperren neu lesen.
+      const banks = [];
+      for (const row of rows) {
+        const bank = await lockTransaction(tx, row.id);
+        if (bank.open !== 0) banks.push(bank);
+      }
       const open = await offen();
-      if (open !== 0 && rows.reduce((sum, row) => sum + row.open, 0) === open) {
+      if (open !== 0 && banks.reduce((sum, bank) => sum + bank.open, 0) === open) {
         // Die Summe stimmt erst nach der letzten Zeile; dazwischen darf der Beleg über- oder unterschritten sein
-        for (const row of rows) {
-          const bank = await lockTransaction(tx, row.id);
+        for (const bank of banks) {
           await bookPart(tx, company, bank, { kind: "document", documentId: input.documentId, amount: bank.open, sammel: true }, null);
         }
         // Ersetzt die Prüfung je Zeile: Am Ende steht der Beleg genau auf 0,00 €, sonst wird nichts gebucht
         if ((await offen()) !== 0) throw new BankError("Der Beleg oder die Zeilen haben sich zwischenzeitlich geändert; bitte erneut zuordnen.");
-        return rows.length;
+        return banks.length;
       }
     }
     let count = 0;
