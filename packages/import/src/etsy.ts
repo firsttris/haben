@@ -90,7 +90,7 @@ const isPayout = (kind: string) => /^(deposit|überweisung|ueberweisung|auszahlu
  * Die Art „Zahlung“ sind zwei Vorgänge, die der Etsy-Zahlungsverlauf getrennt führt (#1313): „Kartenzahlung“ ist der
  * Einzug von der hinterlegten Karte (billing_payment), „Gebühr für Rückerstattung …“ der Ausgleich des negativen
  * Guthabens nach einer Erstattung (RECOUP). Beides bringt Geld von außen ins Guthaben und ist keine Gebühr; die Namen
- * sind dieselben wie beim Abruf über die API. Andere Titel bleiben eine unbekannte Art mit Hinweis.
+ * sind dieselben wie beim Abruf über die API. Andere Titel, auch die englischen, bleiben eine unbekannte Art mit Hinweis.
  */
 function paymentKind(kind: string, title: string): "Karteneinzug" | "Verrechnung" | undefined {
   if (!/^(zahlung|payment)$/i.test(kind)) return undefined;
@@ -213,7 +213,9 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
     }
     const zahlung = paymentKind(kind, normalizeText(title(row)));
     if (zahlung) {
-      if (net(row)) list.push({ ...base, amount: cents(net(row)), purpose: describe(zahlung), type: zahlung });
+      // Der Zweck bleibt „Zahlung · …“ wie vor #1313: Der Dedup-Hash rechnet mit ihm (dedup.ts), ein neuer Zweck legte
+      // einen schon importierten Monat beim erneuten Import doppelt an. Nur die Art ist neu.
+      if (net(row)) list.push({ ...base, amount: cents(net(row)), purpose, type: zahlung });
       else empty++;
       return;
     }
