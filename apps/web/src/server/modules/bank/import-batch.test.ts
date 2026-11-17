@@ -239,6 +239,30 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-4999, -1200, -1200]);
   });
 
+  /** Kontoauszug als Datei (camt) mit ER-2 vom 30.10. über 12,00 €, im Verwendungszweck wie in der API */
+  async function dateiMitEr2(konto: { iban: string; hash: string }) {
+    const datei = { ...abruf(konto, [tx("ER-2", "2026-10-30", "12.00")], { from: "2026-10-11" }).statement, format: "camt053" as const };
+    await db.db.transaction((t) => bank.storeStatement(t, datei, { filename: "auszug.xml", sha256: `datei-${konto.hash}` }, null));
+  }
+  const er2 = tx("ER-2", "2026-10-30", "12.00", { value_date: "2026-11-01" });
+  const er4 = tx("ER-4", "2026-10-30", "12.00", { value_date: "2026-11-01", remittance_information: ["Andere Zahlung"] });
+
+  it("rechnet eine per Alias verbundene Zeile der Datei nicht noch einmal an", async () => {
+    const konto = neuesKonto();
+    await dateiMitEr2(konto);
+    // Erster Abruf: ER-2 gehört per Alias zur Zeile der Datei, ER-4 ist ein anderer Umsatz mit gleichem Tag und Betrag
+    expect((await speichere(abruf(konto, [er2, er4], { from: "2026-11-01", to: "2026-11-05" }))).added).toBe(1);
+    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-1200, -1200]);
+  });
+
+  it("rechnet eine Zeile der Datei, die schon einer Bewegung gehört, im nächsten Abruf nicht an", async () => {
+    const konto = neuesKonto();
+    await dateiMitEr2(konto);
+    await speichere(abruf(konto, [er2], { from: "2026-11-01", to: "2026-11-05" }));
+    expect((await speichere(abruf(konto, [er2, er4], { from: "2026-11-01", to: "2026-11-06" }))).added).toBe(1);
+    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-1200, -1200]);
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();
