@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$comment": "Lehnt unbekannte Schlüssel ab, etwa Tippfehler; die Werte selbst prüft das Chart mit eigenen Meldungen. Ein neuer Schlüssel in values.yaml gehört auch hierher (scripts/deploy-vorlagen/helm.test.ts).",
+  "$comment": "Lehnt unbekannte Schlüssel ab, etwa Tippfehler; die Werte selbst prüft das Chart mit eigenen Meldungen. Freie Maps haben additionalProperties: true. global und enabled (condition: haben.enabled) setzt Helm, wenn das Chart Abhängigkeit eines anderen ist. Ein neuer Schlüssel in values.yaml gehört auch hierher (scripts/deploy-vorlagen/helm.test.ts).",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -19,11 +19,13 @@
       "properties": {
         "image": {},
         "secretEnv": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         },
         "existingSecret": {},
         "env": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         },
         "persistence": {
           "type": "object",
@@ -48,7 +50,8 @@
           }
         },
         "resources": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         },
         "extraVolumeMounts": {
           "type": "array"
@@ -74,7 +77,8 @@
           }
         },
         "resources": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         }
       }
     },
@@ -85,11 +89,13 @@
         "enabled": {},
         "image": {},
         "secretEnv": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         },
         "existingSecret": {},
         "env": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         },
         "persistence": {
           "type": "object",
@@ -101,7 +107,8 @@
           }
         },
         "resources": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         }
       }
     },
@@ -119,7 +126,8 @@
         "enabled": {},
         "className": {},
         "annotations": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true
         },
         "tlsSecret": {}
       }
@@ -148,16 +156,19 @@
       "type": "array"
     },
     "nodeSelector": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": true
     },
     "tolerations": {
       "type": "array"
     },
     "affinity": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": true
     },
     "global": {
       "type": "object"
-    }
+    },
+    "enabled": {}
   }
 }

@@ -90,15 +90,17 @@ const labelWerte = (knoten: unknown): unknown[] =>
 const gueltigesLabel = (wert: unknown) => typeof wert === "string" && wert.length <= 63 && /^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$/.test(wert);
 const ohneTag = (image: string) => image.replace(/^docker\.io\//, "").replace(/:[^/]*$/, "");
 type Schema = { additionalProperties?: boolean; properties?: Record<string, Schema> };
-// Wo Schema und values.yaml verschiedene feste Schlüssel haben; ganz oben erlaubt das Schema zusätzlich global
-const abweichungen = (schema: Schema, werte: Werte, pfad = ""): string[] => {
+// Jedes Objekt aus values.yaml ist im Schema fest (dieselben Schlüssel, additionalProperties: false) oder ausdrücklich frei
+// (additionalProperties: true); ganz oben erlaubt das Schema zusätzlich global und enabled für die Nutzung als Abhängigkeit
+const abweichungen = (schema: Schema, werte: unknown, pfad = ""): string[] => {
+  if (typeof werte !== "object" || werte === null || Array.isArray(werte) || schema.additionalProperties === true) return [];
   const eigenschaften = schema.properties;
-  if (!eigenschaften) return [];
-  const imSchema = Object.keys(eigenschaften).filter((k) => pfad !== "" || k !== "global");
-  const offen = schema.additionalProperties === false ? [] : [`${pfad.slice(0, -1) || "."} ohne additionalProperties: false`];
+  if (!eigenschaften || schema.additionalProperties !== false) return [`${pfad || "."} weder fest noch frei`];
+  const unter = (k: string) => (pfad ? `${pfad}.${k}` : k);
+  const imSchema = Object.keys(eigenschaften).filter((k) => pfad !== "" || !["global", "enabled"].includes(k));
   const anders = [...new Set([...imSchema, ...Object.keys(werte)])].filter((k) => !imSchema.includes(k) || !(k in werte));
-  const darunter = imSchema.flatMap((k) => abweichungen(eigenschaften[k], (werte[k] ?? {}) as Werte, `${pfad}${k}.`));
-  return [...offen, ...anders.map((k) => `${pfad}${k}`), ...darunter];
+  const darunter = imSchema.flatMap((k) => abweichungen(eigenschaften[k], (werte as Werte)[k], unter(k)));
+  return [...anders.map(unter), ...darunter];
 };
 
 type ComposeService = { image: string; volumes?: string[]; read_only?: boolean; cap_drop?: string[]; tmpfs?: string[] };
@@ -246,13 +248,11 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     expect(variable(container(pod, "backup"), "PGPASSWORD")?.valueFrom?.secretKeyRef.name).toBe("d");
   });
 
-  // values.schema.json lehnt unbekannte Schlüssel ab; Variablen, Annotationen und Kubernetes-Objekte bleiben frei, und
-  // global setzt Helm, wenn das Chart Abhängigkeit eines anderen ist
-  test("nimmt freie Maps, Listen und global an", () => {
+  // values.schema.json lehnt unbekannte Schlüssel ab; Variablen, Annotationen und Kubernetes-Objekte bleiben frei
+  test("nimmt freie Maps und Listen an", () => {
     const x86 = "/opt/haben-x86_64";
     const werte = {
       ...basis,
-      global: { imageRegistry: "registry.example.de" },
       app: { ...(basis.app as object), resources: { limits: { memory: "1Gi" } }, extraVolumeMounts: [{ name: "x86", mountPath: x86 }] },
       ingress: { enabled: true, annotations: { "traefik.ingress.kubernetes.io/router.middlewares": "haben-haben-header@kubernetescrd" } },
       extraVolumes: [{ name: "x86", hostPath: { path: x86 } }],
@@ -261,6 +261,20 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
       affinity: { nodeAffinity: {} },
     };
     expect(finde(manifeste(werte), "Deployment", "haben").spec.template.spec.nodeSelector).toEqual({ "kubernetes.io/arch": "amd64" });
+  });
+
+  // Als Abhängigkeit gibt Helm dem Chart global mit, und die übliche Bedingung condition: haben.enabled steht in seinen Werten
+  test("rendert als Abhängigkeit eines anderen Charts mit condition: haben.enabled", () => {
+    const eltern = mkdtempSync(join(tmpdir(), "haben-eltern-"));
+    try {
+      cpSync(join(root, "deploy/helm"), join(eltern, "charts/haben"), { recursive: true });
+      const abhaengigkeit = "  - name: haben\n    version: '>=0'\n    condition: haben.enabled\n";
+      writeFileSync(join(eltern, "Chart.yaml"), `apiVersion: v2\nname: eltern\nversion: 0.1.0\ndependencies:\n${abhaengigkeit}`);
+      const alle = manifeste({ global: { imageRegistry: "registry.example.de" }, haben: { ...basis, enabled: true } }, eltern);
+      expect(container(finde(alle, "Deployment", "haben").spec.template.spec, "app").image).toBe("docker.io/tristanteu/haben:0.9.0");
+    } finally {
+      rmSync(eltern, { recursive: true, force: true });
+    }
   });
 
   // Fehlt ein Schlüssel aus values.yaml im Schema, scheitert schon jeder Render, weil Helm auch die Vorgaben prüft. Das hier
