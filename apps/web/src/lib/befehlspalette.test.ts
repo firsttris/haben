@@ -118,6 +118,19 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(buildPageSection(bereiche, suche)?.items.map((item) => item.id) ?? []).toContain(`page-einstellungen-${bereich}`);
   });
 
+  it("findet jeden Bereich über jedes Wort seines alten Untertexts (#1253)", () => {
+    const alt = {
+      elster: "Zertifikat und ERiC",
+      waehrung: "USt-Umrechnungskurse des BMF",
+      ki: "MCP, API-Tokens, Belegauslesung",
+      export: "Jahresarchiv, DATEV, Ablage, Backup, Prüfung, Version",
+    };
+    const bereiche = seiten.filter((s) => s.settingsArea);
+    for (const [bereich, text] of Object.entries(alt))
+      for (const wort of text.split(/[\s,]+/).filter((w) => !["und", "des"].includes(w)))
+        expect(buildPageSection(bereiche, wort)?.items.map((item) => item.id) ?? [], wort).toContain(`page-einstellungen-${bereich}`);
+  });
+
   it("hält die Untertexte der Bereiche in Klartext: eine Zeile, ohne Klammern", () => {
     for (const { label, hint } of SETTINGS_AREAS) expect(hint, label).toMatch(/^[^()\n]+$/);
   });
