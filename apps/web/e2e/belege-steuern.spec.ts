@@ -19,6 +19,7 @@ import {
   kundeWaehlen,
   lieferantWaehlen,
   neuenLieferantenOeffnen,
+  weitereAngabenOeffnen,
   ohneAxeVerstoesse,
   trefferliste,
   randImDialog,
@@ -1045,7 +1046,10 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // USt-IdNr. liegt in „Weitere Angaben“, die Überschrift zeigt sie auch zugeklappt
+  await weitereAngabenOeffnen(page);
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("IE6388047V");
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("USt-IdNr. IE6388047V");
   await page.getByLabel("Netto", { exact: true }).fill("100");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
@@ -1521,7 +1525,13 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await lieferantWaehlen(page, "Hetzner Online GmbH · DE812871812");
+  // Ein Feld für Name und Kontakt (#1253): keine zweite Suche „Aus den Kontakten“, die gewählte Verknüpfung steht als Hinweis am Feld
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
+  await expect(page.getByRole("combobox", { name: /Lieferant|Kontakten/ })).toHaveCount(1);
+  await expect(page.getByLabel("Aus den Kontakten")).toHaveCount(0);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveAccessibleDescription("Aus den Kontakten gewählt.");
+  // Name und USt-IdNr. aus dem Kontakt: Die USt-IdNr. liegt in „Weitere Angaben“, deren Überschrift sie zugeklappt zeigt
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("USt-IdNr. DE812871812");
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
 
   // Lieferant direkt im Beleg anlegen (#330): Name und USt-IdNr. vom Beleg, Rolle Lieferant, Eingaben bleiben
@@ -1535,7 +1545,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await expect(dialog.getByRole("status")).toContainText("gibt es schon „Hetzner Online GmbH“");
   await dialog.getByRole("button", { name: "„Hetzner Online GmbH“ wählen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
 
   await neuenLieferantenOeffnen(page);
   await dialog.getByLabel("Name oder Firma").fill("Druckerei Süd GmbH");
@@ -1544,7 +1554,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Druckerei Süd GmbH");
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue("Druckerei Süd GmbH");
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveAccessibleDescription("Aus den Kontakten gewählt.");
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
   // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1946,6 +1956,7 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("NL123456789B01");
   await page.getByLabel("Kategorie").selectOption("wareneinkauf");
   await page.getByLabel("Netto", { exact: true }).fill("500");
@@ -2914,7 +2925,7 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
   await expect(iban).toBeFocused();
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Netzwerk Hosting GmbH");
 });
 
 test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
@@ -3324,6 +3335,7 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await page.getByLabel("Belegdatum").fill(day(-9));
   await page.getByLabel("Kategorie").selectOption("telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("Leistung von").fill(day(-24));
   await page.getByLabel("Leistung bis").fill(day(-9));
   await page.getByRole("button", { name: "Speichern" }).click();
@@ -3332,8 +3344,74 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
 
   await page.reload();
   await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
+  // Zugeklappt nennt die Überschrift den Zeitraum; aufgeklappt stehen die beiden Felder
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("Leistung");
+  await weitereAngabenOeffnen(page);
   await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
+});
+
+test("Beleg prüfen: Seltenes ist eingeklappt, zeigt Gesetztes in der Überschrift und klappt bei einem Fehler auf (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "weitere.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Schreibwaren Lindenhof e. K.") }]);
+  await expect(page.getByText("weitere.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /weitere\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  const ueberschrift = bereich.locator("summary");
+
+  // Zu: die Felder sind nicht zu sehen, die Überschrift nennt die Währung
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(ueberschrift).toHaveText("Weitere Angaben: EUR");
+  await expect(page.getByLabel("Fällig am")).toBeHidden();
+
+  // Was gesetzt ist, steht auch zugeklappt in der Überschrift
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Fällig am").fill(day(14));
+  await ueberschrift.click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(ueberschrift).toContainText(/EUR · fällig \d{2}\.\d{2}\.\d{4}/);
+
+  // Pflicht: Der Erwerb braucht die USt-IdNr. des Lieferanten aus der EU, das Feld liegt dann offen
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("");
+
+  // Fehler: Ein zugeklappter Bereich verschluckt ihn nicht, „Bestätigen und buchen“ klappt auf und setzt den Fokus aufs Feld
+  await page.getByLabel("Währung").fill("EU");
+  await ueberschrift.click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel("Währung")).toBeFocused();
+  await expect(page.getByLabel("Währung")).toHaveAccessibleDescription(/drei Buchstaben/);
+
+  // Barrierefrei mit aufgeklapptem Bereich, Fehlermeldung und den Details zur Umsatzsteuer, am Desktop und am Handy
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  const vorher = page.viewportSize();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `Beleg mit Weiteren Angaben bei ${width} px`,
+    ).toEqual([]);
+  }
+  if (vorher) await page.setViewportSize(vorher);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
 });
 
 test("Beleg prüfen: Kategorien stehen in Gruppen, ein Beispiel hilft bei der Wahl (#1253)", async ({ browser }) => {

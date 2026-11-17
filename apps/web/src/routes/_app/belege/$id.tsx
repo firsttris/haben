@@ -23,6 +23,7 @@ import {
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
 import { BelegUmsatzsteuer } from "../../../components/BelegUmsatzsteuer.tsx";
@@ -46,6 +47,7 @@ import { Field } from "../../../components/Field.tsx";
 import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
 import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
+import { WeitereAngaben, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
@@ -76,6 +78,7 @@ let nextKey = 1;
 
 /** USt-IdNr. aus einem anderen EU-Land (ohne DE); Griechenland hat EL */
 const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z]{2,12}$/;
+const isEuVatId = (text: string) => EU_VAT_PREFIX.test(text.replace(/\s/g, "").toUpperCase());
 
 const CONTINUE_KEY = "haben-belege-weiter";
 /** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
@@ -355,6 +358,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [currency, setCurrency] = useState(doc.currency);
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
+  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs) und beim Erwerb ohne USt-IdNr. aus der EU
+  const [weitereOffen, setWeitereOffen] = useState(() => doc.currency !== "EUR" || (doc.reverseCharge === "ig_erwerb" && !isEuVatId(doc.supplierUstId)));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null, vorsteuerAnteil: null }]).map((a) => {
@@ -432,6 +437,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     privatanteil: privateShareValid ? null : PRIVATANTEIL_FEHLER,
     vorsteuer: vorsteuerAnteil.trim() === "" || parseVorsteuerAnteil(vorsteuerAnteil) !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
   } as Record<string, string | null>);
+  // Fehler in „Weitere Angaben“ (Währung, Kurs) klappen den Bereich auf, bevor der Fokus das Feld sucht: Im zugeklappten
+  // Bereich fände er es nicht, und die Meldung bliebe unsichtbar
+  const pruefen = () => {
+    if (!currencyValid) flushSync(() => setWeitereOffen(true));
+    return check();
+  };
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
   const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
@@ -447,11 +458,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       : null;
   const euroGross = euroRows ? euroRows.reduce((s, e) => s + e.net + (reverseCharge ? 0 : e.tax), 0) : null;
   // Lieferant mit USt-IdNr. aus einem anderen EU-Land und keine Steuer auf dem Beleg: vermutlich § 13b
-  const looksLikeReverseCharge =
-    !reverseCharge && EU_VAT_PREFIX.test(supplierUstId.replace(/\s/g, "").toUpperCase()) && parsed.every((p) => p.tax === 0) && parsed.some((p) => p.net);
+  const looksLikeReverseCharge = !reverseCharge && isEuVatId(supplierUstId) && parsed.every((p) => p.tax === 0) && parsed.some((p) => p.net);
 
   function chooseReverseCharge(value: SelfAssessedTax | null) {
     touch(setReverseCharge)(value);
+    // Der Erwerb braucht die USt-IdNr. des Lieferanten aus der EU: dann liegt das Feld offen
+    if (value === "ig_erwerb" && !isEuVatId(supplierUstId)) setWeitereOffen(true);
     // Die Steuer steht nicht auf der Rechnung; Haben rechnet sie aus dem Netto, 0 % gibt es bei § 13b und beim Erwerb nicht
     // Gezahlt wird das Netto; ein vorher eingegebenes Brutto ist keine Grundlage mehr
     if (value) {
@@ -551,7 +563,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
   const onSave = (event: FormEvent) => {
     event.preventDefault();
-    if (!check()) return;
+    if (!pruefen()) return;
     void run(async () => {
       await persist();
       await router.invalidate({ sync: true });
@@ -589,7 +601,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       if (readOnly || isDialogOpen()) return;
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        if (!busy && !running && check()) setConfirming(true);
+        if (!busy && !running && pruefen()) setConfirming(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -640,14 +652,16 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend className="visually-hidden">Belegdaten</legend>
         <div className="form-grid">
-          <Field label="Lieferant">{(control) => <input {...control} value={supplierName} onChange={(e) => touch(typeSupplierName)(e.target.value)} />}</Field>
-          <Field label="Aus den Kontakten">
+          {/* Ein Feld für Name und Kontakt (#1253): Der Name darf frei stehen, eine Wahl aus den Kontakten verknüpft ihn */}
+          <Field label="Lieferant" hint={supplierContactId ? "Aus den Kontakten gewählt." : undefined}>
             {(control) => (
               <ContactCombobox
                 {...control}
                 rolle="lieferant"
                 contacts={data.suppliers}
                 contactId={supplierContactId ?? ""}
+                freitext={{ value: supplierName, onInput: touch(typeSupplierName) }}
+                placeholder="Name eintragen oder Kontakt suchen"
                 disabled={readOnly || running}
                 onChoose={(id) => touch(pickSupplier)(data.suppliers.find((s) => s.id === id) ?? null)}
                 onCreate={readOnly ? undefined : setNewSupplierName}
@@ -671,22 +685,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <Field label="Rechnungsnummer">
             {(control) => <input {...control} value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />}
           </Field>
-          <Field label="USt-IdNr. des Lieferanten">
-            {(control) => <input {...control} value={supplierUstId} onChange={(e) => touch(setSupplierUstId)(e.target.value)} />}
-          </Field>
           <Field label="Belegdatum">
             {(control) => <input {...control} type="date" value={documentDate} onChange={(e) => touch(setDocumentDate)(e.target.value)} />}
           </Field>
-          <Field label="Fällig am">{(control) => <input {...control} type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />}</Field>
-          <Field label="Leistung von" describedBy="leistung-hint">
-            {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
-          </Field>
-          <Field label="Leistung bis" describedBy="leistung-hint">
-            {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
-          </Field>
-          <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
-            Zeitraum, auf den sich die Leistung bezieht, wenn er vom Belegdatum abweicht. Bleibt er leer, gilt das Belegdatum.
-          </p>
           {splitting ? (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
               <strong>Kategorie:</strong> aufgeteilt auf {splitRows.length} Zeilen, siehe <a href="#aufteilung">Aufteilung auf Kategorien</a>.
@@ -834,64 +835,87 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               </p>
             </>
           )}
+          <WeitereAngaben
+            kurz={weitereAngabenKurz({ currency, ustId: supplierUstId, dueDate, serviceFrom, serviceTo, note })}
+            offen={weitereOffen}
+            onOffen={setWeitereOffen}
+          >
+            <Field label="USt-IdNr. des Lieferanten">
+              {(control) => <input {...control} value={supplierUstId} onChange={(e) => touch(setSupplierUstId)(e.target.value)} />}
+            </Field>
+            <Field label="Fällig am">
+              {(control) => <input {...control} type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />}
+            </Field>
+            <Field label="Leistung von" describedBy="leistung-hint">
+              {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+            </Field>
+            <Field label="Leistung bis" describedBy="leistung-hint">
+              {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
+            </Field>
+            <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+              Zeitraum, auf den sich die Leistung bezieht, wenn er vom Belegdatum abweicht. Bleibt er leer, gilt das Belegdatum.
+            </p>
+            <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("waehrung")}>
+              {(control) => (
+                <>
+                  <input
+                    {...control}
+                    value={currency}
+                    onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
+                    list="currency-codes"
+                    maxLength={3}
+                  />
+                  <datalist id="currency-codes">
+                    {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </>
+              )}
+            </Field>
+            {foreign && (
+              <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint" error={error("kurs")}>
+                {(control) => (
+                  <input
+                    {...control}
+                    className="mono"
+                    inputMode="decimal"
+                    value={exchangeRate}
+                    placeholder="z. B. 1,0812"
+                    onChange={(e) => touch(setExchangeRate)(e.target.value)}
+                  />
+                )}
+              </Field>
+            )}
+            {foreign && data.tageskurs && (
+              <Field label="Kursdatum">
+                {(control) => <input {...control} type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />}
+              </Field>
+            )}
+            {foreign && (
+              <span id="currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
+                {doc.exchangeRate && doc.currency === currencyCode && rate === parseExchangeRate(doc.exchangeRate) && (
+                  <>
+                    <strong>{describeExchangeRate(doc.currency, doc.exchangeRate, doc.exchangeRateSource, doc.exchangeRateDate)}</strong>.{" "}
+                  </>
+                )}
+                Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur Euro. Lässt du
+                den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG), sobald er veröffentlicht
+                ist
+                {data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b und beim innergemeinschaftlichen Erwerb wird
+                die Steuer aus dem umgerechneten Netto berechnet.
+              </span>
+            )}
+            <Field label="Notiz" style={{ gridColumn: "1 / -1" }}>
+              {(control) => <textarea {...control} value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />}
+            </Field>
+          </WeitereAngaben>
         </div>
       </fieldset>
 
       <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Beträge je Steuersatz</legend>
         <BelegUmsatzsteuer value={reverseCharge} onChange={chooseReverseCharge} looksLikeReverseCharge={looksLikeReverseCharge} />
-        <div className="form-grid">
-          <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("waehrung")}>
-            {(control) => (
-              <>
-                <input
-                  {...control}
-                  value={currency}
-                  onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
-                  list="currency-codes"
-                  maxLength={3}
-                />
-                <datalist id="currency-codes">
-                  {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
-                    <option key={c} value={c} />
-                  ))}
-                </datalist>
-              </>
-            )}
-          </Field>
-          {foreign && (
-            <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint" error={error("kurs")}>
-              {(control) => (
-                <input
-                  {...control}
-                  className="mono"
-                  inputMode="decimal"
-                  value={exchangeRate}
-                  placeholder="z. B. 1,0812"
-                  onChange={(e) => touch(setExchangeRate)(e.target.value)}
-                />
-              )}
-            </Field>
-          )}
-          {foreign && data.tageskurs && (
-            <Field label="Kursdatum">
-              {(control) => <input {...control} type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />}
-            </Field>
-          )}
-          {foreign && (
-            <span id="currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
-              {doc.exchangeRate && doc.currency === currencyCode && rate === parseExchangeRate(doc.exchangeRate) && (
-                <>
-                  <strong>{describeExchangeRate(doc.currency, doc.exchangeRate, doc.exchangeRateSource, doc.exchangeRateDate)}</strong>.{" "}
-                </>
-              )}
-              Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur Euro. Lässt du
-              den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG), sobald er veröffentlicht ist
-              {data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b und beim innergemeinschaftlichen Erwerb wird die
-              Steuer aus dem umgerechneten Netto berechnet.
-            </span>
-          )}
-        </div>
         {rows.map((row, index) => (
           <div className={reverseCharge ? "amount-row" : "amount-row with-gross"} key={row.key}>
             <Field label="Satz" error={error(`satz-${row.key}`)}>
@@ -1121,7 +1145,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )}
           </span>
         )}
-        <Field label="Notiz">{(control) => <textarea {...control} value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />}</Field>
       </fieldset>
 
       {!readOnly && issues.length > 0 && !dirty && (
@@ -1169,7 +1192,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-primary" onClick={() => check() && setConfirming(true)} disabled={busy || running} title={buchenText}>
+          <button type="button" className="btn btn-primary" onClick={() => pruefen() && setConfirming(true)} disabled={busy || running} title={buchenText}>
             Bestätigen und buchen
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
