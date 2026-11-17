@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { day } from "./daten.ts";
 import { axeVerstoesse, CUSTOMERS, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, kundeWaehlen, rechnungFestschreiben } from "./einrichtung.ts";
+import { datei, formularOeffnen, fremdesPdf } from "./fremdrechnung-formular.ts";
 
 /**
  * Eigener Durchlauf zu #660: Ausgangsrechnungen, die ein anderes Programm geschrieben hat, als PDF hochladen und
@@ -24,28 +25,6 @@ test.afterAll(async () => {
 
 const KUNDE = `${CUSTOMERS[0]!.name} · ${CUSTOMERS[0]!.city}`;
 
-/** Ein erfundenes Original aus einem anderen Programm, gerendert als PDF ohne eingebettete E-Rechnung */
-async function fremdesPdf(nummer: string): Promise<Buffer> {
-  const seite = await page.context().newPage();
-  await seite.setContent(
-    `<html><body style="font-family: sans-serif"><h1>Rechnung ${nummer}</h1><p>Webdesign Meier, Nürnberg</p><p>Netto 4.000,00 €, USt 19 % 760,00 €</p></body></html>`,
-  );
-  const pdf = await seite.pdf({ format: "A4" });
-  await seite.close();
-  return pdf;
-}
-
-async function formularOeffnen(): Promise<void> {
-  await gehe(page, "/rechnungen");
-  await page.getByRole("button", { name: "Ausgangsrechnung hochladen" }).click();
-  await expect(page.getByRole("heading", { name: "Ausgangsrechnung hochladen" })).toBeVisible();
-}
-
-async function datei(name: string, buffer: Buffer): Promise<void> {
-  await page.locator("input[type=file]").setInputFiles({ name, mimeType: "application/pdf", buffer });
-  await expect(page.getByRole("form", { name: "Angaben zur Rechnung" })).toBeVisible();
-}
-
 async function angabenEintragen(nummer: string): Promise<void> {
   await page.getByLabel("Rechnungsnummer").fill(nummer);
   await page.getByLabel("Rechnungsdatum").fill(day(-20));
@@ -60,8 +39,8 @@ test("Einrichtung mit einem Kunden", async () => {
 });
 
 test("PDF ohne E-Rechnung: Angaben von Hand eintragen, übernehmen, die Rechnung ist festgeschrieben", async () => {
-  await formularOeffnen();
-  await datei("FS-1001.pdf", await fremdesPdf("FS-1001"));
+  await formularOeffnen(page);
+  await datei(page, "FS-1001.pdf", await fremdesPdf(page, "FS-1001"));
   await expect(page.getByRole("status").filter({ hasText: "keine E-Rechnung" })).toBeVisible();
   expect(await axeVerstoesse(page)).toEqual([]);
 
@@ -83,8 +62,8 @@ test("PDF ohne E-Rechnung: Angaben von Hand eintragen, übernehmen, die Rechnung
 });
 
 test("Dieselbe Nummer ein zweites Mal wird abgelehnt, es entsteht keine zweite Rechnung", async () => {
-  await formularOeffnen();
-  await datei("FS-1001-nochmal.pdf", await fremdesPdf("FS-1001"));
+  await formularOeffnen(page);
+  await datei(page, "FS-1001-nochmal.pdf", await fremdesPdf(page, "FS-1001"));
   await angabenEintragen("FS-1001");
   await kundeWaehlen(page, KUNDE);
   await page.getByRole("button", { name: "Übernehmen" }).click();
@@ -93,8 +72,8 @@ test("Dieselbe Nummer ein zweites Mal wird abgelehnt, es entsteht keine zweite R
 });
 
 test("Fehlt der Kunde, legt man ihn im Formular an und er ist gleich gewählt", async () => {
-  await formularOeffnen();
-  await datei("FS-1002.pdf", await fremdesPdf("FS-1002"));
+  await formularOeffnen(page);
+  await datei(page, "FS-1002.pdf", await fremdesPdf(page, "FS-1002"));
   await angabenEintragen("FS-1002");
   await page.getByRole("button", { name: "Neuen Kunden anlegen" }).click();
   const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
@@ -119,8 +98,8 @@ test("E-Rechnung im PDF: Nummer, Datum, Betrag und Kunde kommen aus der Datei", 
   expect(antwort.ok()).toBe(true);
   const pdf = await antwort.body();
 
-  await formularOeffnen();
-  await datei("eigene-zugferd.pdf", pdf);
+  await formularOeffnen(page);
+  await datei(page, "eigene-zugferd.pdf", pdf);
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue(nummer);
   await expect(page.getByLabel("Rechnungsdatum")).toHaveValue(INVOICES[0]!.date);
   await expect(page.getByLabel("Steuer 1 (€)")).not.toHaveValue("");
@@ -133,8 +112,8 @@ test("E-Rechnung im PDF: Nummer, Datum, Betrag und Kunde kommen aus der Datei", 
 });
 
 test("Steuerbehandlung: nur, was die Übernahme annimmt; die Befreiungsvorschrift ist nur bei „steuerfrei“ Pflicht", async () => {
-  await formularOeffnen();
-  await datei("FS-1003.pdf", await fremdesPdf("FS-1003"));
+  await formularOeffnen(page);
+  await datei(page, "FS-1003.pdf", await fremdesPdf(page, "FS-1003"));
   const behandlung = page.getByLabel("Steuerbehandlung");
   const vorschrift = page.getByLabel("Befreiungsvorschrift");
   // Nicht angeboten: sonstige Leistung im EU-Ausland (Leistungsort fehlt im Formular) und Kleinunternehmer ohne eingeschaltete Einstellung
@@ -144,6 +123,17 @@ test("Steuerbehandlung: nur, was die Übernahme annimmt; die Befreiungsvorschrif
   await expect(vorschrift).toHaveCount(0);
   await behandlung.selectOption("steuerfrei");
   await expect(vorschrift).toHaveJSProperty("required", true);
+});
+
+test("Ein negativer Betrag wird schon im Formular abgefangen", async () => {
+  await formularOeffnen(page);
+  await datei(page, "FS-1004.pdf", await fremdesPdf(page, "FS-1004"));
+  await angabenEintragen("FS-1004");
+  await page.getByLabel("Netto 1 (€)").fill("-100,00");
+  await kundeWaehlen(page, KUNDE);
+  await page.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(page.getByRole("alert")).toContainText("Trag Netto und Steuer als Betrag ab 0 ein, etwa 1.000,00.");
+  await expect(page).toHaveURL(/\/rechnungen$/);
 });
 
 test("Keine Seitenfehler im ganzen Durchlauf", () => {

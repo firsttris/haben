@@ -34,6 +34,8 @@ export const DURCHLAEUFE = {
   einrichtung: 25,
   umstellung: 26,
   fremdrechnung: 27,
+  // Kleinunternehmer wechseln nur ohne Buchungen im Jahr: eigene Firma für die Rückfrage zur Umsatzgrenze
+  "fremdrechnung-kleinunternehmer": 28,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

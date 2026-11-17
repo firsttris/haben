@@ -1,4 +1,4 @@
-import { formatDecimal, parseEuro, TAX_TREATMENTS, type TaxTreatment } from "@haben/core";
+import { amountError, formatDecimal, parseEuro, TAX_TREATMENTS, type TaxTreatment } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import type { UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
@@ -126,8 +126,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const taxes = rows.map((r) => ({ rate: Number(r.rate), net: parseEuro(r.net), tax: parseEuro(r.tax) }));
-    if (taxes.some((t) => t.net === null || t.tax === null)) {
-      setError("Netto und Steuer bitte als Betrag in Euro eintragen, etwa 1.000,00.");
+    if (taxes.some((t) => t.net === null || t.tax === null || t.net < 0 || t.tax < 0)) {
+      setError(amountError("Netto und Steuer als Betrag ab 0", 100_000));
       return;
     }
     if (!contactId) {
