@@ -3532,6 +3532,8 @@ test("Unbekannte Bank-CSV: Spalten zuordnen, importieren, der nächste Export ge
   await expect(page.getByText("umsaetze-november.csv: 0 neue Umsätze für Konto ohne Format, 4 schon vorhanden.")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: "Spalten zuordnen" })).toHaveCount(0);
 
-  await go("/bank?filter=alle&suche=Hafen Immobilien");
+  await go("/bank?filter=alle");
+  await page.getByRole("link", { name: /^Konto ohne Format/ }).click();
+  await page.getByLabel("Umsätze durchsuchen").fill("Hafen Immobilien");
   await expect(page.locator(".tx-row", { hasText: "Miete Büro Oktober" })).toContainText("-1.190,00 €");
 });
