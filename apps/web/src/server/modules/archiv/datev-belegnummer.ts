@@ -99,3 +99,41 @@ export function datevInternalId(field: string): SQL<boolean> {
   const uuid = sql.raw(`${field} ~* '${UUID_PATTERN}' and exists (select 1 from lexoffice_vouchers s where s.source = 'sevdesk')`);
   return sql<boolean>`(${uuid} and not ${datevVoucherFound(field)})`;
 }
+
+/**
+ * Ein gefülltes Belegfeld 1 ohne eine einzige Ziffer trägt keine Belegnummer (#1355): Zahlungsdienstleister schreiben
+ * dort ihren Namen oder ein Kürzel hinein, nicht eine Rechnungsnummer. Ein leeres Feld bleibt ohne Beleg, ein Feld mit
+ * Ziffer gilt als Nummer, auch wenn sie nicht vollständig ist. Kein Namensraten: Die Prüfung ist strukturell und gilt
+ * damit auch für Anbieter, die es heute noch nicht gibt.
+ */
+export function datevOhneBelegnummer(field: string): SQL<boolean> {
+  const f = sql.raw(field);
+  return sql<boolean>`(btrim(${f}) <> '' and ${f} !~ '[0-9]')`;
+}
+
+/** Felder einer Buchung des DATEV-Stapels, so qualifiziert wie in der Abfrage (`b.voucher_field1` oder `datev_bookings.…`). */
+export interface DatevBookingFields {
+  number: string;
+  link: string;
+  file: string;
+  date: string;
+  contra: string;
+}
+
+/**
+ * Die Buchung ist ohne Beleg offen: keiner der drei Wege greift, also kein Beleg zur Nummer oder GUID, keine interne
+ * Kennung und kein Konto ohne Belegpflicht. Liste und Abgleich teilen diese eine Definition, damit sie dieselbe Zahl
+ * nennen (#1355).
+ */
+export function datevOpenBooking(fields: DatevBookingFields, kontenrahmen: "SKR03" | "SKR04"): SQL<boolean> {
+  return sql<boolean>`(not ${datevBookingFound(fields)} and not ${datevInternalId(fields.number)}
+    and not ${datevWithoutReceipt(kontenrahmen, fields.contra, fields.file)})`;
+}
+
+/**
+ * Offene Buchung, deren Belegfeld 1 keine Nummer trägt: Sie ist kein offener Punkt, sondern der Hinweis „Belegfeld ohne
+ * Nummer“ (#1355). Trägt ein Beleg das Feld trotzdem als Nummer, greift `datevOpenBooking` nicht und es bleibt beim Fund.
+ */
+export function datevFieldWithoutNumber(fields: DatevBookingFields, kontenrahmen: "SKR03" | "SKR04"): SQL<boolean> {
+  return sql<boolean>`(${datevOpenBooking(fields, kontenrahmen)} and ${datevOhneBelegnummer(fields.number)})`;
+}

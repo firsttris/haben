@@ -1,6 +1,6 @@
 import { accountingTypeKinds, type AccountingTypeKinds, accountingTypeUnclear, taxTypeOf } from "../auswertungen/index.ts";
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { datevBookingFound, datevInternalId, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { datevFieldWithoutNumber, datevInternalId, datevOpenBooking, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { SEVDESK_EXPORT_IST_CHECK, sevdeskExportIstIssue, sevdeskExportYear, voucherSourceChecks, withoutExportImage } from "./sevdesk-export-abgleich.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "../auswertungen/index.ts";
 import { accountingTypeChecks, accountingTypeDecidable, accountingTypeIssue, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
@@ -628,13 +628,25 @@ export async function reconciliation() {
   const vatIssueOf = (year: number) =>
     [paymentIssueOf(year), unclearAccountsIn(year) ? ACCOUNTING_TYPE_VAT_ISSUE : null, exportIstIssueOf(year)].filter(Boolean).join(" ") || null;
 
-  const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
+  // Belegfelder des Stapels, wie Liste und Abgleich sie prüfen: eine Definition, damit beide dieselbe Zahl nennen (#1355)
+  const stackFields = { number: "b.voucher_field1", link: "b.document_link", file: "b.file_id", date: "b.date", contra: "b.contra_account" };
+  const openBooking = datevOpenBooking(stackFields, company.kontenrahmen);
+  const fieldWithoutNumber = datevFieldWithoutNumber(stackFields, company.kontenrahmen);
+  // Ohne JIT: Die Filter fragen je Zeile Belege und Kontenrahmen ab, die geschätzten Kosten liegen weit über der Ausführung
+  const bookingRows = await ohneJit((tx) =>
+    tx.execute<{
+      year: number;
+      total: number;
+      unmatched: number;
+      without_number: number;
+      field_without_number: number;
+    }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
-      count(*) filter (where b.voucher_field1 <> '' and not ${datevInternalId("b.voucher_field1")}
-        and not ${datevBookingFound({ number: "b.voucher_field1", link: "b.document_link", file: "b.file_id", date: "b.date" })}
-        and not ${datevWithoutReceipt(company.kontenrahmen, "b.contra_account", "b.file_id")})::int as unmatched,
-      count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
-    from datev_bookings b group by 1`);
+      count(*) filter (where b.voucher_field1 <> '' and ${openBooking} and not ${fieldWithoutNumber})::int as unmatched,
+      count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number,
+      count(*) filter (where ${fieldWithoutNumber})::int as field_without_number
+    from datev_bookings b group by 1`),
+  );
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
   // Protokolle der aus sevDesk übernommenen Voranmeldungen zählen wie abgelegte ELSTER-Protokolle (#472)
   const vatProtocols = await db
@@ -780,12 +792,16 @@ export async function reconciliation() {
         },
         {
           ok: Boolean(bookings) && bookings!.unmatched === 0,
-          // Buchungen ohne Belegnummer (Umbuchungen, Privates) brauchen nicht immer einen Beleg; sie stehen nur im Hinweis
+          // Buchungen ohne Belegnummer (Umbuchungen, Privates) brauchen nicht immer einen Beleg; sie stehen nur im Hinweis.
+          // Ein Belegfeld ohne Ziffer ist keine Nummer, sondern etwa der Name eines Zahlungsdienstleisters (#1355).
           label: "Jede Buchung mit Belegnummer findet ihren Beleg",
           detail: bookings
             ? [
                 bookings.unmatched === 0 ? "alle gefunden" : `${bookings.unmatched} ohne passenden Beleg`,
                 bookings.without_number > 0 ? `${bookings.without_number} ohne Belegnummer` : "",
+                bookings.field_without_number > 0
+                  ? `${bookings.field_without_number} ${bookings.field_without_number === 1 ? "Belegfeld" : "Belegfelder"} ohne Nummer`
+                  : "",
               ]
                 .filter(Boolean)
                 .join(", ")

@@ -916,7 +916,8 @@ export const MCP_TOOLS: McpTool[] = [
           buSchluessel: b.buKey,
           belegnummer: b.voucherField1,
           text: b.text,
-          belegGefunden: b.voucherField1 && !b.internalId ? b.matched : null,
+          // Ein Belegfeld ohne Nummer hat nichts zu finden: null wie ein leeres Feld (#1355)
+          belegGefunden: b.voucherField1 && !b.internalId && !b.withoutNumber ? b.matched : null,
         })),
         link: link(`/archiv?ansicht=buchungen&jahr=${year}`),
       };
