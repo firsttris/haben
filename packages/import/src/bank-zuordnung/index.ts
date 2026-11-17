@@ -1,4 +1,4 @@
-export { BANK_CSV_FIELDS, changesDuplicateDetection, type AmountFormat, type BankCsvField, type BankCsvMapping } from "./felder.ts";
+export { BANK_CSV_FIELDS, changesDuplicateDetection, sameMapping, type AmountFormat, type BankCsvField, type BankCsvMapping } from "./felder.ts";
 export {
   findSavedHeader,
   guessHeaderRow,

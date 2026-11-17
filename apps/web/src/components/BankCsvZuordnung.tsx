@@ -5,6 +5,7 @@ import {
   type BankCsvFile,
   type BankCsvMapping,
   changesDuplicateDetection,
+  findSavedHeader,
   headerOf,
   initialMapping,
   parseMappedStatement,
@@ -135,8 +136,9 @@ export function BankCsvZuordnung({
               required
               onChange={(e) => {
                 setKonto(e.target.value);
+                // Nur eine Zuordnung des neuen Kontos für diese Datei ersetzt die gewählte; sonst bleibt, was man schon zugeordnet hat
                 const next = accounts.find((a) => a.id === e.target.value)?.csvMapping ?? null;
-                if (records) setStart(initialMapping(records, next));
+                if (records && next && findSavedHeader(records, next.header) >= 0) setStart(initialMapping(records, next));
               }}
             >
               <option value="">Konto wählen</option>

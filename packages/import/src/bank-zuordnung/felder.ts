@@ -79,3 +79,13 @@ const HASH_FIELDS: readonly BankCsvField[] = ["bookingDate", "amount", "debit", 
 export function changesDuplicateDetection(stored: BankCsvMapping, next: BankCsvMapping): boolean {
   return stored.amountFormat !== next.amountFormat || HASH_FIELDS.some((key) => (stored.columns[key] ?? null) !== (next.columns[key] ?? null));
 }
+
+/** Dieselbe Zuordnung, gleich in welcher Reihenfolge die Schlüssel stehen (Postgres ordnet jsonb um) */
+export function sameMapping(a: BankCsvMapping, b: BankCsvMapping): boolean {
+  return (
+    a.amountFormat === b.amountFormat &&
+    a.header.length === b.header.length &&
+    a.header.every((name, i) => name === b.header[i]) &&
+    BANK_CSV_FIELDS.every((f) => (a.columns[f.key] ?? null) === (b.columns[f.key] ?? null))
+  );
+}

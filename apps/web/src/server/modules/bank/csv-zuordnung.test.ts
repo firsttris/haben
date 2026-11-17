@@ -112,4 +112,43 @@ describe.skipIf(!testDatabaseUrl)("Bank-CSV mit eigener Spaltenzuordnung (Postgr
     expect(fehler).toBeInstanceOf(bank.BankError);
     expect(fehler).not.toBeInstanceOf(bank.UnbekannteCsvError);
   });
+  it("speichert eine unveränderte Zuordnung aus dem Dialog nicht noch einmal, auch wenn Postgres die Schlüssel anders ordnet (Review #1309)", async () => {
+    const konto = await account();
+    const v = vorschlag();
+    // Eingabe wie in functions/bank-csv.ts: JSON und csvZuordnungSchema
+    const eingabe = (mapping: unknown) =>
+      zuordnung.csvZuordnungSchema.parse(JSON.parse(JSON.stringify({ accountId: konto.id, headerRow: v.headerRow, mapping })));
+    await zuordnung.importCsvZuordnung(actor, file, eingabe(v.mapping));
+    const gespeichert = (await sql`select csv_mapping from bank_accounts where id = ${konto.id}`)[0]!.csv_mapping;
+    const result = await zuordnung.importCsvZuordnung(actor, { ...file, filename: "umsaetze-2.csv" }, eingabe(gespeichert));
+    expect(result.zuordnungGespeichert).toBe(false);
+    expect(await sql`select 1 from audit_log where table_name = 'bank_accounts' and action = 'UPDATE' and row_id = ${konto.id}`).toHaveLength(1);
+  });
+
+  it("liest eine Datei eines bekannten Formats nicht an dessen Parser und IBAN-Prüfung vorbei (Review #1309)", async () => {
+    const konto = await account();
+    // Commerzbank-Export eines anderen Kontos
+    const commerzbank = new TextEncoder().encode(
+      "Buchungstag;Wertstellung;Umsatzart;Buchungstext;Betrag;Währung;IBAN Kontoinhaber;Kategorie;Sender;Empfänger;Verwendungszweck\n01.10.2026;01.10.2026;Lastschrift;x;-5,00;EUR;DE02120300000000202051;;;;Test\n",
+    );
+    const cbFile = { bytes: commerzbank, filename: "cb.csv" };
+    await expect(zuordnung.importStatementFile(actor, cbFile, konto.id)).rejects.toThrow("gehört zum Konto");
+    const csv = readBankCsv(commerzbank);
+    if ("error" in csv) throw new Error(csv.error);
+    const v = initialMapping(csv.records, null);
+    const eingabe = zuordnung.csvZuordnungSchema.parse({ accountId: konto.id, headerRow: v.headerRow, mapping: v.mapping });
+    await expect(zuordnung.importCsvZuordnung(actor, cbFile, eingabe)).rejects.toThrow("Haben kennt das Format dieser Datei");
+    expect((await sql`select count(*)::int as n from bank_transactions`)[0]!.n).toBe(0);
+  });
+
+  it("bietet die Zuordnung wieder an, wenn mit der gespeicherten keine Zeile einen Umsatz ergibt", async () => {
+    const konto = await account();
+    const v = vorschlag();
+    await zuordnung.importCsvZuordnung(actor, file, { accountId: konto.id, headerRow: v.headerRow, mapping: v.mapping });
+    // Gleiche Kopfzeile, aber nur kaputte Zeilen
+    const kaputt = new TextEncoder().encode(
+      `${new TextDecoder("windows-1252").decode(fixture).split("\r\n").slice(0, 4).join("\r\n")}\r\nkein Datum;;;;;;;;;;;;;;;-1,00;;EUR\r\n`,
+    );
+    await expect(zuordnung.importStatementFile(actor, { bytes: kaputt, filename: "kaputt.csv" }, konto.id)).rejects.toThrow(bank.UnbekannteCsvError);
+  });
 });

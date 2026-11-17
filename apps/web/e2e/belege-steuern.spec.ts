@@ -3506,7 +3506,7 @@ test("Unbekannte Bank-CSV: Spalten zuordnen, importieren, der nächste Export ge
   const dialog = page.getByRole("dialog", { name: "Spalten zuordnen" });
   // Die Vorschau steht oben; Spalten mit einem Wert aus der Datei, Kopfzeile und Zahlenformat eingeklappt
   await expect(dialog.getByRole("status")).toContainText("4 Umsätze, 1 Zeile mit Fehlern, die Haben nicht übernimmt");
-  await expect(dialog.getByRole("row", { name: /Kontostand/ })).toContainText("ist kein Datum");
+  await expect(dialog.getByRole("listitem").filter({ hasText: "Kontostand" })).toContainText("Zeile 9: Buchungstag „Kontostand“ ist kein Datum");
   await expect(dialog.getByLabel("Soll (Ausgänge)")).toHaveValue("15");
   await expect(dialog.getByLabel("Soll (Ausgänge)").locator("option:checked")).toHaveText("Soll – -1.190,00");
   await expect(dialog.getByLabel("Haben (Eingänge)")).toHaveValue("16");

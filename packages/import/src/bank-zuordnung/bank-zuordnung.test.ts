@@ -5,6 +5,7 @@ import {
   type BankCsvFile,
   type BankCsvMapping,
   changesDuplicateDetection,
+  sameMapping,
   findSavedHeader,
   guessHeaderRow,
   initialMapping,
@@ -232,5 +233,13 @@ describe("Beginn des Dialogs", () => {
     expect(changesDuplicateDetection(m, { ...m, columns: { ...m.columns, bankReference: null, type: null, valueDate: null } })).toBe(false);
     expect(changesDuplicateDetection(m, { ...m, columns: { ...m.columns, purpose: null } })).toBe(true);
     expect(changesDuplicateDetection(m, { ...m, amountFormat: "en" })).toBe(true);
+  });
+
+  it("vergleicht Zuordnungen unabhängig von der Reihenfolge der Schlüssel", () => {
+    const m = vorschlag.mapping;
+    const umgeordnet = { ...m, columns: Object.fromEntries(Object.entries(m.columns).reverse()) };
+    expect(sameMapping(m, umgeordnet)).toBe(true);
+    expect(sameMapping(m, { ...m, columns: { ...m.columns, type: null } })).toBe(false);
+    expect(sameMapping(m, { ...m, header: [...m.header, "Neu"] })).toBe(false);
   });
 });

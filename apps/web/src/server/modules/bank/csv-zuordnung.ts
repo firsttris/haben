@@ -7,6 +7,7 @@ import {
   findSavedHeader,
   parseMappedStatement,
   readBankCsv,
+  sameMapping,
 } from "@haben/import";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -75,6 +76,9 @@ export async function importStatementFile(actor: string, file: { bytes: Uint8Arr
     const mapping = await savedMapping(accountId);
     const headerRow = mapping ? findSavedHeader(csv.records, mapping.header) : -1;
     if (!mapping || headerRow < 0) throw new UnbekannteCsvError(`${file.filename}: Haben kennt diese Bank nicht. Ordne die Spalten einmal selbst zu.`);
+    // Ergibt mit der gespeicherten Zuordnung keine Zeile einen Umsatz, hilft nur eine neue: wieder anbieten
+    const problem = parseMappedStatement(csv.records, headerRow, mapping).problem;
+    if (problem) throw new UnbekannteCsvError(`${file.filename}: ${problem}`);
     return importMapped(actor, file, accountId!, csv, headerRow, mapping);
   }
 }
@@ -94,7 +98,7 @@ async function importMapped(
     const imported = await storeStatement(tx, statement, { filename: file.filename, sha256: sha256Of(file.bytes), csvMapping: mapping }, accountId);
     // Nur eine neue oder geänderte Zuordnung schreiben: jedes UPDATE steht im Änderungsprotokoll
     const [account] = await tx.select({ csvMapping: schema.bankAccounts.csvMapping }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, accountId));
-    const changed = JSON.stringify(account?.csvMapping ?? null) !== JSON.stringify(mapping);
+    const changed = !account?.csvMapping || !sameMapping(account.csvMapping, mapping);
     if (changed) await tx.update(schema.bankAccounts).set({ csvMapping: mapping }).where(eq(schema.bankAccounts.id, accountId));
     return { ...imported, mitZuordnung: true, zuordnungGespeichert: changed };
   });
@@ -107,6 +111,8 @@ export async function importCsvZuordnung(
   input: z.infer<typeof csvZuordnungSchema>,
 ): Promise<CsvImportResult> {
   if (!input.accountId) throw new BankError("Wähle das Konto, zu dem die Datei gehört.");
+  // Eine Datei mit eigenem Parser nie über eine Zuordnung, sonst fehlten dessen Prüfungen (etwa die IBAN des Kontos)
+  if (detectStatementFormat(file.bytes) !== null) throw new BankError(`${file.filename}: Haben kennt das Format dieser Datei; importiere sie ohne Zuordnung.`);
   const csv = readOrFail(file.bytes, file.filename);
   return importMapped(actor, file, input.accountId, csv, input.headerRow, input.mapping);
 }
