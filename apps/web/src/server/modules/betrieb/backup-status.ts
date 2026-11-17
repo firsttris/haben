@@ -14,6 +14,7 @@ export interface BackupRun {
   ok: boolean;
   snapshot: string | null;
   bytes: number | null;
+  /** Zusammenfassung oder Fehlermeldung des Containers, ohne Zugangsdaten */
   message: string;
 }
 
@@ -58,7 +59,7 @@ async function latest(kind: BackupKind, ok?: boolean): Promise<BackupRun | null>
     .where(ok === undefined ? eq(t.kind, kind) : and(eq(t.kind, kind), eq(t.ok, ok)))
     .orderBy(desc(t.at), desc(t.id))
     .limit(1);
-  return row ?? null;
+  return row ? { ...row, message: ohneZugangsdaten(row.message) } : null;
 }
 
 export async function backupOverview(now = new Date()): Promise<BackupOverview> {

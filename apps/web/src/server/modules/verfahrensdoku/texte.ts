@@ -1,7 +1,6 @@
 import { RECHTSFORMEN } from "@haben/core";
 import { abschnitt, angabenAbsaetze, fehlendeAngaben, type VerfahrensdokuAbschnitt } from "@firsttris/gobd-kern/verfahrensdoku";
 import { ROLLEN_LABEL, isRolle } from "../../../lib/rollen.ts";
-import { ohneZugangsdaten } from "../betrieb/index.ts";
 import type { ProcedureDetails } from "./angaben.ts";
 import type { InstanzStand } from "./stand.ts";
 
@@ -144,11 +143,10 @@ function sicherung(s: InstanzStand): string[] {
   return [
     `Der Backup-Container sichert Datenbank und Belege täglich, verschlüsselt mit restic${b.target ? ` nach ${b.target.repository}` : ""}, und spielt regelmäßig die letzte Sicherung probeweise in eine Wegwerf-Datenbank ein; dabei werden Hash-Kette und Siegel geprüft und einige Belege mit ihrer Prüfsumme verglichen. ${b.lastBackup ? `Letzte Sicherung: ${zeit(b.lastBackup.at)}${b.lastBackup.snapshot ? ` (Snapshot ${b.lastBackup.snapshot})` : ""}.` : "Noch keine Sicherung lief erfolgreich."}`,
     b.lastCheck
-      ? `Letzter bestandener Test-Restore: ${zeit(b.lastCheck.at)}${b.lastCheck.message ? `, ${ohneZugangsdaten(b.lastCheck.message)}` : ""}.`
+      ? `Letzter bestandener Test-Restore: ${zeit(b.lastCheck.at)}${b.lastCheck.message ? `, ${b.lastCheck.message}` : ""}.`
       : "Ein Test-Restore ist noch nicht bestanden.",
     ...b.failed.map(
-      (f) =>
-        `${f.kind === "backup" ? "Die letzte Sicherung" : "Der letzte Test-Restore"} am ${zeit(f.run.at)} schlug fehl: ${ohneZugangsdaten(f.run.message) || "ohne Meldung"}`,
+      (f) => `${f.kind === "backup" ? "Die letzte Sicherung" : "Der letzte Test-Restore"} am ${zeit(f.run.at)} schlug fehl: ${f.run.message || "ohne Meldung"}`,
     ),
     b.overdue ? "Seit mehr als zwei Tagen lief keine Sicherung erfolgreich durch." : "",
   ];

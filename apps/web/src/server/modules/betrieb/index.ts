@@ -5,7 +5,6 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { BACKUP_MAX_AGE_MS, backupOverview, type BackupOverview, type BackupRun, type BackupTarget } from "./backup-status.ts";
-export { ohneZugangsdaten } from "./restic-ziel.ts";
 export { betriebsStatus, statusAlsText, type BetriebsStatus, type BetriebsStatusOptions } from "./status.ts";
 export { appVersionsForYear, listAppVersions, type AppVersionEntry } from "./versionen.ts";
 export { latestStableVersion } from "./neueste-version.ts";

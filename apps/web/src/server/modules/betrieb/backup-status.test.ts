@@ -100,6 +100,14 @@ describe.skipIf(!testDatabaseUrl)("Stand des Backups (Postgres)", () => {
     expect(o.target).toBeNull();
   });
 
+  it("Meldungen der Läufe ohne Zugangsdaten, für Karte, Übersicht und Verfahrensdokumentation", async () => {
+    await run("restore_check", true, hoursAgo(30), "Kette geprüft, Repository sftp:nutzer@backup.example:/srv/restic");
+    await run("backup", false, hoursAgo(6), "Fatal: unable to open repository at rest:https://nutzer:ge@heim@backup.example/haben");
+    const o = await status.backupOverview(now);
+    expect(o.failed[0]?.run.message).toBe("Fatal: unable to open repository at rest:https://backup.example/haben");
+    expect(o.lastCheck?.message).toBe("Kette geprüft, Repository sftp:backup.example:/srv/restic");
+  });
+
   it("die Tabelle steht nicht im Audit-Log", async () => {
     const before = await sql`select count(*)::int as n from audit_log`;
     await run("backup", true, hoursAgo(1));
