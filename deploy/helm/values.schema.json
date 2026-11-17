@@ -53,6 +53,7 @@
           "type": "object",
           "additionalProperties": true
         },
+        "tmpSizeLimit": {},
         "extraVolumeMounts": {
           "type": "array"
         }

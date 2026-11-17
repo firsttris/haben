@@ -57,12 +57,20 @@ Mit dem Code legst du dein Konto an, siehe [Erste Schritte](einrichtung.md). Wei
 `ANTHROPIC_API_KEY` oder `OIDC_CLIENT_SECRET` unter `app.secretEnv`. Jeden Wert schreibst du in Anführungszeichen, sonst
 liest YAML etwa `off` als `false`; das Chart bricht dann mit einer Meldung ab. Ebenso bei einem Schlüssel, den das
 Chart nicht kennt, etwa nach einem Tippfehler oder aus einer neueren Fassung dieser Seite; das Chart aus v0.10.0
-übergeht ihn noch ohne Meldung. Die Namen der Variablen unter `env` und `secretEnv` prüft es nicht.
+übergeht ihn noch ohne Meldung. Die Namen der Variablen unter `env` und `secretEnv` prüft es nicht. `/tmp` der App liegt
+im Arbeitsspeicher und zählt gegen ein Memory-Limit unter `app.resources`; `app.tmpSizeLimit` begrenzt es, etwa auf
+`"256Mi"`.
 
 Die mitgelieferte Datenbank legt beim ersten Start die App-Rolle `haben_app` an
 ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)). Ein späteres neues Passwort in
 `werte.yaml` ändert die Rolle nicht; das geht nur in der Datenbank selbst. Belege, Datenbank und Backup-Volume bleiben
 bei `helm uninstall` erhalten; eine neue Installation mit demselben Namen nimmt sie wieder, mit den bisherigen Passwörtern.
+
+Die Datenbank startet als root, um einen älteren Bestand auf eine neue PostgreSQL-Version anzuheben, und wechselt dann
+zum Nutzer `postgres`. Der Namespace braucht deshalb mindestens die Stufe `baseline` der
+[Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/); alle anderen Pods
+erfüllen `restricted`, mit [eigener Datenbank](#eigene-datenbank) also alle Pods des Charts. Ein `hostPath` unter
+`extraVolumes`, etwa für [ELSTER](#elster) auf arm64, verlangt `privileged`.
 
 ### Secrets aus einer anderen Quelle
 
@@ -74,6 +82,19 @@ Schlüssel heißen wie die Variablen:
 | `app.existingSecret` | `BETTER_AUTH_SECRET`, `HABEN_ENCRYPTION_KEY`, `DATABASE_URL`, `MIGRATION_DATABASE_URL` und weitere geheime Variablen |
 | `postgresql.existingSecret` | `POSTGRES_PASSWORD` (Eigentümer `haben`), `APP_PASSWORD` (`haben_app`); dann auch `app.existingSecret` |
 | `backup.existingSecret` | `RESTIC_PASSWORD`, für S3 `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY`, mit eigener Datenbank `PGPASSWORD` |
+
+Mit der mitgelieferten Datenbank stehen in `app.existingSecret` dieselben Passwörter wie in
+`postgresql.existingSecret`, als Verbindungs-URLs:
+
+```
+DATABASE_URL=postgres://haben_app:<APP_PASSWORD>@<Release>-db:5432/haben
+MIGRATION_DATABASE_URL=postgres://haben:<POSTGRES_PASSWORD>@<Release>-db:5432/haben
+```
+
+`<Release>-db` ist der Service der Datenbank, mit dem Release `haben` also `haben-db`; ohne „haben“ im Release-Namen
+heißt er `<Release>-haben-db`. Die Passwörter bestehen wie im Chart nur aus Buchstaben und Ziffern
+(`openssl rand -hex 24`), weil sie in der URL stehen. Mit `app.existingSecret` prüft das Chart die Schlüssel nicht; ein
+fehlender fällt erst beim Start der App auf.
 
 ## Eigene Datenbank
 
@@ -108,7 +129,9 @@ spec:
 ```
 
 In `werte.yaml` unter `ingress.annotations` dann
-`traefik.ingress.kubernetes.io/router.middlewares: haben-haben-header@kubernetescrd`. Traefik bricht außerdem eine
+`traefik.ingress.kubernetes.io/router.middlewares: haben-haben-header@kubernetescrd`, mit `safeNaming` im
+[Kubernetes-CRD-Provider](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-crd/)
+`haben_haben-header@kubernetescrd`. Traefik bricht außerdem eine
 Anfrage nach 60 Sekunden Lesezeit ab, ein großer Upload über eine langsame Leitung endet dann mit Fehler 502. In k3s
 hebt das eine `HelmChartConfig` an, für Ingress wie für Gateway API:
 
@@ -194,8 +217,18 @@ installierst du gleich mit `--set restore.enabled=true` und demselben `HABEN_ENC
 
 ## Updates
 
-Vor einem Update ein Backup von Hand wie oben. Dann im Klon die neue Version holen, `image.tag` in `werte.yaml` auf
-dieselbe anheben und das Chart anwenden:
+Vor einem Update ein Backup von Hand wie oben. Kommst du von v0.10.0, übergib das Repository im Volume `haben-backups`
+direkt vor dem `helm upgrade` dem Nutzer 1000, als der das Backup ab der nächsten Version läuft; sonst scheitert jedes
+weitere Backup mit „permission denied“:
+
+```sh
+kubectl -n haben exec deploy/haben -c backup -- chown -R 1000:1000 /backups
+```
+
+Lief das Update schon, kann der Container `backup` das nicht mehr; dann geht es nur aus einem eigenen Pod als root, der
+das Volume einhängt.
+
+Dann im Klon die neue Version holen, `image.tag` in `werte.yaml` auf dieselbe anheben und das Chart anwenden:
 
 ```sh
 git -C haben fetch --depth 1 origin tag v0.10.1
