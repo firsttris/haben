@@ -221,6 +221,14 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     expect(row!.last_sync_at).not.toBeNull();
   });
 
+  it("speichert über den Importvertrag: Quelle des Shops und je Einzelzeile eine Bewegung", async () => {
+    const quellen = await sql`select provider, external_account_id, account_kind from import_sources`;
+    expect(quellen.map((q) => [q.provider, q.external_account_id, q.account_kind])).toEqual([["etsy", "35160089", "psp"]]);
+    // Verkäufe und Auszahlung tragen ihre entry_id; die gebündelten Gebühren erkennt Haben wie bisher am Inhalt
+    const bewegungen = await sql`select source_event_id from import_movements order by source_event_id::int`;
+    expect(bewegungen.map((b) => b.source_event_id)).toEqual(["1", "5", "8"]);
+  });
+
   it("bildet keine zweite Sammelzeile, wenn ein späterer Abruf noch Zeilen des gebündelten Monats bringt", async () => {
     // Die Überlappung reicht in den Juni, und Etsy liefert dort eine Gebühr: Ohne Prüfung entstünde eine zweite
     // Sammelzeile „Zahlungsabwicklung 2023-06“ mit nur diesem Betrag (anderer Betrag, also keine Dublette im Hash)
@@ -277,5 +285,33 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     // übersprungenen Monate nie mehr (in der Testinstanz am 17.11.2026 von 2023-11 auf 2026-05-13 gesprungen)
     const [nachher] = await sql`select fetch_from::text as f from etsy_connections`;
     expect(nachher!.f).toBe(vorher!.f);
+  });
+
+  it("verbindet Umsätze aus einem Abruf vor dem Importvertrag mit ihrer Kennung, statt sie neu anzulegen", async () => {
+    await leeren(sql)`truncate bank_accounts, import_sources, etsy_connections cascade`;
+    await kontoAnlegen();
+    await etsy.storeEtsySecret(
+      actor,
+      { sharedSecret: "geheim", accessToken: "gut", refreshToken: "erneuern", expiresAt: 4_000_000_000 },
+      { shopId: "35160089" },
+    );
+    await sql`update etsy_connections set fetch_from = '2023-06-01'`;
+    // Der bisherige Weg: derselbe Verlauf als Kontoauszug über storeStatement, ohne Quellenbindung
+    const bank = await import("../bank/index.ts");
+    const { withActor } = await import("../../db/actor.ts");
+    const [konto] = await sql`select id from bank_accounts`;
+    const bestellung: Record<string, string> = { "5000000001": BESTELLUNG_1, "5000000002": BESTELLUNG_2 };
+    const statement = etsy.etsyStatement(verlauf, { orderFor: (r) => bestellung[r], sammelzeilen: true, gebuehrenBis: "2023-06-30", reference: "alt" });
+    await withActor(actor, (tx) => bank.storeStatement(tx, statement, { filename: "alt.json", sha256: "0".repeat(64) }, konto!.id));
+    const [vorher] = await sql`select count(*)::int as n from bank_transactions`;
+
+    const result = await etsy.syncEtsy(actor, HEUTE);
+    expect(result.error).toBeNull();
+    expect(result.added).toBe(0);
+    const [nachher] = await sql`select count(*)::int as n from bank_transactions`;
+    expect(nachher!.n).toBe(vorher!.n);
+    // Die Einzelzeilen gehören jetzt ihrer Bewegung, verbunden mit den schon vorhandenen Umsätzen
+    const verbunden = await sql`select m.source_event_id, t.purpose from import_movements m join bank_transactions t on t.id = m.transaction_id order by m.source_event_id::int`;
+    expect(verbunden.map((v) => v.source_event_id)).toEqual(["1", "5", "8"]);
   });
 });
