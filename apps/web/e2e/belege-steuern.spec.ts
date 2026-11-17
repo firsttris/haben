@@ -3548,5 +3548,6 @@ test("Unbekannte Bank-CSV: Spalten zuordnen, importieren, der nächste Export ge
   await go("/bank?filter=alle");
   await page.getByRole("link", { name: /^Konto ohne Format/ }).click();
   await page.getByLabel("Umsätze durchsuchen").fill("Hafen Immobilien");
-  await expect(page.locator(".tx-row", { hasText: "Miete Büro Oktober" })).toContainText("-1.190,00 €");
+  // Die Umsatzliste schreibt das Minus typografisch (U+2212)
+  await expect(page.locator(".tx-row", { hasText: "Miete Büro Oktober" })).toContainText("\u22121.190,00 €");
 });
