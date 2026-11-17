@@ -12,10 +12,7 @@ test.use({ storageState: SESSION });
 test("Knopf in der Navigation und Strg+K öffnen die Befehlspalette und navigieren zu Seiten", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
 
-  await page
-    .getByRole("navigation", { name: "Hauptnavigation" })
-    .getByRole("button", { name: /Schnellsuche/ })
-    .click();
+  await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Suche", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
   await expect(dialog).toBeVisible();
 
@@ -29,6 +26,24 @@ test("Knopf in der Navigation und Strg+K öffnen die Befehlspalette und navigier
   await page.waitForURL(/\/dauerbelege$/);
   await expect(page.getByRole("heading", { level: 1, name: "Dauerbelege" })).toBeVisible();
 });
+
+// #1386: Mit dem zweiten Kürzel `/` war der Inhalt des Suchknopfs breiter als der Knopf, das letzte Kürzel ragte über den Rand
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`Suchknopf in der Navigation: alle Kürzel liegen im Feld (${colorScheme === "light" ? "hell" : "dunkel"})`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme });
+    await page.goto("/", { waitUntil: "networkidle" });
+    const knopf = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Suche", exact: true });
+    await expect(knopf).toBeVisible();
+    const gemessen = await knopf.evaluate((el) => {
+      // Rechter Rand des Inhalts: der Knopf ohne seinen Innenabstand
+      const rand = el.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(el).paddingRight);
+      const kuerzel = [...el.querySelectorAll("kbd")].map((k) => k.getBoundingClientRect().right);
+      return { anzahl: kuerzel.length, ragtHinaus: kuerzel.some((rechts) => rechts > rand + 0.5), abgeschnitten: el.scrollWidth > el.clientWidth };
+    });
+    expect(gemessen.anzahl).toBeGreaterThan(2);
+    expect(gemessen).toMatchObject({ ragtHinaus: false, abgeschnitten: false });
+  });
+}
 
 test("findet eine Rechnung über ihre Nummer und öffnet „Alle in Rechnungen anzeigen“ mit Suchfilter", async ({ page }) => {
   await page.goto("/rechnungen", { waitUntil: "networkidle" });
@@ -83,7 +98,7 @@ test("Schnellsuche ist am Handy neben dem geschlossenen Menü erreichbar", async
   await page.goto("/", { waitUntil: "networkidle" });
   const menu = page.getByRole("button", { name: "Menü" });
   await expect(menu).toHaveAttribute("aria-expanded", "false");
-  const search = page.getByRole("button", { name: "Schnellsuche" });
+  const search = page.getByRole("button", { name: "Suche", exact: true });
   const searchBox = await search.boundingBox();
   const menuBox = await menu.boundingBox();
   expect(searchBox!.x + searchBox!.width).toBeLessThan(menuBox!.x);

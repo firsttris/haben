@@ -12,7 +12,7 @@ Die Schnellsuche findet von jeder Seite aus Seiten, Einstellungen und Einträge 
 ## Öffnen
 
 - **Tastatur:** `Strg+K` (am Mac `⌘+K`) oder `/` außerhalb von Eingabefeldern. Ist gerade ein anderer Dialog offen, öffnet sie nicht.
-- **Desktop:** der Knopf **Schnellsuche** in der Navigation unter dem Firmennamen.
+- **Desktop:** der Knopf **Suche** in der Navigation unter dem Firmennamen.
 - **Handy:** die Lupe links neben **Menü**. Die Suche füllt dann den Bildschirm, **Abbrechen** schließt sie.
 
 Mit `Pfeil hoch` und `runter` wählst du einen Treffer, `Enter` öffnet ihn, `Esc` schließt die Suche (weitere Kürzel unter [Barrierefreiheit und Tastatur](barrierefreiheit.md)).
