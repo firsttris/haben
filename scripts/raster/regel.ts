@@ -2,8 +2,8 @@
  * Abstände liegen auf dem 4px-Raster (DESIGN.md, Grundlagen). Geprüft werden `padding*`, `margin*`, `gap`, `row-gap`
  * und `column-gap` in CSS: jede px-Zahl im Wert muss durch 4 teilbar sein, auch negativ oder in `calc()`. Ältere
  * Stellen daneben stehen in altstellen.json, je Datei die Deklaration mit ihrer Anzahl; geräumt werden sie nur, wenn
- * ein Pull Request die Stelle ohnehin anfasst (Gespräch zu #1370: Umstellung auf Variablen wäre viel Churn ohne
- * sichtbaren Gewinn). Ein Fehler ist eine Deklaration, die in ihrer Datei öfter vorkommt als erlaubt.
+ * ein Pull Request die Stelle ohnehin anfasst, ohne Umstellung auf Variablen (#1388: viel Änderung ohne sichtbaren
+ * Gewinn). Ein Fehler ist eine Deklaration, die in ihrer Datei öfter vorkommt als erlaubt.
  */
 
 export const GRID = 4;
