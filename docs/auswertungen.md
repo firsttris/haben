@@ -15,7 +15,7 @@ Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR
 
 ## Überblick
 
-Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwischen stehen das laufende Jahr und alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen oder gebuchten Belegen, jedes einmal. Darunter stehen vier Kennzahlen:
+Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwischen stehen das laufende Jahr und alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen oder gebuchten Belegen, jedes einmal. Darunter sagt ein Satz, was dabei herauskam: „Du hast 2026 4.760,00 € Gewinn gemacht: Einnahmen 5.950,00 € minus Ausgaben 1.190,00 € (brutto, wie in der EÜR).“ Bei einem negativen Ergebnis steht „Verlust“. Die Beträge sind die Summen der EÜR mit Umsatzsteuer und Vorsteuer, deshalb weichen sie von den Netto-Werten der ersten beiden Kennzahlen ab. In einem Jahr ohne Einnahmen und Ausgaben und bei einer GmbH oder UG fehlt der Satz. Darunter stehen vier Kennzahlen:
 
 | Kennzahl | Bedeutung |
 | --- | --- |
