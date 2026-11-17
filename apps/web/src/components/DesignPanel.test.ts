@@ -28,4 +28,21 @@ describe("Hinweise der Gestaltung an den Einstellungen", () => {
     } as LayoutHints;
     expect(beschreibung(hints, "Stelle des Logos")).toEqual(["layout-hint-logoPosition", "layout-hint-logoMitte"]);
   });
+
+  it("graut „Mitte“ aus, wenn kein Beleg das Logo mittig setzen kann; Links und Rechts bleiben an", () => {
+    const html = renderToStaticMarkup(
+      createElement(() =>
+        DesignOptionFields({
+          design: DEFAULT_DESIGN,
+          onChange: () => {},
+          logoUpload: null,
+          hints: { logoMitte: { aus: true, text: "… „Mitte“ steht dort rechts." } } as LayoutHints,
+        }),
+      ),
+    );
+    const knopf = (name: string) => new RegExp(`<button[^>]*title="${name}"[^>]*>`).exec(html)?.[0] ?? "";
+    expect(knopf("Mitte")).toContain("disabled");
+    expect(knopf("Links")).not.toContain("disabled");
+    expect(knopf("Rechts")).not.toContain("disabled");
+  });
 });

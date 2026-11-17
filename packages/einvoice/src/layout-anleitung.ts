@@ -48,7 +48,7 @@ export function feldvertragMarkdown(ueberschrift = "###"): string {
     "",
     `${ueberschrift} Einstellungen der Gestaltung`,
     "",
-    "Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. Auch „Mitte“ bei der Stelle des Logos bleibt wählbar; liest ein Layout nur `look.logoLeft`, sagt der Hinweis, dass das Logo dort rechts steht. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.",
+    "Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. „Mitte“ bei der Stelle des Logos folgt derselben Regel: Liest ein Layout nur `look.logoLeft`, steht das Logo dort rechts, und Haben graut „Mitte“ aus, sobald kein Beleg es mehr mittig setzt. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.",
     "",
     gestaltungTabelle(),
   ].join("\n");
@@ -171,7 +171,7 @@ Ein Layout läuft ohne Änderung weiter, solange seine Version des Feldvertrags 
   \`\`\`
 
   „mitte“ meint die Mitte des Blatts. Sind der linke und der rechte Rand verschieden, gleicht \`dx\` das aus, bei 25 und 20 mm etwa \`dx: -2.5mm\`.
-- **Gruppen im Infoblock:** Jede Zeile in \`meta\` hat \`group\`: „kern“ für die Kerndaten, „referenz“ für weitere Referenzen wie Auftrag, Lieferschein oder Leitweg-ID. Ein Layout kann die Referenzen gesondert setzen, etwa zweispaltig vor dem Betreff, wenn sie neben der Anschrift keinen Platz mehr haben. Alle Zeilen untereinander bleiben richtig.
+- **Gruppen im Infoblock:** Jede Zeile in \`meta\` hat \`group\`: „kerndaten“ für die Kerndaten, „referenz“ für weitere Referenzen wie Auftrag, Lieferschein oder Leitweg-ID. Ein Layout kann die Referenzen gesondert setzen, etwa zweispaltig vor dem Betreff, wenn sie neben der Anschrift keinen Platz mehr haben. Alle Zeilen untereinander bleiben richtig.
 
 ## Felder (Feldvertrag v${LAYOUT_SCHEMA_VERSION})
 

@@ -41,9 +41,9 @@ const common = {
     .array(
       row.extend({
         group: z
-          .enum(["kern", "referenz"])
+          .enum(["kerndaten", "referenz"])
           .describe(
-            "„kern“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann",
+            "„kerndaten“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann",
           ),
       }),
     )

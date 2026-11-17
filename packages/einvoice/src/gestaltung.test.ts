@@ -82,7 +82,7 @@ describe("Schalter der Gestaltung im PDF", () => {
     });
   });
 
-  it("gibt jeder Zeile im Infoblock eine Gruppe, „kern“ wo keine andere steht", () => {
+  it("gibt jeder Zeile im Infoblock eine Gruppe, „kerndaten“ wo keine andere steht", () => {
     const data = {
       meta: [
         { label: "Rechnungsnummer", value: "1" },
@@ -91,7 +91,7 @@ describe("Schalter der Gestaltung im PDF", () => {
     };
     expect(templateInputs(data, {})).toMatchObject({
       meta: [
-        { label: "Rechnungsnummer", value: "1", group: "kern" },
+        { label: "Rechnungsnummer", value: "1", group: "kerndaten" },
         { label: "Lieferschein", value: "LS-1", group: "referenz" },
       ],
     });
