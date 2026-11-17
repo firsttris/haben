@@ -125,4 +125,69 @@ describe.skipIf(!testDatabaseUrl)("Sammelknopf mit Gutschriften (Postgres)", () 
     const [summe] = await sql<{ summe: number }[]>`select coalesce(sum(amount), 0)::int as summe from allocations where document_id = ${docId}`;
     expect(summe!.summe).toBe(-10_000);
   }, 30_000);
+
+  it("parallele Einzelzuordnung und Sammelzuordnung erzeugen keinen Datenbank-Deadlock", async () => {
+    await firma("SKR03", "ist");
+    const documentId = await rechnung13b(RECHNUNG);
+    const transactionId = await ersteGebuehr();
+    const { withActor } = await import("../../db/actor.ts");
+    const { lockTransaction, allocateIn } = await import("./bank.ts");
+    const { sql: query } = await import("drizzle-orm");
+    let locked!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    let resume!: () => void;
+    const continuing = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    let pid = 0;
+    // Pause genau zwischen den beiden Sperren der regulären Einzelzuordnung.
+    const individual = withActor(actor, async (tx) => {
+      const [session] = await tx.execute<{ pid: number }>(query`select pg_backend_pid() as pid`);
+      pid = session!.pid;
+      await lockTransaction(tx, transactionId);
+      locked();
+      await continuing;
+      await allocateIn(tx, { kind: "document", transactionId, documentId, amount: -744 });
+    });
+    const individualResult = individual.then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await ready;
+    const collective = bank.allocateFeesToDocument(actor, { transactionId, documentId });
+    const collectiveResult = collective.then(
+      () => null,
+      (error: unknown) => error,
+    );
+    try {
+      // Der Sammelweg wartet jetzt auf den von der Einzelzuordnung gesperrten Umsatz.
+      let waiting = false;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const [row] = await sql<{ waiting: boolean }[]>`select exists (
+          select 1 from pg_stat_activity where ${pid} = any(pg_blocking_pids(pid))
+        ) as waiting`;
+        if (row!.waiting) {
+          waiting = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(waiting).toBe(true);
+    } finally {
+      resume();
+    }
+    const errors = await Promise.all([individualResult, collectiveResult]);
+    const codes = (error: unknown): string[] => {
+      if (!error || typeof error !== "object") return [];
+      const detail = error as { code?: string; cause?: unknown };
+      return [...(detail.code ? [detail.code] : []), ...codes(detail.cause)];
+    };
+    // Eine fachliche Ablehnung nach zwischenzeitlicher Änderung ist möglich, ein zyklischer Lock nicht.
+    expect(errors.flatMap(codes)).not.toContain("40P01");
+    expect(errors).toEqual([null, null]);
+    expect((await zeilen()).every((z) => z.zugeordnet === z.amount)).toBe(true);
+    expect((await bank.openItems()).filter((i) => i.type === "document")).toEqual([]);
+  }, 30_000);
 });
