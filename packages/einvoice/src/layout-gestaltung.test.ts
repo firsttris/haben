@@ -113,11 +113,17 @@ describe("Hinweise in der Beleggestaltung", () => {
     expect(hinweise.accent?.text).toBe("Wirkt nicht auf Mahnungen: Das Layout „Grau“ verwendet weder accent noch palette.");
   });
 
-  it("„Mitte“ bei einem Layout mit nur logoLeft: Hinweis, die Einstellung bleibt an", () => {
+  it("„Mitte“ bei einem Layout mit nur logoLeft: Hinweis, an, solange ein anderer Beleg mittig setzen kann", () => {
     const hinweise = gestaltungsHinweise({ ...eingebaut, rechnung: { name: "Alt", ungenutzt: ["logoMitte"] } });
     expect(hinweise.logoMitte).toEqual({
       aus: false,
       text: "Wirkt nicht auf Rechnungen: Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts.",
     });
+  });
+
+  it("„Mitte“ ist aus, wenn kein Beleg das Logo mittig setzen kann", () => {
+    const alt = { name: "Alt", ungenutzt: ["logoMitte"] as const };
+    const hinweise = gestaltungsHinweise({ rechnung: alt, angebot: alt, auftragsbestaetigung: alt, lieferschein: alt, mahnung: alt });
+    expect(hinweise.logoMitte).toEqual({ aus: true, text: "Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts." });
   });
 });

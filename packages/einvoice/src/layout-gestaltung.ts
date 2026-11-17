@@ -65,8 +65,8 @@ export function gestaltungsHinweise(layouts: LayoutJeBeleg): Partial<Record<Layo
     const satz = `${namen.length === 1 ? "Das Layout" : "Die Layouts"} ${aufzaehlung(namen.map((n) => `„${n}“`))} ${verwendet(felder, namen.length > 1)}.`;
     const aus = ohne.length === belege.length && !AUCH_EINGEBAUT.has(option);
     const text = aus ? satz : `Wirkt nicht auf ${aufzaehlung(ohne.map((type) => MEHRZAHL[type]))}: ${satz}`;
-    // Die Stelle wirkt dort weiter, nur „Mitte“ nicht; aus wird die Einstellung deshalb nie
-    hinweise[option] = option === "logoMitte" ? { aus: false, text: `${text} „Mitte“ steht dort rechts.` } : { aus, text };
+    // Nur „Mitte“ wirkt dort nicht, die Stelle sonst schon; aus heißt hier: der Knopf „Mitte“ ist aus
+    hinweise[option] = { aus, text: option === "logoMitte" ? `${text} „Mitte“ steht dort rechts.` : text };
   }
   return hinweise;
 }

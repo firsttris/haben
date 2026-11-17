@@ -79,6 +79,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
   disabled,
+  disabledValues,
   describedBy,
 }: {
   label: string;
@@ -86,6 +87,8 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean | undefined;
+  /** Einzelne Werte aus, etwa „Mitte“, wenn kein Layout das Logo mittig setzt; ein gespeicherter Wert bleibt gedrückt */
+  disabledValues?: readonly T[] | undefined;
   describedBy?: string | undefined;
 }) {
   return (
@@ -97,7 +100,7 @@ export function Segmented<T extends string>({
           className="btn btn-sm"
           title={option.name}
           aria-pressed={value === option.value}
-          disabled={disabled}
+          disabled={disabled || disabledValues?.includes(option.value)}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -168,6 +171,7 @@ export function DesignOptionFields({
             value={design.logoPosition}
             onChange={(logoPosition) => onChange({ logoPosition })}
             disabled={hint("logoPosition")?.aus}
+            disabledValues={hint("logoMitte")?.aus ? ["mitte"] : undefined}
             describedBy={
               [layoutHintId("logoPosition", hint("logoPosition")), layoutHintId("logoMitte", hint("logoMitte"))].filter(Boolean).join(" ") || undefined
             }
