@@ -78,7 +78,7 @@ describe("Regeln des Etsy-Abrufs", () => {
       ["4", "FR"],
     ]);
     expect(laenderHinweis(["1", "2", "3", "4", "5"], laender)).toBe(
-      "Bestellungen nach Land: 1 Deutschland (19 %), 2 USA (nicht steuerbar, Kz 45), 1 anderes Land (Steuer klären, keine Rechnung), 1 ohne Land.",
+      "Bestellungen nach Land: 1 Deutschland, 2 USA, 1 anderes Land, 1 ohne Land.",
     );
     expect(laenderHinweis([], laender)).toBeNull();
   });

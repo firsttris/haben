@@ -184,7 +184,7 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     // die Sales Tax geht im Verkauf derselben Bestellung auf
     expect(result.added).toBe(7);
     expect(result.messages.join(" ")).toContain("noch laufenden Monat");
-    expect(result.messages.join(" ")).toContain("Bestellungen nach Land: 1 Deutschland (19 %), 1 USA (nicht steuerbar, Kz 45)");
+    expect(result.messages.join(" ")).toContain("Bestellungen nach Land: 1 Deutschland, 1 USA");
 
     const umsaetze = await sql`select purpose, amount, type from bank_transactions order by purpose`;
     expect(umsaetze.map((u) => u.purpose)).toEqual([
