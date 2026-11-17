@@ -84,7 +84,7 @@ Mit der Dauerfristverlängerung gibst du jede Voranmeldung einen Monat später a
 
 | Abgabe | Antrag | Sondervorauszahlung |
 | --- | --- | --- |
-| monatlich | jedes Jahr zum Termin der ersten Voranmeldung (meist der 10. Februar), zugleich Anmeldung der Sondervorauszahlung (§ 48 Abs. 1 und 2 UStDV) | ein Elftel der Vorauszahlungen des Vorjahres (§ 47 UStDV), abgezogen in der Voranmeldung für Dezember (Kz 39) |
+| monatlich | Antrag einmal; die Sondervorauszahlung meldest du jedes Jahr zum gesetzlichen Termin der ersten Voranmeldung an, also ohne die Verlängerung (meist der 10. Februar) (§ 48 Abs. 1 und 2 UStDV) | ein Elftel der Vorauszahlungen des Vorjahres (§ 47 UStDV), abgezogen in der Voranmeldung für Dezember (Kz 39) |
 | vierteljährlich | einmal, gilt bis zur Rücknahme oder zum Widerruf | keine |
 | befreit | nicht nötig | keine |
 

@@ -83,8 +83,8 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
         <>
           <p className="small muted" style={{ margin: 0 }}>
             Einen Monat mehr Zeit, dafür zahlst du einmal im Jahr vorab ein Elftel der Vorauszahlungen des Vorjahres: die Sondervorauszahlung (§ 47, 48 UStDV).
-            Melde und zahle sie bis zum Termin der ersten Voranmeldung, für die die Verlängerung gilt (meist der 10. Februar); in der Voranmeldung für Dezember
-            wird sie abgezogen (Kz 39).
+            Melde und zahle sie bis zum gesetzlichen Termin der ersten Voranmeldung, also ohne die Verlängerung (meist der 10. Februar); in der Voranmeldung für
+            Dezember wird sie abgezogen (Kz 39).
           </p>
           <Field
             label="Sondervorauszahlung (Kz 38, volle Euro)"
@@ -125,7 +125,7 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
           { label: "Zeitraum", value: String(year) },
           ...(monthly && parsed !== null ? [{ label: "Betrag", value: formatEuro(parsed), strong: true }] : []),
         ]}
-        confirmText={`Der Antrag geht an das Finanzamt${monthly ? " und meldet die Sondervorauszahlung an; zahle sie zum Termin der ersten Voranmeldung, für die sie gilt (meist der 10. Februar)" : ""}.`}
+        confirmText={`Der Antrag geht an das Finanzamt${monthly ? " und meldet die Sondervorauszahlung an; zahle sie zum gesetzlichen Termin der ersten Voranmeldung, also ohne die Verlängerung (meist der 10. Februar)" : ""}.`}
         footer="Antrag auf Dauerfristverlängerung (USt 1 H) über ERiC. Das Übertragungsprotokoll wird als PDF abgelegt."
         onSubmit={onSubmit}
       />
