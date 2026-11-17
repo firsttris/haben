@@ -24,7 +24,7 @@ describe("treatmentIssues", () => {
   });
 
   it("ohne 0 % in allen Positionen sagt die Meldung es, ohne den langen Namen der Auswahl zu wiederholen", () => {
-    expect(treatmentIssues("drittland", { rates: [1900] })).toEqual(["Bei dieser Umsatzsteuer müssen alle Positionen 0 % haben"]);
+    expect(treatmentIssues("drittland", { rates: [1900] })).toEqual(["Bei der gewählten Umsatzsteuer müssen alle Positionen 0 % haben"]);
   });
 
   it("regulär prüft nichts", () => {

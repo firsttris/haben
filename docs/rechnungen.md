@@ -193,10 +193,10 @@ Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt
 | Auswahl | Wann | Hinweis auf der Rechnung (Standard) | Steuerkategorie im XML |
 | --- | --- | --- | --- |
 | Regulär (19 %, 7 % oder 0 %) | Normalfall | – | S, bei 0 % Z |
-| Dienstleistung an ein Unternehmen im EU-Ausland (Reverse Charge) | Sonstige Leistung an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
+| Dienstleistung an einen Kunden mit USt-IdNr. im EU-Ausland (Reverse Charge) | Sonstige Leistung an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
 | Dienstleistung ins Nicht-EU-Ausland (in Deutschland nicht steuerbar) | Sonstige Leistung (Dienstleistung) mit Leistungsort im Drittland, im Inland nicht steuerbar | Im Inland nicht steuerbare Leistung (Leistungsort im Drittland). | O, Grund `VATEX-EU-O` |
-| Dienstleistung im EU-Ausland ohne Reverse Charge (in Deutschland nicht steuerbar) | Tatsächlicher Leistungsort und ausländische Behandlung sind geprüft; keine ausländische Umsatzsteuer auszuweisen | Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland). | O, Grund `VATEX-EU-O` |
-| Warenlieferung an ein Unternehmen im EU-Ausland, steuerfrei (innergemeinschaftliche Lieferung, § 4 Nr. 1 Buchst. b UStG) | Ware, die zu einem Unternehmen mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
+| Dienstleistung mit Leistungsort im EU-Ausland, ohne Reverse Charge (in Deutschland nicht steuerbar) | Tatsächlicher Leistungsort und ausländische Behandlung sind geprüft; keine ausländische Umsatzsteuer auszuweisen | Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland). | O, Grund `VATEX-EU-O` |
+| Warenlieferung an einen Kunden mit USt-IdNr. im EU-Ausland, steuerfrei (innergemeinschaftliche Lieferung, § 4 Nr. 1 Buchst. b UStG) | Ware, die zu einem Unternehmen mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
 | Warenlieferung ins Nicht-EU-Ausland, steuerfrei (Ausfuhrlieferung, § 4 Nr. 1 Buchst. a UStG) | Ware, die ins Drittland gelangt, etwa in die Schweiz oder die USA (§ 4 Nr. 1 Buchst. a, § 6 UStG) | Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG). | G, Grund `VATEX-EU-G` |
 | Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht (§ 4 UStG) | Steuerfreie Leistung, etwa nach § 4 Nr. 14 UStG | die Befreiungsvorschrift, die du einträgst | E |
 | Kleinunternehmer: ohne Umsatzsteuer (§ 19 UStG) | Nur wählbar, wenn du in den Einstellungen als Kleinunternehmer eingetragen bist | Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. | E |
@@ -322,9 +322,9 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 
 | Umsatzsteuer | Konto SKR03 | Konto SKR04 | Steuerschlüssel |
 | --- | --- | --- | --- |
-| Dienstleistung an ein Unternehmen im EU-Ausland (Reverse Charge) | 8336 | 4336 | `RC` (Kz 21) |
+| Dienstleistung an einen Kunden mit USt-IdNr. im EU-Ausland (Reverse Charge) | 8336 | 4336 | `RC` (Kz 21) |
 | Dienstleistung ins Nicht-EU-Ausland | 8338 | 4338 | `Drittland` (Kz 45) |
-| Warenlieferung an ein Unternehmen im EU-Ausland (innergemeinschaftliche Lieferung) | 8125 | 4125 | `IGL` (Kz 41) |
+| Warenlieferung an einen Kunden mit USt-IdNr. im EU-Ausland (innergemeinschaftliche Lieferung) | 8125 | 4125 | `IGL` (Kz 41) |
 | Warenlieferung ins Nicht-EU-Ausland (Ausfuhrlieferung) | 8120 | 4120 | `Ausfuhr` (Kz 43) |
 | Steuerfreie Leistung (§ 4 UStG) | 8100 | 4100 | `Steuerfrei` (Kz 48) |
 | Kleinunternehmer (§ 19 UStG) | 8192 | 4184 | `KU` (keine Kennzahl) |

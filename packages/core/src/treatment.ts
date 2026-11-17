@@ -14,7 +14,7 @@ export const TAX_TREATMENTS = {
     note: null,
   },
   reverse_charge: {
-    label: "Dienstleistung an ein Unternehmen im EU-Ausland (Reverse Charge)",
+    label: "Dienstleistung an einen Kunden mit USt-IdNr. im EU-Ausland (Reverse Charge)",
     category: "AE",
     reasonCode: "VATEX-EU-AE",
     note: "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL).",
@@ -29,7 +29,7 @@ export const TAX_TREATMENTS = {
   // Nur ohne auszuweisende ausländische Umsatzsteuer; EU-B2C ist kein B2B-Reverse-Charge.
   // https://www.gesetze-im-internet.de/ustg_1980/__3a.html
   eu_sonstige: {
-    label: "Dienstleistung im EU-Ausland ohne Reverse Charge (in Deutschland nicht steuerbar)",
+    label: "Dienstleistung mit Leistungsort im EU-Ausland, ohne Reverse Charge (in Deutschland nicht steuerbar)",
     category: "O",
     reasonCode: "VATEX-EU-O",
     note: "Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland).",
@@ -37,7 +37,7 @@ export const TAX_TREATMENTS = {
   // Lieferung eines Gegenstands an einen Unternehmer in einem anderen EU-Mitgliedstaat (§ 4 Nr. 1 Buchst. b, § 6a UStG):
   // Steuerkategorie K „Intra-community supply“ mit Befreiungscode VATEX-EU-IC (EN 16931, Codeliste VATEX)
   ig_lieferung: {
-    label: "Warenlieferung an ein Unternehmen im EU-Ausland, steuerfrei (innergemeinschaftliche Lieferung, § 4 Nr. 1 Buchst. b UStG)",
+    label: "Warenlieferung an einen Kunden mit USt-IdNr. im EU-Ausland, steuerfrei (innergemeinschaftliche Lieferung, § 4 Nr. 1 Buchst. b UStG)",
     category: "K",
     reasonCode: "VATEX-EU-IC",
     note: "Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG).",
@@ -121,7 +121,7 @@ export function treatmentIssues(
 ): string[] {
   if (treatment === "regulaer") return [];
   const issues: string[] = [];
-  if (input.rates.some((rate) => rate !== 0)) issues.push("Bei dieser Umsatzsteuer müssen alle Positionen 0 % haben");
+  if (input.rates.some((rate) => rate !== 0)) issues.push("Bei der gewählten Umsatzsteuer müssen alle Positionen 0 % haben");
   const country = input.buyerCountry?.toUpperCase();
   if (treatment === "reverse_charge") {
     if (!input.sellerUstId?.trim()) issues.push("Reverse Charge braucht deine USt-IdNr. in den Firmendaten");
