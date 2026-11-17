@@ -1,6 +1,6 @@
 import { generateKeyPairSync, randomUUID } from "node:crypto";
 import type postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today } from "../../today.ts";
 
@@ -268,8 +268,10 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     api.calls.length = 0;
     expect(await sync.runDueBankSyncs(new Date())).toEqual({ synced: 0, added: 0, errors: [] });
     const later = new Date(Date.now() + 21 * 60 * 60 * 1000);
-    const result = await sync.runDueBankSyncs(later);
-    expect(result.synced).toBe(1);
+    // Die Uhr läuft mit: fetchedAt der Lieferung kommt aus new Date() und muss zum Tag des Abrufs passen, auch über Mitternacht
+    vi.useFakeTimers({ toFake: ["Date"], now: later });
+    const result = await sync.runDueBankSyncs(later).finally(() => vi.useRealTimers());
+    expect(result).toMatchObject({ synced: 1, errors: [] });
     expect(api.calls.filter((c) => c.path.endsWith("/transactions"))).toHaveLength(2);
   });
 
