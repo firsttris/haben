@@ -57,6 +57,7 @@ export {
   type ExternalReference,
 } from "./external-reference.ts";
 export { rebuildInvoiceLines, type RebuiltInvoice } from "./positionen-nachbilden.ts";
+export { createTakenOverInvoice, type TakenOverInvoice } from "./rechnung-uebernehmen.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 export { gemeldeterZeitraum, leistungsmonatHinweis, zeitraumLabel } from "./leistungsmonat.ts";

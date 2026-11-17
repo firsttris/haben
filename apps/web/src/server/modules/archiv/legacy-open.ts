@@ -10,16 +10,14 @@ import {
   type TakeoverCutoff,
 } from "@haben/core";
 import { and, eq, getTableColumns, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
-import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { ohneJit } from "../../db/ohne-jit.ts";
 import { loadSevdeskAccountCategories, sevdeskExpenseCategory, sevdeskPositionAccountsOf } from "./sevdesk-kategorie.ts";
 import { openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { rebuildInvoiceLines, storeInvoiceTaxes } from "../rechnungen/index.ts";
+import { createTakenOverInvoice, rebuildInvoiceLines } from "../rechnungen/index.ts";
 import type { LegacyCategoryRow, LegacyFileState } from "../../db/schema.ts";
 import { latestFileStates, takeoverFileIssue } from "./dateistand.ts";
-import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { effectivePayment, paymentHistoryIssue, settledOn } from "../auswertungen/index.ts";
 import { importedTaxTreatment } from "./legacy-import-tax.ts";
@@ -371,10 +369,6 @@ async function takeOverInvoice(
       throw new TakeoverError(
         "Leistung ins Drittland bei Ist-Versteuerung: Kz 45 meldet das Quellprogramm mit der Zahlung, Haben mit der Rechnung. Den Posten von Hand erfassen.",
       );
-    if (voucher.number) {
-      const [clash] = await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.number, voucher.number));
-      if (clash) throw new TakeoverError(`Die Rechnungsnummer ${voucher.number} gibt es in Haben schon.`);
-    }
     let [contact] = voucher.contactId ? await tx.select().from(schema.contacts).where(eq(schema.contacts.id, voucher.contactId)) : [];
     if (!contact) {
       const raw = voucher.raw as { address?: { name?: string; street?: string; zip?: string; city?: string; countryCode?: string } };
@@ -391,51 +385,37 @@ async function takeOverInvoice(
     }
     const dueDate = voucher.dueDate ?? addDays(voucher.date, 14);
     const term = Math.max(0, Math.min(365, Math.round((Date.parse(dueDate) - Date.parse(voucher.date)) / 86_400_000)));
-    const [invoice] = await tx
-      .insert(schema.invoices)
-      .values({
-        kind: "rechnung",
-        contactId: contact!.id,
+    const number =
+      voucher.number ||
+      (voucher.source === "sevdesk"
+        ? `SD-${voucher.lexofficeId.split("/").pop()}`
+        : voucher.source === "fastbill"
+          ? `FB-${voucher.lexofficeId.split("/").pop()}`
+          : `LX-${voucher.lexofficeId.slice(0, 8)}`);
+    const invoice = await createTakenOverInvoice(
+      tx,
+      {
+        company,
+        contact: contact!,
+        number,
         issueDate: voucher.date,
+        dueDate,
+        paymentTermDays: term,
         serviceFrom: voucher.serviceFrom,
         serviceTo: voucher.serviceTo,
-        paymentTermDays: term,
-        dueDate,
+        taxTreatment,
         note: `Aus ${SOURCE_LABEL[voucher.source]} übernommen; das PDF ist das Original.`,
         priceMode,
-        taxTreatment,
-        net: totals.net,
-        tax: totals.tax,
-        gross: totals.gross,
-      })
-      .returning({ id: schema.invoices.id });
-    const id = invoice!.id;
-    await tx.insert(schema.invoiceLines).values(lines.map((l) => ({ ...l, invoiceId: id })));
-    await storeInvoiceTaxes(tx, id, totals.taxes);
-    const now = new Date();
-    await tx
-      .update(schema.invoices)
-      .set({
-        status: "final",
-        number:
-          voucher.number ||
-          (voucher.source === "sevdesk"
-            ? `SD-${voucher.lexofficeId.split("/").pop()}`
-            : voucher.source === "fastbill"
-              ? `FB-${voucher.lexofficeId.split("/").pop()}`
-              : `LX-${voucher.lexofficeId.slice(0, 8)}`),
-        contactVersion: contact!.version,
-        seller: sellerFrom(company),
-        buyer: buyerFrom(contact!),
-        pdf: Buffer.from(pdf),
+        totals,
+        lines,
+        pdf,
         pdfSha256: pdfFile.sha256,
         xml,
-        xmlSha256: xml ? createHash("sha256").update(xml).digest("hex") : null,
-        lexofficeVoucherId: voucher.id,
-        lockedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(schema.invoices.id, id));
+        origin: { lexofficeVoucherId: voucher.id },
+      },
+      (taken) => new TakeoverError(`Die Rechnungsnummer ${taken} gibt es in Haben schon.`),
+    );
+    const id = invoice.id;
     if (!covering)
       await post(tx, company, {
         date: cutoff.bookingDate,

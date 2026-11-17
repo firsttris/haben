@@ -17,13 +17,13 @@ import { db, schema, type Tx } from "../../db/index.ts";
 import { loadCompany, sellerIssues, type Company, type Contact } from "../stammdaten/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { buyerFrom, sellerFrom, sha256 } from "./invoices.ts";
+import { sha256 } from "./invoices.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 import { invoicePostingMode, invoiceVatDate } from "./invoice-tax.ts";
-import { storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { InvoiceError } from "./invoice-error.ts";
 import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 import { rebuildInvoiceLines } from "./positionen-nachbilden.ts";
+import { createTakenOverInvoice } from "./rechnung-uebernehmen.ts";
 
 /*
  * Ausgangsrechnung aus einem Fremdsystem übernehmen (#660): Die Rechnung ist dort geschrieben und verschickt worden und
@@ -103,7 +103,7 @@ function looksLikePdf(bytes: Uint8Array): boolean {
 
 type AdoptInput = z.output<typeof foreignInvoiceSchema>;
 
-/** Was gegen die Übernahme spricht: Nummer schon da, Firmendaten, Versteuerung, Steuerbehandlung, Umsatzgrenze */
+/** Was gegen die Übernahme spricht: Firmendaten, Versteuerung, Steuerbehandlung, Umsatzgrenze */
 async function assertAdoptable(
   tx: Tx,
   company: Company,
@@ -111,8 +111,6 @@ async function assertAdoptable(
   input: AdoptInput,
   totals: { net: number; taxes: { rate: number }[] },
 ): Promise<void> {
-  const [clash] = await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.number, input.number));
-  if (clash) throw new InvoiceError(`Die Rechnungsnummer ${input.number} gibt es in Haben schon.`);
   const issues = [
     ...sellerIssues(company, true).map((issue) => `Firmendaten: ${issue}`),
     ...(await versteuerungIssues(company, input.issueDate, tx)),
@@ -159,58 +157,35 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
       if (!contact) throw new InvoiceError("Der Kunde fehlt.");
       await assertAdoptable(tx, company, contact, input, totals);
 
-      const term = Math.round((Date.parse(input.dueDate) - Date.parse(input.issueDate)) / 86_400_000);
-      const serviceDate = leistungsdatum({ belegdatum: input.issueDate, leistungVon: input.serviceFrom, leistungBis: input.serviceTo });
-      const [draft] = await tx
-        .insert(schema.invoices)
-        .values({
-          kind: "rechnung",
-          contactId: contact.id,
-          issueDate: input.issueDate,
-          serviceFrom: input.serviceFrom,
-          serviceTo: input.serviceTo,
-          paymentTermDays: term,
-          dueDate: input.dueDate,
-          note: `Aus dem Fremdsystem übernommen; das PDF ist das Original.`,
-          priceMode,
-          taxTreatment: input.taxTreatment,
-          exemptionReason: input.exemptionReason,
-          net: totals.net,
-          tax: totals.tax,
-          gross: totals.gross,
-        })
-        .returning({ id: schema.invoices.id });
-      const id = draft!.id;
-      await tx.insert(schema.invoiceLines).values(lines.map((l) => ({ ...l, invoiceId: id })));
-      await storeInvoiceTaxes(tx, id, totals.taxes);
-      const now = new Date();
-      const [invoice] = await tx
-        .update(schema.invoices)
-        .set({
-          status: "final",
-          number: input.number,
-          externalSource: SOURCE,
-          externalId: input.number,
-          contactVersion: contact.version,
-          seller: sellerFrom(company),
-          buyer: buyerFrom(contact),
-          serviceDate,
-          pdf: Buffer.from(pdf),
-          pdfSha256: sha256(pdf),
-          xml,
-          xmlSha256: xml ? sha256(xml) : null,
-          lockedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(schema.invoices.id, id))
-        .returning();
+      const invoice = await createTakenOverInvoice(tx, {
+        company,
+        contact,
+        number: input.number,
+        issueDate: input.issueDate,
+        dueDate: input.dueDate,
+        paymentTermDays: Math.round((Date.parse(input.dueDate) - Date.parse(input.issueDate)) / 86_400_000),
+        serviceFrom: input.serviceFrom,
+        serviceTo: input.serviceTo,
+        serviceDate: leistungsdatum({ belegdatum: input.issueDate, leistungVon: input.serviceFrom, leistungBis: input.serviceTo }),
+        taxTreatment: input.taxTreatment,
+        exemptionReason: input.exemptionReason,
+        note: "Aus dem Fremdsystem übernommen; das PDF ist das Original.",
+        priceMode,
+        totals,
+        lines,
+        pdf,
+        pdfSha256: sha256(pdf),
+        xml,
+        origin: { externalSource: SOURCE, externalId: input.number },
+      });
+      const id = invoice.id;
 
       await post(tx, company, {
-        date: await invoiceVatDate(invoice!, tx),
+        date: await invoiceVatDate(invoice, tx),
         description: `Rechnung ${input.number} aus dem Fremdsystem · ${contact.name}`,
         sourceType: "invoice",
         sourceId: id,
-        lines: invoicePosting(totals, company.kontenrahmen, await invoicePostingMode(invoice!, tx), input.taxTreatment),
+        lines: invoicePosting(totals, company.kontenrahmen, await invoicePostingMode(invoice, tx), input.taxTreatment),
       });
       return { id };
     });
