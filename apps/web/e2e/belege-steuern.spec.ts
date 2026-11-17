@@ -346,13 +346,25 @@ test("Seiten nur von derselben Origin einbettbar", async () => {
   expect(html.headers()["x-frame-options"]).toBeUndefined();
 });
 
-test("Cache-Header: Seiten und Server-Funktionen nie in geteilte Caches", async () => {
+test("Cache-Header: Seiten und Server-Funktionen nie in geteilte Caches, Dateien aus public/ neu validieren", async () => {
   const html = await page.request.get("/rechnungen");
   expect(html.headers()["cache-control"]).toBe("private, no-store");
   const serverFn = page.waitForResponse((r) => new URL(r.url()).pathname.startsWith("/_serverFn/") && r.request().method() === "GET");
   await go("/rechnungen");
   await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Belege", exact: true }).click();
   expect((await serverFn).headers()["cache-control"]).toBe("private, no-store");
+  // Nur der gebaute Server: Im Entwicklungsserver liefert Vite public/ und die Assets aus, ohne die routeRules von Nitro
+  if (!process.env.E2E_SERVER_COMMAND) return;
+  for (const datei of ["/sw.js", "/manifest.webmanifest", "/favicon.svg", "/icon-192.png", "/fastbill-belege.js"]) {
+    expect((await page.request.get(datei)).headers()["cache-control"], datei).toBe("no-cache");
+  }
+  const skript = new URL(
+    await page
+      .locator('script[src^="/assets/"], link[href^="/assets/"]')
+      .first()
+      .evaluate((e) => (e as HTMLScriptElement).src || (e as HTMLLinkElement).href),
+  );
+  expect((await page.request.get(skript.pathname)).headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
 });
 
 test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
