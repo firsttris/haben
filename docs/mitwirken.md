@@ -102,7 +102,7 @@ Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibu
 
 ### Wenn eine Prüfung anschlägt
 
-Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
+Titel, Issue-Verweise, Dateigröße, 4px-Raster und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
 
 - **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; steht das andere Modul höher, gehört der Code meist woanders hin ([Module im Server](architektur.md#module-im-server)); was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
