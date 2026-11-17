@@ -333,16 +333,28 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
   const rows = withDedupHashes(statement.transactions);
   const { insert, linked, fileDays } = await planRows(tx, account.id, source, rows, fresh, input.eventOf, statement.periodFrom);
-  const { importId, transactionIds } = await insertStatement(tx, account.id, statement, input.source, insert, rows.length - insert.length);
+  // Hinweise der Lieferung ins Importprotokoll (bank_imports.warnings), damit sie auch nach dem nächtlichen Abruf zu sehen sind
+  const hints = [...validation.hints, ...validation.rejected.map((r) => `${r.sourceEventId}: ${r.reason}`), ...fileDays];
+  const logged = { ...statement, warnings: [...statement.warnings, ...hints] };
+  const { importId, transactionIds } = await insertStatement(tx, account.id, logged, input.source, insert, rows.length - insert.length);
   const progress = await recordBatch(tx, source.id, account.id, validation, importId, linked, transactionIds);
 
-  const result = await statementResult(tx, account, statement, continuity, insert.length, rows);
+  const result = await statementResult(tx, account, logged, continuity, insert.length, rows);
   return {
     ...result,
-    warnings: [...result.warnings, ...validation.hints, ...validation.rejected.map((r) => `${r.sourceEventId}: ${r.reason}`), ...fileDays],
     checkpoint: progress.checkpoint,
     complete: progress.complete,
     ...(progress.reason ? { reason: progress.reason } : {}),
     replay: false,
   };
+}
+
+/**
+ * Ein Abruf, den `storeBatch` abgelehnt hat (Konflikt, ungültige Lieferung), im Importprotokoll des Kontos: ohne Umsätze,
+ * ohne Zeitraum und Salden, damit er weder eine Lücke schließt noch einen Kontostand setzt; nur die Meldung.
+ */
+export async function recordRefusedBatch(tx: Tx, accountId: string, input: Pick<StoreBatchInput, "statement" | "source">, message: string) {
+  const { format, currency, accountIban, accountName } = input.statement;
+  const empty: ParsedStatement = { format, currency, accountIban, accountName, transactions: [], warnings: [message] };
+  await insertStatement(tx, accountId, empty, input.source, [], 0);
 }

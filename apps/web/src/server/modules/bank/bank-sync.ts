@@ -4,7 +4,7 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
-import { storeBatch } from "./import-batch.ts";
+import { recordRefusedBatch, storeBatch } from "./import-batch.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
 import { kontokennung } from "./kontokennung.ts";
 import { abrufNachVertrag } from "./vertrag-abruf.ts";
@@ -493,8 +493,9 @@ export async function syncConnection(actor: string, connectionId: string, today 
         // die eine Bank ohne frische Anmeldung herausgibt
         accounts[i] = { ...account, identificationHash, syncedTo: today };
       } catch (error) {
-        // Ein Konflikt hält nur dieses Konto an; gespeichert ist von diesem Abruf nichts
+        // Ein Konflikt hält nur dieses Konto an; gespeichert ist von diesem Abruf nichts außer der Meldung im Importprotokoll
         if (!(error instanceof BankError)) throw error;
+        await withActor(actor, (tx) => recordRefusedBatch(tx, account.bankAccountId, input, error.message));
         konflikte.push(`${account.name}: ${error.message}`);
         accounts[i] = { ...account, identificationHash };
       }

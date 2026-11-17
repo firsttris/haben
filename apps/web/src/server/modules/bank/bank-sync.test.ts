@@ -415,8 +415,9 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(kontoA.added).toBe(1);
     expect(kontoA.vertragHinweise).toEqual(["1 Umsatz ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt."]);
     expect(result.accounts.find((a) => a.iban === IBAN_B)!.vertragHinweise).toEqual([]);
-    // bank_imports nimmt nur Neues an und steht im Datenexport: Die Hinweise aus Schritt 2 gehören nicht hinein
-    const [protokoll] = await sql`select count(*)::int as n from bank_imports where warnings::text like '%Importvertrag%'`;
+    // Der Hinweis auf Umsätze ohne Referenz steht nur im Ergebnis; ins Importprotokoll kommen die Hinweise von storeBatch
+    // (verbunden, abgelehnt, Konflikt), nicht dieser
+    const [protokoll] = await sql`select count(*)::int as n from bank_imports where warnings::text like '%ohne Referenz der Bank%'`;
     expect(protokoll!.n).toBe(0);
     const [row] = await sql`select amount from bank_transactions where purpose = 'Kontoführung ohne Referenz'`;
     expect(row!.amount).toBe(-500);
