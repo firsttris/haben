@@ -5,7 +5,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("TDD-Review: Quellstand beim Nachladen von Auftrags-PDFs (Postgres)", () => {
   let sql: postgres.Sql;
   let sevdesk: typeof import("./sevdesk.ts");
-  let version = "2.0";
+  let version = "3.0";
   let serial = 0;
   let externalId: string;
   let content: Record<string, unknown>;
@@ -55,7 +55,7 @@ describe.skipIf(!testDatabaseUrl)("TDD-Review: Quellstand beim Nachladen von Auf
 
   beforeEach(() => {
     externalId = `review-${++serial}`;
-    version = "2.0";
+    version = "3.0";
     content = {};
     pdfFailure = 0;
     afterFailure = 0;
