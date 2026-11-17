@@ -25,6 +25,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { BelegUmsatzsteuer } from "../../../components/BelegUmsatzsteuer.tsx";
 import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
 import { EigenesKontoWahl, passendesKonto } from "../../../components/EigenesKontoWahl.tsx";
@@ -839,41 +840,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
       <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Beträge je Steuersatz</legend>
-        <Field
-          label="Umsatzsteuer auf dem Beleg"
-          hint={
-            reverseCharge === "ig_erwerb" ? (
-              <>
-                Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
-                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
-                zieht den abziehbaren Anteil als Vorsteuer ab (Kz 61). Nicht abziehbare Steuer wird Teil der Ausgabe. Bezahlt wird nur der Nettobetrag. Weist
-                der Händler deutsche Umsatzsteuer aus, bleibt es ein gewöhnlicher Beleg.
-              </>
-            ) : reverseCharge ? (
-              <>
-                Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
-                {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht den abziehbaren Anteil als Vorsteuer ab (Kz 67). Nicht abziehbare Steuer wird Teil der
-                Ausgabe. Bezahlt wird nur der Nettobetrag.
-              </>
-            ) : (
-              looksLikeReverseCharge && (
-                <>
-                  Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung? Bei einer Dienstleistung, etwa von Google, Microsoft oder AWS, ist es meist §
-                  13b, bei Ware ein innergemeinschaftlicher Erwerb.
-                </>
-              )
-            )
-          }
-        >
-          {(control) => (
-            <select {...control} value={reverseCharge ?? ""} onChange={(e) => chooseReverseCharge((e.target.value || null) as SelfAssessedTax | null)}>
-              <option value="">Mit deutscher Umsatzsteuer (Vorsteuer)</option>
-              <option value="eu">§ 13b: Leistung eines Unternehmers aus dem EU-Ausland</option>
-              <option value="drittland">§ 13b: Leistung eines Unternehmers aus dem Drittland</option>
-              <option value="ig_erwerb">Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware aus dem EU-Ausland</option>
-            </select>
-          )}
-        </Field>
+        <BelegUmsatzsteuer value={reverseCharge} onChange={chooseReverseCharge} looksLikeReverseCharge={looksLikeReverseCharge} />
         <div className="form-grid">
           <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("waehrung")}>
             {(control) => (
@@ -1127,9 +1094,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Erstattet bereits Bezahltes (Guthaben aus einer Jahresabrechnung, Bonus)
             </label>
             <span className="small muted">
-              Dann mindert die Gutschrift die Vorsteuer erst, wenn das Geld zurückkommt oder verrechnet wird; bis dahin steht sie auf dem Zwischenkonto (SKR03
-              1548, SKR04 1434). Ohne Haken mindert sie die Vorsteuer im Belegmonat.
+              Dann mindert die Gutschrift die Vorsteuer erst, wenn das Geld zurückkommt oder verrechnet wird. Ohne Haken mindert sie die Vorsteuer im
+              Belegmonat.
             </span>
+            <details>
+              <summary className="small">Details zum Konto</summary>
+              <p className="small muted" style={{ margin: "8px 0 0" }}>
+                Bis das Geld zurückkommt, steht die Vorsteuer auf dem Zwischenkonto „Vorsteuer in Folgeperiode abziehbar“ (SKR03 1548, SKR04 1434).
+              </p>
+            </details>
           </div>
         )}
         {data.paymentHint && (

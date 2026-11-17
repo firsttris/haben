@@ -1049,19 +1049,22 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.getByLabel("Netto", { exact: true }).fill("100");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
-  await expect(page.getByText(/meist § 13b/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(page.getByText(/meist Reverse Charge \(§ 13b\)/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("19,00");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   await expect(page.getByLabel("Steuer § 13b")).toHaveAttribute("readonly", "");
   await expect(page.getByText("Steuer § 13b (automatisch)", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Kz 46\/47/)).toBeVisible();
+  // Die Kennzahlen stehen unter „Details“, der Hinweis am Feld nennt sie nicht
+  await expect(page.getByText(/Kz 46/)).toBeHidden();
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  await expect(page.getByText(/Netto in Kz 46, Steuer in Kz 47, Vorsteuer in Kz 67/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   await page.getByLabel("Netto", { exact: true }).fill("200");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("38,00");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("14,00");
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("drittland");
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("drittland");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
@@ -1089,7 +1092,7 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   // Auch gespeicherte Zeilen müssen bei einer Änderung weiter automatisch rechnen.
   await page.getByLabel("Netto", { exact: true }).fill("300");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("21,00");
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("20,99");
   await page.getByLabel("Netto", { exact: true }).fill("400");
@@ -1132,9 +1135,9 @@ test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel beh�
   await amounts.getByLabel("Vorsteuer", { exact: true }).fill("7,78");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Bei § 13b gibt es kein Brutto, gezahlt wird netto; die Steuer rechnet Haben aus dem Netto (111,21 € zu 7 % = 7,78 €)
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveCount(0);
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1409,11 +1412,11 @@ test("Beleg mit § 13b aufteilen: Steuer § 13b je Zeile, innergemeinschaftliche
   await page.getByLabel("Kategorie").selectOption("geldverkehr");
   await page.getByLabel("Netto", { exact: true }).fill("250,00");
 
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
   await expect(page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" })).toBeDisabled();
   await expect(page.getByText("mit innergemeinschaftlichem Erwerb noch nicht möglich")).toBeVisible();
 
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("47,50");
   await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
   const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
@@ -1948,7 +1951,7 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await page.getByLabel("Netto", { exact: true }).fill("500");
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
   await expect(page.getByText(/bei Ware ein innergemeinschaftlicher Erwerb/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
   const tax = page.getByLabel(/^Erwerbsteuer/);
   await expect(tax).toHaveValue("95,00");
   await expect(tax).toHaveAttribute("readonly", "");
@@ -1957,7 +1960,8 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await expect(tax).toHaveValue("114,00");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
   await expect(tax).toHaveValue("42,00");
-  await expect(page.getByText(/Kz 89 \(19 %\)/)).toBeVisible();
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  await expect(page.getByText(/Netto in Kz 89 \(19 %\) bzw\. Kz 93 \(7 %\), Vorsteuer in Kz 61/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   // Nicht buchen: der Beleg würde die folgenden Auswertungen und Bilder verändern
   await page.getByRole("button", { name: "Löschen" }).click();
