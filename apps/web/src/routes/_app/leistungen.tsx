@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/leistungen")({
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => ({ kunde: search.kunde, von: search.von, bis: search.bis, stand: search.stand }),
   loader: ({ deps }) => getServiceEntries({ data: { contactId: deps.kunde, from: deps.von, to: deps.bis, status: deps.stand } }),
-  head: () => ({ meta: [{ title: "Leistungen · Haben" }] }),
+  head: () => ({ meta: [{ title: "Zeiterfassung · Haben" }] }),
   component: ServiceEntriesPage,
 });
 
@@ -62,7 +62,7 @@ function ServiceEntriesPage() {
       <div className="page-head">
         <div>
           <div className="eyebrow">Verkauf</div>
-          <h1>Leistungen</h1>
+          <h1>Zeiterfassung</h1>
         </div>
         {!formOpen && (
           <div className="actions">

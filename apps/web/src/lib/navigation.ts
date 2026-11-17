@@ -71,7 +71,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { to: "/lastschriften", icon: "debit", label: "Lastschriften" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
-      { to: "/leistungen", icon: "calendar", label: "Leistungen" },
+      { to: "/leistungen", icon: "clock", label: "Zeiterfassung" },
       { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
     ],
   },
@@ -80,7 +80,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: "cart",
     links: [
       { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
+      { to: "/dauerbelege", icon: "repeat", label: "Dauerbelege" },
       { to: "/ueberweisungen", icon: "transfer", label: "Überweisungen" },
       // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
       { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },

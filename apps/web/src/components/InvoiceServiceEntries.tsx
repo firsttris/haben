@@ -19,7 +19,7 @@ export function InvoiceServiceEntries({ entries }: { entries: ProofEntry[] }) {
     <section className="card" aria-label="Enthaltene Leistungen">
       <h2>Enthaltene Leistungen</h2>
       <p className="muted small" style={{ margin: 0 }}>
-        Aus {entries.length === 1 ? "diesem Eintrag" : `diesen ${entries.length} Einträgen`} unter Leistungen ist die Rechnung entstanden;{" "}
+        Aus {entries.length === 1 ? "diesem Eintrag" : `diesen ${entries.length} Einträgen`} unter Zeiterfassung ist die Rechnung entstanden;{" "}
         {formatDuration(total)} Std. sind berechnet.
       </p>
       <div className="table">
