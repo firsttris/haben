@@ -147,6 +147,19 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     expect((await verbindung()).last_sync_at).not.toBeNull();
   });
 
+  it("schreibt BPD, UPD und Kundensystem-ID nicht ins Änderungsprotokoll, auch nicht bei jedem Abruf", async () => {
+    // Sonst steht der ganze Stand der Bank (alle Geschäftsvorfälle, TAN-Verfahren, Konten mit Inhabern und Limits) bei
+    // jedem Abruf alt und neu im Protokoll, dauerhaft und im Export für Steuerberatung und Betriebsprüfung (audit.csv)
+    const vorher = (await sql`select count(*)::int as n from audit_log where table_name = 'fints_connections'`)[0]!.n;
+    expect(await abruf.fintsAbrufen(ACTOR, (await verbindung()).id, "2026-10-23")).toMatchObject({ art: "fertig", ok: true });
+    const zeilen = await sql`
+      select coalesce(old_value::text, '') || coalesce(new_value::text, '') as wert from audit_log where table_name = 'fints_connections'`;
+    expect(zeilen.length).toBeGreaterThan(vorher);
+    for (const z of zeilen) expect(z.wert).not.toMatch(/banking_information|systemId|supportedTanMethods|bankAccounts/);
+    // Der Abruf braucht sie trotzdem: Er fragt die Bank nicht neu nach BPD und UPD
+    expect(bank.zustand.anfragen.at(-3)?.segmente.filter((s) => s.startsWith("HK"))).toEqual(["HKIDN", "HKVVB", "HKTAN"]);
+  });
+
   it("setzt im Hintergrund „tan“, wenn die Bank eine TAN verlangt, und versucht es dann nicht wieder", async () => {
     bank.zustand.scaBeiUmsaetzen = true;
     const ergebnis = await abruf.runDueFintsSyncs(spaeter(1));
