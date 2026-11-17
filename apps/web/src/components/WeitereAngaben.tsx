@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
+import type { BookingIssue } from "../server/modules/belege/index.ts";
 
 export interface WeitereAngabenWerte {
   currency: string;
@@ -9,6 +10,23 @@ export interface WeitereAngabenWerte {
   serviceTo: string;
   note: string;
 }
+
+/**
+ * Die Felder in „Weitere Angaben“, benannt wie am Beleg (`documentInputSchema`). Meldet die Prüfung im Browser oder der Server
+ * einen Fehler an einem davon, klappt die Seite den Bereich auf.
+ */
+const WEITERE_ANGABEN_FELDER = [
+  "supplierUstId",
+  "dueDate",
+  "serviceFrom",
+  "serviceTo",
+  "currency",
+  "exchangeRate",
+  "exchangeRateDate",
+  "note",
+] as const satisfies readonly NonNullable<BookingIssue["feld"]>[];
+type WeitereAngabenFeld = (typeof WEITERE_ANGABEN_FELDER)[number];
+export const inWeitereAngaben = (feld: string | undefined): feld is WeitereAngabenFeld => (WEITERE_ANGABEN_FELDER as readonly string[]).includes(feld ?? "");
 
 /**
  * USt-IdNr. aus einem anderen EU-Land (ohne DE; Griechenland hat EL): Länderkennzeichen und danach 5 bis 12 Zeichen wie in

@@ -12,8 +12,18 @@ import {
 } from "@haben/import";
 import { ZodError } from "zod";
 
-/** Fachfehler, deren Meldung der Nutzer sehen soll. Alles andere wird zentral als „Interner Fehler“ ausgegeben. */
-export class UserError extends Error {}
+/**
+ * Fachfehler, deren Meldung der Nutzer sehen soll. Alles andere wird zentral als „Interner Fehler“ ausgegeben. `felder` nennt
+ * die Felder des Formulars, an denen der Fehler liegt; der Browser bekommt sie mit der Meldung (`fehlerFelder`).
+ */
+export class UserError extends Error {
+  readonly felder: readonly string[];
+
+  constructor(message?: string, { felder = [], ...options }: ErrorOptions & { felder?: readonly string[] } = {}) {
+    super(message, options);
+    this.felder = felder;
+  }
+}
 
 /** Fehler der Pakete, deren Meldung ebenfalls für den Nutzer bestimmt ist */
 const PACKAGE_USER_ERRORS = [

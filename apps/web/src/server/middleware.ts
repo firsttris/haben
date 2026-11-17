@@ -2,16 +2,19 @@ import { isNotFound, isRedirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequestHeaders, setResponseStatus } from "@tanstack/react-start/server";
 import { ReadOnlyError, runReadOnly } from "./db/actor.ts";
-import { INTERNAL_ERROR, userMessage } from "./errors.ts";
+import { INTERNAL_ERROR, UserError, userMessage } from "./errors.ts";
 import { darf, sessionUser, type Zugriff } from "./rollen.ts";
 
 class UnauthorizedError extends Error {}
 class ForbiddenError extends Error {}
 
-/** Fehler ohne Stack und eigene Properties, denn TanStack Start serialisiert ihn vollständig an den Browser */
-function clientError(message: string): Error {
+/**
+ * Fehler ohne Stack und eigene Properties für den Browser; nur die Felder eines Fachfehlers gehen mit (Adapter in start.ts)
+ */
+function clientError(message: string, felder: readonly string[] = []): Error {
   const error = new Error(message);
   delete error.stack;
+  if (felder.length > 0) Object.assign(error, { felder: [...felder] });
   return error;
 }
 
@@ -30,7 +33,7 @@ function toClientError(error: unknown): unknown {
     return clientError("Das darf nur der Inhaber. Die Steuerberatung hat nur Lesezugriff.");
   }
   const message = userMessage(error);
-  if (message !== undefined) return clientError(message);
+  if (message !== undefined) return clientError(message, error instanceof UserError ? error.felder : []);
   console.error(error);
   return clientError(INTERNAL_ERROR);
 }

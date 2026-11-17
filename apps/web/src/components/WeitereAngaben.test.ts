@@ -2,7 +2,7 @@ import { ustIdProblem } from "@haben/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { type WeitereAngabenWerte, WeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "./WeitereAngaben.tsx";
+import { type WeitereAngabenWerte, WeitereAngaben, inWeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "./WeitereAngaben.tsx";
 
 const leer: WeitereAngabenWerte = { currency: "EUR", ustId: "", dueDate: "", serviceFrom: "", serviceTo: "", note: "" };
 
@@ -35,6 +35,13 @@ describe("Weitere Angaben am Beleg", () => {
     expect(zu).toContain("EUR");
     expect(zu).toContain('aria-label="Fällig am"');
     expect(render(true, "EUR")).toMatch(/<details[^>]* open/);
+  });
+
+  it("kennt die Felder im Bereich unter ihrem Namen am Beleg, für Fehler aus Browser und Server", () => {
+    for (const feld of ["supplierUstId", "dueDate", "serviceFrom", "serviceTo", "currency", "exchangeRate", "exchangeRateDate", "note"]) {
+      expect(inWeitereAngaben(feld), feld).toBe(true);
+    }
+    for (const feld of ["supplierName", "category", "amounts", "", undefined]) expect(inWeitereAngaben(feld), String(feld)).toBe(false);
   });
 
   it("hält eine USt-IdNr. aus der EU nur für gültig, wenn auch der Server sie beim Erwerb annimmt (5 bis 12 Zeichen nach dem Länderkennzeichen)", () => {

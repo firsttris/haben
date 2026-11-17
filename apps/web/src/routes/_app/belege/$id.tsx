@@ -35,7 +35,7 @@ import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "../../../components/ContactCombobox.tsx";
 import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
-import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
+import { fehlerFelder, formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { aendereBetragszeile, betragszeileAus, betragszeileGespeichert, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
@@ -48,7 +48,7 @@ import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpa
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
 import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
 import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
-import { WeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
+import { WeitereAngaben, inWeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
@@ -355,8 +355,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [currency, setCurrency] = useState(doc.currency);
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
-  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs) und beim Erwerb ohne USt-IdNr. aus der EU
-  const [weitereOffen, setWeitereOffen] = useState(() => doc.currency !== "EUR" || (doc.reverseCharge === "ig_erwerb" && !isEuVatId(doc.supplierUstId)));
+  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs) und wenn ein Hinweis „Vor dem Buchen“ an
+  // einem Feld darin liegt, etwa an der USt-IdNr. beim Erwerb
+  const [weitereOffen, setWeitereOffen] = useState(() => doc.currency !== "EUR" || issues.some((issue) => inWeitereAngaben(issue.feld)));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null, vorsteuerAnteil: null }]).map((a) => {
@@ -410,14 +411,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     currencyValid &&
     parsedSplits !== null;
   const BETRAG_FEHLER = amountError("den Betrag", 12_050);
-  // Felder in „Weitere Angaben“, deren Fehler den Bereich aufklappen
-  const weitereFehler = {
-    waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
-    kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
-    leistungsende: leistungsendeFehler(serviceFrom, serviceTo),
-  };
-  const { form, error, check } = useSubmitCheck({
-    ...weitereFehler,
+  // Felder in „Weitere Angaben“ heißen wie am Beleg, damit inWeitereAngaben sie erkennt
+  const fehler: Record<string, string | null> = {
+    currency: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
+    exchangeRate: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
+    serviceTo: leistungsendeFehler(serviceFrom, serviceTo),
     ...Object.fromEntries(
       rows.flatMap((r, i) => [
         [`satz-${r.key}`, rows.findIndex((x) => x.taxRate === r.taxRate) < i ? "Diesen Satz gibt es schon in einer Zeile darüber." : null],
@@ -438,12 +436,22 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     ),
     privatanteil: privateShareValid ? null : PRIVATANTEIL_FEHLER,
     vorsteuer: vorsteuerAnteil.trim() === "" || parseVorsteuerAnteil(vorsteuerAnteil) !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
-  } as Record<string, string | null>);
+  };
+  const { form, error, check } = useSubmitCheck(fehler);
   // Fehler in „Weitere Angaben“ klappen den Bereich auf, bevor der Fokus das Feld sucht: Im zugeklappten
   // Bereich fände er es nicht, und die Meldung bliebe unsichtbar
   const pruefen = () => {
-    if (Object.values(weitereFehler).some(Boolean)) flushSync(() => setWeitereOffen(true));
+    if (Object.entries(fehler).some(([feld, text]) => text && inWeitereAngaben(feld))) flushSync(() => setWeitereOffen(true));
     return check();
+  };
+  // Ebenso, wenn der Server beim Speichern oder Buchen einen Fehler an einem Feld darin meldet
+  const mitFeldfehlern = async (work: () => Promise<void>) => {
+    try {
+      await work();
+    } catch (error) {
+      if (fehlerFelder(error).some(inWeitereAngaben)) setWeitereOffen(true);
+      throw error;
+    }
   };
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
   const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
@@ -566,16 +574,20 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const onSave = (event: FormEvent) => {
     event.preventDefault();
     if (!pruefen()) return;
-    void run(async () => {
-      await persist();
-      await router.invalidate({ sync: true });
-    });
+    void run(() =>
+      mitFeldfehlern(async () => {
+        await persist();
+        await router.invalidate({ sync: true });
+      }),
+    );
   };
 
   const bookNow = () => {
     void run(async () => {
-      if (dirty) await persist();
-      await book({ data: doc.id });
+      await mitFeldfehlern(async () => {
+        if (dirty) await persist();
+        await book({ data: doc.id });
+      });
       // Weiter zum nächsten Beleg „Zu prüfen“; der gebuchte rückt in der Liste zu den gebuchten nach hinten
       if (continueAfterBooking && navigation.nextOpenId) {
         await navigate({ to: "/belege/$id", params: { id: navigation.nextOpenId } });
@@ -851,13 +863,13 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             <Field label="Leistung von" describedBy="leistung-hint">
               {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
             </Field>
-            <Field label="Leistung bis" describedBy="leistung-hint" error={error("leistungsende")}>
+            <Field label="Leistung bis" describedBy="leistung-hint" error={error("serviceTo")}>
               {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
             </Field>
             <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
               Zeitraum, auf den sich die Leistung bezieht, wenn er vom Belegdatum abweicht. Bleibt er leer, gilt das Belegdatum.
             </p>
-            <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("waehrung")}>
+            <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("currency")}>
               {(control) => (
                 <>
                   <input
@@ -876,7 +888,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               )}
             </Field>
             {foreign && (
-              <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint" error={error("kurs")}>
+              <Field
+                label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>}
+                describedBy="currency-hint"
+                error={error("exchangeRate")}
+              >
                 {(control) => (
                   <input
                     {...control}
@@ -1154,7 +1170,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Buchen: {issues.join(", ")}.{dirty && " Stand der letzten Speicherung."}
+            Vor dem Buchen: {issues.map((issue) => issue.text).join(", ")}.{dirty && " Stand der letzten Speicherung."}
           </span>
         </div>
       )}
