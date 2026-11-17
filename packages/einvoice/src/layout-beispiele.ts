@@ -4,7 +4,7 @@ import { TEXTS } from "./i18n.ts";
 import { confirmationPdfData, deliveryNotePdfData } from "./order.ts";
 import { asDraft, pdfData, templateInputs } from "./pdf.ts";
 import { quotePdfData } from "./quote.ts";
-import { gmbhSeller, sampleBuyer, sampleDocument, sampleSeller } from "./samples.ts";
+import { gmbhSeller, publicBuyer, sampleBuyer, sampleDocument, sampleSeller } from "./samples.ts";
 import type { Letterhead } from "./types.ts";
 
 /*
@@ -43,6 +43,21 @@ const viele = Array.from({ length: 40 }, (_, i) => ({
   taxRate: (i % 4 === 0 ? 700 : 1900) as 700 | 1900,
 }));
 
+/**
+ * Referenzen nach EN 16931, die Haben noch nicht erfasst (#688): als weitere Bezüge im Infoblock, so wie sie dann kommen.
+ * Ein Layout muss jede Länge des Infoblocks vertragen; das Beispiel mit allen Referenzen hat damit 15 Zeilen.
+ */
+const WEITERE_REFERENZEN = [
+  { group: "bezug" as const, label: "Vertrag", value: "RV-2026-17" },
+  { group: "bezug" as const, label: "Projekt", value: "P-0815 Rathaus-Netz" },
+  { group: "bezug" as const, label: "Ausschreibung / Los", value: "VG-2026-04 / Los 2" },
+  { group: "bezug" as const, label: "Wareneingang", value: "WE-77812" },
+  { group: "bezug" as const, label: "Abrechnungsobjekt", value: "Zähler 1ESY1160" },
+  { group: "bezug" as const, label: "Buchungsreferenz", value: "KST 4711" },
+];
+
+const mitWeiterenReferenzen = <T extends { meta: object[] }>(daten: T): T => ({ ...daten, meta: [...daten.meta, ...WEITERE_REFERENZEN] });
+
 export function layoutBeispiele(): LayoutBeispiel[] {
   const kopf = briefkopf({ footerColumns: ["*{firma}*\n{strasse}", "{steuernummer}"] });
   const rechnung = {
@@ -61,6 +76,13 @@ export function layoutBeispiele(): LayoutBeispiel[] {
     euroTax: { tax: 1757, taxes: [{ rate: 1900, tax: 1757 }], rate: "1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)" },
   };
   const klein = sampleDocument({ taxTreatment: "kleinunternehmer" });
+  // Alle Angaben im Infoblock: Leistungszeitraum, Kundennummer, die Referenzen von heute, Leitweg-ID und USt-IdNr. des Kunden
+  const referenzen = {
+    ...sampleDocument({ buyer: { ...publicBuyer, kundennummer: "K-2041", ustId: "DE987654321" } }),
+    serviceFrom: "2026-09-01",
+    serviceTo: "2026-09-30",
+    references: { buyerOrder: "4500012345", sellerOrder: "A-2026-117", despatchAdvice: "LS-2026-089" },
+  };
   const storno = sampleDocument({ kind: "storno" });
   const totals = sampleDocument({}).totals;
   const angebot = {
@@ -108,6 +130,7 @@ export function layoutBeispiele(): LayoutBeispiel[] {
     rechnungBeleg("Rechnung als Kleinunternehmer", pdfData(klein)),
     rechnungBeleg("Rechnung mit Aufbewahrungshinweis", pdfData({ ...rechnung, propertyRetention: true }), kopf),
     rechnungBeleg("Stornorechnung", pdfData(storno)),
+    rechnungBeleg("Rechnung mit allen Referenzen und Logo in der Mitte", mitWeiterenReferenzen(pdfData(referenzen)), briefkopf({ logoPosition: "mitte" })),
     beleg("Angebot", quotePdfData(angebot), kopf),
     beleg("Auftragsbestätigung", confirmationPdfData(angebot, "2026-10-05"), kopf),
     beleg("Lieferschein", deliveryNotePdfData(lieferschein), briefkopf()),

@@ -52,6 +52,7 @@ const LOGO_SIZE_OPTIONS: { value: LogoSize; label: string; name: string }[] = [
 
 const LOGO_POSITION_OPTIONS: { value: LogoPosition; label: string; name: string }[] = [
   { value: "links", label: "Links", name: "Links" },
+  { value: "mitte", label: "Mitte", name: "Mitte" },
   { value: "rechts", label: "Rechts", name: "Rechts" },
 ];
 
@@ -162,7 +163,7 @@ export function DesignOptionFields({
             describedBy={layoutHintId("logoSize", hint("logoSize"))}
           />
           <Segmented
-            label="Seite des Logos"
+            label="Stelle des Logos"
             options={LOGO_POSITION_OPTIONS}
             value={design.logoPosition}
             onChange={(logoPosition) => onChange({ logoPosition })}

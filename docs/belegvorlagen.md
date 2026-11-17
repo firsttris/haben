@@ -90,6 +90,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
+| `meta[].group` | `"bezug"` | nein |  | „bezug“ bei seltenen Bezügen (Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten |
 | `payment` | `null \| string` | ja | ja | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -107,9 +108,11 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `look` | `object` | ja |  | Einstellungen der Gestaltung |
 | `look.logoHeight` | `number` | ja |  | Größte Höhe des Logos in mm |
 | `look.logoWidth` | `number` | ja |  | Größte Breite des Logos in mm |
-| `look.logoLeft` | `boolean` | ja |  | Logo links statt rechts |
+| `look.logoLeft` | `boolean` | ja |  | Logo links; false bei „rechts“ und „mitte“, look.logoPosition nennt alle drei |
+| `look.logoPosition` | `"links" \| "mitte" \| "rechts"` | ja |  | Stelle des Logos im Briefkopf |
 | `look.foldMarks` | `boolean` | ja |  | Falz- und Lochmarken drucken |
 | `look.backgroundPages` | `"erste" \| "alle"` | ja |  | Briefpapier nur auf der ersten oder auf allen Seiten |
+| `look.options` | `object` | nein |  | Optionen eines eingebauten Layouts, schon aufgelöst, etwa { fuss: „rechts“ }; leer bei eigenen Layouts |
 | `font` | `object` | ja |  | Gewählte Schrift; Familien, wie Typst sie nennt |
 | `font.regular` | `string` | ja |  | Familie für normalen Text |
 | `font.medium` | `string` | ja |  | Familie für mittelfett |
@@ -206,6 +209,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
+| `meta[].group` | `"bezug"` | nein |  | „bezug“ bei seltenen Bezügen (Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten |
 | `payment` | `null \| string` | ja |  | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -223,9 +227,11 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `look` | `object` | ja |  | Einstellungen der Gestaltung |
 | `look.logoHeight` | `number` | ja |  | Größte Höhe des Logos in mm |
 | `look.logoWidth` | `number` | ja |  | Größte Breite des Logos in mm |
-| `look.logoLeft` | `boolean` | ja |  | Logo links statt rechts |
+| `look.logoLeft` | `boolean` | ja |  | Logo links; false bei „rechts“ und „mitte“, look.logoPosition nennt alle drei |
+| `look.logoPosition` | `"links" \| "mitte" \| "rechts"` | ja |  | Stelle des Logos im Briefkopf |
 | `look.foldMarks` | `boolean` | ja |  | Falz- und Lochmarken drucken |
 | `look.backgroundPages` | `"erste" \| "alle"` | ja |  | Briefpapier nur auf der ersten oder auf allen Seiten |
+| `look.options` | `object` | nein |  | Optionen eines eingebauten Layouts, schon aufgelöst, etwa { fuss: „rechts“ }; leer bei eigenen Layouts |
 | `font` | `object` | ja |  | Gewählte Schrift; Familien, wie Typst sie nennt |
 | `font.regular` | `string` | ja |  | Familie für normalen Text |
 | `font.medium` | `string` | ja |  | Familie für mittelfett |
@@ -295,7 +301,7 @@ Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr
 | Schrift | `font` | alle |
 | Logo | `logo` | alle |
 | Größe des Logos | `look.logoHeight` oder `look.logoWidth` | alle |
-| Seite des Logos | `look.logoLeft` | alle |
+| Stelle des Logos | `look.logoLeft` oder `look.logoPosition` | alle |
 | Falz- und Lochmarken | `look.foldMarks` | alle |
 | GiroCode | `qr` | Rechnung, Storno und Korrektur; Mahnung |
 | Artikelnummer | `itemNumbers` | Rechnung, Storno und Korrektur; Angebot; Auftragsbestätigung; Lieferschein |

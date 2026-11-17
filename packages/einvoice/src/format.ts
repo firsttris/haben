@@ -90,8 +90,20 @@ export function presentReferences(references: OrderReferences | undefined): Orde
   return present;
 }
 
-/** Zeilen für den Kopfblock im PDF: „Ihre Bestellung 4500012345“ usw., in der Reihenfolge Bestellung, Auftrag, Lieferschein */
-export function referenceMeta(references: OrderReferences | undefined, t: Pick<Texts, "orderReferences">): { label: string; value: string }[] {
+/** Zeile im Infoblock; group „bezug“ bei seltenen Bezügen, die ein Layout gesondert setzen kann (meta[].group im Feldvertrag) */
+export interface MetaZeile {
+  label: string;
+  value: string;
+  group?: "bezug";
+}
+
+/**
+ * Zeilen für den Kopfblock im PDF: „Ihre Bestellung 4500012345“ usw., in der Reihenfolge Bestellung, Auftrag, Lieferschein.
+ * Die Bestellung des Kunden zählt zu den Kerndaten (oft verlangt); Auftrag und Lieferschein sind Bezüge.
+ */
+export function referenceMeta(references: OrderReferences | undefined, t: Pick<Texts, "orderReferences">): MetaZeile[] {
   const present = presentReferences(references);
-  return REFERENCE_KEYS.flatMap((key) => (present[key] ? [{ label: t.orderReferences[key], value: present[key] }] : []));
+  return REFERENCE_KEYS.flatMap((key) =>
+    present[key] ? [{ label: t.orderReferences[key], value: present[key], ...(key === "buyerOrder" ? {} : { group: "bezug" as const }) }] : [],
+  );
 }
