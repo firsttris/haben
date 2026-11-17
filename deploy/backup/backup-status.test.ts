@@ -68,6 +68,10 @@ describe.skipIf(!testDatabaseUrl)("Backup-Container trägt das Ziel ein (Postgre
       "sftp://nutzer:ab/cd@backup.example:2222//srv/restic",
       "rest:https://nutzer:ab/cd@[::1]:8000/haben",
       "rest:https://nutzer:ab%2Fcd@backup.example/haben",
+      // RESTIC_REPOSITORY ist eine Adresse, keine Meldung: Leerraum und " beenden die Zugangsdaten nicht
+      "rest:https://nutzer:ab cd@backup.example/haben",
+      'rest:https://nutzer:ab"cd@backup.example/haben',
+      "rest:https://nutzer:ab\tcd/ef@backup.example/haben",
     ])
       recordStatus(repository, "");
     const rows = await sql`select target from backup_status order by id`;
@@ -78,6 +82,9 @@ describe.skipIf(!testDatabaseUrl)("Backup-Container trägt das Ziel ein (Postgre
       "s3:https://s3.example.com/haben-backup",
       "sftp://backup.example:2222//srv/restic",
       "rest:https://[::1]:8000/haben",
+      "rest:https://backup.example/haben",
+      "rest:https://backup.example/haben",
+      "rest:https://backup.example/haben",
       "rest:https://backup.example/haben",
     ]);
   });
