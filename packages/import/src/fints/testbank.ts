@@ -234,7 +234,10 @@ function tanFortsetzung(bank: Bank, hktan: Seg & { tanProcess: string; orderRef?
     bank.offen.delete(hktan.orderRef!);
     return {
       dialogId,
-      segmente: ["HIRMG:{n}:2+9800::Der Dialog wurde abgebrochen. Bitte melden Sie sich erneut an.", `HIRMS:{n}:2:${ref(hktan)}+9010::Verarbeitung nicht möglich.`],
+      segmente: [
+        "HIRMG:{n}:2+9800::Der Dialog wurde abgebrochen. Bitte melden Sie sich erneut an.",
+        `HIRMS:{n}:2:${ref(hktan)}+9010::Verarbeitung nicht möglich.`,
+      ],
     };
   }
   if (hktan.tanProcess === "S" && !bank.zustand.freigegeben) {

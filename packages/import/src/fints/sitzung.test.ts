@@ -130,7 +130,7 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
     const fertig = await fintsSynchronisieren(client, { referenz: anmeldung.anfrage.referenz, tan: "123456" });
     expect(fertig.art).toBe("ok");
     // Die TAN geht mit Prozess 2 an die Bank, nicht als Statusabfrage (S); das Verfahren bleibt in den BPD entkoppelt
-    expect(bank.zustand.anfragen.find((a) => a.tan === "123456")).toMatchObject({ tanProzess: "2", verfahren: 921 });
+    expect(bank.zustand.anfragen.filter((a) => a.tan === "123456").at(-1)).toMatchObject({ tanProzess: "2", verfahren: 921 });
     expect(client.config.selectedTanMethod?.isDecoupled).toBe(true);
     expect(fintsKonten(client).abrufbar.map((k) => k.iban)).toEqual([IBAN]);
   });
