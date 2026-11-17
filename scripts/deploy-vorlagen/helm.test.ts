@@ -238,6 +238,7 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
   // API-Server jedes Objekt ab
   const suffix = "9dd43b86d64c";
   test.each([
+    { fall: "Chart-Version ohne Suffix", version: "0.1.0", chart: "haben-0.1.0" },
     { fall: "Build-Suffix von Flux in der Chart-Version", version: `0.1.0+${suffix}`, chart: `haben-0.1.0_${suffix}` },
     { fall: "Chart-Version über 63 Zeichen", version: `0.1.0+${suffix.repeat(6)}`, chart: `haben-0.1.0_${suffix.repeat(6)}`.slice(0, 63) },
   ])("schreibt gültige Label-Werte mit $fall", ({ version, chart }) => {
