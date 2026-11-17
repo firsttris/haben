@@ -171,6 +171,29 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     },
   );
 
+  it.each([
+    ["SKR03", "4575", "4570"],
+    ["SKR04", "6565", "6560"],
+  ] as const)("%s: Leasing für Elektrofahrzeuge und Fahrräder vor 2020 wie übriges Leasing, ab 2020 zur Hälfte", (kontenrahmen, elektro, leasing) => {
+    // § 36 Abs. 4 Satz 1 GewStG: nur Verträge, die nach dem 31.12.2019 abgeschlossen worden sind; im Erhebungszeitraum 2019 gibt es keine
+    const gruppen = (year: number) =>
+      kapgSteuern(
+        kontenrahmen,
+        year,
+        [
+          { account: elektro, saldo: 960_000 },
+          { account: leasing, saldo: 1_200_000 },
+        ],
+        1_000_000,
+        ohneVortrag,
+      ).gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag]);
+    expect(gruppen(2019)).toEqual([["beweglich", 2_160_000, 432_000]]);
+    expect(gruppen(2020)).toEqual([
+      ["beweglich", 1_200_000, 240_000],
+      ["elektro", 960_000, 96_000],
+    ]);
+  });
+
   it("Der Freibetrag gilt für die Summe aller Gruppen, auch mit Elektrofahrzeugen und Fahrrädern", () => {
     // Zinsen 195.000 € voll, Leasing für Elektrofahrzeuge 100.000 € zu 10 %: 205.000 € − 200.000 € Freibetrag, davon ein Viertel
     const s = kapgSteuern(
