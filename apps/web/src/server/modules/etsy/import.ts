@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { etsyLedgerBatch, parseEtsyLedger, type EtsyLedgerEntry, type ParsedStatement, type ParsedTransaction } from "@haben/import";
 import { and, asc, eq, like } from "drizzle-orm";
-import { storeBatch } from "../bank/index.ts";
+import { BankError, recordRefusedBatch, storeBatch } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 
@@ -127,7 +127,14 @@ export async function importEtsyLedger(actor: string, entries: EtsyLedgerEntry[]
     eventOf: eventsOf(new Set(batch.movements.map((m) => m.sourceEventId))),
     source: { filename, sha256 },
   };
-  const imported = await withActor(actor, (tx) => storeBatch(tx, input, account.id));
+  let imported: Awaited<ReturnType<typeof storeBatch>>;
+  try {
+    imported = await withActor(actor, (tx) => storeBatch(tx, input, account.id));
+  } catch (error) {
+    // Abgelehnt (Vertrag oder Konflikt): gespeichert ist nichts, der Grund steht wie bei Enable Banking im Importprotokoll
+    if (error instanceof BankError) await withActor(actor, (tx) => recordRefusedBatch(tx, account.id, input, error.message));
+    throw error;
+  }
   result.added = imported.added;
   result.messages.push(...imported.warnings);
   if (imported.quelle) result.messages.push(imported.quelle);
