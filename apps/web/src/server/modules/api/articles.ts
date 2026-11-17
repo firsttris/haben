@@ -3,7 +3,8 @@ import { articleInputSchema, articlePatchSchema, createArticle, getArticle, list
 import { notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { page, pageQuery, requestSchemas, responseSchemas, timestamp } from "./schemas.ts";
 
-const articleDescription = articleInputSchema.shape.description.regex(/^[^\r\n\u2028\u2029]+$/, "Die Bezeichnung muss in einer Zeile stehen.");
+// Ohne Pflicht-Zeilenumbrüche nach UAX #14 (BK, CR, LF, NL), an denen Typst im PDF umbricht
+const articleDescription = articleInputSchema.shape.description.regex(/^[^\n\v\f\r\u0085\u2028\u2029]+$/, "Die Bezeichnung muss in einer Zeile stehen.");
 const articleCreateSchema = articleInputSchema.extend({ description: articleDescription }).strict().register(requestSchemas, { id: "ArticleCreate" });
 const articleUpdateSchema = articlePatchSchema.extend({ description: articleDescription.optional() }).register(requestSchemas, { id: "ArticlePatch" });
 
