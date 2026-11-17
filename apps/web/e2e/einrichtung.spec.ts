@@ -26,14 +26,20 @@ test.afterAll(() => {
 
 test("Ersteinrichtung fragt Rechtsform und Bereiche, „weiß ich nicht“ erinnert auf der Übersicht", async () => {
   await gehe(page, "/");
+  // Der Hinweis am Code sagt, wer ihn hat, und führt zur Anleitung
+  await expect(page.getByText("Den Code hat, wer Haben installiert hat. Er steht beim Start im Log des Servers.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "So findest du ihn" })).toHaveAttribute("href", /\/einrichtung\.html#konto-anlegen$/);
+  await expect(page.getByText("Nach dem Anlegen richtest du einen Passkey ein: Anmelden mit Fingerabdruck, Gesicht oder PIN deines Geräts.")).toBeVisible();
   await page.getByLabel("Einrichtungscode").fill(SETUP_CODE);
   await page.getByLabel("Name").fill(USER.name);
   await page.getByLabel("E-Mail").fill(USER.email);
   await page.getByLabel(/Passwort/).fill(USER.password);
   await page.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByText(/Mit einem Passkey meldest du dich künftig mit Fingerabdruck, Gesicht oder PIN deines Geräts an/)).toBeVisible();
   await page.getByRole("button", { name: "Später" }).click();
   await page.waitForURL("**/einrichtung");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Haben einrichten");
+  await expect(page.getByText(/bei „Weiß ich nicht“ bleibt die bisherige Angabe, die Übersicht fragt später nach\.$/)).toBeVisible();
 
   await antworten(frage("Wie bist du selbständig?"), "Mit Gewerbeanmeldung");
   // Kleinunternehmer bleibt bei „Weiß ich nicht“; Versteuerung und Voranmeldung fragt Haben dann trotzdem
