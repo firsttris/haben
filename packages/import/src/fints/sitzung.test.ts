@@ -43,7 +43,14 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
   });
 
   beforeEach(() => {
-    Object.assign(bank.zustand, { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, mt940Unlesbar: false });
+    Object.assign(bank.zustand, {
+      scaBeiAnmeldung: false,
+      scaBeiUmsaetzen: false,
+      freigegeben: false,
+      appTanEintippen: false,
+      nichtErreichbar: false,
+      mt940Unlesbar: false,
+    });
   });
 
   it("verbindet mit TAN bei der Anmeldung und ruft danach Umsätze ab", async () => {
@@ -106,6 +113,26 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
     bank.zustand.scaBeiUmsaetzen = false;
     const ohneTan = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31");
     expect(ohneTan.art === "ok" && ohneTan.wert.map((s) => s.format)).toEqual(["MT940"]);
+  });
+
+  it("fragt bei pushTAN eine TAN ab, wenn die Bank sie eintippen lässt (0030 ohne 3955, wie die Consorsbank)", async () => {
+    const client = fintsClient(PRODUKT, zugang);
+    await fintsSynchronisieren(client);
+    Object.assign(bank.zustand, { scaBeiAnmeldung: true, appTanEintippen: true });
+    client.selectTanMethod(921);
+    const anmeldung = await fintsSynchronisieren(client);
+    expect(anmeldung).toMatchObject({
+      art: "tan",
+      anfrage: { entkoppelt: false, text: "Bitte generieren Sie eine TAN mit Ihrer Banking App oder Ihrem TAN Generator und geben diese hier ein." },
+    });
+    if (anmeldung.art !== "tan") return;
+
+    const fertig = await fintsSynchronisieren(client, { referenz: anmeldung.anfrage.referenz, tan: "123456" });
+    expect(fertig.art).toBe("ok");
+    // Die TAN geht mit Prozess 2 an die Bank, nicht als Statusabfrage (S); das Verfahren bleibt in den BPD entkoppelt
+    expect(bank.zustand.anfragen.find((a) => a.tan === "123456")).toMatchObject({ tanProzess: "2", verfahren: 921 });
+    expect(client.config.selectedTanMethod?.isDecoupled).toBe(true);
+    expect(fintsKonten(client).abrufbar.map((k) => k.iban)).toEqual([IBAN]);
   });
 
   it("wirft, wenn lib-fints die Umsätze nicht lesen kann, statt keine zu melden", async () => {
