@@ -1,16 +1,20 @@
 import { createHash } from "node:crypto";
-import { parseEtsyLedger, type EtsyLedgerEntry, type ParsedStatement } from "@haben/import";
+import { etsyLedgerBatch, parseEtsyLedger, type EtsyLedgerEntry, type ParsedStatement, type ParsedTransaction } from "@haben/import";
 import { and, asc, eq, like } from "drizzle-orm";
-import { storeStatement } from "../bank/index.ts";
+import { storeBatch } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 
 /*
  * Übernahme des Etsy-Zahlungsverlaufs in das Konto des Zahlungsdienstleisters.
  *
- * Der Verlauf wird zum Kontoauszug (etsy-ledger.ts in @haben/import) und läuft danach durch denselben Weg wie eine
- * hochgeladene Datei: Haben legt die Umsätze im Konto des Dienstleisters an, die Dublettenprüfung greift je Umsatz
- * (Buchungstag, Betrag, Zweck), und der Bankabgleich findet Verkäufe über die Bestellnummer im Zweck.
+ * Der Verlauf wird zum Kontoauszug (etsy-ledger.ts in @haben/import) und zugleich zur Lieferung des Importvertrags
+ * (etsy-batch.ts, #306). Gespeichert wird über `storeBatch` mit der Kennung des Shops als Quelle (Konto der Art „psp“):
+ * Einzelzeilen (Verkauf, Erstattung, Auszahlung, Karteneinzug, Ausgleich, Steuer, ungebündelte Gebühren) erkennt Haben
+ * an ihrer `entry_id`, Sammelzeilen der Gebühren ohne eigene Kennung wie bisher am Inhalt. Umsätze aus einem Abruf vor
+ * der Quellenbindung verbindet `storeBatch` über den Dubletten-Hash mit ihrer Kennung, statt sie neu anzulegen. Eine
+ * Lieferung, die der Vertrag ablehnt, speichert nichts; der Abruf meldet den Grund. Der Bankabgleich findet Verkäufe
+ * über die Bestellnummer im Zweck.
  *
  * Gibt es kein Konto der Art Zahlungsdienstleister mit Anbieter Etsy, sagt das Ergebnis das und legt nichts an.
  */
@@ -43,6 +47,18 @@ export interface EtsyImportOptions {
   reference: string;
 }
 
+/** Was die Lieferung nach dem Importvertrag zusätzlich braucht */
+export interface EtsyAbruf {
+  /** Kennung des Shops: Quelle des Abrufs */
+  shopId: string;
+  /** Erster abgerufener Tag (UTC), YYYY-MM-DD */
+  fetchFrom: string;
+  now: Date;
+}
+
+/** Kennung der Verlaufszeile eines Umsatzes; Sammelzeilen („etsy-<art>-<JJJJ-MM>“) haben keine */
+const eventOf = (t: ParsedTransaction): string | undefined => t.bankReference?.match(/^etsy-(\d+)$/)?.[1];
+
 /** Verlauf als Kontoauszug lesen, ohne ihn zu buchen (Vorschau und Tests) */
 export function etsyStatement(entries: EtsyLedgerEntry[], options: EtsyImportOptions, schonGebuendelt?: ReadonlySet<string>): ParsedStatement {
   return parseEtsyLedger(entries, {
@@ -68,7 +84,7 @@ async function sammelzeilenImKonto(accountId: string): Promise<Set<string>> {
 }
 
 /** Den Verlauf ins Konto des Dienstleisters übernehmen */
-export async function importEtsyLedger(actor: string, entries: EtsyLedgerEntry[], options: EtsyImportOptions): Promise<EtsyImportResult> {
+export async function importEtsyLedger(actor: string, entries: EtsyLedgerEntry[], options: EtsyImportOptions, abruf: EtsyAbruf): Promise<EtsyImportResult> {
   const account = await providerAccount();
   if (!account) {
     return {
@@ -85,7 +101,24 @@ export async function importEtsyLedger(actor: string, entries: EtsyLedgerEntry[]
   const bytes = new TextEncoder().encode(JSON.stringify(statement.transactions));
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const filename = `etsy-zahlungsverlauf-${options.reference}.json`;
-  const imported = await withActor(actor, (tx) => storeStatement(tx, statement, { filename, sha256 }, account.id));
+  const batch = etsyLedgerBatch({
+    shopId: abruf.shopId,
+    entries,
+    dateFrom: abruf.fetchFrom,
+    dateTo: abruf.now.toISOString().slice(0, 10),
+    fetchedAt: abruf.now.toISOString(),
+    // Fenster und Zeitpunkt: zwei Abrufe zur selben Zeit mit anderem Fenster sind zwei Lieferungen, nicht eine mit anderem Inhalt
+    fetchId: `etsy-${abruf.fetchFrom}-${abruf.now.toISOString()}`,
+    orderFor: options.orderFor,
+  });
+  const input = {
+    batch,
+    binding: { provider: "etsy", externalAccountId: abruf.shopId, accountKind: "psp" as const },
+    statement,
+    eventOf,
+    source: { filename, sha256 },
+  };
+  const imported = await withActor(actor, (tx) => storeBatch(tx, input, account.id));
   result.added = imported.added;
   result.messages.push(...imported.warnings);
   if (imported.quelle) result.messages.push(imported.quelle);

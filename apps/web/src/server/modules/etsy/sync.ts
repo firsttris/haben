@@ -5,7 +5,6 @@ import { today as todayInGermany } from "../../today.ts";
 import { abrufFaellig, dayOf, type EtsyRhythmus, gebuehrenBisAm, laenderHinweis, naechsterAbrufStart } from "./abruf-regeln.ts";
 import { etsyClientFor, EtsyError, loadEtsyConnection, storeEtsySecret } from "./connections.ts";
 import { importEtsyLedger, type EtsyImportResult } from "./import.ts";
-import { etsyVertragHinweise } from "./vertrag.ts";
 
 /*
  * Abruf des Etsy-Zahlungsverlaufs: holt die Zeilen seit dem letzten Anlauf, löst zu Verkäufen und Erstattungen die
@@ -82,25 +81,20 @@ async function syncEtsyEinmal(actor: string, now: Date): Promise<EtsySyncResult>
     const bestellungen = [...new Set([...neueZahlungen].map((id) => orders.get(id)).filter((id): id is string => Boolean(id)))];
     const laender = bestellungen.length > 0 ? await client.countriesFor(bestellungen, { from: Math.max(von, seit), to: bis }) : new Map<string, string>();
     const gebuehrenBis = gebuehrenBisAm(todayInGermany(now));
-    const imported: EtsyImportResult = await importEtsyLedger(actor, entries, {
-      orderFor: (referenceId) => orders.get(referenceId),
-      sammelzeilen: connection.row.sammelzeilen,
-      gebuehrenBis,
-      reference: todayInGermany(now),
-    });
+    const imported: EtsyImportResult = await importEtsyLedger(
+      actor,
+      entries,
+      {
+        orderFor: (referenceId) => orders.get(referenceId),
+        sammelzeilen: connection.row.sammelzeilen,
+        gebuehrenBis,
+        reference: todayInGermany(now),
+      },
+      { shopId: connection.row.shopId, fetchFrom: connection.row.fetchFrom, now },
+    );
     result.added = imported.added;
     result.accountName = imported.accountName;
     result.messages.push(...imported.messages);
-    // Nach dem Speichern: die Prüfung nach dem Importvertrag meldet nur und hält nichts auf (vertrag.ts)
-    result.messages.push(
-      ...etsyVertragHinweise({
-        shopId: connection.row.shopId,
-        entries,
-        fetchFrom: connection.row.fetchFrom,
-        now,
-        orderFor: (referenceId) => orders.get(referenceId),
-      }),
-    );
     const hinweis = laenderHinweis(bestellungen, laender);
     if (hinweis) result.messages.push(hinweis);
     // Ohne Etsy-Konto ist nichts gespeichert: Der Startpunkt bleibt, sonst holte kein späterer Abruf diese Zeilen mehr

@@ -311,7 +311,8 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     const [nachher] = await sql`select count(*)::int as n from bank_transactions`;
     expect(nachher!.n).toBe(vorher!.n);
     // Die Einzelzeilen gehören jetzt ihrer Bewegung, verbunden mit den schon vorhandenen Umsätzen
-    const verbunden = await sql`select m.source_event_id, t.purpose from import_movements m join bank_transactions t on t.id = m.transaction_id order by m.source_event_id::int`;
+    const verbunden =
+      await sql`select m.source_event_id, t.purpose from import_movements m join bank_transactions t on t.id = m.transaction_id order by m.source_event_id::int`;
     expect(verbunden.map((v) => v.source_event_id)).toEqual(["1", "5", "8"]);
   });
 });
