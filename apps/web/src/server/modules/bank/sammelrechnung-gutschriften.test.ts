@@ -50,11 +50,11 @@ describe.skipIf(!testDatabaseUrl)("Sammelknopf mit Gutschriften (Postgres)", () 
       journal_entries, document_splits, document_amounts, documents, company cascade`;
   });
 
-  async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
+  async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", csv = ETSY_OKTOBER) {
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kontenrahmen}, ${versteuerung})`;
     const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
-    await bank.importStatement(actor, { bytes: new TextEncoder().encode(ETSY_OKTOBER), filename: "etsy.csv" }, etsy.id);
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
   }
 
   /** Gebührenrechnung von Etsy Ireland UC, § 13b (Leistung aus dem EU-Ausland), 19 % */
@@ -126,10 +126,13 @@ describe.skipIf(!testDatabaseUrl)("Sammelknopf mit Gutschriften (Postgres)", () 
     expect(summe!.summe).toBe(-10_000);
   }, 30_000);
 
-  it("parallele Einzelzuordnung und Sammelzuordnung erzeugen keinen Datenbank-Deadlock", async () => {
-    await firma("SKR03", "ist");
-    const documentId = await rechnung13b(RECHNUNG);
-    const transactionId = await ersteGebuehr();
+  /**
+   * Hält eine Einzelzuordnung von `einzeln` zwischen ihren beiden Sperren an (Umsatz gesperrt, Beleg noch nicht), startet
+   * die Sammelzuordnung ab der ersten Gebühr und lässt die Einzelzuordnung weiterlaufen, sobald der Sammelweg auf sie
+   * wartet. Gibt die Fehler beider Aufrufe zurück (null bei Erfolg).
+   */
+  async function gleichzeitig(einzeln: { transactionId: string; amount: number }, documentId: string) {
+    const transactionId = einzeln.transactionId;
     const { withActor } = await import("../../db/actor.ts");
     const { lockTransaction, allocateIn } = await import("./bank.ts");
     const { sql: query } = await import("drizzle-orm");
@@ -149,14 +152,14 @@ describe.skipIf(!testDatabaseUrl)("Sammelknopf mit Gutschriften (Postgres)", () 
       await lockTransaction(tx, transactionId);
       locked();
       await continuing;
-      await allocateIn(tx, { kind: "document", transactionId, documentId, amount: -744 });
+      await allocateIn(tx, { kind: "document", transactionId, documentId, amount: einzeln.amount });
     });
     const individualResult = individual.then(
       () => null,
       (error: unknown) => error,
     );
     await ready;
-    const collective = bank.allocateFeesToDocument(actor, { transactionId, documentId });
+    const collective = bank.allocateFeesToDocument(actor, { transactionId: await ersteGebuehr(), documentId });
     const collectiveResult = collective.then(
       () => null,
       (error: unknown) => error,
@@ -178,13 +181,32 @@ describe.skipIf(!testDatabaseUrl)("Sammelknopf mit Gutschriften (Postgres)", () 
     } finally {
       resume();
     }
-    const errors = await Promise.all([individualResult, collectiveResult]);
-    const codes = (error: unknown): string[] => {
-      if (!error || typeof error !== "object") return [];
-      const detail = error as { code?: string; cause?: unknown };
-      return [...(detail.code ? [detail.code] : []), ...codes(detail.cause)];
-    };
+    return Promise.all([individualResult, collectiveResult]);
+  }
+
+  const codes = (error: unknown): string[] => {
+    if (!error || typeof error !== "object") return [];
+    const detail = error as { code?: string; cause?: unknown };
+    return [...(detail.code ? [detail.code] : []), ...codes(detail.cause)];
+  };
+
+  it("parallele Einzelzuordnung und Sammelzuordnung erzeugen keinen Datenbank-Deadlock", async () => {
+    await firma("SKR03", "ist");
+    const documentId = await rechnung13b(RECHNUNG);
+    const errors = await gleichzeitig({ transactionId: await ersteGebuehr(), amount: -744 }, documentId);
     // Eine fachliche Ablehnung nach zwischenzeitlicher Änderung ist möglich, ein zyklischer Lock nicht.
+    expect(errors.flatMap(codes)).not.toContain("40P01");
+    expect(errors).toEqual([null, null]);
+    expect((await zeilen()).every((z) => z.zugeordnet === z.amount)).toBe(true);
+    expect((await bank.openItems()).filter((i) => i.type === "document")).toEqual([]);
+  }, 30_000);
+
+  // Ohne Gutschrift im Monat nimmt der Knopf den bisherigen Weg; auch dort zuerst alle Umsätze, dann den Beleg sperren
+  it("parallele Einzelzuordnung an der zweiten Gebühr und Sammelzuordnung ohne Gutschriften erzeugen keinen Deadlock", async () => {
+    await firma("SKR03", "ist", ETSY_OKTOBER.split("\n").slice(0, 5).join("\n"));
+    const documentId = await rechnung13b(11_929);
+    const zweite = (await sql<{ id: string }[]>`select id from bank_transactions where amount = -989`)[0]!.id;
+    const errors = await gleichzeitig({ transactionId: zweite, amount: -989 }, documentId);
     expect(errors.flatMap(codes)).not.toContain("40P01");
     expect(errors).toEqual([null, null]);
     expect((await zeilen()).every((z) => z.zugeordnet === z.amount)).toBe(true);
