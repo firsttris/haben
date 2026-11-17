@@ -15,15 +15,51 @@ target_column() {
 }
 
 # Ziel der Sicherung für Einstellungen → Export und die Verfahrensdokumentation, ohne Zugangsdaten: Nutzer und
-# Passwort einer Adresse (rest:https://nutzer:passwort@…, bis zum letzten @ vor dem Pfad wie bei Go url.Parse in
-# restic), den Nutzer von sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad).
-# Gleiche Regeln wie ohneZugangsdaten in apps/web/src/server/modules/betrieb/restic-ziel.ts.
+# Passwort einer Adresse (credentials_from_address), den Nutzer von sftp:nutzer@host und die Parameter einer
+# rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad). Gleiche Regeln wie ohneZugangsdaten in
+# apps/web/src/server/modules/betrieb/restic-ziel.ts, hier für ein Ziel statt einer Meldung.
 target_without_credentials() {
-  sed -E \
-    -e 's#(://)[^/]*@#\1#' \
+  printf '%s\n' "${RESTIC_REPOSITORY:-}" | credentials_from_address | sed -E \
     -e 's#^sftp:([^/][^/@]*)@#sftp:#' \
-    -e "s#^(rclone::?[A-Za-z0-9_.-]+),(\"[^\"]*\"|'[^']*'|[^:\"'])*#\\1#" \
-    <<< "${RESTIC_REPOSITORY:-}"
+    -e "s#^(rclone::?[A-Za-z0-9_.-]+),(\"[^\"]*\"|'[^']*'|[^:\"'])*#\\1#"
+}
+
+# Nutzer und Passwort der Adresse nach dem ersten ://: wie bei Go url.Parse in restic bis zum letzten @ vor Pfad und
+# Abfrage, wenn danach ein Host folgt. Hat dieser Teil kein @, steht oft ein Passwort mit unkodiertem / davor: dann
+# nach nutzer: bis zum ersten @, auf das ein Host folgt. Ohne nutzer: bleibt ein @ im Pfad stehen
+# (rest:https://h/haben@2026). Nur POSIX-awk ohne Zeichenklassen, damit mawk, gawk und busybox gleich rechnen.
+credentials_from_address() {
+  awk '
+    # Länge von s vor dem ersten Zeichen aus stop
+    function upto(s, stop,   i) {
+      for (i = 1; i <= length(s); i++) if (index(stop, substr(s, i, 1))) return i - 1
+      return length(s)
+    }
+    # Beginnt s mit einem Host samt optionalem Port: [IPv6] oder ohne @ : [ ]?
+    function is_host(s,   h) {
+      h = substr(s, 1, upto(s, "/?#\\\" \t"))
+      sub(/:[0-9]*$/, "", h)
+      if (h ~ /^\[[0-9A-Fa-f:.]*\]$/) return 1
+      return !(index(h, "@") || index(h, ":") || index(h, "[") || index(h, "]"))
+    }
+    {
+      i = index($0, "://")
+      if (!i) { print; next }
+      head = substr($0, 1, i + 2)
+      rest = substr($0, i + 3)
+      authority = substr(rest, 1, upto(rest, "/?#\" \t"))
+      for (p = length(authority); p > 0; p--) if (substr(authority, p, 1) == "@") break
+      if (p > 0 && is_host(substr(rest, p + 1))) { print head substr(rest, p + 1); next }
+      colon = index(authority, ":")
+      if (colon && !index(substr(authority, 1, colon), "[")) {
+        for (p = colon + 1; p <= length(rest); p++) {
+          c = substr(rest, p, 1)
+          if (c == " " || c == "\t" || c == "\"") break
+          if (c == "@" && is_host(substr(rest, p + 1))) { print head substr(rest, p + 1); next }
+        }
+      }
+      print
+    }'
 }
 
 # record_status <backup|restore_check> <true|false> <snapshot> <bytes> <meldung>
