@@ -12,6 +12,7 @@ import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { Gesamtumsatz } from "../../components/Gesamtumsatz.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 import { Status } from "../../components/Status.tsx";
+import { StandHinweis, StandSchalter } from "../../components/StandSchalter.tsx";
 
 export const Route = createFileRoute("/_app/auswertungen")({
   // `stichtag` ist der Schalter „Heute“ / „31.12.“ über den offenen Posten (#1110); er steht in der Adresse,
@@ -81,19 +82,7 @@ function ReportsPage() {
               </Link>
             )}
           </nav>
-          {stichtagMoeglich && (
-            <div className="mode-switch" role="group" aria-label="Stand der offenen Posten">
-              {/* Absichtlich ein <a>: Der Router setzt an einem Link, dessen Suche in der aktuellen enthalten ist, selbst
-                  aria-current, dann bliebe „Heute“ neben „31.12.“ als aktiv markiert. Der Stand ist ein Zustand in der
-                  Adresse; so setzt ihn die Seite, und der Schalter funktioniert ohne JavaScript. */}
-              <a href={`/auswertungen?jahr=${year}`} className={stichtag ? "chip" : "chip active"} aria-current={stichtag ? undefined : "page"}>
-                Heute
-              </a>
-              <a href={`/auswertungen?jahr=${year}&stichtag=31.12.`} className={stichtag ? "chip active" : "chip"} aria-current={stichtag ? "page" : undefined}>
-                31.12.{year}
-              </a>
-            </div>
-          )}
+          {stichtagMoeglich && <StandSchalter year={year} stichtag={stichtag} />}
           {!gesellschaft && (
             <a className="btn btn-primary" href={`/api/auswertungen/${year}`} download>
               EÜR als CSV
@@ -102,11 +91,7 @@ function ReportsPage() {
         </div>
       </div>
 
-      {stichtag && (
-        <p className="small muted stand-hinweis">
-          Stand 31.12.{year}: Die offenen Posten aller drei Tabellen rechnen zum Jahresende; Zahlungen und Belege danach zählen nicht.
-        </p>
-      )}
+      {stichtag && <StandHinweis year={year} />}
 
       <div className="grid-4">
         <div className="card">
