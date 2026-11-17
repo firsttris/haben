@@ -72,24 +72,40 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
 /**
  * Hinzurechnung nach § 8 Nr. 1 GewStG: Anteil je Kontengruppe in Basispunkten. Zinsen voll (a), Miete und Leasing
  * beweglicher Wirtschaftsgüter 20 % (d), unbeweglicher 50 % (e), zeitlich befristete Überlassung von Rechten 25 % (f).
- * Die Konten tragen im DATEV-Kontenrahmen das Kennzeichen G.
+ * Die Konten tragen im DATEV-Kontenrahmen das Kennzeichen G. Für Elektrofahrzeuge, begünstigte Hybridelektrofahrzeuge
+ * und Fahrräder gilt nur die Hälfte von 20 % (d Satz 2); ob ein Vertrag dazu gehört, entscheidet, wer auf das Konto bucht.
  */
-export type HinzurechnungArt = "zinsen" | "beweglich" | "unbeweglich" | "rechte";
+export type HinzurechnungArt = "zinsen" | "beweglich" | "elektro" | "unbeweglich" | "rechte";
 const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: BasisPoints, text: string][]> = {
   SKR03: [
     // Mit den Zinsen zur Finanzierung des Anlagevermögens aus dem Darlehen (darlehen.ts)
     ["zinsen", ["2100", "2110", "2120", "2126"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
-    ["beweglich", ["4570", "4575", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    ["beweglich", ["4570", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    ["elektro", ["4575"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
     ["unbeweglich", ["4210", "4211", "4215", "4220"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
     ["rechte", ["4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
   SKR04: [
     ["zinsen", ["7300", "7310", "7320", "7326"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
-    ["beweglich", ["6560", "6565", "6835", "6836", "6838"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    ["beweglich", ["6560", "6835", "6836", "6838"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    ["elektro", ["6565"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
     ["unbeweglich", ["6310", "6315", "6316", "6317"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
     ["rechte", ["6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
 };
+
+/** § 8 Nr. 1 Buchst. d Satz 2 GewStG gilt letztmals für den Erhebungszeitraum 2030 (§ 36 Abs. 4 Satz 3 GewStG) */
+const ELEKTRO_BIS = 2030;
+
+/** Die Gruppen eines Jahres; nach 2030 zählt das Leasing für Elektrofahrzeuge und Fahrräder zum übrigen beweglichen */
+function hinzurechnungGruppen(kontenrahmen: Kontenrahmen, year: number) {
+  const gruppen = HINZURECHNUNG[kontenrahmen];
+  if (year <= ELEKTRO_BIS) return gruppen;
+  const elektro = gruppen.find(([art]) => art === "elektro")?.[1] ?? [];
+  return gruppen
+    .filter(([art]) => art !== "elektro")
+    .map(([art, konten, anteil, text]) => [art, art === "beweglich" ? [...konten, ...elektro] : konten, anteil, text] as const);
+}
 
 /** Die Konten der Hinzurechnung je Kontenrahmen, nach Art; eigene Sachkonten (#270) dürfen sie nicht belegen */
 export const GEWST_HINZURECHNUNG_KONTEN: Record<Kontenrahmen, Record<string, readonly string[]>> = {
@@ -202,7 +218,7 @@ export function kapgSteuern(
   const kst = anteil(zvE, KST_SATZ);
   const soli = anteil(kst, SOLI_SATZ);
 
-  const gewstHinzurechnungen = HINZURECHNUNG[kontenrahmen]
+  const gewstHinzurechnungen = hinzurechnungGruppen(kontenrahmen, year)
     .map(([art, konten, quote, text]) => {
       const brutto = Math.max(0, summe(konten));
       return { art, text, brutto, anteil: quote, betrag: anteil(brutto, quote) };
