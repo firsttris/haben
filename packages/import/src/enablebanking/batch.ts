@@ -82,7 +82,7 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
     else if (!movements.some((other) => other.sourceEventId === m.sourceEventId && sameCore(other, m))) movements.push(m);
   });
   // Das Fenster reicht bis zum frühesten gelieferten Buchungstag zurück; der Stand der Quelle geht dadurch nie zurück
-  const from = movements.reduce((earliest, m) => (m.bookingDate < earliest ? m.bookingDate : earliest), input.dateFrom);
+  const from = [input.dateFrom, ...movements.map((m) => m.bookingDate)].toSorted()[0] ?? input.dateFrom;
   const balance = bookedBalance(input.balances);
   return {
     contractVersion: IMPORT_CONTRACT_VERSION,
