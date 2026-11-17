@@ -28,6 +28,8 @@ spec:
     spec:
       # Sonst setzt Kubernetes Variablen wie HABEN_DB_PORT für jeden Service im Namespace
       enableServiceLinks: false
+      # Haben spricht die Kubernetes-API nicht an
+      automountServiceAccountToken: false
       securityContext:
         # Benutzer bun im Image
         fsGroup: 1000
@@ -45,13 +47,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["sh", "-c", "until pg_isready -q -h {{ include "haben.dbHost" . }} -U haben; do sleep 2; done"]
           securityContext:
-            runAsUser: 999
-            runAsGroup: 999
-            runAsNonRoot: true
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
+            {{- include "haben.securityContext" 999 | nindent 12 }}
       {{- end }}
       containers:
         - name: app
@@ -69,21 +65,16 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "haben.appSecret" . }}
-          # Wie in deploy/compose.yml: Dateisystem schreibgeschützt bis auf die Volumes und /tmp, keine Capabilities
           securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-            runAsNonRoot: true
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
+            {{- include "haben.securityContext" 1000 | nindent 12 }}
           # Vor dem Server laufen die Migrationen und mit ERIC_AUTO_INSTALL=ja der Download von ERiC
           startupProbe:
             httpGet:
               path: /api/health
               port: http
             periodSeconds: 5
+            # /api/health wartet selbst bis zu 2 Sekunden auf die Datenbank (apps/web/src/server/db/health.ts)
+            timeoutSeconds: 5
             failureThreshold: 180
           # /api/health prüft auch die Datenbank; ohne sie nimmt der Pod keine Anfragen an, startet aber nicht neu
           readinessProbe:
@@ -118,15 +109,14 @@ spec:
         - name: backup
           image: {{ include "haben.backupImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with include "haben.backupEnv" . | trim }}
           env:
-            {{- . | nindent 12 }}
-          {{- end }}
+            {{- include "haben.backupEnv" . | trim | nindent 12 }}
           envFrom:
             - secretRef:
                 name: {{ include "haben.backupSecret" . }}
+          # Als Eigentümer der Belege: Sie sind nur für Nutzer und Gruppe 1000 lesbar
           securityContext:
-            allowPrivilegeEscalation: false
+            {{- include "haben.securityContext" 1000 | nindent 12 }}
           {{- with .Values.backup.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -135,15 +125,17 @@ spec:
             - name: belege
               mountPath: /belege
               readOnly: true
-            {{- with include "haben.backupVolumeMounts" . | trim }}
-            {{- . | nindent 12 }}
-            {{- end }}
+            {{- include "haben.backupVolumeMounts" . | trim | nindent 12 }}
         {{- end }}
       volumes:
         # Im Speicher wie tmpfs in Compose: Haben legt hier für jeden Aufruf von ERiC das ELSTER-Zertifikat ab
         - name: tmp
           emptyDir:
             medium: Memory
+            {{- with .Values.app.tmpSizeLimit }}
+            {{- include "haben.text" (list "app.tmpSizeLimit" .) }}
+            sizeLimit: {{ . | quote }}
+            {{- end }}
         - name: belege
           persistentVolumeClaim:
             claimName: {{ include "haben.fullname" . }}-belege
@@ -153,9 +145,7 @@ spec:
         - name: eric-log
           emptyDir: {}
         {{- if .Values.backup.enabled }}
-        {{- with include "haben.backupVolumes" . | trim }}
-        {{- . | nindent 8 }}
-        {{- end }}
+        {{- include "haben.backupVolumes" . | trim | nindent 8 }}
         {{- end }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}

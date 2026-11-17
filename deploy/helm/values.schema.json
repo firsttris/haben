@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Lehnt unbekannte Schlüssel ab, etwa Tippfehler; die Werte selbst prüft das Chart mit eigenen Meldungen. Freie Maps haben additionalProperties: true. global und enabled (condition: haben.enabled) setzt Helm, wenn das Chart Abhängigkeit eines anderen ist. Ein neuer Schlüssel in values.yaml gehört auch hierher (scripts/deploy-vorlagen/helm.test.ts).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "domain": {},
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tag": {},
+        "pullPolicy": {}
+      }
+    },
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": {},
+        "secretEnv": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "existingSecret": {},
+        "env": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "belege": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "size": {},
+                "storageClass": {}
+              }
+            },
+            "eric": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "size": {},
+                "storageClass": {}
+              }
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "tmpSizeLimit": {},
+        "extraVolumeMounts": {
+          "type": "array"
+        }
+      }
+    },
+    "postgresql": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {},
+        "image": {},
+        "tag": {},
+        "password": {},
+        "appPassword": {},
+        "existingSecret": {},
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "size": {},
+            "storageClass": {}
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {},
+        "image": {},
+        "secretEnv": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "existingSecret": {},
+        "env": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {},
+            "size": {},
+            "storageClass": {}
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "restore": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {}
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {},
+        "className": {},
+        "annotations": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "tlsSecret": {}
+      }
+    },
+    "httpRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {},
+        "parentRefs": {
+          "type": "array"
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {},
+        "ingressFrom": {
+          "type": "array"
+        }
+      }
+    },
+    "extraVolumes": {
+      "type": "array"
+    },
+    "nodeSelector": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "tolerations": {
+      "type": "array"
+    },
+    "affinity": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "global": {
+      "type": "object"
+    },
+    "enabled": {}
+  }
+}

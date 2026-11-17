@@ -123,6 +123,10 @@ test("Steuerbehandlung: nur, was die Übernahme annimmt; die Befreiungsvorschrif
   await expect(vorschrift).toHaveCount(0);
   await behandlung.selectOption("steuerfrei");
   await expect(vorschrift).toHaveJSProperty("required", true);
+  // Die Vorschrift steht im Hinweis unter der Auswahl, nicht im Namen
+  await expect(behandlung).toHaveAccessibleDescription(/Steuerbefreiung nach § 4 UStG/);
+  await behandlung.selectOption("ig_lieferung");
+  await expect(behandlung).toHaveAccessibleDescription(/§ 4 Nr\. 1 Buchst\. b, § 6a UStG/);
 });
 
 test("Ein negativer Betrag wird schon im Formular abgefangen", async () => {

@@ -54,7 +54,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{ include "haben.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Values.image.tag | toString | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
+{{- /* Label-Werte: höchstens 63 Zeichen, kein „+“ (Kubernetes, Labels and Selectors); Flux baut das Chart aus Git als
+0.1.0+<Commit>. Wie helm create und Helm Best Practices, Labels */}}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end -}}
 
 {{- define "haben.dbHost" -}}
@@ -94,6 +96,9 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
 {{- fail "backup.env.BACKUP_TIME braucht die Form \"HH:MM\", etwa \"03:15\"" }}
 {{- end }}
 {{- end }}
+{{- /* Für den Cache von restic; Nutzer 1000 hat im Image kein Heimatverzeichnis */}}
+- name: HOME
+  value: /tmp
 {{- if .Values.postgresql.enabled }}
 - name: PGHOST
   value: {{ include "haben.dbHost" . }}
@@ -107,6 +112,10 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
 {{- end -}}
 
 {{- define "haben.backupVolumeMounts" -}}
+- name: backup-tmp
+  mountPath: /tmp
+- name: backup-state
+  mountPath: /var/lib/haben-backup
 {{- if .Values.backup.persistence.enabled }}
 - name: backups
   mountPath: /backups
@@ -114,11 +123,29 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
 {{- end -}}
 
 {{- define "haben.backupVolumes" -}}
+{{- /* Das Dateisystem ist schreibgeschützt: Dump von backup.sh, Cache von restic (HOME) und der Snapshot, den
+restore.sh und restore-check.sh auspacken, auf der Platte des Knotens statt im Speicher */}}
+- name: backup-tmp
+  emptyDir: {}
+- name: backup-state
+  emptyDir: {}
 {{- if .Values.backup.persistence.enabled }}
 - name: backups
   persistentVolumeClaim:
     claimName: {{ include "haben.fullname" . }}-backups
 {{- end }}
+{{- end -}}
+
+{{/* Wie die App in deploy/compose.yml: fester Nutzer, Dateisystem schreibgeschützt bis auf die Volumes, keine
+Capabilities; erfüllt Pod Security „restricted“. Argument: UID und GID */}}
+{{- define "haben.securityContext" -}}
+runAsUser: {{ . }}
+runAsGroup: {{ . }}
+runAsNonRoot: true
+readOnlyRootFilesystem: true
+allowPrivilegeEscalation: false
+capabilities:
+  drop: [ALL]
 {{- end -}}
 
 {{- define "haben.scheduling" -}}

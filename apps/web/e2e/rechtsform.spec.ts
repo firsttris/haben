@@ -39,6 +39,8 @@ test("Einzelunternehmen: was nur ein Einzelunternehmen hat, bleibt sichtbar", as
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("link", { name: "EÜR als CSV" })).toBeVisible();
   await expect(page.getByRole("heading", { name: `Einnahmen-Überschuss-Rechnung ${YEAR}` })).toBeVisible();
+  // Der Gewinn ist nicht netto minus netto: Die Karte sagt, dass die Umsatzsteuer darin steckt (in der GmbH steht dort etwas anderes, gmbh.spec.ts)
+  await expect(page.getByText("Einnahmen minus Ausgaben mit Umsatzsteuer (EÜR)", { exact: true })).toBeVisible();
 
   await page.goto("/dauerbelege/neu");
   await page.waitForLoadState("networkidle");

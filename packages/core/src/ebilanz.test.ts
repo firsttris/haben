@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { depreciationSchedule, type ScheduleAsset } from "./afa.ts";
-import { anlagenspiegelZeile, ebilanzPosition } from "./ebilanz.ts";
+import { anlagenspiegelZeile, EBILANZ_AUFFANG, ebilanzPosition } from "./ebilanz.ts";
+import { GEWST_HINZURECHNUNG_KONTEN } from "./koerperschaft.ts";
 
 const PKW = "bs.ass.fixAss.tan.otherEquipm.passengerCars";
 const GWG = "bs.ass.fixAss.tan.otherEquipm.gwg";
@@ -96,5 +97,52 @@ describe("ebilanzPosition", () => {
     ["SKR04", "4970", 420, "is.netIncome.regular.operatingTC.otherOpRevenue.insuranceRefunds"],
   ] as const)("%s %s Saldo %i → %s", (kontenrahmen, account, saldo, position) => {
     expect(ebilanzPosition(kontenrahmen, account, saldo)).toBe(position);
+  });
+});
+
+/*
+ * Miete, Pacht, Leasing und Zinsen der Gewerbesteuer-Hinzurechnung (#1327): Positionen der Taxonomie 6.9 und 6.10 statt
+ * Auffangposition. Kfz-Leasing ist Leasing beweglicher Wirtschaftsgüter, nicht Fuhrpark (label-guidance-de: Fuhrpark
+ * „ohne Abschreibungen, Zinsen und Leasingkosten“, Leasing beweglich „Inkl. Aufwendungen für Kfz-Leasing“).
+ */
+describe("ebilanzPosition: Miete, Pacht, Leasing und Zinsen", () => {
+  const OC = "is.netIncome.regular.operatingTC.otherCost";
+  const LEASING_BEWEGLICH = `${OC}.leasingAll.moveable.other`;
+  const MIETE_BEWEGLICH = `${OC}.leaseMoveable.other`;
+  const LEASING_UNBEWEGLICH = `${OC}.leasingAll.immovable.other`;
+  const MIETE_UNBEWEGLICH = `${OC}.leaseFix.other`;
+  const ZINSEN = "is.netIncome.regular.fin.netInterest.expenses.regularInterest.other";
+  const RENTEN = "is.netIncome.regular.fin.netInterest.expenses.annuities";
+
+  it.each([
+    ["SKR03", ["4570", "4575", "4810", "4965"], LEASING_BEWEGLICH],
+    ["SKR04", ["6498", "6560", "6565", "6840"], LEASING_BEWEGLICH],
+    ["SKR03", ["4960", "4961", "4963"], MIETE_BEWEGLICH],
+    ["SKR04", ["6835", "6836", "6838"], MIETE_BEWEGLICH],
+    ["SKR03", ["4215"], LEASING_UNBEWEGLICH],
+    ["SKR04", ["6316"], LEASING_UNBEWEGLICH],
+    ["SKR03", ["4211", "4220", "4550"], MIETE_UNBEWEGLICH],
+    ["SKR04", ["6315", "6317", "6550"], MIETE_UNBEWEGLICH],
+    ["SKR03", ["2100", "2109", "2118", "2119", "2125", "2129"], ZINSEN],
+    ["SKR04", ["7300", "7309", "7318", "7319", "7325", "7329"], ZINSEN],
+    ["SKR03", ["2127"], RENTEN],
+    ["SKR04", ["7327"], RENTEN],
+  ] as const)("%s %j → %s", (kontenrahmen, konten, position) => {
+    for (const account of konten) expect(ebilanzPosition(kontenrahmen, account, 100_00), account).toBe(position);
+  });
+
+  // Fremdleistungen für Miete, Pacht und Lizenzen bei den bezogenen Leistungen wie die Kategorie Fremdleistungen (3100/5900)
+  it.each([
+    ["SKR03", ["3100", "3170", "3175", "3180"]],
+    ["SKR04", ["5900", "5970", "5975", "5980"]],
+  ] as const)("%s %j → bezogene Leistungen", (kontenrahmen, konten) => {
+    const position = "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.services.unknownVAT";
+    for (const account of konten) expect(ebilanzPosition(kontenrahmen, account, 100_00), account).toBe(position);
+  });
+
+  it.each(["SKR03", "SKR04"] as const)("%s: kein Konto der Hinzurechnung auf einer Auffangposition", (kontenrahmen) => {
+    const auffang = new Set(Object.values(EBILANZ_AUFFANG));
+    const konten = Object.values(GEWST_HINZURECHNUNG_KONTEN[kontenrahmen]).flat();
+    expect(konten.filter((account) => auffang.has(ebilanzPosition(kontenrahmen, account, 100_00)))).toEqual([]);
   });
 });

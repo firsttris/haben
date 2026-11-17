@@ -1051,6 +1051,69 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.import_batches",
+      "name": "import_batches_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_batches_append_only BEFORE DELETE OR UPDATE ON public.import_batches FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.import_batches",
+      "name": "import_batches_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_batches_audit AFTER INSERT ON public.import_batches FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.import_batches",
+      "name": "import_batches_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_batches_no_truncate BEFORE TRUNCATE ON public.import_batches FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.import_movements",
+      "name": "import_movements_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_movements_append_only BEFORE DELETE OR UPDATE ON public.import_movements FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.import_movements",
+      "name": "import_movements_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_movements_audit AFTER INSERT ON public.import_movements FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.import_movements",
+      "name": "import_movements_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_movements_no_truncate BEFORE TRUNCATE ON public.import_movements FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.import_sources",
+      "name": "import_sources_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_sources_append_only BEFORE DELETE OR UPDATE ON public.import_sources FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.import_sources",
+      "name": "import_sources_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_sources_audit AFTER INSERT ON public.import_sources FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.import_sources",
+      "name": "import_sources_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER import_sources_no_truncate BEFORE TRUNCATE ON public.import_sources FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.inbox_messages",
       "name": "inbox_messages_append_only",
       "enabled": "O",
@@ -1082,7 +1145,7 @@
       "table": "public.inbox_settings",
       "name": "inbox_settings_audit_update",
       "enabled": "O",
-      "definition": "CREATE TRIGGER inbox_settings_audit_update AFTER UPDATE OF host, port, secure, username, ciphertext, folder, enabled ON public.inbox_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "definition": "CREATE TRIGGER inbox_settings_audit_update AFTER UPDATE OF host, port, secure, username, ciphertext, folder, outbound_folder, allowed_senders, enabled ON public.inbox_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
       "function": "public.haben_audit()"
     },
     {

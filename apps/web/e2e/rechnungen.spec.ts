@@ -2353,12 +2353,19 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
   await go("/kontakte");
-  await go(
-    (await page
-      .getByRole("link", { name: /Alpenblick Media AG/ })
-      .first()
-      .getAttribute("href"))!,
-  );
+  const kontaktPfad = (await page
+    .getByRole("link", { name: /Alpenblick Media AG/ })
+    .first()
+    .getAttribute("href"))!;
+  // Ohne Mandat erklärt der Editor das Mandat und verlinkt auf die Stelle beim Kontakt, an der es angelegt wird
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Alpenblick Media AG · München");
+  await page.getByLabel("Zahlungsart").selectOption("lastschrift");
+  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toBeVisible();
+  const mandatLink = page.getByRole("link", { name: "SEPA-Lastschriftmandate (öffnet in neuem Tab)" });
+  await expect(mandatLink).toHaveAttribute("href", `${kontaktPfad}#mandate-heading`);
+  await expect(mandatLink).toHaveAttribute("target", "_blank");
+  await go(kontaktPfad);
   const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
   await karte.getByRole("button", { name: "Mandat anlegen" }).click();
   const mandat = karte.getByRole("form", { name: "Neues Mandat" });
@@ -2379,6 +2386,9 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   const mandatFeld = page.getByRole("combobox", { name: "Mandat", exact: true });
   await expect(mandatFeld).toHaveValue(/.+/);
   await expect(mandatFeld.locator("option:checked")).toHaveText("AB-2026-01 · CORE");
+  // Mit gewähltem Mandat entfällt die Erklärung, der Hinweis zur Ankündigung bleibt
+  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toHaveCount(0);
+  await expect(page.getByText("14 Kalendertage vorher beim Kunden sein")).toBeVisible();
   await expect(page.getByRole("button", { name: "Skontostufe hinzufügen" })).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
   await page.getByLabel("Menge Position 1").fill("1");
@@ -2412,6 +2422,9 @@ test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danac
 
   await go("/lastschriften");
   const form = page.getByRole("form", { name: "SEPA-Lastschrift erzeugen" });
+  // Einleitung in drei Schritten statt Dateiformat und Fachwort
+  await expect(page.getByRole("list").filter({ hasText: "Online-Banking hochladen" }).getByRole("listitem")).toHaveCount(3);
+  await expect(form.getByLabel("Konto, auf das das Geld kommt")).toContainText("Girokonto · DE89 3704 0044 0532 0130 00");
   const zeile = form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ });
   await expect(form).toContainText("AB-2026-01");
   await expect(form).toContainText("CORE · Erstlastschrift");

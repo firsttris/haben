@@ -23,7 +23,7 @@ Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf 
 
 | Gruppe | Gesucht wird in | Der Treffer zeigt |
 | --- | --- | --- |
-| Seiten | Name der Seite und ihrer Gruppe, auch die Bereiche der Einstellungen und [eigene Seiten](eigene-seiten.md), ohne [ausgeblendete Bereiche](einrichtung.md#bereiche-ausblenden) | Gruppe in der Navigation |
+| Seiten | Name der Seite und ihrer Gruppe, auch die Bereiche der Einstellungen (mit Untertext und Fachwörtern wie ERiC, DATEV oder MCP) und [eigene Seiten](eigene-seiten.md), ohne [ausgeblendete Bereiche](einrichtung.md#bereiche-ausblenden) | Gruppe in der Navigation |
 | Kontakte, ohne archivierte | Name, Kunden- und Lieferantennummer, E-Mail, Ort, USt-IdNr., DATEV-Debitor und -Kreditor, Ende der IBAN ab vier Ziffern, Name und E-Mail der Ansprechpartner | Rolle, Kunden- und Lieferantennummer, Ort |
 | Rechnungen | Nummer, Kunde, Bestellnummer, eigene Auftragsnummer, Betrag, Datum | Kunde, Datum, Betrag und Status mit Auskunft, etwa „seit 16 Tagen“ |
 | Angebote | Nummer, Kunde, Betrag, Datum | Kunde, Datum, Betrag und Status |

@@ -138,6 +138,15 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
   await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
 
+  // Der Testabruf des Postfachs liefert einen Bescheid; unter der Tabelle steht, was „Einspruch bis“ heißt
+  await go("/finanzamt");
+  const postfach = page.getByRole("form", { name: "Postfach abrufen" });
+  await postfach.getByLabel("Zertifikats-PIN").fill("123456");
+  await postfach.getByRole("button", { name: "Testweise abrufen" }).click();
+  const bescheide = page.getByRole("region", { name: "Bescheide aus dem ELSTER-Postfach" });
+  await expect(bescheide.getByRole("columnheader", { name: "Einspruch bis" })).toBeVisible();
+  await expect(bescheide.getByText("Bis zum Datum unter „Einspruch bis“ kannst du Einspruch einlegen.")).toBeVisible();
+
   // Ohne ERiC läuft der Abruf simuliert und liefert Beispielbelege
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const vast = page.getByRole("region", { name: `Belege von ELSTER ${YEAR - 1}` });
@@ -469,11 +478,17 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
   await card.getByLabel("Verschlüsselung").selectOption("starttls");
   await card.getByLabel("Benutzername").fill("belege@mustermann.example");
   await card.getByLabel("Passwort").fill("geheim");
-  await card.getByLabel("Ordner").fill("Belege");
+  await card.getByLabel("Ordner für Eingangsrechnungen").fill("Belege");
+  await card.getByLabel("Freigegebene Absender").fill("rechnung@funknetz.example, @lieferant.example");
+  await card.getByLabel("Ordner für Ausgangsrechnungen").fill("Ausgang");
   await card.getByRole("button", { name: "Speichern" }).click();
   await expect(card.getByRole("status")).toHaveText("Postfach gespeichert.");
   await card.getByRole("button", { name: "Jetzt abrufen" }).click();
   await expect(card.getByRole("alert")).toContainText("Abruf fehlgeschlagen");
+  // Freigegebene Absender und Ausgangsordner sind gespeichert
+  await go("/einstellungen?bereich=email");
+  await expect(card.getByLabel("Freigegebene Absender")).toHaveValue("rechnung@funknetz.example\n@lieferant.example");
+  await expect(card.getByLabel("Ordner für Ausgangsrechnungen")).toHaveValue("Ausgang");
 
   await go("/belege");
   await expect(page.getByText(/Belege per E-Mail: Anhänge an belege@mustermann\.example \(Ordner Belege\)/)).toBeVisible();
@@ -596,6 +611,7 @@ test("Fristen und Kalender-Abo", async () => {
   await expect(spaeter.getByRole("button", { name: /^Alle \d+ zeigen$/ })).toHaveCount(0);
   expect(await spaeter.getByRole("row").count()).toBeGreaterThan(7);
   await expect(page.getByText(/Umsatzsteuer-Voranmeldung/).first()).toBeVisible();
+  await expect(page.getByText("Umsatzsteuer melden und zahlen").first()).toBeVisible();
   const abo = page.getByRole("region", { name: "Erinnerungen im Kalender" });
   await abo.getByRole("button", { name: "Kalender-Abo einrichten" }).click();
   const url = await abo.getByLabel(/Abo-Link/).inputValue();
@@ -1852,7 +1868,7 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await page.getByLabel("Straße und Hausnummer").fill("Praterstraße 3");
   await page.getByLabel("PLZ").fill("1020");
   await page.getByLabel("Ort").fill("Wien");
-  await page.getByLabel("Land (ISO-Code)").fill("AT");
+  await page.getByLabel("Land (z. B. DE)").fill("AT");
   await page.getByLabel("USt-IdNr.").fill("ATU12345678");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
@@ -1861,6 +1877,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await kundeWaehlen(page, "Donaublick GmbH · Wien");
   await page.getByLabel("Rechnungsdatum").fill(`${next}-02-10`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
+  // Der Paragraf steht im Hinweis unter der Auswahl, nicht im Namen der Auswahl
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/sonstige Leistungen, § 3 Abs\. 9 UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung Cloud-Architektur");
   await page.getByLabel("Menge Position 1").fill("2");
   await page.getByLabel(/Einzelpreis Position 1/).fill("1.200,50");
@@ -1900,6 +1918,7 @@ test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart 
   await page.getByLabel("Rechnungsdatum").fill(`${next}-05-12`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("ig_lieferung");
   await expect(page.getByText(/Gelangensnachweis \(§ 17a UStDV\)/)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/§ 4 Nr\. 1 Buchst\. b, § 6a UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Industrierechner");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("3.000,00");
@@ -2193,14 +2212,16 @@ test("Anlage: ein Satz über dem Höchstsatz ist ein Fehler am Satz, der Fokus g
   await form.getByLabel("Anschaffungsdatum").fill("2024-04-10");
   await form.getByLabel("Anschaffungskosten netto (€)").fill("50.000,00");
   await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("degressiv");
+  // Bei degressiv gibt es keinen Hinweis unter der Auswahl, also zeigt auch aria-describedby nicht darauf
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true })).not.toHaveAttribute("aria-describedby", /method-hint/);
   await form.getByLabel("Nutzungsdauer in Jahren").fill("10");
-  await form.getByLabel("Satz der degressiven AfA in %").fill("30");
+  await form.getByLabel("Abschreibungssatz in % (degressiv)").fill("30");
   await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
   await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("");
   await form.getByRole("button", { name: "Anlage übernehmen" }).click();
   // Erstes Feld mit Fehler ist der Satz, und er sagt warum; der Restbuchwert darunter trägt seinen eigenen Fehler
-  await expect(form.getByLabel("Satz der degressiven AfA in %")).toBeFocused();
-  await expect(form.getByLabel("Satz der degressiven AfA in %")).toHaveAccessibleDescription(/Höchstens 20 %/);
+  await expect(form.getByLabel("Abschreibungssatz in % (degressiv)")).toBeFocused();
+  await expect(form.getByLabel("Abschreibungssatz in % (degressiv)")).toHaveAccessibleDescription(/Höchstens 20 %/);
   await expect(form.getByLabel("Restbuchwert zum Stichtag (€)")).toHaveAccessibleDescription(/Trag den Restbuchwert ein/);
 });
 
@@ -2250,6 +2271,7 @@ test("Elektrofahrzeug übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswer
   await form.getByLabel("Anschaffungskosten netto (€)").fill("40.000,00");
   await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("elektro");
   await expect(form.getByText("Nur für reine Elektrofahrzeuge, angeschafft vom 01.07.2025 bis 31.12.2027")).toBeVisible();
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true })).toHaveAttribute("aria-describedby", /method-hint/);
   await form.getByLabel("Erinnerungswert 1 € bis zum Abgang stehen lassen").check();
   await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
   // 75 % im Anschaffungsjahr: Restbuchwert 10.000 €

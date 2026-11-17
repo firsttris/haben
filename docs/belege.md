@@ -52,15 +52,21 @@ Ohne E-Rechnung und ohne KI füllst du die Felder von Hand aus.
 
 Unter **Einstellungen › E-Mail › Belege per E-Mail** trägst du ein Postfach ein, aus dem Haben sie selbst abholt:
 
-- **Zugang:** IMAP-Server, Port, Verschlüsselung, Benutzername, Passwort und Ordner. Für Gmail, GMX, web.de, Posteo und mailbox.org sind Server und Port vorbelegt; Gmail, GMX und web.de brauchen ein App-Passwort bzw. freigeschaltetes IMAP. Das Passwort liegt verschlüsselt in der Datenbank.
-- **Was abgeholt wird:** jede ungelesene Mail im Ordner. Ihre Anhänge gehen wie beim Hochladen zu den Belegen. E-Rechnungen werden gelesen, sonst greift die KI-Auslesung, und Dubletten erkennt Haben am Inhalt.
+- **Zugang:** IMAP-Server, Port, Verschlüsselung, Benutzername, Passwort und Ordner für Eingangsrechnungen. Für Gmail, GMX, web.de, Posteo und mailbox.org sind Server und Port vorbelegt; Gmail, GMX und web.de brauchen ein App-Passwort bzw. freigeschaltetes IMAP. Das Passwort liegt verschlüsselt in der Datenbank.
+- **Freigegebene Absender:** optional.
+    - **Einträge:** je eine Adresse (`rechnung@lieferant.example`) oder eine Domain (`lieferant.example`), durch Komma oder Zeilenumbruch getrennt. Groß- und Kleinschreibung zählt nicht, Unterdomains sind nicht mitgemeint. Ist die Liste leer, holt Haben Mails aller Absender.
+    - **Andere Absender:** ihre Mails bleiben **ungelesen im Postfach**. Haben legt nichts ab, liest nur die Absenderadresse (Kopfzeile „From“) und zählt die Mails: Die Zahl steht in den Einstellungen bei „Zuletzt abgerufen“ und in der Meldung von **Jetzt abrufen**. Absender und Betreff speichert Haben nicht, auch nicht im Abrufprotokoll. Die Mails zählen nicht zu den 50 je Lauf. Damit lässt sich auch ein Hauptpostfach anbinden. Gibst du einen Absender nachträglich frei, holt der nächste Abruf seine ungelesenen Mails nach.
+    - **Weiterleitungen:** Es zählt der Absender, der im Postfach ankommt; je nach Anbieter ist das die weiterleitende oder die ursprüngliche Adresse, im Zweifel trägst du beide ein.
+    - **Grenze:** Haben vergleicht nur die Absenderadresse der Mail und prüft nicht, ob sie echt ist (SPF, DKIM). Die Freigabe hält Fremdes fern, schützt aber nicht vor gefälschten Absendern.
+- **Ordner für Ausgangsrechnungen:** optional, für Rechnungen, die ein Fremdsystem (etwa ein Shop) im Bcc an das Postfach schickt oder die du dorthin weiterleitest. Leer: aus. Haben übernimmt sie erst, wenn die [Übernahme fremder Ausgangsrechnungen](https://github.com/firsttris/haben/issues/660) eingebaut ist; bis dahin bleibt der Ordner unberührt. Diese Anhänge werden nie zu Eingangsbelegen. Der Ordner muss ein anderer sein als der für Eingangsrechnungen. Zwei getrennte Adressen richtest du im Postfach mit Alias oder Filterregel ein, die in den jeweiligen Ordner sortiert.
+- **Was abgeholt wird:** jede ungelesene Mail im Ordner (von freigegebenen Absendern). Ihre Anhänge gehen wie beim Hochladen zu den Belegen. E-Rechnungen werden gelesen, sonst greift die KI-Auslesung, und Dubletten erkennt Haben am Inhalt.
 - **Was übersprungen wird:** eingebettete Bilder wie Logos und Signaturen sowie Dateien, die kein Beleg sein können (Word, ZIP …), und Mails über 60 MB (deren Anhänge lädst du einzeln hoch). Der Grund steht im Abrufprotokoll.
 - **Danach** ist die Mail im Postfach als gelesen markiert. Am Beleg steht als Notiz, von wem und mit welchem Betreff er kam.
 - **Wann:** stündlich, solange „Stündlich abrufen“ an ist, oder sofort mit **Jetzt abrufen**. Je Lauf höchstens 50 Mails.
 
-Am besten richtest du eine eigene Adresse oder einen Ordner mit Filterregel ein, etwa `belege@…` oder „Rechnungen“, und leitest Rechnungen dorthin weiter. Im Hauptpostfach würde Haben jede ungelesene Mail anfassen.
+Am besten richtest du eine eigene Adresse oder einen Ordner mit Filterregel ein, etwa `belege@…` oder „Rechnungen“, und leitest Rechnungen dorthin weiter. Im Hauptpostfach würde Haben ohne Absenderfreigabe jede ungelesene Mail anfassen.
 
-Jede abgeholte Mail steht mit ihrer Message-ID im Abrufprotokoll (nur anhängen). Markierst du sie wieder als ungelesen, legt Haben sie kein zweites Mal ab. Ausnahme: Scheitert die Verarbeitung einer Mail, steht der Fehler im Abrufprotokoll und die Mail ist trotzdem als gelesen markiert, damit sie spätere Mails nicht aufhält; setzt du sie wieder auf ungelesen, holt Haben sie nach, mit einem zweiten Eintrag „(nachgeholt)“ neben dem des Fehlschlags. Schlägt der Abruf fehl, etwa wegen eines falschen Passworts, steht der Fehler in den Einstellungen und auf der Belegseite.
+Jede abgeholte Mail steht mit ihrer Message-ID im Abrufprotokoll (nur anhängen). Markierst du sie wieder als ungelesen, legt Haben sie kein zweites Mal ab. Ausnahme: Scheitert die Verarbeitung einer Mail, steht der Fehler im Abrufprotokoll und die Mail ist trotzdem als gelesen markiert, damit sie spätere Mails nicht aufhält; setzt du sie wieder auf ungelesen, holt Haben sie nach, mit einem zweiten Eintrag „(nachgeholt)“ neben dem des Fehlschlags. Scheitert auch dieser Versuch, folgen „(nachgeholt 2)“, „(nachgeholt 3)“ und so weiter. Schlägt der Abruf fehl, etwa wegen eines falschen Passworts, steht der Fehler in den Einstellungen und auf der Belegseite.
 
 ## Belege aus der REST-API
 
@@ -495,6 +501,8 @@ Nicht stornieren lassen sich:
 ## Liste und Status
 
 Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“, darunter ein [eigenes Konto](buchhaltung.md#eigene-konten), wenn der Beleg eines hat), Bruttobetrag und Status. Ungebuchte Belege stehen oben, solange du nicht nach einer Spalte sortierst; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
+
+Über der Liste filtern **Alle**, **Zu prüfen** (alle ungebuchten Belege, auch „Wird ausgelesen“ und „Prüfen“, mit ihrer Zahl) und **Gebucht** (auch stornierte). Der Filter steht als `status` in der Adresse, bleibt bei Sortierung und Suche erhalten und lässt sich verlinken. Die Suche gilt innerhalb des gewählten Filters; findet sie dort nichts, nennt die Meldung den Filter. Ohne Belege nennt die Liste den ersten Schritt: oben ablegen, zum Beispiel eine Stromrechnung, und solange kein Postfach eingerichtet ist, der Knopf **Postfach für Belege einrichten**. Unter „Zu prüfen“ und „Gebucht“ sagt sie, dass nichts mehr zu prüfen ist oder noch nichts gebucht wurde.
 
 Die Spaltenköpfe Datum, Lieferant, Kategorie, Brutto und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Die Sortierung steht als `sort` und `dir` in der Adresse, lässt sich also verlinken und bleibt beim Neuladen erhalten.
 
