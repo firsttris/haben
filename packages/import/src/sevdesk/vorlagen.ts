@@ -82,7 +82,8 @@ export function sevIntervalMonths(value: string | null | undefined): number | nu
 /**
  * Nachfällig oder vorschüssig, abgelesen an den Rechnungen, die per origin.id auf die Vorlage zeigen: Rechnungsdatum
  * gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Ohne erzeugte Rechnung oder wenn sie
- * sich widersprechen, bleibt es unklar. Belegt nur für das Monatsintervall in Buchhaltungsversion 1.0.
+ * sich widersprechen, bleibt es unklar. Belegt für das Monatsintervall in Buchhaltungsversion 1.0 und für vorschüssige
+ * Vorlagen mit Monats-, Quartals- und Jahresintervall in 2.0 (#472).
  */
 export function sevBilling(templateId: string, invoices: Iterable<SevInvoice>): { billing: SevBilling; evidence: number } {
   let after = 0;

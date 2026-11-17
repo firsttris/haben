@@ -26,7 +26,9 @@ export function fastbillTaxType(t: string): string {
 /**
  * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
  * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
- * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt; eine eigene Steuerart (taxType custom) ordnet
+ * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt. Regel 17 „Nicht im Inland steuerbare Leistung“
+ * bucht sevDesk im DATEV-Export auf SKR03 8338 (Drittland) und zählt wie FastBill b2b_noneu_services in Kz 45, Regel 21
+ * „Reverse Charge gem. § 18b UStG“ wie b2b_eu_services in Kz 21 (#472, Daten aus Version 2.0); eine eigene Steuerart (taxType custom) ordnet
  * sevdesk-steuerarten.ts über ihre Kennzahlen zu. FastBill: VAT_CASE.
  */
 export function taxTypeOf(t: string) {
@@ -35,6 +37,7 @@ export function taxTypeOf(t: string) {
       case coalesce(${t}.raw->'taxRule'->>'id', '')
         when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'
         when '4' then 'vatfree' when '11' then 'vatfree'
+        when '17' then 'thirdPartyCountryService' when '21' then 'externalService13b'
         when '' then case coalesce(${t}.raw->>'taxType', 'default')
           when 'default' then 'net' when 'eu' then 'intraCommunitySupply' when 'ss' then 'vatfree'
           else 'sevdesk:' || (${t}.raw->>'taxType') end

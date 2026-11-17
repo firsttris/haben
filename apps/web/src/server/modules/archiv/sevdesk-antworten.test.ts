@@ -18,6 +18,7 @@ import belegeV2 from "../../../../../../packages/import/test-fixtures/sevdesk/bu
 import belegeSteuerregelV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/belege-steuerregel.json";
 import gutschriftV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/gutschrift.json";
 import rechnungenSteuerV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/rechnungen-steuerregel.json";
+import rechnungen1721V2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/rechnungen-steuerregel-17-21.json";
 import stornoFolgejahrV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/storno-paar-folgejahr.json";
 import stornoV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/storno-paar.json";
 import zahlungenV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/zahlungen.json";
@@ -162,6 +163,16 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Antworten je Buchhaltungsversion (Pos
     const counts: Record<string, number> = {};
     for (const { taxTypes } of years) for (const { taxType, count } of taxTypes) counts[taxType] = (counts[taxType] ?? 0) + count;
     expect(counts).toEqual({ net: 3, vatfree: 2, "sevdesk:noteu": 1 });
+  });
+
+  it("liest taxRule 17 und 21 aus Version 2.0 als Steuerart für Kz 45 und Kz 21, 3 wie bisher für Kz 41", async () => {
+    // Nur Köpfe, ohne Positionen. sevDesk bucht Regel 17 im DATEV-Export auf SKR03 8338 (nicht steuerbar, Drittland);
+    // die Kennzahl je Steuerart prüft legacy-vat in packages/core
+    for (const invoice of rechnungen1721V2) await insertInvoice({ invoice, positions: [] });
+    const { years } = await lexoffice.reconciliation();
+    const counts: Record<string, number> = {};
+    for (const { taxTypes } of years) for (const { taxType, count } of taxTypes) counts[taxType] = (counts[taxType] ?? 0) + count;
+    expect(counts).toEqual({ thirdPartyCountryService: 1, externalService13b: 1, intraCommunitySupply: 1 });
   });
 
   it("rechnet Belege mit taxRule 12 und 14 aus Version 2.0 heute als Ausgaben ohne Vorsteuer", async () => {

@@ -7,7 +7,7 @@ nicht belegt; deshalb liegen die Daten je Version getrennt.
 | Ordner | Herkunft |
 | --- | --- |
 | `buchhaltung-1.0/` | Testkonto Buchhaltungsversion 1.0 ([#343](https://github.com/firsttris/haben/issues/343), [#472](https://github.com/firsttris/haben/issues/472)) |
-| `buchhaltung-2.0/` | Berichte aus [#472](https://github.com/firsttris/haben/issues/472), Tarif Buchhaltung, Version 2.0: DATEV-Export, Storno-Paar, zwei Sätze GET-Antworten eines Melders und Belege mit `taxRule` 12, 14 und 9 eines zweiten |
+| `buchhaltung-2.0/` | Berichte aus [#472](https://github.com/firsttris/haben/issues/472) und [#1106](https://github.com/firsttris/haben/issues/1106), Tarif Buchhaltung, Version 2.0: DATEV-Export, Storno-Paar, zwei Sätze GET-Antworten eines Melders, Belege mit `taxRule` 12, 14 und 9 eines zweiten und eine zweite Runde aus dessen Echt- und Testkonto |
 
 ## Dateien
 
@@ -55,6 +55,18 @@ Nur `buchhaltung-2.0/`:
 - `dokumente-mit-rechnungsbezug.json`: drei Antworten von `GET /Document` mit dem Kontakt unter `object` und der Rechnung unter `baseObject`.
 - `extf-buchungsstapel-auszug.csv`, `extf-gp-stamm.csv`, `document-rechnungsausgang.xml`, `document-rechnungseingang.xml`: Auszug aus dem DATEV-Export mit je einer Rechnung, einem Ausgabebeleg, einer Zahlung und einer Gutschrift, zwei Personenkonten und je drei Einträgen in `document.xml`.
 
+Die Dateien der zweiten Runde sind wie die übrigen angeglichen: Belegnummern `XX-1111111121` bis `XX-1111111131`, im Stapel und in den Dateinamen gleich; Datum in Dateinamen fest; USt-IdNr., Belegnummern in JSON und Auftragsnummer `<anon>`.
+
+- `rechnungsvorlage-wkr.json`: sechs von 20 Vorlagen aus `GET /Invoice?invoiceType=WKR` (Echtkonto), je unter `vorlage` mit `positions` und den letzten drei Rechnungen unter `erzeugteRechnungen`, deren `origin` auf die Vorlage zeigt: monatlich, vierteljährlich, zweimal vierteljährlich mit `status` 50, jährlich mit später fertiggestellten Rechnungen (Rechnungsdatum nach Beginn des Zeitraums) und wöchentlich (`P0Y0M1W`) ohne Rechnung. `GET /Invoice` ohne Filter liefert die Vorlagen nicht. Daten um vier Jahre zurückverschoben, Monat und Tag echt. Im Konto waren 242 von 268 erzeugten Rechnungen vorschüssig (Rechnungsdatum gleich Beginn des Zeitraums), keine nachfällig.
+- `beleg-wiederkehrend-rv.json`: alle vier Vorlagen wiederkehrender Belege (`GET /Voucher?voucherType=RV`) mit Positionen (`accountingType`, `accountDatev`), `status` 100 und 50, `creditDebit` C und D, alle `P0Y1M`. In 2.0 liefert `GET /Voucher` sie auch ohne Filter.
+- `mahnungen-stufe-1.json`: drei von zwölf Mahnungen (`invoiceType` MA, `dunningLevel` 1, `status` 1000, `reminderCharge` 0), je mit der gemahnten Rechnung.
+- `gutschrift-underachievement-einzelabruf.json`: Minderleistung mit Listen- und Einzelabruf (`GET /CreditNote/{id}`) und Positionen; im DATEV-Export auf 8720 gegen den Debitor, ohne BU.
+- `rechnungen-steuerregel-17-21.json`: Köpfe je einer Rechnung mit `taxRule` 17 „Nicht im Inland steuerbare Leistung“, 21 „Reverse Charge gem. § 18b UStG“ und 3. Regel 17 bucht sevDesk im DATEV-Export auf 8338 (`extf-buchungsstapel-beleglink.csv`).
+- `tax-set.json`: `GET /TaxSet`, in Echt- und Testkonto dieselben fünf Einträge mit denselben IDs.
+- `gutschrift-royalty-unassigned.json`, `extf-buchungsstapel-royalty-unassigned.csv`, `document-rechnungsausgang-royalty-unassigned.xml`: Honorar ohne Zuordnung, 1 € netto mit 19 % (Testkonto), mit Einzelabruf, Positionen und `GET /AccountingType/{id}` (4909 / 6303, `type` IC). Im Export Soll 4909 an Kreditor, BU 9, Belegbild unter Rechnungsausgang (`type` 2). CSV Windows-1252 mit LF wie geliefert.
+- `auftrag-getpdf.json`: Testangebot als Entwurf, `GET /Order/{id}` vor und nach `GET /Order/{id}/getPdf?preventSendBy=true` (nur Statuscode, Inhaltstyp und Größe); kein Feld ändert sich.
+- `extf-buchungsstapel-beleglink.csv`, `document-rechnungsausgang-beleglink.xml`, `document-rechnungseingang-beleglink.xml`: Auszug aus dem Export „Buchungsdaten + Belegbilder“ (01.01. bis 16.11.2026, Windows-1252 mit LF, 125 Spalten) mit Rechnungen zu `taxRule` 1, 17 und 3, Storno, Minderleistung, Ausgabebelegen mit BU 9 und 490, Einnahmebeleg, Zahlung ohne Beleglink und einem Beleg, dessen Beleglink (GUID `…0009`) in keiner `document.xml` steht: sevDesk 2.0 vergibt den Beleglink auch ohne Belegbild. Die ZIP enthält `EXTF_Buchungsstapel_…csv`, `EXTF_GP_Stamm_…csv` und die beiden ZIP-Dateien `DATEV_Rechnungsausgang_…` (`type` 2) und `DATEV_Rechnungseingang_…` (`type` 1).
+
 ## Was je Version belegt ist
 
 | Frage | 1.0 | 2.0 |
@@ -64,19 +76,20 @@ Nur `buchhaltung-2.0/`:
 | Teilzahlung, Summe gegen den Beleg | ja | nein, Beträge maskiert |
 | Einzelzahlungen, Vorzeichen, geteilter Umsatz | ja | ja, ohne Summen |
 | Aufgehobene Zuordnung | ja | nein |
-| Vorlagen `WKR` und `RV` | ja | nein, im Konto des Melders keine |
+| Vorlagen `WKR` und `RV` | ja | ja, `WKR` nur mit Filter, `RV` auch ohne; vorschüssig, Status 50 und 100 |
 | Beleg ohne `document` | ja | ja |
-| Mahnung (`MA`) | Stufen 1 und 2, von sevDesk als versendet geführt, Zustellung sowie Gebühren und Zinsen nicht belegt | Stufe 1 mit `status` 1000, `reminderDebit` 0 |
+| Mahnung (`MA`) | Stufen 1 und 2, von sevDesk als versendet geführt, Zustellung sowie Gebühren und Zinsen nicht belegt | nur Stufe 1 mit `status` 1000, ohne Gebühr |
 | Antwort von `Document/download` | ja, Hülle ohne Inhalt | Statuscode, Inhaltstyp und dieselben Feldnamen |
 | Anlagen (`/Asset`) | ja, mit Buchungskonto (`embed=accountingType`) | nur Aufbau, Konto als `accountDatev` |
 | Umsatzsteuer-Voranmeldungen (`/VatReport`), nur Aufbau | ja | ja |
 | Datei mit Rechnungsbezug (`Document.baseObject`) | ja, je fertiger Rechnung und Gutschrift ein Eintrag, nur Verweis | ja |
 | Datei eines Belegs nur über `document` | ja | nein |
 | Gutschrift (`CreditNote`), alle Werte von `bookingCategory` | ja, alle fertiggestellt | `UNDERACHIEVEMENT`, `PROVISION`, `ROYALTY_ASSIGNED` und `ROYALTY_UNASSIGNED` (0 €), mit Positionen und DATEV-Export; `ACCOUNTING_TYPE` gibt es in 2.0 nicht |
-| DATEV-Export mit Beleglinks und `document.xml` | ja | ja, Auszug |
-| `taxRule` am Beleg | nein | 1, 4, 9, 10, 11, 12, 14, 15; dazu `taxType` `default` und `noteu` |
+| DATEV-Export mit Beleglinks und `document.xml` | ja, Beleglink nur mit Belegbild | ja, Auszug; Beleglink auch ohne Belegbild |
+| Auftrags-PDF ändert den Auftrag nicht (`getPdf`) | ja | ja, an einem Entwurf |
+| `taxRule` am Beleg | nein | 1, 4, 9, 10, 11, 12, 14, 15, 22; an Rechnungen 1, 3, 11, 17, 21; dazu `taxType` `default` und `noteu` |
 
-Offen für 2.0 ([#472](https://github.com/firsttris/haben/issues/472)): echte Beträge und damit Steueraufteilung und Summen, Teilzahlungen (Status 750), wiederkehrende Rechnungen und Belege, Mahnstufe 2, `taxRule` 17 (in beiden Konten nicht vorhanden). Ob D bei „KFZ-Versicherung“ eine Erstattung ist, lässt sich an den maskierten Beträgen nicht prüfen.
+Offen für 2.0 ([#472](https://github.com/firsttris/haben/issues/472)): echte Beträge und damit Steueraufteilung und Summen, Teilzahlungen (Status 750), nachfällige Vorlagen, Mahnstufe 2 und Mahngebühren, Bedeutung von `taxRule` 15 und 22 an Belegen. Ob D bei „KFZ-Versicherung“ eine Erstattung ist, lässt sich an den maskierten Beträgen nicht prüfen.
 
 `/Asset` hat kein Feld für die bisherige AfA und keins für die Methode, nur Anschaffungsdatum, Kaufpreis, Nutzungsdauer in Jahren und Verkaufsdatum. Im Konto aus 1.0 (29 Anlagen) war `purchasePrice` gleich `sumNet` der Belegposition, also netto; `status` 100 stand nur bei Nutzungsdauer über 0, 500 nur bei 0. `GET /Depreciation` antwortet mit einer leeren Liste, Methoden wie `getDepreciation` gibt es an `Asset` nicht; die OpenAPI nennt `/Asset` nicht. Die Beträge in `asset.json` und `vat-report.json` (auch in `reportingValues`) sind maskiert und tragen keine Summen.
 
