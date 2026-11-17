@@ -28,6 +28,8 @@ export const taxpayerSchema = z
     b: personSchema.optional(),
     veranlagung: z.enum(["einzel", "zusammen"]).optional(),
     verheiratetSeit: isoDate.optional(),
+    /** Keine Einkommensteuer-Vorauszahlungen festgesetzt (#1240) */
+    keineVorauszahlungen: z.boolean().optional(),
   })
   .refine((t) => t.veranlagung !== "zusammen" || t.b, { message: "Für die Zusammenveranlagung fehlen die Angaben zum Ehegatten", path: ["b"] });
 

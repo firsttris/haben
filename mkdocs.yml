@@ -31,6 +31,7 @@ nav:
   - Suchen: suche.md
   - Betrieb:
       - Installation: installation.md
+      - Compose-Generator: compose-generator.md
       - Synology: synology.md
       - TrueNAS SCALE: truenas.md
       - Unraid: unraid.md

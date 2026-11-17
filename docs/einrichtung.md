@@ -209,7 +209,7 @@ Verwendet ein eigenes Layout eine Einstellung der Gestaltung nicht, etwa den Gir
 
 Unter **Einstellungen › Persönliche Angaben** stehen die Angaben zu dir als Person, die ELSTER für manche Vorgänge braucht: Anrede, steuerliche Identifikationsnummer (Steuer-ID), Vor- und Nachname, Geburtsdatum, Religion und ausgeübter Beruf. Bei der Zusammenveranlagung kommen das Heiratsdatum und dieselben Angaben zum Ehegatten dazu.
 
-Gebraucht werden sie für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern) und die Einkommensteuererklärung. Bei GmbH und UG fehlen Veranlagung und Ehegatte; die Angaben zur Person braucht ELSTER dort für Nachrichten, Postfach und Bankverbindung. Haben prüft die Prüfziffer der Steuer-ID. Die Religion bestimmt, ob Kirchensteuer anfällt; Haben nutzt die Religionsschlüssel von ELSTER. Änderungen landen wie die Firmendaten im Audit-Log.
+Gebraucht werden sie für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern) und die Einkommensteuererklärung. Bei GmbH und UG fehlen Veranlagung und Ehegatte; die Angaben zur Person braucht ELSTER dort für Nachrichten, Postfach und Bankverbindung. Haben prüft die Prüfziffer der Steuer-ID. Die Religion bestimmt, ob Kirchensteuer anfällt; Haben nutzt die Religionsschlüssel von ELSTER. Im Einzelunternehmen erscheint darunter, sobald die Angaben stehen, das Kästchen „Keine Einkommensteuer-Vorauszahlungen festgesetzt“: Wer keine zahlt, schaltet damit die Quartalshinweise im [Fristenkalender](fristen.md) ab. Änderungen landen wie die Firmendaten im Audit-Log.
 
 ## Rechtsform: Einzelunternehmen, GmbH oder UG
 
@@ -477,7 +477,15 @@ Es gilt immer genau ein Dienst: Ist `EXTRACTION_BASE_URL` gesetzt, gehen Belege 
 Läuft Haben mit Docker Compose und Ollama auf demselben Server:
 
 1. Ollama installieren, so einstellen, dass es für Container erreichbar ist (`OLLAMA_HOST=0.0.0.0:11434`, Port per Firewall nur für den Server freigeben), und ein Vision-Modell laden: `ollama pull qwen2.5vl:7b`.
-2. In `compose.yml` beim Dienst `app` die Zeilen `extra_hosts` mit `host.docker.internal:host-gateway` einkommentieren. Unter Linux kennt der Container `host.docker.internal` sonst nicht; Docker Desktop braucht das nicht.
+2. Unter Linux kennt der Container `host.docker.internal` nur mit `extra_hosts`; Docker Desktop braucht das nicht. Die Zeilen gehören in [`compose.override.yml`](installation.md#docker-compose); der [Compose-Generator](compose-generator.md) erzeugt sie mit „Lokales Modell auf dem Server“. Gibt es die Datei schon, kommen sie unter den vorhandenen Dienst `app`:
+
+    ```yaml
+    services:
+      app:
+        extra_hosts:
+          - host.docker.internal:host-gateway
+    ```
+
 3. In `.env` eintragen:
 
     ```sh

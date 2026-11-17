@@ -630,6 +630,45 @@ test("Fristen und Kalender-Abo", async () => {
   expect((await page.request.get(zweiterLink)).status()).toBe(404);
 });
 
+test("Keine Einkommensteuer-Vorauszahlungen: das Kästchen nimmt nur deren Hinweise aus den Fristen (#1240)", async () => {
+  /** Alle Fristen aufklappen und die Titel der Einkommensteuer-Vorauszahlungen und Voranmeldungen zählen */
+  const zaehlen = async () => {
+    await go("/fristen");
+    for (const knopf of await page.getByRole("button", { name: /^Alle \d+ zeigen$/ }).all()) await knopf.click();
+    await expect(page.getByRole("button", { name: /^Alle \d+ zeigen$/ })).toHaveCount(0);
+    return {
+      vorauszahlungen: await page.getByRole("link", { name: /^Einkommensteuer-Vorauszahlung \d\/\d{4}$/ }).count(),
+      voranmeldungen: await page.getByRole("link", { name: /^Umsatzsteuer-Voranmeldung/ }).count(),
+    };
+  };
+  const vorher = await zaehlen();
+  expect(vorher.vorauszahlungen).toBeGreaterThan(0);
+  expect(vorher.voranmeldungen).toBeGreaterThan(0);
+
+  // Zusammenveranlagung aus „Steuerdaten hinterlegen“: ein Kästchen für beide, der Ehegatte bleibt
+  await go("/einstellungen?bereich=persoenlich");
+  const taxpayer = page.getByRole("form", { name: "Persönliche Angaben" });
+  const kaestchen = taxpayer.getByRole("checkbox", { name: "Keine Einkommensteuer-Vorauszahlungen festgesetzt" });
+  await expect(kaestchen).not.toBeChecked();
+  await expect(kaestchen).toHaveAccessibleDescription(/nur eine Erinnerung/);
+  await kaestchen.check();
+  await taxpayer.getByRole("button", { name: "Speichern" }).click();
+  await expect(taxpayer.getByRole("status")).toBeVisible();
+
+  await go("/einstellungen?bereich=persoenlich");
+  await expect(kaestchen).toBeChecked();
+  await expect(taxpayer.getByLabel("Art")).toHaveValue("zusammen");
+  await expect(taxpayer.getByRole("group", { name: "Ehegatte (Person B)" }).getByLabel("Vorname")).toHaveValue("Erika");
+  expect(await zaehlen()).toEqual({ vorauszahlungen: 0, voranmeldungen: vorher.voranmeldungen });
+
+  // Abgewählt sind die Hinweise wieder da, für die folgenden Tests wie vorher
+  await go("/einstellungen?bereich=persoenlich");
+  await kaestchen.uncheck();
+  await taxpayer.getByRole("button", { name: "Speichern" }).click();
+  await expect(taxpayer.getByRole("status")).toBeVisible();
+  expect(await zaehlen()).toEqual(vorher);
+});
+
 test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await go("/pauschalen");
   await expect(page.getByRole("heading", { name: /^Pauschalen \d{4}$/, level: 1 })).toBeVisible();
@@ -1197,13 +1236,14 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   await context.close();
 });
 
-test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059)", async () => {
+test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059, #1100)", async () => {
   await go("/dauerbelege/neu");
   // Ohne ausgewiesene Steuer ist der Betrag zugleich das Brutto; ein eigenes Feld gibt es dann nicht
   await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveCount(0);
+  // Ein neuer Dauerbeleg beginnt mit 0 %; der Haken setzt den Satz auf 19 % (#1100)
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("0");
   await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
-  // Ein neuer Dauerbeleg beginnt mit 0 %
-  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("1900");
   await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
   await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("100,00");
   await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
@@ -1236,6 +1276,19 @@ test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne aus
   await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
   await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
   await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("45,00");
+  // Ohne Haken 100,00 € zu 0 %, dann Haken: 19 % und die Steuer aus dem Netto (#1100)
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("0");
+  await page.getByLabel("Netto 1", { exact: true }).fill("100,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("1900");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("119,00");
+  // 0 % bleibt mit Haken wählbar; Haken aus ändert den Satz nicht
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("0");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("0,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("0");
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {

@@ -65,7 +65,7 @@ Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub 
 
 ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf. Haben lädt es auf deinen Wunsch direkt von der Finanzverwaltung in das Volume `eric` (siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden)), oder du mountest es selbst. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
 
-Selbst bauen geht auch, zum Beispiel für einen eigenen Stand. Dafür brauchst du das Repository; danach in `compose.yml` `image: haben` bzw. in `haben-app.container` `Image=localhost/haben:latest` eintragen:
+Selbst bauen geht auch, zum Beispiel für einen eigenen Stand. Dafür brauchst du das Repository; danach in `compose.override.yml` beim Dienst `app` `image: haben` bzw. in `haben-app.container` `Image=localhost/haben:latest` eintragen:
 
 ```sh
 git clone https://github.com/firsttris/haben.git && cd haben
@@ -85,6 +85,9 @@ Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den en
 `compose.yml` und `haben-app.container` starten die App gehärtet: Das Dateisystem des Containers ist schreibgeschützt, beschreibbar sind nur die Volumes unter `/var/lib/haben` und `/tmp` (tmpfs, beim Neustart leer). Dazu kommen keine Capabilities (`cap_drop: [ALL]` bzw. `DropCapability=ALL`) und `no-new-privileges`. Haben braucht nichts davon; ein Angreifer, der über eine Lücke Code im Container ausführt, kann so weder Programme im Image verändern noch sich höhere Rechte verschaffen. Schreibt etwas Eigenes außerhalb dieser Verzeichnisse, hängst du dafür ein Volume ein, statt den Schreibschutz abzuschalten.
 
 ## Docker Compose
+
+> [!TIP]
+> Der [Compose-Generator](compose-generator.md) erzeugt dir `.env` mit frischen Schlüsseln, bei Bedarf `compose.override.yml` und die Befehle unten im Browser.
 
 ```sh
 mkdir haben && cd haben
@@ -124,6 +127,8 @@ Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern 
 Der Dienst `backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
 
 **Updates:** `docker compose exec backup backup.sh && docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
+
+**Abweichungen** von `compose.yml`, etwa ein eigener Proxy, zusätzliche Mounts, `extra_hosts` oder eine feste Version, gehören in eine `compose.override.yml` daneben: Compose liest sie automatisch mit, und `compose.yml` lässt sich bei Updates neu herunterladen. Gibt es die Datei schon, kommen neue Einträge unter die vorhandenen Dienste; Beispiele stehen in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml).
 
 ## Podman Quadlets
 
@@ -224,7 +229,7 @@ Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-Fo
 
 ### Compose
 
-Neben `compose.yml` eine `compose.override.yml` ablegen; Compose liest sie automatisch mit, `compose.yml` bleibt unverändert und lässt sich bei Updates neu herunterladen:
+Neben `compose.yml` eine `compose.override.yml` ablegen ([Abweichungen](#docker-compose)):
 
 ```sh
 curl -o compose.override.yml https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.override.example.yml

@@ -117,7 +117,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | --- | --- |
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
-| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) |
+| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) und den [Compose-Generator](compose-generator.md) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bunx knip@5.88.1 --include files,dependencies,unlisted` | Unbenutzte Dateien und Abhängigkeiten (Einstiegspunkte in `knip.jsonc`); nicht in der CI, vor dem Löschen mit `git grep` gegenprüfen |
@@ -163,7 +163,7 @@ Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>
 Ältere Versionen ließen ihre Temp-Ordner direkt in `$TMPDIR` liegen. Einmalig löschen, wenn gerade kein Testlauf läuft, auch keiner in einem anderen Worktree:
 
 ```sh
-find "${TMPDIR:-/tmp}" -maxdepth 1 -type d \( -name 'haben-belege-*' -o -name 'haben-migration*' -o -name 'haben-mandate-*' -o -name 'haben-trigger-*' -o -name 'haben-firmendaten-migration-*' -o -name 'eric-test-*' -o -name 'eric-review-*' \) -exec rm -rf {} +
+find "${TMPDIR:-${TMP:-${TEMP:-/tmp}}}" -mindepth 1 -maxdepth 1 -type d \( -name 'haben-belege-*' -o -name 'haben-migration*' -o -name 'haben-mandate-*' -o -name 'haben-trigger-*' -o -name 'haben-firmendaten-migration-*' -o -name 'eric-test-*' -o -name 'eric-review-*' \) -exec rm -rf {} +
 ```
 
 Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:

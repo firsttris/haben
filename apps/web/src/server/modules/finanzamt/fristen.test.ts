@@ -46,7 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   beforeEach(async () => {
     sent.length = 0;
     await leeren(sql)`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, elster_certificates, mail_log,
-      mail_settings, company cascade`;
+      mail_settings, vat_frequencies, vat_extensions, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland) values (1, 'Testfirma', 'Musterstraße 1', '77815', 'Bühl', '35/123/45678', 'BW')`;
     await taxpayer.saveTaxpayer(actor, {
       a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },
@@ -78,6 +78,62 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     });
     expect(list.map((f) => f.datum)).toEqual([...list.map((f) => f.datum)].sort());
     // Kleinunternehmer: je Monat bzw. Jahr der Stand laut Änderungsprotokoll, siehe vorjahr.test.ts
+  });
+
+  it("lässt die Vorauszahlungshinweise weg, wenn keine festgesetzt sind (#1240)", async () => {
+    // Monatliche Abgabe mit Dauerfristverlängerung und angemeldeter Sondervorauszahlung, damit die Liste auch einen
+    // Sondervorauszahlungstermin enthält und der Test zeigen kann, dass der Haken ihn stehen lässt
+    await sql`insert into vat_frequencies (year, from_month, frequency) values (2025, 1, 'monatlich')
+      on conflict (year, from_month) do update set frequency = 'monatlich'`;
+    await sql`insert into vat_extensions (year, active, sondervorauszahlung) values (2025, true, 10000)
+      on conflict (year) do update set active = true, sondervorauszahlung = 10000`;
+
+    // Ausgangslage: alles außer den Vorauszahlungen, damit der Test auch Umsatzsteuer und Sondervorauszahlung abdeckt
+    const vorher = await fristen.listFristen("2026-10-03");
+    expect(vorher.some((f) => f.id.startsWith("svz-"))).toBe(true);
+    const andereArten = vorher
+      .filter((f) => f.art !== "vorauszahlung")
+      .map((f) => f.id)
+      .sort();
+    expect(vorher.some((f) => f.art === "vorauszahlung")).toBe(true);
+
+    await taxpayer.saveTaxpayer(actor, {
+      a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },
+      keineVorauszahlungen: true,
+    });
+    // Der Wert kommt aus dem Formular und wird wieder gelesen
+    expect((await taxpayer.loadTaxpayer()).keineVorauszahlungen).toBe(true);
+    const list = await fristen.listFristen("2026-10-03");
+    expect(list.filter((f) => f.art === "vorauszahlung")).toEqual([]);
+    // Nur die Vorauszahlungen fallen weg: Umsatzsteuer-Voranmeldungen, Sondervorauszahlung und Erklärungen bleiben
+    expect(
+      list
+        .filter((f) => f.art !== "vorauszahlung")
+        .map((f) => f.id)
+        .sort(),
+    ).toEqual(andereArten);
+    // Die Erklärung bleibt, nur die Zahlungshinweise fallen weg
+    expect(list.some((f) => f.id === "est-2026")).toBe(true);
+    // Und der Kalenderexport enthält keinen Vorauszahlungstermin
+    // "Sondervorauszahlung" enthält das Wort auch; gemeint ist der Einkommensteuer-Hinweis
+    expect(fristen.fristenToIcs(list, "https://haben.example")).not.toContain("Einkommensteuer-Vorauszahlung");
+
+    // Die Zeilen gehören nur diesem Fall; die übrigen Tests rechnen ohne Dauerfristverlängerung
+    await sql`delete from vat_extensions where year = 2025`;
+    await sql`delete from vat_frequencies where year = 2025`;
+  });
+
+  it("speichert den Haken und lässt ihn beim Abwählen weg (#1240)", async () => {
+    const person = { idnr: "65929970489", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" };
+    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: true });
+    expect((await taxpayer.loadTaxpayer()).keineVorauszahlungen).toBe(true);
+
+    // Abgewählt: der Schlüssel verschwindet, die übrigen Angaben bleiben
+    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: undefined });
+    const danach = await taxpayer.loadTaxpayer();
+    expect(danach).not.toHaveProperty("keineVorauszahlungen");
+    expect(danach.a?.vorname).toBe("Max");
+    expect(danach.veranlagung).toBe("einzel");
   });
 
   it("GmbH: Voranmeldungen, Umsatz-, Körperschaft- und Gewerbesteuererklärung und E-Bilanz, keine EÜR, Einkommensteuer oder Vorauszahlungen dafür", async () => {
