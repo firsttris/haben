@@ -121,7 +121,7 @@ Was dafür fehlt, steht in der [Roadmap](roadmap.md#nicht-machbar-ohne-zertifizi
 
 ## Körperschaft- und Gewerbesteuer (GmbH und UG)
 
-Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer des Jahres aus dem Jahresergebnis (`packages/core/src/koerperschaft.ts`) und bucht die Rückstellungen dafür. Dazu braucht es je Jahr drei Angaben: den **Hebesatz** der Gemeinde und die **Verlustvorträge** zum 31.12. des Vorjahres für Körperschaftsteuer und Gewerbesteuer, wie sie im Bescheid stehen. Ohne gespeicherte Angaben schlägt Haben die des Vorjahres vor, mit den Vorträgen nach seiner eigenen Rechnung; speichert sie erst, wenn sie zum Bescheid passen.
+Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer des Jahres aus dem Jahresergebnis (`packages/core/src/koerperschaft.ts`) und bucht die Rückstellungen dafür. Dazu braucht es je Jahr drei Angaben: den **Hebesatz** der Gemeinde und die **Verlustvorträge** zum 31.12. des Vorjahres für Körperschaftsteuer und Gewerbesteuer, wie sie im Bescheid stehen. Der Hebesatz beträgt bis 2026 mindestens 200 %, ab 2027 mindestens 280 % (§ 16 Abs. 4 Satz 2, § 36 Abs. 5b GewStG). Ohne gespeicherte Angaben schlägt Haben die des Vorjahres vor, den Hebesatz nicht unter diesem Mindesthebesatz, mit den Vorträgen nach seiner eigenen Rechnung; speichert sie erst, wenn sie zum Bescheid passen.
 
 | Schritt | Was Haben rechnet |
 | --- | --- |

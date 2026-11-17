@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { postenOf } from "./hgb.ts";
-import { KAPG_STEUER_KONTEN, kapgSteuern } from "./koerperschaft.ts";
+import { KAPG_STEUER_KONTEN, kapgSteuern, mindestHebesatz } from "./koerperschaft.ts";
 
 const ohneVortrag = { hebesatz: 400, verlustvortragKst: 0, verlustvortragGewst: 0 };
 
@@ -70,6 +70,15 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     expect(s.verlustabzugKst).toBe(kst);
     expect(s.verlustabzugGewst).toBe(gewst);
     expect(s.verlustvortragKst).toBe(500_000_000 - kst);
+  });
+
+  it.each([
+    // § 16 Abs. 4 Satz 2 GewStG, 280 % erstmals für den Erhebungszeitraum 2027 (§ 36 Abs. 5b GewStG)
+    [2026, 200],
+    [2027, 280],
+    [2028, 280],
+  ])("Mindesthebesatz %i: %i", (year, prozent) => {
+    expect(mindestHebesatz(year)).toBe(prozent);
   });
 
   it("Verlust: keine Steuer, Vortrag wächst; Erstattung der Vorauszahlungen als negative Rückstellung", () => {
