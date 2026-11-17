@@ -134,6 +134,23 @@ describe.skipIf(!testDatabaseUrl)("Bestätigung „ohne Datei“ zurücknehmen",
     expect(detail.fileState.status).toBe("ohne_datei_bestaetigt");
   });
 
+  it("lässt nach der Rücknahme erneut bestätigen", async () => {
+    const voucher = await beleg("voucher/ID_907", "voucher");
+    await stand(voucher, "ohne_datei");
+    await dateistand.confirmWithoutFile("test-user", voucher, "erste Prüfung");
+    await dateistand.revokeFileConfirmation("test-user", voucher, "falsche Zeile erwischt");
+    // Der Knopf ist wieder da, und er tut auch wieder, was er verspricht
+    expect((await lexoffice.legacyVoucherDetail(voucher))!.fileState.canConfirmWithoutFile).toBe(true);
+    await dateistand.confirmWithoutFile("test-user", voucher, "zweite Prüfung");
+    expect((await verlauf(voucher)).map((z) => z.state)).toEqual([
+      "ohne_datei",
+      "bestaetigt_ohne_datei",
+      "bestaetigung_zurueckgenommen",
+      "bestaetigt_ohne_datei",
+    ]);
+    expect((await lexoffice.legacyVoucherDetail(voucher))!.fileState.status).toBe("ohne_datei_bestaetigt");
+  });
+
   it("weist einen nie bestätigten Beleg ab", async () => {
     const voucher = await beleg("voucher/ID_903", "voucher");
     await stand(voucher, "ohne_datei");

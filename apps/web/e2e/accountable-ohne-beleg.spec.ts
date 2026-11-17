@@ -147,7 +147,8 @@ test("Buchung ohne Beleg-GUID lässt sich in der Belegansicht bestätigen", asyn
   await expect(karte.getByRole("button", { name: "Buchung ohne Beleg bestätigen" })).toHaveCount(1);
   await expect(karte).toContainText("Falsche Zeile geprüft");
 
-  // Drei Zeilen: Bestätigung und Rücknahme bleiben mit Person und Zeitpunkt stehen, gelöscht wird nichts
+  // Zwei Zeilen (der Stapel legt vor der Bestätigung keine an): Bestätigung und Rücknahme bleiben mit Person stehen,
+  // gelöscht wird nichts
   const verlauf = await db
     .select({ state: schema.legacyFileStates.state, message: schema.legacyFileStates.message, createdBy: schema.legacyFileStates.createdBy })
     .from(schema.legacyFileStates)
@@ -155,6 +156,12 @@ test("Buchung ohne Beleg-GUID lässt sich in der Belegansicht bestätigen", asyn
     .orderBy(schema.legacyFileStates.createdAt, schema.legacyFileStates.id);
   expect(verlauf.map((z) => z.state)).toEqual(["bestaetigt_ohne_datei", "bestaetigung_zurueckgenommen"]);
   expect(verlauf.at(-1)?.message).toBe("Bestätigung zurückgenommen: Falsche Zeile geprüft");
+
+  // Zurückgenommene Bestätigung heißt nicht gesperrt: Der Knopf bestätigt wieder, und der Beleg ist wieder bestätigt
+  await karte.getByLabel("Was du geprüft hast").fill("Zweite Prüfung, kein Einzelbeleg");
+  await karte.getByRole("button", { name: "Buchung ohne Beleg bestätigen" }).click();
+  await page.getByRole("dialog", { name: "Beleg ohne Datei bestätigen?" }).getByRole("button", { name: "Ohne Datei bestätigen" }).click();
+  await expect(karte).toContainText("ohne Datei, bestätigt");
 });
 
 test("Buchung mit Beleg-GUID bleibt ohne Bestätigung", async () => {

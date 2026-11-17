@@ -107,6 +107,16 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Beleg ohne Datei bestätigen", ()
     expect((await lexoffice.legacyVoucherDetail(mitGuid))!.fileState.ohneBelegGrund).toBe("datei_fehlt_im_export");
   });
 
+  it("lässt im Stapel nach der Rücknahme erneut bestätigen (#1317)", async () => {
+    // Im Stapel schreibt nur die Bestätigung Stände; ohne die Rücknahme als offenen Stand bliebe der Knopf wirkungslos
+    const voucher = await beleg("accountable/row/918", "purchaseinvoice", true);
+    await dateistand.confirmWithoutFile("test-user", voucher, "erste Prüfung");
+    await dateistand.revokeFileConfirmation("test-user", voucher, "falsche Zeile erwischt");
+    expect((await lexoffice.legacyVoucherDetail(voucher))!.fileState.canConfirmWithoutFile).toBe(true);
+    await dateistand.confirmWithoutFile("test-user", voucher, "zweite Prüfung");
+    expect((await lexoffice.legacyVoucherDetail(voucher))!.fileState.status).toBe("ohne_datei_bestaetigt");
+  });
+
   it("lässt eine Ausgangsrechnung nicht ohne Datei bestätigen", async () => {
     const voucher = await beleg("accountable/row/912", "salesinvoice", false);
     await expect(dateistand.confirmWithoutFile("test-user", voucher, "")).rejects.toThrow("Original-PDF");

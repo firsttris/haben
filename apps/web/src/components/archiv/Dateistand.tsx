@@ -185,7 +185,7 @@ function RevokeConfirmation({ voucherId, facts }: { voucherId: string; facts: Co
           {(control) => <input {...control} value={reason} maxLength={500} required onChange={(e) => setReason(e.target.value)} />}
         </Field>
         <div className="actions">
-          <button type="submit" className="btn" disabled={action.busy || reason.trim() === ""}>
+          <button type="submit" className="btn btn-danger" disabled={action.busy || reason.trim() === ""}>
             Bestätigung zurücknehmen
           </button>
         </div>
@@ -195,6 +195,7 @@ function RevokeConfirmation({ voucherId, facts }: { voucherId: string; facts: Co
         open={open}
         title="Bestätigung zurücknehmen?"
         confirmLabel="Zurücknehmen"
+        danger
         facts={facts}
         onConfirm={() => void onConfirm()}
         onClose={() => setOpen(false)}

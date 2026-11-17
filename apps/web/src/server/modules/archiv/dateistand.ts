@@ -122,6 +122,8 @@ export function takeoverFileIssue(state: LegacyFileState | null): string | null 
   if (state === "abruf_fehlgeschlagen") return "Datei erwartet, Abruf aus sevDesk fehlgeschlagen – „Erneut abrufen“ versucht es noch einmal";
   if (state === "ohne_datei") return "laut sevDesk ohne Datei – in sevDesk prüfen, dann in der Belegansicht bestätigen und in Haben von Hand erfassen";
   if (state === "bestaetigt_ohne_datei") return "ohne Datei (bestätigt) – in Haben von Hand erfassen";
+  // Nach einer Rücknahme gilt wieder der offene Stand, sonst fiele der Hinweis still weg (#1317)
+  if (state === "bestaetigung_zurueckgenommen") return "ohne Datei, Bestätigung zurückgenommen – prüfen, dann erneut bestätigen und in Haben von Hand erfassen";
   return null;
 }
 
@@ -184,8 +186,12 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
       .limit(1);
     if (Number(files) > 0) throw new FileStateError("Der Beleg hat eine Datei.");
     if (latest?.state === "bestaetigt_ohne_datei") throw new FileStateError("Schon bestätigt.");
-    // Aus dem Accountable-Stapel kommt kein Abruf, dort gibt es keinen Stand: das Merkmal ohneBeleg genügt
-    const standOffen = latest?.state === "ohne_datei" || (latest?.state == null && voucher.source === "accountable" && voucher.ohneBeleg);
+    // Aus dem Accountable-Stapel kommt kein Abruf, dort gibt es keinen Stand: das Merkmal ohneBeleg genügt.
+    // Nach einer Rücknahme ist der Beleg wieder offen; ohne diesen Fall wäre der Knopf da, der Klick aber abgewiesen (#1317)
+    const standOffen =
+      latest?.state === "ohne_datei" ||
+      latest?.state === "bestaetigung_zurueckgenommen" ||
+      (latest?.state == null && voucher.source === "accountable" && voucher.ohneBeleg);
     if (!standOffen)
       throw new FileStateError(
         latest?.state === "abruf_fehlgeschlagen"
