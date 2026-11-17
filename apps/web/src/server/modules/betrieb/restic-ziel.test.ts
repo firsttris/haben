@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ohneZugangsdaten } from "./texte.ts";
+import { isLocalRepository, ohneZugangsdaten } from "./restic-ziel.ts";
 
 /** Formen von RESTIC_REPOSITORY nach der restic-Doku (Abschnitt „Preparing a new repository“) und den Verbindungszeichenketten von rclone */
 describe("ohneZugangsdaten", () => {
@@ -23,5 +23,27 @@ describe("ohneZugangsdaten", () => {
   it("lässt Ziele ohne Zugangsdaten und gewöhnliche Meldungen unverändert", () => {
     for (const text of ["s3:s3.example.com/haben-backup", "rclone:fern:haben", "/repo", "b2:bucket:pfad", "Kette und Siegel geprüft, Mail an max@example.com"])
       expect(ohneZugangsdaten(text)).toBe(text);
+  });
+});
+
+describe("isLocalRepository", () => {
+  it("Pfad ohne Backend und local: sind ein Verzeichnis im Backup-Container", () => {
+    for (const repository of ["/backups", "local:/srv/restic/haben", "LOCAL:/backups", "../restic", "backups", "C:/restic"])
+      expect(isLocalRepository(repository), repository).toBe(true);
+  });
+
+  it("Backends von restic liegen woanders", () => {
+    for (const repository of [
+      "sftp:backup.example:/srv/restic",
+      "sftp://backup.example:2222//srv/restic",
+      "s3:https://fsn1.your-objectstorage.com/bucket/haben",
+      "rest:https://backup.example/haben",
+      "b2:bucket:pfad",
+      "azure:container:/haben",
+      "gs:bucket:/haben",
+      "swift:container:/haben",
+      "rclone:fern:haben",
+    ])
+      expect(isLocalRepository(repository), repository).toBe(false);
   });
 });

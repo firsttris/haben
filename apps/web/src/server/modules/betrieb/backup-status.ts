@@ -1,5 +1,6 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
+import { isLocalRepository, ohneZugangsdaten } from "./restic-ziel.ts";
 
 /**
  * Stand des Backups aus der Tabelle backup_status, die der Backup-Container (deploy/backup) nach jedem Lauf
@@ -16,6 +17,13 @@ export interface BackupRun {
   message: string;
 }
 
+export interface BackupTarget {
+  /** RESTIC_REPOSITORY ohne Zugangsdaten; der Backup-Container lässt sie schon weg, die App filtert noch einmal */
+  repository: string;
+  /** Verzeichnis im Backup-Container (Standard: /backups im Volume), sonst ein entferntes Ziel wie sftp:, s3: oder rest: */
+  local: boolean;
+}
+
 export interface BackupOverview {
   /** keins: noch nie ein Lauf; fehler: der letzte Backup- oder Testlauf schlug fehl; veraltet: kein Backup seit zwei Tagen */
   state: "keins" | "ok" | "veraltet" | "fehler";
@@ -25,12 +33,22 @@ export interface BackupOverview {
   lastCheck: BackupRun | null;
   /** Der letzte Lauf je Art, wenn er fehlschlug */
   failed: { kind: BackupKind; run: BackupRun }[];
+  /** Ziel des letzten Laufs, der eins eingetragen hat; null ohne Lauf oder mit einem Backup-Image älter als die Spalte target */
+  target: BackupTarget | null;
 }
 
 /** Ohne Backup seit zwei Tagen gilt der Stand als veraltet: Ein Backup am Tag, ein ausgefallener Lauf ist noch kein Grund */
 export const BACKUP_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
 
 const KINDS: BackupKind[] = ["backup", "restore_check"];
+
+async function latestTarget(): Promise<BackupTarget | null> {
+  const t = schema.backupStatus;
+  const [row] = await db.select({ target: t.target }).from(t).where(isNotNull(t.target)).orderBy(desc(t.at), desc(t.id)).limit(1);
+  if (!row?.target) return null;
+  const repository = ohneZugangsdaten(row.target);
+  return { repository, local: isLocalRepository(repository) };
+}
 
 async function latest(kind: BackupKind, ok?: boolean): Promise<BackupRun | null> {
   const t = schema.backupStatus;
@@ -44,7 +62,12 @@ async function latest(kind: BackupKind, ok?: boolean): Promise<BackupRun | null>
 }
 
 export async function backupOverview(now = new Date()): Promise<BackupOverview> {
-  const [lastBackup, lastCheck, ...lastRuns] = await Promise.all([latest("backup", true), latest("restore_check", true), ...KINDS.map((kind) => latest(kind))]);
+  const [target, lastBackup, lastCheck, ...lastRuns] = await Promise.all([
+    latestTarget(),
+    latest("backup", true),
+    latest("restore_check", true),
+    ...KINDS.map((kind) => latest(kind)),
+  ]);
   const failed = KINDS.flatMap((kind, i) => {
     const run = lastRuns[i];
     return run && !run.ok ? [{ kind, run }] : [];
@@ -52,5 +75,5 @@ export async function backupOverview(now = new Date()): Promise<BackupOverview> 
   const none = lastRuns.every((r) => !r);
   const overdue = !none && (!lastBackup || now.getTime() - lastBackup.at.getTime() > BACKUP_MAX_AGE_MS);
   const state: BackupOverview["state"] = none ? "keins" : failed.length > 0 ? "fehler" : overdue ? "veraltet" : "ok";
-  return { state, overdue, lastBackup, lastCheck, failed };
+  return { state, overdue, lastBackup, lastCheck, failed, target };
 }

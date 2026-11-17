@@ -14,10 +14,10 @@ target_column() {
     WHERE table_schema = 'public' AND table_name = 'backup_status' AND column_name = 'target')" 2> /dev/null)" = t ]
 }
 
-# Ziel der Sicherung für die Verfahrensdokumentation, ohne Zugangsdaten: Nutzer und Passwort einer Adresse
-# (rest:https://nutzer:passwort@…, bis zum letzten @ vor dem Pfad wie bei Go url.Parse in restic), den Nutzer von
-# sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad).
-# Gleiche Regeln wie ohneZugangsdaten in apps/web/src/server/modules/verfahrensdoku/texte.ts.
+# Ziel der Sicherung für Einstellungen → Export und die Verfahrensdokumentation, ohne Zugangsdaten: Nutzer und
+# Passwort einer Adresse (rest:https://nutzer:passwort@…, bis zum letzten @ vor dem Pfad wie bei Go url.Parse in
+# restic), den Nutzer von sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad).
+# Gleiche Regeln wie ohneZugangsdaten in apps/web/src/server/modules/betrieb/restic-ziel.ts.
 target_without_credentials() {
   sed -E \
     -e 's#(://)[^/]*@#\1#' \

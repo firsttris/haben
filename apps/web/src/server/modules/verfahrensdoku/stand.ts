@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, count, desc, eq, isNull, ne } from "drizzle-orm";
 import pkg from "../../../../../../package.json" with { type: "json" };
 import { databaseAccessInfo, db, schema, type DatabaseAccessInfo } from "../../db/index.ts";
 import { env } from "../../env.ts";
@@ -47,7 +47,6 @@ export interface InstanzStand {
   tokens: { name: string; scopes: string[]; expiresAt: Date }[];
   datenbank: DatabaseAccessInfo;
   backup: BackupOverview;
-  backupTarget: string | null;
   versionen: AppVersionEntry[];
   pruefwert: { seq: number; hash: string } | null;
   pruefwertMail: string | null;
@@ -106,12 +105,6 @@ async function tokens(now: Date) {
   return rows.filter((r) => r.expiresAt > now);
 }
 
-async function backupTarget(): Promise<string | null> {
-  const b = schema.backupStatus;
-  const [row] = await db.select({ target: b.target }).from(b).where(isNotNull(b.target)).orderBy(desc(b.at), desc(b.id)).limit(1);
-  return row?.target ?? null;
-}
-
 async function postfach() {
   const i = schema.inboxSettings;
   const [row] = await db
@@ -156,13 +149,12 @@ async function bankabruf() {
 }
 
 export async function readInstanzStand(now = new Date()): Promise<InstanzStand> {
-  const [firma, accounts, apiTokens, datenbank, backup, target, versionen, head, mail, inbox, archiv, cert, gesendet, konten, abruf] = await Promise.all([
+  const [firma, accounts, apiTokens, datenbank, backup, versionen, head, mail, inbox, archiv, cert, gesendet, konten, abruf] = await Promise.all([
     company(),
     zugaenge(),
     tokens(now),
     databaseAccessInfo(),
     backupOverview(now),
-    backupTarget(),
     listAppVersions(),
     chainHead(),
     loadMailSettings(),
@@ -181,7 +173,6 @@ export async function readInstanzStand(now = new Date()): Promise<InstanzStand> 
     tokens: apiTokens,
     datenbank,
     backup,
-    backupTarget: target,
     versionen,
     pruefwert: head && { seq: head.seq, hash: head.hash },
     pruefwertMail: mail?.pruefwertMail ? mail.reminderTo : null,

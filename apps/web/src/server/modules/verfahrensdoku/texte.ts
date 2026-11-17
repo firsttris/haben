@@ -1,6 +1,7 @@
 import { RECHTSFORMEN } from "@haben/core";
 import { abschnitt, angabenAbsaetze, fehlendeAngaben, type VerfahrensdokuAbschnitt } from "@firsttris/gobd-kern/verfahrensdoku";
 import { ROLLEN_LABEL, isRolle } from "../../../lib/rollen.ts";
+import { ohneZugangsdaten } from "../betrieb/index.ts";
 import type { ProcedureDetails } from "./angaben.ts";
 import type { InstanzStand } from "./stand.ts";
 
@@ -14,18 +15,6 @@ const zeitFormat = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin",
 const tagFormat = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", dateStyle: "medium" });
 export const zeit = (d: Date | string) => zeitFormat.format(new Date(d));
 export const tag = (d: Date | string) => tagFormat.format(new Date(d));
-
-/**
- * Zugangsdaten in einem Ziel von restic fallen weg, auch in Fehlermeldungen des Backups: Nutzer und Passwort einer
- * Adresse (scheme://nutzer:passwort@host, bis zum letzten @ vor dem Pfad wie bei Go url.Parse, das restic nutzt), der
- * Nutzer der Kurzform sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad).
- * Gleiche Regeln in deploy/backup/backup-status.sh.
- */
-export const ohneZugangsdaten = (text: string) =>
-  text
-    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s]*@/gi, "$1")
-    .replace(/\b(sftp:)(?!\/\/)[^\s/@]+@/gi, "$1")
-    .replace(/\b(rclone::?[\w.-]+),(?:"[^"]*"|'[^']*'|[^\s:"'])*/gi, "$1");
 
 const VERSTEUERUNG = {
   ist: "Ist-Versteuerung: Umsatzsteuer nach vereinnahmten Entgelten (§ 20 UStG)",
@@ -149,7 +138,7 @@ function sicherung(s: InstanzStand): string[] {
   const b = s.backup;
   if (b.state === "keins") return ["Haben kennt keinen Lauf des Backup-Containers; wie gesichert wird, steht in den Angaben oben."];
   return [
-    `Der Backup-Container sichert Datenbank und Belege täglich, verschlüsselt mit restic${s.backupTarget ? ` nach ${ohneZugangsdaten(s.backupTarget)}` : ""}, und spielt regelmäßig die letzte Sicherung probeweise in eine Wegwerf-Datenbank ein; dabei werden Hash-Kette und Siegel geprüft und einige Belege mit ihrer Prüfsumme verglichen. ${b.lastBackup ? `Letzte Sicherung: ${zeit(b.lastBackup.at)}${b.lastBackup.snapshot ? ` (Snapshot ${b.lastBackup.snapshot})` : ""}.` : "Noch keine Sicherung lief erfolgreich."}`,
+    `Der Backup-Container sichert Datenbank und Belege täglich, verschlüsselt mit restic${b.target ? ` nach ${b.target.repository}` : ""}, und spielt regelmäßig die letzte Sicherung probeweise in eine Wegwerf-Datenbank ein; dabei werden Hash-Kette und Siegel geprüft und einige Belege mit ihrer Prüfsumme verglichen. ${b.lastBackup ? `Letzte Sicherung: ${zeit(b.lastBackup.at)}${b.lastBackup.snapshot ? ` (Snapshot ${b.lastBackup.snapshot})` : ""}.` : "Noch keine Sicherung lief erfolgreich."}`,
     b.lastCheck
       ? `Letzter bestandener Test-Restore: ${zeit(b.lastCheck.at)}${b.lastCheck.message ? `, ${ohneZugangsdaten(b.lastCheck.message)}` : ""}.`
       : "Ein Test-Restore ist noch nicht bestanden.",

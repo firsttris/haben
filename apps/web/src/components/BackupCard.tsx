@@ -4,12 +4,13 @@ import type { getBackupStatus } from "../server/functions/backup.ts";
 type Status = Awaited<ReturnType<typeof getBackupStatus>>;
 
 export const BACKUP_DOCS = "https://haben.app/installation-backup.html#backup-und-wiederherstellen";
+const ZWEITES_SYSTEM_DOCS = "https://haben.app/installation-backup.html#repository-auf-einem-zweiten-system";
 
 const ART = { backup: "Backup", restore_check: "Test-Restore" } as const;
 
 /** Stand von Backup und wöchentlichem Test-Restore aus dem Backup-Container (Einstellungen → Export) */
 export function BackupCard({ status }: { status: Status }) {
-  const { state, overdue, lastBackup, lastCheck, failed } = status;
+  const { state, overdue, lastBackup, lastCheck, failed, target } = status;
   return (
     <section className="card" aria-labelledby="backup-heading">
       <h2 id="backup-heading">Backup</h2>
@@ -39,6 +40,24 @@ export function BackupCard({ status }: { status: Status }) {
       ))}
       {state !== "keins" && (
         <dl className="small" style={{ margin: 0, display: "grid", gridTemplateColumns: "max-content 1fr", gap: "4px 16px" }}>
+          <dt className="muted">Speicherort</dt>
+          <dd style={{ margin: 0, overflowWrap: "anywhere" }}>
+            {target ? (
+              <>
+                {target.local ? "Lokal" : "Extern"} · <span className="mono">{target.repository}</span>
+                {target.local && (
+                  <div className="muted">
+                    Liegt das Verzeichnis auf demselben Server, schützt das Backup nicht vor dessen Ausfall.{" "}
+                    <a href={ZWEITES_SYSTEM_DOCS} target="_blank" rel="noreferrer">
+                      Zweites System einrichten
+                    </a>
+                  </div>
+                )}
+              </>
+            ) : (
+              "Unbekannt: Das Backup-Image ist älter als die App"
+            )}
+          </dd>
           <dt className="muted">Letztes Backup</dt>
           <dd style={{ margin: 0 }}>
             {lastBackup ? (
