@@ -41,8 +41,8 @@ const ART_KLARTEXT: Record<Frist["art"], string> = {
   lstb: "Jahresbescheinigung über den Lohn je Mitarbeiter",
   erklaerung: "Steuererklärung für das ganze Jahr",
   vorauszahlung: "Einkommensteuer im Voraus, wenn das Finanzamt sie festsetzt",
-  einspruch: "Bis dahin kannst du einem Bescheid widersprechen",
-  zertifikat: "Ohne gültiges Zertifikat kannst du nichts an ELSTER senden",
+  einspruch: "Einspruch gegen einen Bescheid einlegen",
+  zertifikat: "Zertifikat für das Senden an ELSTER erneuern",
   sv: "Beiträge und Meldungen für Mitarbeiter an die Sozialversicherung",
 };
 

@@ -326,7 +326,7 @@ test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar",
   await page.waitForURL("**/ausschuettungen");
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { name: `Ausschüttungen ${year}` })).toBeVisible();
-  await expect(page.getByText(`Noch keine Ausschüttung mit Auszahlungstag in ${year}`)).toBeVisible();
+  await expect(page.getByText(`Noch keine Ausschüttung, die in ${year} bei den Gesellschaftern ankommt`)).toBeVisible();
 
   const form = page.getByRole("form", { name: "Neue Ausschüttung" });
   // Beim Tippen meldet das Datumsfeld schon Zwischenstände wie 0002-01-02; das Geschäftsjahr folgt dem fertigen Datum

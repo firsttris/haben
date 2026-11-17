@@ -590,7 +590,7 @@ function Postfach({ data }: { data: Data }) {
         )}
         {data.documents.length > 0 && (
           <p className="small muted" style={{ margin: 0 }}>
-            Bis zum Datum unter „Einspruch bis“ kannst du einem Bescheid widersprechen.
+            Bis zum Datum unter „Einspruch bis“ kannst du Einspruch einlegen.
           </p>
         )}
       </section>
