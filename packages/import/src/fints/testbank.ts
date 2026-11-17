@@ -9,7 +9,8 @@ import { fintsDay } from "./map.ts";
  * Anmeldung oder beim Umsatzabruf (je einmal, wie die Ausnahme nach Art. 10 der Delegierten Verordnung (EU) 2018/389, heute
  * 180 Tage) und Umsätze als MT940 (HKKAZ), auf Wunsch so, dass lib-fints sie nicht lesen kann.
  * Die Freigabe in der App meldet sie wie echte Banken mit 3955 („Sicherheitsfreigabe erfolgt über anderen Kanal“), solange
- * sie aussteht mit 3956. Auf Wunsch verlangt sie bei der Anmeldung mit pushTAN wie die Consorsbank eine eingetippte TAN.
+ * sie aussteht mit 3956. Auf Wunsch verhält sie sich wie die Consorsbank: eine eingetippte TAN bei der Anmeldung mit
+ * pushTAN, der Umsatzabruf laut HIPINS ohne TAN, ohne HKTAN aber mit 9075 abgelehnt.
  * Segmente nach FinTS 3.0 (Formals, PIN/TAN), Rückmeldungscodes nach der Liste „FinTS Rückmeldungscodes“ der DK (Stand
  * 03.02.2026); nur 9952 steht nicht darin, so lehnte eine echte Bank beim ersten Test ab (firsttris/haben#1289).
  */
@@ -73,6 +74,11 @@ export interface FintsTestbank {
      * (HKTAN Prozess S) lehnt sie mit 9010 ab und bricht den Dialog ab (9800)
      */
     appTanEintippen: boolean;
+    /**
+     * Wie die Consorsbank (firsttris/haben#654, python-fints#218): HIPINS führt den Umsatzabruf ohne TAN (HKKAZ:N), einen
+     * Abruf ohne HKTAN lehnt sie aber mit 9075 ab. Gilt für die BPD der nächsten ersten Synchronisierung.
+     */
+    umsatzTanVerschwiegen: boolean;
     /** Antwortet mit HTTP 503 */
     nichtErreichbar: boolean;
     /** HKKAZ: :61: ohne Kundenreferenz, die SWIFT MT940 verlangt (sonst NONREF); lib-fints kann das MT940 dann nicht lesen */
@@ -160,7 +166,7 @@ const ref = (s: Seg | undefined) => s?.header.segNr ?? 0;
 const bpd = (bank: Bank, r: number) => [
   `HIBPA:{n}:3:${r}+1+280:${bank.blz}+${esc(bank.optionen.bankname ?? "Testbank")}+1+1+300`,
   `HITANS:{n}:7:${r}+1+1+0+J:N:0:${PUSH}:2:pushTAN2.0:Decoupled::pushTAN 2.0:::Freigabe:2048:N:2:N:0:0:N:N:00:0:N:1:60:1:1:J:J:${CHIPTAN}:2:HHD1.3.0:HHD:1.3.0:chipTAN manuell:6:1:TAN-Nummer:2048:N:2:N:0:0:N:N:00:0:N:1`,
-  `HIPINS:{n}:1:${r}+1+1+0+5:20:6:Anmeldename:Kunden-ID:HKKAZ:J:HKSAL:N:HKTAN:N:HKIDN:J:HKTAB:N`,
+  `HIPINS:{n}:1:${r}+1+1+0+5:20:6:Anmeldename:Kunden-ID:HKKAZ:${bank.zustand.umsatzTanVerschwiegen ? "N" : "J"}:HKSAL:N:HKTAN:N:HKIDN:J:HKTAB:N`,
   `HIKAZS:{n}:7:${r}+1+1+0+90:N:N`,
 ];
 
@@ -264,6 +270,13 @@ function umsatzAbruf(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage,
   const von = fintsDay(kaz.from);
   const bis = fintsDay(kaz.to);
   Object.assign(anfrage, { iban, von, bis });
+  if (!hktan && bank.zustand.umsatzTanVerschwiegen) {
+    // So antwortete die Consorsbank mit ihrem App-Verfahren (firsttris/haben#654)
+    return {
+      dialogId,
+      segmente: ["HIRMG:{n}:2+9050::Nachricht teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(kaz)}+9075::Starke Authentifizierung erforderlich.`],
+    };
+  }
   if (hktan && bank.zustand.scaBeiUmsaetzen) {
     const referenz = `REF${++bank.zaehler}`;
     bank.offen.set(referenz, { art: "HKKAZ", eintippen: anfrage.verfahren !== PUSH, iban, von, bis });
@@ -323,6 +336,7 @@ export async function startFintsTestbank(optionen: FintsTestbankOptionen): Promi
       scaBeiUmsaetzen: false,
       freigegeben: false,
       appTanEintippen: false,
+      umsatzTanVerschwiegen: false,
       nichtErreichbar: false,
       mt940Unlesbar: false,
       anfragen: [],

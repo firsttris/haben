@@ -48,6 +48,7 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
       scaBeiUmsaetzen: false,
       freigegeben: false,
       appTanEintippen: false,
+      umsatzTanVerschwiegen: false,
       nichtErreichbar: false,
       mt940Unlesbar: false,
     });
@@ -133,6 +134,31 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
     expect(bank.zustand.anfragen.filter((a) => a.tan === "123456").at(-1)).toMatchObject({ tanProzess: "2", verfahren: 921 });
     expect(client.config.selectedTanMethod?.isDecoupled).toBe(true);
     expect(fintsKonten(client).abrufbar.map((k) => k.iban)).toEqual([IBAN]);
+  });
+
+  it("ruft Umsätze nach 9075 noch einmal mit TAN-Schritt ab und merkt sich das in den BPD (wie die Consorsbank)", async () => {
+    bank.zustand.umsatzTanVerschwiegen = true;
+    const client = fintsClient(PRODUKT, zugang);
+    await fintsSynchronisieren(client);
+    client.selectTanMethod(921);
+    expect((await fintsSynchronisieren(client)).art).toBe("ok");
+    const konto = fintsKonten(client).abrufbar[0]!;
+    const vorher = bank.zustand.anfragen.length;
+    /** Je Umsatzabruf: ging der TAN-Schritt (HKTAN) mit? */
+    const mitTanSchritt = () =>
+      bank.zustand.anfragen
+        .slice(vorher)
+        .filter((a) => a.segmente.includes("HKKAZ"))
+        .map((a) => a.segmente.includes("HKTAN"));
+
+    const umsaetze = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31");
+    expect(umsaetze.art === "ok" && umsaetze.wert[0]?.transactions).toHaveLength(2);
+    expect(mitTanSchritt()).toEqual([false, true]);
+    expect(client.config.bankingInformation.bpd?.allowedTransactions.find((t) => t.transId === "HKKAZ")?.tanRequired).toBe(true);
+
+    // Der nächste Abruf schickt den TAN-Schritt gleich mit
+    expect((await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31")).art).toBe("ok");
+    expect(mitTanSchritt()).toEqual([false, true, true]);
   });
 
   it("wirft, wenn lib-fints die Umsätze nicht lesen kann, statt keine zu melden", async () => {
