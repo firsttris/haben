@@ -90,6 +90,61 @@ describe("Meldungen ohne Zugangsdaten (restic-ziel.sh)", () => {
       );
     expect(roh).toEqual([]);
   });
+
+  it("legt das Repository in keinem anderen Skript ohne init_repository an (#1349)", () => {
+    const roh = readdirSync(DIR)
+      .filter((datei) => datei.endsWith(".sh") && datei !== "restic-ziel.sh")
+      .flatMap((datei) =>
+        readFileSync(join(DIR, datei), "utf8")
+          .split("\n")
+          .filter((zeile) => /\brestic init\b/.test(zeile) && !zeile.trimStart().startsWith("#"))
+          .map((zeile) => `${datei}: ${zeile.trim()}`),
+      );
+    expect(roh).toEqual([]);
+  });
+});
+
+describe("Anlegen des Repositorys (init_repository, von backup.sh beim ersten Lauf)", () => {
+  // Wie restic 0.19.1 init (cmd/restic/cmd_init.go): Es nennt das Repository über location.StripPassword, das für
+  // sftp:, s3: und rclone: die Adresse unverändert lässt (location.NoPassword) und für rest: den Nutzer zeigt
+  const stubs = mkdtempSync(join(tmpdir(), "haben-backup-"));
+  writeFileSync(
+    join(stubs, "restic"),
+    [
+      "#!/bin/sh",
+      '[ "$1" = init ] || exit 2',
+      'if [ -n "${INIT_FEHLER:-}" ]; then echo "Fatal: create repository at $RESTIC_REPOSITORY failed: connection refused" >&2; exit 1; fi',
+      'printf "created restic repository 1234567890 at %s\\n\\nPlease note that knowledge of your password is required to access\\n" "$RESTIC_REPOSITORY"',
+    ].join("\n"),
+  );
+  chmodSync(join(stubs, "restic"), 0o755);
+  afterAll(() => rmSync(stubs, { recursive: true, force: true }));
+
+  const initRepository = (repository: string, fehler = false) =>
+    spawnSync("bash", ["-c", `source "${join(DIR, "restic-ziel.sh")}" && init_repository`], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${stubs}:${process.env.PATH}`, RESTIC_REPOSITORY: repository, INIT_FEHLER: fehler ? "1" : "" },
+    });
+
+  const ZIELE = [
+    ["rest:https://nutzer:ab/cd@backup.example/haben", "rest:https://backup.example/haben"],
+    ["sftp:nutzer@backup.example:/srv/restic", "sftp:backup.example:/srv/restic"],
+    ["rclone::sftp,host=backup.example,user=nutzer,pass=GEHEIM:haben", "rclone::sftp:haben"],
+  ];
+
+  it.each(ZIELE)("nennt %s ohne Zugangsdaten, auch in der Ausgabe von restic", (repository, ziel) => {
+    const r = initRepository(repository);
+    expect(r.stdout).toBe(
+      `Lege das restic-Repository ${ziel} an …\ncreated restic repository 1234567890 at ${ziel}\n\nPlease note that knowledge of your password is required to access\n`,
+    );
+    expect(r.status, r.stderr).toBe(0);
+  });
+
+  it.each(ZIELE)("meldet einen Fehlschlag mit %s ohne Zugangsdaten", (repository, ziel) => {
+    const r = initRepository(repository, true);
+    expect(r.stderr).toBe(`Fatal: create repository at ${ziel} failed: connection refused\n`);
+    expect(r.status).toBe(1);
+  });
 });
 
 describe("Log beim Start des Zeitplans (entrypoint.sh)", () => {
