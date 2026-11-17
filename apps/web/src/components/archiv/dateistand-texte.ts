@@ -1,10 +1,12 @@
 /**
- * Warum zu einer Buchung keine Datei da ist, entscheidet, was über ihr steht (#1235). Drei Fälle, drei Sätze:
+ * Warum zu einer Buchung keine Datei da ist, entscheidet, was über ihr steht (#1235, #1322). Vier Fälle, vier Sätze:
  *
  * - kein Beleglink: Der Accountable-Stapel nennt für die Buchung gar keine Beleg-GUID. Es gibt keinen Einzelbeleg, das
  *   lässt sich bestätigen.
  * - Datei fehlt im Export: Die Buchung trägt eine Beleg-GUID, nur die Datei fehlt im Export. Ein Einzelbeleg kann
  *   existieren, bestätigen lässt sich das nicht.
+ * - Dokument vorhanden: Daten.xlsx, Spalte Y meldet zu der Rechnung ein Dokument, es hängt an einer anderen Zeile. Auch
+ *   dann gibt es einen Beleg, bestätigen lässt sich das hier nicht.
  * - Quelle ohne Beleg: WISO und die Lexoffice-Sicherung setzen das Merkmal ohne Beleg-GUID. Über einen Einzelbeleg
  *   sagt das nichts, bestätigen lässt sich auch nichts.
  */
@@ -18,6 +20,9 @@ export function ohneBelegText(grund: OhneBelegGrund, product: string, bestaetigb
   }
   if (grund === "datei_fehlt_im_export") {
     return `${product} nennt zu dieser Buchung keine Datei. Ob es einen Einzelbeleg gibt, sagt das nicht: Die Buchung trägt eine Beleg-GUID, die Datei fehlt nur im Export. Bestätigen lässt sich das hier nicht.`;
+  }
+  if (grund === "dokument_vorhanden") {
+    return "Accountable führt zu dieser Rechnung ein Dokument; es hängt an einer anderen Zeile derselben Rechnung. Bestätigen lässt sich das hier nicht.";
   }
   return `Zu dieser Buchung hat ${product} keine Datei geliefert. Bestätigen lässt sich das hier nicht.`;
 }

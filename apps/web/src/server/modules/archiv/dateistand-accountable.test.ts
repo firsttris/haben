@@ -13,6 +13,7 @@ type DbModul = typeof import("../../db/index.ts");
 
 let dateistand: Dateistand;
 let dbm: DbModul;
+let lexoffice: typeof import("./lexoffice.ts");
 let importId: string;
 
 async function beleg(lexofficeId: string, type: string, ohneBeleg: boolean, guid: string | null = null, extra: Record<string, unknown> = {}): Promise<string> {
@@ -50,6 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Beleg ohne Datei bestätigen", ()
     await setupTestDb();
     dbm = await import("../../db/index.ts");
     dateistand = await import("./dateistand.ts");
+    lexoffice = await import("./lexoffice.ts");
     const { sql } = await import("drizzle-orm");
     const lauf = await dbm.db.execute<{ id: string }>(
       sql`insert into lexoffice_imports (status, source, progress) values ('fertig', 'accountable', '{}'::jsonb) returning id`,
@@ -94,6 +96,17 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Beleg ohne Datei bestätigen", ()
     expect(await staende(voucher)).toHaveLength(0);
   });
 
+  it("reicht „Dokument Vorhanden“ bis in die Belegansicht durch (#1322)", async () => {
+    // Ohne eigene GUID, aber mit Dokument an einer anderen Zeile derselben Rechnung
+    const voucher = await beleg("accountable/row/916", "purchaseinvoice", true, null, { documentPresent: true });
+    const detail = (await lexoffice.legacyVoucherDetail(voucher))!;
+    expect(detail.fileState.ohneBelegGrund).toBe("dokument_vorhanden");
+    expect(detail.fileState.canConfirmWithoutFile).toBe(false);
+    // Mit GUID und ohne Dokument bleibt es beim fehlenden Export
+    const mitGuid = await beleg("accountable/row/917", "purchaseinvoice", true, "guid-917");
+    expect((await lexoffice.legacyVoucherDetail(mitGuid))!.fileState.ohneBelegGrund).toBe("datei_fehlt_im_export");
+  });
+
   it("lässt eine Ausgangsrechnung nicht ohne Datei bestätigen", async () => {
     const voucher = await beleg("accountable/row/912", "salesinvoice", false);
     await expect(dateistand.confirmWithoutFile("test-user", voucher, "")).rejects.toThrow("Original-PDF");
@@ -115,7 +128,13 @@ it("nennt den Grund je Quelle und Beleg-GUID (#1235)", async () => {
   expect(ohneBelegGrund({ source: "accountable", guid: "a1b2c3" })).toBe("datei_fehlt_im_export");
   expect(ohneDateiBestaetigbar({ source: "accountable", lexofficeId: "accountable/row/2", type: "purchaseinvoice", guid: "a1b2c3" })).toBe(false);
 
+  // „Dokument Vorhanden“ steht vor der GUID (#1322): Das Dokument hängt an einer anderen Zeile derselben Rechnung
+  expect(ohneBelegGrund({ source: "accountable", guid: null, documentPresent: true })).toBe("dokument_vorhanden");
+  expect(ohneBelegGrund({ source: "accountable", guid: "a1b2c3", documentPresent: true })).toBe("dokument_vorhanden");
+  expect(ohneBelegGrund({ source: "accountable", guid: null, documentPresent: null })).toBe("kein_beleglink");
+
   // WISO und die Lexoffice-Sicherung setzen das Merkmal ohne GUID
   expect(ohneBelegGrund({ source: "wiso", guid: null })).toBe("quelle_ohne_beleg");
   expect(ohneBelegGrund({ source: "lexoffice", guid: null })).toBe("quelle_ohne_beleg");
+  expect(ohneBelegGrund({ source: "wiso", guid: null, documentPresent: true })).toBe("quelle_ohne_beleg");
 });

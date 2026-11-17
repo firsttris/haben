@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ohneBelegText } from "./dateistand-texte.ts";
 
 /*
- * Die drei Sätze über einer Buchung ohne Datei (#1235). Sie hängen am Grund, nicht an „bestätigbar“: WISO und die
+ * Die vier Sätze über einer Buchung ohne Datei (#1235, #1322). Sie hängen am Grund, nicht an „bestätigbar“: WISO und die
  * Lexoffice-Sicherung setzen das Merkmal ohne Beleg-GUID, dort darf kein Satz über eine GUID stehen.
  */
 describe("Text über einer Buchung ohne Datei", () => {
@@ -17,6 +17,14 @@ describe("Text über einer Buchung ohne Datei", () => {
     expect(text).toContain("Beleg-GUID");
     expect(text).toContain("fehlt nur im Export");
     expect(text).not.toContain("kommt ohne Einzelbeleg");
+  });
+
+  it("nennt bei „Dokument Vorhanden“ den anderen Beleg derselben Rechnung", () => {
+    const text = ohneBelegText("dokument_vorhanden", "Accountable", false);
+    expect(text).toBe(
+      "Accountable führt zu dieser Rechnung ein Dokument; es hängt an einer anderen Zeile derselben Rechnung. Bestätigen lässt sich das hier nicht.",
+    );
+    expect(text).not.toContain("Beleg-GUID");
   });
 
   it("behauptet für fremde Quellen ohne GUID nichts über einen Einzelbeleg", () => {

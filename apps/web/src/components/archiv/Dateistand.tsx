@@ -3,7 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
-import { confirmLegacyWithoutFile, type getLegacyVoucher } from "../../server/functions/archive.ts";
+import type { getLegacyVoucher } from "../../server/functions/archive.ts";
+import { confirmLegacyWithoutFile, revokeLegacyConfirmation } from "../../server/functions/dateistand.ts";
 import { ConfirmDialog, type ConfirmFact } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
@@ -82,7 +83,7 @@ export function MissingFileBanner({
   }
 }
 
-/** Karte mit Stand, Verlauf und der Bestätigung „ohne Datei“ */
+/** Karte mit Stand, Verlauf, der Bestätigung „ohne Datei“ und ihrer Rücknahme (#1317) */
 export function FileStateCard({ voucherId, fileState, product, facts }: { voucherId: string; fileState: FileState; product: string; facts: ConfirmFact[] }) {
   // Ohne Verlauf gibt es nichts zu zeigen, außer es lässt sich etwas bestätigen (Buchung ohne Beleg aus dem Stapel)
   if (fileState.history.length === 0 && !fileState.canConfirmWithoutFile) return null;
@@ -104,6 +105,7 @@ export function FileStateCard({ voucherId, fileState, product, facts }: { vouche
       {fileState.canConfirmWithoutFile && (
         <ConfirmWithoutFile voucherId={voucherId} product={product} facts={facts} ohneBeleg={fileState.status === "ohne_beleg"} />
       )}
+      {fileState.status === "ohne_datei_bestaetigt" && <RevokeConfirmation voucherId={voucherId} facts={facts} />}
     </section>
   );
 }
@@ -150,6 +152,56 @@ function ConfirmWithoutFile({ voucherId, product, facts, ohneBeleg }: { voucherI
             ? "Du bestätigst, dass es zu dieser Buchung keinen Einzelbeleg gibt. Haben hält das mit deinem Namen und der Uhrzeit fest."
             : `Du bestätigst, dass es in ${product} zu diesem Beleg keine Datei gibt. Haben hält das mit deinem Namen und der Uhrzeit fest; der Abgleich zählt den Beleg dann nicht mehr als fehlende Datei.`}
           Für den Vorsteuerabzug braucht es weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
+        </p>
+      </ConfirmDialog>
+    </>
+  );
+}
+
+/**
+ * Nimmt die Bestätigung „ohne Datei“ zurück (#1317). Der Grund ist Pflicht; er steht mit Namen und Zeitpunkt als neue Zeile
+ * im Verlauf, die Bestätigung bleibt dort stehen.
+ */
+function RevokeConfirmation({ voucherId, facts }: { voucherId: string; facts: ConfirmFact[] }) {
+  const router = useRouter();
+  const revoke = useServerFn(revokeLegacyConfirmation);
+  const action = useAction();
+  const [reason, setReason] = useState("");
+  const [open, setOpen] = useState(false);
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setOpen(true);
+  };
+  const onConfirm = () =>
+    action.run(async () => {
+      await revoke({ data: { id: voucherId, reason } });
+      await router.invalidate();
+      action.setNotice({ tone: "ok", text: "Bestätigung zurückgenommen. Der Beleg steht wieder als offen im Abgleich." });
+    });
+  return (
+    <>
+      <form className="stack" onSubmit={onSubmit} noValidate style={{ gap: 12 }}>
+        <Field label="Grund der Rücknahme" hint="Pflicht, etwa „falscher Beleg geprüft“; steht mit deinem Namen im Verlauf.">
+          {(control) => <input {...control} value={reason} maxLength={500} required onChange={(e) => setReason(e.target.value)} />}
+        </Field>
+        <div className="actions">
+          <button type="submit" className="btn" disabled={action.busy || reason.trim() === ""}>
+            Bestätigung zurücknehmen
+          </button>
+        </div>
+      </form>
+      <NoticeBanner notice={action.notice} />
+      <ConfirmDialog
+        open={open}
+        title="Bestätigung zurücknehmen?"
+        confirmLabel="Zurücknehmen"
+        facts={facts}
+        onConfirm={() => void onConfirm()}
+        onClose={() => setOpen(false)}
+      >
+        <p>
+          Der Beleg gilt danach wieder als offen; der Abgleich zählt ihn wieder zu den Belegen ohne Datei. Deine Bestätigung bleibt mit Grund und Namen im
+          Verlauf stehen, gelöscht wird nichts.
         </p>
       </ConfirmDialog>
     </>

@@ -44,6 +44,7 @@ export const FILE_STATE_LABELS: Record<LegacyFileState, string> = {
   abruf_fehlgeschlagen: "Datei erwartet, Abruf fehlgeschlagen",
   anhang_fehlt: "Anhang fehlt",
   bestaetigt_ohne_datei: "ohne Datei bestätigt",
+  bestaetigung_zurueckgenommen: "Bestätigung zurückgenommen",
   nachgeladen: "Datei nachgeladen",
   kein_anhang: "Anhang entfällt, sevDesk führt keinen",
 };
@@ -62,6 +63,9 @@ export function legacyFileStatus(latest: LegacyFileState | null, files: number, 
       return "anhang_fehlt";
     // Die Datei der Vorlage (#1128) kann nach der Feststellung ankommen
     case "ohne_datei":
+    // Nach einer Rücknahme (#1317) gilt der Beleg wieder als offen: Mit Datei vollständig, sonst derselbe Stand wie vor
+    // der Bestätigung. Nicht „ohne_datei“: der lädt nicht zum erneuten Bestätigen ein (canConfirmWithoutFile).
+    case "bestaetigung_zurueckgenommen":
       return files > 0 ? "vollstaendig" : "ohne_datei_offen";
     default:
       return files > 0 ? "vollstaendig" : "ohne_datei";
@@ -198,6 +202,41 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
         : voucher.source === "accountable"
           ? "Accountable-Stapel: keine Beleg-GUID, kein Belegbild vorhanden."
           : "In sevDesk geprüft: keine Datei hinterlegt.",
+      createdBy: actor,
+    });
+  });
+}
+
+/**
+ * Nimmt eine Bestätigung „ohne Datei“ mit Grund zurück (#1317). Wie beim Bestätigen entsteht eine neue Zeile; die
+ * Bestätigung selbst bleibt stehen, legacy_file_states wird nie geändert. Erlaubt ist das nur, solange sie die jüngste
+ * Zeile ist: eine Rechnung oder Gutschrift war nie bestätigbar und lässt sich deshalb auch nicht zurücknehmen.
+ */
+export async function revokeFileConfirmation(actor: string, voucherId: string, reason: string): Promise<void> {
+  const text = reason.trim();
+  if (!text) throw new FileStateError("Die Rücknahme braucht einen Grund.");
+  if (text.length > 500) throw new FileStateError("Der Grund der Rücknahme ist zu lang (höchstens 500 Zeichen).");
+  await withActor(actor, async (tx) => {
+    // Sperrt den Beleg gegen eine gleichzeitige Bestätigung oder Rücknahme
+    const [voucher] = await tx
+      .select({ id: schema.lexofficeVouchers.id })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.id, voucherId))
+      .for("update");
+    if (!voucher) throw new FileStateError("Beleg nicht gefunden.");
+    const [latest] = await tx
+      .select({ state: schema.legacyFileStates.state })
+      .from(schema.legacyFileStates)
+      .where(eq(schema.legacyFileStates.voucherId, voucherId))
+      .orderBy(desc(schema.legacyFileStates.createdAt), desc(schema.legacyFileStates.id))
+      .limit(1);
+    if (latest?.state !== "bestaetigt_ohne_datei")
+      throw new FileStateError("Nur eine Bestätigung „ohne Datei“ lässt sich zurücknehmen; dieser Beleg ist nicht bestätigt.");
+    await tx.insert(schema.legacyFileStates).values({
+      voucherId,
+      importId: null,
+      state: "bestaetigung_zurueckgenommen",
+      message: `Bestätigung zurückgenommen: ${text}`,
       createdBy: actor,
     });
   });
