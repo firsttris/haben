@@ -263,7 +263,7 @@ Gut zu wissen:
 - Die meisten Meldungen liegen ab Ende Februar des Folgejahres vor; die Belege lassen sich beliebig oft abrufen, eine Bestätigung wie beim Postfach gibt es nicht.
 - Mit dem eigenen Zertifikat, das mit deiner Steuer-ID registriert ist, holst du deine eigenen Belege. Für die Belege des Ehegatten braucht dein Zertifikat eine Berechtigung, siehe unten. Alternativ ruft der Ehegatte mit dem eigenen Zertifikat ab.
 - Der Testabruf trägt den Testmerker der Datenabholung (`370000001`). Ohne ERiC liefert er zwei erfundene Beispielbelege.
-- Haben übernimmt die Werte noch nicht von selbst in die Erklärung. Die Belege dienen zum Abgleich mit den Angaben oben; das Finanzamt hat sie ohnehin und gleicht selbst ab. Für eine sichere Zuordnung zu den Feldern fehlen die Schemas der einzelnen Belegarten ([Roadmap](roadmap.md#blockiert)).
+- Haben übernimmt die Werte noch nicht von selbst in die Erklärung. Die Belege dienen zum Abgleich mit den Angaben oben; das Finanzamt hat sie ohnehin und gleicht selbst ab.
 
 ### Berechtigung für den Ehegatten
 
@@ -277,7 +277,7 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im Dokumentationspaket von ERiC (Download siehe [Roadmap](roadmap.md#blockiert)). Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
 
