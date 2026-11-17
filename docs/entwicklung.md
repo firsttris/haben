@@ -158,7 +158,7 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`, son
 > [!IMPORTANT]
 > `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
 
-Tests des sevDesk-Umzugs beantworten nur die Pfade, auf die es ihnen ankommt; den Rest beantwortet `sevdeskFakeFetch` (`apps/web/src/server/modules/archiv/test-sevdesk-api.ts`) wie ein leeres Konto. Ein neuer Abrufschritt, der kein leeres Ergebnis verträgt, etwa ein Unterpfad wie `/AccountingType/{id}`, bekommt seine Grundantwort dort und nicht in jedem einzelnen Test.
+Neue Tests des sevDesk-Umzugs nehmen `sevdeskFakeFetch` (`apps/web/src/server/modules/archiv/test-sevdesk-api.ts`) und beantworten nur die Pfade, auf die es ihnen ankommt; den Rest beantwortet es wie ein leeres Konto in Buchhaltungsversion 1.0. Ein neuer Abrufschritt, der kein leeres Ergebnis verträgt, etwa `/AccountingType/{id}`, bekommt seine Grundantwort dort und nicht in jedem einzelnen Test.
 
 Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>-…` und löscht ihn am Ende; was Tests mit `tmpdir()` anlegen, verschwindet mit. Den Ordner eines abgebrochenen Laufs löscht ein späterer Lauf bei seinem Start, wenn der Prozess des abgebrochenen nicht mehr läuft.
 
