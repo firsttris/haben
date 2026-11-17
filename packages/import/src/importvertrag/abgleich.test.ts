@@ -101,7 +101,7 @@ describe("classifyMovements", () => {
   it("meldet geänderten Betrag, Buchungstag oder Währung als Konflikt", () => {
     const result = classifyMovements(known, binding, [movement({ amount: 9900, bookingDate: "2026-10-06" })]);
     expect(result.results.map((r) => r.outcome)).toEqual(["conflict"]);
-    expect(result.conflicts).toEqual(["T-1/main: Betrag 10000 → 9900, Buchungstag 2026-10-05 → 2026-10-06; nichts überschrieben."]);
+    expect(result.conflicts).toEqual(["T-1/main: Betrag 100,00 € → 99,00 €, Buchungstag 05.10.2026 → 06.10.2026; nichts überschrieben."]);
   });
 
   it("meldet eine geänderte Art als Konflikt", () => {

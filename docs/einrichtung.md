@@ -34,7 +34,7 @@ Die folgenden Schritte gelten für den Standardmodus mit lokaler Anmeldung. Läu
 
 Beim ersten Aufruf leitet Haben auf `/setup` weiter. Das erste Konto ist der **Inhaber** mit allen Rechten: Du gibst den Einrichtungscode, Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und klickst „Konto anlegen“.
 
-Den Einrichtungscode schreibt Haben beim Start ins Log, solange es noch kein Konto gibt, etwa `Einrichtungscode für https://haben.example.de/setup: K7QM-3XRP-W9TD`. Du findest ihn mit `docker compose logs app` bzw. `journalctl --user -u haben-app`. Er sorgt dafür, dass niemand anderes eine frisch gestartete Instanz zuerst erreicht und das Konto anlegt. Nach jedem Neustart gibt es einen neuen Code; einen festen setzt du mit `HABEN_SETUP_CODE`. Sobald es ein Konto gibt, lehnt Haben jede weitere Registrierung ab („Haben ist bereits eingerichtet. Weitere Zugänge gibt es nur per Einladung.“), und `/setup` leitet auf die Anmeldung um. Der Einrichtungscode gilt nur für dieses erste Konto.
+Den Einrichtungscode schreibt Haben beim Start ins Log, solange es noch kein Konto gibt, etwa `Einrichtungscode für https://haben.example.de/setup: K7QM-3XRP-W9TD`. Du findest ihn mit `docker compose logs app` bzw. `journalctl --user -u haben-app`. Hast du Haben nicht selbst installiert, fragst du die Person, die es getan hat. Der Einrichtungscode sorgt dafür, dass niemand anderes eine frisch gestartete Instanz zuerst erreicht und das Konto anlegt. Nach jedem Neustart gibt es einen neuen Code; einen festen setzt du mit `HABEN_SETUP_CODE`. Sobald es ein Konto gibt, lehnt Haben jede weitere Registrierung ab („Haben ist bereits eingerichtet. Weitere Zugänge gibt es nur per Einladung.“), und `/setup` leitet auf die Anmeldung um. Der Einrichtungscode gilt nur für dieses erste Konto.
 
 Direkt danach bietet Haben an, einen Passkey hinzuzufügen. Damit meldest du dich künftig ohne Passwort an, etwa mit Fingerabdruck, Gesichtserkennung oder einem Sicherheitsschlüssel. Das Passwort bleibt als Rückfallebene. Du kannst den Schritt mit „Später“ überspringen. Danach folgen die [Fragen zur Einrichtung](#fragen-zur-einrichtung).
 
@@ -287,7 +287,7 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 
 | Bereich | Wirkung |
 | --- | --- |
-| Rechnungen | Vorgabe ist „Kleinunternehmer nach § 19 UStG“ mit 0 % und dem entsprechenden Hinweis. Eigene Steuerbefreiungen nach § 4 Nr. 14 Buchst. a oder Nr. 21 und bestätigte Auslandsleistungen lassen sich gesondert zuordnen; eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Dieselbe Auswahl gilt für Angebote und wiederkehrende Rechnungen. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
+| Rechnungen | Vorgabe ist „Kleinunternehmer: ohne Umsatzsteuer“ mit 0 % und dem entsprechenden Hinweis. Eigene Steuerbefreiungen nach § 4 Nr. 14 Buchst. a oder Nr. 21 und bestätigte Auslandsleistungen lassen sich gesondert zuordnen; eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Dieselbe Auswahl gilt für Angebote und wiederkehrende Rechnungen. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
 | Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#ohne-vorsteuerabzug). |
 | Voranmeldung | Die Seite weist darauf hin, dass du in der Regel keine Voranmeldung abgibst. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). |
 | Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |
@@ -517,7 +517,7 @@ Der Beleg geht dann an OpenRouter und an den Anbieter des Modells. Wie lange sie
 
 ## Bankkonten
 
-Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
+Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking oder FinTS legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking) und [Kontoabruf über FinTS](installation-anbindungen.md#kontoabruf-über-fints), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
 
 1. Auf der Seite **Bank** „Konto hinzufügen“ wählen.
 2. Name (z. B. „N26 Business“) und IBAN eintragen und „Konto anlegen“.

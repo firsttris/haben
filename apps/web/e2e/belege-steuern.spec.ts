@@ -22,6 +22,7 @@ import {
   ohneAxeVerstoesse,
   trefferliste,
   randImDialog,
+  axeVerstoesse,
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
@@ -136,6 +137,15 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   const formate = page.getByRole("group", { name: "Formate prüfen" });
   await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
   await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
+
+  // Der Testabruf des Postfachs liefert einen Bescheid; unter der Tabelle steht, was „Einspruch bis“ heißt
+  await go("/finanzamt");
+  const postfach = page.getByRole("form", { name: "Postfach abrufen" });
+  await postfach.getByLabel("Zertifikats-PIN").fill("123456");
+  await postfach.getByRole("button", { name: "Testweise abrufen" }).click();
+  const bescheide = page.getByRole("region", { name: "Bescheide aus dem ELSTER-Postfach" });
+  await expect(bescheide.getByRole("columnheader", { name: "Einspruch bis" })).toBeVisible();
+  await expect(bescheide.getByText("Bis zum Datum unter „Einspruch bis“ kannst du Einspruch einlegen.")).toBeVisible();
 
   // Ohne ERiC läuft der Abruf simuliert und liefert Beispielbelege
   await go(`/jahreserklaerung/${YEAR - 1}`);
@@ -489,11 +499,17 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
   await card.getByLabel("Verschlüsselung").selectOption("starttls");
   await card.getByLabel("Benutzername").fill("belege@mustermann.example");
   await card.getByLabel("Passwort").fill("geheim");
-  await card.getByLabel("Ordner").fill("Belege");
+  await card.getByLabel("Ordner für Eingangsrechnungen").fill("Belege");
+  await card.getByLabel("Freigegebene Absender").fill("rechnung@funknetz.example, @lieferant.example");
+  await card.getByLabel("Ordner für Ausgangsrechnungen").fill("Ausgang");
   await card.getByRole("button", { name: "Speichern" }).click();
   await expect(card.getByRole("status")).toHaveText("Postfach gespeichert.");
   await card.getByRole("button", { name: "Jetzt abrufen" }).click();
   await expect(card.getByRole("alert")).toContainText("Abruf fehlgeschlagen");
+  // Freigegebene Absender und Ausgangsordner sind gespeichert
+  await go("/einstellungen?bereich=email");
+  await expect(card.getByLabel("Freigegebene Absender")).toHaveValue("rechnung@funknetz.example\n@lieferant.example");
+  await expect(card.getByLabel("Ordner für Ausgangsrechnungen")).toHaveValue("Ausgang");
 
   await go("/belege");
   await expect(page.getByText(/Belege per E-Mail: Anhänge an belege@mustermann\.example \(Ordner Belege\)/)).toBeVisible();
@@ -616,6 +632,7 @@ test("Fristen und Kalender-Abo", async () => {
   await expect(spaeter.getByRole("button", { name: /^Alle \d+ zeigen$/ })).toHaveCount(0);
   expect(await spaeter.getByRole("row").count()).toBeGreaterThan(7);
   await expect(page.getByText(/Umsatzsteuer-Voranmeldung/).first()).toBeVisible();
+  await expect(page.getByText("Umsatzsteuer melden und zahlen").first()).toBeVisible();
   const abo = page.getByRole("region", { name: "Erinnerungen im Kalender" });
   await abo.getByRole("button", { name: "Kalender-Abo einrichten" }).click();
   const url = await abo.getByLabel(/Abo-Link/).inputValue();
@@ -1872,7 +1889,7 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await page.getByLabel("Straße und Hausnummer").fill("Praterstraße 3");
   await page.getByLabel("PLZ").fill("1020");
   await page.getByLabel("Ort").fill("Wien");
-  await page.getByLabel("Land (ISO-Code)").fill("AT");
+  await page.getByLabel("Land (z. B. DE)").fill("AT");
   await page.getByLabel("USt-IdNr.").fill("ATU12345678");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
@@ -1881,6 +1898,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await kundeWaehlen(page, "Donaublick GmbH · Wien");
   await page.getByLabel("Rechnungsdatum").fill(`${next}-02-10`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
+  // Der Paragraf steht im Hinweis unter der Auswahl, nicht im Namen der Auswahl
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/sonstige Leistungen, § 3 Abs\. 9 UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung Cloud-Architektur");
   await page.getByLabel("Menge Position 1").fill("2");
   await page.getByLabel(/Einzelpreis Position 1/).fill("1.200,50");
@@ -1920,6 +1939,7 @@ test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart 
   await page.getByLabel("Rechnungsdatum").fill(`${next}-05-12`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("ig_lieferung");
   await expect(page.getByText(/Gelangensnachweis \(§ 17a UStDV\)/)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/§ 4 Nr\. 1 Buchst\. b, § 6a UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Industrierechner");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("3.000,00");
@@ -2213,14 +2233,16 @@ test("Anlage: ein Satz über dem Höchstsatz ist ein Fehler am Satz, der Fokus g
   await form.getByLabel("Anschaffungsdatum").fill("2024-04-10");
   await form.getByLabel("Anschaffungskosten netto (€)").fill("50.000,00");
   await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("degressiv");
+  // Bei degressiv gibt es keinen Hinweis unter der Auswahl, also zeigt auch aria-describedby nicht darauf
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true })).not.toHaveAttribute("aria-describedby", /method-hint/);
   await form.getByLabel("Nutzungsdauer in Jahren").fill("10");
-  await form.getByLabel("Satz der degressiven AfA in %").fill("30");
+  await form.getByLabel("Abschreibungssatz in % (degressiv)").fill("30");
   await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
   await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("");
   await form.getByRole("button", { name: "Anlage übernehmen" }).click();
   // Erstes Feld mit Fehler ist der Satz, und er sagt warum; der Restbuchwert darunter trägt seinen eigenen Fehler
-  await expect(form.getByLabel("Satz der degressiven AfA in %")).toBeFocused();
-  await expect(form.getByLabel("Satz der degressiven AfA in %")).toHaveAccessibleDescription(/Höchstens 20 %/);
+  await expect(form.getByLabel("Abschreibungssatz in % (degressiv)")).toBeFocused();
+  await expect(form.getByLabel("Abschreibungssatz in % (degressiv)")).toHaveAccessibleDescription(/Höchstens 20 %/);
   await expect(form.getByLabel("Restbuchwert zum Stichtag (€)")).toHaveAccessibleDescription(/Trag den Restbuchwert ein/);
 });
 
@@ -2270,6 +2292,7 @@ test("Elektrofahrzeug übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswer
   await form.getByLabel("Anschaffungskosten netto (€)").fill("40.000,00");
   await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("elektro");
   await expect(form.getByText("Nur für reine Elektrofahrzeuge, angeschafft vom 01.07.2025 bis 31.12.2027")).toBeVisible();
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true })).toHaveAttribute("aria-describedby", /method-hint/);
   await form.getByLabel("Erinnerungswert 1 € bis zum Abgang stehen lassen").check();
   await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
   // 75 % im Anschaffungsjahr: Restbuchwert 10.000 €
@@ -2658,6 +2681,52 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await page.waitForURL(/\/bank\?/);
   await page.waitForLoadState("networkidle");
   await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
+});
+
+test("Direkt buchen als nicht steuerbare Einnahme: ohne Steuersatz, auch nach Wechsel von Erlöse 19 % (#1131)", async () => {
+  const zeile = (name: string, zweck: string, betrag: string) =>
+    [dkb(day(0)), dkb(day(0)), "Gebucht", betrag.startsWith("-") ? "Max Mustermann" : name, betrag.startsWith("-") ? name : "Max Mustermann", zweck]
+      .concat([betrag.startsWith("-") ? "Ausgang" : "Eingang", "", betrag, "", "", ""])
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Versandlager GmbH", "Erstattung verlorene Ware", "12,50")}\n${zeile("Versandlager GmbH", "Rückforderung Erstattung", "-4,20")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "schadenersatz.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  await page
+    .getByRole("link", { name: /Erstattung verlorene Ware/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Erstattung verlorene Ware")).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  // Vorbelegt bleibt Erlöse 19 %; der Wechsel setzt den Satz zurück, ein Steuersatz-Feld gibt es dann nicht
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await expect(panel.getByText("Gebucht als Einnahme ohne Umsatzsteuer, nicht in der Voranmeldung.", { exact: false })).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Danach steht die Rückforderung im Panel: Ausgang, vorbelegt als Ausgabe; ebenfalls nicht steuerbar, mindert die Einnahme
+  await expect(panel.getByText("Rückforderung Erstattung")).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Direkt: Nicht steuerbare Einnahme")).toBeVisible();
 });
 
 /** Beleg mit abweichender IBAN aus dem Test unten, für die Prüfung mit axe */
@@ -3401,7 +3470,9 @@ test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997
   await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
 });
 
-test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren des Monats zu (#680)", async ({ browser }) => {
+test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren und Gutschriften des Monats zu (#680)", async ({
+  browser,
+}) => {
   // Oktober vor dem Vorjahr: ohne Buchungen, damit die übrigen Auswertungen dieses Durchlaufs unverändert bleiben
   const year = YEAR - 2;
   await go("/belege");
@@ -3420,7 +3491,7 @@ test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffe
   await page.getByLabel("Belegdatum").fill(`${year}-10-31`);
   await page.getByLabel("Kategorie").selectOption("geldverkehr");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("0");
-  // Summe der vier Gebührenzeilen unten: 7,44 + 9,89 + 8,19 + 91,05
+  // Gebühren minus Gutschriften unten: 7,44 + 9,89 + 8,19 + 93,77 − 1,50 − 1,22
   await page.getByLabel("Netto", { exact: true }).fill("116,57");
   await page.locator(".doc-actions").getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");
@@ -3439,23 +3510,91 @@ test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffe
     `"October 1, ${year}",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
     `"October 2, ${year}",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
     `"October 3, ${year}",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
-    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
+    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€93.77,-€93.77,--`,
+    `"October 5, ${year}",Fee,"Credit for transaction fee","",EUR,--,€1.50,€1.50,--`,
+    `"October 6, ${year}",Fee,"Gutschrift für Einstellgebühr","",EUR,--,€1.22,€1.22,--`,
   ].join("\n");
   await page
     .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
     .setInputFiles([{ name: "etsy.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
-  await expect(page.getByText(/4 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/6 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
 
   await go("/bank?filter=alle&suche=Etsy");
   const gebuehren = page.locator(".tx-row", { hasText: "Etsy" });
-  await expect(gebuehren).toHaveCount(4);
+  await expect(gebuehren).toHaveCount(6);
   await gebuehren.filter({ hasText: "7,44" }).click();
   await page.waitForLoadState("networkidle");
   const panel = page.getByRole("complementary", { name: "Zuordnung" });
-  // Die einzelne Gebühr passt nie auf die Rechnung; die Summe des Monats schon
+  // Die einzelne Gebühr passt nie auf die Rechnung; Gebühren und Gutschriften des Monats zusammen schon
   await expect(panel.getByText("Beleg Etsy Ireland UC", { exact: true })).toBeVisible();
   await expect(panel.getByText("Betrag stimmt exakt")).toBeVisible();
   await panel.getByRole("button", { name: `Alle offenen Gebühren aus 10.${year} diesem Beleg zuordnen` }).click();
   await page.waitForLoadState("networkidle");
   for (const zeile of await gebuehren.all()) await expect(zeile).toContainText("Zugeordnet");
+});
+
+test("Unbekannte Bank-CSV: Spalten zuordnen, importieren, der nächste Export geht ohne Rückfrage durch (#1275)", async () => {
+  // Erfundene Bank mit Kopfblock, Soll und Haben in eigenen Spalten und dem Kontostand in der letzten Zeile
+  const datei = readFileSync(new URL("../../../packages/import/test-fixtures/unbekannte-bank-soll-haben.csv", import.meta.url));
+  await go("/bank");
+  await page.getByRole("button", { name: "Konto hinzufügen" }).click();
+  const neuesKonto = page.locator("form", { has: page.getByRole("button", { name: "Konto anlegen" }) });
+  await neuesKonto.getByLabel("Name", { exact: true }).fill("Konto ohne Format");
+  await neuesKonto.getByLabel("IBAN", { exact: true }).fill("DE75 5121 0800 1245 1261 99");
+  await neuesKonto.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByText("Konto angelegt.")).toBeVisible();
+  // Das Konto nicht vorwählen: die Datei nennt keine IBAN, gewählt wird es in der Zuordnung
+  await page.getByLabel("Konto", { exact: true }).selectOption("");
+  const upload = page.locator('input[type=file][aria-label="Kontoauszugsdateien"]');
+  await upload.setInputFiles([{ name: "umsaetze.csv", mimeType: "text/csv", buffer: datei }]);
+  await expect(page.getByText("umsaetze.csv: Haben kennt diese Bank nicht. Ordne die Spalten einmal selbst zu.")).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Spalten zuordnen" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Spalten zuordnen" });
+  // Die Vorschau steht oben; Spalten mit einem Wert aus der Datei, Kopfzeile und Zahlenformat eingeklappt
+  await expect(dialog.getByRole("status")).toContainText("4 Umsätze, 1 Zeile mit Fehlern, die Haben nicht übernimmt");
+  await expect(dialog.getByRole("listitem").filter({ hasText: "Kontostand" })).toContainText("Zeile 9: Buchungstag „Kontostand“ ist kein Datum");
+  await expect(dialog.getByLabel("Soll (Ausgänge)")).toHaveValue("15");
+  await expect(dialog.getByLabel("Soll (Ausgänge)").locator("option:checked")).toHaveText("Soll – -1.190,00");
+  await expect(dialog.getByLabel("Haben (Eingänge)")).toHaveValue("16");
+  await expect(dialog.getByLabel("Kopfzeile")).toBeHidden();
+  await dialog.getByText("Weitere Spalten, Kopfzeile und Zahlenformat").click();
+  // Die leere dritte Zeile zählt nicht mit: Index 2 ist Zeile 4
+  await expect(dialog.getByLabel("Kopfzeile")).toHaveValue("2");
+  expect(await axeVerstoesse(page)).toEqual([]);
+
+  // Ohne Konto meldet das Feld den Fehler und bekommt den Fokus
+  await dialog.getByRole("button", { name: "4 Umsätze importieren" }).click();
+  await expect(dialog.getByLabel("Konto", { exact: true })).toBeFocused();
+  await expect(dialog.getByText("Wähle das Konto, zu dem die Datei gehört.")).toBeVisible();
+  await dialog.getByLabel("Konto", { exact: true }).selectOption({ label: "Konto ohne Format" });
+  // Betrag statt Soll und Haben: die Spalte „Betrag“ ist leer, die Vorschau sagt es
+  await dialog.getByLabel("Soll (Ausgänge)").selectOption("");
+  await expect(dialog.getByRole("alert")).toHaveText("Ordne den Betrag zu oder Soll und Haben.");
+  await dialog.getByLabel("Soll (Ausgänge)").selectOption("15");
+  await expect(dialog.getByRole("status")).toContainText("4 Umsätze");
+  await dialog.getByRole("button", { name: "4 Umsätze importieren" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("umsaetze.csv: 4 neue Umsätze für Konto ohne Format. Spaltenzuordnung für Konto ohne Format gespeichert.")).toBeVisible();
+  await expect(page.getByText(/Zeile 9 nicht übernommen: Buchungstag „Kontostand“ ist kein Datum/)).toBeVisible();
+
+  // Der nächste Export mit derselben Kopfzeile: ohne Dialog, ohne Dubletten
+  await upload.setInputFiles([{ name: "umsaetze-november.csv", mimeType: "text/csv", buffer: datei }]);
+  await expect(page.getByText("umsaetze-november.csv: 0 neue Umsätze für Konto ohne Format, 4 schon vorhanden.")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Spalten zuordnen" })).toHaveCount(0);
+
+  // Zuordnung ändern: der Dialog beginnt mit der gespeicherten und warnt, wenn eine Änderung die Dubletten berührt
+  await page.getByRole("button", { name: "Zuordnung ändern" }).click();
+  await expect(dialog.getByText("Zuordnung vom letzten Import in dieses Konto.")).toBeVisible();
+  await expect(dialog.getByLabel("Konto", { exact: true })).toHaveValue(/.+/);
+  await dialog.getByLabel("Verwendungszweck").selectOption("");
+  await expect(dialog.getByText(/Umsätze, die schon importiert sind, erkennt Haben dann nicht mehr als Dubletten/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(dialog).toBeHidden();
+
+  await go("/bank?filter=alle");
+  await page.getByRole("link", { name: /^Konto ohne Format/ }).click();
+  await page.getByLabel("Umsätze durchsuchen").fill("Hafen Immobilien");
+  // Die Umsatzliste schreibt das Minus typografisch (U+2212)
+  await expect(page.locator(".tx-row", { hasText: "Miete Büro Oktober" })).toContainText("\u22121.190,00 €");
 });

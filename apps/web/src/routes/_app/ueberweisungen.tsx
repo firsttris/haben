@@ -30,10 +30,19 @@ function TransferPage() {
           <h1>Überweisungen</h1>
         </div>
       </div>
-      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Offene <Link to="/belege">Belege</Link> als SEPA-Datei (pain.001) zum Hochladen ins Online-Banking. Gebucht wird dabei nichts: Bezahlt ist ein Beleg
-        erst, wenn der <Link to="/bank">Bankabgleich</Link> die Abbuchung zuordnet. Die Referenz jeder Überweisung hilft ihm dabei.
-      </p>
+      <div className="muted small" style={{ maxWidth: 760 }}>
+        <ol style={{ margin: "0 0 8px", paddingLeft: 20 }}>
+          <li>
+            Konto, Ausführungsdatum und offene <Link to="/belege">Belege</Link> auswählen.
+          </li>
+          <li>Datei erzeugen: Haben legt sie im SEPA-Format (pain.001) an und lädt sie herunter.</li>
+          <li>Die Datei im Online-Banking hochladen. Erst dort geht das Geld raus.</li>
+        </ol>
+        <p style={{ margin: 0 }}>
+          Gebucht wird dabei nichts: Bezahlt ist ein Beleg erst, wenn der <Link to="/bank">Bankabgleich</Link> die Abbuchung zuordnet. Die Referenz jeder
+          Überweisung hilft ihm dabei.
+        </p>
+      </div>
       <TransferForm data={data} />
       <TransferFiles data={data} />
     </>
@@ -104,7 +113,7 @@ function TransferForm({ data }: { data: Data }) {
     <form className="card" onSubmit={onSubmit} aria-label="SEPA-Überweisung erzeugen">
       <h2 style={{ margin: 0, fontSize: 16 }}>Offene Belege</h2>
       <div className="form-grid">
-        <Field label="Auftraggeberkonto">
+        <Field label="Konto, von dem das Geld abgeht (Auftraggeberkonto)">
           {(control) => (
             <select {...control} name="account" defaultValue={data.accounts.find((a) => a.purpose === "geschaeft")?.id ?? data.accounts[0]!.id}>
               {data.accounts.map((a) => (

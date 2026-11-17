@@ -17,6 +17,7 @@ import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.ts
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
+import { FintsAbruf } from "../../components/FintsAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -59,6 +60,7 @@ import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
+import { ImportMeldungen, importMessages, type ImportMessage } from "../../components/BankImportMeldungen.tsx";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
@@ -190,7 +192,7 @@ function itemTarget(type: string | undefined, id: string, amount: number) {
 }
 
 const FORMAT_LABEL = (format: string) =>
-  format === "enablebanking"
+  format === "enablebanking" || format === "fints"
     ? "Abruf"
     : format.startsWith("camt")
       ? "CAMT.053"
@@ -256,7 +258,7 @@ function BankPage() {
         <ImportControls data={data} />
       </div>
 
-      <BankSync sync={data.sync} result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null} />
+      <BankSync sync={data.sync} fints={data.fints} result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null} />
 
       {data.accounts.length === 0 ? (
         <section className="card">
@@ -490,22 +492,23 @@ function AccountSettings({
 
 type Sync = Data["sync"];
 
-/** Automatischer Abruf über Enable Banking: verbundene Banken, Abruf, Erneuern und Trennen */
-function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message: string } | null }) {
+/** Automatischer Abruf über Enable Banking und FinTS (#654): verbundene Banken, Abruf, Erneuern und Trennen */
+function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; result: { ok: boolean; message: string } | null }) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const syncFn = useServerFn(syncBankConnection);
   const disconnectFn = useServerFn(disconnectBank);
   const connectFn = useServerFn(connectBank);
   const [connecting, setConnecting] = useState(false);
+  const [fintsConnecting, setFintsConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState<Sync["connections"][number] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
 
-  if (!sync.configured && sync.connections.length === 0) {
+  if (!sync.configured && sync.connections.length === 0 && !fints.configured && fints.connections.length === 0) {
     return (
       <p className="small muted" style={{ margin: "0 0 16px" }}>
-        Automatischer Abruf: mit einer Enable-Banking-Anwendung holt Haben die Umsätze täglich selbst. Einrichten unter{" "}
+        Automatischer Abruf: mit einer Enable-Banking-Anwendung oder über FinTS holt Haben die Umsätze täglich selbst. Einrichten unter{" "}
         <Link to="/einstellungen" search={{ bereich: "bank" }}>
           Einstellungen › Bank
         </Link>
@@ -538,11 +541,18 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
     <section className="card" aria-label="Automatischer Abruf" style={{ marginBottom: 16, gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <h2 style={{ margin: 0 }}>Automatischer Abruf</h2>
-        {sync.configured && (
-          <button type="button" className="btn" onClick={() => setConnecting((v) => !v)} disabled={busy !== null}>
-            Bank verbinden
-          </button>
-        )}
+        <div className="actions">
+          {sync.configured && (
+            <button type="button" className="btn" onClick={() => setConnecting((v) => !v)} disabled={busy !== null}>
+              Bank verbinden
+            </button>
+          )}
+          {fints.configured && (
+            <button type="button" className="btn" onClick={() => setFintsConnecting((v) => !v)} disabled={busy !== null}>
+              Über FinTS verbinden
+            </button>
+          )}
+        </div>
       </div>
 
       {result && (
@@ -577,7 +587,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
         <p>Die abgerufenen Umsätze bleiben erhalten.</p>
       </ConfirmDialog>
 
-      {sync.connections.length === 0 && !connecting && (
+      {sync.connections.length === 0 && fints.connections.length === 0 && !connecting && !fintsConnecting && (
         <p className="small muted" style={{ margin: 0 }}>
           Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder CAMT bleibt daneben
           möglich.
@@ -631,6 +641,8 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
           </div>
         );
       })}
+
+      <FintsAbruf fints={fints} verbinden={fintsConnecting} setVerbinden={setFintsConnecting} />
 
       {messages.length > 0 && (
         <ul className="upload-messages" role="status">
@@ -841,7 +853,7 @@ function ImportControls({ data }: { data: Data }) {
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
-  const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
+  const [messages, setMessages] = useState<ImportMessage[]>([]);
 
   async function onFiles(files: File[]) {
     if (files.length === 0) return;
@@ -853,19 +865,11 @@ function ImportControls({ data }: { data: Data }) {
       if (targetAccount) form.append("accountId", targetAccount);
       const results = await importFiles({ data: form });
       setMessages(
-        results.flatMap((r) =>
+        results.flatMap((r, i) =>
           "error" in r && r.error
-            ? [{ tone: "danger" as const, text: r.error }]
+            ? [{ tone: "danger" as const, text: r.error, datei: r.zuordnen ? { file: files[i]!, aktion: "Spalten zuordnen" as const } : undefined }]
             : "added" in r
-              ? [
-                  {
-                    tone: "ok" as const,
-                    text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.`,
-                  },
-                  ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
-                  ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
-                  ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
-                ]
+              ? importMessages(r, files[i])
               : [],
         ),
       );
@@ -967,15 +971,16 @@ function ImportControls({ data }: { data: Data }) {
           </button>
         </form>
       )}
-      {messages.length > 0 && (
-        <ul className="upload-messages" role="status" style={{ maxWidth: 560 }}>
-          {messages.map((m, i) => (
-            <li key={i} className={`banner banner-${m.tone}`}>
-              {m.text}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ImportMeldungen
+        messages={messages}
+        accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
+        accountId={targetAccount}
+        onImported={(result, file) => {
+          setTargetAccount(result.accountId);
+          setMessages(importMessages(result, file));
+          void router.invalidate();
+        }}
+      />
     </div>
   );
 }
@@ -1119,7 +1124,8 @@ function AllocationPanel({
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
   // Den Sammelknopf gibt es bei jedem gewählten Beleg und beim besten Vorschlag, wenn dieser der Sammelbeleg des Monats ist
-  // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu.
+  // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu, die Gutschriften nur,
+  // wenn alles zusammen genau den Beleg ergibt (allocateFeesToDocument).
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
   const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
@@ -1295,7 +1301,7 @@ function AllocationPanel({
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 {best.item.type === "invoice"
-                  ? "Bucht Bank an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit diesem Zahlungseingang fällig."
+                  ? "Deckt die Zahlung den offenen Betrag, gilt die Rechnung als bezahlt (Bank an Forderungen). Bei Ist-Versteuerung wird die Umsatzsteuer anteilig mit der Zahlung fällig."
                   : best.item.type === "ustva"
                     ? "Bucht wie „Umsatzsteuer an das Finanzamt“ (Umsatzsteuer-Vorauszahlungen), mit Bezug auf die Voranmeldung."
                     : "Bucht Verbindlichkeiten an Bank."}
@@ -1363,7 +1369,8 @@ function AllocationPanel({
                     Beide Seiten als Geldtransit buchen
                   </button>
                   <span className="small muted">
-                    Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
+                    Geld zwischen deinen eigenen Konten: Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über{" "}
+                    {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
                     {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem
                     Schritt zugeordnet.
                   </span>
@@ -1470,8 +1477,8 @@ function AllocationPanel({
                 <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
                 {sammelrechnung && target.id !== sammelrechnung.documentId && (
                   <span className="small muted">
-                    Die offenen Gebühren von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der Beleg steht mit{" "}
-                    {formatEuro(Math.abs(target.open))} offen.
+                    Die offenen Gebühren und Gutschriften von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der
+                    Beleg steht mit {formatEuro(Math.abs(target.open))} offen.
                   </span>
                 )}
               </div>

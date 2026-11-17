@@ -15,18 +15,6 @@ const tagFormat = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", 
 export const zeit = (d: Date | string) => zeitFormat.format(new Date(d));
 export const tag = (d: Date | string) => tagFormat.format(new Date(d));
 
-/**
- * Zugangsdaten in einem Ziel von restic fallen weg, auch in Fehlermeldungen des Backups: Nutzer und Passwort einer
- * Adresse (scheme://nutzer:passwort@host, bis zum letzten @ vor dem Pfad wie bei Go url.Parse, das restic nutzt), der
- * Nutzer der Kurzform sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad).
- * Gleiche Regeln in deploy/backup/backup-status.sh.
- */
-export const ohneZugangsdaten = (text: string) =>
-  text
-    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s]*@/gi, "$1")
-    .replace(/\b(sftp:)(?!\/\/)[^\s/@]+@/gi, "$1")
-    .replace(/\b(rclone::?[\w.-]+),(?:"[^"]*"|'[^']*'|[^\s:"'])*/gi, "$1");
-
 const VERSTEUERUNG = {
   ist: "Ist-Versteuerung: Umsatzsteuer nach vereinnahmten Entgelten (§ 20 UStG)",
   soll: "Soll-Versteuerung: Umsatzsteuer nach vereinbarten Entgelten (§ 16 Abs. 1 UStG)",
@@ -64,8 +52,8 @@ function nummernkreis(name: string, format: string, laufend: boolean): string {
 function bank(s: InstanzStand): string[] {
   if (s.bankkonten.length === 0) return ["Es ist kein Bankkonto angelegt."];
   return [
-    "Kontoumsätze kommen aus importierten Kontoauszugsdateien (deren SHA-256 Haben festhält) oder aus dem Kontoabruf über Enable Banking und sind ab dem Import unveränderlich. Jeder Umsatz wird einer Rechnung, einem Beleg oder einer Buchung ohne Beleg zugeordnet; aufgehobene Zuordnungen bleiben als Gegenzeile erhalten.",
-    s.bankabruf.length ? "" : "Ein Kontoabruf über Enable Banking ist nicht eingerichtet.",
+    "Kontoumsätze kommen aus importierten Kontoauszugsdateien (deren SHA-256 Haben festhält) oder aus dem Kontoabruf über Enable Banking oder FinTS und sind ab dem Import unveränderlich. Jeder Umsatz wird einer Rechnung, einem Beleg oder einer Buchung ohne Beleg zugeordnet; aufgehobene Zuordnungen bleiben als Gegenzeile erhalten.",
+    s.bankabruf.length || s.fintsabruf.length ? "" : "Ein Kontoabruf über Enable Banking oder FinTS ist nicht eingerichtet.",
   ];
 }
 
@@ -110,6 +98,10 @@ export function anwender(s: InstanzStand, angaben: ProcedureDetails): Verfahrens
         (b) =>
           `Kontoabruf über Enable Banking bei ${b.aspspName}: ${b.status}${b.validUntil ? `, Zustimmung bis ${tag(b.validUntil)}` : ""}${b.lastSyncAt ? `, zuletzt abgerufen ${zeit(b.lastSyncAt)}` : ""}`,
       ),
+      ...s.fintsabruf.map(
+        (b) =>
+          `Kontoabruf über FinTS bei ${b.bankName}: ${b.status === "tan" ? "wartet auf TAN" : b.status}${b.lastSyncAt ? `, zuletzt abgerufen ${zeit(b.lastSyncAt)}` : ""}`,
+      ),
     ],
     luecken: papier.luecken,
   });
@@ -149,13 +141,12 @@ function sicherung(s: InstanzStand): string[] {
   const b = s.backup;
   if (b.state === "keins") return ["Haben kennt keinen Lauf des Backup-Containers; wie gesichert wird, steht in den Angaben oben."];
   return [
-    `Der Backup-Container sichert Datenbank und Belege täglich, verschlüsselt mit restic${s.backupTarget ? ` nach ${ohneZugangsdaten(s.backupTarget)}` : ""}, und spielt regelmäßig die letzte Sicherung probeweise in eine Wegwerf-Datenbank ein; dabei werden Hash-Kette und Siegel geprüft und einige Belege mit ihrer Prüfsumme verglichen. ${b.lastBackup ? `Letzte Sicherung: ${zeit(b.lastBackup.at)}${b.lastBackup.snapshot ? ` (Snapshot ${b.lastBackup.snapshot})` : ""}.` : "Noch keine Sicherung lief erfolgreich."}`,
+    `Der Backup-Container sichert Datenbank und Belege täglich, verschlüsselt mit restic${b.target ? ` nach ${b.target.repository}` : ""}, und spielt regelmäßig die letzte Sicherung probeweise in eine Wegwerf-Datenbank ein; dabei werden Hash-Kette und Siegel geprüft und einige Belege mit ihrer Prüfsumme verglichen. ${b.lastBackup ? `Letzte Sicherung: ${zeit(b.lastBackup.at)}${b.lastBackup.snapshot ? ` (Snapshot ${b.lastBackup.snapshot})` : ""}.` : "Noch keine Sicherung lief erfolgreich."}`,
     b.lastCheck
-      ? `Letzter bestandener Test-Restore: ${zeit(b.lastCheck.at)}${b.lastCheck.message ? `, ${ohneZugangsdaten(b.lastCheck.message)}` : ""}.`
+      ? `Letzter bestandener Test-Restore: ${zeit(b.lastCheck.at)}${b.lastCheck.message ? `, ${b.lastCheck.message}` : ""}.`
       : "Ein Test-Restore ist noch nicht bestanden.",
     ...b.failed.map(
-      (f) =>
-        `${f.kind === "backup" ? "Die letzte Sicherung" : "Der letzte Test-Restore"} am ${zeit(f.run.at)} schlug fehl: ${ohneZugangsdaten(f.run.message) || "ohne Meldung"}`,
+      (f) => `${f.kind === "backup" ? "Die letzte Sicherung" : "Der letzte Test-Restore"} am ${zeit(f.run.at)} schlug fehl: ${f.run.message || "ohne Meldung"}`,
     ),
     b.overdue ? "Seit mehr als zwei Tagen lief keine Sicherung erfolgreich durch." : "",
   ];

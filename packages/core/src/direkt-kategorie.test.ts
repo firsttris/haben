@@ -19,6 +19,13 @@ const balanced = (lines: { debit: number; credit: number }[]) => lines.reduce((s
 
 const erloese19: KategorieAngabe = { kategorie: "erloese", steuersatz: 1900 };
 
+/*
+ * Nicht steuerbare Einnahme (#1131): echter Schadenersatz ohne Leistungsaustausch (UStAE 1.3 Abs. 1), etwa die Erstattung
+ * einer Plattform für verlorene Ware; Konto SKR03 2742, SKR04 4970 „Versicherungsentschädigungen und
+ * Schadenersatzleistungen“ (DATEV-Kontenrahmen 2026), ohne Steuerschlüssel.
+ */
+const nichtSteuerbar: KategorieAngabe = { kategorie: "nichtSteuerbar", steuersatz: 0 };
+
 describe("kategorieFehler", () => {
   it("Einnahme mit 19 % oder 7 % ist buchbar, mit anderem Satz nicht", () => {
     expect(kategorieFehler(erloese19, false)).toBeNull();
@@ -38,6 +45,12 @@ describe("kategorieFehler", () => {
     expect(kategorieFehler({ kategorie: "telefon", steuersatz: 1900 }, false)).toMatch(/Vorsteuer/);
   });
 
+  it("Nicht steuerbare Einnahme: nur ohne Steuersatz, nicht als Kleinunternehmer (#1131)", () => {
+    expect(kategorieFehler(nichtSteuerbar, false)).toBeNull();
+    expect(kategorieFehler({ kategorie: "nichtSteuerbar", steuersatz: 1900 }, false)).toMatch(/keine Umsatzsteuer/);
+    expect(kategorieFehler(nichtSteuerbar, true)).toMatch(/Kleinunternehmer/);
+  });
+
   it("lehnt Kategorien ab, die einen Beleg oder ein Verzeichnis brauchen, und unbekannte", () => {
     for (const kategorie of ["anlage", "hardware", "einfuhrumsatzsteuer", "bewirtung", "geschenke"]) {
       expect(kategorieFehler({ kategorie: kategorie as KategorieAngabe["kategorie"], steuersatz: 0 }, false)).toMatch(/Beleg/);
@@ -50,6 +63,8 @@ describe("direktKategorienFuer", () => {
   it("Einnahmen und die Ausgabekategorien, die ohne Beleg gehen", () => {
     const keys = direktKategorienFuer().map((k) => k.value);
     expect(keys[0]).toBe("erloese");
+    expect(keys[1]).toBe("nichtSteuerbar");
+    expect(kategorieArt("nichtSteuerbar")).toBe("einnahme");
     expect(keys).toContain("telefon");
     expect(keys).toContain("sonstiges");
     expect(keys).not.toContain("anlage");
@@ -70,6 +85,7 @@ describe("kategorieAnteil", () => {
     expect(kategorieAnteil(erloese19, -9_99)).toEqual({ base: -8_39, tax: -1_60 });
     expect(kategorieAnteil({ kategorie: "erloese", steuersatz: 0 }, 50_00)).toEqual({ base: 50_00, tax: 0 });
     expect(kategorieAnteil({ kategorie: "telefon", steuersatz: 0 }, -35_70)).toEqual({ base: -35_70, tax: 0 });
+    expect(kategorieAnteil(nichtSteuerbar, 12_50)).toEqual({ base: 12_50, tax: 0 });
   });
 });
 
@@ -119,6 +135,25 @@ describe("kategoriePosting", () => {
   it("wirft bei einer Angabe, die nicht buchbar ist", () => {
     expect(() => kategoriePosting({ kategorie: "telefon", steuersatz: 1900 }, -119_00, "SKR03")).toThrow(/Vorsteuer/);
   });
+
+  it("Nicht steuerbare Einnahme: Bank an 2742 (SKR03) bzw. 4970 (SKR04), ohne Steuerschlüssel; Rückforderung dreht die Seiten (#1131)", () => {
+    expect(kategoriePosting(nichtSteuerbar, 12_50, "SKR03")).toEqual([
+      { account: "1200", debit: 12_50, credit: 0, taxCode: null },
+      { account: "2742", debit: 0, credit: 12_50, taxCode: null },
+    ]);
+    expect(kategoriePosting(nichtSteuerbar, 12_50, "SKR04")).toEqual([
+      { account: "1800", debit: 12_50, credit: 0, taxCode: null },
+      { account: "4970", debit: 0, credit: 12_50, taxCode: null },
+    ]);
+    expect(kategoriePosting(nichtSteuerbar, -4_20, "SKR03")).toEqual([
+      { account: "1200", debit: 0, credit: 4_20, taxCode: null },
+      { account: "2742", debit: 4_20, credit: 0, taxCode: null },
+    ]);
+  });
+
+  it("Nicht steuerbare Einnahme mit Steuersatz wirft", () => {
+    expect(() => kategoriePosting({ kategorie: "nichtSteuerbar", steuersatz: 1900 }, 11_90, "SKR03")).toThrow(/keine Umsatzsteuer/);
+  });
 });
 
 describe("kategorieText", () => {
@@ -126,6 +161,7 @@ describe("kategorieText", () => {
     expect(kategorieText(erloese19)).toBe("Erlöse 19 %");
     expect(kategorieText({ kategorie: "erloese", steuersatz: 0 })).toBe("Erlöse (Kleinunternehmer)");
     expect(kategorieText({ kategorie: "telefon", steuersatz: 0 })).toBe("Telefon");
+    expect(kategorieText(nichtSteuerbar)).toBe("Nicht steuerbare Einnahme");
   });
 });
 
@@ -147,6 +183,31 @@ describe("EÜR", () => {
     const euer = computeEuer(2026, [{ kind: "kategorie", date: "2026-03-10", amount: 50_00, kategorie: "erloese", steuersatz: 0 }]);
     expect(euer.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount).toBe(50_00);
     expect(euer.einnahmen.find((l) => l.key === "vereinnahmteUst")?.amount).toBe(0);
+  });
+
+  it("Nicht steuerbare Einnahme: Zeile „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“, Rückforderung mindert (#1131)", () => {
+    const euer = computeEuer(2026, [
+      { kind: "kategorie", date: "2026-01-06", amount: 12_50, kategorie: "nichtSteuerbar", steuersatz: 0 },
+      { kind: "kategorie", date: "2026-01-22", amount: -4_20, kategorie: "nichtSteuerbar", steuersatz: 0 },
+    ]);
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount).toBe(8_30);
+    // Die Zeile für Kleinunternehmer erscheint nur, wenn es solche Einnahmen gibt
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount ?? 0).toBe(0);
+    expect(euer.einnahmen.find((l) => l.key === "vereinnahmteUst")?.amount).toBe(0);
+  });
+
+  it("Nicht steuerbare Einnahme in einem Monat als Kleinunternehmer: Zeile 12 wie im Journal (#1131)", () => {
+    // Etwa die Aufhebung einer Buchung aus der Zeit mit Regelbesteuerung im Monat nach dem Wechsel (euerZuordnung mit KU)
+    const kleinunternehmerMonate = [true];
+    const euer = computeEuer(
+      2026,
+      [{ kind: "kategorie", date: "2026-01-06", amount: -12_50, kategorie: "nichtSteuerbar", steuersatz: 0 }],
+      undefined,
+      undefined,
+      kleinunternehmerMonate,
+    );
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount).toBe(-12_50);
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount ?? 0).toBe(0);
   });
 
   it("Ausgabe: brutto auf der Zeile der Kategorie, ohne Vorsteuer; eine Erstattung mindert sie", () => {

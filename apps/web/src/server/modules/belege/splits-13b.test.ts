@@ -42,6 +42,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let datev: typeof import("../auswertungen/datev-export.ts");
   let bank: typeof import("../bank/bank.ts");
+  let sammel: typeof import("../bank/sammelzuordnung.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let fileSeq = 0;
@@ -55,6 +56,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
     abgleich = await import("../auswertungen/abgleich.ts");
     datev = await import("../auswertungen/datev-export.ts");
     bank = await import("../bank/bank.ts");
+    sammel = await import("../bank/sammelzuordnung.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -309,7 +311,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
       });
       await documents.bookDocument(actor, id);
       const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
-      expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: id })).toBe(2);
+      expect(await sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: id })).toBe(2);
       expect((await bank.openItems()).filter((i) => i.type === "document")).toEqual([]);
       const euer = await reports.euerForYear(2026);
       expect(ausgabe(euer, "ausgabe:geldverkehr")).toBe(300);

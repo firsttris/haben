@@ -24,7 +24,7 @@ import { PrivatanteilVorgaben, privatanteilFehler, privatanteilTexte, privatante
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
-import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
+import { KontoabrufKarten } from "../../components/FintsCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
@@ -281,7 +281,7 @@ function SettingsPage() {
           )}
           {bereich === "bank" && (
             <>
-              <EnableBankingCard data={enableBanking} />
+              <KontoabrufKarten data={enableBanking} />
               <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
             </>
           )}
@@ -329,6 +329,14 @@ const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) 
   "dunning-fee-2": dunningFeeError(fees["2"]),
   "dunning-fee-3": dunningFeeError(fees["3"]),
 });
+
+/**
+ * Klartext unter den Feldern Versteuerung und Kontenrahmen; ist das Feld gesperrt, folgt der genaue Grund aus settings-guard.ts.
+ * Quelle: Ist-Versteuerung gestattet das Finanzamt auf Antrag (§ 20 UStG, docs/einrichtung.md: Versteuerung).
+ */
+const VERSTEUERUNG_HINT = "Ist: Die Umsatzsteuer zählt, wenn der Kunde zahlt. Soll: schon mit der Rechnung. Ist gestattet das Finanzamt auf Antrag.";
+const KONTENRAHMEN_HINT =
+  "Legt fest, auf welche Kontonummern Haben bucht (SKR03 oder SKR04). Nimm denselben wie bisher in Lexoffice oder bei deiner Steuerberatung.";
 
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();
@@ -568,7 +576,7 @@ function CompanyForm() {
           </div>
         )}
         <div className="form-row cols-2">
-          <Field label="Versteuerung" hint={locks.versteuerung}>
+          <Field label="Versteuerung" hint={locks.versteuerung ? `${VERSTEUERUNG_HINT} ${locks.versteuerung}` : VERSTEUERUNG_HINT}>
             {(control) => (
               <>
                 {locks.versteuerung && <input type="hidden" name="versteuerung" value={company.versteuerung} />}
@@ -584,7 +592,7 @@ function CompanyForm() {
               </>
             )}
           </Field>
-          <Field label="Kontenrahmen (wie in Lexoffice)" hint={locks.kontenrahmen}>
+          <Field label="Kontenrahmen" hint={locks.kontenrahmen ? `${KONTENRAHMEN_HINT} ${locks.kontenrahmen}` : KONTENRAHMEN_HINT}>
             {(control) => (
               <>
                 {/* Gesperrte Felder werden nicht mitgeschickt; der Wert kommt dann aus dem versteckten Feld */}

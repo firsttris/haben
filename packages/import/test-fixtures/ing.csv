@@ -1,0 +1,19 @@
+Umsatzanzeige;Datei erstellt am: 16.11.2026 10:00;;;;;;;;
+;;;;;;;;;
+IBAN;DE41 5001 0517 0123 4567 89;;;;;;;;
+Kontoname;Girokonto;;;;;;;;
+Bank;ING;;;;;;;;
+Kunde;Erika Mustermann;;;;;;;;
+Zeitraum;01.10.2026 - 15.11.2026;;;;;;;;
+Saldo;5.003,18;EUR;;;;;;;
+;;;;;;;;;
+Sortierung;Datum absteigend;;;;;;;;
+;;;;;;;;;
+In der CSV-Datei finden Sie alle bereits gebuchten Umsätze. Die vorgemerkten Umsätze werden nicht aufgenommen, auch wenn sie in Ihrem Internetbanking angezeigt werden.;;;;;;;;;
+;;;;;;;;;
+Buchung;Wertstellungsdatum;Auftraggeber/Empfänger;Buchungstext;Verwendungszweck;Referenz;Saldo;Währung;Betrag;Währung
+02.11.2026;03.11.2026;Alpenblick Media AG;Gutschrift;RE-2026-030 Webseite Oktober;NOTPROVIDED;5.003,18;EUR;119,50;EUR
+30.10.2026;30.10.2026;ING;Entgelt;Kontoführung 10/2026;;4.883,68;EUR;-4,90;EUR
+15.10.2026;14.10.2026;VISA BEISPIEL SOFTWARE;Lastschrift;NR XXXX 1234 KAUFUMSATZ 14.10 21.42 ARN74601234;;4.888,58;EUR;-21,42;EUR
+06.10.2026;06.10.2026;Nordwerk Software GmbH;Gutschrift;RE-2026-031 Entwicklung September;NSCT2610060000123456;4.910,00;EUR;4.760,00;EUR
+01.10.2026;01.10.2026;Hausverwaltung Beispiel;Dauerauftrag / Terminüberweisung;Miete Büro Oktober;;150,00;EUR;-850,00;EUR

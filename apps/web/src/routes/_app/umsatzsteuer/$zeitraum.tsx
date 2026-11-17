@@ -412,6 +412,9 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             Die Buchungen haben sich seit dem Speichern geändert; angezeigt sind die aktuellen Werte. Beim Senden werden sie übernommen.
           </div>
         )}
+        <p className="small muted" style={{ margin: 0 }}>
+          Kz = Kennzahl, die Nummer des Felds im ELSTER-Formular.
+        </p>
         <div className="kz-table">
           <div className="kz-row head">
             <div>Kz</div>

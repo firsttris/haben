@@ -1954,6 +1954,55 @@
       "when": 1794838416307,
       "tag": "0278_unsere_lieferantennummer",
       "breakpoints": true
+    },
+    {
+      "idx": 279,
+      "version": "7",
+      "when": 1794891493353,
+      "tag": "0279_bank_csv_zuordnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 280,
+      "version": "7",
+      "when": 1794906477521,
+      "tag": "0280_fints_abruf",
+      "breakpoints": true
+    },
+    {
+      "idx": 281,
+      "version": "7",
+      "when": 1794906481527,
+      "tag": "0281_fints_abruf_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 282,
+      "version": "7",
+      "when": 1794924088379,
+      "tag": "0282_inbox_absender",
+      "breakpoints": true
+    },
+    {
+      "idx": 283,
+      "version": "7",
+      "when": 1794924095123,
+      "tag": "0283_inbox_audit_spalten",
+      "breakpoints": true
+    },
+    {
+      "idx": 284,
+      "version": "7",
+      "when": 1794935065624,
+      "tag": "0284_importvertrag",
+      "breakpoints": true
+    },
+    {
+      "idx": 285,
+      "version": "7",
+      "when": 1794935069443,
+      "tag": "0285_importvertrag_trigger",
+      "breakpoints": true
     }
   ]
 }

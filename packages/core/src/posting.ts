@@ -72,6 +72,11 @@ export const ACCOUNTS = {
     mahnerloes: "2650",
     /** Zinsen auf Guthaben eines betrieblichen Kontos (DATEV SKR03 2650 „Sonstige Zinsen und ähnliche Erträge“) */
     zinsertraege: "2650",
+    /**
+     * Echter Schadenersatz und Entschädigungen ohne Leistungsaustausch, nicht steuerbar (UStAE 1.3 Abs. 1): DATEV-
+     * Kontenrahmen 2026, SKR03 2742 „Versicherungsentschädigungen und Schadenersatzleistungen“ (S. 17), kein Automatikkonto
+     */
+    schadenersatz: "2742",
     /** Ausbuchungen (§ 17 UStG): gewährte und erhaltene Skonti, Forderungsverluste */
     skontiGewaehrt: "8730",
     skontiErhalten: "3730",
@@ -124,6 +129,8 @@ export const ACCOUNTS = {
     saldenvortrag: "9000",
     mahnerloes: "7100",
     zinsertraege: "7100",
+    /** Wie SKR03 2742; DATEV-Kontenrahmen 2026, SKR04 4970 „Versicherungsentschädigungen und Schadenersatzleistungen“ (S. 18) */
+    schadenersatz: "4970",
     skontiGewaehrt: "4730",
     skontiErhalten: "5730",
     forderungsverluste: "6930",
@@ -240,6 +247,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "2400": "Forderungsverluste (übliche Höhe)",
     "2650": "Sonstige Zinsen und ähnliche Erträge",
     "2660": "Erträge aus Kursdifferenzen",
+    "2742": "Versicherungsentschädigungen und Schadenersatzleistungen",
     "3730": "Erhaltene Skonti",
     "8730": "Gewährte Skonti",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
@@ -295,6 +303,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "4400": "Erlöse 19 % USt",
     "4730": "Gewährte Skonti",
     "4840": "Erträge aus Kursdifferenzen",
+    "4970": "Versicherungsentschädigungen und Schadenersatzleistungen",
     "5730": "Erhaltene Skonti",
     "6880": "Aufwendungen aus Kursdifferenzen",
     "6930": "Forderungsverluste (übliche Höhe)",

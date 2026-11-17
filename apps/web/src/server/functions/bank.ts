@@ -31,7 +31,8 @@ import {
   createAccount,
   createProviderAccount,
   providerAccountSchema,
-  importStatement,
+  importStatementFile,
+  UnbekannteCsvError,
   listAccounts,
   hebePrivatAuf,
   markierePrivat,
@@ -62,6 +63,7 @@ import {
 } from "../modules/bank/index.ts";
 import { deleteEnableBankingSettings, enableBankingSettingsSchema, enableBankingSettingsSummary, saveEnableBankingSettings } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
+import { fintsConfigured, listFintsConnections } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
@@ -131,6 +133,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
         ),
       ),
       sync: { configured: await enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
+      fints: { configured: fintsConfigured(), connections: await listFintsConnections() },
     };
   });
 
@@ -152,11 +155,11 @@ export const importStatements = createServerFn({ method: "POST" })
     const results = [];
     for (const file of data.files) {
       try {
-        const result = await importStatement(context.user.id, { bytes: new Uint8Array(await file.arrayBuffer()), filename: file.name }, data.accountId);
+        const result = await importStatementFile(context.user.id, { bytes: new Uint8Array(await file.arrayBuffer()), filename: file.name }, data.accountId);
         results.push({ filename: file.name, ...result });
       } catch (error) {
         if (!(error instanceof BankError)) throw error;
-        results.push({ filename: file.name, error: error.message });
+        results.push({ filename: file.name, error: error.message, zuordnen: error instanceof UnbekannteCsvError });
       }
     }
     return results;
@@ -335,10 +338,10 @@ export const disconnectBank = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Zugang zu Enable Banking (Einstellungen › Bank) */
+/** Zugang zu Enable Banking und, ob FinTS eingerichtet ist (#654); nie die Registrierungsnummer */
 export const getEnableBankingSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => enableBankingSettingsSummary());
+  .handler(async () => ({ ...(await enableBankingSettingsSummary()), fints: fintsConfigured() }));
 
 export const saveEnableBanking = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

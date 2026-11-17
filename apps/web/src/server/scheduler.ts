@@ -2,7 +2,7 @@ import { formatHundredths } from "@haben/core";
 import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueArchiveDeliveries } from "./modules/ablage/index.ts";
 import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
-import { runDueBankSyncs } from "./modules/bank/index.ts";
+import { runDueBankSyncs, runDueFintsSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
 import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modules/belege/index.ts";
@@ -50,6 +50,13 @@ export async function runScheduledJobs(): Promise<void> {
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Kontoabruf", error);
+  }
+  try {
+    const result = await runDueFintsSyncs();
+    if (result.synced > 0) console.log(`FinTS-Abruf: ${result.synced} Verbindungen, ${result.added} neue Umsätze`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("FinTS-Abruf", error);
   }
   try {
     const result = await runDueStoreSyncs();

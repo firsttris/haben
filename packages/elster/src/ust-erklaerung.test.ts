@@ -232,7 +232,23 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(tag(xml, "E3006201")).toBe("-190,00");
     expect(tag(xml, "E3006401")).toBe("190,00");
     expect(tag(xml, "E3006901")).toBe("0,00");
+    // Übertrag der Summe in die Berechnung auch mit 0,00, sonst lehnt ERiC ab
+    expect(tag(xml, "E3009901")).toBe("0,00");
     expect(tag(xml, "E3010201")).toBe("190,00");
+  });
+
+  it("überträgt die Vorsteuer mit 0,00 und rechnet, auch ohne Umsätze", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "ist",
+      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: -19_000, kz62: 19_000, vorauszahlungen: 0 },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(tag(xml, "E3006901")).toBe("0,00");
+    expect(tag(xml, "E3009901")).toBe("0,00");
+    expect(xml).not.toContain("<E3009801>");
+    expect(tag(xml, "E3010201")).toBe("0,00");
+    expect(tag(xml, "E3010601")).toBe("0,00");
   });
 
   it("schreibt Umsatzzeilen auch, wenn sich die Steuer zu 19 und 7 % aufhebt", () => {
@@ -248,6 +264,38 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(tag(xml, "E3004401")).toBe("1900");
     expect(tag(xml, "E3004402")).toBe("133,00");
     expect(tag(xml, "E3006001")).toBe("0,00");
+    // Übertrag und Zwischensumme auch mit 0,00, sonst lehnt ERiC ab
+    expect(tag(xml, "E3009201")).toBe("0,00");
+    expect(tag(xml, "E3009801")).toBe("0,00");
+    expect(tag(xml, "E3010201")).toBe("-50,00");
+  });
+
+  it("überträgt Umsatzsteuer, Erwerbsteuer und §-13b-Steuer mit 0,00, wenn sie sich aufheben", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "soll",
+      figures: {
+        base19: -70_000,
+        tax19: -13_300,
+        base7: 190_000,
+        tax7: 13_300,
+        vorsteuer: 0,
+        kz89: -70_000,
+        tax89: -13_300,
+        kz93: 190_000,
+        tax93: 13_300,
+        kz46: 50_000,
+        kz47: 9_500,
+        kz84: -50_000,
+        kz85: -9_500,
+        vorauszahlungen: 0,
+      },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    for (const feld of ["E3006001", "E3101501", "E3102601", "E3009201", "E3009401", "E3009502", "E3009801", "E3010201", "E3010601"]) {
+      expect(tag(xml, feld)).toBe("0,00");
+    }
+    expect(xml).not.toContain("<E3009901>");
   });
 
   it("rechnet §-13b-Steuer, Erwerbsteuer und weitere Vorsteuer in das Ergebnis", () => {

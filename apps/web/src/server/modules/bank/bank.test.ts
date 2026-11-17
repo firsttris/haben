@@ -42,6 +42,7 @@ const outgoing = (date: string, to: string, iban: string, purpose: string, amoun
 
 describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   let bank: typeof import("./bank.ts");
+  let sammel: typeof import("./sammelzuordnung.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -51,6 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     bank = await import("./bank.ts");
+    sammel = await import("./sammelzuordnung.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
@@ -1040,12 +1042,12 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     });
     await documents.bookDocument(actor, docId);
     const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
-    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
+    expect(await sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
     // Oktober erledigt, November bleibt offen
     const open = await sql`select amount from bank_transactions t where amount < 0
       and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
     expect(open.map((r) => r.amount)).toEqual([-100]);
-    await expect(bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).rejects.toThrow(/Keine offene Gebühr/);
+    await expect(sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).rejects.toThrow(/Keine offene Gebühr/);
   }, 30_000);
 
   // Etsy-Gebührenzeilen haben keinen Betrag, nur „Gebühren & Steuern“; auch sie brauchen „Gebühr“ im Zweck (#296, Review zu #506)
@@ -1073,7 +1075,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     });
     await documents.bookDocument(actor, docId);
     const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
-    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
+    expect(await sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
     // Oktober erledigt, November bleibt offen
     const open = await sql`select amount from bank_transactions t where amount < 0
       and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
@@ -1107,7 +1109,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     });
     await documents.bookDocument(actor, docId);
     const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
-    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(4);
+    expect(await sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(4);
     // Oktober erledigt, die Werbung vom November bleibt offen
     const open = await sql`select amount from bank_transactions t where amount < 0
       and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
