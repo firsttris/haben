@@ -123,8 +123,8 @@ function bild(photo: ClientResponse["tanPhoto"]): string | undefined {
 /**
  * Freigabe in der App nur, wenn die Bank sie so meldet: 3955 „Sicherheitsfreigabe erfolgt über anderen Kanal“, solange sie
  * aussteht 3956 (Rückmeldungscodes der DK). Verlangt sie bei einem entkoppelten Verfahren nur 0030, will sie eine TAN zum
- * Eintippen, so die Consorsbank bei der Anmeldung mit ihrer App (firsttris/haben#654); python-fints entscheidet ebenso
- * nach dem Code (python-fints#218).
+ * Eintippen, so die Consorsbank bei der Anmeldung mit ihrer App (firsttris/haben#654). python-fints entscheidet ebenso
+ * nach dem Code (fints/client.py); dass 3955 neben 0030 genügt, bringt dort erst der offene python-fints#218.
  */
 const FREIGABE_IN_DER_APP = new Set([3955, 3956]);
 
@@ -168,7 +168,8 @@ function datum(tag: string): Date {
 /**
  * Gebuchte Umsätze eines Kontos von bis einschließlich (CAMT, wenn die Bank es für das Konto anbietet, sonst MT940).
  * Wirft, wenn lib-fints die Umsätze nicht lesen kann (lesefehler.ts), statt sie als leer zu melden. Verlangt die Bank
- * entgegen HIPINS einen TAN-Schritt (9075), fragt sie Haben einmal mit TAN-Schritt neu (tan-schritt.ts).
+ * entgegen HIPINS einen TAN-Schritt (9075), fragt sie Haben einmal mit TAN-Schritt neu (tan-schritt.ts), auch nach einer
+ * Fortsetzung: Brauchte schon die Anmeldung des Abrufs eine TAN, geht HKKAZ im selben Dialog danach ohne HKTAN hinaus.
  */
 export async function fintsUmsaetze(
   client: FinTSClient,
@@ -179,7 +180,7 @@ export async function fintsUmsaetze(
 ): Promise<FintsAntwort<FintsAuszug[]>> {
   const abrufen = () => client.getAccountStatements(konto, datum(von), datum(bis));
   let response = weiter ? await mitEingetippterTan(client, weiter.tan, () => client.getAccountStatementsWithTan(weiter.referenz, weiter.tan)) : await abrufen();
-  if (!weiter && umsatzabrufMitTanSchritt(client, response)) response = await abrufen();
+  if (umsatzabrufMitTanSchritt(client, response)) response = await abrufen();
   const fehler = lesefehler(response);
   if (fehler) {
     throw new Error(

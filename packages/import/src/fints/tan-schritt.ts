@@ -3,8 +3,8 @@ import type { ClientResponse, FinTSClient } from "lib-fints";
 /*
  * lib-fints stellt HKTAN nur in einen Auftrag, wenn HIPINS ihn als „mit TAN“ führt (dist/dialog.js,
  * createCurrentCustomerMessage). Die Consorsbank führt den Umsatzabruf dort ohne TAN (HKKAZ:N), lehnt ihn mit ihrem
- * App-Verfahren ohne HKTAN aber mit 9075 „Starke Authentifizierung erforderlich“ ab (firsttris/haben#654; python-fints
- * schickt HKTAN dort deshalb immer mit, python-fints#218). Nach einer 9075 gilt der Umsatzabruf darum für diesen Client
+ * App-Verfahren ohne HKTAN aber mit 9075 „Starke Authentifizierung erforderlich“ ab (firsttris/haben#654; das Beispiel
+ * für die Consorsbank in python-fints#218 schickt HKTAN deshalb immer mit, über force_twostep_tan). Nach einer 9075 gilt der Umsatzabruf darum für diesen Client
  * als „mit TAN“. Die Änderung steht in den BPD, die Haben mit der Verbindung speichert: Auch der nächste Abruf schickt
  * den TAN-Schritt gleich mit, und eine Bank, die nie 9075 schickt, merkt nichts davon.
  */
