@@ -63,10 +63,16 @@ export function gestaltungsHinweise(layouts: LayoutJeBeleg): Partial<Record<Layo
     if (ohne.length === 0) continue;
     const namen = [...new Set(ohne.map((type) => layouts[type]!.name))];
     const satz = `${namen.length === 1 ? "Das Layout" : "Die Layouts"} ${aufzaehlung(namen.map((n) => `„${n}“`))} ${verwendet(felder, namen.length > 1)}.`;
-    const aus = ohne.length === belege.length && !AUCH_EINGEBAUT.has(option);
-    const text = aus ? satz : `Wirkt nicht auf ${aufzaehlung(ohne.map((type) => MEHRZAHL[type]))}: ${satz}`;
-    // Nur „Mitte“ wirkt dort nicht, die Stelle sonst schon; aus heißt hier: der Knopf „Mitte“ ist aus
-    hinweise[option] = { aus, text: option === "logoMitte" ? `${text} „Mitte“ steht dort rechts.` : text };
+    const ueberall = ohne.length === belege.length;
+    const text = ueberall ? satz : `Wirkt nicht auf ${aufzaehlung(ohne.map((type) => MEHRZAHL[type]))}: ${satz}`;
+    if (option !== "logoMitte") {
+      hinweise[option] = { aus: ueberall && !AUCH_EINGEBAUT.has(option), text };
+      continue;
+    }
+    // Nur „Mitte“ wirkt dort nicht, die Stelle sonst schon; aus heißt hier: der Knopf „Mitte“ ist aus. Mittig setzt auch
+    // kein Layout, das die Stelle gar nicht liest (Hinweis bei logoPosition)
+    const aus = belege.every((type) => layouts[type]?.ungenutzt.some((o) => o === "logoMitte" || o === "logoPosition"));
+    hinweise[option] = { aus, text: `${text} „Mitte“ steht dort rechts.` };
   }
   return hinweise;
 }
