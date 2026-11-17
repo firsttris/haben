@@ -90,6 +90,44 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     expect(zeilen.map((z) => z.split(";")[12])).toEqual([id("ER-2"), id("ER-3")]);
   });
 
+  it("verweist in „Abruf“ auf eine Lieferung, die bank/importe.csv desselben Archivs nennt", async () => {
+    const { storeBatch } = await import("../bank/import-batch.ts");
+    const { db } = await import("../../db/index.ts");
+    const transactions = [buchung("ER-20", "2027-01-05", "20.00")];
+    const hash = "hash-abruf-2027";
+    const fenster = { transactions, balances: [], dateFrom: "2027-01-01", dateTo: "2027-01-10" };
+    // Wie syncConnection: Dateiname „Abruf <Bank> <Tag>“ und SHA-256 der Antwort, die zufällige fetchId steht in keinem davon
+    await db.transaction((t) =>
+      storeBatch(
+        t,
+        {
+          batch: enableBankingBatch({ externalAccountId: hash, ...fenster, fetchedAt: "2027-01-10T23:00:00+01:00", fetchId: "9f3c2a71d04be655" }),
+          binding: { provider: "enablebanking", externalAccountId: hash, accountKind: "bank" },
+          statement: enableBankingStatement({ account: { uid: "u2", account_id: { iban: "DE75512108001245126199" }, name: "Zweitkonto" }, ...fenster }),
+          eventOf: entryReferenceOf(transactions),
+          source: { filename: "Abruf Testbank 2027-01-10", sha256: "c0ffee".padEnd(64, "0") },
+        },
+        null,
+      ),
+    );
+    const archiv2027 = await archiv(exporter, 2027);
+    const [, ...zeilen] = text(archiv2027["bank/quellen.csv"]).trim().split(/\r?\n/);
+    const importe = text(archiv2027["bank/importe.csv"])
+      .trim()
+      .split(/\r?\n/)
+      .slice(1)
+      .map((z) => z.split(";"));
+    for (const zeile of zeilen) {
+      const abrufWert = zeile.split(";")[10]!;
+      // Die Lieferung muss sich im Importprotokoll des Archivs finden lassen, sonst führt die Spalte ins Leere
+      expect(
+        importe.some((i) => i.includes(abrufWert)),
+        `Abruf ${abrufWert} fehlt in bank/importe.csv`,
+      ).toBe(true);
+    }
+    expect(zeilen).toHaveLength(1);
+  });
+
   it("beschreibt die Datei in index.xml und nennt sie in der LIESMICH", () => {
     const xml = text(files["index.xml"]);
     const teil = xml.slice(xml.indexOf("<URL>bank/quellen.csv</URL>"), xml.indexOf("</Table>", xml.indexOf("<URL>bank/quellen.csv</URL>")));
