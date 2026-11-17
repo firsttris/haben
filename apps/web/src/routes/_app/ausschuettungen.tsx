@@ -72,7 +72,12 @@ function AusschuettungenPage() {
           </p>
           <NeueAusschuettung />
           {data.ausschuettungen.length === 0 ? (
-            <p className="muted">Keine Ausschüttung mit Zufluss in {data.year}.</p>
+            <p className="muted" style={{ maxWidth: 760 }}>
+              Noch keine Ausschüttung mit Auszahlungstag in {data.year} (steuerlich: Zufluss). Beschließen die Gesellschafter, Gewinn auszuschütten, trägst du
+              oben Datum des Beschlusses, Geschäftsjahr und Betrag ein und klickst „Steuerabzug berechnen“. Beispiel: Beschluss am 30.06.{data.year} über 20.000
+              € aus dem Gewinn {data.year - 1}; ohne eigenen Auszahlungstag im Beschluss gilt der 01.07.{data.year} als Auszahlungstag (§ 44 Abs. 2 Satz 2
+              EStG).
+            </p>
           ) : (
             data.ausschuettungen.map((a) => <AusschuettungCard key={a.id} data={data} a={a} />)
           )}

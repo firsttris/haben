@@ -165,8 +165,9 @@ function MitarbeiterListe({ data }: { data: Data }) {
       </div>
       {data.employees.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
-          Noch keine Mitarbeiter. Haben rechnet {gesellschaft && "Gesellschafter-Geschäftsführer ohne Sozialversicherung, "}Minijobs mit Pauschsteuer und, als
-          Entwurf zum Gegenprüfen, versicherungspflichtig Beschäftigte mit festem Monatsgehalt.
+          Noch keine Mitarbeiter. Den ersten legst du mit „Mitarbeiter anlegen“ an, danach rechnest du jeden Monat mit „Monat abrechnen“ ab. Haben rechnet{" "}
+          {gesellschaft && "Gesellschafter-Geschäftsführer ohne Sozialversicherung, "}Minijobs mit Pauschsteuer und, als Entwurf zum Gegenprüfen, Angestellte
+          mit festem Monatsgehalt und Sozialversicherung. Beispiel: eine Aushilfe im Minijob oder eine Angestellte mit 3.000 € im Monat.
         </p>
       ) : (
         <table className="report-table stack-table">

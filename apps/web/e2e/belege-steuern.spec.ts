@@ -602,6 +602,7 @@ test("Fristen und Kalender-Abo", async () => {
   await expect(spaeter.getByRole("button", { name: /^Alle \d+ zeigen$/ })).toHaveCount(0);
   expect(await spaeter.getByRole("row").count()).toBeGreaterThan(7);
   await expect(page.getByText(/Umsatzsteuer-Voranmeldung/).first()).toBeVisible();
+  await expect(page.getByText("Umsatzsteuer melden und zahlen").first()).toBeVisible();
   const abo = page.getByRole("region", { name: "Erinnerungen im Kalender" });
   await abo.getByRole("button", { name: "Kalender-Abo einrichten" }).click();
   const url = await abo.getByLabel(/Abo-Link/).inputValue();

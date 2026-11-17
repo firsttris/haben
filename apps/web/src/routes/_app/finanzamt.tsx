@@ -557,7 +557,12 @@ function Postfach({ data }: { data: Data }) {
               <tr>
                 <th scope="col">Dokument</th>
                 <th scope="col">Jahr</th>
-                <th scope="col">Einspruch bis</th>
+                <th scope="col">
+                  Einspruch bis
+                  <span className="small" style={{ display: "block" }}>
+                    Bis dahin kannst du widersprechen
+                  </span>
+                </th>
                 <th scope="col">Abgeholt</th>
               </tr>
             </thead>
