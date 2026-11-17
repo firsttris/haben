@@ -23,6 +23,7 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "csv-zuordnung": "CSV mit eigener Zuordnung",
   camt053: "CAMT.053",
   enablebanking: "Bankabruf",
+  fints: "FinTS-Abruf",
   "accountable-xlsx": "Accountable",
   "paypal-csv": "PayPal",
   "stripe-csv": "Stripe",

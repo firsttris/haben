@@ -38,11 +38,19 @@ export const DURCHLAEUFE = {
   fremdrechnung: 28,
   // Kleinunternehmer wechseln nur ohne Buchungen im Jahr: eigene Firma für die Rückfrage zur Umsatzgrenze
   "fremdrechnung-kleinunternehmer": 29,
+  // Kontoabruf über FinTS (#654): nur dieser Server hat FINTS_PRODUKT_ID, die nachgebaute Bank liegt auf FINTS_BANK_PORT
+  "fints-abruf": 30,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
 /** Die nachgebaute Enable-Banking-API in belege-steuern.spec.ts; + 7 und + 8 belegen langsame-anfrage und beenden */
 export const ENABLE_BANKING_PORT = PORT + 9;
+
+/** Nachgebaute FinTS-Bank in fints-abruf.spec.ts (@haben/import/fints-testbank) */
+export const FINTS_BANK_PORT = PORT + 31;
+
+/** Platzhalter für FINTS_PRODUKT_ID im Durchlauf „fints-abruf“; eine echte Registrierungsnummer steht nie im Repository */
+export const FINTS_PRODUKT_E2E = "HABENE2ETESTPRODUKT";
 
 /** Nachgebaute Paketquelle für eigene Layouts in layouts.spec.ts (LAYOUTS_PACKAGES_URL) */
 export const LAYOUT_PAKETE_PORT = PORT + 10;

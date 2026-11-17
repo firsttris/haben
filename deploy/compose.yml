@@ -103,6 +103,8 @@ services:
       LAYOUTS_PACKAGES_URL: ${LAYOUTS_PACKAGES_URL:-}
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
       ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
+      # Kontoabruf über FinTS: eigene Registrierungsnummer der Deutschen Kreditwirtschaft (docs/installation-anbindungen.md)
+      FINTS_PRODUKT_ID: ${FINTS_PRODUKT_ID:-}
       # Mehrere Firmen: die Instanzen zum Wechseln in der Navigation, „Name|https://adresse“ getrennt durch „;“
       HABEN_FIRMEN: ${HABEN_FIRMEN:-}
     volumes:

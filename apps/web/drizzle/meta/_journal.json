@@ -1961,6 +1961,20 @@
       "when": 1794891493353,
       "tag": "0279_bank_csv_zuordnung",
       "breakpoints": true
+    },
+    {
+      "idx": 280,
+      "version": "7",
+      "when": 1794906477521,
+      "tag": "0280_fints_abruf",
+      "breakpoints": true
+    },
+    {
+      "idx": 281,
+      "version": "7",
+      "when": 1794906481527,
+      "tag": "0281_fints_abruf_trigger",
+      "breakpoints": true
     }
   ]
 }
