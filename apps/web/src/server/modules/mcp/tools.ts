@@ -29,7 +29,7 @@ import {
   reconciliation,
   type LegacyVoucherForVat,
 } from "../archiv/index.ts";
-import { abgleichIssues, euerForYear, openPositions, vatAbgleich } from "../auswertungen/index.ts";
+import { abgleichIssues, euerForYear, openPositions, umsatzImMonat, vatAbgleich } from "../auswertungen/index.ts";
 import { listAccounts, listTransactions } from "../bank/index.ts";
 import { listDocuments } from "../belege/index.ts";
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
@@ -186,7 +186,7 @@ export const MCP_TOOLS: McpTool[] = [
     title: "Übersicht",
     description:
       "Stand auf einen Blick: aktuelle Umsatzsteuer-Voranmeldung mit Zahllast und Fälligkeit, offene und überfällige Rechnungen, " +
-      "Umsatz im Monat, Belege zu prüfen, Bankumsätze ohne Zuordnung, ausstehende AfA, Einspruchsfristen, ELSTER-Zertifikat und die " +
+      "Umsatz netto im Monat und im Vormonat (Erlöskonten nach Buchungsdatum), Belege zu prüfen, Bankumsätze ohne Zuordnung, ausstehende AfA, Einspruchsfristen, ELSTER-Zertifikat und die " +
       "nächsten offenen Fristen. Guter Einstieg vor jeder anderen Frage.",
     scope: "haben:lesen",
     input: {},
@@ -225,8 +225,9 @@ export const MCP_TOOLS: McpTool[] = [
           offenAnzahl: invoices.openCount,
           ueberfaelligAnzahl: invoices.overdueCount,
           entwuerfe: invoices.drafts,
-          umsatzNettoMonat: { monat: invoices.revenueMonth.key, betrag: euro(invoices.revenueMonth.net) },
-          umsatzNettoVormonat: { monat: invoices.revenuePreviousMonth.key, betrag: euro(invoices.revenuePreviousMonth.net) },
+          // Wie die Kachel der Übersicht: Erlöskonten nach Buchungsdatum, auch Buchungen ohne Rechnung in Haben
+          umsatzNettoMonat: { monat: invoices.revenueMonth.key, betrag: euro(await umsatzImMonat(invoices.revenueMonth.key)) },
+          umsatzNettoVormonat: { monat: invoices.revenuePreviousMonth.key, betrag: euro(await umsatzImMonat(invoices.revenuePreviousMonth.key)) },
         },
         belegeZuPruefen: documents.filter((d) => d.status === "neu").length,
         bankumsaetzeOhneZuordnung: accounts.map((a) => ({ konto: a.name, anzahl: a.openCount })),
