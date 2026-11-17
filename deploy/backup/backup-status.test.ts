@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -112,6 +115,19 @@ describe.skipIf(!testDatabaseUrl)("Backup-Container trägt das Ziel ein (Postgre
     expect(rows.map((r) => r.target)).toEqual(ziele);
   });
 
+  it("schreibt die Meldung ohne Zugangsdaten (#1349)", async () => {
+    recordStatus(
+      "rest:https://nutzer:ab/cd@backup.example/haben",
+      'Fatal: parsing repository location failed: parse "https://nutzer:ab/cd@backup.example/haben": invalid port ":ab" after host',
+    );
+    recordStatus("sftp:nutzer@backup.example:/srv/restic", "Fatal: unable to open repository at sftp:nutzer@backup.example:/srv/restic: ssh: handshake failed");
+    const rows = await sql`select message, target from backup_status order by id`;
+    expect(rows).toEqual([
+      { message: 'Fatal: parsing repository location failed: parse "https://": invalid port after host', target: "rest:https://backup.example/haben" },
+      { message: "Fatal: unable to open repository at sftp:backup.example:/srv/restic: ssh: handshake failed", target: "sftp:backup.example:/srv/restic" },
+    ]);
+  });
+
   it("lässt ein Ziel ohne Zugangsdaten unverändert und ein leeres weg", async () => {
     recordStatus("s3:s3.example.com/haben-backup", "");
     recordStatus("", "");
@@ -127,6 +143,21 @@ describe.skipIf(!testDatabaseUrl)("Backup-Container trägt das Ziel ein (Postgre
       expect(row?.message).toBe("ältere App");
     } finally {
       await sql`alter table backup_status add column target text`;
+    }
+  });
+});
+
+describe("Meldung eines fehlgeschlagenen Laufs (last_error)", () => {
+  it("entfernt Zugangsdaten vor dem Kürzen auf 500 Zeichen (#1349)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-backup-"));
+    try {
+      const log = join(dir, "fehler.log");
+      // Die Grenze von 500 Zeichen fiele mitten ins Passwort, das @ dahinter wäre weg
+      writeFileSync(log, `${"x".repeat(480)} rest:https://n:geheimespasswort@backup.example/haben\n`);
+      const meldung = execFileSync("bash", ["-c", `source "${SCRIPT}" && last_error "$1"`, "_", log], { encoding: "utf8" });
+      expect(meldung).toBe(`${"x".repeat(480)} rest:https://backup\n`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });
