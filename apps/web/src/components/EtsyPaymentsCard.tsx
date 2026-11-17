@@ -83,10 +83,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
         <Field label="Abruf ab Monat" hint="Erster Monat, den Haben holt (JJJJ-MM)">
           {(control) => <input {...control} name="fetchFrom" value={fetchFrom} onChange={(event) => setFetchFrom(event.target.value)} />}
         </Field>
-        <Field
-          label="Gebühren bündeln"
-          hint="Gebühren und Werbung je Monat und Art zu einer Zeile, wie die Gebührenrechnung sie zeigt; die Sales Tax wird mit dem Verkauf derselben Bestellung verrechnet"
-        >
+        <Field label="Gebühren bündeln" hint="Gebühren und Werbung je Monat und Art zu einer Zeile, wie die Gebührenrechnung sie zeigt">
           {(control) => (
             <input {...control} name="sammelzeilen" type="checkbox" checked={sammelzeilen} onChange={(event) => setSammelzeilen(event.target.checked)} />
           )}
