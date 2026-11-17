@@ -37,7 +37,7 @@ test("Ersteinrichtung fragt Rechtsform und Bereiche, „weiß ich nicht“ erinn
   await page.getByRole("button", { name: "Später" }).click();
   await page.waitForURL("**/einrichtung");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Haben einrichten");
-  await expect(page.getByText(/Bei „Weiß ich nicht“ bleibt die bisherige Angabe/)).toBeVisible();
+  await expect(page.getByText(/bei „Weiß ich nicht“ bleibt die bisherige Angabe, die Übersicht fragt später nach/)).toBeVisible();
 
   await antworten(frage("Wie bist du selbständig?"), "Mit Gewerbeanmeldung");
   // Kleinunternehmer bleibt bei „Weiß ich nicht“; Versteuerung und Voranmeldung fragt Haben dann trotzdem
