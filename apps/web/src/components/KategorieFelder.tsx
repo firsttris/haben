@@ -1,4 +1,4 @@
-import { formatEuro, kategorieAnteil, kategorieArt, type DirektKategorie } from "@haben/core";
+import { AUFLADUNG, formatEuro, kategorieAnteil, kategorieArt, type DirektKategorie } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { Field } from "./Field.tsx";
 
@@ -111,6 +111,9 @@ export function aufladungWahl(wahl: KategorieWahl): KategorieWahl {
   return { kategorie: kategorieArt(wahl.kategorie) === "ausgabe" ? wahl.kategorie : "sonstiges", steuersatz: 0 };
 }
 
+/** Eintrag im Zuordnungsdialog, direkt neben „Kategorie“ (#1356) */
+export const AUFLADUNG_OPTION = { value: "aufladung", label: AUFLADUNG.text } as const;
+
 /** Hinweis unter den Feldern einer Aufladung: warum kein Steuersatz und wann die Vorsteuer entsteht (#1356) */
 const AUFLADUNG_HINWEIS =
   "Gebucht als Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG), ohne Vorsteuer: Die entsteht erst mit der Rechnung über die Leistung (§ 3 Abs. 15 UStG).";
@@ -137,4 +140,21 @@ export function AufladungFelder({
       <span className="small muted">{AUFLADUNG_HINWEIS}</span>
     </>
   );
+}
+
+/**
+ * Felder einer Direktbuchung auf eine Kategorie (#1356): dieselben Felder für „Kategorie“ und „Aufladung“, nur die
+ * Aufladung ohne Steuersatz. Eine Stelle, damit Dialog und Buchung dieselbe Wahl lesen.
+ */
+export function DirektKategorieFelder({
+  kind,
+  ...felder
+}: {
+  kind: "kategorie" | "aufladung";
+  options: KategorieOptionen;
+  value: KategorieWahl;
+  amount: number | null;
+  onChange: (wahl: KategorieWahl) => void;
+}) {
+  return kind === "aufladung" ? <AufladungFelder {...felder} /> : <KategorieFelder {...felder} />;
 }

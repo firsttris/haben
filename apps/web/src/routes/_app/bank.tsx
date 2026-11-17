@@ -25,8 +25,9 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
 import {
-  AufladungFelder,
   aufladungWahl,
+  AUFLADUNG_OPTION,
+  DirektKategorieFelder,
   KategorieFelder,
   kategorieWahlFuer,
   type KategorieOptionen,
@@ -182,9 +183,16 @@ function zuAufhebendeZuordnung(
 
 /** „Direkt buchen“: Buchungsarten ohne Beleg, Kategorie mit Steuersatz, Steuerzahlung mit Steuerart, Bezugsjahr und Teil, Darlehen */
 type DirectChoice = DirectBooking | "kategorie" | "aufladung" | "steuer" | "darlehen";
+/**
+ * Nutzlast einer Direktbuchung auf eine Kategorie: Die Aufladung trägt dieselben Felder, aber nie einen Steuersatz
+ * (#1356). Dialog und Buchung lesen beide `aufladungWahl`, damit Anzeige und Buchung nicht auseinanderlaufen.
+ */
+function direktKategorie(kind: "kategorie" | "aufladung", transactionId: string, amount: number, kategorie: KategorieWahl) {
+  return kind === "aufladung"
+    ? { kind: "aufladung" as const, transactionId, amount, kategorie: aufladungWahl(kategorie) }
+    : { kind: "kategorie" as const, transactionId, amount, kategorie };
+}
 const KATEGORIE_OPTION = { value: "kategorie", label: "Einnahme oder Ausgabe (Kategorie, Steuersatz)" } as const;
-/** Direkt neben „Kategorie“: Aufwand im Monat der Zahlung, ohne Vorsteuer, ohne Beleg (#1356) */
-const AUFLADUNG_OPTION = { value: "aufladung", label: AUFLADUNG.text } as const;
 const STEUER_OPTION = { value: "steuer", label: "Steuerzahlung oder Erstattung (Finanzamt, Gemeinde)" } as const;
 const DARLEHEN_OPTION = { value: "darlehen", label: "Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren" } as const;
 
@@ -1103,14 +1111,8 @@ function AllocationPanel({
         if (!darlehen.loanId) return;
         return runAndAdvance(() => allocateFn({ data: { kind: "darlehen", transactionId: tx.id, amount: signedAmount, darlehen } }), completes);
       }
-      if (directKind === "kategorie") {
-        return runAndAdvance(() => allocateFn({ data: { kind: "kategorie", transactionId: tx.id, amount: signedAmount, kategorie } }), completes);
-      }
-      if (directKind === "aufladung") {
-        return runAndAdvance(
-          () => allocateFn({ data: { kind: "aufladung", transactionId: tx.id, amount: signedAmount, kategorie: aufladungWahl(kategorie) } }),
-          completes,
-        );
+      if (directKind === "kategorie" || directKind === "aufladung") {
+        return runAndAdvance(() => allocateFn({ data: direktKategorie(directKind, tx.id, signedAmount, kategorie) }), completes);
       }
       if (directKind !== "steuer") {
         return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
@@ -1427,11 +1429,8 @@ function AllocationPanel({
             <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} jahrFehler={error("jahr")} />
           )}
           {mode === "direct" && directKind === "darlehen" && <DarlehenFelder options={darlehenOptionen} value={darlehen} onChange={setDarlehen} />}
-          {mode === "direct" && directKind === "kategorie" && (
-            <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
-          )}
-          {mode === "direct" && directKind === "aufladung" && (
-            <AufladungFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
+          {mode === "direct" && (directKind === "kategorie" || directKind === "aufladung") && (
+            <DirektKategorieFelder kind={directKind} options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
           )}
 
           <Field label="Betrag" error={error("amount")}>
