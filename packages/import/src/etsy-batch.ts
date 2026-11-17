@@ -4,7 +4,7 @@ import { IMPORT_CONTRACT_VERSION, type ImportBatch, type ImportMovement, type Mo
 /*
  * Ein Abruf des Etsy-Zahlungsverlaufs als Lieferung des Importvertrags (#306), wie `enableBankingBatch` für Enable
  * Banking. Ereigniskennung ist die `entry_id` der Verlaufszeile: im Verlauf eindeutig und bei jedem Abruf gleich.
- * Gespeichert wird weiter über `parseEtsyLedger` und `storeStatement`; die Lieferung dient der Prüfung.
+ * Gespeichert wird über `storeBatch` (Modul bank, #1340); `parseEtsyLedger` liefert denselben Abruf als Kontoauszug.
  *
  * Reihenfolge ist die `sequence_number`: Etsy bucht mehrere Zeilen in derselben Sekunde, und nur nach der laufenden
  * Nummer gilt an jeder Zeile „vorheriger Stand + Betrag = Stand“ (geprüft an vier Monaten echtem Verlauf, #306).
@@ -125,7 +125,15 @@ export function etsyLedgerBatch(input: EtsyLedgerBatchInput): ImportBatch {
   for (const entry of sortiert) {
     const m = movement(entry, input.orderFor);
     if (typeof m !== "string") movements.push(m);
-    else unsupported.push({ ...(entry.entry_id !== undefined ? { sourceEventId: String(entry.entry_id) } : {}), reason: m });
+    else {
+      // Mit Buchungstag hält der Vertrag den Zeitraum erst ab diesem Tag offen (optionales bookingDate, #306)
+      const day = dayOf(entry);
+      unsupported.push({
+        ...(entry.entry_id !== undefined ? { sourceEventId: String(entry.entry_id) } : {}),
+        ...(day ? { bookingDate: day } : {}),
+        reason: m,
+      });
+    }
   }
   verknuepfeErstattungen(movements);
   return {
