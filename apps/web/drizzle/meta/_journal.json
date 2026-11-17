@@ -1958,15 +1958,8 @@
     {
       "idx": 279,
       "version": "7",
-      "when": 1794856472015,
-      "tag": "0279_inbox_absender",
-      "breakpoints": true
-    },
-    {
-      "idx": 280,
-      "version": "7",
-      "when": 1794856479953,
-      "tag": "0280_inbox_audit_spalten",
+      "when": 1794891493353,
+      "tag": "0279_bank_csv_zuordnung",
       "breakpoints": true
     }
   ]

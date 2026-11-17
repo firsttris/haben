@@ -40,7 +40,7 @@ Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backup
 
 | Ziel | `RESTIC_REPOSITORY` | Dazu |
 | --- | --- | --- |
-| SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.yml` die Zeile `~/.ssh:/root/.ssh:ro` bei `backup` und `restore` einkommentieren bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
+| SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.override.yml` bei `backup` und `restore` `~/.ssh:/root/.ssh:ro` unter `volumes` eintragen ([SFTP Schritt für Schritt](#sftp-schritt-für-schritt)) bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
 | S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
 | restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | – |
 
@@ -58,7 +58,19 @@ Am Beispiel Docker Compose; die Befehle laufen als der Benutzer, der `docker com
 
 1. **Schlüssel anlegen:** `ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519`. Den öffentlichen Teil (`~/.ssh/id_ed25519.pub`) beim Anbieter des Ziels für den SFTP- bzw. SSH-Zugang hinterlegen.
 2. **Host in `known_hosts` eintragen:** `ssh-keyscan -t ed25519 <host> >> ~/.ssh/known_hosts`, danach einmal `ssh <benutzer>@<host>`; das muss ohne Passwortabfrage klappen.
-3. **Einhängen:** in `compose.yml` bei `backup` und `restore` die Zeile `~/.ssh:/root/.ssh:ro` einkommentieren. Zeigt `~` auf dem Server nicht auf das richtige Verzeichnis, etwa auf einem NAS, den vollen Pfad nehmen, zum Beispiel `/share/homes/<benutzer>/.ssh:/root/.ssh:ro`.
+3. **Einhängen:** in [`compose.override.yml`](installation.md#docker-compose) bei `backup` und `restore`:
+
+    ```yaml
+    services:
+      backup:
+        volumes:
+          - ~/.ssh:/root/.ssh:ro
+      restore:
+        volumes:
+          - ~/.ssh:/root/.ssh:ro
+    ```
+
+    Zeigt `~` auf dem Server nicht auf das richtige Verzeichnis, etwa auf einem NAS, den vollen Pfad nehmen, zum Beispiel `/share/homes/<benutzer>/.ssh:/root/.ssh:ro`.
 4. **In `.env`:** `RESTIC_REPOSITORY=sftp:<benutzer>@<host>:/pfad/zum/backup`. Heißt der Schlüssel nicht `id_ed25519` oder `id_rsa`, eine `~/.ssh/config` mit `Host <host>` und `IdentityFile ~/.ssh/<name>` anlegen.
 5. **Übernehmen und testen:** `docker compose up -d`, damit der Container mit Einhängung und neuer Variable startet, dann einmal `docker compose exec backup backup.sh`. Beim ersten Lauf legt es das Repository an.
 
@@ -116,7 +128,7 @@ Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `
 ### Update zurücknehmen
 
 1. Vor dem Update ein Backup machen (`docker compose exec backup backup.sh` bzw. `systemctl --user start haben-backup`), wie unter [Updates](#updates).
-2. Geht nach dem Update etwas schief: die vorherige Version fest eintragen, in `compose.yml` etwa `image: tristanteu/haben:x.y.z`, im Quadlet `Image=docker.io/tristanteu/haben:x.y.z`.
+2. Geht nach dem Update etwas schief: die vorherige Version fest eintragen, in `compose.override.yml` beim Dienst `app` etwa `image: tristanteu/haben:x.y.z` (der [Compose-Generator](compose-generator.md) setzt den Tag für alle Dienste), im Quadlet `Image=docker.io/tristanteu/haben:x.y.z`.
 3. Den Stand von vor dem Update einspielen, wie oben unter [Wiederherstellen](#wiederherstellen). Die Snapshot-ID zeigt `restore.sh` ohne Argument; `latest` passt nur, wenn seit dem Update kein Backup mehr lief.
 4. Die App starten (`docker compose up -d` bzw. `systemctl --user daemon-reload && systemctl --user start haben-app`).
 
@@ -188,7 +200,7 @@ docker compose exec db rm -rf /var/lib/postgresql/data/16   # Compose
 podman exec haben-db rm -rf /var/lib/postgresql/data/16     # Quadlets
 ```
 
-Schlägt das Upgrade fehl, bricht der Container mit der Meldung von `pg_upgrade` ab und lässt alles, wie es war: Mit dem bisherigen Image (`image: postgres:16` in `compose.yml`, `Image=docker.io/library/postgres:16` im Quadlet) startet die alte Datenbank wieder.
+Schlägt das Upgrade fehl, bricht der Container mit der Meldung von `pg_upgrade` ab und lässt alles, wie es war: Mit dem bisherigen Image (`image: postgres:16` beim Dienst `db` in `compose.override.yml`, `Image=docker.io/library/postgres:16` im Quadlet) startet die alte Datenbank wieder.
 
 **Einmalig für Installationen mit Postgres 16.** Bis Haben 0.2 lief die Datenbank im offiziellen Image `docker.io/library/postgres:16`. Das steht in deiner `compose.yml` bzw. in `haben-db.container` und ändert sich durch ein Update der Images nicht: Die Datenbank bleibt auf 16, bis du die Datei einmal neu holst. Das muss nicht sofort sein, das Backup-Image kommt mit beiden Versionen zurecht. Für den Umstieg:
 

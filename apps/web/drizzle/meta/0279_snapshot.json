@@ -1,5 +1,5 @@
 {
-  "id": "af96602a-bbed-46bd-97c8-810aff508e09",
+  "id": "5db71dc2-9d71-422d-8317-1332600b9b7d",
   "prevId": "afe6af6e-b985-467a-8adc-632218a1887b",
   "version": "7",
   "dialect": "postgresql",
@@ -1964,6 +1964,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "csv_mapping": {
+          "name": "csv_mapping",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2184,6 +2190,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'[]'::jsonb"
+        },
+        "csv_mapping": {
+          "name": "csv_mapping",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -7118,13 +7130,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "direction": {
-          "name": "direction",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'eingang'"
-        },
         "sender": {
           "name": "sender",
           "type": "text",
@@ -7235,19 +7240,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'INBOX'"
-        },
-        "outbound_folder": {
-          "name": "outbound_folder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "allowed_senders": {
-          "name": "allowed_senders",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
         },
         "enabled": {
           "name": "enabled",

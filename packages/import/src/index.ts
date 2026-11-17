@@ -28,5 +28,6 @@ export * from "./enablebanking/index.ts";
 export * from "./importvertrag/index.ts";
 export * from "./stores/index.ts";
 export * from "./csv-import/index.ts";
+export * from "./bank-zuordnung/index.ts";
 export * from "./buchhaltungsbutler/index.ts";
 export * from "./wiso/index.ts";

@@ -305,6 +305,9 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     [a.forderungsverluste, [`${OC}.regAllowance`]],
     [a.kursAufwand, [`${OC}.currLoss`]],
     [a.kursErtrag, [`${IS}.otherOpRevenue.currGains`]],
+    // Nicht steuerbare Einnahme (#1131), DATEV „Versicherungsentschädigungen und Schadenersatzleistungen“: Mussfeld der
+    // Taxonomie; die Auffangposition nur, wenn die Buchführung den Sachverhalt nicht trennt (BMF 28.09.2011, Rz. 19)
+    [a.schadenersatz, [`${IS}.otherOpRevenue.insuranceRefunds`]],
     ...(Object.entries(KATEGORIEN) as [keyof typeof KATEGORIEN, string][]).map(([key, position]): [string, EbilanzZiel] => [
       EXPENSE_CATEGORIES[key][kontenrahmen],
       [position],
