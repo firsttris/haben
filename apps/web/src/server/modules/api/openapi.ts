@@ -18,8 +18,8 @@ const MAX_DOCUMENT_MB = MAX_DOCUMENT_SIZE / 1024 / 1024;
 
 const DESCRIPTION = [
   "Allgemeine Schnittstelle von Haben für eigene Werkzeuge und Automationen. Sie liest und schreibt Kontakte,",
-  "Rechnungsentwürfe und Katalogartikel. Eingangsbelege landen in Haben als „Zu prüfen“. Sie bucht nichts, schreibt nichts",
-  "fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
+  "Rechnungsentwürfe und Katalogartikel und liest Angebote. Eingangsbelege landen in Haben als „Zu prüfen“. Sie bucht",
+  "nichts, schreibt nichts fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
   "",
   "Anmeldung mit einem API-Token aus Einstellungen → KI-Assistenten und API als `Authorization: Bearer hb_…`. Jeder",
   "Endpunkt verlangt ein Recht (scope); schreiben schließt lesen ein.",
@@ -121,6 +121,7 @@ function buildDocument() {
     tags: [
       { name: "Kontakte", description: "Kunden; versioniert, nicht löschbar" },
       { name: "Rechnungen", description: "Alle Rechnungen lesen, Entwürfe anlegen, ändern und löschen" },
+      { name: "Angebote", description: "Alle Angebote lesen; festgeschrieben, versendet und abgerechnet wird in Haben" },
       { name: "Belege", description: "Eingangsbelege hochladen und ihren Stand lesen; geprüft und gebucht wird in Haben" },
       { name: "Artikel", description: "Katalogartikel lesen, anlegen und ändern" },
       { name: "Leistungen", description: "Zeiteinträge je Kunde, auch aus Zeiterfassungsprogrammen wie Kimai; abgerechnet wird in Haben" },

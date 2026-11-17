@@ -334,12 +334,14 @@ export function quoteStatus(quote: Pick<Quote, "status" | "decision" | "invoiceI
   return coreQuoteStatus(quote, today);
 }
 
-export async function listQuotes(today: string) {
+/** Angebotsliste; mit id nur dieses eine Angebot (REST-API), wie listInvoices */
+export async function listQuotes(today: string, id?: string) {
   const rows = await db
     .select({
       id: schema.quotes.id,
       status: schema.quotes.status,
       number: schema.quotes.number,
+      contactId: schema.quotes.contactId,
       issueDate: schema.quotes.issueDate,
       validUntil: schema.quotes.validUntil,
       net: schema.quotes.net,
@@ -352,6 +354,7 @@ export async function listQuotes(today: string) {
     })
     .from(schema.quotes)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.quotes.contactId))
+    .where(id ? eq(schema.quotes.id, id) : undefined)
     .orderBy(sql`${schema.quotes.number} desc nulls first`, desc(schema.quotes.createdAt));
   return rows.map((row) => ({ ...row, customer: row.buyerName ?? row.contactName ?? "–", listStatus: quoteStatus(row, today) }));
 }

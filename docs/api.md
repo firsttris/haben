@@ -17,6 +17,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | --- | --- |
 | Kontakte | auflisten und suchen, lesen, anlegen, ändern (nicht löschen: Kontakte sind versioniert) |
 | Rechnungen | alle lesen, auch festgeschriebene; Entwürfe anlegen, ändern und löschen, solange sie Entwurf sind |
+| Angebote | alle lesen, auch festgeschriebene, mit der Antwort des Kunden und der Rechnung daraus |
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
 | Artikel | Katalogartikel auflisten, suchen, lesen, anlegen und ändern |
 | Leistungen | Zeiteinträge je Kunde auflisten, lesen, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
@@ -37,6 +38,7 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `kontakte:schreiben` | dazu `POST /kontakte`, `PATCH /kontakte/{id}` |
 | `rechnungen:lesen` | `GET /rechnungen`, `GET /rechnungen/{id}` |
 | `rechnungen:entwuerfe` | dazu `POST /rechnungen`, `PATCH /rechnungen/{id}`, `DELETE /rechnungen/{id}` |
+| `angebote:lesen` | `GET /angebote`, `GET /angebote/{id}` |
 | `belege:lesen` | `GET /belege`, `GET /belege/{id}` |
 | `belege:anlegen` | dazu `POST /belege` |
 | `artikel:lesen` | `GET /artikel`, `GET /artikel/{id}` |
@@ -208,6 +210,14 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 2. `GET /kontakte?q=<E-Mail>`; ist `total` 0, den Kontakt mit `POST /kontakte` anlegen.
 3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
 4. In Haben die Entwürfe prüfen und festschreiben, dann wie gewohnt versenden.
+
+## Angebote
+
+`GET /angebote` listet alle Angebote, Entwürfe zuerst, dann nach Nummer absteigend; `status` (`draft` oder `final`), `contactId` und `number` grenzen die Liste ein. Mit `number` prüft etwa eine Auftragsverwaltung die Angebotsnummer an einem Auftrag. `GET /angebote/{id}` liefert das Angebot mit Positionen.
+
+`listStatus` ist der Stand wie in der Angebotsliste: `entwurf`, `offen`, `abgelaufen` (nach `validUntil`), `angenommen`, `abgelehnt` oder `abgerechnet`, sobald aus dem Angebot eine Rechnung entstanden ist (`invoiceId`, `invoiceNumber`). Optionale Positionen und Alternativen tragen `kind` (`optional` oder `alternative`) und zählen nicht zu `net`, `tax` und `gross`; welche davon der Kunde gewählt hat, steht in `choices` (Positionsnummern). Rabatte sind wie bei Rechnungen in den Beträgen enthalten, aber nicht einzeln ausgewiesen.
+
+Festschreiben, Versenden, die Antwort des Kunden und die Rechnung aus dem Angebot bleiben ein Klick in [Angebote](angebote.md); `url` führt zur Seite des Angebots.
 
 ## Artikelkatalog
 
