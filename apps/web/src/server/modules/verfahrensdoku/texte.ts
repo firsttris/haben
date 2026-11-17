@@ -53,8 +53,8 @@ function nummernkreis(name: string, format: string, laufend: boolean): string {
 function bank(s: InstanzStand): string[] {
   if (s.bankkonten.length === 0) return ["Es ist kein Bankkonto angelegt."];
   return [
-    "Kontoumsätze kommen aus importierten Kontoauszugsdateien (deren SHA-256 Haben festhält) oder aus dem Kontoabruf über Enable Banking und sind ab dem Import unveränderlich. Jeder Umsatz wird einer Rechnung, einem Beleg oder einer Buchung ohne Beleg zugeordnet; aufgehobene Zuordnungen bleiben als Gegenzeile erhalten.",
-    s.bankabruf.length ? "" : "Ein Kontoabruf über Enable Banking ist nicht eingerichtet.",
+    "Kontoumsätze kommen aus importierten Kontoauszugsdateien (deren SHA-256 Haben festhält) oder aus dem Kontoabruf über Enable Banking oder FinTS und sind ab dem Import unveränderlich. Jeder Umsatz wird einer Rechnung, einem Beleg oder einer Buchung ohne Beleg zugeordnet; aufgehobene Zuordnungen bleiben als Gegenzeile erhalten.",
+    s.bankabruf.length || s.fintsabruf.length ? "" : "Ein Kontoabruf über Enable Banking oder FinTS ist nicht eingerichtet.",
   ];
 }
 
@@ -98,6 +98,10 @@ export function anwender(s: InstanzStand, angaben: ProcedureDetails): Verfahrens
       ...s.bankabruf.map(
         (b) =>
           `Kontoabruf über Enable Banking bei ${b.aspspName}: ${b.status}${b.validUntil ? `, Zustimmung bis ${tag(b.validUntil)}` : ""}${b.lastSyncAt ? `, zuletzt abgerufen ${zeit(b.lastSyncAt)}` : ""}`,
+      ),
+      ...s.fintsabruf.map(
+        (b) =>
+          `Kontoabruf über FinTS bei ${b.bankName}: ${b.status === "tan" ? "wartet auf TAN" : b.status}${b.lastSyncAt ? `, zuletzt abgerufen ${zeit(b.lastSyncAt)}` : ""}`,
       ),
     ],
     luecken: papier.luecken,

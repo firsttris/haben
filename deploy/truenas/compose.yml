@@ -116,6 +116,8 @@ services:
       ERIC_AUTO_INSTALL: ""
       # Optional: eigene Hersteller-ID, erst nach erfolgreicher Testübermittlung
       ELSTER_HERSTELLER_ID: ""
+      # Optional: Kontoabruf über FinTS, eigene Registrierungsnummer der Deutschen Kreditwirtschaft
+      FINTS_PRODUKT_ID: ""
       # Optional, mit mehreren Firmen: die Instanzen zum Wechseln in der Navigation, auch diese selbst, in jeder dieselbe Liste,
       # z. B. "Studio Nord|https://nord.example.de;Werkstatt|https://werkstatt.example.de"
       HABEN_FIRMEN: ""

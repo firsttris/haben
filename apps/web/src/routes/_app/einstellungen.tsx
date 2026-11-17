@@ -24,7 +24,7 @@ import { PrivatanteilVorgaben, privatanteilFehler, privatanteilTexte, privatante
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
-import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
+import { KontoabrufKarten } from "../../components/FintsCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
@@ -281,7 +281,7 @@ function SettingsPage() {
           )}
           {bereich === "bank" && (
             <>
-              <EnableBankingCard data={enableBanking} />
+              <KontoabrufKarten data={enableBanking} />
               <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
             </>
           )}

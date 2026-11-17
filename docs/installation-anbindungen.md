@@ -1,7 +1,7 @@
 ---
 title: "ERiC, KI-Auslesung, Kontoabruf einbinden"
 description: >-
-  ERiC für ELSTER einbinden (auch auf arm64), KI-Auslesung mit Anthropic oder einem OpenAI-kompatiblen Dienst wie Ollama, Kontoabruf über Enable Banking.
+  ERiC für ELSTER einbinden (auch auf arm64), KI-Auslesung mit Anthropic oder einem OpenAI-kompatiblen Dienst wie Ollama, Kontoabruf über Enable Banking oder FinTS.
 ---
 
 # Anbindungen
@@ -33,6 +33,8 @@ Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/
 ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne ERiC nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
 
 ### ELSTER auf arm64
+
+Die x86_64-Laufzeit lohnt sich erst mit eigener Hersteller-ID: ERiC verlangt sie seit Version 43 schon fürs Prüfen, zum Senden kommt die Zertifikatsdatei dazu ([ELSTER einrichten](einrichtung-elster.md#was-du-brauchst)). Ohne ERiC läuft Haben auch auf arm64 simuliert und sendet nichts ans Finanzamt.
 
 ERiC gibt die Finanzverwaltung nur als fertige Bibliothek heraus, für Server nur für Linux x86_64; selbst übersetzen lässt sie sich nicht. Auf einem arm64-Server (Raspberry Pi, Ampere, Jetson) läuft Haben trotzdem nativ: Emuliert wird nur der kurzlebige Kindprozess, der für jede Prüfung und Übermittlung ERiC lädt. `ERIC_WORKER_COMMAND` startet ihn mit QEMU als x86_64-Prozess, mit Bun und den Bibliotheken aus dem amd64-Image derselben Haben-Version.
 
@@ -188,6 +190,39 @@ systemctl --user daemon-reload && systemctl --user restart haben-app
 Danach erscheint unter **Bank** der Knopf **Bank verbinden**. Ablauf, Zustimmung und Dubletten stehen in [Bankimport und Abgleich](bank.md#automatischer-abruf).
 
 Was an Enable Banking geht: beim Verbinden die gewählte Bank und die Rückleitungsadresse, danach nur Abrufe von Umsätzen und Kontoständen der freigegebenen Konten. Die Anmeldung bei der Bank geschieht auf deren Seite; Haben sieht weder Zugangsdaten noch TAN. Zahlungen auslösen kann Haben nicht.
+
+## Kontoabruf über FinTS
+
+Optional. Über FinTS (früher HBCI) holt Haben die Umsätze direkt bei der Bank, ohne Enable Banking und ohne Vertrag mit einem Dienst dazwischen. Die meisten Sparkassen, Volks- und Raiffeisenbanken und viele Direktbanken bieten FinTS mit PIN/TAN an, Neobanken meist nicht; dort bleiben Enable Banking oder der Dateiimport. Beide Wege gehen nebeneinander, ein Konto ruft Haben aber nur über einen ab.
+
+### Produkt registrieren
+
+FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (DK) registriert ist. Haben bringt keine Registrierungsnummer mit: Wer Haben betreibt, registriert sich selbst, wie bei der [Hersteller-ID für ELSTER](einrichtung-elster.md#hersteller-id-wer-ist-hersteller). Das hat die DK für Haben bestätigt; die Nummer gilt nur im registrierten Produkt und gehört nicht in den veröffentlichten Quellcode ([Antwort der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6820986969)).
+
+1. Das Formular der [Produktregistrierung](https://www.fints.org/de/hersteller/produktregistrierung) ausfüllen und an die DK schicken, Produktkategorie **Web-Server**. Die Registrierung ist derzeit kostenlos ([FAQ der DK](https://www.fints.org/de/hersteller/faq-produktregistrierung)); die DK nennt 10 bis 15 Werktage.
+2. Die Registrierungsnummer aus der Antwort als `FINTS_PRODUKT_ID` eintragen und Haben neu starten:
+
+    ```sh
+    # Compose
+    echo 'FINTS_PRODUKT_ID=<Registrierungsnummer>' >> .env
+    docker compose up -d
+
+    # Quadlets: in haben.env FINTS_PRODUKT_ID=<Registrierungsnummer>
+    systemctl --user restart haben-app
+    ```
+
+3. Unter **Einstellungen › Bank** steht dann bei **Kontoabruf über FinTS** „Eingerichtet“ (die Nummer zeigt Haben nicht), unter **Bank** der Knopf **Über FinTS verbinden**. Ablauf, TAN und Fehler stehen in [Abruf über FinTS](bank-fints.md).
+
+> [!NOTE]
+> Die Nummer gilt nicht sofort bei allen Banken. Die DK gibt neue Registrierungen gesammelt an die Institute weiter, derzeit etwa einmal pro Woche, und wann eine Bank sie übernimmt, entscheidet die Bank: Das dauert Tage bis Wochen ([Hinweis der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6915898298)). Bis dahin lehnt die Bank die Anmeldung ab, mit „FinTS-Produkt ist nicht registriert“ (9078 in den [Rückmeldungscodes der DK](https://www.fints.org/de/spezifikation)) oder, wie eine Bank im [Test zu #1289](https://github.com/firsttris/haben/pull/1289), mit „Das Kundenprodukt wird nicht unterstützt.“ (9952); Haben weist bei beiden darauf hin. Stimmt die Nummer in `FINTS_PRODUKT_ID`, später noch einmal versuchen.
+
+Ohne `FINTS_PRODUKT_ID` bleibt FinTS aus; Enable Banking und der Dateiimport laufen weiter. Haben prüft beim Start nur die Form (bis 25 Buchstaben und Ziffern), ob die Nummer gilt, sagt erst die Bank. Die Nummer ist kein Geheimnis, sie geht mit jeder Anmeldung an die Bank. Trag sie trotzdem nur in `.env` bzw. `haben.env` ein, nicht ins Repository oder Image.
+
+### Die FinTS-Adresse der Bank
+
+Beim Verbinden fragt Haben nach Bankleitzahl, FinTS-Adresse, Anmeldename und PIN. Die Adresse nennt die Bank, meist auf ihren Seiten zu HBCI oder FinTS oder in der Anleitung für Banking-Programme; sie beginnt mit `https://`. Eine Liste der Adressen bringt Haben nicht mit.
+
+Was an die Bank geht: Produktnummer und Version von Haben, Anmeldename und PIN und danach Abrufe von Umsätzen der Konten, über TLS direkt zur Bank. Die PIN speichert Haben verschlüsselt in der Datenbank wie das SMTP-Passwort, damit der tägliche Abruf ohne dich läuft; im Audit-Log steht sie nicht. Eine TAN speichert Haben nie. Zahlungen auslösen kann Haben über FinTS nicht.
 
 ## Lexware-Office-API
 

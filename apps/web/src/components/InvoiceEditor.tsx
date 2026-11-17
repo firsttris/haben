@@ -758,9 +758,8 @@ export function InvoiceEditor({
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Festschreiben: {blocking.join(", ")}. {currentSellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
             Vor dem Festschreiben: {blocking.join(", ")}.{" "}
-            {sellerIssues.length > 0 && (
+            {currentSellerIssues.length > 0 && (
               <Link to="/einstellungen" search={{ bereich: "firma" }}>
                 Firmendaten ergänzen
               </Link>

@@ -5,14 +5,16 @@ import type { Cents } from "./money.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, KLEINUNTERNEHMER_FRUEHERE_KONTEN, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 import { STEUER_KONTEN } from "./steuerzahlung.ts";
 import { DARLEHEN_KONTEN } from "./darlehen.ts";
+import { hinzurechnungPositionen } from "./ebilanz-hinzurechnung.ts";
 
 /*
  * Zuordnung der Konten zu den Positionen der E-Bilanz (§ 5b EStG, HGB-Taxonomien 6.9 und 6.10, Kerntaxonomie de-gaap-ci). Die
  * Taxonomie verlangt mehr Gliederung als der Kleinst-Abschluss (hgb.ts): Umsatzerlöse nach Umsatzsteuertatbestand,
  * sonstige Aufwendungen nach Art, Anlagen nach Bilanzposition für den Anlagenspiegel.
  *
- * Die Konten, die Haben selbst bucht, haben eine feste Position (KONTEN). Für alle anderen gilt die Auffangposition des
- * Kleinst-Postens, den der DATEV-Kontenrahmen dem Konto gibt („nicht zuordenbar“ bzw. „übrige“, AUFFANG); für Anlagen,
+ * Die Konten, die Haben selbst bucht, und die der Gewerbesteuer-Hinzurechnung (ebilanz-hinzurechnung.ts) haben eine feste
+ * Position (KONTEN). Für alle anderen gilt die Auffangposition des Kleinst-Postens, den der DATEV-Kontenrahmen dem Konto
+ * gibt („nicht zuordenbar“ bzw. „übrige“, AUFFANG); für Anlagen,
  * Eigenkapital und Steuern gibt es keine, dort muss das Konto zugeordnet sein. Die Positionen sind Blätter der
  * Rechenregeln der Taxonomie; das prüft packages/elster/src/ebilanz/zuordnung.test.ts gegen den Taxonomie-Auszug.
  */
@@ -67,7 +69,8 @@ const KATEGORIEN: Record<Exclude<ExpenseCategory, "hardware" | "anlage" | "einfu
   kfzBetrieb: `${OC}.vehicles`,
   kfzVersicherung: `${OC}.vehicles`,
   kfzReparatur: `${OC}.vehicles`,
-  kfzLeasing: `${OC}.vehicles`,
+  // Leasing, nicht Fuhrpark: die Taxonomie zählt Kfz-Leasing zum Leasing beweglicher Wirtschaftsgüter (ebilanz-hinzurechnung.ts)
+  kfzLeasing: `${OC}.leasingAll.moveable.other`,
   kfzSonstige: `${OC}.vehicles`,
   kfzSteuer: "is.netIncome.otherTaxes.other",
   versicherung: `${OC}.insurance`,
@@ -329,6 +332,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     ...lohnKonten(kontenrahmen),
     ...steuerzahlungKonten(kontenrahmen),
     ...darlehenKonten(kontenrahmen),
+    ...hinzurechnungPositionen(kontenrahmen).map(([konto, position]): [string, EbilanzZiel] => [konto, [position]]),
   ];
   return Object.fromEntries(entries);
 }

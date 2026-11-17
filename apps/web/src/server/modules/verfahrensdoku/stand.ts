@@ -57,6 +57,8 @@ export interface InstanzStand {
   voranmeldungenGesendet: number;
   bankkonten: { name: string; purpose: string }[];
   bankabruf: { aspspName: string; status: string; validUntil: Date | null; lastSyncAt: Date | null }[];
+  /** Kontoabruf über FinTS (#654) */
+  fintsabruf: { bankName: string; status: string; lastSyncAt: Date | null }[];
 }
 
 async function company(): Promise<InstanzStand["company"]> {
@@ -148,8 +150,13 @@ async function bankabruf() {
     .orderBy(c.createdAt);
 }
 
+async function fintsabruf() {
+  const c = schema.fintsConnections;
+  return db.select({ bankName: c.bankName, status: c.status, lastSyncAt: c.lastSyncAt }).from(c).orderBy(c.createdAt);
+}
+
 export async function readInstanzStand(now = new Date()): Promise<InstanzStand> {
-  const [firma, accounts, apiTokens, datenbank, backup, versionen, head, mail, inbox, archiv, cert, gesendet, konten, abruf] = await Promise.all([
+  const [firma, accounts, apiTokens, datenbank, backup, versionen, head, mail, inbox, archiv, cert, gesendet, konten, abruf, fints] = await Promise.all([
     company(),
     zugaenge(),
     tokens(now),
@@ -164,6 +171,7 @@ export async function readInstanzStand(now = new Date()): Promise<InstanzStand> 
     voranmeldungenGesendet(),
     bankkonten(),
     bankabruf(),
+    fintsabruf(),
   ]);
   return {
     version: pkg.version,
@@ -182,5 +190,6 @@ export async function readInstanzStand(now = new Date()): Promise<InstanzStand> 
     voranmeldungenGesendet: gesendet,
     bankkonten: konten,
     bankabruf: abruf,
+    fintsabruf: fints,
   };
 }
