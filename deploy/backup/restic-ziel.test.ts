@@ -38,7 +38,15 @@ const MELDUNGEN: [string, string][] = [
   ['Fatal: parse "https://nutzer:ab": invalid port ":ab" after host', 'Fatal: parse "https://": invalid port after host'],
   ['Fatal: parse "https://nutzer:ab/@cd": invalid port ":ab" after host', 'Fatal: parse "https://": invalid port after host'],
   ['Fatal: parse "https://nutzer:geheim@backup.example:8OOO/haben": invalid port ":8OOO" after host', 'Fatal: parse "https://": invalid port after host'],
-  ['Fatal: parse \\"https://nutzer:ab/cd@backup.example\\": invalid port', 'Fatal: parse \\"https://backup.example\\": invalid port'],
+  ['Fatal: parse \\"https://nutzer:ab/cd@backup.example\\": invalid port', 'Fatal: parse \\"https://\\": invalid port'],
+  // Leerraum, " oder Umlaut im Passwort: Go nennt die Adresse in Go-Schreibweise (\" für ")
+  [
+    'Fatal: parsing repository location failed: parse "https://nutzer:ab cd@backup.example/haben": net/url: invalid userinfo',
+    'Fatal: parsing repository location failed: parse "https://": net/url: invalid userinfo',
+  ],
+  ['Fatal: parse "https://nutzer:ab\\"c d@backup.example/haben": net/url: invalid userinfo', 'Fatal: parse "https://": net/url: invalid userinfo'],
+  ['Fatal: parse "https://nutzer:äb@backup.example/haben": net/url: invalid userinfo', 'Fatal: parse "https://": net/url: invalid userinfo'],
+  ['Fatal: parse "https://nutzer:ab%zz@backup.example/haben": invalid URL escape "%zz"', 'Fatal: parse "https://": invalid URL escape'],
   // Meldungen mit mehreren Adressen, Leerraum oder " beenden eine Adresse
   ["rest:https://nutzer:ab/cd@backup.example: connection refused", "rest:https://backup.example: connection refused"],
   // Passwort mit Ziffern vor dem /: Go liest sie als Port, restic kommt bis zum Verbinden und nennt die Adresse mit „: “
@@ -144,6 +152,49 @@ describe("Anlegen des Repositorys (init_repository, von backup.sh beim ersten La
     const r = initRepository(repository, true);
     expect(r.stderr).toBe(`Fatal: create repository at ${ziel} failed: connection refused\n`);
     expect(r.status).toBe(1);
+  });
+});
+
+describe("Fehlerausgabe eines Laufs (stream_without_credentials)", () => {
+  it("filtert jede Zeile, auch eine letzte ohne Zeilenumbruch", () => {
+    const r = spawnSync("bash", ["-c", `source "${join(DIR, "restic-ziel.sh")}" && stream_without_credentials`], {
+      input: "Fatal: at sftp:nutzer@h:/srv: x\nrest:https://n:ab/cd@h/p",
+      encoding: "utf8",
+    });
+    expect(r.stdout).toBe("Fatal: at sftp:h:/srv: x\nrest:https://h/p\n");
+  });
+
+  it("geht in backup.sh und restore-check.sh in Log und Fehlerdatei (#1349)", () => {
+    for (const datei of ["backup.sh", "restore-check.sh"])
+      expect(readFileSync(join(DIR, datei), "utf8"), datei).toContain('exec 3>&2 2> >(stream_without_credentials | tee -a "$errlog" >&3)');
+  });
+
+  it("nennt das Repository nicht, wenn restic im Test-Restore scheitert", () => {
+    // restic 0.19.1 nennt das Repository in „unable to open repository at %v: %v“ über location.StripPassword, das für
+    // sftp:, s3: und rclone: nichts entfernt; psql und dropdb fehlen, der Lauf trägt nichts ein
+    const stubs = mkdtempSync(join(tmpdir(), "haben-backup-"));
+    try {
+      writeFileSync(join(stubs, "restic"), '#!/bin/sh\necho "Fatal: unable to open repository at $RESTIC_REPOSITORY: dial tcp" >&2\nexit 1\n');
+      writeFileSync(join(stubs, "psql"), "#!/bin/sh\nexit 2\n");
+      writeFileSync(join(stubs, "dropdb"), "#!/bin/sh\nexit 0\n");
+      for (const name of ["restic", "psql", "dropdb"]) chmodSync(join(stubs, name), 0o755);
+      const r = spawnSync("bash", [join(DIR, "restore-check.sh")], {
+        encoding: "utf8",
+        timeout: 10_000,
+        env: {
+          ...process.env,
+          PATH: `${stubs}:${process.env.PATH}`,
+          PGDATABASE: "haben",
+          BACKUP_HOST: "haben",
+          RESTIC_REPOSITORY: "rclone::sftp,host=backup.example,user=nutzer,pass=GEHEIM:haben",
+        },
+      });
+      expect(r.stderr).toContain("Fatal: unable to open repository at rclone::sftp:haben: dial tcp");
+      expect(r.stderr).not.toContain("GEHEIM");
+      expect(r.status).toBe(1);
+    } finally {
+      rmSync(stubs, { recursive: true, force: true });
+    }
   });
 });
 

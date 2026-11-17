@@ -22,17 +22,18 @@ const ADRESSE = new RegExp(String.raw`([a-z][a-z0-9+.-]*:\/\/)(?:[^/?#\s"]*@(?=$
  * Zugangsdaten in einem Ziel von restic fallen weg, auch in Fehlermeldungen des Backups: Nutzer und Passwort einer
  * Adresse (ADRESSE), der Nutzer der Kurzform sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette
  * (rclone::sftp,pass=…:pfad). Nicht zu unterscheiden sind nutzer:12/ab@h und h:12/ab@h (Port, @ im Pfad); dann fällt
- * lieber das Ziel weg als das Passwort. Steht / ? # im Passwort, kann Go (net/url, das restic nutzt) die Adresse nicht
- * lesen, hält den Anfang des Passworts für den Port und schneidet bei # vor dem @ ab; aus der Meldung fallen dann Adresse
- * und Port ganz weg: parse "https://nutzer:ab": invalid port ":ab" after host → parse "https://": invalid port after host.
- * Gleiche Regeln in deploy/backup/restic-ziel.sh.
+ * lieber das Ziel weg als das Passwort. Kann Go (net/url, das restic nutzt) die Adresse nicht lesen, etwa bei / ? #
+ * Leerraum " oder Umlauten im Passwort, nennt seine Meldung sie in Go-Schreibweise samt Passwort, dazu Teile davon als
+ * Port oder Escape: parse "https://nutzer:ab cd@host/": net/url: invalid userinfo, parse "https://nutzer:ab": invalid
+ * port ":ab" after host. Daraus fallen Adresse und diese Teile ganz weg. Gleiche Regeln in deploy/backup/restic-ziel.sh.
  */
 export const ohneZugangsdaten = (text: string) =>
   text
     .replace(ADRESSE, "$1")
     .replace(/\b(sftp:)(?!\/\/)[^\s/@]+@/gi, "$1")
     .replace(/\b(rclone::?[\w.-]+),(?:"[^"]*"|'[^']*'|[^\s:"'])*/gi, "$1")
-    .replace(/(\bparse \\?"[a-z][a-z0-9+.-]*:\/\/)[^"\\]*(\\?": invalid port) \\?"[^"\\]*\\?"/gi, "$1$2");
+    .replace(/(\bparse \\?"[a-z][a-z0-9+.-]*:\/\/)(?:[^"\\]|\\.)*(\\?": )/gi, "$1$2")
+    .replace(/(invalid (?:port|URL escape|character)) \\?"(?:[^"\\]|\\.)*\\?"/g, "$1");
 
 /**
  * Liegt das Repository in einem Verzeichnis des Backup-Containers? restic nimmt ein Backend nur mit seinem Namen vor

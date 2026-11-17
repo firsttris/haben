@@ -22,10 +22,11 @@ fi
 # Update, während der Zeitplan sichert) wartet bis zu einer Stunde, statt den Dump des ersten zu überschreiben.
 exec 9> "$state/lock"
 flock -w 3600 9 || { echo "Ein anderes Backup läuft seit über einer Stunde, Backup abgebrochen." >&2; exit 1; }
-# Fehlerausgabe zusätzlich in eine Datei, damit die Meldung bei einem Fehlschlag in der App steht
+# Fehlerausgabe zusätzlich in eine Datei, damit die Meldung bei einem Fehlschlag in der App steht; beides ohne
+# Zugangsdaten, denn restic nennt das Repository in Fehlern, für sftp:, s3: und rclone: samt Zugangsdaten (restic-ziel.sh)
 errlog="$state/backup.err"
 : > "$errlog"
-exec 3>&2 2> >(tee -a "$errlog" >&3)
+exec 3>&2 2> >(stream_without_credentials | tee -a "$errlog" >&3)
 tee_pid=$!
 # Ergebnis des Laufs für den Healthcheck des Compose-Dienstes (ok oder fehler, dazu der Zeitpunkt) und,
 # bei einem Fehlschlag, für die App; ein erfolgreicher Lauf trägt sich schon vor dem Test-Restore ein
@@ -50,9 +51,7 @@ err="$(restic cat config 2>&1 > /dev/null)" || rc=$?
 if [ "$rc" = 10 ]; then
   init_repository
 elif [ "$rc" != 0 ]; then
-  # Die Meldung nennt die Adresse, für sftp:, s3: und rclone: samt Zugangsdaten, ebenso, wenn restic sie nicht lesen
-  # kann (restic-ziel.sh)
-  message_without_credentials <<< "$err" >&2
+  echo "$err" >&2
   exit 1
 fi
 

@@ -28,7 +28,7 @@ describe("ohneZugangsdaten", () => {
     ["rest:https://nutzer:ab/cd@[::1]:8000/haben", "rest:https://[::1]:8000/haben"],
     ["rest:https://nutzer:ab/cd@backup.example: connection refused", "rest:https://backup.example: connection refused"],
     ["a rest:https://u:ab/cd@h1/x und b s3:https://v:ef/gh@h2/y", "a rest:https://h1/x und b s3:https://h2/y"],
-    ['Fatal: parse \\"https://nutzer:ab/cd@backup.example\\": invalid port', 'Fatal: parse \\"https://backup.example\\": invalid port'],
+    ['Fatal: parse \\"https://nutzer:ab/cd@backup.example\\": invalid port', 'Fatal: parse \\"https://\\": invalid port'],
   ])("entfernt das Passwort mit / auch in %s", (text, erwartet) => {
     expect(ohneZugangsdaten(text)).toBe(erwartet);
   });
@@ -49,6 +49,10 @@ describe("ohneZugangsdaten", () => {
     // Bei # im Passwort schneidet Go die Adresse vor der Meldung ab, ein @ im Rest sähe wie das Ende der Zugangsdaten aus
     expect(ohneZugangsdaten('Fatal: parse "https://nutzer:ab": invalid port ":ab" after host')).toBe('Fatal: parse "https://": invalid port after host');
     expect(ohneZugangsdaten('Fatal: parse "https://nutzer:ab/@cd": invalid port ":ab" after host')).toBe('Fatal: parse "https://": invalid port after host');
+    // Leerraum oder " im Passwort: Go nennt die ganze Adresse in Go-Schreibweise, auch sie fällt weg
+    expect(ohneZugangsdaten('Fatal: parse "https://nutzer:ab\\"c d@backup.example/haben": net/url: invalid userinfo')).toBe(
+      'Fatal: parse "https://": net/url: invalid userinfo',
+    );
     // Ein Tippfehler im Port: Hinter dem letzten @ steht kein Host, die Zugangsdaten fallen trotzdem weg wie im Backup-Container
     expect(ohneZugangsdaten("rest:https://nutzer:geheim@backup.example:8OOO/haben")).toBe("rest:https://backup.example:8OOO/haben");
   });

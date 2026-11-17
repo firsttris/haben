@@ -13,14 +13,25 @@ target_without_credentials() {
 }
 
 # Text auf stdin ohne Zugangsdaten, etwa eine Fehlermeldung von restic: dieselben Regeln für jede Adresse bis zum
-# nächsten Leerraum oder ". Steht / ? # im Passwort, kann Go (net/url, von restic genutzt) die Adresse nicht lesen, hält
-# den Anfang des Passworts für den Port und schneidet bei # vor dem @ ab; aus der Meldung fallen dann Adresse und Port
-# ganz weg: parse "https://nutzer:ab": invalid port ":ab" after host → parse "https://": invalid port after host.
+# nächsten Leerraum oder ". Kann Go (net/url, von restic genutzt) die Adresse nicht lesen, etwa bei / ? # Leerraum " oder
+# Umlauten im Passwort, nennt seine Meldung sie in Go-Schreibweise samt Passwort, dazu Teile davon als Port oder Escape:
+# parse "https://nutzer:ab cd@host/": net/url: invalid userinfo, parse "https://nutzer:ab": invalid port ":ab" after host.
+# Daraus fallen Adresse und diese Teile ganz weg: parse "https://": net/url: invalid userinfo.
 message_without_credentials() {
   credentials_from_address meldung | sed -E \
     -e 's#(^|[^[:alnum:]_])sftp:[^/[:space:]@]+@#\1sftp:#g' \
     -e "s#(^|[^[:alnum:]_])(rclone::?[A-Za-z0-9_.-]+),(\"[^\"]*\"|'[^']*'|[^[:space:]:\"'])*#\\1\\2#g" \
-    -e 's%((^|[^[:alnum:]_])parse \\?"[A-Za-z][A-Za-z0-9+.-]*://)[^"\\]*(\\?": invalid port) \\?"[^"\\]*\\?"%\1\3%g'
+    -e 's%((^|[^[:alnum:]_])parse \\?"[A-Za-z][A-Za-z0-9+.-]*://)([^"\\]|\\.)*(\\?": )%\1\4%g' \
+    -e 's%(invalid (port|URL escape|character)) \\?"([^"\\]|\\.)*\\?"%\1%g'
+}
+
+# Fehlerausgabe eines Laufs ohne Zugangsdaten (backup.sh und restore-check.sh leiten ihren stderr hier durch). Zeile für
+# Zeile, weil awk und sed in einer Pipe puffern: Eine Meldung käme sonst erst am Ende des Laufs im Log an.
+stream_without_credentials() {
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    message_without_credentials <<< "$line"
+  done
 }
 
 # Legt das Repository an (backup.sh beim ersten Lauf). Auch die Ausgabe von restic init läuft durch den Filter: restic
