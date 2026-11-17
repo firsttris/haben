@@ -28,14 +28,18 @@ const SCHRITTE: readonly { id: Id; label: string; woher: string }[] = [
   },
 ];
 
-type Stand = Pick<Teil, "sent" | "submitted" | "issues">;
+type Stand = Pick<Teil, "sent" | "submitted" | "issues"> & { verwaltet?: boolean };
+
+const erledigt = (teil: Stand) => Boolean(teil.sent || teil.submitted);
 
 /**
  * Die erste Erklärung in der Reihenfolge, die weder übermittelt noch als abgegeben vermerkt ist, und was dort zu tun ist:
- * mit Fehlern in den Hinweisen zuerst diese klären, sonst prüfen und übermitteln. Null, wenn alle erledigt sind.
+ * mit Fehlern in den Hinweisen zuerst diese klären, sonst prüfen und übermitteln. Eine Erklärung, die Haben nicht verwaltet
+ * (die Einkommensteuer ohne Vermerk: Haben weiß nicht, ob sie außerhalb abgegeben wurde, #869), ist keine offene Pflicht
+ * und wird nie der nächste Schritt. Null, wenn nichts bleibt.
  */
 export function naechsterSchritt(data: Record<Id, Stand>): { id: Id; text: string } | null {
-  const offen = SCHRITTE.find((s) => !data[s.id].sent && !data[s.id].submitted);
+  const offen = SCHRITTE.find((s) => !erledigt(data[s.id]) && data[s.id].verwaltet !== false);
   if (!offen) return null;
   const blockiert = data[offen.id].issues.some((i) => i.tone === "fehler");
   return { id: offen.id, text: blockiert ? `Hinweise zu ${offen.label} klären` : `${offen.label} prüfen und übermitteln` };
@@ -69,8 +73,12 @@ export function Reihenfolge({ data }: { data: Data }) {
           <>
             <strong>Nächster Schritt:</strong> <a href={`#${schritt.id}`}>{schritt.text}</a>
           </>
-        ) : (
+        ) : SCHRITTE.every((s) => erledigt(data[s.id])) ? (
           <strong>Alle drei Erklärungen sind abgegeben.</strong>
+        ) : (
+          <>
+            <strong>Nächster Schritt:</strong> keiner, den Haben kennt. Die Einkommensteuer gilt erst mit Übermittlung oder Vermerk als abgegeben.
+          </>
         )}
       </p>
       <p className="small muted" style={{ margin: 0 }}>

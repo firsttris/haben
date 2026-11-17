@@ -10,9 +10,9 @@ const ust = {
   figures: { base19: 512000, tax19: 97280, base7: 0, tax7: 0, vorsteuer: 0 },
   kz48Gesperrt: [],
   erklaert: {},
-  anzeige: { vorauszahlungen: 0, abschluss: 97280, ausVermerk: { vorauszahlungen: false, abschluss: false } },
+  anzeige: { vorauszahlungen: 20000, abschluss: 77280, ausVermerk: { vorauszahlungen: false, abschluss: false } },
 };
-const euer = { einnahmen: 609280, ausgaben: 0, gewinn: 609280, erklaert: {} };
+const euer = { einnahmen: 609280, ausgaben: 100000, gewinn: 509280, erklaert: {} };
 const euerRows = {
   einnahmen: [{ key: "steuerpflichtig", label: "Umsatzsteuerpflichtige Betriebseinnahmen", kz: "E6000401", amount: 512000 }],
   ausgaben: [],
@@ -21,6 +21,13 @@ const euerRows = {
 const data = { ust, euer, euerRows, versteuerung: "soll", rechtsform: "einzelunternehmen" } as unknown as Data;
 
 const html = (komponente: typeof UstTabelle) => renderToStaticMarkup(createElement(komponente, { data }));
+/** Die Tabellenzeile, deren Beschriftung mit `label` beginnt */
+const zeile = (markup: string, label: string) => {
+  const treffer = markup.match(new RegExp(`<tr[^>]*><th[^>]*>${label}.*?</tr>`));
+  expect(treffer, `keine Zeile „${label}“`).not.toBeNull();
+  return treffer![0];
+};
+
 /** Alles vor und alles in der eingeklappten Gruppe „Zeilen anzeigen“ */
 const teile = (markup: string) => {
   const index = markup.indexOf("<details");
@@ -31,8 +38,9 @@ const teile = (markup: string) => {
 describe("UstTabelle", () => {
   it("zeigt die Summen offen und die Einzelzeilen in der Gruppe", () => {
     const { davor, gruppe } = teile(html(UstTabelle));
-    expect(davor).toContain("Abschlusszahlung");
-    expect(davor).toContain("972,80");
+    expect(zeile(davor, "Umsatzsteuer")).toContain("972,80");
+    expect(zeile(davor, "Vorauszahlungssoll")).toContain("200,00");
+    expect(zeile(davor, "Abschlusszahlung")).toContain("772,80");
     expect(davor).not.toContain("Umsätze zu 19 %");
     expect(gruppe).toContain("Umsätze zu 19 %");
     expect(gruppe).toContain("Abziehbare Vorsteuer aus Rechnungen");
@@ -54,8 +62,9 @@ describe("UstTabelle", () => {
 describe("EuerTabelle", () => {
   it("zeigt Summen und Gewinn offen, Zeilen mit Feldkennung in der Gruppe", () => {
     const { davor, gruppe } = teile(html(EuerTabelle));
-    expect(davor).toContain("Summe Betriebseinnahmen");
-    expect(davor).toContain("Gewinn");
+    expect(zeile(davor, "Summe Betriebseinnahmen")).toContain("6.092,80");
+    expect(zeile(davor, "Summe Betriebsausgaben")).toContain("1.000,00");
+    expect(zeile(davor, "Gewinn")).toContain("5.092,80");
     expect(davor).not.toContain("E6000401");
     expect(gruppe).toMatch(/^<details class="est-block">/);
     expect(gruppe).toContain("E6000401");

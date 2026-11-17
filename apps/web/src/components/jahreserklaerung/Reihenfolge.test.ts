@@ -7,6 +7,7 @@ import type { Data } from "./typen.ts";
 const offen = { sent: null, submitted: null, issues: [] };
 const gesendet = { sent: { createdAt: "2026-03-01T10:00:00Z" }, submitted: null, issues: [] };
 const vermerkt = (amount: number | null) => ({ sent: null, submitted: { filedOn: "2026-02-10", amount }, issues: [] });
+const estUnbekannt = { sent: null, submitted: null, issues: [], verwaltet: false };
 const fehler = { sent: null, submitted: null, issues: [{ tone: "fehler", text: "Steuernummer fehlt" }] };
 const stand = (ust: object, euer: object, est: object) => ({ ust, euer, est }) as unknown as Data;
 
@@ -27,6 +28,11 @@ describe("naechsterSchritt", () => {
   it("zählt einen bloßen Hinweis nicht als Fehler", () => {
     const hinweis = { ...offen, issues: [{ tone: "hinweis", text: "Voranmeldung fehlt" }] };
     expect(naechsterSchritt(stand(hinweis, offen, offen))?.text).toBe("Umsatzsteuer prüfen und übermitteln");
+  });
+
+  it("nennt die Einkommensteuer nicht, wenn Haben ihren Stand nicht kennt (#869)", () => {
+    expect(naechsterSchritt(stand(gesendet, gesendet, estUnbekannt))).toBeNull();
+    expect(naechsterSchritt(stand(offen, gesendet, estUnbekannt))?.id).toBe("ust");
   });
 
   it("meldet nichts, wenn alle drei erledigt sind", () => {
@@ -54,6 +60,13 @@ describe("Reihenfolge", () => {
     expect(markup).toContain("1.234,56");
     expect(markup).not.toContain("Nächster Schritt");
     expect(markup).toContain("Alle drei Erklärungen sind abgegeben.");
+  });
+
+  it("sagt ohne Vermerk zur Einkommensteuer weder „nächster Schritt: Einkommensteuer“ noch „alle abgegeben“", () => {
+    const markup = html(stand(gesendet, gesendet, estUnbekannt));
+    expect(markup).not.toContain('href="#est">Einkommensteuer prüfen');
+    expect(markup).not.toContain("Alle drei Erklärungen sind abgegeben.");
+    expect(markup).toContain("keiner, den Haben kennt");
   });
 
   it("führt zu Belegen von ELSTER und zum Verlauf", () => {

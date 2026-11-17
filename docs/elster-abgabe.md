@@ -82,7 +82,7 @@ Was der Assistent liest, auch in Mein ELSTER, geht an den Anbieter des Modells. 
 
 ### Von Hand
 
-Geht immer: Haben zeigt auf der Seite der Voranmeldung jede Kennzahl und bei den Jahreserklärungen jede Zeile mit ihrer Feldkennung. Die Steuer zu Kz 81 und 86 und die Zahllast Kz 83 rechnet Mein ELSTER selbst; vergleiche sie mit Haben.
+Geht immer: Haben zeigt auf der Seite der Voranmeldung jede Kennzahl und bei den Jahreserklärungen jede Zeile mit ihrer Feldkennung (hinter „Zeilen anzeigen“). Die Steuer zu Kz 81 und 86 und die Zahllast Kz 83 rechnet Mein ELSTER selbst; vergleiche sie mit Haben.
 
 ## Offen
 
