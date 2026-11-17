@@ -24,7 +24,14 @@ import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.ts
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
-import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
+import {
+  AufladungFelder,
+  aufladungWahl,
+  KategorieFelder,
+  kategorieWahlFuer,
+  type KategorieOptionen,
+  type KategorieWahl,
+} from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
@@ -135,13 +142,6 @@ const KIND_LABEL = {
  * Steuerbescheide, Kreditverträge oder Abrechnungen; den Zahlungsnachweis bildet der Bankumsatz selbst.
  */
 const DIRECT_HINT = "Bankumsatz einer Buchungsart zuordnen, ohne einen separaten Beleg anzulegen.";
-
-/**
- * Aufladung eines Guthabens (#1356): Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG), Vorsteuer erst mit der Rechnung
- * über die Leistung (§ 3 Abs. 15 UStG). Der Satz gehört hierher und nicht in die Felder: Es gibt keinen zu wählen.
- */
-const AUFLADUNG_HINWEIS =
-  "Gebucht als Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG), ohne Vorsteuer: Die entsteht erst mit der Rechnung über die Leistung (§ 3 Abs. 15 UStG).";
 
 /** Wie die Zuordnung in der Liste und in der Rückfrage heißt */
 function zuordnungText(a: Allocation, gesellschaft: boolean): string {
@@ -1050,11 +1050,6 @@ function AllocationPanel({
   const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
   // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung
   const [kategorie, setKategorie] = useState<KategorieWahl>(() => direct?.kategorie ?? kategorieWahlFuer(kategorieOptionen, tx.amount));
-  // Eine Aufladung ist immer eine Ausgabe; Einnahmen und ihr Steuersatz stehen dort nicht zur Wahl (#1356)
-  const aufladungOptionen: KategorieOptionen = {
-    ...kategorieOptionen,
-    kategorien: kategorieOptionen.kategorien.filter((k) => k.art === "ausgabe"),
-  };
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
@@ -1097,12 +1092,6 @@ function AllocationPanel({
   // Zahlung in der Skontofrist um genau das Skonto gekürzt: zuordnen und den Rest gleich als gewährtes Skonto ausbuchen
   const skontoRest = mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open ? best.skonto : 0;
 
-  /** Aufladung ist eine Ausgabe: Steht aus einem Vorschlag eine Einnahmekategorie da, wird sie zur Ausgabe (#1356) */
-  function waehleBuchungsart(wert: DirectChoice) {
-    setDirectKind(wert);
-    if (wert === "aufladung" && kategorieArt(kategorie.kategorie) !== "ausgabe") setKategorie({ kategorie: "sonstiges", steuersatz: 0 });
-  }
-
   function submitAllocation() {
     if (!check() || signedAmount === null) return;
     const completes = signedAmount === tx.open;
@@ -1118,8 +1107,10 @@ function AllocationPanel({
         return runAndAdvance(() => allocateFn({ data: { kind: "kategorie", transactionId: tx.id, amount: signedAmount, kategorie } }), completes);
       }
       if (directKind === "aufladung") {
-        const angabe = { kategorie: kategorie.kategorie, steuersatz: 0 };
-        return runAndAdvance(() => allocateFn({ data: { kind: "aufladung", transactionId: tx.id, amount: signedAmount, kategorie: angabe } }), completes);
+        return runAndAdvance(
+          () => allocateFn({ data: { kind: "aufladung", transactionId: tx.id, amount: signedAmount, kategorie: aufladungWahl(kategorie) } }),
+          completes,
+        );
       }
       if (directKind !== "steuer") {
         return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
@@ -1421,7 +1412,7 @@ function AllocationPanel({
               }
             >
               {(control) => (
-                <select {...control} value={directKind} onChange={(e) => waehleBuchungsart(e.target.value as DirectChoice)}>
+                <select {...control} value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
                   {[...directKinds, KATEGORIE_OPTION, AUFLADUNG_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>
                       {k.label}
@@ -1440,10 +1431,7 @@ function AllocationPanel({
             <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
           )}
           {mode === "direct" && directKind === "aufladung" && (
-            <>
-              <KategorieFelder options={aufladungOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
-              <span className="small muted">{AUFLADUNG_HINWEIS}</span>
-            </>
+            <AufladungFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
           )}
 
           <Field label="Betrag" error={error("amount")}>

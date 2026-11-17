@@ -82,6 +82,8 @@ describe("Startwert für die Direktbuchung", () => {
     expect(startwertFuerBuchungsart("kategorie", arten("geschaeft"))).toBe("kategorie");
     expect(startwertFuerBuchungsart("steuer", arten("privat"))).toBe("steuer");
     expect(startwertFuerBuchungsart("darlehen", arten("privat"))).toBe("darlehen");
+    // Die Aufladung steht wie die Kategorie nicht im Angebot des Kontos; ein gebuchter Umsatz öffnet dort wieder (#1356)
+    expect(startwertFuerBuchungsart("aufladung", arten("privat"))).toBe("aufladung");
   });
 
   it("ersetzt einen Vorschlag, den das Konto nicht anbietet, durch den ersten erlaubten Eintrag", () => {

@@ -1,4 +1,4 @@
-import { formatEuro, kategorieAnteil, type DirektKategorie } from "@haben/core";
+import { formatEuro, kategorieAnteil, kategorieArt, type DirektKategorie } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { Field } from "./Field.tsx";
 
@@ -99,5 +99,42 @@ export function KategorieFelder({
         )}
       </span>
     </div>
+  );
+}
+
+/**
+ * Wahl einer Aufladung (#1356): Eine Aufladung ist eine Ausgabe ohne Steuersatz. Steht aus einem gelernten Vorschlag
+ * (#295) noch eine Einnahme oder ein Steuersatz in der Wahl, gilt „Sonstiger Aufwand“ ohne Satz — Anzeige und Buchung
+ * lesen beide hier.
+ */
+export function aufladungWahl(wahl: KategorieWahl): KategorieWahl {
+  return { kategorie: kategorieArt(wahl.kategorie) === "ausgabe" ? wahl.kategorie : "sonstiges", steuersatz: 0 };
+}
+
+/** Hinweis unter den Feldern einer Aufladung: warum kein Steuersatz und wann die Vorsteuer entsteht (#1356) */
+const AUFLADUNG_HINWEIS =
+  "Gebucht als Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG), ohne Vorsteuer: Die entsteht erst mit der Rechnung über die Leistung (§ 3 Abs. 15 UStG).";
+
+/**
+ * Felder einer Aufladung eines Guthabens (#1356): dieselbe Kategorie wie bei „Direkt buchen“, aber nur Ausgaben. Einen
+ * Steuersatz gibt es hier nicht: Vorsteuer entsteht erst mit der Rechnung über die Leistung (§ 3 Abs. 15 UStG).
+ */
+export function AufladungFelder({
+  options,
+  value,
+  amount,
+  onChange,
+}: {
+  options: KategorieOptionen;
+  value: KategorieWahl;
+  amount: number | null;
+  onChange: (wahl: KategorieWahl) => void;
+}) {
+  const ausgaben = { ...options, kategorien: options.kategorien.filter((k) => k.art === "ausgabe") };
+  return (
+    <>
+      <KategorieFelder options={ausgaben} value={aufladungWahl(value)} amount={amount} onChange={onChange} />
+      <span className="small muted">{AUFLADUNG_HINWEIS}</span>
+    </>
   );
 }
