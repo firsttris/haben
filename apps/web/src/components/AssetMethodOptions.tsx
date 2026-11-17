@@ -41,8 +41,8 @@ function MethodExplanation({ method }: { method: AssetMethod }) {
   if (method === "sammelposten")
     return (
       <p id="method-hint" className="field-hint">
-        Anschaffungen von {euro(SAMMELPOSTEN_MIN)} bis {euro(SAMMELPOSTEN_MAX)} netto, die du über fünf Jahre verteilst, je ein Fünftel im Jahr, heißen
-        Sammelposten.
+        Eine Anschaffung von {euro(SAMMELPOSTEN_MIN)} bis {euro(SAMMELPOSTEN_MAX)} netto, die man allein nutzen kann, darfst du über fünf Jahre gleichmäßig
+        verteilen (Sammelposten).
       </p>
     );
   return null;

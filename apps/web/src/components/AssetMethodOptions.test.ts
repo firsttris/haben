@@ -32,7 +32,7 @@ describe("Erklärung der Methoden in Alltagssprache", () => {
     expect(gwg).toContain('id="method-hint"');
     const sammelposten = render("sammelposten");
     expect(sammelposten).toContain(`${euro(SAMMELPOSTEN_MIN)} bis ${euro(SAMMELPOSTEN_MAX)} netto`);
-    expect(sammelposten).toMatch(/über fünf Jahre[\s\S]*Sammelposten\./);
+    expect(sammelposten).toMatch(/allein nutzen kann, darfst du über fünf Jahre gleichmäßig\s+verteilen \(Sammelposten\)/);
   });
 
   it("degressiv: Erklärung vor dem Höchstsatz; linear braucht keine", () => {

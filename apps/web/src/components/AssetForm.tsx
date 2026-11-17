@@ -215,8 +215,8 @@ export function AssetForm({
       <section className="form-section" aria-labelledby="asset-depreciation">
         <h3 id="asset-depreciation">Abschreibung</h3>
         <p id="asset-depreciation-hint" className="field-hint">
-          Die Kosten einer Anlage verteilst du auf mehrere Jahre; nur bei GWG und bei Computern und Software zählen sie gleich im Jahr des Kaufs (Fachwort: AfA,
-          Absetzung für Abnutzung).
+          Die Kosten einer Anlage verteilst du auf mehrere Jahre; nur bei GWG und bei Computern und Software setzt du sie im Jahr des Kaufs ganz ab (Fachwort:
+          AfA, Absetzung für Abnutzung).
         </p>
         <div className="form-row cols-2">
           <Field label="Abschreibung" describedBy={hasMethodHint(method) ? "asset-depreciation-hint method-hint" : "asset-depreciation-hint"}>
