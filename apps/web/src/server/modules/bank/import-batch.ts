@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
 import {
   advanceCheckpoint,
   batchFingerprint,
@@ -114,6 +114,19 @@ async function aliasCandidates(tx: Tx, accountId: string, source: { createdAt: D
   return new Map(rows.map((r) => [r.hash, r.id]));
 }
 
+/**
+ * Letzter Buchungstag aus Dateien und FinTS (wie `lastFileBooking` in bank-sync.ts): Diese Tage holt der Abruf absichtlich
+ * nicht (`followUpStart`). Ein Umsatz, den die Bank mit so einem Tag vor dem Fenster mitliefert, gehört der Datei.
+ */
+async function lastOtherBooking(tx: Tx, accountId: string): Promise<string | null> {
+  const [row] = await tx
+    .select({ date: sql<string | null>`max(${schema.bankTransactions.bookingDate})::text` })
+    .from(schema.bankTransactions)
+    .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
+    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), ne(schema.bankImports.format, "enablebanking")));
+  return row?.date ?? null;
+}
+
 /** Bisheriges Ergebnis einer wiederholten Lieferung, ohne etwas neu zu speichern */
 async function replayResult(tx: Tx, account: { id: string; name: string }, previous: typeof schema.importBatches.$inferSelect): Promise<BatchResult> {
   const [imported] = await tx.select().from(schema.bankImports).where(eq(schema.bankImports.id, previous.bankImportId));
@@ -141,7 +154,8 @@ async function planRows(
   rows: Row[],
   fresh: Map<string, ImportMovement>,
   eventOf: StoreBatchInput["eventOf"],
-): Promise<{ insert: Row[]; linked: Linked[] }> {
+  windowFrom: string | undefined,
+): Promise<{ insert: Row[]; linked: Linked[]; fileDays: string[] }> {
   const known = await knownHashes(
     tx,
     accountId,
@@ -153,8 +167,10 @@ async function planRows(
     source,
     rows.filter((r) => fresh.has(eventOf(r) ?? "")).map((r) => r.dedupHash),
   );
+  const fileUntil = await lastOtherBooking(tx, accountId);
   const insert: Row[] = [];
   const linked: Linked[] = [];
+  const fileDays: string[] = [];
   const taken = new Set<string>();
   for (const row of rows) {
     const event = eventOf(row);
@@ -170,6 +186,10 @@ async function planRows(
     // Bekannt, abgelehnt oder schon einmal in dieser Lieferung: kein Umsatz
     if (!movement) continue;
     fresh.delete(event);
+    if (windowFrom && fileUntil && movement.bookingDate < windowFrom && movement.bookingDate <= fileUntil) {
+      fileDays.push(`${event}: Buchungstag ${movement.bookingDate} vor dem Fenster, den Tag deckt schon eine Datei oder FinTS ab; nicht übernommen.`);
+      continue;
+    }
     const alias = aliases.get(row.dedupHash);
     if (alias) linked.push({ movement, transactionId: alias });
     else {
@@ -180,7 +200,7 @@ async function planRows(
     }
   }
 
-  return { insert, linked };
+  return { insert, linked, fileDays };
 }
 
 /** Lieferung, Abrufstand und Quellenidentitäten festhalten */
@@ -288,14 +308,14 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
   const rows = withDedupHashes(statement.transactions);
-  const { insert, linked } = await planRows(tx, account.id, source, rows, fresh, input.eventOf);
+  const { insert, linked, fileDays } = await planRows(tx, account.id, source, rows, fresh, input.eventOf, statement.periodFrom);
   const { importId, transactionIds } = await insertStatement(tx, account.id, statement, input.source, insert, rows.length - insert.length);
   const progress = await recordBatch(tx, source.id, account.id, validation, importId, linked, transactionIds);
 
   const result = await statementResult(tx, account, statement, continuity, insert.length, rows);
   return {
     ...result,
-    warnings: [...result.warnings, ...validation.hints, ...validation.rejected.map((r) => `${r.sourceEventId}: ${r.reason}`)],
+    warnings: [...result.warnings, ...validation.hints, ...validation.rejected.map((r) => `${r.sourceEventId}: ${r.reason}`), ...fileDays],
     checkpoint: progress.checkpoint,
     complete: progress.complete,
     ...(progress.reason ? { reason: progress.reason } : {}),
