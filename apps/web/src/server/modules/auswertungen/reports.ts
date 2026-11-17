@@ -1,4 +1,4 @@
-import { isKapitalgesellschaft, type EuerResult, LOHN_ZAHLUNGEN, documentOpen, periodKey, vatPostenLabel } from "@haben/core";
+import { isKapitalgesellschaft, type Cents, type EuerResult, LOHN_ZAHLUNGEN, documentOpen, periodKey, vatPostenLabel } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { euerAusDemJournal } from "./euer-quelle.ts";
@@ -59,6 +59,16 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
  */
 export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {
   return euerAusDemJournal(year, q, { ohneManuelle: isKapitalgesellschaft((await loadCompany(q)).rechtsform) });
+}
+
+/**
+ * Einnahmen eines Monats (`JJJJ-MM`) netto, wie in der Monatsgrafik der Auswertungen: aus dem Journal, also auch aus
+ * Buchungen ohne Rechnung in Haben, etwa aus dem Datenimport (#1116). Für die Kachel „Umsatz“ der Übersicht.
+ */
+export async function einnahmenImMonat(monat: string, q: Db | Tx = db): Promise<Cents> {
+  const teile = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(monat);
+  if (!teile) throw new Error(`Monat ${monat} ist nicht JJJJ-MM`);
+  return (await euerForYear(Number(teile[1]), q)).monthly.einnahmen[Number(teile[2]) - 1]!;
 }
 
 export interface OpenPosition {

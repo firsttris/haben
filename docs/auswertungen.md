@@ -150,6 +150,8 @@ Der Status zeigt „Überfällig“ (farbig hinterlegt) mit der Zahl der Tage, �
 
 Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und überfälligen Posten; bei den Verbindlichkeiten ohne Überfälliges das nächste Fälligkeitsdatum. Ein Klick auf die Kachel führt zur jeweiligen Tabelle hier.
 
+Daneben zeigt die Übersicht den **Umsatz** des Vormonats netto, wie die Monatswerte hier aus den Buchungen. Er enthält also auch Verkäufe, die nur als Buchung kommen, etwa aus dem [Datenimport](belegimport.md). Gibt es im Monat festgeschriebene Rechnungen, steht ihr Nettobetrag nach Rechnungsdatum klein darunter.
+
 ## EÜR als CSV
 
 „EÜR als CSV“ lädt `euer-<Jahr>.csv` über `/api/auswertungen/<Jahr>`. Die Datei hat drei Spalten (`Bereich;Position;Betrag (EUR)`) mit allen Zeilen der Tabelle, den beiden Summen und dem Ergebnis. Format: UTF-8 mit BOM, Semikolon als Trennzeichen, Zeilenende CRLF, Beträge wie in den Exporten mit Dezimalkomma und ohne Tausenderpunkt (`1234,56`). Excel und LibreOffice öffnen sie mit Doppelklick richtig.

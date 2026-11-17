@@ -210,4 +210,40 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
     expect(open).toMatchObject({ receivablesTotal: 276_000, payablesTotal: 11_900, receivablesOverdue: 276_000, payablesOverdue: 0 });
     expect(await reports.reportYears()).toEqual([2025, 2026]);
   }, 30_000);
+
+  for (const [kontenrahmen, bankKonto, kuKonto] of [
+    ["SKR03", "1200", "8192"],
+    ["SKR04", "1800", "4184"],
+  ] as const)
+    it(`${kontenrahmen}: Einnahmen eines Monats aus dem Journal, auch ohne Rechnung in Haben (Kachel „Umsatz“ der Übersicht)`, async () => {
+      // Ein Shop-Verkauf eines Kleinunternehmers, der nur als Buchung aus dem Datenimport kommt: 50,00 € am 15.10.
+      await leeren(sql)`truncate external_imports, lexoffice_imports cascade`;
+      await sql`update company set kleinunternehmer = true, kontenrahmen = ${kontenrahmen}`;
+      const imports = await import("../datenimport/index.ts");
+      await imports.runExternalImport(
+        actor,
+        {
+          version: 2,
+          source: "shop-test",
+          kontenrahmen,
+          entries: [
+            {
+              kind: "journal",
+              externalId: "verkauf-1",
+              date: "2026-10-15",
+              description: "Erfundener Shop-Verkauf ohne Rechnung in Haben",
+              lines: [
+                { account: bankKonto, debit: 5_000, credit: 0, taxCode: null },
+                { account: kuKonto, debit: 0, credit: 5_000, taxCode: "KU" },
+              ],
+            },
+          ],
+          settlements: [],
+        },
+        async () => new Uint8Array(),
+      );
+      expect(await reports.einnahmenImMonat("2026-10")).toBe(5_000);
+      expect(await reports.einnahmenImMonat("2026-09")).toBe(0);
+      await expect(reports.einnahmenImMonat("2026-13")).rejects.toThrow(/JJJJ-MM/);
+    }, 30_000);
 });

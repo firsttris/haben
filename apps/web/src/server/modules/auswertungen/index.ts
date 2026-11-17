@@ -10,7 +10,15 @@ export { datevExport, DatevExportError, datevNumbers, datevNumbersSchema, gebuch
 export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefwert, type IntegrityReport } from "./integrity.ts";
 export { runDueFileCheck, runFileCheck, type FileCheck, type FileProblem } from "./file-integrity.ts";
 export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type ZehnTageKennzeichen } from "./euer-jahreswechsel.ts";
-export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, umsatzsteuerVorjahreUmJahreswechsel, type OpenPosition } from "./reports.ts";
+export {
+  einnahmenImMonat,
+  euerForYear,
+  lohnZahlungenUmJahreswechsel,
+  openPositions,
+  reportYears,
+  umsatzsteuerVorjahreUmJahreswechsel,
+  type OpenPosition,
+} from "./reports.ts";
 export { gesamtumsatzForYear, type GesamtumsatzItem, type GesamtumsatzResult } from "./gesamtumsatz.ts";
 export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.ts";
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
