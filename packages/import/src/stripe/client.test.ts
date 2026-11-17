@@ -48,6 +48,20 @@ describe("StripeClient", () => {
     expect(calls[1]!.url.searchParams.get("starting_after")).toBe("txn_b");
   });
 
+  it("klappt die Zahlung auf und liefert bei Erstattung und Streit die Balance Transaction der Zahlung", async () => {
+    const refund = { ...txn("txn_r"), type: "refund", source: { id: "re_1", object: "refund", charge: { id: "ch_1", balance_transaction: "txn_c" } } };
+    const payout = { ...txn("txn_p"), type: "payout", source: { id: "po_1", object: "payout" } };
+    const plain = { ...txn("txn_c"), source: "ch_1" };
+    const { client: c, calls } = client([json({ object: "list", data: [refund, payout, plain], has_more: false })]);
+    const all = await c.balanceTransactions("2026-10-01", "2026-10-31");
+    expect(calls[0]!.url.searchParams.get("expand[]")).toBe("data.source.charge");
+    expect(all.map((t) => [t.id, t.source, t.relatedTransactionId])).toEqual([
+      ["txn_r", "re_1", "txn_c"],
+      ["txn_p", "po_1", undefined],
+      ["txn_c", "ch_1", undefined],
+    ]);
+  });
+
   it("liefert die Konto-ID", async () => {
     const { client: c } = client([json({ id: "acct_beispiel", object: "account" })]);
     expect(await c.accountId()).toBe("acct_beispiel");

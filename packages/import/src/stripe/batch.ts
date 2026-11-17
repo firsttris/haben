@@ -55,6 +55,8 @@ const KINDS: Record<string, MovementKind> = {
 /** Bei diesen Arten steht Stripe selbst auf der Gegenseite */
 const STRIPE_IST_GEGENPARTEI = new Set<MovementKind>(["payout", "fee"]);
 
+const RELATED = new Set<MovementKind>(["refund", "chargeback", "adjustment"]);
+
 const day = (unixSeconds: number) => new Date(unixSeconds * 1000).toISOString().slice(0, 10);
 
 /** Bewegungen (Hauptbetrag, ggf. Gebühr) einer Balance Transaction, sonst der Grund, warum sie keine ist */
@@ -75,6 +77,8 @@ function movements(t: StripeBalanceTransaction): ImportMovement[] | string {
     providerReference: t.id,
     eventCode: category,
     ...(kind === "payout" && t.source?.startsWith("po_") ? { payoutId: t.source } : {}),
+    // Erstattung, Streit und deren Aufhebung nennen die Zahlung, auf die sie sich beziehen
+    ...(RELATED.has(kind) && t.relatedTransactionId ? { relatedEventId: t.relatedTransactionId } : {}),
   };
   const stripe = STRIPE_IST_GEGENPARTEI.has(kind);
   const purpose = t.description?.trim() || category;

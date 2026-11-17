@@ -40,12 +40,53 @@ const balanceTransactionSchema = z.looseObject({
   fee: z.number().int(),
   net: z.number().int(),
   reporting_category: z.string().nullish(),
-  /** ID des zugehörigen Objekts (`ch_`, `re_`, `po_` …), sofern nicht aufgeklappt */
-  source: z.string().nullish(),
+  /**
+   * Zugehöriges Objekt (`ch_`, `re_`, `po_` …). Der Abruf klappt `source.charge` auf (`expand`); dann ist es das
+   * Objekt, bei Erstattung und Streit mit der Zahlung, auf die es sich bezieht.
+   */
+  source: z
+    .union([
+      z.string(),
+      z.looseObject({
+        id: z.string(),
+        charge: z.union([z.string(), z.looseObject({ balance_transaction: z.union([z.string(), z.looseObject({ id: z.string() })]).nullish() })]).nullish(),
+      }),
+    ])
+    .nullish(),
   status: z.string().nullish(),
   type: z.string(),
 });
-export type StripeBalanceTransaction = z.infer<typeof balanceTransactionSchema>;
+
+/**
+ * Balance Transaction mit `source` als ID und, bei Erstattung und Streit, der Balance Transaction der ursprünglichen
+ * Zahlung (`relatedTransactionId`), sofern Stripe sie nennt.
+ */
+export interface StripeBalanceTransaction {
+  id: string;
+  /** Bruttobetrag in der kleinsten Einheit, mit Vorzeichen */
+  amount: number;
+  /** Unix-Sekunden */
+  created: number;
+  /** Kleingeschrieben, etwa „eur“ */
+  currency: string;
+  description?: string | null;
+  /** Einbehaltene Gebühr, positiv */
+  fee: number;
+  net: number;
+  reporting_category?: string | null;
+  source?: string | null;
+  status?: string | null;
+  type: string;
+  relatedTransactionId?: string;
+}
+
+function normalize(raw: z.infer<typeof balanceTransactionSchema>): StripeBalanceTransaction {
+  const { source, ...rest } = raw;
+  if (!source || typeof source === "string") return { ...rest, source: source ?? null };
+  const bt = typeof source.charge === "object" && source.charge ? source.charge.balance_transaction : null;
+  const related = typeof bt === "string" ? bt : bt?.id;
+  return { ...rest, source: source.id, ...(related ? { relatedTransactionId: related } : {}) };
+}
 
 const listSchema = z.looseObject({ data: z.array(balanceTransactionSchema), has_more: z.boolean() });
 const accountSchema = z.looseObject({ id: z.string() });
@@ -91,9 +132,11 @@ export class StripeClient {
         // Erste Sekunde nach dem letzten Tag, ausgeschlossen
         "created[lt]": String(startOfDay(dateTo) + 86_400),
       });
+      // Bei Erstattung und Streit nennt die Zahlung, auf die sie sich beziehen; andere Arten haben kein `charge`
+      query.append("expand[]", "data.source.charge");
       if (startingAfter) query.set("starting_after", startingAfter);
       const result = await this.#json(`/v1/balance_transactions?${query}`, listSchema);
-      all.push(...result.data);
+      all.push(...result.data.map(normalize));
       const last = result.data.at(-1);
       if (!result.has_more || !last) return all;
       startingAfter = last.id;
