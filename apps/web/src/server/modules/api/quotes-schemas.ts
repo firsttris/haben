@@ -33,10 +33,7 @@ export const quoteSummarySchema = z.object(quoteSummaryShape).register(responseS
 export const quoteListSchema = page(quoteSummarySchema).register(responseSchemas, { id: "QuoteList" });
 
 const quoteLineSchema = invoiceFields.lines.element.extend({
-  kind: z
-    .enum(QUOTE_LINE_KINDS)
-    .nullable()
-    .describe("optional oder alternative zur Hauptposition davor: zählt nicht zur Summe; null = normale Position"),
+  kind: z.enum(QUOTE_LINE_KINDS).nullable().describe("optional oder alternative zur Hauptposition davor: zählt nicht zur Summe; null = normale Position"),
 });
 
 export const quoteSchema = z

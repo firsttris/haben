@@ -19,7 +19,14 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/angebote (Postgres, #297)", 
   let contactId: string;
 
   /** 8 Std. zu 95 € = 760 € netto */
-  const line = (extra = {}) => ({ description: "Workshop Architektur", quantity: 8000, unit: "Std." as const, unitPrice: 9500, taxRate: 1900 as const, ...extra });
+  const line = (extra = {}) => ({
+    description: "Workshop Architektur",
+    quantity: 8000,
+    unit: "Std." as const,
+    unitPrice: 9500,
+    taxRate: 1900 as const,
+    ...extra,
+  });
   const optional = line({ description: "Dokumentation", quantity: 1000, unit: "Psch." as const, unitPrice: 50_000, kind: "optional" as const });
 
   /** Gültig bis 2099: der Stand hängt am heutigen Tag, den der Router selbst nimmt */
