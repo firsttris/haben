@@ -28,8 +28,8 @@ export interface TakenOverInvoice extends RebuiltInvoice {
   pdfSha256: string;
   /** Eingebettete oder mitgelieferte E-Rechnung des Originals */
   xml: string | null;
-  /** Wo die Rechnung herkommt: externe Referenz und/oder Beleg des Quellprogramms */
-  origin: Partial<Pick<typeof schema.invoices.$inferInsert, "externalSource" | "externalId" | "lexofficeVoucherId">>;
+  /** Wo die Rechnung herkommt: ein Fremdsystem (externe Referenz) oder der Beleg des Quellprogramms beim Umzug */
+  origin: { externalSource: string; externalId: string } | { lexofficeVoucherId: string };
 }
 
 /**
