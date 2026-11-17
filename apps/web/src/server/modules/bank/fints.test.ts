@@ -168,7 +168,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
   it("hört im Hintergrund nach einer abgelehnten PIN auf, damit die Bank den Zugang nicht sperrt", async () => {
     await sql`update fints_connections set ciphertext = ${crypto.encrypt(Buffer.from("00000"))}, last_sync_at = null`;
     const ergebnis = await abruf.runDueFintsSyncs(spaeter(3));
-    expect(ergebnis.errors).toEqual(["Testbank: Abruf fehlgeschlagen: Anmeldename oder PIN ist falsch. (9931)"]);
+    expect(ergebnis.errors).toEqual(["Testbank: Abruf fehlgeschlagen: PIN ungültig. (9942)"]);
     expect(await verbindung()).toMatchObject({ status: "fehler" });
     const vorher = bank.zustand.anfragen.length;
     await abruf.runDueFintsSyncs(spaeter(4));
@@ -253,7 +253,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
   it("meldet eine falsche PIN beim Verbinden und legt nichts an", async () => {
     await sql`delete from fints_connections`;
     const antwort = await fints.fintsVerbinden(ACTOR, { ...zugang(), pin: "99999" }, "2026-10-29");
-    expect(antwort).toEqual({ art: "fertig", ok: false, meldung: "Anmeldename oder PIN ist falsch. (9931)", hinweise: [], neu: 0 });
+    expect(antwort).toEqual({ art: "fertig", ok: false, meldung: "PIN ungültig. (9942)", hinweise: [], neu: 0 });
     expect(await sql`select id from fints_connections`).toHaveLength(0);
   });
 

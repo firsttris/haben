@@ -146,7 +146,7 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
 
   it("meldet eine falsche PIN mit dem Text der Bank", async () => {
     const antwort = await fintsSynchronisieren(fintsClient(PRODUKT, { ...zugang, pin: "00000" }));
-    expect(antwort).toEqual({ art: "abgelehnt", meldung: "Anmeldename oder PIN ist falsch. (9931)", codes: [9800, 9931] });
+    expect(antwort).toEqual({ art: "abgelehnt", meldung: "PIN ungültig. (9942)", codes: [9800, 9942] });
   });
 
   it("meldet, wenn die Bank die Produktnummer nicht kennt", async () => {

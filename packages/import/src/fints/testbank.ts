@@ -6,10 +6,10 @@ import { fintsDay } from "./map.ts";
  * Nachgebaute FinTS-Bank für Tests (nur über `@haben/import/fints-testbank`, nicht im Paket): ein HTTP-Server, der
  * Nachrichten von lib-fints liest und mit echten FinTS-Segmenten antwortet. Er kennt Dialogaufbau mit BPD, UPD und
  * Kundensystem-ID, zwei TAN-Verfahren (pushTAN entkoppelt, chipTAN mit TAN), starke Kundenauthentifizierung bei der
- * Anmeldung oder beim Umsatzabruf (je einmal, wie die 90-Tage-Ausnahme nach PSD2) und Umsätze als MT940 (HKKAZ), auf
- * Wunsch so, dass lib-fints sie nicht lesen kann.
- * Segmente und Rückmeldungen nach FinTS 3.0 (Formals, PIN/TAN); die Codes der Fehler sind nachgestellt, nicht die
- * einer bestimmten Bank.
+ * Anmeldung oder beim Umsatzabruf (je einmal, wie die Ausnahme nach Art. 10 der Delegierten Verordnung (EU) 2018/389, heute
+ * 180 Tage) und Umsätze als MT940 (HKKAZ), auf Wunsch so, dass lib-fints sie nicht lesen kann.
+ * Segmente nach FinTS 3.0 (Formals, PIN/TAN), Rückmeldungscodes nach der Liste „FinTS Rückmeldungscodes“ der DK (Stand
+ * 03.02.2026); nur 9952 steht nicht darin, so lehnte eine echte Bank beim ersten Test ab (firsttris/haben#1289).
  */
 
 export interface FintsTestbankUmsatz {
@@ -233,12 +233,12 @@ function antworte(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage): A
   const hktan = feld<{ tanProcess: string; orderRef?: string }>(segmente, "HKTAN");
   const ende = feld(segmente, "HKEND");
   const dialogId = idn ? `D${++bank.zaehler}` : (feld<{ dialogId: string }>(segmente, "HNHBK")?.dialogId ?? "0");
-  // Wie eine Bank, die die Registrierungsnummer (noch) nicht kennt (so antwortete eine echte Bank in #654)
+  // Wie eine Bank, die die Registrierungsnummer (noch) nicht kennt (so antwortete eine echte Bank, firsttris/haben#1289)
   if (idn && anfrage.produktId !== bank.optionen.produktId) {
     return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", "HIRMS:{n}:2+9952::Das Kundenprodukt wird nicht unterstützt."] };
   }
   if (anfrage.pin !== bank.pin || (idn && (idn.customerId !== bank.benutzer || idn.bank.bankId !== bank.blz))) {
-    return { dialogId, segmente: ["HIRMG:{n}:2+9800::Dialog abgebrochen.", "HIRMS:{n}:2+9931::Anmeldename oder PIN ist falsch."] };
+    return { dialogId, segmente: ["HIRMG:{n}:2+9800::Dialog abgebrochen.", "HIRMS:{n}:2+9942::PIN ungültig."] };
   }
   if (idn) return anmeldung(bank, segmente, anfrage, dialogId);
   if (hktan && (hktan.tanProcess === "2" || hktan.tanProcess === "S")) return tanFortsetzung(bank, hktan, anfrage, dialogId);

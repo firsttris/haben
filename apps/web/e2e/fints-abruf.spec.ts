@@ -129,15 +129,15 @@ test("„Jetzt abrufen“ fragt die TAN ab, wenn die Bank sie verlangt", async (
 });
 
 test("nach einer abgelehnten PIN den Zugang ändern", async () => {
-  // Wie nach einer neuen PIN bei der Bank: der nächtliche Abruf hat aufgehört, die Verbindung steht auf „Fehler“
+  // Wie nach einer neuen PIN bei der Bank: der Abruf im Hintergrund hat aufgehört, die Verbindung steht auf „Fehler“
   const sql = postgres(databaseUrlFuer("fints-abruf"), { max: 1, onnotice: () => {} });
   try {
-    await sql`update fints_connections set status = 'fehler', last_error = 'Abruf fehlgeschlagen: Anmeldename oder PIN ist falsch. (9931)'`;
+    await sql`update fints_connections set status = 'fehler', last_error = 'Abruf fehlgeschlagen: PIN ungültig. (9942)'`;
   } finally {
     await sql.end();
   }
   await gehe(page, "/bank");
-  await expect(abruf().getByText("Abruf fehlgeschlagen: Anmeldename oder PIN ist falsch. (9931)")).toBeVisible();
+  await expect(abruf().getByText("Abruf fehlgeschlagen: PIN ungültig. (9942)")).toBeVisible();
   await abruf().getByRole("button", { name: "Zugang ändern" }).click();
   const form = page.getByRole("form", { name: "Über FinTS verbinden" });
   await expect(form.getByLabel("Bankleitzahl")).toHaveValue("12030000");
