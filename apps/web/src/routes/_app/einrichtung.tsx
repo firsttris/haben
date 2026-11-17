@@ -105,7 +105,14 @@ function EinrichtungPage() {
           )}
           {schritt === 1 && <StartFrage wechsel={wechsel} setWechsel={setWechsel} einzelunternehmen={nachher.rechtsform === "einzelunternehmen"} />}
           {schritt === 2 && (
-            <BereichFragen bereiche={antworten.bereiche} setzen={(id, wert) => setzen("bereiche", { ...antworten.bereiche, [id]: wert ?? undefined })} />
+            <BereichFragen
+              bereiche={antworten.bereiche}
+              setzen={(id, wert) => {
+                // „Weiß ich noch nicht“ entfernt den Schlüssel; ein undefined-Wert würde die Prüfung am Server nicht bestehen
+                const { [id]: _, ...rest } = antworten.bereiche;
+                setzen("bereiche", wert === null ? rest : { ...rest, [id]: wert });
+              }}
+            />
           )}
         </section>
         <NoticeBanner notice={notice} />
