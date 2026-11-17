@@ -1,5 +1,5 @@
 import type { Cents } from "@haben/core";
-import { amount, checkEnvelope, envelope, render, vorsatz, type Envelope, type XmlNode } from "./erklaerung.ts";
+import { checkEnvelope, envelope, render, vorsatz, type Envelope, type XmlNode } from "./erklaerung.ts";
 import { elsterDecimal, ElsterEingabeError, wholeEuros } from "./xml.ts";
 
 /**
@@ -150,10 +150,20 @@ function ust2aStfrei(f: UstErklaerungFigures, year: number): XmlNode | false {
   );
 }
 
+/*
+ * Abschnitte mit Summe stehen nach ihren Zeilen in der Erklärung, nicht nach der Summe: Gutschriften zu 19 % können die
+ * Steuer zu 7 % aufheben (Vordruck USt 2 A, Zeilen 22 bis 37), negative Rechnungsvorsteuer die Einfuhrumsatzsteuer
+ * (Zeilen 79 bis 87). Steht ein Abschnitt da, steht seine Summe auch mit 0,00 da und wird in die Berechnung übertragen.
+ */
+const hatUmsatzZeilen = (f: UstErklaerungFigures) => f.base19 !== 0 || f.base7 !== 0;
+const hatIgErwerbZeilen = (f: UstErklaerungFigures) => kz(f.kz89) !== 0 || kz(f.kz93) !== 0;
+const hat13bZeilen = (f: UstErklaerungFigures) => kz(f.kz46) !== 0 || kz(f.kz84) !== 0 || kz(f.kz47) !== 0 || kz(f.kz85) !== 0;
+const hatVorsteuerZeilen = (f: UstErklaerungFigures) => f.vorsteuer !== 0 || kz(f.kz61) !== 0 || kz(f.kz62) !== 0 || kz(f.kz67) !== 0;
+
 /** Innergemeinschaftlicher Erwerb zu 19 und 7 % mit der Summe der Erwerbsteuer (Kz 89, 93) */
 function ust2aIgErw(f: UstErklaerungFigures, igErwerbSteuer: Cents): XmlNode | false {
   return (
-    (kz(f.kz89) !== 0 || kz(f.kz93) !== 0) && [
+    hatIgErwerbZeilen(f) && [
       "Ig_Erw",
       [
         [
@@ -179,7 +189,7 @@ function ust2aIgErw(f: UstErklaerungFigures, igErwerbSteuer: Cents): XmlNode | f
 /** Leistungen nach § 13b UStG als Leistungsempfänger: EU (Kz 46/47) und Drittland (Kz 84/85) mit Summe der Steuer */
 function ust2a13b(f: UstErklaerungFigures, s13bSteuer: Cents): XmlNode | false {
   return (
-    (kz(f.kz46) !== 0 || kz(f.kz84) !== 0 || s13bSteuer !== 0) && [
+    hat13bZeilen(f) && [
       "Ums_13b",
       [
         [
@@ -217,9 +227,8 @@ function ust2aErgAng(f: UstErklaerungFigures): XmlNode | false {
 
 /** Abziehbare Vorsteuer: aus Rechnungen (Kz 66), Erwerben (61), Einfuhr (62) und §-13b-Leistungen (67) mit Summe */
 function ust2aVorsteuer(f: UstErklaerungFigures, vorsteuer: Cents): XmlNode | false {
-  // Nach den Zeilen, nicht nach der Summe: Heben sich Vorsteuerarten auf, gehören sie trotzdem in die Erklärung (Vordruck USt 2 A, Zeilen 79 bis 87)
   return (
-    (f.vorsteuer !== 0 || kz(f.kz61) !== 0 || kz(f.kz62) !== 0 || kz(f.kz67) !== 0) && [
+    hatVorsteuerZeilen(f) && [
       "Abz_VoSt",
       [
         [
@@ -243,21 +252,24 @@ function ust2aBerechnung(
   teile: { umsatzsteuer: Cents; igErwerbSteuer: Cents; s13bSteuer: Cents; vorsteuer: Cents; steuer: Cents; abschluss: Cents },
 ): XmlNode {
   const ustGesamt = teile.umsatzsteuer + teile.igErwerbSteuer + teile.s13bSteuer;
+  // Je Summe der Erklärung ihr Übertrag, auch mit 0,00; die Zwischensumme, sobald einer der Umsatzsteuer dasteht, und das
+  // Ergebnis, sobald Zwischensumme oder Vorsteuer dastehen (ERiC lehnt sonst ab, USt_30907, USt_30909, USt_30914)
+  const zwischensumme = hatUmsatzZeilen(f) || hatIgErwerbZeilen(f) || hat13bZeilen(f);
+  const ergebnis = zwischensumme || hatVorsteuerZeilen(f);
   return [
     "Berech_USt",
     [
       [
         "Tabelle",
         [
-          ["E3009201", amount(teile.umsatzsteuer)],
-          ["E3009401", amount(teile.igErwerbSteuer)],
-          ["E3009502", amount(teile.s13bSteuer)],
-          ["E3009801", amount(ustGesamt)],
-          ["E3009901", amount(teile.vorsteuer)],
-          // USt_30907: E3010201 nicht ohne eine der Summen E3009801/E3009901
-          (ustGesamt !== 0 || teile.vorsteuer !== 0) && ["E3010201", elsterDecimal(teile.steuer)],
-          // Umsatzsteuer bzw. Überschuss (mit Minus); USt_30914/30909: genau dann, wenn E3010201 dasteht, auch mit 0,00
-          (ustGesamt !== 0 || teile.vorsteuer !== 0) && ["E3010601", elsterDecimal(teile.steuer)],
+          hatUmsatzZeilen(f) && ["E3009201", elsterDecimal(teile.umsatzsteuer)],
+          hatIgErwerbZeilen(f) && ["E3009401", elsterDecimal(teile.igErwerbSteuer)],
+          hat13bZeilen(f) && ["E3009502", elsterDecimal(teile.s13bSteuer)],
+          zwischensumme && ["E3009801", elsterDecimal(ustGesamt)],
+          hatVorsteuerZeilen(f) && ["E3009901", elsterDecimal(teile.vorsteuer)],
+          ergebnis && ["E3010201", elsterDecimal(teile.steuer)],
+          // Umsatzsteuer bzw. Überschuss (mit Minus), genau dann, wenn E3010201 dasteht
+          ergebnis && ["E3010601", elsterDecimal(teile.steuer)],
           [
             "Verbl_USt",
             [
@@ -309,8 +321,7 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
           ["Best_Art", [["E3002203", input.versteuerung === "soll" ? "1" : "2"]]],
         ],
       ],
-      // Nach den Zeilen, nicht nach der Summe: Gutschriften zu 19 % können die Steuer zu 7 % aufheben (Vordruck USt 2 A, Zeilen 22 bis 37)
-      (f.base19 !== 0 || f.base7 !== 0) && [
+      hatUmsatzZeilen(f) && [
         "Umsaetze",
         [
           [
