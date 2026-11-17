@@ -71,7 +71,9 @@ function quoteOut(row: ListRow, { quote, lines, choices }: Detail, baseUrl: stri
 export async function listQuotesHandler(request: ApiRequest): Promise<ApiResult> {
   const query = validate(quoteQuerySchema, request.query);
   if ("failure" in query) return query.failure;
-  const { status, contactId, number, limit, offset } = query.data;
+  const { status, number, limit, offset } = query.data;
+  // Zod nimmt die UUID auch in Großbuchstaben an, Postgres liefert sie klein; Pfad-IDs schreibt der Router ebenso klein
+  const contactId = query.data.contactId?.toLowerCase();
   const rows = (await listQuotes(request.today)).filter(
     (row) => (!status || row.status === status) && (!contactId || row.contactId === contactId) && (!number || row.number === number),
   );
