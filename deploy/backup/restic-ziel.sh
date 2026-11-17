@@ -23,6 +23,19 @@ message_without_credentials() {
     -e 's%((^|[^[:alnum:]_])parse \\?"[A-Za-z][A-Za-z0-9+.-]*://)[^"\\]*(\\?": invalid port) \\?"[^"\\]*\\?"%\1\3%g'
 }
 
+# Legt das Repository an (backup.sh beim ersten Lauf). Auch die Ausgabe von restic init läuft durch den Filter: restic
+# nennt das Repository dort über location.StripPassword, das für sftp:, s3: und rclone: die Adresse unverändert lässt
+# (location.NoPassword) und für rest: den Nutzer zeigt (restic 0.19.1, cmd/restic/cmd_init.go).
+init_repository() {
+  local out
+  echo "Lege das restic-Repository $(target_without_credentials) an …"
+  if ! out="$(restic init 2>&1)"; then
+    message_without_credentials <<< "$out" >&2
+    return 1
+  fi
+  message_without_credentials <<< "$out"
+}
+
 # Nutzer und Passwort einer Adresse nach ://: wie bei Go url.Parse in restic bis zum letzten @ vor Pfad und Abfrage,
 # wenn danach ein Host folgt. Hat dieser Teil kein @, steht oft ein Passwort mit unkodiertem / davor: dann nach nutzer:
 # bis zum ersten @, auf das ein Host folgt. Folgt keinem @ ein Host, aber die Authority hat eins, fällt sie bis dorthin
