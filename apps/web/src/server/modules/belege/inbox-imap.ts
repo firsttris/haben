@@ -9,18 +9,11 @@ export class InboxError extends UserError {}
 
 type InboxSettings = typeof schema.inboxSettings.$inferSelect;
 
-export interface MailEnvelope {
-  address: string;
-  messageId: string;
-  subject: string;
-  date: Date | null;
-}
-
 /** Was ein Abruf braucht; im Test durch ein Postfach im Speicher ersetzt */
 export interface InboxConnection {
   unseen(): Promise<number[]>;
-  /** Absender, Message-ID und Betreff aus dem Umschlag, ohne die Mail zu laden */
-  envelope(uid: number): Promise<MailEnvelope>;
+  /** Absenderadresse aus dem Umschlag, ohne die Mail zu laden */
+  sender(uid: number): Promise<string>;
   /** Quelltext der Mail; ist sie größer als MAX_MAIL_SIZE, nur die Kopfzeilen */
   source(uid: number): Promise<{ bytes: Buffer; tooLarge: boolean }>;
   markSeen(uid: number): Promise<void>;
@@ -52,15 +45,9 @@ export async function imapConnect(settings: InboxSettings, password: string, fol
       const found = await client.search({ seen: false }, { uid: true });
       return (found || []).sort((a, b) => a - b);
     },
-    envelope: async (uid) => {
+    sender: async (uid) => {
       const head = await client.fetchOne(String(uid), { envelope: true }, { uid: true });
-      const envelope = head ? head.envelope : undefined;
-      return {
-        address: envelope?.from?.[0]?.address ?? "",
-        messageId: envelope?.messageId ?? "",
-        subject: envelope?.subject ?? "",
-        date: envelope?.date ? new Date(envelope.date) : null,
-      };
+      return head ? (head.envelope?.from?.[0]?.address ?? "") : "";
     },
     source: async (uid) => {
       // Erst die Größe, damit eine riesige Mail gar nicht erst in den Speicher kommt

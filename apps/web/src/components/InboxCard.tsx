@@ -103,7 +103,12 @@ export function InboxCard({ data }: { data: Data }) {
             <input type="checkbox" name="enabled" defaultChecked={s?.enabled ?? true} />
             Stündlich abrufen
           </label>
-          {s?.lastRunAt && <p className="small muted">Zuletzt abgerufen {formatDateTime(s.lastRunAt)}</p>}
+          {s?.lastRunAt && (
+            <p className="small muted">
+              Zuletzt abgerufen {formatDateTime(s.lastRunAt)}
+              {s.lastRejected > 0 && `, ${s.lastRejected} ${s.lastRejected === 1 ? "Mail" : "Mails"} nicht freigegebener Absender ungelesen gelassen`}
+            </p>
+          )}
           <NoticeBanner notice={notice} />
         </section>
         <ConfirmDialog

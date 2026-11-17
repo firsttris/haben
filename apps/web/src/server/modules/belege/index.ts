@@ -47,8 +47,6 @@ export {
   loadInboxSettings,
   runDueInboxFetch,
   saveInboxSettings,
-  setOutboundHandler,
-  type OutboundHandler,
 } from "./inbox.ts";
 export {
   createDauerbeleg,

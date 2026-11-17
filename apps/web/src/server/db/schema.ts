@@ -860,6 +860,8 @@ export const inboxSettings = pgTable(
     allowedSenders: text("allowed_senders").array().notNull().default(sql`'{}'::text[]`),
     enabled: boolean("enabled").notNull().default(true),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    /** Mails nicht freigegebener Absender beim letzten Abruf (nur die Zahl, ohne Absender und Betreff) */
+    lastRejected: integer("last_rejected").notNull().default(0),
     lastError: text("last_error"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

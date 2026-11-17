@@ -8,7 +8,7 @@ import { db, schema } from "../../db/index.ts";
 import { DocumentError, uploadDocument } from "./documents.ts";
 import { normalizeSenders, senderAllowed } from "./inbox-absender.ts";
 import { MAX_MAIL_SIZE } from "../../grenzen.ts";
-import { type Connector, imapConnect, InboxError, type MailEnvelope } from "./inbox-imap.ts";
+import { type Connector, imapConnect, InboxError } from "./inbox-imap.ts";
 
 /**
  * Belege per E-Mail: Haben ruft ein Postfach über IMAP ab, legt die Anhänge ungelesener Mails als
@@ -96,6 +96,7 @@ export async function inboxSummary() {
           allowedSenders: settings.allowedSenders,
           enabled: settings.enabled,
           lastRunAt: settings.lastRunAt,
+          lastRejected: settings.lastRejected,
           lastError: settings.lastError,
         }
       : null,
@@ -141,15 +142,11 @@ export interface InboxRunResult {
   rejected: number;
 }
 
-type Richtung = "eingang" | "ausgang";
-
 const FAILED = "Verarbeitung fehlgeschlagen: ";
-const REJECTED = "Absender nicht freigegeben: ";
-/** Eintrag von recordFailure oder recordRejected: keine Belege, nur der Grund; der Mail kann ein neuer Versuch folgen */
-const isRetryable = (row: { skipped: string[]; documentIds: string[] }) =>
-  row.documentIds.length === 0 && !!(row.skipped[0]?.startsWith(FAILED) || row.skipped[0]?.startsWith(REJECTED));
-/** Schlüssel in inbox_messages: dieselbe Mail im Eingangs- und im Ausgangsordner zählt zweimal */
-const keyOf = (messageId: string, richtung: Richtung) => (richtung === "ausgang" ? `${messageId.slice(0, 980)} (ausgang)` : messageId.slice(0, 998));
+/** Eintrag von recordFailure: keine Belege, nur der Grund; der Mail kann ein neuer Versuch folgen */
+const isRetryable = (row: { skipped: string[]; documentIds: string[] }) => row.documentIds.length === 0 && !!row.skipped[0]?.startsWith(FAILED);
+/** Schlüssel in inbox_messages */
+const keyOf = (messageId: string) => messageId.slice(0, 998);
 /** Schlüssel für das Nachholen einer Mail, deren erster Versuch fehlschlug */
 const retryKey = (messageId: string, n: number) => `${messageId.slice(0, 970)}${n === 1 ? " (nachgeholt)" : ` (nachgeholt ${n})`}`;
 /** Der Schlüssel und bis zu fünf Nachhol-Schlüssel einer Mail */
@@ -165,7 +162,7 @@ async function freeKey(base: string): Promise<string | null> {
     .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
     .from(schema.inboxMessages)
     .where(inArray(schema.inboxMessages.messageId, keysOf(base)));
-  // inbox_messages ist nur zu ergänzen: der Eintrag eines Fehlschlags oder einer Ablehnung bleibt stehen,
+  // inbox_messages ist nur zu ergänzen: der Eintrag eines Fehlschlags bleibt stehen,
   // und wer die Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
   if (earlier.some((row) => !isRetryable(row))) return null;
   const taken = new Set(earlier.map((row) => row.messageId));
@@ -179,26 +176,10 @@ const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, "");
 /** Die Ursache statt der Drizzle-Hülle mit der ganzen Abfrage */
 const errorText = (e: unknown) => clean(e instanceof Error ? (e.cause instanceof Error ? e.cause.message : e.message) : String(e));
 
-/**
- * Übernahme einer Ausgangsrechnung aus einem Anhang. Noch nichts eingehängt: Haben kennt fremde
- * Ausgangsrechnungen erst mit #660. Ohne Übernahme bleibt der Ausgangsordner unberührt.
- */
-export type OutboundHandler = (
-  actor: string,
-  file: { bytes: Uint8Array; filename: string },
-  options: { background: (work: Promise<void>) => void },
-) => Promise<{ id: string; duplicate: boolean }>;
-
-let outboundHandler: OutboundHandler | null = null;
-
-export function setOutboundHandler(next: OutboundHandler | null): void {
-  outboundHandler = next;
-}
-
-async function processMessage(actor: string, richtung: Richtung, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
+async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
   const mail = await simpleParser(source.bytes);
   const messageId = messageIdOf(mail, source.bytes);
-  const key = await freeKey(keyOf(messageId, richtung));
+  const key = await freeKey(keyOf(messageId));
   if (!key) return null;
 
   const from = mail.from?.value[0];
@@ -215,17 +196,11 @@ async function processMessage(actor: string, richtung: Richtung, source: { bytes
     const filename = clean(attachment.filename ?? "").trim() || `Anhang-${index + 1}`;
     const file = { bytes: new Uint8Array(attachment.content), filename };
     try {
-      if (richtung === "eingang") {
-        const result = await uploadDocument(actor, file, { background });
-        if (result.duplicate) duplicates++;
-        else {
-          documentIds.push(result.id);
-          created++;
-        }
-      } else {
-        const result = await outboundHandler!(actor, file, { background });
-        if (result.duplicate) duplicates++;
-        else created++;
+      const result = await uploadDocument(actor, file, { background });
+      if (result.duplicate) duplicates++;
+      else {
+        documentIds.push(result.id);
+        created++;
       }
     } catch (error) {
       if (!(error instanceof DocumentError)) throw error;
@@ -244,7 +219,6 @@ async function processMessage(actor: string, richtung: Richtung, source: { bytes
       .insert(schema.inboxMessages)
       .values({
         messageId: key,
-        direction: richtung,
         sender: sender.slice(0, 500),
         subject: subject.slice(0, 500),
         receivedAt: mail.date ?? null,
@@ -265,17 +239,16 @@ function messageIdOf(mail: { messageId?: string }, bytes: Buffer) {
  * Eine Mail, an der die Verarbeitung scheitert, wird mit dem Fehler protokolliert und danach
  * als gelesen markiert. Sonst stünde sie bei jedem Abruf wieder vorn und hielte alle späteren auf.
  */
-async function recordFailure(actor: string, richtung: Richtung, bytes: Buffer, error: unknown) {
+async function recordFailure(actor: string, bytes: Buffer, error: unknown) {
   const mail = await simpleParser(bytes).catch(() => null);
   const from = mail?.from?.value[0];
-  const key = await freeKey(keyOf(mail ? messageIdOf(mail, bytes) : messageIdOf({}, bytes), richtung));
+  const key = await freeKey(keyOf(mail ? messageIdOf(mail, bytes) : messageIdOf({}, bytes)));
   if (!key) return;
   await withActor(actor, (tx) =>
     tx
       .insert(schema.inboxMessages)
       .values({
         messageId: key,
-        direction: richtung,
         sender: clean(from?.address ?? "").slice(0, 500),
         subject: clean(mail?.subject ?? "").slice(0, 500),
         receivedAt: mail?.date ?? null,
@@ -288,52 +261,16 @@ async function recordFailure(actor: string, richtung: Richtung, bytes: Buffer, e
 }
 
 /**
- * Mail eines nicht freigegebenen Absenders: nur der Umschlag wird gelesen, die Mail bleibt ungelesen
- * im Postfach und wird beim nächsten Abruf nicht noch einmal protokolliert.
+ * Freigegebene Mails verarbeiten und als gelesen markieren. Mails anderer Absender bleiben ungelesen; von ihnen
+ * wird nur die Absenderadresse aus dem Umschlag gelesen und die Anzahl gezählt, nichts gespeichert.
  */
-/** Ohne Message-ID: Hash aus Absender, Betreff und Datum; die UID allein gilt nur je Ordner und Gültigkeitsstand */
-const ersatzId = (head: MailEnvelope) =>
-  `ohne-id:${createHash("sha256")
-    .update(`${head.address}\n${head.subject}\n${head.date?.toISOString() ?? ""}`)
-    .digest("hex")}`;
-
-async function recordRejected(actor: string, richtung: Richtung, head: MailEnvelope) {
-  const id = clean(head.messageId).trim() || ersatzId(head);
-  await withActor(actor, (tx) =>
-    tx
-      .insert(schema.inboxMessages)
-      .values({
-        messageId: keyOf(id, richtung),
-        direction: richtung,
-        sender: clean(head.address).slice(0, 500),
-        subject: clean(head.subject).slice(0, 500),
-        receivedAt: head.date,
-        documentIds: [],
-        duplicates: 0,
-        skipped: [`${REJECTED}${clean(head.address) || "ohne Absender"}`.slice(0, 1000)],
-      })
-      .onConflictDoNothing({ target: schema.inboxMessages.messageId }),
-  );
-}
-
-/** Ein Ordner: freigegebene Mails verarbeiten und als gelesen markieren, die übrigen unberührt lassen */
-async function fetchFolder(
-  settings: InboxSettings,
-  password: string,
-  folder: string,
-  richtung: Richtung,
-  actor: string,
-  background: (work: Promise<void>) => void,
-  result: InboxRunResult,
-) {
-  const connection = await connector(settings, password, folder);
+async function fetchFolder(settings: InboxSettings, password: string, actor: string, background: (work: Promise<void>) => void, result: InboxRunResult) {
+  const connection = await connector(settings, password, settings.folder);
   try {
     let handled = 0;
     for (const uid of await connection.unseen()) {
       if (handled >= MAX_MESSAGES) break;
-      const head = await connection.envelope(uid);
-      if (!senderAllowed(head.address, settings.allowedSenders)) {
-        await recordRejected(actor, richtung, head);
+      if (!senderAllowed(await connection.sender(uid), settings.allowedSenders)) {
         result.rejected++;
         continue;
       }
@@ -341,10 +278,10 @@ async function fetchFolder(
       const source = await connection.source(uid);
       let done: Awaited<ReturnType<typeof processMessage>>;
       try {
-        done = await processMessage(actor, richtung, source, background);
+        done = await processMessage(actor, source, background);
       } catch (failure) {
         // Lässt sich nicht einmal der Fehler speichern (Datenbank weg), bricht der Lauf ab und die Mail bleibt ungelesen
-        await recordFailure(actor, richtung, source.bytes, failure);
+        await recordFailure(actor, source.bytes, failure);
         done = { documents: 0, duplicates: 0, skipped: 1 };
       }
       // Erst nach dem Ablegen oder Protokollieren als gelesen markieren
@@ -360,7 +297,7 @@ async function fetchFolder(
   }
 }
 
-/** Ruft das Postfach einmal ab: den Eingangsordner und, wenn eingerichtet und die Übernahme vorhanden ist, den Ausgangsordner */
+/** Ruft das Postfach einmal ab (den Ordner für Eingangsrechnungen) */
 export async function fetchInbox(actor: string, background: (work: Promise<void>) => void = () => {}): Promise<InboxRunResult> {
   const settings = await loadInboxSettings();
   if (!settings) throw new InboxError("Es ist kein Postfach für Belege eingerichtet.");
@@ -368,12 +305,11 @@ export async function fetchInbox(actor: string, background: (work: Promise<void>
   let error: string | null = null;
   try {
     const password = new TextDecoder().decode(decrypt(settings.ciphertext));
-    await fetchFolder(settings, password, settings.folder, "eingang", actor, background, result);
-    if (settings.outboundFolder && outboundHandler) await fetchFolder(settings, password, settings.outboundFolder, "ausgang", actor, background, result);
+    await fetchFolder(settings, password, actor, background, result);
   } catch (e) {
     error = errorText(e);
   }
-  await db.update(schema.inboxSettings).set({ lastRunAt: new Date(), lastError: error }).where(eq(schema.inboxSettings.id, 1));
+  await db.update(schema.inboxSettings).set({ lastRunAt: new Date(), lastRejected: result.rejected, lastError: error }).where(eq(schema.inboxSettings.id, 1));
   if (error) throw new InboxError(`Abruf fehlgeschlagen: ${error}`);
   return result;
 }

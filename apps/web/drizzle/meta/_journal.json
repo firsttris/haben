@@ -1961,6 +1961,20 @@
       "when": 1794891493353,
       "tag": "0279_bank_csv_zuordnung",
       "breakpoints": true
+    },
+    {
+      "idx": 280,
+      "version": "7",
+      "when": 1794903603050,
+      "tag": "0280_inbox_absender",
+      "breakpoints": true
+    },
+    {
+      "idx": 281,
+      "version": "7",
+      "when": 1794903610622,
+      "tag": "0281_inbox_audit_spalten",
+      "breakpoints": true
     }
   ]
 }
