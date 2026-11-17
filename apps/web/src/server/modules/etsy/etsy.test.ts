@@ -279,6 +279,32 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     }
   });
 
+  it("hält eine abgelehnte Lieferung im Importprotokoll fest und speichert nichts von ihr", async () => {
+    // Zweimal dieselbe entry_id lehnt der Vertrag ab; wie bei Enable Banking steht der Grund im Importprotokoll
+    const doppelt: EtsyLedgerEntry = {
+      entry_id: 30,
+      amount: 1000,
+      currency: "EUR",
+      ledger_type: "PAYMENT_GROSS",
+      reference_type: "shop_payment",
+      reference_id: "5000000030",
+      created_timestamp: am("2023-06-26"),
+    };
+    imAbruf = [doppelt, doppelt];
+    const [vorher] = await sql`select count(*)::int as n from bank_transactions`;
+    try {
+      const result = await etsy.syncEtsy(actor, new Date("2023-07-08T10:00:00Z"));
+      expect(result.error).toMatch(/abgelehnt/);
+      const [nachher] = await sql`select count(*)::int as n from bank_transactions`;
+      expect(nachher!.n).toBe(vorher!.n);
+      const [protokoll] = await sql`select added, warnings from bank_imports order by created_at desc limit 1`;
+      expect(protokoll!.added).toBe(0);
+      expect(JSON.stringify(protokoll!.warnings)).toMatch(/abgelehnt/);
+    } finally {
+      imAbruf = verlauf;
+    }
+  });
+
   it("trennt die Verbindung, ohne den Schlüssel zu verlieren", async () => {
     await etsy.disconnectEtsyConnection(actor);
     const stand = await etsy.etsySummary();
