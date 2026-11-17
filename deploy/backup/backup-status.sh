@@ -27,8 +27,9 @@ target_without_credentials() {
 
 # Nutzer und Passwort der Adresse nach dem ersten ://: wie bei Go url.Parse in restic bis zum letzten @ vor Pfad und
 # Abfrage, wenn danach ein Host folgt. Hat dieser Teil kein @, steht oft ein Passwort mit unkodiertem / davor: dann
-# nach nutzer: bis zum ersten @, auf das ein Host folgt. Ohne nutzer: bleibt ein @ im Pfad stehen
-# (rest:https://h/haben@2026). Nur POSIX-awk ohne Zeichenklassen, damit mawk, gawk und busybox gleich rechnen.
+# nach nutzer: bis zum ersten @, auf das ein Host folgt. Folgt keinem @ ein Host, aber die Authority hat eins, fällt sie
+# bis dorthin trotzdem weg: lieber ein falsches Ziel als ein Passwort. Ohne nutzer: und ohne @ in der Authority bleibt
+# ein @ im Pfad stehen (rest:https://h/haben@2026). Nur POSIX-awk ohne Zeichenklassen, damit mawk, gawk und busybox gleich rechnen.
 credentials_from_address() {
   awk '
     # Länge von s vor dem ersten Zeichen aus stop
@@ -36,9 +37,11 @@ credentials_from_address() {
       for (i = 1; i <= length(s); i++) if (index(stop, substr(s, i, 1))) return i - 1
       return length(s)
     }
-    # Beginnt s mit einem Host samt optionalem Port: [IPv6] oder ohne @ : [ ] Leerraum und "?
+    # Beginnt s mit einem Host samt optionalem Port: [IPv6] oder ohne @ : [ ] Leerraum und "? Leerraum und " am Ende
+    # gehören nicht zum Host (rest:https://u:p@host "…).
     function is_host(s,   h) {
       h = substr(s, 1, upto(s, "/?#\\"))
+      sub(/[ \t"]+$/, "", h)
       sub(/:[0-9]*$/, "", h)
       if (h ~ /^\[[0-9A-Fa-f:.]*\]$/) return 1
       return !(index(h, "@") || index(h, ":") || index(h, "[") || index(h, "]") || index(h, " ") || index(h, "\t") || index(h, "\""))
@@ -49,8 +52,8 @@ credentials_from_address() {
       head = substr($0, 1, i + 2)
       rest = substr($0, i + 3)
       authority = substr(rest, 1, upto(rest, "/?#"))
-      for (p = length(authority); p > 0; p--) if (substr(authority, p, 1) == "@") break
-      if (p > 0 && is_host(substr(rest, p + 1))) { print head substr(rest, p + 1); next }
+      for (last = length(authority); last > 0; last--) if (substr(authority, last, 1) == "@") break
+      if (last > 0 && is_host(substr(rest, last + 1))) { print head substr(rest, last + 1); next }
       colon = index(authority, ":")
       if (colon && !index(substr(authority, 1, colon), "[")) {
         for (p = colon + 1; p <= length(rest); p++) {
@@ -58,6 +61,7 @@ credentials_from_address() {
           if (c == "@" && is_host(substr(rest, p + 1))) { print head substr(rest, p + 1); next }
         }
       }
+      if (last > 0) { print head substr(rest, last + 1); next }
       print
     }'
 }
