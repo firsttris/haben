@@ -196,7 +196,7 @@ ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben
 bun packages/elster/src/check-formats-cli.ts   # Belegabruf, Berechtigung, Postfach; auch als Knopf unter Einstellungen › ELSTER › ERiC
 ```
 
-Ohne Linux x86_64 (arm64) laufen die Tests mit `ERIC_WORKER_COMMAND` wie unter [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64); emuliert dauert ein Aufruf rund 25 Sekunden, alle Dateien zusammen rund 40 Minuten. Die Test-Hersteller-ID `74931` sperrt ERiC seit 39.4 auch für die lokale Prüfung; die Tests nehmen `ELSTER_HERSTELLER_ID` oder eine Platzhalter-ID.
+Ohne Linux x86_64 (arm64) laufen die Tests mit `ERIC_WORKER_COMMAND` wie unter [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64); emuliert dauert ein Aufruf rund 25 Sekunden, alle Dateien zusammen rund 40 Minuten. Die Test-Hersteller-ID `74931` sperrt ERiC seit 39.4 auch für die lokale Prüfung (Entwicklerhandbuch, Kap. 10.1.1); die Tests nehmen `ELSTER_HERSTELLER_ID` oder eine Platzhalter-ID.
 
 ### Schemas der SEPA-Überweisung und -Lastschrift
 
