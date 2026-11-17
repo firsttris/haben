@@ -555,7 +555,9 @@ test("Überweisung als SEPA-Datei: offenen Beleg wählen, Datei herunterladen, V
 
   await go("/ueberweisungen");
   const form = page.getByRole("form", { name: "SEPA-Überweisung erzeugen" });
-  await expect(form.getByLabel("Auftraggeberkonto")).toContainText("Girokonto · DE45 1203 0000 1234 5678 90");
+  // Einleitung in drei Schritten statt Dateiformat und Fachwort
+  await expect(page.getByRole("list").filter({ hasText: "Online-Banking hochladen" }).getByRole("listitem")).toHaveCount(3);
+  await expect(form.getByLabel("Konto, von dem das Geld abgeht")).toContainText("Girokonto · DE45 1203 0000 1234 5678 90");
   await expect(form).toContainText("DE02 1001 0010 0006 8201 01");
   // Später ist der Beleg bezahlt: Die Liste mit Auswahl prüft axe deshalb hier, am Desktop und am Handy (WCAG 2.2 AA wie
   // barrierefreiheit.spec.ts). AxeBuilder braucht einen eigenen Kontext, mit derselben Sitzung
