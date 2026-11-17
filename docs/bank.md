@@ -48,7 +48,7 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 
 ### Abruf über FinTS
 
-Mit einer eigenen Registrierungsnummer für FinTS holt Haben die Umsätze direkt bei der Bank, mit PIN und TAN, ohne Enable Banking. Verbinden, TAN, welche Umsätze kommen, Fehler und was passiert, wenn ein Konto schon über Enable Banking kommt, stehen in [Abruf über FinTS](bank-fints.md).
+Mit einer eigenen Registrierungsnummer für FinTS holt Haben die Umsätze direkt bei der Bank, mit PIN und TAN, ohne Enable Banking. Verbinden, TAN, Wahl der Konten, welche Umsätze kommen, Fehler und was passiert, wenn ein Konto schon über Enable Banking kommt, stehen in [Abruf über FinTS](bank-fints.md).
 
 ## Unterstützte Formate
 
@@ -125,7 +125,7 @@ Kennzeichnen lässt sich nur ein ganz offener Umsatz. Zuordnen, Direkt buchen, A
 
 ### Fremdes Konto ausschließen
 
-Manchmal gehört ein Konto nicht zu dieser Firma, etwa wenn der Bankzugang auch das Konto einer zweiten Firma freigibt. Löschen geht nicht: Importierte Umsätze sind gesperrt. Stattdessen schließt du das Konto aus: Wähle es und klicke neben **Name und Zweck** auf **Gehört nicht zu dieser Firma**; nach einer Rückfrage ist es erledigt.
+Manchmal gehört ein Konto nicht zu dieser Firma, etwa wenn der Bankzugang auch das Konto einer zweiten Firma freigibt. Löschen geht nicht: Importierte Umsätze sind gesperrt. Stattdessen schließt du das Konto aus: Wähle es und klicke neben **Name und Zweck** auf **Gehört nicht zu dieser Firma**; nach einer Rückfrage ist es erledigt. Beim [Abruf über FinTS](bank-fints.md) lässt du ein solches Konto schon beim Verbinden weg; dann legt Haben es gar nicht an.
 
 Das geht nur, **solange kein Umsatz des Kontos zugeordnet, verrechnet oder ausgebucht ist**, denn dann gehört das Konto zu dieser Firma. Hat das gewählte Konto schon eine Zuordnung, ist der Knopf gesperrt und nennt den Grund. Ein Zahlungsdienstleister lässt sich nicht ausschließen.
 

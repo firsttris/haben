@@ -3,7 +3,7 @@ import { z } from "zod";
 import { fintsAbrufen, fintsFortsetzen, fintsVerbinden, fintsVerbindenSchema, fintsVerwerfen, removeFintsConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
-/** Kontoabruf über FinTS (#654): Verbinden, TAN und Verfahren, Abruf auf Knopfdruck, Trennen */
+/** Kontoabruf über FinTS (#654): Verbinden, TAN und Verfahren, Konten wählen, Abruf auf Knopfdruck, Trennen */
 
 export const connectFints = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -18,6 +18,8 @@ export const continueFints = createServerFn({ method: "POST" })
       tan: z.string().max(100).optional(),
       verfahren: z.number().int().min(0).max(999).optional(),
       medium: z.string().max(100).optional(),
+      /** IBANs der gewählten Konten; eine IBAN hat höchstens 34 Zeichen */
+      konten: z.array(z.string().max(34)).max(100).optional(),
     }),
   )
   .handler(async ({ data: { vorgang, ...eingabe }, context }) => fintsFortsetzen(context.user.id, vorgang, eingabe));
