@@ -33,6 +33,7 @@ import { EigenesKontoWahl, passendesKonto } from "../../../components/EigenesKon
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { CategoryCombobox } from "../../../components/CategoryCombobox.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "../../../components/ContactCombobox.tsx";
 import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { fehlerFelder, formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
@@ -46,7 +47,7 @@ import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.t
 import { Field } from "../../../components/Field.tsx";
 import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
-import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
+import { KATEGORIE_BEISPIEL } from "../../../components/KategorieGruppen.ts";
 import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
 import { WeitereAngaben, inWeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
@@ -743,20 +744,18 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               style={{ gridColumn: "1 / -1" }}
             >
               {(control) => (
-                <select
+                <CategoryCombobox
                   {...control}
+                  categories={categories}
                   value={category}
-                  onChange={(e) => {
-                    touch(setCategory)(e.target.value);
-                    setOwnAccountId(passendesKonto(ownAccounts, e.target.value, ownAccountId));
+                  onChoose={(next) => {
+                    touch(setCategory)(next);
+                    setOwnAccountId(passendesKonto(ownAccounts, next, ownAccountId));
                     // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
-                    const preset = data.privateShares[e.target.value];
+                    const preset = data.privateShares[next];
                     setPrivateShare(preset ? String(preset) : "");
                   }}
-                >
-                  <option value="">Bitte wählen</option>
-                  <KategorieOptionen categories={categories} />
-                </select>
+                />
               )}
             </Field>
           )}

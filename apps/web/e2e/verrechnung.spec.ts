@@ -1,3 +1,4 @@
+import { waehleKategorie } from "./kategorie.ts";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { currentDay, day } from "./daten.ts";
 import { axeVerstoesse, bestaetigen, durchlaufSeite, einrichten, gehe, ohneAxeVerstoesse } from "./einrichtung.ts";
@@ -62,7 +63,7 @@ async function belegAnlegen(browser: Browser, beleg: { nummer: string; datum: st
   await page.getByLabel("Lieferant", { exact: true }).fill(LIEFERANT);
   await page.getByLabel("Rechnungsnummer").fill(beleg.nummer);
   await page.getByLabel("Belegdatum").fill(beleg.datum);
-  await page.getByLabel("Kategorie").selectOption("telefon");
+  await waehleKategorie(page.getByLabel("Kategorie"), "telefon");
   await page.getByLabel("Netto", { exact: true }).fill(beleg.netto);
   await page.locator(".doc-actions").getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");

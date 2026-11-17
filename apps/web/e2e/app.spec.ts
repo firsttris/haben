@@ -1,3 +1,4 @@
+import { waehleKategorie } from "./kategorie.ts";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { zipSync } from "fflate";
@@ -524,7 +525,7 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Funknetz Mobil GmbH");
   await page.getByLabel("Rechnungsnummer").fill("MF-0815");
   await page.getByLabel("Belegdatum").fill(day(-9));
-  await page.getByLabel("Kategorie").selectOption("telefon");
+  await waehleKategorie(page.getByLabel("Kategorie"), "telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
   await faktenZeigen(page, "Betrag");
@@ -1140,7 +1141,7 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await page.getByLabel("Lieferant", { exact: true }).fill("Hafen Immobilien GmbH");
   await page.getByLabel("Vertrags- oder Kundennummer (optional)").fill("MV-2026-17");
   // Eigene Kategorie für Miete (#312): DATEV 4210 bzw. 6310
-  await page.getByLabel("Kategorie").selectOption({ label: "Miete für Geschäftsräume" });
+  await waehleKategorie(page.getByLabel("Kategorie"), "miete");
   await page.getByLabel("Erster Beleg am").fill(termin);
   await page.getByLabel("Fällig Tage nach dem Termin").fill("3");
   await page

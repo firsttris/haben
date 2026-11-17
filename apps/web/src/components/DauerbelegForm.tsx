@@ -13,6 +13,7 @@ import {
 import { useRef, useState, type FormEvent } from "react";
 import { FilePicker } from "./FilePicker.tsx";
 import { Icon } from "./Icon.tsx";
+import { CategoryCombobox } from "./CategoryCombobox.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import { aendereBetragszeile, betragszeileAus, betragszeileAusVorlage, bruttoLesbar, steuerausweisUmschalten, type Betragszeile } from "../lib/betragszeile.ts";
@@ -214,16 +215,7 @@ export function DauerbelegForm({
           </div>
           <div className="form-row cols-2">
             <Field label="Kategorie" error={error("category")}>
-              {(control) => (
-                <select {...control} value={category} onChange={(e) => setCategory(e.target.value)} required>
-                  <option value="">Bitte wählen</option>
-                  {categories.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              )}
+              {(control) => <CategoryCombobox {...control} categories={categories} value={category} onChoose={setCategory} required />}
             </Field>
             <Field label="Bezahlung">
               {(control) => (
