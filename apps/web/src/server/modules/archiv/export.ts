@@ -318,6 +318,31 @@ export async function exportYears(now = new Date()): Promise<number[]> {
 }
 
 /**
+ * Importe, die ins Archiv eines Jahres gehören: mit Umsätzen oder Zeitraum im Jahr, ohne Zeitraum nach dem Tag des Imports,
+ * und Lieferungen des Importvertrags, die einen Umsatz des Jahres verbunden haben (etwa vor ihrem Fenster, #306), damit
+ * `bank/quellen.csv` auf eine Zeile von `bank/importe.csv` verweist
+ */
+function importsOfYear(year: number) {
+  return db
+    .select()
+    .from(schema.bankImports)
+    .where(
+      and(
+        sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
+          and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
+        or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date)
+        or (${schema.bankImports.periodTo} is null and ${schema.bankImports.createdAt} >= ${berlinStart(year)}
+          and ${schema.bankImports.createdAt} < ${berlinStart(year + 1)})
+        or exists (select 1 from import_batches b join import_movements m on m.batch_id = b.id
+          join bank_transactions t on t.id = m.transaction_id where b.bank_import_id = ${schema.bankImports.id}
+          and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date))`,
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    )
+    .orderBy(asc(schema.bankImports.createdAt));
+}
+
+/**
  * Importprotokoll (`bank/importe.csv`) und Herkunft der abgerufenen Umsätze (`bank/quellen.csv`) eines Jahres; eigene
  * Funktion, damit `yearFiles` nicht weiter wächst
  */
@@ -921,20 +946,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
         .orderBy(asc(schema.allocations.createdAt), asc(schema.allocations.id))
     : [];
-  const imports = await db
-    .select()
-    .from(schema.bankImports)
-    .where(
-      and(
-        sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
-            and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
-          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date)
-          or (${schema.bankImports.periodTo} is null and ${schema.bankImports.createdAt} >= ${berlinStart(year)}
-            and ${schema.bankImports.createdAt} < ${berlinStart(year + 1)}))`,
-        bankAccountIncludedSql("bank_account_id"),
-      ),
-    )
-    .orderBy(asc(schema.bankImports.createdAt));
+  const imports = await importsOfYear(year);
   const importById = new Map(imports.map((i) => [i.id, i]));
 
   const allocatedByTransaction = new Map<string, number>();
