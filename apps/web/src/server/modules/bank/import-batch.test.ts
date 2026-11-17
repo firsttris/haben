@@ -299,6 +299,22 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect(await stichtag(konto)).toBe("2026-10-13");
   });
 
+  it("nimmt bei Datei und altem Abruf den Tag nach der Datei als Stichtag", async () => {
+    const konto = neuesKonto();
+    const datei = { ...abruf(konto, [tx("ER-1", "2026-10-10", "1.00")], { to: "2026-10-10" }).statement, format: "camt053" as const };
+    await db.db.transaction((t) => bank.storeStatement(t, datei, { filename: "auszug.xml", sha256: `datei-${konto.hash}` }, null));
+    const alt = abruf(konto, [tx("ER-2", "2026-10-15", "2.00")], { from: "2026-10-11", to: "2026-10-20" }).statement;
+    await db.db.transaction((t) => bank.storeStatement(t, alt, { filename: "alter Abruf", sha256: `alt-${konto.hash}` }, null));
+    expect((await speichere(abruf(konto, [tx("ER-2", "2026-10-15", "2.00")], { from: "2026-10-14", to: "2026-10-25" }))).added).toBe(0);
+    expect(await stichtag(konto)).toBe("2026-10-11");
+  });
+
+  it("behält den gewählten Tag als Stichtag, wenn die Bank erst später liefert (Rückfall auf 89 Tage)", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { from: "2026-10-01", fetchFrom: "2026-09-01" }));
+    expect(await stichtag(konto)).toBe("2026-09-01");
+  });
+
   it("gleicht für eine Bindung ohne Stichtag (vor 3b) wie bisher über Tag und Betrag ab", async () => {
     const konto = neuesKonto();
     await dateiMitEr2(konto);

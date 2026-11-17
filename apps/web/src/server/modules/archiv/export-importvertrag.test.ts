@@ -10,6 +10,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  */
 
 const IBAN = "DE02500105170137075030";
+const AUSGESCHLOSSEN = "DE89370400440532013000";
 const text = (bytes: Uint8Array | undefined) => new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
 
 const buchung = (ref: string, booking_date: string, amount: string): EbTransaction => ({
@@ -38,9 +39,9 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     exporter = await import("./export.ts");
     const { storeBatch } = await import("../bank/import-batch.ts");
     const { db } = await import("../../db/index.ts");
-    const abruf = (transactions: EbTransaction[], dateFrom: string, dateTo: string, fetchId: string) => ({
+    const abruf = (transactions: EbTransaction[], dateFrom: string, dateTo: string, fetchId: string, iban = IBAN, hash = "hash-archiv") => ({
       batch: enableBankingBatch({
-        externalAccountId: "hash-archiv",
+        externalAccountId: hash,
         transactions,
         balances: [],
         dateFrom,
@@ -48,9 +49,9 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
         fetchedAt: `${dateTo}T23:00:00+01:00`,
         fetchId,
       }),
-      binding: { provider: "enablebanking", externalAccountId: "hash-archiv", accountKind: "bank" as const },
+      binding: { provider: "enablebanking", externalAccountId: hash, accountKind: "bank" as const },
       statement: enableBankingStatement({
-        account: { uid: "u", account_id: { iban: IBAN }, name: "Geschäftskonto" },
+        account: { uid: "u", account_id: { iban }, name: "Geschäftskonto" },
         transactions,
         balances: [],
         dateFrom,
@@ -63,6 +64,12 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     await db.transaction((t) =>
       storeBatch(t, abruf([buchung("ER-2", "2026-01-05", "20.00"), buchung("ER-3", "2026-01-07", "30.50")], "2026-01-01", "2026-01-10", "abruf-2026"), null),
     );
+    // Ein ausgeschlossenes Konto (#462) fehlt im Archiv, auch in bank/quellen.csv
+    const fremd = await db.transaction((t) =>
+      storeBatch(t, abruf([buchung("ER-9", "2026-01-06", "9.00")], "2026-01-01", "2026-01-10", "abruf-fremd", AUSGESCHLOSSEN, "hash-fremd"), null),
+    );
+    const { excludeAccount } = await import("../bank/konto-ausschliessen.ts");
+    await excludeAccount("test", fremd.accountId);
     files = await archiv(exporter, 2026);
   }, 120_000);
 
@@ -89,6 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     expect(teil).toContain("<Name>Betrag</Name>");
     expect(teil).toMatch(/<Name>Betrag<\/Name>\s*<Numeric>/);
     expect(teil).toMatch(/<Name>Stichtag<\/Name>\s*<Date>/);
+    expect(teil).toMatch(/<Name>Buchungstag<\/Name>\s*<Date>/);
     expect(text(files["LIESMICH.txt"])).toContain("bank/quellen.csv");
   });
 
