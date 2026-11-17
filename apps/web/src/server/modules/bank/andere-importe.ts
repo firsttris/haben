@@ -7,6 +7,16 @@ import { schema, type Tx } from "../../db/index.ts";
  * welche Umsätze vor dem Fenster schon dastehen und welche Tage als abgerufen zählen.
  */
 
+/** Letzter Buchungstag aus einem Dateiimport oder einem anderen Abrufweg als `format` */
+export async function lastOtherBooking(q: Pick<Tx, "select">, accountId: string, format: "enablebanking" | "fints"): Promise<string | null> {
+  const [row] = await q
+    .select({ date: max(schema.bankTransactions.bookingDate) })
+    .from(schema.bankTransactions)
+    .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
+    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), ne(schema.bankImports.format, format)));
+  return row?.date ?? null;
+}
+
 /**
  * Stichtag einer neuen Quellenbindung: der Tag, ab dem der Abruf das Konto abdeckt. Das ist der Tag nach dem letzten
  * Umsatz aus Datei oder FinTS, nicht vor „Umsätze abrufen ab“ und nicht nach dem Beginn dieses Fensters; ohne beides das
@@ -14,12 +24,8 @@ import { schema, type Tx } from "../../db/index.ts";
  * und ein Stichtag nach ihrem letzten Tag ließe einen später am selben Tag gebuchten Umsatz fallen.
  */
 export async function cutoverFor(tx: Tx, accountId: string, windowFrom: string, fetchFrom: string | undefined): Promise<string> {
-  const [row] = await tx
-    .select({ date: max(schema.bankTransactions.bookingDate) })
-    .from(schema.bankTransactions)
-    .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
-    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), ne(schema.bankImports.format, "enablebanking")));
-  const afterOther = row?.date ? addDays(row.date, 1) : undefined;
+  const last = await lastOtherBooking(tx, accountId, "enablebanking");
+  const afterOther = last ? addDays(last, 1) : undefined;
   const floor = [fetchFrom, afterOther]
     .filter((d): d is string => d !== undefined)
     .sort()

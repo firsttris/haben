@@ -7,6 +7,7 @@ import { accountForIban, BankError, storeStatement, type ImportResult } from "./
 import { recordRefusedBatch, storeBatch } from "./import-batch.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
 import { kontokennung } from "./kontokennung.ts";
+import { lastOtherBooking } from "./andere-importe.ts";
 import { abrufNachVertrag } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
@@ -351,16 +352,6 @@ export function followUpStart(syncedTo: string, lastFileBooking: string | null, 
   return fetchFrom && fetchFrom > from ? fetchFrom : from;
 }
 
-/** Letzter Buchungstag aus einem Dateiimport oder einem anderen Abrufweg (nicht aus diesem Abruf) */
-async function lastFileBooking(bankAccountId: string, format: "enablebanking" | "fints"): Promise<string | null> {
-  const [row] = await db
-    .select({ date: max(schema.bankTransactions.bookingDate) })
-    .from(schema.bankTransactions)
-    .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
-    .where(and(eq(schema.bankTransactions.bankAccountId, bankAccountId), ne(schema.bankImports.format, format)));
-  return row?.date ?? null;
-}
-
 /**
  * Erster Abruf eines Kontos: ab dem beim Verbinden selbst gewählten Tag (Umzug unter dem Jahr), aber nie in Tage, die
  * schon Umsätze haben: Die Bank formatiert den Verwendungszweck in der API oft anders als in der Datei, dann passten
@@ -386,7 +377,7 @@ export async function syncStart(
   format: "enablebanking" | "fints" = "enablebanking",
 ): Promise<{ from: string; fallback: string | null }> {
   if (account.syncedTo) {
-    return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId, format), today, account.fetchFrom), fallback: null };
+    return { from: followUpStart(account.syncedTo, await lastOtherBooking(db, account.bankAccountId, format), today, account.fetchFrom), fallback: null };
   }
   const [latest] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })
