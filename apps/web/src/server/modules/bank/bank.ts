@@ -51,7 +51,15 @@ import {
   type TaxShare,
   inCents,
 } from "@haben/core";
-import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes, type BankCsvMapping, type ParsedStatement } from "@haben/import";
+import {
+  checkBalanceContinuity,
+  parseStatement,
+  StatementParseError,
+  withDedupHashes,
+  type BankCsvMapping,
+  type ParsedStatement,
+  type ParsedTransaction,
+} from "@haben/import";
 import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -111,6 +119,12 @@ export const accountSchema = z.object({
     .pipe(z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ungültig")),
 });
 
+/**
+ * Ein Import mit Inhalt: Der Eintrag eines abgelehnten Abrufs (`recordRefusedBatch`) hat weder Zeitraum noch Umsätze und
+ * zählt nicht als letzter Import (Kontostand, Saldenfolge). Ohne diese Bedingung käme er bei `desc(periodTo)` zuerst.
+ */
+const echterImport = sql`not (${schema.bankImports.periodTo} is null and ${schema.bankImports.added} = 0 and ${schema.bankImports.skipped} = 0)`;
+
 export async function listAccounts() {
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
   return Promise.all(
@@ -123,7 +137,7 @@ export async function listAccounts() {
           format: schema.bankImports.format,
         })
         .from(schema.bankImports)
-        .where(eq(schema.bankImports.bankAccountId, account.id))
+        .where(and(eq(schema.bankImports.bankAccountId, account.id), echterImport))
         .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
         .limit(1);
       const [open] = await db
@@ -256,12 +270,32 @@ export async function storeStatement(
   source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
   accountId: string | null,
 ): Promise<ImportResult> {
-  const account = await importAccount(tx, statement, source.filename, accountId);
+  const { account, continuity } = await prepareStatement(tx, statement, source.filename, accountId);
+  const transactions = withDedupHashes(statement.transactions);
+  const known = await knownHashes(
+    tx,
+    account.id,
+    transactions.map((t) => t.dedupHash),
+  );
+  const fresh = transactions.filter((t) => !known.has(t.dedupHash));
+  await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  return statementResult(tx, account, statement, continuity, fresh.length, transactions);
+}
+
+/** Konto finden, Saldenfolge zum vorigen Import prüfen und das Konto sperren, damit parallele Importe nichts doppelt anlegen */
+export async function prepareStatement(tx: Tx, statement: ParsedStatement, filename: string, accountId: string | null) {
+  const account = await importAccount(tx, statement, filename, accountId);
 
   const [previous] = await tx
     .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })
     .from(schema.bankImports)
-    .where(and(eq(schema.bankImports.bankAccountId, account.id), statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`))
+    .where(
+      and(
+        eq(schema.bankImports.bankAccountId, account.id),
+        echterImport,
+        statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`,
+      ),
+    )
     .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
     .limit(1);
   const continuity = checkBalanceContinuity(
@@ -271,31 +305,32 @@ export async function storeStatement(
 
   // Konto sperren, damit parallele Importe dieselben Umsätze nicht doppelt anlegen
   await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account.id)).for("update");
-  const transactions = withDedupHashes(statement.transactions);
-  const known = new Set(
-    transactions.length === 0
-      ? []
-      : (
-          await tx
-            .select({ hash: schema.bankTransactions.dedupHash })
-            .from(schema.bankTransactions)
-            .where(
-              and(
-                eq(schema.bankTransactions.bankAccountId, account.id),
-                inArray(
-                  schema.bankTransactions.dedupHash,
-                  transactions.map((t) => t.dedupHash),
-                ),
-              ),
-            )
-        ).map((r) => r.hash),
-  );
-  const fresh = transactions.filter((t) => !known.has(t.dedupHash));
-  const added = fresh.length;
+  return { account, continuity };
+}
+
+/** Dubletten-Hashes, die das Konto schon hat */
+export async function knownHashes(tx: Tx, accountId: string, hashes: string[]): Promise<Set<string>> {
+  if (hashes.length === 0) return new Set();
+  const rows = await tx
+    .select({ hash: schema.bankTransactions.dedupHash })
+    .from(schema.bankTransactions)
+    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), inArray(schema.bankTransactions.dedupHash, hashes)));
+  return new Set(rows.map((r) => r.hash));
+}
+
+/** Importprotokoll und neue Umsätze schreiben; liefert die Kennung des Imports und je Dubletten-Hash den neuen Umsatz */
+export async function insertStatement(
+  tx: Tx,
+  accountId: string,
+  statement: ParsedStatement,
+  source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
+  fresh: (ParsedTransaction & { dedupHash: string })[],
+  skipped: number,
+): Promise<{ importId: string; transactionIds: Map<string, string> }> {
   const [imported] = await tx
     .insert(schema.bankImports)
     .values({
-      bankAccountId: account.id,
+      bankAccountId: accountId,
       filename: source.filename.slice(0, 200),
       sha256: source.sha256,
       format: statement.format,
@@ -303,32 +338,48 @@ export async function storeStatement(
       periodTo: statement.periodTo ?? null,
       openingBalance: statement.openingBalance ?? null,
       closingBalance: statement.closingBalance ?? null,
-      added,
-      skipped: transactions.length - added,
+      added: fresh.length,
+      skipped,
       warnings: statement.warnings,
       csvMapping: source.csvMapping ?? null,
     })
     .returning();
+  const transactionIds = new Map<string, string>();
   if (fresh.length > 0) {
-    await tx.insert(schema.bankTransactions).values(
-      fresh.map((t) => ({
-        bankAccountId: account.id,
-        importId: imported!.id,
-        bookingDate: t.bookingDate,
-        valueDate: t.valueDate ?? null,
-        amount: t.amount,
-        currency: t.currency,
-        counterpartyName: t.counterpartyName,
-        counterpartyIban: t.counterpartyIban ? normalizeIban(t.counterpartyIban) : null,
-        purpose: t.purpose,
-        type: t.type ?? null,
-        bankReference: t.bankReference ?? null,
-        endToEndId: t.endToEndId ?? null,
-        dedupHash: t.dedupHash,
-      })),
-    );
+    const rows = await tx
+      .insert(schema.bankTransactions)
+      .values(
+        fresh.map((t) => ({
+          bankAccountId: accountId,
+          importId: imported!.id,
+          bookingDate: t.bookingDate,
+          valueDate: t.valueDate ?? null,
+          amount: t.amount,
+          currency: t.currency,
+          counterpartyName: t.counterpartyName,
+          counterpartyIban: t.counterpartyIban ? normalizeIban(t.counterpartyIban) : null,
+          purpose: t.purpose,
+          type: t.type ?? null,
+          bankReference: t.bankReference ?? null,
+          endToEndId: t.endToEndId ?? null,
+          dedupHash: t.dedupHash,
+        })),
+      )
+      .returning({ id: schema.bankTransactions.id, hash: schema.bankTransactions.dedupHash });
+    for (const r of rows) transactionIds.set(r.hash, r.id);
   }
+  return { importId: imported!.id, transactionIds };
+}
 
+/** Ergebnis eines gespeicherten Auszugs für die Oberfläche */
+export async function statementResult(
+  tx: Tx,
+  account: { id: string; name: string },
+  statement: ParsedStatement,
+  continuity: { ok: boolean; message?: string },
+  added: number,
+  transactions: (ParsedTransaction & { dedupHash: string })[],
+): Promise<ImportResult> {
   return {
     accountId: account.id,
     accountName: account.name,

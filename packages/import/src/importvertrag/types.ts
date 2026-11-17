@@ -106,7 +106,18 @@ export const batchSchema = z.strictObject({
   /** Gebuchter Saldo mit Stichtag, getrennt von den Bewegungen; Haben bucht daraus nichts aus */
   balances: z.array(z.strictObject({ date: isoDate, amount: inCents(z.number().int()), currency })).default([]),
   /** Was der Connector nicht als gebuchte Bewegung einordnen konnte (unbekannter Status, nicht unterstütztes Ereignis) */
-  unsupported: z.array(z.strictObject({ sourceEventId: z.string().optional(), reason: text })).default([]),
+  unsupported: z
+    .array(
+      z.strictObject({
+        sourceEventId: z.string().optional(),
+        /** Tag des Ereignisses, wo bekannt: Außerhalb des Fensters oder vor dem Stichtag hält es den Zeitraum nicht offen, sonst ab diesem Tag */
+        bookingDate: isoDate.optional(),
+        reason: text,
+        /** Endzustand, der nie zu einer Bewegung wird (etwa storniert oder abgelehnt): sichtbar, hält den Zeitraum aber nicht offen */
+        final: z.literal(true).optional(),
+      }),
+    )
+    .default([]),
 });
 
 export type ImportBatch = z.infer<typeof batchSchema>;

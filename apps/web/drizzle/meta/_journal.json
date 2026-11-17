@@ -1989,6 +1989,20 @@
       "when": 1794924095123,
       "tag": "0283_inbox_audit_spalten",
       "breakpoints": true
+    },
+    {
+      "idx": 284,
+      "version": "7",
+      "when": 1794935065624,
+      "tag": "0284_importvertrag",
+      "breakpoints": true
+    },
+    {
+      "idx": 285,
+      "version": "7",
+      "when": 1794935069443,
+      "tag": "0285_importvertrag_trigger",
+      "breakpoints": true
     }
   ]
 }
