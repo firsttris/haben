@@ -204,6 +204,18 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect((await umsaetze(konto.iban)).map((u) => u.bank_reference)).toEqual(["ER-1", "ER-2"]);
   });
 
+  it("legt einen Umsatz vor dem Fenster nicht doppelt an, wenn eine Datei nach der Bindung seinen Tag schon abdeckt", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
+    // Kontoauszug als Datei bis 31.10., hier mit demselben Verwendungszweck wie in der API; danach beginnt der Abruf am 01.11. (followUpStart)
+    const datei = { ...abruf(konto, [tx("ER-2", "2026-10-30", "12.00")], { from: "2026-10-11" }).statement, format: "camt053" as const };
+    await db.db.transaction((t) => bank.storeStatement(t, datei, { filename: "auszug.xml", sha256: `datei-${konto.hash}` }, null));
+    // Die Bank filtert nach Valuta und liefert den Umsatz vom 30.10. im Fenster ab 01.11. noch einmal mit
+    const r = await speichere(abruf(konto, [tx("ER-2", "2026-10-30", "12.00", { value_date: "2026-11-01" })], { from: "2026-11-01", to: "2026-11-05" }));
+    expect(r.added).toBe(0);
+    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-4999, -1200]);
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();
