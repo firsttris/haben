@@ -3426,7 +3426,9 @@ test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997
   await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
 });
 
-test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren des Monats zu (#680)", async ({ browser }) => {
+test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren und Gutschriften des Monats zu (#680)", async ({
+  browser,
+}) => {
   // Oktober vor dem Vorjahr: ohne Buchungen, damit die übrigen Auswertungen dieses Durchlaufs unverändert bleiben
   const year = YEAR - 2;
   await go("/belege");
@@ -3445,7 +3447,7 @@ test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffe
   await page.getByLabel("Belegdatum").fill(`${year}-10-31`);
   await page.getByLabel("Kategorie").selectOption("geldverkehr");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("0");
-  // Summe der vier Gebührenzeilen unten: 7,44 + 9,89 + 8,19 + 91,05
+  // Gebühren minus Gutschriften unten: 7,44 + 9,89 + 8,19 + 93,77 − 1,50 − 1,22
   await page.getByLabel("Netto", { exact: true }).fill("116,57");
   await page.locator(".doc-actions").getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");
@@ -3464,20 +3466,22 @@ test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffe
     `"October 1, ${year}",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
     `"October 2, ${year}",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
     `"October 3, ${year}",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
-    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
+    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€93.77,-€93.77,--`,
+    `"October 5, ${year}",Fee,"Credit for transaction fee","",EUR,--,€1.50,€1.50,--`,
+    `"October 6, ${year}",Fee,"Gutschrift für Einstellgebühr","",EUR,--,€1.22,€1.22,--`,
   ].join("\n");
   await page
     .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
     .setInputFiles([{ name: "etsy.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
-  await expect(page.getByText(/4 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/6 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
 
   await go("/bank?filter=alle&suche=Etsy");
   const gebuehren = page.locator(".tx-row", { hasText: "Etsy" });
-  await expect(gebuehren).toHaveCount(4);
+  await expect(gebuehren).toHaveCount(6);
   await gebuehren.filter({ hasText: "7,44" }).click();
   await page.waitForLoadState("networkidle");
   const panel = page.getByRole("complementary", { name: "Zuordnung" });
-  // Die einzelne Gebühr passt nie auf die Rechnung; die Summe des Monats schon
+  // Die einzelne Gebühr passt nie auf die Rechnung; Gebühren und Gutschriften des Monats zusammen schon
   await expect(panel.getByText("Beleg Etsy Ireland UC", { exact: true })).toBeVisible();
   await expect(panel.getByText("Betrag stimmt exakt")).toBeVisible();
   await panel.getByRole("button", { name: `Alle offenen Gebühren aus 10.${year} diesem Beleg zuordnen` }).click();

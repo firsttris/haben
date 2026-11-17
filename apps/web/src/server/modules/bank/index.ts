@@ -48,14 +48,13 @@ export {
   transactionDetail,
   transferSchema,
   allocateWithRest,
-  allocateFeesToDocument,
-  feesSchema,
   listWriteOffs,
   restSchema,
   reverseWriteOff,
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
+export { allocateFeesToDocument, feesSchema } from "./sammelzuordnung.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
 export { umsatzauswahl } from "./umsatzauswahl.ts";
 export {

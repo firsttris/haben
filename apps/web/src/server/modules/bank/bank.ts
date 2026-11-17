@@ -1086,7 +1086,9 @@ type Part =
   | z.infer<typeof splitPartSchema>
   | { kind: "kursdifferenz"; amount: number }
   // Rücklastschrift (#445): negative Zahlung auf die Rechnung mit Bezug auf die zurückgegebene Lastschrift
-  | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number };
+  | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number }
+  // Eine Zeile der Sammelzuordnung mit Gutschriften (allocateFeesToDocument): Die Summe aller Zeilen ist dort geprüft
+  | { kind: "document"; documentId: string; amount: number; sammel: true };
 
 const PRIVAT_NICHT_BUCHBAR =
   "Auf einem privaten Konto ergeben Kontoführung, Zinserträge, Privat und Geldtransit keinen Geschäftsvorfall; diese Buchung ist dort nicht möglich.";
@@ -1209,7 +1211,7 @@ async function documentBooking(
   tx: Tx,
   company: Awaited<ReturnType<typeof openBooks>>,
   bank: LockedTransaction,
-  part: { documentId: string; amount: number },
+  part: { documentId: string; amount: number; sammel?: true },
 ): Promise<{ lines: PostingLine[]; description: string; target: Zuordnungsziel }> {
   // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
   const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
@@ -1217,7 +1219,7 @@ async function documentBooking(
   if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
   await assertNotCancelled(tx, doc.id);
   const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
-  if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
+  if (!part.sammel && (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open))) {
     throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
   }
   const lines = documentPaymentPosting(part.amount, company.kontenrahmen);
@@ -1488,53 +1490,6 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
     // der Aufhebung zurück, der Rest gehört wieder zum Ausführungsdatum
     if (allocation.documentId) await freigabeNachziehen(tx, allocation.documentId, books, date);
   }
-}
-
-export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid() });
-
-/**
- * Gebühren eines Zahlungsdienstleisters gegen seine Sammelrechnung: ordnet alle noch offenen Gebühren (Umsätze „Gebühr …“)
- * desselben Kontos aus dem Monat des gewählten Umsatzes dem Beleg zu, wie Teilzahlungen, bis der Beleg erledigt ist.
- * Vorsteuer bzw. § 13b laufen dann einmal über den Beleg. Gibt die Zahl der zugeordneten Gebühren zurück.
- */
-export async function allocateFeesToDocument(actor: string, input: z.infer<typeof feesSchema>): Promise<number> {
-  return withActor(actor, async (tx) => {
-    const company = await openBooks(tx);
-    const [chosen] = await tx
-      .select({ bankAccountId: schema.bankTransactions.bankAccountId, bookingDate: schema.bankTransactions.bookingDate, purpose: schema.bankAccounts.purpose })
-      .from(schema.bankTransactions)
-      .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
-      .where(eq(schema.bankTransactions.id, input.transactionId));
-    if (!chosen) throw new BankError("Umsatz nicht gefunden.");
-    if (chosen.purpose !== "zahlungsdienstleister") throw new BankError("Sammelrechnungen gibt es nur für Gebühren eines Zahlungsdienstleisters.");
-    const month = chosen.bookingDate.slice(0, 7);
-    const fees = await tx
-      .select({ id: schema.bankTransactions.id })
-      .from(schema.bankTransactions)
-      .where(
-        and(
-          eq(schema.bankTransactions.bankAccountId, chosen.bankAccountId),
-          sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${month}`,
-          sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
-          sql`${schema.bankTransactions.amount} < 0`,
-          sql`${openAmountSql} <> 0`,
-        ),
-      )
-      .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
-    let count = 0;
-    for (const fee of fees) {
-      const bank = await lockTransaction(tx, fee.id);
-      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
-      if (!doc) throw new BankError("Beleg nicht gefunden.");
-      const open = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
-      if (open === 0 || Math.sign(open) !== Math.sign(bank.open)) break;
-      const amount = Math.abs(bank.open) <= Math.abs(open) ? bank.open : open;
-      await bookPart(tx, company, bank, { kind: "document", documentId: input.documentId, amount }, null);
-      count++;
-    }
-    if (count === 0) throw new BankError("Keine offene Gebühr in diesem Monat, oder der Beleg ist schon erledigt.");
-    return count;
-  });
 }
 
 // Ausbuchungen ----------------------------------------------------------------------------------------------
