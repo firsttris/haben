@@ -3584,6 +3584,21 @@ test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben�
   await expect(page).not.toHaveURL(belegUrl);
 });
 
+/**
+ * Im Browser: wartet, bis jedes schon angestoßene toggle-Ereignis eines `<details>` gemeldet ist. Der Browser reiht es als
+ * Aufgabe der Quelle „DOM manipulation“ ein (HTML-Standard, „queue a details toggle event task“); das einer Sonde, die erst
+ * danach aufklappt, kommt aus derselben Quelle und damit nach allen früheren
+ */
+async function toggleAbwarten(): Promise<void> {
+  const sonde = document.createElement("details");
+  document.body.append(sonde);
+  await new Promise((resolve) => {
+    sonde.addEventListener("toggle", resolve, { once: true });
+    sonde.open = true;
+  });
+  sonde.remove();
+}
+
 test("Beleg prüfen: Zuklappen und Wahl im selben Bild lassen „Weitere Angaben“ offen (#1253)", async ({ browser }) => {
   await go("/belege");
   await page
@@ -3600,16 +3615,22 @@ test("Beleg prüfen: Zuklappen und Wahl im selben Bild lassen „Weitere Angaben
   await weitereAngabenOeffnen(page);
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
   // Das Ereignis des Aufklappens ist durch: der Zustand der Seite ist „offen“
-  await page.waitForTimeout(300);
-  // Der Browser meldet das Zuklappen erst im nächsten Bild: Wer im selben Bild den Erwerb wählt, braucht das Feld offen
+  await page.evaluate(toggleAbwarten);
+  // Der Browser meldet das Zuklappen erst mit einem späteren toggle-Ereignis: Wer im selben Bild den Erwerb wählt, braucht
+  // das Feld offen. Jedes toggle-Ereignis des Bereichs hält fest, ob er danach offen ist
   await page.evaluate(() => {
+    const details = document.querySelector<HTMLDetailsElement>("details.weitere-angaben")!;
+    const offen: boolean[] = [];
+    (window as unknown as { toggleOffen: boolean[] }).toggleOffen = offen;
+    details.addEventListener("toggle", () => offen.push(details.open));
     const frage = [...document.querySelectorAll("select")].find((el) => el.closest(".field")?.textContent?.startsWith("Wer schuldet"))!;
-    document.querySelector<HTMLElement>("details.weitere-angaben > summary")!.click();
+    details.querySelector("summary")!.click();
     Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(frage, "ig_erwerb");
     frage.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  await expect(bereich).toHaveJSProperty("open", true);
-  await page.waitForTimeout(300);
+  await page.evaluate(toggleAbwarten);
+  // Kein Ereignis hat ihn zugeklappt, und er steht offen
+  expect(await page.evaluate(() => (window as unknown as { toggleOffen: boolean[] }).toggleOffen)).not.toContain(false);
   await expect(bereich).toHaveJSProperty("open", true);
   // Mit der Tastatur: Enter klappt zu, Leertaste auf
   await bereich.locator("summary").focus();
