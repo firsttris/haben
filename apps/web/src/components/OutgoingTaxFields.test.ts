@@ -35,6 +35,23 @@ describe("Gemeinsame Steuerfelder der Ausgangsbelege", () => {
     expect(select).not.toContain("disabled");
   });
 
+  it("nennt in der Auswahl den Klartext, den Paragrafen im Hinweis darunter", () => {
+    const select = treatmentSelect(render({ kleinunternehmer: false, treatment: "regulaer" }));
+    expect(select).toContain(">EU, Reverse Charge: Dienstleistung oder Nutzungsrecht</option>");
+    expect(select).toContain(">Warenlieferung in die EU (innergemeinschaftliche Lieferung)</option>");
+    expect(select).not.toContain("§");
+    expect(render({ kleinunternehmer: false, treatment: "ig_lieferung" })).toContain("§ 4 Nr. 1 Buchst. b, § 6a UStG");
+    expect(render({ kleinunternehmer: false, treatment: "reverse_charge" })).toContain("sonstige Leistungen, § 3 Abs. 9 UStG");
+    expect(render()).toContain("nach § 19 UStG");
+  });
+
+  it("behält bei Kleinunternehmern unter „steuerfrei“ den Satz zur eigenen Befreiung, sonst nicht", () => {
+    const satz = "Die Kleinunternehmerregelung lässt eine eigene Befreiung oder einen geklärten ausländischen Leistungsort zu.";
+    expect(render({ treatment: "steuerfrei" })).toContain(satz);
+    expect(render({ treatment: "regulaer", kleinunternehmer: true })).toContain(satz);
+    expect(render({ treatment: "steuerfrei", kleinunternehmer: false })).not.toContain("Kleinunternehmerregelung");
+  });
+
   it("hält eine unzulässige bisherige Behandlung sichtbar, gibt sie aber nicht neu frei", () => {
     const html = render({ treatment: "ig_lieferung" });
     expect(treatmentSelect(html)).toMatch(/<option value="ig_lieferung" disabled="" selected="">/);

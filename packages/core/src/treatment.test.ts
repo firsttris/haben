@@ -23,8 +23,26 @@ describe("treatmentIssues", () => {
     expect(treatmentIssues("steuerfrei", { rates: [0], exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG" })).toEqual([]);
   });
 
+  it("ohne 0 % in allen Positionen sagt die Meldung es, ohne den langen Namen der Auswahl zu wiederholen", () => {
+    expect(treatmentIssues("drittland", { rates: [1900] })).toEqual(["Bei der gewählten Umsatzsteuer müssen alle Positionen 0 % haben"]);
+  });
+
   it("regulär prüft nichts", () => {
     expect(treatmentIssues("regulaer", { rates: [1900, 0] })).toEqual([]);
+  });
+});
+
+describe("Namen in der Auswahl", () => {
+  it("unterscheiden sich in den ersten 30 Zeichen (am Handy sieht man nicht mehr), sind kurz und ohne Paragrafen (die stehen im Hinweis unter der Auswahl)", () => {
+    const labels = Object.values(TAX_TREATMENTS).map((treatment) => treatment.label);
+    expect(new Set(labels.map((label) => label.slice(0, 30))).size).toBe(labels.length);
+    expect(labels.filter((label) => label.length > 60 || label.includes("§"))).toEqual([]);
+  });
+
+  it("nennen bei Auslandsleistungen auch das Nutzungsrecht, nicht nur die Dienstleistung (§ 3 Abs. 9 UStG)", () => {
+    for (const key of ["reverse_charge", "drittland", "eu_sonstige"] as const) {
+      expect(TAX_TREATMENTS[key].label).toContain("Dienstleistung oder Nutzungsrecht");
+    }
   });
 });
 
