@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { naechsterSchritt, Reihenfolge } from "./Reihenfolge.tsx";
+import { naechsterSchritt, Reihenfolge, SentPill } from "./Reihenfolge.tsx";
 import type { Data } from "./typen.ts";
 
 const offen = { sent: null, submitted: null, issues: [] };
@@ -94,9 +94,29 @@ describe("Reihenfolge", () => {
     expect(markup.match(/Nicht aus Haben übermittelt/g)).toHaveLength(1);
   });
 
+  it("sagt bei der nicht geschuldeten Umsatzsteuererklärung „Keine Erklärung nötig“ statt „Noch nicht übermittelt“", () => {
+    const markup = html(stand(ustNichtGeschuldet, offen, estUnbekannt));
+    expect(markup).toMatch(/<span class="status status-ok status-inline"><span class="status-label">Keine Erklärung nötig<\/span>/);
+    expect(markup.match(/Noch nicht übermittelt/g)).toHaveLength(1);
+    // Trotzdem übermittelt (etwa auf Aufforderung des Finanzamts): der Stand der Sendung
+    expect(html(stand({ ...ustNichtGeschuldet, sent: gesendet.sent }, offen, estUnbekannt))).toContain("Übermittelt am 01.03.2026");
+  });
+
   it("führt zu Belegen von ELSTER und zum Verlauf", () => {
     const markup = html(stand(offen, offen, offen));
     expect(markup).toContain('href="#vast"');
     expect(markup).toContain('href="#verlauf"');
+  });
+});
+
+// Dieselbe Pille steht neben dem Titel der Umsatzsteuererklärung, auch bei GmbH und UG; sie bekommt den ganzen Teil der Daten
+describe("SentPill", () => {
+  const html = (teil: object) => renderToStaticMarkup(createElement(SentPill, { teil } as never));
+
+  it("liest Sendung, Vermerk und ob die Erklärung geschuldet ist aus dem Teil der Daten", () => {
+    expect(html(ustNichtGeschuldet)).toContain("Keine Erklärung nötig");
+    expect(html(offen)).toContain("Noch nicht übermittelt");
+    expect(html(estUnbekannt)).toContain("Nicht aus Haben übermittelt");
+    expect(html(vermerkt(null))).toContain("Außerhalb abgegeben am 10.02.2026");
   });
 });

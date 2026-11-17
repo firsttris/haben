@@ -29,6 +29,13 @@ describe("abgabePille", () => {
     expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null, verwaltet: false }).text).toBe("Übermittelt am 14.08.2025");
     expect(abgabePille({ sent: null, submitted: vermerk, verwaltet: false }).text).toBe("Außerhalb abgegeben am 29.09.2025");
   });
+
+  // Kleinunternehmer ab 2024 geben keine Umsatzsteuererklärung ab (§ 18 Abs. 3 UStG): nichts offen, nichts zu tun
+  it("sagt bei einer nicht geschuldeten Erklärung „Keine Erklärung nötig“, nach Sendung oder Vermerk weiter das Genauere", () => {
+    expect(abgabePille({ sent: null, submitted: null, geschuldet: false })).toEqual({ ok: true, text: "Keine Erklärung nötig" });
+    expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null, geschuldet: false }).text).toBe("Übermittelt am 14.08.2025");
+    expect(abgabePille({ sent: null, submitted: vermerk, geschuldet: false }).text).toBe("Außerhalb abgegeben am 29.09.2025");
+  });
 });
 
 describe("submitKind", () => {
