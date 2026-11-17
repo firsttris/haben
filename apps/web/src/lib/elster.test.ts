@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abgabePille, elsterNotice, finanzamtFakten, submitKind, zahllastFakt } from "./elster.ts";
+import { abgabePille, elsterNotice, finanzamtFakten, jahresergebnisFakt, submitKind, zahllastFakt } from "./elster.ts";
 
 describe("abgabePille", () => {
   const vermerk = { filedOn: "2025-09-29" };
@@ -70,6 +70,28 @@ describe("zahllastFakt", () => {
   it("nennt einen Überschuss Erstattung und zeigt ihn ohne Minus", () => {
     expect(zahllastFakt(-5000)).toMatchObject({ label: "Erstattung", strong: true });
     expect(zahllastFakt(-5000).value).toMatch(/^50,00\s€$/);
+  });
+});
+
+describe("jahresergebnisFakt", () => {
+  it("nennt bei der Umsatzsteuer die Abschlusszahlung, bei Überschuss die Erstattung ohne Minus", () => {
+    expect(jahresergebnisFakt("ust", 97280)).toMatchObject({ label: "Abschlusszahlung", strong: true });
+    expect(jahresergebnisFakt("ust", 97280)?.value).toMatch(/^972,80\s€$/);
+    expect(jahresergebnisFakt("ust", -5000)).toMatchObject({ label: "Erstattung" });
+    expect(jahresergebnisFakt("ust", -5000)?.value).toMatch(/^50,00\s€$/);
+  });
+
+  it("nennt bei der EÜR Gewinn oder Verlust, auch bei 0 €", () => {
+    expect(jahresergebnisFakt("euer", 609280)).toMatchObject({ label: "Gewinn" });
+    expect(jahresergebnisFakt("euer", 609280)?.value).toMatch(/^6\.092,80\s€$/);
+    expect(jahresergebnisFakt("euer", -100)).toMatchObject({ label: "Verlust" });
+    expect(jahresergebnisFakt("euer", 0)).toMatchObject({ label: "Gewinn" });
+  });
+
+  it("nennt bei der Einkommensteuer den Gewinn laut EÜR und lässt die Zeile ohne Gewinn weg", () => {
+    expect(jahresergebnisFakt("est", 609280)).toMatchObject({ label: "Gewinn laut EÜR" });
+    expect(jahresergebnisFakt("est", -100)).toMatchObject({ label: "Verlust laut EÜR" });
+    expect(jahresergebnisFakt("est", 0)).toBeNull();
   });
 });
 

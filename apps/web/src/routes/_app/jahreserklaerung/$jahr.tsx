@@ -10,7 +10,7 @@ import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
-import { ELSTER_KIND_LABEL, elsterNotice } from "../../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, elsterNotice, jahresergebnisFakt } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
@@ -664,6 +664,7 @@ function SubmitPanel({
   const loadWerte = useServerFn(getMeinElsterWerte);
   const { busy, notice, setNotice, run } = useAction();
   const berechnet = form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : 0;
+  const ergebnis = jahresergebnisFakt(form, form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn);
 
   return (
     <div className="stack sticky-panel">
@@ -681,6 +682,7 @@ function SubmitPanel({
           confirmFacts={[
             { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
             { label: "Zeitraum", value: String(data.year) },
+            ...(ergebnis ? [ergebnis] : []),
           ]}
           confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt.`}
           footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."

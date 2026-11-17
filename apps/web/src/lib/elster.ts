@@ -54,6 +54,18 @@ export function zahllastFakt(cents: number): ConfirmFact {
   return { label: cents < 0 ? "Erstattung" : "Zahllast", value: formatEuro(Math.abs(cents)), strong: true };
 }
 
+/**
+ * Faktenzeile vor dem Senden einer Jahreserklärung: das Ergebnis, das sie dem Finanzamt nennt, immer ohne Vorzeichen
+ * (Abschlusszahlung oder Erstattung, Gewinn oder Verlust). Bei der Einkommensteuer ist es der Gewinn aus der EÜR; ohne
+ * Buchungen sagt eine 0 nichts über den Gewinn, dann entfällt die Zeile (#869).
+ */
+export function jahresergebnisFakt(form: "ust" | "euer" | "est", cents: number): ConfirmFact | null {
+  if (form === "ust") return { label: cents < 0 ? "Erstattung" : "Abschlusszahlung", value: formatEuro(Math.abs(cents)), strong: true };
+  if (form === "est" && cents === 0) return null;
+  const art = cents < 0 ? "Verlust" : "Gewinn";
+  return { label: form === "est" ? `${art} laut EÜR` : art, value: formatEuro(Math.abs(cents)), strong: true };
+}
+
 /** Wohin eine Nachricht oder neue Bankverbindung geht; eine falsche Steuernummer soll vor dem Senden auffallen */
 export function finanzamtFakten(finanzamt: string, steuernummer: string): ConfirmFact[] {
   return [

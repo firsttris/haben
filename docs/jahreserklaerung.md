@@ -23,7 +23,7 @@ Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körpers
 2. **Einstellungen:** Für die Anlage EÜR braucht Haben die **Einkunftsart** (selbständige Arbeit oder Gewerbebetrieb) und die **Art des Betriebs** (z. B. „Softwareentwicklung“).
 3. **Nur prüfen:** ERiC prüft das XML gegen das Schema und die Plausibilitätsregeln des Jahres. Erst hier zeigt sich, ob die Feldkennungen für das Jahr passen.
 4. **Testübermittlung** mit Zertifikat und PIN: geht an den ELSTER-Server, aber nicht ans Finanzamt (Testmerker). Das Protokoll-PDF liegt im Verlauf.
-5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und im Dialog **Verbindlich senden** bestätigen. Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
+5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und im Dialog **Verbindlich senden** bestätigen. Der Dialog nennt Erklärung, Jahr und das Ergebnis: die Abschlusszahlung bzw. Erstattung, bei der Anlage EÜR den Gewinn bzw. Verlust, bei der Einkommensteuer den Gewinn laut EÜR (fehlt, solange es keinen Gewinn gibt). Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
 
 Jede Prüfung und Übermittlung speichert Haben mit XML, Antwort, Protokoll und den gesendeten Werten; ändern oder löschen lässt sich das nicht. Je Erklärung und Jahr ist nur eine Echtübermittlung möglich. Eine berichtigte Erklärung gibst du über das ELSTER-Portal ab.
 
