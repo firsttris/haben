@@ -125,6 +125,19 @@ test("Fragen erneut durchgehen: vorausgefüllt, geänderte Rechtsform erst nach 
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toHaveValue("einzelunternehmen");
 });
 
+test("Leere Belegliste: Satz mit Beispiel, Weg zum Postfach, kein Filter und keine doppelte Postfach-Zeile (#1253)", async () => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await gehe(page, "/belege");
+  const liste = page.getByRole("region", { name: "Belegliste" });
+  await expect(liste).toContainText("Noch keine Belege. Lege den ersten oben ab");
+  await expect(liste).toContainText("Stromrechnung");
+  await expect(page.getByRole("navigation", { name: "Filter" })).toHaveCount(0);
+  // Der Weg zum Postfach steht im Leerzustand, nicht noch einmal darüber
+  await expect(page.getByText("Rechnungen per E-Mail?")).toHaveCount(0);
+  await liste.getByRole("link", { name: "Postfach für Belege einrichten" }).click();
+  await expect(page).toHaveURL(/\/einstellungen\?bereich=email/);
+});
+
 test("Am Handy ohne waagrechtes Scrollen, hell und dunkel", async () => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const modus of ["hell", "dunkel"]) {
