@@ -89,5 +89,7 @@ export function laenderHinweis(bestellungen: string[], laender: Map<string, stri
     else if (land === "US") zaehl.US++;
     else zaehl.andere++;
   }
-  return `Bestellungen nach Land: ${zaehl.DE} Deutschland (19 %), ${zaehl.US} USA (nicht steuerbar, Kz 45), ${zaehl.andere} anderes Land (Steuer klären, keine Rechnung), ${zaehl.unbekannt} ohne Land.`;
+  // Nur die Zählung: Wie ein Verkauf zu versteuern ist, hängt nicht allein am Land (Ware aus Deutschland in die USA ist eine
+  // Ausfuhrlieferung, § 4 Nr. 1 Buchst. a, § 6 UStG; liefert ein Partner in den USA, liegt der Ort dort, § 3 Abs. 6 UStG)
+  return `Bestellungen nach Land: ${zaehl.DE} Deutschland, ${zaehl.US} USA, ${zaehl.andere} anderes Land, ${zaehl.unbekannt} ohne Land.`;
 }

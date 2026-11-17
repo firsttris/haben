@@ -70,7 +70,7 @@ async function syncEtsyEinmal(actor: string, now: Date): Promise<EtsySyncResult>
       .map((entry) => (entry.entry_id === undefined ? "" : String(entry.entry_id)))
       .filter(Boolean);
     const orders = verlaufsKennungen.length > 0 ? await client.ordersFor(verlaufsKennungen) : new Map<string, string>();
-    // Das Land des Käufers entscheidet die Steuer der Rechnung (DE 19 %, USA nicht steuerbar, übrige klären). Gefragt
+    // Das Land des Käufers hilft bei der Steuer der Rechnung (abruf-regeln.ts, laenderHinweis). Gefragt
     // wird nur für Verkäufe und Erstattungen seit dem letzten Abruf (ein Tag Luft), nicht bei jedem Lauf für den ganzen Monat
     const seit = connection.row.lastSyncAt ? connection.row.lastSyncAt.getTime() / 1000 - 24 * 60 * 60 : 0;
     const neueZahlungen = new Set(
