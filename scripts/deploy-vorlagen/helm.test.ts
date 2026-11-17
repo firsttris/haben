@@ -16,9 +16,11 @@ type Container = {
   env?: Env[];
   envFrom?: { secretRef: { name: string } }[];
   securityContext?: Record<string, unknown>;
+  startupProbe?: { httpGet?: { path: string }; timeoutSeconds?: number };
   volumeMounts?: Mount[];
 };
 type Pod = {
+  automountServiceAccountToken?: boolean;
   containers: Container[];
   initContainers?: Container[];
   volumes: { name: string; emptyDir?: { medium?: string }; persistentVolumeClaim?: { claimName: string } }[];
@@ -127,7 +129,8 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     const werte = { ...basis, backup: { ...(basis.backup as object), persistence: { enabled: false }, env: { RESTIC_REPOSITORY: "s3:s3.example/haben" } } };
     const alle = manifeste(werte);
     expect(alle.some((m) => m.metadata.name === "haben-backups")).toBe(false);
-    expect(container(finde(alle, "Deployment", "haben").spec.template.spec, "backup").volumeMounts?.map((m) => m.mountPath)).toEqual(["/belege"]);
+    const mounts = container(finde(alle, "Deployment", "haben").spec.template.spec, "backup").volumeMounts?.map((m) => m.mountPath);
+    expect(mounts).toEqual(["/belege", "/tmp", "/var/lib/haben-backup"]);
   });
 
   test("hängt dieselben Verzeichnisse der App ein und härtet sie wie deploy/compose.yml", () => {
@@ -146,6 +149,40 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     // Compose hängt /tmp als tmpfs ein; dort liegt während eines Aufrufs von ERiC das ELSTER-Zertifikat
     expect(compose.app.tmpfs).toEqual(["/tmp"]);
     expect(appPod().volumes.find((v) => v.name === "tmp")?.emptyDir).toEqual({ medium: "Memory" });
+  });
+
+  // Pod Security „restricted“ (#1354): Das Backup liegt im Pod der App, ohne Härtung startete dort auch die App nicht
+  test("härtet Backup und Wiederherstellen wie die App und gibt ihnen Platz zum Schreiben", () => {
+    const alle = manifeste({ ...basis, restore: { enabled: true } });
+    const app = finde(alle, "Deployment", "haben").spec.template.spec;
+    const restore = finde(alle, "Deployment", "haben-restore").spec.template.spec;
+    for (const [pod, name] of [
+      [app, "backup"],
+      [restore, "restore"],
+    ] as const) {
+      const c = container(pod, name);
+      expect(c.securityContext).toEqual(container(app, "app").securityContext);
+      // Dump von backup.sh, Cache von restic unter $HOME, Snapshot beim Auspacken in restore.sh und restore-check.sh
+      expect(variable(c, "HOME")?.value).toBe("/tmp");
+      for (const pfad of ["/tmp", "/var/lib/haben-backup"]) {
+        const mount = c.volumeMounts?.find((m) => m.mountPath === pfad);
+        expect(pod.volumes.find((v) => v.name === mount?.name)?.emptyDir).toEqual({});
+      }
+    }
+  });
+
+  // Haben spricht die Kubernetes-API nicht an; sonst bekäme jeder Pod das Token des ServiceAccounts default
+  test("hängt in keinen Pod das Token des ServiceAccounts ein", () => {
+    const vorlagen = manifeste({ ...basis, restore: { enabled: true } }).filter((m) => m.spec?.template !== undefined);
+    expect(vorlagen.map((m) => m.metadata.name).sort()).toEqual(["haben", "haben-db", "haben-restore"]);
+    for (const m of vorlagen) expect(m.spec.template.spec.automountServiceAccountToken).toBe(false);
+  });
+
+  // /api/health bricht die Abfrage der Datenbank erst nach 2 Sekunden ab (apps/web/src/server/db/health.ts)
+  test("wartet beim Start länger auf /api/health als dessen eigene Frist", () => {
+    const probe = container(appPod(), "app").startupProbe;
+    expect(probe?.httpGet?.path).toBe("/api/health");
+    expect(probe?.timeoutSeconds).toBeGreaterThan(2);
   });
 
   test("läuft mit einem Container und ersetzt ihn erst nach dem Ende des alten", () => {
