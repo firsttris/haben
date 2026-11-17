@@ -6,7 +6,7 @@ import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
 import { storeBatch } from "./import-batch.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
-import { abrufNachVertrag } from "./vertrag-abruf.ts";
+import { abrufNachVertrag, kontokennung } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -288,7 +288,10 @@ export async function completeConnection(
       accounts.push({
         uid: account.uid,
         iban,
-        ...(account.identification_hash ? { identificationHash: account.identification_hash } : {}),
+        // Nennt die neue Sitzung keinen Hash, gilt der bisherige: sonst fiele ein gebundenes Konto auf den Weg ohne Vertrag
+        ...((account.identification_hash || previous?.identificationHash) !== undefined
+          ? { identificationHash: account.identification_hash || previous!.identificationHash }
+          : {}),
         name: bankAccount.name,
         bankAccountId: bankAccount.id,
         syncedTo: previous?.syncedTo ?? null,
@@ -449,17 +452,19 @@ export async function syncConnection(actor: string, connectionId: string, today 
       });
       const source = { filename: `Abruf ${connection.aspspName} ${today}`, sha256: sha256Of(Buffer.from(JSON.stringify(transactions), "utf8")) };
       // Quellenbindung (#306): Ältere Verbindungen haben den identification_hash noch nicht gespeichert
-      const identificationHash =
-        account.identificationHash ??
-        (await api
-          .accountDetails(account.uid)
-          .then((d) => d.identification_hash || undefined)
-          .catch(() => undefined));
-      if (!identificationHash) {
+      let identificationHash: string | null;
+      try {
+        identificationHash = await kontokennung(account, () => api.accountDetails(account.uid));
+      } catch (error) {
+        if (!(error instanceof BankError)) throw error;
+        konflikte.push(`${account.name}: ${error.message}`);
+        continue;
+      }
+      if (identificationHash === null) {
         const stored = await withActor(actor, (tx) => storeStatement(tx, statement, source, account.bankAccountId));
         result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: [OHNE_KONTOKENNUNG] });
         result.added += stored.added;
-        accounts[i] = { ...account, syncedTo: today };
+        accounts[i] = { ...account, identificationHash: null, syncedTo: today };
         continue;
       }
       const { input, hinweise } = abrufNachVertrag({

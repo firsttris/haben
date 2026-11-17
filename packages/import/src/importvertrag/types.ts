@@ -110,7 +110,7 @@ export const batchSchema = z.strictObject({
     .array(
       z.strictObject({
         sourceEventId: z.string().optional(),
-        /** Tag des Ereignisses, wo bekannt: Vor dem Fenster oder dem Stichtag hält es den Zeitraum nicht offen, sonst ab diesem Tag */
+        /** Tag des Ereignisses, wo bekannt: Außerhalb des Fensters oder vor dem Stichtag hält es den Zeitraum nicht offen, sonst ab diesem Tag */
         bookingDate: isoDate.optional(),
         reason: text,
       }),

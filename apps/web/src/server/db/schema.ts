@@ -2278,8 +2278,11 @@ export type BankConnectionAccount = {
   /** Kennung des Kontos bei Enable Banking, gilt für die Dauer der Zustimmung; bei FinTS die IBAN */
   uid: string;
   iban: string;
-  /** Kennung des Kontos bei Enable Banking über Zustimmungen hinweg (`identification_hash`), Quellenbindung des Importvertrags (#306) */
-  identificationHash?: string;
+  /**
+   * Kennung des Kontos bei Enable Banking über Zustimmungen hinweg (`identification_hash`), Quellenbindung des
+   * Importvertrags (#306); null, wenn die Bank keine nennt, fehlt, solange Haben noch nicht nachgefragt hat
+   */
+  identificationHash?: string | null;
   name: string;
   bankAccountId: string;
   /** Abgerufen bis einschließlich dieses Tages */

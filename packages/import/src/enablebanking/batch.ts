@@ -35,7 +35,7 @@ const referenz = (t: EbTransaction) => t.entry_reference?.trim() || undefined;
 type Unsupported = ImportBatch["unsupported"][number];
 
 /** Bewegung aus einem gebuchten Umsatz mit entry_reference, sonst der Eintrag unter `unsupported` mit Grund */
-function movement(t: EbTransaction, index: number, dateFrom: string): ImportMovement | Unsupported {
+function movement(t: EbTransaction, index: number, window: { dateFrom: string; dateTo: string }): ImportMovement | Unsupported {
   const mapped = mapEnableBankingTransaction(t, index);
   const ref = referenz(t);
   // Tag, wo bekannt: Vor dem Fenster hält er den Zeitraum nicht offen, sonst ab diesem Tag (Vertrag)
@@ -44,8 +44,9 @@ function movement(t: EbTransaction, index: number, dateFrom: string): ImportMove
   if (t.status && t.status !== "BOOK") return skip(`Status ${t.status}.`);
   if (!mapped) return skip("Ohne gültiges Datum oder Betrag.");
   if (!ref) return skip(`Gebuchter Umsatz vom ${mapped.bookingDate} ${OHNE_ENTRY_REFERENCE}; transaction_id kann sich ändern und ist kein Ersatz.`);
-  // Manche Banken liefern Umsätze vor dem angefragten Tag; die deckt ein früherer Abruf ab
-  if (mapped.bookingDate < dateFrom) return skip(`Buchungstag ${mapped.bookingDate} vor dem abgerufenen Fenster ab ${dateFrom}.`);
+  // Manche Banken liefern Umsätze außerhalb des angefragten Zeitraums; die deckt ein früherer oder der nächste Abruf ab
+  if (mapped.bookingDate < window.dateFrom) return skip(`Buchungstag ${mapped.bookingDate} vor dem abgerufenen Fenster ab ${window.dateFrom}.`);
+  if (mapped.bookingDate > window.dateTo) return skip(`Buchungstag ${mapped.bookingDate} nach dem abgerufenen Fenster bis ${window.dateTo}.`);
   return {
     sourceEventId: ref,
     component: "main",
@@ -75,7 +76,7 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
   const movements: ImportMovement[] = [];
   const unsupported: ImportBatch["unsupported"] = [];
   input.transactions.forEach((t, index) => {
-    const m = movement(t, index, input.dateFrom);
+    const m = movement(t, index, input);
     if (!("component" in m)) unsupported.push(m);
     // Mit anderem Kern bleibt die zweite stehen, dann lehnt der Vertrag die Lieferung ab
     else if (!movements.some((other) => other.sourceEventId === m.sourceEventId && sameCore(other, m))) movements.push(m);

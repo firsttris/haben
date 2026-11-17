@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import {
   advanceCheckpoint,
   batchFingerprint,
@@ -197,12 +197,11 @@ async function recordBatch(
     .select()
     .from(schema.importBatches)
     .where(and(eq(schema.importBatches.sourceId, sourceId), eq(schema.importBatches.fetchId, batch.part.fetchId)));
+  // max() übergeht Lieferungen ohne Stand; nach Sortierung kämen sie bei DESC zuerst
   const [latest] = await tx
-    .select({ checkpoint: schema.importBatches.checkpoint })
+    .select({ checkpoint: sql<string | null>`max(${schema.importBatches.checkpoint})::text` })
     .from(schema.importBatches)
-    .where(eq(schema.importBatches.sourceId, sourceId))
-    .orderBy(desc(schema.importBatches.checkpoint))
-    .limit(1);
+    .where(eq(schema.importBatches.sourceId, sourceId));
   const progress = advanceCheckpoint(latest?.checkpoint ?? undefined, [
     ...parts.map((p) => ({
       coverage: { from: p.coverageFrom, to: p.coverageTo },

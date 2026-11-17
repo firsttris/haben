@@ -38,6 +38,8 @@ function fakeApi() {
     newAccount: false,
     ohneReferenz: false,
     aktuell: "" as "" | "normal" | "anders",
+    detailsFehler: false,
+    doppelt: false,
   };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -423,7 +425,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
   it("bindet die Konten an ihren identification_hash, auch nach erneuerter Zustimmung nur einmal (#306)", async () => {
     const [connection] = await sync.listConnections();
     // Konto C nennt keinen Hash und bleibt beim bisherigen Weg
-    expect(connection!.accounts.map((a) => a.identificationHash)).toEqual(["hash-a", "hash-b", undefined]);
+    expect(connection!.accounts.map((a) => a.identificationHash)).toEqual(["hash-a", "hash-b", null]);
     const result = await sync.syncConnection(actor, connection!.id);
     expect(result.accounts.find((a) => a.iban === IBAN_C)!.vertragHinweise).toEqual([sync.OHNE_KONTOKENNUNG]);
     const quellen = await sql`select s.external_account_id, a.iban from import_sources s join bank_accounts a on a.id = s.bank_account_id
@@ -443,7 +445,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     api.state.aktuell = "anders";
     const result = await sync.syncConnection(actor, connection!.id);
     api.state.aktuell = "";
-    expect(result.error).toContain("a4/main: Betrag -5,0000a0€ → -6,0000a0€; nichts überschrieben.");
+    expect(result.error).toContain("a4/main: Betrag -5,00 € → -6,00 €; nichts überschrieben.");
     expect(result.accounts.map((a) => a.iban)).toEqual([IBAN_B, IBAN_C]);
     const [after] = await sync.listConnections();
     expect(after!.accounts[0]!.syncedTo).toBe(vorher[0]);
