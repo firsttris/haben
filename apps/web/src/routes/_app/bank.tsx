@@ -59,7 +59,7 @@ import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
-import { BankCsvZuordnung, type ImportedCsv } from "../../components/BankCsvZuordnung.tsx";
+import { ImportMeldungen, importMessages, type ImportMessage } from "../../components/BankImportMeldungen.tsx";
 import reportStyles from "../../styles/auswertungen.css?url";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
@@ -845,8 +845,6 @@ function ImportControls({ data }: { data: Data }) {
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
   const [messages, setMessages] = useState<ImportMessage[]>([]);
-  // Datei, deren Spalten gerade zugeordnet werden (#1275)
-  const [zuordnen, setZuordnen] = useState<File | null>(null);
 
   async function onFiles(files: File[]) {
     if (files.length === 0) return;
@@ -964,50 +962,18 @@ function ImportControls({ data }: { data: Data }) {
           </button>
         </form>
       )}
-      {messages.length > 0 && (
-        <ul className="upload-messages" role="status" style={{ maxWidth: 560 }}>
-          {messages.map((m, i) => (
-            <li key={i} className={`banner banner-${m.tone}`}>
-              {m.text}
-              {m.zuordnen && (
-                <>
-                  {" "}
-                  <button type="button" className="btn btn-sm" style={{ whiteSpace: "nowrap" }} onClick={() => setZuordnen(m.zuordnen ?? null)}>
-                    Spalten zuordnen
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {zuordnen && (
-        <BankCsvZuordnung
-          file={zuordnen}
-          accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
-          accountId={targetAccount}
-          onClose={() => setZuordnen(null)}
-          onImported={(result) => {
-            setZuordnen(null);
-            setTargetAccount(result.accountId);
-            setMessages(importMessages(result));
-            void router.invalidate();
-          }}
-        />
-      )}
+      <ImportMeldungen
+        messages={messages}
+        accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
+        accountId={targetAccount}
+        onImported={(result) => {
+          setTargetAccount(result.accountId);
+          setMessages(importMessages(result));
+          void router.invalidate();
+        }}
+      />
     </div>
   );
-}
-
-type ImportMessage = { tone: "ok" | "danger" | "info"; text: string; zuordnen?: File };
-
-function importMessages(r: ImportedCsv): ImportMessage[] {
-  return [
-    { tone: "ok", text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.` },
-    ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
-    ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
-    ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
-  ];
 }
 
 /** Nächster offener Umsatz nach dem gewählten, am Ende der Liste wieder von vorn */
