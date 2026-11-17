@@ -198,7 +198,7 @@ Nicht übernommen werden Vorlagen für Einnahmen, in anderer Währung als Euro, 
 
 ### Steuerarten im Abgleich
 
-Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in die Kennzahlen. Die Regeln und ihre Kennzahlen nennt die [OpenAPI](https://api.sevdesk.de/openapi.yaml) unter „VAT rules“; die ältere taxType steht dort als Vorgänger.
+Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in die Kennzahlen. Die Regeln nennt die [OpenAPI](https://api.sevdesk.de/openapi.yaml) unter „VAT rules“, mit Kennzahl nur bei Regel 5 (Kz 60) und 21 (Kz 21); die übrigen ordnet Haben nach der Anleitung zur Voranmeldung zu (siehe „Kennzahlen selbst prüfen“). Die ältere taxType steht dort als Vorgänger.
 
 **Einnahmen:**
 
@@ -223,9 +223,9 @@ Regel 17 bucht sevDesk im DATEV-Export auf 8338 (SKR03), das Konto für nicht st
 | --- | --- |
 | Regel 12 „Reverse Charge gem. § 13b Abs. 2 UStG mit Vorsteuerabzug“ | Kz 84, 85 und 67 |
 | Regel 14 „Reverse Charge gem. § 13b Abs. 1 EU Umsätze“ | Kz 46, 47 und 67 |
-| Regel 8 „Innergemeinschaftliche Erwerbe“, Regel 13 „Reverse Charge gem. § 13b UStG ohne Vorsteuerabzug“ | noch keine eigenen Kennzahlen, nur Vorsteuer Kz 66 wie im Beleg |
+| Regel 8 „Innergemeinschaftliche Erwerbe“, Regel 13 „Reverse Charge gem. § 13b UStG ohne Vorsteuerabzug“ | noch keine eigenen Kennzahlen |
 
-Grundstücksumsätze (§ 13b Abs. 2 Nr. 3 UStG) gehören in Kz 73/74; Regel 12 unterscheidet sie nicht, Haben zählt sie in Kz 84/85.
+Regel 12 trennt Umsätze nach § 13b Abs. 2 Nr. 3 UStG (Kz 73/74) nicht ab; Haben zählt sie in Kz 84/85.
 
 **Eigene Steuerarten:** Ein Beleg mit taxType `custom` verweist per `taxSet` auf eine Steuerart, die in sevDesk die Kennzahlen der Voranmeldung nennt: `vatReportFieldNet` für die Bemessungsgrundlage, `vatReportFieldTax` für die Steuer, mehrere durch Komma. Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt nur taxType `custom` („Using custom tax set“), den Endpunkt `GET /TaxSet` beschreibt sie nicht; das Verhalten ist mit echten Antworten der Buchhaltungsversion 1.0 und 2.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Haben ruft die Steuerarten bei jedem Abruf ab (`GET /TaxSet`), speichert sie unverändert und nimmt im Abgleich die des jüngsten Abrufs, auch für früher abgerufene Belege.
 
@@ -238,7 +238,7 @@ Bei einer Steuerart ohne Kennzahlen, etwa für Bezüge von Kleinunternehmern (§
 
 - Kz 46/47: nur sonstige Leistungen nach § 3a Abs. 2 UStG von Unternehmern aus dem übrigen EU-Gebiet (§ 13b Abs. 1).
 - Kz 84/85: Werklieferungen und die übrigen sonstigen Leistungen im Ausland ansässiger Unternehmer, also auch aus dem Drittland (§ 13b Abs. 2 Nr. 1), und die Fälle aus § 13b Abs. 2 Nr. 2 und 4 bis 12, etwa Bauleistungen und Gebäudereinigung.
-- Kz 73/74: Umsätze, die unter das Grunderwerbsteuergesetz fallen (§ 13b Abs. 2 Nr. 3); diese Kennzahl kennt der Abgleich nicht, sie steht unter „Andere Bezüge“.
+- Kz 73/74: Umsätze, die unter das Grunderwerbsteuergesetz fallen (§ 13b Abs. 2 Nr. 3); eine eigene Steuerart mit dieser Kennzahl steht unter „Andere Bezüge“.
 
 Meldet eine Steuerart etwa Leistungen aus dem Drittland in Kz 46/47, hat sevDesk die Voranmeldungen mit dieser Steuerart ebenso gefüllt, und der Abgleich zeigt dieselben Werte. Ob und wie die Voranmeldungen zu berichtigen sind, klärst du mit deiner Steuerberatung oder dem Finanzamt.
 

@@ -48,8 +48,8 @@ export function customTaxSetId(t: string) {
 }
 
 /**
- * Ausgaben mit Steuerregel aus Update 2.0, deren Kennzahlen die OpenAPI nennt (https://api.sevdesk.de/openapi.yaml,
- * „VAT rules … (Expense)“), Steuer 19 % auf das Netto wie sevDesk („0% (19%)“): 12 „Reverse Charge gem. §13b Abs. 2 UStG
+ * Ausgaben mit Steuerregel aus Update 2.0 (https://api.sevdesk.de/openapi.yaml, „VAT rules … (Expense)“), Kennzahlen
+ * nach dem Vordruck USt 1 A 2026, Steuer 19 % auf das Netto wie sevDesk („0% (19%)“): 12 „Reverse Charge gem. §13b Abs. 2 UStG
  * mit Vorsteuerabzug“ Kz 84, 85 und 67; 14 „Reverse Charge gem. §13b Abs. 1 EU Umsätze“ Kz 46, 47 und 67 (Vordruck
  * USt 1 A 2026). Offen: 8 (innergemeinschaftlicher Erwerb, Satz je Position) und 13 (ohne Vorsteuerabzug, Absatz unklar).
  */
