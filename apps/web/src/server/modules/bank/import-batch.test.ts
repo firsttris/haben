@@ -194,6 +194,16 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect((await speichere(abruf(konto, [tx("ER-2", "2026-11-02", "1.00")], { from: "2026-10-25", to: "2026-11-05" }))).added).toBe(1);
   });
 
+  it("übernimmt einen gebuchten Umsatz, den die Bank erst mit einem Buchungstag vor dem Fenster liefert", async () => {
+    const konto = neuesKonto();
+    // Bank filtert nach Valuta: ER-2 (gebucht 20.10., Valuta 12.11.) fehlt im ersten Abruf bis 31.10.
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")]));
+    const spaet = tx("ER-2", "2026-10-20", "300.00", { value_date: "2026-11-12" });
+    await speichere(abruf(konto, [spaet], { from: "2026-10-24", to: "2026-11-15" }));
+    await speichere(abruf(konto, [spaet], { from: "2026-11-08", to: "2026-11-20" }));
+    expect((await umsaetze(konto.iban)).map((u) => u.bank_reference)).toEqual(["ER-1", "ER-2"]);
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();
