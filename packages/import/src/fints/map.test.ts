@@ -211,6 +211,53 @@ describe("fintsStatement", () => {
     ]);
   });
 
+  it("nimmt bei MT940 das Jahr des Buchungstags aus dem Tagesauszug (:60F: bis :62F:), wenn nur eines hineinpasst", () => {
+    // :60F: und :62F: nennen den Tag mit Jahr (JJMMTT), :61: den Buchungstag ohne. Ein gebuchter Umsatz liegt zwischen
+    // Anfangs- und Endsaldo seines Auszugs. Erstattung einer nicht autorisierten Lastschrift, wertgestellt zum Tag der
+    // Belastung (Richtlinie (EU) 2015/2366, Art. 73 Abs. 1), gebucht am 16.11.2026; Gutschrift am 29.02.2028 mit
+    // Wertstellung im Januar
+    const auszug = (zeilen: string[]) => [":20:STARTUMSE", ":25:12030000/0000202051", ":28C:00000/001", ...zeilen, "-"].join("\r\n");
+    const statements = new Mt940Parser(
+      [
+        auszug([":60F:C261113EUR1000,00", ":61:2603021116CR49,99NDDTNONREF", ":86:109?00LASTSCHRIFT ERSTATTUNG?20SVWZ+Erstattung", ":62F:C261116EUR1049,99"]),
+        auszug([":60F:C280228EUR1049,99", ":61:2801200229CR10,00NTRFNONREF", ":86:166?00GUTSCHRIFT?20SVWZ+Nachzahlung", ":62F:C280229EUR1059,99"]),
+      ].join("\r\n"),
+    ).parse();
+    const result = fintsStatement({
+      iban: "DE02120300000000202051",
+      statements: statements.map((s) => ({ ...s, format: "MT940" as const })),
+      dateFrom: "2026-11-01",
+      dateTo: "2028-02-29",
+    });
+    expect(result.transactions.map((t) => [t.bookingDate, t.valueDate, t.amount])).toEqual([
+      ["2026-11-16", "2026-03-02", 4999],
+      ["2028-02-29", "2028-01-20", 1000],
+    ]);
+  });
+
+  it("lässt das Jahr aus dem Tagesauszug weg, wenn der Auszug mehr als ein Jahr umfasst oder aus CAMT kommt", () => {
+    // Ein einziger Auszug über mehr als ein Jahr passt für zwei Jahre: dann wie bisher das Jahr nächst der Wertstellung
+    const lang = new Mt940Parser(
+      [":20:STARTUMSE", ":25:12030000/0000202051", ":28C:00000/001", ":60F:C251101EUR0,00", ":61:2611201122DR5,00NCHGNONREF", ":86:805?20SVWZ+Entgelt", ":62F:C261130EUR-5,00", "-"].join(
+        "\r\n",
+      ),
+    ).parse();
+    expect(
+      fintsStatement({
+        iban: "DE02120300000000202051",
+        statements: lang.map((s) => ({ ...s, format: "MT940" as const })),
+        dateFrom: "2025-11-01",
+        dateTo: "2026-11-30",
+      }).transactions[0]?.bookingDate,
+    ).toBe("2026-11-22");
+    // CAMT nennt das Jahr selbst: Ein 01.03. bleibt der 01.03., auch wenn der Bericht am 29.02. endet
+    const camt = statement([tx({ entryDate: new Date(2027, 2, 1, 12), valueDate: new Date(2028, 0, 20, 12) })], { date: new Date(2028, 1, 29), value: 0 });
+    expect(
+      fintsStatement({ iban: "DE02120300000000202051", statements: [{ ...camt, format: "CAMT" as const }], dateFrom: "2026-10-01", dateTo: "2028-02-29" }).transactions[0]
+        ?.bookingDate,
+    ).toBe("2027-03-01");
+  });
+
   it("übernimmt keinen Saldo in Fremdwährung und meldet einen Stichtag nach dem Abruf", () => {
     const fremd = fintsStatement({
       iban: "DE02120300000000202051",

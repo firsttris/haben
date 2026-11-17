@@ -99,6 +99,11 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
     const fertig = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31", { referenz: anfrage.anfrage.referenz });
     expect(fertig.art).toBe("ok");
     if (fertig.art === "ok") expect(fertig.wert[0]?.transactions).toHaveLength(2);
+    // Das Format der Antwort (HKKAZ: MT940) kommt mit, auch nach der Freigabe: map.ts braucht es für das Jahr des Buchungstags
+    expect(fertig.art === "ok" && fertig.wert.map((s) => s.format)).toEqual(["MT940"]);
+    bank.zustand.scaBeiUmsaetzen = false;
+    const ohneTan = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31");
+    expect(ohneTan.art === "ok" && ohneTan.wert.map((s) => s.format)).toEqual(["MT940"]);
   });
 
   it("wirft, wenn lib-fints die Umsätze nicht lesen kann, statt keine zu melden", async () => {
