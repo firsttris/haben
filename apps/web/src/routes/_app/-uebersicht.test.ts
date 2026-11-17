@@ -46,7 +46,7 @@ function fixture() {
       recent: [],
       bank: [],
       payables: { total: 0, count: 0, overdueCount: 0, nextDue: null },
-      revenuePreviousMonth: { net: 0 },
+      revenuePreviousMonth: 0,
     },
     backup: { failed: [], overdue: false, state: "ok" },
   };

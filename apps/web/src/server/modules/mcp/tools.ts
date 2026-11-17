@@ -192,19 +192,25 @@ export const MCP_TOOLS: McpTool[] = [
     input: {},
     run: async (_args, { today }) => {
       const period = await filingPeriod(today);
-      const [company, returns, computed, invoices, accounts, documents, afa, appeals, certificate, fristen, kleinunternehmer] = await Promise.all([
-        loadCompany(),
-        returnsForPeriod(period),
-        computedValues(period),
-        invoiceSummary(today),
-        listAccounts(),
-        listDocuments(),
-        pendingDepreciation(today),
-        openAppealDeadlines(today),
-        loadActiveCertificate(),
-        listFristen(today),
-        kleinunternehmerFor(period),
-      ]);
+      const monat = today.slice(0, 7);
+      const vormonat = periodKey(previousPeriod({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }));
+      const [company, returns, computed, invoices, accounts, documents, afa, appeals, certificate, fristen, kleinunternehmer, umsatz, umsatzVormonat] =
+        await Promise.all([
+          loadCompany(),
+          returnsForPeriod(period),
+          computedValues(period),
+          invoiceSummary(today),
+          listAccounts(),
+          listDocuments(),
+          pendingDepreciation(today),
+          openAppealDeadlines(today),
+          loadActiveCertificate(),
+          listFristen(today),
+          kleinunternehmerFor(period),
+          // Wie die Kachel der Übersicht: Erlöskonten nach Buchungsdatum, auch Buchungen ohne Rechnung in Haben
+          umsatzImMonat(monat),
+          umsatzImMonat(vormonat),
+        ]);
       const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
       return {
         heute: today,
@@ -225,9 +231,8 @@ export const MCP_TOOLS: McpTool[] = [
           offenAnzahl: invoices.openCount,
           ueberfaelligAnzahl: invoices.overdueCount,
           entwuerfe: invoices.drafts,
-          // Wie die Kachel der Übersicht: Erlöskonten nach Buchungsdatum, auch Buchungen ohne Rechnung in Haben
-          umsatzNettoMonat: { monat: invoices.revenueMonth.key, betrag: euro(await umsatzImMonat(invoices.revenueMonth.key)) },
-          umsatzNettoVormonat: { monat: invoices.revenuePreviousMonth.key, betrag: euro(await umsatzImMonat(invoices.revenuePreviousMonth.key)) },
+          umsatzNettoMonat: { monat, betrag: euro(umsatz) },
+          umsatzNettoVormonat: { monat: vormonat, betrag: euro(umsatzVormonat) },
         },
         belegeZuPruefen: documents.filter((d) => d.status === "neu").length,
         bankumsaetzeOhneZuordnung: accounts.map((a) => ({ konto: a.name, anzahl: a.openCount })),
