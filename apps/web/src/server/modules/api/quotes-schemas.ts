@@ -17,7 +17,9 @@ const quoteSummaryShape = {
   status: z.enum(["draft", "final"]).describe("draft = Entwurf, änderbar; final = festgeschrieben, unveränderlich"),
   listStatus: z
     .enum(LIST_STATUS)
-    .describe("Stand wie in der Angebotsliste von Haben; abgerechnet erst mit der nicht stornierten Rechnung über das ganze Angebot, nach Abschlägen bleibt es angenommen"),
+    .describe(
+      "Stand wie in der Angebotsliste von Haben; abgerechnet erst mit der nicht stornierten Rechnung über das ganze Angebot, nach Abschlägen bleibt es angenommen",
+    ),
   number: z.string().nullable().describe("Angebotsnummer, erst ab dem Festschreiben"),
   contactId: z.uuid().nullable(),
   customer: z.string().describe("Name des Kunden"),
