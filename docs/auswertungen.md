@@ -150,7 +150,7 @@ Der Status zeigt „Überfällig“ (farbig hinterlegt) mit der Zahl der Tage, �
 
 Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und überfälligen Posten; bei den Verbindlichkeiten ohne Überfälliges das nächste Fälligkeitsdatum. Ein Klick auf die Kachel führt zur jeweiligen Tabelle hier.
 
-Daneben zeigt die Übersicht den **Umsatz** des Vormonats netto: den Saldo der Erlöskonten nach Buchungsdatum, also die Umsatzerlöse ([§ 277 Abs. 1 HGB](https://www.gesetze-im-internet.de/hgb/__277.html)) mit den Konten, die der DATEV-Kontenrahmen dem Posten „Umsatzerlöse“ der GuV zuordnet, in Einzelunternehmen und GmbH gleich. Gebuchte Rechnungen zählen mit dem Tag ihrer Buchung, auch unbezahlt, ebenso Verkäufe, die nur als Buchung kommen, etwa aus dem [Datenimport](belegimport.md). Stornos, Gutschriften und gewährte Skonti mindern ihn. Zinsen, Mahngebühren und Kursgewinne sind sonstige Erträge und fehlen, anders als in den Einnahmen der EÜR.
+Daneben zeigt die Übersicht den **Umsatz** des Vormonats netto: den Saldo der Konten, die der DATEV-Kontenrahmen dem GuV-Posten „Umsatzerlöse“ zuordnet ([§ 277 Abs. 1 HGB](https://www.gesetze-im-internet.de/hgb/__277.html)), nach Buchungsdatum, in Einzelunternehmen und GmbH gleich. Gebuchte Rechnungen zählen mit dem Tag ihrer Buchung, auch unbezahlt, ebenso Verkäufe, die nur als Buchung kommen, etwa aus dem [Datenimport](belegimport.md). Stornos, Gutschriften und gewährte Skonti mindern ihn. Zinsen, Mahngebühren, Kursgewinne, private Nutzung und Sachentnahmen (unentgeltliche Wertabgaben) sind sonstige Erträge und fehlen, anders als in den Einnahmen der EÜR.
 
 ## EÜR als CSV
 
