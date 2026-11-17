@@ -115,14 +115,15 @@ async function aliasCandidates(tx: Tx, accountId: string, source: { createdAt: D
 }
 
 /**
- * Umsätze aus Dateien und FinTS (nicht aus Enable Banking) an diesen Tagen, je Tag und Betrag gezählt. Deren Tage holt der
- * Abruf absichtlich nicht (`followUpStart`); liefert die Bank einen Umsatz mit so einem Tag vor dem Fenster mit, steht er
- * meist schon aus der Datei da, oft mit anders geschriebenem Verwendungszweck. Zeilen, die schon einer Bewegung gehören, zählen nicht.
+ * Umsätze aus Dateien und FinTS (nicht aus Enable Banking) an diesen Tagen, je Tag und Betrag. Deren Tage holt der Abruf
+ * absichtlich nicht (`followUpStart`); liefert die Bank einen Umsatz mit so einem Tag vor dem Fenster mit, steht er meist
+ * schon aus der Datei da, oft mit anders geschriebenem Verwendungszweck. Zeilen, die schon einer Bewegung gehören oder in
+ * diesem Abruf per Alias eine bekommen, zählen nicht.
  */
-async function otherImports(tx: Tx, accountId: string, dates: string[], aliased: string[]): Promise<Map<string, number>> {
+async function otherImports(tx: Tx, accountId: string, dates: string[], aliased: string[]): Promise<Map<string, string[]>> {
   if (dates.length === 0) return new Map();
   const rows = await tx
-    .select({ date: schema.bankTransactions.bookingDate, amount: schema.bankTransactions.amount })
+    .select({ id: schema.bankTransactions.id, date: schema.bankTransactions.bookingDate, amount: schema.bankTransactions.amount })
     .from(schema.bankTransactions)
     .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
     .where(
@@ -131,13 +132,13 @@ async function otherImports(tx: Tx, accountId: string, dates: string[], aliased:
         ne(schema.bankImports.format, "enablebanking"),
         inArray(schema.bankTransactions.bookingDate, [...new Set(dates)]),
         sql`not exists (select 1 from import_movements m where m.transaction_id = ${schema.bankTransactions.id})`,
-        // Zeilen, die in diesem Abruf per Alias eine Bewegung bekommen, gehören schon dieser
         ...(aliased.length > 0 ? [notInArray(schema.bankTransactions.id, aliased)] : []),
       ),
-    );
-  const counts = new Map<string, number>();
-  for (const r of rows) counts.set(`${r.date}|${r.amount}`, (counts.get(`${r.date}|${r.amount}`) ?? 0) + 1);
-  return counts;
+    )
+    .orderBy(schema.bankTransactions.createdAt, schema.bankTransactions.id);
+  const ids = new Map<string, string[]>();
+  for (const r of rows) ids.set(`${r.date}|${r.amount}`, [...(ids.get(`${r.date}|${r.amount}`) ?? []), r.id]);
+  return ids;
 }
 
 /** Bisheriges Ergebnis einer wiederholten Lieferung, ohne etwas neu zu speichern */
@@ -207,12 +208,13 @@ async function planRows(
     fresh.delete(event);
     const alias = aliases.get(row.dedupHash);
     const inFile = `${movement.bookingDate}|${movement.amount}`;
+    // Vor dem Fenster und an Tag und Betrag schon aus Datei oder FinTS: mit dieser Zeile verbunden, damit sie verbraucht ist
+    const fromFile = !alias && beforeWindow(movement) ? inFiles.get(inFile)?.shift() : undefined;
     if (alias) linked.push({ movement, transactionId: alias });
-    else if (beforeWindow(movement) && (inFiles.get(inFile) ?? 0) > 0) {
-      // Je Umsatz der Datei höchstens einmal: Zwei gleiche Beträge am Tag aus dem Abruf brauchen zwei in der Datei
-      inFiles.set(inFile, inFiles.get(inFile)! - 1);
+    else if (fromFile) {
+      linked.push({ movement, transactionId: fromFile });
       fileDays.push(
-        `${event}: Buchungstag ${movement.bookingDate} vor dem Fenster, Umsatz mit diesem Tag und Betrag schon aus Datei oder FinTS; nicht übernommen.`,
+        `${event}: Buchungstag ${movement.bookingDate} vor dem Fenster, mit dem Umsatz gleichen Tags und Betrags aus Datei oder FinTS verbunden, nicht neu angelegt.`,
       );
     } else {
       const hash = known.has(row.dedupHash) || taken.has(row.dedupHash) ? await freeHash(tx, accountId, row, taken) : row.dedupHash;
