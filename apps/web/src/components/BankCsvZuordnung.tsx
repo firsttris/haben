@@ -35,7 +35,7 @@ const SHOWN_OK = 5;
 type Start = { headerRow: number; mapping: BankCsvMapping; saved: boolean };
 
 /**
- * Spalten einer Bank-CSV zuordnen, die Haben nicht kennt (#1275, docs/bank.md). Die Vorschau rechnet der Browser mit
+ * Spalten einer Bank-CSV zuordnen, die Haben nicht kennt (#1275, docs/bank-spaltenzuordnung.md). Die Vorschau rechnet der Browser mit
  * demselben Parser wie der Server; die Datei geht erst beim Import an den Server. Haben speichert die Zuordnung am
  * Konto, der nächste Export mit derselben Kopfzeile geht ohne diesen Dialog durch.
  */
