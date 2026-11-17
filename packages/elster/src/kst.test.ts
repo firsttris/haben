@@ -79,7 +79,7 @@ describe("Erklärungen der GmbH: Prüfungen vor dem XML", () => {
     gegenstand: "Software",
     betriebsstaette: { plz: "70173", ort: "Stuttgart" },
     gewinn: 100_000,
-    hinzurechnungen: { zinsen: 0, beweglich: 0, elektro: 0, unbeweglich: 0, rechte: 0 },
+    hinzurechnungen: { zinsen: 0, renten: 0, beweglich: 0, elektro: 0, unbeweglich: 0, rechte: 0 },
     rechteBeschraenktStpfl: 0,
     verlustvortrag: 0,
   };
@@ -96,5 +96,12 @@ describe("Erklärungen der GmbH: Prüfungen vor dem XML", () => {
     const xml = buildGewStXml({ ...gewst, hinzurechnungen: { ...gewst.hinzurechnungen, beweglich: 1_200_000, elektro: 960_000 } });
     expect(xml).toMatch(/<E4003502>12000<\/E4003502>\s*<E4004402>9600<\/E4004402>/);
     expect(buildGewStXml(gewst)).not.toContain("E4004402");
+  });
+
+  it("Gewerbesteuer: Renten und dauernde Lasten in Zeile 51, zwischen Zinsen und beweglichen Wirtschaftsgütern", () => {
+    // Jahresdokumentation E20 2024 und 2025: E4003302 „Renten und dauernde Lasten (§ 8 Nummer 1 Buchstabe b GewStG)“, Zeile 51
+    const xml = buildGewStXml({ ...gewst, hinzurechnungen: { ...gewst.hinzurechnungen, zinsen: 300_000, renten: 120_000, beweglich: 50_000 } });
+    expect(xml).toMatch(/<E4003202>3000<\/E4003202>\s*<E4003302>1200<\/E4003302>\s*<E4003502>500<\/E4003502>/);
+    expect(buildGewStXml(gewst)).not.toContain("E4003302");
   });
 });
