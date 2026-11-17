@@ -1,4 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fintsBankMeldung,
   fintsChallengeText,
@@ -157,6 +159,23 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
   it("meldet, wenn die Bank die Produktnummer nicht kennt", async () => {
     const antwort = await fintsSynchronisieren(fintsClient({ ...PRODUKT, id: "UNBEKANNT" }, zugang));
     expect(antwort).toEqual({ art: "abgelehnt", meldung: "Das Kundenprodukt wird nicht unterstützt. (9952)", codes: [9050, 9952] });
+  });
+
+  it("schreibt eine Antwort, die lib-fints nicht lesen kann, nicht ins Log", async () => {
+    // lib-fints 1.5.3 schreibt sie sonst mit console.error ganz ins Log (httpClient.js, sendMessage), auch ohne debugEnabled:
+    // Umsätze, Namen und IBANs der Inhaberin im Log des Servers
+    const geheim = "Max Mustermann DE89370400440532013000";
+    const server = createServer((_req, res) => res.end(Buffer.from(`HNHBK:1:3+kaputt'HIRMG:2:2+${geheim}'`, "latin1").toString("base64")));
+    await new Promise<void>((fertig) => server.listen(0, "127.0.0.1", fertig));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+      await expect(fintsSynchronisieren(fintsClient(PRODUKT, { ...zugang, url }))).rejects.toThrow();
+      expect(log.mock.calls.flat().map(String).join("\n")).not.toContain(geheim);
+    } finally {
+      log.mockRestore();
+      server.close();
+    }
   });
 
   it("wirft, wenn die Bank nicht erreichbar ist", async () => {
