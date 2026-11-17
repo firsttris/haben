@@ -130,7 +130,7 @@ Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritä
 | = Einkommen | zugleich Gewinn aus Gewerbebetrieb (§ 7 GewStG) |
 | − Verlustabzug | bis 1 Mio. € voll, darüber 70 % (2024 bis 2027, § 10d Abs. 2 EStG), sonst 60 % |
 | Körperschaftsteuer | 15 % des zu versteuernden Einkommens in vollen Euro; Soli 5,5 % davon, Bruchteile eines Cents fallen weg |
-| + Hinzurechnung § 8 Nr. 1 GewStG | ein Viertel der Summe aus Zinsen (voll, auch die zur Finanzierung des Anlagevermögens aus den [Darlehen](bank-steuern-darlehen.md#darlehen)), Miete und Leasing beweglicher Wirtschaftsgüter (20 %, für Elektrofahrzeuge und Fahrräder von 2020 bis 2030 10 %), unbeweglicher (50 %) und Aufwand für Rechte (25 %), soweit sie 200.000 € übersteigt; gelesen aus den DATEV-Konten mit Kennzeichen G |
+| + Hinzurechnung § 8 Nr. 1 GewStG | ein Viertel der Summe aus Zinsen (voll, auch die zur Finanzierung des Anlagevermögens aus den [Darlehen](bank-steuern-darlehen.md#darlehen) und auf Kontokorrentkonten), Renten und dauernden Lasten (voll), Miete und Leasing beweglicher Wirtschaftsgüter (20 %, für Elektrofahrzeuge und Fahrräder von 2020 bis 2030 10 %), unbeweglicher (50 %) und Aufwand für Rechte (25 %), soweit sie 200.000 € übersteigt; gelesen aus den DATEV-Konten mit Kennzeichen G für diese Aufwendungen, ohne Zinsen nach der AO, Disagio und Vergütungen an Mitunternehmer |
 | − Gewerbeverlust | bis 1 Mio. € voll, darüber 60 % (§ 10a GewStG) |
 | Gewerbesteuer | Gewerbeertrag auf volle 100 € abgerundet, ohne Freibetrag (Kapitalgesellschaft), Messzahl 3,5 %, mal Hebesatz |
 
