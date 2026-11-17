@@ -437,7 +437,9 @@ export async function syncConnection(actor: string, connectionId: string, today 
       try {
         transactions = await api.transactions(account.uid, dateFrom, today);
       } catch (error) {
-        const refused = error instanceof EnableBankingApiError && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 403;
+        // Abgelehnt ist der Zeitraum nur bei 4xx; 401 und 403 (Zustimmung), 429 (zu viele Abrufe) und 5xx sind kein Urteil über
+        // den Zeitraum: Der Abruf endet, und der nächste planmäßige Abruf versucht es wieder (runDueBankSyncs)
+        const refused = error instanceof EnableBankingApiError && error.status >= 400 && error.status < 500 && ![401, 403, 429].includes(error.status);
         if (!refused) throw error;
         // Ohne Rückfall (Folgeabruf, etwa eines Kontos, das ein Konflikt anhält) nur dieses Konto anhalten
         if (!fallback) {
