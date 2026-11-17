@@ -182,6 +182,38 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 0 });
   });
 
+  it("protokolliert jeden weiteren Fehlschlag und holt die Mail auch nach vielen Versuchen noch ab", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    await deliver({ subject: "Kaputt", messageId: "<oft@funknetz.example>", attachments: [{ filename: "kaputt.pdf", content: pdf("oft") }] });
+    await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
+    try {
+      for (let attempt = 1; attempt <= 7; attempt++) {
+        box.get(1)!.seen = false;
+        expect(await inbox.fetchInbox(actor), `Versuch ${attempt}`).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1, rejected: 0 });
+      }
+    } finally {
+      await sql`alter table documents drop constraint test_kaputt`;
+    }
+    box.get(1)!.seen = false;
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0, rejected: 0 });
+    // Jeder Versuch unter eigenem Schlüssel, keiner von onConflictDoNothing verschluckt
+    const logs = (await sql`select message_id, cardinality(document_ids) as documents from inbox_messages`).sort((a, b) =>
+      a.message_id < b.message_id ? -1 : 1,
+    );
+    expect(logs).toEqual([
+      { message_id: "<oft@funknetz.example>", documents: 0 },
+      { message_id: "<oft@funknetz.example> (nachgeholt 2)", documents: 0 },
+      { message_id: "<oft@funknetz.example> (nachgeholt 3)", documents: 0 },
+      { message_id: "<oft@funknetz.example> (nachgeholt 4)", documents: 0 },
+      { message_id: "<oft@funknetz.example> (nachgeholt 5)", documents: 0 },
+      { message_id: "<oft@funknetz.example> (nachgeholt 6)", documents: 0 },
+      { message_id: "<oft@funknetz.example> (nachgeholt 7)", documents: 1 },
+      { message_id: "<oft@funknetz.example> (nachgeholt)", documents: 0 },
+    ]);
+    box.get(1)!.seen = false;
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 0 });
+  });
+
   it("merkt sich Fehler beim Verbinden und hält das Passwort aus dem Protokoll", async () => {
     const max = Number((await sql`select coalesce(max(id), 0) as max from audit_log`)[0]!.max);
     await inbox.saveInboxSettings(actor, settings);
