@@ -17,7 +17,8 @@ target_column() {
 # Ziel der Sicherung für Einstellungen → Export und die Verfahrensdokumentation, ohne Zugangsdaten: Nutzer und
 # Passwort einer Adresse (credentials_from_address), den Nutzer von sftp:nutzer@host und die Parameter einer
 # rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad). Gleiche Regeln wie ohneZugangsdaten in
-# apps/web/src/server/modules/betrieb/restic-ziel.ts, hier für ein Ziel statt einer Meldung.
+# apps/web/src/server/modules/betrieb/restic-ziel.ts, nur für ein Ziel statt einer Meldung: Leerraum und " beenden
+# die Zugangsdaten hier nicht, sie gehören zum Passwort.
 target_without_credentials() {
   printf '%s\n' "${RESTIC_REPOSITORY:-}" | credentials_from_address | sed -E \
     -e 's#^sftp:([^/][^/@]*)@#sftp:#' \
@@ -35,26 +36,25 @@ credentials_from_address() {
       for (i = 1; i <= length(s); i++) if (index(stop, substr(s, i, 1))) return i - 1
       return length(s)
     }
-    # Beginnt s mit einem Host samt optionalem Port: [IPv6] oder ohne @ : [ ]?
+    # Beginnt s mit einem Host samt optionalem Port: [IPv6] oder ohne @ : [ ] Leerraum und "?
     function is_host(s,   h) {
-      h = substr(s, 1, upto(s, "/?#\\\" \t"))
+      h = substr(s, 1, upto(s, "/?#\\"))
       sub(/:[0-9]*$/, "", h)
       if (h ~ /^\[[0-9A-Fa-f:.]*\]$/) return 1
-      return !(index(h, "@") || index(h, ":") || index(h, "[") || index(h, "]"))
+      return !(index(h, "@") || index(h, ":") || index(h, "[") || index(h, "]") || index(h, " ") || index(h, "\t") || index(h, "\""))
     }
     {
       i = index($0, "://")
       if (!i) { print; next }
       head = substr($0, 1, i + 2)
       rest = substr($0, i + 3)
-      authority = substr(rest, 1, upto(rest, "/?#\" \t"))
+      authority = substr(rest, 1, upto(rest, "/?#"))
       for (p = length(authority); p > 0; p--) if (substr(authority, p, 1) == "@") break
       if (p > 0 && is_host(substr(rest, p + 1))) { print head substr(rest, p + 1); next }
       colon = index(authority, ":")
       if (colon && !index(substr(authority, 1, colon), "[")) {
         for (p = colon + 1; p <= length(rest); p++) {
           c = substr(rest, p, 1)
-          if (c == " " || c == "\t" || c == "\"") break
           if (c == "@" && is_host(substr(rest, p + 1))) { print head substr(rest, p + 1); next }
         }
       }
