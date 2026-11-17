@@ -35,11 +35,14 @@ describe("Gemeinsame Steuerfelder der Ausgangsbelege", () => {
     expect(select).not.toContain("disabled");
   });
 
-  it("nennt in der Auswahl den Klartext vor dem Paragrafen", () => {
+  it("nennt in der Auswahl den Klartext, den Paragrafen im Hinweis darunter", () => {
     const select = treatmentSelect(render({ kleinunternehmer: false, treatment: "regulaer" }));
-    expect(select).toContain(">Dienstleistung an einen Kunden mit USt-IdNr. im EU-Ausland (Reverse Charge)</option>");
-    expect(select).toContain(">Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht (§ 4 UStG)</option>");
-    expect(treatmentSelect(render())).toContain(">Kleinunternehmer: ohne Umsatzsteuer (§ 19 UStG)</option>");
+    expect(select).toContain(">Dienstleistung oder Nutzungsrecht in die EU (Reverse Charge)</option>");
+    expect(select).toContain(">Warenlieferung in die EU (innergemeinschaftliche Lieferung)</option>");
+    expect(select).not.toContain("§");
+    expect(render({ kleinunternehmer: false, treatment: "ig_lieferung" })).toContain("§ 4 Nr. 1 Buchst. b, § 6a UStG");
+    expect(render({ kleinunternehmer: false, treatment: "reverse_charge" })).toContain("sonstige Leistungen, § 3 Abs. 9 UStG");
+    expect(render()).toContain("nach § 19 UStG");
   });
 
   it("hält eine unzulässige bisherige Behandlung sichtbar, gibt sie aber nicht neu frei", () => {

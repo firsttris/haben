@@ -1867,6 +1867,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await kundeWaehlen(page, "Donaublick GmbH · Wien");
   await page.getByLabel("Rechnungsdatum").fill(`${next}-02-10`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
+  // Der Paragraf steht im Hinweis unter der Auswahl, nicht im Namen der Auswahl
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/sonstige Leistungen, § 3 Abs\. 9 UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung Cloud-Architektur");
   await page.getByLabel("Menge Position 1").fill("2");
   await page.getByLabel(/Einzelpreis Position 1/).fill("1.200,50");
@@ -1906,6 +1908,7 @@ test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart 
   await page.getByLabel("Rechnungsdatum").fill(`${next}-05-12`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("ig_lieferung");
   await expect(page.getByText(/Gelangensnachweis \(§ 17a UStDV\)/)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Umsatzsteuer", exact: true })).toHaveAccessibleDescription(/§ 4 Nr\. 1 Buchst\. b, § 6a UStG/);
   await page.getByLabel("Beschreibung Position 1").fill("Industrierechner");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("3.000,00");

@@ -33,11 +33,16 @@ describe("treatmentIssues", () => {
 });
 
 describe("Namen in der Auswahl", () => {
-  it("sind eindeutig, und der Paragraf steht hinter dem Klartext", () => {
+  it("sind eindeutig, am Handy kurz genug und ohne Paragrafen (die stehen im Hinweis unter der Auswahl)", () => {
     const labels = Object.values(TAX_TREATMENTS).map((treatment) => treatment.label);
     expect(new Set(labels).size).toBe(labels.length);
-    expect(labels.filter((label) => label.startsWith("§"))).toEqual([]);
-    expect(TAX_TREATMENTS.kleinunternehmer.label).toContain("(§ 19 UStG)");
+    expect(labels.filter((label) => label.length > 60 || label.includes("§"))).toEqual([]);
+  });
+
+  it("nennen bei Auslandsleistungen auch das Nutzungsrecht, nicht nur die Dienstleistung (§ 3 Abs. 9 UStG)", () => {
+    for (const key of ["reverse_charge", "drittland", "eu_sonstige"] as const) {
+      expect(TAX_TREATMENTS[key].label).toContain("Dienstleistung oder Nutzungsrecht");
+    }
   });
 });
 

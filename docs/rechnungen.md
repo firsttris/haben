@@ -188,18 +188,18 @@ Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußt
 
 ### Umsatzsteuer auf der Rechnung
 
-Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt wird. Gespeichert wird die Auswahl an der Rechnung; sie bestimmt Erlöskonto, Kennzahl der [Voranmeldung](umsatzsteuer.md), Steuerkategorie im XML und den Pflichthinweis.
+Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt wird. Gespeichert wird die Auswahl an der Rechnung; sie bestimmt Erlöskonto, Kennzahl der [Voranmeldung](umsatzsteuer.md), Steuerkategorie im XML und den Pflichthinweis. Unter der Auswahl steht ein Hinweis mit der Vorschrift, etwa § 4 Nr. 1 Buchst. b UStG.
 
 | Auswahl | Wann | Hinweis auf der Rechnung (Standard) | Steuerkategorie im XML |
 | --- | --- | --- | --- |
 | Regulär (19 %, 7 % oder 0 %) | Normalfall | – | S, bei 0 % Z |
-| Dienstleistung an einen Kunden mit USt-IdNr. im EU-Ausland (Reverse Charge) | Sonstige Leistung an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
-| Dienstleistung ins Nicht-EU-Ausland (in Deutschland nicht steuerbar) | Sonstige Leistung (Dienstleistung) mit Leistungsort im Drittland, im Inland nicht steuerbar | Im Inland nicht steuerbare Leistung (Leistungsort im Drittland). | O, Grund `VATEX-EU-O` |
-| Dienstleistung mit Leistungsort im EU-Ausland, ohne Reverse Charge (in Deutschland nicht steuerbar) | Tatsächlicher Leistungsort und ausländische Behandlung sind geprüft; keine ausländische Umsatzsteuer auszuweisen | Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland). | O, Grund `VATEX-EU-O` |
-| Warenlieferung an einen Kunden mit USt-IdNr. im EU-Ausland, steuerfrei (innergemeinschaftliche Lieferung, § 4 Nr. 1 Buchst. b UStG) | Ware, die zu einem Unternehmen mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
-| Warenlieferung ins Nicht-EU-Ausland, steuerfrei (Ausfuhrlieferung, § 4 Nr. 1 Buchst. a UStG) | Ware, die ins Drittland gelangt, etwa in die Schweiz oder die USA (§ 4 Nr. 1 Buchst. a, § 6 UStG) | Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG). | G, Grund `VATEX-EU-G` |
-| Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht (§ 4 UStG) | Steuerfreie Leistung, etwa nach § 4 Nr. 14 UStG | die Befreiungsvorschrift, die du einträgst | E |
-| Kleinunternehmer: ohne Umsatzsteuer (§ 19 UStG) | Nur wählbar, wenn du in den Einstellungen als Kleinunternehmer eingetragen bist | Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. | E |
+| Dienstleistung oder Nutzungsrecht in die EU (Reverse Charge) | Dienstleistung oder Nutzungsrecht (sonstige Leistung, § 3 Abs. 9 UStG) an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land (§ 3a Abs. 2 UStG) | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
+| Dienstleistung oder Nutzungsrecht ins Nicht-EU-Ausland | Sonstige Leistung (§ 3 Abs. 9 UStG) mit Leistungsort im Drittland (§ 3a UStG), im Inland nicht steuerbar | Im Inland nicht steuerbare Leistung (Leistungsort im Drittland). | O, Grund `VATEX-EU-O` |
+| Dienstleistung oder Nutzungsrecht mit Leistungsort in der EU | Ohne Reverse Charge: tatsächlicher Leistungsort und ausländische Behandlung sind geprüft; keine ausländische Umsatzsteuer auszuweisen | Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland). | O, Grund `VATEX-EU-O` |
+| Warenlieferung in die EU (innergemeinschaftliche Lieferung) | Steuerfrei: Ware, die zu einem Unternehmen mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
+| Warenlieferung ins Nicht-EU-Ausland (Ausfuhrlieferung) | Steuerfrei: Ware, die ins Drittland gelangt, etwa in die Schweiz oder die USA (§ 4 Nr. 1 Buchst. a, § 6 UStG) | Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG). | G, Grund `VATEX-EU-G` |
+| Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht | Steuerbefreiung nach § 4 UStG, etwa nach Nr. 14 | die Befreiungsvorschrift, die du einträgst | E |
+| Kleinunternehmer: ohne Umsatzsteuer | Kleinunternehmerregelung (§ 19 UStG); nur wählbar, wenn du in den Einstellungen als Kleinunternehmer eingetragen bist | Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. | E |
 
 Außer bei „Regulär“ gilt:
 
@@ -207,9 +207,9 @@ Außer bei „Regulär“ gilt:
 - Der Hinweis steht fett über dem Satz zur Zahlung. Im Feld **Hinweis zur Umsatzsteuer** kannst du einen eigenen Text eintragen, der den Standardtext ersetzt. Bei „Steuerfreie Leistung“ ordnest du **§ 4 Nr. 14 Buchst. a** (Heilbehandlung) oder **Nr. 21** (Unterricht und Bildung) ausdrücklich zu; daraus entsteht der gespeicherte Hinweis. Ohne Kleinunternehmerregelung bleibt für andere Befreiungsvorschriften ein freier Hinweis möglich. Die Auswahl setzt voraus, dass die Leistung die gesetzlichen Voraussetzungen erfüllt.
 - Im XML steht der Hinweis als Befreiungsgrund in der Steueraufschlüsselung.
 
-Bei Reverse Charge erinnert der Editor daran, dass die Leistung zusätzlich in die Zusammenfassende Meldung (ZM) an das Bundeszentralamt für Steuern gehört. Die ZM sendet Haben über ERiC ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Dienstleistung ins Nicht-EU-Ausland“ lässt Haben im XML die USt-IdNr. von dir und vom Kunden weg (BR-O-02); als Kennung des Verkäufers dient dann die Steuernummer bzw. USt-IdNr. (BT-29). Den Steuersatz lässt Haben in den Positionen des XML weg; in der Steueraufschlüsselung steht 0, weil XRechnung ihn dort verlangt (BR-DE-14).
+Bei Reverse Charge erinnert der Editor daran, dass die Leistung zusätzlich in die Zusammenfassende Meldung (ZM) an das Bundeszentralamt für Steuern gehört. Die ZM sendet Haben über ERiC ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Dienstleistung oder Nutzungsrecht ins Nicht-EU-Ausland“ lässt Haben im XML die USt-IdNr. von dir und vom Kunden weg (BR-O-02); als Kennung des Verkäufers dient dann die Steuernummer bzw. USt-IdNr. (BT-29). Den Steuersatz lässt Haben in den Positionen des XML weg; in der Steueraufschlüsselung steht 0, weil XRechnung ihn dort verlangt (BR-DE-14).
 
-**Lieferung oder Leistung?** „Dienstleistung ins Nicht-EU-Ausland“ ist für Dienstleistungen, deren Leistungsort im Drittland liegt; sie sind in Deutschland nicht steuerbar (Kz 45). Verkaufst du Ware, die ins Drittland gelangt, ist es eine steuerbare, aber steuerfreie **Ausfuhrlieferung** (Kz 43); die Vorsteuer aus dem Einkauf bleibt abziehbar. Ebenso ist Ware an ein Unternehmen im EU-Ausland keine Reverse-Charge-Leistung, sondern eine **innergemeinschaftliche Lieferung** (Kz 41).
+**Lieferung oder Leistung?** „Dienstleistung oder Nutzungsrecht ins Nicht-EU-Ausland“ ist für Dienstleistungen und Nutzungsrechte, deren Leistungsort im Drittland liegt; sie sind in Deutschland nicht steuerbar (Kz 45). Verkaufst du Ware, die ins Drittland gelangt, ist es eine steuerbare, aber steuerfreie **Ausfuhrlieferung** (Kz 43); die Vorsteuer aus dem Einkauf bleibt abziehbar. Ebenso ist Ware an ein Unternehmen im EU-Ausland keine Reverse-Charge-Leistung, sondern eine **innergemeinschaftliche Lieferung** (Kz 41).
 
 Zur innergemeinschaftlichen Lieferung:
 
@@ -220,7 +220,7 @@ Zur innergemeinschaftlichen Lieferung:
 
 Zur Ausfuhrlieferung: Der Kunde sitzt außerhalb der EU, und die Rechnung braucht deine USt-IdNr. (EN 16931 BR-G-02). Steuerfrei ist sie nur mit Ausfuhrnachweis (§ 6 Abs. 4 UStG, §§ 8 bis 11 UStDV), in der Regel dem Ausgangsvermerk aus dem ATLAS-Verfahren des Zolls. Bei Ist-Versteuerung zählt sie wie Kz 81 mit dem Zahlungseingang.
 
-Bist du in den Einstellungen als Kleinunternehmer eingetragen, bekommen neue Rechnungen automatisch „Kleinunternehmer: ohne Umsatzsteuer (§ 19 UStG)“. Du kannst stattdessen die eigene Befreiung nach § 4 Nr. 14 Buchst. a oder Nr. 21 wählen oder einen geklärten ausländischen Leistungsort angeben. Die innergemeinschaftliche Lieferung wird damit nicht freigegeben ([§ 19 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)). Alle Positionen bleiben ohne deutschen Steuerausweis. Angebote, Serienvorlagen und die API verwenden dieselben Regeln.
+Bist du in den Einstellungen als Kleinunternehmer eingetragen, bekommen neue Rechnungen automatisch „Kleinunternehmer: ohne Umsatzsteuer“. Du kannst stattdessen die eigene Befreiung nach § 4 Nr. 14 Buchst. a oder Nr. 21 wählen oder einen geklärten ausländischen Leistungsort angeben. Die innergemeinschaftliche Lieferung wird damit nicht freigegeben ([§ 19 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)). Alle Positionen bleiben ohne deutschen Steuerausweis. Angebote, Serienvorlagen und die API verwenden dieselben Regeln.
 
 Für die sonstige EU-Leistung bestätigst du das Land des tatsächlichen Leistungsorts und dass keine ausländische Umsatzsteuer auszuweisen ist. Die Kundenanschrift allein bestimmt den Leistungsort nicht ([§ 3a UStG](https://www.gesetze-im-internet.de/ustg_1980/__3a.html)); eine Privatperson im EU-Ausland wird dadurch kein Reverse-Charge-Kunde. Ausländische Steuersätze, OSS und das besondere EU-Kleinunternehmerverfahren nach § 19a werden hier nicht abgewickelt.
 
@@ -242,7 +242,7 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 
 - Firmendaten: Name, Anschrift, E-Mail-Adresse, IBAN, Steuernummer oder USt-IdNr.
 - Kunde gewählt, mindestens eine Position, keine Position mit Betrag 0.
-- Umsatzsteuer: Außer bei „Regulär“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Monaco zählt dabei zu Frankreich ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Dienstleistung ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfreie Leistung“ braucht die Befreiungsvorschrift.
+- Umsatzsteuer: Außer bei „Regulär“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Monaco zählt dabei zu Frankreich ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Dienstleistung oder Nutzungsrecht ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfreie Leistung“ braucht die Befreiungsvorschrift.
 - Kleinunternehmer: Die gewählte Umsatzsteuer-Behandlung muss zum Firmenstatus passen, siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung).
 - Bei Kleinunternehmer-Rechnungen mit Rechnungsdatum bis Ende des laufenden Jahres fragt Haben vor dem Festschreiben nach, wenn die vollständige Zahlung im laufenden Jahr die Jahresgrenze überschreiten könnte oder der erfasste Vorjahresumsatz über 25.000 € liegt. Bei Abbruch bleibt der Entwurf gespeichert. Die automatische Festschreibung einer wiederkehrenden Rechnung braucht dann eine manuelle Bestätigung am Entwurf. Mehr zur Berechnung unter [Kleinunternehmer](einrichtung.md#kleinunternehmer).
 - Eine Rechnung muss einen positiven Gesamtbetrag haben, eine Rechnungskorrektur einen negativen.
@@ -322,9 +322,9 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 
 | Umsatzsteuer | Konto SKR03 | Konto SKR04 | Steuerschlüssel |
 | --- | --- | --- | --- |
-| Dienstleistung an einen Kunden mit USt-IdNr. im EU-Ausland (Reverse Charge) | 8336 | 4336 | `RC` (Kz 21) |
-| Dienstleistung ins Nicht-EU-Ausland | 8338 | 4338 | `Drittland` (Kz 45) |
-| Warenlieferung an einen Kunden mit USt-IdNr. im EU-Ausland (innergemeinschaftliche Lieferung) | 8125 | 4125 | `IGL` (Kz 41) |
+| Dienstleistung oder Nutzungsrecht in die EU (Reverse Charge) | 8336 | 4336 | `RC` (Kz 21) |
+| Dienstleistung oder Nutzungsrecht ins Nicht-EU-Ausland | 8338 | 4338 | `Drittland` (Kz 45) |
+| Warenlieferung in die EU (innergemeinschaftliche Lieferung) | 8125 | 4125 | `IGL` (Kz 41) |
 | Warenlieferung ins Nicht-EU-Ausland (Ausfuhrlieferung) | 8120 | 4120 | `Ausfuhr` (Kz 43) |
 | Steuerfreie Leistung (§ 4 UStG) | 8100 | 4100 | `Steuerfrei` (Kz 48) |
 | Kleinunternehmer (§ 19 UStG) | 8192 | 4184 | `KU` (keine Kennzahl) |
