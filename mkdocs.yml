@@ -65,6 +65,7 @@ nav:
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md
       - Andere Banken: bank-spaltenzuordnung.md
+      - Abruf über FinTS: bank-fints.md
       - Zahlungsdienstleister: bank-zahlungsdienstleister.md
       - Steuerzahlungen und Darlehen: bank-steuern-darlehen.md
   - Steuern und Auswertungen:

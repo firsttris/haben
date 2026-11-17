@@ -1,5 +1,5 @@
 {
-  "id": "1ee5a5f1-92c8-40f7-8bef-508391550bcc",
+  "id": "26108174-b140-4eb2-b745-67f7b0c54bb9",
   "prevId": "5db71dc2-9d71-422d-8317-1332600b9b7d",
   "version": "7",
   "dialect": "postgresql",
@@ -6535,106 +6535,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.etsy_connections": {
-      "name": "etsy_connections",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "'etsy'"
-        },
-        "keystring": {
-          "name": "keystring",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "shop_id": {
-          "name": "shop_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "shop_name": {
-          "name": "shop_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "ciphertext": {
-          "name": "ciphertext",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fetch_from": {
-          "name": "fetch_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "abruf_start": {
-          "name": "abruf_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sammelzeilen": {
-          "name": "sammelzeilen",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "rhythmus": {
-          "name": "rhythmus",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'taeglich'"
-        },
-        "last_sync_at": {
-          "name": "last_sync_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "etsy_connections_id": {
-          "name": "etsy_connections_id",
-          "value": "\"etsy_connections\".\"id\" = 'etsy'"
-        },
-        "etsy_connections_rhythmus": {
-          "name": "etsy_connections_rhythmus",
-          "value": "\"etsy_connections\".\"rhythmus\" in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.exchange_rates": {
       "name": "exchange_rates",
       "schema": "",
@@ -7206,6 +7106,107 @@
           "with": {}
         }
       },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fints_connections": {
+      "name": "fints_connections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "bank_name": {
+          "name": "bank_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_code": {
+          "name": "bank_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "login": {
+          "name": "login",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tan_method": {
+          "name": "tan_method",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tan_medium": {
+          "name": "tan_medium",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'aktiv'"
+        },
+        "accounts": {
+          "name": "accounts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

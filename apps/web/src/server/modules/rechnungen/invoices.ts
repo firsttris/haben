@@ -45,7 +45,7 @@ import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, 
 import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
+import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, type Company, type RateFields } from "../stammdaten/index.ts";
 import {
   ansprechpartnerSnapshot,
   type Contact,
@@ -58,6 +58,7 @@ import {
 import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "./zahlungsstand.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
@@ -1024,11 +1025,9 @@ export async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
   return ids.map((id) => rows.find((r) => r.id === id)!).map((r) => ({ number: r.number ?? "", issueDate: r.issueDate }));
 }
 
-const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
+export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
-const VERSTEUERUNG = { soll: "Soll-Versteuerung", ist: "Ist-Versteuerung" } as const;
-
 export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<string[]> {
   const data = await getInvoice(id, q);
   if (!data) return ["Rechnung nicht gefunden"];
@@ -1037,18 +1036,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   const issues = sellerIssues(company, invoice.kind === "rechnung" && invoice.paymentMethod !== "bereits_bezahlt").map((issue) => `Firmendaten: ${issue}`);
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
-  // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
-  // (versteuerungForYear). Nach einem Wechsel zum Jahreswechsel stünde die Steuer einer Rechnung im Vorjahr sonst
-  // zweimal in der Anmeldung (Soll → Ist) oder gar nicht (Ist → Soll).
-  if (!company.kleinunternehmer) {
-    const year = Number(invoice.issueDate.slice(0, 4));
-    const versteuerung = await versteuerungForYear(year, q);
-    if (versteuerung !== company.versteuerung) {
-      issues.push(
-        `Das Jahr ${year} ist nach ${VERSTEUERUNG[versteuerung]} gebucht, eingestellt ist jetzt ${VERSTEUERUNG[company.versteuerung]}; bitte ein Rechnungsdatum im laufenden Jahr wählen`,
-      );
-    }
-  }
+  issues.push(...(await versteuerungIssues(company, invoice.issueDate, q)));
   if (!contact) issues.push("Kunde fehlt");
   if (invoice.advanceType === "teilleistung") {
     if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");

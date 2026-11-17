@@ -132,7 +132,7 @@ export function kstInput(year: number, g: Bereit, test: boolean, herstellerId: s
 }
 
 export function gewstInput(year: number, g: Bereit, test: boolean, herstellerId: string): GewStXmlInput {
-  const h = { zinsen: 0, beweglich: 0, unbeweglich: 0, rechte: 0 };
+  const h = { zinsen: 0, beweglich: 0, elektro: 0, unbeweglich: 0, rechte: 0 };
   for (const z of g.steuern.gewstHinzurechnungen) h[z.art] += z.brutto;
   return {
     ...common(year, g.company, test, herstellerId),

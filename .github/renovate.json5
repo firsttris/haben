@@ -2,7 +2,7 @@
 // dessen, worauf Haben aufbaut, dazu das Issue „Dependency Dashboard“ mit allem, was offen ist.
 // Eigene Pull Requests: KoSIT-Validator und XRechnung-Konfiguration (CI-Job kosit), Bun (Images,
 // package.json, Screenshots, README), die Wolfi-Basis des App-Images (wöchentlich), PostgreSQL
-// (Datenbank, Backup-Image, CI, Doku), Caddy und restic.
+// (Datenbank, Backup-Image, CI, Doku), lib-fints, Caddy und restic.
 // Nicht über Renovate: ERiC (download.elster.de hat keine Liste, die Renovate lesen könnte;
 // DEFAULT_ERIC_VERSION in packages/elster/src/install.ts hebt man von Hand nach einer
 // Testübermittlung) und Habens eigene Images. Neue ERiC-Versionen, Lohnsteuer-PAP, Sozialversicherungswerte,
@@ -145,6 +145,19 @@
       ],
       schedule: ["at any time"],
       automerge: false,
+    },
+    {
+      // lib-fints (Kontoabruf über FinTS, #654): fest auf eine Version, kein Merge von selbst. packages/import/src/fints
+      // hängt an Interna der Bibliothek, die keine Version zusagt: an der privaten Methode startCustomerOrderInteraction
+      // (lesefehler.ts), am Text ihres Logs (log.ts) und an ihrer Regel für das Jahr des Buchungstags aus MT940 (map.ts).
+      matchPackageNames: ["lib-fints"],
+      groupName: "lib-fints",
+      prBodyNotes: [
+        "Vor dem Mergen: Änderungen von lib-fints gegen `packages/import/src/fints/lesefehler.ts` (private Methode `startCustomerOrderInteraction`, `console.warn` beim Lesen von MT940 und CAMT), `log.ts` (`console.error` mit der Antwort der Bank in `httpClient`) und `map.ts` (Jahr des Buchungstags in `mt940parser`) lesen. Meldet lib-fints Lesefehler selbst oder loggt die Antwort nur noch im Debug-Modus, fällt die jeweilige Datei weg. Die Tests in `packages/import/src/fints` laufen gegen die nachgebaute Bank; eine echte Bank prüfen sie nicht.",
+      ],
+      schedule: ["at any time"],
+      automerge: false,
+      dependencyDashboardApproval: false,
     },
     {
       // Der Reverse Proxy der mitgelieferten Einrichtung (deploy/compose.yml, Quadlet, Doku)

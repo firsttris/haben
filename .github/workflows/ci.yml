@@ -141,8 +141,9 @@ jobs:
           POSTGRES_USER: haben
           POSTGRES_PASSWORD: haben
           POSTGRES_DB: haben_e2e
-          # Zehn Appserver samt Runtimeproben brauchen mehr Verbindungen als das Standardlimit von 100.
-          POSTGRES_INITDB_ARGS: "--set=max_connections=300"
+          # Alle Server starten in jedem Teil (e2e/durchlaeufe.ts), je bis zu elf Verbindungen (Pool und Sperre),
+          # in einem Teil dazu die Server für Beenden und verzögerte Anfragen; Standard sind 100.
+          POSTGRES_INITDB_ARGS: "--set=max_connections=400"
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U haben -d haben_e2e"
