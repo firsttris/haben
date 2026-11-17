@@ -30,7 +30,7 @@ export interface EtsyLedgerBatchInput {
   orderFor?: (referenceId: string) => string | undefined;
 }
 
-/** Art im Vertrag; Steuer des Käufers, Karteneinzug und Verrechnung sind weder Erlös noch Gebühr noch Auszahlung */
+/** Art im Vertrag; Steuer des Käufers, Karteneinzug und Ausgleich sind weder Erlös noch Gebühr noch Auszahlung */
 const KIND: Record<string, MovementKind> = {
   PAYMENT_GROSS: "payment",
   REFUND_GROSS: "refund",

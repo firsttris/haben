@@ -30,7 +30,8 @@ import type { ParsedStatement } from "./types.ts";
  *   Gutschriften jeweils in ihrer Art. Jede Zeile beginnt mit „Gebühr“, damit der Bankabgleich sie der Sammelrechnung
  *   zuordnen kann.
  * - Auszahlung (DISBURSE2) als eigener Umsatz: Geldtransit, kein Erlös.
- * - Karteneinzug (billing_payment) und Verrechnung (RECOUP) bleiben einzeln und werden nicht zu Gebühren gerechnet.
+ * - Karteneinzug (billing_payment) und Ausgleich (RECOUP) bleiben einzeln und werden nicht zu Gebühren gerechnet; „Ausgleich“
+ *   heißt die Zeile auch in der Monatsabrechnung (#1313), „Verrechnung“ meint in Haben den Ausgleich offener Posten.
  *
  * Die Bestellnummer steht im Verlauf nur bei der Steuerzeile direkt (sales_tax, reference_id ist die Bestellung).
  * Verkauf und Erstattung tragen die Zahlungs- bzw. Erstattungsnummer; die Bestellung dazu liefert
@@ -69,7 +70,7 @@ type Kind =
   | "offsiteads"
   | "auszahlung"
   | "karteneinzug"
-  | "verrechnung";
+  | "ausgleich";
 
 /** Zuordnung der Ledger-Typen; geprüft gegen die Gebührenrechnungen 07/2022 bis 04/2026 */
 const KINDS: Record<string, Kind> = {
@@ -94,7 +95,7 @@ const KINDS: Record<string, Kind> = {
   offsite_ads_fee: "offsiteads",
   DISBURSE2: "auszahlung",
   billing_payment: "karteneinzug",
-  RECOUP: "verrechnung",
+  RECOUP: "ausgleich",
 };
 
 /** Ob Haben den Typ einer Verlaufszeile kennt (Zuordnung oben); unbekannte kommen einzeln mit Hinweis */
@@ -181,8 +182,8 @@ function purposeOf(kind: Kind, entry: EtsyLedgerEntry, tag: string, order: strin
       return `Auszahlung · Etsy ${tag}`;
     case "karteneinzug":
       return `Karteneinzug · Etsy ${tag}`;
-    case "verrechnung":
-      return `Verrechnung · Etsy ${tag}`;
+    case "ausgleich":
+      return `Ausgleich · Etsy ${tag}`;
     default:
       return `Gebühr · Etsy ${entry.ledger_type} ${tag}`;
   }
@@ -199,8 +200,8 @@ function typeOf(kind: Kind): string {
       return "Auszahlung";
     case "karteneinzug":
       return "Karteneinzug";
-    case "verrechnung":
-      return "Verrechnung";
+    case "ausgleich":
+      return "Ausgleich";
     case "etsyads":
     case "offsiteads":
       return "Werbung";
