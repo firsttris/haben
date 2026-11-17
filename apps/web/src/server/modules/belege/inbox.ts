@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, or, sql } from "drizzle-orm";
 import { simpleParser, type Attachment } from "mailparser";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -149,24 +149,25 @@ const isRetryable = (row: { skipped: string[]; documentIds: string[] }) => row.d
 const keyOf = (messageId: string) => messageId.slice(0, 998);
 /** Schlüssel für das Nachholen einer Mail, deren erster Versuch fehlschlug */
 const retryKey = (messageId: string, n: number) => `${messageId.slice(0, 970)}${n === 1 ? " (nachgeholt)" : ` (nachgeholt ${n})`}`;
-/** Der Schlüssel und bis zu fünf Nachhol-Schlüssel einer Mail */
-const keysOf = (base: string) => [base, ...[1, 2, 3, 4, 5].map((n) => retryKey(base, n))];
 
 /**
  * Der Schlüssel, unter dem diese Mail jetzt ins Abrufprotokoll kommt: der erste freie. null, wenn sie schon
- * abgelegt ist oder alle Schlüssel vergeben sind. Verarbeitung und Fehlerprotokoll nehmen denselben Schlüssel,
- * sonst verschluckt `onConflictDoNothing` den Eintrag eines Fehlschlags nach einem Nachholen.
+ * abgelegt ist. Verarbeitung und Fehlerprotokoll nehmen denselben Schlüssel, sonst verschluckt
+ * `onConflictDoNothing` den Eintrag eines Fehlschlags nach einem Nachholen.
  */
 async function freeKey(base: string): Promise<string | null> {
   const earlier = await db
     .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
     .from(schema.inboxMessages)
-    .where(inArray(schema.inboxMessages.messageId, keysOf(base)));
+    .where(or(eq(schema.inboxMessages.messageId, base), sql`starts_with(${schema.inboxMessages.messageId}, ${retryKey(base, 1).slice(0, -1)})`));
   // inbox_messages ist nur zu ergänzen: der Eintrag eines Fehlschlags bleibt stehen,
   // und wer die Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
   if (earlier.some((row) => !isRetryable(row))) return null;
   const taken = new Set(earlier.map((row) => row.messageId));
-  return keysOf(base).find((key) => !taken.has(key)) ?? null;
+  if (!taken.has(base)) return base;
+  let n = 1;
+  while (taken.has(retryKey(base, n))) n++;
+  return retryKey(base, n);
 }
 
 /** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
