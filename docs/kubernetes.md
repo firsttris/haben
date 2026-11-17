@@ -101,7 +101,7 @@ metadata:
   namespace: haben
 spec:
   interval: 30m
-  timeout: 30m                      # so lange wartet das Chart auf die Datenbank, etwa beim Upgrade von PostgreSQL
+  timeout: 45m                      # Datenbank bis 30 min (etwa Upgrade von PostgreSQL), danach App bis 15 min
   chart:
     spec:
       chart: ./deploy/helm
@@ -126,9 +126,13 @@ spec:
 ```
 
 Ein Update geht wie unter [Updates](#updates), statt der Befehle im Klon mit einem Commit, der `ref.tag` und
-`image.tag` anhebt. Zum Zurücknehmen stehen `ref.tag`, `image.tag` und `postgresql.tag` im selben Commit wie
-`restore.enabled: true`, sonst startet die alte Version mit der schon migrierten Datenbank; nach `restore.sh` folgt ein
-Commit mit `restore.enabled: false`.
+`image.tag` anhebt. Zum Zurücknehmen stehen `ref.tag` und `image.tag` auf der vorigen Version und `postgresql.tag` auf
+der neuen (Schritt 2 unter [Updates](#updates)) im selben Commit wie `restore.enabled: true`, sonst startet die alte
+Version mit der schon migrierten Datenbank; nach `restore.sh` folgt ein Commit mit `restore.enabled: false`.
+
+Flux wendet einen solchen Commit meist zweimal an: zuerst die Werte mit dem bisherigen Chart, dann das Chart des Tags.
+`restore.sh` startest du deshalb erst, wenn `flux get helmrelease -n haben` als Revision `0.1.0+` mit dem Commit des
+vorigen Tags zeigt.
 
 ## Eigene Datenbank
 
