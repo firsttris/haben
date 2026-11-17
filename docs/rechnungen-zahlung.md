@@ -44,9 +44,9 @@ Das PDF nennt die erfolgte Zahlung und enthält weder Zahlungsfrist noch Bankver
 
 ## Lastschrift
 
-Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](kontakte.md#sepa-lastschriftmandate).
+Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](kontakte.md#sepa-lastschriftmandate), seine Einzugsermächtigung.
 
-Im Rechnungseditor stellst du die **Zahlungsart** auf **SEPA-Lastschrift**; das jüngste gültige Mandat des Kunden ist vorgewählt. Eingezogen wird am Fälligkeitstag, also Rechnungsdatum plus Zahlungsziel.
+Im Rechnungseditor stellst du die **Zahlungsart** auf **SEPA-Lastschrift**; das jüngste gültige Mandat des Kunden ist vorgewählt. Solange noch keins gewählt ist, erklärt ein Hinweis unter dem Feld das Mandat; hat der Kunde keins, führt ein Link zu den Mandaten beim Kontakt (öffnet in einem neuen Tab, der Entwurf bleibt stehen). Eingezogen wird am Fälligkeitstag, also Rechnungsdatum plus Zahlungsziel.
 
 **Hinweis auf der Rechnung.** Statt der Bitte um Überweisung steht unter der Summe: „Den Betrag von … ziehen wir am … per SEPA-Lastschrift von Ihrem Konto … ein (Mandatsreferenz …, Gläubiger-ID …).“ Das ist die Vorabankündigung (Pre-notification) mit Betrag und Tag, die das Rulebook vor jedem Einzug verlangt; sie darf Teil der Rechnung sein ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) v1.2, PT-04.02; [Clarification Paper](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf) EPC132-17 v5.1, Kap. 2.6). Ohne andere Absprache mit dem Kunden muss sie spätestens 14 Kalendertage vor dem Einzug bei ihm sein (Kap. 4.3.4); ein kürzeres Zahlungsziel setzt eine solche Absprache voraus, etwa im Mandat. Einen GiroCode gibt es dann nicht, damit der Kunde nicht doppelt zahlt.
 
