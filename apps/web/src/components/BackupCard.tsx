@@ -55,7 +55,7 @@ export function BackupCard({ status }: { status: Status }) {
                 )}
               </>
             ) : (
-              "Unbekannt: Das Backup-Image ist älter als die App"
+              "Unbekannt: Das nächste Backup mit aktuellem Backup-Image trägt ihn ein"
             )}
           </dd>
           <dt className="muted">Letztes Backup</dt>

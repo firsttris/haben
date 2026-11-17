@@ -31,8 +31,9 @@ describe("BackupCard: Speicherort (#1331)", () => {
     expect(html).not.toContain("Zweites System einrichten");
   });
 
-  it("ohne eingetragenes Ziel: unbekannt", () => {
-    expect(render(ok)).toContain("Unbekannt: Das Backup-Image ist älter als die App");
+  // Bis zum ersten Lauf nach dem Update mit der Spalte target ist auch ein aktuelles Backup-Image noch ohne Ziel
+  it("ohne eingetragenes Ziel: unbekannt bis zum nächsten Backup", () => {
+    expect(render(ok)).toContain("Unbekannt: Das nächste Backup mit aktuellem Backup-Image trägt ihn ein");
   });
 
   it("ohne jeden Lauf keine Zeile Speicherort", () => {
