@@ -11,7 +11,8 @@ Das Helm-Chart [`deploy/helm`](https://github.com/firsttris/haben/tree/main/depl
 [Docker Compose](installation.md#docker-compose): die App, daneben im selben Pod das tägliche Backup, und auf Wunsch
 PostgreSQL als StatefulSet. Haben läuft immer mit genau einem Pod; ein Update beendet ihn, bevor der neue startet, weil
 die Migrationen beim Start nur vorwärts gehen. Jede Einstellung ist in
-[`values.yaml`](https://github.com/firsttris/haben/blob/main/deploy/helm/values.yaml) erklärt.
+[`values.yaml`](https://github.com/firsttris/haben/blob/main/deploy/helm/values.yaml) erklärt, für deine Version im Klon
+unter `haben/deploy/helm/values.yaml`.
 
 ## Installieren
 
@@ -202,8 +203,10 @@ helm upgrade haben ./haben/deploy/helm -n haben -f werte.yaml
 
 Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
 
-Zum [Zurücknehmen](installation-backup.md#update-zurücknehmen) holst du im Klon die vorige Version auf demselben Weg
-(`fetch` und `checkout` mit `v0.10.0`) und setzt `image.tag` auf die vorige Version und `postgresql.tag` auf die neue,
-für Datenbank und Backup: Die Datenbank kann eine Anhebung auf eine neue PostgreSQL-Version nicht rückgängig machen,
-und das Backup braucht deren `pg_dump`. Dann spielst du wie unter [Wiederherstellen](#wiederherstellen) den Stand von
-vor dem Update ein.
+Zum [Zurücknehmen](installation-backup.md#update-zurücknehmen):
+
+1. Im Klon die vorige Version auf demselben Weg holen (`fetch` und `checkout` mit `v0.10.0`).
+2. In `werte.yaml` `image.tag` auf die vorige Version setzen und `postgresql.tag` auf die neue, für Datenbank und
+   Backup: Die Datenbank kann eine Anhebung auf eine neue PostgreSQL-Version nicht rückgängig machen, und das Backup
+   braucht deren `pg_dump`.
+3. Den Stand von vor dem Update einspielen wie unter [Wiederherstellen](#wiederherstellen).
