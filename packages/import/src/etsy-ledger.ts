@@ -22,16 +22,15 @@ import type { ParsedStatement } from "./types.ts";
  * - Verkauf (PAYMENT_GROSS) und Erstattung (REFUND_GROSS) einzeln, mit der Bestellnummer im Zweck.
  * - Die Steuer des Käufers (sales_tax, etwa US Sales Tax) zieht Etsy ein und führt sie ab; sie ist weder Erlös noch
  *   Gebühr. Wie beim CSV-Import wird sie mit dem Verkauf bzw. der Erstattung derselben Bestellung am selben Tag verrechnet
- *   (settleTax), damit der Verkauf mit dem Betrag der Rechnung ankommt. Ohne genau einen solchen Partner bleibt sie mit
- *   Bestellnummer einzeln stehen.
- *   Im Zweck des Verkaufs steht dann, welche Steuer Etsy abgeführt hat.
+ *   (settleTax), damit der Verkauf mit dem Betrag der Rechnung ankommt; im Zweck des Verkaufs steht dann, welche Steuer
+ *   Etsy abgeführt hat. Ohne genau einen solchen Partner bleibt sie mit Bestellnummer einzeln stehen.
  * - Gebühren und Werbung je Monat und Art zu je einer Zeile gebündelt, am letzten Tag des Monats: dieselben Arten wie die
  *   Positionen der Gebührenrechnung (Listing, Renew Expired, Renew Sold, Transaction, Processing, Etsy Ads, Offsite Ads),
  *   Gutschriften jeweils in ihrer Art. Jede Zeile beginnt mit „Gebühr“, damit der Bankabgleich sie der Sammelrechnung
  *   zuordnen kann.
  * - Auszahlung (DISBURSE2) als eigener Umsatz: Geldtransit, kein Erlös.
  * - Karteneinzug (billing_payment) und Ausgleich (RECOUP) bleiben einzeln und werden nicht zu Gebühren gerechnet; „Ausgleich“
- *   heißt die Zeile auch in der Monatsabrechnung (#1313), „Verrechnung“ meint in Haben den Ausgleich offener Posten.
+ *   wie in der Monatsabrechnung nach #1364, weil „Verrechnung“ in Haben den Ausgleich offener Posten meint.
  *
  * Die Bestellnummer steht im Verlauf nur bei der Steuerzeile direkt (sales_tax, reference_id ist die Bestellung).
  * Verkauf und Erstattung tragen die Zahlungs- bzw. Erstattungsnummer; die Bestellung dazu liefert
@@ -189,7 +188,7 @@ function purposeOf(kind: Kind, entry: EtsyLedgerEntry, tag: string, order: strin
   }
 }
 
-/** Bezeichnung des Umsatzes, wie Haben sie in der Umsatzliste zeigt; Verkauf, Erstattung und Steuer wie in etsy.ts */
+/** Umsatztyp (im Jahresexport Spalte „Umsatztyp“); Verkauf, Erstattung und Steuer wie in etsy.ts */
 function typeOf(kind: Kind): string {
   switch (kind) {
     case "verkauf":

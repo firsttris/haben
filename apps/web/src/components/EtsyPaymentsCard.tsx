@@ -190,10 +190,13 @@ function EtsyStatus({ data }: { data: Data }) {
   );
 }
 
-/** Wie oft der Zeitplan abruft; Gebühren kommen davon unabhängig einmal im Monat */
+/** Wie oft der Zeitplan abruft; gebündelte Gebühren kommen davon unabhängig einmal im Monat */
 function RhythmusFeld({ wert, onChange }: { wert: Data["rhythmus"]; onChange: (wert: Data["rhythmus"]) => void }) {
   return (
-    <Field label="Automatischer Abruf" hint="Verkäufe und Erstattungen kommen mit jedem Abruf; Gebühren und Werbung einmal im Monat ab dem 5. als Sammelzeile">
+    <Field
+      label="Automatischer Abruf"
+      hint="Verkäufe und Erstattungen kommen mit jedem Abruf; mit „Gebühren bündeln“ Gebühren und Werbung einmal im Monat ab dem 5. als Sammelzeile"
+    >
       {(control) => (
         <select {...control} name="rhythmus" value={wert} onChange={(event) => onChange(event.target.value as Data["rhythmus"])}>
           {Object.entries(RHYTHMUS_LABELS).map(([schluessel, label]) => (

@@ -4404,7 +4404,7 @@ export const journalUmstellung = pgTable("journal_umstellung", {
  * Zugang zum Zahlungsverlauf von Etsy Payments über die Open API v3 (Einstellungen › Bank). Genau eine Zeile, weil
  * Haben einen Shop je Installation anbindet. Das gemeinsame Geheimnis der Etsy-App und die Zugangs- und
  * Erneuerungstoken liegen verschlüsselt in ciphertext; der App-Schlüssel (keystring) ist nicht geheim. Wird die
- * Verbindung getrennt, bleibt nur der Schlüssel stehen, damit sie ohne neue Eingabe wieder aufgenommen werden kann.
+ * Verbindung getrennt, bleiben Schlüssel und Geheimnis stehen, damit sie ohne neue Eingabe wieder aufgenommen werden kann.
  */
 export const etsyConnections = pgTable(
   "etsy_connections",

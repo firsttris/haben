@@ -47,7 +47,7 @@ export function naechsterAbrufStart(tage: string[], fetchFrom: string, gebuehren
   return [kandidat, fetchFrom].sort().at(-1)!;
 }
 
-/** Wie oft der Zeitplan den Verlauf holt; Gebühren und Werbung kommen unabhängig davon einmal im Monat als Sammelzeile */
+/** Wie oft der Zeitplan den Verlauf holt; mit „Gebühren bündeln“ kommen Gebühren und Werbung unabhängig davon einmal im Monat als Sammelzeile */
 export const ETSY_RHYTHMEN = ["stuendlich", "taeglich", "woechentlich", "monatlich"] as const;
 export type EtsyRhythmus = (typeof ETSY_RHYTHMEN)[number];
 

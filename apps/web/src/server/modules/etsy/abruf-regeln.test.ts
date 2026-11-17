@@ -77,9 +77,7 @@ describe("Regeln des Etsy-Abrufs", () => {
       ["3", "US"],
       ["4", "FR"],
     ]);
-    expect(laenderHinweis(["1", "2", "3", "4", "5"], laender)).toBe(
-      "Bestellungen nach Land: 1 Deutschland, 2 USA, 1 anderes Land, 1 ohne Land.",
-    );
+    expect(laenderHinweis(["1", "2", "3", "4", "5"], laender)).toBe("Bestellungen nach Land: 1 Deutschland, 2 USA, 1 anderes Land, 1 ohne Land.");
     expect(laenderHinweis([], laender)).toBeNull();
   });
 });
