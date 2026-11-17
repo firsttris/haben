@@ -4,8 +4,9 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
+import { storeBatch } from "./import-batch.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
-import { vertragHinweise } from "./vertrag-abruf.ts";
+import { abrufNachVertrag } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -287,6 +288,7 @@ export async function completeConnection(
       accounts.push({
         uid: account.uid,
         iban,
+        ...(account.identification_hash ? { identificationHash: account.identification_hash } : {}),
         name: bankAccount.name,
         bankAccountId: bankAccount.id,
         syncedTo: previous?.syncedTo ?? null,
@@ -389,9 +391,12 @@ export async function syncStart(
   return firstSyncStart(latest?.date ?? null, account.fetchFrom, today);
 }
 
+/** Hinweis, wenn die Bank keine Kennung des Kontos nennt: dann gilt der Weg ohne Importvertrag */
+export const OHNE_KONTOKENNUNG = "Die Bank nennt keine Kennung des Kontos (identification_hash): gespeichert wie bisher, ohne Importvertrag (#306).";
+
 export interface SyncResult {
   added: number;
-  /** Je Konto mit den Hinweisen aus dem Importvertrag (#306); die stehen nicht im Importprotokoll */
+  /** Je Konto mit den Hinweisen aus dem Importvertrag (#306), die nicht im Importprotokoll stehen */
   accounts: (ImportResult & { iban: string; vertragHinweise: string[] })[];
   error: string | null;
 }
@@ -418,6 +423,7 @@ export async function syncConnection(actor: string, connectionId: string, today 
   const excluded = new Set(
     (await db.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(isNotNull(schema.bankAccounts.excludedAt))).map((r) => r.id),
   );
+  const konflikte: string[] = [];
   try {
     for (const [i, account] of accounts.entries()) {
       if (excluded.has(account.bankAccountId)) continue;
@@ -441,29 +447,47 @@ export async function syncConnection(actor: string, connectionId: string, today 
         dateFrom,
         dateTo: today,
       });
-      // Importvertrag (#306, Schritt 2): nur im Ergebnis des Abrufs, nicht in bank_imports (nur anhängbar, im Datenexport)
-      const hinweise = vertragHinweise({
-        iban: account.iban,
+      const source = { filename: `Abruf ${connection.aspspName} ${today}`, sha256: sha256Of(Buffer.from(JSON.stringify(transactions), "utf8")) };
+      // Quellenbindung (#306): Ältere Verbindungen haben den identification_hash noch nicht gespeichert
+      const identificationHash =
+        account.identificationHash ??
+        (await api
+          .accountDetails(account.uid)
+          .then((d) => d.identification_hash || undefined)
+          .catch(() => undefined));
+      if (!identificationHash) {
+        const stored = await withActor(actor, (tx) => storeStatement(tx, statement, source, account.bankAccountId));
+        result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: [OHNE_KONTOKENNUNG] });
+        result.added += stored.added;
+        accounts[i] = { ...account, syncedTo: today };
+        continue;
+      }
+      const { input, hinweise } = abrufNachVertrag({
+        identificationHash,
         transactions,
         balances,
+        statement,
         dateFrom,
         dateTo: today,
         now: new Date(),
         fetchId: randomBytes(8).toString("hex"),
+        source,
       });
-      const stored = await withActor(actor, (tx) =>
-        storeStatement(
-          tx,
-          statement,
-          { filename: `Abruf ${connection.aspspName} ${today}`, sha256: sha256Of(Buffer.from(JSON.stringify(transactions), "utf8")) },
-          account.bankAccountId,
-        ),
-      );
-      result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: hinweise });
-      result.added += stored.added;
-      accounts[i] = { ...account, syncedTo: today };
+      try {
+        const stored = await withActor(actor, (tx) => storeBatch(tx, input, account.bankAccountId));
+        result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: [...hinweise, ...(stored.reason ? [stored.reason] : [])] });
+        result.added += stored.added;
+        // Vollständig wie bisher bis heute; sonst bis zum Stand der Quelle, den vorgemerkte und nicht eingeordnete Umsätze anhalten
+        accounts[i] = { ...account, identificationHash, syncedTo: stored.complete ? today : (stored.checkpoint ?? account.syncedTo) };
+      } catch (error) {
+        // Ein Konflikt hält nur dieses Konto an; gespeichert ist von diesem Abruf nichts
+        if (!(error instanceof BankError)) throw error;
+        konflikte.push(`${account.name}: ${error.message}`);
+        accounts[i] = { ...account, identificationHash };
+      }
     }
-    await update({ accounts, lastSyncAt: new Date(), lastError: null });
+    await update({ accounts, lastSyncAt: new Date(), lastError: konflikte.length > 0 ? konflikte.join(" ") : null });
+    if (konflikte.length > 0) result.error = konflikte.join(" ");
   } catch (error) {
     const message = `Abruf fehlgeschlagen: ${apiMessage(error)}`;
     const expired = error instanceof EnableBankingApiError && (error.status === 401 || error.status === 403);

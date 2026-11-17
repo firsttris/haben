@@ -1,12 +1,11 @@
-import { type EbBalance, type EbTransaction, enableBankingBatch, OHNE_ENTRY_REFERENCE, validateBatch } from "@haben/import";
+import { type EbBalance, type EbTransaction, enableBankingBatch, entryReferenceOf, OHNE_ENTRY_REFERENCE, type ParsedStatement } from "@haben/import";
+import type { StoreBatchInput } from "./import-batch.ts";
 
 /*
- * Schritt 2 aus #306: Jeder Abruf über Enable Banking läuft zusätzlich durch den Importvertrag. Die Prüfung meldet nur,
- * gespeichert wird weiter über `enableBankingStatement` und `storeStatement` wie bisher; verbindlich wird sie mit der
- * Quellenbindung in Schritt 3. Bis dahin ist die Kontokennung die IBAN, über die Haben das Konto heute schon zuordnet:
- * Den `identification_hash` speichert die Verbindung noch nicht (`BankConnectionAccount`), und mit dem Schlüssel wird
- * hier nichts gespeichert. Ab Schritt 3 gilt der Hash (`importvertrag/types.ts`), weil `entry_reference` nur je Hash
- * eindeutig ist und eine IBAN auch ein Unterkonto in Fremdwährung abdecken kann.
+ * Ein Abruf über Enable Banking als Lieferung des Importvertrags (#306, Schritt 3). Kontokennung ist der
+ * `identification_hash`, weil `entry_reference` nur je Hash eindeutig ist und eine IBAN auch ein Unterkonto in
+ * Fremdwährung abdecken kann. Gebuchte Umsätze ohne `entry_reference` speichert Haben wie bisher und erkennt sie am Inhalt
+ * (in #306 abgestimmt); sie stehen deshalb nicht unter `unsupported` und halten den Zeitraum nicht offen.
  */
 
 /** Zeitpunkt mit Uhrzeit und Offset in Deutschland, damit sein Tag zum abgerufenen Fenster passt (`today()`) */
@@ -27,33 +26,41 @@ export function berlinTimestamp(now: Date): string {
   return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}:${part("second")}${offset}`;
 }
 
-/** Hinweise für das Ergebnis des Abrufs; was `enableBankingStatement` schon meldet (vorgemerkt, Status), nicht doppelt */
-export function vertragHinweise(abruf: {
-  iban: string;
+/** Lieferung für `storeBatch` und die Hinweise, die nur im Ergebnis des Abrufs stehen */
+export function abrufNachVertrag(abruf: {
+  identificationHash: string;
   transactions: EbTransaction[];
   balances: EbBalance[];
+  statement: ParsedStatement;
   dateFrom: string;
   dateTo: string;
   now: Date;
   fetchId: string;
-}): string[] {
+  source: StoreBatchInput["source"];
+}): { input: StoreBatchInput; hinweise: string[] } {
   const batch = enableBankingBatch({
-    externalAccountId: abruf.iban,
+    externalAccountId: abruf.identificationHash,
     transactions: abruf.transactions,
     balances: abruf.balances,
-    dateFrom: abruf.dateFrom,
+    // Ein Abrufstand nach heute (etwa nach zurückgestellter Uhr) ergäbe ein Fenster, das vor seinem Anfang endet
+    dateFrom: abruf.dateFrom > abruf.dateTo ? abruf.dateTo : abruf.dateFrom,
     dateTo: abruf.dateTo,
     fetchedAt: berlinTimestamp(abruf.now),
     fetchId: abruf.fetchId,
   });
   const ohneReferenz = batch.unsupported.filter((u) => u.reason.includes(OHNE_ENTRY_REFERENCE)).length;
-  const hinweise: string[] = [];
-  if (ohneReferenz > 0) {
-    hinweise.push(
-      `${ohneReferenz} ${ohneReferenz === 1 ? "Umsatz" : "Umsätze"} ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.`,
-    );
-  }
-  const result = validateBatch(batch, { provider: "enablebanking", externalAccountId: abruf.iban, accountKind: "bank" });
-  if (!result.ok) return [...hinweise, `Prüfung nach dem Importvertrag (#306): ${result.problems.join(" ")}`];
-  return [...hinweise, ...result.hints];
+  const hinweise =
+    ohneReferenz > 0
+      ? [`${ohneReferenz} ${ohneReferenz === 1 ? "Umsatz" : "Umsätze"} ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt.`]
+      : [];
+  return {
+    input: {
+      batch: { ...batch, unsupported: batch.unsupported.filter((u) => !u.reason.includes(OHNE_ENTRY_REFERENCE)) },
+      binding: { provider: "enablebanking", externalAccountId: abruf.identificationHash, accountKind: "bank" },
+      statement: abruf.statement,
+      eventOf: entryReferenceOf(abruf.transactions),
+      source: abruf.source,
+    },
+    hinweise,
+  };
 }
