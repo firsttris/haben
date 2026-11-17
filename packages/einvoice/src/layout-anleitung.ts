@@ -75,7 +75,8 @@ export const GERUEST = `\`\`\`typst
 #set text(font: d.font.regular, size: 9.5pt, fill: rgb(d.palette.ink), lang: "de")
 
 #let ecke = (links: left, mitte: center, rechts: right).at(d.look.logoPosition)
-#if d.at("logo", default: none) != none { place(top + ecke, image(d.logo, height: d.look.logoHeight * 1mm)) }
+// „mitte“ meint die Mitte des Blatts: Bei 25 und 20 mm Rand liegt sie 2,5 mm links der Mitte des Satzspiegels
+#if d.at("logo", default: none) != none { place(top + ecke, dx: if ecke == center { -2.5mm } else { 0mm }, image(d.logo, height: d.look.logoHeight * 1mm)) }
 #text(7pt, d.senderLine) \\
 #d.recipient.join("\\n")
 
