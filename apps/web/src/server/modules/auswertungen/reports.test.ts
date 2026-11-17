@@ -261,12 +261,15 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
         await expect(reports.umsatzImMonat("2026-13")).rejects.toThrow(/JJJJ-MM/);
       }, 30_000);
 
-  for (const [kontenrahmen, rechtsform] of [
-    ["SKR03", "einzelunternehmen"],
-    ["SKR04", "gmbh"],
+  for (const [kontenrahmen, rechtsform, versteuerung] of [
+    ["SKR03", "einzelunternehmen", "ist"],
+    ["SKR04", "gmbh", "ist"],
+    ["SKR03", "gmbh", "soll"],
+    ["SKR04", "einzelunternehmen", "soll"],
   ] as const)
-    it(`${kontenrahmen}, ${rechtsform}: Rechnung zählt nach Buchungsdatum, nicht nach Zahlung; das Storno mindert im Monat des Stornos`, async () => {
-      await sql`update company set kontenrahmen = ${kontenrahmen}, rechtsform = ${rechtsform}`;
+    it(`${kontenrahmen}, ${rechtsform}, ${versteuerung}: Rechnung zählt nach Buchungsdatum, nicht nach Zahlung; das Storno mindert im Monat des Stornos`, async () => {
+      // Nach Ist geht die Steuer auf „Umsatzsteuer nicht fällig“, nach Soll auf „Umsatzsteuer“; die Erlöse sind dieselben
+      await sql`update company set kontenrahmen = ${kontenrahmen}, rechtsform = ${rechtsform}, versteuerung = ${versteuerung}`;
       const contact = await contacts.createContact(actor, {
         kundennummer: "",
         name: "Nordwerk Software GmbH",
