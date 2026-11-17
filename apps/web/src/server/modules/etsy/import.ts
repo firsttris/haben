@@ -56,8 +56,17 @@ export interface EtsyAbruf {
   now: Date;
 }
 
-/** Kennung der Verlaufszeile eines Umsatzes; Sammelzeilen („etsy-<art>-<JJJJ-MM>“) haben keine */
-const eventOf = (t: ParsedTransaction): string | undefined => t.bankReference?.match(/^etsy-(\d+)$/)?.[1];
+/**
+ * Kennung der Verlaufszeile eines Umsatzes, aber nur, wenn die Lieferung sie als Bewegung führt. Sammelzeilen
+ * („etsy-<art>-<JJJJ-MM>“) haben keine; eine Zeile, die der Vertrag nicht annimmt (etwa ein unbekannter Typ unter
+ * `unsupported`), auch nicht. Beide erkennt Haben wie bisher am Inhalt, sonst übersprange `storeBatch` den Umsatz.
+ */
+function eventsOf(movementIds: ReadonlySet<string>) {
+  return (t: ParsedTransaction): string | undefined => {
+    const id = t.bankReference?.match(/^etsy-(\d+)$/)?.[1];
+    return id !== undefined && movementIds.has(id) ? id : undefined;
+  };
+}
 
 /** Verlauf als Kontoauszug lesen, ohne ihn zu buchen (Vorschau und Tests) */
 export function etsyStatement(entries: EtsyLedgerEntry[], options: EtsyImportOptions, schonGebuendelt?: ReadonlySet<string>): ParsedStatement {
@@ -115,7 +124,7 @@ export async function importEtsyLedger(actor: string, entries: EtsyLedgerEntry[]
     batch,
     binding: { provider: "etsy", externalAccountId: abruf.shopId, accountKind: "psp" as const },
     statement,
-    eventOf,
+    eventOf: eventsOf(new Set(batch.movements.map((m) => m.sourceEventId))),
     source: { filename, sha256 },
   };
   const imported = await withActor(actor, (tx) => storeBatch(tx, input, account.id));
