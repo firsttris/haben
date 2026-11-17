@@ -64,7 +64,7 @@ export function Reihenfolge({ data }: { data: Data }) {
                   <a href={`#${s.id}`}>{s.label}</a>
                   <span className="small muted">{s.woher}</span>
                 </span>
-                <SentPill sent={teil.sent} submitted={teil.submitted} verwaltet={"verwaltet" in teil ? teil.verwaltet : false} />
+                <SentPill sent={teil.sent} submitted={teil.submitted} verwaltet={"verwaltet" in teil ? teil.verwaltet : true} />
                 {betrag !== null && betrag !== undefined && <span className="num">{formatEuro(betrag)}</span>}
               </div>
             </li>

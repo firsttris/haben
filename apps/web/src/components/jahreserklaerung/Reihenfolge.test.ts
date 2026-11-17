@@ -87,6 +87,13 @@ describe("Reihenfolge", () => {
     expect(markup).toContain("keiner, den Haben kennt");
   });
 
+  it("sagt bei Umsatzsteuer und EÜR „Noch nicht übermittelt“, nur die Einkommensteuer „Nicht aus Haben übermittelt“ (#869)", () => {
+    // Wie die Seite sie lädt: nur die Einkommensteuer trägt `verwaltet: false`
+    const markup = html(stand(offen, offen, estUnbekannt));
+    expect(markup.match(/Noch nicht übermittelt/g)).toHaveLength(2);
+    expect(markup.match(/Nicht aus Haben übermittelt/g)).toHaveLength(1);
+  });
+
   it("führt zu Belegen von ELSTER und zum Verlauf", () => {
     const markup = html(stand(offen, offen, offen));
     expect(markup).toContain('href="#vast"');
