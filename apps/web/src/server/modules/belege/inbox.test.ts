@@ -214,6 +214,15 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 0 });
   });
 
+  it("hält eine Mail, deren Message-ID wie ein Nachhol-Schlüssel beginnt, von einer anderen getrennt", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    // mailparser macht daraus „<kollision@funknetz.example> (nachgeholt)>“
+    await deliver({ subject: "B", messageId: "<kollision@funknetz.example> (nachgeholt)", attachments: [{ filename: "b.pdf", content: pdf("b") }] });
+    await deliver({ subject: "A", messageId: "<kollision@funknetz.example>", attachments: [{ filename: "a.pdf", content: pdf("a") }] });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 2, documents: 2, duplicates: 0, skipped: 0, rejected: 0 });
+    expect((await sql`select filename from documents order by filename`).map((d) => d.filename)).toEqual(["a.pdf", "b.pdf"]);
+  });
+
   it("merkt sich Fehler beim Verbinden und hält das Passwort aus dem Protokoll", async () => {
     const max = Number((await sql`select coalesce(max(id), 0) as max from audit_log`)[0]!.max);
     await inbox.saveInboxSettings(actor, settings);
