@@ -37,7 +37,7 @@ Die Vorschläge folgen der amtlichen AfA-Tabelle. Du kannst Abschreibung und Nut
 | Degressiv mit Wechsel zur linearen | Fester Satz vom Buchwert am Jahresanfang, im Anschaffungsjahr monatsgenau (§ 7 Abs. 2 EStG). Haben wechselt von selbst zur linearen AfA, sobald diese höher ist ([Degressive AfA](#degressive-afa)). |
 | Elektrofahrzeug (§ 7 Abs. 2a EStG) | 75 % der Anschaffungskosten im Anschaffungsjahr, unabhängig vom Monat, danach 10, 5, 5, 3 und 2 % ([Elektrofahrzeuge](#elektrofahrzeuge)). |
 | Computer und Software (Nutzungsdauer 1 Jahr) | Voll im Jahr der Anschaffung, unabhängig vom Monat (BMF-Schreiben vom 22.02.2022). |
-| Geringwertiges Wirtschaftsgut | Bis 800 € netto, voll im Jahr der Anschaffung (§ 6 Abs. 2 EStG). Konten 0480 / 0670, AfA 4855 / 6260. |
+| Geringwertiges Wirtschaftsgut | Selbständig nutzbar und bis 800 € netto: du darfst es voll im Jahr der Anschaffung absetzen, ein Wahlrecht (§ 6 Abs. 2 EStG). Konten 0480 / 0670, AfA 4855 / 6260. |
 | Sammelposten | 250,01 € bis 1.000 € netto, je ein Fünftel im Anschaffungsjahr und in den vier folgenden Jahren (§ 6 Abs. 2a EStG). Ein Abgang ändert daran nichts. Konten 0485 / 0675, AfA 4862 / 6264. |
 
 GWG und Sammelposten prüft Haben gegen die Grenzen. Maßgeblich ist der Nettobetrag, auch wenn die Anschaffungskosten die Vorsteuer enthalten (ohne Vorsteuerabzug).

@@ -2193,6 +2193,8 @@ test("Anlage: ein Satz über dem Höchstsatz ist ein Fehler am Satz, der Fokus g
   await form.getByLabel("Anschaffungsdatum").fill("2024-04-10");
   await form.getByLabel("Anschaffungskosten netto (€)").fill("50.000,00");
   await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("degressiv");
+  // Bei degressiv gibt es keinen Hinweis unter der Auswahl, also zeigt auch aria-describedby nicht darauf
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true })).not.toHaveAttribute("aria-describedby", /method-hint/);
   await form.getByLabel("Nutzungsdauer in Jahren").fill("10");
   await form.getByLabel("Abschreibungssatz in % (degressiv)").fill("30");
   await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
@@ -2250,6 +2252,7 @@ test("Elektrofahrzeug übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswer
   await form.getByLabel("Anschaffungskosten netto (€)").fill("40.000,00");
   await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("elektro");
   await expect(form.getByText("Nur für reine Elektrofahrzeuge, angeschafft vom 01.07.2025 bis 31.12.2027")).toBeVisible();
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true })).toHaveAttribute("aria-describedby", /method-hint/);
   await form.getByLabel("Erinnerungswert 1 € bis zum Abgang stehen lassen").check();
   await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
   // 75 % im Anschaffungsjahr: Restbuchwert 10.000 €

@@ -21,7 +21,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
-import { AssetMethodOptions, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
+import { AssetMethodOptions, hasMethodHint, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
 import { Field } from "./Field.tsx";
 
 export interface AssetFormValues {
@@ -219,7 +219,7 @@ export function AssetForm({
           Absetzung für Abnutzung).
         </p>
         <div className="form-row cols-2">
-          <Field label="Abschreibung" describedBy="asset-depreciation-hint method-hint">
+          <Field label="Abschreibung" describedBy={hasMethodHint(method) ? "asset-depreciation-hint method-hint" : "asset-depreciation-hint"}>
             {(control) => (
               <select {...control} value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
                 {Object.entries(ASSET_METHODS)

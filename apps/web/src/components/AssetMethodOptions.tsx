@@ -23,6 +23,9 @@ export const ratePercentText = (rate: number | null) => (rate === null ? "" : fo
 /** Wie die Auswahl: „800 €“ statt „800,00 €“ */
 const euro = (cents: number) => formatEuro(cents).replace(",00", "");
 
+/** Methoden mit einem Hinweis `#method-hint` unter der Auswahl; nur dann darf `aria-describedby` darauf zeigen */
+export const hasMethodHint = (method: AssetMethod) => method === "gwg" || method === "sammelposten" || method === "elektro";
+
 /**
  * Erklärung in Alltagssprache zu den Methoden GWG und Sammelposten: erst was es ist, dann das Fachwort. Die Grenzen
  * kommen aus den Konstanten der Prüfung in `@haben/core`.
@@ -31,7 +34,8 @@ function MethodExplanation({ method }: { method: AssetMethod }) {
   if (method === "gwg")
     return (
       <p id="method-hint" className="field-hint">
-        Eine Anschaffung bis {euro(GWG_LIMIT)} netto, die du im Jahr des Kaufs sofort als Kosten ansetzt, heißt geringwertiges Wirtschaftsgut (GWG).
+        Eine Anschaffung bis {euro(GWG_LIMIT)} netto, die man allein nutzen kann (geringwertiges Wirtschaftsgut, GWG), darfst du im Jahr des Kaufs ganz
+        absetzen.
       </p>
     );
   if (method === "sammelposten")

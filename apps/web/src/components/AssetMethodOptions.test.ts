@@ -1,8 +1,8 @@
-import { formatEuro, GWG_LIMIT, SAMMELPOSTEN_MAX, SAMMELPOSTEN_MIN, type AssetMethod } from "@haben/core";
+import { ASSET_METHOD_KEYS, formatEuro, GWG_LIMIT, SAMMELPOSTEN_MAX, SAMMELPOSTEN_MIN, type AssetMethod } from "@haben/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AssetMethodOptions, parseRatePercent } from "./AssetMethodOptions.tsx";
+import { AssetMethodOptions, hasMethodHint, parseRatePercent } from "./AssetMethodOptions.tsx";
 
 const render = (method: AssetMethod) =>
   renderToStaticMarkup(
@@ -28,7 +28,7 @@ describe("Erklärung der Methoden in Alltagssprache", () => {
   it("GWG und Sammelposten: erst die Erklärung, dann das Fachwort, Grenzen aus den Konstanten von @haben/core", () => {
     const gwg = render("gwg");
     expect(gwg).toContain(`bis ${euro(GWG_LIMIT)} netto`);
-    expect(gwg).toMatch(/sofort als Kosten[\s\S]*\(GWG\)/);
+    expect(gwg).toMatch(/allein nutzen kann \(geringwertiges Wirtschaftsgut, GWG\), darfst du im Jahr des Kaufs ganz\s+absetzen/);
     expect(gwg).toContain('id="method-hint"');
     const sammelposten = render("sammelposten");
     expect(sammelposten).toContain(`${euro(SAMMELPOSTEN_MIN)} bis ${euro(SAMMELPOSTEN_MAX)} netto`);
@@ -38,6 +38,15 @@ describe("Erklärung der Methoden in Alltagssprache", () => {
   it("degressiv: Erklärung vor dem Höchstsatz; linear braucht keine", () => {
     expect(render("degressiv")).toMatch(/festen Prozentsatz vom Restwert[\s\S]*Höchstens/);
     expect(render("linear")).not.toContain("field-hint");
+  });
+});
+
+describe("Hinweis unter der Auswahl der Abschreibung", () => {
+  it("hasMethodHint stimmt mit dem überein, was gezeigt wird: nur dann gibt es id=method-hint, auf den aria-describedby zeigen darf", () => {
+    for (const method of ASSET_METHOD_KEYS) expect(render(method).includes('id="method-hint"'), method).toBe(hasMethodHint(method));
+    expect(hasMethodHint("linear")).toBe(false);
+    expect(hasMethodHint("degressiv")).toBe(false);
+    expect(hasMethodHint("gwg")).toBe(true);
   });
 });
 
