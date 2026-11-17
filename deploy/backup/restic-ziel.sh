@@ -16,11 +16,12 @@ target_without_credentials() {
 # nächsten Leerraum oder ". Kann Go (net/url, von restic genutzt) die Adresse nicht lesen, etwa bei / ? # Leerraum " oder
 # Umlauten im Passwort, nennt seine Meldung sie in Go-Schreibweise samt Passwort, dazu Teile davon als Port oder Escape:
 # parse "https://nutzer:ab cd@host/": net/url: invalid userinfo, parse "https://nutzer:ab": invalid port ":ab" after host.
-# Daraus fallen Adresse und diese Teile ganz weg: parse "https://": net/url: invalid userinfo.
+# Daraus fallen Adresse und diese Teile ganz weg: parse "https://": net/url: invalid userinfo. sftp: und rclone: zählen
+# auch direkt hinter \n, wie in der JSON-Meldung von restic --json („unable to open config file: …\nrclone::sftp,…“).
 message_without_credentials() {
   credentials_from_address meldung | sed -E \
-    -e 's#(^|[^[:alnum:]_])sftp:[^/[:space:]@]+@#\1sftp:#g' \
-    -e "s#(^|[^[:alnum:]_])(rclone::?[A-Za-z0-9_.-]+),(\"[^\"]*\"|'[^']*'|[^[:space:]:\"'])*#\\1\\2#g" \
+    -e 's#(^|[^[:alnum:]_]|\\[nrt])sftp:[^/[:space:]@]+@#\1sftp:#g' \
+    -e "s#(^|[^[:alnum:]_]|\\\\[nrt])(rclone::?[A-Za-z0-9_.-]+),(\"[^\"]*\"|'[^']*'|[^[:space:]:\"'])*#\\1\\2#g" \
     -e 's%((^|[^[:alnum:]_])parse \\?"[A-Za-z][A-Za-z0-9+.-]*://)([^"\\]|\\.)*(\\?": )%\1\4%g' \
     -e 's%(invalid (port|URL escape|character)) \\?"([^"\\]|\\.)*\\?"%\1%g'
 }

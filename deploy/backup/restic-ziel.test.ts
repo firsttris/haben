@@ -66,6 +66,12 @@ const MELDUNGEN: [string, string][] = [
     "Fatal: unable to open repository at sftp:backup.example:/srv/restic: ssh: handshake failed",
   ],
   ["Fatal: create repository at rclone::sftp,host=h,pass=GEHEIM:haben failed", "Fatal: create repository at rclone::sftp:haben failed"],
+  // restic --json: exit_error mit \n vor dem Repository („unable to open config file: %v\n%v“), so in backup.err und last_error
+  ["Fatal: unable to open config file: EOF\\nrclone::sftp,host=h,pass=GEHEIM:haben", "Fatal: unable to open config file: EOF\\nrclone::sftp:haben"],
+  [
+    "Fatal: unable to open config file: EOF\\nsftp:nutzer@backup.example:/srv/restic",
+    "Fatal: unable to open config file: EOF\\nsftp:backup.example:/srv/restic",
+  ],
   // Ohne Zugangsdaten bleibt alles stehen, auch ein @ im Pfad
   ...[
     "rest:https://h/haben@2026",

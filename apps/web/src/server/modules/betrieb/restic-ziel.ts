@@ -30,8 +30,9 @@ const ADRESSE = new RegExp(String.raw`([a-z][a-z0-9+.-]*:\/\/)(?:[^/?#\s"]*@(?=$
 export const ohneZugangsdaten = (text: string) =>
   text
     .replace(ADRESSE, "$1")
-    .replace(/\b(sftp:)(?!\/\/)[^\s/@]+@/gi, "$1")
-    .replace(/\b(rclone::?[\w.-]+),(?:"[^"]*"|'[^']*'|[^\s:"'])*/gi, "$1")
+    // sftp: und rclone: auch direkt hinter \n wie in der JSON-Meldung von restic --json
+    .replace(/(^|[^\w]|\\[nrt])(sftp:)(?!\/\/)[^\s/@]+@/gi, "$1$2")
+    .replace(/(^|[^\w]|\\[nrt])(rclone::?[\w.-]+),(?:"[^"]*"|'[^']*'|[^\s:"'])*/gi, "$1$2")
     .replace(/(\bparse \\?"[a-z][a-z0-9+.-]*:\/\/)(?:[^"\\]|\\.)*(\\?": )/gi, "$1$2")
     .replace(/(invalid (?:port|URL escape|character)) \\?"(?:[^"\\]|\\.)*\\?"/g, "$1");
 
