@@ -374,6 +374,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 |
 | Steuerzahlung oder Erstattung (Finanzamt, Gemeinde), siehe [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen) | je nach Steuerart und Teil | je nach Steuerart und Teil |
 | Einnahme oder Ausgabe (Kategorie, Steuersatz), siehe [Auf eine Kategorie buchen](#auf-eine-kategorie-buchen) | Konto der Kategorie | Konto der Kategorie |
+| Aufladung Guthaben, siehe [Aufladung eines Guthabens](#aufladung-eines-guthabens) | Konto der Kategorie | Konto der Kategorie |
 | Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren, siehe [Darlehen](bank-steuern-darlehen.md#darlehen) | je nach Darlehen und Teil | je nach Darlehen und Teil |
 | Kapitalertragsteuer an das Finanzamt (Ausschüttung), nur GmbH und UG | 1746 Verbindlichkeiten aus Einbehaltungen | 3760 |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 |
@@ -385,6 +386,14 @@ Eine **Spende** vom Geschäftskonto ist im Einzelunternehmen keine Betriebsausga
 Die drei Lohnzahlungen bezahlen, was eine festgeschriebene [Lohnabrechnung](lohn.md#buchung) als Verbindlichkeit gebucht hat, und höchstens so viel, wie auf dem Konto noch offen ist; ohne festgeschriebene Abrechnung lehnt Haben sie ab. Ein Eingang (Rückzahlung, Erstattung) geht nur, soweit das Konto überzahlt ist. Lohnsteuer, Soli und Kirchensteuer überweist du gemeinsam als „Lohnsteuer an das Finanzamt“, im Minijob die Pauschsteuer mit den Beiträgen an die Minijob-Zentrale. Eine Lastschrift des Finanzamts über genau den Gesamtbetrag (Kz 83) einer übermittelten [Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung) schlägt Haben als „Lohnsteuer an das Finanzamt“ vor. Im Einzelunternehmen zählen sie in der EÜR am Tag der Zahlung als Ausgaben für Personal.
 
 Für Ausgaben mit Rechnung gilt: erst den Beleg unter [Belege](belege.md) hochladen und buchen, dann hier zuordnen. Direkt gebuchte Ausgaben haben keine Vorsteuer.
+
+### Aufladung eines Guthabens
+
+Bei manchen Anbietern zahlst du Geld ein, das dort als Guthaben liegt und erst später über eine Rechnung verbraucht wird: die Aufladung eines Mobilfunk-Guthabens, ein Guthaben beim Kiosk oder beim Hosting-Anbieter. Für die Aufladung selbst gibt es keine Rechnung, deshalb ordnest du den Umsatz unter **Direkt buchen** als **Aufladung Guthaben** zu und wählst die **Kategorie**, zu der der Aufwand gehört; einen Steuersatz gibt es dort nicht.
+
+Gebucht wird Bank gegen das Konto der gewählten Ausgabekategorie, ohne Vorsteuer. Damit ist die Aufladung im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG), und die Vorsteuer entsteht erst mit der Rechnung über die Leistung, also mit dem Verbrauch des Guthabens (§ 3 Abs. 15 UStG). Eine Aufladung trägt nie einen Steuersatz; Haben lehnt eine Einnahmekategorie und jede andere Kategorie ab, die einen Beleg verlangt.
+
+Die Aufladung braucht keinen Beleg: Sie steht in der EÜR als Ausgabe ihrer Kategorie und im DATEV-Buchungsstapel ohne Belegnummer. Verbraucht die spätere Rechnung das Guthaben, buchst du sie wie jede andere Rechnung unter [Belege](belege.md); ihre Zeile für die Verrechnung bleibt eine Position der Rechnung. Der Bezug zwischen Aufladung und späterer Rechnung ist noch nicht Teil von Haben.
 
 ### Auf eine Kategorie buchen
 

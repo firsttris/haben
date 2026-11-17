@@ -1,4 +1,5 @@
 import {
+  AUFLADUNG,
   amountError,
   formatDecimal,
   formatEuro,
@@ -126,6 +127,7 @@ const KIND_LABEL = {
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
   kategorie: "Direkt",
+  aufladung: AUFLADUNG.text,
 } as const;
 
 /**
@@ -133,6 +135,13 @@ const KIND_LABEL = {
  * Steuerbescheide, Kreditverträge oder Abrechnungen; den Zahlungsnachweis bildet der Bankumsatz selbst.
  */
 const DIRECT_HINT = "Bankumsatz einer Buchungsart zuordnen, ohne einen separaten Beleg anzulegen.";
+
+/**
+ * Aufladung eines Guthabens (#1356): Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG), Vorsteuer erst mit der Rechnung
+ * über die Leistung (§ 3 Abs. 15 UStG). Der Satz gehört hierher und nicht in die Felder: Es gibt keinen zu wählen.
+ */
+const AUFLADUNG_HINWEIS =
+  "Gebucht als Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG), ohne Vorsteuer: Die entsteht erst mit der Rechnung über die Leistung (§ 3 Abs. 15 UStG).";
 
 /** Wie die Zuordnung in der Liste und in der Rückfrage heißt */
 function zuordnungText(a: Allocation, gesellschaft: boolean): string {
@@ -172,8 +181,10 @@ function zuAufhebendeZuordnung(
 }
 
 /** „Direkt buchen“: Buchungsarten ohne Beleg, Kategorie mit Steuersatz, Steuerzahlung mit Steuerart, Bezugsjahr und Teil, Darlehen */
-type DirectChoice = DirectBooking | "kategorie" | "steuer" | "darlehen";
+type DirectChoice = DirectBooking | "kategorie" | "aufladung" | "steuer" | "darlehen";
 const KATEGORIE_OPTION = { value: "kategorie", label: "Einnahme oder Ausgabe (Kategorie, Steuersatz)" } as const;
+/** Direkt neben „Kategorie“: Aufwand im Monat der Zahlung, ohne Vorsteuer, ohne Beleg (#1356) */
+const AUFLADUNG_OPTION = { value: "aufladung", label: AUFLADUNG.text } as const;
 const STEUER_OPTION = { value: "steuer", label: "Steuerzahlung oder Erstattung (Finanzamt, Gemeinde)" } as const;
 const DARLEHEN_OPTION = { value: "darlehen", label: "Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren" } as const;
 
@@ -1039,6 +1050,11 @@ function AllocationPanel({
   const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
   // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung
   const [kategorie, setKategorie] = useState<KategorieWahl>(() => direct?.kategorie ?? kategorieWahlFuer(kategorieOptionen, tx.amount));
+  // Eine Aufladung ist immer eine Ausgabe; Einnahmen und ihr Steuersatz stehen dort nicht zur Wahl (#1356)
+  const aufladungOptionen: KategorieOptionen = {
+    ...kategorieOptionen,
+    kategorien: kategorieOptionen.kategorien.filter((k) => k.art === "ausgabe"),
+  };
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
@@ -1081,6 +1097,12 @@ function AllocationPanel({
   // Zahlung in der Skontofrist um genau das Skonto gekürzt: zuordnen und den Rest gleich als gewährtes Skonto ausbuchen
   const skontoRest = mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open ? best.skonto : 0;
 
+  /** Aufladung ist eine Ausgabe: Steht aus einem Vorschlag eine Einnahmekategorie da, wird sie zur Ausgabe (#1356) */
+  function waehleBuchungsart(wert: DirectChoice) {
+    setDirectKind(wert);
+    if (wert === "aufladung" && kategorieArt(kategorie.kategorie) !== "ausgabe") setKategorie({ kategorie: "sonstiges", steuersatz: 0 });
+  }
+
   function submitAllocation() {
     if (!check() || signedAmount === null) return;
     const completes = signedAmount === tx.open;
@@ -1094,6 +1116,10 @@ function AllocationPanel({
       }
       if (directKind === "kategorie") {
         return runAndAdvance(() => allocateFn({ data: { kind: "kategorie", transactionId: tx.id, amount: signedAmount, kategorie } }), completes);
+      }
+      if (directKind === "aufladung") {
+        const angabe = { kategorie: kategorie.kategorie, steuersatz: 0 };
+        return runAndAdvance(() => allocateFn({ data: { kind: "aufladung", transactionId: tx.id, amount: signedAmount, kategorie: angabe } }), completes);
       }
       if (directKind !== "steuer") {
         return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
@@ -1385,7 +1411,7 @@ function AllocationPanel({
               hint={
                 <>
                   {DIRECT_HINT}
-                  {tx.amount < 0 && directKind !== "kategorie" && (
+                  {tx.amount < 0 && directKind !== "kategorie" && directKind !== "aufladung" && (
                     <>
                       <br />
                       Für Ausgaben mit Rechnung den Beleg erst unter <Link to="/belege">Belege</Link> hochladen und buchen.
@@ -1395,8 +1421,8 @@ function AllocationPanel({
               }
             >
               {(control) => (
-                <select {...control} value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
-                  {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                <select {...control} value={directKind} onChange={(e) => waehleBuchungsart(e.target.value as DirectChoice)}>
+                  {[...directKinds, KATEGORIE_OPTION, AUFLADUNG_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>
                       {k.label}
                     </option>
@@ -1412,6 +1438,12 @@ function AllocationPanel({
           {mode === "direct" && directKind === "darlehen" && <DarlehenFelder options={darlehenOptionen} value={darlehen} onChange={setDarlehen} />}
           {mode === "direct" && directKind === "kategorie" && (
             <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
+          )}
+          {mode === "direct" && directKind === "aufladung" && (
+            <>
+              <KategorieFelder options={aufladungOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
+              <span className="small muted">{AUFLADUNG_HINWEIS}</span>
+            </>
           )}
 
           <Field label="Betrag" error={error("amount")}>
@@ -1694,7 +1726,7 @@ function SplitForm({
                   ))}
                 </optgroup>
                 <optgroup label="Direkt buchen">
-                  {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                  {[...directKinds, KATEGORIE_OPTION, AUFLADUNG_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>
                       {k.label}
                     </option>

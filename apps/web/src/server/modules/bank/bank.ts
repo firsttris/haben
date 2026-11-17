@@ -92,7 +92,7 @@ import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts"
 import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
-import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { aufladungBuchung, kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
 import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
@@ -1046,6 +1046,14 @@ const DIRECT_KINDS = [
 ] as const;
 
 /**
+ * Aufladung eines Guthabens (#1356): eine direkte Zuordnungsart wie „kategorie“, aber mit Pflicht-Kostenkategorie und
+ * ohne Steuersatz, weil Vorsteuer erst mit der Rechnung über die Leistung entsteht (§ 3 Abs. 15 UStG). Sie steht neben
+ * den zwölf in DIRECT_KINDS und nicht darin: Die Zuordnungs-Schemata sind eine `discriminatedUnion`, und dort darf jeder
+ * Wert nur einmal vorkommen — die Aufladung trägt zusätzlich die Kategorie.
+ */
+const AUFLADUNG_KIND = "aufladung" as const;
+
+/**
  * Eine Lohnzahlung tilgt nur, was die Lohnabrechnung als Verbindlichkeit gebucht hat, wie eine Zahlung den offenen Betrag
  * eines Belegs: ein Ausgang höchstens die offene Verbindlichkeit, ein Eingang höchstens eine Überzahlung. Im
  * Einzelunternehmen zählte ein Betrag darüber hinaus in der EÜR als Personalausgabe, etwa eine Entnahme des Inhabers.
@@ -1092,6 +1100,8 @@ export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("darlehen"), transactionId: z.uuid(), amount: inCents(z.number().int()), darlehen: loanPartSchema }),
   // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz
   z.object({ kind: z.literal("kategorie"), transactionId: z.uuid(), amount: inCents(z.number().int()), kategorie: kategorieAngabeSchema }),
+  // Aufladung eines Guthabens: Ausgabe ohne Vorsteuer, Pflicht-Kostenkategorie, ohne Steuersatz (#1356)
+  z.object({ kind: z.literal(AUFLADUNG_KIND), transactionId: z.uuid(), amount: inCents(z.number().int()), kategorie: kategorieAngabeSchema }),
 ]);
 
 export type AllocationInput = z.infer<typeof allocationSchema>;
@@ -1113,6 +1123,8 @@ export type SplitInput = z.infer<typeof splitSchema>;
 /** Dazu intern: der Teil einer Zahlung über dem offenen Betrag einer Fremdwährungsrechnung (allocateWithRest) */
 type Part =
   | z.infer<typeof splitPartSchema>
+  // Aufladung eines Guthabens (#1356): mit Pflicht-Kostenkategorie und ohne Steuersatz; kein Teil einer Aufteilung
+  | { kind: "aufladung"; kategorie: z.infer<typeof kategorieAngabeSchema>; amount: number }
   | { kind: "kursdifferenz"; amount: number }
   // Rücklastschrift (#445): negative Zahlung auf die Rechnung mit Bezug auf die zurückgegebene Lastschrift
   | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number }
@@ -1291,6 +1303,8 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     ({ lines, description, target } = await steuerbuchung(tx, company, bank, part.steuer, part.amount));
   } else if (part.kind === "kategorie") {
     ({ lines, description, target } = await kategoriebuchung(tx, company.kontenrahmen, bank, part.kategorie, part.amount));
+  } else if (part.kind === "aufladung") {
+    ({ lines, description, target } = aufladungBuchung(bank, part.kategorie, part.amount, company.kontenrahmen));
   } else if (part.kind === "kursdifferenz") {
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;

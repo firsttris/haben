@@ -1,3 +1,4 @@
+import { AUFLADUNG } from "@haben/core";
 import { sql, type SQL } from "drizzle-orm";
 
 /** Belegfeld 1 fasst 36 Zeichen; sevDesk schreibt von längeren Nummern die letzten 36 hinein (#472). */
@@ -98,4 +99,15 @@ export function datevWithoutReceipt(kontenrahmen: "SKR03" | "SKR04", contraField
 export function datevInternalId(field: string): SQL<boolean> {
   const uuid = sql.raw(`${field} ~* '${UUID_PATTERN}' and exists (select 1 from lexoffice_vouchers s where s.source = 'sevdesk')`);
   return sql<boolean>`(${uuid} and not ${datevVoucherFound(field)})`;
+}
+
+/**
+ * Zeile einer Aufladung eines Guthabens (#1356) im DATEV-Stapel: Für die Aufladung selbst gibt es keine Rechnung, Haben
+ * stellt deshalb „Aufladung Guthaben“ an den Anfang ihres Buchungstexts (die Stelle, die auch ein gekürzter Text behält).
+ * Sie ist keine Ausnahme ohne Beleg wie Privat und Geldtransit, sondern eine Ausnahme mit eigenem Grund: Mit der späteren
+ * Rechnung bekommt sie ihren Bezug. Bis dahin zählt sie weder als offener Punkt noch als erledigt.
+ */
+export function datevAufladung(textField: string): SQL<boolean> {
+  const text = sql.raw(textField);
+  return sql<boolean>`coalesce(${text} like ${`${AUFLADUNG.text}%`}, false)`;
 }

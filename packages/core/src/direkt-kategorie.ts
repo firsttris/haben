@@ -138,3 +138,33 @@ export function kategorieText(angabe: KategorieAngabe): string {
   const label = EINNAHME_KATEGORIEN[angabe.kategorie].label;
   return angabe.steuersatz === 0 ? `${label} (Kleinunternehmer)` : `${label} ${angabe.steuersatz / 100} %`;
 }
+
+/**
+ * Aufladung eines Guthabens (#1356): Eine Zahlung ohne Beleg an einen Anbieter, bei dem das Geld als Guthaben liegt und
+ * erst über eine spätere Rechnung verbraucht wird (etwa die Aufladung eines Mobilfunk-Guthabens). Bei der EÜR ist sie
+ * im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG); Vorsteuer entsteht erst mit der Rechnung über die Leistung
+ * (§ 3 Abs. 15 UStG), die Aufladung selbst trägt keine. Gebucht wird wie „Direkt buchen“ auf eine Ausgabekategorie:
+ * Bank gegen Aufwandskonto, kein Beleg.
+ */
+export const AUFLADUNG = {
+  /** Bezeichnung der Zuordnungsart in Listen, Abgleich und Auswertungen */
+  label: "Guthaben aufladen, Ausgabe ohne Vorsteuer",
+  /** Kurztext im Zuordnungsdialog und im Buchungstext */
+  text: "Aufladung Guthaben",
+} as const;
+
+/** Was eine Aufladung verhindert; null = buchbar. Sie ist immer eine Ausgabe und trägt nie einen Steuersatz. */
+export function aufladungFehler(angabe: KategorieAngabe): string | null {
+  if (kategorieArt(angabe.kategorie) !== "ausgabe") return "Eine Aufladung ist eine Ausgabe; bitte eine Ausgabekategorie wählen.";
+  if (angabe.steuersatz !== 0) {
+    return "Eine Aufladung trägt keine Vorsteuer (§ 3 Abs. 15 UStG); sie entsteht erst mit der Rechnung über die Leistung.";
+  }
+  return kategorieFehler(angabe, false);
+}
+
+/** Buchung einer Aufladung: Bruttobetrag als Aufwand ohne Vorsteuer, Bank gegen das Konto der Ausgabekategorie */
+export function aufladungPosting(angabe: KategorieAngabe, amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const fehler = aufladungFehler(angabe);
+  if (fehler) throw new RangeError(fehler);
+  return kategoriePosting(angabe, amount, kontenrahmen);
+}
