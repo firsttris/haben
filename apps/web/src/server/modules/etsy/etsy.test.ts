@@ -267,9 +267,15 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
       { sharedSecret: "geheim", accessToken: "gut", refreshToken: "erneuern", expiresAt: 4_000_000_000 },
       { shopId: "35160089" },
     );
+    await sql`update etsy_connections set fetch_from = '2023-06-01'`;
+    const [vorher] = await sql`select fetch_from::text as f from etsy_connections`;
     const result = await etsy.syncEtsy(actor, HEUTE);
     expect(result.added).toBe(0);
     expect(result.accountName).toBeNull();
     expect(result.messages.join(" ")).toContain("kein Konto");
+    // Nichts gespeichert, also bleibt der Startpunkt: sonst holte der nächste Abruf nach dem Anlegen des Kontos die
+    // übersprungenen Monate nie mehr (in der Testinstanz am 17.11.2026 von 2023-11 auf 2026-05-13 gesprungen)
+    const [nachher] = await sql`select fetch_from::text as f from etsy_connections`;
+    expect(nachher!.f).toBe(vorher!.f);
   });
 });
