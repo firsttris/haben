@@ -48,10 +48,11 @@ trap finish EXIT
 rc=0
 err="$(restic cat config 2>&1 > /dev/null)" || rc=$?
 if [ "$rc" = 10 ]; then
-  echo "Lege das restic-Repository $RESTIC_REPOSITORY an …"
+  echo "Lege das restic-Repository $(target_without_credentials) an …"
   restic init
 elif [ "$rc" != 0 ]; then
-  echo "$err" >&2
+  # Kann restic die Adresse nicht lesen, nennt die Meldung sie samt Passwort (restic-ziel.sh)
+  message_without_credentials <<< "$err" >&2
   exit 1
 fi
 

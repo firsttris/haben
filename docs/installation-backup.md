@@ -42,7 +42,9 @@ Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backup
 | --- | --- | --- |
 | SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.override.yml` bei `backup` und `restore` `~/.ssh:/root/.ssh:ro` unter `volumes` eintragen ([SFTP Schritt für Schritt](#sftp-schritt-für-schritt)) bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
 | S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
-| restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | – |
+| restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | `/`, `?`, `#` und `%` im Passwort prozentkodiert (`%2F`, `%3F`, `%23`, `%25`), sonst kann restic die Adresse nicht lesen |
+
+Das Protokoll des Backup-Containers und Haben nennen Ziel und Fehlermeldungen ohne Nutzer und Passwort.
 
 Mit Compose trägst du die Werte in `.env` ein, mit den Quadlets in `~/.config/haben/backup.env`, zum Beispiel:
 

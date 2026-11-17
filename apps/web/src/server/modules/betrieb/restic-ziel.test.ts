@@ -10,8 +10,9 @@ describe("ohneZugangsdaten", () => {
   it("entfernt ein Passwort mit / ohne Prozentkodierung, etwa aus openssl rand -base64, auch in der Fehlermeldung von restic", () => {
     // Go url.Parse endet die Authority am ersten /, findet kein @ und bricht mit der ganzen Adresse in der Meldung ab
     expect(ohneZugangsdaten("rest:https://nutzer:ab/cd+ef@backup.example/haben")).toBe("rest:https://backup.example/haben");
+    // Go kann die Adresse nicht lesen und hält ":ab", den Anfang des Passworts, für den Port: Adresse und Port fallen weg
     expect(ohneZugangsdaten('Fatal: parse "https://nutzer:ab/cd@ef@backup.example/haben": invalid port ":ab" after host')).toBe(
-      'Fatal: parse "https://backup.example/haben": invalid port ":ab" after host',
+      'Fatal: parse "https://": invalid port after host',
     );
     expect(ohneZugangsdaten("rest:https://nutzer:geheim@backup.example/haben?x@y")).toBe("rest:https://backup.example/haben?x@y");
   });
@@ -42,6 +43,21 @@ describe("ohneZugangsdaten", () => {
     "(https://h/x)(https://g/y@z)",
   ])("lässt das Ziel ohne Zugangsdaten %s unverändert, auch mit @ im Pfad", (text) => {
     expect(ohneZugangsdaten(text)).toBe(text);
+  });
+
+  it("entfernt, was Go aus einer Adresse nennt, die es nicht lesen kann (#1349)", () => {
+    // Bei # im Passwort schneidet Go die Adresse vor der Meldung ab, ein @ im Rest sähe wie das Ende der Zugangsdaten aus
+    expect(ohneZugangsdaten('Fatal: parse "https://nutzer:ab": invalid port ":ab" after host')).toBe('Fatal: parse "https://": invalid port after host');
+    expect(ohneZugangsdaten('Fatal: parse "https://nutzer:ab/@cd": invalid port ":ab" after host')).toBe('Fatal: parse "https://": invalid port after host');
+    // Ein Tippfehler im Port: Hinter dem letzten @ steht kein Host, die Zugangsdaten fallen trotzdem weg wie im Backup-Container
+    expect(ohneZugangsdaten("rest:https://nutzer:geheim@backup.example:8OOO/haben")).toBe("rest:https://backup.example:8OOO/haben");
+  });
+
+  it("erkennt den Host mit Port auch vor „: “ wie in „unable to open repository at %v: %v“ von restic (#1349)", () => {
+    // Ziffern vor dem / liest Go als Port, die Adresse ist lesbar, restic scheitert erst beim Verbinden
+    expect(ohneZugangsdaten("Fatal: unable to open repository at rest:https://nutzer:12/cd@backup.example:8000: dial tcp")).toBe(
+      "Fatal: unable to open repository at rest:https://backup.example:8000: dial tcp",
+    );
   });
 
   it("entfernt Zugangsdaten nur aus der Adresse, die sie trägt", () => {
