@@ -84,5 +84,8 @@ describe("learnedDirectBooking", () => {
     // Eine Kategorie, die es nicht mehr gibt oder die nur mit Beleg geht
     expect(learnedDirectBooking(tx, [k("gibtsnicht", 0, 3)], 3, "iban")).toBeNull();
     expect(learnedDirectBooking(tx, [k("bewirtung", 0, 3)], 3, "iban")).toBeNull();
+    // Nicht steuerbare Einnahme (#1131): gelernt bei Regelbesteuerung, als Kleinunternehmer kein Vorschlag
+    expect(learnedDirectBooking(tx, [k("nichtSteuerbar", 0, 3)], 3, "iban")?.kategorie).toEqual({ kategorie: "nichtSteuerbar", steuersatz: 0 });
+    expect(learnedDirectBooking(tx, [k("nichtSteuerbar", 0, 3)], 3, "iban", true)).toBeNull();
   });
 });

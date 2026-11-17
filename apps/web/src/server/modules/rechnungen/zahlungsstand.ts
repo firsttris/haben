@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoicePaymentGroups } from "./advance-payment-group.ts";
 
@@ -13,20 +13,31 @@ import { invoicePaymentGroups } from "./advance-payment-group.ts";
  * wie auf dem Konto. Ausbuchungen bewegen kein Geld, zählen für „offen“ aber wie eine Zahlung. Bei Rechnungen auch die
  * Bareinnahmen im Kassenbuch (samt Gegenzeilen) und die Verrechnung mit einer Kundenkorrektur (#877); bar bezahlte Belege
  * sind schon beim Buchen bezahlt und zählen hier nicht.
+ *
+ * Mit `bis` zählt nur, was bis einschließlich dieses Tages wirkt (offene Posten zum Stichtag, #1110): Zuordnungen an
+ * ihrem eigenen Tag, sonst am Buchungstag des Umsatzes (#782).
  */
-export async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
+export async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db, bis?: string): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
   const col = sql.raw(column);
-  const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
+  const bisTag = (spalte: string) => (bis ? sql` and ${sql.raw(spalte)} <= ${bis}` : sql``);
+  const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}${bisTag("date")}` : sql``;
   // Verrechnungen: zwischen Belegen (#274) und zwischen Ausgangsrechnung und Kundenkorrektur (#877)
   const verrechnet =
     column === "document_id"
-      ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}`
-      : sql`union all select invoice_id as id, amount from invoice_settlements where invoice_id in ${ids}`;
+      ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}${bisTag("date")}`
+      : sql`union all select invoice_id as id, amount from invoice_settlements where invoice_id in ${ids}${bisTag("date")}`;
+  const zuordnungen = bis
+    ? sql`select a.${col} as id, a.amount from allocations a join bank_transactions b on b.id = a.transaction_id
+          where a.${col} in ${ids} and coalesce(a.date, b.booking_date) <= ${bis}`
+    : sql`select ${col} as id, amount from allocations where ${col} in ${ids}`;
+  const ausbuchungen = bis
+    ? sql`union all select ${col} as id, amount from write_offs where ${col} in ${ids} and date <= ${bis}`
+    : sql`union all select ${col} as id, amount from write_offs where ${col} in ${ids}`;
   const rows = await q.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
-          select ${col} as id, amount from allocations where ${col} in ${ids}
-          union all select ${col} as id, amount from write_offs where ${col} in ${ids}
+          ${zuordnungen}
+          ${ausbuchungen}
           ${verrechnet}
           ${cash}
         ) settled group by 1`,
@@ -34,9 +45,9 @@ export async function paidByTarget(column: "invoice_id" | "document_id", ids: st
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
 }
 
-export async function invoicePayments(ids: string[], q: Db | Tx = db) {
+export async function invoicePayments(ids: string[], q: Db | Tx = db, bis?: string) {
   const groups = await invoicePaymentGroups(ids, q);
-  const paid = await paidByTarget("invoice_id", [...new Set([...groups.values()].flat())], q);
+  const paid = await paidByTarget("invoice_id", [...new Set([...groups.values()].flat())], q, bis);
   return new Map(
     [...groups]
       .filter(([, group]) => group.some((id) => paid.has(id)))
@@ -56,12 +67,12 @@ export async function invoiceWrittenOff(ids: string[], q: Db | Tx = db): Promise
 }
 
 /** Als Forderungsausfall ausgebuchte Beträge je Rechnung (Gegenzeilen abgezogen) */
-export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
+export async function invoiceLosses(ids: string[], q: Db | Tx = db, bis?: string): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
   const rows = await q
     .select({ id: schema.writeOffs.invoiceId, sum: sql<string>`sum(${schema.writeOffs.amount})` })
     .from(schema.writeOffs)
-    .where(and(inArray(schema.writeOffs.invoiceId, ids), eq(schema.writeOffs.kind, "forderungsausfall")))
+    .where(and(inArray(schema.writeOffs.invoiceId, ids), eq(schema.writeOffs.kind, "forderungsausfall"), bis ? lte(schema.writeOffs.date, bis) : undefined))
     .groupBy(schema.writeOffs.invoiceId);
   return new Map(rows.map((r) => [r.id!, Number(r.sum)]));
 }

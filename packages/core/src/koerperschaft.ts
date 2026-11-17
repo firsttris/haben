@@ -23,8 +23,12 @@ export const GEWST_MESSZAHL: BasisPoints = 350;
 export const GEWST_HINZURECHNUNG_FREIBETRAG: Cents = 20_000_000;
 /** Sockel der Mindestbesteuerung (§ 10d Abs. 2 EStG, § 10a GewStG) */
 export const VERLUST_SOCKEL: Cents = 100_000_000;
-/** Mindesthebesatz (§ 16 Abs. 4 GewStG) */
-export const MINDEST_HEBESATZ: Prozent = 200;
+/**
+ * Mindesthebesatz eines Erhebungszeitraums: Er gilt, wenn die Gemeinde keinen höheren bestimmt hat (§ 16 Abs. 4 Satz 2
+ * GewStG). 280 % erstmals für 2027 (§ 36 Abs. 5b GewStG), davor 200 %. Geändert durch Art. 8 des Gesetzes vom
+ * 29.06.2026 (BGBl. 2026 I Nr. 197); § 36 Abs. 5b verweist auf Art. 7, der aber das EStG ändert.
+ */
+export const mindestHebesatz = (year: number): Prozent => (year >= 2027 ? 280 : 200);
 
 /** Über dem Sockel abziehbarer Anteil in Basispunkten: KSt 70 % für 2024 bis 2027 (Wachstumschancengesetz), sonst 60 % */
 const verlustQuoteKst = (year: number): BasisPoints => (year >= 2024 && year <= 2027 ? 7000 : 6000);

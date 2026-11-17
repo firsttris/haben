@@ -1958,15 +1958,22 @@
     {
       "idx": 279,
       "version": "7",
-      "when": 1794856316407,
-      "tag": "0279_etsy_zugang",
+      "when": 1794891493353,
+      "tag": "0279_bank_csv_zuordnung",
       "breakpoints": true
     },
     {
       "idx": 280,
       "version": "7",
-      "when": 1794856330773,
-      "tag": "0280_etsy_zugang_trigger",
+      "when": 1794910199187,
+      "tag": "0280_etsy_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 281,
+      "version": "7",
+      "when": 1794910209410,
+      "tag": "0281_etsy_zugang_trigger",
       "breakpoints": true
     }
   ]

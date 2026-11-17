@@ -31,5 +31,6 @@ export * from "./csv-import/index.ts";
 export * from "./etsy-ledger.ts";
 export * from "./etsy-batch.ts";
 export * from "./etsy-api.ts";
+export * from "./bank-zuordnung/index.ts";
 export * from "./buchhaltungsbutler/index.ts";
 export * from "./wiso/index.ts";

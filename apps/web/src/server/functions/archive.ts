@@ -324,7 +324,7 @@ export const getLegacyVoucher = createServerFn({ method: "GET" })
     return detail;
   });
 
-/** Beleg aus sevDesk ohne Datei: eine Person hat in sevDesk geprüft, dass es keine gibt (#345) */
+/** Beleg ohne Datei: eine Person hat geprüft, dass es keine gibt, aus sevDesk oder aus dem Accountable-Stapel (#345, #1235) */
 export const confirmLegacyWithoutFile = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid(), note: z.string().max(500).default("") }))

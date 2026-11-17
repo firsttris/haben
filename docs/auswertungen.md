@@ -22,7 +22,7 @@ Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwisch
 | Einnahmen (netto) | Summe der Monatswerte, ohne Umsatzsteuer; darunter der Bruttowert laut EÜR |
 | Ausgaben (netto) | Summe der Monatswerte, ohne Vorsteuer (Belege ohne Vorsteuerabzug brutto); darunter der Bruttowert laut EÜR mit Vorsteuer und gezahlter Umsatzsteuer |
 | Gewinn bzw. Verlust | Betriebseinnahmen minus Betriebsausgaben laut EÜR |
-| Offene Forderungen | Summe aller offenen Rechnungen heute, mit Anzahl und Zahl der überfälligen |
+| Offene Forderungen | Summe aller offenen Rechnungen zum gewählten Stand (heute oder 31.12.), mit Anzahl und Zahl der überfälligen |
 
 ## EÜR nach Zufluss und Abfluss
 
@@ -44,7 +44,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Kontoführung und Bankgebühren“ | Buchungstag | Ausgabe „Kontoführung und Gebühren“ |
 | Bankumsatz „Mahngebühren und Verzugszinsen“ oder „Zinserträge“ | Buchungstag | Betriebseinnahmen; zur steuerlichen Zuordnung siehe [Bruttomethode](#bruttomethode) |
 | Bankumsatz „Steuerzahlung oder Erstattung“ | Buchungstag | je nach Steuerart und Teil: Umsatzsteuer früherer Jahre als gezahlte bzw. erstattete Umsatzsteuer, Zinsen und Zuschläge als „Zinsen und Zuschläge zu betrieblichen Steuern“, Erstattungszinsen als Einnahme; Gewerbesteuer nur nachrichtlich, private Steuern gar nicht ([Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen)) |
-| Bankumsatz „Einnahme oder Ausgabe (Kategorie, Steuersatz)“ | Buchungstag | Einnahme netto (als Kleinunternehmer ohne Steuer) und vereinnahmte Umsatzsteuer; Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen)) |
+| Bankumsatz „Einnahme oder Ausgabe (Kategorie, Steuersatz)“ | Buchungstag | Einnahme netto (als Kleinunternehmer ohne Steuer) und vereinnahmte Umsatzsteuer; nicht steuerbare Einnahme unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“; Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen)) |
 | Bankumsatz „Darlehen“ | Buchungstag | Zinsen und Gebühren als „Schuldzinsen zur Finanzierung von Anlagevermögen“ bzw. „Übrige Schuldzinsen“; Auszahlung und Tilgung zählen nicht ([Darlehen](bank-steuern-darlehen.md#darlehen)) |
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
@@ -124,13 +124,25 @@ Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlung
 
 ## Offene Posten
 
-Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten Jahr. Sortiert wird nach Fälligkeit.
+Die drei Tabellen am Ende zeigen den Stand von heute oder, für ein vergangenes Jahr über den Schalter in der Jahresleiste, den zum 31.12. Sortiert wird nach Fälligkeit.
 
 - **Offene Forderungen:** festgeschriebene Rechnungen und Rechnungskorrekturen, die nicht storniert sind, mit Betrag abzüglich zugeordneter Zahlungen. Eine Korrektur erscheint mit negativem offenem Betrag, ebenso eine Stornorechnung, solange die Zahlung auf die stornierte Rechnung noch nicht erstattet ist. Offen heißt hier dasselbe wie in der Rechnungsliste und im Bankabgleich.
 - **Offene Verbindlichkeiten:** gebuchte Belege mit Zahlung „Bank“, abzüglich zugeordneter Zahlungen. Ohne Fälligkeitsdatum gilt das Belegdatum.
 - **Umsatzsteuer gegenüber dem Finanzamt:** Zahllast (positiv) und Erstattung (negativ) jeder abgegebenen Voranmeldung, abzüglich der im Bankabgleich zugeordneten Zahlungen; eine berichtigte Anmeldung als eigene Zeile über die Differenz. Die Nummer führt zur Voranmeldung. Siehe [Zahlung an das Finanzamt](umsatzsteuer.md#zahlung-an-das-finanzamt).
 
 Was vor dem gewählten Jahr entstanden und noch offen ist, steht in beiden Tabellen der Forderungen und Verbindlichkeiten als Zeile über der Liste („2 offene Posten aus früheren Jahren“, dazu ihr Betrag); die Spalte **Jahr** kennzeichnet die betroffenen Zeilen. Am Handy fehlt die Spalte, dort hängt der Vermerk an der Fälligkeit („fällig 17.06.2026 · aus 2025“).
+
+Auf **31.12.** rechnen alle drei Tabellen zum Jahresende:
+
+- **Zahlungen:** Offen ist, was bis einschließlich dieses Tages gezahlt war. Spätere Zahlungen zählen nicht, der Posten steht wieder offen.
+- **Belege und Rechnungen:** Was es damals noch nicht gab, fehlt in der Liste. Eine Rechnung gilt mit ihrem Rechnungsdatum, ein Beleg mit seinem Belegdatum, ohne Datum mit dem Tag des Hochladens.
+- **Voranmeldungen:** Sie zählen mit dem Ende ihres Zeitraums, nicht mit dem Tag der Abgabe. Die Anmeldung für Dezember oder das vierte Quartal, im Januar abgegeben, ist zum 31.12. eine offene Verbindlichkeit; die Steuer entsteht mit Ablauf des Voranmeldungszeitraums (§ 13 Abs. 1 Nr. 1 Buchst. a und b UStG).
+- **Berichtigung einer Voranmeldung:** Der Stand zeigt den berichtigten Betrag, auch wenn die Berichtigung erst im Folgejahr abgegeben wird; die Steuer war mit Ablauf des Zeitraums in dieser Höhe entstanden. Fällig ist die Vorauszahlung am zehnten Tag nach Ablauf des Voranmeldungszeitraums (§ 18 Abs. 1 Satz 4 UStG); angezeigt wird als Fälligkeit der spätere von gesetzlichem Termin und Abgabe, und Säumniszuschläge entstehen erst ab der Abgabe (§ 240 Abs. 1 Satz 3 AO).
+- **Storno und Aufhebung:** Maßgeblich ist das Buchungsdatum der Gegenbuchung, nicht der Tag, an dem jemand den Storno erfasst. Ein Beleg, dessen Storno im Februar erfasst und auf Dezember zurückdatiert ist, fehlt deshalb im Stand zum 31.12. wie im Journal, solange der Zeitraum beim Storno noch nicht gemeldet war; war er gemeldet, trägt der Storno den Tag der Erfassung und der Beleg bleibt im Stand; bei der Rechnung zählt das Datum der Stornorechnung, bei der USt-Zahlung das Datum ihrer Aufhebung.
+- **Fälligkeit:** „Fällig“ und „Überfällig“ beziehen sich auf denselben Tag.
+- **Adresse:** Der Stand steht in der Adresse (`?jahr=2025&stichtag=31.12.`). Ein Link lässt sich weitergeben, die Seite bleibt ohne JavaScript bedienbar.
+
+Eine Ausnahme von „Rechnung nach Rechnungsdatum“ sind Anzahlungsketten von GmbH und UG, deren Schlussrechnung erst nach dem Stichtag ausgestellt wird: Der noch nicht abgerechnete Rest steht als unbillte Forderung im Stand, mit der Fälligkeit, die er zum Stichtag hatte (§ 252 Abs. 1 Nr. 4 HGB).
 
 Ob ein Vorjahresposten in eine Abschlusskontrolle gehört, hängt von der Rechtsform ab: Bei GmbH und UG steht eine offene Forderung aus 2025 am 31.12.2026 in Inventar und Bilanz (§ 240 Abs. 2, § 242 HGB), in der EÜR wirkt ein offener Posten gar nicht auf den Gewinn (§ 4 Abs. 3, § 11 EStG).
 
@@ -237,7 +249,7 @@ Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [
 | --- | --- |
 | `lexoffice/belege/` | Original-PDFs, E-Rechnungs-XML und Anhänge der Lexoffice-Belege des Jahres |
 | `lexoffice/belege.csv` | Je Beleg Art, Richtung, Nummer, Kontakt, Beträge, Status, Zahlungsdatum, Steuersätze und Kategorien als JSON, Dateien mit SHA-256, Lexoffice-ID und [Dateistand](sevdesk.md#dateistand) |
-| `lexoffice/dateistand.csv` | Verlauf des Dateistands von Belegen aus sevDesk: fehlende Datei, fehlgeschlagener Abruf, fehlender Anhang, Bestätigung ohne Datei mit Benutzer-ID, nachgeladene Datei |
+| `lexoffice/dateistand.csv` | Verlauf des Dateistands von Belegen aus sevDesk und aus dem Accountable-Stapel: fehlende Datei, fehlgeschlagener Abruf, fehlender Anhang, Bestätigung ohne Datei mit Benutzer-ID, nachgeladene Datei |
 | `lexoffice/zahlungen.csv` | Einzelzahlungen zu sevDesk-Vorgängen nach Zahlungsdatum: Belegnummer, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle |
 | `lexoffice/datev-buchungen.csv` | Die Zeilen des DATEV-Buchungsstapels mit Datei und Zeilennummer im Original |
 | `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `storebericht` (Finanzberichte von Google Play und App Store), `sonstiges` |

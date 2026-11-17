@@ -243,6 +243,14 @@ export interface EuerWithdrawals {
   ustEntnahmen: Cents;
 }
 
+/**
+ * Zeile einer direkt gebuchten Einnahme (Netto): nicht steuerbare Einnahme (#1131) ohne Umsatzsteuer in der Zeile der
+ * steuerfreien Einnahmen des Monats (16, als Kleinunternehmer 12) wie im Journal (journal-euer.ts), Erlöse mit 0 % als
+ * Kleinunternehmer, sonst umsatzsteuerpflichtig
+ */
+const direktEinnahmeZeile = (kategorie: DirektKategorie, steuersatz: number, steuerfrei: EuerLineKey): EuerLineKey =>
+  kategorie === "nichtSteuerbar" ? steuerfrei : steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig";
+
 export function computeEuer(
   year: number,
   payments: EuerPayment[],
@@ -348,7 +356,7 @@ export function computeEuer(
         // Zufluss bzw. Abfluss am Tag der Zahlung (§ 11 EStG); die Gegenrichtung (Erstattung) mindert die Zeile
         const { base, tax } = kategorieAnteil({ kategorie: p.kategorie, steuersatz: p.steuersatz }, p.sum);
         if (kategorieArt(p.kategorie) === "einnahme") {
-          add(p.steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig", base);
+          add(direktEinnahmeZeile(p.kategorie, p.steuersatz, steuerfrei), base);
           add("vereinnahmteUst", tax);
           monthlyIn[month]! += base;
         } else if (kategorieArt(p.kategorie) === "ausgabe") {

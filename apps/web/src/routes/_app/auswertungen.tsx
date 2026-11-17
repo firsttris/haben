@@ -12,11 +12,17 @@ import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { Gesamtumsatz } from "../../components/Gesamtumsatz.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 import { Status } from "../../components/Status.tsx";
+import { StandHinweis, StandSchalter } from "../../components/StandSchalter.tsx";
 
 export const Route = createFileRoute("/_app/auswertungen")({
-  validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))) }),
+  // `stichtag` ist der Schalter „Heute“ / „31.12.“ über den offenen Posten (#1110); er steht in der Adresse,
+  // damit ein Link auf den Abschlussstand weitergabefähig ist und die Ansicht ohne JavaScript bedienbar bleibt
+  validateSearch: z.object({
+    jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))),
+    stichtag: z.optional(z.literal("31.12.")),
+  }),
   loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => getReports({ data: { year: deps.jahr ?? currentYear() } }),
+  loader: ({ deps }) => getReports({ data: { year: deps.jahr ?? currentYear(), ...(deps.stichtag ? { stichtag: deps.stichtag } : {}) } }),
   head: () => ({ meta: [{ title: "Auswertungen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: ReportsPage,
 });
@@ -26,11 +32,16 @@ type Data = Awaited<ReturnType<typeof getReports>>;
 const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 function ReportsPage() {
-  const { euer, open, years, today, versteuerung, gesamtumsatz } = Route.useLoaderData();
+  const { euer, open, years, stand, stichtag, versteuerung, gesamtumsatz } = Route.useLoaderData();
   // GmbH und UG bilanzieren (§ 238 HGB): Die Zahlen nach Zahlung sind dort keine EÜR, den Gewinn zeigt der Jahresabschluss
   const { rechtsform, user } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const year = euer.year;
+  const heute = currentYear();
+  // Der Schalter gilt nur für ein vergangenes Jahr: Im laufenden Jahr sind „heute“ und „31.12.“ dasselbe
+  const stichtagMoeglich = year < heute;
+  // Ein Wechsel des Jahres nimmt den Stichtag mit, damit die Ansicht durchgehend denselben Tag zeigt (#1110)
+  const jahrLink = (y: number) => (stichtag && y < heute ? { jahr: y, stichtag } : { jahr: y });
   const netIn = euer.monthly.einnahmen.reduce((s, v) => s + v, 0);
   const netOut = euer.monthly.ausgaben.reduce((s, v) => s + v, 0);
   const receivables = [...open.receivables, ...open.unbilledReceivables].sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.number.localeCompare(b.number));
@@ -50,7 +61,7 @@ function ReportsPage() {
           {/* Die Pfeile tragen keine Zahl: Vor- und Folgejahr stehen oft schon in der Liste (aria-label nennt das Jahr) */}
           <nav className="year-switch" aria-label="Jahr wählen">
             {year > ERSTES_JAHR && (
-              <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`} title={`Vorjahr ${year - 1}`}>
+              <Link to="/auswertungen" search={jahrLink(year - 1)} className="chip" aria-label={`Vorjahr ${year - 1}`} title={`Vorjahr ${year - 1}`}>
                 <Icon name="chevron-left" size={16} />
               </Link>
             )}
@@ -58,7 +69,7 @@ function ReportsPage() {
               <Link
                 key={y}
                 to="/auswertungen"
-                search={{ jahr: y }}
+                search={jahrLink(y)}
                 className={y === year ? "chip active" : "chip"}
                 aria-current={y === year ? "page" : undefined}
               >
@@ -66,11 +77,12 @@ function ReportsPage() {
               </Link>
             ))}
             {year < LETZTES_JAHR && (
-              <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`} title={`Folgejahr ${year + 1}`}>
+              <Link to="/auswertungen" search={jahrLink(year + 1)} className="chip" aria-label={`Folgejahr ${year + 1}`} title={`Folgejahr ${year + 1}`}>
                 <Icon name="chevron-right" size={16} />
               </Link>
             )}
           </nav>
+          {stichtagMoeglich && <StandSchalter year={year} stichtag={stichtag} />}
           {!gesellschaft && (
             <a className="btn btn-primary" href={`/api/auswertungen/${year}`} download>
               EÜR als CSV
@@ -78,6 +90,8 @@ function ReportsPage() {
           )}
         </div>
       </div>
+
+      {stichtag && <StandHinweis year={year} />}
 
       <div className="grid-4">
         <div className="card">
@@ -108,7 +122,7 @@ function ReportsPage() {
           <div className="kpi-value">{formatEuro(open.receivablesTotal)}</div>
           <div className="small" style={{ color: overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
             {receivables.length} Posten
-            {overdueCount ? ` · ${overdueCount} überfällig` : ""} · Stand {formatDate(today)}
+            {overdueCount ? ` · ${overdueCount} überfällig` : ""} · Stand {formatDate(stand)}
           </div>
         </div>
       </div>
