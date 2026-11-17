@@ -63,6 +63,7 @@ import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paidPaymentOf, paymentColumns } from "./lastschrift.ts";
+import { customerChangeProblem, serviceEntryCustomerIssues } from "./leistungen-kunde.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
@@ -655,7 +656,11 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     const draft = await lockDraft(tx, id);
     for (const reference of [...new Set(input.deducts ?? [])].sort()) await lockInvoice(tx, reference);
     // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
-    if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
+    if (input.contactId !== draft.contactId) {
+      const entriesProblem = await customerChangeProblem(tx, id, input.contactId);
+      if (entriesProblem) throw new InvoiceError(entriesProblem);
+      await assertCustomer(tx, input.contactId);
+    }
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
     const { bundesland } = await loadCompany(tx);
     if (draft.kind === "rechnung") await checkQuote(tx, input.quoteId);
@@ -1118,7 +1123,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       );
     }
   }
-  issues.push(...(await directDebitIssues(invoice, company, q)));
+  issues.push(...(await directDebitIssues(invoice, company, q)), ...(await serviceEntryCustomerIssues(q, id, invoice.contactId)));
   if (contact && issues.length === 0) {
     const preview = documentFor(
       invoice,
