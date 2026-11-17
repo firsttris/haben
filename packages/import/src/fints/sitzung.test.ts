@@ -161,6 +161,23 @@ describe("FinTS-Sitzung gegen die nachgebaute Bank", () => {
     expect(mitTanSchritt()).toEqual([false, true, true]);
   });
 
+  it("ruft nach 9075 auch mit TAN-Schritt neu ab, wenn schon die Anmeldung des Abrufs eine TAN brauchte", async () => {
+    bank.zustand.umsatzTanVerschwiegen = true;
+    const client = fintsClient(PRODUKT, zugang);
+    await fintsSynchronisieren(client);
+    client.selectTanMethod(912);
+    expect((await fintsSynchronisieren(client)).art).toBe("ok");
+    const konto = fintsKonten(client).abrufbar[0]!;
+
+    // TAN schon bei der Anmeldung des Abrufs (etwa nach 180 Tagen); HKKAZ folgt im selben Dialog noch ohne HKTAN
+    bank.zustand.scaBeiAnmeldung = true;
+    const anmeldung = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31");
+    if (anmeldung.art !== "tan") throw new Error("TAN erwartet");
+    const fertig = await fintsUmsaetze(client, konto, "2026-10-01", "2026-10-31", { referenz: anmeldung.anfrage.referenz, tan: "123456" });
+    expect(fertig.art === "abgelehnt" ? fertig.meldung : fertig.art).toBe("ok");
+    expect(client.config.bankingInformation.bpd?.allowedTransactions.find((t) => t.transId === "HKKAZ")?.tanRequired).toBe(true);
+  });
+
   it("wirft, wenn lib-fints die Umsätze nicht lesen kann, statt keine zu melden", async () => {
     const client = fintsClient(PRODUKT, zugang);
     await fintsSynchronisieren(client);
