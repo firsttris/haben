@@ -1,12 +1,10 @@
 import { generateKeyPairSync } from "node:crypto";
 import type postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today } from "../../today.ts";
 
 const IBAN = "DE12500105170648489890";
-/** Abruf an einem späteren Tag, mit passender Uhr (fetchedAt kommt aus new Date()) */
-const amTag = (d: string) => vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${d}T12:00:00Z`) });
 const tag = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 function json(body: unknown, status = 200): Response {
