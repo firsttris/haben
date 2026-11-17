@@ -10,7 +10,6 @@ import styles from "../../styles/auswertungen.css?url";
 import { Icon } from "../../components/Icon.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { Gesamtumsatz } from "../../components/Gesamtumsatz.tsx";
-import { Gewinnsatz } from "../../components/Gewinnsatz.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 import { Status } from "../../components/Status.tsx";
 import { StandHinweis, StandSchalter } from "../../components/StandSchalter.tsx";
@@ -94,7 +93,6 @@ function ReportsPage() {
 
       {stichtag && <StandHinweis year={year} />}
 
-      {!gesellschaft && <Gewinnsatz euer={euer} />}
       <div className="grid-4">
         <div className="card">
           <div className="kpi-label">Einnahmen {year} (netto)</div>
@@ -115,7 +113,7 @@ function ReportsPage() {
             {gesellschaft ? (
               <>Einnahmen minus Ausgaben; den Gewinn zeigt der {user.role === "inhaber" ? <Link to="/abschluss">Jahresabschluss</Link> : "Jahresabschluss"}</>
             ) : (
-              "Einnahmen minus Ausgaben laut EÜR"
+              "Einnahmen minus Ausgaben mit Umsatzsteuer (EÜR)"
             )}
           </div>
         </div>

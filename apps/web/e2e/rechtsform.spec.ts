@@ -39,13 +39,8 @@ test("Einzelunternehmen: was nur ein Einzelunternehmen hat, bleibt sichtbar", as
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("link", { name: "EÜR als CSV" })).toBeVisible();
   await expect(page.getByRole("heading", { name: `Einnahmen-Überschuss-Rechnung ${YEAR}` })).toBeVisible();
-  // Ein Satz über den Kennzahlen nennt denselben Gewinn wie die Karte; in der GmbH gibt es ihn nicht (gmbh.spec.ts)
-  const gewinn = await page
-    .locator(".card", { has: page.getByText(`Gewinn ${YEAR}`, { exact: true }) })
-    .locator(".kpi-value")
-    .textContent();
-  await expect(page.getByText(`Du hast ${YEAR} ${gewinn} Gewinn gemacht: Einnahmen`)).toBeVisible();
-  await expect(page.getByText(/minus Ausgaben .* \(brutto, wie in der EÜR\)\./)).toBeVisible();
+  // Der Gewinn ist nicht netto minus netto: Die Karte sagt, dass die Umsatzsteuer darin steckt (in der GmbH steht dort etwas anderes, gmbh.spec.ts)
+  await expect(page.getByText("Einnahmen minus Ausgaben mit Umsatzsteuer (EÜR)", { exact: true })).toBeVisible();
 
   await page.goto("/dauerbelege/neu");
   await page.waitForLoadState("networkidle");
