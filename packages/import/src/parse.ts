@@ -20,7 +20,7 @@ type Detected =
       // accountable-xlsx steht nicht in der Liste: diese Umsaetze kommen mit dem Export, nie als Datei
       format: Exclude<
         StatementFormat,
-        "camt053" | "enablebanking" | "fints" | "googleplay-earnings" | "appstore-finance" | "store-payout" | "accountable-xlsx"
+        "camt053" | "enablebanking" | "fints" | "googleplay-earnings" | "appstore-finance" | "store-payout" | "accountable-xlsx" | "csv-zuordnung"
       >;
       rows: string[][];
       headerRow: number;

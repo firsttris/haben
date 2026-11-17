@@ -6,6 +6,7 @@
   "license": "AGPL-3.0-only",
   "exports": {
     ".": "./src/index.ts",
+    "./bank-zuordnung": "./src/bank-zuordnung/index.ts",
     "./fints-testbank": "./src/fints/testbank.ts"
   },
   "scripts": {

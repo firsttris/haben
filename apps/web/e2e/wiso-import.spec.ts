@@ -66,6 +66,12 @@ test("WISO: Testlauf, Import und Beleg im Archiv", async ({ browser }) => {
   await expect(card.getByText(/Import abgeschlossen: 1 Buchungen übernommen/)).toBeVisible({ timeout: 60_000 });
 
   await page.getByRole("navigation", { name: "Bereich wählen" }).getByRole("link", { name: "Belege", exact: true }).click();
+  // WISO liefert keine Dateien, jede Buchung ist „ohne Beleg“. Zu tun gibt es nichts (bestätigen lässt sich das nicht),
+  // deshalb bleibt der Status ruhig (DESIGN.md › Status, Stufe): sonst stünde jede Zeile der Liste in Warnfarbe
+  const zeile = page.getByRole("link", { name: /RE-2023-101/ });
+  const ohneBeleg = zeile.locator(".status").filter({ hasText: "Ohne Beleg" });
+  await expect(ohneBeleg).toHaveCount(1);
+  await expect(ohneBeleg).not.toHaveClass(/status-notice/);
   await page.getByRole("link", { name: /RE-2023-101/ }).click();
   await expect(page.getByRole("heading", { name: /RE-2023-101/ })).toBeVisible();
   expect(pageErrors).toEqual([]);

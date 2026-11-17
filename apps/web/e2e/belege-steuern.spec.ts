@@ -22,6 +22,7 @@ import {
   ohneAxeVerstoesse,
   trefferliste,
   randImDialog,
+  axeVerstoesse,
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
@@ -2639,6 +2640,52 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
 });
 
+test("Direkt buchen als nicht steuerbare Einnahme: ohne Steuersatz, auch nach Wechsel von Erlöse 19 % (#1131)", async () => {
+  const zeile = (name: string, zweck: string, betrag: string) =>
+    [dkb(day(0)), dkb(day(0)), "Gebucht", betrag.startsWith("-") ? "Max Mustermann" : name, betrag.startsWith("-") ? name : "Max Mustermann", zweck]
+      .concat([betrag.startsWith("-") ? "Ausgang" : "Eingang", "", betrag, "", "", ""])
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Versandlager GmbH", "Erstattung verlorene Ware", "12,50")}\n${zeile("Versandlager GmbH", "Rückforderung Erstattung", "-4,20")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "schadenersatz.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  await page
+    .getByRole("link", { name: /Erstattung verlorene Ware/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Erstattung verlorene Ware")).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  // Vorbelegt bleibt Erlöse 19 %; der Wechsel setzt den Satz zurück, ein Steuersatz-Feld gibt es dann nicht
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await expect(panel.getByText("Gebucht als Einnahme ohne Umsatzsteuer, nicht in der Voranmeldung.", { exact: false })).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Danach steht die Rückforderung im Panel: Ausgang, vorbelegt als Ausgabe; ebenfalls nicht steuerbar, mindert die Einnahme
+  await expect(panel.getByText("Rückforderung Erstattung")).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Direkt: Nicht steuerbare Einnahme")).toBeVisible();
+});
+
 /** Beleg mit abweichender IBAN aus dem Test unten, für die Prüfung mit axe */
 let ibanBeleg = "";
 
@@ -3380,7 +3427,9 @@ test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997
   await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
 });
 
-test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren des Monats zu (#680)", async ({ browser }) => {
+test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren und Gutschriften des Monats zu (#680)", async ({
+  browser,
+}) => {
   // Oktober vor dem Vorjahr: ohne Buchungen, damit die übrigen Auswertungen dieses Durchlaufs unverändert bleiben
   const year = YEAR - 2;
   await go("/belege");
@@ -3399,7 +3448,7 @@ test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffe
   await page.getByLabel("Belegdatum").fill(`${year}-10-31`);
   await page.getByLabel("Kategorie").selectOption("geldverkehr");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("0");
-  // Summe der vier Gebührenzeilen unten: 7,44 + 9,89 + 8,19 + 91,05
+  // Gebühren minus Gutschriften unten: 7,44 + 9,89 + 8,19 + 93,77 − 1,50 − 1,22
   await page.getByLabel("Netto", { exact: true }).fill("116,57");
   await page.locator(".doc-actions").getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");
@@ -3418,23 +3467,91 @@ test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffe
     `"October 1, ${year}",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
     `"October 2, ${year}",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
     `"October 3, ${year}",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
-    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
+    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€93.77,-€93.77,--`,
+    `"October 5, ${year}",Fee,"Credit for transaction fee","",EUR,--,€1.50,€1.50,--`,
+    `"October 6, ${year}",Fee,"Gutschrift für Einstellgebühr","",EUR,--,€1.22,€1.22,--`,
   ].join("\n");
   await page
     .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
     .setInputFiles([{ name: "etsy.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
-  await expect(page.getByText(/4 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/6 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
 
   await go("/bank?filter=alle&suche=Etsy");
   const gebuehren = page.locator(".tx-row", { hasText: "Etsy" });
-  await expect(gebuehren).toHaveCount(4);
+  await expect(gebuehren).toHaveCount(6);
   await gebuehren.filter({ hasText: "7,44" }).click();
   await page.waitForLoadState("networkidle");
   const panel = page.getByRole("complementary", { name: "Zuordnung" });
-  // Die einzelne Gebühr passt nie auf die Rechnung; die Summe des Monats schon
+  // Die einzelne Gebühr passt nie auf die Rechnung; Gebühren und Gutschriften des Monats zusammen schon
   await expect(panel.getByText("Beleg Etsy Ireland UC", { exact: true })).toBeVisible();
   await expect(panel.getByText("Betrag stimmt exakt")).toBeVisible();
   await panel.getByRole("button", { name: `Alle offenen Gebühren aus 10.${year} diesem Beleg zuordnen` }).click();
   await page.waitForLoadState("networkidle");
   for (const zeile of await gebuehren.all()) await expect(zeile).toContainText("Zugeordnet");
+});
+
+test("Unbekannte Bank-CSV: Spalten zuordnen, importieren, der nächste Export geht ohne Rückfrage durch (#1275)", async () => {
+  // Erfundene Bank mit Kopfblock, Soll und Haben in eigenen Spalten und dem Kontostand in der letzten Zeile
+  const datei = readFileSync(new URL("../../../packages/import/test-fixtures/unbekannte-bank-soll-haben.csv", import.meta.url));
+  await go("/bank");
+  await page.getByRole("button", { name: "Konto hinzufügen" }).click();
+  const neuesKonto = page.locator("form", { has: page.getByRole("button", { name: "Konto anlegen" }) });
+  await neuesKonto.getByLabel("Name", { exact: true }).fill("Konto ohne Format");
+  await neuesKonto.getByLabel("IBAN", { exact: true }).fill("DE75 5121 0800 1245 1261 99");
+  await neuesKonto.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByText("Konto angelegt.")).toBeVisible();
+  // Das Konto nicht vorwählen: die Datei nennt keine IBAN, gewählt wird es in der Zuordnung
+  await page.getByLabel("Konto", { exact: true }).selectOption("");
+  const upload = page.locator('input[type=file][aria-label="Kontoauszugsdateien"]');
+  await upload.setInputFiles([{ name: "umsaetze.csv", mimeType: "text/csv", buffer: datei }]);
+  await expect(page.getByText("umsaetze.csv: Haben kennt diese Bank nicht. Ordne die Spalten einmal selbst zu.")).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Spalten zuordnen" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Spalten zuordnen" });
+  // Die Vorschau steht oben; Spalten mit einem Wert aus der Datei, Kopfzeile und Zahlenformat eingeklappt
+  await expect(dialog.getByRole("status")).toContainText("4 Umsätze, 1 Zeile mit Fehlern, die Haben nicht übernimmt");
+  await expect(dialog.getByRole("listitem").filter({ hasText: "Kontostand" })).toContainText("Zeile 9: Buchungstag „Kontostand“ ist kein Datum");
+  await expect(dialog.getByLabel("Soll (Ausgänge)")).toHaveValue("15");
+  await expect(dialog.getByLabel("Soll (Ausgänge)").locator("option:checked")).toHaveText("Soll – -1.190,00");
+  await expect(dialog.getByLabel("Haben (Eingänge)")).toHaveValue("16");
+  await expect(dialog.getByLabel("Kopfzeile")).toBeHidden();
+  await dialog.getByText("Weitere Spalten, Kopfzeile und Zahlenformat").click();
+  // Die leere dritte Zeile zählt nicht mit: Index 2 ist Zeile 4
+  await expect(dialog.getByLabel("Kopfzeile")).toHaveValue("2");
+  expect(await axeVerstoesse(page)).toEqual([]);
+
+  // Ohne Konto meldet das Feld den Fehler und bekommt den Fokus
+  await dialog.getByRole("button", { name: "4 Umsätze importieren" }).click();
+  await expect(dialog.getByLabel("Konto", { exact: true })).toBeFocused();
+  await expect(dialog.getByText("Wähle das Konto, zu dem die Datei gehört.")).toBeVisible();
+  await dialog.getByLabel("Konto", { exact: true }).selectOption({ label: "Konto ohne Format" });
+  // Betrag statt Soll und Haben: die Spalte „Betrag“ ist leer, die Vorschau sagt es
+  await dialog.getByLabel("Soll (Ausgänge)").selectOption("");
+  await expect(dialog.getByRole("alert")).toHaveText("Ordne den Betrag zu oder Soll und Haben.");
+  await dialog.getByLabel("Soll (Ausgänge)").selectOption("15");
+  await expect(dialog.getByRole("status")).toContainText("4 Umsätze");
+  await dialog.getByRole("button", { name: "4 Umsätze importieren" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("umsaetze.csv: 4 neue Umsätze für Konto ohne Format. Spaltenzuordnung für Konto ohne Format gespeichert.")).toBeVisible();
+  await expect(page.getByText(/Zeile 9 nicht übernommen: Buchungstag „Kontostand“ ist kein Datum/)).toBeVisible();
+
+  // Der nächste Export mit derselben Kopfzeile: ohne Dialog, ohne Dubletten
+  await upload.setInputFiles([{ name: "umsaetze-november.csv", mimeType: "text/csv", buffer: datei }]);
+  await expect(page.getByText("umsaetze-november.csv: 0 neue Umsätze für Konto ohne Format, 4 schon vorhanden.")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Spalten zuordnen" })).toHaveCount(0);
+
+  // Zuordnung ändern: der Dialog beginnt mit der gespeicherten und warnt, wenn eine Änderung die Dubletten berührt
+  await page.getByRole("button", { name: "Zuordnung ändern" }).click();
+  await expect(dialog.getByText("Zuordnung vom letzten Import in dieses Konto.")).toBeVisible();
+  await expect(dialog.getByLabel("Konto", { exact: true })).toHaveValue(/.+/);
+  await dialog.getByLabel("Verwendungszweck").selectOption("");
+  await expect(dialog.getByText(/Umsätze, die schon importiert sind, erkennt Haben dann nicht mehr als Dubletten/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(dialog).toBeHidden();
+
+  await go("/bank?filter=alle");
+  await page.getByRole("link", { name: /^Konto ohne Format/ }).click();
+  await page.getByLabel("Umsätze durchsuchen").fill("Hafen Immobilien");
+  // Die Umsatzliste schreibt das Minus typografisch (U+2212)
+  await expect(page.locator(".tx-row", { hasText: "Miete Büro Oktober" })).toContainText("\u22121.190,00 €");
 });

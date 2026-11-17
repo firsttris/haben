@@ -60,6 +60,7 @@ import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
+import { ImportMeldungen, importMessages, type ImportMessage } from "../../components/BankImportMeldungen.tsx";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
@@ -852,7 +853,7 @@ function ImportControls({ data }: { data: Data }) {
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
-  const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
+  const [messages, setMessages] = useState<ImportMessage[]>([]);
 
   async function onFiles(files: File[]) {
     if (files.length === 0) return;
@@ -864,19 +865,11 @@ function ImportControls({ data }: { data: Data }) {
       if (targetAccount) form.append("accountId", targetAccount);
       const results = await importFiles({ data: form });
       setMessages(
-        results.flatMap((r) =>
+        results.flatMap((r, i) =>
           "error" in r && r.error
-            ? [{ tone: "danger" as const, text: r.error }]
+            ? [{ tone: "danger" as const, text: r.error, datei: r.zuordnen ? { file: files[i]!, aktion: "Spalten zuordnen" as const } : undefined }]
             : "added" in r
-              ? [
-                  {
-                    tone: "ok" as const,
-                    text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.`,
-                  },
-                  ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
-                  ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
-                  ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
-                ]
+              ? importMessages(r, files[i])
               : [],
         ),
       );
@@ -978,15 +971,16 @@ function ImportControls({ data }: { data: Data }) {
           </button>
         </form>
       )}
-      {messages.length > 0 && (
-        <ul className="upload-messages" role="status" style={{ maxWidth: 560 }}>
-          {messages.map((m, i) => (
-            <li key={i} className={`banner banner-${m.tone}`}>
-              {m.text}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ImportMeldungen
+        messages={messages}
+        accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
+        accountId={targetAccount}
+        onImported={(result, file) => {
+          setTargetAccount(result.accountId);
+          setMessages(importMessages(result, file));
+          void router.invalidate();
+        }}
+      />
     </div>
   );
 }
@@ -1130,7 +1124,8 @@ function AllocationPanel({
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
   // Den Sammelknopf gibt es bei jedem gewählten Beleg und beim besten Vorschlag, wenn dieser der Sammelbeleg des Monats ist
-  // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu.
+  // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu, die Gutschriften nur,
+  // wenn alles zusammen genau den Beleg ergibt (allocateFeesToDocument).
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
   const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
@@ -1481,8 +1476,8 @@ function AllocationPanel({
                 <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
                 {sammelrechnung && target.id !== sammelrechnung.documentId && (
                   <span className="small muted">
-                    Die offenen Gebühren von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der Beleg steht mit{" "}
-                    {formatEuro(Math.abs(target.open))} offen.
+                    Die offenen Gebühren und Gutschriften von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der
+                    Beleg steht mit {formatEuro(Math.abs(target.open))} offen.
                   </span>
                 )}
               </div>

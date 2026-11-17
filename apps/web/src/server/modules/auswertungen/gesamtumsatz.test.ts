@@ -123,6 +123,13 @@ describe.skipIf(!testDatabaseUrl)("Gesamtumsatz nach vereinnahmten Nettoentgelte
     await sql`insert into allocations (transaction_id, kind, amount) values (${await f.transaction(20_000)}, 'privat', 20000)`;
     expect(await read.gesamtumsatzForYear(2026)).toMatchObject({ included: 11_000, complete: true });
   });
+  it("zählt eine nicht steuerbare Einnahme (#1131) nicht zum Gesamtumsatz und lässt nichts ungeklärt", async () => {
+    const transaction = await f.transaction(1_250);
+    await sql`insert into allocations (transaction_id, kind, amount, category, tax_rate) values (${transaction}, 'kategorie', 1250, 'nichtSteuerbar', 0)`;
+    const result = await read.gesamtumsatzForYear(2026);
+    expect(result).toMatchObject({ included: 0, complete: true });
+    expect(result.items).toContainEqual(expect.objectContaining({ transactionId: transaction, decision: "excluded" }));
+  });
   it("zeigt nicht zugeordnete Eingänge und Ausgänge ohne Nettoerfindung", async () => {
     await f.transaction(12_345);
     await f.transaction(-200);

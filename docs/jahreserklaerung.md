@@ -116,7 +116,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Miete für Geschäftsräume | Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke (Zeile 39, Kz 150) |
 | Reparatur und Instandhaltung (Ausstattung, ohne EDV und Kfz) | Erhaltungsaufwendungen, ohne solche für Gebäude und Kfz (Zeile 48, Kz 225) |
 | Beiträge zur Berufsgenossenschaft, Versorgungskassen | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge für Arbeitnehmer) |
-| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer) bzw. die Zeile der Kategorie wie bei einem Beleg |
+| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer; nicht steuerbare Einnahme: Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen) bzw. die Zeile der Kategorie wie bei einem Beleg |
 | AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
@@ -239,7 +239,7 @@ Ohne Angaben für das Jahr übernimmt die Seite Anteilseigner und Verträge aus 
 | Erklärung | Was Haben sendet |
 | --- | --- |
 | Körperschaftsteuer (KSt 1 mit Anlagen GK, ZVE, WA, KSt 1 F, Verluste) | Jahresüberschuss, nicht abziehbare Steuern und Betriebsausgaben (Anlage GK Zeilen 81 bis 90), Einkünfte aus Gewerbebetrieb, Verlustabzug mit Mindestbesteuerung, zu versteuerndes Einkommen und 15 % Körperschaftsteuer; Anteilseigner, Verträge, kein schädlicher Beteiligungserwerb nach § 8c KStG, Einlagekonto (Anlage KSt 1 F) mit den [Ausschüttungen](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) des Jahres, dem ausschüttbaren Gewinn und dem Teil aus dem Einlagekonto |
-| Gewerbesteuer (GewSt 1 A) | Rechtsform, Gegenstand (Einstellungen › Art des Betriebs), einzige Betriebsstätte am Sitz, Gewinn aus Gewerbebetrieb, Zinsen, Mieten, Leasing und Lizenzen in voller Höhe (§ 8 Nr. 1 GewStG; den Hinzurechnungsbetrag ermittelt das Finanzamt) und den Gewerbeverlust des Vorjahres |
+| Gewerbesteuer (GewSt 1 A) | Rechtsform, Gegenstand (Einstellungen › Art des Betriebs), einzige Betriebsstätte am Sitz, Gewinn aus Gewerbebetrieb, Zinsen, Mieten, Leasing und Lizenzen in voller Höhe (§ 8 Nr. 1 GewStG; den Hinzurechnungsbetrag ermittelt das Finanzamt), das Leasing für Elektrofahrzeuge und Fahrräder getrennt in Zeile 54, und den Gewerbeverlust des Vorjahres |
 
 Alle Beträge in vollen Euro; die Summen rechnet Haben aus den Einzelbeträgen, wie die Plausibilitätsregeln es verlangen. **Nur prüfen** und die **Testübermittlung** gehen jederzeit; **echt senden** erst, wenn das Jahr [abgeschlossen](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug) ist, und je Erklärung nur einmal. Die Körperschaftsteuererklärung kennt Haben für 2025, die Gewerbesteuererklärung für 2024 und 2025; für spätere Jahre kommt das Formular mit dem nächsten ERiC.
 
