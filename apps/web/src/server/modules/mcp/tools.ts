@@ -6,6 +6,7 @@ import {
   lastMonthOfPeriod,
   latestEndedPeriod,
   parsePeriodKey,
+  previousMonthKey,
   previousPeriod,
   periodKey,
   periodLabel,
@@ -193,7 +194,7 @@ export const MCP_TOOLS: McpTool[] = [
     run: async (_args, { today }) => {
       const period = await filingPeriod(today);
       const monat = today.slice(0, 7);
-      const vormonat = periodKey(previousPeriod({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }));
+      const vormonat = previousMonthKey(today);
       const [company, returns, computed, invoices, accounts, documents, afa, appeals, certificate, fristen, kleinunternehmer, umsatz, umsatzVormonat] =
         await Promise.all([
           loadCompany(),

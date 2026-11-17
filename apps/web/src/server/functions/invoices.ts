@@ -1,4 +1,4 @@
-import { inCents, periodKey, previousPeriod } from "@haben/core";
+import { inCents, previousMonthKey } from "@haben/core";
 import { notFound } from "@tanstack/react-router";
 import { invoicesSentByMail, leistungsmonatHinweisFuer, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
@@ -66,13 +66,12 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const now = today();
-    const vormonat = periodKey(previousPeriod({ year: Number(now.slice(0, 4)), month: Number(now.slice(5, 7)) }));
     const [accounts, open, summary, revenuePreviousMonth] = await Promise.all([
       listAccounts(),
       openPositions(now),
       invoiceSummary(now),
       // Umsatzerlöse des Vormonats aus dem Journal, auch aus Buchungen ohne Rechnung in Haben, etwa aus dem Datenimport
-      umsatzImMonat(vormonat),
+      umsatzImMonat(previousMonthKey(now)),
     ]);
     return {
       ...summary,
