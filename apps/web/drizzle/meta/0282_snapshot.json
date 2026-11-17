@@ -1,5 +1,5 @@
 {
-  "id": "5a24f4bc-995b-4f3b-82eb-220a06759945",
+  "id": "7f2e8f08-e207-421f-9c05-6a7338609ca9",
   "prevId": "15e587cd-a889-4786-8002-d15dd30fb6ea",
   "version": "7",
   "dialect": "postgresql",
@@ -7214,454 +7214,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.import_batches": {
-      "name": "import_batches",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fetch_id": {
-          "name": "fetch_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "part_index": {
-          "name": "part_index",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "part_last": {
-          "name": "part_last",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "coverage_from": {
-          "name": "coverage_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "coverage_to": {
-          "name": "coverage_to",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "blocking": {
-          "name": "blocking",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "open_from": {
-          "name": "open_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fingerprint": {
-          "name": "fingerprint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bank_import_id": {
-          "name": "bank_import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "checkpoint": {
-          "name": "checkpoint",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "complete": {
-          "name": "complete",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "import_batches_key": {
-          "name": "import_batches_key",
-          "columns": [
-            {
-              "expression": "source_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idempotency_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "import_batches_source_created": {
-          "name": "import_batches_source_created",
-          "columns": [
-            {
-              "expression": "source_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "import_batches_source_id_import_sources_id_fk": {
-          "name": "import_batches_source_id_import_sources_id_fk",
-          "tableFrom": "import_batches",
-          "tableTo": "import_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "import_batches_bank_import_id_bank_imports_id_fk": {
-          "name": "import_batches_bank_import_id_bank_imports_id_fk",
-          "tableFrom": "import_batches",
-          "tableTo": "bank_imports",
-          "columnsFrom": [
-            "bank_import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.import_movements": {
-      "name": "import_movements",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "batch_id": {
-          "name": "batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_event_id": {
-          "name": "source_event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "component": {
-          "name": "component",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "booking_date": {
-          "name": "booking_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "details": {
-          "name": "details",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transaction_id": {
-          "name": "transaction_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "import_movements_identity": {
-          "name": "import_movements_identity",
-          "columns": [
-            {
-              "expression": "source_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "source_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "component",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "import_movements_transaction": {
-          "name": "import_movements_transaction",
-          "columns": [
-            {
-              "expression": "transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "import_movements_source_id_import_sources_id_fk": {
-          "name": "import_movements_source_id_import_sources_id_fk",
-          "tableFrom": "import_movements",
-          "tableTo": "import_sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "import_movements_batch_id_import_batches_id_fk": {
-          "name": "import_movements_batch_id_import_batches_id_fk",
-          "tableFrom": "import_movements",
-          "tableTo": "import_batches",
-          "columnsFrom": [
-            "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "import_movements_transaction_id_bank_transactions_id_fk": {
-          "name": "import_movements_transaction_id_bank_transactions_id_fk",
-          "tableFrom": "import_movements",
-          "tableTo": "bank_transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "import_movements_component": {
-          "name": "import_movements_component",
-          "value": "\"import_movements\".\"component\" in ('main', 'fee')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.import_sources": {
-      "name": "import_sources",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "bank_account_id": {
-          "name": "bank_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "external_account_id": {
-          "name": "external_account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_kind": {
-          "name": "account_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cutover_date": {
-          "name": "cutover_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "import_sources_identity": {
-          "name": "import_sources_identity",
-          "columns": [
-            {
-              "expression": "provider",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "import_sources_bank_account_id_bank_accounts_id_fk": {
-          "name": "import_sources_bank_account_id_bank_accounts_id_fk",
-          "tableFrom": "import_sources",
-          "tableTo": "bank_accounts",
-          "columnsFrom": [
-            "bank_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "import_sources_kind": {
-          "name": "import_sources_kind",
-          "value": "\"import_sources\".\"account_kind\" in ('bank', 'psp')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.inbox_messages": {
       "name": "inbox_messages",
       "schema": "",
@@ -7678,6 +7230,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "direction": {
+          "name": "direction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'eingang'"
         },
         "sender": {
           "name": "sender",
@@ -7790,6 +7349,19 @@
           "notNull": true,
           "default": "'INBOX'"
         },
+        "outbound_folder": {
+          "name": "outbound_folder",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allowed_senders": {
+          "name": "allowed_senders",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
         "enabled": {
           "name": "enabled",
           "type": "boolean",
@@ -7802,6 +7374,13 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "last_rejected": {
+          "name": "last_rejected",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "last_error": {
           "name": "last_error",

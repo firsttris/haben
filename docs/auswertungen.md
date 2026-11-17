@@ -21,7 +21,7 @@ Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwisch
 | --- | --- |
 | Einnahmen (netto) | Summe der Monatswerte, ohne Umsatzsteuer; darunter der Bruttowert laut EÜR |
 | Ausgaben (netto) | Summe der Monatswerte, ohne Vorsteuer (Belege ohne Vorsteuerabzug brutto); darunter der Bruttowert laut EÜR mit Vorsteuer und gezahlter Umsatzsteuer |
-| Gewinn bzw. Verlust | Betriebseinnahmen minus Betriebsausgaben laut EÜR |
+| Gewinn bzw. Verlust | Betriebseinnahmen minus Betriebsausgaben laut EÜR, mit vereinnahmter Umsatzsteuer, gezahlter Vorsteuer und gezahlter Umsatzsteuer; nicht die Netto-Werte der ersten beiden Kennzahlen voneinander abgezogen |
 | Offene Forderungen | Summe aller offenen Rechnungen zum gewählten Stand (heute oder 31.12.), mit Anzahl und Zahl der überfälligen |
 
 ## EÜR nach Zufluss und Abfluss

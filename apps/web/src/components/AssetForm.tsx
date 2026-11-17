@@ -21,7 +21,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
-import { AssetMethodOptions, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
+import { AssetMethodOptions, hasMethodHint, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
 import { Field } from "./Field.tsx";
 
 export interface AssetFormValues {
@@ -214,8 +214,12 @@ export function AssetForm({
 
       <section className="form-section" aria-labelledby="asset-depreciation">
         <h3 id="asset-depreciation">Abschreibung</h3>
+        <p id="asset-depreciation-hint" className="field-hint">
+          Die Kosten einer Anlage verteilst du auf mehrere Jahre; nur bei GWG und bei Computern und Software setzt du sie im Jahr des Kaufs ganz ab (Fachwort:
+          AfA, Absetzung für Abnutzung).
+        </p>
         <div className="form-row cols-2">
-          <Field label="Abschreibung">
+          <Field label="Abschreibung" describedBy={hasMethodHint(method) ? "asset-depreciation-hint method-hint" : "asset-depreciation-hint"}>
             {(control) => (
               <select {...control} value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
                 {Object.entries(ASSET_METHODS)

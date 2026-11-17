@@ -26,7 +26,7 @@ Ein Lauf
 2. erzeugt mit `pg_dump` über das Netz einen SQL-Dump der Datenbank, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab,
 3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
 4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die längste Aufbewahrungsfrist ab, 10 Jahre für Bücher und Aufzeichnungen (§ 147 Abs. 3 AO),
-5. trägt das Ergebnis in die Datenbank ein, mit dem Repository ohne Nutzer und Passwort für die [Verfahrensdokumentation](verfahrensdokumentation.md); die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
+5. trägt das Ergebnis mit dem Repository ohne Nutzer und Passwort in die Datenbank ein; die App zeigt beides unter Einstellungen › Export, als Speicherort „Lokal“ (Verzeichnis im Backup-Container) oder „Extern“, nennt das Repository in der [Verfahrensdokumentation](verfahrensdokumentation.md) und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
 6. spielt alle `RESTORE_CHECK_DAYS` Tage (Standard 7) das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
 
 Die Volumes `caddy`, `eric` und `eric-log` und die Schlüssel sind nicht dabei. Mit Compose zeigt `docker compose ps` den Dienst `backup` als `unhealthy`, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief.
@@ -42,7 +42,9 @@ Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backup
 | --- | --- | --- |
 | SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.override.yml` bei `backup` und `restore` `~/.ssh:/root/.ssh:ro` unter `volumes` eintragen ([SFTP Schritt für Schritt](#sftp-schritt-für-schritt)) bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
 | S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
-| restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | – |
+| restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | Im Passwort außer `A–Z`, `a–z`, `0–9` und `-._~!&'()*+,;=:@` jedes Zeichen prozentkodiert, etwa `/` als `%2F`, `#` als `%23`, `%` als `%25`, `$` als `%24` (Compose liest `$` in `.env` als Variable), Leerzeichen als `%20`, `ä` als `%C3%A4`; sonst liest restic die Adresse nicht oder falsch |
+
+Das Protokoll des Backup-Containers und Haben nennen Ziel und Fehlermeldungen ohne Nutzer und Passwort.
 
 Mit Compose trägst du die Werte in `.env` ein, mit den Quadlets in `~/.config/haben/backup.env`, zum Beispiel:
 

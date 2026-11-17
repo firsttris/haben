@@ -854,8 +854,14 @@ export const inboxSettings = pgTable(
     ciphertext: bytea("ciphertext").notNull(),
     /** Ordner, aus dem Haben ungelesene Mails holt */
     folder: text("folder").notNull().default("INBOX"),
+    /** Ordner für Ausgangsrechnungen aus Fremdsystemen; leer: aus */
+    outboundFolder: text("outbound_folder"),
+    /** Freigegebene Absender (Adresse oder Domain); leer: jeder Absender */
+    allowedSenders: text("allowed_senders").array().notNull().default(sql`'{}'::text[]`),
     enabled: boolean("enabled").notNull().default(true),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    /** Mails nicht freigegebener Absender beim letzten Abruf (nur die Zahl, ohne Absender und Betreff) */
+    lastRejected: integer("last_rejected").notNull().default(0),
     lastError: text("last_error"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -866,6 +872,10 @@ export const inboxSettings = pgTable(
 export const inboxMessages = pgTable("inbox_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
   messageId: text("message_id").notNull().unique(),
+  /** Aus welchem Ordner die Mail kam */
+  direction: text("direction", { enum: ["eingang", "ausgang"] })
+    .notNull()
+    .default("eingang"),
   sender: text("sender").notNull(),
   subject: text("subject").notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }),
@@ -3857,7 +3867,7 @@ export const backupStatus = pgTable(
     bytes: bigint("bytes", { mode: "number" }),
     /** Zusammenfassung oder Fehlermeldung */
     message: text("message").notNull().default(""),
-    /** Ziel der Sicherung (RESTIC_REPOSITORY ohne Zugangsdaten), für die Verfahrensdokumentation; null bei älteren Images */
+    /** Ziel der Sicherung (RESTIC_REPOSITORY ohne Zugangsdaten), für Einstellungen → Export und die Verfahrensdokumentation; null bei älteren Images */
     target: text("target"),
   },
   (t) => [check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`), index("backup_status_kind_at").on(t.kind, t.at)],

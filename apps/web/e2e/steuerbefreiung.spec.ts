@@ -43,7 +43,7 @@ test.beforeAll(async ({ browser }) => {
   await page.getByLabel("Straße und Hausnummer").fill("Beispielweg 7");
   await page.getByLabel("PLZ", { exact: true }).fill("1010");
   await page.getByLabel("Ort", { exact: true }).fill("Wien");
-  await page.getByLabel("Land (ISO-Code)").fill("AT");
+  await page.getByLabel("Land (z. B. DE)").fill("AT");
   await page.getByRole("button", { name: "Kontakt anlegen", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
 });
@@ -120,6 +120,9 @@ for (const editor of editors) {
     test(`${editor.kind}: KU-Befreiung ${provision} speichern, erneut öffnen und Vorschau`, async () => {
       await newDraft(editor);
       await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("steuerfrei");
+      await expect(page.getByLabel("Umsatzsteuer", { exact: true })).toHaveAccessibleDescription(
+        /§ 4 UStG.*Die Kleinunternehmerregelung lässt eine eigene Befreiung/,
+      );
       await taxActionRejected(editor);
       await page.getByLabel("Befreiungsvorschrift", { exact: true }).selectOption(provision);
       await expect(page.getByLabel("Hinweis zur Steuerbefreiung", { exact: true })).toHaveValue(`Steuerfreie Leistung nach ${note}.`);

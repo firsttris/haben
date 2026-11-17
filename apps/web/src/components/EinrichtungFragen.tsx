@@ -88,7 +88,7 @@ export function UnternehmenFragen({ antworten, setzen, stand, locks, steuerberat
         hinweis={
           kleinGesperrt
             ? locks.kleinunternehmer
-            : "Nach § 19 UStG, wenn der Umsatz im Vorjahr höchstens 25.000 € war und im laufenden Jahr 100.000 € nicht übersteigt. Dann Rechnungen ohne Umsatzsteuer und keine Voranmeldung."
+            : "Dann schreibst du Rechnungen ohne Umsatzsteuer und gibst keine Voranmeldung ab. Das geht, wenn dein Umsatz im Vorjahr höchstens 25.000 € war und im laufenden Jahr 100.000 € nicht übersteigt (§ 19 UStG)."
         }
         optionen={[
           { value: true, label: "Ja", disabled: kleinGesperrt },
@@ -103,7 +103,7 @@ export function UnternehmenFragen({ antworten, setzen, stand, locks, steuerberat
             frage="Wann zahlst du die Umsatzsteuer?"
             hinweis={
               locks.versteuerung ??
-              "Ist: wenn das Geld da ist (auf Antrag, § 20 UStG). Soll: mit der Rechnung. Was gilt, steht im Schreiben des Finanzamts zur steuerlichen Erfassung."
+              "Ist: wenn das Geld da ist, auf Antrag (§ 20 UStG). Soll: mit der Rechnung. Was gilt, steht im Schreiben des Finanzamts zur steuerlichen Erfassung."
             }
             optionen={[
               { value: "ist", label: "Ist-Versteuerung, nach Zahlungseingang", disabled: Boolean(locks.versteuerung) && stand.versteuerung !== "ist" },
@@ -114,7 +114,7 @@ export function UnternehmenFragen({ antworten, setzen, stand, locks, steuerberat
           />
           <Frage
             frage="Wie oft gibst du die Voranmeldung ab?"
-            hinweis="So, wie es das Finanzamt festgelegt hat (§ 18 Abs. 2 UStG). Gilt ab Januar dieses Jahres; ein Wechsel im Jahr geht auf der Seite der Voranmeldung."
+            hinweis="Das legt das Finanzamt fest (§ 18 Abs. 2 UStG). Gilt ab Januar dieses Jahres; ein Wechsel im Jahr geht auf der Seite der Voranmeldung."
             optionen={[
               { value: "monatlich", label: "Monatlich" },
               { value: "vierteljaehrlich", label: "Vierteljährlich" },
@@ -126,7 +126,7 @@ export function UnternehmenFragen({ antworten, setzen, stand, locks, steuerberat
       )}
       <Frage
         frage="Hast du nur steuerfreie Umsätze ohne Vorsteuerabzug, etwa Heilbehandlung oder Unterricht?"
-        hinweis="Nach § 4 Nr. 14 und 21 UStG: Belege werden dann ohne Vorsteuer gebucht. Am einzelnen Beleg änderbar."
+        hinweis="Dann bucht Haben Belege ohne Vorsteuer, am einzelnen Beleg änderbar (§ 4 Nr. 14 und 21 UStG)."
         optionen={JA_NEIN}
         wert={antworten.ohneVorsteuerabzug}
         onChange={(wert) => setzen("ohneVorsteuerabzug", wert)}
@@ -178,6 +178,7 @@ export function StartFrage({
           { value: false, label: "Ich fange neu an" },
           { value: true, label: "Ich wechsle von einem anderen Programm" },
         ]}
+        hinweis="Dieser Schritt speichert nichts. Den Umzug startest du jederzeit im Archiv unter „Umzug“."
         wert={wechsel}
         onChange={setWechsel}
         unbekannt="Später entscheiden"
@@ -205,8 +206,8 @@ export function BereichFragen({ bereiche, setzen }: { bereiche: Antworten["berei
   return (
     <>
       <p className="small muted" style={{ margin: 0 }}>
-        Was du nicht brauchst, verschwindet nur aus dem Menü. Daten, Auswertungen und Links bleiben, und unter Einstellungen › Bereiche schaltest du es
-        jederzeit wieder ein.
+        Was du mit „Nein“ beantwortest, verschwindet nur aus dem Menü; bei „Weiß ich noch nicht“ bleibt der Punkt stehen. Daten, Auswertungen und Links bleiben,
+        und unter Einstellungen › Bereiche schaltest du es jederzeit wieder ein.
       </p>
       {BEREICHE.map((bereich) => (
         <Frage
