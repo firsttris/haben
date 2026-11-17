@@ -376,4 +376,18 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     const stichtag = await reports.openPositions("2025-12-31", { bis: "2025-12-31" });
     expect(stichtag.payables).toEqual([]);
   });
+
+  it("zeigt eine Voranmeldung aus dem Altbestand offen, deren Zahlung mit Bezug erst nach dem Stichtag kam", async () => {
+    // Vor dem Update gesendet (vat_items_since): ein Posten nur mit Zahlung mit Bezug. Dass es sie gibt, weiß Haben
+    // unabhängig vom Stichtag; am 31.12.2024 war die Dezember-Steuer entstanden und noch nicht bezahlt.
+    const [alt] = await sql`insert into vat_returns (year, month, status, source, kz81, kz83, transfer_ticket, sent_at, locked_at)
+      values (2024, 12, 'sent', 'manuell', 100000, 19000, 'etALT202412', '2025-01-09T10:00:00Z', '2025-01-09T10:00:00Z') returning id`;
+    await bank.importStatement(actor, { bytes: dkbCsv([row("10.02.25", "Finanzamt Regensburg", "USt 12/24", "-190,00")]), filename: "alt.csv" }, null);
+    const [ustZahlung] = await sql`select id from bank_transactions where amount = -19_000`;
+    await bank.allocate(actor, { kind: "ustva", transactionId: ustZahlung!.id as string, vatReturnId: alt!.id as string, amount: -19_000 });
+
+    expect((await zahlung.ustvaPosten()).posten.map((p) => [p.vatReturnId, p.offen])).toEqual([[alt!.id, 0]]);
+    const stand = await zahlung.ustvaPosten(undefined, { bis: "2024-12-31" });
+    expect(stand.posten.map((p) => [p.vatReturnId, p.offen])).toEqual([[alt!.id, 19_000]]);
+  });
 });
