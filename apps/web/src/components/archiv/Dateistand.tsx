@@ -19,7 +19,8 @@ type FileState = Awaited<ReturnType<typeof getLegacyVoucher>>["fileState"];
 type FileStatus = FileState["status"];
 
 const LOOK: Partial<Record<FileStatus, { word: string; tone: "warn" | "danger" | "neutral"; emphasis?: "notice" }>> = {
-  ohne_beleg: { word: "Ohne Beleg", tone: "warn", emphasis: "notice" },
+  // Ein Merkmal der Quelle, kein Auftrag: bestätigen ist nur im Accountable-Stapel und dort auf Wunsch möglich (DESIGN.md › Status)
+  ohne_beleg: { word: "Ohne Beleg", tone: "warn" },
   ohne_datei: { word: "Keine", tone: "warn", emphasis: "notice" },
   ohne_datei_offen: { word: "Prüfen", tone: "warn", emphasis: "notice" },
   ohne_datei_bestaetigt: { word: "Keine", tone: "neutral" },
