@@ -19,6 +19,20 @@ describe("Laufende FinTS-Vorgänge", () => {
     await expect(vorgangFortsetzen("anna", id, { tan: "1" }, 10 * 60 * 1000)).rejects.toThrow(/abgelaufen/);
   });
 
+  it("gibt einen abgelaufenen Vorgang samt PIN frei, auch wenn kein weiterer kommt", async () => {
+    // Wer das Fenster schließt, statt abzubrechen: Der Client mit der PIN darf nicht bis zum nächsten Vorgang bleiben
+    vi.useFakeTimers();
+    try {
+      const jetzt = Date.now();
+      const id = vorgangMerken("anna", "tan", async () => fertig, jetzt);
+      vi.advanceTimersByTime(10 * 60 * 1000);
+      // Mit dem Zeitpunkt des Anlegens: Nicht das Aufräumen beim Fortsetzen, sondern der Ablauf allein hat ihn entfernt
+      await expect(vorgangFortsetzen("anna", id, { tan: "1" }, jetzt)).rejects.toThrow(/abgelaufen/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("verlangt bei der Wahl ein Verfahren und bei der TAN keines", async () => {
     const wahl = vorgangMerken("anna", "verfahren", async () => fertig);
     await expect(vorgangFortsetzen("anna", wahl, {})).rejects.toThrow("Bitte ein TAN-Verfahren wählen.");
@@ -86,6 +100,11 @@ describe("Ablehnungen der Bank", () => {
       /^Das Kundenprodukt wird nicht unterstützt\. \(9952\) Die Bank kennt die Registrierungsnummer aus FINTS_PRODUKT_ID nicht oder noch nicht\./,
     );
     expect(text).toContain("Tage bis Wochen");
+  });
+
+  it("erklärt auch den Code der DK für ein nicht registriertes Produkt (9078)", () => {
+    const text = fintsAblehnung({ meldung: "Dialog abgebrochen – FinTS-Produkt ist nicht registriert. (9078)", codes: [9800, 9078] });
+    expect(text).toMatch(/\(9078\) Die Bank kennt die Registrierungsnummer aus FINTS_PRODUKT_ID nicht oder noch nicht\./);
   });
 
   it("lässt andere Ablehnungen, wie die Bank sie schreibt", () => {
