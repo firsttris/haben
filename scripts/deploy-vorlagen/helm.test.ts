@@ -23,7 +23,7 @@ type Pod = {
   automountServiceAccountToken?: boolean;
   containers: Container[];
   initContainers?: Container[];
-  volumes: { name: string; emptyDir?: { medium?: string }; persistentVolumeClaim?: { claimName: string } }[];
+  volumes: { name: string; emptyDir?: { medium?: string; sizeLimit?: string }; persistentVolumeClaim?: { claimName: string } }[];
 };
 type Manifest = {
   kind: string;
@@ -149,6 +149,14 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     // Compose hängt /tmp als tmpfs ein; dort liegt während eines Aufrufs von ERiC das ELSTER-Zertifikat
     expect(compose.app.tmpfs).toEqual(["/tmp"]);
     expect(appPod().volumes.find((v) => v.name === "tmp")?.emptyDir).toEqual({ medium: "Memory" });
+  });
+
+  // /tmp liegt im Speicher und zählt gegen das Memory-Limit; ab Werk ohne Grenze wie das tmpfs in Compose (#1354)
+  test("begrenzt /tmp der App nur mit app.tmpSizeLimit", () => {
+    const tmp = (pod: Pod) => pod.volumes.find((v) => v.name === "tmp")?.emptyDir;
+    expect(tmp(appPod())).toEqual({ medium: "Memory" });
+    const werte = { ...basis, app: { ...(basis.app as object), tmpSizeLimit: "256Mi" } };
+    expect(tmp(finde(manifeste(werte), "Deployment", "haben").spec.template.spec)).toEqual({ medium: "Memory", sizeLimit: "256Mi" });
   });
 
   // Pod Security „restricted“ (#1354): Das Backup liegt im Pod der App, ohne Härtung startete dort auch die App nicht
@@ -364,6 +372,11 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
       fall: "mit falscher Uhrzeit des Backups",
       werte: { ...basis, backup: { ...(basis.backup as object), env: { BACKUP_TIME: "3:15" } } },
       meldung: "backup.env.BACKUP_TIME braucht",
+    },
+    {
+      fall: "mit der Grenze für /tmp als Zahl",
+      werte: { ...basis, app: { ...(basis.app as object), tmpSizeLimit: 268435456 } },
+      meldung: "app.tmpSizeLimit in Anführungszeichen",
     },
     { fall: "mit HTTPRoute ohne Gateway", werte: { ...basis, httpRoute: { enabled: true } }, meldung: "httpRoute.parentRefs fehlt" },
     {
