@@ -272,13 +272,16 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
     expect(statement.transactions.filter((t) => t.type === "Verkauf")).toHaveLength(2);
   });
 
-  it("hält Auszahlung, Karteneinzug und Verrechnung von den Gebühren getrennt", () => {
+  it("hält Auszahlung, Karteneinzug und Ausgleich von den Gebühren getrennt", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor });
     const auszahlung = statement.transactions.find((t) => t.type === "Auszahlung");
     expect(auszahlung?.amount).toBe(-3490);
     expect(auszahlung?.purpose.startsWith("Auszahlung")).toBe(true);
     expect(statement.transactions.find((t) => t.type === "Karteneinzug")?.amount).toBe(2175);
-    expect(statement.transactions.find((t) => t.type === "Verrechnung")?.amount).toBe(2006);
+    // RECOUP heißt „Ausgleich“ wie in der Monatsabrechnung (#1313): „Verrechnung“ meint in Haben den Ausgleich offener Posten
+    const ausgleich = statement.transactions.find((t) => t.type === "Ausgleich");
+    expect(ausgleich?.amount).toBe(2006);
+    expect(ausgleich?.purpose.startsWith("Ausgleich · Etsy")).toBe(true);
   });
 
   it("übernimmt ohne Bündelung jede Zeile einzeln", () => {
