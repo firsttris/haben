@@ -1,5 +1,6 @@
 import { IMPORT_CONTRACT_VERSION, type ImportBatch, type ImportMovement } from "../importvertrag/types.ts";
 import { parseDate } from "../text.ts";
+import type { ParsedTransaction } from "../types.ts";
 import type { EbBalance, EbTransaction } from "./client.ts";
 import { bookedBalance, mapEnableBankingTransaction } from "./map.ts";
 
@@ -93,4 +94,13 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
     balances: balance?.date && parseDate(balance.date) === balance.date ? [{ date: balance.date, amount: balance.amount, currency: "EUR" }] : [],
     unsupported,
   };
+}
+
+/**
+ * Ereignis zu einem Umsatz aus `enableBankingStatement`: Dessen `bankReference` ist die `entry_reference` oder, ohne
+ * sie, die `transaction_id`; nur die erste ist eine stabile Kennung.
+ */
+export function entryReferenceOf(transactions: EbTransaction[]): (t: ParsedTransaction) => string | undefined {
+  const refs = new Map(transactions.filter((t) => t.entry_reference).map((t) => [t.entry_reference!, referenz(t)]));
+  return (t) => (t.bankReference ? refs.get(t.bankReference) : undefined);
 }
