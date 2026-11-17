@@ -215,8 +215,8 @@ describe("Körperschaft- und Gewerbesteuer", () => {
    * Betriebs- und Geschäftsausstattung (d), Garagenmiete (e)
    */
   it.each([
-    ["SKR03", ["2109", "2116", "2118", "2119", "2125", "2129"], ["4810", "4965"], ["4550"]],
-    ["SKR04", ["7309", "7351", "7318", "7319", "7325", "7329"], ["6498", "6840"], ["6550"]],
+    ["SKR03", ["2109", "2118", "2119", "2125", "2129"], ["4810", "4965"], ["4550"]],
+    ["SKR04", ["7309", "7318", "7319", "7325", "7329"], ["6498", "6840"], ["6550"]],
   ] as const)("%s: Zinsen, bewegliche und unbewegliche Wirtschaftsgüter aus allen Konten mit Kennzeichen G", (kontenrahmen, zinsen, beweglich, unbeweglich) => {
     const brutto = (account: string, art: string) =>
       kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag).gewstHinzurechnungen.find((z) => z.art === art)?.brutto;
@@ -245,6 +245,17 @@ describe("Körperschaft- und Gewerbesteuer", () => {
       ["renten", 10_000_000, 10_000_000],
     ]);
     expect(s.hinzurechnungGewst).toBe(1_250_000);
+  });
+
+  it.each([
+    ["SKR03", ["2115", "2116"]],
+    ["SKR04", ["7350", "7351"]],
+  ] as const)("%s: Zinsen nach §§ 3 Nr. 40, 3c EStG bzw. § 8b KStG gehören nicht zur Hinzurechnung", (kontenrahmen, konten) => {
+    // DATEV-Kontenrahmen 2026, Fußnote 9: die Schnittstelle zur Gewerbesteuer behandelt diese Aufwendungen gesondert
+    for (const account of konten) {
+      const s = kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag);
+      expect(s.gewstHinzurechnungen, account).toEqual([]);
+    }
   });
 
   it("Jede Gruppe der Hinzurechnung hat in SKR03 und SKR04 gleich viele Konten", () => {
