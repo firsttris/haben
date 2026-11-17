@@ -576,7 +576,8 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
     it("prüft die Bezeichnung bei POST und PATCH auf eine Zeile", async () => {
       const schreiben = await token(["artikel:schreiben"]);
       const zweizeilig = "Mühle\nAus Buche";
-      const mehrzeiligeBezeichnungen = [zweizeilig, "Mühle\rAus Buche", "Mühle\u2028Aus Buche", "Mühle\u2029Aus Buche"];
+      // Alle Pflicht-Zeilenumbrüche nach UAX #14 (BK, CR, LF, NL); Typst bricht an jedem davon die Zeile um
+      const mehrzeiligeBezeichnungen = ["\n", "\r", "\u2028", "\u2029", "\v", "\f", "\u0085"].map((umbruch) => `Mühle${umbruch}Aus Buche`);
       const detail = "Holzgriff\nErsatzteile verfügbar";
       const rejected = { status: 400, json: { error: { code: "validation_failed", issues: [expect.objectContaining({ path: "description" })] } } };
 
