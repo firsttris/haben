@@ -91,9 +91,9 @@ describe("validateBatch", () => {
     expect(problems(batch({ coverage: { from: "2026-10-01", to: "2026-10-32" } }))).toEqual(["Feld coverage.to ist ungültig."]);
   });
 
-  it("lehnt Bewegungen außerhalb des Fensters ab", () => {
+  it("lehnt Bewegungen nach dem Fenster ab", () => {
     expect(problems(batch({ movements: [movement({ bookingDate: "2026-11-01" })] }))).toEqual([
-      "E-1/main: Buchungstag 2026-11-01 liegt außerhalb des Fensters 2026-10-01 bis 2026-10-31.",
+      "E-1/main: Buchungstag 2026-11-01 liegt nach dem Fenster 2026-10-01 bis 2026-10-31.",
     ]);
   });
 

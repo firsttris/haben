@@ -1,3 +1,4 @@
+import { addDays } from "@haben/core";
 import { and, eq, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
 import {
   advanceCheckpoint,
@@ -227,6 +228,45 @@ async function planRows(
   return { insert, linked, fileDays };
 }
 
+/** Zeiträume der anderen Importe des Kontos: Zeitraum des Auszugs, ohne ihn erster bis letzter Buchungstag */
+async function otherRanges(tx: Tx, accountId: string, ownImportId: string): Promise<{ from: string; to: string }[]> {
+  const rows = await tx
+    .select({
+      from: sql<string | null>`coalesce(${schema.bankImports.periodFrom}, min(${schema.bankTransactions.bookingDate}))::text`,
+      to: sql<string | null>`coalesce(${schema.bankImports.periodTo}, max(${schema.bankTransactions.bookingDate}))::text`,
+    })
+    .from(schema.bankImports)
+    .leftJoin(schema.bankTransactions, eq(schema.bankTransactions.importId, schema.bankImports.id))
+    .where(
+      and(
+        eq(schema.bankImports.bankAccountId, accountId),
+        // Der Import dieses Abrufs hat noch keine Zeile in import_batches
+        ne(schema.bankImports.id, ownImportId),
+        sql`not exists (select 1 from import_batches b where b.bank_import_id = ${schema.bankImports.id})`,
+      ),
+    )
+    .groupBy(schema.bankImports.id);
+  return rows.filter((r): r is { from: string; to: string } => r.from !== null && r.to !== null && r.from <= r.to);
+}
+
+/** Die Zeiträume, die über andere hinweg lückenlos an das Fenster anschließen oder es überlappen */
+function connectedRanges(window: { from: string; to: string }, ranges: { from: string; to: string }[]) {
+  let { from, to } = window;
+  const rest = [...ranges];
+  const connected: { from: string; to: string }[] = [];
+  for (let i = rest.findIndex(touches); i >= 0; i = rest.findIndex(touches)) {
+    const [r] = rest.splice(i, 1);
+    connected.push(r!);
+    if (r!.from < from) from = r!.from;
+    if (r!.to > to) to = r!.to;
+  }
+  return connected;
+
+  function touches(r: { from: string; to: string }) {
+    return r.from <= addDays(to, 1) && r.to >= addDays(from, -1);
+  }
+}
+
 /** Lieferung, Abrufstand und Quellenidentitäten festhalten */
 async function recordBatch(
   tx: Tx,
@@ -242,16 +282,19 @@ async function recordBatch(
     .select()
     .from(schema.importBatches)
     .where(and(eq(schema.importBatches.sourceId, sourceId), eq(schema.importBatches.fetchId, batch.part.fetchId)));
-  // max() übergeht Lieferungen ohne Stand; nach Sortierung kämen sie bei DESC zuerst. Tage, die Umsätze aus anderen Importen
-  // (Datei, FinTS, Abruf vor der Bindung) abdecken, zählen als abgerufen: Der Folgeabruf überspringt sie (`followUpStart`)
+  // max() übergeht Lieferungen ohne Stand; nach Sortierung kämen sie bei DESC zuerst
   const [latest] = await tx
-    .select({
-      checkpoint: sql<string | null>`greatest(
-        (select max(b.checkpoint) from import_batches b where b.source_id = ${sourceId}),
-        (select max(t.booking_date) from bank_transactions t where t.bank_account_id = ${accountId}
-          and not exists (select 1 from import_batches b where b.bank_import_id = t.import_id)))::text`,
-    })
-    .from(sql`(select 1) as eins`);
+    .select({ checkpoint: sql<string | null>`max(${schema.importBatches.checkpoint})::text` })
+    .from(schema.importBatches)
+    .where(eq(schema.importBatches.sourceId, sourceId));
+  // Tage anderer Importe (Datei, FinTS, Abruf vor der Bindung) holt der Folgeabruf nicht noch einmal (`followUpStart`); sie
+  // zählen als abgerufen, aber nur, soweit sie lückenlos an dieses Fenster anschließen
+  const files = connectedRanges(batch.coverage, await otherRanges(tx, accountId, importId)).map((r, i) => ({
+    coverage: r,
+    part: { fetchId: `andere-${i}`, index: 0, last: true },
+    blocking: 0,
+    conflict: false,
+  }));
   const progress = advanceCheckpoint(latest?.checkpoint ?? undefined, [
     ...parts.map((p) => ({
       coverage: { from: p.coverageFrom, to: p.coverageTo },
@@ -267,6 +310,7 @@ async function recordBatch(
       ...(validation.openFrom ? { openFrom: validation.openFrom } : {}),
       conflict: false,
     },
+    ...files,
   ]);
   const [stored] = await tx
     .insert(schema.importBatches)

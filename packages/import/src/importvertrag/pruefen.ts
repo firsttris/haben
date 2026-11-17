@@ -44,8 +44,9 @@ function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
   const problems: string[] = [];
   const seen = new Set<string>();
   for (const m of batch.movements) {
-    if (m.bookingDate < from || m.bookingDate > to) {
-      problems.push(`${label(m)}: Buchungstag ${m.bookingDate} liegt außerhalb des Fensters ${from} bis ${to}.`);
+    // Vor dem Fenster darf eine Bewegung verspätet kommen (etwa bei Banken, die nach Valuta filtern); sie deckt keinen Tag ab
+    if (m.bookingDate > to) {
+      problems.push(`${label(m)}: Buchungstag ${m.bookingDate} liegt nach dem Fenster ${from} bis ${to}.`);
     }
     if (seen.has(label(m))) problems.push(`${label(m)} steht zweimal in der Lieferung.`);
     seen.add(label(m));

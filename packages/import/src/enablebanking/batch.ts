@@ -50,8 +50,8 @@ function movement(t: EbTransaction, index: number, window: { dateFrom: string; d
   if (t.status && t.status !== "BOOK") return skip(`Status ${t.status}.`);
   if (!mapped) return skip("Ohne gültiges Datum oder Betrag.");
   if (!ref) return skip(`Gebuchter Umsatz vom ${mapped.bookingDate} ${OHNE_ENTRY_REFERENCE}; transaction_id kann sich ändern und ist kein Ersatz.`);
-  // Ein Buchungstag nach dem Abruf holt der nächste Abruf. Einen vor dem Fenster übernimmt Haben (`enableBankingBatch`):
-  // Banken, die nach Valuta filtern, liefern ihn sonst nie im passenden Fenster
+  // Ein Buchungstag nach dem Abruf holt der nächste Abruf. Einen vor dem Fenster übernimmt Haben (der Vertrag nimmt ihn an,
+  // ohne das Fenster zu verbreitern): Banken, die nach Valuta filtern, liefern ihn sonst nie im passenden Fenster
   if (mapped.bookingDate > window.dateTo) return skip(`Buchungstag ${mapped.bookingDate} nach dem abgerufenen Fenster bis ${window.dateTo}.`);
   return {
     sourceEventId: ref,
@@ -87,8 +87,6 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
     // Mit anderem Kern bleibt die zweite stehen, dann lehnt der Vertrag die Lieferung ab
     else if (!movements.some((other) => other.sourceEventId === m.sourceEventId && sameCore(other, m))) movements.push(m);
   });
-  // Das Fenster reicht bis zum frühesten gelieferten Buchungstag zurück; der Stand der Quelle geht dadurch nie zurück
-  const from = [input.dateFrom, ...movements.map((m) => m.bookingDate)].toSorted()[0] ?? input.dateFrom;
   const balance = bookedBalance(input.balances);
   return {
     contractVersion: IMPORT_CONTRACT_VERSION,
@@ -96,7 +94,8 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
     externalAccountId: input.externalAccountId,
     idempotencyKey: input.fetchId,
     fetchedAt: input.fetchedAt,
-    coverage: { from, to: input.dateTo },
+    // Das angefragte Fenster; gebuchte Umsätze davor nimmt der Vertrag an, ohne dass sie Tage davor abdecken
+    coverage: { from: input.dateFrom, to: input.dateTo },
     part: { fetchId: input.fetchId, index: 0, last: true },
     movements,
     // Nur ein Stichtag, den es gibt: Ein falscher Tag der Bank soll nicht die ganze Lieferung ablehnen
