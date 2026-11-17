@@ -75,7 +75,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Pakete importieren nichts aus `apps/`, der GoBD-Kern keine Pakete von Haben | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
-| `padding*`, `margin*`, `gap`, `row-gap` und `column-gap` in `apps/web/src/**/*.css` auf dem 4px-Raster ([DESIGN.md](https://github.com/firsttris/haben/blob/main/DESIGN.md)), außer den alten Stellen in `altstellen.json` | `scripts/raster/` in `bun run lint` | Fehler |
+| `padding*`, `margin*`, `gap`, `row-gap` und `column-gap` in `apps/web/src/**/*.css` auf dem 4px-Raster ([DESIGN.md](https://github.com/firsttris/haben/blob/main/DESIGN.md#schrift-und-abstände)), außer den alten Stellen in `altstellen.json` | `scripts/raster/` in `bun run lint` | Fehler |
 | Höchstens 80 Zeilen je Funktion ohne Leerzeilen, außer in Tests | Biome-Regel `noExcessiveLinesPerFunction` im Editor und in `bun run lint` | Hinweis |
 | Formularfelder über `Field`, kein eigenes Element mit der Klasse `field` (außer `<fieldset className="field">` für eine Gruppe) | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
 | Auswahllisten über `Field`, kein `<select>` außerhalb | `scripts/felder/keine-nackte-auswahl.grit` (Biome-Regel) in `bun run lint`; Ausnahmen mit `// biome-ignore lint/plugin: Grund` | Fehler |
