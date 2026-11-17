@@ -4,8 +4,10 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
+import { recordRefusedBatch, storeBatch } from "./import-batch.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
-import { vertragHinweise } from "./vertrag-abruf.ts";
+import { kontokennung } from "./kontokennung.ts";
+import { abrufNachVertrag } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -287,6 +289,10 @@ export async function completeConnection(
       accounts.push({
         uid: account.uid,
         iban,
+        // Nennt die neue Sitzung keinen Hash, gilt der bisherige: sonst fiele ein gebundenes Konto auf den Weg ohne Vertrag
+        ...((account.identification_hash || previous?.identificationHash) !== undefined
+          ? { identificationHash: account.identification_hash || previous!.identificationHash }
+          : {}),
         name: bankAccount.name,
         bankAccountId: bankAccount.id,
         syncedTo: previous?.syncedTo ?? null,
@@ -389,9 +395,12 @@ export async function syncStart(
   return firstSyncStart(latest?.date ?? null, account.fetchFrom, today);
 }
 
+/** Hinweis, wenn die Bank keine Kennung des Kontos nennt: dann gilt der Weg ohne Importvertrag */
+export const OHNE_KONTOKENNUNG = "Die Bank nennt keine Kennung des Kontos (identification_hash): gespeichert wie bisher, ohne Importvertrag (#306).";
+
 export interface SyncResult {
   added: number;
-  /** Je Konto mit den Hinweisen aus dem Importvertrag (#306); die stehen nicht im Importprotokoll */
+  /** Je Konto mit den Hinweisen aus dem Importvertrag (#306), die nicht im Importprotokoll stehen */
   accounts: (ImportResult & { iban: string; vertragHinweise: string[] })[];
   error: string | null;
 }
@@ -418,6 +427,7 @@ export async function syncConnection(actor: string, connectionId: string, today 
   const excluded = new Set(
     (await db.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(isNotNull(schema.bankAccounts.excludedAt))).map((r) => r.id),
   );
+  const konflikte: string[] = [];
   try {
     for (const [i, account] of accounts.entries()) {
       if (excluded.has(account.bankAccountId)) continue;
@@ -427,9 +437,16 @@ export async function syncConnection(actor: string, connectionId: string, today 
       try {
         transactions = await api.transactions(account.uid, dateFrom, today);
       } catch (error) {
+        // Abgelehnt ist der Zeitraum nur bei 4xx; 401 und 403 (Zustimmung), 429 (zu viele Abrufe) und 5xx sind kein Urteil über
+        // den Zeitraum: Der Abruf endet, und der nächste planmäßige Abruf versucht es wieder (runDueBankSyncs)
+        const refused = error instanceof EnableBankingApiError && error.status >= 400 && error.status < 500 && ![401, 403, 429].includes(error.status);
+        if (!refused) throw error;
+        // Ohne Rückfall (Folgeabruf, etwa eines Kontos, das ein Konflikt anhält) nur dieses Konto anhalten
+        if (!fallback) {
+          konflikte.push(`${account.name}: Abruf fehlgeschlagen: ${apiMessage(error)}`);
+          continue;
+        }
         // Manche Banken geben ohne frische Anmeldung nur 90 Tage heraus
-        if (!fallback || !(error instanceof EnableBankingApiError) || error.status < 400 || error.status >= 500 || error.status === 401 || error.status === 403)
-          throw error;
         dateFrom = fallback;
         transactions = await api.transactions(account.uid, dateFrom, today);
       }
@@ -441,29 +458,52 @@ export async function syncConnection(actor: string, connectionId: string, today 
         dateFrom,
         dateTo: today,
       });
-      // Importvertrag (#306, Schritt 2): nur im Ergebnis des Abrufs, nicht in bank_imports (nur anhängbar, im Datenexport)
-      const hinweise = vertragHinweise({
-        iban: account.iban,
+      const source = { filename: `Abruf ${connection.aspspName} ${today}`, sha256: sha256Of(Buffer.from(JSON.stringify(transactions), "utf8")) };
+      // Quellenbindung (#306): Ältere Verbindungen haben den identification_hash noch nicht gespeichert
+      let identificationHash: string | null;
+      try {
+        identificationHash = await kontokennung(account, () => api.accountDetails(account.uid));
+      } catch (error) {
+        if (!(error instanceof BankError)) throw error;
+        konflikte.push(`${account.name}: ${error.message}`);
+        continue;
+      }
+      if (identificationHash === null) {
+        const stored = await withActor(actor, (tx) => storeStatement(tx, statement, source, account.bankAccountId));
+        result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: [OHNE_KONTOKENNUNG] });
+        result.added += stored.added;
+        accounts[i] = { ...account, identificationHash: null, syncedTo: today };
+        continue;
+      }
+      const { input, hinweise } = abrufNachVertrag({
+        identificationHash,
         transactions,
         balances,
+        statement,
         dateFrom,
         dateTo: today,
         now: new Date(),
         fetchId: randomBytes(8).toString("hex"),
+        source,
       });
-      const stored = await withActor(actor, (tx) =>
-        storeStatement(
-          tx,
-          statement,
-          { filename: `Abruf ${connection.aspspName} ${today}`, sha256: sha256Of(Buffer.from(JSON.stringify(transactions), "utf8")) },
-          account.bankAccountId,
-        ),
-      );
-      result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: hinweise });
-      result.added += stored.added;
-      accounts[i] = { ...account, syncedTo: today };
+      try {
+        const stored = await withActor(actor, (tx) => storeBatch(tx, input, account.bankAccountId));
+        result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: [...hinweise, ...(stored.reason ? [stored.reason] : [])] });
+        result.added += stored.added;
+        // Das nächste Fenster beginnt wie bisher sieben Tage vor heute. Der Stand der Quelle (import_batches) hält nur fest, was
+        // vollständig ist: Steuerte er das Fenster, wüchse es mit jedem stornierten oder nie gebuchten Umsatz über die Tage hinaus,
+        // die eine Bank ohne frische Anmeldung herausgibt
+        accounts[i] = { ...account, identificationHash, syncedTo: today };
+      } catch (error) {
+        // Ein Konflikt hält nur dieses Konto an; gespeichert ist von diesem Abruf nichts außer der Meldung im Importprotokoll
+        if (!(error instanceof BankError)) throw error;
+        await withActor(actor, (tx) => recordRefusedBatch(tx, account.bankAccountId, input, error.message));
+        konflikte.push(`${account.name}: ${error.message}`);
+        accounts[i] = { ...account, identificationHash };
+      }
     }
-    await update({ accounts, lastSyncAt: new Date(), lastError: null });
+    await update({ accounts, lastSyncAt: new Date(), lastError: konflikte.length > 0 ? konflikte.join(" ") : null });
+    if (konflikte.length > 0) result.error = konflikte.join(" ");
   } catch (error) {
     const message = `Abruf fehlgeschlagen: ${apiMessage(error)}`;
     const expired = error instanceof EnableBankingApiError && (error.status === 401 || error.status === 403);

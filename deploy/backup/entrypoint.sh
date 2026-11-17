@@ -10,7 +10,9 @@ fi
   || { echo "BACKUP_TIME muss die Form HH:MM haben, ist aber: $BACKUP_TIME" >&2; exit 2; }
 # Als PID 1 beendet nur ein eigener Handler den Container sofort; sleep läuft deshalb im Hintergrund
 trap 'exit 0' TERM INT
-echo "Backup täglich um $BACKUP_TIME ($TZ) nach $RESTIC_REPOSITORY"
+# Das Log landet in docker logs, im Journal und in Log-Sammlern: Ziel ohne Zugangsdaten
+. "${BASH_SOURCE[0]%/*}/restic-ziel.sh"
+echo "Backup täglich um $BACKUP_TIME ($TZ) nach $(target_without_credentials)"
 while true; do
   now="$(date +%s)"
   next="$(date -d "today $BACKUP_TIME" +%s)"
