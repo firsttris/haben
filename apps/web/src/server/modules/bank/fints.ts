@@ -1,11 +1,12 @@
 import { type FintsClient, type FintsZugang, fintsClient, fintsKonten, fintsSynchronisieren, fintsTanVerfahren } from "@haben/import";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError } from "./bank.ts";
-import { accountFetchFrom, removeConnection } from "./bank-sync.ts";
+import { accountFetchFrom, zustimmungenBeenden } from "./bank-sync.ts";
 import { kontenAbrufen } from "./fints-abruf.ts";
 import { fintsProduktOderFehler } from "./fints-produkt.ts";
 import { type FintsSchritt, mitTan, vorgangMerken } from "./fints-vorgang.ts";
+import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
 import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -108,11 +109,8 @@ async function mediumWaehlen(v: Verbindung): Promise<FintsSchritt> {
 }
 
 function hinweiseZuKonten(neu: string[], ohneIban: number, fremd: string[]): string[] {
-  return [
-    ...(neu.length > 0 ? [`Neu angelegt: ${neu.join(", ")}. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.`] : []),
-    ...(ohneIban > 0 ? [`${ohneIban} Konten ohne IBAN oder ohne Umsatzabruf (z. B. Kreditkarten, Depots) ruft Haben nicht ab.`] : []),
-    ...(fremd.length > 0 ? [`${fremd.length} Konten in Fremdwährung (${[...new Set(fremd)].join(", ")}) ruft Haben nicht ab, Haben bucht nur in Euro.`] : []),
-  ];
+  const ohne = ohneIban > 0 ? `${ohneIban} Konten ohne IBAN oder ohne Umsatzabruf (z. B. Kreditkarten, Depots) ruft Haben nicht ab.` : null;
+  return [neuAngelegt(neu), ohne, fremdwaehrung(fremd)].filter((h): h is string => h !== null);
 }
 
 /**
@@ -133,8 +131,7 @@ async function speichern(v: Verbindung): Promise<FintsSchritt> {
   const info = v.client.config.bankingInformation;
   const bankName = (info.bpd?.bankName || `Bank ${v.zugang.blz}`).slice(0, 100);
   const neu: string[] = [];
-  const ebOhneKonten: string[] = [];
-  const { id, accounts } = await withActor(v.actor, async (tx) => {
+  const { id, accounts, beenden } = await withActor(v.actor, async (tx) => {
     const andere = await tx.select().from(schema.fintsConnections);
     const accounts: BankConnectionAccount[] = [];
     for (const konto of abrufbar) {
@@ -152,19 +149,11 @@ async function speichern(v: Verbindung): Promise<FintsSchritt> {
         ...accountFetchFrom(vorher, v.fetchFrom),
       });
     }
-    const ids = new Set(accounts.map((a) => a.bankAccountId));
-    for (const o of andere) {
-      const bleiben = o.accounts.filter((a) => !ids.has(a.bankAccountId));
-      if (o.bankCode === v.zugang.blz && o.login === v.zugang.benutzer) await tx.delete(schema.fintsConnections).where(eq(schema.fintsConnections.id, o.id));
-      else if (bleiben.length < o.accounts.length)
-        await tx.update(schema.fintsConnections).set({ accounts: bleiben }).where(eq(schema.fintsConnections.id, o.id));
-    }
-    for (const c of await tx.select({ id: schema.bankConnections.id, accounts: schema.bankConnections.accounts }).from(schema.bankConnections)) {
-      const bleiben = c.accounts.filter((a) => !ids.has(a.bankAccountId));
-      if (bleiben.length === c.accounts.length) continue;
-      if (bleiben.length === 0) ebOhneKonten.push(c.id);
-      else await tx.update(schema.bankConnections).set({ accounts: bleiben }).where(eq(schema.bankConnections.id, c.id));
-    }
+    // Derselbe Zugang neu (etwa nach einer neuen PIN) löst den alten ab; dessen Abrufstand steht schon in accounts
+    await tx
+      .delete(schema.fintsConnections)
+      .where(and(eq(schema.fintsConnections.bankCode, v.zugang.blz), eq(schema.fintsConnections.login, v.zugang.benutzer)));
+    const beenden = await kontenUebernehmen(tx, new Set(accounts.map((a) => a.bankAccountId)));
     const [row] = await tx
       .insert(schema.fintsConnections)
       .values({
@@ -180,10 +169,9 @@ async function speichern(v: Verbindung): Promise<FintsSchritt> {
         accounts,
       })
       .returning({ id: schema.fintsConnections.id });
-    return { id: row!.id, accounts };
+    return { id: row!.id, accounts, beenden };
   });
-  // Trennen beendet auch die Zustimmung bei Enable Banking; die Umsätze bleiben
-  for (const eb of ebOhneKonten) await removeConnection(v.actor, eb);
+  await zustimmungenBeenden(beenden);
   return kontenAbrufen({
     actor: v.actor,
     id,

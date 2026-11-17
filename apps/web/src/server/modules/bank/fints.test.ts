@@ -88,7 +88,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     if (fertig.art !== "fertig") return;
     expect(fertig.hinweise).toEqual([
       "Neu angelegt: Testbank Girokonto …2051, Testbank Tagesgeld …9890. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.",
-      "1 Konten in Fremdwährung (USD) ruft Haben nicht ab, Haben bucht nur in Euro.",
+      "1 Konten in Fremdwährung (USD) werden nicht abgerufen, Haben bucht nur in Euro.",
     ]);
 
     const row = await verbindung();
@@ -237,9 +237,9 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     // EB-Bank behält nur das Konto, das FinTS nicht abruft; EB-Ganz hat keines mehr und ist getrennt
     expect(uebrig.map((r) => [r.aspsp_name, r.accounts.map((x: { bankAccountId: string }) => x.bankAccountId)])).toEqual([["EB-Bank", [c!.id]]]);
 
-    const { fintsKontenAbgeben } = await import("./fints-uebernahme.ts");
+    const { kontenUebernehmen } = await import("./konto-uebernahme.ts");
     const { db } = await import("../../db/index.ts");
-    await db.transaction((tx) => fintsKontenAbgeben(tx, new Set([a!.id])));
+    await db.transaction((tx) => kontenUebernehmen(tx, new Set([a!.id])));
     expect((await verbindung()).accounts.map((x: { iban: string }) => x.iban)).toEqual([IBAN_B]);
   });
 

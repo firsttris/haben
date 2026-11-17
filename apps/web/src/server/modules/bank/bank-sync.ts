@@ -4,7 +4,7 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
-import { kontenUebernehmen } from "./fints-uebernahme.ts";
+import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
 import { vertragHinweise } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
@@ -264,10 +264,9 @@ export async function completeConnection(
   const withIban = session.accounts.filter((a) => a.account_id?.iban && euro(a));
   const foreign = session.accounts.filter((a) => a.account_id?.iban && !euro(a)).map((a) => a.currency!.toUpperCase());
   const skipped = session.accounts.length - withIban.length - foreign.length;
-  const replaced: { id: string; sessionId: string | null }[] = [];
+  let beenden: string[] = [];
   const created: string[] = [];
-  const foreignNote =
-    foreign.length > 0 ? `${foreign.length} Konten in Fremdwährung (${[...new Set(foreign)].join(", ")}) werden nicht abgerufen, Haben bucht nur in Euro.` : "";
+  const foreignNote = fremdwaehrung(foreign) ?? "";
   const noAccount = foreignNote ? `Die Bank hat kein Euro-Konto freigegeben. ${foreignNote}` : "Die Bank hat kein Konto mit IBAN freigegeben.";
 
   await withActor(actor, async (tx) => {
@@ -294,18 +293,8 @@ export async function completeConnection(
         ...accountFetchFrom(previous, connection.fetchFrom),
       });
     }
-    // Ein Konto kommt aus einem Abruf: Dieselben Konten aus einer FinTS-Verbindung holt ab jetzt Enable Banking
-    const ids = await kontenUebernehmen(tx, accounts);
-    for (const other of others) {
-      const remaining = other.accounts.filter((a) => !ids.has(a.bankAccountId));
-      if (remaining.length === other.accounts.length) continue;
-      if (remaining.length === 0) {
-        replaced.push({ id: other.id, sessionId: other.ciphertext ? decrypt(other.ciphertext).toString("utf8") : null });
-        await tx.delete(schema.bankConnections).where(eq(schema.bankConnections.id, other.id));
-      } else {
-        await tx.update(schema.bankConnections).set({ accounts: remaining }).where(eq(schema.bankConnections.id, other.id));
-      }
-    }
+    // Ein Konto, ein Abruf: Dieselben Konten fallen aus jeder anderen Zustimmung und jeder FinTS-Verbindung
+    beenden = await kontenUebernehmen(tx, new Set(accounts.map((a) => a.bankAccountId)), connection.id);
     await tx
       .update(schema.bankConnections)
       .set({
@@ -318,17 +307,13 @@ export async function completeConnection(
       .where(eq(schema.bankConnections.id, connection.id));
   });
 
-  // Abgelöste Zustimmungen auch bei Enable Banking beenden; schlägt das fehl, laufen sie einfach aus
-  for (const old of replaced) {
-    if (old.sessionId) await (await client()).deleteSession(old.sessionId).catch(() => undefined);
-  }
+  await zustimmungenBeenden(beenden);
 
   if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: noAccount };
   const sync = await syncConnection(actor, connection.id);
-  const note =
-    (created.length > 0 ? ` Neu angelegt: ${created.join(", ")}. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.` : "") +
-    (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "") +
-    (foreignNote ? ` ${foreignNote}` : "");
+  const note = [neuAngelegt(created), skipped > 0 ? `${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : null, foreignNote || null]
+    .map((n) => (n ? ` ${n}` : ""))
+    .join("");
   return {
     connectionId: connection.id,
     ok: sync.error === null,
@@ -545,6 +530,12 @@ export async function listConnections() {
       createdAt: r.createdAt.toISOString(),
       renewSoon: r.status === "aktiv" && r.validUntil !== null && r.validUntil.getTime() - Date.now() < RENEW_WARNING_DAYS * DAY,
     }));
+}
+
+/** Beendet abgelöste Zustimmungen auch bei Enable Banking; schlägt das fehl, laufen sie einfach aus */
+export async function zustimmungenBeenden(sitzungen: string[]): Promise<void> {
+  if (sitzungen.length === 0 || !(await enableBankingConfigured())) return;
+  for (const sitzung of sitzungen) await (await client()).deleteSession(sitzung).catch(() => undefined);
 }
 
 /** Trennt eine Verbindung: Zustimmung bei Enable Banking beenden und Eintrag löschen. Umsätze bleiben. */
