@@ -89,7 +89,7 @@ echo "Stelle die Belegdateien wieder her …"
 find /belege -mindepth 1 -delete
 # Nur der Inhalt: Den Ordner /belege selbst ändern nur sein Eigentümer und root, im Helm-Chart läuft restore.sh als 1000
 find "$source" -mindepth 1 -maxdepth 1 -exec cp -a -t /belege/ {} +
-# Die App läuft als Nutzer node (UID 1000); auf einem frischen System legt erst dieser Aufruf das Volume an. Als 1000
+# Die App läuft als Nutzer bun (UID 1000); auf einem frischen System legt erst dieser Aufruf das Volume an. Als 1000
 # gehören die Dateien ihm schon.
 if [ "$(id -u)" = 0 ]; then
   chown -R 1000:1000 /belege

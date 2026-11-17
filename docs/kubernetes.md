@@ -65,7 +65,8 @@ bei `helm uninstall` erhalten; eine neue Installation mit demselben Namen nimmt 
 Die Datenbank startet als root, um einen älteren Bestand auf eine neue PostgreSQL-Version anzuheben, und wechselt dann
 zum Nutzer `postgres`. Der Namespace braucht deshalb mindestens die Stufe `baseline` der
 [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/); alle anderen Pods
-erfüllen `restricted`, mit [eigener Datenbank](#eigene-datenbank) also alle Pods des Charts.
+erfüllen `restricted`, mit [eigener Datenbank](#eigene-datenbank) also alle Pods des Charts. Ein `hostPath` unter
+`extraVolumes`, etwa für [ELSTER](#elster) auf arm64, verlangt `privileged`.
 
 ### Secrets aus einer anderen Quelle
 
@@ -213,12 +214,15 @@ installierst du gleich mit `--set restore.enabled=true` und demselben `HABEN_ENC
 ## Updates
 
 Vor einem Update ein Backup von Hand wie oben. Kommst du von v0.10.0, übergib das Repository im Volume `haben-backups`
-danach einmal dem Nutzer 1000, als der das Backup ab der nächsten Version läuft; sonst scheitert jedes weitere Backup
-mit „permission denied“:
+direkt vor dem `helm upgrade` dem Nutzer 1000, als der das Backup ab der nächsten Version läuft; sonst scheitert jedes
+weitere Backup mit „permission denied“:
 
 ```sh
 kubectl -n haben exec deploy/haben -c backup -- chown -R 1000:1000 /backups
 ```
+
+Lief das Update schon, kann der Container `backup` das nicht mehr; dann geht es nur aus einem eigenen Pod als root, der
+das Volume einhängt.
 
 Dann im Klon die neue Version holen, `image.tag` in `werte.yaml` auf dieselbe anheben und das Chart anwenden:
 
