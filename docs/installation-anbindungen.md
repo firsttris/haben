@@ -34,7 +34,7 @@ ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet ein
 
 ### ELSTER auf arm64
 
-Die Einrichtung lohnt sich erst mit eigener Hersteller-ID: ERiC verlangt sie seit Version 43 schon fürs Prüfen, zum Senden kommt die Zertifikatsdatei dazu ([ELSTER einrichten](einrichtung-elster.md#was-du-brauchst)). Bis dahin prüft und sendet Haben auch auf arm64 simuliert.
+Die x86_64-Laufzeit lohnt sich erst mit eigener Hersteller-ID: ERiC verlangt sie seit Version 43 schon fürs Prüfen, zum Senden kommt die Zertifikatsdatei dazu ([ELSTER einrichten](einrichtung-elster.md#was-du-brauchst)). Ohne ERiC läuft Haben auch auf arm64 simuliert und sendet nichts ans Finanzamt.
 
 ERiC gibt die Finanzverwaltung nur als fertige Bibliothek heraus, für Server nur für Linux x86_64; selbst übersetzen lässt sie sich nicht. Auf einem arm64-Server (Raspberry Pi, Ampere, Jetson) läuft Haben trotzdem nativ: Emuliert wird nur der kurzlebige Kindprozess, der für jede Prüfung und Übermittlung ERiC lädt. `ERIC_WORKER_COMMAND` startet ihn mit QEMU als x86_64-Prozess, mit Bun und den Bibliotheken aus dem amd64-Image derselben Haben-Version.
 
