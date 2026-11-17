@@ -115,9 +115,11 @@ describe("etsyLedgerBatch", () => {
       ],
     });
     expect(batch.movements.map((m) => m.sourceEventId)).toEqual(["1"]);
+    // Mit dem Buchungstag: Der Vertrag hält den Zeitraum dann erst ab diesem Tag offen, nicht ab dem Anfang des Fensters
+    const tag = new Date(T * 1000).toISOString().slice(0, 10);
     expect(batch.unsupported).toEqual([
-      { reason: expect.stringContaining("ohne entry_id") },
-      { sourceEventId: "3", reason: expect.stringContaining("neue_gebuehr") },
+      { bookingDate: tag, reason: expect.stringContaining("ohne entry_id") },
+      { sourceEventId: "3", bookingDate: tag, reason: expect.stringContaining("neue_gebuehr") },
     ]);
   });
 
