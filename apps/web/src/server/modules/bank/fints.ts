@@ -4,10 +4,10 @@ import { z } from "zod";
 import { accountForIban, BankError } from "./bank.ts";
 import { accountFetchFrom, zustimmungenBeenden } from "./bank-sync.ts";
 import { kontenAbrufen } from "./fints-abruf.ts";
+import { fintsGeheimnisVerschluesseln } from "./fints-geheim.ts";
 import { fintsProduktOderFehler } from "./fints-produkt.ts";
 import { type FintsSchritt, mitTan, vorgangMerken } from "./fints-vorgang.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
-import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import type { BankConnectionAccount } from "../../db/schema.ts";
@@ -162,10 +162,9 @@ async function speichern(v: Verbindung): Promise<FintsSchritt> {
         url: v.zugang.url,
         login: v.zugang.benutzer,
         customerId: v.zugang.kundenId ?? null,
-        ciphertext: encrypt(Buffer.from(v.zugang.pin, "utf8")),
+        ciphertext: fintsGeheimnisVerschluesseln({ pin: v.zugang.pin, bankdaten: info }),
         tanMethod: v.client.config.tanMethodId ?? null,
         tanMedium: v.client.config.tanMediaName ?? null,
-        bankingInformation: info,
         accounts,
       })
       .returning({ id: schema.fintsConnections.id });
@@ -176,6 +175,7 @@ async function speichern(v: Verbindung): Promise<FintsSchritt> {
     actor: v.actor,
     id,
     client: v.client,
+    pin: v.zugang.pin,
     today: v.today,
     interaktiv: true,
     bankName,

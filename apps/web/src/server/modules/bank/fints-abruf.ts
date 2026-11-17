@@ -2,9 +2,9 @@ import { type FintsClient, type FintsKonto, fintsClient, fintsStatement, fintsUm
 import { eq, isNotNull } from "drizzle-orm";
 import { BankError, storeStatement } from "./bank.ts";
 import { AUTO_SYNC_INTERVAL_MS, BANK_SYNC_ACTOR, syncStart } from "./bank-sync.ts";
+import { fintsGeheimnisLesen, fintsGeheimnisVerschluesseln } from "./fints-geheim.ts";
 import { fintsConfigured, fintsProduktOderFehler } from "./fints-produkt.ts";
 import { type FintsSchritt, mitTan } from "./fints-vorgang.ts";
-import { decrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import type { BankConnectionAccount } from "../../db/schema.ts";
@@ -22,6 +22,8 @@ export interface Abruf {
   actor: string;
   id: string;
   client: FintsClient;
+  /** Geht mit den Bankdaten wieder verschlüsselt in die Zeile */
+  pin: string;
   today: string;
   /** Auf Knopfdruck: eine TAN fragt der Browser ab */
   interaktiv: boolean;
@@ -38,7 +40,8 @@ function text(error: unknown): string {
 }
 
 /**
- * Hält Abrufstand, Bankdaten (BPD, UPD, Kundensystem-ID ändern sich mit jeder Antwort der Bank) und das Ergebnis fest.
+ * Hält Abrufstand, Bankdaten (BPD, UPD und Kundensystem-ID kann jede Antwort der Bank ändern; verschlüsselt mit der PIN,
+ * fints-geheim.ts) und das Ergebnis fest.
  * status null: bleibt, wie er ist (Netzfehler); „Zuletzt abgerufen“ zählt nur ein gelungener Abruf.
  */
 async function abschliessen(a: Abruf, fehler: string | null, status: "aktiv" | "tan" | "fehler" | null): Promise<FintsSchritt> {
@@ -47,7 +50,7 @@ async function abschliessen(a: Abruf, fehler: string | null, status: "aktiv" | "
       .update(schema.fintsConnections)
       .set({
         accounts: a.accounts,
-        bankingInformation: a.client.config.bankingInformation,
+        ciphertext: fintsGeheimnisVerschluesseln({ pin: a.pin, bankdaten: a.client.config.bankingInformation }),
         lastError: fehler,
         ...(fehler === null ? { lastSyncAt: new Date() } : {}),
         ...(status ? { status } : {}),
@@ -118,12 +121,13 @@ export async function kontenAbrufen(a: Abruf, index = 0): Promise<FintsSchritt> 
 async function abrufStarten(actor: string, id: string, today: string, interaktiv: boolean): Promise<FintsSchritt> {
   const [c] = await db.select().from(schema.fintsConnections).where(eq(schema.fintsConnections.id, id));
   if (!c) throw new BankError("Verbindung nicht gefunden.");
+  const { pin, bankdaten } = fintsGeheimnisLesen(c.ciphertext);
   const client = fintsClient(
     fintsProduktOderFehler(),
-    { url: c.url, blz: c.bankCode, benutzer: c.login, kundenId: c.customerId, pin: decrypt(c.ciphertext).toString("utf8") },
-    { bankingInformation: c.bankingInformation, tanVerfahren: c.tanMethod, tanMedium: c.tanMedium },
+    { url: c.url, blz: c.bankCode, benutzer: c.login, kundenId: c.customerId, pin },
+    { bankingInformation: bankdaten, tanVerfahren: c.tanMethod, tanMedium: c.tanMedium },
   );
-  return kontenAbrufen({ actor, id, client, today, interaktiv, bankName: c.bankName, accounts: [...c.accounts], hinweise: [] });
+  return kontenAbrufen({ actor, id, client, pin, today, interaktiv, bankName: c.bankName, accounts: [...c.accounts], hinweise: [] });
 }
 
 /** „Jetzt abrufen“: verlangt die Bank eine TAN, fragt der Browser sie ab */

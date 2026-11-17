@@ -1,5 +1,5 @@
 {
-  "id": "6da4d8d2-1322-475f-94bb-fe0a35e5fc01",
+  "id": "26108174-b140-4eb2-b745-67f7b0c54bb9",
   "prevId": "5db71dc2-9d71-422d-8317-1332600b9b7d",
   "version": "7",
   "dialect": "postgresql",
@@ -7171,12 +7171,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "banking_information": {
-          "name": "banking_information",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
         },
         "status": {
           "name": "status",

@@ -1,6 +1,6 @@
 {
-  "id": "2448fa35-0f91-440a-83e2-9ba2dc26c845",
-  "prevId": "6da4d8d2-1322-475f-94bb-fe0a35e5fc01",
+  "id": "15e587cd-a889-4786-8002-d15dd30fb6ea",
+  "prevId": "26108174-b140-4eb2-b745-67f7b0c54bb9",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7171,12 +7171,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "banking_information": {
-          "name": "banking_information",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
         },
         "status": {
           "name": "status",

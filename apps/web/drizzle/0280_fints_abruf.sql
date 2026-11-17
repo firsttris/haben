@@ -8,7 +8,6 @@ CREATE TABLE "fints_connections" (
 	"ciphertext" "bytea" NOT NULL,
 	"tan_method" integer,
 	"tan_medium" text,
-	"banking_information" jsonb NOT NULL,
 	"status" text DEFAULT 'aktiv' NOT NULL,
 	"accounts" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"last_sync_at" timestamp with time zone,

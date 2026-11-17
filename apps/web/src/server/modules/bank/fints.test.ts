@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
   let fints: typeof import("./fints.ts");
   let abruf: typeof import("./fints-abruf.ts");
   let vorgang: typeof import("./fints-vorgang.ts");
-  let crypto: typeof import("../../crypto.ts");
+  let geheim: typeof import("./fints-geheim.ts");
   let sql: postgres.Sql;
   let bank: FintsTestbank;
   const umsaetze: Record<string, FintsTestbankUmsatz[]> = {
@@ -31,6 +31,12 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
   const zugang = () => ({ blz: BLZ, url: bank.url, benutzer: "max", pin: "12345" });
   // Der Abruf im Hintergrund vergleicht mit „Zuletzt abgerufen“, das die echte Uhr setzt; deshalb Zeitpunkte ab jetzt
   const spaeter = (tage: number, stunden = 0) => new Date(Date.now() + tage * 86_400_000 + stunden * 3_600_000);
+
+  /** Andere PIN in der Zeile, die Bankdaten bleiben */
+  async function pinSetzen(pin: string) {
+    const { bankdaten } = geheim.fintsGeheimnisLesen((await verbindung()).ciphertext);
+    await sql`update fints_connections set ciphertext = ${geheim.fintsGeheimnisVerschluesseln({ pin, bankdaten })}`;
+  }
 
   async function verbindung() {
     const [row] = await sql`select * from fints_connections`;
@@ -53,7 +59,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     fints = await import("./fints.ts");
     abruf = await import("./fints-abruf.ts");
     vorgang = await import("./fints-vorgang.ts");
-    crypto = await import("../../crypto.ts");
+    geheim = await import("./fints-geheim.ts");
   });
 
   afterAll(async () => {
@@ -97,9 +103,10 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
       [IBAN_A, "2026-10-21"],
       [IBAN_B, "2026-10-21"],
     ]);
-    expect(row.banking_information.systemId).toMatch(/^SYS/);
-    // PIN nur verschlüsselt, nie im Klartext in der Zeile oder im Protokoll
-    expect(crypto.decrypt(row.ciphertext).toString("utf8")).toBe("12345");
+    // PIN und Bankdaten nur verschlüsselt, nie im Klartext in der Zeile oder im Protokoll
+    const { pin, bankdaten } = geheim.fintsGeheimnisLesen(row.ciphertext);
+    expect(pin).toBe("12345");
+    expect(bankdaten.systemId).toMatch(/^SYS/);
     expect(Buffer.from(row.ciphertext).includes(Buffer.from("12345"))).toBe(false);
     const protokoll = await sql`select new_value::text as wert from audit_log where table_name = 'fints_connections'`;
     expect(protokoll.length).toBeGreaterThan(0);
@@ -179,14 +186,16 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
   });
 
   it("hört im Hintergrund nach einer abgelehnten PIN auf, damit die Bank den Zugang nicht sperrt", async () => {
-    await sql`update fints_connections set ciphertext = ${crypto.encrypt(Buffer.from("00000"))}, last_sync_at = null`;
+    await pinSetzen("00000");
+    await sql`update fints_connections set last_sync_at = null`;
     const ergebnis = await abruf.runDueFintsSyncs(spaeter(3));
     expect(ergebnis.errors).toEqual(["Testbank: Abruf fehlgeschlagen: PIN ungültig. (9942)"]);
     expect(await verbindung()).toMatchObject({ status: "fehler" });
     const vorher = bank.zustand.anfragen.length;
     await abruf.runDueFintsSyncs(spaeter(4));
     expect(bank.zustand.anfragen).toHaveLength(vorher);
-    await sql`update fints_connections set ciphertext = ${crypto.encrypt(Buffer.from("12345"))}, status = 'aktiv', last_error = null`;
+    await pinSetzen("12345");
+    await sql`update fints_connections set status = 'aktiv', last_error = null`;
   });
 
   it("lässt den Status nach einem Netzfehler stehen und versucht es erst am nächsten Tag wieder", async () => {

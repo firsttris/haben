@@ -23,7 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import type { BankCsvMapping, FintsBankdaten } from "@haben/import";
+import type { BankCsvMapping } from "@haben/import";
 import type { LetterheadDesign, OutgoingTaxDetails } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
@@ -2310,8 +2310,8 @@ export const bankConnections = pgTable("bank_connections", {
 });
 
 /**
- * Verbindungen für den Kontoabruf über FinTS (#654): Zugang zum Online-Banking einer Bank mit verschlüsselter PIN.
- * `bankingInformation` hält BPD, UPD und Kundensystem-ID der Bank; ohne die gespeicherte Kundensystem-ID hielte die
+ * Verbindungen für den Kontoabruf über FinTS (#654): Zugang zum Online-Banking einer Bank. `ciphertext` hält PIN und
+ * Bankdaten (BPD, UPD, Kundensystem-ID; modules/bank/fints-geheim.ts); ohne die gespeicherte Kundensystem-ID hielte die
  * Bank jeden Abruf für ein neues Gerät. Status „tan“: Der Abruf im Hintergrund brauchte eine TAN; „fehler“: Die Bank
  * hat abgelehnt (etwa eine falsche PIN), der Hintergrund versucht es nicht wieder, damit die Bank den Zugang nicht sperrt.
  */
@@ -2326,11 +2326,10 @@ export const fintsConnections = pgTable("fints_connections", {
   login: text("login").notNull(),
   /** Kunden-ID, nur wenn die Bank sie getrennt vom Anmeldenamen nennt */
   customerId: text("customer_id"),
-  /** PIN, AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
+  /** PIN und Bankdaten (BPD, UPD, Kundensystem-ID) als JSON, AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
   ciphertext: bytea("ciphertext").notNull(),
   tanMethod: integer("tan_method"),
   tanMedium: text("tan_medium"),
-  bankingInformation: jsonb("banking_information").$type<FintsBankdaten>().notNull(),
   status: text("status", { enum: ["aktiv", "tan", "fehler"] })
     .notNull()
     .default("aktiv"),

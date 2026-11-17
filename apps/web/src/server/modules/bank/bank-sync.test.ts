@@ -486,8 +486,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     const [a] = await sql`select id from bank_accounts where iban = ${IBAN_A}`;
     const anderes = randomUUID();
     const konten = [a!.id, anderes].map((id) => ({ uid: `uid-${id}`, iban: "DE00", name: "x", bankAccountId: id, syncedTo: null }));
-    await sql`insert into fints_connections (bank_name, bank_code, url, login, ciphertext, banking_information, accounts)
-      values ('FinTS-Bank', '12030000', 'https://fints.example.de', 'max', ${Buffer.from([0])}, '{}'::jsonb, ${JSON.stringify(konten)}::jsonb)`;
+    await sql`insert into fints_connections (bank_name, bank_code, url, login, ciphertext, accounts)
+      values ('FinTS-Bank', '12030000', 'https://fints.example.de', 'max', ${Buffer.from([0])}, ${JSON.stringify(konten)}::jsonb)`;
     expect((await connect("code-fints")).ok).toBe(true);
     const [fints] = await sql`select accounts from fints_connections`;
     expect(fints!.accounts.map((k: { bankAccountId: string }) => k.bankAccountId)).toEqual([anderes]);
