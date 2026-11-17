@@ -239,7 +239,8 @@ function TurnoverFields({ values, disabled, update, treatment }: DetailsProps & 
 
 const KU_HINT = "Die Kleinunternehmerregelung lässt eine eigene Befreiung oder einen geklärten ausländischen Leistungsort zu.";
 
-function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): string | undefined {
+/** Hinweis mit Vorschrift und Kennzahl unter der Auswahl der Behandlung; auch die Übernahme einer Fremdrechnung zeigt ihn */
+export function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): string | undefined {
   switch (treatment) {
     case "kleinunternehmer":
       return "Kleinunternehmerregelung nach § 19 UStG, in den Einstellungen eingetragen. Eigene Befreiungen und geklärte Auslandsleistungen wählst du je Beleg.";
@@ -254,7 +255,7 @@ function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): stri
     case "ausfuhr":
       return "Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG): nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§§ 8–11 UStDV). Dienstleistungen ins Drittland sind „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“.";
     case "steuerfrei":
-      return `Steuerbefreiung nach § 4 UStG; die Vorschrift wählst du darunter.${kleinunternehmer ? ` ${KU_HINT}` : ""}`;
+      return `Steuerbefreiung nach § 4 UStG; die Vorschrift gibst du darunter an.${kleinunternehmer ? ` ${KU_HINT}` : ""}`;
     default:
       return kleinunternehmer ? KU_HINT : undefined;
   }

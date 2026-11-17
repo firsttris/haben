@@ -3,6 +3,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import type { UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
 import { adoptForeignInvoiceFn, readForeignInvoice } from "../server/functions/fremdrechnung.ts";
+import { treatmentHint } from "./OutgoingTaxFields.tsx";
 import { ContactCombobox, savedAsChoice } from "./ContactCombobox.tsx";
 import { Field } from "./Field.tsx";
 import { FilePicker } from "./FilePicker.tsx";
@@ -313,7 +314,10 @@ function TaxSection({
   return (
     <section className="form-section" aria-labelledby="fremdrechnung-steuer">
       <h2 id="fremdrechnung-steuer">Steuer</h2>
-      <Field label="Steuerbehandlung" hint={kleinunternehmer ? "Als Kleinunternehmer übernimmt Haben hier nur Rechnungen nach § 19 UStG." : undefined}>
+      <Field
+        label="Steuerbehandlung"
+        hint={kleinunternehmer ? "Als Kleinunternehmer übernimmt Haben hier nur Rechnungen nach § 19 UStG." : treatmentHint(treatment, false)}
+      >
         {(control) => (
           <select {...control} value={treatment} onChange={(e) => onTreatment(e.target.value as TaxTreatment)}>
             {offeredTreatments(kleinunternehmer).map((key) => (
