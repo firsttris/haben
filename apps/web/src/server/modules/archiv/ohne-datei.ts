@@ -2,11 +2,19 @@
  * Belege, die sich als „ohne Datei“ bestätigen lassen. Bei sevDesk, weil dort abgerufen wurde und der Abruf das Fehlen
  * festgestellt hat. Beim Accountable-Stapel nur, wenn die Buchung gar keine Beleg-GUID trägt: dort gibt es von
  * vornherein keinen Einzelbeleg. Eine Buchung mit GUID, deren Datei nur im Export fehlt, ist ausdrücklich nicht
- * bestätigbar, und Rechnungen und Gutschriften brauchen ihr Original-PDF.
+ * bestätigbar, ebenso eine, zu der Daten.xlsx „Dokument Vorhanden“ meldet (Spalte Y gilt für die ganze Rechnung, auch
+ * für Zeilen ohne eigene Datei, siehe packages/import/src/accountable/sammelrechnung.ts). Rechnungen und Gutschriften
+ * brauchen ihr Original-PDF.
  */
-export function ohneDateiBestaetigbar(v: { source: string; lexofficeId: string; type: string; guid?: string | null }): boolean {
+export function ohneDateiBestaetigbar(v: {
+  source: string;
+  lexofficeId: string;
+  type: string;
+  guid?: string | null;
+  documentPresent?: boolean | null;
+}): boolean {
   if (v.source === "sevdesk") return v.lexofficeId.startsWith("voucher/");
-  if (v.source === "accountable") return v.lexofficeId.startsWith("accountable/row/") && v.type === "purchaseinvoice" && !v.guid;
+  if (v.source === "accountable") return v.lexofficeId.startsWith("accountable/row/") && v.type === "purchaseinvoice" && !v.guid && v.documentPresent !== true;
   return false;
 }
 

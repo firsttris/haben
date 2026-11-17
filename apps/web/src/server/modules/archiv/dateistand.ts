@@ -151,6 +151,7 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
         type: schema.lexofficeVouchers.type,
         ohneBeleg: sql<boolean>`coalesce((${schema.lexofficeVouchers.raw}->>'ohneBeleg')::boolean, false)`,
         guid: sql<string | null>`${schema.lexofficeVouchers.raw}->>'guid'`,
+        documentPresent: sql<boolean | null>`(${schema.lexofficeVouchers.raw}->>'documentPresent')::boolean`,
       })
       .from(schema.lexofficeVouchers)
       .where(eq(schema.lexofficeVouchers.id, voucherId))
@@ -164,8 +165,9 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
       throw new FileStateError(
         "Diese Buchung hat eine Beleg-GUID; die Datei fehlt nur im Export. Ein einzelner Beleg kann also existieren, das Bestätigen ohne Datei ist hier nicht vorgesehen.",
       );
-    if (!ohneDateiBestaetigbar({ source: voucher.source, lexofficeId: voucher.lexofficeId, type: voucher.type, guid: voucher.guid }))
-      throw new FileStateError(`Aus der Quelle ${voucher.source} lassen sich keine Belege ohne Datei bestätigen.`);
+    if (voucher.source === "accountable" && voucher.documentPresent === true)
+      throw new FileStateError("Accountable meldet zu dieser Buchung „Dokument vorhanden“; ein Einzelbeleg existiert, er hängt nur nicht an dieser Buchung.");
+    if (!ohneDateiBestaetigbar(voucher)) throw new FileStateError(`Aus der Quelle ${voucher.source} lassen sich keine Belege ohne Datei bestätigen.`);
     const [{ files } = { files: 0 }] = await tx
       .select({ files: sql<number>`count(*)::int` })
       .from(schema.lexofficeVoucherFiles)
