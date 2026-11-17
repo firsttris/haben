@@ -41,6 +41,8 @@ export function vorgangMerken(actor: string, art: Vorgang["art"], weiter: Vorgan
   aufraeumen(jetzt);
   const id = randomBytes(18).toString("base64url");
   vorgaenge.set(id, { actor, art, bis: jetzt + LEBENSDAUER_MS, weiter });
+  // Auch wenn niemand fortsetzt oder abbricht (Fenster geschlossen): Client und PIN gehen nach der Lebensdauer
+  setTimeout(() => vorgaenge.delete(id), LEBENSDAUER_MS).unref();
   return id;
 }
 
@@ -61,15 +63,17 @@ export function vorgangVerwerfen(actor: string, id: string): void {
 }
 
 /**
- * „Das Kundenprodukt wird nicht unterstützt“ (9952): So lehnte eine Bank in #654 eine neue Registrierungsnummer ab, die
- * sie noch nicht übernommen hatte. Die DK gibt neue Nummern etwa wöchentlich weiter, und die Banken übernehmen sie nach
- * Tagen bis Wochen (Hinweis der DK zur Registrierung, zitiert in firsttris/haben#654).
+ * Die Bank kennt die Registrierungsnummer nicht: 9078 „Dialog abgebrochen – FinTS-Produkt ist nicht registriert“ nach der
+ * Liste „FinTS Rückmeldungscodes“ der DK (Stand 03.02.2026, fints.org › Spezifikation). 9952 „Das Kundenprodukt wird nicht
+ * unterstützt“ steht nicht in der Liste; damit lehnte eine echte Bank beim ersten Test (firsttris/haben#1289) eine neue
+ * Nummer ab, die sie noch nicht übernommen hatte. Die DK gibt neue Nummern etwa wöchentlich weiter, und die Banken
+ * übernehmen sie nach Tagen bis Wochen (Hinweis der DK zur Registrierung, zitiert in firsttris/haben#654).
  */
-const PRODUKT_UNBEKANNT = 9952;
+const PRODUKT_UNBEKANNT = [9078, 9952];
 
 /** Text einer Ablehnung, bei bekannten Codes mit Erklärung */
 export function fintsAblehnung(antwort: { meldung: string; codes: number[] }): string {
-  if (!antwort.codes.includes(PRODUKT_UNBEKANNT)) return antwort.meldung;
+  if (!antwort.codes.some((code) => PRODUKT_UNBEKANNT.includes(code))) return antwort.meldung;
   return `${antwort.meldung} Die Bank kennt die Registrierungsnummer aus FINTS_PRODUKT_ID nicht oder noch nicht. Stimmt die Nummer, hat die Bank sie wohl noch nicht übernommen: Das dauert nach der Registrierung Tage bis Wochen, bei jeder Bank verschieden.`;
 }
 
