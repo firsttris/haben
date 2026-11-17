@@ -78,6 +78,21 @@ describe("enableBankingBatch", () => {
     ]);
   });
 
+  it("zeigt stornierte und abgelehnte Umsätze (CNCL, RJCT) ohne Tag und hält den Zeitraum nicht offen", () => {
+    const result = validateBatch(
+      enableBankingBatch(input([tx(), tx({ entry_reference: "ER-C", status: "CNCL", booking_date: "2026-10-20" }), tx({ entry_reference: "ER-R", status: "RJCT" })])),
+      binding,
+    );
+    expect(result.ok && [result.batch.unsupported, result.blocking, result.openFrom]).toEqual([
+      [
+        { sourceEventId: "ER-C", reason: "Storniert (CNCL); wird nie gebucht.", final: true },
+        { sourceEventId: "ER-R", reason: "Abgelehnt (RJCT); wird nie gebucht.", final: true },
+      ],
+      0,
+      undefined,
+    ]);
+  });
+
   it("legt einen Umsatz ohne gültiges Datum oder Betrag nicht an", () => {
     const batch = enableBankingBatch(input([tx({ booking_date: null, value_date: null, transaction_date: null })]));
     expect(batch.unsupported).toEqual([{ sourceEventId: "ER-1", reason: "Ohne gültiges Datum oder Betrag." }]);

@@ -288,6 +288,14 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect(lauf!.warnings).toEqual([expect.stringContaining("ER-2: Buchungstag 2026-10-30 vor dem Fenster")]);
   });
 
+  it("lässt den Stand der Quelle trotz stornierter und abgelehnter Umsätze vorrücken", async () => {
+    const konto = neuesKonto();
+    const r = await speichere(
+      abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-C", "2026-10-20", "5.00", { status: "CNCL" }), tx("ER-R", "2026-10-21", "6.00", { status: "RJCT" })]),
+    );
+    expect(r).toMatchObject({ added: 1, checkpoint: "2026-10-31", complete: true });
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();
