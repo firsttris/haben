@@ -41,9 +41,11 @@ const common = {
     .array(
       row.extend({
         group: z
-          .enum(["bezug"])
+          .enum(["referenz"])
           .optional()
-          .describe("„bezug“ bei seltenen Bezügen (Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten"),
+          .describe(
+            "„referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten, auch bei der Bestellung des Kunden",
+          ),
       }),
     )
     .describe("Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen"),

@@ -44,16 +44,16 @@ const viele = Array.from({ length: 40 }, (_, i) => ({
 }));
 
 /**
- * Referenzen nach EN 16931, die Haben noch nicht erfasst (#688): als weitere Bezüge im Infoblock, so wie sie dann kommen.
+ * Referenzen nach EN 16931, die Haben noch nicht erfasst (#688): als weitere Referenzen im Infoblock, so wie sie dann kommen.
  * Ein Layout muss jede Länge des Infoblocks vertragen; das Beispiel mit allen Referenzen hat damit 15 Zeilen.
  */
 const WEITERE_REFERENZEN = [
-  { group: "bezug" as const, label: "Vertrag", value: "RV-2026-17" },
-  { group: "bezug" as const, label: "Projekt", value: "P-0815 Rathaus-Netz" },
-  { group: "bezug" as const, label: "Ausschreibung / Los", value: "VG-2026-04 / Los 2" },
-  { group: "bezug" as const, label: "Wareneingang", value: "WE-77812" },
-  { group: "bezug" as const, label: "Abrechnungsobjekt", value: "Zähler 1ESY1160" },
-  { group: "bezug" as const, label: "Buchungsreferenz", value: "KST 4711" },
+  { group: "referenz" as const, label: "Vertrag", value: "RV-2026-17" },
+  { group: "referenz" as const, label: "Projekt", value: "P-0815 Rathaus-Netz" },
+  { group: "referenz" as const, label: "Ausschreibung / Los", value: "VG-2026-04 / Los 2" },
+  { group: "referenz" as const, label: "Wareneingang", value: "WE-77812" },
+  { group: "referenz" as const, label: "Abrechnungsobjekt", value: "Zähler 1ESY1160" },
+  { group: "referenz" as const, label: "Buchungsreferenz", value: "KST 4711" },
 ];
 
 const mitWeiterenReferenzen = <T extends { meta: object[] }>(daten: T): T => ({ ...daten, meta: [...daten.meta, ...WEITERE_REFERENZEN] });

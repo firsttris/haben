@@ -90,20 +90,20 @@ export function presentReferences(references: OrderReferences | undefined): Orde
   return present;
 }
 
-/** Zeile im Infoblock; group „bezug“ bei seltenen Bezügen, die ein Layout gesondert setzen kann (meta[].group im Feldvertrag) */
+/** Zeile im Infoblock; group „referenz“ bei weiteren Referenzen, die ein Layout gesondert setzen kann (meta[].group im Feldvertrag) */
 export interface MetaZeile {
   label: string;
   value: string;
-  group?: "bezug";
+  group?: "referenz";
 }
 
 /**
  * Zeilen für den Kopfblock im PDF: „Ihre Bestellung 4500012345“ usw., in der Reihenfolge Bestellung, Auftrag, Lieferschein.
- * Die Bestellung des Kunden zählt zu den Kerndaten (oft verlangt); Auftrag und Lieferschein sind Bezüge.
+ * Die Bestellung des Kunden zählt zu den Kerndaten (oft verlangt); Auftrag und Lieferschein sind weitere Referenzen.
  */
 export function referenceMeta(references: OrderReferences | undefined, t: Pick<Texts, "orderReferences">): MetaZeile[] {
   const present = presentReferences(references);
   return REFERENCE_KEYS.flatMap((key) =>
-    present[key] ? [{ label: t.orderReferences[key], value: present[key], ...(key === "buyerOrder" ? {} : { group: "bezug" as const }) }] : [],
+    present[key] ? [{ label: t.orderReferences[key], value: present[key], ...(key === "buyerOrder" ? {} : { group: "referenz" as const }) }] : [],
   );
 }
