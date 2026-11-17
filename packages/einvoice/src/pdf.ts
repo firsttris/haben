@@ -12,7 +12,6 @@ import {
   needsSellerVatId,
   type TaxTreatment,
   customFooterRuns,
-  DEFAULT_OPTIONS,
   parseTextFormatting,
   footerValues,
   discountedLineAmount,
