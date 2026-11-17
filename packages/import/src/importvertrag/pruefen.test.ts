@@ -144,6 +144,35 @@ describe("validateBatch", () => {
     expect(result.ok && result.blocking).toBe(1);
   });
 
+  it("nennt den frühesten offenen Tag: ohne Tag den Anfang des Fensters", () => {
+    const result = validateBatch(batch({ unsupported: [{ reason: "Status P (ausstehend)" }] }), binding);
+    expect(result.ok && result.openFrom).toBe("2026-10-01");
+    expect(validateBatch(batch(), binding)).toMatchObject({ ok: true, openFrom: undefined });
+  });
+
+  it("hält den Zeitraum ab dem Tag eines nicht eingeordneten Ereignisses offen", () => {
+    const unsupported = [
+      { sourceEventId: "E-8", bookingDate: "2026-10-20", reason: "Vorgemerkt" },
+      { sourceEventId: "E-9", bookingDate: "2026-10-12", reason: "Status P (ausstehend)" },
+    ];
+    const result = validateBatch(batch({ unsupported }), binding);
+    expect(result.ok && [result.blocking, result.openFrom]).toEqual([2, "2026-10-12"]);
+  });
+
+  it("lässt nicht eingeordnete Ereignisse vor dem Fenster oder dem Stichtag den Zeitraum nicht offen", () => {
+    const unsupported = [
+      { sourceEventId: "E-8", bookingDate: "2026-09-28", reason: "Vor dem Fenster geliefert" },
+      { sourceEventId: "E-9", bookingDate: "2026-10-02", reason: "Status P (ausstehend)" },
+    ];
+    const result = validateBatch(batch({ unsupported }), { ...binding, cutoverDate: "2026-10-03" });
+    expect(result.ok && [result.blocking, result.openFrom]).toEqual([0, undefined]);
+  });
+
+  it("hält den Zeitraum ab einer Bewegung in fremder Währung offen", () => {
+    const result = validateBatch(batch({ movements: [movement(), movement({ sourceEventId: "E-2", bookingDate: "2026-10-09", currency: "USD" })] }), binding);
+    expect(result.ok && result.openFrom).toBe("2026-10-09");
+  });
+
   it("weist auf Erstattungen ohne Bezug zur ursprünglichen Zahlung hin", () => {
     const result = validateBatch(
       batch({

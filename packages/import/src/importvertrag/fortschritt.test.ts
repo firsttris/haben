@@ -19,6 +19,25 @@ describe("advanceCheckpoint", () => {
     expect(advanceCheckpoint(undefined, [part(0, true)])).toEqual({ checkpoint: "2026-10-31", complete: true });
   });
 
+  it("rückt bei einem offenen Ereignis bis zum Vortag vor", () => {
+    expect(advanceCheckpoint("2026-09-30", [part(0, true, { blocking: 1, openFrom: "2026-10-20" })])).toEqual({
+      checkpoint: "2026-10-19",
+      complete: false,
+      reason: "1 Ereignis ist nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.",
+    });
+  });
+
+  it("geht bei einem offenen Ereignis vor dem Stand nicht zurück", () => {
+    expect(advanceCheckpoint("2026-10-25", [part(0, true, { coverage: { from: "2026-10-20", to: "2026-10-31" }, blocking: 1, openFrom: "2026-10-22" })])).toMatchObject({
+      checkpoint: "2026-10-25",
+      complete: false,
+    });
+  });
+
+  it("rückt bei einem offenen Ereignis am ersten Tag des Fensters nicht vor", () => {
+    expect(advanceCheckpoint("2026-09-30", [part(0, true, { blocking: 1, openFrom: "2026-10-01" })])).toMatchObject({ checkpoint: "2026-09-30", complete: false });
+  });
+
   it("bleibt stehen, wenn der letzte Teil fehlt (Abbruch auf einer späteren Seite)", () => {
     expect(advanceCheckpoint("2026-09-30", [part(0, false), part(1, false)])).toEqual({
       checkpoint: "2026-09-30",
