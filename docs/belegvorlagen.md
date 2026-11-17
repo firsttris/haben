@@ -293,7 +293,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 
 ### Einstellungen der Gestaltung
 
-Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.
+Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. Auch „Mitte“ bei der Stelle des Logos bleibt wählbar; liest ein Layout nur `look.logoLeft`, sagt der Hinweis, dass das Logo dort rechts steht. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.
 
 | Einstellung | Feld | Belegarten |
 | --- | --- | --- |
@@ -302,7 +302,7 @@ Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr
 | Logo | `logo` | alle |
 | Größe des Logos | `look.logoHeight` oder `look.logoWidth` | alle |
 | Stelle des Logos | `look.logoLeft` oder `look.logoPosition` | alle |
-| Logo in der Mitte | `look.logoPosition` | alle |
+| Stelle des Logos „Mitte“ | `look.logoPosition` | alle |
 | Falz- und Lochmarken | `look.foldMarks` | alle |
 | GiroCode | `qr` | Rechnung, Storno und Korrektur; Mahnung |
 | Artikelnummer | `itemNumbers` | Rechnung, Storno und Korrektur; Angebot; Auftragsbestätigung; Lieferschein |
