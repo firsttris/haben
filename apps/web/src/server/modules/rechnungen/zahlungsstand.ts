@@ -56,13 +56,12 @@ export async function invoicePayments(ids: string[], q: Db | Tx = db, bis?: stri
 }
 
 /** Ausgebuchte Beträge je Rechnung (Skonto und Forderungsausfall, Gegenzeilen abgezogen) */
-export async function invoiceWrittenOff(ids: string[], q: Db | Tx = db, bis?: string): Promise<Map<string, number>> {
+export async function invoiceWrittenOff(ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
   const rows = await q
     .select({ id: schema.writeOffs.invoiceId, sum: sql<string>`sum(${schema.writeOffs.amount})` })
     .from(schema.writeOffs)
-    // Mit Stichtag zählt nur, was bis dahin ausgebucht war (#1110)
-    .where(and(inArray(schema.writeOffs.invoiceId, ids), bis ? lte(schema.writeOffs.date, bis) : undefined))
+    .where(inArray(schema.writeOffs.invoiceId, ids))
     .groupBy(schema.writeOffs.invoiceId);
   return new Map(rows.filter((r) => Number(r.sum) !== 0).map((r) => [r.id!, Number(r.sum)]));
 }

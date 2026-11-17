@@ -79,14 +79,6 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
-/**
- * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert, dazu zu erstattende Beträge aus
- * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
- * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
- *
- * Mit `bis` gilt der Abschlussstand zum Stichtag (#1110): `today` ist dann derselbe Tag, und es zählt nur, was bis
- * einschließlich dahin wirkt — spätere Zahlungen fehlen, Belege und Rechnungen, die es damals noch nicht gab, auch.
- */
 /** Offene Forderungen: festgeschriebene Rechnungen, die die Rechnungsliste als offen zeigt; `bis` ist der Stichtag des Abschlussstands (#1110) */
 async function openReceivables(today: string, bis: string | undefined, separate: Set<string>): Promise<OpenPosition[]> {
   return (await listInvoices(today, undefined, db, bis))
@@ -171,6 +163,14 @@ async function openVatPosten(today: string, bis: string | undefined): Promise<Op
     }));
 }
 
+/**
+ * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert, dazu zu erstattende Beträge aus
+ * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
+ * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
+ *
+ * Mit `bis` gilt der Abschlussstand zum Stichtag (#1110): `today` ist dann derselbe Tag, und es zählt nur, was bis
+ * einschließlich dahin wirkt — spätere Zahlungen fehlen, Belege und Rechnungen, die es damals noch nicht gab, auch.
+ */
 export async function openPositions(today: string, { bis }: { bis?: string } = {}) {
   // Auch die Anzahlungen und ihre Forderungen rechnen zum Stichtag, wenn einer gesetzt ist (#1110)
   const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(bis ?? today);
