@@ -11,17 +11,24 @@ Das Helm-Chart [`deploy/helm`](https://github.com/firsttris/haben/tree/main/depl
 [Docker Compose](installation.md#docker-compose): die App, daneben im selben Pod das tägliche Backup, und auf Wunsch
 PostgreSQL als StatefulSet. Haben läuft immer mit genau einem Pod; ein Update beendet ihn, bevor der neue startet, weil
 die Migrationen beim Start nur vorwärts gehen. Jede Einstellung ist in
-[`values.yaml`](https://github.com/firsttris/haben/blob/main/deploy/helm/values.yaml) erklärt.
+[`values.yaml`](https://github.com/firsttris/haben/blob/main/deploy/helm/values.yaml) erklärt, für deine Version im Klon
+unter `haben/deploy/helm/values.yaml`.
 
 ## Installieren
 
-1. Das Chart holen: `git clone --depth 1 https://github.com/firsttris/haben.git`
+1. Das Chart in der Version holen, die du installierst
+   ([aktuelle Version](https://github.com/firsttris/haben/releases/latest)), damit Chart und Image zusammenpassen:
+
+    ```sh
+    git clone --depth 1 --branch v0.10.0 https://github.com/firsttris/haben.git
+    ```
+
 2. Eine Datei `werte.yaml` anlegen und mit `chmod 600 werte.yaml` nur für dich lesbar machen:
 
     ```yaml
     domain: haben.example.de        # Passkeys hängen daran, später nicht mehr ändern
     image:
-      tag: "0.9.0"                  # aktuelle Version unter github.com/firsttris/haben/releases
+      tag: "0.10.0"                 # dieselbe Version wie beim Klonen
     app:
       secretEnv:
         BETTER_AUTH_SECRET: …       # openssl rand -base64 32
@@ -185,10 +192,21 @@ installierst du gleich mit `--set restore.enabled=true` und demselben `HABEN_ENC
 
 ## Updates
 
-Vor einem Update ein Backup von Hand wie oben, dann `image.tag` in `werte.yaml` anheben, `git pull` im Klon und
-`helm upgrade haben ./haben/deploy/helm -n haben -f werte.yaml`. Migrationen laufen beim Start der App, siehe
-[Updates](installation-backup.md#updates).
+Vor einem Update ein Backup von Hand wie oben. Dann im Klon die neue Version holen, `image.tag` in `werte.yaml` auf
+dieselbe anheben und das Chart anwenden:
 
-Zum [Zurücknehmen](installation-backup.md#update-zurücknehmen) setzt du `image.tag` auf die vorige Version und
-`postgresql.tag` auf die neue, für Datenbank und Backup: Die Datenbank kann eine Anhebung auf eine neue
-PostgreSQL-Version nicht rückgängig machen, und das Backup braucht deren `pg_dump`.
+```sh
+git -C haben fetch --depth 1 origin tag v0.10.1
+git -C haben checkout v0.10.1
+helm upgrade haben ./haben/deploy/helm -n haben -f werte.yaml
+```
+
+Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
+
+Zum [Zurücknehmen](installation-backup.md#update-zurücknehmen):
+
+1. Im Klon die vorige Version auf demselben Weg holen (`fetch` und `checkout` mit `v0.10.0`).
+2. In `werte.yaml` `image.tag` auf die vorige Version setzen und `postgresql.tag` auf die neue, für Datenbank und
+   Backup: Die Datenbank kann eine Anhebung auf eine neue PostgreSQL-Version nicht rückgängig machen, und das Backup
+   braucht deren `pg_dump`.
+3. Den Stand von vor dem Update einspielen wie unter [Wiederherstellen](#wiederherstellen).

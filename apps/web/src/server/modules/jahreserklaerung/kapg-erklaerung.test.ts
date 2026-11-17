@@ -69,8 +69,8 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
   };
 
   describe.each([
-    ["SKR03", { bank: "1200", erloes: "8400", ust: "1776", miete: "4210", elektro: "4575", bewirtung: "4650" }],
-    ["SKR04", { bank: "1800", erloes: "4400", ust: "3806", miete: "6310", elektro: "6565", bewirtung: "6640" }],
+    ["SKR03", { bank: "1200", erloes: "8400", ust: "1776", miete: "4210", elektro: "4575", kontokorrent: "2118", renten: "2127", bewirtung: "4650" }],
+    ["SKR04", { bank: "1800", erloes: "4400", ust: "3806", miete: "6310", elektro: "6565", kontokorrent: "7318", renten: "7327", bewirtung: "6640" }],
   ] as const)("%s", (kontenrahmen, k) => {
     it.each(["ist", "soll"] as const)(
       "%s: Körperschaft- und Gewerbesteuererklärung prüfen, echt erst nach dem Abschluss",
@@ -93,6 +93,11 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
           [k.elektro, 960_000, 0],
           [k.bank, 0, 960_000],
         ]);
+        await book("2025-07-01", [
+          [k.kontokorrent, 300_000, 0],
+          [k.renten, 120_000, 0],
+          [k.bank, 0, 420_000],
+        ]);
 
         let stand = await erklaerung.kapgErklaerungen(2025, today);
         expect(stand?.kst.issues.map((i) => i.text)).toEqual(
@@ -107,8 +112,8 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
 
         stand = await erklaerung.kapgErklaerungen(2025, today);
         expect(stand?.kst.issues).toEqual([expect.objectContaining({ tone: "hinweis", text: expect.stringContaining("erst, wenn 2025 abgeschlossen") })]);
-        // 60.000 − 12.000 − 1.000 − 9.600 = 37.400; + 300 Bewirtung; − 5.000 Vortrag; 15 %
-        expect(stand?.kst.werte).toMatchObject({ einkuenfte: 37_700, zvE: 32_700, kst: 4905, verlust: { anfang: 5000, ende: 0 } });
+        // 60.000 − 12.000 − 1.000 − 9.600 − 3.000 − 1.200 = 33.200; + 300 Bewirtung; − 5.000 Vortrag; 15 %
+        expect(stand?.kst.werte).toMatchObject({ einkuenfte: 33_500, zvE: 28_500, kst: 4275, verlust: { anfang: 5000, ende: 0 } });
 
         const client = new EricGeprueftClient();
         for (const form of ["kst", "gewst"] as const) {
@@ -121,6 +126,9 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
         // Leasing für Elektrofahrzeuge und Fahrräder in Zeile 54, nicht in Zeile 53
         expect(rows[1]!.request_xml).toContain("<E4004402>9600</E4004402>");
         expect(rows[1]!.request_xml).not.toContain("E4003502");
+        // Kontokorrentzinsen bei den Entgelten für Schulden (Zeile 50), Renten und dauernde Lasten in Zeile 51
+        expect(rows[1]!.request_xml).toContain("<E4003202>3000</E4003202>");
+        expect(rows[1]!.request_xml).toContain("<E4003302>1200</E4003302>");
         expect(rows[0]!.request_xml).toContain("<E8101301>300</E8101301>");
 
         await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1, 2, 3]))})`;

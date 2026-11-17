@@ -113,7 +113,7 @@ function ReportsPage() {
             {gesellschaft ? (
               <>Einnahmen minus Ausgaben; den Gewinn zeigt der {user.role === "inhaber" ? <Link to="/abschluss">Jahresabschluss</Link> : "Jahresabschluss"}</>
             ) : (
-              "Einnahmen minus Ausgaben laut EÜR"
+              "Einnahmen minus Ausgaben mit Umsatzsteuer (EÜR)"
             )}
           </div>
         </div>

@@ -443,6 +443,51 @@ const faelle: [string, () => string][] = [
         }),
     ],
     [
+      // Nur die Umsätze heben sich auf: Summe E3006001 und ihr Übertrag E3009201 mit 0,00, sonst nichts zu berechnen
+      `USt-Erklärung ${year} nur Umsätze, die sich aufheben`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "soll",
+          figures: { base19: -70_000, tax19: -13_300, base7: 190_000, tax7: 13_300, vorsteuer: 0, vorauszahlungen: 0 },
+        }),
+    ],
+    [
+      // Nur die Vorsteuer hebt sich auf: Summe E3006901 und ihr Übertrag E3009901 mit 0,00
+      `USt-Erklärung ${year} nur Vorsteuer, die sich aufhebt`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "ist",
+          figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: -19_000, kz62: 19_000, vorauszahlungen: 0 },
+        }),
+    ],
+    [
+      // Erwerbsteuer zu 19 % gegen 7 % und § 13b EU gegen Drittland heben sich auf: Summen und Überträge mit 0,00
+      `USt-Erklärung ${year} Erwerb- und §-13b-Steuer, die sich aufheben`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "soll",
+          figures: {
+            base19: 0,
+            tax19: 0,
+            base7: 0,
+            tax7: 0,
+            vorsteuer: 0,
+            kz89: -70_000,
+            tax89: -13_300,
+            kz93: 190_000,
+            tax93: 13_300,
+            kz46: 50_000,
+            kz47: 9_500,
+            kz84: -50_000,
+            kz85: -9_500,
+            vorauszahlungen: 0,
+          },
+        }),
+    ],
+    [
       `USt-Erklärung ${year} steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)`,
       () =>
         buildUstErklaerungXml({
