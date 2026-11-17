@@ -161,6 +161,15 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/angebote (Postgres, #297)", 
     expect(schemas.quoteListSchema.parse((await call(t, "/angebote?limit=1&offset=1")).json)).toMatchObject({ total: 2, limit: 1, offset: 1 });
   });
 
+  it("filtert nach Kunde auch mit einer UUID in Großbuchstaben, wie der Router Pfad-IDs annimmt", async () => {
+    const final = await finalQuote();
+    const t = await token(["angebote:lesen"]);
+
+    const list = await call(t, `/angebote?contactId=${contactId.toUpperCase()}`);
+    expect(list.status).toBe(200);
+    expect(schemas.quoteListSchema.parse(list.json).data.map((q) => q.id)).toEqual([final.id]);
+  });
+
   it("verlangt das eigene Recht angebote:lesen; Rechnungsrechte reichen nicht und umgekehrt", async () => {
     const final = await finalQuote();
     const rechnungenLesen = await token(["rechnungen:entwuerfe"]);
