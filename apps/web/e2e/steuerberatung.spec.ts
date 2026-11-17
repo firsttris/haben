@@ -63,6 +63,7 @@ test("Einladung, lesen ja, ändern nein, sperren", async ({ page: owner, browser
   await stb.getByLabel("Passwort (mindestens 12 Zeichen)").fill(KANZLEI.password);
   await stb.getByRole("button", { name: "Zugang anlegen" }).click();
   await expect(stb.getByRole("button", { name: "Passkey hinzufügen" })).toBeVisible();
+  await expect(stb.getByText(/Mit einem Passkey meldest du dich künftig mit Fingerabdruck, Gesicht oder PIN deines Geräts an/)).toBeVisible();
   await stb.getByRole("button", { name: "Später" }).click();
   await stb.waitForURL(/\/steuerberatung$/);
   await expect(stb.getByRole("heading", { name: "Steuerberatung", level: 1 })).toBeVisible();

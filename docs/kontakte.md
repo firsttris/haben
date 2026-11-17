@@ -19,7 +19,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
 | Telefon | Frei, mit Ziffern, Leerzeichen und `+ ( ) / - .`, z. B. `+49 941 123456`. Steht in der Kontaktliste unter der E-Mail und lässt sich suchen, aber nicht auf Rechnungen; für eine Person bei der Firma gibt es die [Ansprechpartner](#ansprechpartner). |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
-| Land (ISO-Code) | Zwei Buchstaben, Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
+| Land (z. B. DE) | Ländercode aus zwei Buchstaben (ISO 3166-1), Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
 | USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. Gibt es sie schon bei einem anderen Kontakt, auch einem archivierten, weist Haben nach dem Tippen darauf hin, mit Link auf den Kontakt, statt einen zweiten anzulegen; gespeichert wird trotzdem, zusammengeführt nichts. |
 | IBAN | Hilft beim Bankabgleich. Wird beim ersten zugeordneten Zahlungseingang automatisch gemerkt, wenn das Feld leer ist. |
 | Leitweg-ID (öffentliche Auftraggeber) | Steht auf der Rechnung und wird im XML als Käuferreferenz verwendet. |
@@ -66,7 +66,7 @@ Oben stehen die Summen je Jahr, netto und brutto, mit dem Anteil aus dem Altbest
 
 ## SEPA-Lastschriftmandate
 
-Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
+Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden, seine Einzugsermächtigung, auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
 
 | Feld | Hinweis |
 | --- | --- |

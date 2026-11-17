@@ -6,6 +6,9 @@ import { errorMessage } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
 import { Field } from "../components/Field.tsx";
 
+// Die Anleitung nennt, wo der Einrichtungscode steht (Log des Servers)
+const CODE_DOCS = "https://haben.app/einrichtung.html#konto-anlegen";
+
 export const Route = createFileRoute("/setup")({
   beforeLoad: async () => {
     const state = await getAuthState();
@@ -78,7 +81,10 @@ function SetupPage() {
         ) : state.user ? (
           <>
             <h1 style={{ fontSize: 24 }}>Passkey einrichten</h1>
-            <p className="muted">Melde dich künftig mit einem Passkey an, ohne Passwort. Das Passwort bleibt als Rückfallebene.</p>
+            <p className="muted">
+              Mit einem Passkey meldest du dich künftig mit Fingerabdruck, Gesicht oder PIN deines Geräts an, ohne Passwort. Das Passwort bleibt als
+              Rückfallebene.
+            </p>
             <button type="button" className="btn btn-primary" onClick={addPasskey} disabled={busy}>
               Passkey hinzufügen
             </button>
@@ -90,13 +96,17 @@ function SetupPage() {
           <form className="stack" onSubmit={createAccount}>
             <h1 style={{ fontSize: 24 }}>Haben einrichten</h1>
             <p className="muted" style={{ margin: 0 }}>
-              Haben hat genau ein Konto. Nach dem Anlegen fügst du einen Passkey hinzu.
+              Haben hat genau ein Konto. Nach dem Anlegen richtest du einen Passkey ein: Anmelden mit Fingerabdruck, Gesicht oder PIN deines Geräts.
             </p>
             <Field label="Einrichtungscode" describedBy="setup-code-hint">
               {(control) => <input {...control} name="setupCode" required autoComplete="off" spellCheck={false} />}
             </Field>
             <p id="setup-code-hint" className="field-hint">
-              Steht beim Start im Log des Servers, z. B. mit <code>docker compose logs app</code>.
+              Den Code hat, wer Haben installiert hat. Er steht beim Start im Log des Servers.{" "}
+              <a href={CODE_DOCS} target="_blank" rel="noreferrer">
+                So findest du ihn
+              </a>
+              .
             </p>
             <Field label="Name">{(control) => <input {...control} name="name" required autoComplete="name" />}</Field>
             <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" required autoComplete="email" />}</Field>

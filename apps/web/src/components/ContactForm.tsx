@@ -247,7 +247,7 @@ export function ContactForm({
         <div className="form-row cols-address">
           <Field label="PLZ">{(control) => <input {...control} name="plz" defaultValue={initial.plz} autoComplete="postal-code" inputMode="numeric" />}</Field>
           <Field label="Ort">{(control) => <input {...control} name="ort" defaultValue={initial.ort} autoComplete="address-level2" />}</Field>
-          <Field label="Land (ISO-Code)">
+          <Field label="Land (z. B. DE)">
             {(control) => <input {...control} name="land" defaultValue={initial.land} maxLength={2} autoComplete="country" className="uppercase" />}
           </Field>
         </div>

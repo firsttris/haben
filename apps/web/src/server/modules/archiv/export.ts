@@ -877,7 +877,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       and(
         sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
             and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
-          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date))`,
+          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date)
+          or (${schema.bankImports.periodTo} is null and ${schema.bankImports.createdAt} >= ${berlinStart(year)}
+            and ${schema.bankImports.createdAt} < ${berlinStart(year + 1)}))`,
         bankAccountIncludedSql("bank_account_id"),
       ),
     )
@@ -1829,8 +1831,10 @@ bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufi
 bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen und Belegen
                          (Skonto, Forderungsausfall); aufgehobene als Gegenzeile; bei
                          Skonto zu einer Bareinnahme die Nummer im Kassenbuch.
-bank/importe.csv         Importierte Kontoauszugsdateien mit SHA-256, Zeitraum und Salden.
-                         Die Auszugsdateien selbst speichert Haben nicht.
+bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA-256,
+                         Zeitraum, Salden und Hinweisen; abgelehnte Abrufe ohne Zeitraum
+                         nach dem Tag des Abrufs. Die Auszugsdateien selbst speichert
+                         Haben nicht.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),
                          jede Prüfung und Übermittlung (übermittlungen.csv) mit
                          ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML;

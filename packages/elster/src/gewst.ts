@@ -24,10 +24,11 @@ export interface GewStXmlInput extends Omit<Envelope, "datenArt"> {
   /** Gewinn aus Gewerbebetrieb (Zeile 39), negativ bei Verlust */
   gewinn: Cents;
   /**
-   * § 8 Nr. 1 GewStG in voller Höhe; den Hinzurechnungsbetrag ermittelt das Finanzamt (Zeilen 50 bis 56). Elektrofahrzeuge
-   * und Fahrräder nach Buchst. d Satz 2 stehen in Zeile 54, die übrigen beweglichen Wirtschaftsgüter ohne sie in Zeile 53.
+   * § 8 Nr. 1 GewStG in voller Höhe; den Hinzurechnungsbetrag ermittelt das Finanzamt (Zeilen 50 bis 56). Renten und
+   * dauernde Lasten (Buchst. b) stehen in Zeile 51; Elektrofahrzeuge und Fahrräder nach Buchst. d Satz 2 in Zeile 54, die
+   * übrigen beweglichen Wirtschaftsgüter ohne sie in Zeile 53.
    */
-  hinzurechnungen: { zinsen: Cents; beweglich: Cents; elektro: Cents; unbeweglich: Cents; rechte: Cents };
+  hinzurechnungen: { zinsen: Cents; renten: Cents; beweglich: Cents; elektro: Cents; unbeweglich: Cents; rechte: Cents };
   /** Darin enthaltene Vergütungen nach § 50a Abs. 1 Nr. 3 EStG an beschränkt Steuerpflichtige (Zeile 57); nur mit Rechten */
   rechteBeschraenktStpfl: Cents;
   /** Zum Schluss des Vorjahres festgestellter vortragsfähiger Gewerbeverlust (Zeile 148) */
@@ -81,6 +82,7 @@ export function buildGewStXml(input: GewStXmlInput): string {
             "P_8_Nr_1_Wj1",
             [
               ["E4003202", euro(h.zinsen)],
+              ["E4003302", euro(h.renten)],
               ["E4003502", euro(h.beweglich)],
               ["E4004402", euro(h.elektro)],
               ["E4003602", euro(h.unbeweglich)],

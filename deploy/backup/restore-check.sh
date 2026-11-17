@@ -22,7 +22,8 @@ check_db="${PGDATABASE}_restore_check_$(date +%Y%m%d%H%M%S)_$RANDOM"
 export PGOPTIONS="-c client_min_messages=warning"
 work="$(mktemp -d)"
 errlog="$work/fehler.log"
-exec 3>&2 2> >(tee -a "$errlog" >&3)
+# Fehlerausgabe ohne Zugangsdaten wie in backup.sh
+exec 3>&2 2> >(stream_without_credentials | tee -a "$errlog" >&3)
 tee_pid=$!
 ok=false
 message=""

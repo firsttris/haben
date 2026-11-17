@@ -21,13 +21,13 @@ describe.skipIf(!testDatabaseUrl)("Stand des Backups (Postgres)", () => {
     await sql`delete from backup_status`;
   });
 
-  async function run(kind: "backup" | "restore_check", ok: boolean, at: Date, message = "") {
-    await sql`insert into backup_status (kind, ok, at, snapshot, bytes, message)
-      values (${kind}, ${ok}, ${at.toISOString()}, ${ok ? "a1b2c3d4" : null}, ${ok ? 1234 : null}, ${message})`;
+  async function run(kind: "backup" | "restore_check", ok: boolean, at: Date, message = "", target: string | null = null) {
+    await sql`insert into backup_status (kind, ok, at, snapshot, bytes, message, target)
+      values (${kind}, ${ok}, ${at.toISOString()}, ${ok ? "a1b2c3d4" : null}, ${ok ? 1234 : null}, ${message}, ${target})`;
   }
 
   it("ohne Eintrag: kein Backup eingerichtet", async () => {
-    expect(await status.backupOverview(now)).toEqual({ state: "keins", overdue: false, lastBackup: null, lastCheck: null, failed: [] });
+    expect(await status.backupOverview(now)).toEqual({ state: "keins", overdue: false, lastBackup: null, lastCheck: null, failed: [], target: null });
   });
 
   it("Backup von heute Nacht und Test-Restore: in Ordnung", async () => {
@@ -74,6 +74,38 @@ describe.skipIf(!testDatabaseUrl)("Stand des Backups (Postgres)", () => {
     const o = await status.backupOverview(now);
     expect(o.state).toBe("fehler");
     expect(o.overdue).toBe(true);
+  });
+
+  it("Speicherort: Volume im Backup-Container ist lokal", async () => {
+    await run("backup", true, hoursAgo(9), "", "/backups");
+    expect((await status.backupOverview(now)).target).toEqual({ repository: "/backups", local: true });
+  });
+
+  it("Speicherort: der neueste Lauf mit Ziel zählt, auch ein fehlgeschlagener, ohne Zugangsdaten", async () => {
+    await run("backup", true, hoursAgo(30), "", "/backups");
+    await run("backup", false, hoursAgo(6), "Fatal: unable to open repository", "rest:https://nutzer:ge@heim@backup.example/haben");
+    expect((await status.backupOverview(now)).target).toEqual({ repository: "rest:https://backup.example/haben", local: false });
+  });
+
+  it("Speicherort: Läufe eines älteren Backup-Images ohne Ziel verdecken das letzte bekannte nicht", async () => {
+    await run("backup", true, hoursAgo(30), "", "sftp:backup.example:/srv/restic");
+    await run("backup", true, hoursAgo(6));
+    expect((await status.backupOverview(now)).target).toEqual({ repository: "sftp:backup.example:/srv/restic", local: false });
+  });
+
+  it("Speicherort unbekannt, wenn kein Lauf eins eingetragen hat", async () => {
+    await run("backup", true, hoursAgo(6));
+    const o = await status.backupOverview(now);
+    expect(o.state).toBe("ok");
+    expect(o.target).toBeNull();
+  });
+
+  it("Meldungen der Läufe ohne Zugangsdaten, für Karte, Übersicht und Verfahrensdokumentation", async () => {
+    await run("restore_check", true, hoursAgo(30), "Kette geprüft, Repository sftp:nutzer@backup.example:/srv/restic");
+    await run("backup", false, hoursAgo(6), "Fatal: unable to open repository at rest:https://nutzer:ge@heim@backup.example/haben");
+    const o = await status.backupOverview(now);
+    expect(o.failed[0]?.run.message).toBe("Fatal: unable to open repository at rest:https://backup.example/haben");
+    expect(o.lastCheck?.message).toBe("Kette geprüft, Repository sftp:backup.example:/srv/restic");
   });
 
   it("die Tabelle steht nicht im Audit-Log", async () => {

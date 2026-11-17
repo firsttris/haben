@@ -300,4 +300,35 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
       expect(await reports.umsatzImMonat("2026-10")).toBe(100_000);
       expect(await reports.umsatzImMonat("2026-11")).toBe(-100_000);
     }, 30_000);
+
+  it("Jahresauswahl kennt ein Jahr, das nur über den Datenimport gebucht ist", async () => {
+    // 2024 gibt es nur als Buchung aus dem Datenimport, ohne Bankumsatz, Rechnung oder Beleg in Haben
+    await leeren(sql)`truncate external_imports, lexoffice_imports cascade`;
+    const imports = await import("../datenimport/index.ts");
+    await imports.runExternalImport(
+      actor,
+      {
+        version: 2,
+        source: "jahre-test",
+        kontenrahmen: "SKR03",
+        entries: [
+          {
+            kind: "journal",
+            externalId: "einnahme-2024",
+            date: "2024-05-02",
+            description: "Erfundene Einnahme aus einem früheren Programm",
+            lines: [
+              { account: "1200", debit: 11_900, credit: 0, taxCode: null },
+              { account: "8400", debit: 0, credit: 10_000, taxCode: null, basis: 10_000 },
+              { account: "1776", debit: 0, credit: 1_900, taxCode: null, basis: 10_000 },
+            ],
+          },
+        ],
+        settlements: [],
+      },
+      async () => new Uint8Array(),
+    );
+    expect((await reports.euerForYear(2024)).monthly.einnahmen[4]).toBe(10_000);
+    expect(await reports.reportYears()).toEqual([2024]);
+  }, 30_000);
 });

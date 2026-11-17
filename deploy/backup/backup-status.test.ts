@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -59,6 +62,72 @@ describe.skipIf(!testDatabaseUrl)("Backup-Container trägt das Ziel ein (Postgre
     ]);
   });
 
+  it("entfernt ein Passwort mit / ohne Prozentkodierung wie ohneZugangsdaten in der App", async () => {
+    for (const repository of [
+      "rest:https://nutzer:ab/cd+ef@backup.example/haben",
+      "rest:https://nutzer:ab/cd@ef@backup.example:8000/haben",
+      "rest:https://nutzer@example.com:ab/cd@backup.example/haben",
+      "s3:https://SCHLUESSEL:ab/cd@s3.example.com/haben-backup",
+      "sftp://nutzer:ab/cd@backup.example:2222//srv/restic",
+      "rest:https://nutzer:ab/cd@[::1]:8000/haben",
+      "rest:https://nutzer:ab%2Fcd@backup.example/haben",
+      // RESTIC_REPOSITORY ist eine Adresse, keine Meldung: Leerraum und " beenden die Zugangsdaten nicht
+      "rest:https://nutzer:ab cd@backup.example/haben",
+      'rest:https://nutzer:ab"cd@backup.example/haben',
+      "rest:https://nutzer:ab\tcd/ef@backup.example/haben",
+    ])
+      recordStatus(repository, "");
+    const rows = await sql`select target from backup_status order by id`;
+    expect(rows.map((r) => r.target)).toEqual([
+      "rest:https://backup.example/haben",
+      "rest:https://backup.example:8000/haben",
+      "rest:https://backup.example/haben",
+      "s3:https://s3.example.com/haben-backup",
+      "sftp://backup.example:2222//srv/restic",
+      "rest:https://[::1]:8000/haben",
+      "rest:https://backup.example/haben",
+      "rest:https://backup.example/haben",
+      "rest:https://backup.example/haben",
+      "rest:https://backup.example/haben",
+    ]);
+  });
+
+  it('entfernt Zugangsdaten auch, wenn hinter dem Host Leerraum oder " ohne Pfad folgt', async () => {
+    const ziele: [string, string][] = [
+      ["rest:https://nutzer:geheim@backup.example ", "rest:https://backup.example "],
+      ["rest:https://nutzer:geheim@backup.example:8000 ", "rest:https://backup.example:8000 "],
+      ["rest:https://nutzer:geheim@backup.example\t", "rest:https://backup.example\t"],
+      ['rest:https://nutzer:geheim@backup.example"', 'rest:https://backup.example"'],
+      ["rest:https://nutzer:geheim@backup.example /haben", "rest:https://backup.example /haben"],
+      ["rest:https://nutzer:a b@c d/e@backup.example/haben", "rest:https://backup.example/haben"],
+      // Leerraum im Host: lieber das Ziel falsch als das Passwort zeigen
+      ["rest:https://nutzer:geheim@backup.example x/haben", "rest:https://backup.example x/haben"],
+    ];
+    for (const [repository] of ziele) recordStatus(repository, "");
+    const rows = await sql`select target from backup_status order by id`;
+    expect(rows.map((r) => r.target)).toEqual(ziele.map(([, erwartet]) => erwartet));
+  });
+
+  it("lässt ein @ im Pfad eines Ziels ohne Zugangsdaten stehen", async () => {
+    const ziele = ["rest:https://h/haben@2026", "sftp://h//srv/a@b", "rest:https://[::1]:8000/a@b", "rest:https://h/haben?x@y", "rest:https://h?x@y"];
+    for (const repository of ziele) recordStatus(repository, "");
+    const rows = await sql`select target from backup_status order by id`;
+    expect(rows.map((r) => r.target)).toEqual(ziele);
+  });
+
+  it("schreibt die Meldung ohne Zugangsdaten (#1349)", async () => {
+    recordStatus(
+      "rest:https://nutzer:ab/cd@backup.example/haben",
+      'Fatal: parsing repository location failed: parse "https://nutzer:ab/cd@backup.example/haben": invalid port ":ab" after host',
+    );
+    recordStatus("sftp:nutzer@backup.example:/srv/restic", "Fatal: unable to open repository at sftp:nutzer@backup.example:/srv/restic: ssh: handshake failed");
+    const rows = await sql`select message, target from backup_status order by id`;
+    expect(rows).toEqual([
+      { message: 'Fatal: parsing repository location failed: parse "https://": invalid port after host', target: "rest:https://backup.example/haben" },
+      { message: "Fatal: unable to open repository at sftp:backup.example:/srv/restic: ssh: handshake failed", target: "sftp:backup.example:/srv/restic" },
+    ]);
+  });
+
   it("lässt ein Ziel ohne Zugangsdaten unverändert und ein leeres weg", async () => {
     recordStatus("s3:s3.example.com/haben-backup", "");
     recordStatus("", "");
@@ -74,6 +143,21 @@ describe.skipIf(!testDatabaseUrl)("Backup-Container trägt das Ziel ein (Postgre
       expect(row?.message).toBe("ältere App");
     } finally {
       await sql`alter table backup_status add column target text`;
+    }
+  });
+});
+
+describe("Meldung eines fehlgeschlagenen Laufs (last_error)", () => {
+  it("entfernt Zugangsdaten vor dem Kürzen auf 500 Zeichen (#1349)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-backup-"));
+    try {
+      const log = join(dir, "fehler.log");
+      // Die Grenze von 500 Zeichen fiele mitten ins Passwort, das @ dahinter wäre weg
+      writeFileSync(log, `${"x".repeat(480)} rest:https://n:geheimespasswort@backup.example/haben\n`);
+      const meldung = execFileSync("bash", ["-c", `source "${SCRIPT}" && last_error "$1"`, "_", log], { encoding: "utf8" });
+      expect(meldung).toBe(`${"x".repeat(480)} rest:https://backup\n`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

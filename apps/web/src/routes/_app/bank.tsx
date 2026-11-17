@@ -1301,7 +1301,7 @@ function AllocationPanel({
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 {best.item.type === "invoice"
-                  ? "Bucht Bank an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit diesem Zahlungseingang fällig."
+                  ? "Deckt die Zahlung den offenen Betrag, gilt die Rechnung als bezahlt (Bank an Forderungen). Bei Ist-Versteuerung wird die Umsatzsteuer anteilig mit der Zahlung fällig."
                   : best.item.type === "ustva"
                     ? "Bucht wie „Umsatzsteuer an das Finanzamt“ (Umsatzsteuer-Vorauszahlungen), mit Bezug auf die Voranmeldung."
                     : "Bucht Verbindlichkeiten an Bank."}
@@ -1369,7 +1369,8 @@ function AllocationPanel({
                     Beide Seiten als Geldtransit buchen
                   </button>
                   <span className="small muted">
-                    Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
+                    Geld zwischen deinen eigenen Konten: Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über{" "}
+                    {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
                     {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem
                     Schritt zugeordnet.
                   </span>

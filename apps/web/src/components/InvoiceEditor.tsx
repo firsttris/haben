@@ -946,7 +946,7 @@ export function InvoiceEditor({
                   method={paymentMethod}
                   mandateId={mandateId}
                   mandates={mandates.filter((m) => m.contactId === contactId || m.id === mandateId)}
-                  contactChosen={contactId !== ""}
+                  contactId={contactId}
                   paidVia={paidVia}
                   paidOn={paidOn}
                   paidViaError={error("paidVia") ?? null}

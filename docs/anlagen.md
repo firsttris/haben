@@ -13,7 +13,7 @@ Wirtschaftsgüter, die länger als ein Jahr im Betrieb bleiben und mehr als 800 
 
 1. **Neue Anschaffung:** Lade die Rechnung als [Beleg](belege.md) hoch und wähle die Kategorie **Anlagegut (wird abgeschrieben)**. Gib Bezeichnung, Art, Abschreibung und gegebenenfalls die Nutzungsdauer an und buche den Beleg. Dabei entsteht die Anlage im Verzeichnis.
 2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)). Aus sevDesk holt Haben das Anlagenverzeichnis selbst ([Umzug aus sevDesk](sevdesk.md#schritt-4-anlagen-übernehmen)).
-3. **Zum Jahresende:** Ab dem 1. Dezember buchst du unter **Anlagen** mit **AfA … buchen** die Abschreibungen des Jahres. Die Übersicht erinnert daran.
+3. **Zum Jahresende:** Ab dem 1. Dezember buchst du unter **Anlagen** mit **AfA … buchen** die Abschreibungen des Jahres. Die Übersicht erinnert daran („Abschreibung (AfA) … buchen“).
 
 In der EÜR steht die AfA schon vorher, sobald die Anlage im Verzeichnis ist.
 
@@ -37,8 +37,8 @@ Die Vorschläge folgen der amtlichen AfA-Tabelle. Du kannst Abschreibung und Nut
 | Degressiv mit Wechsel zur linearen | Fester Satz vom Buchwert am Jahresanfang, im Anschaffungsjahr monatsgenau (§ 7 Abs. 2 EStG). Haben wechselt von selbst zur linearen AfA, sobald diese höher ist ([Degressive AfA](#degressive-afa)). |
 | Elektrofahrzeug (§ 7 Abs. 2a EStG) | 75 % der Anschaffungskosten im Anschaffungsjahr, unabhängig vom Monat, danach 10, 5, 5, 3 und 2 % ([Elektrofahrzeuge](#elektrofahrzeuge)). |
 | Computer und Software (Nutzungsdauer 1 Jahr) | Voll im Jahr der Anschaffung, unabhängig vom Monat (BMF-Schreiben vom 22.02.2022). |
-| Geringwertiges Wirtschaftsgut | Bis 800 € netto, voll im Jahr der Anschaffung (§ 6 Abs. 2 EStG). Konten 0480 / 0670, AfA 4855 / 6260. |
-| Sammelposten | 250,01 € bis 1.000 € netto, je ein Fünftel im Anschaffungsjahr und in den vier folgenden Jahren (§ 6 Abs. 2a EStG). Ein Abgang ändert daran nichts. Konten 0485 / 0675, AfA 4862 / 6264. |
+| Geringwertiges Wirtschaftsgut | Allein nutzbar und bis 800 € netto: du darfst es voll im Jahr der Anschaffung absetzen, ein Wahlrecht (§ 6 Abs. 2 EStG). Konten 0480 / 0670, AfA 4855 / 6260. |
+| Sammelposten | Allein nutzbar und von 250,01 € bis 1.000 € netto: du darfst es gleichmäßig verteilen, je ein Fünftel im Anschaffungsjahr und in den vier folgenden Jahren, ein Wahlrecht (§ 6 Abs. 2a EStG). Ein Abgang ändert daran nichts. Konten 0485 / 0675, AfA 4862 / 6264. |
 
 GWG und Sammelposten prüft Haben gegen die Grenzen. Maßgeblich ist der Nettobetrag, auch wenn die Anschaffungskosten die Vorsteuer enthalten (ohne Vorsteuerabzug).
 
