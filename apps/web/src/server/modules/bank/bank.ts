@@ -119,6 +119,12 @@ export const accountSchema = z.object({
     .pipe(z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ungültig")),
 });
 
+/**
+ * Ein Import mit Inhalt: Der Eintrag eines abgelehnten Abrufs (`recordRefusedBatch`) hat weder Zeitraum noch Umsätze und
+ * zählt nicht als letzter Import (Kontostand, Saldenfolge). Ohne diese Bedingung käme er bei `desc(periodTo)` zuerst.
+ */
+const echterImport = sql`not (${schema.bankImports.periodTo} is null and ${schema.bankImports.added} = 0 and ${schema.bankImports.skipped} = 0)`;
+
 export async function listAccounts() {
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
   return Promise.all(
@@ -131,7 +137,7 @@ export async function listAccounts() {
           format: schema.bankImports.format,
         })
         .from(schema.bankImports)
-        .where(eq(schema.bankImports.bankAccountId, account.id))
+        .where(and(eq(schema.bankImports.bankAccountId, account.id), echterImport))
         .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
         .limit(1);
       const [open] = await db
@@ -283,7 +289,13 @@ export async function prepareStatement(tx: Tx, statement: ParsedStatement, filen
   const [previous] = await tx
     .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })
     .from(schema.bankImports)
-    .where(and(eq(schema.bankImports.bankAccountId, account.id), statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`))
+    .where(
+      and(
+        eq(schema.bankImports.bankAccountId, account.id),
+        echterImport,
+        statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`,
+      ),
+    )
     .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
     .limit(1);
   const continuity = checkBalanceContinuity(

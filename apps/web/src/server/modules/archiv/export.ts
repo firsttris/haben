@@ -877,7 +877,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       and(
         sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
             and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
-          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date))`,
+          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date)
+          or (${schema.bankImports.periodTo} is null and ${schema.bankImports.createdAt} >= ${berlinStart(year)}
+            and ${schema.bankImports.createdAt} < ${berlinStart(year + 1)}))`,
         bankAccountIncludedSql("bank_account_id"),
       ),
     )
