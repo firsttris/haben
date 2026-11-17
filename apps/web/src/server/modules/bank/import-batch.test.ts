@@ -263,6 +263,22 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-1200, -1200]);
   });
 
+  it("verbindet einen Umsatz vor dem Fenster dauerhaft mit der Zeile der Datei", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
+    await dateiMitEr2(konto);
+    // Abruf 1: ER-2 steht schon aus der Datei und wird mit ihr verbunden
+    expect((await speichere(abruf(konto, [er2], { from: "2026-11-01", to: "2026-11-05" }))).added).toBe(0);
+    // Abruf 2: ein anderer Umsatz mit gleichem Tag und Betrag ist neu, die Zeile der Datei ist verbraucht
+    expect((await speichere(abruf(konto, [er4], { from: "2026-11-02", to: "2026-11-06" }))).added).toBe(1);
+    // Derselbe Abruf noch einmal legt nichts an
+    expect((await speichere(abruf(konto, [er2, er4], { from: "2026-11-02", to: "2026-11-06" }))).added).toBe(0);
+    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-4999, -1200, -1200]);
+    const [verbunden] = await sql`select count(*)::int as n from import_movements m join import_sources s on s.id = m.source_id
+      where s.external_account_id = ${konto.hash} and m.source_event_id = 'ER-2'`;
+    expect(verbunden!.n).toBe(1);
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();
