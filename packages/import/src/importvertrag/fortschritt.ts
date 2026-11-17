@@ -7,6 +7,8 @@ export interface PartResult {
   part: ImportBatch["part"];
   /** Abgelehnte und nicht eingeordnete Ereignisse, die den Zeitraum offen lassen (`validateBatch`) */
   blocking: number;
+  /** Frühester offener Tag (`validateBatch`); bis zum Vortag gilt das Fenster als abgerufen, ohne Angabe gar nicht */
+  openFrom?: string;
   /** Konflikt mit schon übernommenen Bewegungen (`classifyMovements`) */
   conflict: boolean;
 }
@@ -35,12 +37,17 @@ function partsProblem(parts: PartResult[]): string | null {
 function fetchProblem(parts: PartResult[]): string | null {
   const { from, to } = parts[0]!.coverage;
   if (parts.some((p) => p.coverage.from !== from || p.coverage.to !== to)) return "Die Teile der Lieferung nennen verschiedene Fenster.";
-  const problem = partsProblem(parts);
-  if (problem) return problem;
+  return partsProblem(parts);
+}
+
+/** Offene Ereignisse eines Abrufs: ab welchem Tag sein Fenster offen bleibt und warum, sonst null */
+function openPart(parts: PartResult[]): { from: string; reason: string } | null {
   const blocking = parts.reduce((sum, p) => sum + p.blocking, 0);
   if (blocking === 0) return null;
+  const start = parts[0]!.coverage.from;
+  const from = parts.map((p) => (p.blocking > 0 ? (p.openFrom ?? start) : undefined)).filter((d): d is string => d !== undefined).sort()[0]!;
   const count = blocking === 1 ? "1 Ereignis ist" : `${blocking} Ereignisse sind`;
-  return `${count} nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.`;
+  return { from: from < start ? start : from, reason: `${count} nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.` };
 }
 
 /**
@@ -63,10 +70,14 @@ export function advanceCheckpoint(checkpoint: string | undefined, parts: PartRes
     const { from, to } = group[0]!.coverage;
     const problem =
       fetchProblem(group) ?? (current && from > addDays(current, 1) ? `Lücke: vollständig bis ${current}, das Fenster beginnt erst am ${from}.` : null);
+    const offen = problem ? null : openPart(group);
     if (problem) open.push({ from, to, reason: problem });
     else {
-      done.push({ from, to });
-      if (!current || to > current) current = to;
+      // Bis zum Vortag des ersten offenen Ereignisses ist das Fenster abgerufen, ab dort nicht
+      const end = offen ? addDays(offen.from, -1) : to;
+      if (offen) open.push({ from: offen.from, to, reason: offen.reason });
+      if (end >= from) done.push({ from, to: end });
+      if (end >= from && (!current || end > current)) current = end;
     }
   }
   // Offen bleibt, was kein vollständiger Abruf dieses Aufrufs abdeckt, auch ein Fenster vor dem bisherigen Stand

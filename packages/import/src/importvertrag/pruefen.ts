@@ -21,6 +21,8 @@ export type BatchValidation =
       balances: ImportBatch["balances"];
       /** Abgelehnte und vom Connector nicht eingeordnete Ereignisse, die die Vollständigkeit blockieren */
       blocking: number;
+      /** Frühester Tag, ab dem der Zeitraum offen bleibt; ohne Tag des Ereignisses der Anfang des Fensters */
+      openFrom: string | undefined;
       hints: string[];
     };
 
@@ -84,11 +86,17 @@ export function validateBatch(input: unknown, binding: SourceBinding): BatchVali
 
   const accepted: ImportMovement[] = [];
   const rejected: RejectedMovement[] = [];
+  const openDays: string[] = [];
   for (const m of batch.movements) {
     const r = rejection(m, binding);
     if (r) rejected.push({ sourceEventId: m.sourceEventId, component: m.component, ...r });
     else accepted.push(m);
+    if (r?.blocking) openDays.push(m.bookingDate);
   }
+  // Ein Tag vor dem Fenster oder dem Stichtag gehört nicht zu dem Zeitraum, den diese Lieferung abschließen soll
+  const before = (day: string) => day < batch.coverage.from || (binding.cutoverDate !== undefined && day < binding.cutoverDate);
+  const openUnsupported = batch.unsupported.filter((u) => !(u.bookingDate && before(u.bookingDate)));
+  openDays.push(...openUnsupported.map((u) => u.bookingDate ?? batch.coverage.from));
   const hints = accepted
     .filter((m) => (m.kind === "refund" || m.kind === "chargeback") && m.component === "main" && !m.references.relatedEventId)
     .map((m) => `${m.sourceEventId}: ${m.kind === "refund" ? "Erstattung" : "Rückbelastung"} ohne Bezug zur ursprünglichen Zahlung.`);
@@ -100,7 +108,8 @@ export function validateBatch(input: unknown, binding: SourceBinding): BatchVali
     accepted,
     rejected,
     balances: batch.balances.filter((b) => b.currency === "EUR"),
-    blocking: rejected.filter((r) => r.blocking).length + batch.unsupported.length,
+    blocking: rejected.filter((r) => r.blocking).length + openUnsupported.length,
+    openFrom: openDays.sort()[0],
     hints,
   };
 }
