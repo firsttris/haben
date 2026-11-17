@@ -53,11 +53,23 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     const window = { dateFrom: over.from ?? "2026-10-01", dateTo: over.to ?? "2026-10-31" };
     const fetchId = over.fetchId ?? `abruf-${Math.random()}`;
     const ohneReferenz = (u: { reason: string }) => u.reason.includes("ohne entry_reference");
-    const batch = enableBankingBatch({ externalAccountId: konto.hash, transactions, balances: [], ...window, fetchedAt: `${window.dateTo}T23:00:00+01:00`, fetchId });
+    const batch = enableBankingBatch({
+      externalAccountId: konto.hash,
+      transactions,
+      balances: [],
+      ...window,
+      fetchedAt: `${window.dateTo}T23:00:00+01:00`,
+      fetchId,
+    });
     return {
       batch: { ...batch, unsupported: batch.unsupported.filter((u) => !ohneReferenz(u)) },
       binding: { provider: "enablebanking", externalAccountId: konto.hash, accountKind: "bank" as const },
-      statement: enableBankingStatement({ account: { uid: "u", account_id: { iban: konto.iban }, name: "Geschäftskonto" }, transactions, balances: [], ...window }),
+      statement: enableBankingStatement({
+        account: { uid: "u", account_id: { iban: konto.iban }, name: "Geschäftskonto" },
+        transactions,
+        balances: [],
+        ...window,
+      }),
       eventOf: entryReferenceOf(transactions),
       source: { filename: `Abruf ${fetchId}`, sha256: fetchId },
     };

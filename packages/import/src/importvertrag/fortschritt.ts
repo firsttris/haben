@@ -45,9 +45,15 @@ function openPart(parts: PartResult[]): { from: string; reason: string } | null 
   const blocking = parts.reduce((sum, p) => sum + p.blocking, 0);
   if (blocking === 0) return null;
   const start = parts[0]!.coverage.from;
-  const from = parts.map((p) => (p.blocking > 0 ? (p.openFrom ?? start) : undefined)).filter((d): d is string => d !== undefined).sort()[0]!;
+  const from = parts
+    .map((p) => (p.blocking > 0 ? (p.openFrom ?? start) : undefined))
+    .filter((d): d is string => d !== undefined)
+    .sort()[0]!;
   const count = blocking === 1 ? "1 Ereignis ist" : `${blocking} Ereignisse sind`;
-  return { from: from < start ? start : from, reason: `${count} nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.` };
+  return {
+    from: [from, start].sort()[1]!,
+    reason: `${count} nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.`,
+  };
 }
 
 /**

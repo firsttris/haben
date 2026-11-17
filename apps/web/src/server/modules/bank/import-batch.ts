@@ -131,6 +131,132 @@ async function replayResult(tx: Tx, account: { id: string; name: string }, previ
   };
 }
 
+type Linked = { movement: ImportMovement; hash?: string; transactionId?: string };
+
+/** Welche Umsätze neu angelegt werden und welche Bewegung zu welchem Umsatz gehört (neu oder per Alias) */
+async function planRows(
+  tx: Tx,
+  accountId: string,
+  source: { createdAt: Date },
+  rows: Row[],
+  fresh: Map<string, ImportMovement>,
+  eventOf: StoreBatchInput["eventOf"],
+): Promise<{ insert: Row[]; linked: Linked[] }> {
+  const known = await knownHashes(
+    tx,
+    accountId,
+    rows.map((r) => r.dedupHash),
+  );
+  const aliases = await aliasCandidates(
+    tx,
+    accountId,
+    source,
+    rows.filter((r) => fresh.has(eventOf(r) ?? "")).map((r) => r.dedupHash),
+  );
+  const insert: Row[] = [];
+  const linked: Linked[] = [];
+  const taken = new Set<string>();
+  for (const row of rows) {
+    const event = eventOf(row);
+    if (event === undefined) {
+      // Ohne stabile Kennung wie bisher: am Inhalt erkannt
+      if (!known.has(row.dedupHash) && !taken.has(row.dedupHash)) {
+        insert.push(row);
+        taken.add(row.dedupHash);
+      }
+      continue;
+    }
+    const movement = fresh.get(event);
+    // Bekannt, abgelehnt oder schon einmal in dieser Lieferung: kein Umsatz
+    if (!movement) continue;
+    fresh.delete(event);
+    const alias = aliases.get(row.dedupHash);
+    if (alias) linked.push({ movement, transactionId: alias });
+    else {
+      const hash = known.has(row.dedupHash) || taken.has(row.dedupHash) ? await freeHash(tx, accountId, row, taken) : row.dedupHash;
+      taken.add(hash);
+      insert.push({ ...row, dedupHash: hash });
+      linked.push({ movement, hash });
+    }
+  }
+
+  return { insert, linked };
+}
+
+/** Lieferung, Abrufstand und Quellenidentitäten festhalten */
+async function recordBatch(
+  tx: Tx,
+  sourceId: string,
+  validation: Extract<ReturnType<typeof validateBatch>, { ok: true }>,
+  importId: string,
+  linked: Linked[],
+  transactionIds: Map<string, string>,
+) {
+  const { batch } = validation;
+  const parts = await tx
+    .select()
+    .from(schema.importBatches)
+    .where(and(eq(schema.importBatches.sourceId, sourceId), eq(schema.importBatches.fetchId, batch.part.fetchId)));
+  const [latest] = await tx
+    .select({ checkpoint: schema.importBatches.checkpoint })
+    .from(schema.importBatches)
+    .where(eq(schema.importBatches.sourceId, sourceId))
+    .orderBy(desc(schema.importBatches.checkpoint))
+    .limit(1);
+  const progress = advanceCheckpoint(latest?.checkpoint ?? undefined, [
+    ...parts.map((p) => ({
+      coverage: { from: p.coverageFrom, to: p.coverageTo },
+      part: { fetchId: p.fetchId, index: p.partIndex, last: p.partLast },
+      blocking: p.blocking,
+      ...(p.openFrom ? { openFrom: p.openFrom } : {}),
+      conflict: false,
+    })),
+    {
+      coverage: batch.coverage,
+      part: batch.part,
+      blocking: validation.blocking,
+      ...(validation.openFrom ? { openFrom: validation.openFrom } : {}),
+      conflict: false,
+    },
+  ]);
+  const [stored] = await tx
+    .insert(schema.importBatches)
+    .values({
+      sourceId: sourceId,
+      idempotencyKey: batch.idempotencyKey,
+      fetchId: batch.part.fetchId,
+      partIndex: batch.part.index,
+      partLast: batch.part.last,
+      coverageFrom: batch.coverage.from,
+      coverageTo: batch.coverage.to,
+      blocking: validation.blocking,
+      openFrom: validation.openFrom ?? null,
+      fingerprint: batchFingerprint(batch),
+      bankImportId: importId,
+      checkpoint: progress.checkpoint ?? null,
+      complete: progress.complete,
+    })
+    .returning({ id: schema.importBatches.id });
+  if (linked.length > 0) {
+    await tx.insert(schema.importMovements).values(
+      linked.map(({ movement, hash, transactionId }) => ({
+        sourceId: sourceId,
+        batchId: stored!.id,
+        sourceEventId: movement.sourceEventId,
+        component: movement.component,
+        kind: movement.kind,
+        bookingDate: movement.bookingDate,
+        amount: movement.amount,
+        currency: movement.currency,
+        details: knownMovement(movement).details,
+        transactionId: transactionId ?? transactionIds.get(hash!)!,
+      })),
+    );
+  }
+
+  return progress;
+}
+
 /**
  * Speichert eine Lieferung unter der Sperre des Kontos. Neue Bewegungen werden Umsätze, bekannte übersprungen, Umsätze
  * ohne stabile Kennung wie bisher über den Inhalt erkannt. Danach rückt der Abrufstand der Quelle vor.
@@ -157,99 +283,9 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
   const rows = withDedupHashes(statement.transactions);
-  const known = await knownHashes(
-    tx,
-    account.id,
-    rows.map((r) => r.dedupHash),
-  );
-  const aliases = await aliasCandidates(
-    tx,
-    account.id,
-    source,
-    rows.filter((r) => fresh.has(input.eventOf(r) ?? "")).map((r) => r.dedupHash),
-  );
-  const insert: Row[] = [];
-  const linked: { movement: ImportMovement; hash?: string; transactionId?: string }[] = [];
-  const taken = new Set<string>();
-  for (const row of rows) {
-    const event = input.eventOf(row);
-    if (event === undefined) {
-      // Ohne stabile Kennung wie bisher: am Inhalt erkannt
-      if (!known.has(row.dedupHash) && !taken.has(row.dedupHash)) {
-        insert.push(row);
-        taken.add(row.dedupHash);
-      }
-      continue;
-    }
-    const movement = fresh.get(event);
-    // Bekannt, abgelehnt oder schon einmal in dieser Lieferung: kein Umsatz
-    if (!movement) continue;
-    fresh.delete(event);
-    const alias = aliases.get(row.dedupHash);
-    if (alias) linked.push({ movement, transactionId: alias });
-    else {
-      const hash = known.has(row.dedupHash) || taken.has(row.dedupHash) ? await freeHash(tx, account.id, row, taken) : row.dedupHash;
-      taken.add(hash);
-      insert.push({ ...row, dedupHash: hash });
-      linked.push({ movement, hash });
-    }
-  }
-
+  const { insert, linked } = await planRows(tx, account.id, source, rows, fresh, input.eventOf);
   const { importId, transactionIds } = await insertStatement(tx, account.id, statement, input.source, insert, rows.length - insert.length);
-  const parts = await tx
-    .select()
-    .from(schema.importBatches)
-    .where(and(eq(schema.importBatches.sourceId, source.id), eq(schema.importBatches.fetchId, batch.part.fetchId)));
-  const [latest] = await tx
-    .select({ checkpoint: schema.importBatches.checkpoint })
-    .from(schema.importBatches)
-    .where(eq(schema.importBatches.sourceId, source.id))
-    .orderBy(desc(schema.importBatches.checkpoint))
-    .limit(1);
-  const progress = advanceCheckpoint(latest?.checkpoint ?? undefined, [
-    ...parts.map((p) => ({
-      coverage: { from: p.coverageFrom, to: p.coverageTo },
-      part: { fetchId: p.fetchId, index: p.partIndex, last: p.partLast },
-      blocking: p.blocking,
-      ...(p.openFrom ? { openFrom: p.openFrom } : {}),
-      conflict: false,
-    })),
-    { coverage: batch.coverage, part: batch.part, blocking: validation.blocking, ...(validation.openFrom ? { openFrom: validation.openFrom } : {}), conflict: false },
-  ]);
-  const [stored] = await tx
-    .insert(schema.importBatches)
-    .values({
-      sourceId: source.id,
-      idempotencyKey: batch.idempotencyKey,
-      fetchId: batch.part.fetchId,
-      partIndex: batch.part.index,
-      partLast: batch.part.last,
-      coverageFrom: batch.coverage.from,
-      coverageTo: batch.coverage.to,
-      blocking: validation.blocking,
-      openFrom: validation.openFrom ?? null,
-      fingerprint: batchFingerprint(batch),
-      bankImportId: importId,
-      checkpoint: progress.checkpoint ?? null,
-      complete: progress.complete,
-    })
-    .returning({ id: schema.importBatches.id });
-  if (linked.length > 0) {
-    await tx.insert(schema.importMovements).values(
-      linked.map(({ movement, hash, transactionId }) => ({
-        sourceId: source.id,
-        batchId: stored!.id,
-        sourceEventId: movement.sourceEventId,
-        component: movement.component,
-        kind: movement.kind,
-        bookingDate: movement.bookingDate,
-        amount: movement.amount,
-        currency: movement.currency,
-        details: knownMovement(movement).details,
-        transactionId: transactionId ?? transactionIds.get(hash!)!,
-      })),
-    );
-  }
+  const progress = await recordBatch(tx, source.id, validation, importId, linked, transactionIds);
 
   const result = await statementResult(tx, account, statement, continuity, insert.length, rows);
   return {

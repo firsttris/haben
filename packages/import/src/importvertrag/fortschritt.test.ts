@@ -28,14 +28,19 @@ describe("advanceCheckpoint", () => {
   });
 
   it("geht bei einem offenen Ereignis vor dem Stand nicht zurück", () => {
-    expect(advanceCheckpoint("2026-10-25", [part(0, true, { coverage: { from: "2026-10-20", to: "2026-10-31" }, blocking: 1, openFrom: "2026-10-22" })])).toMatchObject({
+    expect(
+      advanceCheckpoint("2026-10-25", [part(0, true, { coverage: { from: "2026-10-20", to: "2026-10-31" }, blocking: 1, openFrom: "2026-10-22" })]),
+    ).toMatchObject({
       checkpoint: "2026-10-25",
       complete: false,
     });
   });
 
   it("rückt bei einem offenen Ereignis am ersten Tag des Fensters nicht vor", () => {
-    expect(advanceCheckpoint("2026-09-30", [part(0, true, { blocking: 1, openFrom: "2026-10-01" })])).toMatchObject({ checkpoint: "2026-09-30", complete: false });
+    expect(advanceCheckpoint("2026-09-30", [part(0, true, { blocking: 1, openFrom: "2026-10-01" })])).toMatchObject({
+      checkpoint: "2026-09-30",
+      complete: false,
+    });
   });
 
   it("bleibt stehen, wenn der letzte Teil fehlt (Abbruch auf einer späteren Seite)", () => {

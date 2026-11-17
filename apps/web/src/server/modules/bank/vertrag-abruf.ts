@@ -43,7 +43,7 @@ export function abrufNachVertrag(abruf: {
     transactions: abruf.transactions,
     balances: abruf.balances,
     // Ein Abrufstand nach heute (etwa nach zurückgestellter Uhr) ergäbe ein Fenster, das vor seinem Anfang endet
-    dateFrom: abruf.dateFrom > abruf.dateTo ? abruf.dateTo : abruf.dateFrom,
+    dateFrom: [abruf.dateFrom, abruf.dateTo].sort()[0]!,
     dateTo: abruf.dateTo,
     fetchedAt: berlinTimestamp(abruf.now),
     fetchId: abruf.fetchId,

@@ -51,7 +51,15 @@ import {
   type TaxShare,
   inCents,
 } from "@haben/core";
-import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes, type BankCsvMapping, type ParsedStatement, type ParsedTransaction } from "@haben/import";
+import {
+  checkBalanceContinuity,
+  parseStatement,
+  StatementParseError,
+  withDedupHashes,
+  type BankCsvMapping,
+  type ParsedStatement,
+  type ParsedTransaction,
+} from "@haben/import";
 import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";

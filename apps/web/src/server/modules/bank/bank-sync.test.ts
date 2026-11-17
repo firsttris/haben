@@ -30,7 +30,15 @@ function tx(ref: string, date: string, amount: string, indicator: "CRDT" | "DBIT
 /** Nachgebaute Enable-Banking-API mit zwei Konten und einer Kreditkarte ohne IBAN; mit newAccount ein drittes Konto ohne Umsätze */
 function fakeApi() {
   const calls: { method: string; path: string; query: URLSearchParams; body: unknown }[] = [];
-  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false, newAccount: false, ohneReferenz: false, aktuell: "" as "" | "normal" | "anders" };
+  const state = {
+    failUntilFallback: false,
+    expired: false,
+    sessions: 0,
+    onlyForeign: false,
+    newAccount: false,
+    ohneReferenz: false,
+    aktuell: "" as "" | "normal" | "anders",
+  };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -399,9 +407,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(result.error).toBeNull();
     const kontoA = result.accounts.find((a) => a.iban === IBAN_A)!;
     expect(kontoA.added).toBe(1);
-    expect(kontoA.vertragHinweise).toEqual([
-      "1 Umsatz ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt.",
-    ]);
+    expect(kontoA.vertragHinweise).toEqual(["1 Umsatz ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt."]);
     expect(result.accounts.find((a) => a.iban === IBAN_B)!.vertragHinweise).toEqual([]);
     // bank_imports nimmt nur Neues an und steht im Datenexport: Die Hinweise aus Schritt 2 gehören nicht hinein
     const [protokoll] = await sql`select count(*)::int as n from bank_imports where warnings::text like '%Importvertrag%'`;
