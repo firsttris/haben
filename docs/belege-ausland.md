@@ -19,7 +19,7 @@ Unter **Wer schuldet die Umsatzsteuer?** wählst du bei einer Rechnung ohne deut
 | Ich (§ 13b, EU-Leistung) | sonstige Leistung eines Unternehmers mit Sitz in einem anderen EU-Land | Kz 46 (netto) und 47 (Steuer) |
 | Ich (§ 13b, Drittland-Leistung) | Leistung eines Unternehmers ohne Sitz in der EU, z. B. aus den USA, ohne deutsche Umsatzsteuer | Kz 84 (netto) und 85 (Steuer) |
 
-Ohne Wahl bleibt es bei **Der Lieferant (normaler Beleg)**, mit oder ohne deutsche Umsatzsteuer auf der Rechnung, auch bei der Rechnung eines Kleinunternehmers oder bei 0 %. Unter dem Feld erklärt ein kurzer Text die Wahl in Alltagssprache; die Kennzahlen der Voranmeldung stehen eingeklappt unter **Details zur Voranmeldung**.
+Ohne Wahl bleibt es bei **Der Lieferant (normaler Beleg)**, mit oder ohne deutsche Umsatzsteuer auf der Rechnung, auch bei der Rechnung eines Kleinunternehmers oder bei 0 %. Die Kennzahlen der Voranmeldung stehen eingeklappt unter **Details zur Voranmeldung**.
 
 Du trägst nur das Netto aus der Rechnung ein und wählst den zutreffenden deutschen Steuersatz (19 % oder 7 %). **Steuer § 13b (automatisch)** zeigt die daraus berechnete Steuer schreibgeschützt an. Änderungen am Netto oder am Satz aktualisieren sie automatisch, auch nach dem erneuten Öffnen eines gespeicherten Entwurfs. Beim Speichern rechnet Haben die Steuer selbst noch einmal aus Netto und Satz, auch bei der Erwerbsteuer; ein älterer Entwurf mit abweichender Steuer lässt sich erst buchen, wenn du ihn geöffnet und gespeichert hast. Bezahlt wird der Nettobetrag, der Bankabgleich erwartet also netto. Hat der Lieferant eine USt-IdNr. aus einem anderen EU-Land und steht keine Steuer auf dem Beleg, weist Haben darauf hin. Erkennt die [KI-Auslesung](belege.md#ki-auslesung) einen Reverse-Charge-Hinweis auf dem Beleg, schlägt sie § 13b (EU oder Drittland) oder den innergemeinschaftlichen Erwerb vor und setzt statt der ausgewiesenen 0 % den Satz 19 %; ist am Beleg schon etwas gewählt, bleibt es. Gebucht wird erst, wenn du bestätigst. Keinen Vorschlag gibt es, wenn der Beleg Umsatzsteuer ausweist, der Rechnungssteller eine deutsche USt-IdNr. hat oder es deine eigene Ausgangsrechnung ist.
 
@@ -36,7 +36,7 @@ Kaufst du als Unternehmer **Ware** bei einem Unternehmer aus einem anderen EU-La
 
 Unter **Wer schuldet die Umsatzsteuer?** wählst du **Ich (§ 1a, Ware aus der EU)**. Die Steuerbehandlung ist unabhängig von der Kategorie: Ware zum Weiterverkauf („Wareneinkauf (Handelsware)“), Büroausstattung, Hardware und auch ein **Anlagegut** gehen. Bei einem Anlagegut kommt der Nettobetrag wie sonst ins [Anlagenverzeichnis](anlagen.md), Erwerbsteuer und Vorsteuer stehen daneben; dafür ist vollständiger Vorsteuerabzug nötig (siehe [Grenzen](belege.md#grenzen)).
 
-Du trägst das Netto aus der Rechnung ein und wählst 19 % oder 7 %. **Erwerbsteuer (automatisch)** zeigt die berechnete Steuer schreibgeschützt an; bei Änderungen am Netto oder am Satz wird sie automatisch aktualisiert. Bezahlt wird der Nettobetrag. Zum Buchen braucht Haben die **USt-IdNr. des Lieferanten** aus einem anderen EU-Land; mit einer deutschen USt-IdNr. ist es kein innergemeinschaftlicher Erwerb.
+Du trägst das Netto aus der Rechnung ein und wählst 19 % oder 7 %. **Erwerbsteuer (automatisch)** zeigt die berechnete Steuer schreibgeschützt an; bei Änderungen am Netto oder am Satz wird sie automatisch aktualisiert. Bezahlt wird der Nettobetrag. Zum Buchen braucht Haben die **USt-IdNr. des Lieferanten** aus einem anderen EU-Land (unter **Weitere Angaben**, der Bereich klappt beim Erwerb von selbst auf); mit einer deutschen USt-IdNr. ist es kein innergemeinschaftlicher Erwerb.
 
 Gebucht wird (SKR03, SKR04 in Klammern), Konten aus dem DATEV-Kontenrahmen 2026:
 
@@ -71,7 +71,7 @@ Bei der Einfuhr von Waren aus dem Drittland erhebt der Zoll die Einfuhrumsatzste
 
 Rechnungen in US-Dollar, Pfund oder einer anderen Währung (Software-Abos, Hosting, Werbung) buchst du so:
 
-1. Unter **Beträge je Steuersatz** bei **Währung** den Code eintragen, z. B. `USD`. Bei E-Rechnungen und der KI-Auslesung steht er schon da.
+1. Unter **Weitere Angaben** bei **Währung** den Code eintragen, z. B. `USD`; der Bereich klappt bei einer Fremdwährung von selbst auf. Bei E-Rechnungen und der KI-Auslesung steht er schon da.
 2. Die Beträge so eintragen, wie sie auf dem Beleg stehen, also in der Fremdwährung.
 3. **Kurs: 1 EUR = …** leer lassen. Für die Umsatzsteuer gilt der Umsatzsteuer-Umrechnungskurs, den das Bundesministerium der Finanzen (BMF) für jeden Monat veröffentlicht (§ 16 Abs. 6 UStG). Haben nimmt den Kurs für den Monat des Belegdatums aus den [abgerufenen Kursen](einrichtung.md#fremdwährung) und zeigt ihn mit Herkunft an, z. B. „1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)“.
 

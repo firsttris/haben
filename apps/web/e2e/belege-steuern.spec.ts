@@ -3536,6 +3536,47 @@ test("Beleg prüfen: Erwerb mit einer zu kurzen USt-IdNr. aus der EU legt das Fe
   await expect(page).not.toHaveURL(belegUrl);
 });
 
+test("Beleg prüfen: Zuklappen und Wahl im selben Bild lassen „Weitere Angaben“ offen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gleichzeitig.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Nantes SARL") }]);
+  await expect(page.getByText("gleichzeitig.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gleichzeitig\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
+  // Das Ereignis des Aufklappens ist durch: der Zustand der Seite ist „offen“
+  await page.waitForTimeout(300);
+  // Der Browser meldet das Zuklappen erst im nächsten Bild: Wer im selben Bild den Erwerb wählt, braucht das Feld offen
+  await page.evaluate(() => {
+    const frage = [...document.querySelectorAll("select")].find((el) => el.closest(".field")?.textContent?.startsWith("Wer schuldet"))!;
+    document.querySelector<HTMLElement>("details.weitere-angaben > summary")!.click();
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(frage, "ig_erwerb");
+    frage.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(bereich).toHaveJSProperty("open", true);
+  await page.waitForTimeout(300);
+  await expect(bereich).toHaveJSProperty("open", true);
+  // Mit der Tastatur: Enter klappt zu, Leertaste auf
+  await bereich.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.keyboard.press("Space");
+  await expect(bereich).toHaveJSProperty("open", true);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
 test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);

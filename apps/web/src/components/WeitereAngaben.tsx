@@ -50,7 +50,13 @@ export function weitereAngabenKurz(werte: WeitereAngabenWerte): string {
 export function WeitereAngaben({ kurz, offen, onOffen, children }: { kurz: string; offen: boolean; onOffen: (offen: boolean) => void; children?: ReactNode }) {
   return (
     <details className="weitere-angaben" open={offen} onToggle={(event) => onOffen(event.currentTarget.open)} style={{ gridColumn: "1 / -1" }}>
-      <summary>
+      <summary
+        onClick={(event) => {
+          // Der Zustand gehört der Seite: Der Browser meldet das Umschalten erst im nächsten Bild, bis dahin hinkte `offen` hinterher
+          event.preventDefault();
+          onOffen(!offen);
+        }}
+      >
         <strong>Weitere Angaben</strong>
         {kurz && <span className="muted">: {kurz}</span>}
       </summary>
