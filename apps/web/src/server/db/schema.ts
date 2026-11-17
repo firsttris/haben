@@ -3776,7 +3776,7 @@ export const backupStatus = pgTable(
     bytes: bigint("bytes", { mode: "number" }),
     /** Zusammenfassung oder Fehlermeldung */
     message: text("message").notNull().default(""),
-    /** Ziel der Sicherung (RESTIC_REPOSITORY ohne Zugangsdaten), für die Verfahrensdokumentation; null bei älteren Images */
+    /** Ziel der Sicherung (RESTIC_REPOSITORY ohne Zugangsdaten), für Einstellungen → Export und die Verfahrensdokumentation; null bei älteren Images */
     target: text("target"),
   },
   (t) => [check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`), index("backup_status_kind_at").on(t.kind, t.at)],
