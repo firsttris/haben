@@ -46,6 +46,14 @@ describe("abrufNachVertrag", () => {
     expect(input.batch.unsupported).toEqual([]);
   });
 
+  it("nennt Umsätze außerhalb des Fensters und doppelt gelieferte, die nicht übernommen werden", () => {
+    const { hinweise } = nachVertrag([tx(), tx(), tx({ entry_reference: "ER-2", booking_date: "2026-09-28" }), tx({ entry_reference: "ER-3", booking_date: "2026-10-12" })]);
+    expect(hinweise).toEqual([
+      "2 Umsätze außerhalb des abgerufenen Zeitraums nicht übernommen; ihre Tage deckt ein anderer Abruf ab.",
+      "1 Umsatz mit derselben Referenz der Bank doppelt geliefert und einmal übernommen.",
+    ]);
+  });
+
   it("lässt vorgemerkte Umsätze unter unsupported", () => {
     expect(nachVertrag([tx({ status: "PDNG" })]).input.batch.unsupported).toHaveLength(1);
   });
