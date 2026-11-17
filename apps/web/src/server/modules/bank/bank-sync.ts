@@ -483,8 +483,10 @@ export async function syncConnection(actor: string, connectionId: string, today 
         const stored = await withActor(actor, (tx) => storeBatch(tx, input, account.bankAccountId));
         result.accounts.push({ ...stored, iban: account.iban, vertragHinweise: [...hinweise, ...(stored.reason ? [stored.reason] : [])] });
         result.added += stored.added;
-        // Vollständig wie bisher bis heute; sonst bis zum Stand der Quelle, den vorgemerkte und nicht eingeordnete Umsätze anhalten
-        accounts[i] = { ...account, identificationHash, syncedTo: stored.complete ? today : (stored.checkpoint ?? account.syncedTo) };
+        // Das nächste Fenster beginnt wie bisher sieben Tage vor heute. Der Stand der Quelle (import_batches) hält nur fest, was
+        // vollständig ist: Steuerte er das Fenster, wüchse es mit jedem stornierten oder nie gebuchten Umsatz über die Tage hinaus,
+        // die eine Bank ohne frische Anmeldung herausgibt
+        accounts[i] = { ...account, identificationHash, syncedTo: today };
       } catch (error) {
         // Ein Konflikt hält nur dieses Konto an; gespeichert ist von diesem Abruf nichts
         if (!(error instanceof BankError)) throw error;

@@ -187,6 +187,7 @@ async function planRows(
 async function recordBatch(
   tx: Tx,
   sourceId: string,
+  accountId: string,
   validation: Extract<ReturnType<typeof validateBatch>, { ok: true }>,
   importId: string,
   linked: Linked[],
@@ -197,11 +198,16 @@ async function recordBatch(
     .select()
     .from(schema.importBatches)
     .where(and(eq(schema.importBatches.sourceId, sourceId), eq(schema.importBatches.fetchId, batch.part.fetchId)));
-  // max() übergeht Lieferungen ohne Stand; nach Sortierung kämen sie bei DESC zuerst
+  // max() übergeht Lieferungen ohne Stand; nach Sortierung kämen sie bei DESC zuerst. Tage, die Umsätze aus anderen Importen
+  // (Datei, FinTS, Abruf vor der Bindung) abdecken, zählen als abgerufen: Der Folgeabruf überspringt sie (`followUpStart`)
   const [latest] = await tx
-    .select({ checkpoint: sql<string | null>`max(${schema.importBatches.checkpoint})::text` })
-    .from(schema.importBatches)
-    .where(eq(schema.importBatches.sourceId, sourceId));
+    .select({
+      checkpoint: sql<string | null>`greatest(
+        (select max(b.checkpoint) from import_batches b where b.source_id = ${sourceId}),
+        (select max(t.booking_date) from bank_transactions t where t.bank_account_id = ${accountId}
+          and not exists (select 1 from import_batches b where b.bank_import_id = t.import_id)))::text`,
+    })
+    .from(sql`(select 1) as eins`);
   const progress = advanceCheckpoint(latest?.checkpoint ?? undefined, [
     ...parts.map((p) => ({
       coverage: { from: p.coverageFrom, to: p.coverageTo },
@@ -284,7 +290,7 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
   const rows = withDedupHashes(statement.transactions);
   const { insert, linked } = await planRows(tx, account.id, source, rows, fresh, input.eventOf);
   const { importId, transactionIds } = await insertStatement(tx, account.id, statement, input.source, insert, rows.length - insert.length);
-  const progress = await recordBatch(tx, source.id, validation, importId, linked, transactionIds);
+  const progress = await recordBatch(tx, source.id, account.id, validation, importId, linked, transactionIds);
 
   const result = await statementResult(tx, account, statement, continuity, insert.length, rows);
   return {

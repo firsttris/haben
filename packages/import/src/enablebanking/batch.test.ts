@@ -83,11 +83,11 @@ describe("enableBankingBatch", () => {
     expect(batch.unsupported).toEqual([{ sourceEventId: "ER-1", reason: "Ohne gültiges Datum oder Betrag." }]);
   });
 
-  it("nimmt einen Umsatz vor dem Fenster nicht an, ohne den Zeitraum offenzuhalten", () => {
-    const result = validateBatch(enableBankingBatch(input([tx({ booking_date: "2026-09-29", value_date: null })])), binding);
-    expect(result.ok && [result.accepted, result.batch.unsupported, result.blocking]).toEqual([
-      [],
-      [{ sourceEventId: "ER-1", bookingDate: "2026-09-29", reason: "Buchungstag 2026-09-29 vor dem abgerufenen Fenster ab 2026-10-01." }],
+  it("übernimmt einen Umsatz vor dem Fenster und lässt das Fenster bei ihm beginnen", () => {
+    const result = validateBatch(enableBankingBatch(input([tx({ booking_date: "2026-09-29", value_date: "2026-10-02" })])), binding);
+    expect(result.ok && [result.accepted.map((m) => m.bookingDate), result.batch.coverage, result.blocking]).toEqual([
+      ["2026-09-29"],
+      { from: "2026-09-29", to: "2026-10-31" },
       0,
     ]);
   });

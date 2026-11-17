@@ -78,7 +78,6 @@ describe.skipIf(!testDatabaseUrl)("Datei nach vorgemerktem Umsatz im Abruf, #306
     const result = await sync.completeConnection("test", { state: pending!.state, code: "c" });
     expect(result.ok).toBe(true);
     const [connection] = await sync.listConnections();
-    expect(connection!.accounts[0]!.syncedTo).toBe(tag(t0, -4)); // Stand vor der Vormerkung
 
     // Die Bank bucht den Umsatz; der Nutzer importiert den Kontoauszug als Datei bis T0+2
     umsaetze[1] = buchung("x2", tag(t0, -3), "20.00");
