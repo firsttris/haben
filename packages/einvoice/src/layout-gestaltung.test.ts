@@ -40,11 +40,19 @@ describe("Einstellungen, die ein eigenes Layout nicht verwendet", () => {
   it("ein Feld von mehreren genügt, ein längerer Name zählt nicht", () => {
     expect(
       ungenutzteGestaltung("d.palette.ink d.font d.logo d.look.logoWidth d.look.logoLeft d.look.foldMarks d.qr d.background d.look.backgroundPages", "mahnung"),
-    ).toEqual([]);
+    ).toEqual(["logoMitte"]);
     // qrPlaceholder ist nicht qr, itemNumber nicht itemNumbers
     const nur = ungenutzteGestaltung("d.qrPlaceholder l.itemNumber", "beleg");
     expect(nur).toContain("giroCode");
     expect(nur).toContain("itemNumber");
+  });
+
+  it("meldet „Mitte“ nur, wenn das Layout die Stelle des Logos liest, aber nicht look.logoPosition", () => {
+    expect(ungenutzteGestaltung("d.look.logoLeft", "beleg")).toContain("logoMitte");
+    expect(ungenutzteGestaltung("d.look.logoPosition", "beleg")).not.toContain("logoMitte");
+    const ohneStelle = ungenutzteGestaltung("d.logo", "beleg");
+    expect(ohneStelle).toContain("logoPosition");
+    expect(ohneStelle).not.toContain("logoMitte");
   });
 
   it("eine Mahnung meldet nur, was auf Mahnungen wirkt", () => {
@@ -103,5 +111,13 @@ describe("Hinweise in der Beleggestaltung", () => {
   it("mehrere Felder: weder … noch", () => {
     const hinweise = gestaltungsHinweise({ ...eingebaut, mahnung: { name: "Grau", ungenutzt: ["accent"] } });
     expect(hinweise.accent?.text).toBe("Wirkt nicht auf Mahnungen: Das Layout „Grau“ verwendet weder accent noch palette.");
+  });
+
+  it("„Mitte“ bei einem Layout mit nur logoLeft: Hinweis, die Einstellung bleibt an", () => {
+    const hinweise = gestaltungsHinweise({ ...eingebaut, rechnung: { name: "Alt", ungenutzt: ["logoMitte"] } });
+    expect(hinweise.logoMitte).toEqual({
+      aus: false,
+      text: "Wirkt nicht auf Rechnungen: Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts.",
+    });
   });
 });

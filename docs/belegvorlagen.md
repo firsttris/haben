@@ -90,7 +90,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
-| `meta[].group` | `"referenz"` | nein |  | „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten, auch bei der Bestellung des Kunden |
+| `meta[].group` | `"kern" \| "referenz"` | ja |  | „kern“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja | ja | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -209,7 +209,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
-| `meta[].group` | `"referenz"` | nein |  | „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten, auch bei der Bestellung des Kunden |
+| `meta[].group` | `"kern" \| "referenz"` | ja |  | „kern“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja |  | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -302,6 +302,7 @@ Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr
 | Logo | `logo` | alle |
 | Größe des Logos | `look.logoHeight` oder `look.logoWidth` | alle |
 | Stelle des Logos | `look.logoLeft` oder `look.logoPosition` | alle |
+| Logo in der Mitte | `look.logoPosition` | alle |
 | Falz- und Lochmarken | `look.foldMarks` | alle |
 | GiroCode | `qr` | Rechnung, Storno und Korrektur; Mahnung |
 | Artikelnummer | `itemNumbers` | Rechnung, Storno und Korrektur; Angebot; Auftragsbestätigung; Lieferschein |

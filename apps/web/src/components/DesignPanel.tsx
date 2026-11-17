@@ -173,6 +173,7 @@ export function DesignOptionFields({
         </div>
         <LayoutHintText option="logoSize" hint={hint("logoSize")} />
         <LayoutHintText option="logoPosition" hint={hint("logoPosition")} />
+        <LayoutHintText option="logoMitte" hint={hint("logoMitte")} />
       </section>
       <section>
         <h3>Auf dem Blatt</h3>

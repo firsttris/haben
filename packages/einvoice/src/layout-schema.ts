@@ -41,10 +41,9 @@ const common = {
     .array(
       row.extend({
         group: z
-          .enum(["referenz"])
-          .optional()
+          .enum(["kern", "referenz"])
           .describe(
-            "„referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten, auch bei der Bestellung des Kunden",
+            "„kern“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann",
           ),
       }),
     )
@@ -296,6 +295,8 @@ export const LAYOUT_GESTALTUNG = {
   logo: { label: "Logo", felder: "logo", belege: ALLE_BELEGE },
   logoSize: { label: "Größe des Logos", felder: "look.logoHeight|look.logoWidth", belege: ALLE_BELEGE },
   logoPosition: { label: "Stelle des Logos", felder: "look.logoLeft|look.logoPosition", belege: ALLE_BELEGE },
+  // Kennt ein Layout nur look.logoLeft, setzt es „mitte“ rechts; Hinweis nur, wenn es die Stelle überhaupt liest
+  logoMitte: { label: "Logo in der Mitte", felder: "look.logoPosition", belege: ALLE_BELEGE },
   foldMarks: { label: "Falz- und Lochmarken", felder: "look.foldMarks", belege: ALLE_BELEGE },
   giroCode: { label: "GiroCode", felder: "qr", belege: ["rechnung", "mahnung"] },
   itemNumber: { label: "Artikelnummer", felder: "itemNumbers", belege: ["rechnung", "angebot", "auftragsbestaetigung", "lieferschein"] },

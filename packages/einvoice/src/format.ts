@@ -90,7 +90,7 @@ export function presentReferences(references: OrderReferences | undefined): Orde
   return present;
 }
 
-/** Zeile im Infoblock; group „referenz“ bei weiteren Referenzen, die ein Layout gesondert setzen kann (meta[].group im Feldvertrag) */
+/** Zeile im Infoblock; group „referenz“ bei weiteren Referenzen, die ein Layout gesondert setzen kann; ohne Gruppe setzt templateInputs „kern“ (meta[].group im Feldvertrag) */
 export interface MetaZeile {
   label: string;
   value: string;

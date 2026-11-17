@@ -67,7 +67,8 @@ Die Prüfung findet nur Offensichtliches. Für ein eigenes Layout übernimmt Hab
 )
 #set text(font: d.font.regular, size: 9.5pt, fill: rgb(d.palette.ink), lang: "de")
 
-#if d.at("logo", default: none) != none { place(top + right, image(d.logo, height: d.look.logoHeight * 1mm)) }
+#let ecke = (links: left, mitte: center, rechts: right).at(d.look.logoPosition)
+#if d.at("logo", default: none) != none { place(top + ecke, image(d.logo, height: d.look.logoHeight * 1mm)) }
 #text(7pt, d.senderLine) \
 #d.recipient.join("\n")
 
@@ -97,6 +98,21 @@ jq '.[0].data' beispieldaten-beleg.json > beispiel.json
 typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage.typ
 ```
 
+## Bestehendes Layout aktualisieren
+
+Ein Layout läuft ohne Änderung weiter, solange seine Version des Feldvertrags gilt. Neuere Felder lohnen sich trotzdem:
+
+- **Stelle des Logos:** `look.logoPosition` ist „links“, „mitte“ oder „rechts“. Wer nur `look.logoLeft` liest, setzt das Logo bei „mitte“ rechts; die Gestaltung weist dann darauf hin. Ersetzen durch:
+
+  ```typst
+  #let stelle = d.look.at("logoPosition", default: if d.look.logoLeft { "links" } else { "rechts" })
+  #let ecke = (links: left, mitte: center, rechts: right).at(stelle)
+  ```
+
+  „mitte“ meint die Mitte des Blatts. Sind der linke und der rechte Rand verschieden, gleicht `dx` das aus, bei 25 und 20 mm etwa `dx: -2.5mm`.
+- **Gruppen im Infoblock:** Jede Zeile in `meta` hat `group`: „kern“ für die Kerndaten, „referenz“ für weitere Referenzen wie Auftrag, Lieferschein oder Leitweg-ID. Ein Layout kann die Referenzen gesondert setzen, etwa zweispaltig vor dem Betreff, wenn sie neben der Anschrift keinen Platz mehr haben. Alle Zeilen untereinander bleiben richtig.
+- `look.options` gilt nur für die eingebauten Layouts; bei eigenen ist es leer.
+
 ## Felder (Feldvertrag v1)
 
 ### Beleg: Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein
@@ -112,7 +128,7 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
-| `meta[].group` | `"referenz"` | nein |  | „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten, auch bei der Bestellung des Kunden |
+| `meta[].group` | `"kern" \| "referenz"` | ja |  | „kern“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja | ja | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -231,7 +247,7 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
-| `meta[].group` | `"referenz"` | nein |  | „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann; fehlt bei den Kerndaten, auch bei der Bestellung des Kunden |
+| `meta[].group` | `"kern" \| "referenz"` | ja |  | „kern“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja |  | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -324,6 +340,7 @@ Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr
 | Logo | `logo` | alle |
 | Größe des Logos | `look.logoHeight` oder `look.logoWidth` | alle |
 | Stelle des Logos | `look.logoLeft` oder `look.logoPosition` | alle |
+| Logo in der Mitte | `look.logoPosition` | alle |
 | Falz- und Lochmarken | `look.foldMarks` | alle |
 | GiroCode | `qr` | Rechnung, Storno und Korrektur; Mahnung |
 | Artikelnummer | `itemNumbers` | Rechnung, Storno und Korrektur; Angebot; Auftragsbestätigung; Lieferschein |

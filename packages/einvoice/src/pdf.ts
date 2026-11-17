@@ -4,13 +4,13 @@ import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 import { accountHolder, collectedByDirectDebit, countryName, formatIban, paidInvoicePayment, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
+import { templateInputs } from "./vorlage-eingaben.ts";
+
+export { templateInputs };
 import { girocodeSvg } from "./qr.ts";
 import {
   needsSellerVatId,
   type TaxTreatment,
-  LETTERHEAD_FONTS,
-  accentPalette,
-  DEFAULT_ACCENT,
   customFooterRuns,
   DEFAULT_OPTIONS,
   parseTextFormatting,
@@ -19,7 +19,6 @@ import {
   documentAllowances,
   lineAmount,
   lineDiscountAmount,
-  LOGO_SIZES,
   distinctVatRates,
   showsVatColumn,
   type Discount,
@@ -338,30 +337,6 @@ export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.d
 /** Erkennt PNG und JPEG an den ersten Bytes (bildFormat in @haben/core); anderes lehnt Haben als Logo ab */
 export function logoFormat(data: Uint8Array): Logo["format"] | null {
   return bildFormat(data);
-}
-
-/** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */
-export function templateInputs(data: object, { logo, background, accent = DEFAULT_ACCENT, options = DEFAULT_OPTIONS }: Letterhead): object {
-  const size = LOGO_SIZES[options.logoSize];
-  const look = {
-    logoHeight: size.height,
-    logoWidth: size.width,
-    logoLeft: options.logoPosition === "links",
-    logoPosition: options.logoPosition,
-    foldMarks: options.foldMarks,
-    backgroundPages: options.backgroundPages,
-    options: {}, // Optionen eines eingebauten Layouts; die Vorlagen heute haben keine
-  };
-  const { regular, medium, semibold } = LETTERHEAD_FONTS[options.font];
-  return {
-    ...data,
-    accent,
-    palette: accentPalette(accent),
-    look,
-    font: { regular, medium, semibold },
-    ...(logo ? { logo: `logo.${logo.format}` } : {}),
-    ...(background ? { background: `briefpapier.${background.format}` } : {}),
-  };
 }
 
 /** Kundennummer auf dem Blatt; das XML nennt sie unabhängig davon als Käuferkennung */

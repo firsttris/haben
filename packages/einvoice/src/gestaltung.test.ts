@@ -82,6 +82,21 @@ describe("Schalter der Gestaltung im PDF", () => {
     });
   });
 
+  it("gibt jeder Zeile im Infoblock eine Gruppe, „kern“ wo keine andere steht", () => {
+    const data = {
+      meta: [
+        { label: "Rechnungsnummer", value: "1" },
+        { label: "Lieferschein", value: "LS-1", group: "referenz" },
+      ],
+    };
+    expect(templateInputs(data, {})).toMatchObject({
+      meta: [
+        { label: "Rechnungsnummer", value: "1", group: "kern" },
+        { label: "Lieferschein", value: "LS-1", group: "referenz" },
+      ],
+    });
+  });
+
   // Ein eigenes Layout, das nur logoLeft kennt, setzt das Logo bei „mitte“ rechts wie bisher
   it("gibt das Logo in der Mitte als logoPosition, logoLeft bleibt false", () => {
     expect(templateInputs({}, { options: { ...DEFAULT_OPTIONS, logoPosition: "mitte" } })).toMatchObject({ look: { logoLeft: false, logoPosition: "mitte" } });
