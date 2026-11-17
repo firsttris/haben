@@ -62,7 +62,7 @@ export function StorePayoutBox({
       </div>
       <div className="match-card">
         <p className="small muted" style={{ margin: 0 }}>
-          Welche Monate bezahlt dieser Eingang? Haben legt die Auszahlung in {view.accountName} an und bucht beide Seiten als Umbuchung (Geldtransit)
+          Welche Monate bezahlt dieser Eingang? Haben legt die Auszahlung in {view.accountName} an und bucht beide Seiten als Geldtransit
           {view.store === "appstore" ? "; die Abweichung zu den umgerechneten Monatsbeträgen als Kursdifferenz" : ""}.
         </p>
         {view.months.map((month) => (

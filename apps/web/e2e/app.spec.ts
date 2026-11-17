@@ -648,7 +648,7 @@ test("Kontoauszug importieren und zuordnen", async () => {
   }
 });
 
-test("Zuordnen-Panel: der Satz zur Rechnung sagt bei einer Teilzahlung nicht „bezahlt“", async () => {
+test("Zuordnen-Panel: der Satz zur Rechnung nennt die Bedingung für „bezahlt“", async () => {
   await go("/bank");
   await page
     .getByRole("link", { name: /Rheinpixel GmbH/ })
@@ -657,11 +657,9 @@ test("Zuordnen-Panel: der Satz zur Rechnung sagt bei einer Teilzahlung nicht „
   const panel = page.getByRole("complementary", { name: "Zuordnung" });
   await expect(panel.getByRole("heading", { name: "Rheinpixel GmbH" })).toBeVisible();
   await expect(panel.getByText("Bester Treffer")).toBeVisible();
-  // Nur ein Teilbetrag im Feld: zugeordnet wird er, die Rechnung bleibt offen (nichts wird gebucht)
+  // Ein Teilbetrag im Feld: Der Satz verspricht „bezahlt“ nur, wenn die Zahlung den offenen Betrag deckt
   await panel.getByLabel("Betrag").fill("500,00");
-  await expect(panel).toContainText("Buchung: Bank an Forderungen");
-  await expect(panel).toContainText("deckt sie den offenen Betrag, gilt die Rechnung als bezahlt, sonst bleibt der Rest offen");
-  await expect(panel).not.toContainText("gilt dann als bezahlt");
+  await expect(panel).toContainText("Deckt die Zahlung den offenen Betrag, gilt die Rechnung als bezahlt (Bank an Forderungen)");
 });
 
 test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {

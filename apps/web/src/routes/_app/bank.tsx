@@ -112,7 +112,7 @@ const KIND_LABEL = {
   document: "Beleg",
   privat: "Privat",
   spende: "Spende",
-  geldtransit: "Umbuchung (Geldtransit)",
+  geldtransit: "Geldtransit",
   ustVorauszahlung: "Umsatzsteuer",
   sondervorauszahlung: "Sondervorauszahlung",
   gebuehren: "Bankgebühren",
@@ -1301,7 +1301,7 @@ function AllocationPanel({
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 {best.item.type === "invoice"
-                  ? "Die Zahlung wird dieser Rechnung zugeordnet (Buchung: Bank an Forderungen); deckt sie den offenen Betrag, gilt die Rechnung als bezahlt, sonst bleibt der Rest offen. Bei Ist-Versteuerung wird die Umsatzsteuer mit diesem Zahlungseingang fällig, bei einer Teilzahlung anteilig."
+                  ? "Deckt die Zahlung den offenen Betrag, gilt die Rechnung als bezahlt (Bank an Forderungen). Bei Ist-Versteuerung wird die Umsatzsteuer anteilig mit der Zahlung fällig."
                   : best.item.type === "ustva"
                     ? "Bucht wie „Umsatzsteuer an das Finanzamt“ (Umsatzsteuer-Vorauszahlungen), mit Bezug auf die Voranmeldung."
                     : "Bucht Verbindlichkeiten an Bank."}
@@ -1366,10 +1366,10 @@ function AllocationPanel({
                       )
                     }
                   >
-                    Beide Seiten als Umbuchung buchen (Geldtransit)
+                    Beide Seiten als Geldtransit buchen
                   </button>
                   <span className="small muted">
-                    Umbuchung zwischen deinen eigenen Konten: Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über{" "}
+                    Geld zwischen deinen eigenen Konten: Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über{" "}
                     {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
                     {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem
                     Schritt zugeordnet.
