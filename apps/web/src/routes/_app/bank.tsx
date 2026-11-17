@@ -59,6 +59,7 @@ import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
+import { ImportMeldungen, importMessages, type ImportMessage } from "../../components/BankImportMeldungen.tsx";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
@@ -841,7 +842,7 @@ function ImportControls({ data }: { data: Data }) {
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
-  const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
+  const [messages, setMessages] = useState<ImportMessage[]>([]);
 
   async function onFiles(files: File[]) {
     if (files.length === 0) return;
@@ -853,19 +854,11 @@ function ImportControls({ data }: { data: Data }) {
       if (targetAccount) form.append("accountId", targetAccount);
       const results = await importFiles({ data: form });
       setMessages(
-        results.flatMap((r) =>
+        results.flatMap((r, i) =>
           "error" in r && r.error
-            ? [{ tone: "danger" as const, text: r.error }]
+            ? [{ tone: "danger" as const, text: r.error, datei: r.zuordnen ? { file: files[i]!, aktion: "Spalten zuordnen" as const } : undefined }]
             : "added" in r
-              ? [
-                  {
-                    tone: "ok" as const,
-                    text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.`,
-                  },
-                  ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
-                  ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
-                  ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
-                ]
+              ? importMessages(r, files[i])
               : [],
         ),
       );
@@ -967,15 +960,16 @@ function ImportControls({ data }: { data: Data }) {
           </button>
         </form>
       )}
-      {messages.length > 0 && (
-        <ul className="upload-messages" role="status" style={{ maxWidth: 560 }}>
-          {messages.map((m, i) => (
-            <li key={i} className={`banner banner-${m.tone}`}>
-              {m.text}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ImportMeldungen
+        messages={messages}
+        accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
+        accountId={targetAccount}
+        onImported={(result, file) => {
+          setTargetAccount(result.accountId);
+          setMessages(importMessages(result, file));
+          void router.invalidate();
+        }}
+      />
     </div>
   );
 }

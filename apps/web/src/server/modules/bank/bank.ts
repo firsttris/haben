@@ -51,11 +51,12 @@ import {
   type TaxShare,
   inCents,
 } from "@haben/core";
-import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
+import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes, type BankCsvMapping, type ParsedStatement } from "@haben/import";
 import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
+import { importAccount } from "./import-konto.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -94,7 +95,10 @@ import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzei
 
 export class BankError extends UserError {}
 
-const normalizeIban = (iban: string) => iban.replace(/\s/g, "").toUpperCase();
+/** Eine CSV, die keiner bekannten Bank gehört; die Seite bietet dann die Spaltenzuordnung an (#1275) */
+export class UnbekannteCsvError extends BankError {}
+
+export const normalizeIban = (iban: string) => iban.replace(/\s/g, "").toUpperCase();
 
 const purposeSchema = z.enum(["geschaeft", "steuer", "ruecklage", "privat"]);
 
@@ -249,37 +253,10 @@ export async function importStatement(actor: string, file: { bytes: Uint8Array; 
 export async function storeStatement(
   tx: Tx,
   statement: ParsedStatement,
-  source: { filename: string; sha256: string },
+  source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
   accountId: string | null,
 ): Promise<ImportResult> {
-  let account: typeof schema.bankAccounts.$inferSelect | undefined;
-  const fileIban = statement.accountIban ? normalizeIban(statement.accountIban) : null;
-  if (accountId) {
-    [account] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, accountId));
-    if (!account) throw new BankError("Konto nicht gefunden.");
-    if (fileIban && fileIban !== account.iban) {
-      throw new BankError(`Die Datei gehört zum Konto ${fileIban}, nicht zu ${account.name}.`);
-    }
-    // Export eines Zahlungsdienstleisters nur in dessen Konto, ein Kontoauszug nie dorthin
-    const providerFile = PSP_FORMATS.includes(statement.format);
-    if (providerFile !== (account.purpose === "zahlungsdienstleister")) {
-      throw new BankError(
-        providerFile
-          ? `${source.filename}: Das ist der Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`
-          : `${source.filename}: ${account.name} ist ein Zahlungsdienstleister; dorthin gehört nur dessen Export.`,
-      );
-    }
-  } else if (fileIban) {
-    account = await accountForIban(tx, fileIban, statement.accountName);
-  } else if (PSP_FORMATS.includes(statement.format)) {
-    throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
-  } else {
-    throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
-  }
-  // Ein Konto, das nicht zu dieser Firma gehört (#462), nimmt nichts mehr an: weder eine Datei noch der Abruf
-  if (account.excludedAt) {
-    throw new BankError(`${source.filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
-  }
+  const account = await importAccount(tx, statement, source.filename, accountId);
 
   const [previous] = await tx
     .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })
@@ -329,6 +306,7 @@ export async function storeStatement(
       added,
       skipped: transactions.length - added,
       warnings: statement.warnings,
+      csvMapping: source.csvMapping ?? null,
     })
     .returning();
   if (fresh.length > 0) {
