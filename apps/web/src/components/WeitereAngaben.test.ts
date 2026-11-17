@@ -1,7 +1,8 @@
+import { ustIdProblem } from "@haben/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { type WeitereAngabenWerte, WeitereAngaben, weitereAngabenKurz } from "./WeitereAngaben.tsx";
+import { type WeitereAngabenWerte, WeitereAngaben, isEuVatId, weitereAngabenKurz, weitereAngabenMeldung } from "./WeitereAngaben.tsx";
 
 const leer: WeitereAngabenWerte = { currency: "EUR", ustId: "", dueDate: "", serviceFrom: "", serviceTo: "", note: "" };
 
@@ -34,5 +35,20 @@ describe("Weitere Angaben am Beleg", () => {
     expect(zu).toContain("EUR");
     expect(zu).toContain('aria-label="Fällig am"');
     expect(render(true, "EUR")).toMatch(/<details[^>]* open/);
+  });
+
+  it("hält eine USt-IdNr. aus der EU nur für gültig, wenn auch der Server sie beim Erwerb annimmt (5 bis 12 Zeichen nach dem Länderkennzeichen)", () => {
+    for (const nummer of ["FR1234", "FR12345", "FR1234567890123", "NL123456789B01", "IE6388047V", "ATU12345678", "DE812871812"]) {
+      expect(isEuVatId(nummer), nummer).toBe(ustIdProblem(nummer, "L") === null);
+    }
+  });
+
+  it("erkennt Meldungen des Servers, die ein Feld im Bereich nennen", () => {
+    expect(weitereAngabenMeldung("Leistungszeitraum endet vor seinem Beginn")).toBe(true);
+    expect(weitereAngabenMeldung("Lieferant FR1234: nach dem Länderkennzeichen 5 bis 12 Buchstaben, Ziffern, + oder *")).toBe(true);
+    expect(weitereAngabenMeldung("Beim innergemeinschaftlichen Erwerb fehlt die USt-IdNr. des Lieferanten")).toBe(true);
+    expect(weitereAngabenMeldung("Umrechnungskurs für USD 09/2026 fehlt")).toBe(true);
+    expect(weitereAngabenMeldung("Kategorie fehlt")).toBe(false);
+    expect(weitereAngabenMeldung("Beträge fehlen")).toBe(false);
   });
 });

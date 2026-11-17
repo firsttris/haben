@@ -3475,6 +3475,67 @@ test("Beleg prüfen: Der Hinweis „Vor dem Buchen“ bleibt bei Änderungen ste
   await expect(page).not.toHaveURL(belegUrl);
 });
 
+test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben“ klappt den Bereich auf (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "zeitraum-fehler.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Schreibwaren Rosengasse e. K.") }]);
+  await expect(page.getByText("zeitraum-fehler.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /zeitraum-fehler\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  // Der Leistungszeitraum endet vor seinem Beginn; die Prüfung im Browser kennt das nicht, erst der Server meldet es
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Leistung von").fill(day(-5));
+  await page.getByLabel("Leistung bis").fill(day(-20));
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByLabel("Rechnungsnummer").fill("RG-4711");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(page.getByText(/Leistungszeitraum endet vor seinem Beginn/)).toBeVisible();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel("Leistung bis")).toBeVisible();
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Erwerb mit einer zu kurzen USt-IdNr. aus der EU legt das Feld offen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "erwerb-kurz.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Lyon SARL") }]);
+  await expect(page.getByText("erwerb-kurz.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /erwerb-kurz\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  // „FR1234“ hat zu wenig Zeichen nach dem Länderkennzeichen (5 bis 12, packages/core/src/zm.ts): der Server lehnt sie ab
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("combobox", { name: /^Steht deutsche Umsatzsteuer auf der Rechnung/ }).selectOption("ig_erwerb");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
 test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);

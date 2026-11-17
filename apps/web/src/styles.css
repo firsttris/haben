@@ -368,8 +368,6 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
-/* Das Menü ⋯ steht in der Knopfzeile am unteren Rand der Seite und klappt deshalb nach oben auf */
-.doc-actions .more-actions-menu .split-menu { top: auto; bottom: calc(100% + 4px); }
 /* Knopfzeilen (#394, DESIGN.md): Hauptaktion zuletzt im Markup; im Dialog rechtsbündig, sonst an der Kante der Felder */
 dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content: flex-end; }
 /* Ein Hauch Schatten hebt die Karte vom Grund ab; auf Dunkel trägt ihn kaum etwas, dort hält die Linie die Kante */
@@ -909,6 +907,9 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
   .doc-editor .icon-btn { width: 36px; height: 36px; }
   .doc-editor textarea { min-height: 56px; }
   .doc-editor .doc-actions { position: sticky; bottom: 0; z-index: 1; margin-top: auto; padding: 12px 0 2px; background: var(--ground); border-top: 1px solid var(--line); }
+  /* Das Menü ⋯ klappt nur nach oben auf, wo die Knopfzeile am unteren Rand klebt; schmal steht sie im Fluss, und nach unten
+     bleiben „Löschen“ und „Speichern“ unverdeckt */
+  .doc-editor .doc-actions .more-actions-menu .split-menu { top: auto; bottom: calc(100% + 4px); }
 }
 /* Position: Art.-Nr. und Bezeichnung, darunter der Text, dann die Zahlen in festen Spalten unter der Kopfzeile.
    Die Spalte der Knöpfe hat eine feste Breite, damit Kopfzeile (ohne Knöpfe) und Positionen dieselben Spalten haben. */

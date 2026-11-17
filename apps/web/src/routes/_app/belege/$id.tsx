@@ -48,7 +48,7 @@ import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpa
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
 import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
 import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
-import { WeitereAngaben, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
+import { WeitereAngaben, isEuVatId, weitereAngabenKurz, weitereAngabenMeldung } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
@@ -76,10 +76,6 @@ interface AmountState extends Betragszeile {
 }
 
 let nextKey = 1;
-
-/** USt-IdNr. aus einem anderen EU-Land (ohne DE); Griechenland hat EL */
-const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z]{2,12}$/;
-const isEuVatId = (text: string) => EU_VAT_PREFIX.test(text.replace(/\s/g, "").toUpperCase());
 
 const CONTINUE_KEY = "haben-belege-weiter";
 /** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
@@ -359,8 +355,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [currency, setCurrency] = useState(doc.currency);
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
-  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs) und beim Erwerb ohne USt-IdNr. aus der EU
-  const [weitereOffen, setWeitereOffen] = useState(() => doc.currency !== "EUR" || (doc.reverseCharge === "ig_erwerb" && !isEuVatId(doc.supplierUstId)));
+  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs), beim Erwerb ohne USt-IdNr. aus der EU
+  // und wenn ein Hinweis „Vor dem Buchen“ ein Feld darin nennt
+  const [weitereOffen, setWeitereOffen] = useState(
+    () => doc.currency !== "EUR" || (doc.reverseCharge === "ig_erwerb" && !isEuVatId(doc.supplierUstId)) || issues.some(weitereAngabenMeldung),
+  );
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null, vorsteuerAnteil: null }]).map((a) => {
@@ -388,6 +387,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const continueAfterBooking = useSyncExternalStore(subscribeContinuePreference, readContinuePreference, () => true);
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+  // Meldet der Server einen Fehler zu einem Feld in „Weitere Angaben“, etwa ein Leistungsende vor dem Beginn, liegt es offen
+  useEffect(() => {
+    if (notice?.tone === "danger" && weitereAngabenMeldung(notice.text)) setWeitereOffen(true);
+  }, [notice]);
 
   const parsed = rows.map((r) => ({
     taxRate: r.taxRate,

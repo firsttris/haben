@@ -10,6 +10,16 @@ export interface WeitereAngabenWerte {
   note: string;
 }
 
+/**
+ * USt-IdNr. aus einem anderen EU-Land (ohne DE; Griechenland hat EL): Länderkennzeichen und danach 5 bis 12 Zeichen wie in
+ * `ustIdProblem` (packages/core/src/zm.ts), denn dort lehnt der Server eine kürzere beim Erwerb ab
+ */
+const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z+*]{5,12}$/;
+export const isEuVatId = (text: string) => EU_VAT_PREFIX.test(text.replace(/\s/g, "").toUpperCase());
+
+/** Nennt die Meldung des Servers (Fehler beim Speichern, Hinweis „Vor dem Buchen“) ein Feld aus „Weitere Angaben“? Dann gehört der Bereich offen */
+export const weitereAngabenMeldung = (text: string) => /USt-IdNr|Länderkennzeichen|Leistungszeitraum|Währung|Kurs|Notiz/i.test(text);
+
 /** Was in „Weitere Angaben“ gesetzt ist, für die Überschrift des zugeklappten Bereichs: „EUR · fällig 30.11.2026“ */
 export function weitereAngabenKurz(werte: WeitereAngabenWerte): string {
   const leistung =
