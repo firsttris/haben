@@ -357,7 +357,7 @@ describe("Etsy-Monatsabrechnung", () => {
 
   // Die Art „Zahlung“ sind zwei Vorgänge, die der Etsy-Zahlungsverlauf getrennt führt (#1313): der Einzug von der Karte
   // (billing_payment) und der Ausgleich des negativen Guthabens nach einer Erstattung (RECOUP). Beides ist keine Gebühr.
-  it("liest „Zahlung“ als Karteneinzug oder Verrechnung, je nach Titel, und nicht als Gebühr", () => {
+  it("liest „Zahlung“ als Karteneinzug oder Ausgleich, je nach Titel, und nicht als Gebühr", () => {
     const s = parseStatement(
       german([
         `"02. October 2022",Zahlung,"Gebühr für Rückerstattung 2618701358",,EUR,€6.62,--,€6.62,--`,
@@ -366,7 +366,7 @@ describe("Etsy-Monatsabrechnung", () => {
     );
     expect(s.transactions.map((t) => [t.bookingDate, t.amount, t.type, t.purpose])).toEqual([
       ["2022-08-23", 20, "Karteneinzug", "Zahlung · Kartenzahlung · Visa mit den Endziffern 7950"],
-      ["2022-10-02", 662, "Verrechnung", "Zahlung · Gebühr für Rückerstattung 2618701358"],
+      ["2022-10-02", 662, "Ausgleich", "Zahlung · Gebühr für Rückerstattung 2618701358"],
     ]);
     expect(s.warnings).toEqual([]);
   });
