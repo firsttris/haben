@@ -279,6 +279,15 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect(verbunden!.n).toBe(1);
   });
 
+  it("hält die Hinweise einer Lieferung im Importprotokoll fest", async () => {
+    const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
+    await dateiMitEr2(konto);
+    await speichere(abruf(konto, [er2], { from: "2026-11-01", to: "2026-11-05", fetchId: `protokoll-${konto.hash}` }));
+    const [lauf] = await sql<{ warnings: string[] }[]>`select warnings from bank_imports where filename = ${`Abruf protokoll-${konto.hash}`}`;
+    expect(lauf!.warnings).toEqual([expect.stringContaining("ER-2: Buchungstag 2026-10-30 vor dem Fenster")]);
+  });
+
   it("lehnt eine Kennung ab, die schon mit einem anderen Konto verbunden ist", async () => {
     const konto = neuesKonto();
     const anderes = neuesKonto();

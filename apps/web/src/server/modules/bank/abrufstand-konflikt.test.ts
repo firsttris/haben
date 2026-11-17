@@ -87,6 +87,11 @@ describe.skipIf(!testDatabaseUrl)("Konflikt im Abruf, #306 (Postgres)", () => {
       amTag(tag(t0, n));
       expect((await sync.syncConnection("test", connection!.id, tag(t0, n))).error).toMatch(/…9890: Konflikt mit schon übernommenen Umsätzen/);
     }
+    // Der Konflikt steht auch im Importprotokoll des Kontos, nicht nur an der Verbindung
+    const protokoll = await sql<{ added: number; warnings: string[] }[]>`
+      select i.added, i.warnings from bank_imports i join bank_accounts a on a.id = i.bank_account_id
+      where a.iban = ${IBAN_A} order by i.created_at desc limit 1`;
+    expect(protokoll[0]).toEqual({ added: 0, warnings: [expect.stringContaining("Konflikt mit schon übernommenen Umsätzen")] });
 
     umsaetze["uid-b"] = [buchung("b1", tag(t0, 99), "30.00")];
     amTag(tag(t0, 100));
