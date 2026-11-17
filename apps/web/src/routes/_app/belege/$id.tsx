@@ -45,6 +45,7 @@ import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.t
 import { Field } from "../../../components/Field.tsx";
 import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
+import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
@@ -694,7 +695,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             <Field
               label="Kategorie"
               hint={
-                data.categoryHint && (
+                data.categoryHint ? (
                   <>
                     Bisher{" "}
                     {data.categoryHint.count === data.categoryHint.total
@@ -720,7 +721,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                       </>
                     )}
                   </>
-                )
+                ) : category === "" ? (
+                  KATEGORIE_BEISPIEL
+                ) : undefined
               }
               style={{ gridColumn: "1 / -1" }}
             >
@@ -737,11 +740,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   }}
                 >
                   <option value="">Bitte wählen</option>
-                  {categories.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
+                  <KategorieOptionen categories={categories} />
                 </select>
               )}
             </Field>

@@ -218,7 +218,7 @@ Die Erkennung läuft auch ohne KI-Auslesung: Ein PDF mit Textebene wird dann all
 
 ## Kategorien
 
-Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/src/posting.ts`.
+Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/src/posting.ts`. Im Beleg stehen die Kategorien in Gruppen zur Auswahl: Büro und IT, Räume und Ausstattung, Reisen, Fahrzeug, Werbung und Bewirtung, Beratung und Weiterbildung, Versicherungen und Beiträge, Personal, Waren und Fremdleistungen, Sonstiges, Anlagegut und Zoll. Die Gruppen sind nur eine Ordnung der Liste; Name, Konto und Buchung je Kategorie bleiben gleich.
 
 | Kategorie | SKR03 | SKR04 |
 | --- | --- | --- |

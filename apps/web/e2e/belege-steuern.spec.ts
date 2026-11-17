@@ -3336,6 +3336,34 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
 });
 
+test("Beleg prüfen: Kategorien stehen in Gruppen, ein Beispiel hilft bei der Wahl (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gruppen.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Kopierladen Stadtmitte GmbH") }]);
+  await expect(page.getByText("gruppen.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gruppen\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  await expect(kategorie.locator("optgroup")).toHaveCount(11);
+  await expect(kategorie.locator('optgroup[label="Fahrzeug"] option')).toHaveCount(6);
+  // Dieselben 35 Kategorien wie zuvor und „Bitte wählen“, keine mehr und keine weniger
+  await expect(kategorie.locator("option")).toHaveCount(36);
+  await expect(page.getByText("Z. B. Hosting oder Software unter „Büro und IT“")).toBeVisible();
+  await kategorie.selectOption("kfzBetrieb");
+  await expect(kategorie).toHaveValue("kfzBetrieb");
+  await expect(page.getByText("Z. B. Hosting oder Software unter „Büro und IT“")).toBeHidden();
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
 test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
