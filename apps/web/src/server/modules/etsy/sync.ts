@@ -103,7 +103,8 @@ async function syncEtsyEinmal(actor: string, now: Date): Promise<EtsySyncResult>
     );
     const hinweis = laenderHinweis(bestellungen, laender);
     if (hinweis) result.messages.push(hinweis);
-    neuerStart = naechsterAbrufStart(entries.map(dayOf), connection.row.fetchFrom, gebuehrenBis);
+    // Ohne Etsy-Konto ist nichts gespeichert: Der Startpunkt bleibt, sonst holte kein späterer Abruf diese Zeilen mehr
+    if (imported.accountName !== null) neuerStart = naechsterAbrufStart(entries.map(dayOf), connection.row.fetchFrom, gebuehrenBis);
     await update(actor, { lastSyncAt: now, lastError: null, fetchFrom: neuerStart });
   } catch (error) {
     const meldung = `Abruf fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`;
