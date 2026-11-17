@@ -96,6 +96,9 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | 
 {{- fail "backup.env.BACKUP_TIME braucht die Form \"HH:MM\", etwa \"03:15\"" }}
 {{- end }}
 {{- end }}
+{{- /* Für den Cache von restic; Nutzer 1000 hat im Image kein Heimatverzeichnis */}}
+- name: HOME
+  value: /tmp
 {{- if .Values.postgresql.enabled }}
 - name: PGHOST
   value: {{ include "haben.dbHost" . }}
@@ -109,6 +112,10 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | 
 {{- end -}}
 
 {{- define "haben.backupVolumeMounts" -}}
+- name: backup-tmp
+  mountPath: /tmp
+- name: backup-state
+  mountPath: /var/lib/haben-backup
 {{- if .Values.backup.persistence.enabled }}
 - name: backups
   mountPath: /backups
@@ -116,11 +123,29 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | 
 {{- end -}}
 
 {{- define "haben.backupVolumes" -}}
+{{- /* Das Dateisystem ist schreibgeschützt: Dump von backup.sh, Cache von restic (HOME) und der Snapshot, den
+restore.sh und restore-check.sh auspacken, auf der Platte des Knotens statt im Speicher */}}
+- name: backup-tmp
+  emptyDir: {}
+- name: backup-state
+  emptyDir: {}
 {{- if .Values.backup.persistence.enabled }}
 - name: backups
   persistentVolumeClaim:
     claimName: {{ include "haben.fullname" . }}-backups
 {{- end }}
+{{- end -}}
+
+{{/* Wie die App in deploy/compose.yml: fester Nutzer, Dateisystem schreibgeschützt bis auf die Volumes, keine
+Capabilities; erfüllt Pod Security „restricted“. Argument: UID und GID */}}
+{{- define "haben.securityContext" -}}
+runAsUser: {{ . }}
+runAsGroup: {{ . }}
+runAsNonRoot: true
+readOnlyRootFilesystem: true
+allowPrivilegeEscalation: false
+capabilities:
+  drop: [ALL]
 {{- end -}}
 
 {{- define "haben.scheduling" -}}

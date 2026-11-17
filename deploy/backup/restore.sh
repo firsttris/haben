@@ -87,9 +87,13 @@ admin -c "ALTER DATABASE \"${db}_restore\" RENAME TO \"$db\""
 
 echo "Stelle die Belegdateien wieder her …"
 find /belege -mindepth 1 -delete
-cp -a "$source/." /belege/
-# Die App läuft als Nutzer node (UID 1000); auf einem frischen System legt erst dieser Aufruf das Volume an
-chown -R 1000:1000 /belege
+# Nur der Inhalt: Den Ordner /belege selbst ändern nur sein Eigentümer und root, im Helm-Chart läuft restore.sh als 1000
+find "$source" -mindepth 1 -maxdepth 1 -exec cp -a -t /belege/ {} +
+# Die App läuft als Nutzer node (UID 1000); auf einem frischen System legt erst dieser Aufruf das Volume an. Als 1000
+# gehören die Dateien ihm schon.
+if [ "$(id -u)" = 0 ]; then
+  chown -R 1000:1000 /belege
+fi
 
 echo "Fertig. App starten, anmelden und Stichproben prüfen (letzte Rechnung, letzter Beleg, Bankumsätze)."
 echo "Lässt sich das ELSTER-Zertifikat nicht mehr öffnen, läuft die App mit einem anderen HABEN_ENCRYPTION_KEY als beim Backup."
