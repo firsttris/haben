@@ -113,6 +113,8 @@ export const batchSchema = z.strictObject({
         /** Tag des Ereignisses, wo bekannt: Außerhalb des Fensters oder vor dem Stichtag hält es den Zeitraum nicht offen, sonst ab diesem Tag */
         bookingDate: isoDate.optional(),
         reason: text,
+        /** Endzustand, der nie zu einer Bewegung wird (etwa storniert oder abgelehnt): sichtbar, hält den Zeitraum aber nicht offen */
+        final: z.literal(true).optional(),
       }),
     )
     .default([]),

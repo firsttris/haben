@@ -80,7 +80,9 @@ describe("enableBankingBatch", () => {
 
   it("zeigt stornierte und abgelehnte Umsätze (CNCL, RJCT) ohne Tag und hält den Zeitraum nicht offen", () => {
     const result = validateBatch(
-      enableBankingBatch(input([tx(), tx({ entry_reference: "ER-C", status: "CNCL", booking_date: "2026-10-20" }), tx({ entry_reference: "ER-R", status: "RJCT" })])),
+      enableBankingBatch(
+        input([tx(), tx({ entry_reference: "ER-C", status: "CNCL", booking_date: "2026-10-20" }), tx({ entry_reference: "ER-R", status: "RJCT" })]),
+      ),
       binding,
     );
     expect(result.ok && [result.batch.unsupported, result.blocking, result.openFrom]).toEqual([

@@ -29,6 +29,9 @@ export interface EnableBankingBatchInput {
 /** Teil des Grunds für einen gebuchten Umsatz ohne entry_reference, zum Zählen in der Meldung des Abrufs */
 export const OHNE_ENTRY_REFERENCE = "ohne entry_reference";
 
+/** Status, die nie zu einer Buchung werden */
+const FINAL_STATUS: Record<string, string> = { CNCL: "Storniert", RJCT: "Abgelehnt" };
+
 /** entry_reference ohne Leerzeichen; leer zählt wie fehlend */
 const referenz = (t: EbTransaction) => t.entry_reference?.trim() || undefined;
 
@@ -41,6 +44,9 @@ function movement(t: EbTransaction, index: number, window: { dateFrom: string; d
   // Tag, wo bekannt: Vor dem Fenster hält er den Zeitraum nicht offen, sonst ab diesem Tag (Vertrag)
   const skip = (reason: string): Unsupported => ({ ...(ref ? { sourceEventId: ref } : {}), ...(mapped ? { bookingDate: mapped.bookingDate } : {}), reason });
   if (t.status === "PDNG") return skip("Vorgemerkt (PDNG); folgt, sobald die Bank ihn bucht.");
+  // Storniert und abgelehnt sind Endzustände (Berlin Group, TransactionStatus): ohne Tag, sie halten den Zeitraum nicht offen
+  const final = FINAL_STATUS[t.status ?? ""];
+  if (final) return { ...(ref ? { sourceEventId: ref } : {}), reason: `${final} (${t.status}); wird nie gebucht.`, final: true };
   if (t.status && t.status !== "BOOK") return skip(`Status ${t.status}.`);
   if (!mapped) return skip("Ohne gültiges Datum oder Betrag.");
   if (!ref) return skip(`Gebuchter Umsatz vom ${mapped.bookingDate} ${OHNE_ENTRY_REFERENCE}; transaction_id kann sich ändern und ist kein Ersatz.`);

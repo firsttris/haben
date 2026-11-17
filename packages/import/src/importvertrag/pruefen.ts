@@ -95,7 +95,7 @@ export function validateBatch(input: unknown, binding: SourceBinding): BatchVali
   }
   // Ein Tag außerhalb des Fensters oder vor dem Stichtag gehört nicht zu dem Zeitraum, den diese Lieferung abschließen soll
   const outside = (day: string) => day < batch.coverage.from || day > batch.coverage.to || (binding.cutoverDate !== undefined && day < binding.cutoverDate);
-  const openUnsupported = batch.unsupported.filter((u) => !(u.bookingDate && outside(u.bookingDate)));
+  const openUnsupported = batch.unsupported.filter((u) => !u.final && !(u.bookingDate && outside(u.bookingDate)));
   openDays.push(...openUnsupported.map((u) => u.bookingDate ?? batch.coverage.from));
   const hints = accepted
     .filter((m) => (m.kind === "refund" || m.kind === "chargeback") && m.component === "main" && !m.references.relatedEventId)
