@@ -112,19 +112,31 @@ describe("ebilanzPosition: Miete, Pacht, Leasing und Zinsen", () => {
   const LEASING_UNBEWEGLICH = `${OC}.leasingAll.immovable.other`;
   const MIETE_UNBEWEGLICH = `${OC}.leaseFix.other`;
   const ZINSEN = "is.netIncome.regular.fin.netInterest.expenses.regularInterest.other";
+  const RENTEN = "is.netIncome.regular.fin.netInterest.expenses.annuities";
 
   it.each([
-    ["SKR03", ["4570", "4575", "4965"], LEASING_BEWEGLICH],
-    ["SKR04", ["6560", "6565"], LEASING_BEWEGLICH],
+    ["SKR03", ["4570", "4575", "4810", "4965"], LEASING_BEWEGLICH],
+    ["SKR04", ["6498", "6560", "6565", "6840"], LEASING_BEWEGLICH],
     ["SKR03", ["4960", "4961", "4963"], MIETE_BEWEGLICH],
     ["SKR04", ["6835", "6836", "6838"], MIETE_BEWEGLICH],
     ["SKR03", ["4215"], LEASING_UNBEWEGLICH],
     ["SKR04", ["6316"], LEASING_UNBEWEGLICH],
-    ["SKR03", ["4211", "4220"], MIETE_UNBEWEGLICH],
-    ["SKR04", ["6315", "6317"], MIETE_UNBEWEGLICH],
-    ["SKR03", ["2100"], ZINSEN],
-    ["SKR04", ["7300"], ZINSEN],
+    ["SKR03", ["4211", "4220", "4550"], MIETE_UNBEWEGLICH],
+    ["SKR04", ["6315", "6317", "6550"], MIETE_UNBEWEGLICH],
+    ["SKR03", ["2100", "2109", "2118", "2119", "2125", "2129"], ZINSEN],
+    ["SKR04", ["7300", "7309", "7318", "7319", "7325", "7329"], ZINSEN],
+    ["SKR03", ["2127"], RENTEN],
+    ["SKR04", ["7327"], RENTEN],
   ] as const)("%s %j → %s", (kontenrahmen, konten, position) => {
+    for (const account of konten) expect(ebilanzPosition(kontenrahmen, account, 100_00), account).toBe(position);
+  });
+
+  // Fremdleistungen für Miete, Pacht und Lizenzen bei den bezogenen Leistungen wie die Kategorie Fremdleistungen (3100/5900)
+  it.each([
+    ["SKR03", ["3100", "3170", "3175", "3180"]],
+    ["SKR04", ["5900", "5970", "5975", "5980"]],
+  ] as const)("%s %j → bezogene Leistungen", (kontenrahmen, konten) => {
+    const position = "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.services.unknownVAT";
     for (const account of konten) expect(ebilanzPosition(kontenrahmen, account, 100_00), account).toBe(position);
   });
 
