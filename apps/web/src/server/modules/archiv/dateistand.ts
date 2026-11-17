@@ -23,7 +23,7 @@ export type LegacyFileStatus =
   | "ohne_datei"
   /** sevDesk nennt keine Datei, noch niemand hat das geprüft */
   | "ohne_datei_offen"
-  /** in sevDesk geprüft: keine Datei */
+  /** von Hand geprüft: keine Datei (sevDesk-Abruf oder Accountable ohne Einzelbeleg) */
   | "ohne_datei_bestaetigt"
   | "abruf_fehlgeschlagen"
   | "anhang_fehlt";
