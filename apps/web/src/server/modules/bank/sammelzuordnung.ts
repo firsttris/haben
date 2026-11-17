@@ -44,13 +44,13 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
       )
       .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
     const fees = rows.filter((row) => row.amount < 0);
+    // Wie die Einzelzuordnung zuerst die Umsätze, dann den Beleg sperren, auf beiden Wegen; sonst entstünde ein Deadlock
+    // (PostgreSQL 18, 13.3.4: https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-DEADLOCKS).
+    for (const row of rows) await lockTransaction(tx, row.id);
+    const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
+    if (!doc) throw new BankError("Beleg nicht gefunden.");
+    const offen = async () => documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
     if (rows.length > fees.length) {
-      // Wie die Einzelzuordnung zuerst die Umsätze, dann den Beleg sperren; umgekehrt entstünde ein Deadlock
-      // (PostgreSQL 18, 13.3.4: https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-DEADLOCKS).
-      for (const row of rows) await lockTransaction(tx, row.id);
-      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
-      if (!doc) throw new BankError("Beleg nicht gefunden.");
-      const offen = async () => documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
       // Nach einer Wartezeit können die offenen Beträge aus der ersten Abfrage veraltet sein; unter den Sperren neu lesen.
       const banks = [];
       for (const row of rows) {
@@ -71,9 +71,9 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
     let count = 0;
     for (const fee of fees) {
       const bank = await lockTransaction(tx, fee.id);
-      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
-      if (!doc) throw new BankError("Beleg nicht gefunden.");
-      const open = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
+      // Während des Wartens auf die Sperren erledigt, etwa durch eine Einzelzuordnung
+      if (bank.open === 0) continue;
+      const open = await offen();
       if (open === 0 || Math.sign(open) !== Math.sign(bank.open)) break;
       const amount = Math.abs(bank.open) <= Math.abs(open) ? bank.open : open;
       await bookPart(tx, company, bank, { kind: "document", documentId: input.documentId, amount }, null);
