@@ -9,7 +9,7 @@ description: >-
 
 Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **Umsatzsteuererklärung** und die **Anlage EÜR** mit dem Anlagenverzeichnis (**Anlage AVEÜR**) und übermittelt beide über ERiC an das Finanzamt, wie die [Voranmeldung](umsatzsteuer.md). Dazu kommt die **Einkommensteuererklärung** mit den Anlagen, die ein Selbständiger typischerweise braucht: Der Gewinn kommt aus der EÜR; Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
 
-Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
+Die Seite zeigt je Erklärung Hinweise, die Summen und einen eigenen Bereich zum Übermitteln. Bei der Umsatzsteuererklärung sind das die Umsatzsteuer, das Vorauszahlungssoll und die Abschlusszahlung bzw. Erstattung, bei der Anlage EÜR die Summe der Betriebseinnahmen und -ausgaben und der Gewinn. Die einzelnen Zeilen mit Kennzahl bzw. Feldkennung stehen eingeklappt hinter **Zeilen anzeigen** und sind mit der Tastatur erreichbar. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
 Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Bei der Einkommensteuererklärung steht ohne Übermittlung und ohne Vermerk „Nicht aus Haben übermittelt“; senden lässt sie sich trotzdem über den Kasten **Einkommensteuererklärung übermitteln**.
 

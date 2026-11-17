@@ -2967,6 +2967,27 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
 });
 
+test("Jahreserklärung: Summen stehen offen, die Einzelzeilen hinter „Zeilen anzeigen“, auch per Tastatur (#1253)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
+  const euer = page.getByRole("region", { name: "Anlage EÜR", exact: true });
+  await expect(ust.getByRole("row", { name: /^Umsatzsteuer|^Überschuss/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abschlusszahlung|^Erstattung/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Summe Betriebseinnahmen/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Gewinn|^Verlust/ })).toBeVisible();
+  // Zugeklappt: die Zeilen sind nicht zu sehen, der Knopf zum Aufklappen schon
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeHidden();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeHidden();
+  // Mit der Tastatur: Fokus auf „Zeilen anzeigen“, Enter klappt auf
+  const summary = ust.locator("summary").filter({ hasText: "Zeilen anzeigen" });
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abziehbare Vorsteuer aus Rechnungen/ })).toBeVisible();
+  await euer.locator("summary").filter({ hasText: "Zeilen anzeigen" }).click();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeVisible();
+});
+
 test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Knopfzeile, der Dialog selbst scrollt nicht (WCAG 2.4.11)", async () => {
   const jahr = YEAR - 1;
   for (const [breite, hoehe] of [
