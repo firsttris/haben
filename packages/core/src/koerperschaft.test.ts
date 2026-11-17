@@ -145,6 +145,47 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     expect(gross.gewerbeertrag).toBe(2_250_000);
   });
 
+  it.each([
+    ["SKR03", "4575", "4570"],
+    ["SKR04", "6565", "6560"],
+  ] as const)(
+    "%s: Leasing für Elektrofahrzeuge und Fahrräder bis 2030 zur Hälfte von einem Fünftel, ab 2031 wie übriges Leasing",
+    (kontenrahmen, elektro, leasing) => {
+      // § 8 Nr. 1 Buchst. d Satz 2 GewStG, letztmals für den Erhebungszeitraum 2030 (§ 36 Abs. 4 Satz 3 GewStG)
+      const gruppen = (year: number) =>
+        kapgSteuern(
+          kontenrahmen,
+          year,
+          [
+            { account: elektro, saldo: 960_000 },
+            { account: leasing, saldo: 1_200_000 },
+          ],
+          1_000_000,
+          ohneVortrag,
+        ).gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag]);
+      expect(gruppen(2030)).toEqual([
+        ["beweglich", 1_200_000, 240_000],
+        ["elektro", 960_000, 96_000],
+      ]);
+      expect(gruppen(2031)).toEqual([["beweglich", 2_160_000, 432_000]]);
+    },
+  );
+
+  it("Der Freibetrag gilt für die Summe aller Gruppen, auch mit Elektrofahrzeugen und Fahrrädern", () => {
+    // Zinsen 195.000 € voll, Leasing für Elektrofahrzeuge 100.000 € zu 10 %: 205.000 € − 200.000 € Freibetrag, davon ein Viertel
+    const s = kapgSteuern(
+      "SKR04",
+      2026,
+      [
+        { account: "7300", saldo: 19_500_000 },
+        { account: "6565", saldo: 10_000_000 },
+      ],
+      1_000_000,
+      ohneVortrag,
+    );
+    expect(s.hinzurechnungGewst).toBe(125_000);
+  });
+
   it.each(["SKR03", "SKR04"] as const)("%s: die Konten stehen im DATEV-Kontenrahmen, wo die Berechnung sie erwartet", (kontenrahmen) => {
     const k = KAPG_STEUER_KONTEN[kontenrahmen];
     for (const account of [...k.kst, ...k.soli, ...k.gewst, ...k.kstVorjahre, ...k.soliWeitere, ...k.kapest, ...k.gewstVorjahre])
