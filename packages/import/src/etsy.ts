@@ -90,7 +90,8 @@ const isPayout = (kind: string) => /^(deposit|überweisung|ueberweisung|auszahlu
  * Die Art „Zahlung“ sind zwei Vorgänge, die der Etsy-Zahlungsverlauf getrennt führt (#1313): „Kartenzahlung“ ist der
  * Einzug von der hinterlegten Karte (billing_payment), „Gebühr für Rückerstattung …“ der Ausgleich des negativen
  * Guthabens nach einer Erstattung (RECOUP). Beides bringt Geld von außen ins Guthaben und ist keine Gebühr; die Namen
- * sind dieselben wie beim Abruf über die API. Andere Titel, auch die englischen, bleiben eine unbekannte Art mit Hinweis.
+ * sind die aus dem Entwurf für den API-Abruf (#1053). Andere Titel, auch die englischen, bleiben eine unbekannte Art
+ * mit Hinweis.
  */
 function paymentKind(kind: string, title: string): "Karteneinzug" | "Verrechnung" | undefined {
   if (!/^(zahlung|payment)$/i.test(kind)) return undefined;
