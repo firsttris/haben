@@ -49,7 +49,11 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     await sql?.end();
   });
 
-  function abruf(konto: { iban: string; hash: string }, transactions: EbTransaction[], over: { fetchId?: string; from?: string; to?: string } = {}) {
+  function abruf(
+    konto: { iban: string; hash: string },
+    transactions: EbTransaction[],
+    over: { fetchId?: string; from?: string; to?: string; fetchFrom?: string } = {},
+  ) {
     const window = { dateFrom: over.from ?? "2026-10-01", dateTo: over.to ?? "2026-10-31" };
     const fetchId = over.fetchId ?? `abruf-${Math.random()}`;
     const ohneReferenz = (u: { reason: string }) => u.reason.includes("ohne entry_reference");
@@ -72,6 +76,7 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
       }),
       eventOf: entryReferenceOf(transactions),
       source: { filename: `Abruf ${fetchId}`, sha256: fetchId },
+      ...(over.fetchFrom ? { fetchFrom: over.fetchFrom } : {}),
     };
   }
 
@@ -83,6 +88,11 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
       where a.iban = ${iban} order by t.booking_date, t.bank_reference`;
   }
 
+  async function stichtag(konto: { hash: string }) {
+    const [s] = await sql<{ c: string | null }[]>`select cutover_date::text as c from import_sources where external_account_id = ${konto.hash}`;
+    return s?.c;
+  }
+
   it("legt beim ersten Abruf Bindung, Lieferung, Bewegungen und Umsätze an", async () => {
     const konto = neuesKonto();
     const r = await speichere(abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-2", "2026-10-06", "10.00")]));
@@ -90,6 +100,8 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect((await umsaetze(konto.iban)).map((u) => u.bank_reference)).toEqual(["ER-1", "ER-2"]);
     const [bindung] = await sql`select count(*)::int as n from import_sources where external_account_id = ${konto.hash}`;
     expect(bindung!.n).toBe(1);
+    // Ohne Datei und ohne gewählten Tag beginnt die Quelle mit ihrem ersten Fenster
+    expect(await stichtag(konto)).toBe("2026-10-01");
     const bewegungen = await sql`select m.source_event_id from import_movements m join import_sources s on s.id = m.source_id
       where s.external_account_id = ${konto.hash} order by 1`;
     expect(bewegungen.map((b) => b.source_event_id)).toEqual(["ER-1", "ER-2"]);
@@ -247,20 +259,59 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
   const er2 = tx("ER-2", "2026-10-30", "12.00", { value_date: "2026-11-01" });
   const er4 = tx("ER-4", "2026-10-30", "12.00", { value_date: "2026-11-01", remittance_information: ["Andere Zahlung"] });
 
-  it("rechnet eine per Alias verbundene Zeile der Datei nicht noch einmal an", async () => {
+  it("setzt den Stichtag auf den Tag nach dem letzten Umsatz der Datei und lehnt Umsätze davor sichtbar ab", async () => {
     const konto = neuesKonto();
     await dateiMitEr2(konto);
-    // Erster Abruf: ER-2 gehört per Alias zur Zeile der Datei, ER-4 ist ein anderer Umsatz mit gleichem Tag und Betrag
+    // Die Datei endet am 30.10.; ER-2 und ER-4 vom 30.10. gehören in die Zeit der Datei, nichts wird über Tag und Betrag abgeglichen
+    const r = await speichere(abruf(konto, [er2, er4], { from: "2026-11-01", to: "2026-11-05", fetchId: `stichtag-${konto.hash}` }));
+    expect(r.added).toBe(0);
+    expect(await stichtag(konto)).toBe("2026-10-31");
+    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-1200]);
+    const [lauf] = await sql<{ warnings: string[] }[]>`select warnings from bank_imports where filename = ${`Abruf stichtag-${konto.hash}`}`;
+    expect(lauf!.warnings).toEqual([expect.stringContaining("ER-2: Vor dem Stichtag 2026-10-31"), expect.stringContaining("ER-4: Vor dem Stichtag 2026-10-31")]);
+  });
+
+  it("nimmt als Stichtag den gewählten Tag „Umsätze abrufen ab“, wenn er nach der Datei liegt", async () => {
+    const konto = neuesKonto();
+    await dateiMitEr2(konto);
+    // Umzug unter dem Jahr: Die Tage vor dem 03.11. stehen in der alten Buchhaltung; ER-5 kommt verspätet vor dem Fenster
+    const r = await speichere(abruf(konto, [tx("ER-5", "2026-11-02", "5.00")], { from: "2026-11-03", to: "2026-11-05", fetchFrom: "2026-11-03" }));
+    expect(r.added).toBe(0);
+    expect(await stichtag(konto)).toBe("2026-11-03");
+  });
+
+  it("bindet ein schon abgerufenes Konto ohne Doppelte und ohne Lücke am letzten Tag", async () => {
+    const konto = neuesKonto();
+    // Abruf vor dem Importvertrag (#1340) bis 20.10.
+    const alt = abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-2", "2026-10-20", "2.00")], { to: "2026-10-20" }).statement;
+    await db.db.transaction((t) => bank.storeStatement(t, alt, { filename: "alter Abruf", sha256: `alt-${konto.hash}` }, null));
+    // Folgeabruf mit sieben Tagen Überlappung; ER-3 hat die Bank am 20.10. nach dem alten Abruf gebucht
+    const spaet = tx("ER-3", "2026-10-20", "3.00", { remittance_information: ["Nachgebucht"] });
+    const r = await speichere(abruf(konto, [tx("ER-2", "2026-10-20", "2.00"), spaet, tx("ER-5", "2026-10-24", "5.00")], { from: "2026-10-13", to: "2026-10-25" }));
+    expect(r.added).toBe(2);
+    expect((await umsaetze(konto.iban)).map((u) => u.bank_reference)).toEqual(["ER-1", "ER-2", "ER-3", "ER-5"]);
+    // Die Überlappung mit dem alten Abruf deckt der Alias ab; ein Stichtag nach dem 20.10. ließe ER-3 fallen
+    expect(await stichtag(konto)).toBe("2026-10-13");
+  });
+
+  it("gleicht für eine Bindung ohne Stichtag (vor 3b) wie bisher über Tag und Betrag ab", async () => {
+    const konto = neuesKonto();
+    await dateiMitEr2(konto);
+    await sql`insert into import_sources (bank_account_id, provider, external_account_id, account_kind)
+      select id, 'enablebanking', ${konto.hash}, 'bank' from bank_accounts where iban = ${konto.iban}`;
+    // ER-2 gehört per Alias zur Zeile der Datei, ER-4 ist ein anderer Umsatz mit gleichem Tag und Betrag
     expect((await speichere(abruf(konto, [er2, er4], { from: "2026-11-01", to: "2026-11-05" }))).added).toBe(1);
     expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-1200, -1200]);
+    expect(await stichtag(konto)).toBeNull();
   });
 
   it("rechnet eine Zeile der Datei, die schon einer Bewegung gehört, im nächsten Abruf nicht an", async () => {
     const konto = neuesKonto();
+    await speichere(abruf(konto, [tx("ER-1", "2026-10-05")], { to: "2026-10-10" }));
     await dateiMitEr2(konto);
     await speichere(abruf(konto, [er2], { from: "2026-11-01", to: "2026-11-05" }));
     expect((await speichere(abruf(konto, [er2, er4], { from: "2026-11-01", to: "2026-11-06" }))).added).toBe(1);
-    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-1200, -1200]);
+    expect((await umsaetze(konto.iban)).map((u) => u.amount)).toEqual([-4999, -1200, -1200]);
   });
 
   it("verbindet einen Umsatz vor dem Fenster dauerhaft mit der Zeile der Datei", async () => {
