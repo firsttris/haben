@@ -15,7 +15,7 @@ Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR
 
 ## Überblick
 
-Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwischen stehen das laufende Jahr und alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen oder gebuchten Belegen, jedes einmal. Darunter stehen vier Kennzahlen:
+Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwischen stehen das laufende Jahr und alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen, gebuchten Belegen oder Buchungen, etwa aus dem [Datenimport](belegimport.md), jedes einmal. Dieselbe Auswahl haben **Konten** und **Steuerjahr**. Darunter stehen vier Kennzahlen:
 
 | Kennzahl | Bedeutung |
 | --- | --- |
