@@ -108,17 +108,19 @@ export function PaymentMethodFields({
             "Erst den Kunden wählen."
           ) : (
             <>
-              Das Mandat ist die Einzugsermächtigung deines Kunden: Er erlaubt dir damit, den Betrag per SEPA-Lastschrift von seinem Konto einzuziehen.{" "}
+              {mandateId === "" &&
+                "Das Mandat ist die Einzugsermächtigung deines Kunden: Er erlaubt dir damit, den Betrag per SEPA-Lastschrift von seinem Konto einzuziehen. "}
               {mandates.length === 0 ? (
                 <>
                   Für diesen Kunden gibt es kein gültiges Mandat. Du legst es beim Kontakt unter{" "}
                   <Link to="/kontakte/$id" params={{ id: contactId }} hash="mandate-heading" target="_blank" rel="noopener">
                     SEPA-Lastschriftmandate
+                    <span className="visually-hidden"> (öffnet in neuem Tab)</span>
                   </Link>{" "}
                   an.
                 </>
               ) : (
-                "Die Rechnung kündigt den Einzug am Fälligkeitstag an. Ohne andere Absprache muss sie 14 Kalendertage vorher beim Kunden sein (so verlangt es das SEPA-Rulebook); Skonto entfällt."
+                "Die Rechnung kündigt den Einzug am Fälligkeitstag an. Ohne andere Absprache muss sie 14 Kalendertage vorher beim Kunden sein (SEPA-Rulebook); Skonto entfällt."
               )}
             </>
           )}

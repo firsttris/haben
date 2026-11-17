@@ -2362,7 +2362,9 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   await kundeWaehlen(page, "Alpenblick Media AG · München");
   await page.getByLabel("Zahlungsart").selectOption("lastschrift");
   await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toBeVisible();
-  await expect(page.getByRole("link", { name: "SEPA-Lastschriftmandate" })).toHaveAttribute("href", `${kontaktPfad}#mandate-heading`);
+  const mandatLink = page.getByRole("link", { name: "SEPA-Lastschriftmandate (öffnet in neuem Tab)" });
+  await expect(mandatLink).toHaveAttribute("href", `${kontaktPfad}#mandate-heading`);
+  await expect(mandatLink).toHaveAttribute("target", "_blank");
   await go(kontaktPfad);
   const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
   await karte.getByRole("button", { name: "Mandat anlegen" }).click();
@@ -2384,7 +2386,9 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   const mandatFeld = page.getByRole("combobox", { name: "Mandat", exact: true });
   await expect(mandatFeld).toHaveValue(/.+/);
   await expect(mandatFeld.locator("option:checked")).toHaveText("AB-2026-01 · CORE");
-  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toBeVisible();
+  // Mit gewähltem Mandat entfällt die Erklärung, der Hinweis zur Ankündigung bleibt
+  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toHaveCount(0);
+  await expect(page.getByText("14 Kalendertage vorher beim Kunden sein")).toBeVisible();
   await expect(page.getByRole("button", { name: "Skontostufe hinzufügen" })).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
   await page.getByLabel("Menge Position 1").fill("1");
