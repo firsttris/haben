@@ -29,6 +29,15 @@ describe("ohneDateiBestaetigbar", () => {
     expect(ohneDateiBestaetigbar({ source: "accountable", lexofficeId: "accountable/row/903", type: "purchaseinvoice", guid: null })).toBe(true);
   });
 
+  it("lässt eine Buchung nicht bestätigen, zu der Accountable ein Dokument führt (Spalte Y „Dokument Vorhanden“)", () => {
+    // Sammelrechnung: Y steht an jeder Zeile der Rechnung, die Datei hängt nur an einer; ein Einzelbeleg existiert also
+    const zeile = { source: "accountable", lexofficeId: "accountable/row/904", type: "purchaseinvoice", guid: null };
+    expect(ohneDateiBestaetigbar({ ...zeile, documentPresent: true })).toBe(false);
+    expect(ohneDateiBestaetigbar({ ...zeile, documentPresent: false })).toBe(true);
+    // Ohne Daten.xlsx sagt die Quelle nichts: es bleibt bei der Beleg-GUID
+    expect(ohneDateiBestaetigbar({ ...zeile, documentPresent: null })).toBe(true);
+  });
+
   it("lehnt Ausgangsrechnungen aus dem Accountable-Stapel ab", () => {
     expect(ohneDateiBestaetigbar({ source: "accountable", lexofficeId: "accountable/row/200", type: "salesinvoice" })).toBe(false);
   });

@@ -15,7 +15,7 @@ let dateistand: Dateistand;
 let dbm: DbModul;
 let importId: string;
 
-async function beleg(lexofficeId: string, type: string, ohneBeleg: boolean, guid: string | null = null): Promise<string> {
+async function beleg(lexofficeId: string, type: string, ohneBeleg: boolean, guid: string | null = null, extra: Record<string, unknown> = {}): Promise<string> {
   const [row] = await dbm.db
     .insert(dbm.schema.lexofficeVouchers)
     .values({
@@ -31,7 +31,7 @@ async function beleg(lexofficeId: string, type: string, ohneBeleg: boolean, guid
       gross: 0,
       taxes: [],
       categories: [],
-      raw: { ohneBeleg, guid },
+      raw: { ohneBeleg, guid, ...extra },
     })
     .returning({ id: dbm.schema.lexofficeVouchers.id });
   return row!.id;
@@ -85,6 +85,13 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Beleg ohne Datei bestätigen", ()
   it("lässt eine Buchung mit Beleg-GUID nicht bestätigen", async () => {
     const voucher = await beleg("accountable/row/914", "purchaseinvoice", true, "guid-914");
     await expect(dateistand.confirmWithoutFile("test-user", voucher, "")).rejects.toThrow("Beleg-GUID");
+  });
+
+  it("lässt eine Buchung ohne GUID nicht bestätigen, wenn Accountable ein Dokument führt", async () => {
+    // Daten.xlsx, Spalte Y: zu der Rechnung gibt es eine Datei (Sammelrechnung, die Datei hängt an einer anderen Zeile)
+    const voucher = await beleg("accountable/row/915", "purchaseinvoice", true, null, { documentPresent: true });
+    await expect(dateistand.confirmWithoutFile("test-user", voucher, "")).rejects.toThrow("Dokument vorhanden");
+    expect(await staende(voucher)).toHaveLength(0);
   });
 
   it("lässt eine Ausgangsrechnung nicht ohne Datei bestätigen", async () => {
