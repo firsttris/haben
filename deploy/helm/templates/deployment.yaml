@@ -132,6 +132,10 @@ spec:
         - name: tmp
           emptyDir:
             medium: Memory
+            {{- with .Values.app.tmpSizeLimit }}
+            {{- include "haben.text" (list "app.tmpSizeLimit" .) }}
+            sizeLimit: {{ . | quote }}
+            {{- end }}
         - name: belege
           persistentVolumeClaim:
             claimName: {{ include "haben.fullname" . }}-belege
