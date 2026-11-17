@@ -345,7 +345,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 
 ## Neues Bankformat
 
-Die Parser liegen in `packages/import/src/`. Ohne eigenen Parser liest Haben eine CSV über die [Spaltenzuordnung](bank.md#andere-banken-spalten-zuordnen) (`bank-zuordnung/`); ein eigener Parser lohnt sich für verbreitete Banken und für alles, was eine Zuordnung nicht kann: eigene IBAN und Kontostand aus dem Kopfblock, Referenzen aus einem Buchungstext.
+Die Parser liegen in `packages/import/src/`. Ohne eigenen Parser liest Haben eine CSV über die [Spaltenzuordnung](bank-spaltenzuordnung.md) (`bank-zuordnung/`); ein eigener Parser lohnt sich für verbreitete Banken und für alles, was eine Zuordnung nicht kann: eigene IBAN und Kontostand aus dem Kopfblock, Referenzen aus einem Buchungstext.
 
 1. Eigene Datei anlegen, z. B. `meinebank.ts`, mit einer Erkennungsfunktion für die Kopfzeile (`isMeinebankHeader`) und einem Parser, der ein `ParsedStatement` liefert. `dkb.ts` und `n26.ts` sind gute Vorlagen; Hilfen für Beträge, Datum und IBAN stehen in `text.ts`, `table.ts` und `common.ts`.
 2. Das Format in `StatementFormat` in `types.ts` ergänzen.

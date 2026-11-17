@@ -60,7 +60,7 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 | Shopify Payments | Transaktionsexport mit Payout ID, Payout Date, Amount, Fee, Net | nein, wie oben | wie oben |
 | eBay | Transaktionsbericht (CSV), Spalten deutsch (Datum der Transaktionserstellung, Typ, Nettobetrag, Auszahlung Nr.) oder englisch (Transaction creation date, Type, Net amount, Payout ID) | nein, wie oben | wie oben |
 | Etsy | Monatsabrechnung (CSV), Spalten deutsch (Datum, Art, Titel, Info, Betrag, Gebühren & Steuern, Netto) oder englisch (Date, Type, Title, Info, Amount, Fees & Taxes, Net) | nein, wie oben | wie oben |
-| Andere Bank (CSV) | Jede andere CSV mit Kopfzeile; die Spalten ordnest du einmal selbst zu ([Andere Banken](#andere-banken-spalten-zuordnen)) | nein | nein |
+| Andere Bank (CSV) | Jede andere CSV mit Kopfzeile; die Spalten ordnest du einmal selbst zu ([Andere Banken](bank-spaltenzuordnung.md)) | nein | nein |
 
 Bank und Format erkennt Haben am Inhalt, nicht am Dateinamen. CAMT.052 und CAMT.054 werden mit einer eigenen Meldung abgelehnt; nur der Tagesauszug CAMT.053 wird gelesen.
 
@@ -75,24 +75,12 @@ Beim Lesen gilt außerdem:
 - C24-CSV: Der Export (`Transaktionen.csv`) enthält die Umsätze eines Kontos oder einer Pocket. Gegenseite ist in beiden Richtungen die Spalte „Zahlungsempfänger“; der Zweck setzt sich aus Verwendungszweck und Beschreibung zusammen, bei Kartenzahlungen steht dort der Text des Händlers. Die eigene IBAN nennt die Datei nicht, nur die Kontonummer: Lege das Konto vorher an und wähle es beim Import aus (wie bei N26). Umbuchungen zwischen Pockets nennen keine Gegen-IBAN; den [Geldtransit](#vorschläge-ohne-rechnung-und-geldtransit) schlägt Haben dort nicht von selbst vor, du wählst ihn im Abgleich. Eine Datei mit Umsätzen mehrerer Konten lehnt Haben ab; exportiere je Konto bzw. Pocket eine Datei.
 - Fremdwährungen in der Datei werden gemeldet; Bankkonten führt Haben nur in Euro. Rechnungen und Belege in Fremdwährung gleichst du mit dem Euro-Betrag aus (siehe [Kursdifferenz](#kursdifferenz-bei-fremdwährung)).
 
-### Andere Banken: Spalten zuordnen
-
-Erkennt Haben eine CSV nicht, meldet es „Haben kennt diese Bank nicht“ mit dem Knopf **Spalten zuordnen**. Im Dialog wählst du das **Konto**; die Datei nennt keine eigene IBAN, Konten von Zahlungsdienstleistern stehen nicht zur Wahl. Kopfzeile, Spalten und Zahlenformat schlägt Haben vor:
-
-- **Buchungstag und Betrag** sind Pflicht. Der Betrag steht in einer Spalte mit Vorzeichen oder in zwei Spalten für Soll und Haben; Soll gilt als Ausgang, auch ohne Minus.
-- **Gegenseite:** Name, IBAN und Verwendungszweck. Eine IBAN übernimmt Haben nur mit gültiger Prüfziffer.
-- **Weitere Spalten** (Wertstellung, Währung, Buchungsart, Referenz), **Kopfzeile** und **Zahlenformat** (`1.234,56` oder `1,234.56`) sind eingeklappt. Als Kopfzeile schlägt Haben die erste Zeile ohne Datum mit den meisten gefüllten Zellen vor, auch hinter einem Kopfblock wie „Umsätze Girokonto“ oder „Zeitraum …“.
-
-Jede Auswahl zeigt neben dem Spaltennamen einen Wert aus der Datei, die Vorschau darüber rechnet nach jeder Änderung neu. Zeilen mit Fehlern übernimmt Haben nicht; sie stehen in der Vorschau oben und nach dem Import als Hinweis. Das sind etwa ein Kontostand am Ende der Datei, eine Zeile mit Soll und Haben zugleich, ein Betrag von 0,00 € und eine andere Währung als Euro: Bankkonten führt Haben nur in Euro.
-
-Haben speichert die Zuordnung am Konto und sagt es in der Meldung nach dem Import. Der nächste Export mit genau derselben Kopfzeile geht ohne Dialog durch, wenn du beim Import das Konto wählst; [Dubletten](#dubletten) erkennt Haben dabei wie bei jeder anderen Datei. An dessen Meldung steht **Zuordnung ändern**: Der Dialog öffnet sich mit der gespeicherten Zuordnung, und eine geänderte gilt ab diesem Import. Änderst du Buchungstag, Betrag, IBAN oder Verwendungszweck, weist der Dialog darauf hin, dass Haben schon importierte Umsätze dann nicht mehr als Dubletten erkennt. Ändert die Bank ihre Spalten, erscheint der Dialog wieder. Salden nennt die Zuordnung nicht, die [Saldenprüfung](#saldenprüfung) entfällt.
-
 ## So gehst du vor
 
 1. Bei deiner Bank die Umsätze als CSV oder CAMT.053 exportieren.
 2. Unter **Bank** auf **CSV / CAMT importieren** klicken und eine oder mehrere Dateien wählen (bis 50 Dateien auf einmal, bis 20 MB je Datei).
 3. Haben meldet je Datei „… neue Umsätze für …“ und wie viele schon vorhanden waren, dazu Hinweise und eine eventuelle Lücke.
-   Kennt Haben die Bank nicht, ordnest du die Spalten einmal zu ([Andere Banken](#andere-banken-spalten-zuordnen)).
+   Kennt Haben die Bank nicht, ordnest du die Spalten einmal zu ([Andere Banken](bank-spaltenzuordnung.md)).
 4. Links die offenen Umsätze durchgehen, rechts zuordnen.
 
 ### Konto
