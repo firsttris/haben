@@ -22,7 +22,7 @@ Beleg und Formular stehen nebeneinander, wenn die Fläche neben der Seitenleiste
 5. Unter **Bezahlung** wählen, ob der Beleg über das Geschäftskonto, privat oder bar aus der Kasse bezahlt wurde (siehe [Bezahlung](belege-bezahlen.md#bezahlung)).
 6. **Bestätigen und buchen**, dann im Dialog **Buchen**. Ungespeicherte Änderungen werden dabei vorher gespeichert.
 
-Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen.
+Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen. Hinter **Bestätigen und buchen** öffnet das Menü **⋯** weitere Aktionen, derzeit **Mit KI neu auslesen** (nur mit eingerichteter KI-Auslesung).
 
 ## Hochladen
 
@@ -182,7 +182,7 @@ Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 - Der Hinweis der KI zu unklaren Stellen.
 - Beim eigenen Modell: Das PDF hatte mehr Seiten als ausgelesen wurden; mit `EXTRACTION_INPUT=text` auch Seiten ohne Text und ein gekürzter Text.
 
-Die KI bucht nie selbst. Jeder ausgelesene Beleg bleibt im Status „Zu prüfen“, bis du ihn mit **Bestätigen und buchen** bestätigst. Mit **Mit KI neu auslesen** kannst du die Auslesung wiederholen, solange der Beleg nicht gebucht ist; dabei werden die Felder überschrieben und eine Aufteilung auf mehrere Kategorien verworfen. Fehler (ungültiger Schlüssel, Auslastung, keine Verbindung, Zeitüberschreitung, unbekanntes Modell, Antwort im falschen Format, abgelehnte Auslesung) stehen am Beleg, der dann den Status „Prüfen“ trägt.
+Die KI bucht nie selbst. Jeder ausgelesene Beleg bleibt im Status „Zu prüfen“, bis du ihn mit **Bestätigen und buchen** bestätigst. Mit **Mit KI neu auslesen** im Menü **⋯** neben **Bestätigen und buchen** kannst du die Auslesung wiederholen, solange der Beleg nicht gebucht ist; dabei werden die Felder überschrieben und eine Aufteilung auf mehrere Kategorien verworfen. Fehler (ungültiger Schlüssel, Auslastung, keine Verbindung, Zeitüberschreitung, unbekanntes Modell, Antwort im falschen Format, abgelehnte Auslesung) stehen am Beleg, der dann den Status „Prüfen“ trägt.
 
 Bei der Kategorie haben die gebuchten Belege desselben Lieferanten Vorrang vor dem Vorschlag der KI: Haben nimmt die Kategorie, unter der sie am häufigsten gebucht sind, bei Gleichstand die zuletzt gebuchte. So wechselt der Vorschlag nicht, nur weil ein Lieferant wie Amazon einmal etwas anderes geliefert hat. Wie das gezählt wird, steht unter [Vorschläge aus früheren Belegen](#vorschläge-aus-früheren-belegen).
 
@@ -346,7 +346,7 @@ Vorgaben je Kategorie stellst du in den [Einstellungen](einrichtung.md#privatant
 
 ## Buchen
 
-Vor dem Buchen müssen Lieferant, Belegdatum und Kategorie (oder eine stimmige [Aufteilung](#auf-mehrere-kategorien-aufteilen)) gesetzt sein und mindestens ein Betrag eingetragen sein; bei einer Fremdwährung auch der Umrechnungskurs. Fehlt etwas, steht oberhalb der Knöpfe „Vor dem Buchen: …“.
+Vor dem Buchen müssen Lieferant, Belegdatum und Kategorie (oder eine stimmige [Aufteilung](#auf-mehrere-kategorien-aufteilen)) gesetzt sein und mindestens ein Betrag eingetragen sein; bei einer Fremdwährung auch der Umrechnungskurs. Fehlt etwas, steht oberhalb der Knöpfe „Vor dem Buchen: …“. Der Hinweis bleibt auch stehen, während du Änderungen eingibst; dann nennt er den Stand der letzten Speicherung.
 
 Beim Buchen legt Haben einen Buchungssatz mit dem Belegdatum an, schreibt ihn fest und sperrt den Beleg. Ab dann lehnen Datenbank-Trigger jede Änderung am Beleg, an seinen Beträgen und an seiner Aufteilung ab.
 

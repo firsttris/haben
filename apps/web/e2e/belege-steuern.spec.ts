@@ -3442,6 +3442,39 @@ test("Beleg prüfen: Kategorien stehen in Gruppen, ein Beispiel hilft bei der Wa
   await expect(page).not.toHaveURL(belegUrl);
 });
 
+test("Beleg prüfen: Der Hinweis „Vor dem Buchen“ bleibt bei Änderungen stehen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "hinweis.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Druckhaus Elbe GmbH") }]);
+  await expect(page.getByText("hinweis.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /hinweis\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const hinweis = page.locator(".doc-editor .banner").filter({ hasText: "Vor dem Buchen:" });
+  await expect(hinweis).toContainText("Lieferant fehlt");
+  await expect(hinweis).not.toContainText("Stand der letzten Speicherung");
+  // Eine Änderung nimmt den Hinweis nicht weg; er sagt, dass er den letzten gespeicherten Stand meint
+  await page.getByLabel("Rechnungsnummer").fill("DE-2026-17");
+  await expect(hinweis).toContainText("Lieferant fehlt");
+  await expect(hinweis).toContainText("Stand der letzten Speicherung.");
+  // Nach dem Speichern gilt er wieder für den Beleg, wie er jetzt ist
+  await page.getByLabel("Lieferant", { exact: true }).fill("Druckhaus Elbe GmbH");
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(hinweis).not.toContainText("Lieferant fehlt");
+  await expect(hinweis).not.toContainText("Stand der letzten Speicherung");
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
 test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);

@@ -47,6 +47,7 @@ import { Field } from "../../../components/Field.tsx";
 import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
 import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
+import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
 import { WeitereAngaben, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
@@ -1147,10 +1148,13 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         )}
       </fieldset>
 
-      {!readOnly && issues.length > 0 && !dirty && (
+      {/* Bleibt auch bei Änderungen stehen; beim Speichern oder Buchen prüft der Server neu */}
+      {!readOnly && issues.length > 0 && (
         <div className="banner" role="status">
           <Icon name="alert" />
-          <span>Vor dem Buchen: {issues.join(", ")}.</span>
+          <span>
+            Vor dem Buchen: {issues.join(", ")}.{dirty && " Stand der letzten Speicherung."}
+          </span>
         </div>
       )}
       <ConfirmDialog
@@ -1187,14 +1191,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <button type="submit" className="btn" disabled={busy || running || !dirty}>
             Speichern
           </button>
-          {aiAvailable && doc.mimeType !== "application/xml" && doc.mimeType !== "image/heic" && (
-            <button type="button" className="btn" onClick={onReextract} disabled={busy || running}>
-              Mit KI neu auslesen
-            </button>
-          )}
           <button type="button" className="btn btn-primary" onClick={() => pruefen() && setConfirming(true)} disabled={busy || running} title={buchenText}>
             Bestätigen und buchen
           </button>
+          {aiAvailable && doc.mimeType !== "application/xml" && doc.mimeType !== "image/heic" && (
+            <MoreActionsMenu items={[{ key: "ki", label: "Mit KI neu auslesen", disabled: busy || running, onSelect: () => void onReextract() }]} />
+          )}
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
             <input type="checkbox" checked={continueAfterBooking} onChange={(e) => writeContinuePreference(e.target.checked)} />
             Nach dem Buchen zum nächsten offenen Beleg
