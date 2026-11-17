@@ -68,7 +68,7 @@ Kapitel der Doku und in den [Releases](https://github.com/firsttris/haben/releas
 
 | Thema | Was fehlt |
 | --- | --- |
-| Bescheide automatisch prüfen | Die Liste der Bescheidwertnummern, um festgesetzte Steuer und neue Vorauszahlungen aus den Bescheiddaten (ESB) zu lesen und mit der Erklärung zu vergleichen. Das Satzformat steht im ERiC-Entwicklerhandbuch (Kap. 15.4), die Liste (`Bescheidnr_*.zip`) laut Handbuch nur im ELSTER-Entwicklerbereich. Automatischer Abruf und Einspruchsfrist sind fertig ([Finanzamt](finanzamt.md#automatisch-abrufen)) |
+| Bescheide automatisch prüfen | Die Liste der Bescheidwertnummern, um festgesetzte Steuer und neue Vorauszahlungen aus den Bescheiddaten (ESB) zu lesen und mit der Erklärung zu vergleichen. Das Satzformat steht im ERiC-Entwicklerhandbuch (Kap. 15.4), die Liste (`Bescheidnr_*.zip`) laut Handbuch (Kap. 9.1) im ELSTER-Entwicklerbereich, nicht im Dokumentationspaket. Automatischer Abruf und Einspruchsfrist sind fertig ([Finanzamt](finanzamt.md#automatisch-abrufen)) |
 | Lohnsteuerbescheinigung ab 2026 über ERiC | Die Schnittstelle der LSTMitteilung (Verfahren ElsterKMV), die ab 2026 die Datenart LStB ablöst; sie steht nur auf esteuer.de, nicht im ERiC-Paket. Bis dahin übermittelst du im ELSTER-Portal und vermerkst die Übermittlung ([Lohn](lohn.md#lohnsteuerbescheinigung)) |
 
 Schemas und Feldlisten der Datenarten, die ERiC kennt, stehen in der **Jahresdokumentation** der Finanzverwaltung. Sie liegt ohne Anmeldung neben den ERiC-Paketen auf download.elster.de, als `ERiC-<Version>-Dokumentation.zip` im Ordner der Hauptversion (für 44.3.6.0: [`eric_44/ERiC-44.3.6.0-Dokumentation.zip`](https://download.elster.de/download/eric/eric_44/ERiC-44.3.6.0-Dokumentation.zip)).
