@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import zeitraeume from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/vat-report-zeitraeume.json" with { type: "json" };
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * Übermittelte Voranmeldungen aus sevDesk (#472): nur Archiv mit Protokoll, ohne Wirkung auf die Voranmeldungen in
@@ -14,19 +15,11 @@ const PDF = (text: string) => new TextEncoder().encode(`%PDF-1.4\n% ${text}\n%%E
 const REPORTS = zeitraeume.objects as Record<string, unknown>[];
 const TESTFALL = { ...REPORTS[0]!, id: "ID_90", testCase: "1", document: { id: "ID_91", objectName: "Document" } };
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
-
 function fakeApi(reports: unknown[], ohneProtokoll: string[] = [], vatReportFehler = false) {
   const calls: string[] = [];
-  const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const path = url.pathname.replace(/^\/api\/v1/, "");
+  const fetchFn = sevdeskFakeFetch(({ path, list, headers }) => {
     calls.push(path);
-    if (new Headers(init?.headers).get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
-    const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
-    if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "1.0" } });
+    if (headers.get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
     if (path === "/VatReport") return vatReportFehler ? json({ error: { message: "kaputt" } }, 500) : list(reports);
     const download = /^\/Document\/(\w+)\/download$/.exec(path);
     if (download) {
@@ -35,8 +28,7 @@ function fakeApi(reports: unknown[], ohneProtokoll: string[] = [], vatReportFehl
       return json({ objects: { filename: "x", mimetype: "application/pdf", base64Encoded: true, content: Buffer.from(PDF(download[1]!)).toString("base64") } });
     }
     if (path.startsWith("/") && !path.slice(1).includes("/")) return list([]);
-    return json({ error: { message: `unbekannt ${path}` } }, 404);
-  }) as typeof fetch;
+  });
   return { fetchFn, calls };
 }
 
