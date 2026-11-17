@@ -248,7 +248,7 @@ function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): stri
     case "ig_lieferung":
       return "Nur für Ware an ein Unternehmen in einem anderen EU-Land mit dessen USt-IdNr. Den Gelangensnachweis (§ 17a UStDV) zur Rechnung aufbewahren; Haben meldet Kz 41 und die Zusammenfassende Meldung.";
     case "ausfuhr":
-      return "Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§§ 8–11 UStDV). Dienstleistungen ins Drittland sind „Leistung ins Nicht-EU-Ausland“.";
+      return "Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§§ 8–11 UStDV). Dienstleistungen ins Drittland sind „Dienstleistung ins Nicht-EU-Ausland“.";
     default:
       return kleinunternehmer ? "Die Kleinunternehmerregelung lässt eine eigene Befreiung oder einen geklärten ausländischen Leistungsort zu." : undefined;
   }

@@ -35,6 +35,13 @@ describe("Gemeinsame Steuerfelder der Ausgangsbelege", () => {
     expect(select).not.toContain("disabled");
   });
 
+  it("nennt in der Auswahl den Klartext vor dem Paragrafen", () => {
+    const select = treatmentSelect(render({ kleinunternehmer: false, treatment: "regulaer" }));
+    expect(select).toContain(">Dienstleistung an ein Unternehmen im EU-Ausland (Reverse Charge)</option>");
+    expect(select).toContain(">Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht (§ 4 UStG)</option>");
+    expect(treatmentSelect(render())).toContain(">Kleinunternehmer: ohne Umsatzsteuer (§ 19 UStG)</option>");
+  });
+
   it("hält eine unzulässige bisherige Behandlung sichtbar, gibt sie aber nicht neu frei", () => {
     const html = render({ treatment: "ig_lieferung" });
     expect(treatmentSelect(html)).toMatch(/<option value="ig_lieferung" disabled="" selected="">/);

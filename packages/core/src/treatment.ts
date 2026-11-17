@@ -14,13 +14,13 @@ export const TAX_TREATMENTS = {
     note: null,
   },
   reverse_charge: {
-    label: "Reverse Charge: Leistung an Unternehmen im EU-Ausland",
+    label: "Dienstleistung an ein Unternehmen im EU-Ausland (Reverse Charge)",
     category: "AE",
     reasonCode: "VATEX-EU-AE",
     note: "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL).",
   },
   drittland: {
-    label: "Leistung ins Nicht-EU-Ausland (im Inland nicht steuerbar)",
+    label: "Dienstleistung ins Nicht-EU-Ausland (in Deutschland nicht steuerbar)",
     category: "O",
     reasonCode: "VATEX-EU-O",
     note: "Im Inland nicht steuerbare Leistung (Leistungsort im Drittland).",
@@ -29,7 +29,7 @@ export const TAX_TREATMENTS = {
   // Nur ohne auszuweisende ausländische Umsatzsteuer; EU-B2C ist kein B2B-Reverse-Charge.
   // https://www.gesetze-im-internet.de/ustg_1980/__3a.html
   eu_sonstige: {
-    label: "Sonstige Leistung im EU-Ausland (nicht im Inland steuerbar)",
+    label: "Dienstleistung im EU-Ausland ohne Reverse Charge (in Deutschland nicht steuerbar)",
     category: "O",
     reasonCode: "VATEX-EU-O",
     note: "Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland).",
@@ -37,7 +37,7 @@ export const TAX_TREATMENTS = {
   // Lieferung eines Gegenstands an einen Unternehmer in einem anderen EU-Mitgliedstaat (§ 4 Nr. 1 Buchst. b, § 6a UStG):
   // Steuerkategorie K „Intra-community supply“ mit Befreiungscode VATEX-EU-IC (EN 16931, Codeliste VATEX)
   ig_lieferung: {
-    label: "Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG)",
+    label: "Warenlieferung an ein Unternehmen im EU-Ausland, steuerfrei (innergemeinschaftliche Lieferung, § 4 Nr. 1 Buchst. b UStG)",
     category: "K",
     reasonCode: "VATEX-EU-IC",
     note: "Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG).",
@@ -45,19 +45,19 @@ export const TAX_TREATMENTS = {
   // Lieferung eines Gegenstands ins Drittland (§ 4 Nr. 1 Buchst. a, § 6 UStG): Kategorie G „Free export item, VAT not
   // charged“ mit VATEX-EU-G. Sonstige Leistungen ins Drittland sind nicht steuerbar, siehe „drittland“.
   ausfuhr: {
-    label: "Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG)",
+    label: "Warenlieferung ins Nicht-EU-Ausland, steuerfrei (Ausfuhrlieferung, § 4 Nr. 1 Buchst. a UStG)",
     category: "G",
     reasonCode: "VATEX-EU-G",
     note: "Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG).",
   },
   steuerfrei: {
-    label: "Steuerfrei nach § 4 UStG",
+    label: "Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht (§ 4 UStG)",
     category: "E",
     reasonCode: null,
     note: "Steuerfreie Leistung nach § 4 UStG.",
   },
   kleinunternehmer: {
-    label: "Kleinunternehmer nach § 19 UStG",
+    label: "Kleinunternehmer: ohne Umsatzsteuer (§ 19 UStG)",
     category: "E",
     reasonCode: null,
     note: "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
@@ -121,7 +121,7 @@ export function treatmentIssues(
 ): string[] {
   if (treatment === "regulaer") return [];
   const issues: string[] = [];
-  if (input.rates.some((rate) => rate !== 0)) issues.push(`${TAX_TREATMENTS[treatment].label}: alle Positionen müssen 0 % haben`);
+  if (input.rates.some((rate) => rate !== 0)) issues.push("Bei dieser Umsatzsteuer müssen alle Positionen 0 % haben");
   const country = input.buyerCountry?.toUpperCase();
   if (treatment === "reverse_charge") {
     if (!input.sellerUstId?.trim()) issues.push("Reverse Charge braucht deine USt-IdNr. in den Firmendaten");

@@ -23,8 +23,21 @@ describe("treatmentIssues", () => {
     expect(treatmentIssues("steuerfrei", { rates: [0], exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG" })).toEqual([]);
   });
 
+  it("ohne 0 % in allen Positionen sagt die Meldung es, ohne den langen Namen der Auswahl zu wiederholen", () => {
+    expect(treatmentIssues("drittland", { rates: [1900] })).toEqual(["Bei dieser Umsatzsteuer müssen alle Positionen 0 % haben"]);
+  });
+
   it("regulär prüft nichts", () => {
     expect(treatmentIssues("regulaer", { rates: [1900, 0] })).toEqual([]);
+  });
+});
+
+describe("Namen in der Auswahl", () => {
+  it("sind eindeutig, und der Paragraf steht hinter dem Klartext", () => {
+    const labels = Object.values(TAX_TREATMENTS).map((treatment) => treatment.label);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels.filter((label) => label.startsWith("§"))).toEqual([]);
+    expect(TAX_TREATMENTS.kleinunternehmer.label).toContain("(§ 19 UStG)");
   });
 });
 
