@@ -1,5 +1,5 @@
-import { isKapitalgesellschaft, type Cents, type EuerResult, LOHN_ZAHLUNGEN, documentOpen, periodKey, vatPostenLabel } from "@haben/core";
-import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { isKapitalgesellschaft, type Cents, type EuerResult, LOHN_ZAHLUNGEN, documentOpen, periodKey, postenOf, vatPostenLabel } from "@haben/core";
+import { and, eq, gte, inArray, isNull, lt, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { euerAusDemJournal } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -62,13 +62,25 @@ export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerRe
 }
 
 /**
- * Einnahmen eines Monats (`JJJJ-MM`) netto, wie in der Monatsgrafik der Auswertungen: aus dem Journal, also auch aus
- * Buchungen ohne Rechnung in Haben, etwa aus dem Datenimport (#1116). Für die Kachel „Umsatz“ der Übersicht.
+ * Umsatz eines Monats (`JJJJ-MM`) netto für die Kachel der Übersicht: Saldo der Konten im Posten „1. Umsatzerlöse“ der
+ * GuV (§ 277 Abs. 1 HGB, Zuordnung nach dem DATEV-Kontenrahmen, postenOf) nach Buchungsdatum, in Einzelunternehmen
+ * und GmbH gleich. Rechnungen aus Haben sind gebucht und zählen mit, ebenso Buchungen aus dem Datenimport (#1116);
+ * Stornos, Gutschriften und Erlösschmälerungen mindern. Zinsen, Mahn- und Kurserträge sind sonstige Erträge und fehlen.
  */
-export async function einnahmenImMonat(monat: string, q: Db | Tx = db): Promise<Cents> {
+export async function umsatzImMonat(monat: string, q: Db | Tx = db): Promise<Cents> {
   const teile = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(monat);
   if (!teile) throw new Error(`Monat ${monat} ist nicht JJJJ-MM`);
-  return (await euerForYear(Number(teile[1]), q)).monthly.einnahmen[Number(teile[2]) - 1]!;
+  const [jahr, m] = [Number(teile[1]), Number(teile[2])];
+  const bis = m === 12 ? `${jahr + 1}-01-01` : `${jahr}-${String(m + 1).padStart(2, "0")}-01`;
+  const e = schema.journalEntries;
+  const l = schema.journalLines;
+  const rows = await q
+    .select({ kontenrahmen: e.kontenrahmen, account: l.account, haben: sql<string>`sum(${l.credit} - ${l.debit})` })
+    .from(l)
+    .innerJoin(e, eq(l.entryId, e.id))
+    .where(and(gte(e.date, `${monat}-01`), lt(e.date, bis), ne(e.sourceType, "eroeffnung")))
+    .groupBy(e.kontenrahmen, l.account);
+  return rows.filter((r) => postenOf(r.kontenrahmen, r.account) === "umsatzerloese").reduce((sum, r) => sum + Number(r.haben), 0);
 }
 
 export interface OpenPosition {

@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { invoicePaymentList, listAccounts, listWriteOffs } from "../modules/bank/index.ts";
-import { einnahmenImMonat, openPositions } from "../modules/auswertungen/index.ts";
+import { openPositions, umsatzImMonat } from "../modules/auswertungen/index.ts";
 import { deliverSoon, deliveryForInvoice } from "../modules/ablage/index.ts";
 import { serviceEntriesOfInvoice } from "../modules/leistungen/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
@@ -67,11 +67,10 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
   .handler(async () => {
     const now = today();
     const [accounts, open, summary] = await Promise.all([listAccounts(), openPositions(now), invoiceSummary(now)]);
-    // Umsatz des Vormonats aus dem Journal: zählt auch Buchungen ohne Rechnung in Haben, etwa aus dem Datenimport
-    const revenuePreviousMonthBooked = await einnahmenImMonat(summary.revenuePreviousMonth.key);
     return {
       ...summary,
-      revenuePreviousMonthBooked,
+      // Umsatzerlöse des Vormonats aus dem Journal, auch aus Buchungen ohne Rechnung in Haben, etwa aus dem Datenimport
+      revenuePreviousMonthBooked: await umsatzImMonat(summary.revenuePreviousMonth.key),
       // Offene Verbindlichkeiten wie in den Auswertungen: gebuchte, über die Bank zu zahlende Belege
       payables: {
         total: open.payablesTotal,

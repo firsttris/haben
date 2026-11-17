@@ -11,11 +11,11 @@ export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefw
 export { runDueFileCheck, runFileCheck, type FileCheck, type FileProblem } from "./file-integrity.ts";
 export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type ZehnTageKennzeichen } from "./euer-jahreswechsel.ts";
 export {
-  einnahmenImMonat,
   euerForYear,
   lohnZahlungenUmJahreswechsel,
   openPositions,
   reportYears,
+  umsatzImMonat,
   umsatzsteuerVorjahreUmJahreswechsel,
   type OpenPosition,
 } from "./reports.ts";

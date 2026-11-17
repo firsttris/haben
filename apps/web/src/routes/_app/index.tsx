@@ -267,10 +267,7 @@ function OverviewPage() {
         <div className="card">
           <div className="kpi-label">Umsatz {periodLabel(data.previousMonth).split(" ")[0]} (netto)</div>
           <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonthBooked)}</div>
-          <div className="small muted">
-            laut Buchungen
-            {data.invoices.revenuePreviousMonth.net !== 0 ? ` · Rechnungen ${formatEuro(data.invoices.revenuePreviousMonth.net)}` : ""}
-          </div>
+          <div className="small muted">Erlöse nach Buchungsdatum</div>
         </div>
         {showVatPeriod && (
           <div className="card">
