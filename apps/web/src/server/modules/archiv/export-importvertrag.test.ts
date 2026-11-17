@@ -128,6 +128,46 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     expect(zeilen).toHaveLength(1);
   });
 
+  it("nimmt die Lieferung eines Umsatzes vom Jahresende auch ins Importprotokoll dieses Jahres", async () => {
+    const { storeBatch } = await import("../bank/import-batch.ts");
+    const { storeStatement } = await import("../bank/bank.ts");
+    const { db } = await import("../../db/index.ts");
+    const iban = "DE12500105170648489890";
+    const hash = "hash-jahresende";
+    const konto = { uid: "u3", account_id: { iban }, name: "Drittkonto" };
+    const lieferung = (transactions: EbTransaction[], dateFrom: string, dateTo: string, fetchId: string) => ({
+      batch: enableBankingBatch({ externalAccountId: hash, transactions, balances: [], dateFrom, dateTo, fetchedAt: `${dateTo}T23:00:00+01:00`, fetchId }),
+      binding: { provider: "enablebanking", externalAccountId: hash, accountKind: "bank" as const },
+      statement: enableBankingStatement({ account: konto, transactions, balances: [], dateFrom, dateTo }),
+      eventOf: entryReferenceOf(transactions),
+      source: { filename: `Abruf Testbank ${dateTo}`, sha256: fetchId.padEnd(64, "0") },
+    });
+    // Bindung im Dezember, danach eine Datei für die letzten Tage des Jahres (etwa eine Lücke)
+    await db.transaction((t) => storeBatch(t, lieferung([buchung("ER-31", "2026-12-05", "31.00")], "2026-12-01", "2026-12-20", "a1"), null));
+    const datei = {
+      ...enableBankingStatement({
+        account: konto,
+        transactions: [buchung("ER-32", "2026-12-30", "32.00")],
+        balances: [],
+        dateFrom: "2026-12-21",
+        dateTo: "2026-12-31",
+      }),
+      format: "camt053" as const,
+    };
+    await db.transaction((t) => storeStatement(t, datei, { filename: "dezember.xml", sha256: "d".repeat(64) }, null));
+    // Die Bank filtert nach Valuta: ER-32 vom 30.12. kommt im Januar vor dem Fenster und wird mit der Zeile der Datei verbunden
+    await db.transaction((t) => storeBatch(t, lieferung([buchung("ER-32", "2026-12-30", "32.00")], "2027-01-01", "2027-01-10", "b2"), null));
+    const [januar] = await sql<{ id: string }[]>`select bank_import_id as id from import_batches where fetch_id = 'b2'`;
+    const archiv2026 = await archiv(exporter, 2026);
+    expect(text(archiv2026["bank/quellen.csv"])).toContain(";ER-32;");
+    // Die Zeile in bank/quellen.csv nennt diese Lieferung; das Importprotokoll desselben Archivs muss sie enthalten
+    const importIds = text(archiv2026["bank/importe.csv"])
+      .trim()
+      .split(/\r?\n/)
+      .map((z) => z.split(";").at(-1));
+    expect(importIds).toContain(januar!.id);
+  });
+
   it("beschreibt die Datei in index.xml und nennt sie in der LIESMICH", () => {
     const xml = text(files["index.xml"]);
     const teil = xml.slice(xml.indexOf("<URL>bank/quellen.csv</URL>"), xml.indexOf("</Table>", xml.indexOf("<URL>bank/quellen.csv</URL>")));
