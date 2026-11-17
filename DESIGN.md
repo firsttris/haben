@@ -201,7 +201,7 @@ Am Handy wird aus dem `ConfirmDialog` (bis 640px) sowie aus der Überblendung `P
 - **Übereinander:** Sichtbar ist nur der Griff des oberen Blatts, denn zwei übereinander verwirren; den des unteren blendet `.preview-dialog[data-design] > .sheet-grip` aus. Wischen schließt nur das obere Blatt; das darunter bleibt über seinen Titel wischbar.
 - **Aufbau:** Kopf und Knöpfe stehen, nur der Inhalt dazwischen scrollt. Im `ConfirmDialog` sind die Knöpfe voll breit und 48px hoch, die Aktion über „Abbrechen“, unten mit Abstand für `env(safe-area-inset-bottom)`.
 
-Die Gestaltungskarte ist am Desktop eine Spalte neben dem Blatt (`.design-sheet` mit `display: contents`). Am Handy steht die Vorschau oben in einem Streifen von `32dvh`, und die Karte überlappt ihn um 16px, damit ihre gerundeten Ecken auf der Vorschau liegen.
+Die Gestaltungskarte ist am Desktop eine Spalte neben dem Blatt (`.design-sheet` mit `display: contents`). Ihre Abschnitte (Farbe, Schrift, Logo, Auf dem Blatt) trennt eine Haarlinie (`--line`) wie die Abschnitte eines Formulars. Größe und Stelle des Logos stehen in einer Zeile, auch am Handy. Am Handy steht die Vorschau oben in einem Streifen von `32dvh`, und die Karte überlappt ihn um 16px, damit ihre gerundeten Ecken auf der Vorschau liegen.
 
 ### Felder
 
