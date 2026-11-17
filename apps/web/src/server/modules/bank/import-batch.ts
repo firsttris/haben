@@ -1,5 +1,4 @@
-import { addDays } from "@haben/core";
-import { and, eq, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import {
   advanceCheckpoint,
   batchFingerprint,
@@ -18,6 +17,7 @@ import {
   withDedupHashes,
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
+import { connectedRanges, otherImports, otherRanges } from "./andere-importe.ts";
 import { BankError, type ImportResult, insertStatement, knownHashes, prepareStatement, statementResult } from "./bank.ts";
 
 /*
@@ -115,33 +115,6 @@ async function aliasCandidates(tx: Tx, accountId: string, source: { createdAt: D
   return new Map(rows.map((r) => [r.hash, r.id]));
 }
 
-/**
- * Umsätze aus Dateien und FinTS (nicht aus Enable Banking) an diesen Tagen, je Tag und Betrag. Deren Tage holt der Abruf
- * absichtlich nicht (`followUpStart`); liefert die Bank einen Umsatz mit so einem Tag vor dem Fenster mit, steht er meist
- * schon aus der Datei da, oft mit anders geschriebenem Verwendungszweck. Zeilen, die schon einer Bewegung gehören oder in
- * diesem Abruf per Alias eine bekommen, zählen nicht.
- */
-async function otherImports(tx: Tx, accountId: string, dates: string[], aliased: string[]): Promise<Map<string, string[]>> {
-  if (dates.length === 0) return new Map();
-  const rows = await tx
-    .select({ id: schema.bankTransactions.id, date: schema.bankTransactions.bookingDate, amount: schema.bankTransactions.amount })
-    .from(schema.bankTransactions)
-    .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
-    .where(
-      and(
-        eq(schema.bankTransactions.bankAccountId, accountId),
-        ne(schema.bankImports.format, "enablebanking"),
-        inArray(schema.bankTransactions.bookingDate, [...new Set(dates)]),
-        sql`not exists (select 1 from import_movements m where m.transaction_id = ${schema.bankTransactions.id})`,
-        ...(aliased.length > 0 ? [notInArray(schema.bankTransactions.id, aliased)] : []),
-      ),
-    )
-    .orderBy(schema.bankTransactions.createdAt, schema.bankTransactions.id);
-  const ids = new Map<string, string[]>();
-  for (const r of rows) ids.set(`${r.date}|${r.amount}`, [...(ids.get(`${r.date}|${r.amount}`) ?? []), r.id]);
-  return ids;
-}
-
 /** Bisheriges Ergebnis einer wiederholten Lieferung, ohne etwas neu zu speichern */
 async function replayResult(tx: Tx, account: { id: string; name: string }, previous: typeof schema.importBatches.$inferSelect): Promise<BatchResult> {
   const [imported] = await tx.select().from(schema.bankImports).where(eq(schema.bankImports.id, previous.bankImportId));
@@ -226,45 +199,6 @@ async function planRows(
   }
 
   return { insert, linked, fileDays };
-}
-
-/** Zeiträume der anderen Importe des Kontos: Zeitraum des Auszugs, ohne ihn erster bis letzter Buchungstag */
-async function otherRanges(tx: Tx, accountId: string, ownImportId: string): Promise<{ from: string; to: string }[]> {
-  const rows = await tx
-    .select({
-      from: sql<string | null>`coalesce(${schema.bankImports.periodFrom}, min(${schema.bankTransactions.bookingDate}))::text`,
-      to: sql<string | null>`coalesce(${schema.bankImports.periodTo}, max(${schema.bankTransactions.bookingDate}))::text`,
-    })
-    .from(schema.bankImports)
-    .leftJoin(schema.bankTransactions, eq(schema.bankTransactions.importId, schema.bankImports.id))
-    .where(
-      and(
-        eq(schema.bankImports.bankAccountId, accountId),
-        // Der Import dieses Abrufs hat noch keine Zeile in import_batches
-        ne(schema.bankImports.id, ownImportId),
-        sql`not exists (select 1 from import_batches b where b.bank_import_id = ${schema.bankImports.id})`,
-      ),
-    )
-    .groupBy(schema.bankImports.id);
-  return rows.filter((r): r is { from: string; to: string } => r.from !== null && r.to !== null && r.from <= r.to);
-}
-
-/** Die Zeiträume, die über andere hinweg lückenlos an das Fenster anschließen oder es überlappen */
-function connectedRanges(window: { from: string; to: string }, ranges: { from: string; to: string }[]) {
-  let { from, to } = window;
-  const rest = [...ranges];
-  const connected: { from: string; to: string }[] = [];
-  for (let i = rest.findIndex(touches); i >= 0; i = rest.findIndex(touches)) {
-    const [r] = rest.splice(i, 1);
-    connected.push(r!);
-    if (r!.from < from) from = r!.from;
-    if (r!.to > to) to = r!.to;
-  }
-  return connected;
-
-  function touches(r: { from: string; to: string }) {
-    return r.from <= addDays(to, 1) && r.to >= addDays(from, -1);
-  }
 }
 
 /** Lieferung, Abrufstand und Quellenidentitäten festhalten */
