@@ -346,6 +346,15 @@ test("Seiten nur von derselben Origin einbettbar", async () => {
   expect(html.headers()["x-frame-options"]).toBeUndefined();
 });
 
+test("Cache-Header: Seiten und Server-Funktionen nie in geteilte Caches", async () => {
+  const html = await page.request.get("/rechnungen");
+  expect(html.headers()["cache-control"]).toBe("private, no-store");
+  const serverFn = page.waitForResponse((r) => new URL(r.url()).pathname.startsWith("/_serverFn/") && r.request().method() === "GET");
+  await go("/rechnungen");
+  await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Belege", exact: true }).click();
+  expect((await serverFn).headers()["cache-control"]).toBe("private, no-store");
+});
+
 test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await go("/einstellungen?bereich=export");
   const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
