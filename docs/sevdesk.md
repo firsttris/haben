@@ -198,7 +198,9 @@ Nicht übernommen werden Vorlagen für Einnahmen, in anderer Währung als Euro, 
 
 ### Steuerarten im Abgleich
 
-Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in die Kennzahlen, wie bei Lexoffice:
+Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in die Kennzahlen. Die Regeln und ihre Kennzahlen nennt die [OpenAPI](https://api.sevdesk.de/openapi.yaml) unter „VAT rules“; die ältere taxType steht dort als Vorgänger.
+
+**Einnahmen:**
 
 | sevDesk | Abgleich |
 | --- | --- |
@@ -206,14 +208,24 @@ Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in d
 | Regel 2 „Ausfuhren“ | Kz 43 |
 | Regel 3 „Innergemeinschaftliche Lieferungen“ bzw. taxType `eu` | Kz 41 |
 | Regel 4 „Steuerfreie Umsätze § 4 UStG“, Regel 11 „§ 19 UStG“ bzw. taxType `ss` | Steuerfrei |
-| eigene Steuerart (taxType `custom`) | Kennzahlen der Steuerart |
-| Regel 17 „Nicht im Inland steuerbare Leistung“ | Kz 45 |
+| Regel 5 „Reverse Charge gem. § 13b UStG“ | Kz 60 |
+| Regel 17 „Nicht im Inland steuerbare Leistung“ bzw. taxType `noteu` | Kz 45 |
+| Regel 18 bis 20 „One Stop Shop“ | OSS, nicht in der Voranmeldung |
 | Regel 21 „Reverse Charge gem. § 18b UStG“ | Kz 21 |
-| Regel 5 „Reverse Charge § 13b“ und alles andere | Andere Sätze |
+| eigene Steuerart (taxType `custom`) | Kennzahlen der Steuerart |
+| alles andere | Andere Sätze |
 
-Regel 21 nennt die [OpenAPI](https://api.sevdesk.de/openapi.yaml) selbst „field 21 in VAT return“ (§ 18b Satz 1 Nr. 2 UStG); Regel 17 bucht sevDesk im DATEV-Export auf 8338 (SKR03), das Konto für nicht steuerbare Leistungen im Drittland.
+Regel 17 bucht sevDesk im DATEV-Export auf 8338 (SKR03), das Konto für nicht steuerbare Leistungen im Drittland ([#472](https://github.com/firsttris/haben/issues/472)). Ob eine Rechnung mit `noteu` eine Leistung oder eine Lieferung ins Drittland war, sagt sevDesk nicht; die OpenAPI ordnet `noteu` der Regel 17 zu. War es eine Ausfuhrlieferung, gehört sie in Kz 43: vergleiche solche Rechnungen mit der übermittelten Voranmeldung.
 
-Reverse Charge nach Regel 5 lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60 zuordnen; vergleiche diese Umsätze von Hand.
+**Ausgaben:** Vorsteuer Kz 66 wie im Beleg. Bei Reverse Charge rechnet Haben wie sevDesk 19 % auf das Netto:
+
+| sevDesk | Abgleich |
+| --- | --- |
+| Regel 12 „Reverse Charge gem. § 13b Abs. 2 UStG mit Vorsteuerabzug“ | Kz 84, 85 und 67 |
+| Regel 14 „Reverse Charge gem. § 13b Abs. 1 EU Umsätze“ | Kz 46, 47 und 67 |
+| Regel 8 „Innergemeinschaftliche Erwerbe“, Regel 13 „Reverse Charge gem. § 13b UStG ohne Vorsteuerabzug“ | noch keine eigenen Kennzahlen, nur Vorsteuer Kz 66 wie im Beleg |
+
+Grundstücksumsätze (§ 13b Abs. 2 Nr. 3 UStG) gehören in Kz 73/74; Regel 12 unterscheidet sie nicht, Haben zählt sie in Kz 84/85.
 
 **Eigene Steuerarten:** Ein Beleg mit taxType `custom` verweist per `taxSet` auf eine Steuerart, die in sevDesk die Kennzahlen der Voranmeldung nennt: `vatReportFieldNet` für die Bemessungsgrundlage, `vatReportFieldTax` für die Steuer, mehrere durch Komma. Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt nur taxType `custom` („Using custom tax set“), den Endpunkt `GET /TaxSet` beschreibt sie nicht; das Verhalten ist mit echten Antworten der Buchhaltungsversion 1.0 und 2.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Haben ruft die Steuerarten bei jedem Abruf ab (`GET /TaxSet`), speichert sie unverändert und nimmt im Abgleich die des jüngsten Abrufs, auch für früher abgerufene Belege.
 
