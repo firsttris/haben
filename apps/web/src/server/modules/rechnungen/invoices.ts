@@ -42,7 +42,7 @@ import {
   outgoingTaxDetailConflict,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, type Company, type RateFields } from "../stammdaten/index.ts";
@@ -274,6 +274,13 @@ export function invoiceTitle(invoice: Pick<Invoice, "kind" | "variant">): string
 
 /** Festgeschriebene Rechnungen, die eine Stornorechnung aufhebt */
 const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null`;
+
+/**
+ * Dieselbe Menge im Abschlussstand (#1110): nur Stornos, die es am Stichtag schon gab. Ein Storno im Folgejahr
+ * nimmt die Forderung zum 31.12. nicht weg — sie war an diesem Tag offen.
+ */
+const cancelledIdsUpTo = (bis: string) => sql`select corrects_id from invoices
+  where kind = 'storno' and status = 'final' and corrects_id is not null and issue_date <= ${bis}`;
 
 /**
  * Schlussrechnungen, die eine Abschlagsrechnung schon abziehen (festgeschrieben, nicht storniert),
@@ -773,8 +780,8 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+export function listInvoices(today: string, id?: string, q: Db | Tx = db, bis?: string) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q, bis);
 }
 
 /** Spalten der Rechnungsliste; die Schnellsuche liest dieselben (search.ts) */
@@ -821,20 +828,25 @@ export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL |
     .$dynamic();
 }
 
-async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db) {
-  return withListStatus(await invoiceListQuery(invoiceListFields, filter, q), today, q);
+async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, bis?: string) {
+  // Abschlussstand (#1110): Rechnungen, die es am Stichtag noch nicht gab, stehen dort nicht, und eine erst danach
+  // ausgestellte Stornorechnung hebt die Forderung nicht rückwirkend auf
+  const fields = bis ? { ...invoiceListFields, cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIdsUpTo(bis)})` } : invoiceListFields;
+  return withListStatus(await invoiceListQuery(fields, bis ? and(filter, lte(schema.invoices.issueDate, bis)) : filter, q), today, q, bis);
 }
 
 /** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */
-export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db) {
+export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db, bis?: string) {
   if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
+    bis,
   );
   const losses = await invoiceLosses(
     rows.filter((r) => r.status === "final").map((r) => r.id),
     q,
+    bis,
   );
   const paperStornos = await paperCancellationIds(
     rows.filter((r) => r.kind === "storno").map((r) => r.id),

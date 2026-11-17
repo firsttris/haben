@@ -81,7 +81,12 @@ function LegacyVoucherPage() {
             </p>
           )}
           {!file || !src ? (
-            <MissingFileBanner status={fileState.status} product={source.product} />
+            <MissingFileBanner
+              status={fileState.status}
+              product={source.product}
+              grund={fileState.ohneBelegGrund}
+              bestaetigbar={fileState.canConfirmWithoutFile}
+            />
           ) : file.mimeType === "application/pdf" ? (
             <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Datei ${file.filename}`} />
           ) : file.mimeType.startsWith("image/") ? (

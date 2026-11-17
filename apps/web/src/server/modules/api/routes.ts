@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import type { TokenScope } from "../mcp/index.ts";
+import { articleQuerySchema, createArticleHandler, getArticleHandler, listArticlesHandler, updateArticleHandler } from "./articles.ts";
 import { createContactHandler, getContactHandler, listContactsHandler, updateContactHandler } from "./contacts.ts";
 import type { Handler } from "./http.ts";
 import { createDocumentHandler, getDocumentHandler, listDocumentsHandler } from "./documents.ts";
@@ -23,7 +24,7 @@ export interface ApiRoute {
   scope: TokenScope;
   summary: string;
   description?: string;
-  tag: "Kontakte" | "Rechnungen" | "Belege" | "Leistungen";
+  tag: "Kontakte" | "Rechnungen" | "Belege" | "Artikel" | "Leistungen";
   query?: z.ZodObject;
   /** Name in requestSchemas */
   requestBody?: string;
@@ -181,6 +182,50 @@ export const API_ROUTES: ApiRoute[] = [
     description: "Stand der Prüfung: Status, ob gebucht, was vor dem Buchen noch fehlt, und der Link zur Seite in Haben.",
     responses: { 200: { schema: "Document", description: "Der Beleg" } },
     handler: getDocumentHandler,
+  },
+  {
+    method: "GET",
+    path: "/artikel",
+    scope: "artikel:lesen",
+    tag: "Artikel",
+    summary: "Katalogartikel auflisten",
+    description: "Nach Artikelnummer und Bezeichnung sortiert. Standardmäßig sind nur aktive Artikel enthalten.",
+    query: articleQuerySchema,
+    responses: { 200: { schema: "ArticleList", description: "Eine Seite Artikel" } },
+    handler: listArticlesHandler,
+  },
+  {
+    method: "POST",
+    path: "/artikel",
+    scope: "artikel:schreiben",
+    tag: "Artikel",
+    summary: "Katalogartikel anlegen",
+    description: "Jeder erfolgreiche Aufruf legt einen Artikel an. Der Einzelpreis enthält bei priceIncludesTax = true die Umsatzsteuer.",
+    requestBody: "ArticleCreate",
+    responses: { 201: { schema: "Article", description: "Angelegt. Location zeigt auf den Artikel." } },
+    errors: { 422: "Die Einheit ist in Haben nicht bekannt" },
+    handler: createArticleHandler,
+  },
+  {
+    method: "GET",
+    path: "/artikel/{id}",
+    scope: "artikel:lesen",
+    tag: "Artikel",
+    summary: "Katalogartikel lesen",
+    responses: { 200: { schema: "Article", description: "Der Artikel" } },
+    handler: getArticleHandler,
+  },
+  {
+    method: "PATCH",
+    path: "/artikel/{id}",
+    scope: "artikel:schreiben",
+    tag: "Artikel",
+    summary: "Katalogartikel ändern",
+    description: "Nur die genannten Felder ändern sich. Ein leeres Objekt gibt den Artikel zurück.",
+    requestBody: "ArticlePatch",
+    responses: { 200: { schema: "Article", description: "Der Artikel nach der Änderung" } },
+    errors: { 422: "Die Einheit ist in Haben nicht bekannt" },
+    handler: updateArticleHandler,
   },
   {
     method: "GET",

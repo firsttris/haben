@@ -33,9 +33,11 @@ export const DURCHLAEUFE = {
   // Fragen zur Einrichtung und ausgeblendete Bereiche (#266): braucht eine Ersteinrichtung ohne Firmendaten
   einrichtung: 25,
   umstellung: 26,
-  fremdrechnung: 27,
+  // Belege ohne Datei aus dem Accountable-Stapel (#1235, #1236): eigener Server und eigene Wegwerf-Datenbank
+  "accountable-ohne-beleg": 27,
+  fremdrechnung: 28,
   // Kleinunternehmer wechseln nur ohne Buchungen im Jahr: eigene Firma für die Rückfrage zur Umsatzgrenze
-  "fremdrechnung-kleinunternehmer": 28,
+  "fremdrechnung-kleinunternehmer": 29,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
