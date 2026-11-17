@@ -227,7 +227,7 @@ export function sichtbareNavSeiten({
         icon: "settings",
         to: "/einstellungen",
         settingsArea: area.id,
-        keywords: area.hint,
+        keywords: area.keywords ? `${area.hint} ${area.keywords}` : area.hint,
       });
     }
   }

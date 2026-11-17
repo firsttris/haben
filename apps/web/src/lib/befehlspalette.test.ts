@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildPageSection, buildRemoteSections, statusMessage } from "./befehlspalette.ts";
 import { sichtbareNavSeiten } from "./navigation.ts";
+import { SETTINGS_AREAS } from "./settings-areas.ts";
 
 describe("Befehlspalette-Ergebnisse (#617)", () => {
   const seiten = sichtbareNavSeiten({
@@ -99,7 +100,7 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(buildPageSection(seiten, "zzzz-nicht-vorhanden")).toBeNull();
   });
 
-  // Die Untertitel der Einstellungsbereiche sind die Suchwörter; Fachwörter, die jemand eintippt, müssen den Bereich weiter finden (#1253)
+  // Fachwörter stehen in `keywords`, nicht im Untertext; wer sie eintippt, muss den Bereich weiter finden (#1253)
   it.each([
     ["ust", "waehrung"],
     ["tokens", "ki"],
@@ -109,10 +110,16 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     ["mcp", "ki"],
     ["bmf", "waehrung"],
     ["datev", "export"],
+    ["ablage", "export"],
+    ["backup", "export"],
     ["zertifikat", "elster"],
   ])("findet bei „%s“ den Einstellungsbereich %s", (suche, bereich) => {
     const bereiche = seiten.filter((s) => s.settingsArea);
     expect(buildPageSection(bereiche, suche)?.items.map((item) => item.id) ?? []).toContain(`page-einstellungen-${bereich}`);
+  });
+
+  it("hält die Untertexte der Bereiche in Klartext: eine Zeile, ohne Klammern", () => {
+    for (const { label, hint } of SETTINGS_AREAS) expect(hint, label).toMatch(/^[^()\n]+$/);
   });
 
   it("baut für Inhaber alle vier Gruppen jeweils mit Link zur gefilterten Liste", () => {

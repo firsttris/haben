@@ -331,16 +331,12 @@ const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) 
 });
 
 /**
- * Klartext unter den Feldern Versteuerung und Kontenrahmen; ist das Feld gesperrt, steht statt des Sperrsatzes der genaue Grund.
- * Quelle: Ist-Versteuerung gestattet das Finanzamt auf Antrag (§ 20 UStG, docs/einrichtung.md: Versteuerung); die Sperren
- * stehen in settings-guard.ts (docs/einrichtung.md: Wann sich die Einstellungen ändern lassen).
+ * Klartext unter den Feldern Versteuerung und Kontenrahmen; ist das Feld gesperrt, folgt der genaue Grund aus settings-guard.ts.
+ * Quelle: Ist-Versteuerung gestattet das Finanzamt auf Antrag (§ 20 UStG, docs/einrichtung.md: Versteuerung).
  */
-const VERSTEUERUNG_HINT =
-  "Ist: Die Umsatzsteuer zählt, wenn der Kunde zahlt. Soll: schon mit der Rechnung. Ob Ist für dich erlaubt ist, entscheidet das Finanzamt; im Zweifel fragst du deine Steuerberatung.";
-const VERSTEUERUNG_SPERRE = "Nach der ersten Buchung im Jahr gesperrt, ebenso solange Rechnungen offen sind.";
+const VERSTEUERUNG_HINT = "Ist: Die Umsatzsteuer zählt, wenn der Kunde zahlt. Soll: schon mit der Rechnung. Ist gestattet das Finanzamt auf Antrag.";
 const KONTENRAHMEN_HINT =
   "Legt fest, auf welche Kontonummern Haben bucht (SKR03 oder SKR04). Nimm denselben wie bisher in Lexoffice oder bei deiner Steuerberatung.";
-const KONTENRAHMEN_SPERRE = "Nach der ersten Buchung im Jahr gesperrt; bei GmbH und UG dauerhaft, dann nur über die Steuerberatung.";
 
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();
@@ -580,7 +576,7 @@ function CompanyForm() {
           </div>
         )}
         <div className="form-row cols-2">
-          <Field label="Versteuerung" hint={`${VERSTEUERUNG_HINT} ${locks.versteuerung ?? VERSTEUERUNG_SPERRE}`}>
+          <Field label="Versteuerung" hint={locks.versteuerung ? `${VERSTEUERUNG_HINT} ${locks.versteuerung}` : VERSTEUERUNG_HINT}>
             {(control) => (
               <>
                 {locks.versteuerung && <input type="hidden" name="versteuerung" value={company.versteuerung} />}
@@ -596,7 +592,7 @@ function CompanyForm() {
               </>
             )}
           </Field>
-          <Field label="Kontenrahmen" hint={`${KONTENRAHMEN_HINT} ${locks.kontenrahmen ?? KONTENRAHMEN_SPERRE}`}>
+          <Field label="Kontenrahmen" hint={locks.kontenrahmen ? `${KONTENRAHMEN_HINT} ${locks.kontenrahmen}` : KONTENRAHMEN_HINT}>
             {(control) => (
               <>
                 {/* Gesperrte Felder werden nicht mitgeschickt; der Wert kommt dann aus dem versteckten Feld */}

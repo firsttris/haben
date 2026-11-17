@@ -103,7 +103,7 @@ Ein Symbol ohne Unterpunkte (Marke, Schnellsuche, `Übersicht`, `Einstellungen`,
 
 ### Einstellungen
 
-Am Desktop stehen die Bereiche links neben dem Inhalt, jeder mit Name und Untertext. Der Untertext nennt, was im Bereich steht, nicht wofür er da ist („Steuer-ID, Veranlagung, Ehegatte“), und passt in eine Zeile. Der aktive Bereich trägt nur eine Fläche in `--accent-soft` mit dem Namen in `--accent-ink`, ohne Rand und Ring, wie der aktive Menüpunkt der Navigation.
+Am Desktop stehen die Bereiche links neben dem Inhalt, jeder mit Name und Untertext. Der Untertext nennt, was im Bereich steht, nicht wofür er da ist („Steuer-ID, Veranlagung, Ehegatte“), und passt in eine Zeile. Er steht in Klartext ohne Klammern; Fachwörter, die nur die Schnellsuche finden soll (ERiC, DATEV), stehen im Feld `keywords` in `SETTINGS_AREAS` (`lib/settings-areas.ts`). Der aktive Bereich trägt nur eine Fläche in `--accent-soft` mit dem Namen in `--accent-ink`, ohne Rand und Ring, wie der aktive Menüpunkt der Navigation.
 
 Bis 900 px ist die Liste eine eigene Seite, wie in den Einstellungen von iOS und Android: `/einstellungen` ohne `?bereich` zeigt alle Bereiche als Zeilen einer Karte mit Untertext und Pfeil, eine Zeile öffnet den Bereich. Dort steht im Kopf statt „Einstellungen“ der Name des Bereichs, darüber „‹ Einstellungen“ als Zurück; „Haben“ steht am Handy nicht darüber, das zeigt schon die Leiste. Kam man aus der Liste, geht Zurück im Verlauf zurück, sonst öffnet es die Liste. So bleibt der Verlauf so, wie Wischen am Rand ihn erwartet. Eine Zeile färbt sich beim Antippen in ihrer Form (`--hover`) statt im Grau von Safari.
 
