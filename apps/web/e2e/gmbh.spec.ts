@@ -262,7 +262,7 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
   await expect(region).not.toContainText("Kostenlos");
   await expect(region).toContainText("Das Registergericht fehlt in den Firmendaten.");
   // Am Handy zeigt /einstellungen ohne ?bereich nur die Liste der Bereiche; der Link führt direkt in die Firma
-  await expect(region.getByRole("link", { name: "Einstellungen › Firmendaten" })).toHaveAttribute("href", "/einstellungen?bereich=firma");
+  await expect(region.getByRole("link", { name: "Einstellungen › Firmendaten" })).toHaveAttribute("href", "/einstellungen?bereich=firma#company-register");
   await expect(region.getByRole("button", { name: "Bilanz als PDF herunterladen" })).toBeDisabled();
 
   await go("/einstellungen");
@@ -577,7 +577,10 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   // Fehlende Angaben sind ein Hinweis, keine Sperre (eine Vor-GmbH hat noch keine Registernummer)
   await go("/rechnungen/neu");
   await expect(page.locator("#letter-issues")).toContainText("Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): Geschäftsführer fehlt.");
-  await expect(page.locator("#letter-issues").getByRole("link", { name: "Firmendaten ergänzen" })).toHaveAttribute("href", "/einstellungen?bereich=firma");
+  await expect(page.locator("#letter-issues").getByRole("link", { name: "Firmendaten ergänzen" })).toHaveAttribute(
+    "href",
+    "/einstellungen?bereich=firma#company-register",
+  );
   await kundeWaehlen(page, "Hafenkontor Logistik GmbH · Hamburg");
   await page.getByLabel("Beschreibung Position 1").fill("Softwarewartung");
   await page.getByLabel("Menge Position 1").fill("1");
@@ -1164,4 +1167,23 @@ test("Freie Buchung mit Steuerschlüssel: Leistung an den Gesellschafter, brutto
 test("Anzahlungsbilanz: Anforderungen getrennt und verdiente Forderung nach Papierstorno sichtbar (#750)", async () => {
   test.setTimeout(120_000);
   await anzahlungsbilanzPruefen(page);
+});
+
+test("Handelsregister (#1253): bei vollständigen Angaben zu, zeigt die Nummer und öffnet per Anker", async () => {
+  await go("/einstellungen?bereich=firma");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await expect(firma.getByLabel("Registergericht")).toBeHidden();
+  await expect(firma.locator("details", { has: page.getByRole("heading", { name: "Handelsregister und Geschäftsführung" }) }).locator("summary")).toContainText(
+    "HRB 12345 HB",
+  );
+  await go("/einstellungen?bereich=firma#company-register");
+  await expect(firma.getByLabel("Registergericht")).toBeVisible();
+  await expect(firma.getByLabel("Registergericht")).toHaveValue("Amtsgericht Bremen");
+  // Zuklappen und Speichern: Sitz, Gericht, Nummer, Geschäftsführung bleiben erhalten
+  await firma.locator("summary", { hasText: "Handelsregister und Geschäftsführung" }).click();
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await go("/einstellungen?bereich=firma#company-register");
+  await expect(firma.getByLabel("Registernummer")).toHaveValue("HRB 12345 HB");
+  await expect(firma.locator("textarea[name=geschaeftsfuehrer]")).toHaveValue("Erika Gesellschafter");
 });

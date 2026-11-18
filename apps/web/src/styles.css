@@ -589,6 +589,19 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .form-row.cols-amount.mit-brutto { grid-template-columns: 96px minmax(0, 1fr) 40px; }
   .form-row.cols-amount > .field:nth-child(3), .form-row.cols-amount > .field:nth-child(4) { grid-column: 2; }
 }
+/* Einklappbarer Abschnitt im Formular (Firmendaten, #1253): Die Überschrift ist die Zeile zum Aufklappen, der gesetzte Wert steht dahinter */
+.form-section-zu { padding: 0; gap: 0; }
+.form-section-zu > details > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; align-content: center; min-height: 48px; padding: 12px 24px; cursor: pointer; list-style: none; }
+.form-section-zu > details > summary::-webkit-details-marker { display: none; }
+.form-section-zu > details > summary::before { content: "›" / ""; display: inline-block; width: 12px; color: var(--muted); transition: transform 0.15s; }
+.form-section-zu > details[open] > summary::before { transform: rotate(90deg); }
+.form-section-zu > details > summary > h3 { margin: 0; font-size: 13px; font-weight: 500; color: var(--muted); }
+.form-section-kurz { font-size: 13px; color: var(--ink); }
+.form-section-inhalt { display: flex; flex-direction: column; gap: 16px; padding: 0 24px 20px; }
+@media (max-width: 640px) {
+  .form-section-zu > details > summary { padding-left: 16px; padding-right: 16px; }
+  .form-section-inhalt { padding-left: 16px; padding-right: 16px; }
+}
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
 .checkbox input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }

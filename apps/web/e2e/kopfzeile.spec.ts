@@ -217,6 +217,8 @@ test("Festschreiben in der Aktionsleiste am Handy: die Rückfrage erscheint im F
 test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unter dem Kopf", async ({ page }) => {
   await page.setViewportSize(HANDY);
   await page.goto("/einstellungen?bereich=firma");
+  // Felder in zugeklappten Abschnitten erreicht der Fokus nicht (#1253)
+  for (const abschnitt of await page.locator(".settings-content details > summary").all()) await abschnitt.click();
   const felder = page.locator(".settings-content").locator("input:not([type=hidden]), select, textarea");
   await felder.last().focus();
   let geprueft = 0;

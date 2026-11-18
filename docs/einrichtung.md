@@ -91,6 +91,8 @@ Die App ist dieselbe Seite wie im Browser und speichert nichts auf dem Gerät zw
 
 Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen und in der Voranmeldung stehen. Fehlt etwas für ELSTER, zeigt das Formular oben „Für ELSTER fehlt noch: …“.
 
+Seltenes steht eingeklappt, mit dem Gesetzten in der Überschrift: **Handelsregister und Geschäftsführung** (nur GmbH und UG, „HRB 12345 HB“), **Fremdwährung** („Tageskurs“), **Privatanteile** (nur Einzelunternehmen, „Telefon 20 % · Internet 50 %“) und **Mahnwesen** („Basiszinssatz 2,27 % · Gebühren 0 / 5,00 / 10,00 €“). Die Felder gehen auch zugeklappt mit, wenn du speicherst. Ein Fehler in einem Feld darin und ein Link aus dem [Mahnwesen](rechnungen-zahlung.md#mahnwesen) oder der Hinterlegung klappen den Abschnitt auf; fehlen einer GmbH oder UG Pflichtangaben, steht das Handelsregister offen.
+
 | Feld | Wofür |
 | --- | --- |
 | Name | Absender auf Rechnungen, Datenlieferant in der Voranmeldung. Pflicht für beides. Steht auch oben in der Navigation unter „Haben“, damit du bei [mehreren Instanzen](installation.md#mehrere-instanzen) siehst, in welcher Firma du gerade bist: am Desktop in bis zu zwei Zeilen, am Handy in einer. Ist er länger als zwei Zeilen, klappt er am Desktop beim Überfahren der Marke nach unten ganz auf |

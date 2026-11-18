@@ -172,6 +172,8 @@ test("Beleg prüfen: Die Wahl per Suche übernimmt die Privatanteil-Vorgabe der 
   const vorgabe = async (anteil: string) => {
     await go("/einstellungen");
     const firma = page.getByRole("form", { name: "Firmendaten" });
+    // Der Abschnitt ist nach dem Laden zu (#1253)
+    await firma.getByRole("heading", { name: "Privatanteile", exact: true }).click();
     await firma.getByLabel("Privatanteil Telefon in %").fill(anteil);
     await firma.getByRole("button", { name: "Speichern" }).click();
     await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();

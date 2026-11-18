@@ -808,7 +808,7 @@ export function InvoiceEditor({
           <span>
             Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): {letterIssues.join(", ")}. Festschreiben geht trotzdem, der Fuß nennt dann nur, was
             eingetragen ist.{" "}
-            <Link to="/einstellungen" search={{ bereich: "firma" }}>
+            <Link to="/einstellungen" search={{ bereich: "firma" }} hash="company-register">
               Firmendaten ergänzen
             </Link>
           </span>
