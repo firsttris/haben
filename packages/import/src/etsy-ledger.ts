@@ -272,6 +272,13 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
     pool.push({ key: settlementKey(order, buchungstag), type: kind === "verkauf" ? "Verkauf" : "Erstattung", rest: frueher.verrechnet });
   }
 
+  // Art und Monat (etsySammelKennung), von denen ein früherer Abruf schon Gebühren einzeln übernommen hat
+  const einzeln = new Set<string>();
+  for (const { entry, tag: buchungstag } of sortiert) {
+    const bucket = BUCKETS[KINDS[entry.ledger_type] as Kind];
+    if (bucket && bekannt(entry)) einzeln.add(etsySammelKennung(bucket.reference, buchungstag.slice(0, 7)));
+  }
+
   sortiert.forEach(({ entry, tag: buchungstag }) => {
       if (entry.currency && entry.currency.toUpperCase() !== "EUR") {
         fremdwaehrung++;
@@ -287,13 +294,15 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
             ? String(entry.reference_id)
             : undefined;
       const bucket = kind ? BUCKETS[kind] : undefined;
-      if (sammelzeilen && kind && bucket) {
+      const schluessel = bucket ? etsySammelKennung(bucket.reference, buchungstag.slice(0, 7)) : undefined;
+      // Steht die Sammelzeile schon im Konto, bleiben die Zeilen weg, auch wenn das Bündeln inzwischen aus ist
+      if (schluessel !== undefined && options.schonGebuendelt?.has(schluessel)) {
+        schonDa++;
+        return;
+      }
+      // Monate und Arten, die schon einzeln im Konto stehen, bleiben einzeln, auch wenn das Bündeln inzwischen an ist
+      if (sammelzeilen && kind && bucket && schluessel !== undefined && !einzeln.has(schluessel)) {
         const monat = buchungstag.slice(0, 7);
-        const schluessel = etsySammelKennung(bucket.reference, monat);
-        if (options.schonGebuendelt?.has(schluessel)) {
-          schonDa++;
-          return;
-        }
         // Gebühren eines noch laufenden Monats bleiben liegen: die Sammelzeile entsteht erst, wenn er vorbei ist
         if (options.gebuehrenBis !== undefined && monatsende(monat) > options.gebuehrenBis) {
           spaeter++;
