@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { etsyLedgerBatch, parseEtsyLedger, type EtsyLedgerEntry, type ParsedStatement, type ParsedTransaction } from "@haben/import";
-import { and, asc, eq, like } from "drizzle-orm";
+import { and, asc, eq, inArray, like } from "drizzle-orm";
 import { BankError, recordRefusedBatch, storeBatch } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -68,14 +68,43 @@ function eventsOf(movementIds: ReadonlySet<string>) {
   };
 }
 
+/** Was im Konto schon steht: Sammelzeilen und Verlaufszeilen früherer Abrufe */
+interface Vorhanden {
+  schonGebuendelt?: ReadonlySet<string>;
+  bekannt?: ReadonlyMap<string, { order?: string; verrechnet: number }>;
+}
+
 /** Verlauf als Kontoauszug lesen, ohne ihn zu buchen (Vorschau und Tests) */
-export function etsyStatement(entries: EtsyLedgerEntry[], options: EtsyImportOptions, schonGebuendelt?: ReadonlySet<string>): ParsedStatement {
+export function etsyStatement(entries: EtsyLedgerEntry[], options: EtsyImportOptions, vorhanden: Vorhanden = {}): ParsedStatement {
   return parseEtsyLedger(entries, {
     orderFor: options.orderFor,
     sammelzeilen: options.sammelzeilen,
     gebuehrenBis: options.gebuehrenBis,
-    schonGebuendelt,
+    schonGebuendelt: vorhanden.schonGebuendelt,
+    bekannt: vorhanden.bekannt,
   });
+}
+
+/**
+ * Verlaufszeilen dieses Abrufs, die ein früherer Abruf schon übernommen hat (`import_movements` der Quelle), mit der
+ * Bestellnummer aus dem Zweck ihres Umsatzes und der damals verrechneten Steuer (Umsatz minus Zeile). Die verrechnete
+ * Steuerzeile selbst hat keine eigene Bewegung: Ein Umsatz gehört zu genau einer Bewegung.
+ */
+async function bekannteZeilen(shopId: string, entries: EtsyLedgerEntry[]): Promise<Map<string, { order?: string; verrechnet: number }>> {
+  const ids = [...new Set(entries.flatMap((e) => (e.entry_id === undefined ? [] : [String(e.entry_id)])))];
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({
+      id: schema.importMovements.sourceEventId,
+      zeile: schema.importMovements.amount,
+      umsatz: schema.bankTransactions.amount,
+      zweck: schema.bankTransactions.purpose,
+    })
+    .from(schema.importMovements)
+    .innerJoin(schema.importSources, eq(schema.importSources.id, schema.importMovements.sourceId))
+    .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.importMovements.transactionId))
+    .where(and(eq(schema.importSources.provider, "etsy"), eq(schema.importSources.externalAccountId, shopId), inArray(schema.importMovements.sourceEventId, ids)));
+  return new Map(rows.map((r) => [r.id, { order: r.zweck?.match(/Etsy Bestellung (\d+)/)?.[1], verrechnet: Number(r.umsatz) - Number(r.zeile) }]));
 }
 
 /** Sammelzeilen (Art und Monat), die schon im Konto stehen; ihre Bankreferenz ist „etsy-<art>-<JJJJ-MM>“ */
@@ -104,7 +133,10 @@ export async function importEtsyLedger(actor: string, entries: EtsyLedgerEntry[]
       ],
     };
   }
-  const statement = etsyStatement(entries, options, await sammelzeilenImKonto(account.id));
+  const statement = etsyStatement(entries, options, {
+    schonGebuendelt: await sammelzeilenImKonto(account.id),
+    bekannt: await bekannteZeilen(abruf.shopId, entries),
+  });
   const result: EtsyImportResult = { accountName: account.name, added: 0, messages: [...statement.warnings] };
   if (statement.transactions.length === 0) return result;
   const bytes = new TextEncoder().encode(JSON.stringify(statement.transactions));
