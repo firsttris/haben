@@ -107,7 +107,7 @@ Buchung laut DATEV-Export von sevDesk (SKR03), jeweils im Soll und mit Beleglink
 
 Honorar und Provision stehen auf Aufwandskonten, und sevDesk bucht `ROYALTY_ASSIGNED`, `ROYALTY_UNASSIGNED` und `PROVISION` im Export auf Aufwand mit Vorsteuer. Haben zählt sie ebenso als Ausgabe-Gutschrift (`sevdesk-richtung.ts`).
 
-Belege mit `taxRule` 12 und 14 aus Version 2.0 sind Ausgaben (`creditDebit` C) mit `taxType` `null` und 0 % Steuer an der Position; die Steuerwirkung steckt laut Melder allein in `taxRule`, die EÜR von sevDesk zeigt bei 12 Vorsteuer. Haben rechnet für sie heute keine Vorsteuer. Vorsteuer nach § 13b gehört in Kz 67, die Nachrechnung der Voranmeldung kennt nur Kz 66. Offen in [#472](https://github.com/firsttris/haben/issues/472).
+Belege mit `taxRule` 12 und 14 aus Version 2.0 sind Ausgaben (`creditDebit` C) mit `taxType` `null` und 0 % Steuer an der Position; die Steuerwirkung steckt laut Melder allein in `taxRule`, die EÜR von sevDesk zeigt bei 12 Vorsteuer. Der Abgleich der Umsatzsteuer rechnet wie sevDesk 19 % auf das Netto: Regel 12 in Kz 84, 85 und 67, Regel 14 in Kz 46, 47 und 67 (`sevdesk-steuerarten.ts`, „Steuerarten im Abgleich“ in `docs/sevdesk.md`).
 
 Mahnung aus Version 2.0: `status` 1000, Summen im Kopf 0, `reminderTotal` mit Betrag, `reminderDebit` meist gleich `reminderTotal`, einmal 0 (`mahnungen-stufe-1.json`), `reminderCharge` 0. Die Dateien mit Rechnungsbezug machen im Konto des Melders rund drei Viertel aller Dokumente aus.
 
