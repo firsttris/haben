@@ -111,7 +111,7 @@ Private Zeilen (SKR03 Gegenkonto 1800 bis 1899 und 1360; SKR04 2100 bis 2199, 14
 
 ## Belegverknüpfung außerhalb des Imports
 
-Die GUID-Verknüpfung aus `document.xml` wertet nur der Import aus. Außerhalb des Imports gibt es dafür keinen Weg, weil die Buchungen, die du in Schritt 4 als DATEV-Buchungsstapel ablegst, keine `document.xml` mitbringen. Der Belegabgleich dort ordnet Buchungen über die Belegnummer zu, und die ist bei Accountable-Ausgaben synthetisch (`TTMMJJJJ_Cent`), siehe oben. Diese Zeilen bleiben deshalb ohne passenden Beleg. Was wirklich verknüpft ist, sagen der Fortschritt des Imports und der Punkt „Jeder Beleg hat eine Datei“.
+Die GUID-Verknüpfung aus `document.xml` wertet nur der Import aus. Der Belegabgleich nach Schritt 4 findet eine Buchung dagegen über den [Beleglink](#was-in-der-datei-steckt), den der Stapel mitbringt; sonst ordnet er über die Belegnummer zu. Fehlt beides, bleibt eine Zeile mit Belegnummer ohne passenden Beleg. Was wirklich verknüpft ist, sagen der Fortschritt des Imports und der Punkt „Jeder Beleg hat eine Datei“.
 
 ## Schritt 2: Export hochladen und übernehmen
 
@@ -132,7 +132,8 @@ Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzu
 - IDEA-Export und Steuererklärungen liefert Accountable nicht mit. Lade sie in Schritt 4 getrennt hoch, sonst fehlt die Prüfung „IDEA-Export archiviert“.
 - Bei Ausgangsrechnungen fehlen Positionen. Sie erscheinen im Import nur als Meldung und zählen im Abgleich deshalb nicht als Rechnung mit Datei.
 - Beim Punkt „Jede Buchung mit Belegnummer findet ihren Beleg“ zählen Privat-, Geldtransit- und Vortragszeilen nie mit, bei jeder Herkunft und je nach Kontenrahmen. Erlösbuchungen zählen nur im Stapel aus dem Accountable-Umzug nicht mit, weil Accountable keine Ausgangsrechnungen exportiert. Aus Lexoffice und sevDesk fehlt die Rechnung zu einer Erlösbuchung dagegen wirklich.
-- Die Buchungen aus dem Accountable-Stapel sind dieselben, die du in Schritt 4 noch einmal als DATEV-Buchungsstapel ablegst. Der Abgleich erkennt sie an ihren Belegnummern, synthetisch bei Ausgaben, echt bei Ausgangsrechnungen.
+- In Zahlungszeilen steht in Belegfeld 1 oft der Name des Zahlungsdienstleisters. Ein gefülltes Feld ohne eine einzige Ziffer ist keine Belegnummer, auch wenn DATEV dort [Buchstabenfolgen zulässt](auswertungen.md#datev-export-für-die-steuerberatung): Trägt kein Beleg das Feld als Nummer und braucht die Zeile einen Beleg, ist sie kein offener Punkt, sondern zählt unter „ohne Belegnummer“. Die Regel steht bei den [DATEV-Buchungen](lexoffice.md#datev-buchungsstapel).
+- Die Buchungen aus dem Accountable-Stapel sind dieselben, die du in Schritt 4 noch einmal als DATEV-Buchungsstapel ablegst. Der Abgleich findet sie an ihren Belegnummern (synthetisch bei Ausgaben, echt bei Ausgangsrechnungen) oder am Beleglink.
 - Die letzte Rechnungsnummer für Schritt 5 steht nicht im Stapel. Trage sie aus Accountable von Hand in den Einstellungen nach.
 
 ## Rechnungen mit mehreren Buchungscodes
