@@ -432,7 +432,7 @@ In einem Jahr, dessen Abweichungen beim [Update auf das Journal](einrichtung.md#
 
 ## Zertifikat
 
-Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION_KEY` verschlüsselt gespeichert. Trägst du dort **Gültig bis** ein, erinnert die Übersicht 30 Tage vor Ablauf („ELSTER-Zertifikat läuft bald ab“) und nach Ablauf („ELSTER-Zertifikat abgelaufen“). Ohne Datum gibt es keine Erinnerung.
+Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION_KEY` verschlüsselt gespeichert. **Gültig bis** liest Haben mit der PIN aus der Datei, sonst trägst du es selbst ein ([ELSTER einrichten](einrichtung-elster.md#schritte)). Damit erinnert die Übersicht 30 Tage vor Ablauf („ELSTER-Zertifikat läuft bald ab“) und nach Ablauf („ELSTER-Zertifikat abgelaufen“). Ohne Datum gibt es keine Erinnerung.
 
 ## Simulierter Modus
 

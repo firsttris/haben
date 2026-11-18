@@ -59,9 +59,10 @@ import { PasswordCard } from "../../components/PasswordCard.tsx";
 import { SsoZugaengeCard } from "../../components/SsoZugaengeCard.tsx";
 import { ZugaengeCard } from "../../components/ZugaengeCard.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
+import { certificateUploadNotice } from "../../lib/certificate-notice.ts";
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
-import { useAction } from "../../lib/use-action.ts";
+import { type Notice, useAction } from "../../lib/use-action.ts";
 import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
@@ -999,17 +1000,19 @@ function CertificateForm() {
   const router = useRouter();
   const upload = useServerFn(uploadCertificate);
   const remove = useServerFn(removeCertificate);
-  const { busy, notice, run } = useAction();
+  const { busy, notice, setNotice, run } = useAction();
   const [removing, setRemoving] = useState(false);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
+    const data = new FormData(form);
+    let done: Notice = null;
     void run(async () => {
-      await upload({ data: new FormData(form) });
+      done = certificateUploadNotice(await upload({ data }), data.get("pin") !== "");
       form.reset();
       await router.invalidate();
-    }, "Zertifikat verschlüsselt gespeichert.");
+    }).then((ok) => ok && setNotice(done));
   }
 
   return (
@@ -1049,7 +1052,12 @@ function CertificateForm() {
       <Field label={certificate ? "Neue Zertifikatsdatei" : "Zertifikatsdatei"}>
         {(control) => <FilePicker {...control} name="file" accept=".pfx" required />}
       </Field>
-      <Field label="Gültig bis (für die Erinnerung 30 Tage vorher)">{(control) => <input {...control} name="validUntil" type="date" />}</Field>
+      <Field label="Zertifikats-PIN (optional)" hint="Haben liest damit nur das Ablaufdatum aus der Datei und speichert sie nicht.">
+        {(control) => <input {...control} name="pin" type="password" autoComplete="off" />}
+      </Field>
+      <Field label="Gültig bis (für die Erinnerung 30 Tage vorher)" hint="Nur ohne PIN nötig; mit PIN gilt das Datum aus der Datei.">
+        {(control) => <input {...control} name="validUntil" type="date" />}
+      </Field>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           Hochladen
