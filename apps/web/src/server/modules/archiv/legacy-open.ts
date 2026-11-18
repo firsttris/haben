@@ -363,11 +363,12 @@ async function takeOverInvoice(
   return withActor(actor, async (tx) => {
     const covering = await lockedCovering(tx, voucher, cutoff);
     const company = await openBooks(tx);
-    // Kz 45 meldet Haben auch bei Ist mit der Rechnung (NACH_RECHNUNGSDATUM), das Quellprogramm bei Ist mit der Zahlung
-    // (legacy-vat.ts). Eine am Stichtag offene Drittlandsleistung stünde so in keiner Voranmeldung.
+    // Kz 45 meldet Haben auch bei Ist mit der Rechnung (NACH_RECHNUNGSDATUM). Ob das Quellprogramm bei Ist ebenso oder mit
+    // der Zahlung gemeldet hat, ist nicht belegt (#1402); im zweiten Fall stünde eine am Stichtag offene Drittlandsleistung
+    // in keiner Voranmeldung.
     if (taxTreatment === "drittland" && company.versteuerung === "ist")
       throw new TakeoverError(
-        "Leistung ins Drittland bei Ist-Versteuerung: Kz 45 meldet das Quellprogramm mit der Zahlung, Haben mit der Rechnung. Den Posten von Hand erfassen.",
+        "Leistung ins Drittland bei Ist-Versteuerung: Haben meldet Kz 45 mit der Rechnung, das Quellprogramm womöglich erst mit der Zahlung. Den Posten von Hand erfassen.",
       );
     let [contact] = voucher.contactId ? await tx.select().from(schema.contacts).where(eq(schema.contacts.id, voucher.contactId)) : [];
     if (!contact) {
