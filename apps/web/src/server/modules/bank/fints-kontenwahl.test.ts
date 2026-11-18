@@ -170,4 +170,44 @@ describe.skipIf(!testDatabaseUrl)("Konten wählen beim Verbinden über FinTS (Po
       await eine.schliessen();
     }
   });
+
+  it("holt bei einem wieder angehakten Konto ohne Umsätze nichts vor „Umsätze abrufen ab“", async () => {
+    // Umzug zum 1. Juli: Die Zinsen im März stehen in der alten Buchhaltung, seitdem bewegt sich die Rücklage nicht
+    const blz = "21050170";
+    const geschaeft = "DE75512108001245126199";
+    const ruecklage = "DE68210501700012345678";
+    const umzug = await startFintsTestbank({
+      produktId: PRODUKT,
+      blz,
+      bankname: "Umzugsbank",
+      konten: [
+        { iban: geschaeft, nummer: "1245126199", name: "Geschäftskonto" },
+        { iban: ruecklage, nummer: "0012345678", name: "Rücklage" },
+      ],
+      umsaetze: {
+        [geschaeft]: [{ tag: "2026-08-03", betrag: "100,00", name: "Kunde AG", zweck: "RE-2026-0101", ref: "U1" }],
+        [ruecklage]: [{ tag: "2026-03-31", betrag: "12,00", name: "Bank", zweck: "Zinsen", ref: "R1" }],
+      },
+    });
+    /** Verbinden wie mit „Zugang ändern“, fetchFrom wie unter „Umsätze abrufen ab“ (ohne Angabe: die Vorgabe) */
+    async function verbinden(today: string, konten: string[], fetchFrom?: string) {
+      const wahl = await fints.fintsVerbinden(ACTOR, { blz, url: umzug.url, benutzer: "max", pin: "12345", fetchFrom }, today);
+      if (wahl.art !== "verfahren") throw new Error("Verfahren erwartet");
+      const schritt = await vorgang.vorgangFortsetzen(ACTOR, wahl.vorgang, { verfahren: 921 });
+      if (schritt.art !== "konten") throw new Error(`Kontenwahl erwartet, nicht ${schritt.art}`);
+      return vorgang.vorgangFortsetzen(ACTOR, schritt.vorgang, { konten });
+    }
+    try {
+      expect(await verbinden("2026-10-21", [geschaeft, ruecklage], "2026-07-01")).toMatchObject({ art: "fertig", ok: true, neu: 1 });
+      expect(await umsaetze(ruecklage)).toBe(0);
+      expect(await verbinden("2026-10-22", [geschaeft])).toMatchObject({ art: "fertig", ok: true });
+      const vorher = umzug.zustand.anfragen.length;
+      expect(await verbinden("2026-10-24", [geschaeft, ruecklage])).toMatchObject({ art: "fertig", ok: true });
+      const kaz = umzug.zustand.anfragen.slice(vorher).find((a) => a.segmente.includes("HKKAZ") && a.iban === ruecklage);
+      expect(await umsaetze(ruecklage), `Umsätze der Rücklage nach dem Abruf ab ${kaz?.von}`).toBe(0);
+      expect(kaz!.von! >= "2026-07-01", `Abruf ab ${kaz!.von}`).toBe(true);
+    } finally {
+      await umzug.schliessen();
+    }
+  });
 });
