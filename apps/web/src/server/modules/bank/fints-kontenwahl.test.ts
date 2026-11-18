@@ -210,4 +210,23 @@ describe.skipIf(!testDatabaseUrl)("Konten wählen beim Verbinden über FinTS (Po
       await umzug.schliessen();
     }
   });
+
+  it("nennt ein ausgeschlossenes Konto nicht unter „Nicht mehr abgerufen“", async () => {
+    // Bisher abgerufen: Girokonto und Tagesgeld; das Tagesgeld ist inzwischen als „Gehört nicht zu dieser Firma“ ausgeschlossen
+    expect(await ibans()).toEqual([GIRO, TAGESGELD]);
+    await sql`update bank_accounts set excluded_at = now() where iban = ${TAGESGELD}`;
+    try {
+      const { id } = await bisZurWahl("2026-10-26");
+      expect(await vorgang.vorgangFortsetzen(ACTOR, id, { konten: [GIRO] })).toEqual({
+        art: "fertig",
+        ok: true,
+        neu: 0,
+        meldung: "Testbank verbunden, 0 neue Umsätze.",
+        hinweise: ["1 Konten in Fremdwährung (USD) werden nicht abgerufen, Haben bucht nur in Euro."],
+      });
+      expect(await ibans()).toEqual([GIRO]);
+    } finally {
+      await sql`update bank_accounts set excluded_at = null where iban = ${TAGESGELD}`;
+    }
+  });
 });
