@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Lastschriftdatei pain.008 aus fälligen Rechnungen (Postgres, #445)", () => {
   let sql: postgres.Sql;
@@ -75,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("Lastschriftdatei pain.008 aus fälligen Rechn
       lines: [{ description: "Wartung", quantity: 1000, unit: "Monat", unitPrice: net, taxRate: 1900 }],
       ...(mandateId ? { paymentMethod: "lastschrift" as const, sepaMandateId: mandateId } : {}),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   it("bietet fällige Lastschrift-Rechnungen an, mit Fälligkeit, Sequenz und Mandat; Überweisungen nicht", async () => {
@@ -117,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Lastschriftdatei pain.008 aus fälligen Rechn
       paymentMethod: "lastschrift",
       sepaMandateId: m,
     });
-    await invoices.finalizeInvoice(actor, draft.id);
+    await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const candidates = await bank.directDebitCandidates(today);
     expect(candidates.map((c) => c.dueDate)).toEqual(["2026-11-23", "2026-12-09"]);
     expect(candidates[1]!.problem).toBe("Erst ab 25.11.2026 einzureichen, 14 Tage vor Fälligkeit");

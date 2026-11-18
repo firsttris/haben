@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zähler (Postgres, #328)", () => {
   let sql: postgres.Sql;
@@ -33,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
       note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Std.", unitPrice: 10_000, taxRate: 1900 }],
     });
-  const finalizeNew = async (issueDate?: string) => (await invoices.finalizeInvoice(actor, (await invoiceDraft(issueDate)).id)).number;
+  const finalizeNew = async (issueDate?: string) => (await invoices.finalizeInvoice(actor, (await invoiceDraft(issueDate)).id, kleinunternehmerStand)).number;
   const finalizeQuote = async (issueDate?: string) => (await quotes.finalizeQuote(actor, (await quoteDraft(issueDate)).id)).number;
   const QUOTE = "AN-{JJJJ}-{NNN}";
 
@@ -131,7 +132,7 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
 
   it("vergibt auch dem Storno die nächste Nummer des durchlaufenden Kreises", async () => {
     await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: QUOTE, invoiceRunning: true });
-    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft("2026-12-30")).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft("2026-12-30")).id, kleinunternehmerStand);
     const storno = await invoices.cancelInvoice(actor, original.id, "2027-01-04");
     expect([original.number, storno.number]).toEqual(["RE-2026-0001", "RE-2027-0002"]);
   });

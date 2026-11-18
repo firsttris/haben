@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Ein Kontakt lässt sich nur dort zuordnen, wo seine Rolle passt: Kunden bei Rechnung, Angebot, wiederkehrender Rechnung
@@ -206,7 +207,7 @@ describe.skipIf(!testDatabaseUrl)("Rollen bei der Zuordnung von Kontakten (Postg
 
     it("Storno und Korrektur übernehmen den Kunden, auch wenn er die Rolle verloren hat", async () => {
       const kunde = await kontakt("beides");
-      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, rechnung(kunde.id))).id);
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, rechnung(kunde.id))).id, kleinunternehmerStand);
       await rolleEntziehen(kunde.id, "lieferant");
       await expect(invoices.createCorrection(actor, final.id, "2026-10-05")).resolves.toMatchObject({ kind: "korrektur", contactId: kunde.id });
       await expect(invoices.cancelInvoice(actor, final.id, "2026-10-06")).resolves.toMatchObject({ kind: "storno", contactId: kunde.id });
@@ -216,7 +217,7 @@ describe.skipIf(!testDatabaseUrl)("Rollen bei der Zuordnung von Kontakten (Postg
       const kunde = await kontakt("beides");
       const vorlage = await ziele[2]!.speichern(kunde.id);
       await rolleEntziehen(kunde.id, "lieferant");
-      await expect(recurring.runDueRecurring("2026-12-15")).resolves.toMatchObject({ created: 1, errors: [] });
+      await expect(recurring.runDueRecurring("2026-12-15", kleinunternehmerStand)).resolves.toMatchObject({ created: 1, errors: [] });
       const rows = await sql`select contact_id from invoices where recurring_id = ${vorlage}`;
       expect(rows.map((r) => r.contact_id)).toEqual([kunde.id]);
     });

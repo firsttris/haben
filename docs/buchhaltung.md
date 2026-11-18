@@ -140,7 +140,7 @@ Steuerzeitpunkt und Leistungsjahr nach einem Verfahrenswechsel folgen weiterhin 
 
 ## Kontenrahmen
 
-Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/posting.ts` (`ACCOUNTS`, `ACCOUNT_NAMES`, `EXPENSE_CATEGORIES`).
+Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/kontenplan.ts` (`ACCOUNTS`, `ACCOUNT_NAMES`, `EXPENSE_CATEGORIES`).
 
 Ein Wechsel zum Jahreswechsel gilt nur für künftige Buchungen. Ein noch offenes [Zwischenkonto einer Gutschrift „erstattet bereits Bezahltes“](belege.md#gutschrift-für-schon-bezahltes) (SKR03 1548, SKR04 1434) zieht nicht mit: Der Altsaldo bleibt im alten Rahmen stehen, die Umbuchung beim Ausgleich bucht im neuen Rahmen (1434 an 1406) und findet den geparkten Betrag trotzdem, ohne ihn ein zweites Mal umzubuchen.
 

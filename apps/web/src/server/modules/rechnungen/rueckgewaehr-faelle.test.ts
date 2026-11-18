@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #853, Fälle aus den Prüfungen zu rueckgewaehr.test.ts: Teilleistungs-Abschlag, Raten, Kasse, Jahreswechsel, Aufhebung,
@@ -74,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung: weitere 
       note: "",
       lines,
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function correctionDraft(originalId: string, date: string, lines: Line[]) {
@@ -93,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung: weitere 
   }
 
   async function correction(originalId: string, date: string, lines: Line[] = [beratung(-10_000)]) {
-    return invoices.finalizeInvoice(actor, (await correctionDraft(originalId, date, lines)).id);
+    return invoices.finalizeInvoice(actor, (await correctionDraft(originalId, date, lines)).id, kleinunternehmerStand);
   }
 
   async function pay(invoiceId: string, date: string, amount: number) {
@@ -144,7 +145,7 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung: weitere 
       advanceType: "teilleistung",
       lines: [beratung(100_000)],
     } as never);
-    const original = await invoices.finalizeInvoice(actor, draft.id);
+    const original = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     await pay(original.id, "2026-05-20", 119_000);
     const k = await correction(original.id, "2026-06-10");
     expect(k.reductionRule).toBe("rueckgewaehr");
@@ -219,7 +220,7 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung: weitere 
       exchangeRate: "1,0000",
       lines: [beratung(100_000)],
     } as never);
-    const original = await invoices.finalizeInvoice(actor, draft.id);
+    const original = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     await pay(original.id, "2026-05-20", 119_000);
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-06-10");
     expect(storno.currency).toBe("USD");

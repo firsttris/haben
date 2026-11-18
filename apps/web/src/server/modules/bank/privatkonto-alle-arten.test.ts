@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import type { EmployeeInput } from "../lohn/employees.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Privatkonto-Regel für alle Buchungsarten (#873): Läuft die Zahlung über ein Konto mit dem Zweck „privat“, bucht Haben
@@ -277,7 +278,7 @@ describe.skipIf(!testDatabaseUrl)("Privatkonto: jede Buchungsart gegen Entnahme 
       format: "zugferd",
       lines: [{ description: "Leistungen November", quantity: 1000, unit: "Psch.", unitPrice: 400_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const privat = await konto("privat");
     const transaction = await umsatz(privat, "2026-11-15", 4_760_00, "Kundin Beispiel GmbH");
 

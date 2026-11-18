@@ -2,6 +2,7 @@ import { ACCOUNTS } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * Ausgangsrechnung aus einem Fremdsystem übernehmen (#660): fremde Nummer und Original-PDF bleiben, gebucht wird wie beim
@@ -87,7 +88,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       it(`${kontenrahmen}, ${versteuerung}: Nummer und PDF bleiben, gebucht wie beim Festschreiben, Zahlung wie sonst`, async () => {
         await company(kontenrahmen, versteuerung);
         const contactId = await customer();
-        const { id } = await foreign.adoptForeignInvoice(actor, input(contactId), pdf);
+        const { id } = await foreign.adoptForeignInvoice(actor, input(contactId), pdf, kleinunternehmerStand);
 
         const [row] =
           await sql`select status, number, number_year, number_counter, gross, external_source, external_id, pdf_sha256, locked_at from invoices where id = ${id}`;
@@ -113,7 +114,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         expect(september).toMatchObject(versteuerung === "ist" ? { kz81: 0, tax81: 0 } : { kz81: 400_000, tax81: 76_000 });
 
         // Dieselbe Rechnung kein zweites Mal, und die Nummer ist belegt
-        await expect(foreign.adoptForeignInvoice(actor, input(contactId), pdf)).rejects.toThrow(/gibt es in Haben schon/);
+        await expect(foreign.adoptForeignInvoice(actor, input(contactId), pdf, kleinunternehmerStand)).rejects.toThrow(/gibt es in Haben schon/);
 
         // Der eigene Nummernkreis ist unberührt: die erste eigene Rechnung bekommt die erste Nummer
         const draft = await invoices.createDraft(actor, {
@@ -121,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           contactId,
           lines: [{ description: "Eigene Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
         });
-        const own = await invoices.finalizeInvoice(actor, draft.id);
+        const own = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
         expect(own.numberCounter).toBe(1);
         expect(own.number).not.toBe("RE-2026-0042");
 
@@ -138,15 +139,17 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
   it("lehnt ab, was nicht stimmt: Steuer nicht centgenau, kein PDF, Fälligkeit vor Rechnungsdatum, unbekannter Steuersatz, fehlende USt-IdNr.", async () => {
     await company("SKR03", "soll");
     const contactId = await customer();
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: 400_000, tax: 75_999 }] }), pdf)).rejects.toThrow(
-      /centgenau/,
-    );
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId), new TextEncoder().encode("kein pdf"))).rejects.toThrow(/PDF/);
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { dueDate: "2026-09-01" }), pdf)).rejects.toThrow(/Fälligkeit/);
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1600, net: 1000, tax: 160 }] }), pdf)).rejects.toThrow(/Steuersätze/);
+    await expect(
+      foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: 400_000, tax: 75_999 }] }), pdf, kleinunternehmerStand),
+    ).rejects.toThrow(/centgenau/);
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId), new TextEncoder().encode("kein pdf"), kleinunternehmerStand)).rejects.toThrow(/PDF/);
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { dueDate: "2026-09-01" }), pdf, kleinunternehmerStand)).rejects.toThrow(/Fälligkeit/);
+    await expect(
+      foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1600, net: 1000, tax: 160 }] }), pdf, kleinunternehmerStand),
+    ).rejects.toThrow(/Steuersätze/);
     const eu = await customer("FR", "");
     await expect(
-      foreign.adoptForeignInvoice(actor, input(eu, { taxTreatment: "reverse_charge", taxes: [{ rate: 0, net: 100_000, tax: 0 }] }), pdf),
+      foreign.adoptForeignInvoice(actor, input(eu, { taxTreatment: "reverse_charge", taxes: [{ rate: 0, net: 100_000, tax: 0 }] }), pdf, kleinunternehmerStand),
     ).rejects.toThrow(/USt-IdNr/);
     expect(await sql`select 1 from invoices`).toHaveLength(0);
   }, 30_000);
@@ -164,6 +167,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         ],
       }),
       pdf,
+      kleinunternehmerStand,
     );
     const [row] = await sql`select net, tax, gross from invoices where id = ${mixed.id}`;
     expect(row).toMatchObject({ net: 150_000, tax: 22_500, gross: 172_500 });
@@ -176,6 +180,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         taxes: [{ rate: 0, net: 20_000, tax: 0 }],
       }),
       pdf,
+      kleinunternehmerStand,
     );
     const [row2] = await sql`select tax_treatment, exemption_reason from invoices where id = ${exempt.id}`;
     expect(row2).toMatchObject({ tax_treatment: "steuerfrei", exemption_reason: "Steuerfrei nach § 4 Nr. 14 UStG" });
@@ -184,6 +189,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         actor,
         input(contactId, { number: "RE-2026-0045", taxTreatment: "steuerfrei", taxes: [{ rate: 0, net: 20_000, tax: 0 }] }),
         pdf,
+        kleinunternehmerStand,
       ),
     ).rejects.toThrow(/Vorschrift/);
   }, 30_000);
@@ -202,12 +208,17 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         input(contactId, { number, taxTreatment: "drittland", taxes: [{ rate: 0, net: 12_345, tax: 0 }], taxDetails });
       const place = { exemption: null, ancillary: null, foreignPlace: { country: "CH", noForeignVat: true }, assetDisposal: false };
 
-      const confirmed = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0050", place), pdf);
-      const open = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0051", null), pdf);
+      const confirmed = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0050", place), pdf, kleinunternehmerStand);
+      const open = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0051", null), pdf, kleinunternehmerStand);
       const [row] = await sql`select tax_details from invoices where id = ${confirmed.id}`;
       expect(row!.tax_details).toEqual(place);
       await expect(
-        foreign.adoptForeignInvoice(actor, drittland("RE-2026-0052", { ...place, foreignPlace: { country: "AT", noForeignVat: true } }), pdf),
+        foreign.adoptForeignInvoice(
+          actor,
+          drittland("RE-2026-0052", { ...place, foreignPlace: { country: "AT", noForeignVat: true } }),
+          pdf,
+          kleinunternehmerStand,
+        ),
       ).rejects.toThrow(/Leistungsort passt nicht/);
 
       await cash.createCashInvoiceEntry(actor, { invoiceId: confirmed.id, date: "2026-10-02", amount: 12_345 }, today);
@@ -228,17 +239,29 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         input(contactId, { number, taxTreatment, taxes: [{ rate: 0, net: 10_000, tax: 0 }], taxDetails });
       const at = { exemption: null, ancillary: null, foreignPlace: { country: "AT", noForeignVat: true }, assetDisposal: false };
 
-      await expect(foreign.adoptForeignInvoice(actor, eu("RE-2026-0060", "eu_sonstige", null), pdf)).rejects.toThrow(/sonstige EU-Leistung/);
+      await expect(foreign.adoptForeignInvoice(actor, eu("RE-2026-0060", "eu_sonstige", null), pdf, kleinunternehmerStand)).rejects.toThrow(
+        /sonstige EU-Leistung/,
+      );
       await expect(
-        foreign.adoptForeignInvoice(actor, eu("RE-2026-0061", "eu_sonstige", { ...at, foreignPlace: { country: "AT", noForeignVat: false } }), pdf),
+        foreign.adoptForeignInvoice(
+          actor,
+          eu("RE-2026-0061", "eu_sonstige", { ...at, foreignPlace: { country: "AT", noForeignVat: false } }),
+          pdf,
+          kleinunternehmerStand,
+        ),
       ).rejects.toThrow(/sonstige EU-Leistung/);
       await expect(
-        foreign.adoptForeignInvoice(actor, eu("RE-2026-0062", "reverse_charge", { ...at, foreignPlace: { country: "CH", noForeignVat: true } }), pdf),
+        foreign.adoptForeignInvoice(
+          actor,
+          eu("RE-2026-0062", "reverse_charge", { ...at, foreignPlace: { country: "CH", noForeignVat: true } }),
+          pdf,
+          kleinunternehmerStand,
+        ),
       ).rejects.toThrow(/Leistungsort passt nicht/);
       expect(await sql`select 1 from invoices`).toHaveLength(0);
 
-      const sonstige = await foreign.adoptForeignInvoice(actor, eu("RE-2026-0063", "eu_sonstige", at), pdf);
-      const rc = await foreign.adoptForeignInvoice(actor, eu("RE-2026-0064", "reverse_charge", at), pdf);
+      const sonstige = await foreign.adoptForeignInvoice(actor, eu("RE-2026-0063", "eu_sonstige", at), pdf, kleinunternehmerStand);
+      const rc = await foreign.adoptForeignInvoice(actor, eu("RE-2026-0064", "reverse_charge", at), pdf, kleinunternehmerStand);
       const rows = await sql`select number, tax_treatment, tax_details from invoices order by number`;
       expect(rows).toEqual([
         { number: "RE-2026-0063", tax_treatment: "eu_sonstige", tax_details: at },
@@ -265,8 +288,8 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     // 120.000 € über der Grenze: Ein nicht steuerbarer Umsatz zählt nicht zum Gesamtumsatz, also keine Rückfrage zur Umsatzgrenze
     const drittland = (number: string, taxDetails: unknown) =>
       input(contactId, { number, taxTreatment: "drittland", taxes: [{ rate: 0, net: 12_000_000, tax: 0 }], taxDetails });
-    await expect(foreign.adoptForeignInvoice(actor, drittland("RE-2026-0070", null), pdf)).rejects.toThrow(/Als Kleinunternehmer/);
-    const { id } = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0071", place), pdf);
+    await expect(foreign.adoptForeignInvoice(actor, drittland("RE-2026-0070", null), pdf, kleinunternehmerStand)).rejects.toThrow(/Als Kleinunternehmer/);
+    const { id } = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0071", place), pdf, kleinunternehmerStand);
     await cash.createCashInvoiceEntry(actor, { invoiceId: id, date: "2026-10-02", amount: 12_000_000 }, today);
     const result = await auswertungen.gesamtumsatzForYear(2026);
     expect(result.items.map((i) => [i.occurredOn, i.decision])).toEqual([["2026-10-02", "excluded"]]);
@@ -281,7 +304,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       contactId,
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
     });
-    const own = await invoices.finalizeInvoice(actor, draft.id);
+    const own = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const xml = own.xml!;
     const proposal = await foreign.foreignInvoiceProposal({ bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" });
     expect(proposal).toMatchObject({
@@ -303,6 +326,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         actor,
         { ...proposal, contactId },
         { bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" },
+        kleinunternehmerStand,
       ),
     ).rejects.toThrow(/PDF/);
     expect(await sql`select 1 from invoices`).toHaveLength(1);
@@ -310,10 +334,14 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
   it("lehnt ab, was beim Festschreiben einer eigenen Rechnung auch scheitert: negativer Betrag, Steuerzeichen in der Nummer, Zahlungsziel, Rundung je Satz", async () => {
     await company("SKR03", "soll");
     const contactId = await customer();
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: -10_000, tax: -1_900 }] }), pdf)).rejects.toThrow();
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: "A/../B" }), pdf)).rejects.toThrow(/Rechnungsnummer/);
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: `A${String.fromCharCode(10)}B` }), pdf)).rejects.toThrow(/Rechnungsnummer/);
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { dueDate: "2030-01-01" }), pdf)).rejects.toThrow(/365 Tage/);
+    await expect(
+      foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: -10_000, tax: -1_900 }] }), pdf, kleinunternehmerStand),
+    ).rejects.toThrow();
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: "A/../B" }), pdf, kleinunternehmerStand)).rejects.toThrow(/Rechnungsnummer/);
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: `A${String.fromCharCode(10)}B` }), pdf, kleinunternehmerStand)).rejects.toThrow(
+      /Rechnungsnummer/,
+    );
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { dueDate: "2030-01-01" }), pdf, kleinunternehmerStand)).rejects.toThrow(/365 Tage/);
     // Summe stimmt (+1 Cent bei 19 %, −1 Cent bei 7 %), je Satz nicht: würde die Kennzahlen der Voranmeldung verschieben
     await expect(
       foreign.adoptForeignInvoice(
@@ -325,6 +353,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           ],
         }),
         pdf,
+        kleinunternehmerStand,
       ),
     ).rejects.toThrow(/centgenau/);
     expect(await sql`select 1 from invoices`).toHaveLength(0);
@@ -334,15 +363,15 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     await company("SKR03", "ist");
     const contactId = await customer();
     await sql`update company set steuernummer = '', ust_id = '' where id = 1`;
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId), pdf)).rejects.toThrow(/Firmendaten/);
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId), pdf, kleinunternehmerStand)).rejects.toThrow(/Firmendaten/);
     await sql`update company set steuernummer = '198/113/10010', ust_id = 'DE123456789' where id = 1`;
 
     // Ist-Jahr gebucht, dann auf Soll umgestellt: eine zweite Rechnung desselben Jahres würde die Steuer doppelt melden
-    await foreign.adoptForeignInvoice(actor, input(contactId, { number: "A1", issueDate: "2025-09-25", dueDate: "2025-10-09" }), pdf);
+    await foreign.adoptForeignInvoice(actor, input(contactId, { number: "A1", issueDate: "2025-09-25", dueDate: "2025-10-09" }), pdf, kleinunternehmerStand);
     await sql`update company set versteuerung = 'soll' where id = 1`;
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: "A2", issueDate: "2025-09-26", dueDate: "2025-10-10" }), pdf)).rejects.toThrow(
-      /Ist-Versteuerung gebucht/,
-    );
+    await expect(
+      foreign.adoptForeignInvoice(actor, input(contactId, { number: "A2", issueDate: "2025-09-26", dueDate: "2025-10-10" }), pdf, kleinunternehmerStand),
+    ).rejects.toThrow(/Ist-Versteuerung gebucht/);
 
     // Kleinunternehmer: Umsatzgrenze wie beim Festschreiben
     await sql`update company set kleinunternehmer = true, versteuerung = 'ist' where id = 1`;
@@ -359,6 +388,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           taxes: [{ rate: 0, net: 12_000_000, tax: 0 }],
         }),
         pdf,
+        kleinunternehmerStand,
       ),
     ).rejects.toThrow(UmsatzgrenzeError);
   }, 30_000);
@@ -376,18 +406,19 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       exemptionReason: "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
       taxes: [{ rate: 0, net: 12_000_000, tax: 0 }],
     });
-    const warning = await foreign.adoptForeignInvoice(actor, big, pdf).catch((e: unknown) => e);
+    const warning = await foreign.adoptForeignInvoice(actor, big, pdf, kleinunternehmerStand).catch((e: unknown) => e);
     expect(warning).toBeInstanceOf(UmsatzgrenzeError);
     const { umsatz, rechnung, grenze, vorjahresumsatz } = warning as InstanceType<typeof UmsatzgrenzeError>;
     expect(await sql`select 1 from invoices`).toHaveLength(0);
     // Abweichende Werte bestätigen nichts
-    await expect(foreign.adoptForeignInvoice(actor, { ...big, bestaetigt: { umsatz, rechnung: rechnung + 1, grenze } }, pdf)).rejects.toThrow(
-      UmsatzgrenzeError,
-    );
+    await expect(
+      foreign.adoptForeignInvoice(actor, { ...big, bestaetigt: { umsatz, rechnung: rechnung + 1, grenze } }, pdf, kleinunternehmerStand),
+    ).rejects.toThrow(UmsatzgrenzeError);
     await foreign.adoptForeignInvoice(
       actor,
       { ...big, bestaetigt: { umsatz, rechnung, grenze, ...(vorjahresumsatz === undefined ? {} : { vorjahresumsatz }) } },
       pdf,
+      kleinunternehmerStand,
     );
     expect(await sql`select 1 from invoices where number = ${"K2"}`).toHaveLength(1);
   }, 30_000);
@@ -395,7 +426,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
   it("bucht bei Soll im Monat der Leistung und nimmt keine E-Rechnung an, die zu den Angaben nicht passt", async () => {
     await company("SKR03", "soll");
     const contactId = await customer();
-    await foreign.adoptForeignInvoice(actor, input(contactId, { serviceFrom: "2026-08-01", serviceTo: "2026-08-31" }), pdf);
+    await foreign.adoptForeignInvoice(actor, input(contactId, { serviceFrom: "2026-08-01", serviceTo: "2026-08-31" }), pdf, kleinunternehmerStand);
     expect(await vat.computeVatFigures({ year: 2026, month: 8 })).toMatchObject({ kz81: 400_000, tax81: 76_000 });
     expect(await vat.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz81: 0, tax81: 0 });
 
@@ -405,9 +436,14 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       contactId,
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
     });
-    const own = await invoices.finalizeInvoice(actor, draft.id);
+    const own = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     await expect(
-      foreign.adoptForeignInvoiceFile(actor, input(contactId, { number: "FREMD-1" }), { bytes: own.pdf!, filename: "re.pdf", mimeType: "application/pdf" }),
+      foreign.adoptForeignInvoiceFile(
+        actor,
+        input(contactId, { number: "FREMD-1" }),
+        { bytes: own.pdf!, filename: "re.pdf", mimeType: "application/pdf" },
+        kleinunternehmerStand,
+      ),
     ).rejects.toThrow(/passt nicht zu den Angaben/);
     expect(await sql`select 1 from invoices where number = 'FREMD-1'`).toHaveLength(0);
   }, 30_000);
@@ -415,10 +451,12 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
   it("lehnt eine Rechnung über 0 € und einen Leistungszeitraum rückwärts mit Meldung ab", async () => {
     await company("SKR03", "soll");
     const contactId = await customer();
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: 0, tax: 0 }] }), pdf)).rejects.toThrow(/größer als 0/);
-    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { serviceFrom: "2026-09-30", serviceTo: "2026-09-01" }), pdf)).rejects.toThrow(
-      /Leistungszeitraum/,
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: 0, tax: 0 }] }), pdf, kleinunternehmerStand)).rejects.toThrow(
+      /größer als 0/,
     );
+    await expect(
+      foreign.adoptForeignInvoice(actor, input(contactId, { serviceFrom: "2026-09-30", serviceTo: "2026-09-01" }), pdf, kleinunternehmerStand),
+    ).rejects.toThrow(/Leistungszeitraum/);
     expect(await sql`select 1 from invoices`).toHaveLength(0);
   }, 30_000);
 
@@ -430,6 +468,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       actor,
       input(contactId, { issueDate: "2026-10-02", dueDate: "2026-10-16", serviceFrom: "2026-09-10", serviceTo: "2026-09-30" }),
       pdf,
+      kleinunternehmerStand,
     );
     expect(await vat.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz81: 400_000, tax81: 76_000 });
     expect(await vat.computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz81: 0, tax81: 0 });
@@ -443,7 +482,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       contactId,
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
     });
-    const own = await invoices.finalizeInvoice(actor, draft.id);
+    const own = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const xml = own.xml!;
     const proposal = await foreign.foreignInvoiceProposal({ bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" });
     const adopt = (text: string) =>
@@ -451,6 +490,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         actor,
         { ...proposal, contactId },
         { bytes: new TextEncoder().encode(text), filename: "re.xml", mimeType: "application/xml" },
+        kleinunternehmerStand,
       );
     const credit = xml.replace("<ram:TypeCode>380</ram:TypeCode>", "<ram:TypeCode>381</ram:TypeCode>");
     expect(credit).not.toBe(xml);
@@ -474,6 +514,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           ],
         }),
         pdf,
+        kleinunternehmerStand,
       ),
     ).rejects.toThrow(/nur einmal/);
     expect(await sql`select 1 from invoices`).toHaveLength(0);
@@ -486,7 +527,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       contactId,
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
     });
-    const own = await invoices.finalizeInvoice(actor, draft.id);
+    const own = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     // Die Steuer 19 % als zwei Aufschlüsselungen (50 € + 50 € netto): nach EN 16931 eigentlich eine, andere Systeme schreiben es so
     const block = [...own.xml!.matchAll(/<ram:ApplicableTradeTax>[\s\S]*?<\/ram:ApplicableTradeTax>/g)]
       .map((m) => m[0])
@@ -498,7 +539,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     const proposal = await foreign.foreignInvoiceProposal(file);
     expect(proposal.taxes).toEqual([{ rate: 1900, net: 10_000, tax: 1_900 }]);
     // Die E-Rechnung passt zu den Angaben; abgelehnt wird erst, dass eine reine XML kein Original-PDF ist
-    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file)).rejects.toThrow(/PDF/);
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file, kleinunternehmerStand)).rejects.toThrow(/PDF/);
   }, 30_000);
 
   it("schlägt für einen Kleinunternehmer nur die Behandlung nach § 19 vor", async () => {
@@ -509,7 +550,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       contactId,
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
     });
-    const own = await invoices.finalizeInvoice(actor, draft.id);
+    const own = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     // Die Umstellung auf Kleinunternehmer geht nur ohne Buchungen im Jahr: Firma neu anlegen, die E-Rechnung bleibt
     await company("SKR03", "ist");
     await sql`update company set kleinunternehmer = true where id = 1`;
@@ -535,15 +576,21 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           lines: [{ description: "Heilbehandlung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 0 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     // Dieselbe Rechnung als Original aus dem Fremdsystem: eigene Bücher leer, das PDF trägt die E-Rechnung mit Kategorie E
     await company("SKR03", "soll");
     const contactId = await customer();
     const file = { bytes: new Uint8Array(own.pdf!), filename: "re.pdf", mimeType: "application/pdf" };
     const base = { number: own.number!, issueDate: "2026-09-26", dueDate: "2026-10-10", contactId, taxes: [{ rate: 0, net: 10_000, tax: 0 }] };
-    await expect(foreign.adoptForeignInvoiceFile(actor, { ...base, taxTreatment: "regulaer" }, file)).rejects.toThrow(/passt nicht/);
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...base, taxTreatment: "regulaer" }, file, kleinunternehmerStand)).rejects.toThrow(/passt nicht/);
     expect(await sql`select 1 from invoices`).toHaveLength(0);
-    await foreign.adoptForeignInvoiceFile(actor, { ...base, taxTreatment: "steuerfrei", exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG" }, file);
+    await foreign.adoptForeignInvoiceFile(
+      actor,
+      { ...base, taxTreatment: "steuerfrei", exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG" },
+      file,
+      kleinunternehmerStand,
+    );
     expect(await vat.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz48: 10_000 });
   }, 30_000);
 
@@ -562,6 +609,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           ],
         })
       ).id,
+      kleinunternehmerStand,
     );
     // So schreibt eine Praxissoftware Gutachten (19 %) und Heilbehandlung (§ 4 Nr. 14 UStG) auf eine Rechnung
     const xml = own.xml!.replace(/<ram:CategoryCode>Z<\/ram:CategoryCode>/g, "<ram:CategoryCode>E</ram:CategoryCode>");
@@ -569,7 +617,9 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     const file = { bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" };
     const proposal = await foreign.foreignInvoiceProposal(file);
     // Abgelehnt werden muss die Steuerkategorie, nicht erst die reine XML-Datei
-    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId, taxTreatment: "regulaer" }, file)).rejects.toThrow(/passt nicht/);
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId, taxTreatment: "regulaer" }, file, kleinunternehmerStand)).rejects.toThrow(
+      /passt nicht/,
+    );
   }, 30_000);
 
   /*
@@ -588,13 +638,14 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     const xml = own.xml!.replace("<ram:TypeCode>380</ram:TypeCode>", "<ram:TypeCode>386</ram:TypeCode>");
     expect(xml).not.toBe(own.xml);
     const file = { bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" };
     const proposal = await foreign.foreignInvoiceProposal(file);
     expect(proposal.warnings.join(" ")).toMatch(/Anzahlung/);
-    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file)).rejects.toThrow(/Anzahlung/);
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file, kleinunternehmerStand)).rejects.toThrow(/Anzahlung/);
   }, 30_000);
 
   /*
@@ -614,6 +665,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
           lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 0 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     // Wie ein Fremdsystem: ein PDF mit eingebettetem factur-x.xml, das O statt E nennt
     const xml = own.xml!.replaceAll("<ram:CategoryCode>E</ram:CategoryCode>", "<ram:CategoryCode>O</ram:CategoryCode>");
@@ -625,7 +677,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     const file = { bytes, filename: "re.pdf", mimeType: "application/pdf" };
     const proposal = await foreign.foreignInvoiceProposal(file);
     expect(proposal).toMatchObject({ from: "zugferd", taxTreatment: "kleinunternehmer", taxes: [{ rate: 0, net: 10_000, tax: 0 }] });
-    await foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file);
+    await foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file, kleinunternehmerStand);
     expect(await sql`select tax_treatment from invoices`).toEqual([{ tax_treatment: "kleinunternehmer" }]);
   }, 30_000);
 });

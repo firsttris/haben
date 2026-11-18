@@ -79,7 +79,7 @@ import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts"
 import { today } from "../../today.ts";
 import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 import { InvoiceError } from "./invoice-error.ts";
-import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
+import { OHNE_UMSATZSTAND, pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import {
   circleFor,
   countsRunning,
@@ -1175,9 +1175,10 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
 /**
  * Festschreiben: Nummer ziehen, PDF und XML erzeugen, sperren und buchen – alles in einer
  * Transaktion. Schlägt etwas fehl, bleibt der Entwurf ohne Nummer und es entsteht keine Lücke.
+ * `umsatzStand` ist der vereinnahmte Umsatz für die Rückfrage zur Kleinunternehmergrenze (`kleinunternehmerStand`).
  */
-export async function finalizeInvoice(actor: string, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
-  return withActor(actor, (tx) => finalizeDraft(tx, id, bestaetigt));
+export async function finalizeInvoice(actor: string, id: string, umsatzStand: UmsatzStand, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+  return withActor(actor, (tx) => finalizeDraft(tx, id, umsatzStand, bestaetigt));
 }
 
 /**
@@ -1194,7 +1195,7 @@ function procedureColumns(invoice: Invoice) {
 }
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
-async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
   const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
   const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
@@ -1258,7 +1259,7 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
   const counter = await peekNumber(tx, "rechnung", circle);
   const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
-  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
+  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, umsatzStand, bestaetigt);
   const doc = documentFor(
     invoice,
     lines,
@@ -1470,7 +1471,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
         },
         { kind: "storno", correctsId: target.id },
       );
-      return finalizeDraft(tx, draft.id);
+      return finalizeDraft(tx, draft.id, OHNE_UMSATZSTAND);
     };
     const storno = await stornoOf(invoice, lines);
     for (const correction of corrections) {

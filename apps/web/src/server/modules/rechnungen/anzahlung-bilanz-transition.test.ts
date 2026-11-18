@@ -9,6 +9,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const MIGRATIONS = fileURLToPath(new URL("../../../../drizzle", import.meta.url));
 
@@ -111,6 +112,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
             lines: [{ description: "Neue Anforderung", quantity: 1000, unit: "Psch.", unitPrice: 20_000, taxRate: 1900 }],
           })
         ).id,
+        kleinunternehmerStand,
       );
       expect(fresh.advanceAccounting).toBe("deferred");
       await bank.createCashInvoiceEntry(actor, { invoiceId: fresh.id, date: "2026-12-15", amount: 23_800 }, "2027-04-20");
@@ -143,6 +145,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
               lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
             })
           ).id,
+          kleinunternehmerStand,
         );
       const final = await finalInvoice("2027-01-20");
       expect(final).toMatchObject({ advanceAccounting: "deferred", net: 50_000, tax: 9_500, gross: 59_500 });

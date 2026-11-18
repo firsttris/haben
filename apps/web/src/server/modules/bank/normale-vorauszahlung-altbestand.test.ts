@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** Übergangsentscheidung: https://github.com/firsttris/haben/issues/853#issuecomment-6910075659 */
 describe.skipIf(!testDatabaseUrl)("Neue Vorauszahlung auf unmarkierte normale Alt-Rechnung (Postgres)", () => {
@@ -183,7 +184,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Vorauszahlung auf unmarkierte normale Al
       note: "",
       lines: [{ description: "Softwareeinrichtung", quantity: 1000, unit: "Psch.", unitPrice: 70_000, taxRate: 1900 }],
     });
-    const fresh = await invoices.finalizeInvoice(actor, draft.id);
+    const fresh = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(fresh.advanceAccounting).toBe("deferred");
     await bank.allocate(actor, { kind: "invoice", transactionId: payment, invoiceId: fresh.id, amount: 11_900 });
     const month = async (year: number, m: number) => {

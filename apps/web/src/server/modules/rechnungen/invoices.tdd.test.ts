@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("TDD: Rundung bei Storno und Korrekturen (Postgres)", () => {
   let invoices: typeof import("./invoices.ts");
@@ -64,22 +65,22 @@ describe.skipIf(!testDatabaseUrl)("TDD: Rundung bei Storno und Korrekturen (Post
 
   it("Storno einer korrigierten Rechnung nimmt nicht mehr Umsatzsteuer zurück, als Rechnung und Korrektur ausweisen", async () => {
     // 100,00 € + 19,00 €; Korrektur −0,50 € (Steuer −0,095 → −0,10 €)
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft([line(10_000)]))).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft([line(10_000)]))).id, kleinunternehmerStand);
     const correction = await invoices.createCorrection(actor, original.id, "2026-10-05");
     await invoices.updateDraft(actor, correction.id, { ...draft([line(-50)]), issueDate: "2026-10-05", paymentTermDays: 0 });
-    await invoices.finalizeInvoice(actor, correction.id);
+    await invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand);
     await invoices.cancelInvoice(actor, original.id, "2026-10-06");
     const [sum] = await sql`select sum(net)::int as net, sum(tax)::int as tax from invoices where status = 'final'`;
     expect(sum).toEqual({ net: 0, tax: 0 });
   }, 60_000);
 
   it("zwei Korrekturen, die den Nettobetrag genau auf 0 mindern, lassen sich festschreiben", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft([line(10_000)]))).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft([line(10_000)]))).id, kleinunternehmerStand);
     const first = await invoices.createCorrection(actor, original.id, "2026-10-05");
     await invoices.updateDraft(actor, first.id, { ...draft([line(-50)]), issueDate: "2026-10-05", paymentTermDays: 0 });
-    await invoices.finalizeInvoice(actor, first.id);
+    await invoices.finalizeInvoice(actor, first.id, kleinunternehmerStand);
     const second = await invoices.createCorrection(actor, original.id, "2026-10-06");
     await invoices.updateDraft(actor, second.id, { ...draft([line(-9_950)]), issueDate: "2026-10-06", paymentTermDays: 0 });
-    await expect(invoices.finalizeInvoice(actor, second.id)).resolves.toMatchObject({ status: "final" });
+    await expect(invoices.finalizeInvoice(actor, second.id, kleinunternehmerStand)).resolves.toMatchObject({ status: "final" });
   }, 60_000);
 });
