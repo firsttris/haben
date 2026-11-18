@@ -62,8 +62,15 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
   const { busy, notice, run } = useAction();
   const [open, setOpen] = useState(false);
   const [entscheidung, setEntscheidung] = useState<"keep" | "add">("keep");
+  const [geklaert, setGeklaert] = useState(false);
   const konflikt = konflikte[0];
-  if (!konflikt && !open) return null;
+  // Die Meldung an der Verbindung stammt vom letzten Abruf und bleibt bis zum nächsten stehen
+  if (!konflikt && !open)
+    return geklaert ? (
+      <span role="status" className="small muted" style={{ alignSelf: "center" }}>
+        Geklärt; der nächste Abruf übernimmt das Konto wieder.
+      </span>
+    ) : null;
 
   async function absenden(event: FormEvent) {
     event.preventDefault();
@@ -72,7 +79,10 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
       await resolve({ data: { conflictId: konflikt.id, decision: entscheidung } });
       await router.invalidate();
     });
-    if (ok && konflikte.length <= 1) setOpen(false);
+    if (ok && konflikte.length <= 1) {
+      setOpen(false);
+      setGeklaert(true);
+    }
     if (ok) setEntscheidung("keep");
   }
 
@@ -104,7 +114,7 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
               <Spalte titel="Bisher in Haben" umsatz={konflikt.previous} {...(zuordnung ? { zuordnung } : {})} />
               <Spalte titel="Jetzt von der Bank" umsatz={konflikt.delivered} />
             </div>
-            <fieldset className="field">
+            <fieldset className="choice-group">
               <legend>Was soll Haben tun?</legend>
               {ENTSCHEIDUNGEN.map((e) => (
                 <div key={e.value} className="checkbox-hinted">
