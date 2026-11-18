@@ -36,7 +36,7 @@ Kaufst du als Unternehmer **Ware** bei einem Unternehmer aus einem anderen EU-La
 
 Unter **Wer schuldet die Umsatzsteuer?** wählst du **Ich (§ 1a, Ware aus der EU)**. Die Steuerbehandlung ist unabhängig von der Kategorie: Ware zum Weiterverkauf („Wareneinkauf (Handelsware)“), Büroausstattung, Hardware und auch ein **Anlagegut** gehen. Bei einem Anlagegut kommt der Nettobetrag wie sonst ins [Anlagenverzeichnis](anlagen.md), Erwerbsteuer und Vorsteuer stehen daneben; dafür ist vollständiger Vorsteuerabzug nötig (siehe [Grenzen](belege.md#grenzen)).
 
-Du trägst das Netto aus der Rechnung ein und wählst 19 % oder 7 %. **Erwerbsteuer (automatisch)** zeigt die berechnete Steuer schreibgeschützt an; bei Änderungen am Netto oder am Satz wird sie automatisch aktualisiert. Bezahlt wird der Nettobetrag. Zum Buchen braucht Haben die **USt-IdNr. des Lieferanten** aus einem anderen EU-Land (unter **Weitere Angaben**, der Bereich klappt beim Erwerb von selbst auf); mit einer deutschen USt-IdNr. ist es kein innergemeinschaftlicher Erwerb.
+Du trägst das Netto aus der Rechnung ein und wählst 19 % oder 7 %. **Erwerbsteuer (automatisch)** zeigt die berechnete Steuer schreibgeschützt an; bei Änderungen am Netto oder am Satz wird sie automatisch aktualisiert. Bezahlt wird der Nettobetrag. Zum Buchen braucht Haben die **USt-IdNr. des Lieferanten** aus einem anderen EU-Land, im Aufbau dieses Landes wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm) (unter **Weitere Angaben**, der Bereich klappt beim Erwerb von selbst auf); mit einer deutschen USt-IdNr. ist es kein innergemeinschaftlicher Erwerb.
 
 Gebucht wird (SKR03, SKR04 in Klammern), Konten aus dem DATEV-Kontenrahmen 2026:
 

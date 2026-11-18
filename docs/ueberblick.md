@@ -34,7 +34,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Zahlung und Mahnung](rechnungen-zahlung.md) | Fälligkeit, Skonto, GiroCode, SEPA-Lastschrift mit Sammeldatei, Mahnwesen |
 | [Angebote](angebote.md) | Eigener Nummernkreis, PDF, optionale und alternative Positionen, Zahlungsplan mit Abschlägen, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot, Auftragsbestätigung und Lieferschein |
 | [Kontakte](kontakte.md) | Ein Verzeichnis für Kunden und Lieferanten, Ansprechpartner, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate |
-| [Leistungen und Zeiteinträge](leistungen.md) | Zeiteinträge je Kunde mit Stundensatz, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API, als Grundlage für die Rechnung |
+| [Zeiteinträge](leistungen.md) | Zeiteinträge je Kunde mit Stundensatz, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API, als Grundlage für die Rechnung |
 | [Eigene Belegvorlagen](belegvorlagen.md) | Eigene Layouts in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung: Felder, Schriften, Prüfung beim Hochladen, Anleitung für KI-Agenten |
 
 ## Ausgaben und Bank

@@ -24,6 +24,7 @@ import { PrivatanteilVorgaben, privatanteilFehler, privatanteilTexte, privatante
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
+import { EtsyPaymentsCard } from "../../components/EtsyPaymentsCard.tsx";
 import { KontoabrufKarten } from "../../components/FintsCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
@@ -65,6 +66,7 @@ import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
+import { getEtsySettings } from "../../server/functions/etsy.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
 import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/settings-areas.ts";
@@ -93,6 +95,12 @@ import { UnitsCard } from "../../components/UnitsCard.tsx";
 import { getUnits } from "../../server/functions/units.ts";
 import { Status } from "../../components/Status.tsx";
 
+/** Anbindungen unter Bank: Kontoabruf über Enable Banking, Finanzberichte der Stores und Etsy Payments */
+async function loadBankConnections() {
+  const [enableBanking, stores, etsy] = await Promise.all([getEnableBankingSettings(), getStoreConnections(), getEtsySettings()]);
+  return { enableBanking, stores, etsy };
+}
+
 export const Route = createFileRoute("/_app/einstellungen")({
   beforeLoad: ({ context, search }) => {
     if (context.oidc.only && search.bereich === "sicherheit") throw redirect({ to: "/einstellungen", search: { bereich: "zugaenge" }, replace: true });
@@ -117,8 +125,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       backup,
       mcp,
       rates,
-      enableBanking,
-      stores,
+      bankConnections,
       customPages,
       zugaenge,
       extraction,
@@ -143,8 +150,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getBackupStatus(),
       getMcpSettings(),
       getExchangeRates(),
-      getEnableBankingSettings(),
-      getStoreConnections(),
+      loadBankConnections(),
       getCustomPages(),
       getZugaenge(),
       getExtractionSettings(),
@@ -172,8 +178,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       backup,
       mcp,
       rates,
-      enableBanking,
-      stores,
+      ...bankConnections,
       customPages,
       zugaenge,
       extraction,
@@ -210,6 +215,7 @@ function SettingsPage() {
     rates,
     enableBanking,
     stores,
+    etsy,
     customPages,
     zugaenge,
     extraction,
@@ -283,6 +289,7 @@ function SettingsPage() {
             <>
               <KontoabrufKarten data={enableBanking} />
               <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
+              <EtsyPaymentsCard data={etsy} />
             </>
           )}
           {bereich === "zugaenge" && zugaenge.mode === "sso" && <SsoZugaengeCard accounts={zugaenge.ssoAccounts} providerName={oidc.name} />}

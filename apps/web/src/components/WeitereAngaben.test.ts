@@ -1,4 +1,4 @@
-import { ustIdProblem } from "@haben/core";
+import { ustIdAufbauProblem, ustIdProblem } from "@haben/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -44,10 +44,13 @@ describe("Weitere Angaben am Beleg", () => {
     for (const feld of ["supplierName", "category", "amounts", "", undefined]) expect(inWeitereAngaben(feld), String(feld)).toBe(false);
   });
 
-  it("hält eine USt-IdNr. aus der EU nur für gültig, wenn auch der Server sie beim Erwerb annimmt (5 bis 12 Zeichen nach dem Länderkennzeichen)", () => {
-    for (const nummer of ["FR1234", "FR12345", "FR1234567890123", "NL123456789B01", "IE6388047V", "ATU12345678", "DE812871812"]) {
-      expect(isEuVatId(nummer), nummer).toBe(ustIdProblem(nummer, "L") === null);
+  it("hält eine USt-IdNr. aus der EU nur für gültig, wenn auch der Server sie beim Erwerb annimmt (Aufbau je Mitgliedstaat, #1413)", () => {
+    for (const nummer of ["FR1234", "FR12345", "FR1234567890123", "NL123456789B01", "IE6388047V", "ATU12345678", "ATU1234", "DE812871812"]) {
+      expect(isEuVatId(nummer), nummer).toBe((ustIdProblem(nummer, "L") ?? ustIdAufbauProblem(nummer)) === null);
     }
+    expect(isEuVatId("ATU1234")).toBe(false);
+    expect(isEuVatId(" atu 1234 5678 ")).toBe(true);
+    expect(isEuVatId("XI123456789")).toBe(false);
   });
 
   it("meldet ein Leistungsende vor dem Beginn am Feld, wie der Server es ablehnt", () => {

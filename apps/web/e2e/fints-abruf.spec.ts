@@ -152,6 +152,8 @@ test("nach einer abgelehnten PIN den Zugang ändern", async () => {
   await expect(abruf().getByText("Testbank verbunden, 0 neue Umsätze.")).toBeVisible();
   await expect(abruf().getByText("Aktiv")).toBeVisible();
   await expect(abruf().getByRole("button", { name: "Zugang ändern" })).toHaveCount(0);
+  // Das Formular schließt wie beim ersten Verbinden, mit der PIN darin bleibt nichts stehen
+  await expect(page.getByRole("form", { name: "Über FinTS verbinden" })).toHaveCount(0);
 });
 
 test("pushTAN: wartet auf die Freigabe in der App", async () => {
@@ -164,6 +166,21 @@ test("pushTAN: wartet auf die Freigabe in der App", async () => {
   bank.zustand.freigegeben = true;
   await freigabe().getByRole("button", { name: "Freigegeben, weiter" }).click();
   await expect(abruf().getByText("Testbank, 0 neue Umsätze.")).toBeVisible();
+});
+
+test("pushTAN: fragt die TAN ab, wenn die Bank bei der Anmeldung eine aus der App verlangt (wie die Consorsbank)", async () => {
+  Object.assign(bank.zustand, { scaBeiAnmeldung: true, appTanEintippen: true });
+  await abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "pushTAN 2.0" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  await expect(freigabe().getByText("Bitte generieren Sie eine TAN mit Ihrer Banking App oder Ihrem TAN Generator und geben diese hier ein.")).toBeVisible();
+  await expect(freigabe().getByRole("button", { name: "Freigegeben, weiter" })).toHaveCount(0);
+  await freigabe().getByLabel("TAN", { exact: true }).fill("123456");
+  await freigabe().getByRole("button", { name: "TAN senden" }).click();
+  await expect(abruf().getByText("Testbank verbunden, 0 neue Umsätze.")).toBeVisible();
+  await expect(abruf().getByText("Aktiv")).toBeVisible();
+  bank.zustand.appTanEintippen = false;
 });
 
 test("Trennen löscht die Verbindung, die Umsätze bleiben", async () => {
