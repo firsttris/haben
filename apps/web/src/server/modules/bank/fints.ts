@@ -1,7 +1,7 @@
 import { type FintsClient, type FintsKonto, type FintsZugang, fintsClient, fintsKonten, fintsSynchronisieren, fintsTanVerfahren } from "@haben/import";
 import { and, desc, eq, inArray, isNotNull, isNull, min } from "drizzle-orm";
 import { z } from "zod";
-import { accountForIban, BankError } from "./bank.ts";
+import { accountForIban, BankError, normalizeIban } from "./bank.ts";
 import { accountFetchFrom, zustimmungenBeenden } from "./bank-sync.ts";
 import { kontenAbrufen } from "./fints-abruf.ts";
 import { fintsGeheimnisVerschluesseln } from "./fints-geheim.ts";
@@ -108,7 +108,7 @@ async function mediumWaehlen(v: Verbindung): Promise<FintsSchritt> {
   return { art: "verfahren", vorgang, verfahren: [{ id: gewaehlt.id, name: gewaehlt.name, medien: gewaehlt.medien }] };
 }
 
-const ibanVon = (konto: FintsKonto) => konto.iban!.replace(/\s/g, "").toUpperCase();
+const ibanVon = (konto: FintsKonto) => normalizeIban(konto.iban!);
 
 /** Derselbe Zugang: gleiche Bankleitzahl und gleicher Anmeldename */
 const derselbeZugang = (v: Verbindung) => and(eq(schema.fintsConnections.bankCode, v.zugang.blz), eq(schema.fintsConnections.login, v.zugang.benutzer));
@@ -143,7 +143,7 @@ async function kontenWaehlen(v: Verbindung): Promise<FintsSchritt> {
   if (konten.abrufbar.length === 1) return speichern(v, konten, konten.abrufbar);
   const gewaehlt = await vorwahl(v, konten.abrufbar.map(ibanVon));
   const vorgang = vorgangMerken(v.actor, "konten", async ({ konten: ibans = [] }) => {
-    const auswahl = new Set(ibans.map((iban) => iban.replace(/\s/g, "").toUpperCase()));
+    const auswahl = new Set(ibans.map(normalizeIban));
     if ([...auswahl].some((iban) => !konten.abrufbar.some((k) => ibanVon(k) === iban)))
       throw new BankError("Dieses Konto hat die Bank nicht zum Abruf gemeldet.");
     return speichern(
