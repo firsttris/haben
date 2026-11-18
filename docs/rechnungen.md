@@ -594,7 +594,7 @@ Eine festgeschriebene Rechnung änderst du nicht, du stellst eine neue aus. Auf 
 Für beide gilt:
 
 - Sie bekommen eine eigene Nummer aus demselben Nummernkreis und das heutige Datum.
-- Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar.
+- Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar. Ebenso übernehmen sie seine USt-IdNr., auch wenn sie nicht zum [Aufbau in ihrem Land](umsatzsteuer.md#vorprüfung-der-zm) passt.
 - Sie übernehmen die Umsatzsteuer-Behandlung und den Hinweis der ursprünglichen Rechnung, dazu [Bestell-, Auftrags- und Lieferscheinnummer](#bestellnummer-auftrag-und-lieferschein).
 - PDF und XML verweisen auf die ursprüngliche Rechnung („zur Rechnung 2026-034 vom …“, im XML als BillingReference).
 - Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen.
