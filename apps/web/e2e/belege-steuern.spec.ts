@@ -254,6 +254,38 @@ test("Beleg prüfen: Ein geleertes Kategoriefeld gilt sofort als leer, auch wenn
   await page.waitForURL(/\/belege$/);
 });
 
+test("Beleg prüfen: Nach dem Leeren mit den Pfeilen dieselbe Kategorie markiert, übernimmt Enter sie", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "kategoriepfeil.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("kategoriepfeil.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /kategoriepfeil\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  await waehleKategorie(kategorie, "telefon");
+  await kategorie.fill("");
+  // Das leere Feld zeigt alle Kategorien und markiert keine: so lange abwärts, bis Telefon markiert ist
+  const telefon = trefferliste(page)
+    .getByRole("option")
+    .filter({ has: page.getByText(kategorieName("telefon"), { exact: true }) });
+  const telefonId = await telefon.getAttribute("id");
+  for (let schritt = 0; schritt < 60 && (await kategorie.getAttribute("aria-activedescendant")) !== telefonId; schritt++) {
+    await kategorie.press("ArrowDown");
+  }
+  await expect(kategorie).toHaveAttribute("aria-activedescendant", telefonId!);
+  await kategorie.press("Enter");
+  await expect(kategorie).toHaveValue(kategorieName("telefon"));
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
 test("Dauerbeleg: Ein geleertes Kategoriefeld verlangt beim Anlegen per Enter wieder eine Kategorie", async () => {
   await go("/dauerbelege/neu");
   // Alles andere ist ausgefüllt: Nur die Kategorie hält das Anlegen auf
