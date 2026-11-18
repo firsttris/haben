@@ -22,13 +22,14 @@ export function ohneDateiBestaetigbar(v: {
  * Warum zu einer Buchung keine Datei da ist (#1235, #1322). Nur der erste Fall lädt zum Bestätigen ein; bei WISO und der
  * Lexoffice-Sicherung setzt der Import das Merkmal ohne Beleg-GUID, über einen Einzelbeleg sagt das nichts.
  *
- * „Dokument vorhanden“ steht vor der GUID: Spalte Y aus Daten.xlsx gilt für die ganze Rechnung, ein Dokument gibt es
- * also auch dann, wenn die einzelne Zeile keine eigene Beleg-GUID trägt.
+ * Die Beleg-GUID steht vor „Dokument vorhanden“: sie gilt genau für diese Zeile, dort gibt es einen eigenen Beleg, dessen
+ * Datei nur im Export fehlt. Spalte Y aus Daten.xlsx gilt dagegen für die ganze Sammelrechnung und greift deshalb nur
+ * bei Zeilen ohne eigene GUID.
  */
 export type OhneBelegGrund = "kein_beleglink" | "datei_fehlt_im_export" | "dokument_vorhanden" | "quelle_ohne_beleg";
 
 export function ohneBelegGrund(v: { source: string; guid?: string | null; documentPresent?: boolean | null }): OhneBelegGrund {
   if (v.source !== "accountable") return "quelle_ohne_beleg";
-  if (v.documentPresent === true) return "dokument_vorhanden";
-  return v.guid ? "datei_fehlt_im_export" : "kein_beleglink";
+  if (v.guid) return "datei_fehlt_im_export";
+  return v.documentPresent === true ? "dokument_vorhanden" : "kein_beleglink";
 }

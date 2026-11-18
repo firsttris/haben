@@ -5,8 +5,8 @@
  *   lässt sich bestätigen.
  * - Datei fehlt im Export: Die Buchung trägt eine Beleg-GUID, nur die Datei fehlt im Export. Ein Einzelbeleg kann
  *   existieren, bestätigen lässt sich das nicht.
- * - Dokument vorhanden: Daten.xlsx, Spalte Y meldet zu der Rechnung ein Dokument, es hängt an einer anderen Zeile. Auch
- *   dann gibt es einen Beleg, bestätigen lässt sich das hier nicht.
+ * - Dokument vorhanden: Daten.xlsx, Spalte Y meldet zu der Rechnung ein Dokument, es hängt an einer anderen Zeile. Das
+ *   gilt nur für Zeilen ohne eigene Beleg-GUID; mit GUID nennt der Satz oben den Einzelbeleg. Bestätigen lässt sich beides nicht.
  * - Quelle ohne Beleg: WISO und die Lexoffice-Sicherung setzen das Merkmal ohne Beleg-GUID. Über einen Einzelbeleg
  *   sagt das nichts, bestätigen lässt sich auch nichts.
  */

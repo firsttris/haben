@@ -96,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Beleg ohne Datei bestätigen", ()
     expect(await staende(voucher)).toHaveLength(0);
   });
 
-  it("reicht „Dokument Vorhanden“ bis in die Belegansicht durch (#1322)", async () => {
+  it("reicht den Banner-Grund bis in die Belegansicht durch (#1322)", async () => {
     // Ohne eigene GUID, aber mit Dokument an einer anderen Zeile derselben Rechnung
     const voucher = await beleg("accountable/row/916", "purchaseinvoice", true, null, { documentPresent: true });
     const detail = (await lexoffice.legacyVoucherDetail(voucher))!;
@@ -105,6 +105,12 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Beleg ohne Datei bestätigen", ()
     // Mit GUID und ohne Dokument bleibt es beim fehlenden Export
     const mitGuid = await beleg("accountable/row/917", "purchaseinvoice", true, "guid-917");
     expect((await lexoffice.legacyVoucherDetail(mitGuid))!.fileState.ohneBelegGrund).toBe("datei_fehlt_im_export");
+    // Mit eigener GUID in einer Sammelrechnung gewinnt die GUID: für diese Zeile gibt es einen Beleg, nur die Datei fehlt im Export
+    const guidMitDokument = await beleg("accountable/row/919", "purchaseinvoice", true, "guid-919", { documentPresent: true });
+    const detailGuid = (await lexoffice.legacyVoucherDetail(guidMitDokument))!;
+    expect(detailGuid.fileState.ohneBelegGrund).toBe("datei_fehlt_im_export");
+    expect(detailGuid.fileState.canConfirmWithoutFile).toBe(false);
+    await expect(dateistand.confirmWithoutFile("test-user", guidMitDokument, "")).rejects.toThrow("Beleg-GUID");
   });
 
   it("lässt im Stapel nach der Rücknahme erneut bestätigen (#1317)", async () => {
@@ -138,9 +144,10 @@ it("nennt den Grund je Quelle und Beleg-GUID (#1235)", async () => {
   expect(ohneBelegGrund({ source: "accountable", guid: "a1b2c3" })).toBe("datei_fehlt_im_export");
   expect(ohneDateiBestaetigbar({ source: "accountable", lexofficeId: "accountable/row/2", type: "purchaseinvoice", guid: "a1b2c3" })).toBe(false);
 
-  // „Dokument Vorhanden“ steht vor der GUID (#1322): Das Dokument hängt an einer anderen Zeile derselben Rechnung
+  // Die Beleg-GUID steht vor „Dokument Vorhanden“ (#1322): Spalte Y gilt für die ganze Sammelrechnung, die GUID für genau
+  // diese Zeile, deren Beleg nur im Export fehlt
   expect(ohneBelegGrund({ source: "accountable", guid: null, documentPresent: true })).toBe("dokument_vorhanden");
-  expect(ohneBelegGrund({ source: "accountable", guid: "a1b2c3", documentPresent: true })).toBe("dokument_vorhanden");
+  expect(ohneBelegGrund({ source: "accountable", guid: "a1b2c3", documentPresent: true })).toBe("datei_fehlt_im_export");
   expect(ohneBelegGrund({ source: "accountable", guid: null, documentPresent: null })).toBe("kein_beleglink");
 
   // WISO und die Lexoffice-Sicherung setzen das Merkmal ohne GUID
