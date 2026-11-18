@@ -14,9 +14,10 @@ import type { Rechtsform } from "./rechtsform.ts";
  * - Geldtransit: Eine Umbuchung zwischen eigenen Konten mit einem privaten Konto auf beiden Seiten ist Entnahme gegen
  *   Entnahme.
  *
- * Mehr fällt nicht weg: Die Steuern des Betriebs bleiben von dort buchbar, gegen Entnahme bzw. Einlage
- * (server/modules/bank/steuerzahlung.ts, ustPrivatPosting). Kategorie, Rechnung und Beleg buchen dort noch gegen die Bank
- * (Rest von #873).
+ * Mehr fällt nicht weg: Was bleibt, bucht auf einem privaten Konto gegen die Richtung des Zahlungskontos, also gegen
+ * Privatentnahme, Privateinlage oder das Gesellschafter-Verrechnungskonto statt gegen die Bank (posting.ts,
+ * privatKontoPosting; angewandt in server/modules/bank/bank.ts). Das gilt für Steuern, Kategorie, Rechnung, Beleg,
+ * Darlehen und die Lohnzahlungen gleichermaßen.
  */
 
 /**

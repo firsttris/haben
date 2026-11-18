@@ -245,7 +245,7 @@ export const ACCOUNT_PURPOSES = {
   geschaeft: "Geschäftskonto",
   steuer: "Steuerkonto (Lastschrift und Erstattungen des Finanzamts)",
   ruecklage: "Rücklagen- oder Sparkonto",
-  privat: "Privatkonto (nur zur Zuordnung von Überweisungen)",
+  privat: "Privatkonto (Geschäftsvorfälle gegen Entnahme und Einlage)",
 } as const;
 
 /** Zahlungsdienstleister mit eigenem Guthaben (Verrechnungskonto); pattern erkennt sie als Gegenpartei auf der Bank */
