@@ -47,7 +47,8 @@ export function direktKategorienFuerKonto(zweck: AccountPurpose | null): ReturnT
 
 /**
  * Buchungsarten, die nicht aus dem Angebot des Kontos stammen, sondern immer zur Wahl stehen: Kategorie, Steuer und
- * Darlehen. Sie hängen nicht am Kontozweck und buchen auf einem privaten Konto weiter gegen die Bank (#873).
+ * Darlehen. Sie hängen nicht am Kontozweck; auf einem privaten Konto buchen sie wie jede andere Art gegen Entnahme,
+ * Einlage oder das Gesellschafter-Verrechnungskonto (privatKontoPosting, #873).
  */
 export const FREIE_BUCHUNGSARTEN = ["kategorie", "steuer", "darlehen"] as const;
 
