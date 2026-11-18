@@ -3289,12 +3289,28 @@
       "definitionHash": "d18508dfa8bbb1d17460cdfbb07d78c14c832cab41e84a87cb0fd8917e154753"
     },
     {
+      "name": "public.haben_bank_duplicate_block_reason(candidate_id uuid, original_id uuid)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "504c85f31a0e79fff773ff8f4f8784f0aeb26c1ff56ce37ff8d59797421ec444",
+      "definitionHash": "3283b2b35052416b48b0c0f424a4d1f51d8e82a70e0a996572d039d1b1a60238"
+    },
+    {
       "name": "public.haben_bank_neutralized(tx_id uuid)",
       "config": [],
       "language": "sql",
       "securityDefiner": false,
       "sourceHash": "ecdca07ef0639c088cb1bec620277a98790735cf3f3ea3f7558608889bfd7bf7",
       "definitionHash": "5f9be8e9e60f0fb4d2a78c25050c2d5536a7c2231d4a46a5784d3710ac726b48"
+    },
+    {
+      "name": "public.haben_bank_shared_fetch(left_id uuid, right_id uuid)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "130cea69d88a86a48ef995b4c6c6c9b3df8e2cb4ecda12510937335f23e0edf5",
+      "definitionHash": "ea37e4985a386347d2f45f0b7819db938f5b2fed889e252a2f4b036081d160da"
     },
     {
       "name": "public.haben_cash_entry_invoice()",
@@ -3357,8 +3373,8 @@
       "config": [],
       "language": "plpgsql",
       "securityDefiner": false,
-      "sourceHash": "55e77537da5f211e996c1540bb478f3fee9fd99e65dc21e359ad1ccc4d356a49",
-      "definitionHash": "aaaadb6346503c1600b42b9f83e8df7dff666caddbb5d5f613d15995db64c20e"
+      "sourceHash": "e783f0fafaf3c8ca0277df6864275e5d707d9cec36773d258e2c95c15a372d35",
+      "definitionHash": "0294086b6a6fbd5be7584274ff7b628e64fe14bac5a2e4fd08af50048fdcccc5"
     },
     {
       "name": "public.haben_check_bank_neutralization()",

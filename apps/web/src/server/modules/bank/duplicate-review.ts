@@ -49,6 +49,7 @@ export async function duplicateReviewsForTransaction(id: string) {
       decisionId: string | null;
       requestId: string;
       sharedFetch: boolean;
+      confirmationBlockReason: string | null;
       originalId: string;
       originalPurpose: string | null;
       originalName: string | null;
@@ -57,7 +58,10 @@ export async function duplicateReviewsForTransaction(id: string) {
     select dupe.id, original.id as "originalId", original.purpose as "originalPurpose",
       original.counterparty_name as "originalName", original.booking_date::text as "originalDate",
       coalesce(d.decision, 'pending') as decision, d.id as "decisionId",
-      gen_random_uuid()::text as "requestId", not (${separateDuplicateFetchesSql}) as "sharedFetch"
+      gen_random_uuid()::text as "requestId", not (${separateDuplicateFetchesSql}) as "sharedFetch",
+      case when d.decision is distinct from 'distinct' then
+        haben_bank_duplicate_block_reason(dupe.transaction_id, dupe.original_transaction_id)
+      end as "confirmationBlockReason"
     from bank_duplicate_reviews dupe join bank_transactions original on original.id = dupe.original_transaction_id
     left join bank_duplicate_decisions d on d.id = haben_active_bank_duplicate_decision(dupe.id)
     where dupe.transaction_id = ${id} and (d.id is not null or (not haben_bank_duplicate(dupe.transaction_id) and ${separateDuplicateFetchesSql}))

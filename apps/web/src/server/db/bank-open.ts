@@ -36,16 +36,7 @@ export const bankPrivateMarkedSql = sql<boolean>`(exists (select 1 from ${schema
 export const bankNotPrivateMarkedSql = sql<boolean>`not ${bankPrivateMarkedSql}`;
 
 /** Die Originalimporte und spätere Wiederbeobachtungen gelten als gleichwertiger Abrufnachweis. */
-export const separateDuplicateFetchesSql = sql<boolean>`not exists (
-  select 1 from (
-    select import_id from bank_transactions where id = dupe.transaction_id
-    union all select bank_import_id from bank_import_transactions where transaction_id = dupe.transaction_id
-  ) seen
-  where seen.import_id in (
-    select import_id from bank_transactions where id = dupe.original_transaction_id
-    union all select bank_import_id from bank_import_transactions where transaction_id = dupe.original_transaction_id
-  )
-)`;
+export const separateDuplicateFetchesSql = sql<boolean>`not haben_bank_shared_fetch(dupe.transaction_id, dupe.original_transaction_id)`;
 
 /** Offener Verdacht; ein später belegter gemeinsamer Abruf entkräftet ihn ohne Änderung des Auditverlaufs. */
 export const bankDuplicatePendingSql = sql<boolean>`not ${bankDuplicateConfirmedSql} and exists (

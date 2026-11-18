@@ -16,6 +16,7 @@ type DuplicateReview = {
   decisionId: string | null;
   requestId: string;
   sharedFetch: boolean;
+  confirmationBlockReason: string | null;
 };
 
 type Props = {
@@ -57,6 +58,7 @@ export function BankDuplicateNotice({ tx, reviews, busy, onDecision }: Props) {
               {review.decision === "duplicate" && review.sharedFetch && (
                 <div className="small">Die Bank hat beide Umsätze später gemeinsam geliefert. Prüfe die Dublettenentscheidung.</div>
               )}
+              {review.confirmationBlockReason && <div className="small">{review.confirmationBlockReason}</div>}
               <DecisionActions review={review} busy={busy} onDecision={onDecision} />
             </dd>
           ))}
@@ -89,7 +91,12 @@ function DecisionActions({ review, busy, onDecision }: Pick<Props, "busy" | "onD
   }
   return (
     <div className="actions">
-      <button type="button" className="btn" disabled={busy} onClick={() => onDecision({ id, decision: "duplicate", requestId })}>
+      <button
+        type="button"
+        className="btn"
+        disabled={busy || Boolean(review.confirmationBlockReason)}
+        onClick={() => onDecision({ id, decision: "duplicate", requestId })}
+      >
         Ist eine Dublette
       </button>
       <button type="button" className="btn" disabled={busy} onClick={() => onDecision({ id, decision: "distinct", requestId })}>

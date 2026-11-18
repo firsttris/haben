@@ -65,11 +65,46 @@ LANGUAGE sql STABLE AS $$
   );
 $$;
 --> statement-breakpoint
+CREATE FUNCTION haben_bank_shared_fetch(left_id uuid, right_id uuid) RETURNS boolean
+LANGUAGE sql STABLE AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM (
+      SELECT import_id FROM bank_transactions WHERE id = left_id
+      UNION ALL SELECT bank_import_id FROM bank_import_transactions WHERE transaction_id = left_id
+    ) seen WHERE seen.import_id IN (
+      SELECT import_id FROM bank_transactions WHERE id = right_id
+      UNION ALL SELECT bank_import_id FROM bank_import_transactions WHERE transaction_id = right_id
+    )
+  );
+$$;
+--> statement-breakpoint
+-- Eine bestätigte Dublette kann kein Original sein. Gemeinsam gelieferte Zahlungen bleiben
+-- auch dann eigenständig, wenn beide einem dritten Umsatz ähneln (#865, § 146 Abs. 1 und 4 AO).
+CREATE FUNCTION haben_bank_duplicate_block_reason(candidate_id uuid, original_id uuid) RETURNS text
+LANGUAGE sql STABLE AS $$
+  SELECT CASE
+    WHEN haben_bank_duplicate(original_id)
+      THEN 'Der ähnliche Umsatz ist bereits als Dublette bestätigt.'
+    WHEN EXISTS (
+      SELECT 1 FROM bank_duplicate_reviews r
+      JOIN bank_duplicate_decisions d ON d.id = haben_active_bank_duplicate_decision(r.id)
+      WHERE r.original_transaction_id = candidate_id AND d.decision = 'duplicate'
+    ) THEN 'Zu diesem Umsatz wurde bereits eine andere Dublette bestätigt.'
+    WHEN EXISTS (
+      SELECT 1 FROM bank_duplicate_reviews r
+      JOIN bank_duplicate_decisions d ON d.id = haben_active_bank_duplicate_decision(r.id)
+      WHERE r.original_transaction_id = original_id AND r.transaction_id <> candidate_id
+        AND d.decision = 'duplicate' AND haben_bank_shared_fetch(candidate_id, r.transaction_id)
+    ) THEN 'Die Bank hat diesen Umsatz gemeinsam mit einer bereits bestätigten Dublette zum selben Original geliefert.'
+  END;
+$$;
+--> statement-breakpoint
 CREATE FUNCTION haben_check_bank_duplicate_decision() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
   d bank_duplicate_reviews%ROWTYPE;
   active_id uuid;
+  blocking_reason text;
 BEGIN
   SELECT * INTO STRICT d FROM bank_duplicate_reviews WHERE id = NEW.review_id;
   PERFORM 1 FROM bank_transactions WHERE id IN (d.transaction_id, d.original_transaction_id) ORDER BY id FOR UPDATE;
@@ -89,20 +124,17 @@ BEGIN
   IF active_id IS NOT NULL THEN
     RAISE EXCEPTION 'Der Dublettenverdacht ist bereits entschieden' USING ERRCODE = 'check_violation';
   END IF;
-  IF EXISTS (
-    SELECT 1 FROM (
-      SELECT import_id FROM bank_transactions WHERE id = d.transaction_id
-      UNION ALL SELECT bank_import_id FROM bank_import_transactions WHERE transaction_id = d.transaction_id
-    ) seen WHERE seen.import_id IN (
-      SELECT import_id FROM bank_transactions WHERE id = d.original_transaction_id
-      UNION ALL SELECT bank_import_id FROM bank_import_transactions WHERE transaction_id = d.original_transaction_id
-    )
-  ) THEN
+  IF haben_bank_shared_fetch(d.transaction_id, d.original_transaction_id) THEN
     RAISE EXCEPTION 'Beide Umsätze stammen aus einem gemeinsamen Abruf' USING ERRCODE = 'check_violation';
   END IF;
   IF NEW.decision = 'duplicate' THEN
     IF haben_bank_duplicate(d.transaction_id) THEN
       RAISE EXCEPTION 'Der Umsatz ist bereits als Dublette bestätigt' USING ERRCODE = 'check_violation';
+    END IF;
+    -- Die Entscheidungen teilen eine gesperrte Umsatzzeile, auch wenn ihr Verdachtspaar verschieden ist.
+    blocking_reason := haben_bank_duplicate_block_reason(d.transaction_id, d.original_transaction_id);
+    IF blocking_reason IS NOT NULL THEN
+      RAISE EXCEPTION '%', blocking_reason USING ERRCODE = 'check_violation';
     END IF;
     IF EXISTS (SELECT 1 FROM allocations a WHERE a.transaction_id = d.transaction_id AND a.reverses_id IS NULL
       AND NOT EXISTS (SELECT 1 FROM allocations r WHERE r.reverses_id = a.id)) THEN
