@@ -2,6 +2,7 @@ import {
   JOURNAL_KENNZAHLEN,
   kennzahlenAusJournal,
   leereJournalKennzahlen,
+  mitBemessungWieHeute,
   periodRange,
   type JournalKennzahlen,
   type JournalZeile,
@@ -27,6 +28,7 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .select({
       id: e.id,
       kontenrahmen: e.kontenrahmen,
+      sourceType: e.sourceType,
       account: l.account,
       debit: l.debit,
       credit: l.credit,
@@ -47,7 +49,7 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, start), lt(e.date, end), notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
-  const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; zeilen: JournalZeile[] }>();
+  const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; beleg: boolean; zeilen: JournalZeile[] }>();
   const taxes = invoiceTaxReader(q);
   for (const r of rows) {
     let b = buchungen.get(r.id);
@@ -65,7 +67,7 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
             taxTreatment: r.treatment ?? "regulaer",
           })
         : versteuerung;
-      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, zeilen: [] };
+      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, beleg: r.sourceType === "document", zeilen: [] };
       buchungen.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });
@@ -74,7 +76,10 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
   // Ein Jahr hat einen Kontenrahmen; je Kontenrahmen gerechnet, falls ein Zeitraum doch beide sieht
   for (const kr of ["SKR03", "SKR04"] as const)
     for (const mode of ["ist", "soll"] as const) {
-      const eigene = [...buchungen.values()].filter((b) => b.kontenrahmen === kr && b.versteuerung === mode).map((b) => b.zeilen);
+      // Belegbuchungen mit § 13b oder Erwerb von vor #551 mit der Bemessungsgrundlage wie heute (#1396)
+      const eigene = [...buchungen.values()]
+        .filter((b) => b.kontenrahmen === kr && b.versteuerung === mode)
+        .map((b) => (b.beleg ? mitBemessungWieHeute(kr, b.zeilen) : b.zeilen));
       if (eigene.length === 0) continue;
       const k = kennzahlenAusJournal(kr, mode, eigene);
       for (const feld of JOURNAL_KENNZAHLEN) summe[feld] += k[feld];

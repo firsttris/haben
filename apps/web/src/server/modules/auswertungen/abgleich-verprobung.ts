@@ -1,4 +1,14 @@
-import { formatEuro, monthsOfPeriod, verprobeBuchung, type Cents, type JournalZeile, type Kontenrahmen, type VatPeriod, type Versteuerung } from "@haben/core";
+import {
+  formatEuro,
+  mitBemessungWieHeute,
+  monthsOfPeriod,
+  verprobeBuchung,
+  type Cents,
+  type JournalZeile,
+  type Kontenrahmen,
+  type VatPeriod,
+  type Versteuerung,
+} from "@haben/core";
 import { and, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
@@ -111,7 +121,12 @@ export function verprobungsZeilen(
   return buchungen
     .filter((b) => months.has(b.month) && b.sourceType !== "asset")
     .flatMap((b) =>
-      verprobeBuchung(b.kontenrahmen, b.versteuerung ?? versteuerung, b.zeilen).map((a) => ({
+      // Belegbuchungen mit Erwerb von vor #551 mit der Bemessungsgrundlage wie heute (#1396)
+      verprobeBuchung(
+        b.kontenrahmen,
+        b.versteuerung ?? versteuerung,
+        b.sourceType === "document" ? mitBemessungWieHeute(b.kontenrahmen, b.zeilen) : b.zeilen,
+      ).map((a) => ({
         posten: `${ART[a.art]} ${a.satz / 100} % zur Bemessungsgrundlage ${formatEuro(a.bemessung)}: Buchung „${b.description}“ vom ${datum(b.date)}`,
         schluessel: `buchung:${b.id}:${a.art}:${a.satz}`,
         journal: a.steuer,
