@@ -25,8 +25,10 @@ export function fastbillTaxType(t: string): string {
 
 /**
  * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
- * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
- * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt; eine eigene Steuerart (taxType custom) ordnet
+ * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType. Die Kennzahlen nennt die
+ * OpenAPI (https://api.sevdesk.de/openapi.yaml, „VAT rules“): 5 „Reverse Charge gem. §13b UStG (field 60)“ Kz 60,
+ * 21 „Reverse Charge gem. §18b UStG (field 21)“ Kz 21, 17 „Nicht im Inland steuerbare Leistung“ (alt taxType noteu)
+ * Kz 45, im DATEV-Export auf SKR03 8338 (#472), 18 bis 20 One-Stop-Shop außerhalb der Voranmeldung; eine eigene Steuerart (taxType custom) ordnet
  * sevdesk-steuerarten.ts über ihre Kennzahlen zu. FastBill: VAT_CASE.
  */
 export function taxTypeOf(t: string) {
@@ -34,9 +36,12 @@ export function taxTypeOf(t: string) {
     when ${t}.source = 'sevdesk' then
       case coalesce(${t}.raw->'taxRule'->>'id', '')
         when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'
-        when '4' then 'vatfree' when '11' then 'vatfree'
+        when '4' then 'vatfree' when '5' then 'constructionService13b' when '11' then 'vatfree'
+        when '17' then 'thirdPartyCountryService' when '21' then 'externalService13b'
+        when '18' then 'oss' when '19' then 'oss' when '20' then 'oss'
         when '' then case coalesce(${t}.raw->>'taxType', 'default')
           when 'default' then 'net' when 'eu' then 'intraCommunitySupply' when 'ss' then 'vatfree'
+          when 'noteu' then 'thirdPartyCountryService'
           else 'sevdesk:' || (${t}.raw->>'taxType') end
         else 'sevdesk:taxRule' || (${t}.raw->'taxRule'->>'id') end
     else coalesce(${t}.raw->'taxConditions'->>'taxType', ${t}.raw->>'taxType') end`);

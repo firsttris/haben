@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { direktBuchungenFuerKonto, direktKategorienFuerKonto, startwertFuerBuchungsart } from "./konto-angebot.ts";
+import { aufRechtsformAngeboten, direktBuchungenFuerKonto, direktKategorienFuerKonto, startwertFuerBuchungsart } from "./konto-angebot.ts";
 import { directBookingLabel } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
 
@@ -74,6 +74,22 @@ describe("Angebot im Bankabgleich je Kontozweck", () => {
   });
 });
 
+describe("Angebot je Rechtsform (#1356)", () => {
+  it("bietet die Aufladung eines Guthabens nur im Einzelunternehmen an", () => {
+    expect(aufRechtsformAngeboten("aufladung", "einzelunternehmen")).toBe(true);
+    expect(aufRechtsformAngeboten("aufladung", "gmbh")).toBe(false);
+    expect(aufRechtsformAngeboten("aufladung", "ug")).toBe(false);
+  });
+
+  it("sperrt in GmbH und UG nur die Aufladung, nicht die übrigen Buchungsarten", () => {
+    for (const rechtsform of ["gmbh", "ug"] as const) {
+      for (const wert of ["kategorie", "steuer", "darlehen", "privat", "gebuehren", "zinsertrag", "spende", "kapest"]) {
+        expect(aufRechtsformAngeboten(wert, rechtsform), `${rechtsform} ${wert}`).toBe(true);
+      }
+    }
+  });
+});
+
 describe("Startwert für die Direktbuchung", () => {
   const arten = (zweck: "geschaeft" | "privat") => angebot("einzelunternehmen", zweck).directKinds.map((k) => k.value);
 
@@ -82,6 +98,8 @@ describe("Startwert für die Direktbuchung", () => {
     expect(startwertFuerBuchungsart("kategorie", arten("geschaeft"))).toBe("kategorie");
     expect(startwertFuerBuchungsart("steuer", arten("privat"))).toBe("steuer");
     expect(startwertFuerBuchungsart("darlehen", arten("privat"))).toBe("darlehen");
+    // Die Aufladung steht wie die Kategorie nicht im Angebot des Kontos; ein gebuchter Umsatz öffnet dort wieder (#1356)
+    expect(startwertFuerBuchungsart("aufladung", arten("privat"))).toBe("aufladung");
   });
 
   it("ersetzt einen Vorschlag, den das Konto nicht anbietet, durch den ersten erlaubten Eintrag", () => {

@@ -32,10 +32,18 @@ function DirectDebitPage() {
           <h1>Lastschriften</h1>
         </div>
       </div>
-      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Fällige <Link to="/rechnungen">Rechnungen</Link> mit Zahlungsart Lastschrift als Sammeldatei (pain.008) zum Hochladen ins Online-Banking. Gebucht wird
-        dabei nichts: Bezahlt ist eine Rechnung erst, wenn der <Link to="/bank">Bankabgleich</Link> die Gutschrift zuordnet.
-      </p>
+      <div className="muted small" style={{ maxWidth: 760 }}>
+        <ol style={{ margin: "0 0 8px", paddingLeft: 20 }}>
+          <li>
+            Konto und fällige <Link to="/rechnungen">Rechnungen</Link> mit Zahlungsart Lastschrift auswählen.
+          </li>
+          <li>Datei erzeugen: Haben legt sie im SEPA-Format (pain.008) an und lädt sie herunter.</li>
+          <li>Die Datei im Online-Banking hochladen. Erst dort zieht die Bank das Geld ein.</li>
+        </ol>
+        <p style={{ margin: 0 }}>
+          Gebucht wird dabei nichts: Bezahlt ist eine Rechnung erst, wenn der <Link to="/bank">Bankabgleich</Link> die Gutschrift zuordnet.
+        </p>
+      </div>
       <DirectDebitForm data={data} />
       <DirectDebitFiles data={data} />
     </>
@@ -95,7 +103,7 @@ function DirectDebitForm({ data }: { data: Data }) {
     <form className="card" onSubmit={onSubmit} aria-label="SEPA-Lastschrift erzeugen">
       <h2 style={{ margin: 0, fontSize: 16 }}>Fällige Rechnungen</h2>
       <div className="form-grid">
-        <Field label="Gläubigerkonto">
+        <Field label="Konto, auf das das Geld kommt (Gläubigerkonto)">
           {(control) => (
             <select {...control} name="account" defaultValue={data.accounts.find((a) => a.purpose === "geschaeft")?.id ?? data.accounts[0]!.id}>
               {data.accounts.map((a) => (

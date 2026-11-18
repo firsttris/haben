@@ -1,3 +1,4 @@
+import { inCents } from "@haben/core";
 import { and, asc, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -32,7 +33,7 @@ export const serviceEntrySchema = z.object({
     .max(24 * 60, "Dauer höchstens 24 Stunden"),
   description: z.string().trim().max(2000).default(""),
   /** Stundensatz in Cent; fehlt = der Satz des Kunden (beim Anlegen) bzw. unverändert (beim Ändern) */
-  hourlyRateCents: z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00, "Stundensatz zu hoch").optional(),
+  hourlyRateCents: inCents(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00, "Stundensatz zu hoch")).optional(),
   /** Erfasst, aber nie in einem Rechnungsentwurf; fehlt = nein (beim Anlegen) bzw. unverändert (beim Ändern) */
   nonBillable: z.boolean().optional(),
   /** Abrechenbare Dauer in Minuten; null = die erfasste, fehlt = unverändert */

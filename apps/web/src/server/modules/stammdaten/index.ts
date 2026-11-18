@@ -9,7 +9,18 @@
 export { insertImportedArticles, insertImportedContacts, planArticleImport, planContactImport } from "./csv-import.ts";
 export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
 export { assertKnownUnit, createUnit, listUnits, loadUnitCodes, setUnitArchived, UnitError, type Unit } from "./units.ts";
-export { articleInputSchema, createArticle, insertArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
+export {
+  articleInputSchema,
+  articlePatchSchema,
+  createArticle,
+  getArticle,
+  insertArticle,
+  listArticles,
+  patchArticle,
+  setArticleArchived,
+  updateArticle,
+  type Article,
+} from "./articles.ts";
 export { searchStammdaten, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
 export {
   companyIssues,
@@ -21,6 +32,11 @@ export {
   lastDayOfMonth,
   letterIssues,
   loadCompany,
+  loadEinrichtung,
+  offeneFragenErledigt,
+  saveBereiche,
+  setEinrichtung,
+  type Einrichtung,
   sellerIssues,
   setArchiveSearch,
   versteuerungForYear,
@@ -113,6 +129,14 @@ export {
   type Mandate,
   type MandateOption,
 } from "./sepa-mandate.ts";
+export {
+  bestaetigeUstId,
+  listUstIdBestaetigungen,
+  ustIdBestaetigungen,
+  type UstIdBestaetigung,
+  type UstIdBestaetigungsErgebnis,
+  type UstIdBestaetigungsZustand,
+} from "./ustid-bestaetigung.ts";
 export {
   ansprechpartnerSnapshot,
   ContactPersonError,

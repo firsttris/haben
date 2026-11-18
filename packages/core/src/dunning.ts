@@ -1,6 +1,6 @@
 import { BASE_RATE_LIMITS } from "./base-rate.ts";
-import { type BasisPoints, type Cents, formatEuro, parseEuro, parseHundredths } from "./money.ts";
-import { formatPercent } from "./skonto.ts";
+import { amountError, type BasisPoints, type Cents, formatEuro, parseEuro } from "./money.ts";
+import { formatPercent, parsePercent } from "./skonto.ts";
 
 /** Mahnstufen; nach der letzten Mahnung bleibt nur Inkasso oder Mahnbescheid */
 export const DUNNING_LEVELS = {
@@ -43,16 +43,13 @@ export const MAX_DUNNING_FEE: Cents = 100_000;
 export function dunningFeeError(text: string): string | null {
   if (text.trim() === "") return null;
   const cents = parseEuro(text);
-  if (cents === null || cents < 0) return "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer.";
+  if (cents === null || cents < 0) return amountError("die Mahngebühr", 500, { optional: true });
   return cents > MAX_DUNNING_FEE ? `Die Mahngebühr beträgt höchstens ${formatEuro(MAX_DUNNING_FEE)}.` : null;
 }
 
-/**
- * Eingegebener Basiszinssatz in Basispunkten: „1,27“ oder „1,27 %“ → 127. Anders als parsePercent auch negativ, wie von
- * 2013 bis 2022 (§ 247 BGB); null, wenn die Eingabe kein Satz mit höchstens zwei Nachkommastellen ist.
- */
+/** Eingegebener Basiszinssatz in Basispunkten: wie jedes Prozentfeld über parsePercent, aber auch negativ (§ 247 BGB) */
 export function parseBaseRate(text: string): BasisPoints | null {
-  return parseHundredths(text.replace(/%/g, ""));
+  return parsePercent(text, { negative: true });
 }
 
 /** Fehler des eingegebenen Basiszinssatzes als Satz für das Feld, null wenn er stimmt; leer heißt keine Verzugszinsen */
@@ -80,7 +77,7 @@ export function daysOverdue(dueDate: string, until: string): number {
  * Verzugszinsen auf den offenen Betrag, taggenau, kaufmännisch gerundet. Bewusst vereinfacht mit 365 Tagen
  * je Jahr, auch im Schaltjahr (dort wären es 366); der Unterschied liegt bei rund 0,3 % der Zinsen.
  */
-export function lateInterest(open: Cents, rateBasisPoints: number, days: number): Cents {
+export function lateInterest(open: Cents, rateBasisPoints: BasisPoints, days: number): Cents {
   if (open <= 0 || rateBasisPoints <= 0 || days <= 0) return 0;
   return Math.round((open * rateBasisPoints * days) / (10_000 * 365));
 }
@@ -91,7 +88,7 @@ export interface DunningAmounts {
   fee: Cents;
   flatFee: Cents;
   interest: Cents;
-  interestRate: number;
+  interestRate: BasisPoints;
   interestDays: number;
   total: Cents;
 }
@@ -102,8 +99,8 @@ export function dunningAmounts(input: {
   date: string;
   fee: Cents;
   flatFee: boolean;
-  /** Basiszinssatz plus Aufschlag in Basispunkten; null = keine Zinsen */
-  interestRate: number | null;
+  /** Basiszinssatz plus Aufschlag; null = keine Zinsen */
+  interestRate: BasisPoints | null;
 }): DunningAmounts {
   const interestDays = input.interestRate === null ? 0 : daysOverdue(input.dueDate, input.date);
   const interest = input.interestRate === null ? 0 : lateInterest(input.open, input.interestRate, interestDays);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ACCENT_PATTERN, DEFAULT_ACCENT } from "./accent.ts";
 import { footerIssues, MAX_FOOTER_COLUMNS, MAX_FOOTER_TEXT, MIN_FOOTER_COLUMNS } from "./footer-template.ts";
+import type { BasisPoints } from "./money.ts";
 
 /** Layout eines Belegs: eingebaut („klassisch“) oder eigenes, hochgeladenes (#113, id aus beleg_layouts) */
 export interface LayoutRef {
@@ -39,7 +40,7 @@ export const LOGO_SIZES = {
   l: { height: 24, width: 80 },
 } as const;
 export type LogoSize = keyof typeof LOGO_SIZES;
-export type LogoPosition = "links" | "rechts";
+export type LogoPosition = "links" | "mitte" | "rechts";
 
 /**
  * Schriften der Belege (SIL OFL 1.1, Dateien in packages/einvoice/fonts). PDF/A verlangt eingebettete Schriften, deshalb
@@ -121,14 +122,14 @@ export function designWithDefaults(stored: Partial<LetterheadDesign> | null | un
 export const showsVatColumn = (vatColumn: boolean, rates: number): boolean => vatColumn || rates > 1;
 
 /** Steuersätze in den Zeilen des Blatts; anders als die Summen zählen optionale und alternative Positionen eines Angebots mit */
-export const distinctVatRates = (lines: readonly { taxRate: number }[]): number => new Set(lines.map((line) => line.taxRate)).size;
+export const distinctVatRates = (lines: readonly { taxRate: BasisPoints }[]): number => new Set(lines.map((line) => line.taxRate)).size;
 
 /** Was das Panel und die Einstellungen ändern dürfen; die Layoutwahl kommt mit dem zweiten Layout dazu */
 export const letterheadDesignInputSchema = z
   .object({
     accent: z.string().regex(ACCENT_PATTERN),
     logoSize: z.enum(["s", "m", "l"]),
-    logoPosition: z.enum(["links", "rechts"]),
+    logoPosition: z.enum(["links", "mitte", "rechts"]),
     foldMarks: z.boolean(),
     giroCode: z.boolean(),
     customerNumber: z.boolean(),

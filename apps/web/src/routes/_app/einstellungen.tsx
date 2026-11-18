@@ -18,11 +18,14 @@ import { redirect, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
+import { BereicheCard } from "../../components/BereicheCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
+import { PrivatanteilVorgaben, privatanteilFehler, privatanteilTexte, privatanteilWerte } from "../../components/PrivatanteilVorgaben.tsx";
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
-import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
+import { EtsyPaymentsCard } from "../../components/EtsyPaymentsCard.tsx";
+import { KontoabrufKarten } from "../../components/FintsCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
@@ -30,6 +33,7 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
+import { LatestVersionCard } from "../../components/LatestVersionCard.tsx";
 import { VersionsCard } from "../../components/VersionsCard.tsx";
 import { ProcedureDocCard } from "../../components/ProcedureDocCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
@@ -62,6 +66,7 @@ import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
+import { getEtsySettings } from "../../server/functions/etsy.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
 import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/settings-areas.ts";
@@ -90,6 +95,12 @@ import { UnitsCard } from "../../components/UnitsCard.tsx";
 import { getUnits } from "../../server/functions/units.ts";
 import { Status } from "../../components/Status.tsx";
 
+/** Anbindungen unter Bank: Kontoabruf über Enable Banking, Finanzberichte der Stores und Etsy Payments */
+async function loadBankConnections() {
+  const [enableBanking, stores, etsy] = await Promise.all([getEnableBankingSettings(), getStoreConnections(), getEtsySettings()]);
+  return { enableBanking, stores, etsy };
+}
+
 export const Route = createFileRoute("/_app/einstellungen")({
   beforeLoad: ({ context, search }) => {
     if (context.oidc.only && search.bereich === "sicherheit") throw redirect({ to: "/einstellungen", search: { bereich: "zugaenge" }, replace: true });
@@ -114,8 +125,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       backup,
       mcp,
       rates,
-      enableBanking,
-      stores,
+      bankConnections,
       customPages,
       zugaenge,
       extraction,
@@ -140,8 +150,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getBackupStatus(),
       getMcpSettings(),
       getExchangeRates(),
-      getEnableBankingSettings(),
-      getStoreConnections(),
+      loadBankConnections(),
       getCustomPages(),
       getZugaenge(),
       getExtractionSettings(),
@@ -169,8 +178,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       backup,
       mcp,
       rates,
-      enableBanking,
-      stores,
+      ...bankConnections,
       customPages,
       zugaenge,
       extraction,
@@ -186,7 +194,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { oidc } = Route.useRouteContext();
+  const { oidc, ausgeblendet } = Route.useRouteContext();
   const {
     company,
     numbering,
@@ -207,6 +215,7 @@ function SettingsPage() {
     rates,
     enableBanking,
     stores,
+    etsy,
     customPages,
     zugaenge,
     extraction,
@@ -237,6 +246,7 @@ function SettingsPage() {
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}
+          {bereich === "bereiche" && <BereicheCard ausgeblendet={ausgeblendet} />}
           {bereich === "rechnungen" && (
             <>
               <NumberingCard numbering={numbering.invoice} />
@@ -277,8 +287,9 @@ function SettingsPage() {
           )}
           {bereich === "bank" && (
             <>
-              <EnableBankingCard data={enableBanking} />
+              <KontoabrufKarten data={enableBanking} />
               <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
+              <EtsyPaymentsCard data={etsy} />
             </>
           )}
           {bereich === "zugaenge" && zugaenge.mode === "sso" && <SsoZugaengeCard accounts={zugaenge.ssoAccounts} providerName={oidc.name} />}
@@ -304,6 +315,7 @@ function SettingsPage() {
               <DatevCard years={exportYears} numbers={datev} />
               <ArchiveTargetCard data={ablage} />
               <IntegrityCard head={chainHead} />
+              <LatestVersionCard />
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
@@ -325,6 +337,14 @@ const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) 
   "dunning-fee-3": dunningFeeError(fees["3"]),
 });
 
+/**
+ * Klartext unter den Feldern Versteuerung und Kontenrahmen; ist das Feld gesperrt, folgt der genaue Grund aus settings-guard.ts.
+ * Quelle: Ist-Versteuerung gestattet das Finanzamt auf Antrag (§ 20 UStG, docs/einrichtung.md: Versteuerung).
+ */
+const VERSTEUERUNG_HINT = "Ist: Die Umsatzsteuer zählt, wenn der Kunde zahlt. Soll: schon mit der Rechnung. Ist gestattet das Finanzamt auf Antrag.";
+const KONTENRAHMEN_HINT =
+  "Legt fest, auf welche Kontonummern Haben bucht (SKR03 oder SKR04). Nimm denselben wie bisher in Lexoffice oder bei deiner Steuerberatung.";
+
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();
   const router = useRouter();
@@ -338,7 +358,16 @@ function CompanyForm() {
   const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
   const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
   const [email, setEmail] = useState(company.email);
-  const { form: checkScope, error, check } = useSubmitCheck({ email: emailFehler(email), ...dunningErrors(baseRate, fees) });
+  const [privatanteile, setPrivatanteile] = useState(() => privatanteilTexte(company.privateShares));
+  const {
+    form: checkScope,
+    error,
+    check,
+  } = useSubmitCheck({
+    email: emailFehler(email),
+    ...dunningErrors(baseRate, fees),
+    ...privatanteilFehler(privatanteile, gesellschaft),
+  });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -396,11 +425,7 @@ function CompanyForm() {
             deadlineDays: Number(text("dunning-deadlineDays") || 10),
             autoBaseRate: form.get("dunning-autoBaseRate") === "on",
           },
-          privateShares: Object.fromEntries(
-            (["telefon", "internet"] as const)
-              .map((key) => [key, Number(text(`privateShare-${key}`) || 0)] as const)
-              .filter(([, value]) => Number.isInteger(value) && value > 0 && value <= 100),
-          ),
+          privateShares: privatanteilWerte(privatanteile, gesellschaft),
         },
       });
       await router.invalidate();
@@ -558,7 +583,7 @@ function CompanyForm() {
           </div>
         )}
         <div className="form-row cols-2">
-          <Field label="Versteuerung" hint={locks.versteuerung}>
+          <Field label="Versteuerung" hint={locks.versteuerung ? `${VERSTEUERUNG_HINT} ${locks.versteuerung}` : VERSTEUERUNG_HINT}>
             {(control) => (
               <>
                 {locks.versteuerung && <input type="hidden" name="versteuerung" value={company.versteuerung} />}
@@ -574,7 +599,7 @@ function CompanyForm() {
               </>
             )}
           </Field>
-          <Field label="Kontenrahmen (wie in Lexoffice)" hint={locks.kontenrahmen}>
+          <Field label="Kontenrahmen" hint={locks.kontenrahmen ? `${KONTENRAHMEN_HINT} ${locks.kontenrahmen}` : KONTENRAHMEN_HINT}>
             {(control) => (
               <>
                 {/* Gesperrte Felder werden nicht mitgeschickt; der Wert kommt dann aus dem versteckten Feld */}
@@ -710,27 +735,7 @@ function CompanyForm() {
         </p>
       </section>
 
-      {!gesellschaft && (
-        <section className="form-section" aria-labelledby="company-private">
-          <h3 id="company-private">Privatanteile</h3>
-          <div className="form-row cols-2">
-            <Field label="Privatanteil Telefon in %" describedBy="private-share-hint">
-              {(control) => (
-                <input {...control} name="privateShare-telefon" inputMode="numeric" defaultValue={company.privateShares.telefon ?? ""} placeholder="0" />
-              )}
-            </Field>
-            <Field label="Privatanteil Internet in %" describedBy="private-share-hint">
-              {(control) => (
-                <input {...control} name="privateShare-internet" inputMode="numeric" defaultValue={company.privateShares.internet ?? ""} placeholder="0" />
-              )}
-            </Field>
-          </div>
-          <p id="private-share-hint" className="field-hint">
-            Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme. Am einzelnen
-            Beleg lässt sich der Anteil ändern.
-          </p>
-        </section>
-      )}
+      {!gesellschaft && <PrivatanteilVorgaben texte={privatanteile} onChange={setPrivatanteile} error={error} />}
 
       <section className="form-section" aria-labelledby="company-dunning">
         <h3 id="company-dunning">Mahnwesen</h3>
@@ -911,6 +916,8 @@ function TaxpayerForm() {
               b: zusammen ? person("b") : undefined,
               veranlagung,
               verheiratetSeit: zusammen && text("verheiratetSeit") ? text("verheiratetSeit") : undefined,
+              // Nur true ablegen: false wirkt in fristen.ts wie ein fehlendes Feld, ein false hätte dort keine Bedeutung
+              keineVorauszahlungen: form.get("keineVorauszahlungen") === "on" ? true : undefined,
             }
           : { ...taxpayer, a: person("a") },
       });
@@ -951,6 +958,23 @@ function TaxpayerForm() {
                 </Field>
               )}
             </div>
+            {taxpayer.a && (
+              <div className="checkbox-hinted">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    name="keineVorauszahlungen"
+                    defaultChecked={taxpayer.keineVorauszahlungen ?? false}
+                    aria-describedby="keine-vorauszahlungen-hint"
+                  />
+                  <span>Keine Einkommensteuer-Vorauszahlungen festgesetzt</span>
+                </label>
+                <span id="keine-vorauszahlungen-hint" className="field-hint">
+                  Ohne Haken steht je Quartal ein Hinweis im Fristenkalender. Das ist nur eine Erinnerung: Ob und wie viel zu zahlen ist, steht im
+                  Vorauszahlungsbescheid.
+                </span>
+              </div>
+            )}
           </fieldset>
           {veranlagung === "zusammen" && (
             <fieldset className="form-section">

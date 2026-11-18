@@ -4,6 +4,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
+export { ohneBelegGrund, ohneDateiBestaetigbar, type OhneBelegGrund } from "./ohne-datei.ts";
 export {
   accountTotals,
   addArchiveFile,
@@ -94,4 +95,4 @@ export { legacyDunningFile, legacyDunningsFor, type LegacyDunningRow } from "./m
 export { legacyVatReportFile, legacyVatReports, legacyVatReportYears, type LegacyVatReportRow } from "./voranmeldungen-archiv.ts";
 export { attachOrderPdf, listOrderDocuments, orderArchiveOverview, orderDocumentDetail, orderDocumentFile, ORDER_KINDS, ORDER_STATUSES } from "./orders.ts";
 export { contactHistory, type ContactHistoryRow, type ContactHistorySection } from "./kontakt-historie.ts";
-export { confirmWithoutFile, FileStateError } from "./dateistand.ts";
+export { confirmWithoutFile, revokeFileConfirmation, FileStateError } from "./dateistand.ts";

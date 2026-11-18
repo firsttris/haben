@@ -1,6 +1,7 @@
 import { accountingTypeKinds, type AccountingTypeKinds, accountingTypeUnclear, taxTypeOf } from "../auswertungen/index.ts";
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { datevBookingFound, datevInternalId, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { bookingsCheckDetail, datevBookingCounts } from "./datev-abgleich.ts";
 import { SEVDESK_EXPORT_IST_CHECK, sevdeskExportIstIssue, sevdeskExportYear, voucherSourceChecks, withoutExportImage } from "./sevdesk-export-abgleich.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "../auswertungen/index.ts";
 import { accountingTypeChecks, accountingTypeDecidable, accountingTypeIssue, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
@@ -47,6 +48,7 @@ import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
 import { customTaxSetId, legacyTaxSetFields, vatFieldsOf } from "./sevdesk-steuerarten.ts";
+import { ohneBelegGrund, ohneDateiBestaetigbar } from "./ohne-datei.ts";
 import { FILE_STATUS_LABELS, fileCheck, fileCounts, fileStateHistory, latestFileStateSql, legacyFileStatus, OPEN_FILE_STATUSES } from "./dateistand.ts";
 
 export class LexofficeError extends UserError {}
@@ -467,6 +469,8 @@ export async function legacyVoucherDetail(id: string) {
       createdAt: schema.lexofficeVouchers.createdAt,
       accountingType: accountingTypeKinds("lexoffice_vouchers"),
       ohneBeleg: WITHOUT_RECEIPT,
+      rawGuid: sql<string | null>`${schema.lexofficeVouchers.raw}->>'guid'`,
+      rawDocumentPresent: sql<boolean | null>`(${schema.lexofficeVouchers.raw}->>'documentPresent')::boolean`,
       positionAccounts: sevdeskPositionAccounts("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
@@ -487,10 +491,14 @@ export async function legacyVoucherDetail(id: string) {
     .orderBy(schema.lexofficeVoucherFiles.createdAt, schema.lexofficeVoucherFiles.id);
   // Mahnstufen der Rechnung aus der Quelle; nur Archiv, ohne Wirkung auf Betrag und Zahlungsstand
   const dunnings = voucher.direction === "einnahme" ? await legacyDunningsFor([voucher.lexofficeId]) : [];
-  // Dateistand mit Verlauf (#345); bestätigen lässt sich nur ein Beleg aus sevDesk mit dem offenen Stand „ohne Datei“
+  // Dateistand mit Verlauf (#345); bestätigen lässt sich ein Beleg mit offenem Stand „ohne Datei“, Quelle siehe ohneDateiBestaetigbar
   const fileStates = await fileStateHistory(id);
   const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
-  const canConfirmWithoutFile = fileStatus === "ohne_datei_offen" && voucher.source === "sevdesk" && voucher.lexofficeId.startsWith("voucher/");
+  // Offener Stand „ohne Datei“ oder eine Buchung ohne Beleg aus dem Accountable-Stapel bzw. der Lexoffice-Sicherung, wenn die Quelle es hergibt (#1235, #1318)
+  const canConfirmWithoutFile =
+    (fileStatus === "ohne_datei_offen" || fileStatus === "ohne_beleg") &&
+    files.length === 0 &&
+    ohneDateiBestaetigbar({ ...voucher, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent, ohneBeleg: voucher.ohneBeleg });
   const { positionAccounts, ...shown } = voucher;
   const categories = positionAccounts ? sevdeskCategories(voucher.categories, positionAccounts, await loadSevdeskAccountCategories()) : voucher.categories;
   // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).
@@ -514,7 +522,16 @@ export async function legacyVoucherDetail(id: string) {
           ?.createdAt ?? null,
     })),
     dunnings,
-    fileState: { status: fileStatus, label: FILE_STATUS_LABELS[fileStatus], history: fileStates, canConfirmWithoutFile },
+    fileState: {
+      status: fileStatus,
+      label: FILE_STATUS_LABELS[fileStatus],
+      history: fileStates,
+      canConfirmWithoutFile,
+      // Merkmal aus dem Import, nicht aus dem Stand: die Rückfrage unterscheidet daran die Buchung ohne Beleg (Stapel, Sicherung) von sevDesk (#1317)
+      ohneBeleg: voucher.ohneBeleg,
+      // Warum keine Datei da ist, hängt an Quelle, Beleg-GUID und „Dokument Vorhanden“ (#1235, #1322)
+      ohneBelegGrund: ohneBelegGrund({ source: voucher.source, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent }),
+    },
   };
 }
 
@@ -614,13 +631,7 @@ export async function reconciliation() {
   const vatIssueOf = (year: number) =>
     [paymentIssueOf(year), unclearAccountsIn(year) ? ACCOUNTING_TYPE_VAT_ISSUE : null, exportIstIssueOf(year)].filter(Boolean).join(" ") || null;
 
-  const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
-    select extract(year from b.date)::int as year, count(*)::int as total,
-      count(*) filter (where b.voucher_field1 <> '' and not ${datevInternalId("b.voucher_field1")}
-        and not ${datevBookingFound({ number: "b.voucher_field1", link: "b.document_link", file: "b.file_id", date: "b.date" })}
-        and not ${datevWithoutReceipt(company.kontenrahmen, "b.contra_account", "b.file_id")})::int as unmatched,
-      count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
-    from datev_bookings b group by 1`);
+  const bookingRows = await datevBookingCounts(company.kontenrahmen);
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
   // Protokolle der aus sevDesk übernommenen Voranmeldungen zählen wie abgelegte ELSTER-Protokolle (#472)
   const vatProtocols = await db
@@ -663,7 +674,7 @@ export async function reconciliation() {
   const fastbillPartlyCanceled = await fastbillPartlyCanceledByYear();
   const years = new Set<number>(fastbillWaiting.keys());
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
-  for (const b of bookingRows) years.add(Number(b.year));
+  for (const year of bookingRows.keys()) years.add(year);
   for (const f of files) if (f.year) years.add(f.year);
   // Jahre mit aus sevDesk übernommenen Voranmeldungen, auch ohne Belege und ohne Protokoll (#472)
   for (const r of await db.selectDistinct({ year: schema.legacyVatReports.year }).from(schema.legacyVatReports)) years.add(r.year);
@@ -706,7 +717,7 @@ export async function reconciliation() {
       const withoutFile = fileStatuses.filter((f) => OPEN_FILE_STATUSES.has(f) && f !== "anhang_fehlt").length;
       const sevdeskExport = sevdeskExportYear(yearRows);
       const unchecked = vouchers.filter((v) => v.status === "unchecked").length;
-      const bookings = bookingRows.find((b) => Number(b.year) === year);
+      const bookings = bookingRows.get(year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
       const elster = kinds("elster") + vatProtocols.filter((p) => p.year === year).length;
       // Ist-Versteuerung: Zahlungen aus dem Zahlungsstatus; sonst Belegdatum
@@ -726,7 +737,7 @@ export async function reconciliation() {
                 payments: legacyPayments(v),
                 taxType: v.taxType,
                 taxSubType: v.taxSubType,
-                vatFields: vatFieldsOf(v.taxSetId, taxSets),
+                vatFields: vatFieldsOf(v.taxSetId, taxSets, v.taxType),
               })),
             versteuerung,
           ).filter((m) => m.month.startsWith(`${year}-`));
@@ -766,16 +777,10 @@ export async function reconciliation() {
         },
         {
           ok: Boolean(bookings) && bookings!.unmatched === 0,
-          // Buchungen ohne Belegnummer (Umbuchungen, Privates) brauchen nicht immer einen Beleg; sie stehen nur im Hinweis
+          // Buchungen ohne Belegnummer (Umbuchungen, Privates) brauchen nicht immer einen Beleg; sie stehen nur im Hinweis.
+          // Ein Belegfeld ohne Ziffer ist keine Nummer, sondern etwa der Name eines Zahlungsdienstleisters (#1355).
           label: "Jede Buchung mit Belegnummer findet ihren Beleg",
-          detail: bookings
-            ? [
-                bookings.unmatched === 0 ? "alle gefunden" : `${bookings.unmatched} ohne passenden Beleg`,
-                bookings.without_number > 0 ? `${bookings.without_number} ohne Belegnummer` : "",
-              ]
-                .filter(Boolean)
-                .join(", ")
-            : "–",
+          detail: bookings ? bookingsCheckDetail(bookings) : "–",
         },
         ...(nurAccountable ? [] : [{ ok: kinds("idea") > 0, label: "IDEA-Export archiviert", detail: kinds("idea") > 0 ? "liegt vor" : "fehlt" }]),
         {
@@ -804,7 +809,7 @@ export async function reconciliation() {
         withoutFile,
         files: fileCounts(fileStatuses),
         unchecked,
-        bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,
+        bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.withoutNumber } : null,
         vat,
         vatIssue,
         taxTypes: [...taxTypes].map(([taxType, count]) => ({ taxType, count })).sort((a, b) => b.count - a.count),

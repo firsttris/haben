@@ -27,7 +27,7 @@ Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite o
 
 1. **Umsatzsteuer** öffnen. Haben springt zum ältesten abgelaufenen Zeitraum, der weder gesendet noch vermerkt ist, gesucht ab dem ersten Zeitraum, den du in Haben abgegeben hast, aber nicht vor deiner ersten Einstellung des Voranmeldungszeitraums. Ohne Abgabe in Haben oder wenn alle abgegeben sind, ist es der zuletzt abgelaufene: bei monatlicher Abgabe der Vormonat, bei vierteljährlicher das letzte volle Quartal. Den laufenden öffnet Haben nicht, denn eine Voranmeldung ist erst nach Ablauf abzugeben (§ 18 Abs. 1 UStG). Über **Zeitraum** wählst du den laufenden oder einen der Zeiträume der letzten zwölf Monate.
 2. Die Hinweise oben abarbeiten (siehe [Vorprüfung](#vorprüfung)).
-3. Kennzahlen prüfen, bei Bedarf die Quellen aufklappen.
+3. Kennzahlen prüfen (Kz ist die Nummer des Felds im ELSTER-Formular), bei Bedarf die Quellen aufklappen.
 4. **Nur prüfen**: ERiC prüft die Daten, ohne etwas zu senden.
 5. **Prüfen und testweise senden** mit gesetztem Haken **Nur Testübermittlung**: Übermittlung an den Testserver, nichts geht an dein Finanzamt.
 6. Haken entfernen, **Prüfen und senden**, dann im Dialog **Verbindlich senden**.
@@ -84,7 +84,7 @@ Mit der Dauerfristverlängerung gibst du jede Voranmeldung einen Monat später a
 
 | Abgabe | Antrag | Sondervorauszahlung |
 | --- | --- | --- |
-| monatlich | jedes Jahr bis zum 10. Februar, zugleich Anmeldung der Sondervorauszahlung (§ 48 Abs. 1 und 2 UStDV) | ein Elftel der Vorauszahlungen des Vorjahres (§ 47 UStDV), abgezogen in der Voranmeldung für Dezember (Kz 39) |
+| monatlich | Antrag einmal; die Sondervorauszahlung meldest du jedes Jahr zum gesetzlichen Termin der ersten Voranmeldung an, also ohne die Verlängerung (meist der 10. Februar) (§ 48 Abs. 1 und 2 UStDV) | ein Elftel der Vorauszahlungen des Vorjahres (§ 47 UStDV), abgezogen in der Voranmeldung für Dezember (Kz 39) |
 | vierteljährlich | einmal, gilt bis zur Rücknahme oder zum Widerruf | keine |
 | befreit | nicht nötig | keine |
 
@@ -144,8 +144,8 @@ Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr
 
 | Umsatz | Quartal |
 | --- | --- |
-| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Wie [Kz 21](#umsätze-ohne-steuer-kz-21-41-43-45-und-48), unabhängig von Ist/Soll |
-| Rechnung mit **Innergemeinschaftliche Lieferung**, Umsatzart L (Lieferung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 41 |
+| Rechnung mit **EU, Reverse Charge: Dienstleistung oder Nutzungsrecht**, Umsatzart S (sonstige Leistung) | Wie [Kz 21](#umsätze-ohne-steuer-kz-21-41-43-45-und-48), unabhängig von Ist/Soll |
+| Rechnung mit **Warenlieferung in die EU (innergemeinschaftliche Lieferung)**, Umsatzart L (Lieferung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 41 |
 | Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ. Ausgenommen ist das [Papierstorno einer neuen Bilanz-Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung) |
 | Skonto und Forderungsausfall dazu | Datum der Ausbuchung; für Skonto vor der Schlussleistung gelten die [Ausnahmen bei neuen Bilanz-Anzahlungsketten](#umsätze-ohne-steuer-kz-21-41-43-45-und-48) |
 
@@ -158,12 +158,13 @@ Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchst
 | Eigene USt-IdNr. fehlt oder hat eine falsche Prüfziffer | Senden gesperrt; in den Firmendaten eintragen. Die ZM geht nur mit USt-IdNr., nicht mit der Steuernummer |
 | Anschrift unvollständig (Straße, fünfstellige PLZ, Ort) | Senden gesperrt |
 | USt-IdNr. eines Kunden fehlt, ist deutsch, britisch (seit dem Brexit; für Nordirland XI) oder hat kein Länderkennzeichen eines anderen Mitgliedstaats, oder nach dem Kennzeichen nicht 5 bis 12 Buchstaben, Ziffern, + oder * | Senden gesperrt, mit Rechnung und Kunde. Nordirische Nummern (XI) gelten nur für Lieferungen |
+| USt-IdNr. eines Kunden passt nicht zum Aufbau in ihrem Land, etwa `ATU` und acht Ziffern in Österreich ([Übersicht des BZSt](https://www.bzst.de/SharedDocs/Downloads/DE/Merkblaetter/ust_idnr_aufbau.html); wo sie die Art der Stellen offenlässt, wie hier nach dem `U`, die [FAQ der EU-Kommission zu VIES](https://ec.europa.eu/taxation_customs/vies/#/faq), Frage 11) | Warnung, mit Rechnung und Kunde. Senden geht trotzdem: Die Rechnung ist festgeschrieben, und eine schon gemeldete Nummer muss sich mit einer Berichtigung zurücknehmen lassen. Eine innergemeinschaftliche Lieferung mit einer solchen Nummer lässt sich gar nicht erst [festschreiben](rechnungen.md#umsatzsteuer-auf-der-rechnung) |
 | Voranmeldungen des Quartals noch nicht alle gesendet | Hinweis; der Abgleich mit Kz 21 folgt danach |
 | Summe der Meldung weicht von Kz 21 der gesendeten Voranmeldungen ab, bei Lieferungen von Kz 41 | Warnung. Bis zu einem Euro je Zeile und Voranmeldung ist Rundung. Eine größere Abweichung heißt: Die Voranmeldung oder die Meldung braucht eine Berichtigung |
 | Mehr als 50.000 € Lieferungen im Quartal | Senden gesperrt: Die Meldung ist dann monatlich abzugeben (§ 18a Abs. 1 Satz 2 UStG), das kann Haben nicht; gib sie im BZStOnline-Portal ab |
 | Lieferungen im Quartal | Hinweis: Lagen sie in einem der vier vorangegangenen Quartale über 50.000 €, ist ebenfalls monatlich zu melden; und für jede Lieferung gehört der Gelangensnachweis (§ 17a UStDV) zu den Unterlagen |
 
-Die Prüfungen sind die des ERiC-Plugins `checkZMDO`; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das klärst du vor der ersten Rechnung mit der Bestätigungsabfrage beim BZSt.
+Die Prüfungen sind die des ERiC-Plugins `checkZMDO`, dazu der Aufbau je Land; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das bestätigt das BZSt am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen), am besten vor der ersten Rechnung.
 
 ### Senden
 
@@ -199,7 +200,7 @@ Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 | Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen wirken mit ihrer Gegenzeile am Tag der Aufhebung; ältere Zuordnungen ohne eigenes Datum am Buchungsdatum des Umsatzes (siehe [Zuordnung aufheben](bank.md#zuordnung-aufheben)). |
 | Soll (vereinbarte Entgelte) | [Leistungstag](#leistungstag-bei-soll-versteuerung), ohne Angabe das Rechnungsdatum; Ausnahmen: [Anzahlungen](rechnungen.md#abschlags--und-schlussrechnung) und [Vorauszahlungen auf normale Rechnungen](rechnungen.md#vorauszahlung-auf-normale-rechnungen) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
 
-Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“.
+Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“. Eine [nicht steuerbare Einnahme](bank.md#auf-eine-kategorie-buchen) ist kein Umsatz: Sie zählt nicht und steht nicht in den Quellen.
 
 Ausbuchungen (§ 17 UStG, gewährtes Skonto und Forderungsausfall, siehe [Bank](bank.md#rest-ausbuchen-skonto-und-forderungsausfall)) mindern bei Soll Kz 81 bzw. 86 und die Steuer im Monat der Ausbuchung, anteilig je Steuersatz. Bei Ist zählt nur, was bezahlt wurde; ausgebuchte Reste kamen nie in die Anmeldung. In den Quellen stehen sie als „Ausbuchung“.
 
@@ -213,11 +214,11 @@ Bei neuen Bilanz-Anzahlungs-/Schlussketten von GmbH und UG gehen reine Anforderu
 
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
-| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | [Leistungstag](#leistungstag-bei-soll-versteuerung); vor Version 0.9.0 festgeschriebene Rechnungen Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
-| 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
-| 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
-| 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
-| 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
+| 21 | EU, Reverse Charge: Dienstleistung oder Nutzungsrecht | [Leistungstag](#leistungstag-bei-soll-versteuerung); vor Version 0.9.0 festgeschriebene Rechnungen Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
+| 41 | Warenlieferung in die EU (innergemeinschaftliche Lieferung) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
+| 43 | Warenlieferung ins Nicht-EU-Ausland (Ausfuhrlieferung) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
+| 45 | Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
+| 48 | Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht (§ 4 UStG, ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
 
 Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
@@ -339,7 +340,7 @@ Rechts steht der Bereich **An ELSTER übermitteln** mit dem hinterlegten Zertifi
 | Aktion | Braucht | Was passiert |
 | --- | --- | --- |
 | **Nur prüfen** | vollständige Firmendaten | ERiC prüft das XML gegen die Regeln, ohne zu senden. |
-| **Prüfen und testweise senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Prüfung und Übermittlung mit Testmerker `700000004` und deiner Hersteller-ID (ERiC 43 sperrt die frühere Test-ID `74931`). Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
+| **Prüfen und testweise senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Prüfung und Übermittlung mit Testmerker `700000004` und deiner Hersteller-ID (ERiC sperrt die frühere Test-ID `74931`). Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
 | **Prüfen und senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Echte Übermittlung nach der Rückfrage im Dialog („Verbindlich senden“). |
 
 Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. Mit echtem ERiC scheitern dann auch Prüfen und Test mit der Meldung, die eigene Hersteller-ID auch für Testfälle zu verwenden. Bis die Hersteller-ID da ist, gibst du in Mein ELSTER ab, am einfachsten über den XML-Import (siehe unten).
@@ -426,6 +427,8 @@ Eine Zuordnung mit Bezug geht nur zu einer abgegebenen Voranmeldung; das prüft 
 ## Berichtigte Anmeldung
 
 Eine gesendete Anmeldung ist gesperrt. Stellst du danach einen Fehler fest, legst du mit **Berichtigte Anmeldung anlegen** einen neuen Entwurf an. Er übernimmt die Werte der zuletzt gesendeten Anmeldung und trägt im XML Kz 10 = 1. War die ursprüngliche Anmeldung aus den Buchungen berechnet, rechnet Haben die berichtigte vor dem Senden neu; korrigierst du also erst die Buchungen, landen die richtigen Werte automatisch darin. Status und Verlauf zeigen „berichtigte Anmeldung“ bzw. „(berichtigt)“.
+
+In einem Jahr, dessen Abweichungen beim [Update auf das Journal](einrichtung.md#update-auf-das-journal) übernommen wurden, beginnt die Berichtigung dagegen mit den gesendeten Werten unter **Manuell überschreiben**, mit vorbelegter, änderbarer Begründung. Aus den Buchungen gerechnet würde sie sonst die übernommene Abweichung still mitberichtigen. Darüber zeigt Haben je Kennzahl den gesendeten Wert, den aus dem Journal und die Differenz. Stammt die Differenz aus der Übernahme, bleibt der gesendete Wert; zeigt sie, dass der gesendete Wert falsch war, gehört die Korrektur in die Berichtigung ([§ 153 Abs. 1 Satz 1 Nr. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html)).
 
 ## Zertifikat
 

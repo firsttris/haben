@@ -11,6 +11,7 @@ import {
   lastMonthOfPeriod,
   VAT_FREQUENCIES,
   type VatPeriod,
+  inCents,
 } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -50,6 +51,7 @@ import {
   createCorrection,
   recentSentReturns,
   returnsForPeriod,
+  uebernommeneJahre,
   saveDraft,
   submissionsFor,
   submitReturn,
@@ -58,7 +60,7 @@ import { loadActiveCertificate } from "../modules/elster/index.ts";
 import { transitBalance } from "../modules/buchhaltung/index.ts";
 
 // Negativ möglich, etwa wenn Gutschriften im Monat überwiegen
-const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
+const centsSchema = inCents(z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00));
 
 function certificateSummary(certificate: Awaited<ReturnType<typeof loadActiveCertificate>>) {
   return certificate ? { filename: certificate.filename, validUntil: certificate.validUntil } : null;
@@ -107,6 +109,8 @@ export const getVatPeriod = createServerFn({ method: "GET" })
       today: today(),
       /** Zahllast bzw. Erstattung je abgegebener Anmeldung des Zeitraums mit Zahlungen (offener Posten) */
       posten: await ustvaPostenForPeriod(period),
+      /** Abweichungen des Jahres beim Update auf das Journal übernommen (#1200): Berichtigung mit gesendeten Werten und Vergleich */
+      uebernommen: (await uebernommeneJahre()).has(period.year),
       recent,
       certificate: certificateSummary(certificate),
       companyIssues: companyIssues(company),
@@ -281,7 +285,7 @@ export const saveVatFrequency = createServerFn({ method: "POST" })
 
 const yearSchema = z.number().int().min(2000).max(2100);
 /** Sondervorauszahlung in Cent, volle Euro (Kz 38) */
-const svzSchema = z.number().int().min(0).max(1_000_000_000_00).multipleOf(100, "Sondervorauszahlung in vollen Euro").nullable();
+const svzSchema = inCents(z.number().int().min(0).max(1_000_000_000_00).multipleOf(100, "Sondervorauszahlung in vollen Euro")).nullable();
 
 /** Antrag auf Dauerfristverlängerung bzw. Anmeldung der Sondervorauszahlung (USt 1 H) prüfen oder übermitteln */
 export const submitVatDauerfrist = createServerFn({ method: "POST" })

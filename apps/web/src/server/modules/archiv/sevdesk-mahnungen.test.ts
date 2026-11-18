@@ -2,6 +2,7 @@ import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * Mahnungen aus sevDesk (#472): nur Archiv, verknüpft mit der gemahnten Rechnung, ohne Wirkung auf Abgleich, offene
@@ -11,10 +12,6 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const PDF = (text: string) => new TextEncoder().encode(`%PDF-1.4\n% ${text}\n%%EOF\n`);
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
 
 const OFFEN = {
   id: "62",
@@ -62,13 +59,9 @@ const mahnung = (id: string, level: string, date: string, extra: Record<string, 
 
 function fakeApi(dunnings: unknown[], ohnePdf: string[] = []) {
   const calls: string[] = [];
-  const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const path = url.pathname.replace(/^\/api\/v1/, "");
+  const fetchFn = sevdeskFakeFetch(({ path, url, list, headers }) => {
     calls.push(`${path}${url.searchParams.has("invoiceType") ? `?invoiceType=${url.searchParams.get("invoiceType")}` : ""}`);
-    if (new Headers(init?.headers).get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
-    const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
-    if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "1.0" } });
+    if (headers.get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
     if (path === "/Contact") return list([{ id: "7", name: "Muster Studio GmbH", category: { id: "3" } }]);
     // Wie sevDesk: Mahnungen nur mit dem Filter invoiceType=MA
     if (path === "/Invoice") return list(url.searchParams.get("invoiceType") === "MA" ? dunnings : [OFFEN]);
@@ -82,8 +75,7 @@ function fakeApi(dunnings: unknown[], ohnePdf: string[] = []) {
     }
     if (/getXml$/.test(path)) return json({ error: { message: "keine E-Rechnung" } }, 400);
     if (path.startsWith("/") && !path.slice(1).includes("/")) return list([]);
-    return json({ error: { message: `unbekannt ${path}` } }, 404);
-  }) as typeof fetch;
+  });
   return { fetchFn, calls };
 }
 

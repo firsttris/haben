@@ -18,7 +18,7 @@
   },
   "assist": { "enabled": false },
   // Eigene Regeln als GritQL-Muster; siehe docs/mitwirken.md, Automatische Prüfungen der Regeln
-  "plugins": ["./scripts/felder/kein-label-field.grit", "./scripts/felder/keine-nackte-auswahl.grit"],
+  "plugins": ["./scripts/felder/kein-label-field.grit", "./scripts/felder/keine-nackte-auswahl.grit", "./scripts/einheiten/kein-as-einheit.grit"],
   "linter": {
     "enabled": true,
     // Wie bisher mit ESLint: nur JavaScript und TypeScript; CSS und SVG bleiben außen vor

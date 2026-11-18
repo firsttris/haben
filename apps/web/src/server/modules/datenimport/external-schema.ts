@@ -1,9 +1,9 @@
-import { LEGACY_TAX_TYPES, type TaxCode } from "@haben/core";
+import { LEGACY_TAX_TYPES, type TaxCode, inBasisPoints, inCents } from "@haben/core";
 import { z } from "zod";
 
-const cents = z.number().int().min(-2_147_483_647).max(2_147_483_647);
+const cents = inCents(z.number().int().min(-2_147_483_647).max(2_147_483_647));
 const key = z.string().trim().min(1).max(200);
-const tax = z.strictObject({ rate: z.number().int().min(0).max(10000), net: cents, tax: cents });
+const tax = z.strictObject({ rate: inBasisPoints(z.number().int().min(0).max(10000)), net: cents, tax: cents });
 const original = {
   externalId: key,
   number: key,
@@ -48,7 +48,8 @@ export const externalInvoiceSchema = z.strictObject({
   serviceTo: z.iso.date().nullable().default(null),
   status: z.enum(["open", "paid", "partlyPaid", "voided", "unknown"]),
   taxes: z.array(tax).min(1).max(20),
-  taxType: z.enum(LEGACY_TAX_TYPES as [string, ...string[]]),
+  // oss kommt nur aus dem Abruf von sevDesk (Regel 18 bis 20); docs/belegimport.md führt ihn nicht
+  taxType: z.enum(LEGACY_TAX_TYPES as [string, ...string[]]).exclude(["oss"]),
   categories: z
     .array(z.strictObject({ categoryId: key, name: z.string().max(300), ...tax.shape }))
     .max(200)

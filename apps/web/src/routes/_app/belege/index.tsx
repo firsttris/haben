@@ -6,14 +6,16 @@ import { z } from "zod/mini";
 import { DocumentStatus, SOURCE_LABEL, documentStatusText } from "../../../components/DocumentStatus.tsx";
 import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
+import { BelegFilterChips, BelegeLeer, filterBelege, filterName, sucheBelege } from "../../../components/BelegeFilter.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
-import { inCentRange, parseEuroSearchRange } from "@haben/core";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({
   validateSearch: z.object({
     suche: z.optional(z.string()),
+    /** „Zu prüfen“ oder „Gebucht“; ohne Angabe alle Belege, wie „Alle“ in der Bank */
+    status: z.optional(z.enum(["pruefen", "gebucht"])),
     /** Spaltenkopf sortiert; der Zustand steht im Link, damit er sich teilen lässt (#1112) */
     sort: z.optional(z.enum(["datum", "lieferant", "kategorie", "brutto", "status"])),
     dir: z.optional(z.enum(["auf", "ab"])),
@@ -37,20 +39,13 @@ function DocumentsPage() {
   const { documents, aiAvailable, inbox } = Route.useLoaderData();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const router = useRouter();
-  const { suche } = Route.useSearch();
+  const { suche, status: filter } = Route.useSearch();
   const [query, setQuery] = useState(suche ?? "");
   useEffect(() => {
     setQuery(suche ?? "");
   }, [suche]);
-  const needle = query.trim().toLowerCase();
-  const range = needle ? parseEuroSearchRange(query) : null;
-  const shown = needle
-    ? documents.filter(
-        (doc) =>
-          [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) ||
-          (range !== null && inCentRange(range, doc.gross)),
-      )
-    : documents;
+  const gefiltert = filterBelege(documents, filter);
+  const shown = sucheBelege(gefiltert, query);
   // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112). Ohne gewählte Spalte
   // bleibt die Reihenfolge von listDocuments: ungebuchte zuerst, dann nach Belegdatum, wie die Navigation am Beleg.
   const { sort, dir = "ab" } = Route.useSearch();
@@ -128,7 +123,7 @@ function DocumentsPage() {
           .
         </ErrorBanner>
       )}
-      {inbox || !inhaber ? null : (
+      {inbox || !inhaber || documents.length === 0 ? null : (
         <p className="small muted" style={{ margin: 0 }}>
           Rechnungen per E-Mail? Mit einem{" "}
           <Link to="/einstellungen" search={{ bereich: "email" }}>
@@ -138,7 +133,7 @@ function DocumentsPage() {
         </p>
       )}
       {documents.length > 0 && (
-        <div className="filter-row" style={{ marginBottom: 0 }}>
+        <div className="filter-row" style={{ marginBottom: 0, alignItems: "center" }}>
           <Field label="Belege durchsuchen" hideLabel style={{ flex: "1 1 260px", maxWidth: 420 }}>
             {(control) => (
               <input
@@ -150,16 +145,17 @@ function DocumentsPage() {
               />
             )}
           </Field>
+          <BelegFilterChips openCount={open} />
         </div>
       )}
       <section className="card" aria-label="Belegliste">
         {documents.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>
-            Noch keine Belege.
-          </p>
+          <BelegeLeer filter={undefined} inhaber={inhaber} hatPostfach={Boolean(inbox)} />
+        ) : gefiltert.length === 0 ? (
+          <BelegeLeer filter={filter} inhaber={inhaber} hatPostfach={Boolean(inbox)} />
         ) : shown.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Kein Beleg passt zu „{query}“.
+            Kein Beleg passt zu „{query}“{filter ? ` unter „${filterName(filter)}“` : ""}.
           </p>
         ) : (
           <div className="table">

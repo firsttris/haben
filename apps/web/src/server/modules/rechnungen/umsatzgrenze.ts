@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
 import type { Tx } from "../../db/index.ts";
 import { today } from "../../today.ts";
@@ -7,10 +8,10 @@ import { InvoiceError } from "./invoice-error.ts";
 
 export class UmsatzgrenzeError extends InvoiceError {
   constructor(
-    readonly umsatz: number,
-    readonly rechnung: number,
-    readonly grenze: number,
-    readonly vorjahresumsatz?: number,
+    readonly umsatz: Cents,
+    readonly rechnung: Cents,
+    readonly grenze: Cents,
+    readonly vorjahresumsatz?: Cents,
   ) {
     super(
       vorjahresumsatz === undefined

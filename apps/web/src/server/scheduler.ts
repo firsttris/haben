@@ -2,13 +2,14 @@ import { formatHundredths } from "@haben/core";
 import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueArchiveDeliveries } from "./modules/ablage/index.ts";
 import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
-import { runDueBankSyncs } from "./modules/bank/index.ts";
+import { runDueBankSyncs, runDueFintsSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
 import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modules/belege/index.ts";
 import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
 import { runDueFristenMails, runDuePostfachFetch } from "./modules/finanzamt/index.ts";
 import { applyPublishedRatesToDrafts, runDueBaseRate, runDueRecurring } from "./modules/rechnungen/index.ts";
+import { runDueEtsySyncs } from "./modules/etsy/index.ts";
 import { runDueStoreSyncs } from "./modules/stores/index.ts";
 import { today } from "./today.ts";
 
@@ -52,11 +53,25 @@ export async function runScheduledJobs(): Promise<void> {
     console.error("Kontoabruf", error);
   }
   try {
+    const result = await runDueFintsSyncs();
+    if (result.synced > 0) console.log(`FinTS-Abruf: ${result.synced} Verbindungen, ${result.added} neue Umsätze`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("FinTS-Abruf", error);
+  }
+  try {
     const result = await runDueStoreSyncs();
     if (result.added > 0) console.log(`Store-Finanzberichte: ${result.synced} Stores, ${result.added} neue Berichte im Archiv`);
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Store-Finanzberichte", error);
+  }
+  try {
+    const result = await runDueEtsySyncs();
+    if (result.added > 0) console.log(`Etsy Payments: ${result.added} neue Umsätze aus dem Zahlungsverlauf`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("Etsy Payments", error);
   }
   try {
     if (elsterMode() === "eric") {

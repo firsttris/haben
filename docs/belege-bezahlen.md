@@ -21,7 +21,7 @@ Unter **Bezahlung** am Beleg wählst du, wie er bezahlt wurde:
 
 Unter **Überweisungen** (Menü **Ausgaben**) stellst du offene Belege zu einer SEPA-Datei zusammen, die du im Online-Banking hochlädst. Haben bucht dabei nichts: Bezahlt ist ein Beleg erst, wenn der [Bankabgleich](bank.md#überweisungen-aus-haben) die Abbuchung zuordnet.
 
-1. **Auftraggeberkonto** wählen: eines der Bankkonten unter [Bank](bank.md#konto), von dem das Geld abgeht. Zahlungsdienstleister stehen nicht zur Wahl.
+1. **Konto, von dem das Geld abgeht** (Auftraggeberkonto) wählen, eines der Bankkonten unter [Bank](bank.md#konto). Zahlungsdienstleister stehen nicht zur Wahl.
 2. **Ausführungsdatum** setzen, frühestens heute.
 3. Die Belege ankreuzen, einzeln oder mit **Alle auswählen**. Darunter stehen Anzahl und Summe.
 4. **SEPA-Datei erzeugen**. Der Browser lädt die Datei `HABEN-….xml` herunter; unter **Erzeugte Dateien** bleibt sie zum erneuten Herunterladen.
@@ -31,7 +31,7 @@ In der Liste stehen alle gebuchten, nicht stornierten Belege mit Bezahlung über
 | Angabe | Woher |
 | --- | --- |
 | Empfänger | Lieferant am Beleg |
-| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst die am Beleg bestätigte aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
+| IBAN | Aus dem Kontakt des Lieferanten (als **Lieferant** aus den Kontakten gewählt), sonst die am Beleg bestätigte aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
 | Betrag | Offener Betrag, mit Skonto abzüglich Skonto |
 | Verwendungszweck | Rechnungsnummer des Lieferanten, ohne Nummer „Rechnung vom …“; mit Skonto zusätzlich „abzgl. 2,00 Prozent Skonto 4,31 EUR“ |
 | Auftraggeber | Kontoinhaber aus den Firmendaten, sonst der Firmenname; die BIC nur, wenn die IBAN der Firmendaten das gewählte Konto ist |

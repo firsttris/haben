@@ -1,3 +1,4 @@
+import { inCents } from "@haben/core";
 import { z } from "zod";
 import { isRealDate, serviceEntrySchema } from "../leistungen/index.ts";
 import { isoDate, page, pageQuery, requestSchemas, responseSchemas } from "./schemas.ts";
@@ -40,7 +41,7 @@ export const serviceEntrySchemaOut = z
     workedOn: isoDate,
     minutes: z.number().int(),
     description: z.string(),
-    hourlyRateCents: z.number().int().nullable().describe("Stundensatz in Cent, null: keiner bekannt (Abrechnen verlangt dann einen)"),
+    hourlyRateCents: inCents(z.number().int()).nullable().describe("Stundensatz in Cent, null: keiner bekannt (Abrechnen verlangt dann einen)"),
     nonBillable: z.boolean(),
     billableMinutes: z.number().int().nullable().describe("Abrechenbare Dauer in Minuten; null: die erfasste"),
     project: z.string(),

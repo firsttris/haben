@@ -11,6 +11,7 @@ import {
   sortSkonto,
   splitEmails,
   telefonProblem,
+  inCents,
 } from "@haben/core";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -72,6 +73,8 @@ export const contactSchema = z.object({
       .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen"),
   ]),
   leitwegId: z.string().trim().max(46),
+  /** Unsere Lieferantennummer beim Kunden (#711), im XML Verkäuferkennung BT-29; fehlt = leer */
+  unsereLieferantennummer: z.string().trim().max(40).default(""),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
   /**
    * Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto, fehlt = unverändert.
@@ -92,7 +95,7 @@ export const contactSchema = z.object({
   debitorNr: personenkonto("debitor"),
   kreditorNr: personenkonto("kreditor"),
   /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner, fehlt = unverändert */
-  hourlyRateCents: z.optional(z.nullable(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00))),
+  hourlyRateCents: z.optional(z.nullable(inCents(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00)))),
 });
 
 export type ContactRole = "kunde" | "lieferant";

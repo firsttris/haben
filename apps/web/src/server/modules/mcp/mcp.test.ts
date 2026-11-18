@@ -296,6 +296,17 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     const beleg = (await run_("lexoffice_beleg", { beleg: "re1" })) as { belege: { apiAntwort: unknown; link: string }[] };
     expect(beleg.belege[0]!.apiAntwort).toEqual({ voucherNumber: "RE1", taxConditions: { taxType: "intraCommunitySupply" }, address: { name: "Kunde SARL" } });
     expect(beleg.belege[0]!.link).toMatch(/\/archiv\/beleg\/[0-9a-f-]{36}$/);
+
+    // Ein Belegfeld ohne Nummer hat nichts zu finden: belegGefunden bleibt null wie bei leerem Feld (#1355)
+    await sql`insert into datev_bookings (file_id, row, date, amount, side, account, contra_account, voucher_field1, raw) values
+      (${file!.id}, 5, '2025-04-15', 1250, 'S', '1200', '4930', 'Beispielzahldienst', '{}'::jsonb)`;
+    const ohneNummer = (await run_("lexoffice_buchungen", { zeitraum: "2025", konto: "4930", ohneBeleg: false, limit: 50 })) as {
+      buchungen: { belegnummer: string; belegGefunden: boolean | null }[];
+    };
+    expect(ohneNummer.buchungen.map((b) => [b.belegnummer, b.belegGefunden])).toEqual([
+      ["", null],
+      ["Beispielzahldienst", null],
+    ]);
   });
 
   it("begrenzt die Anfragen je Token", async () => {
@@ -332,6 +343,66 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     expect(overview.heute).toBe("2026-11-01");
     expect(overview.voranmeldung).toMatchObject({ zeitraum: "2026-10" });
     expect(await run("umsatzsteuer_voranmeldung")).toMatchObject({ zeitraum: "2026-10" });
+  });
+
+  it("nennt als Umsatz im Monat und im Vormonat die Erlöskonten nach Buchungsdatum wie die Übersicht, ohne Zinsen", async () => {
+    // Erfundener Shop-Verkauf nur aus dem Datenimport, dazu Guthabenzinsen (kein Umsatz). Ohne Kleinunternehmer: Der stünde
+    // im Änderungsprotokoll und gälte für die folgenden Tests weiter.
+    await leeren(sql)`truncate external_imports, lexoffice_imports, journal_lines, journal_entries cascade`;
+    const imports = await import("../datenimport/index.ts");
+    await imports.runExternalImport(
+      actor,
+      {
+        version: 2,
+        source: "shop-test",
+        kontenrahmen: "SKR03",
+        entries: [
+          {
+            kind: "journal",
+            externalId: "verkauf-1",
+            date: "2026-10-15",
+            description: "Shop-Verkauf ohne Rechnung in Haben",
+            lines: [
+              { account: "1200", debit: 5_950, credit: 0, taxCode: null },
+              { account: "8400", debit: 0, credit: 5_000, taxCode: "USt19" },
+              { account: "1776", debit: 0, credit: 950, taxCode: "USt19" },
+            ],
+          },
+          {
+            kind: "journal",
+            externalId: "verkauf-2",
+            date: "2026-11-05",
+            description: "Shop-Verkauf im laufenden Monat",
+            lines: [
+              { account: "1200", debit: 3_570, credit: 0, taxCode: null },
+              { account: "8400", debit: 0, credit: 3_000, taxCode: "USt19" },
+              { account: "1776", debit: 0, credit: 570, taxCode: "USt19" },
+            ],
+          },
+          {
+            kind: "journal",
+            externalId: "zinsen-1",
+            date: "2026-10-31",
+            description: "Guthabenzinsen",
+            lines: [
+              { account: "1200", debit: 120, credit: 0, taxCode: null },
+              { account: "2650", debit: 0, credit: 120, taxCode: null },
+            ],
+          },
+        ],
+        settlements: [],
+      },
+      async () => new Uint8Array(),
+    );
+    try {
+      const context = tools.todayContext(new Date("2026-11-14T10:00:00Z"));
+      const overview = (await tools.MCP_TOOLS.find((t) => t.name === "uebersicht")!.run({}, context)) as { rechnungen: Record<string, unknown> };
+      expect(overview.rechnungen.umsatzNettoMonat).toEqual({ monat: "2026-11", betrag: 30 });
+      expect(overview.rechnungen.umsatzNettoVormonat).toEqual({ monat: "2026-10", betrag: 50 });
+    } finally {
+      // Die übrigen Tests der Datei rechnen mit leerem Journal und ohne Import (der Datenimport legt einen Umzug an)
+      await leeren(sql)`truncate external_imports, lexoffice_imports, journal_lines, journal_entries cascade`;
+    }
   });
 
   it("verlinkt bei fehlenden Voranmeldungen den letzten Zeitraum des Jahres, nicht den laufenden (#869)", async () => {

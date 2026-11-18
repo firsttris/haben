@@ -15,14 +15,14 @@ Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR
 
 ## Überblick
 
-Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwischen stehen das laufende Jahr und alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen oder gebuchten Belegen, jedes einmal. Darunter stehen vier Kennzahlen:
+Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwischen stehen das laufende Jahr und alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen, gebuchten Belegen oder Buchungen, etwa aus dem [Datenimport](belegimport.md), jedes einmal. **Konten** bietet dieselben Jahre zur Auswahl, **Steuerjahr** davon die abgeschlossenen und immer das Vorjahr. Darunter stehen vier Kennzahlen:
 
 | Kennzahl | Bedeutung |
 | --- | --- |
 | Einnahmen (netto) | Summe der Monatswerte, ohne Umsatzsteuer; darunter der Bruttowert laut EÜR |
 | Ausgaben (netto) | Summe der Monatswerte, ohne Vorsteuer (Belege ohne Vorsteuerabzug brutto); darunter der Bruttowert laut EÜR mit Vorsteuer und gezahlter Umsatzsteuer |
-| Gewinn bzw. Verlust | Betriebseinnahmen minus Betriebsausgaben laut EÜR |
-| Offene Forderungen | Summe aller offenen Rechnungen heute, mit Anzahl und Zahl der überfälligen |
+| Gewinn bzw. Verlust | Betriebseinnahmen minus Betriebsausgaben laut EÜR, mit vereinnahmter Umsatzsteuer, gezahlter Vorsteuer und gezahlter Umsatzsteuer; nicht die Netto-Werte der ersten beiden Kennzahlen voneinander abgezogen |
+| Offene Forderungen | Summe aller offenen Rechnungen zum gewählten Stand (heute oder 31.12.), mit Anzahl und Zahl der überfälligen |
 
 ## EÜR nach Zufluss und Abfluss
 
@@ -44,7 +44,8 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Kontoführung und Bankgebühren“ | Buchungstag | Ausgabe „Kontoführung und Gebühren“ |
 | Bankumsatz „Mahngebühren und Verzugszinsen“ oder „Zinserträge“ | Buchungstag | Betriebseinnahmen; zur steuerlichen Zuordnung siehe [Bruttomethode](#bruttomethode) |
 | Bankumsatz „Steuerzahlung oder Erstattung“ | Buchungstag | je nach Steuerart und Teil: Umsatzsteuer früherer Jahre als gezahlte bzw. erstattete Umsatzsteuer, Zinsen und Zuschläge als „Zinsen und Zuschläge zu betrieblichen Steuern“, Erstattungszinsen als Einnahme; Gewerbesteuer nur nachrichtlich, private Steuern gar nicht ([Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen)) |
-| Bankumsatz „Einnahme oder Ausgabe (Kategorie, Steuersatz)“ | Buchungstag | Einnahme netto (als Kleinunternehmer ohne Steuer) und vereinnahmte Umsatzsteuer; Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen)) |
+| Bankumsatz „Einnahme oder Ausgabe (Kategorie, Steuersatz)“ | Buchungstag | Einnahme netto (als Kleinunternehmer ohne Steuer) und vereinnahmte Umsatzsteuer; nicht steuerbare Einnahme unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“; Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen)) |
+| Bankumsatz „Aufladung Guthaben“ | Buchungstag | Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Aufladung eines Guthabens](bank.md#aufladung-eines-guthabens)) |
 | Bankumsatz „Darlehen“ | Buchungstag | Zinsen und Gebühren als „Schuldzinsen zur Finanzierung von Anlagevermögen“ bzw. „Übrige Schuldzinsen“; Auszahlung und Tilgung zählen nicht ([Darlehen](bank-steuern-darlehen.md#darlehen)) |
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
@@ -112,6 +113,8 @@ Die eigene Steuerbefreiung ist ausdrücklich zugeordnet. § 4 Nr. 8 Buchst. i, N
 
 Unter **Berechnungsgrundlage und ungeklärte Zuordnungen** siehst du die Quellen, den Zahlungstag, das Nettoentgelt und den Grund der Einordnung. Alte freie Befreiungstexte sowie nicht belegte Zahlungsdaten werden nicht erraten. Solange solche Fälle offen sind, heißt die Summe **Bekannter Teilbetrag**; ungeklärte Werte sind darin nicht enthalten. Ein Bezahlt-Status allein belegt weder Betrag noch Zahlungsdatum.
 
+Ein auf einem [privaten Konto](bank.md#privates-konto-umsätze-ohne-buchungsart) als „Privat, kein Betriebsvorgang“ gekennzeichneter, ganz offener Umsatz erscheint hier nicht, weder als Betrag noch als ungeklärte Zuordnung: Er ist kein Betriebsvorgang.
+
 Bankumsätze der Kategorie [Zinserträge](bank.md#auf-eine-kategorie-buchen) bleiben ungeklärt: Ihre Einordnung als Hilfsumsatz nach § 4 Nr. 8 Buchst. a UStG lässt sich nicht hinterlegen.
 
 Eine ausgeglichene manuelle Buchung zwischen Kasse und inländischen Erlöskonten zählt mit dem Buchungstag, wenn jede Erlöszeile ausdrücklich den Steuerschlüssel **KU** trägt. Gegenbuchungen mindern den Betrag. Andere freie oder importierte Buchungen bleiben ohne belegte Zahlungs- und Leistungszuordnung ungeklärt; eine Forderungsentstehung zählt noch nicht als Zufluss.
@@ -124,7 +127,7 @@ Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlung
 
 ## Offene Posten
 
-Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten Jahr. Sortiert wird nach Fälligkeit.
+Die drei Tabellen am Ende zeigen den Stand von heute oder, für ein vergangenes Jahr über den Schalter in der Jahresleiste, den zum 31.12. Sortiert wird nach Fälligkeit.
 
 - **Offene Forderungen:** festgeschriebene Rechnungen und Rechnungskorrekturen, die nicht storniert sind, mit Betrag abzüglich zugeordneter Zahlungen. Eine Korrektur erscheint mit negativem offenem Betrag, ebenso eine Stornorechnung, solange die Zahlung auf die stornierte Rechnung noch nicht erstattet ist. Offen heißt hier dasselbe wie in der Rechnungsliste und im Bankabgleich.
 - **Offene Verbindlichkeiten:** gebuchte Belege mit Zahlung „Bank“, abzüglich zugeordneter Zahlungen. Ohne Fälligkeitsdatum gilt das Belegdatum.
@@ -132,11 +135,25 @@ Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten
 
 Was vor dem gewählten Jahr entstanden und noch offen ist, steht in beiden Tabellen der Forderungen und Verbindlichkeiten als Zeile über der Liste („2 offene Posten aus früheren Jahren“, dazu ihr Betrag); die Spalte **Jahr** kennzeichnet die betroffenen Zeilen. Am Handy fehlt die Spalte, dort hängt der Vermerk an der Fälligkeit („fällig 17.06.2026 · aus 2025“).
 
+Auf **31.12.** rechnen alle drei Tabellen zum Jahresende:
+
+- **Zahlungen:** Offen ist, was bis einschließlich dieses Tages gezahlt war. Spätere Zahlungen zählen nicht, der Posten steht wieder offen.
+- **Belege und Rechnungen:** Was es damals noch nicht gab, fehlt in der Liste. Eine Rechnung gilt mit ihrem Rechnungsdatum, ein Beleg mit seinem Belegdatum, ohne Datum mit dem Tag des Hochladens.
+- **Voranmeldungen:** Sie zählen mit dem Ende ihres Zeitraums, nicht mit dem Tag der Abgabe. Die Anmeldung für Dezember oder das vierte Quartal, im Januar abgegeben, ist zum 31.12. eine offene Verbindlichkeit; die Steuer entsteht mit Ablauf des Voranmeldungszeitraums (§ 13 Abs. 1 Nr. 1 Buchst. a und b UStG).
+- **Berichtigung einer Voranmeldung:** Der Stand zeigt den berichtigten Betrag, auch wenn die Berichtigung erst im Folgejahr abgegeben wird; die Steuer war mit Ablauf des Zeitraums in dieser Höhe entstanden. Fällig ist die Vorauszahlung am zehnten Tag nach Ablauf des Voranmeldungszeitraums (§ 18 Abs. 1 Satz 4 UStG); angezeigt wird als Fälligkeit der spätere von gesetzlichem Termin und Abgabe, und Säumniszuschläge entstehen erst ab der Abgabe (§ 240 Abs. 1 Satz 3 AO).
+- **Storno und Aufhebung:** Maßgeblich ist das Buchungsdatum der Gegenbuchung, nicht der Tag, an dem jemand den Storno erfasst. Ein Beleg, dessen Storno im Februar erfasst und auf Dezember zurückdatiert ist, fehlt deshalb im Stand zum 31.12. wie im Journal, solange der Zeitraum beim Storno noch nicht gemeldet war; war er gemeldet, trägt der Storno den Tag der Erfassung und der Beleg bleibt im Stand; bei der Rechnung zählt das Datum der Stornorechnung, bei der USt-Zahlung das Datum ihrer Aufhebung.
+- **Fälligkeit:** „Fällig“ und „Überfällig“ beziehen sich auf denselben Tag.
+- **Adresse:** Der Stand steht in der Adresse (`?jahr=2025&stichtag=31.12.`). Ein Link lässt sich weitergeben, die Seite bleibt ohne JavaScript bedienbar.
+
+Eine Ausnahme von „Rechnung nach Rechnungsdatum“ sind Anzahlungsketten von GmbH und UG, deren Schlussrechnung erst nach dem Stichtag ausgestellt wird: Der noch nicht abgerechnete Rest steht als unbillte Forderung im Stand, mit der Fälligkeit, die er zum Stichtag hatte (§ 252 Abs. 1 Nr. 4 HGB).
+
 Ob ein Vorjahresposten in eine Abschlusskontrolle gehört, hängt von der Rechtsform ab: Bei GmbH und UG steht eine offene Forderung aus 2025 am 31.12.2026 in Inventar und Bilanz (§ 240 Abs. 2, § 242 HGB), in der EÜR wirkt ein offener Posten gar nicht auf den Gewinn (§ 4 Abs. 3, § 11 EStG).
 
 Der Status zeigt „Überfällig“ (farbig hinterlegt) mit der Zahl der Tage, „Fällig“ am Tag der Fälligkeit oder „Offen“ mit den Tagen bis dahin. Nummer bzw. Rechnungsnummer führen zur Rechnung oder zum Beleg. Eine Erstattung des Finanzamts ist nie überfällig; sie steht als „Erstattung erwartet“.
 
 Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und überfälligen Posten; bei den Verbindlichkeiten ohne Überfälliges das nächste Fälligkeitsdatum. Ein Klick auf die Kachel führt zur jeweiligen Tabelle hier.
+
+Daneben zeigt die Übersicht den **Umsatz** des Vormonats netto: den Saldo der Konten, die der DATEV-Kontenrahmen dem GuV-Posten „Umsatzerlöse“ zuordnet ([§ 277 Abs. 1 HGB](https://www.gesetze-im-internet.de/hgb/__277.html)), nach Buchungsdatum, in Einzelunternehmen und GmbH gleich. Gebuchte Rechnungen zählen mit dem Tag ihrer Buchung, auch unbezahlt, ebenso Verkäufe, die nur als Buchung kommen, etwa aus dem [Datenimport](belegimport.md). Stornos, Gutschriften und gewährte Skonti mindern ihn. Zinsen, Mahngebühren, Kursgewinne, private Nutzung und Sachentnahmen (unentgeltliche Wertabgaben) sind sonstige Erträge und fehlen, anders als in den Einnahmen der EÜR.
 
 ## EÜR als CSV
 
@@ -176,11 +193,11 @@ Haben bucht offene Posten im Journal auf die Sammelkonten „Forderungen aus Lie
 - **Welches Konto:** Entscheidend ist die Herkunft, nicht das Vorzeichen. Eine Rechnung und alles dazu (Zahlung, Teilzahlung, Rückzahlung, Skonto, Forderungsausfall, Storno, Korrektur, Bareinnahme) geht auf den Debitor des Kunden der Rechnung; ein Beleg und seine Zahlungen, Erstattungen und Skonti auf den Kreditor des Lieferanten, den der Beleg aus den Kontakten trägt. Eine Zeile wird ersetzt, nicht ergänzt: Die Summe der Debitoren ist der Saldo von 1400 bzw. 1200 in der Saldenliste, die der Kreditoren der von 1600 bzw. 3300. Eine Verrechnung zweier Belege steht mit beiden Seiten beim Kreditor des Lieferanten: die Rechnung mit ihrer Belegnummer im Soll, die Gutschrift mit ihrer im Haben, dazu an jedem Beleg, dessen Vorsteuer auf dem Zwischenkonto steht, die Umbuchung der Vorsteuer ([Verrechnen ohne Zahlung](belege.md#verrechnen-ohne-zahlung)).
 - **Ab einem Jahr:** Der Schalter gilt ab dem Beginn des gewählten Jahres; davor bleibt der Stapel bei den Sammelkonten. Hat ein betroffenes Jahr bis heute schon Buchungen, speichert Haben die Änderung (auch das Abschalten) nur mit einem Häkchen: Ein Stapel, den die Kanzlei schon hat, sähe danach anders aus. Die Änderung steht im Änderungsprotokoll.
 - **Fehlende Nummern vergibt Haben:** Braucht ein Kontakt für den Stapel einen Debitor bzw. Kreditor und hat keinen, vergibt der Export die nächste Nummer nach der höchsten bisher vergebenen (am Ende des Bereichs die erste nie vergebene) und trägt sie am Kontakt ein, mit Eintrag im Änderungsprotokoll. Nummern, die schon einmal an einem Kontakt standen, auch an einem archivierten oder später geänderten, vergibt Haben nicht noch einmal. Gleichzeitige Exporte warten aufeinander, so bekommt keine Nummer zwei Kontakte. Kontakte ohne offenen Posten im Jahr bekommen keine Nummer.
-- **Fehlt der Kontakt, kein Stapel:** Hat ein Beleg keinen Lieferanten aus den Kontakten, lehnt der Export ab und nennt die Vorgänge, statt diese Zeilen still auf das Sammelkonto zu buchen. Einen neuen Kontakt aus abweichenden Schreibweisen legt Haben nicht an. Trag den Lieferanten deshalb schon beim Erfassen aus den Kontakten ein (Feld **Aus den Kontakten** im Beleg).
+- **Fehlt der Kontakt, kein Stapel:** Hat ein Beleg keinen Lieferanten aus den Kontakten, lehnt der Export ab und nennt die Vorgänge, statt diese Zeilen still auf das Sammelkonto zu buchen. Einen neuen Kontakt aus abweichenden Schreibweisen legt Haben nicht an. Trag den Lieferanten deshalb schon beim Erfassen aus den Kontakten ein (Feld **Lieferant** im Beleg).
 - **Gebuchter Beleg ohne Lieferanten:** Ein gebuchter Beleg ist fest, der Lieferant lässt sich nicht nachtragen. So löst du die Ablehnung:
   1. Ist der Beleg schon einer Zahlung zugeordnet, die Zuordnung im [Bankabgleich](bank.md) aufheben.
   2. Den Beleg öffnen, den die Meldung nennt, und mit **Beleg stornieren** aufheben ([Stornieren und neu erfassen](belege.md#stornieren-und-neu-erfassen)).
-  3. **Neu erfassen**, im neuen Entwurf den Lieferanten unter **Aus den Kontakten** wählen und buchen.
+  3. **Neu erfassen**, im neuen Entwurf den Lieferanten im Feld **Lieferant** aus den Kontakten wählen und buchen.
   4. Die Zahlung im Bankabgleich dem neuen Beleg zuordnen.
 
   Buchung und Storno bleiben auf dem Sammelkonto und heben sich dort auf; der neue Beleg geht auf den Kreditor. Das gilt auch, wenn der Storno im Folgejahr steht, weil der Zeitraum des Belegs schon gemeldet war: Dann trägt das Sammelkonto den Betrag ins neue Jahr, und der Storno gleicht ihn dort aus. Liegt der alte Beleg in einem Jahr vor dem Schalter, betrifft er den Export nicht.
@@ -217,10 +234,12 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `bank/zuordnungen.csv` | Zuordnungen zu Rechnungen, Belegen und Buchungen ohne Beleg; aufgehobene als Gegenzeile |
 | `bank/verrechnungen.csv` | Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze mit Notiz, ohne Buchung ([Bank](bank.md#gegenläufige-umsätze-verrechnen)); aufgehobene als Gegenzeile |
 | `bank/ausbuchungen.csv` | Nur wenn vorhanden: ausgebuchte Reste (Skonto gewährt und erhalten, Forderungsausfall); aufgehobene als Gegenzeile; bei Skonto zu einer Bareinnahme die Nummer im Kassenbuch |
-| `bank/importe.csv` | Importierte Auszugsdateien mit SHA-256, Zeitraum und Salden (die Dateien selbst speichert der Bankimport nicht) |
+| `bank/importe.csv` | Importierte Auszugsdateien und Kontoabrufe mit SHA-256, Zeitraum, Salden und Hinweisen (die Dateien selbst speichert der Bankimport nicht); abgelehnte Abrufe ohne Zeitraum nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres verbunden hat (etwa vom 30.12. vor seinem Januar-Fenster), auch im Jahr dieses Umsatzes; ein abgelehnter Abruf mit geklärtem Konflikt auch im Jahr des bisherigen und des neuen Umsatzes |
+| `bank/quellen.csv` | Nur wenn vorhanden: Herkunft der abgerufenen Umsätze, je Ereignis der Bank die Quelle mit [Stichtag](bank.md#welche-umsätze-abgerufen-werden), der Abruf und der Umsatz, den Haben angelegt oder verbunden hat |
+| `bank/klaerungen.csv` | Nur wenn vorhanden: je [geklärtem Konflikt](bank.md#welche-umsätze-abgerufen-werden) im Abruf der bisherige und der gelieferte Umsatz, die Entscheidung, ein neu angelegter Umsatz und wer wann geklärt hat; der abgelehnte Abruf steht in `bank/importe.csv`; im Jahr des bisherigen Umsatzes und, wenn ein neuer angelegt wurde, auch in dessen Jahr |
 | `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML; bei einer [Abgabe außerhalb von Haben](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken) das Übermittlungsprotokoll des Vermerks (PDF) |
 | `lexoffice/` | Nur bei übernommenem Altbestand aus Lexware Office, sevDesk, FastBill und den anderen Umzugsquellen, siehe unten |
-| `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json` |
+| `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json`; nur wenn vorhanden `ustid-bestaetigungen.csv` mit den [Bestätigungen beim BZSt](kontakte.md#ust-idnr-beim-bzst-bestätigen) des Jahres: gesendete Angaben, Status mit Meldung, Vergleich von Name und Anschrift und die Antwort des BZSt unverändert als Nachweis |
 | `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
 | `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |
 | `protokoll/versionen.csv` | Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt, Bestands-Hinweis (sofern vorhanden) und Link auf die Versionshinweise, einschließlich eines noch aus dem Vorjahr laufenden Stands |
@@ -229,7 +248,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `index.xml` | Beschreibung aller CSV-Dateien für die Prüfsoftware, siehe [index.xml für die Prüfsoftware](#indexxml-für-die-prüfsoftware) |
 | `pruefsummen.sha256` | SHA-256 jeder anderen Datei im Archiv |
 
-Die Stammdaten sind nicht nach Jahr gefiltert, sondern der Stand beim Export.
+Die Stammdaten sind nicht nach Jahr gefiltert, sondern der Stand beim Export; nur die Bestätigungen beim BZSt zählen nach dem Zeitpunkt der Anfrage.
 
 Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [Umzug aus Lexoffice](lexoffice.md)):
 
@@ -237,7 +256,7 @@ Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [
 | --- | --- |
 | `lexoffice/belege/` | Original-PDFs, E-Rechnungs-XML und Anhänge der Lexoffice-Belege des Jahres |
 | `lexoffice/belege.csv` | Je Beleg Art, Richtung, Nummer, Kontakt, Beträge, Status, Zahlungsdatum, Steuersätze und Kategorien als JSON, Dateien mit SHA-256, Lexoffice-ID und [Dateistand](sevdesk.md#dateistand) |
-| `lexoffice/dateistand.csv` | Verlauf des Dateistands von Belegen aus sevDesk: fehlende Datei, fehlgeschlagener Abruf, fehlender Anhang, Bestätigung ohne Datei mit Benutzer-ID, nachgeladene Datei |
+| `lexoffice/dateistand.csv` | Verlauf des Dateistands von Belegen aus sevDesk, aus dem Accountable-Stapel und aus der Lexoffice-Sicherung: fehlende Datei, fehlgeschlagener Abruf, fehlender Anhang, Bestätigung ohne Datei mit Benutzer-ID, Rücknahme einer Bestätigung, nachgeladene Datei |
 | `lexoffice/zahlungen.csv` | Einzelzahlungen zu sevDesk-Vorgängen nach Zahlungsdatum: Belegnummer, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle |
 | `lexoffice/datev-buchungen.csv` | Die Zeilen des DATEV-Buchungsstapels mit Datei und Zeilennummer im Original |
 | `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `storebericht` (Finanzberichte von Google Play und App Store), `sonstiges` |
@@ -280,6 +299,8 @@ Zusätzlich stehen in `rechnungen.csv` und `belege.csv` die SHA-256-Werte, die H
 ### Änderungsprotokoll prüfen
 
 Unter **Einstellungen › Export › Änderungsprotokoll prüfen** rechnet „Kette prüfen“ die Hash-Kette des Audit-Logs und die Siegel aller festgeschriebenen Datensätze nach, prüft die Trigger und Funktionen von Haben und gleicht das Journal mit Umsatzsteuer und EÜR ab ([Abgleich](buchhaltung.md#abgleich-im-journal)). In das Feld darunter fügst du einen aufbewahrten Prüfwert ein, etwa aus `protokoll/pruefwert.txt` oder aus der wöchentlichen Mail, und vergleichst ihn mit dem Protokoll. Was die Prüfung erkennt und was nicht, steht unter [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel).
+
+Die Karte **Version** zeigt die installierte und die neueste stabile Version mit Links zu den Versionshinweisen und zu den Anleitungen zum Aktualisieren. Wie du die Abfrage abschaltest, steht bei `HABEN_UPDATE_CHECK` unter [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen).
 
 Darunter zeigt **Eingesetzte Versionen** den protokollierten Verlauf der Haben- und PostgreSQL-Versionen mit Startzeitpunkt und Link zu den Versionshinweisen. Bei Bestandsinstanzen gilt die Aufzeichnung erst ab der Einführung dieser Funktion; für frühere Zeiträume liegt kein Verlauf vor (vermerkt im ersten Eintrag).
 

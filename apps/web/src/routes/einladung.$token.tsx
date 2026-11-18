@@ -68,7 +68,10 @@ function InvitationPage() {
         {accepted ? (
           <>
             <h1 style={{ fontSize: 24 }}>Passkey einrichten</h1>
-            <p className="muted">Melde dich künftig mit einem Passkey an, ohne Passwort. Das Passwort bleibt als Rückfallebene.</p>
+            <p className="muted">
+              Mit einem Passkey meldest du dich künftig mit Fingerabdruck, Gesicht oder PIN deines Geräts an, ohne Passwort. Das Passwort bleibt als
+              Rückfallebene.
+            </p>
             <button type="button" className="btn btn-primary" onClick={addPasskey} disabled={busy}>
               Passkey hinzufügen
             </button>

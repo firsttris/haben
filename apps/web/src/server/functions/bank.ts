@@ -31,7 +31,8 @@ import {
   createAccount,
   createProviderAccount,
   providerAccountSchema,
-  importStatement,
+  importStatementFile,
+  UnbekannteCsvError,
   listAccounts,
   hebePrivatAuf,
   markierePrivat,
@@ -62,6 +63,8 @@ import {
 } from "../modules/bank/index.ts";
 import { deleteEnableBankingSettings, enableBankingSettingsSchema, enableBankingSettingsSummary, saveEnableBankingSettings } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
+import { fintsConfigured, listFintsConnections } from "../modules/bank/index.ts";
+import { cutoverDates, klaerungView, openConflicts, resolveConflict, resolveConflictSchema } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
@@ -101,7 +104,13 @@ export const getBankOverview = createServerFn({ method: "GET" })
       excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),
       transactions,
       detail: detail
-        ? { ...detail, neutralization: await neutralizationView(detail.transaction.id), storePayout: await storePayoutView(detail.transaction.id) }
+        ? {
+            ...detail,
+            neutralization: await neutralizationView(detail.transaction.id),
+            storePayout: await storePayoutView(detail.transaction.id),
+            /** Bezug zu einem Umsatz aus der Klärung eines Konflikts im Abruf (#306) */
+            klaerung: await klaerungView(detail.transaction.id),
+          }
         : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
@@ -130,7 +139,15 @@ export const getBankOverview = createServerFn({ method: "GET" })
             .map(async (a) => [a.id, paymentProviderAccount((await loadCompany()).kontenrahmen, a.ledgerIndex!)] as const),
         ),
       ),
-      sync: { configured: await enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
+      sync: {
+        configured: await enableBankingConfigured(),
+        callbackUrl: callbackUrl(),
+        connections: await listConnections(),
+        /** Offene Konflikte im Abruf und Stichtag je Konto (#306) */
+        konflikte: await openConflicts(),
+        stichtage: await cutoverDates(),
+      },
+      fints: { configured: fintsConfigured(), connections: await listFintsConnections() },
     };
   });
 
@@ -152,11 +169,11 @@ export const importStatements = createServerFn({ method: "POST" })
     const results = [];
     for (const file of data.files) {
       try {
-        const result = await importStatement(context.user.id, { bytes: new Uint8Array(await file.arrayBuffer()), filename: file.name }, data.accountId);
+        const result = await importStatementFile(context.user.id, { bytes: new Uint8Array(await file.arrayBuffer()), filename: file.name }, data.accountId);
         results.push({ filename: file.name, ...result });
       } catch (error) {
         if (!(error instanceof BankError)) throw error;
-        results.push({ filename: file.name, error: error.message });
+        results.push({ filename: file.name, error: error.message, zuordnen: error instanceof UnbekannteCsvError });
       }
     }
     return results;
@@ -327,6 +344,12 @@ export const syncBankConnection = createServerFn({ method: "POST" })
     return { added: result.added, error: result.error, gaps: result.accounts.flatMap((a) => (a.gap ? [a.gap] : [])) };
   });
 
+/** Konflikt im Abruf klären (#306): bisherigen Umsatz behalten oder den gelieferten als weiteren übernehmen */
+export const resolveBankConflict = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(resolveConflictSchema)
+  .handler(async ({ data, context }) => resolveConflict(context.user.id, data));
+
 export const disconnectBank = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
@@ -335,10 +358,10 @@ export const disconnectBank = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Zugang zu Enable Banking (Einstellungen › Bank) */
+/** Zugang zu Enable Banking und, ob FinTS eingerichtet ist (#654); nie die Registrierungsnummer */
 export const getEnableBankingSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => enableBankingSettingsSummary());
+  .handler(async () => ({ ...(await enableBankingSettingsSummary()), fints: fintsConfigured() }));
 
 export const saveEnableBanking = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

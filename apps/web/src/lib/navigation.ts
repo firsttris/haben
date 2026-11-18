@@ -2,6 +2,7 @@ import { type SettingsArea, settingsAreas } from "./settings-areas.ts";
 import { ACCENT_PATTERN, inkOnAccent, needsEdgeOnNav } from "@haben/core";
 import type { IconName } from "../components/Icon.tsx";
 import { STEUERBERATUNG_START } from "./rollen.ts";
+import { ausgeblendeteSeiten } from "./bereiche.ts";
 
 /** Bedingungen, unter denen ein Menüpunkt der Hauptnavigation erscheint */
 export interface NavBedingung {
@@ -15,9 +16,12 @@ export interface NavKontext {
   /** GmbH oder UG */
   gesellschaft: boolean;
   hatMitarbeiter: boolean;
+  /** Ausgeblendete Bereiche (#266, lib/bereiche.ts); fehlt = alle sichtbar */
+  ausgeblendet?: readonly string[];
 }
 
-export function navLinkSichtbar(link: NavBedingung, { gesellschaft, hatMitarbeiter }: NavKontext): boolean {
+export function navLinkSichtbar(link: NavBedingung & { to?: string }, { gesellschaft, hatMitarbeiter, ausgeblendet = [] }: NavKontext): boolean {
+  if (link.to && ausgeblendeteSeiten(ausgeblendet).has(link.to)) return false;
   if (gesellschaft && link.nurEinzelunternehmen) return false;
   if (!gesellschaft && link.nurKapitalgesellschaft) return false;
   return !(link.nurMitMitarbeitern && !hatMitarbeiter);
@@ -67,7 +71,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { to: "/lastschriften", icon: "debit", label: "Lastschriften" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
-      { to: "/leistungen", icon: "calendar", label: "Leistungen" },
+      { to: "/leistungen", icon: "clock", label: "Zeiteinträge" },
       { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
     ],
   },
@@ -76,7 +80,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     icon: "cart",
     links: [
       { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
+      { to: "/dauerbelege", icon: "repeat", label: "Dauerbelege" },
       { to: "/ueberweisungen", icon: "transfer", label: "Überweisungen" },
       // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
       { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },
@@ -161,11 +165,12 @@ export interface EigeneSeiteNav {
   openInNewTab: boolean;
 }
 
-/** Dieselben Seiten wie in der Navigation, gefiltert nach Rolle, Rechtsform, Mitarbeitern und eigenen Seiten (#617) */
+/** Dieselben Seiten wie in der Navigation, gefiltert nach Rolle, Rechtsform, Mitarbeitern, Bereichen und eigenen Seiten (#617) */
 export function sichtbareNavSeiten({
   inhaber,
   gesellschaft,
   hatMitarbeiter,
+  ausgeblendet,
   eigeneSeiten,
   oidcOnly = false,
 }: NavKontext & { inhaber: boolean; eigeneSeiten: readonly EigeneSeiteNav[]; oidcOnly?: boolean }): SichtbareSeite[] {
@@ -181,7 +186,7 @@ export function sichtbareNavSeiten({
   ];
   for (const group of gruppen) {
     for (const link of group.links) {
-      if (!navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })) continue;
+      if (!navLinkSichtbar(link, { gesellschaft, hatMitarbeiter, ausgeblendet })) continue;
       seiten.push({ key: link.to, label: link.label, group: group.label, icon: link.icon, to: link.to });
     }
   }
@@ -222,7 +227,7 @@ export function sichtbareNavSeiten({
         icon: "settings",
         to: "/einstellungen",
         settingsArea: area.id,
-        keywords: area.hint,
+        keywords: area.keywords ? `${area.hint} ${area.keywords}` : area.hint,
       });
     }
   }

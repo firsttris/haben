@@ -14,6 +14,8 @@ edit_uri: edit/main/docs/
 copyright: >-
   Lizenz AGPL-3.0 · Keine Steuerberatung. ELSTER und ERiC sind Angebote der
   Finanzverwaltung; dieses Projekt steht in keiner Verbindung zu ihr.
+  · <a href="https://teufel-it.de/de/impressum/">Impressum</a>
+  · <a href="https://speicherstadt.app/datenschutz/">Datenschutz</a>
 
 docs_dir: docs
 # Seiten als rechnungen.html statt rechnungen/: so stimmen die relativen Bildpfade
@@ -31,6 +33,7 @@ nav:
   - Suchen: suche.md
   - Betrieb:
       - Installation: installation.md
+      - Compose-Generator: compose-generator.md
       - Synology: synology.md
       - TrueNAS SCALE: truenas.md
       - Unraid: unraid.md
@@ -53,7 +56,7 @@ nav:
       - Zahlung und Mahnung: rechnungen-zahlung.md
       - Angebote: angebote.md
       - Kontakte: kontakte.md
-      - Leistungen und Zeiteinträge: leistungen.md
+      - Zeiteinträge: leistungen.md
       - Eigene Belegvorlagen: belegvorlagen.md
   - Ausgaben und Bank:
       - Belege: belege.md
@@ -63,6 +66,8 @@ nav:
       - Kassenbuch: kasse.md
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md
+      - Andere Banken: bank-spaltenzuordnung.md
+      - Abruf über FinTS: bank-fints.md
       - Zahlungsdienstleister: bank-zahlungsdienstleister.md
       - Steuerzahlungen und Darlehen: bank-steuern-darlehen.md
   - Steuern und Auswertungen:
@@ -156,6 +161,14 @@ plugins:
   # eigene Erweiterung unter markdown_extensions. Die Suche ist eingebaut; ihre Sprache kommt aus
   # theme.language, `lang` hier würde ignoriert.
   - search
+  # Schriften (Inter, JetBrains Mono) und andere externe Dateien lädt der Build herunter und legt sie
+  # unter assets/external/ ab, damit der Browser keine Google Fonts oder CDNs anfragt (Datenschutz).
+  # Ausgenommen das Werbe-SDK, das der Videoplayer des Themes (Plyr) nur für Anzeigen nachlädt.
+  # Nur in der CI (GitHub setzt CI=true): lokal und in Sessions ohne Netz bräche --strict sonst ab.
+  - privacy:
+      enabled: !ENV [CI, false]
+      assets_exclude:
+        - imasdk.googleapis.com/*
 
 markdown_extensions:
   # Änderungsdatum aus git unter jeder Seite (scripts/doku-aenderungsdatum, über requirements-docs.txt)

@@ -75,9 +75,11 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Pakete importieren nichts aus `apps/`, der GoBD-Kern keine Pakete von Haben | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| `padding*`, `margin*`, `gap`, `row-gap` und `column-gap` in `apps/web/src/**/*.css` auf dem 4px-Raster ([DESIGN.md](https://github.com/firsttris/haben/blob/main/DESIGN.md#schrift-und-abstände)), außer den alten Stellen in `altstellen.json` | `scripts/raster/` in `bun run lint` | Fehler |
 | Höchstens 80 Zeilen je Funktion ohne Leerzeilen, außer in Tests | Biome-Regel `noExcessiveLinesPerFunction` im Editor und in `bun run lint` | Hinweis |
 | Formularfelder über `Field`, kein eigenes Element mit der Klasse `field` (außer `<fieldset className="field">` für eine Gruppe) | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
 | Auswahllisten über `Field`, kein `<select>` außerhalb | `scripts/felder/keine-nackte-auswahl.grit` (Biome-Regel) in `bun run lint`; Ausnahmen mit `// biome-ignore lint/plugin: Grund` | Fehler |
+| Kein `as Cents`, `as BasisPoints`, `as Millis` oder `as Prozent` ([Einheit im Typ](entwicklung.md#konventionen)) | `scripts/einheiten/kein-as-einheit.grit` (Biome-Regel) in `bun run lint` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
 | Funktion über 80 Zeilen neu oder gewachsen, außer in Tests | `scripts/pr-regeln/`, gezählt wie die Biome-Regel | Hinweis |
 | Seite unter `docs/` wächst über 8.000 Wörter oder darüber um 300 und mehr ([Seiten der Doku](entwicklung.md#befehle)) | `scripts/pr-regeln/` | Hinweis |
@@ -94,13 +96,15 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Jede Seite in `docs/` mit `description:` im Front Matter | Workflow „Docs“ (`docs.yml`) | Fehler |
 | Jede versiegelte, nur anhängbare oder gegen Löschen gesperrte Tabelle und jede, deren Löschen das Audit-Log aufzeichnet, hat einen Trigger vor `TRUNCATE` | `apps/web/src/server/db/truncate.test.ts` in `bun run test` (mit Postgres) | Fehler |
 
+Meldet `bun run lint` bei `altdateien.json` oder `altstellen.json` „kann mit … `--aufraeumen` …“, läuft der Befehl im selben Pull Request, und die geänderte Liste wird mitcommittet.
+
 Was „PR-Regeln“ meldet, steht auch als ein Kommentar im Pull Request, bei jedem Push aktualisiert (Workflow „PR-Regeln Kommentar“; er startet aus der Fassung auf `main`, eine Änderung an ihm wirkt also erst nach dem Merge).
 
 Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibung <datei>` dasselbe wie der Workflow, nur mit git und in unter einer Sekunde; verglichen wird mit `origin/main` (`--basis` für einen anderen Stand). Den Hinweis auf Selbstprüfung und Review gibt es nur im Workflow.
 
 ### Wenn eine Prüfung anschlägt
 
-Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
+Titel, Issue-Verweise, Dateigröße, 4px-Raster und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
 
 - **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; steht das andere Modul höher, gehört der Code meist woanders hin ([Module im Server](architektur.md#module-im-server)); was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.

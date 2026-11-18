@@ -1,5 +1,5 @@
 import { isValidIdnr, type EstAngaben } from "@haben/elster";
-import { kirchensteuerpflichtig, steuerPrognose, type Cents, type Prognose } from "@haben/core";
+import { kirchensteuerpflichtig, steuerPrognose, type Cents, type Prognose, inCents } from "@haben/core";
 import { desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "../stammdaten/index.ts";
@@ -7,7 +7,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 
 /** Betrag in Cent, nicht negativ */
-const cents = z.number().int().min(0).max(100_000_000_00).optional();
+const cents = inCents(z.number().int().min(0).max(100_000_000_00)).optional();
 const isoDate = z.iso.date("Gültiges Datum im Format JJJJ-MM-TT");
 
 const vorsorgePerson = z
@@ -29,14 +29,14 @@ const vorsorgePerson = z
 
 const ersatzleistung = z.object({
   art: z.string().trim().min(1, "Die Art der Leistung fehlt.").max(200),
-  betrag: z.number().int().min(0).max(100_000_000_00),
+  betrag: inCents(z.number().int().min(0).max(100_000_000_00)),
 });
 
 const tage = z.number().int().min(0).max(366).optional();
 
 const bescheinigung = z.object({
   steuerklasse: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
-  brutto: z.number().int().min(1, "Bruttoarbeitslohn fehlt").max(100_000_000_00),
+  brutto: inCents(z.number().int().min(1, "Bruttoarbeitslohn fehlt").max(100_000_000_00)),
   lohnsteuer: cents,
   soli: cents,
   kirchensteuer: cents,

@@ -30,7 +30,6 @@ import {
   skontoProblem,
   outgoingTaxIssues,
   section4Note,
-  VORJAHRESGRENZE,
   type Bundesland,
   type PriceMode,
   type SkontoStufe,
@@ -77,6 +76,7 @@ import { Field } from "./Field.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { UmsatzgrenzeDialog } from "./UmsatzgrenzeDialog.tsx";
 import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
@@ -692,39 +692,14 @@ export function InvoiceEditor({
         )}
       </ConfirmDialog>
       {umsatzwarnung && (
-        <ConfirmDialog
-          open
-          title={
-            umsatzwarnung.vorjahresumsatz === undefined
-              ? "Rechnung trotz möglicher Überschreitung der Umsatzgrenze festschreiben?"
-              : "Kleinunternehmerregelung wegen Vorjahresumsatz prüfen"
-          }
-          confirmLabel="Trotzdem festschreiben"
-          facts={[
-            ...(umsatzwarnung.vorjahresumsatz === undefined
-              ? [
-                  { label: "Dieses Jahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.umsatz) },
-                  { label: "Bei vollständiger Zahlung in diesem Jahr", value: formatEuro(umsatzwarnung.umsatz + umsatzwarnung.rechnung), strong: true },
-                ]
-              : [{ label: "Im Vorjahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.vorjahresumsatz), strong: true }]),
-          ]}
+        <UmsatzgrenzeDialog
+          warnung={umsatzwarnung}
+          action="festschreiben"
           onClose={() => setUmsatzwarnung(null)}
           onConfirm={() => void run(() => finalizeSaved(umsatzwarnung.id, umsatzwarnung))}
         >
-          {umsatzwarnung.umsatz + umsatzwarnung.rechnung > umsatzwarnung.grenze && (
-            <p>
-              Bei vollständiger Zahlung in diesem Jahr könnte die Grenze von {formatEuro(umsatzwarnung.grenze)} überschritten werden. Ab dem Umsatz, der die
-              Grenze überschreitet, entfällt die Befreiung.
-            </p>
-          )}
-          {umsatzwarnung.vorjahresumsatz !== undefined && (
-            <p>
-              Lag dein Gesamtumsatz im Vorjahr über {formatEuro(VORJAHRESGRENZE)}, entfällt die Kleinunternehmerregelung ab dem 1. Januar des laufenden Jahres.
-            </p>
-          )}
-          <p>Prüfe vor dem Festschreiben, ob du Umsatzsteuer ausweisen musst. Als normale Rechnung erfasste Anlagenverkäufe können im Betrag enthalten sein.</p>
           <p>Bei Abbruch bleibt die Rechnung als Entwurf gespeichert.</p>
-        </ConfirmDialog>
+        </UmsatzgrenzeDialog>
       )}
       <ConfirmDialog
         open={confirmingDelete}
@@ -783,9 +758,8 @@ export function InvoiceEditor({
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Festschreiben: {blocking.join(", ")}. {currentSellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
             Vor dem Festschreiben: {blocking.join(", ")}.{" "}
-            {sellerIssues.length > 0 && (
+            {currentSellerIssues.length > 0 && (
               <Link to="/einstellungen" search={{ bereich: "firma" }}>
                 Firmendaten ergänzen
               </Link>
@@ -972,7 +946,7 @@ export function InvoiceEditor({
                   method={paymentMethod}
                   mandateId={mandateId}
                   mandates={mandates.filter((m) => m.contactId === contactId || m.id === mandateId)}
-                  contactChosen={contactId !== ""}
+                  contactId={contactId}
                   paidVia={paidVia}
                   paidOn={paidOn}
                   paidViaError={error("paidVia") ?? null}

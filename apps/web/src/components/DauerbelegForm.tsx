@@ -1,4 +1,5 @@
 import {
+  amountError,
   dauerbelegSummen,
   formatEuro,
   ownerLabels,
@@ -7,10 +8,12 @@ import {
   VORSTEUER_HINWEIS,
   type RecurringInterval,
   type Rechtsform,
+  type Prozent,
 } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { FilePicker } from "./FilePicker.tsx";
 import { Icon } from "./Icon.tsx";
+import { CategoryCombobox } from "./CategoryCombobox.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import { aendereBetragszeile, betragszeileAus, betragszeileAusVorlage, bruttoLesbar, steuerausweisUmschalten, type Betragszeile } from "../lib/betragszeile.ts";
@@ -27,7 +30,7 @@ export interface DauerbelegValues {
   reference: string;
   category: string;
   payment: "bank" | "privat" | "kasse";
-  privateShare: number;
+  privateShare: Prozent;
   amounts: { taxRate: Rate; net: number; tax: number }[];
   taxShown: boolean;
   note: string;
@@ -107,7 +110,7 @@ export function DauerbelegForm({
   const due = Number(dueDays);
   const usedRates = new Set(amounts.map((a) => a.taxRate));
 
-  const BETRAG = "Trag den Betrag als Zahl ein, etwa 850,00.";
+  const BETRAG = amountError("den Betrag", 85_000);
   const { form, error, check } = useSubmitCheck({
     ...Object.fromEntries(
       amounts.flatMap((a, i) => [
@@ -135,7 +138,7 @@ export function DauerbelegForm({
 
   function chooseTaxShown(an: boolean) {
     setTaxShown(an);
-    setAmounts((prev) => prev.map((a) => steuerausweisUmschalten(a, an)));
+    setAmounts((prev) => steuerausweisUmschalten(prev, an));
   }
 
   function addRate() {
@@ -212,16 +215,7 @@ export function DauerbelegForm({
           </div>
           <div className="form-row cols-2">
             <Field label="Kategorie" error={error("category")}>
-              {(control) => (
-                <select {...control} value={category} onChange={(e) => setCategory(e.target.value)} required>
-                  <option value="">Bitte wählen</option>
-                  {categories.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              )}
+              {(control) => <CategoryCombobox {...control} categories={categories} value={category} onChoose={setCategory} required />}
             </Field>
             <Field label="Bezahlung">
               {(control) => (

@@ -1,27 +1,28 @@
-import {
-  formatDecimal,
-  formatEuro,
-  isKapitalgesellschaft,
-  kategorieArt,
-  kategorieText,
-  parseEuro,
-  startwertFuerBuchungsart,
-  type DirectBooking,
-} from "@haben/core";
+import { AUFLADUNG, amountError, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro, startwertFuerBuchungsart, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
+import { vorschlagTitel } from "../../components/DirektVorschlag.ts";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
+import { FintsAbruf } from "../../components/FintsAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
-import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
+import {
+  aufladungWahl,
+  AUFLADUNG_OPTION,
+  DirektKategorieFelder,
+  KategorieFelder,
+  kategorieWahlFuer,
+  type KategorieOptionen,
+  type KategorieWahl,
+} from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
@@ -56,8 +57,10 @@ import { ExcludeAccountButton, ExcludedAccounts } from "../../components/BankKon
 import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
+import { KlaerungHinweis, KonfliktKlaeren, stichtagText } from "../../components/ImportKonflikt.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
+import { ImportMeldungen, importMessages, type ImportMessage } from "../../components/BankImportMeldungen.tsx";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
@@ -123,6 +126,7 @@ const KIND_LABEL = {
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
   kategorie: "Direkt",
+  aufladung: AUFLADUNG.text,
 } as const;
 
 /**
@@ -169,7 +173,16 @@ function zuAufhebendeZuordnung(
 }
 
 /** „Direkt buchen“: Buchungsarten ohne Beleg, Kategorie mit Steuersatz, Steuerzahlung mit Steuerart, Bezugsjahr und Teil, Darlehen */
-type DirectChoice = DirectBooking | "kategorie" | "steuer" | "darlehen";
+type DirectChoice = DirectBooking | "kategorie" | "aufladung" | "steuer" | "darlehen";
+/**
+ * Nutzlast einer Direktbuchung auf eine Kategorie: Die Aufladung trägt dieselben Felder, aber nie einen Steuersatz
+ * (#1356). Dialog und Buchung lesen beide `aufladungWahl`, damit Anzeige und Buchung nicht auseinanderlaufen.
+ */
+function direktKategorie(kind: "kategorie" | "aufladung", transactionId: string, amount: number, kategorie: KategorieWahl) {
+  return kind === "aufladung"
+    ? { kind: "aufladung" as const, transactionId, amount, kategorie: aufladungWahl(kategorie) }
+    : { kind: "kategorie" as const, transactionId, amount, kategorie };
+}
 const KATEGORIE_OPTION = { value: "kategorie", label: "Einnahme oder Ausgabe (Kategorie, Steuersatz)" } as const;
 const STEUER_OPTION = { value: "steuer", label: "Steuerzahlung oder Erstattung (Finanzamt, Gemeinde)" } as const;
 const DARLEHEN_OPTION = { value: "darlehen", label: "Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren" } as const;
@@ -189,7 +202,7 @@ function itemTarget(type: string | undefined, id: string, amount: number) {
 }
 
 const FORMAT_LABEL = (format: string) =>
-  format === "enablebanking"
+  format === "enablebanking" || format === "fints"
     ? "Abruf"
     : format.startsWith("camt")
       ? "CAMT.053"
@@ -203,13 +216,15 @@ const FORMAT_LABEL = (format: string) =>
               ? "eBay"
               : format === "etsy-csv"
                 ? "Etsy"
-                : format === "googleplay-earnings"
-                  ? "Google Play"
-                  : format === "appstore-finance"
-                    ? "App Store"
-                    : format === "store-payout"
-                      ? "Auszahlung"
-                      : "CSV";
+                : format === "etsy-ledger"
+                  ? "Etsy (Abruf)"
+                  : format === "googleplay-earnings"
+                    ? "Google Play"
+                    : format === "appstore-finance"
+                      ? "App Store"
+                      : format === "store-payout"
+                        ? "Auszahlung"
+                        : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -255,7 +270,7 @@ function BankPage() {
         <ImportControls data={data} />
       </div>
 
-      <BankSync sync={data.sync} result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null} />
+      <BankSync sync={data.sync} fints={data.fints} result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null} />
 
       {data.accounts.length === 0 ? (
         <section className="card">
@@ -489,22 +504,23 @@ function AccountSettings({
 
 type Sync = Data["sync"];
 
-/** Automatischer Abruf über Enable Banking: verbundene Banken, Abruf, Erneuern und Trennen */
-function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message: string } | null }) {
+/** Automatischer Abruf über Enable Banking und FinTS (#654): verbundene Banken, Abruf, Erneuern und Trennen */
+function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; result: { ok: boolean; message: string } | null }) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const syncFn = useServerFn(syncBankConnection);
   const disconnectFn = useServerFn(disconnectBank);
   const connectFn = useServerFn(connectBank);
   const [connecting, setConnecting] = useState(false);
+  const [fintsConnecting, setFintsConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState<Sync["connections"][number] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
 
-  if (!sync.configured && sync.connections.length === 0) {
+  if (!sync.configured && sync.connections.length === 0 && !fints.configured && fints.connections.length === 0) {
     return (
       <p className="small muted" style={{ margin: "0 0 16px" }}>
-        Automatischer Abruf: mit einer Enable-Banking-Anwendung holt Haben die Umsätze täglich selbst. Einrichten unter{" "}
+        Automatischer Abruf: mit einer Enable-Banking-Anwendung oder über FinTS holt Haben die Umsätze täglich selbst. Einrichten unter{" "}
         <Link to="/einstellungen" search={{ bereich: "bank" }}>
           Einstellungen › Bank
         </Link>
@@ -537,11 +553,18 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
     <section className="card" aria-label="Automatischer Abruf" style={{ marginBottom: 16, gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <h2 style={{ margin: 0 }}>Automatischer Abruf</h2>
-        {sync.configured && (
-          <button type="button" className="btn" onClick={() => setConnecting((v) => !v)} disabled={busy !== null}>
-            Bank verbinden
-          </button>
-        )}
+        <div className="actions">
+          {sync.configured && (
+            <button type="button" className="btn" onClick={() => setConnecting((v) => !v)} disabled={busy !== null}>
+              Bank verbinden
+            </button>
+          )}
+          {fints.configured && (
+            <button type="button" className="btn" onClick={() => setFintsConnecting((v) => !v)} disabled={busy !== null}>
+              Über FinTS verbinden
+            </button>
+          )}
+        </div>
       </div>
 
       {result && (
@@ -576,7 +599,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
         <p>Die abgerufenen Umsätze bleiben erhalten.</p>
       </ConfirmDialog>
 
-      {sync.connections.length === 0 && !connecting && (
+      {sync.connections.length === 0 && fints.connections.length === 0 && !connecting && !fintsConnecting && (
         <p className="small muted" style={{ margin: 0 }}>
           Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder CAMT bleibt daneben
           möglich.
@@ -592,7 +615,9 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
                 <span style={{ fontWeight: 600 }}>{c.aspspName}</span>
                 <ConnectionStatus connection={c} />
               </div>
-              <span className="small muted">{c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}`).join(" · ") || "Keine Konten"}</span>
+              <span className="small muted">
+                {c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}${stichtagText(sync.stichtage, a.bankAccountId)}`).join(" · ") || "Keine Konten"}
+              </span>
               <span className="small muted">
                 {c.lastSyncAt ? `Zuletzt abgerufen ${formatDateTime(c.lastSyncAt)}` : "Noch nicht abgerufen"}
                 {c.validUntil ? ` · Zustimmung bis ${formatDate(c.validUntil)}` : ""}
@@ -608,6 +633,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
                   Zustimmung erneuern
                 </button>
               )}
+              <KonfliktKlaeren konflikte={sync.konflikte.filter((k) => c.accounts.some((a) => a.bankAccountId === k.bankAccountId))} disabled={busy !== null} />
               {canSync && (
                 <button
                   type="button"
@@ -630,6 +656,8 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
           </div>
         );
       })}
+
+      <FintsAbruf fints={fints} verbinden={fintsConnecting} setVerbinden={setFintsConnecting} />
 
       {messages.length > 0 && (
         <ul className="upload-messages" role="status">
@@ -840,7 +868,7 @@ function ImportControls({ data }: { data: Data }) {
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
-  const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
+  const [messages, setMessages] = useState<ImportMessage[]>([]);
 
   async function onFiles(files: File[]) {
     if (files.length === 0) return;
@@ -852,19 +880,11 @@ function ImportControls({ data }: { data: Data }) {
       if (targetAccount) form.append("accountId", targetAccount);
       const results = await importFiles({ data: form });
       setMessages(
-        results.flatMap((r) =>
+        results.flatMap((r, i) =>
           "error" in r && r.error
-            ? [{ tone: "danger" as const, text: r.error }]
+            ? [{ tone: "danger" as const, text: r.error, datei: r.zuordnen ? { file: files[i]!, aktion: "Spalten zuordnen" as const } : undefined }]
             : "added" in r
-              ? [
-                  {
-                    tone: "ok" as const,
-                    text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.`,
-                  },
-                  ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
-                  ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
-                  ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
-                ]
+              ? importMessages(r, files[i])
               : [],
         ),
       );
@@ -966,15 +986,16 @@ function ImportControls({ data }: { data: Data }) {
           </button>
         </form>
       )}
-      {messages.length > 0 && (
-        <ul className="upload-messages" role="status" style={{ maxWidth: 560 }}>
-          {messages.map((m, i) => (
-            <li key={i} className={`banner banner-${m.tone}`}>
-              {m.text}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ImportMeldungen
+        messages={messages}
+        accounts={data.accounts.filter((a) => a.purpose !== "zahlungsdienstleister")}
+        accountId={targetAccount}
+        onImported={(result, file) => {
+          setTargetAccount(result.accountId);
+          setMessages(importMessages(result, file));
+          void router.invalidate();
+        }}
+      />
     </div>
   );
 }
@@ -1062,7 +1083,7 @@ function AllocationPanel({
     error,
     check,
   } = useSubmitCheck({
-    amount: parsedAmount === null ? "Trag den Betrag ein, etwa 120,50." : parsedAmount === 0 ? "Der Betrag darf nicht 0 sein." : null,
+    amount: parsedAmount === null ? amountError("den Betrag", 12_050) : parsedAmount === 0 ? "Der Betrag darf nicht 0 sein." : null,
     candidate:
       mode !== "other" || selectedCandidate
         ? null
@@ -1086,8 +1107,8 @@ function AllocationPanel({
         if (!darlehen.loanId) return;
         return runAndAdvance(() => allocateFn({ data: { kind: "darlehen", transactionId: tx.id, amount: signedAmount, darlehen } }), completes);
       }
-      if (directKind === "kategorie") {
-        return runAndAdvance(() => allocateFn({ data: { kind: "kategorie", transactionId: tx.id, amount: signedAmount, kategorie } }), completes);
+      if (directKind === "kategorie" || directKind === "aufladung") {
+        return runAndAdvance(() => allocateFn({ data: direktKategorie(directKind, tx.id, signedAmount, kategorie) }), completes);
       }
       if (directKind !== "steuer") {
         return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
@@ -1118,7 +1139,8 @@ function AllocationPanel({
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
   // Den Sammelknopf gibt es bei jedem gewählten Beleg und beim besten Vorschlag, wenn dieser der Sammelbeleg des Monats ist
-  // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu.
+  // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu, die Gutschriften nur,
+  // wenn alles zusammen genau den Beleg ergibt (allocateFeesToDocument).
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
   const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
@@ -1223,6 +1245,7 @@ function AllocationPanel({
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
+      <KlaerungHinweis klaerung={detail.klaerung} />
 
       <NoticeBanner notice={notice} />
       <ZuordnungAufheben ziel={reversing} onConfirm={(id, date) => void run(() => reverseFn({ data: { id, date } }))} onClose={() => setReversing(null)} />
@@ -1294,7 +1317,7 @@ function AllocationPanel({
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 {best.item.type === "invoice"
-                  ? "Bucht Bank an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit diesem Zahlungseingang fällig."
+                  ? "Deckt die Zahlung den offenen Betrag, gilt die Rechnung als bezahlt (Bank an Forderungen). Bei Ist-Versteuerung wird die Umsatzsteuer anteilig mit der Zahlung fällig."
                   : best.item.type === "ustva"
                     ? "Bucht wie „Umsatzsteuer an das Finanzamt“ (Umsatzsteuer-Vorauszahlungen), mit Bezug auf die Voranmeldung."
                     : "Bucht Verbindlichkeiten an Bank."}
@@ -1333,11 +1356,7 @@ function AllocationPanel({
             <div className="stack" style={{ gap: 10 }}>
               <div className="section-label">Vorschlag ohne Rechnung</div>
               <div className="match-card">
-                <span style={{ fontWeight: 600 }}>
-                  {direct.kategorie
-                    ? `${kategorieArt(direct.kategorie.kategorie) === "einnahme" ? "Einnahme" : "Ausgabe"}: ${kategorieText(direct.kategorie)}`
-                    : directKinds.find((k) => k.value === direct.kind)?.label}
-                </span>
+                <span style={{ fontWeight: 600 }}>{vorschlagTitel(direct) ?? directKinds.find((k) => k.value === direct.kind)?.label}</span>
                 <ul className="reasons">
                   {direct.reasons.map((reason) => (
                     <li key={reason}>
@@ -1362,7 +1381,8 @@ function AllocationPanel({
                     Beide Seiten als Geldtransit buchen
                   </button>
                   <span className="small muted">
-                    Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
+                    Geld zwischen deinen eigenen Konten: Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über{" "}
+                    {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
                     {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem
                     Schritt zugeordnet.
                   </span>
@@ -1377,7 +1397,7 @@ function AllocationPanel({
               hint={
                 <>
                   {DIRECT_HINT}
-                  {tx.amount < 0 && directKind !== "kategorie" && (
+                  {tx.amount < 0 && directKind !== "kategorie" && directKind !== "aufladung" && (
                     <>
                       <br />
                       Für Ausgaben mit Rechnung den Beleg erst unter <Link to="/belege">Belege</Link> hochladen und buchen.
@@ -1388,7 +1408,8 @@ function AllocationPanel({
             >
               {(control) => (
                 <select {...control} value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
-                  {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                  {/* Eine Aufladung gibt es nur im Einzelunternehmen (#1356): In GmbH und UG ist die Zahlung eine Forderung */}
+                  {[...directKinds, KATEGORIE_OPTION, ...(gesellschaft ? [] : [AUFLADUNG_OPTION]), STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>
                       {k.label}
                     </option>
@@ -1402,8 +1423,8 @@ function AllocationPanel({
             <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} jahrFehler={error("jahr")} />
           )}
           {mode === "direct" && directKind === "darlehen" && <DarlehenFelder options={darlehenOptionen} value={darlehen} onChange={setDarlehen} />}
-          {mode === "direct" && directKind === "kategorie" && (
-            <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
+          {mode === "direct" && (directKind === "kategorie" || directKind === "aufladung") && (
+            <DirektKategorieFelder kind={directKind} options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
           )}
 
           <Field label="Betrag" error={error("amount")}>
@@ -1469,8 +1490,8 @@ function AllocationPanel({
                 <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
                 {sammelrechnung && target.id !== sammelrechnung.documentId && (
                   <span className="small muted">
-                    Die offenen Gebühren von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der Beleg steht mit{" "}
-                    {formatEuro(Math.abs(target.open))} offen.
+                    Die offenen Gebühren und Gutschriften von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der
+                    Beleg steht mit {formatEuro(Math.abs(target.open))} offen.
                   </span>
                 )}
               </div>
@@ -1617,7 +1638,7 @@ function SplitForm({
         [
           `betrag-${r.key}`,
           parsed[i] === null
-            ? "Trag den Betrag ein, etwa -120,50."
+            ? amountError("den Betrag", -12_050)
             : parsed[i] === 0
               ? "Der Betrag darf nicht 0 sein."
               : i === rows.length - 1 && rest !== 0
@@ -1685,6 +1706,7 @@ function SplitForm({
                     </option>
                   ))}
                 </optgroup>
+                {/* Die Aufladung bleibt eine Einzelbuchung und ist kein Teil einer Aufteilung (#1356) */}
                 <optgroup label="Direkt buchen">
                   {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>

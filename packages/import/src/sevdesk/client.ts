@@ -233,7 +233,7 @@ export class SevdeskClient {
     return data.objects[0]!;
   }
 
-  /** Nur nach frischer V1-Prüfung im Import; preventSendBy, keine Wiederholung und keine Weiterleitung. */
+  /** Nur nach frischer Prüfung der Buchhaltungsversion (1.0 oder 2.0) im Import; preventSendBy, keine Wiederholung und keine Weiterleitung. */
   orderPdf(orderId: string): Promise<SevFile | null> {
     return this.#optionalFile(`/Order/${enc(orderId)}/getPdf`, { preventSendBy: "true" }, { maxRetries: 0, redirect: "error" });
   }

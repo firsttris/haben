@@ -12,12 +12,20 @@ import { ACCOUNTS, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS, side, type Expense
  *   vereinnahmte Zahlung ist auch bei Soll im Monat der Zahlung zu versteuern (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG).
  *   Steuerfreie Umsätze, Reverse Charge, innergemeinschaftliche Lieferungen und Ausfuhren brauchen eine Rechnung mit
  *   Pflichtangaben bzw. die Zusammenfassende Meldung; die gibt es hier nicht. Kleinunternehmer buchen ohne Steuer (§ 19 UStG).
+ * - Nicht steuerbare Einnahme (#1131): Echter Schadenersatz ist kein Entgelt, es fehlt am Leistungsaustausch (UStAE 1.3
+ *   Abs. 1 Satz 1 bis 3), etwa die Erstattung einer Plattform für verlorene Ware. Ohne Umsatzsteuer und ohne Kennzahl; in
+ *   der EÜR „nicht umsatzsteuerbare Betriebseinnahmen“ (Anleitung Anlage EÜR 2025, Zeile 16). Ob echter Schadenersatz
+ *   vorliegt (Satz 4), entscheidet der Nutzer. Als Kleinunternehmer (Zeilen 12 und 13) noch nicht.
  * - Ausgabe: brutto als Aufwand, ohne Vorsteuer. Den Vorsteuerabzug gibt es nur mit einer Rechnung nach §§ 14, 14a UStG
  *   (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG); mit Rechnung gehört die Ausgabe als Beleg unter Belege.
  */
 
 export const EINNAHME_KATEGORIEN = {
   erloese: { label: "Erlöse", hint: "Erlöse aus Lieferungen und Leistungen, z. B. Zahlung eines Privatkunden" },
+  nichtSteuerbar: {
+    label: "Nicht steuerbare Einnahme (z. B. Schadenersatz)",
+    hint: "Echter Schadenersatz oder Entschädigung ohne Leistungsaustausch, z. B. Erstattung einer Plattform für verlorene Ware",
+  },
 } as const;
 
 export type EinnahmeKategorie = keyof typeof EINNAHME_KATEGORIEN;
@@ -39,7 +47,7 @@ export type DirektKategorie = EinnahmeKategorie | ExpenseCategory;
 /** Kategorie und Steuersatz einer Direktbuchung; gespeichert an der Zuordnung (allocations.category, tax_rate) */
 export interface KategorieAngabe {
   kategorie: DirektKategorie;
-  /** Basispunkte; Einnahmen 1900 oder 700, als Kleinunternehmer 0; Ausgaben immer 0 (ohne Vorsteuer) */
+  /** Basispunkte; Erlöse 1900 oder 700, als Kleinunternehmer 0; nicht steuerbare Einnahme und Ausgaben immer 0 */
   steuersatz: BasisPoints;
 }
 
@@ -78,6 +86,10 @@ export function kategorieFehler(angabe: KategorieAngabe, kleinunternehmer: boole
     }
     return null;
   }
+  if (angabe.kategorie === "nichtSteuerbar") {
+    if (kleinunternehmer) return "Als Kleinunternehmer lässt sich eine nicht steuerbare Einnahme hier noch nicht buchen.";
+    return angabe.steuersatz === 0 ? null : "Eine nicht steuerbare Einnahme hat keine Umsatzsteuer.";
+  }
   if (kleinunternehmer) return angabe.steuersatz === 0 ? null : "Als Kleinunternehmer weist du keine Umsatzsteuer aus (§ 19 UStG).";
   if (angabe.steuersatz === 0) {
     return "Steuerfreie und nicht steuerbare Umsätze (auch Reverse Charge, Ausfuhr, innergemeinschaftliche Lieferung) bitte über eine Rechnung buchen.";
@@ -95,16 +107,19 @@ export function kategorieAnteil(angabe: KategorieAngabe, amount: Cents): { base:
 /**
  * Buchung eines Teils eines Bankumsatzes auf eine Kategorie (amount wie auf dem Konto, Eingang positiv). Einnahme: Bank
  * an Erlöse und Umsatzsteuer, die mit der Zahlung fällig ist (kein „nicht fällig“, auch bei Ist); Kleinunternehmer auf
- * die Erlöse nach § 19 UStG. Ausgabe: Aufwand brutto an Bank. Die Gegenrichtung (Erstattung) dreht die Seiten.
+ * die Erlöse nach § 19 UStG. Nicht steuerbare Einnahme: Bank an Schadenersatz, ohne Steuerschlüssel. Ausgabe: Aufwand
+ * brutto an Bank. Die Gegenrichtung (Erstattung) dreht die Seiten.
  * Prüft die Angabe nicht gegen den Kleinunternehmer-Stand; das macht der Aufrufer mit kategorieFehler.
  */
 export function kategoriePosting(angabe: KategorieAngabe, amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
-  const fehler = kategorieFehler(angabe, angabe.steuersatz === 0);
+  const fehler = kategorieFehler(angabe, angabe.kategorie === "erloese" && angabe.steuersatz === 0);
   if (fehler) throw new RangeError(fehler);
   const lines: PostingLine[] = [side(accounts.bank, amount, true, null)];
   if (!istEinnahme(angabe.kategorie)) {
     lines.push(side(EXPENSE_CATEGORIES[angabe.kategorie][kontenrahmen], -amount, true, "keineVSt"));
+  } else if (angabe.kategorie === "nichtSteuerbar") {
+    lines.push(side(accounts.schadenersatz, amount, false, null));
   } else if (angabe.steuersatz === 0) {
     lines.push(side(accounts.erloeseSonder.kleinunternehmer, amount, false, "KU"));
   } else {
@@ -116,9 +131,44 @@ export function kategoriePosting(angabe: KategorieAngabe, amount: Cents, kontenr
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
-/** Kurzer Text für Buchungstext und Anzeige: „Erlöse 19 %“, „Erlöse (Kleinunternehmer)“, „Telefon“ */
+/** Kurzer Text für Buchungstext und Anzeige: „Erlöse 19 %“, „Erlöse (Kleinunternehmer)“, „Nicht steuerbare Einnahme“, „Telefon“ */
 export function kategorieText(angabe: KategorieAngabe): string {
   if (!istEinnahme(angabe.kategorie)) return EXPENSE_CATEGORIES[angabe.kategorie]?.label ?? angabe.kategorie;
+  if (angabe.kategorie === "nichtSteuerbar") return "Nicht steuerbare Einnahme";
   const label = EINNAHME_KATEGORIEN[angabe.kategorie].label;
   return angabe.steuersatz === 0 ? `${label} (Kleinunternehmer)` : `${label} ${angabe.steuersatz / 100} %`;
+}
+
+/**
+ * Aufladung eines Guthabens (#1356): Eine Zahlung ohne Beleg an einen Anbieter, bei dem das Geld als Guthaben liegt und
+ * erst über eine spätere Rechnung verbraucht wird (etwa die Aufladung eines Mobilfunk-Guthabens). Bei der EÜR ist sie
+ * im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG). Die Aufladung selbst trägt keine Umsatzsteuer: Beim
+ * Mehrzweck-Gutschein unterliegt die vorangegangene Übertragung nicht der Umsatzsteuer (§ 3 Abs. 15 UStG); die Vorsteuer
+ * entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Beim Einzweck-Gutschein ist schon die
+ * Aufladung die Leistung (§ 3 Abs. 14 UStG) — dann der Weg über Belege. Gebucht wird wie „Direkt buchen“ auf eine
+ * Ausgabekategorie: Bank gegen Aufwandskonto, kein Beleg.
+ */
+export const AUFLADUNG = {
+  /** Schlüssel der Zuordnungsart in Zuordnung, Journal und Angebot */
+  kind: "aufladung",
+  /** Bezeichnung der Zuordnungsart in Listen, Abgleich und Auswertungen */
+  label: "Guthaben aufladen, Ausgabe ohne Vorsteuer",
+  /** Kurztext im Zuordnungsdialog und im Buchungstext */
+  text: "Aufladung Guthaben",
+} as const;
+
+/** Was eine Aufladung verhindert; null = buchbar. Sie ist immer eine Ausgabe und trägt nie einen Steuersatz. */
+export function aufladungFehler(angabe: KategorieAngabe): string | null {
+  if (kategorieArt(angabe.kategorie) !== "ausgabe") return "Eine Aufladung ist eine Ausgabe; bitte eine Ausgabekategorie wählen.";
+  if (angabe.steuersatz !== 0) {
+    return "Eine Aufladung trägt keine Vorsteuer, weil sie selbst nicht der Umsatzsteuer unterliegt (§ 3 Abs. 15 UStG); sie entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG).";
+  }
+  return kategorieFehler(angabe, false);
+}
+
+/** Buchung einer Aufladung: Bruttobetrag als Aufwand ohne Vorsteuer, Bank gegen das Konto der Ausgabekategorie */
+export function aufladungPosting(angabe: KategorieAngabe, amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const fehler = aufladungFehler(angabe);
+  if (fehler) throw new RangeError(fehler);
+  return kategoriePosting(angabe, amount, kontenrahmen);
 }

@@ -73,8 +73,9 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: fünfte unabhängige Reviewrunde
             async () => pdf,
           );
           if (treatment === "drittland" && tax === "ist") {
-            // Kz 45 meldet Haben auch bei Ist mit der Rechnung, das Quellprogramm bei Ist mit der Zahlung: Eine am Stichtag
-            // offene Drittlandsleistung stünde nach der Übernahme in keiner Voranmeldung. Sie wird deshalb nicht übernommen.
+            // Kz 45 meldet Haben auch bei Ist mit der Rechnung; ob das Quellprogramm ebenso oder mit der Zahlung gemeldet hat,
+            // ist nicht belegt (#1402). Im zweiten Fall stünde eine am Stichtag offene Drittlandsleistung in keiner
+            // Voranmeldung. Sie wird deshalb nicht übernommen.
             await expect(archive.takeOverLegacyItem("review-user", imported.items[0]!.id, "2025-12-31")).rejects.toThrow(/Drittland bei Ist/);
             expect(await sql`select id from invoices`, "Eine abgelehnte Übernahme legt keine Rechnung an").toHaveLength(0);
             expect(await sql`select id from journal_entries where source_type = 'eroeffnung'`).toHaveLength(0);
@@ -103,6 +104,17 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: fünfte unabhängige Reviewrunde
       await expect(archive.takeOverLegacyItem("review-user", imported.items[0]!.id, "2025-12-31")).rejects.toThrow(/keine eigene Behandlung/);
       expect(await sql`select id from invoices`).toHaveLength(0);
     });
+
+  it("lehnt die Steuerart oss ab: sie gibt es nur aus dem Abruf von sevDesk (Regel 18 bis 20)", async () => {
+    await expect(
+      imports.runExternalImport(
+        "review-user",
+        { version: 2, source: "erfundener-originalexport", kontenrahmen: "SKR03", entries: [invoice({ taxType: "oss" })] },
+        async () => pdf,
+      ),
+    ).rejects.toThrow(/taxType/);
+    expect(await sql`select id from external_imports`).toHaveLength(0);
+  });
 
   it("bietet eine stornierte (voided) Originalrechnung nicht als offenen Posten zur Übernahme an", async () => {
     const imported = await imports.runExternalImport(

@@ -42,10 +42,10 @@ import {
   outgoingTaxDetailConflict,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
+import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, type Company, type RateFields } from "../stammdaten/index.ts";
 import {
   ansprechpartnerSnapshot,
   type Contact,
@@ -58,11 +58,13 @@ import {
 import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "./zahlungsstand.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paidPaymentOf, paymentColumns } from "./lastschrift.ts";
+import { customerChangeProblem, serviceEntryCustomerIssues } from "./leistungen-kunde.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
@@ -272,6 +274,13 @@ export function invoiceTitle(invoice: Pick<Invoice, "kind" | "variant">): string
 
 /** Festgeschriebene Rechnungen, die eine Stornorechnung aufhebt */
 const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null`;
+
+/**
+ * Dieselbe Menge im Abschlussstand (#1110): nur Stornos, die es am Stichtag schon gab. Ein Storno im Folgejahr
+ * nimmt die Forderung zum 31.12. nicht weg — sie war an diesem Tag offen.
+ */
+const cancelledIdsUpTo = (bis: string) => sql`select corrects_id from invoices
+  where kind = 'storno' and status = 'final' and corrects_id is not null and issue_date <= ${bis}`;
 
 /**
  * Schlussrechnungen, die eine Abschlagsrechnung schon abziehen (festgeschrieben, nicht storniert),
@@ -655,7 +664,11 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     const draft = await lockDraft(tx, id);
     for (const reference of [...new Set(input.deducts ?? [])].sort()) await lockInvoice(tx, reference);
     // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
-    if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
+    if (input.contactId !== draft.contactId) {
+      const entriesProblem = await customerChangeProblem(tx, id, input.contactId);
+      if (entriesProblem) throw new InvoiceError(entriesProblem);
+      await assertCustomer(tx, input.contactId);
+    }
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
     const { bundesland } = await loadCompany(tx);
     if (draft.kind === "rechnung") await checkQuote(tx, input.quoteId);
@@ -767,8 +780,8 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+export function listInvoices(today: string, id?: string, q: Db | Tx = db, bis?: string) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q, bis);
 }
 
 /** Spalten der Rechnungsliste; die Schnellsuche liest dieselben (search.ts) */
@@ -815,20 +828,25 @@ export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL |
     .$dynamic();
 }
 
-async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db) {
-  return withListStatus(await invoiceListQuery(invoiceListFields, filter, q), today, q);
+async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, bis?: string) {
+  // Abschlussstand (#1110): Rechnungen, die es am Stichtag noch nicht gab, stehen dort nicht, und eine erst danach
+  // ausgestellte Stornorechnung hebt die Forderung nicht rückwirkend auf
+  const fields = bis ? { ...invoiceListFields, cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIdsUpTo(bis)})` } : invoiceListFields;
+  return withListStatus(await invoiceListQuery(fields, bis ? and(filter, lte(schema.invoices.issueDate, bis)) : filter, q), today, q, bis);
 }
 
 /** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */
-export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db) {
+export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db, bis?: string) {
   if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
+    bis,
   );
   const losses = await invoiceLosses(
     rows.filter((r) => r.status === "final").map((r) => r.id),
     q,
+    bis,
   );
   const paperStornos = await paperCancellationIds(
     rows.filter((r) => r.kind === "storno").map((r) => r.id),
@@ -906,6 +924,7 @@ export function buyerFrom(contact: Contact, ansprechpartner?: Buyer["ansprechpar
     ...(contact.ustId ? { ustId: contact.ustId } : {}),
     ...(contact.leitwegId ? { leitwegId: contact.leitwegId } : {}),
     ...(contact.kundennummer ? { kundennummer: contact.kundennummer } : {}),
+    ...(contact.unsereLieferantennummer ? { unsereLieferantennummer: contact.unsereLieferantennummer } : {}),
     ...(ansprechpartner ? { ansprechpartner } : {}),
   };
 }
@@ -1006,11 +1025,9 @@ export async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
   return ids.map((id) => rows.find((r) => r.id === id)!).map((r) => ({ number: r.number ?? "", issueDate: r.issueDate }));
 }
 
-const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
+export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
-const VERSTEUERUNG = { soll: "Soll-Versteuerung", ist: "Ist-Versteuerung" } as const;
-
 export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<string[]> {
   const data = await getInvoice(id, q);
   if (!data) return ["Rechnung nicht gefunden"];
@@ -1019,18 +1036,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   const issues = sellerIssues(company, invoice.kind === "rechnung" && invoice.paymentMethod !== "bereits_bezahlt").map((issue) => `Firmendaten: ${issue}`);
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
-  // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
-  // (versteuerungForYear). Nach einem Wechsel zum Jahreswechsel stünde die Steuer einer Rechnung im Vorjahr sonst
-  // zweimal in der Anmeldung (Soll → Ist) oder gar nicht (Ist → Soll).
-  if (!company.kleinunternehmer) {
-    const year = Number(invoice.issueDate.slice(0, 4));
-    const versteuerung = await versteuerungForYear(year, q);
-    if (versteuerung !== company.versteuerung) {
-      issues.push(
-        `Das Jahr ${year} ist nach ${VERSTEUERUNG[versteuerung]} gebucht, eingestellt ist jetzt ${VERSTEUERUNG[company.versteuerung]}; bitte ein Rechnungsdatum im laufenden Jahr wählen`,
-      );
-    }
-  }
+  issues.push(...(await versteuerungIssues(company, invoice.issueDate, q)));
   if (!contact) issues.push("Kunde fehlt");
   if (invoice.advanceType === "teilleistung") {
     if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
@@ -1117,7 +1123,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       );
     }
   }
-  issues.push(...(await directDebitIssues(invoice, company, q)));
+  issues.push(...(await directDebitIssues(invoice, company, q)), ...(await serviceEntryCustomerIssues(q, id, invoice.contactId)));
   if (contact && issues.length === 0) {
     const preview = documentFor(
       invoice,
@@ -1498,21 +1504,12 @@ export async function setNextNumber(actor: string, date: string, next: number, k
 export async function invoiceSummary(today: string) {
   const list = await listInvoices(today);
   const open = list.filter((i) => i.kind === "rechnung" && i.open !== 0);
-  const month = today.slice(0, 7);
-  const previousMonth = (() => {
-    const [y, m] = month.split("-").map(Number) as [number, number];
-    return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
-  })();
-  const finals = list.filter((i) => i.status === "final" && i.listStatus !== "storniert" && i.kind !== "storno");
-  const revenue = (prefix: string) => finals.filter((i) => i.issueDate.startsWith(prefix)).reduce((sum, i) => sum + i.net, 0);
   return {
     // Wie die offenen Forderungen in den Auswertungen (openPositions): alles Festgeschriebene mit offenem Betrag,
     // also auch Korrekturen und Erstattungen aus Stornos bezahlter Rechnungen
     openTotal: list.filter((i) => i.status === "final" && i.open !== 0).reduce((sum, i) => sum + i.open, 0),
     openCount: open.length,
     overdueCount: open.filter((i) => i.listStatus === "ueberfaellig").length,
-    revenueMonth: { key: month, net: revenue(month) },
-    revenuePreviousMonth: { key: previousMonth, net: revenue(previousMonth) },
     recent: list.filter((i) => i.status === "final").slice(0, 5),
     drafts: list.filter((i) => i.status === "draft").length,
   };

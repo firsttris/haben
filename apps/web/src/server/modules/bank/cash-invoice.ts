@@ -1,5 +1,5 @@
 import { insertCashEntry } from "./settlement-store.ts";
-import { advancePaymentDateProblem, formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist } from "@haben/core";
+import { advancePaymentDateProblem, formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist, inCents } from "@haben/core";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -20,7 +20,7 @@ export const cashInvoiceInputSchema = z.object({
   invoiceId: z.uuid(),
   date: z.iso.date(),
   /** Cent, immer positiv: Geld kommt in die Kasse */
-  amount: z.number().int().min(1, "Betrag fehlt").max(100_000_000),
+  amount: inCents(z.number().int().min(1, "Betrag fehlt").max(100_000_000)),
   text: z.string().trim().max(300).default(""),
   /** Rest der Rechnung als gewährtes Skonto ausbuchen, mit Datum der Bareinnahme (wie „Rest als Skonto“ im Bankabgleich) */
   skonto: z.boolean().default(false),
@@ -30,7 +30,7 @@ export const cashInvoiceInputSchema = z.object({
    */
   extra: z
     .object({
-      amount: z.number().int().min(1, "Betrag der weiteren Einnahme fehlt").max(100_000_000),
+      amount: inCents(z.number().int().min(1, "Betrag der weiteren Einnahme fehlt").max(100_000_000)),
       steuer: bareinnahmeSteuerSchema,
       text: z.string().trim().max(250).default(""),
     })

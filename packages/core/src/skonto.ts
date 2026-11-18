@@ -1,6 +1,7 @@
 import { z } from "zod/mini";
+import { inBasisPoints } from "./einheit-schema.ts";
 import { addDays, naechsterWerktag } from "./holidays.ts";
-import { parseHundredths, roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
+import { roundHalfAwayFromZero, type BasisPoints, type Cents, type Prozent } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
 
 /** Eine Skontostufe aus den Zahlungsbedingungen einer E-Rechnung */
@@ -66,7 +67,7 @@ export const MAX_SKONTO_STUFEN = 3;
 
 export const skontoStufeSchema = z.object({
   days: z.int().check(z.minimum(1, "Skontofrist mindestens 1 Tag"), z.maximum(120, "Skontofrist höchstens 120 Tage")),
-  percent: z.int().check(z.minimum(1, "Skonto mindestens 0,01 %"), z.maximum(9_999, "Skonto unter 100 %")),
+  percent: inBasisPoints(z.int().check(z.minimum(1, "Skonto mindestens 0,01 %"), z.maximum(9_999, "Skonto unter 100 %"))),
 });
 
 export const SKONTO_STUFEN_MAX_MESSAGE = `Höchstens ${MAX_SKONTO_STUFEN} Skontostufen`;
@@ -154,10 +155,28 @@ export function skontoGezogen(fristen: readonly SkontoZahlfrist[] | undefined, p
   return fristen?.find((s) => s.payable === amount && paidOn <= s.paidBy);
 }
 
-/** "2" oder "2,5 %" → Basispunkte; null, wenn die Eingabe kein Satz mit höchstens zwei Nachkommastellen ist */
-export function parsePercent(input: string): BasisPoints | null {
-  const value = parseHundredths(input.replace(/%/g, ""));
-  return value === null || value < 0 ? null : value;
+/**
+ * Der eine Leser für Prozentfelder (#1222): „2“, „2,5 %“ oder „23.07“ → Basispunkte. Ein „%“ nur am Ende, Leerzeichen
+ * nur am Rand und vor dem „%“ („2 5“ ist kein Satz), Komma als Dezimaltrenner, ein Punkt nur, wenn er eindeutig einer ist
+ * (eine oder zwei Ziffern dahinter, kein Komma); Tausenderpunkte gibt es bei Prozent nicht. Negativ nur mit `negative`
+ * (Basiszinssatz, § 247 BGB). null, wenn die Eingabe so kein Satz mit höchstens zwei Nachkommastellen ist. Grenzen wie 0
+ * bis 100 % prüft das Feld.
+ */
+export function parsePercent(input: string, { negative = false }: { negative?: boolean } = {}): BasisPoints | null {
+  let text = input.trim().replace(/−/g, "-").replace(/\s*%$/, "");
+  if (/^-?\d+\.\d{1,2}$/.test(text)) text = text.replace(".", ",");
+  const match = /^(-?)(\d+)(?:,(\d{1,2}))?$/.exec(text);
+  if (!match) return null;
+  const value = Number(match[2]) * 100 + Number((match[3] ?? "").padEnd(2, "0"));
+  if (!Number.isSafeInteger(value)) return null;
+  if (!match[1] || value === 0) return value;
+  return negative ? -value : null;
+}
+
+/** Ganze Prozent, etwa für Privatanteil und Hebesatz: „20“ oder „20 %“ → 20; null, wenn die Eingabe keine ganze Zahl ab 0 ist */
+export function parseWholePercent(input: string): Prozent | null {
+  const value = parsePercent(input);
+  return value === null || value % 100 !== 0 ? null : value / 100;
 }
 
 const percentFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 });

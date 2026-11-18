@@ -256,6 +256,88 @@ describe.skipIf(!testDatabaseUrl)("Direkt buchen mit Kategorie und Steuersatz (P
     ).rejects.toThrow(/über eine Rechnung/);
   });
 
+  it.each([
+    ["SKR03", "ist", { bank: "1200", konto: "2742" }],
+    ["SKR04", "soll", { bank: "1800", konto: "4970" }],
+  ] as const)("%s, %s: nicht steuerbare Einnahme (#1131) ohne Kennzahl, Rückforderung mindert, Aufheben stellt zurück", async (kr, versteuerung, konten) => {
+    await firma(kr, versteuerung);
+    await bank.importStatement(
+      actor,
+      dkbCsv([
+        ["06.01.26", "Versandlager GmbH", "Erstattung verlorene Ware", "12,50"],
+        ["22.01.26", "Versandlager GmbH", "Rückforderung Erstattung", "-4,20"],
+      ]),
+      null,
+    );
+    const erstattung = await umsatz(12_50);
+    const nichtSteuerbar = { kategorie: "nichtSteuerbar", steuersatz: 0 } as const;
+    await expect(
+      bank.allocate(actor, { kind: "kategorie", transactionId: erstattung, amount: 12_50, kategorie: { kategorie: "nichtSteuerbar", steuersatz: 1900 } }),
+    ).rejects.toThrow(/keine Umsatzsteuer/);
+    await bank.allocate(actor, { kind: "kategorie", transactionId: erstattung, amount: 12_50, kategorie: nichtSteuerbar });
+    await bank.allocate(actor, { kind: "kategorie", transactionId: await umsatz(-4_20), amount: -4_20, kategorie: nichtSteuerbar });
+
+    // Bank an Schadenersatz, ohne Steuerschlüssel (UStAE 1.3 Abs. 1: kein Leistungsaustausch)
+    expect(await salden()).toEqual({ [konten.bank]: 8_30, [konten.konto]: -8_30 });
+    const codes = await sql`select l.tax_code from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_type = 'allocation'`;
+    expect(codes.every((c) => c.tax_code === null)).toBe(true);
+    const [entry] = await sql`select description from journal_entries where source_type = 'allocation' order by date limit 1`;
+    expect(entry!.description).toBe("Versandlager GmbH · Nicht steuerbare Einnahme");
+    expect((await bank.transactionDetail(erstattung))?.allocations[0]?.kategorieLabel).toBe("Nicht steuerbare Einnahme");
+
+    // Voranmeldung Januar 2026: keine Kennzahl, nicht in der Liste der Umsätze, bei Ist wie bei Soll
+    const januar = await figures.computeVatFigures({ year: 2026, month: 1 });
+    expect([januar.kz81, januar.tax81, januar.kz86, januar.kz45, januar.kz48]).toEqual([0, 0, 0, 0, 0]);
+    expect(januar.revenue).toEqual([]);
+
+    // EÜR und Anlage EÜR: 8,30 € in „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“ (Zeile 16)
+    const euer = await reports.euerForYear(2026);
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount).toBe(8_30);
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount ?? 0).toBe(0);
+    expect((await annual.euerYear(2026)).figures.steuerfrei).toBe(8_30);
+    await keineAbweichung(2026, 1);
+
+    // DATEV: kein Automatikkonto, also ohne BU-Schlüssel
+    const stack = parseDatevBuchungsstapel((await datev.datevExport(2026)).bytes);
+    const schadenersatz = stack.bookings.filter((b) => b.account === konten.konto || b.contraAccount === konten.konto);
+    expect(schadenersatz.map((b) => b.buKey ?? "")).toEqual(["", ""]);
+
+    // Aufheben: Gegenzeile mit derselben Kategorie, das Konto geht auf die Rückforderung zurück
+    const [first] = await sql`select id from allocations where amount = 1250`;
+    await bank.reverseAllocation(actor, first!.id);
+    expect(await salden()).toEqual({ [konten.bank]: -4_20, [konten.konto]: 4_20 });
+    const [reversal] = await sql`select category, tax_rate, amount from allocations where reverses_id = ${first!.id}`;
+    expect(reversal).toMatchObject({ category: "nichtSteuerbar", tax_rate: 0, amount: -12_50 });
+    expect((await reports.euerForYear(2026)).einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount).toBe(-4_20);
+    await keineAbweichung(2026, 1);
+  });
+
+  it("Aufteilung: Erlös mit 19 % und nicht steuerbare Einnahme in einem Eingang (#1131)", async () => {
+    await firma("SKR03", "ist");
+    await bank.importStatement(actor, dkbCsv([["12.08.26", "Versandlager GmbH", "Auszahlung mit Erstattung", "150,00"]]), null);
+    await bank.allocateSplit(actor, {
+      transactionId: await umsatz(150_00),
+      parts: [
+        { kind: "kategorie", amount: 119_00, kategorie: { kategorie: "erloese", steuersatz: 1900 } },
+        { kind: "kategorie", amount: 31_00, kategorie: { kategorie: "nichtSteuerbar", steuersatz: 0 } },
+      ],
+    });
+    expect(await salden()).toEqual({ "1200": 150_00, "1776": -19_00, "2742": -31_00, "8400": -100_00 });
+    const august = await figures.computeVatFigures({ year: 2026, month: 8 });
+    expect([august.kz81, august.tax81]).toEqual([100_00, 19_00]);
+    expect(august.revenue).toHaveLength(1);
+    await keineAbweichung(2026, 8);
+  });
+
+  it("Kleinunternehmer: nicht steuerbare Einnahme wird abgelehnt (#1131)", async () => {
+    await firma("SKR03", "ist", true);
+    await bank.importStatement(actor, dkbCsv([[heuteDkb, "Versandlager GmbH", "Erstattung verlorene Ware", "12,50"]]), null);
+    await expect(
+      bank.allocate(actor, { kind: "kategorie", transactionId: await umsatz(12_50), amount: 12_50, kategorie: { kategorie: "nichtSteuerbar", steuersatz: 0 } }),
+    ).rejects.toThrow(/Kleinunternehmer/);
+    expect(await salden()).toEqual({});
+  });
+
   it("Die Datenbank lehnt eine Zuordnung „kategorie“ ohne Kategorie ab und Kategorie an anderen Arten", async () => {
     await firma("SKR03", "ist");
     await bank.importStatement(actor, dkbCsv([["12.08.26", "Erika Beispiel", "Reparatur", "50,00"]]), null);

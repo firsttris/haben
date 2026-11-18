@@ -76,6 +76,11 @@ export function previousPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 }
 
+/** Der Vormonat eines Tages (JJJJ-MM-TT) als "JJJJ-MM", etwa für den Umsatz des Vormonats in der Übersicht */
+export function previousMonthKey(date: string): string {
+  return periodKey(previousPeriod({ year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) }));
+}
+
 const berlinMonth = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit" });
 const berlinDay = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" });
 

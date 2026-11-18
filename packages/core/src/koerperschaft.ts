@@ -1,4 +1,4 @@
-import type { Cents } from "./money.ts";
+import type { BasisPoints, Cents, Prozent } from "./money.ts";
 import { EXPENSE_CATEGORIES, type Kontenrahmen } from "./posting.ts";
 import { nichtAbziehbareNebenleistungen } from "./steuerzahlung.ts";
 
@@ -14,21 +14,25 @@ import { nichtAbziehbareNebenleistungen } from "./steuerzahlung.ts";
  */
 
 /** § 23 Abs. 1 KStG */
-export const KST_SATZ = 1500;
+export const KST_SATZ: BasisPoints = 1500;
 /** § 4 SolZG */
-export const SOLI_SATZ = 550;
+export const SOLI_SATZ: BasisPoints = 550;
 /** § 11 Abs. 2 GewStG */
-export const GEWST_MESSZAHL = 350;
+export const GEWST_MESSZAHL: BasisPoints = 350;
 /** § 8 Nr. 1 GewStG */
 export const GEWST_HINZURECHNUNG_FREIBETRAG: Cents = 20_000_000;
 /** Sockel der Mindestbesteuerung (§ 10d Abs. 2 EStG, § 10a GewStG) */
 export const VERLUST_SOCKEL: Cents = 100_000_000;
-/** Mindesthebesatz (§ 16 Abs. 4 GewStG) */
-export const MINDEST_HEBESATZ = 200;
+/**
+ * Mindesthebesatz eines Erhebungszeitraums: Er gilt, wenn die Gemeinde keinen höheren bestimmt hat (§ 16 Abs. 4 Satz 2
+ * GewStG). 280 % erstmals für 2027 (§ 36 Abs. 5b GewStG), davor 200 %. Geändert durch Art. 8 des Gesetzes vom
+ * 29.06.2026 (BGBl. 2026 I Nr. 197); § 36 Abs. 5b verweist auf Art. 7, der aber das EStG ändert.
+ */
+export const mindestHebesatz = (year: number): Prozent => (year >= 2027 ? 280 : 200);
 
 /** Über dem Sockel abziehbarer Anteil in Basispunkten: KSt 70 % für 2024 bis 2027 (Wachstumschancengesetz), sonst 60 % */
-const verlustQuoteKst = (year: number) => (year >= 2024 && year <= 2027 ? 7000 : 6000);
-const VERLUST_QUOTE_GEWST = 6000;
+const verlustQuoteKst = (year: number): BasisPoints => (year >= 2024 && year <= 2027 ? 7000 : 6000);
+const VERLUST_QUOTE_GEWST: BasisPoints = 6000;
 
 const KONTEN = {
   SKR03: {
@@ -66,26 +70,72 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
 }
 
 /**
- * Hinzurechnung nach § 8 Nr. 1 GewStG: Anteil je Kontengruppe in Basispunkten. Zinsen voll (a), Miete und Leasing
- * beweglicher Wirtschaftsgüter 20 % (d), unbeweglicher 50 % (e), zeitlich befristete Überlassung von Rechten 25 % (f).
- * Die Konten tragen im DATEV-Kontenrahmen das Kennzeichen G.
+ * Hinzurechnung nach § 8 Nr. 1 GewStG: Anteil je Kontengruppe in Basispunkten. Zinsen voll (a), Renten und dauernde
+ * Lasten voll (b), Miete und Leasing beweglicher Wirtschaftsgüter 20 % (d), unbeweglicher 50 % (e), zeitlich befristete
+ * Überlassung von Rechten 25 % (f). Für Elektrofahrzeuge, begünstigte Hybridelektrofahrzeuge und Fahrräder gilt nur die
+ * Hälfte von 20 % (d Satz 2); ob ein Vertrag dazu gehört, entscheidet, wer auf das Konto bucht.
+ *
+ * Die Konten tragen im DATEV-Kontenrahmen 2026 (SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175) das Kennzeichen G; die Gruppen
+ * sind in beiden Kontenrahmen gleich groß (koerperschaft.test.ts). Das G bildet nur die Programmverbindung ab, nicht den
+ * steuerlichen Ursprung (Fußnote 4 und „Erläuterungen zur Kennzeichnung“); nicht alle Konten damit gehören hierher. Nicht
+ * dabei sind die Zinsen nach §§ 233a bis 237 AO, Abschreibungen auf ein Disagio, Vergütungen an Mitunternehmer und
+ * Aufwendungen nach §§ 3 Nr. 40, 3c EStG bzw. § 8b KStG (etwa 2115, 2116 / 7350, 7351, Fußnote 9).
+ *
+ * Zinsen und Miete an Gesellschafter tragen nur das Kennzeichen K, kein G (die Gewerbesteuer der Körperschaften rechnet
+ * DATEV im Programm Körperschaftsteuer, „Erläuterungen zur Kennzeichnung“). Sie gehören trotzdem dazu: § 8 Nr. 1 a, d und e
+ * fragt nicht, wer Gläubiger oder Vermieter ist, und die Ausnahme für Mitunternehmer gibt es bei der GmbH nicht (#1346).
  */
-export type HinzurechnungArt = "zinsen" | "beweglich" | "unbeweglich" | "rechte";
-const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: number, text: string][]> = {
+export type HinzurechnungArt = "zinsen" | "renten" | "beweglich" | "elektro" | "unbeweglich" | "rechte";
+const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: BasisPoints, text: string][]> = {
   SKR03: [
-    // Mit den Zinsen zur Finanzierung des Anlagevermögens aus dem Darlehen (darlehen.ts)
-    ["zinsen", ["2100", "2110", "2120", "2126"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
-    ["beweglich", ["4570", "4575", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
-    ["unbeweglich", ["4210", "4211", "4215", "4220"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
-    ["rechte", ["4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
+    // Mit den Zinsen zur Finanzierung des Anlagevermögens aus dem Darlehen (darlehen.ts), an verbundene Unternehmen,
+    // auf Kontokorrentkonten und für Gebäude, für Gesellschafterdarlehen (2114) und an Gesellschafter mit mehr als 25 % (2117)
+    ["zinsen", ["2100", "2109", "2110", "2114", "2117", "2118", "2119", "2120", "2125", "2126", "2129"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["renten", ["2127"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
+    // Mit Mietleasing für technische Anlagen und Maschinen (4810) und Betriebs- und Geschäftsausstattung (4965); Miete,
+    // Pacht und Lizenzen auch als Fremdleistungen (3170, 3175, 3180); Miete und Pacht an Gesellschafter (4958)
+    [
+      "beweglich",
+      ["3170", "4570", "4810", "4958", "4960", "4961", "4963", "4965"],
+      2000,
+      "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)",
+    ],
+    ["elektro", ["4575"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
+    // Mit Miete und Pacht an Gesellschafter (4222) und Garagenmiete
+    ["unbeweglich", ["3175", "4210", "4211", "4215", "4220", "4222", "4550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    ["rechte", ["3180", "4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
   SKR04: [
-    ["zinsen", ["7300", "7310", "7320", "7326"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
-    ["beweglich", ["6560", "6565", "6835", "6836", "6838"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
-    ["unbeweglich", ["6310", "6315", "6316", "6317"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
-    ["rechte", ["6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
+    ["zinsen", ["7300", "7309", "7310", "7316", "7317", "7318", "7319", "7320", "7325", "7326", "7329"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["renten", ["7327"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
+    [
+      "beweglich",
+      ["5970", "6498", "6560", "6833", "6835", "6836", "6838", "6840"],
+      2000,
+      "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)",
+    ],
+    ["elektro", ["6565"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
+    ["unbeweglich", ["5975", "6310", "6313", "6315", "6316", "6317", "6550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    ["rechte", ["5980", "6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
 };
+
+/**
+ * § 8 Nr. 1 Buchst. d Satz 2 GewStG gilt nur für Verträge, die nach dem 31.12.2019 abgeschlossen worden sind, und
+ * letztmals für den Erhebungszeitraum 2030 (§ 36 Abs. 4 Sätze 1 und 3 GewStG)
+ */
+const ELEKTRO_AB = 2020;
+const ELEKTRO_BIS = 2030;
+
+/** Die Gruppen eines Jahres; vor 2020 und nach 2030 zählt das Leasing für Elektrofahrzeuge und Fahrräder zum übrigen beweglichen */
+function hinzurechnungGruppen(kontenrahmen: Kontenrahmen, year: number) {
+  const gruppen = HINZURECHNUNG[kontenrahmen];
+  if (year >= ELEKTRO_AB && year <= ELEKTRO_BIS) return gruppen;
+  const elektro = gruppen.find(([art]) => art === "elektro")?.[1] ?? [];
+  return gruppen
+    .filter(([art]) => art !== "elektro")
+    .map(([art, konten, anteil, text]) => [art, art === "beweglich" ? [...konten, ...elektro] : konten, anteil, text] as const);
+}
 
 /** Die Konten der Hinzurechnung je Kontenrahmen, nach Art; eigene Sachkonten (#270) dürfen sie nicht belegen */
 export const GEWST_HINZURECHNUNG_KONTEN: Record<Kontenrahmen, Record<string, readonly string[]>> = {
@@ -94,11 +144,11 @@ export const GEWST_HINZURECHNUNG_KONTEN: Record<Kontenrahmen, Record<string, rea
 };
 
 /** Nicht abziehbarer Teil der Bewirtung (§ 4 Abs. 5 Nr. 2 EStG); Haben bucht sie voll auf das Bewirtungskonto */
-const BEWIRTUNG_NICHT_ABZIEHBAR = 3000;
+const BEWIRTUNG_NICHT_ABZIEHBAR: BasisPoints = 3000;
 
 export interface KapgSteuerAngaben {
   /** Hebesatz der Gemeinde in Prozent, z. B. 400 */
-  hebesatz: number;
+  hebesatz: Prozent;
   /** Verbleibender Verlustvortrag zum 31.12. des Vorjahres laut Bescheid */
   verlustvortragKst: Cents;
   /** Vortragsfähiger Gewerbeverlust zum 31.12. des Vorjahres laut Bescheid */
@@ -128,7 +178,7 @@ export interface KapgSteuern {
   soli: Cents;
   verlustvortragKst: Cents;
   /** Hinzurechnung je Gruppe: Aufwand in voller Höhe (brutto) und der Anteil daraus (betrag) */
-  gewstHinzurechnungen: (KapgSteuerZeile & { art: HinzurechnungArt; brutto: Cents; anteil: number })[];
+  gewstHinzurechnungen: (KapgSteuerZeile & { art: HinzurechnungArt; brutto: Cents; anteil: BasisPoints })[];
   /** Hinzurechnung nach § 8 Nr. 1 GewStG: ein Viertel der Summe über dem Freibetrag */
   hinzurechnungGewst: Cents;
   verlustabzugGewst: Cents;
@@ -143,10 +193,10 @@ export interface KapgSteuern {
   rueckstellung: { kst: Cents; gewst: Cents };
 }
 
-const anteil = (betrag: Cents, basispunkte: number) => Math.floor((betrag * basispunkte) / 10_000);
+const anteil = (betrag: Cents, basispunkte: BasisPoints): Cents => Math.floor((betrag * basispunkte) / 10_000);
 
 /** Verlustabzug mit Mindestbesteuerung: bis zum Sockel voll, darüber nur die Quote des übersteigenden Betrags */
-function verlustabzug(einkommen: Cents, vortrag: Cents, quote: number): Cents {
+function verlustabzug(einkommen: Cents, vortrag: Cents, quote: BasisPoints): Cents {
   if (einkommen <= 0 || vortrag <= 0) return 0;
   const grenze = Math.min(einkommen, VERLUST_SOCKEL) + anteil(Math.max(0, einkommen - VERLUST_SOCKEL), quote);
   return Math.min(vortrag, grenze);
@@ -198,7 +248,7 @@ export function kapgSteuern(
   const kst = anteil(zvE, KST_SATZ);
   const soli = anteil(kst, SOLI_SATZ);
 
-  const gewstHinzurechnungen = HINZURECHNUNG[kontenrahmen]
+  const gewstHinzurechnungen = hinzurechnungGruppen(kontenrahmen, year)
     .map(([art, konten, quote, text]) => {
       const brutto = Math.max(0, summe(konten));
       return { art, text, brutto, anteil: quote, betrag: anteil(brutto, quote) };

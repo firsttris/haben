@@ -7,7 +7,7 @@ import {
   MEMO_VALUE,
   maxDegressiveRate,
 } from "./afa-methoden.ts";
-import type { Cents } from "./money.ts";
+import type { BasisPoints, Cents } from "./money.ts";
 import type { Kontenrahmen } from "./posting.ts";
 
 /**
@@ -143,7 +143,7 @@ export interface ScheduleAsset {
   /** Art, für die Prüfung der Methode (Elektrofahrzeug nur bei Fahrzeugen); ohne Angabe ungeprüft */
   kind?: AssetKind;
   /** Nur bei degressiv: Satz in Basispunkten (3000 = 30 %) */
-  degressiveRate?: number | null;
+  degressiveRate?: BasisPoints | null;
   /** Nur bei degressiv: ab diesem Jahr linear, auch wenn die degressive AfA noch höher wäre (§ 7 Abs. 3 Satz 1 EStG) */
   linearFromYear?: number | null;
   /** Erinnerungswert von 1 € bis zum Abgang */

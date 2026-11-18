@@ -1,7 +1,7 @@
 ---
 title: "ERiC, KI-Auslesung, Kontoabruf einbinden"
 description: >-
-  ERiC für ELSTER einbinden (auch auf arm64), KI-Auslesung mit Anthropic oder einem OpenAI-kompatiblen Dienst wie Ollama, Kontoabruf über Enable Banking.
+  ERiC für ELSTER einbinden (auch auf arm64), KI-Auslesung mit Anthropic oder einem OpenAI-kompatiblen Dienst wie Ollama, Kontoabruf über Enable Banking oder FinTS.
 ---
 
 # Anbindungen
@@ -20,19 +20,21 @@ Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf
 
 ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann die neue Versionsnummer eintragen und erneut laden.
 
-Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [ELSTER einrichten](einrichtung-elster.md), dort auch, wer bei Haben als Hersteller gilt.
+Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [ELSTER einrichten](einrichtung-elster.md), dort auch, wer bei Haben als Hersteller gilt.
 
 Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins/` existieren (bei älteren ERiC-Versionen `lib/plugins2/`), und binde es ein. `ERIC_HOME` hat Vorrang vor dem heruntergeladenen ERiC.
 
 | | Compose | Quadlet |
 | --- | --- | --- |
-| Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/eric:/opt/eric:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
+| Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/eric:/opt/eric:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml)) | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
 | Variable | `ERIC_HOME=/opt/eric` in `.env` | `ERIC_HOME=/opt/eric` in `haben.env` einkommentieren |
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
 ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne ERiC nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
 
 ### ELSTER auf arm64
+
+Die x86_64-Laufzeit lohnt sich erst mit eigener Hersteller-ID: ERiC verlangt sie schon fürs Prüfen, zum Senden kommt die Zertifikatsdatei dazu ([ELSTER einrichten](einrichtung-elster.md#was-du-brauchst)).
 
 ERiC gibt die Finanzverwaltung nur als fertige Bibliothek heraus, für Server nur für Linux x86_64; selbst übersetzen lässt sie sich nicht. Auf einem arm64-Server (Raspberry Pi, Ampere, Jetson) läuft Haben trotzdem nativ: Emuliert wird nur der kurzlebige Kindprozess, der für jede Prüfung und Übermittlung ERiC lädt. `ERIC_WORKER_COMMAND` startet ihn mit QEMU als x86_64-Prozess, mit Bun und den Bibliotheken aus dem amd64-Image derselben Haben-Version.
 
@@ -50,7 +52,7 @@ Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund
 
    | | Compose | Quadlet |
    | --- | --- | --- |
-   | Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
+   | Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/haben-x86_64:/opt/haben-x86_64:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml); der [Compose-Generator](compose-generator.md) erzeugt Mount und Variable) | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
    | Variable | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `.env` | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `haben.env` einkommentieren |
    | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
@@ -116,7 +118,7 @@ Das betrifft nur selbst betriebene Dienste; ein Cloud-Dienst ist über seine öf
 
 | Betrieb | Adresse | Was noch nötig ist |
 | --- | --- | --- |
-| Docker Compose unter Linux | `http://host.docker.internal:11434/v1` | in `compose.yml` beim Dienst `app` die Zeilen `extra_hosts: - host.docker.internal:host-gateway` einkommentieren; Ollama muss auf der Docker-Bridge lauschen: `OLLAMA_HOST=0.0.0.0:11434` (oder die Adresse der Bridge, meist `172.17.0.1`) |
+| Docker Compose unter Linux | `http://host.docker.internal:11434/v1` | in `compose.override.yml` beim Dienst `app` `extra_hosts` mit `host.docker.internal:host-gateway` eintragen, wie unter [Ollama mit Qwen-VL](einrichtung.md#beispiel-ollama-mit-qwen-vl) oder vom [Compose-Generator](compose-generator.md) erzeugt; Ollama muss auf der Docker-Bridge lauschen: `OLLAMA_HOST=0.0.0.0:11434` (oder die Adresse der Bridge, meist `172.17.0.1`) |
 | Docker Desktop (macOS, Windows) | `http://host.docker.internal:11434/v1` | nichts |
 | Podman (Quadlets) | `http://host.containers.internal:11434/v1` | Ollama mit `OLLAMA_HOST=0.0.0.0:11434`; den Namen trägt Podman selbst im Container ein |
 | Dienst auf einem anderen Rechner im Netz | `http://192.168.178.20:11434/v1` | Firewall für den Port öffnen, nur für den Server |
@@ -174,7 +176,7 @@ Schlüssel und ID an Haben übergeben, am einfachsten in der Oberfläche: Unter 
 Alternativ über die Umgebung, etwa wenn du die Einrichtung automatisierst. Was in den Einstellungen gespeichert ist, geht vor:
 
 ```sh
-# Compose: Datei neben compose.yml legen, Volume-Zeile in compose.yml einkommentieren, ID in .env
+# Compose: Datei neben compose.yml legen, in compose.override.yml einhängen (wie in compose.override.example.yml), ID in .env
 cp ~/Downloads/<Application ID>.pem ./enablebanking.pem && chown 1000:1000 enablebanking.pem && chmod 400 enablebanking.pem
 echo 'ENABLE_BANKING_APP_ID=<Application ID>' >> .env
 docker compose up -d
@@ -189,6 +191,35 @@ Danach erscheint unter **Bank** der Knopf **Bank verbinden**. Ablauf, Zustimmung
 
 Was an Enable Banking geht: beim Verbinden die gewählte Bank und die Rückleitungsadresse, danach nur Abrufe von Umsätzen und Kontoständen der freigegebenen Konten. Die Anmeldung bei der Bank geschieht auf deren Seite; Haben sieht weder Zugangsdaten noch TAN. Zahlungen auslösen kann Haben nicht.
 
-## Lexware-Office-API
+## Kontoabruf über FinTS
 
-Für den Umzug ruft Haben die Public API von Lexware Office ab, standardmäßig unter `https://api.lexware.io/v1`. `LEXOFFICE_API_URL` brauchst du nur zum Testen oder falls Lexware die Adresse ändert; laut Code funktioniert auch `https://api.lexoffice.io/v1`. Den API-Schlüssel trägst du in der Oberfläche ein, nicht in der Umgebung. Ablauf und Voraussetzungen stehen in [Umzug aus Lexoffice](lexoffice.md).
+Optional. Über FinTS (früher HBCI) holt Haben die Umsätze direkt bei der Bank, ohne Enable Banking und ohne Vertrag mit einem Dienst dazwischen. Die meisten Sparkassen, Volks- und Raiffeisenbanken und viele Direktbanken bieten FinTS mit PIN/TAN an, Neobanken meist nicht; dort bleiben Enable Banking oder der Dateiimport. Beide Wege gehen nebeneinander, ein Konto ruft Haben aber nur über einen ab.
+
+### Produkt registrieren
+
+FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (DK) registriert ist. Haben bringt keine Registrierungsnummer mit: Wer Haben betreibt, registriert sich selbst, wie bei der [Hersteller-ID für ELSTER](einrichtung-elster.md#hersteller-id-wer-ist-hersteller). Das hat die DK für Haben bestätigt; die Nummer gilt nur im registrierten Produkt und gehört nicht in den veröffentlichten Quellcode ([Antwort der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6820986969)).
+
+1. Das Formular der [Produktregistrierung](https://www.fints.org/de/hersteller/produktregistrierung) ausfüllen und an die DK schicken, Produktkategorie **Web-Server**. Die Registrierung ist derzeit kostenlos ([FAQ der DK](https://www.fints.org/de/hersteller/faq-produktregistrierung)); die DK nennt 10 bis 15 Werktage.
+2. Die Registrierungsnummer aus der Antwort als `FINTS_PRODUKT_ID` eintragen und Haben neu starten:
+
+    ```sh
+    # Compose
+    echo 'FINTS_PRODUKT_ID=<Registrierungsnummer>' >> .env
+    docker compose up -d
+
+    # Quadlets: in haben.env FINTS_PRODUKT_ID=<Registrierungsnummer>
+    systemctl --user restart haben-app
+    ```
+
+3. Unter **Einstellungen › Bank** steht dann bei **Kontoabruf über FinTS** „Eingerichtet“ (die Nummer zeigt Haben nicht), unter **Bank** der Knopf **Über FinTS verbinden**. Ablauf, TAN und Fehler stehen in [Abruf über FinTS](bank-fints.md).
+
+> [!NOTE]
+> Die Nummer gilt nicht sofort bei allen Banken. Die DK gibt neue Registrierungen gesammelt an die Institute weiter, derzeit etwa einmal pro Woche, und wann eine Bank sie übernimmt, entscheidet die Bank: Das dauert Tage bis Wochen ([Hinweis der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6915898298)). Bis dahin lehnt die Bank die Anmeldung ab, mit „FinTS-Produkt ist nicht registriert“ (9078 in den [Rückmeldungscodes der DK](https://www.fints.org/de/spezifikation)) oder, wie eine Bank im [Test zu #1289](https://github.com/firsttris/haben/pull/1289), mit „Das Kundenprodukt wird nicht unterstützt.“ (9952); Haben weist bei beiden darauf hin. Stimmt die Nummer in `FINTS_PRODUKT_ID`, später noch einmal versuchen.
+
+Ohne `FINTS_PRODUKT_ID` bleibt FinTS aus; Enable Banking und der Dateiimport laufen weiter. Haben prüft beim Start nur die Form (bis 25 Buchstaben und Ziffern), ob die Nummer gilt, sagt erst die Bank. Die Nummer ist kein Geheimnis, sie geht mit jeder Anmeldung an die Bank. Trag sie trotzdem nur in `.env` bzw. `haben.env` ein, nicht ins Repository oder Image.
+
+### Die FinTS-Adresse der Bank
+
+Beim Verbinden fragt Haben nach Bankleitzahl, FinTS-Adresse, Anmeldename und PIN. Die Adresse nennt die Bank, meist auf ihren Seiten zu HBCI oder FinTS oder in der Anleitung für Banking-Programme; sie beginnt mit `https://`. Eine Liste der Adressen bringt Haben nicht mit.
+
+Was an die Bank geht: Produktnummer und Version von Haben, Anmeldename und PIN und danach Abrufe von Umsätzen der Konten, über TLS direkt zur Bank. Die PIN speichert Haben verschlüsselt in der Datenbank wie das SMTP-Passwort, damit der tägliche Abruf ohne dich läuft; im Audit-Log steht sie nicht. Eine TAN speichert Haben nie. Zahlungen auslösen kann Haben über FinTS nicht.

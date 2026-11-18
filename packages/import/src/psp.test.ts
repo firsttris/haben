@@ -64,6 +64,52 @@ describe("Stripe", () => {
     expect(statement.warnings).toEqual(["1 Zeile übersprungen: nicht in Euro."]);
   });
 
+  it("Zahlung ohne Kunde und Beschreibung bekommt einen Hinweis, mit Kunde füllt sich der Name, der Zweck und damit der Dedup-Hash bleiben", () => {
+    const bare = [
+      `balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category`,
+      `txn_1,2026-11-15 08:00:00,2026-11-22 00:00:00,eur,56.00,1.09,54.91,charge`,
+      `txn_2,2026-11-16 06:00:00,2026-11-16 00:00:00,eur,-54.91,0.00,-54.91,payout`,
+    ].join("\n");
+    const statement = parseStatement(bytes(bare));
+    expect(brief(statement)[0]).toEqual(["2026-11-15", 5_600, "", "charge · txn_1"]);
+    expect(statement.warnings).toEqual([expect.stringContaining("1 Zahlung hat weder Kunde noch Beschreibung")]);
+    const full = [
+      `balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category,description,customer_name,customer_email`,
+      `txn_1,2026-11-15 08:00:00,2026-11-22 00:00:00,eur,56.00,1.09,54.91,charge,,Beispiel GmbH,a@beispiel.test`,
+    ].join("\n");
+    const named = parseStatement(bytes(full));
+    expect(brief(named)[0]).toEqual(["2026-11-15", 5_600, "Beispiel GmbH", "charge · txn_1"]);
+    expect(named.warnings).toEqual([]);
+    // Derselbe Export mit und ohne Kundenspalten ergibt dieselben Hashes: ein erneuter Import legt nichts doppelt an
+    expect(withDedupHashes(named.transactions).map((t) => t.dedupHash)).toEqual(
+      withDedupHashes(statement.transactions)
+        .slice(0, 2)
+        .map((t) => t.dedupHash),
+    );
+  });
+
+  it("ohne Kundenname gilt die E-Mail-Adresse, mehrere Zahlungen ohne Kunde ergeben einen Hinweis im Plural", () => {
+    const email = [
+      `balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category,description,customer_name,customer_email`,
+      `txn_1,2026-11-15 08:00:00,2026-11-22 00:00:00,eur,56.00,1.09,54.91,charge,,,kunde@beispiel.test`,
+    ].join("\n");
+    expect(brief(parseStatement(bytes(email)))[0]).toEqual(["2026-11-15", 5_600, "kunde@beispiel.test", "charge · txn_1"]);
+    const zwei = [
+      `balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category`,
+      `txn_1,2026-11-15 08:00:00,2026-11-22 00:00:00,eur,56.00,1.09,54.91,charge`,
+      `txn_2,2026-11-16 08:00:00,2026-11-23 00:00:00,eur,10.00,0.50,9.50,payment`,
+    ].join("\n");
+    expect(parseStatement(bytes(zwei)).warnings).toEqual([expect.stringContaining("2 Zahlungen haben weder Kunde noch Beschreibung")]);
+  });
+
+  it("kein Hinweis, wenn der Bericht die Kundenspalten schon hat, auch wenn sie bei einer Gast-Zahlung leer sind", () => {
+    const csv = [
+      `balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category,description,customer_name,customer_email`,
+      `txn_1,2026-11-15 08:00:00,2026-11-22 00:00:00,eur,56.00,1.09,54.91,charge,,,`,
+    ].join("\n");
+    expect(parseStatement(bytes(csv)).warnings).toEqual([]);
+  });
+
   it("neuer Export mit reporting_category", () => {
     const csv = [
       `balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category,description`,

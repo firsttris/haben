@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /* Das Stornopaar gilt laut docs/sevdesk.md nur, „wenn zu beiden keine Zahlung besteht; sonst bleibt der Stand unklar“ (#472). */
 describe.skipIf(!testDatabaseUrl)("Einzelzahlungen zu einem sevDesk-Stornopaar im Abruf (Postgres)", () => {
@@ -10,7 +11,6 @@ describe.skipIf(!testDatabaseUrl)("Einzelzahlungen zu einem sevDesk-Stornopaar i
   let importPkg: typeof import("@haben/import");
 
   const TOKEN = "0123456789abcdef0123456789abcdef";
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
   const base = {
     objectName: "Invoice",
@@ -63,32 +63,19 @@ describe.skipIf(!testDatabaseUrl)("Einzelzahlungen zu einem sevDesk-Stornopaar i
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL) => {
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
-            const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
+          fetch: sevdeskFakeFetch(({ path, list }) => {
             switch (path) {
-              case "/Tools/bookkeepingSystemVersion":
-                return json({ objects: { version: "1.0" } });
               case "/Invoice":
                 return list([original, stornorechnung]);
               case "/Invoice/9101/getPositions":
               case "/Invoice/9102/getPositions":
                 return list([position]);
-              case "/Contact":
-              case "/ContactAddress":
-              case "/CommunicationWay":
-              case "/CreditNote":
-              case "/Voucher":
-              case "/Order":
-                return list([]);
               case "/CheckAccount":
                 return list([{ id: "501", name: "Geschäftskonto", currency: "EUR" }]);
               case "/CheckAccountTransactionLog":
                 return list([log]);
             }
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
     await sevdesk.saveSevdeskKey("test-user", TOKEN);

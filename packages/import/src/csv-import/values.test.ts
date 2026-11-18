@@ -28,8 +28,17 @@ describe("parseImportAmount", () => {
     expect(value(parseImportAmount("12.345,678", "Preis"))).toMatch(/kein Betrag/);
   });
 
+  it("liest wie die Betragsfelder: Währung nur am Rand, Leerzeichen nur zwischen Dreiergruppen (#1242)", () => {
+    expect(value(parseImportAmount("12,50 EUR", "Preis"))).toBe(1250);
+    expect(value(parseImportAmount("€ 12,50", "Preis"))).toBe(1250);
+    expect(value(parseImportAmount("1 234,56", "Preis"))).toBe(123456);
+    expect(value(parseImportAmount("12€50", "Preis"))).toMatch(/kein Betrag/);
+    expect(value(parseImportAmount("12EUR50", "Preis"))).toMatch(/kein Betrag/);
+    expect(value(parseImportAmount("1 2,50", "Preis"))).toMatch(/kein Betrag/);
+  });
+
   it("lehnt englische Tausendertrenner und Text ab", () => {
-    expect(value(parseImportAmount("1,234.56", "Preis"))).toBe("Preis: „1,234.56“ ist kein Betrag wie 1.234,56");
+    expect(value(parseImportAmount("1,234.56", "Preis"))).toBe("Preis: „1,234.56“ ist kein Betrag. Trag den Betrag ein, etwa 1.234,56.");
     expect(value(parseImportAmount("zwölf", "Preis"))).toMatch(/kein Betrag/);
     expect(value(parseImportAmount("1,234", "Preis"))).toMatch(/kein Betrag/);
   });

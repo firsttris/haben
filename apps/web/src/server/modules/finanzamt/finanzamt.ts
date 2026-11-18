@@ -62,6 +62,8 @@ export interface PrepaymentBasis {
   prognose: Prognose;
   /** Jahr der Angaben, auf denen die Prognose beruht; null = keine gespeichert */
   angabenAus: number | null;
+  /** Positive Ersatzleistungen aus übernommenen Vorjahresangaben wurden in der Prognose weggelassen */
+  priorBenefitsOmitted: boolean;
 }
 
 /** Zahlen für den Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen */
@@ -71,6 +73,11 @@ export async function prepaymentBasis(today: string): Promise<PrepaymentBasis> {
   const days = dayOfYear(today);
   const daysInYear = dayOfYear(`${year}-12-31`);
   const profitForecast = Math.round((current.gewinn * daysInYear) / days / 100) * 100;
+  const priorYear = latest.fromYear !== null && latest.fromYear < year;
+  // Haben schreibt Leistungen des Vorjahres nicht für das laufende Jahr fort; aktuelle Angaben zählen weiter (§ 32b EStG).
+  // Das ist Habens Schätzung: § 37 Abs. 3 EStG nimmt grundsätzlich die letzte Veranlagung und erlaubt die Anpassung.
+  // https://www.gesetze-im-internet.de/estg/__32b.html, https://www.gesetze-im-internet.de/estg/__37.html
+  const angaben = priorYear ? { ...latest.angaben, ersatzleistungen: undefined } : latest.angaben;
   return {
     year,
     until: today,
@@ -78,8 +85,10 @@ export async function prepaymentBasis(today: string): Promise<PrepaymentBasis> {
     profitForecast,
     profitLastYear: last.gewinn,
     einkunftsart: company.einkunftsart,
-    prognose: await prognose(year, profitForecast, latest.angaben),
+    prognose: await prognose(year, profitForecast, angaben),
     angabenAus: latest.fromYear,
+    priorBenefitsOmitted:
+      priorYear && Object.values(latest.angaben.ersatzleistungen ?? {}).some((leistungen) => leistungen?.some((leistung) => leistung.betrag > 0)),
   };
 }
 

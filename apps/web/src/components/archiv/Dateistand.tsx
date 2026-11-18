@@ -3,11 +3,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
-import { confirmLegacyWithoutFile, type getLegacyVoucher } from "../../server/functions/archive.ts";
+import type { getLegacyVoucher } from "../../server/functions/archive.ts";
+import { confirmLegacyWithoutFile, revokeLegacyConfirmation } from "../../server/functions/dateistand.ts";
 import { ConfirmDialog, type ConfirmFact } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Status } from "../Status.tsx";
+import { ohneBelegText, ruecknahmeHinweis, ruecknahmeText, type OhneBelegGrund } from "./dateistand-texte.ts";
 
 /*
  * Dateistand eines archivierten Belegs (#345): ohne Datei laut Quelle (offen bis zur Bestätigung), bestätigt ohne Datei,
@@ -18,6 +20,8 @@ type FileState = Awaited<ReturnType<typeof getLegacyVoucher>>["fileState"];
 type FileStatus = FileState["status"];
 
 const LOOK: Partial<Record<FileStatus, { word: string; tone: "warn" | "danger" | "neutral"; emphasis?: "notice" }>> = {
+  // Ein Merkmal der Quelle, kein Auftrag: bestätigen lässt es sich im Accountable-Stapel und bei Buchungen ohne Beleg aus der Lexoffice-Sicherung, sonst bleibt es ein Merkmal (DESIGN.md › Status)
+  ohne_beleg: { word: "Ohne Beleg", tone: "warn" },
   ohne_datei: { word: "Keine", tone: "warn", emphasis: "notice" },
   ohne_datei_offen: { word: "Prüfen", tone: "warn", emphasis: "notice" },
   ohne_datei_bestaetigt: { word: "Keine", tone: "neutral" },
@@ -27,6 +31,8 @@ const LOOK: Partial<Record<FileStatus, { word: string; tone: "warn" | "danger" |
 
 /** Spalte „Dateien“ in der Liste: Zahl der Dateien oder der Stand, wenn etwas fehlt */
 export function FileStatusCell({ status, files }: { status: FileStatus; files: number }) {
+  // „Ohne Beleg“ ist ein Merkmal des Imports und kann auch eine Buchung treffen, an der eine Datei hängt; dann zählt die Zahl
+  if (status === "ohne_beleg" && files > 0) return <>{files}</>;
   const look = LOOK[status];
   if (!look) return <>{files}</>;
   return (
@@ -36,8 +42,24 @@ export function FileStatusCell({ status, files }: { status: FileStatus; files: n
   );
 }
 
-/** Ersetzt die leere Vorschau: was fehlt und was als Nächstes zu tun ist */
-export function MissingFileBanner({ status, product }: { status: FileStatus; product: string }) {
+/**
+ * Ersetzt die leere Vorschau: was fehlt und was als Nächstes zu tun ist.
+ *
+ * `grund` unterscheidet die Fälle hinter `ohne_beleg`: Buchung ohne Beleglink, Buchung mit Beleg-GUID und fehlender Datei
+ * im Export, und Buchungen fremder Quellen, die das Merkmal ohne GUID setzen. Bestätigen lässt sich der fehlende
+ * Beleglink und die Buchung ohne Beleg aus der Lexoffice-Sicherung; nur dann lädt der Satz ein und erscheint der Knopf.
+ */
+export function MissingFileBanner({
+  status,
+  product,
+  grund,
+  bestaetigbar = false,
+}: {
+  status: FileStatus;
+  product: string;
+  grund?: OhneBelegGrund;
+  bestaetigbar?: boolean;
+}) {
   switch (status) {
     case "abruf_fehlgeschlagen":
       return (
@@ -54,14 +76,17 @@ export function MissingFileBanner({ status, product }: { status: FileStatus; pro
       );
     case "ohne_datei_bestaetigt":
       return <div className="banner banner-info">In {product} ohne Datei, bestätigt. Ein Rechnungsoriginal für den Vorsteuerabzug ersetzt das nicht.</div>;
+    case "ohne_beleg":
+      return <div className="banner banner-info">{ohneBelegText(grund ?? "quelle_ohne_beleg", product, bestaetigbar)}</div>;
     default:
       return <div className="banner banner-info">Zu diesem Beleg hat {product} keine Datei geliefert.</div>;
   }
 }
 
-/** Karte mit Stand, Verlauf und der Bestätigung „ohne Datei“ */
+/** Karte mit Stand, Verlauf, der Bestätigung „ohne Datei“ und ihrer Rücknahme (#1317) */
 export function FileStateCard({ voucherId, fileState, product, facts }: { voucherId: string; fileState: FileState; product: string; facts: ConfirmFact[] }) {
-  if (fileState.history.length === 0) return null;
+  // Ohne Verlauf gibt es nichts zu zeigen, außer es lässt sich etwas bestätigen (Buchung ohne Beleg aus dem Stapel)
+  if (fileState.history.length === 0 && !fileState.canConfirmWithoutFile) return null;
   const look = LOOK[fileState.status];
   return (
     <section className="card stack" aria-labelledby="file-state-heading">
@@ -77,12 +102,15 @@ export function FileStateCard({ voucherId, fileState, product, facts }: { vouche
           {h.by ? ` (${h.by})` : ""}
         </div>
       ))}
-      {fileState.canConfirmWithoutFile && <ConfirmWithoutFile voucherId={voucherId} product={product} facts={facts} />}
+      {fileState.canConfirmWithoutFile && (
+        <ConfirmWithoutFile voucherId={voucherId} product={product} facts={facts} ohneBeleg={fileState.status === "ohne_beleg"} />
+      )}
+      {fileState.status === "ohne_datei_bestaetigt" && <RevokeConfirmation voucherId={voucherId} facts={facts} ohneBeleg={fileState.ohneBeleg} />}
     </section>
   );
 }
 
-function ConfirmWithoutFile({ voucherId, product, facts }: { voucherId: string; product: string; facts: ConfirmFact[] }) {
+function ConfirmWithoutFile({ voucherId, product, facts, ohneBeleg }: { voucherId: string; product: string; facts: ConfirmFact[]; ohneBeleg: boolean }) {
   const router = useRouter();
   const confirm = useServerFn(confirmLegacyWithoutFile);
   const action = useAction();
@@ -106,7 +134,7 @@ function ConfirmWithoutFile({ voucherId, product, facts }: { voucherId: string; 
         </Field>
         <div className="actions">
           <button type="submit" className="btn" disabled={action.busy}>
-            In {product} ohne Datei bestätigen
+            {ohneBeleg ? "Buchung ohne Beleg bestätigen" : `In ${product} ohne Datei bestätigen`}
           </button>
         </div>
       </form>
@@ -120,9 +148,59 @@ function ConfirmWithoutFile({ voucherId, product, facts }: { voucherId: string; 
         onClose={() => setOpen(false)}
       >
         <p>
-          Du bestätigst, dass es in {product} zu diesem Beleg keine Datei gibt. Haben hält das mit deinem Namen und der Uhrzeit fest; der Abgleich zählt den
-          Beleg dann nicht mehr als fehlende Datei. Für den Vorsteuerabzug braucht es weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
+          {ohneBeleg
+            ? "Du bestätigst, dass es zu dieser Buchung keinen Einzelbeleg gibt. Haben hält das mit deinem Namen und der Uhrzeit fest."
+            : `Du bestätigst, dass es in ${product} zu diesem Beleg keine Datei gibt. Haben hält das mit deinem Namen und der Uhrzeit fest; der Abgleich zählt den Beleg dann nicht mehr als fehlende Datei.`}
+          Für den Vorsteuerabzug braucht es weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
         </p>
+      </ConfirmDialog>
+    </>
+  );
+}
+
+/**
+ * Nimmt die Bestätigung „ohne Datei“ zurück (#1317). Der Grund ist Pflicht; er steht mit Namen und Zeitpunkt als neue Zeile
+ * im Verlauf, die Bestätigung bleibt dort stehen.
+ */
+function RevokeConfirmation({ voucherId, facts, ohneBeleg }: { voucherId: string; facts: ConfirmFact[]; ohneBeleg: boolean }) {
+  const router = useRouter();
+  const revoke = useServerFn(revokeLegacyConfirmation);
+  const action = useAction();
+  const [reason, setReason] = useState("");
+  const [open, setOpen] = useState(false);
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setOpen(true);
+  };
+  const onConfirm = () =>
+    action.run(async () => {
+      await revoke({ data: { id: voucherId, reason } });
+      await router.invalidate();
+      action.setNotice({ tone: "ok", text: ruecknahmeHinweis(ohneBeleg) });
+    });
+  return (
+    <>
+      <form className="stack" onSubmit={onSubmit} noValidate style={{ gap: 12 }}>
+        <Field label="Grund der Rücknahme" hint="Pflicht, etwa „falscher Beleg geprüft“; steht mit deinem Namen im Verlauf.">
+          {(control) => <input {...control} value={reason} maxLength={500} required onChange={(e) => setReason(e.target.value)} />}
+        </Field>
+        <div className="actions">
+          <button type="submit" className="btn btn-danger" disabled={action.busy || reason.trim() === ""}>
+            Bestätigung zurücknehmen
+          </button>
+        </div>
+      </form>
+      <NoticeBanner notice={action.notice} />
+      <ConfirmDialog
+        open={open}
+        title="Bestätigung zurücknehmen?"
+        confirmLabel="Zurücknehmen"
+        danger
+        facts={facts}
+        onConfirm={() => void onConfirm()}
+        onClose={() => setOpen(false)}
+      >
+        <p>{ruecknahmeText(ohneBeleg)} Deine Bestätigung bleibt mit Grund und Namen im Verlauf stehen, gelöscht wird nichts.</p>
       </ConfirmDialog>
     </>
   );

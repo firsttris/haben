@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildPageSection, buildRemoteSections, statusMessage } from "./befehlspalette.ts";
 import { sichtbareNavSeiten } from "./navigation.ts";
+import { SETTINGS_AREAS } from "./settings-areas.ts";
 
 describe("Befehlspalette-Ergebnisse (#617)", () => {
   const seiten = sichtbareNavSeiten({
@@ -97,6 +98,41 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     const rechnungen = buildPageSection(seiten, "Rech");
     expect(rechnungen?.items.some((item) => item.title === "Rechnungen")).toBe(true);
     expect(buildPageSection(seiten, "zzzz-nicht-vorhanden")).toBeNull();
+  });
+
+  // Fachwörter stehen in `keywords`, nicht im Untertext; wer sie eintippt, muss den Bereich weiter finden (#1253)
+  it.each([
+    ["ust", "waehrung"],
+    ["tokens", "ki"],
+    ["api-token", "ki"],
+    ["belegauslesung", "ki"],
+    ["eric", "elster"],
+    ["mcp", "ki"],
+    ["bmf", "waehrung"],
+    ["datev", "export"],
+    ["ablage", "export"],
+    ["backup", "export"],
+    ["zertifikat", "elster"],
+  ])("findet bei „%s“ den Einstellungsbereich %s", (suche, bereich) => {
+    const bereiche = seiten.filter((s) => s.settingsArea);
+    expect(buildPageSection(bereiche, suche)?.items.map((item) => item.id) ?? []).toContain(`page-einstellungen-${bereich}`);
+  });
+
+  it("findet jeden Bereich über jedes Wort seines alten Untertexts (#1253)", () => {
+    const alt = {
+      elster: "Zertifikat und ERiC",
+      waehrung: "USt-Umrechnungskurse des BMF",
+      ki: "MCP, API-Tokens, Belegauslesung",
+      export: "Jahresarchiv, DATEV, Ablage, Backup, Prüfung, Version",
+    };
+    const bereiche = seiten.filter((s) => s.settingsArea);
+    for (const [bereich, text] of Object.entries(alt))
+      for (const wort of text.split(/[\s,]+/).filter((w) => !["und", "des"].includes(w)))
+        expect(buildPageSection(bereiche, wort)?.items.map((item) => item.id) ?? [], wort).toContain(`page-einstellungen-${bereich}`);
+  });
+
+  it("hält die Untertexte der Bereiche in Klartext: eine Zeile, ohne Klammern", () => {
+    for (const { label, hint } of SETTINGS_AREAS) expect(hint, label).toMatch(/^[^()\n]+$/);
   });
 
   it("baut für Inhaber alle vier Gruppen jeweils mit Link zur gefilterten Liste", () => {
@@ -199,6 +235,16 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(status("rec-inv-r1")).toMatchObject({ status: { kind: "recurringInvoice", active: false, lastError: "kaputt" } });
     expect(status("rec-doc-d1")).toMatchObject({ status: { kind: "recurringDocument", status: "pausiert", lastError: null } });
     expect(status("pauschale-p1")).toMatchObject({ status: { kind: "pauschale", storniert: true } });
+  });
+
+  it("nennt Zeiteinträge in der Gruppe der Artikel und Textbausteine beim Namen der Seite", () => {
+    const eintrag = { id: "s1", workedOn: "2026-10-05", minutes: 90, description: "Konzept", project: "", customer: "Bergblick Software GmbH" };
+    const sections = buildRemoteSections({ ...sampleResult, serviceEntries: { hits: [eintrag], more: false } }, true);
+    const katalog = sections.find((s) => s.id === "katalog");
+    expect(katalog?.label).toBe("Artikel, Textbausteine & Zeiteinträge");
+    expect(katalog?.items[0]).toMatchObject({ title: "Konzept", icon: "clock", to: "/leistungen" });
+    const ohneText = buildRemoteSections({ ...sampleResult, serviceEntries: { hits: [{ ...eintrag, description: "" }], more: false } }, true);
+    expect(ohneText.find((s) => s.id === "katalog")?.items[0]).toMatchObject({ title: "Zeiteintrag" });
   });
 
   it("formuliert die Statusmeldung für Screenreader im Singular und Plural", () => {

@@ -1,4 +1,13 @@
-import { allocateSplitTax, EXPENSE_CATEGORY_KEYS, splitIssues, type AllocatedSplitLine, type ExpenseCategory } from "@haben/core";
+import {
+  allocateSplitTax,
+  EXPENSE_CATEGORY_KEYS,
+  splitIssues,
+  type AllocatedSplitLine,
+  type ExpenseCategory,
+  inCents,
+  inBasisPoints,
+  type Prozent,
+} from "@haben/core";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -16,8 +25,8 @@ export const splitInputSchema = z.object({
   category: z.enum(EXPENSE_CATEGORY_KEYS),
   /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie */
   ownAccountId: z.uuid().nullable().default(null),
-  taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
-  net: z.number().int().min(-100_000_000_00).max(100_000_000_00),
+  taxRate: inBasisPoints(z.union([z.literal(1900), z.literal(700), z.literal(0)])),
+  net: inCents(z.number().int().min(-100_000_000_00).max(100_000_000_00)),
 });
 
 /** Höchstwert der int4-Spalten net und tax */
@@ -78,7 +87,7 @@ export async function splitsByDocument(
  * sie lehnt Haben mit Aufteilung ab.
  */
 export function splitBookingIssues(
-  doc: { reverseCharge: string | null; privateShare: number; currency: string },
+  doc: { reverseCharge: string | null; privateShare: Prozent; currency: string },
   amounts: { taxRate: number; net: number; tax: number }[],
   splits: Pick<DocumentSplit, "category" | "taxRate" | "net" | "tax">[],
 ): string[] {

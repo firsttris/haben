@@ -1,3 +1,4 @@
+import type { BasisPoints } from "./money.ts";
 import type { TaxShare } from "./posting.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
@@ -56,7 +57,7 @@ export function advanceVatPlan(total: readonly TaxShare[], events: readonly Adva
   const byDate = new Map<string, AdvanceVatEvent[]>();
   for (const event of events) byDate.set(event.date, [...(byDate.get(event.date) ?? []), event]);
   const rates = [...new Set([...total, ...events.flatMap((e) => [...(e.paid ?? []), ...(e.writtenOff ?? []), ...(e.correction ?? [])])].map((s) => s.rate))];
-  const sum = (shares: readonly TaxShare[], rate: number, key: "base" | "tax") => shares.filter((s) => s.rate === rate).reduce((n, s) => n + s[key], 0);
+  const sum = (shares: readonly TaxShare[], rate: BasisPoints, key: "base" | "tax") => shares.filter((s) => s.rate === rate).reduce((n, s) => n + s[key], 0);
   const paid: TaxShare[] = [];
   const writtenOff: TaxShare[] = [];
   const amount = [...total];

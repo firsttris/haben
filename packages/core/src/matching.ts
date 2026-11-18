@@ -1,4 +1,4 @@
-import { kategorieFehler, type KategorieAngabe } from "./direkt-kategorie.ts";
+import { aufladungFehler, kategorieFehler, type KategorieAngabe } from "./direkt-kategorie.ts";
 import { formatEuro, type Cents } from "./money.ts";
 import type { VatPeriod } from "./period.ts";
 import { formatPercent, skontoGezogen, type SkontoZahlfrist } from "./skonto.ts";
@@ -162,8 +162,8 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     }
     // Zahlungsdienstleister nennen die Bestellnummer statt der Rechnungsnummer („Payment for Order #…“). Sie entscheidet,
     // wenn mehrere Rechnungen denselben Betrag haben, und zählt deshalb wie die Referenz einer Überweisung aus Haben.
-    // Nur bei exaktem Betrag: Gebühren, Gebühren-Gutschriften und Karteneinzüge nennen dieselbe Bestellnummer, gehören
-    // aber nicht zur Rechnung (Teilzahlungen gibt es bei Plattformen nicht, der Verkauf kommt in voller Höhe).
+    // Nur bei exaktem Betrag: Gebühren, Gebühren-Gutschriften und der Ausgleich des Guthabens nach einer Erstattung nennen
+    // dieselbe Bestellnummer, gehören aber nicht zur Rechnung (Teilzahlungen gibt es bei Plattformen nicht, der Verkauf kommt in voller Höhe).
     const order = exact ? item.orderReferences?.find((r) => compact(r).length >= 5 && purposeContainsNumber(tx.purpose, r, "alphanumeric")) : undefined;
     if (order) {
       score += 60;
@@ -245,7 +245,7 @@ export const ACCOUNT_PURPOSES = {
   geschaeft: "Geschäftskonto",
   steuer: "Steuerkonto (Lastschrift und Erstattungen des Finanzamts)",
   ruecklage: "Rücklagen- oder Sparkonto",
-  privat: "Privatkonto (nur zur Zuordnung von Überweisungen)",
+  privat: "Privatkonto (Geschäftsvorfälle gegen Entnahme, Einlage oder Gesellschafter)",
 } as const;
 
 /** Zahlungsdienstleister mit eigenem Guthaben (Verrechnungskonto); pattern erkennt sie als Gegenpartei auf der Bank */
@@ -296,9 +296,10 @@ export interface DirectSuggestion {
     | "mahnerloes"
     | "lohnsteuer"
     | "zinsertrag"
-    | "kategorie";
+    | "kategorie"
+    | "aufladung";
   reasons: string[];
-  /** Nur bei „kategorie“: Kategorie und Steuersatz, wie früher direkt gebucht (#324) */
+  /** Nur bei „kategorie“ und „aufladung“: Kategorie und Steuersatz, wie früher gebucht (#324, #1356) */
   kategorie?: KategorieAngabe;
   /**
    * Nur mit Gegenbuchung vorschlagen: Gegenpartei „PayPal“ auf der Bank kann auch ein mit PayPal bezahlter Einkauf sein;
@@ -456,7 +457,7 @@ export interface LearnedBooking {
  * wissen oder was eine Angabe braucht, die sich je Zahlung ändert (Steuerart und Jahr, Teil einer Darlehensrate, die
  * offene Lohnverbindlichkeit).
  */
-const LEARNED_KINDS = new Set(["privat", "spende", "gebuehren", "mahnerloes", "zinsertrag", "kategorie"]);
+const LEARNED_KINDS = new Set(["privat", "spende", "gebuehren", "mahnerloes", "zinsertrag", "kategorie", "aufladung"]);
 
 /** „2026-09-30“ → „30.09.2026“; `last` kann ein Zeitstempel sein, gezählt wird der Tag */
 const tagText = (iso: string) => iso.slice(0, 10).split("-").reverse().join(".");
@@ -468,7 +469,9 @@ const tagText = (iso: string) => iso.slice(0, 10).split("-").reverse().join(".")
  * Kategorie und Steuersatz; `total` zählt die Umsätze insgesamt (ein aufgeteilter Umsatz zählt bei jeder seiner Arten,
  * aber nur einmal insgesamt). Vorgeschlagen wird nur, wenn die häufigste Art mindestens zweimal vorkam und mehr als die
  * Hälfte der Umsätze ausmacht. Eine Kategorie nur, wenn sie heute noch so direkt buchbar wäre (kategorieFehler): Nach dem
- * Wechsel zum Kleinunternehmer etwa sind Erlöse mit 19 % kein Vorschlag mehr.
+ * Wechsel zum Kleinunternehmer etwa sind Erlöse mit 19 % kein Vorschlag mehr. Eine Aufladung eines Guthabens wird wie
+ * eine Kategorie mit ihrer Ausgabekategorie gelernt (#1356); ob die Rechtsform sie anbietet, prüft der Aufrufer
+ * (aufRechtsformAngeboten).
  * Nicht gelernt werden:
  * - Geldtransit: braucht die Gegenbuchung, die die Regeln zu eigenen Konten finden
  * - Umsatzsteuer und alles mit dem Finanzamt: über dieselbe IBAN laufen Umsatzsteuer und private Steuern
@@ -487,6 +490,8 @@ export function learnedDirectBooking(
   if (!top || !LEARNED_KINDS.has(top.value.kind) || top.count < 2 || top.count * 2 <= top.total) return null;
   const { kategorie } = top.value;
   if (top.value.kind === "kategorie" && (!kategorie || kategorieFehler(kategorie, kleinunternehmer))) return null;
+  // Eine Aufladung nur mit der Kategorie, in der sie gebucht wurde: immer eine Ausgabe und ohne Steuersatz (#1356)
+  if (top.value.kind === "aufladung" && (!kategorie || aufladungFehler(kategorie))) return null;
   const from = basis === "iban" ? "mit dieser Gegen-IBAN" : "von dieser Gegenpartei";
   return {
     kind: top.value.kind as DirectSuggestion["kind"],

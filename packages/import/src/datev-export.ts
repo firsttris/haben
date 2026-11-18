@@ -268,6 +268,9 @@ function headerLine(h: DatevExportHeader): string {
   return fields.join(";");
 }
 
+/** Buchungstext im DATEV-Stapel: Das Feld fasst 60 Zeichen; gekürzt wird am Ende, der Anfang bleibt stehen (#1356) */
+const BUCHUNGSTEXT_LENGTH = 60;
+
 function bookingLine(row: DatevBookingRow): string {
   const fields: string[] = new Array(DATEV_COLUMNS.length).fill("");
   const set = (column: (typeof DATEV_COLUMNS)[number], value: string) => {
@@ -281,7 +284,7 @@ function bookingLine(row: DatevBookingRow): string {
   set("BU-Schlüssel", row.buKey ? text(row.buKey) : "");
   set("Belegdatum", `${row.date.slice(8, 10)}${row.date.slice(5, 7)}`);
   set("Belegfeld 1", text(voucherField(row.voucher)));
-  set("Buchungstext", text(row.text.slice(0, 60)));
+  set("Buchungstext", text(row.text.slice(0, BUCHUNGSTEXT_LENGTH)));
   set("Festschreibung", row.locked ? "1" : "0");
   return fields.join(";");
 }

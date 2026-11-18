@@ -72,6 +72,11 @@ export const ACCOUNTS = {
     mahnerloes: "2650",
     /** Zinsen auf Guthaben eines betrieblichen Kontos (DATEV SKR03 2650 „Sonstige Zinsen und ähnliche Erträge“) */
     zinsertraege: "2650",
+    /**
+     * Echter Schadenersatz und Entschädigungen ohne Leistungsaustausch, nicht steuerbar (UStAE 1.3 Abs. 1): DATEV-
+     * Kontenrahmen 2026, SKR03 2742 „Versicherungsentschädigungen und Schadenersatzleistungen“ (S. 17), kein Automatikkonto
+     */
+    schadenersatz: "2742",
     /** Ausbuchungen (§ 17 UStG): gewährte und erhaltene Skonti, Forderungsverluste */
     skontiGewaehrt: "8730",
     skontiErhalten: "3730",
@@ -124,6 +129,8 @@ export const ACCOUNTS = {
     saldenvortrag: "9000",
     mahnerloes: "7100",
     zinsertraege: "7100",
+    /** Wie SKR03 2742; DATEV-Kontenrahmen 2026, SKR04 4970 „Versicherungsentschädigungen und Schadenersatzleistungen“ (S. 18) */
+    schadenersatz: "4970",
     skontiGewaehrt: "4730",
     skontiErhalten: "5730",
     forderungsverluste: "6930",
@@ -240,6 +247,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "2400": "Forderungsverluste (übliche Höhe)",
     "2650": "Sonstige Zinsen und ähnliche Erträge",
     "2660": "Erträge aus Kursdifferenzen",
+    "2742": "Versicherungsentschädigungen und Schadenersatzleistungen",
     "3730": "Erhaltene Skonti",
     "8730": "Gewährte Skonti",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
@@ -295,6 +303,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "4400": "Erlöse 19 % USt",
     "4730": "Gewährte Skonti",
     "4840": "Erträge aus Kursdifferenzen",
+    "4970": "Versicherungsentschädigungen und Schadenersatzleistungen",
     "5730": "Erhaltene Skonti",
     "6880": "Aufwendungen aus Kursdifferenzen",
     "6930": "Forderungsverluste (übliche Höhe)",
@@ -827,16 +836,17 @@ export function privatZahlung(amount: Cents, kontenrahmen: Kontenrahmen, rechtsf
 }
 
 /**
- * Umsatzsteuer-Erstattung, die auf einem privaten Konto eingeht (#866): Die Forderung gegen das
- * Finanzamt wird erfüllt, das Geld fließt aber ins Private. Gebucht wird deshalb gegen die
- * Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto,
- * nicht gegen die Bank. Auf einem Geschäftskonto bleibt es bei directPosting.
+ * Zahlung über ein privates Konto (#866, #873): Die Zeilen einer Buchung, die gegen die Bank gehen, werden auf das
+ * Konto gestellt, über das das Geld tatsächlich lief — bei einem Eingang die Privatentnahme, bei einem Ausgang die
+ * Privateinlage (privatZahlung), in GmbH und UG das Gesellschafter-Verrechnungskonto. Die Regel gilt so für jede
+ * Buchungsart, und der Aufrufer wendet sie einmal an, statt sie in jedem Zweig zu wiederholen. Auf einem
+ * Geschäftskonto entfällt der Aufruf; dort bleibt es bei 1200 bzw. 1800, bei einem Zahlungsdienstleister bei dessen
+ * Verrechnungskonto.
  */
-export function ustPrivatPosting(amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
-  const accounts = ACCOUNTS[kontenrahmen];
-  return [side(privatZahlung(amount, kontenrahmen, rechtsform), amount, true, null), side(accounts.ustVorauszahlung, amount, false, null)].filter(
-    (line) => line.debit !== 0 || line.credit !== 0,
-  );
+export function privatKontoPosting(lines: PostingLine[], amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
+  const bank = ACCOUNTS[kontenrahmen].bank;
+  const konto = privatZahlung(amount, kontenrahmen, rechtsform);
+  return lines.map((line) => (line.account === bank ? { ...line, account: konto } : line));
 }
 
 /** Kassenbuchungen ohne Beleg: Einlage und Entnahme, Geld von der Bank in die Kasse und zurück */

@@ -134,19 +134,29 @@ describe("legacyVatByMonth", () => {
     ]);
   });
 
-  it("meldet bei Ist innergemeinschaftliche Lieferungen und § 13b nach Belegdatum, den Rest nach Zahlung", () => {
+  it("meldet bei Ist innergemeinschaftliche Lieferungen, § 13b und Drittland nach Belegdatum, den Rest nach Zahlung", () => {
     const months = legacyVatByMonth(
       [
         zeroRated("intraCommunitySupply", "2025-07-10", 1_000),
         zeroRated("externalService13b", "2025-07-11", 2_000),
         zeroRated("constructionService13b", "2025-07-12", 3_000),
         zeroRated("thirdPartyCountryService", "2025-07-13", 4_000),
+        zeroRated("thirdPartyCountryDelivery", "2025-07-14", 5_000),
       ],
       "ist",
     );
     expect(months).toEqual([
-      { ...EMPTY, month: "2025-07", kz41: 1_000, kz21: 2_000, kz60: 3_000 },
-      { ...EMPTY, month: "2025-08", kz45: 4_000 },
+      { ...EMPTY, month: "2025-07", kz41: 1_000, kz21: 2_000, kz60: 3_000, kz45: 4_000 },
+      { ...EMPTY, month: "2025-08", kz43: 5_000 },
     ]);
+  });
+
+  // #1402: wie Haben selbst (DATEV-Dok. 1080673), auch bei einer eigenen Steuerart aus sevDesk mit Kz 45 (Regel 17, noteu)
+  it.each<[string, string, Partial<LegacyVatVoucher>]>([
+    ["Lexoffice", "thirdPartyCountryService", {}],
+    ["sevDesk", "sevdesk:custom", { vatFields: { rate: 0, net: "45", tax: [] } }],
+  ])("zählt Kz 45 bei Ist im Monat der Rechnung, nicht der Zahlung (%s)", (_, taxType, extra) => {
+    const voucher = zeroRated(taxType, "2025-03-20", 4_000, { ...extra, payments: [{ date: "2025-04-08", amount: 4_000 }] });
+    expect(legacyVatByMonth([voucher], "ist")).toEqual([{ ...EMPTY, month: "2025-03", kz45: 4_000 }]);
   });
 });

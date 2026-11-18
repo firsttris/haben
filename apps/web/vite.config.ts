@@ -1,12 +1,26 @@
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import { redact } from "@tanstack/redact/vite";
 
 // Version der ausgelieferten App, angezeigt unten in der Navigation
 const VERSION = (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version;
+
+/**
+ * Dateien aus public/ haben keinen Hash im Namen (sw.js, manifest.webmanifest, Icons, Skripte für die Importe): Nach
+ * einem Update fragt der Browser mit dem ETag nach, statt bis zu Stunden eine alte Fassung aus seinem oder dem Cache
+ * eines CDN zu nehmen. Je Datei eine Regel, damit sie sich nicht mit `/assets/**` (immutable, von Nitro) oder den
+ * Seiten überschneidet; die bekommen ihren Cache-Control in src/start.ts.
+ */
+const PUBLIC_DIR = new URL("public/", import.meta.url).pathname;
+const publicRouteRules = Object.fromEntries(
+  readdirSync(PUBLIC_DIR, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => [`/${relative(PUBLIC_DIR, join(entry.parentPath, entry.name))}`, { headers: { "cache-control": "no-cache" } }]),
+);
 
 const NATIVE = ["@myriaddreamin/typst-ts-node-compiler"];
 
@@ -45,6 +59,7 @@ export default defineConfig(({ command }) => ({
         "./src/server/plugins/layouts.ts",
       ],
       compressPublicAssets: { gzip: true, brotli: true },
+      routeRules: publicRouteRules,
     }),
     viteReact(),
     // TanStack Redact statt React im Browser und beim SSR: gleiche API, etwa halb so großes Start-Bundle.

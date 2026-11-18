@@ -6,6 +6,9 @@ import {
   databaseUrlFuer,
   type Durchlauf,
   ENABLE_BANKING_PORT,
+  ETSY_PORT,
+  EVATR_PORT,
+  FINTS_PRODUKT_E2E,
   habenFirmen,
   LAYOUT_PAKETE_PORT,
   portFuer,
@@ -46,6 +49,7 @@ function webServer(durchlauf?: Durchlauf) {
       DOCUMENTS_DIR: `${process.env.E2E_DOCUMENTS_DIR ?? "test-results/e2e-belege"}${suffix}`,
       ERIC_DIR: `test-results/e2e-eric${suffix}`,
       HABEN_SCHEDULER: "off",
+      HABEN_UPDATE_CHECK: "off",
       // muss zu SETUP_CODE in e2e/app.spec.ts passen
       HABEN_SETUP_CODE: "e2e-einrichtungscode",
       // Vorlage und Schriften für das Rechnungs-PDF; der gebaute Server findet sie sonst nicht
@@ -62,8 +66,23 @@ function webServer(durchlauf?: Durchlauf) {
       ENABLE_BANKING_KEY_FILE: "",
       // Nachgebaute sevDesk-API in sevdesk-anlagen.spec.ts; ohne gespeicherten Token fragt kein Server dort an
       SEVDESK_API_URL: `http://127.0.0.1:${SEVDESK_PORT}/api/v1`,
+      // Bestätigung von USt-IdNrn. beim BZSt (#1385) nur im Durchlauf „belege-steuern“ gegen den nachgebauten Dienst; die
+      // anderen Server schalten sie ab, und keiner fragt das echte BZSt
+      EVATR_API_URL: `http://127.0.0.1:${EVATR_PORT}/app/v1/abfrage`,
+      HABEN_EVATR: durchlauf === "belege-steuern" ? "" : "off",
       // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
       LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
+      // Kontoabruf über FinTS (#654) nur im Durchlauf „fints-abruf“; sonst bleibt FinTS aus wie ohne Registrierungsnummer
+      FINTS_PRODUKT_ID: durchlauf === "fints-abruf" ? FINTS_PRODUKT_E2E : "",
+      // Etsy Payments (#1133) nur im Durchlauf „etsy-abruf“ gegen die nachgebaute API; sonst die echten Adressen, die ohne
+      // gespeicherten Zugang nie gefragt werden
+      ...(durchlauf === "etsy-abruf"
+        ? {
+            ETSY_API_URL: `http://127.0.0.1:${ETSY_PORT}/v3/application`,
+            ETSY_TOKEN_URL: `http://127.0.0.1:${ETSY_PORT}/v3/public/oauth/token`,
+            ETSY_AUTH_URL: `http://127.0.0.1:${ETSY_PORT}/oauth/connect`,
+          }
+        : {}),
       // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
       HABEN_FIRMEN: durchlauf === "firmen" ? habenFirmen(serverURL) : "",
     },

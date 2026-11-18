@@ -1,4 +1,5 @@
 import { allocateSplitTax, formatDecimal, formatEuro, parseEuro, type ExpenseCategory } from "@haben/core";
+import { CategoryCombobox } from "./CategoryCombobox.tsx";
 import { EigenesKontoWahl, passendesKonto, type OwnAccountChoice } from "./EigenesKontoWahl.tsx";
 import { Field } from "./Field.tsx";
 
@@ -58,7 +59,7 @@ export function DocumentSplits({
   onDissolve: () => void;
   /** Fehler je Zeile aus der Prüfung beim Buchen (useSubmitCheck), erst danach zu sehen */
   error?: (feld: "kategorie" | "netto", key: number) => string | undefined;
-  /** Steuer je Zeile: Vorsteuer, bei § 13b (#508) die selbst geschuldete Steuer */
+  /** Steuer je Zeile: Vorsteuer, ohne Abzug Umsatzsteuer (#978), bei § 13b (#508) die selbst geschuldete Steuer */
   taxLabel?: string;
 }) {
   const parsed = rows.map((row) => parseEuro(row.net || "0"));
@@ -81,23 +82,17 @@ export function DocumentSplits({
         <div className="document-split-row" key={row.key}>
           <Field label="Kategorie" error={error("kategorie", row.key)}>
             {(control) => (
-              <select
+              <CategoryCombobox
                 {...control}
+                categories={options}
                 value={row.category}
-                onChange={(e) =>
+                onChoose={(next) =>
                   update(row.key, {
-                    category: e.target.value as ExpenseCategory | "",
-                    ownAccountId: passendesKonto(ownAccounts, e.target.value, row.ownAccountId),
+                    category: next as ExpenseCategory | "",
+                    ownAccountId: passendesKonto(ownAccounts, next, row.ownAccountId),
                   })
                 }
-              >
-                <option value="">Bitte wählen</option>
-                {options.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </Field>
           <Field label="Satz">

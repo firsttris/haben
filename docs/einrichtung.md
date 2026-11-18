@@ -14,15 +14,16 @@ Wie du Haben auf dem Server installierst, steht in [Installation](installation.m
 In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltung:
 
 1. Konto anlegen und einen Passkey hinzufügen, siehe [Konto anlegen](#konto-anlegen)
-2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten; gibst du nicht monatlich ab, unter Umsatzsteuer den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) einstellen
-3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
-4. Nächste Rechnungsnummer setzen
-5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](einrichtung-elster.md#was-du-brauchst)
-6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken, siehe [Schritte](einrichtung-elster.md#schritte)
-7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
-8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
-9. Optional: KI-Auslesung für Belege einschalten, mit Claude oder einem Modell über eine OpenAI-kompatible Schnittstelle (selbst betrieben oder ein Cloud-Dienst wie OpenRouter)
-10. Optional: deine Steuerberatung mit einem [eigenen Zugang](#zugang-für-die-steuerberatung) einladen
+2. Die [Fragen zur Einrichtung](#fragen-zur-einrichtung) beantworten: Rechtsform, Kleinunternehmer, Versteuerung, Voranmeldungszeitraum, Kontenrahmen und welche Bereiche du brauchst
+3. Firmendaten vervollständigen: Name, Anschrift, Steuernummer, Bank
+4. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
+5. Nächste Rechnungsnummer setzen
+6. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](einrichtung-elster.md#was-du-brauchst)
+7. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken, siehe [Schritte](einrichtung-elster.md#schritte)
+8. Für die Anlage EÜR Art des Betriebs eintragen und die Einkunftsart prüfen, siehe [Jahreserklärungen](jahreserklaerung.md)
+9. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
+10. Optional: KI-Auslesung für Belege einschalten, mit Claude oder einem Modell über eine OpenAI-kompatible Schnittstelle (selbst betrieben oder ein Cloud-Dienst wie OpenRouter)
+11. Optional: deine Steuerberatung mit einem [eigenen Zugang](#zugang-für-die-steuerberatung) einladen
 
 > [!IMPORTANT]
 > Rechtsform, Versteuerung, Kontenrahmen und Kleinunternehmerstatus legst du fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Die Rechtsform ist ab der ersten Buchung fest, bei GmbH und UG auch der Kontenrahmen. Sobald es im laufenden Jahr Buchungen gibt, sperrt Haben die Umstellung bis zum nächsten Jahreswechsel (siehe [Sperren](#wann-sich-die-einstellungen-ändern-lassen)).
@@ -33,9 +34,9 @@ Die folgenden Schritte gelten für den Standardmodus mit lokaler Anmeldung. Läu
 
 Beim ersten Aufruf leitet Haben auf `/setup` weiter. Das erste Konto ist der **Inhaber** mit allen Rechten: Du gibst den Einrichtungscode, Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und klickst „Konto anlegen“.
 
-Den Einrichtungscode schreibt Haben beim Start ins Log, solange es noch kein Konto gibt, etwa `Einrichtungscode für https://haben.example.de/setup: K7QM-3XRP-W9TD`. Du findest ihn mit `docker compose logs app` bzw. `journalctl --user -u haben-app`. Er sorgt dafür, dass niemand anderes eine frisch gestartete Instanz zuerst erreicht und das Konto anlegt. Nach jedem Neustart gibt es einen neuen Code; einen festen setzt du mit `HABEN_SETUP_CODE`. Sobald es ein Konto gibt, lehnt Haben jede weitere Registrierung ab („Haben ist bereits eingerichtet. Weitere Zugänge gibt es nur per Einladung.“), und `/setup` leitet auf die Anmeldung um. Der Einrichtungscode gilt nur für dieses erste Konto.
+Den Einrichtungscode schreibt Haben beim Start ins Log, solange es noch kein Konto gibt, etwa `Einrichtungscode für https://haben.example.de/setup: K7QM-3XRP-W9TD`. Du findest ihn mit `docker compose logs app` bzw. `journalctl --user -u haben-app`. Hast du Haben nicht selbst installiert, fragst du die Person, die es getan hat. Der Einrichtungscode sorgt dafür, dass niemand anderes eine frisch gestartete Instanz zuerst erreicht und das Konto anlegt. Nach jedem Neustart gibt es einen neuen Code; einen festen setzt du mit `HABEN_SETUP_CODE`. Sobald es ein Konto gibt, lehnt Haben jede weitere Registrierung ab („Haben ist bereits eingerichtet. Weitere Zugänge gibt es nur per Einladung.“), und `/setup` leitet auf die Anmeldung um. Der Einrichtungscode gilt nur für dieses erste Konto.
 
-Direkt danach bietet Haben an, einen Passkey hinzuzufügen. Damit meldest du dich künftig ohne Passwort an, etwa mit Fingerabdruck, Gesichtserkennung oder einem Sicherheitsschlüssel. Das Passwort bleibt als Rückfallebene. Du kannst den Schritt mit „Später“ überspringen.
+Direkt danach bietet Haben an, einen Passkey hinzuzufügen. Damit meldest du dich künftig ohne Passwort an, etwa mit Fingerabdruck, Gesichtserkennung oder einem Sicherheitsschlüssel. Das Passwort bleibt als Rückfallebene. Du kannst den Schritt mit „Später“ überspringen. Danach folgen die [Fragen zur Einrichtung](#fragen-zur-einrichtung).
 
 Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort verwenden“ meldest du dich mit E-Mail und Passwort an. Unterstützt der Browser Passkey-Autofill, schlägt er den Passkey dort auch direkt im Feld E-Mail vor.
 
@@ -43,13 +44,29 @@ Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weit
 
 Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisheriges Passwort ein und bestätigst das neue Passwort mit mindestens 12 Zeichen durch erneute Eingabe. Alle Sitzungen enden, auch die im aktuellen Browser und die per Passkey eröffneten. Danach kannst du dich mit dem neuen Passwort oder einem vorhandenen Passkey anmelden. Im Änderungsprotokoll steht der Wechsel ohne Passwort oder Hash.
 
+## Fragen zur Einrichtung
+
+Nach dem ersten Konto stellt Haben ein paar Fragen in drei Schritten:
+
+- **Dein Unternehmen:** freiberuflich (Einkunftsart selbständige Arbeit), mit Gewerbe (Gewerbebetrieb), GmbH oder UG; Kleinunternehmer; ohne Kleinunternehmer Ist- oder Soll-Versteuerung und ob du die Voranmeldung monatlich oder vierteljährlich abgibst; nur steuerfreie Umsätze ohne Vorsteuerabzug; mit Steuerberatung deren Kontenrahmen.
+- **Start in Haben:** Wer von einem anderen Programm wechselt, findet hier den Weg zum Umzug im Archiv.
+- **Bereiche:** ob du Angebote schreibst, Angestellte hast, Bargeld einnimmst, per Lastschrift einziehst und Anlagen oder Darlehen hast.
+
+Jede Frage hat „Weiß ich nicht“, und „Später“ überspringt alles; dann erinnert die Übersicht daran, bis du die Fragen beantwortest oder die Firmendaten speicherst. Die Antworten schreiben die vorhandenen Angaben der [Firmendaten](#firmendaten) und den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ab Januar des laufenden Jahres, mit denselben [Sperren](#wann-sich-die-einstellungen-ändern-lassen) wie dort. „Weiß ich nicht“ lässt die bisherige Angabe stehen, beim ersten Mal die Vorgabe (Einzelunternehmen, kein Kleinunternehmer). Bleiben Rechtsform oder Kleinunternehmer so offen, erinnert die Übersicht daran, bis du sie in den Fragen beantwortest oder die Firmendaten speicherst.
+
+Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die Fragen noch einmal mit den gespeicherten Antworten. Ändert sich dabei Rechtsform, Einkunftsart, Kleinunternehmer, Versteuerung, Voranmeldungszeitraum, Vorsteuerabzug oder Kontenrahmen, zeigt Haben die Änderungen vor dem Speichern. Passen nach einem Wechsel des Voranmeldungszeitraums Entwürfe von Voranmeldungen nicht mehr, nennt Haben sie danach; senden lassen sie sich nicht mehr.
+
+### Bereiche ausblenden
+
+Die Menüpunkte eines Bereichs, den du mit „Nein“ beantwortest, verschwinden aus dem Menü und aus den Seiten der [Schnellsuche](suche.md): Angebote; Personal mit Lohn und SV-Meldeportal; Kasse; Lastschriften; Anlagen und Darlehen. Mehr passiert nicht: Daten, Buchungen, Auswertungen, Treffer der Schnellsuche, API und direkte Links bleiben, wie sie sind. Unter **Einstellungen › Bereiche** schaltest du jeden Bereich mit einem Haken wieder ein oder aus. Rechnungen, Belege, Bank, Umsatzsteuer und Jahreserklärung stehen immer im Menü. Instanzen von vor dem Update zeigen alle Bereiche.
+
 ## Zugang für die Steuerberatung
 
 Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann: Auswertungen, Journal, Kontenblätter, Belege und Rechnungen ansehen, Dateien, DATEV-Export und Jahresarchiv herunterladen. Unter **Einstellungen › Sicherheit › Zugänge** erzeugst du einen Einladungslink, der einmal und 72 Stunden gilt; die Steuerberatung legt damit Passwort und Passkey selbst an. Sperren und Entfernen geht an derselben Stelle. Buchen, Festschreiben, Senden an ELSTER, Einstellungen, Zertifikat, Bankzugang und API-Tokens bleiben bei dir. Alles Weitere steht in [Zugang für die Steuerberatung](steuerberatung.md).
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Bereiche** ([Menüpunkte ein- und ausblenden](#bereiche-ausblenden)), **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
 
 Ebenfalls unten links wählst du **Farbe** und **Modus**: Wald (Grün, Standard), Ozean, Pflaume oder Graphit, jeweils hell, dunkel oder **System**, das der Einstellung deines Geräts folgt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jeder Farbe gleich.
 
@@ -125,7 +142,7 @@ Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](
 
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
-- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
+- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Stelle legst du unter [Logo und Blatt](#logo-und-blatt) fest. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
 - Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
@@ -149,7 +166,7 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 | --- | --- |
 | Schrift | IBM Plex Sans (ab Werk), IBM Plex Serif, Source Sans 3, Figtree, Fira Sans, Inter, Libre Franklin, Literata, Lora oder Nunito Sans; im PDF eingebettet, wie PDF/A es verlangt |
 | Logo S, M, L | Höchstens 12 × 40 mm, 18 × 60 mm (ab Werk) oder 24 × 80 mm; auch L endet über dem Anschriftfeld |
-| Logo links, rechts | Seite im Briefkopf |
+| Logo links, Mitte, rechts | Stelle im Briefkopf; „Mitte“ steht mittig auf dem Blatt. Ein eigenes Layout, das nur `look.logoLeft` kennt, setzt es bei „Mitte“ rechts |
 | Falz- und Lochmarken | Striche am linken Rand für den Fensterumschlag nach DIN 5008 |
 | GiroCode | QR-Code für die Überweisung, auf Rechnung und Mahnung |
 | Kundennummer | Nur auf dem Blatt; das XML der E-Rechnung nennt sie weiter |
@@ -192,7 +209,7 @@ Verwendet ein eigenes Layout eine Einstellung der Gestaltung nicht, etwa den Gir
 
 Unter **Einstellungen › Persönliche Angaben** stehen die Angaben zu dir als Person, die ELSTER für manche Vorgänge braucht: Anrede, steuerliche Identifikationsnummer (Steuer-ID), Vor- und Nachname, Geburtsdatum, Religion und ausgeübter Beruf. Bei der Zusammenveranlagung kommen das Heiratsdatum und dieselben Angaben zum Ehegatten dazu.
 
-Gebraucht werden sie für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern) und die Einkommensteuererklärung. Bei GmbH und UG fehlen Veranlagung und Ehegatte; die Angaben zur Person braucht ELSTER dort für Nachrichten, Postfach und Bankverbindung. Haben prüft die Prüfziffer der Steuer-ID. Die Religion bestimmt, ob Kirchensteuer anfällt; Haben nutzt die Religionsschlüssel von ELSTER. Änderungen landen wie die Firmendaten im Audit-Log.
+Gebraucht werden sie für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern) und die Einkommensteuererklärung. Bei GmbH und UG fehlen Veranlagung und Ehegatte; die Angaben zur Person braucht ELSTER dort für Nachrichten, Postfach und Bankverbindung. Haben prüft die Prüfziffer der Steuer-ID. Die Religion bestimmt, ob Kirchensteuer anfällt; Haben nutzt die Religionsschlüssel von ELSTER. Im Einzelunternehmen erscheint darunter, sobald die Angaben stehen, das Kästchen „Keine Einkommensteuer-Vorauszahlungen festgesetzt“: Wer keine zahlt, schaltet damit die Quartalshinweise im [Fristenkalender](fristen.md) ab. Änderungen landen wie die Firmendaten im Audit-Log.
 
 ## Rechtsform: Einzelunternehmen, GmbH oder UG
 
@@ -270,7 +287,7 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 
 | Bereich | Wirkung |
 | --- | --- |
-| Rechnungen | Vorgabe ist „Kleinunternehmer nach § 19 UStG“ mit 0 % und dem entsprechenden Hinweis. Eigene Steuerbefreiungen nach § 4 Nr. 14 Buchst. a oder Nr. 21 und bestätigte Auslandsleistungen lassen sich gesondert zuordnen; eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Dieselbe Auswahl gilt für Angebote und wiederkehrende Rechnungen. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
+| Rechnungen | Vorgabe ist „Kleinunternehmer: ohne Umsatzsteuer“ mit 0 % und dem entsprechenden Hinweis. Eigene Steuerbefreiungen nach § 4 Nr. 14 Buchst. a oder Nr. 21 und bestätigte Auslandsleistungen lassen sich gesondert zuordnen; eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Dieselbe Auswahl gilt für Angebote und wiederkehrende Rechnungen. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
 | Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#ohne-vorsteuerabzug). |
 | Voranmeldung | Die Seite weist darauf hin, dass du in der Regel keine Voranmeldung abgibst. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). |
 | Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |
@@ -303,7 +320,7 @@ Mehr unter [Rechnungen › Mahnwesen](rechnungen-zahlung.md#mahnwesen).
 
 ## Privatanteile
 
-Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).
+Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Die Felder nehmen ganze Prozent von 0 bis 100, auch mit „%“; leer oder 0 heißt kein Privatanteil. Anderes melden sie am Feld, und gespeichert wird nichts. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).
 
 ## Fremdwährung
 
@@ -354,14 +371,16 @@ Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im 
 - Die Verprobung: Jede Steuer braucht ihre Bemessungsgrundlage. Genau das fehlt älteren Buchungen ohne Steuerschlüssel oder ohne Bemessungsgrundlage an der Zahlung.
 - Gesendete [Zusammenfassende Meldungen](umsatzsteuer.md#zusammenfassende-meldung) gegen Kz 21 und 41 des Quartals aus dem Journal.
 - Rechnung und Vorgang gegen ihre Buchung.
-- Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Abschlusszahlung, bei neueren Vermerken jede damals gerechnete Zahl.
+- Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Steuer, bei neueren Vermerken jede damals gerechnete Zahl.
+
+Belege mit § 13b oder innergemeinschaftlichem Erwerb, die vor Version 0.7.0 gebucht wurden, tragen im Journal die Steuer ohne Vorsteuerabzug in derselben Aufwandszeile wie das Netto bzw. das private Netto ohne Steuerschlüssel auf den Entnahmen. Für Kz 46, 84, 89 und 93 und die Verprobung rechnet Haben bei Buchungen, die vor dem Update angelegt wurden, und ihren Stornos die Bemessungsgrundlage so, wie eine heutige Buchung sie trüge; die gebuchten Zeilen bleiben unverändert ([#1396](https://github.com/firsttris/haben/issues/1396)). Nur Erwerb zu 19 % und 7 % auf einem Beleg mit Privatanteil bleibt, wie gebucht.
 
 Offene Zeiträume und nicht abgegebene Jahreserklärungen rechnen ohne Vergleich aus dem Journal. Stimmt alles, ändert sich nichts, was beim Finanzamt ist, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
 
 **Bei einer Abweichung startet Haben nicht.** Im Log stehen Jahr, Zeitraum und Befund mit beiden Beträgen. Buchungen, Anmeldungen und Firmendaten bleiben unverändert, die bisherige Version läuft auf derselben Datenbank weiter. Meist fehlen älteren Buchungen Steuerschlüssel oder Bemessungsgrundlage. Dann gibt es zwei Wege:
 
 - **Auf der bisherigen Version bleiben**, bis das Jahr erklärt ist: das [Image](installation.md#image) auf die letzte Version vor dem Update festsetzen (`tristanteu/haben:x.y.z` statt `:latest`; die Version nennt die Release-Notiz). Eine Berichtigung eines solchen Jahres geht nur mit dieser Version.
-- **Die Abweichung übernehmen:** `HABEN_ABWEICHUNG_UEBERNEHMEN=2026` setzen (mehrere Jahre mit Komma) und neu starten. Gesendete Voranmeldungen bleiben, wie sie gesendet sind; alles Offene rechnet aus dem Journal. Die Befunde stehen im Änderungsprotokoll; der [Abgleich](buchhaltung.md#abgleich-im-journal) meldet genau diese nicht wieder, jede neue Abweichung schon. Kläre das vorher mit deiner Steuerberatung: Ergibt das Journal für ein gemeldetes Jahr etwas anderes als die Meldung, prüfe, ob die damals gemeldeten Werte unrichtig waren. Kann es dadurch zu einer Verkürzung von Steuern kommen oder ist es dazu gekommen und läuft die Festsetzungsfrist noch, ist das unverzüglich anzuzeigen und die Voranmeldung bzw. Erklärung zu berichtigen ([§ 153 Abs. 1 Satz 1 Nr. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html)).
+- **Die Abweichung übernehmen:** `HABEN_ABWEICHUNG_UEBERNEHMEN=2026` setzen (mehrere Jahre mit Komma) und neu starten. Gesendete Voranmeldungen bleiben, wie sie gesendet sind; alles Offene rechnet aus dem Journal. Die Befunde stehen im Änderungsprotokoll; der [Abgleich](buchhaltung.md#abgleich-im-journal) meldet genau diese nicht wieder, jede neue Abweichung schon. Eine [berichtigte Voranmeldung](umsatzsteuer.md#berichtigte-anmeldung) in einem übernommenen Jahr beginnt mit den gesendeten Werten, nicht mit dem Journal. Kläre das vorher mit deiner Steuerberatung: Ergibt das Journal für ein gemeldetes Jahr etwas anderes als die Meldung, prüfe, ob die damals gemeldeten Werte unrichtig waren. Kann es dadurch zu einer Verkürzung von Steuern kommen oder ist es dazu gekommen und läuft die Festsetzungsfrist noch, ist das unverzüglich anzuzeigen und die Voranmeldung bzw. Erklärung zu berichtigen ([§ 153 Abs. 1 Satz 1 Nr. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html)).
 
 ## Rechnungsnummern
 
@@ -460,7 +479,15 @@ Es gilt immer genau ein Dienst: Ist `EXTRACTION_BASE_URL` gesetzt, gehen Belege 
 Läuft Haben mit Docker Compose und Ollama auf demselben Server:
 
 1. Ollama installieren, so einstellen, dass es für Container erreichbar ist (`OLLAMA_HOST=0.0.0.0:11434`, Port per Firewall nur für den Server freigeben), und ein Vision-Modell laden: `ollama pull qwen2.5vl:7b`.
-2. In `compose.yml` beim Dienst `app` die Zeilen `extra_hosts` mit `host.docker.internal:host-gateway` einkommentieren. Unter Linux kennt der Container `host.docker.internal` sonst nicht; Docker Desktop braucht das nicht.
+2. Unter Linux kennt der Container `host.docker.internal` nur mit `extra_hosts`; Docker Desktop braucht das nicht. Die Zeilen gehören in [`compose.override.yml`](installation.md#docker-compose); der [Compose-Generator](compose-generator.md) erzeugt sie mit „Lokales Modell auf dem Server“. Gibt es die Datei schon, kommen sie unter den vorhandenen Dienst `app`:
+
+    ```yaml
+    services:
+      app:
+        extra_hosts:
+          - host.docker.internal:host-gateway
+    ```
+
 3. In `.env` eintragen:
 
     ```sh
@@ -492,7 +519,7 @@ Der Beleg geht dann an OpenRouter und an den Anbieter des Modells. Wie lange sie
 
 ## Bankkonten
 
-Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
+Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking oder FinTS legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking) und [Kontoabruf über FinTS](installation-anbindungen.md#kontoabruf-über-fints), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
 
 1. Auf der Seite **Bank** „Konto hinzufügen“ wählen.
 2. Name (z. B. „N26 Business“) und IBAN eintragen und „Konto anlegen“.

@@ -117,8 +117,8 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | --- | --- |
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
-| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) |
-| `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)) |
+| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) und den [Compose-Generator](compose-generator.md) |
+| `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung, Dateigröße und 4px-Raster ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bunx knip@5.88.1 --include files,dependencies,unlisted` | Unbenutzte Dateien und Abhängigkeiten (Einstiegspunkte in `knip.jsonc`); nicht in der CI, vor dem Löschen mit `git grep` gegenprüfen |
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
@@ -158,6 +158,16 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`, son
 > [!IMPORTANT]
 > `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
 
+Neue Tests des sevDesk-Umzugs nehmen `sevdeskFakeFetch` (`apps/web/src/server/modules/archiv/test-sevdesk-api.ts`) und beantworten nur die Pfade, auf die es ihnen ankommt; den Rest beantwortet es wie ein leeres Konto in Buchhaltungsversion 1.0. Ein neuer Abrufschritt, der kein leeres Ergebnis verträgt, etwa `/AccountingType/{id}`, bekommt seine Grundantwort dort und nicht in jedem einzelnen Test.
+
+Vitest setzt für jeden Lauf `TMPDIR` auf einen eigenen Ordner `haben-test-<PID>-…` und löscht ihn am Ende; was Tests mit `tmpdir()` anlegen, verschwindet mit. Den Ordner eines abgebrochenen Laufs löscht ein späterer Lauf bei seinem Start, wenn der Prozess des abgebrochenen nicht mehr läuft.
+
+Ältere Versionen ließen ihre Temp-Ordner direkt in `$TMPDIR` liegen. Einmalig löschen, wenn gerade kein Testlauf läuft, auch keiner in einem anderen Worktree:
+
+```sh
+find "${TMPDIR:-${TMP:-${TEMP:-/tmp}}}" -mindepth 1 -maxdepth 1 -type d \( -name 'haben-belege-*' -o -name 'haben-migration*' -o -name 'haben-mandate-*' -o -name 'haben-trigger-*' -o -name 'haben-firmendaten-migration-*' -o -name 'eric-test-*' -o -name 'eric-review-*' \) -exec rm -rf {} +
+```
+
 Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
 
 | Fehlt | Folge | Im Dev-Container | In der CI |
@@ -188,7 +198,7 @@ ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben
 bun packages/elster/src/check-formats-cli.ts   # Belegabruf, Berechtigung, Postfach; auch als Knopf unter Einstellungen › ELSTER › ERiC
 ```
 
-Ohne Linux x86_64 (arm64) laufen die Tests mit `ERIC_WORKER_COMMAND` wie unter [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64); emuliert dauert ein Aufruf rund 25 Sekunden, alle Dateien zusammen rund 40 Minuten. Die Test-Hersteller-ID `74931` sperrt ERiC seit 39.4 auch für die lokale Prüfung; die Tests nehmen `ELSTER_HERSTELLER_ID` oder eine Platzhalter-ID.
+Ohne Linux x86_64 (arm64) laufen die Tests mit `ERIC_WORKER_COMMAND` wie unter [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64); emuliert dauert ein Aufruf rund 25 Sekunden, alle Dateien zusammen rund 40 Minuten. Die Test-Hersteller-ID `74931` sperrt ERiC seit 39.4 auch für die lokale Prüfung (Entwicklerhandbuch, Kap. 10.1.1); die Tests nehmen `ELSTER_HERSTELLER_ID` oder eine Platzhalter-ID.
 
 ### Schemas der SEPA-Überweisung und -Lastschrift
 
@@ -224,7 +234,7 @@ bun run e2e barrierefreiheit  # eine Datei
 
 Playwright startet selbst die Server ab Port 3100 (`E2E_PORT`), leert vorher die Datenbanken und spielt die Migrationen ein; lokal ist das der Entwicklungsserver, in der CI der gebaute (`E2E_SERVER_COMMAND`). Die Datenbanken der eigenen Durchläufe legt `e2e/reset-db.ts` neben der genannten an; dafür braucht der Benutzer `CREATEDB`. Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`, oder ein vorhandenes über `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-Für den vollständigen Browserlauf mit getrennten App-Rollen braucht die eigene Testinstanz `max_connections=250`; die CI setzt dies bei der Initialisierung. Die parallelen Server und zusätzliche Server für Beenden und verzögerte Anfragen überschreiten das Standardlimit von 100 Verbindungen. Diese Einstellung betrifft nur die Testdatenbank.
+Für den vollständigen Browserlauf mit getrennten App-Rollen braucht die eigene Testinstanz `max_connections=400`; die CI setzt dies bei der Initialisierung. Jeder Durchlauf startet einen eigenen Server mit bis zu elf Verbindungen (Pool und Sperre), dazu kommen zusätzliche Server für Beenden und verzögerte Anfragen. Diese Einstellung betrifft nur die Testdatenbank.
 
 Die Tests sind auf Projekte in `apps/web/playwright.config.ts` verteilt; was eine Datei prüft, steht in ihrem Kopf:
 
@@ -283,10 +293,14 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 
 ## Konventionen
 
-- **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
+- **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um. Eingegebene Beträge liest `parseEuro`, in Formularen, Schnellsuche und CSV-Import; einen ungültigen meldet `amountError`. Kontoauszüge und Exporte anderer Programme lesen die Parser in `packages/import` nach deren Format.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln** (`Millis`): 152 Stunden = 152000, 0,5 Tage = 500.
-- **Einheit im Typ:** `Cents`, `BasisPoints` und `Millis` tragen ihre Einheit (`packages/core/src/einheit.ts`, #1132), verschiedene Einheiten passen nicht zueinander. Spalten für Beträge, Sätze und Mengen tragen sie in `apps/web/src/server/db/schema.ts` mit `.$type<Cents>()`, `.$type<BasisPoints>()` oder `.$type<Millis>()`, Felder in JSON-Spalten mit denselben Typen; eine Migration entsteht dadurch nicht. Basispunkte als Text gehen nicht über `parseEuro` und `formatDecimal`, die nur Cent kennen, sondern über `parsePercent` und `formatPercent` oder, ohne `%` und auch negativ, über `parseHundredths` und `formatHundredths`. In den Importen gilt das auch für `parseGermanAmount`; für einen Satz in derselben Schreibweise („19,00“) gibt es `parseGermanRate`.
+- **Privatanteil, Hebesatz und Kirchensteuersatz der Ausschüttung in ganzen Prozent** (`Prozent`): 20 = 20 %; bei Basispunkten ist 100 = 1 %.
+- **Einheit im Typ:** `Cents`, `BasisPoints`, `Millis` und `Prozent` tragen ihre Einheit (`packages/core/src/einheit.ts`, #1132), verschiedene Einheiten passen nicht zueinander. Eine schlichte Zahl passt weiter, auch ohne `as`. `as Cents` deutet dagegen auch eine andere Einheit um; `bun run lint` meldet es für alle vier.
+    - Spalten für Beträge, Sätze und Mengen tragen sie in `apps/web/src/server/db/schema.ts` mit `.$type<Cents>()`, `.$type<BasisPoints>()`, `.$type<Millis>()` oder `.$type<Prozent>()`, Felder in JSON-Spalten mit denselben Typen; eine Migration entsteht dadurch nicht.
+    - Zod-Schemas bekommen sie über `inCents`, `inBasisPoints`, `inMillis` und `inProzent` (`packages/core/src/einheit-schema.ts`): `inCents(z.number().int().min(0)).nullable()`; Prüfung, Meldungen und JSON-Schema bleiben gleich.
+    - Basispunkte gehen nicht über `parseEuro` und `formatDecimal`, die nur Cent kennen: Prozentfelder lesen über `parsePercent` (mit `negative` auch negativ) oder für ganze Prozent über `parseWholePercent`; angezeigt wird mit `formatPercent` oder, ohne `%`, mit `formatHundredths`. In den Importen gilt das auch für `parseGermanAmount`; für einen Satz in derselben Schreibweise („19,00“) gibt es `parseGermanRate`.
 - **Daten der Belegvorlagen:** Jedes Feld, das eine Vorlage bekommt, steht mit Beschreibung im Feldvertrag (`packages/einvoice/src/layout-schema.ts`). Danach schreibt `bun scripts/feldvertrag/schreiben.ts` den Skill `belegvorlage` und die Feldtabellen in [Eigene Belegvorlagen](belegvorlagen.md) neu. Felder kommen nur dazu: Wegfallen, umbenennen oder den Typ wechseln darf keines einer veröffentlichten Version, sonst brechen eigene Layouts. Steigt `LAYOUT_SCHEMA_VERSION`, friert `bun scripts/feldvertrag/einfrieren.ts` den neuen Stand einmal als `layout-schema.v<n>.json` ein; eine vorhandene Datei überschreibt es nie.
 - **Formatierung mit Biome:** `bun run format` formatiert JavaScript, TypeScript und JSON (160 Zeichen breit, doppelte Anführungszeichen); `bun run lint` und die CI prüfen das. CSS und Markdown formatiert Biome nicht. Reine Formatier-Commits stehen in `.git-blame-ignore-revs`; damit `git blame` sie lokal überspringt, einmal `git config blame.ignoreRevsFile .git-blame-ignore-revs` und `git config blame.markIgnoredLines true`.
 - **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.
@@ -307,7 +321,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 - **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf.
 - **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Ein Modul importiert nur Module, die in `scripts/modulgrenzen/schichten.ts` vor ihm stehen. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
-- **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). Kontenrahmen: SKR03 und SKR04 von DATEV in dem Stand, den `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` nennt (Kontonummer, Bezeichnung, Funktion); DATEV entscheidet nur über Format und Kontenrahmen. Widerspricht eine Kontenfunktion dem Gesetz, einer ELSTER-Kennzahl oder der Taxonomie der E-Bilanz, gilt die Norm. [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/).
+- **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). Kontenrahmen: SKR03 und SKR04 von DATEV in dem Stand, den `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` nennt (Kontonummer, Bezeichnung, Funktion); DATEV entscheidet nur über Format und Kontenrahmen. Widerspricht eine Kontenfunktion dem Gesetz, einer ELSTER-Kennzahl oder der Taxonomie der E-Bilanz, gilt die Norm. [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/). FinTS: die [Spezifikation FinTS 3.0](https://www.fints.org/de/spezifikation) der Deutschen Kreditwirtschaft (Formals, PIN/TAN, Messages).
 - **Umzüge: Unsicheres gibt eine Person frei.** Was aus der Quelle nicht eindeutig folgt, bleibt sichtbar offen („unklar“, „zu prüfen“), bis eine Person entscheidet; die Entscheidung wird mit Name und Zeit protokolliert, etwa die Kontoart einer Gutschrift von Hand ([#888](https://github.com/firsttris/haben/issues/888)) oder „ohne Datei“ bestätigt ([#345](https://github.com/firsttris/haben/issues/345)). Haben trägt keine Bestätigung ein, die niemand gegeben hat, und ändert sich die Quelle danach, gilt sie nicht automatisch weiter. Was eindeutig und belegt aus der Quelle folgt, übernimmt Haben ohne Rückfrage.
 - **Browser-Skripte für den Umzug** (`apps/web/public/lexware-sicherung.js`, `fastbill-belege.js`): Sie holen nur die eigenen Daten der Person, wo die dokumentierte Schnittstelle sie nicht hergibt, und bleiben dabei auf der sicheren Seite ([Darf ich das?](lexoffice.md#darf-ich-das)). Sie laufen nur im angemeldeten Browser der Person, rufen nur lesend die Adressen auf, die die Web-Oberfläche selbst abfragt, mit Pausen, und schicken nichts an Haben oder Dritte; das Ergebnis ist ein Download. Sie enthalten keinen Code des Anbieters und umgehen keinen Schutz: keine Captchas, keine Umgehung von Rate-Limits, keine Sitzungstoken auf den Server. Gibt es eine dokumentierte Schnittstelle, ist sie der erste Weg. Marken der Anbieter nur als Name, keine Logos.
 - **Neue Systemkonten:** Bei neuen Kategorien oder Kontenfunktionen prüfen, dass `reservedAccountNumbers` (`packages/core/src/own-accounts.ts`) die Nummern erfasst. Eine beim Anlegen freie Nummer kann bereits in `own_accounts` stehen, auch archiviert oder in einem früheren Kontenrahmen. „Kette prüfen“ meldet solche [Kontenkollisionen](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel). Bestehende Kontenzuordnungen und Buchungszeilen nicht automatisch umdeuten oder umschreiben; dafür braucht es einen gesondert abgestimmten Umgang mit dem Bestand.
@@ -324,7 +338,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
-| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Accountable-Export (`accountable/`), WISO-Buchungs-CSV (`wiso/`), Finanzberichte von Google Play und App Store Connect (`stores/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
+| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Accountable-Export (`accountable/`), WISO-Buchungs-CSV (`wiso/`), Finanzberichte von Google Play und App Store Connect (`stores/`), Kontoabruf über Enable Banking und FinTS (`fints/`), CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`), Spaltenzuordnung für Kontoauszüge unbekannter Banken (`bank-zuordnung/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
 | `apps/firmenportal` | Firmenportal über den Instanzen (#504): Anmeldung per SSO, Links auf die Firmen der Person, ohne Datenbank (Bun, HTML auf dem Server); `deploy/firmenportal`: Compose-Vorlage |
@@ -333,7 +347,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 
 ## Neues Bankformat
 
-Die Parser liegen in `packages/import/src/`.
+Die Parser liegen in `packages/import/src/`. Ohne eigenen Parser liest Haben eine CSV über die [Spaltenzuordnung](bank-spaltenzuordnung.md) (`bank-zuordnung/`); ein eigener Parser lohnt sich für verbreitete Banken und für alles, was eine Zuordnung nicht kann: eigene IBAN und Kontostand aus dem Kopfblock, Referenzen aus einem Buchungstext.
 
 1. Eigene Datei anlegen, z. B. `meinebank.ts`, mit einer Erkennungsfunktion für die Kopfzeile (`isMeinebankHeader`) und einem Parser, der ein `ParsedStatement` liefert. `dkb.ts` und `n26.ts` sind gute Vorlagen; Hilfen für Beträge, Datum und IBAN stehen in `text.ts`, `table.ts` und `common.ts`.
 2. Das Format in `StatementFormat` in `types.ts` ergänzen.

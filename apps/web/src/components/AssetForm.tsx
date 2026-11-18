@@ -1,4 +1,5 @@
 import {
+  amountError,
   ASSET_KINDS,
   ASSET_METHODS,
   CAR_DRIVES,
@@ -20,7 +21,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
-import { AssetMethodOptions, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
+import { AssetMethodOptions, hasMethodHint, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
 import { Field } from "./Field.tsx";
 
 export interface AssetFormValues {
@@ -41,7 +42,8 @@ export interface AssetFormValues {
   note: string;
 }
 
-const RATE_LABELS: Record<PrivateUseRate, string> = { 100: "1 %", 50: "0,5 %", 25: "0,25 %" };
+// Schlüssel als Literale: PrivateUseRate trägt die Einheit Basispunkte und taugt deshalb nicht als Schlüssel eines Record
+const RATE_LABELS: Record<100 | 50 | 25, string> = { 100: "1 %", 50: "0,5 %", 25: "0,25 %" };
 
 /**
  * Formular für eine Anlage. `locked` sperrt die Berechnungsgrundlagen (gebucht oder aus einem Beleg),
@@ -140,13 +142,13 @@ export function AssetForm({
   const { form, error, check } = useSubmitCheck({
     name: name.trim() === "" ? "Trag eine Bezeichnung ein." : null,
     acquisitionDate: acquisitionDate ? null : "Wähle das Anschaffungsdatum.",
-    cost: parsedCost !== null && parsedCost > 0 ? null : "Trag die Anschaffungskosten netto ein, etwa 1.200,00.",
+    cost: parsedCost !== null && parsedCost > 0 ? null : amountError("die Anschaffungskosten netto", 120_000),
     years: lifeValid ? null : "Trag die Nutzungsdauer in Jahren ein, etwa 3 oder 2,5.",
     rate: method !== "degressiv" ? null : Number.isNaN(parsedRate) ? "Trag den Satz als Zahl ein, etwa 20 oder 23,07." : rateAboveMax,
     linearFrom: method === "degressiv" && Number.isNaN(parsedLinearFrom) ? "Trag das Jahr vierstellig ein, etwa 2027." : null,
     openingDate: showOpening && !openingDate ? "Wähle den Übernahmestichtag." : null,
-    opening: showOpening && (parsedOpening === null || parsedOpening < 0) ? "Trag den Restbuchwert ein, etwa 850,00." : null,
-    listPrice: privateUseValid ? null : "Trag den Bruttolistenpreis ein, etwa 45.000,00.",
+    opening: showOpening && (parsedOpening === null || parsedOpening < 0) ? amountError("den Restbuchwert", 85_000) : null,
+    listPrice: privateUseValid ? null : amountError("den Bruttolistenpreis", 4_500_000),
   });
 
   function submit(event: FormEvent) {
@@ -212,8 +214,12 @@ export function AssetForm({
 
       <section className="form-section" aria-labelledby="asset-depreciation">
         <h3 id="asset-depreciation">Abschreibung</h3>
+        <p id="asset-depreciation-hint" className="field-hint">
+          Die Kosten einer Anlage verteilst du auf mehrere Jahre; nur bei GWG und bei Computern und Software setzt du sie im Jahr des Kaufs ganz ab (Fachwort:
+          AfA, Absetzung für Abnutzung).
+        </p>
         <div className="form-row cols-2">
-          <Field label="Abschreibung">
+          <Field label="Abschreibung" describedBy={hasMethodHint(method) ? "asset-depreciation-hint method-hint" : "asset-depreciation-hint"}>
             {(control) => (
               <select {...control} value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
                 {Object.entries(ASSET_METHODS)

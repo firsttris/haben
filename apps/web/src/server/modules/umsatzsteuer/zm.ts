@@ -5,6 +5,7 @@ import {
   monthsOfPeriod,
   normalizeUstId,
   periodKey,
+  ustIdAufbauProblem,
   ustIdProblem,
   zmBerichtigung,
   zmEuro,
@@ -112,7 +113,7 @@ async function kennzahlGesendet(period: VatPeriod, kz: "kz21" | "kz41", q: Db | 
 }
 
 /**
- * Vorprüfung: eigene USt-IdNr. und Anschrift, die USt-IdNr. jedes Kunden wie ERiC sie prüft, und der Abgleich mit Kz 21
+ * Vorprüfung: eigene USt-IdNr. und Anschrift, die USt-IdNr. jedes Kunden wie ERiC sie prüft und nach dem Aufbau je Land, und der Abgleich mit Kz 21
  * (sonstige Leistungen) und Kz 41 (Lieferungen) der gesendeten Voranmeldungen. Die Kennzahlen werden je Voranmeldung auf
  * volle Euro abgeschnitten, die Meldung je Zeile; bis zu einem Euro je Zeile und Voranmeldung ist deshalb Rundung.
  */
@@ -137,10 +138,12 @@ export function zmIssues(input: {
   const gemeldeteIds = new Set(input.zeilen.map((z) => z.ustId));
   const seen = new Set<string>();
   for (const quelle of input.quellen.filter((q) => gemeldeteIds.has(q.ustId))) {
-    const problem = ustIdProblem(quelle.ustId, quelle.art);
+    // Was ERiC abweist, sperrt; ein falscher Aufbau je Land (#1413) nur als Warnung, die Rechnung ist festgeschrieben
+    const fehler = ustIdProblem(quelle.ustId, quelle.art);
+    const problem = fehler ?? ustIdAufbauProblem(quelle.ustId);
     if (!problem || seen.has(`${quelle.invoiceId} ${problem}`)) continue;
     seen.add(`${quelle.invoiceId} ${problem}`);
-    issues.push({ tone: "error", text: `Rechnung ${quelle.number} an ${quelle.customer}: ${problem}.` });
+    issues.push({ tone: fehler ? "error" : "warn", text: `Rechnung ${quelle.number} an ${quelle.customer}: ${problem}.` });
   }
   const gemeldet = input.zeilen.filter((z) => z.art === "S").reduce((s, z) => s + zmEuro(z.betrag), 0);
   if (input.kz21 === null) {

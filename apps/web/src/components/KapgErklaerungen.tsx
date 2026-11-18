@@ -2,6 +2,7 @@ import { formatEuro, parseEuro } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
+import { anteilText, parseAnteil } from "../lib/anteil.ts";
 import { elsterNotice } from "../lib/elster.ts";
 import { useAction } from "../lib/use-action.ts";
 import { type getAnnualReturns, saveKapgErklaerung, submitKapgReturn } from "../server/functions/annual.ts";
@@ -25,6 +26,7 @@ type Hinweis = Kapg["kst"]["issues"][number];
 const LINK_LABEL = { "/einstellungen": "Zu den Einstellungen", "/abschluss": "Zum Jahresabschluss" } as const;
 const euro = (cents: number) => formatEuro(cents).replace(/\s*€$/, "");
 const ganzeEuro = (euros: number) => formatEuro(euros * 100);
+const ANGABEN_FEHLER = "Beträge als Euro (z. B. 25.000,00) und Anteile über 0 bis 100 % mit höchstens zwei Nachkommastellen (z. B. 50 oder 33,33) eingeben.";
 
 /** Hinweise einer Erklärung: je Ton ein Kasten, mehrere als Liste darin, statt eines Kastens je Hinweis */
 function Hinweise({ issues }: { issues: Hinweis[] }) {
@@ -212,13 +214,6 @@ export function GewstSection({ data }: { data: Data }) {
   );
 }
 
-/** Anteil als Text: 10000 → "100", 3333 → "33,33" */
-const anteilText = (anteil: number) => (anteil / 100).toLocaleString("de-DE", { maximumFractionDigits: 2 });
-function parseAnteil(text: string): number | null {
-  const n = Number(text.trim().replace(",", "."));
-  return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 100) : null;
-}
-
 type Person = {
   name: string;
   strasse: string;
@@ -284,7 +279,7 @@ export function KapgAngaben({ data }: { data: Data }) {
       anteilseigner.some((p) => p.beteiligung === null || p.anteil === null) ||
       vertragsliste.some((v) => v.verguetung === null)
     ) {
-      setNotice({ tone: "danger", text: "Beträge als Euro (z. B. 25.000,00) und Anteile in Prozent (z. B. 50) eingeben." });
+      setNotice({ tone: "danger", text: ANGABEN_FEHLER });
       return;
     }
     void run(async () => {

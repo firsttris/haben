@@ -1,13 +1,13 @@
 ---
-title: "Leistungen und Zeiteinträge erfassen"
+title: "Zeiteinträge erfassen"
 description: >-
   Zeiteinträge je Kunde mit Stundensatz erfassen, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über
   die REST-API, als Grundlage für die Rechnung.
 ---
 
-# Leistungen
+# Zeiteinträge
 
-Unter **Leistungen** erfasst du abrechenbare Zeit je Kunde: Arbeitstag, Dauer, Tätigkeit und Stundensatz. Wer nach Stunden abrechnet, hat die Zeiten dort, wo auch die Rechnung entsteht, und muss sie nicht aus einem anderen Programm abtippen. Eine Zeiterfassung wie Kimai oder Toggl schickt ihre Einträge über die [REST-API](api.md#leistungen-und-zeiterfassung) an Haben.
+Unter **Zeiteinträge** erfasst du abrechenbare Zeit je Kunde: Arbeitstag, Dauer, Tätigkeit und Stundensatz. Wer nach Stunden abrechnet, hat die Zeiten dort, wo auch die Rechnung entsteht, und muss sie nicht aus einem anderen Programm abtippen. Eine Zeiterfassung wie Kimai oder Toggl schickt ihre Einträge über die [REST-API](api.md#leistungen-und-zeiterfassung) an Haben. In der API und in der Adresse heißen sie `leistungen`.
 
 Eine Buchung entsteht aus einem Eintrag nicht: Er ist die Grundlage, aus der die Rechnung wird ([Abrechnen](#abrechnen)). Gebucht wird wie immer erst, wenn du die Rechnung festschreibst.
 
@@ -63,6 +63,7 @@ Die Einzelaufstellung (Tag, Dauer, Tätigkeit) steht noch nicht auf der Rechnung
 
 - Ein Eintrag auf einer Rechnung ist mit ihr verknüpft; in der Liste steht die Rechnungsnummer (bzw. „Rechnungsentwurf“) als Link. Er lässt sich nicht noch einmal abrechnen, auch nicht, wenn zwei Abrechnungen gleichzeitig laufen.
 - Solange die Rechnung ein **Entwurf** ist, lässt sich der Eintrag nicht ändern oder löschen. **Lösche den Entwurf**, dann ist er wieder offen.
+- Der Entwurf bleibt beim Kunden der Einträge: Einen anderen Kunden lehnt Haben beim Speichern ab, und festschreiben lässt er sich nur, wenn alle Einträge dem Kunden der Rechnung gehören. Für einen anderen Kunden den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen.
 - Mit der **festgeschriebenen** Rechnung ist er gesperrt: Dauer, Satz, Kunde, Tag, Text und die Verknüpfung ändern sich nicht mehr, auch nicht über die API.
 - Ein **Storno** der Rechnung macht die Einträge wieder offen und änderbar; sie lassen sich auf eine neue Rechnung abrechnen. Eine **Korrektur** gibt sie nicht frei.
 - Eine Zeiterfassung, die einen schon abgerechneten Eintrag erneut schickt, ändert ihn nicht und bekommt trotzdem `200`.

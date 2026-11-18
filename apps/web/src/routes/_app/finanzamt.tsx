@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { formatDecimal, formatEuro, gewinnAusPrognose, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -186,8 +186,14 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
           <tbody>
             <tr>
               <th scope="row">Hochgerechneter Gewinn</th>
-              <td className="num">{formatEuro(p.gesamtbetragEinkuenfte - p.einkuenfteArbeit)}</td>
+              <td className="num">{formatEuro(gewinnAusPrognose(p))}</td>
             </tr>
+            {p.erstattungsueberhang > 0 && (
+              <tr>
+                <th scope="row">Erstattungsüberhang (§ 10 Abs. 4b Satz 3 EStG)</th>
+                <td className="num">{formatEuro(p.erstattungsueberhang)}</td>
+              </tr>
+            )}
             {p.einkuenfteArbeit !== 0 && (
               <tr>
                 <th scope="row">Arbeitslohn nach Werbungskosten</th>
@@ -238,6 +244,7 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
             : b.angabenAus < b.year
               ? `Abzüge aus deinen Angaben zur Einkommensteuer ${b.angabenAus}. `
               : ""}
+          {b.priorBenefitsOmitted && `Einkommensersatzleistungen aus ${b.angabenAus} sind in dieser Schätzung für ${b.year} nicht enthalten. `}
           Grundlage sind der Gewinn aus der Buchhaltung und der Arbeitslohn aus deinen Angaben; Vermietung und Kapitalerträge fehlen. Eine Schätzung, keine
           Steuerberechnung.{" "}
           <Link to="/jahreserklaerung/$jahr" params={{ jahr: String(b.year) }}>
@@ -586,6 +593,11 @@ function Postfach({ data }: { data: Data }) {
               ))}
             </tbody>
           </ScrollTable>
+        )}
+        {data.documents.length > 0 && (
+          <p className="small muted" style={{ margin: 0 }}>
+            Bis zum Datum unter „Einspruch bis“ kannst du Einspruch einlegen.
+          </p>
         )}
       </section>
       <form ref={form} className="card" onSubmit={onSubmit} aria-label="Postfach abrufen" noValidate>

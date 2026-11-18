@@ -27,3 +27,12 @@ describe("Euro-Hinweis im Einkommensteuer-Formular (#871)", () => {
     expect(hinter.slice(0, hinter.indexOf("</form>"))).not.toContain("Beträge in Euro");
   });
 });
+
+describe("Bestätigungsdialog vor dem Senden einer Jahreserklärung (#1253)", () => {
+  it("nennt das Ergebnis der Erklärung unter den Fakten, wie die Voranmeldung die Zahllast", () => {
+    const fakten = quelle.slice(stelle("confirmFacts={["));
+    expect(fakten.slice(0, fakten.indexOf("]}"))).toContain("...(ergebnis ? [ergebnis] : [])");
+    // dieselbe Zahl wie die Tabelle: UstSummen zeigt anzeige.abschluss (mit Vermerk der erklärte Betrag)
+    expect(quelle).toContain('jahresergebnisFakt(form, form === "ust" ? data.ust.anzeige.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn)');
+  });
+});
