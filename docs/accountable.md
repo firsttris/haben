@@ -111,7 +111,7 @@ Private Zeilen (SKR03 Gegenkonto 1800 bis 1899 und 1360; SKR04 2100 bis 2199, 14
 
 ## Belegverknüpfung außerhalb des Imports
 
-Die GUID-Verknüpfung aus `document.xml` wertet nur der Import aus. Der Belegabgleich nach Schritt 4 findet eine Buchung dagegen über den [Beleglink](#was-in-der-datei-steckt), den der Stapel mitbringt; sonst ordnet er über die Belegnummer zu. Fehlt beides, bleibt die Zeile ohne passenden Beleg. Was wirklich verknüpft ist, sagen der Fortschritt des Imports und der Punkt „Jeder Beleg hat eine Datei“.
+Die GUID-Verknüpfung aus `document.xml` wertet nur der Import aus. Der Belegabgleich nach Schritt 4 findet eine Buchung dagegen über den [Beleglink](#was-in-der-datei-steckt), den der Stapel mitbringt; sonst ordnet er über die Belegnummer zu. Fehlt beides, bleibt eine Zeile mit Belegnummer ohne passenden Beleg. Was wirklich verknüpft ist, sagen der Fortschritt des Imports und der Punkt „Jeder Beleg hat eine Datei“.
 
 ## Schritt 2: Export hochladen und übernehmen
 
