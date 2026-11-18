@@ -243,8 +243,9 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
           </tbody>
         </ScrollTable>
         {/* Die Prognose übernimmt die Angaben des Vorjahres; ohne den Hinweis bleibt eine fehlende
-            Lohnkirchensteuer dort unbemerkt (#1451) */}
-        {b.angabenAus !== null && b.angabenAus < b.year && (
+            Lohnkirchensteuer dort unbemerkt (#1451). Lohnkirchensteuer gibt es nur mit Arbeitslohn,
+            für Freiberufler ohne Lohn wäre der Satz nur Rauschen */}
+        {p.einkuenfteArbeit !== 0 && b.angabenAus !== null && b.angabenAus < b.year && (
           <p className="small muted" style={{ margin: 0 }}>
             {KIRCHENSTEUER_FORTSCHREIBUNG}
           </p>
