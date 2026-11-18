@@ -122,8 +122,12 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
   await withActor(actor, (tx) => saveCompanyIn(tx, input, today));
 }
 
-/** saveCompany in der Transaktion des Aufrufers, etwa für die Übernahme der Einstellungen aus einer anderen Instanz (#488) */
-export async function saveCompanyIn(tx: Tx, input: CompanyInput, today: string): Promise<void> {
+/**
+ * saveCompany in der Transaktion des Aufrufers, etwa für die Übernahme der Einstellungen aus einer anderen Instanz (#488).
+ * `bewusst: false` nur dort, wo die Firmendaten in der alten Instanz nie bewusst gespeichert waren: Dann bleiben
+ * Zeitpunkt und offene Fragen, wie sie sind, und Haben trägt keine Bestätigung ein, die niemand gegeben hat.
+ */
+export async function saveCompanyIn(tx: Tx, input: CompanyInput, today: string, { bewusst = true }: { bewusst?: boolean } = {}): Promise<void> {
   if (input.foundedOn && input.foundedOn > today) {
     throw new UserError("Das Gründungsdatum darf nicht in der Zukunft liegen.");
   }
@@ -136,10 +140,10 @@ export async function saveCompanyIn(tx: Tx, input: CompanyInput, today: string):
     .set({
       ...input,
       dunning: keptBaseRateState(current!, input),
-      companySavedAt: sql`clock_timestamp()`,
+      ...(bewusst ? { companySavedAt: sql`clock_timestamp()` } : {}),
       updatedAt: new Date(),
     })
     .where(eq(schema.company.id, 1));
   // Wer die Firmendaten speichert, hat Rechtsform und Kleinunternehmer selbst entschieden: Die Übersicht erinnert nicht mehr (#266)
-  await offeneFragenErledigt(tx);
+  if (bewusst) await offeneFragenErledigt(tx);
 }

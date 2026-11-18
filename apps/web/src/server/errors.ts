@@ -11,6 +11,7 @@ import {
   StatementParseError,
 } from "@haben/import";
 import { ZodError, type z } from "zod";
+import { de } from "zod/locales";
 
 /**
  * Fachfehler, deren Meldung der Nutzer sehen soll. Alles andere wird zentral als „Interner Fehler“ ausgegeben. `felder` nennt
@@ -47,12 +48,15 @@ export function isUniqueViolation(error: unknown, constraint: string): boolean {
   return pg?.code === "23505" && pg.constraint_name === constraint;
 }
 
+const { localeError } = de();
+
 /**
  * Prüft einen Wert aus einer hochgeladenen Datei mit dem Schema eines Formulars (#488) und nennt bei einem Fehler, welcher
  * Eintrag es ist, etwa „Kontakt „Nordwerk GmbH“: Keine gültige E-Mail-Adresse“.
  */
 export function geprueft<S extends z.ZodType>(schema: S, value: unknown, bezeichnung: string): z.output<S> {
-  const parsed = schema.safeParse(value);
+  // Meldungen von Zod auf Deutsch, wo ein Schema keine eigene hat, wie in der REST-API (api/http.ts)
+  const parsed = schema.safeParse(value, { error: localeError });
   if (parsed.success) return parsed.data;
   const issue = parsed.error.issues[0];
   const feld = issue?.path.length ? ` (${issue.path.join(".")})` : "";

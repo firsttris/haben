@@ -9,8 +9,10 @@ import { saveCompanyIn } from "./settings-guard.ts";
 /*
  * Firmendaten und DATEV-Nummern aus der Einstellungsdatei einer anderen Instanz (#488) in der Transaktion des Aufrufers:
  * über saveCompanyIn mit denselben Prüfungen und Sperren wie das Formular. Die Instanz hat dabei noch keine Buchung
- * (instanzwechsel), die Sperren greifen also nicht; Speichern gilt als bewusst, wie im Formular.
+ * (instanzwechsel), die Sperren greifen also nicht. Bewusst gespeichert gilt nur, was es in der alten Instanz war.
  */
+
+const gespeichertSchema = z.object({ companySavedAt: z.string().min(1).nullable() });
 
 const datevSchema = z.object({
   datevBeraterNr: z.string(),
@@ -19,7 +21,8 @@ const datevSchema = z.object({
 });
 
 export async function firmendatenUebernehmen(tx: Tx, company: unknown, today: string): Promise<void> {
-  await saveCompanyIn(tx, geprueft(companySchema, company, "Firmendaten"), today);
+  const { companySavedAt } = geprueft(gespeichertSchema, company, "Firmendaten");
+  await saveCompanyIn(tx, geprueft(companySchema, company, "Firmendaten"), today, { bewusst: companySavedAt !== null });
   const datev = geprueft(datevSchema, company, "DATEV-Nummern");
   // Leer heißt nicht eingetragen; das Formular verlangt beide Nummern erst, wenn man sie einträgt
   if (datev.datevBeraterNr || datev.datevMandantNr) {

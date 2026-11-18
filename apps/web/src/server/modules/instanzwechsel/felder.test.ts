@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { getTableColumns, getTableName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { FELDER } from "./felder.ts";
+import { SETTINGS_EXPORT_VERSION } from "./format.ts";
 
 describe("Felder des Einstellungsexports", () => {
   for (const [name, { table, mit, ohne }] of Object.entries(FELDER)) {
@@ -22,5 +24,13 @@ describe("Felder des Einstellungsexports", () => {
 
   it("begründet jede ausgelassene Spalte", () => {
     for (const { ohne } of Object.values(FELDER)) for (const grund of Object.values(ohne)) expect(grund?.trim()).toBeTruthy();
+  });
+
+  it("hält die Felder der Formatversion fest", () => {
+    // Ändert sich die Liste, schlägt das hier fehl: Formatversion in format.ts prüfen und, ob der Import Dateien der
+    // bisherigen Version weiter liest; danach den neuen Wert eintragen
+    const felder = Object.fromEntries(Object.entries(FELDER).map(([name, { mit }]) => [name, [...mit].sort()]));
+    const sha256 = createHash("sha256").update(JSON.stringify(felder)).digest("hex");
+    expect({ version: SETTINGS_EXPORT_VERSION, sha256 }).toEqual({ version: 1, sha256: "12a61ea8afe3310f1704e6334c6e11ea5d2b9584cb4e626f2fe31c7451c893aa" });
   });
 });

@@ -1,3 +1,4 @@
+import { designWithDefaults } from "@haben/core";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type postgres from "postgres";
@@ -12,6 +13,39 @@ const PDF = new TextEncoder().encode("%PDF-1.7\nAllgemeine Geschäftsbedingungen
 const HEUTE = "2026-12-20";
 const ERIKA = { idnr: "65929970489", anrede: "Frau", vorname: "Erika", name: "Mustermann", geburtsdatum: "1980-05-17", religion: "11", beruf: "Designerin" };
 const actor = "inhaber-neu";
+
+type Zeile = Record<string, unknown>;
+const gesetzt = (zeile: Zeile, feld: string) => ({ ...zeile, [feld]: zeile[feld] !== null });
+const ohneId = (zeilen: Zeile[]) => zeilen.map(({ id: _, ...zeile }) => zeile);
+
+type Datei = Zeile & {
+  company: Zeile & { dunning: Zeile };
+  einrichtung: Zeile;
+  letterheadProfiles: Zeile[];
+  units: Zeile[];
+  articles: Zeile[];
+  contacts: Zeile[];
+  contactPersons: Zeile[];
+  textBlocks: Zeile[];
+  ownAccounts: Zeile[];
+};
+
+/** Was der Import neu vergibt (IDs, Zeitpunkte) oder vervollständigt (Vorgaben), gleich gemacht; alles andere muss ankommen */
+function vergleichbar(datei: Datei) {
+  const { exportedAt: _a, appVersion: _v, sha256: _s, ...rest } = datei;
+  return {
+    ...rest,
+    company: { ...gesetzt(datei.company, "companySavedAt"), dunning: { autoBaseRate: false, baseRateSince: null, ...datei.company.dunning } },
+    einrichtung: gesetzt(datei.einrichtung, "fragenAt"),
+    letterheadProfiles: ohneId(datei.letterheadProfiles).map((profil) => ({ ...profil, settings: designWithDefaults(profil.settings as never) })),
+    units: ohneId(datei.units).map((zeile) => gesetzt(zeile, "archivedAt")),
+    articles: ohneId(datei.articles).map((zeile) => gesetzt(zeile, "archivedAt")),
+    contacts: datei.contacts.map((zeile) => gesetzt(zeile, "archivedAt")),
+    contactPersons: ohneId(datei.contactPersons).map((zeile) => gesetzt(zeile, "deactivatedAt")),
+    textBlocks: ohneId(datei.textBlocks).map((zeile) => gesetzt(zeile, "archivedAt")),
+    ownAccounts: ohneId(datei.ownAccounts).map((zeile) => gesetzt(zeile, "archivedAt")),
+  };
+}
 
 describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => {
   let instanzwechsel: typeof import("./index.ts");
@@ -61,7 +95,7 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     await sql`insert into company_logo(id, logo, format, sha256) values (1, ${Buffer.from(PNG)}, 'png', 'x')`;
     const sha256 = await storage.storeFile(PDF);
     await sql`insert into quote_default_attachments(filename, mime_type, sha256, size) values ('AGB.pdf', 'application/pdf', ${sha256}, ${PDF.length})`;
-    await sql`insert into custom_pages(name, url) values ('Wiki', 'https://wiki.example.org')`;
+    await sql`insert into custom_pages(name, url) values ('Wiki', 'https://wiki.example.org/')`;
     await sql`insert into procedure_details(id, verantwortlich) values (1, 'Erika Mustermann')`;
     await mailEinrichten();
     await sql`update mail_settings set from_name = 'Muster Design', templates = ${JSON.stringify({ "rechnung:de": { subject: "Rechnung {nummer}", body: "Hallo" } })}::jsonb`;
@@ -125,6 +159,17 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect((await sql`select verantwortlich from procedure_details`)[0]!.verantwortlich).toBe("Erika Mustermann");
   });
 
+  it("ergibt nach dem Übernehmen wieder dieselbe Datei, bis auf neue IDs und Zeitpunkte", async () => {
+    await testinstanz();
+    const vorher = JSON.parse(await exportierenUndNeu());
+    await mailEinrichten();
+
+    await instanzwechsel.importSettings(actor, JSON.stringify(vorher), HEUTE);
+
+    const nachher = JSON.parse(JSON.stringify(await instanzwechsel.exportSettings(new Date("2026-12-20T10:00:00Z"))));
+    expect(vergleichbar(nachher)).toEqual(vergleichbar(vorher));
+  });
+
   it("übernimmt Logo, Layout samt Zuordnung, Standardanhang und E-Mail-Vorlagen, ohne den Zugang zu ändern", async () => {
     await testinstanz();
     const text = await exportierenUndNeu();
@@ -186,6 +231,49 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
 
     expect((await instanzwechsel.importSettings(actor, text, HEUTE)).mail).toBe(false);
     expect(await sql`select id from mail_settings`).toEqual([]);
+  });
+
+  it("lässt offene Fragen offen, wenn die Firmendaten in der alten Instanz nie bewusst gespeichert wurden", async () => {
+    await testinstanz();
+    await sql`update company set firmendaten_gespeichert_at = null`;
+    await sql`update einrichtung set offen = '["kleinunternehmer"]'::jsonb`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    expect((await sql`select offen from einrichtung`)[0]!.offen).toEqual(["kleinunternehmer"]);
+    expect((await sql`select firmendaten_gespeichert_at from company`)[0]!.firmendaten_gespeichert_at).toBeNull();
+  });
+
+  it("gibt einem Kunden ohne Kundennummer keine neue und lässt den Zähler stehen", async () => {
+    await testinstanz();
+    await sql`insert into contacts(name) values ('Ohne Nummer GmbH')`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    expect((await sql`select kundennummer from contacts where name = 'Ohne Nummer GmbH'`)[0]!.kundennummer).toBeNull();
+    expect((await sql`select customer_number_next from company`)[0]!.customer_number_next).toBe(42);
+  });
+
+  it("meldet ungültige Werte auf Deutsch", async () => {
+    await testinstanz();
+    await sql`update contacts set language = 'xx' where id = ${KUNDE}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow(
+      /^Kontakt „Nordwerk GmbH“ \(language\): Ungültige Option/,
+    );
+  });
+
+  it("hält beim Übernehmen die Höchstzahl eigener Layouts des Betreibers ein (LAYOUTS_MAX_COUNT)", async () => {
+    const layouts = await import("../stammdaten/layouts.ts");
+    const { withActor } = await import("../../db/actor.ts");
+    const layout = (id: string, name: string) => ({ id, name, art: "beleg" as const, source: "#let x = 1", schemaVersion: 1, packages: [] });
+
+    await expect(
+      withActor(actor, async (tx) => {
+        await layouts.insertImportedLayout(tx, layout(LAYOUT, "Eins"), { maxCount: 1 });
+        await layouts.insertImportedLayout(tx, layout(KUNDE, "Zwei"), { maxCount: 1 });
+      }),
+    ).rejects.toThrow(/mehr erlaubt diese Installation nicht/);
   });
 
   it("lehnt eine Instanz ab, in der schon Stammdaten oder Belege angelegt sind, und ändert nichts", async () => {

@@ -4,7 +4,7 @@ import { geprueft, UserError } from "../../errors.ts";
 import { MAX_DOCUMENT_SIZE } from "../../grenzen.ts";
 import { MAX_INVOICE_ATTACHMENTS } from "../rechnungen/index.ts";
 import { MAX_BACKGROUND_BYTES } from "../stammdaten/index.ts";
-import { SETTINGS_EXPORT_FORMAT, SETTINGS_EXPORT_VERSION } from "./export.ts";
+import { SETTINGS_EXPORT_FORMAT, SETTINGS_EXPORT_VERSION } from "./format.ts";
 import { checksumProblem, unembed } from "./integritaet.ts";
 
 /*

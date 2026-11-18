@@ -159,6 +159,5 @@ export {
   firmaErgaenzen,
   kontakteUebernehmen,
   textbausteineUebernehmen,
-  UebernahmeError,
 } from "./uebernahme.ts";
-export { gestaltungUebernehmen, type Gestaltung } from "./uebernahme-gestaltung.ts";
+export { gestaltungUebernehmen } from "./uebernahme-gestaltung.ts";

@@ -529,7 +529,7 @@ Name und Zweck eines Kontos (Geschäftskonto, Steuerkonto, Rücklagen, Privatkon
 
 ## Von der Testinstanz in den Echtbetrieb
 
-Rechnungen, Buchungen und Bankumsätze aus dem Testen lassen sich nicht löschen (GoBD). Für den Echtbetrieb beginnst du deshalb mit einer frischen Datenbank und nimmst die Einrichtung als Datei mit: Unter **Einstellungen › Export** lädt **Einstellungen exportieren** eine JSON-Datei herunter. Sie enthält:
+Rechnungen, Buchungen und Bankumsätze aus dem Testen lassen sich nicht löschen (GoBD). Für den Echtbetrieb beginnst du deshalb mit einer frischen Datenbank und nimmst die Einrichtung als Datei mit: Unter **Einstellungen › Export** lädt **Datei herunterladen** in der Karte **Einstellungen exportieren** eine JSON-Datei herunter. Sie enthält:
 
 - Firmendaten mit Mahnwesen und Privatanteilen, persönliche Angaben und ausgeblendete Bereiche
 - Beleggestaltung mit Logo, Briefpapier und eigenen Layouts
@@ -539,10 +539,12 @@ Rechnungen, Buchungen und Bankumsätze aus dem Testen lassen sich nicht löschen
 
 Nicht in der Datei sind Zugangsdaten (Kontoabruf, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, KI-Schlüssel, API-Tokens, Kalender-Abo), Konten und Passkeys, die Zählerstände der Rechnungs- und Angebotsnummern und alles Gebuchte. Anlagen übernimmst du per [CSV-Import](csv-import.md#anlagen). Die Datei enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre sie so sicher auf wie ein Backup; herunterladen kann sie nur der Inhaber.
 
+Nimm für beide Instanzen dieselbe Version von Haben: Aktualisiere die Testinstanz vor dem Export auf die Version, die du neu installierst. Eine neuere Version kann Werte speichern, die eine ältere beim Übernehmen nicht annimmt; eine Datei mit neuerem Format lehnt sie ab. Die Rückfrage beim Übernehmen nennt die Version, mit der exportiert wurde.
+
 In der neuen Instanz:
 
 1. Konto anlegen ([Konto anlegen](#konto-anlegen)). Soll der E-Mail-Versand Absender und Vorlagen mitbringen, richte ihn jetzt unter **Einstellungen › E-Mail** ein.
-2. Unter **Einstellungen › Export** bei **Einstellungen übernehmen** die Datei wählen und bestätigen. Haben prüft die Prüfsummen der Datei und jeden Wert wie im Formular und übernimmt alles oder nichts; ein Fehler nennt den Eintrag. Schon eingetragene Firmendaten und Gestaltung ersetzt die Datei.
+2. Unter **Einstellungen › Export** in der Karte **Einstellungen übernehmen** mit **Datei übernehmen …** die Datei wählen und bestätigen. Haben prüft die Prüfsummen der Datei und jeden Wert wie im Formular und übernimmt alles oder nichts; ein Fehler nennt den Eintrag. Schon eingetragene Firmendaten und Gestaltung ersetzt die Datei.
 3. Braucht ein eigenes Layout Pakete, unter **Einstellungen › Beleggestaltung** **Pakete neu laden**; bis dahin lässt sich mit dem Layout nichts erzeugen.
 
 Übernehmen geht nur, solange die Instanz neu ist: ohne Kontakte, Artikel, Belege, Rechnungen, Buchungen und Bankumsätze. Danach verschwindet die Karte. Einen Umzug ins Archiv machst du deshalb erst danach, denn er legt Kontakte an. Rechnungs- und Angebotsnummern beginnen bei 1; die nächste Nummer stellst du unter [Rechnungsnummern](#rechnungsnummern) ein.

@@ -62,13 +62,13 @@ export async function importSettings(actor: string, text: string, today: string)
 }
 
 async function uebernehmen(tx: Tx, actor: string, datei: SettingsFile, today: string): Promise<SettingsImportResult> {
-  // Zuerst die Einrichtung: Speichern der Firmendaten erledigt danach offene Fragen, wie im Formular
-  if (datei.einrichtung) await einrichtungUebernehmen(tx, datei.einrichtung);
   if (datei.company) {
     await firmendatenUebernehmen(tx, datei.company, today);
     await firmaErgaenzen(tx, datei.company);
     await nummernformateUebernehmen(tx, datei.company);
   }
+  // Nach den Firmendaten, sonst erledigte deren Speichern die offenen Fragen aus der Datei
+  if (datei.einrichtung) await einrichtungUebernehmen(tx, datei.einrichtung);
   await gestaltungUebernehmen(tx, { profiles: datei.letterheadProfiles, logo: datei.logo, background: datei.background, layouts: datei.layouts });
   // Einheiten vor den Artikeln, Kontakte vor ihren Ansprechpartnern und Textbausteinen
   await einheitenUebernehmen(tx, datei.units);

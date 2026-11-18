@@ -4,6 +4,7 @@ import { db, schema } from "../../db/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { auswahl, FELDER } from "./felder.ts";
+import { SETTINGS_EXPORT_FORMAT, SETTINGS_EXPORT_VERSION } from "./format.ts";
 import { embed, withChecksum } from "./integritaet.ts";
 
 /*
@@ -13,9 +14,6 @@ import { embed, withChecksum } from "./integritaet.ts";
  * trägt eine Prüfsumme (integritaet.ts). Sie enthält persönliche Angaben, Steuernummer und Bankverbindung, aber keine
  * Geheimnisse.
  */
-
-export const SETTINGS_EXPORT_FORMAT = "haben-einstellungen";
-export const SETTINGS_EXPORT_VERSION = 1;
 
 export function settingsExportFilename(now = new Date()): string {
   return `Haben-Einstellungen-${today(now)}.json`;
@@ -74,5 +72,3 @@ export async function exportSettings(now = new Date()) {
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
-
-export type SettingsExport = Awaited<ReturnType<typeof exportSettings>>;

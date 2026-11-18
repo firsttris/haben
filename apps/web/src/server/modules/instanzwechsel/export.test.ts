@@ -79,7 +79,9 @@ describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
       customerNumberNext: 42,
       taxpayer: { a: { vorname: "Erika", name: "Mustermann" } },
     });
-    for (const feld of ["mcpEnabled", "elsterDatenschutzAt", "calendarTokenHash", "companySavedAt", "id"]) expect(export_.company).not.toHaveProperty(feld);
+    for (const feld of ["mcpEnabled", "elsterDatenschutzAt", "calendarTokenHash", "id"]) expect(export_.company).not.toHaveProperty(feld);
+    // Nur damit der Import weiß, ob die Firmendaten bewusst gespeichert waren
+    expect(export_.company.companySavedAt).toEqual(expect.any(String));
     expect(export_.einrichtung.ausgeblendeteBereiche).toEqual(["lohn"]);
 
     expect(export_.mail).toEqual({

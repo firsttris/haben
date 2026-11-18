@@ -128,7 +128,7 @@ export async function kontakteUebernehmen(tx: Tx, actor: string, contacts: reado
       { ...(raw as object), kundennummer: zusatz.kundennummer ?? "", lieferantennummer: zusatz.lieferantennummer ?? "" },
       bezeichnung,
     );
-    await mitBezeichnung(bezeichnung, () => insertContact(tx, input, zusatz.id));
+    await mitBezeichnung(bezeichnung, () => insertContact(tx, input, { id: zusatz.id, vergeben: false }));
     const { lexofficeId, sevdeskId, fastbillId, archivedAt } = zusatz;
     if (lexofficeId || sevdeskId || fastbillId || archivedAt) {
       await tx

@@ -87,6 +87,8 @@ export const FELDER = {
       "navColor",
       "navLogo",
       "archiveSearch",
+      // Nur ob die Firmendaten bewusst gespeichert waren: Der Import setzt den Zeitpunkt dann neu, sonst bleibt er leer
+      "companySavedAt",
     ],
     {
       id: EINE_ZEILE,
@@ -98,7 +100,6 @@ export const FELDER = {
       calendarTokenDisabledReason: "Gehört zum Kalender-Abo",
       mcpEnabled: "Zugang für KI-Assistenten und API schaltet man in der neuen Instanz bewusst ein",
       elsterDatenschutzAt: "Bestätigung der Datenschutzhinweise gilt für die Instanz, in der sie gegeben wurde (ERiC-Lizenz § 5)",
-      companySavedAt: "Setzt das Speichern der Firmendaten in der neuen Instanz",
       updatedAt: GEAENDERT,
     },
   ),
