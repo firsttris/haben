@@ -93,6 +93,10 @@ jobs:
       - run: grep -q 'application/ld+json' site/index.html
       - run: test "$(grep -l 'name="robots" content="noindex"' site/*.html)" = site/404.html
       - run: "grep -q '^Sitemap: https://haben.app/sitemap.xml' site/robots.txt"
+      # Datenschutz: Schriften kommen von haben.app selbst (privacy-Plugin), nicht von Google Fonts;
+      # Impressum und Datenschutzerklärung stehen im Fuß jeder Seite (copyright in mkdocs.yml)
+      - run: "! grep -rlE '//fonts\\.(googleapis|gstatic)\\.com' site --include='*.html'"
+      - run: test -z "$(grep -L 'speicherstadt.app/datenschutz/' site/*.html)"
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
