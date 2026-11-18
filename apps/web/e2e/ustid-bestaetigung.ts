@@ -121,10 +121,7 @@ export function ustIdBestaetigungPruefen(getPage: () => Page) {
       await page.getByRole("button", { name: "Speichern", exact: true }).click();
       await expect(page.getByRole("form", { name: "Kontakt" }).getByRole("status")).toContainText("Gespeichert.");
       // In derselben Seite zum anderen Kontakt, über die Schnellsuche
-      await page
-        .getByRole("navigation", { name: "Hauptnavigation" })
-        .getByRole("button", { name: /Schnellsuche/ })
-        .click();
+      await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Suche", exact: true }).click();
       const palette = page.getByRole("dialog", { name: "Befehlspalette" });
       await palette.getByRole("combobox").fill("Talblick");
       await expect(palette.getByRole("option", { name: /Talblick GmbH/ })).toBeVisible();
