@@ -361,4 +361,73 @@ describe("steuerPrognose", () => {
     expect(p.kinderbetreuung).toBe(40_00);
     expect(p.sonderausgaben + p.kinderbetreuung).toBe(72_00);
   });
+
+  it("rechnet den Erstattungsüberhang dem Gesamtbetrag der Einkünfte zu (§ 10 Abs. 4b Satz 3 EStG)", () => {
+    // Basisbeiträge 2.500 €, Erstattung und Zuschuss 3.900 €: der Abzug ist 0, der Überhang von 1.400 € erhöht das Einkommen
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: { pkv: 2_000_00, ppv: 500_00, pkvErstattung: 3_000_00, agZuschussKv: 900_00 } },
+      },
+    });
+    expect(p.vorsorge).toBe(0);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_400_00);
+    expect(p.zvE).toBe(60_000_00 + 1_400_00 - 36_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+  });
+
+  it("kennt keinen Überhang, wenn Beiträge und Erstattung gleich hoch sind", () => {
+    const gleich = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 2_000_00, ppv: 500_00, pkvErstattung: 2_500_00 } } },
+    });
+    const ohneVorsorge = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: {} } },
+    });
+    expect(gleich.vorsorge).toBe(0);
+    expect(gleich.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(gleich.zvE).toBe(ohneVorsorge.zvE);
+    expect(gleich.einkommensteuer).toBe(ohneVorsorge.einkommensteuer);
+  });
+
+  it("bleibt unter den Beiträgen beim Abzug, ohne Überhang", () => {
+    // 2.500 € Beiträge, 1.000 € Erstattung: 1.500 € bleiben abziehbar, hinzugerechnet wird nichts
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 2_000_00, ppv: 500_00, pkvErstattung: 1_000_00 } } },
+    });
+    expect(p.vorsorge).toBe(1_500_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(p.zvE).toBe(60_000_00 - 1_500_00 - 36_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+  });
+
+  it("rechnet den Überhang je Person und lässt ihn nicht gegen die Beiträge des anderen auf", () => {
+    // A: 1.000 € Beiträge und 2.000 € Erstattung, Überhang 1.000 €. B: 3.000 € Beiträge.
+    // Der Überhang von A mindert die Beiträge von B nicht, er wird dem Gesamtbetrag hinzugerechnet.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: true,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 1_000_00, pkvErstattung: 2_000_00 }, b: { gkv: 3_000_00 } } },
+    });
+    expect(p.vorsorge).toBe(3_000_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_000_00);
+    expect(p.zvE).toBe(60_000_00 + 1_000_00 - 3_000_00 - 72_00);
+  });
 });

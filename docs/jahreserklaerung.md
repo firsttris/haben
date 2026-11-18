@@ -196,6 +196,8 @@ Die steuerfreien Arbeitgeberzuschüsse stehen getrennt in der Lohnsteuerbeschein
 
 Der Zuschuss mindert in voller Höhe den Beitrag zur Basisabsicherung, auch wenn er rechnerisch zum Teil auf den Krankengeldanteil oder auf Wahlleistungen entfällt; eine Aufteilung ist nicht zulässig ([§ 10 Abs. 2 Satz 1 Nr. 1 Halbsatz 2 EStG](https://www.gesetze-im-internet.de/estg/__10.html), BFH 2.9.2014, IX R 43/13). Die pauschale Kürzung um 4 % trifft nur die Beiträge, nicht den Zuschuss ([§ 10 Abs. 1 Nr. 3 Buchst. a EStG](https://www.gesetze-im-internet.de/estg/__10.html)): Haben rechnet die Beiträge laut Nr. 25 der Bescheinigung zu 96 % zur Basisabsicherung und die restlichen 4 % zur übrigen Vorsorge, den Zuschuss aber vollständig von der Basisabsicherung.
 
+Übersteigen Erstattungen und Arbeitgeberzuschüsse die Beiträge zur Basisabsicherung einer Person, bleibt der Abzug bei null; der Überhang wird nach [§ 10 Abs. 4b Satz 3 EStG](https://www.gesetze-im-internet.de/estg/__10.html) dem Gesamtbetrag der Einkünfte hinzugerechnet. Haben rechnet ihn je Person und in der Prognose mit: Wer mehr Erstattung als Beitrag hat, versteuert den Überhang, statt ihn abzuziehen.
+
 ### Einkommensersatzleistungen
 
 Arbeitslosengeld, Elterngeld, Insolvenzgeld, Krankengeld, Mutterschaftsgeld und Verdienstausfallentschädigung sind steuerfrei, erhöhen aber den Steuersatz auf das übrige Einkommen (Progressionsvorbehalt, § 32b EStG). Haben trägt sie je Person mit Art und Betrag in den Hauptvordruck ein und rechnet sie in der voraussichtlichen Steuer mit: Der besondere Steuersatz kommt aus der Steuer auf das zu versteuernde Einkommen plus die Leistungen und gilt dann für das zu versteuernde Einkommen.
