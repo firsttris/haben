@@ -28,10 +28,12 @@ test("Knopf in der Navigation und Strg+K öffnen die Befehlspalette und navigier
 });
 
 // #1386: Mit dem zweiten Kürzel `/` war der Inhalt des Suchknopfs breiter als der Knopf, das letzte Kürzel ragte über den Rand
-for (const colorScheme of ["light", "dark"] as const) {
-  test(`Suchknopf in der Navigation: alle Kürzel liegen im Feld (${colorScheme === "light" ? "hell" : "dunkel"})`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme });
+for (const modus of ["hell", "dunkel"] as const) {
+  test(`Suchknopf in der Navigation: alle Kürzel liegen im Feld (${modus})`, async ({ page }) => {
+    // Die App folgt dem Gerät nur im Modus „system“; „dunkel“ muss also gesetzt werden, emulateMedia allein genügt nicht
+    await page.addInitScript((m) => localStorage.setItem("haben-modus", m), modus);
     await page.goto("/", { waitUntil: "networkidle" });
+    await expect(page.locator("html")).toHaveAttribute("data-mode", modus === "hell" ? "light" : "dark");
     const knopf = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Suche", exact: true });
     await expect(knopf).toBeVisible();
     const gemessen = await knopf.evaluate((el) => {
