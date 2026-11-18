@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
   bookDocument,
-  bookingIssues,
+  bookingIssueList,
   cancelDocument,
   cancellationInputSchema,
   cancellationIssues,
@@ -99,7 +99,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       tageskurs: company.tageskurs,
       amounts: result.amounts,
       splits: result.splits,
-      issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts, today(), result.splits),
+      // Je Hinweis das Feld, an dem er liegt: Die Seite klappt „Weitere Angaben“ dafür auf
+      issues: result.document.lockedAt ? [] : bookingIssueList(result.document, result.amounts, today(), result.splits),
       // Bisherige Kategorie und Bezahlung des Lieferanten als Hinweis am Feld, nur solange der Beleg offen ist (#295)
       categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document),
       paymentHint: result.document.lockedAt ? null : await supplierPayment(result.document),

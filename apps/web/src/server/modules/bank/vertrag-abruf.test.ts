@@ -40,6 +40,23 @@ describe("abrufNachVertrag", () => {
     expect(hinweise).toEqual([]);
   });
 
+  it("gibt „Umsätze abrufen ab“ für den Stichtag einer neuen Bindung mit", () => {
+    const mit = abrufNachVertrag({
+      identificationHash: "hash-1",
+      transactions: [tx()],
+      balances: [],
+      statement: { format: "enablebanking", currency: "EUR", transactions: [], warnings: [] },
+      dateFrom: "2026-10-01",
+      dateTo: "2026-10-09",
+      now: new Date("2026-10-09T20:00:00Z"),
+      fetchId: "abruf-1",
+      source: { filename: "Abruf", sha256: "x" },
+      fetchFrom: "2026-09-15",
+    });
+    expect(mit.input.fetchFrom).toBe("2026-09-15");
+    expect(nachVertrag([tx()]).input).not.toHaveProperty("fetchFrom");
+  });
+
   it("nennt Umsätze ohne entry_reference, ohne dass sie den Zeitraum offenhalten", () => {
     const { input, hinweise } = nachVertrag([tx(), tx({ entry_reference: null, transaction_id: "T-9" }), tx({ entry_reference: " " })]);
     expect(hinweise).toEqual(["2 Umsätze ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt."]);

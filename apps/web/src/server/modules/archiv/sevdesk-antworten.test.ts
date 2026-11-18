@@ -18,6 +18,7 @@ import belegeV2 from "../../../../../../packages/import/test-fixtures/sevdesk/bu
 import belegeSteuerregelV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/belege-steuerregel.json";
 import gutschriftV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/gutschrift.json";
 import rechnungenSteuerV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/rechnungen-steuerregel.json";
+import rechnungen1721V2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/rechnungen-steuerregel-17-21.json";
 import stornoFolgejahrV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/storno-paar-folgejahr.json";
 import stornoV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/storno-paar.json";
 import zahlungenV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/zahlungen.json";
@@ -161,20 +162,45 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Antworten je Buchhaltungsversion (Pos
     const { years } = await lexoffice.reconciliation();
     const counts: Record<string, number> = {};
     for (const { taxTypes } of years) for (const { taxType, count } of taxTypes) counts[taxType] = (counts[taxType] ?? 0) + count;
-    expect(counts).toEqual({ net: 3, vatfree: 2, "sevdesk:noteu": 1 });
+    // taxType noteu ist laut OpenAPI der Vorgänger von taxRule 17 („Nicht im Inland steuerbare Leistung“)
+    expect(counts).toEqual({ net: 3, vatfree: 2, thirdPartyCountryService: 1 });
   });
 
-  it("rechnet Belege mit taxRule 12 und 14 aus Version 2.0 heute als Ausgaben ohne Vorsteuer", async () => {
+  it("liest taxRule 17 und 21 aus Version 2.0 als Steuerart für Kz 45 und Kz 21, 3 wie bisher für Kz 41", async () => {
+    // Nur Köpfe, ohne Positionen. sevDesk bucht Regel 17 im DATEV-Export auf SKR03 8338 (nicht steuerbar, Drittland);
+    // die Kennzahl je Steuerart prüft legacy-vat in packages/core
+    for (const invoice of rechnungen1721V2) await insertInvoice({ invoice, positions: [] });
+    const { years } = await lexoffice.reconciliation();
+    const counts: Record<string, number> = {};
+    for (const { taxTypes } of years) for (const { taxType, count } of taxTypes) counts[taxType] = (counts[taxType] ?? 0) + count;
+    expect(counts).toEqual({ thirdPartyCountryService: 1, externalService13b: 1, intraCommunitySupply: 1 });
+  });
+
+  it("ordnet Regel 5 Kz 60 und die OSS-Regeln 18 bis 20 dem OSS zu, wie die OpenAPI sie nennt", async () => {
+    const kopf = rechnungen1721V2[0]!;
+    for (const regel of ["5", "18", "19", "20"])
+      await insertInvoice({ invoice: { ...kopf, id: `R${regel}`, taxRule: { id: regel, objectName: "TaxRule" } }, positions: [] });
+    const { years } = await lexoffice.reconciliation();
+    const counts: Record<string, number> = {};
+    for (const { taxTypes } of years) for (const { taxType, count } of taxTypes) counts[taxType] = (counts[taxType] ?? 0) + count;
+    expect(counts).toEqual({ constructionService13b: 1, oss: 3 });
+  });
+
+  it("bucht Belege mit taxRule 12 in Kz 84, 85 und 67, mit 14 in Kz 46, 47 und 67, mit 9 als Vorsteuer Kz 66", async () => {
+    // OpenAPI: 12 „Reverse Charge gem. §13b Abs. 2 UStG mit Vorsteuerabzug 0% (19%)“, 14 „§13b Abs. 1 EU Umsätze 0% (19%)“
     for (const beleg of belegeSteuerregelV2) await insertVoucher(beleg);
     const { years } = await lexoffice.reconciliation();
     expect(years.reduce((sum, y) => sum + y.ausgaben.count, 0)).toBe(4);
-    const vorsteuer = (regel: string) => {
-      const monat = belegeSteuerregelV2.find((b) => b.voucher.taxRule.id === regel)!.voucher.voucherDate.slice(0, 7);
-      return years.flatMap((y) => y.vat).find((m) => m.month === monat)?.kz66;
+    const monat = (regel: string) => {
+      const datum = belegeSteuerregelV2.find((b) => b.voucher.taxRule.id === regel)!.voucher.voucherDate.slice(0, 7);
+      return years.flatMap((y) => y.vat).find((m) => m.month === datum)!;
     };
-    expect(vorsteuer("12")).toBe(0);
-    expect(vorsteuer("14")).toBe(0);
-    expect(vorsteuer("9")).toBe(10000);
+    const netto = (regel: string) =>
+      belegeSteuerregelV2.filter((b) => b.voucher.taxRule.id === regel).reduce((sum, b) => sum + Math.round(Number(b.voucher.sumNet) * 100), 0);
+    const steuer = (cents: number) => Math.round((cents * 1900) / 10000);
+    expect(monat("12")).toMatchObject({ kz84: netto("12"), kz85: steuer(netto("12")), kz67: steuer(netto("12")), kz66: 0 });
+    expect(monat("14")).toMatchObject({ kz46: netto("14"), kz47: steuer(netto("14")), kz67: steuer(netto("14")), kz66: 0 });
+    expect(monat("9").kz66).toBe(10000);
   });
 
   it("findet zu jeder Buchung mit Belegnummer aus Version 1.0 ihren Beleg", async () => {

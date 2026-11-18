@@ -1,0 +1,52 @@
+name: Discord-Release
+
+# Kündigt ein GitHub-Release im Discord-Kanal #releases an, mit Titel, Link und Release Notes
+# (SethCohen/github-releases-to-discord). Läuft als letzter Schritt von release.yml, sobald das Release
+# angelegt ist. Ein eigener Workflow mit `on: release` startet hier nie: docker-release.yml legt das
+# Release mit GITHUB_TOKEN an, und solche Ereignisse lösen keine weiteren Workflows aus.
+# Von Hand mit einem Tag gestartet, kündigt er dieses Release noch einmal an (zum Testen).
+# Das Secret DISCORD_RELEASES_WEBHOOK ist die URL des Discord-Webhooks „GitHub Releases“.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Tag des Releases, z. B. v1.2.0
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag des Releases, z. B. v1.2.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  ankuendigen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release lesen
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json name,body,url > release.json
+          {
+            echo "name=$(jq -r '.name' release.json)"
+            echo "url=$(jq -r '.url' release.json)"
+            echo "body<<RELEASE_BODY_EOF"
+            jq -r '.body' release.json
+            echo "RELEASE_BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: SethCohen/github-releases-to-discord@24d166886aee4646d448c8a389ff9e1ebcab3682 # v1.20.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+          release_name: ${{ steps.release.outputs.name }}
+          release_body: ${{ steps.release.outputs.body }}
+          release_html_url: ${{ steps.release.outputs.url }}
+          username: Haben
+          footer_timestamp: true
+          reduce_headings: true

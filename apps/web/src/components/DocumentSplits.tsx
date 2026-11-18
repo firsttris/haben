@@ -1,6 +1,7 @@
 import { allocateSplitTax, formatDecimal, formatEuro, parseEuro, type ExpenseCategory } from "@haben/core";
 import { EigenesKontoWahl, passendesKonto, type OwnAccountChoice } from "./EigenesKontoWahl.tsx";
 import { Field } from "./Field.tsx";
+import { KategorieOptionen } from "./KategorieOptionen.tsx";
 
 /*
  * Aufteilung eines Belegs auf mehrere Kategorien (#271): Zeilen mit Kategorie, Steuersatz und Netto. Die Vorsteuer je
@@ -92,11 +93,7 @@ export function DocumentSplits({
                 }
               >
                 <option value="">Bitte wählen</option>
-                {options.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
+                <KategorieOptionen categories={options} />
               </select>
             )}
           </Field>

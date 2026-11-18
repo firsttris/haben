@@ -91,6 +91,8 @@ Die Steuerart einer Rechnung liest Haben aus `VAT_CASE`. FastBill liefert dort e
 | `b2c_eu_goods` | Andere Sätze: ob der Fernverkauf über OSS lief, steht nicht in der Antwort |
 | 1 | Andere Sätze: innergemeinschaftlich, aber ob Lieferung (Kz 41) oder sonstige Leistung (Kz 21), sagt die Antwort nicht |
 
+Kz 21, 41 und 45 zählen bei Ist-Versteuerung wie in [Lexware Office](lexoffice.md#umsatzsteuer-je-monat) im Monat der Rechnung.
+
 Bei Ausgaben zählt im Abgleich nur die Vorsteuer (Kz 66), im Monat des Belegs; `VAT_CASE` spielt dort keine Rolle.
 
 ### Zahlungen

@@ -48,10 +48,10 @@ Vor dem Setzen sucht Haben im Quelltext jedes Feld, das in den Tabellen unten �
 
 Danach setzt Haben das Layout mit Beispieldaten und lehnt es ab, wenn auf dem Blatt etwas davon fehlt:
 
-- Absender mit Name und vollständiger Anschrift, also Straße sowie PLZ und Ort (`author` und `senderLine`; die Fußzeile genügt dafür nicht, denn was dort steht, legt die Gestaltung fest; § 14 Abs. 4 Nr. 1 UStG) und Empfänger (`recipient`), die Bezeichnung des Belegs (`title`, keine feste Überschrift wie „Rechnung“), bei Storno und Korrektur der Bezug auf die Rechnung (`reference`; § 31 Abs. 5 UStDV), Angaben aus `meta` (Nummer, Datum, Leistungsdatum).
+- Absender mit Name und vollständiger Anschrift, also Straße sowie PLZ und Ort (`author` und `senderLine`; die Fußzeile genügt dafür nicht, denn was dort steht, legt die Gestaltung fest; § 14 Abs. 4 Nr. 1 UStG) und Empfänger (`recipient`), die Bezeichnung des Belegs (`title`, keine feste Überschrift wie „Rechnung“), bei Storno und Korrektur der Bezug auf die Rechnung (`reference`; § 31 Abs. 5 UStDV), Angaben aus `meta`, auf Belegen jede Zeile (Nummer, Datum, Leistungsdatum, Referenzen).
 - Jede Position mit Menge und Bezeichnung (`lines`), die Summen mit Umsatzsteuer und Steuersatz je Satz, etwa „Umsatzsteuer 19 %“ (`totals.rows`, bei Bruttopreisen in `totals.included`, bei Fremdwährung zusätzlich in Euro in `totals.euroTax`), der Hinweis ohne Steuerausweis (`taxNote`), bei Skonto der Zahlungssatz (`payment`; § 14 Abs. 4 Nr. 7 UStG), auf Rechnungen die Steuernummer oder die USt-IdNr. des Ausstellers, eine genügt (meist in der Fußzeile, `footer`; § 14 Abs. 4 Nr. 2 UStG; Angebot, Auftragsbestätigung, Lieferschein und Mahnung brauchen keine) und bei GmbH oder UG die Pflichtangaben aus `legal`, gern je Angabe auf eigener Zeile (Trenner „ · “; § 14 Abs. 4 UStG, § 35a GmbHG).
 - Bei einem Entwurf der Vermerk aus `draft` auf jeder Seite.
-- Mehrseitige Belege müssen gehen: Die Beispiele haben bis zu 40 Positionen.
+- Mehrseitige Belege müssen gehen: Die Beispiele haben bis zu 40 Positionen und bis zu 15 Zeilen im Infoblock.
 
 Die Prüfung findet nur Offensichtliches. Für ein eigenes Layout übernimmt Haben keine Gewähr: Wer es hochlädt, ist selbst dafür verantwortlich, dass es alle Angaben richtig zeigt und die Belege den gesetzlichen Anforderungen genügen.
 
@@ -67,7 +67,9 @@ Die Prüfung findet nur Offensichtliches. Für ein eigenes Layout übernimmt Hab
 )
 #set text(font: d.font.regular, size: 9.5pt, fill: rgb(d.palette.ink), lang: "de")
 
-#if d.at("logo", default: none) != none { place(top + right, image(d.logo, height: d.look.logoHeight * 1mm)) }
+#let ecke = (links: left, mitte: center, rechts: right).at(d.look.logoPosition)
+// „mitte“ meint die Mitte des Blatts: Bei 25 und 20 mm Rand liegt sie 2,5 mm links der Mitte des Satzspiegels
+#if d.at("logo", default: none) != none { place(top + ecke, dx: if ecke == center { -2.5mm } else { 0mm }, image(d.logo, height: d.look.logoHeight * 1mm)) }
 #text(7pt, d.senderLine) \
 #d.recipient.join("\n")
 
@@ -97,6 +99,20 @@ jq '.[0].data' beispieldaten-beleg.json > beispiel.json
 typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage.typ
 ```
 
+## Bestehendes Layout aktualisieren
+
+Ein Layout läuft ohne Änderung weiter, solange seine Version des Feldvertrags gilt. Neuere Felder lohnen sich trotzdem:
+
+- **Stelle des Logos:** `look.logoPosition` ist „links“, „mitte“ oder „rechts“. Wer nur `look.logoLeft` liest, setzt das Logo bei „mitte“ rechts; die Gestaltung weist dann darauf hin. Ersetzen durch:
+
+  ```typst
+  #let stelle = d.look.at("logoPosition", default: if d.look.logoLeft { "links" } else { "rechts" })
+  #let ecke = (links: left, mitte: center, rechts: right).at(stelle)
+  ```
+
+  „mitte“ meint die Mitte des Blatts. Sind der linke und der rechte Rand verschieden, gleicht `dx` das aus, bei 25 und 20 mm etwa `dx: -2.5mm`.
+- **Gruppen im Infoblock:** Jede Zeile in `meta` hat `group`: „kerndaten“ für die Kerndaten, „referenz“ für weitere Referenzen wie Auftrag, Lieferschein oder Leitweg-ID. Ein Layout kann die Referenzen gesondert setzen, etwa zweispaltig vor dem Betreff, wenn sie neben der Anschrift keinen Platz mehr haben. Alle Zeilen untereinander bleiben richtig.
+
 ## Felder (Feldvertrag v1)
 
 ### Beleg: Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein
@@ -112,6 +128,7 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
+| `meta[].group` | `"kerndaten" \| "referenz"` | ja |  | „kerndaten“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja | ja | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -129,9 +146,11 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `look` | `object` | ja |  | Einstellungen der Gestaltung |
 | `look.logoHeight` | `number` | ja |  | Größte Höhe des Logos in mm |
 | `look.logoWidth` | `number` | ja |  | Größte Breite des Logos in mm |
-| `look.logoLeft` | `boolean` | ja |  | Logo links statt rechts |
+| `look.logoLeft` | `boolean` | ja |  | Logo links; false bei „rechts“ und „mitte“, look.logoPosition nennt alle drei |
+| `look.logoPosition` | `"links" \| "mitte" \| "rechts"` | ja |  | Stelle des Logos im Briefkopf |
 | `look.foldMarks` | `boolean` | ja |  | Falz- und Lochmarken drucken |
 | `look.backgroundPages` | `"erste" \| "alle"` | ja |  | Briefpapier nur auf der ersten oder auf allen Seiten |
+| `look.options` | `object` | nein |  | Optionen eines eingebauten Layouts, schon aufgelöst, etwa { fuss: „rechts“ }; leer bei eigenen Layouts |
 | `font` | `object` | ja |  | Gewählte Schrift; Familien, wie Typst sie nennt |
 | `font.regular` | `string` | ja |  | Familie für normalen Text |
 | `font.medium` | `string` | ja |  | Familie für mittelfett |
@@ -228,6 +247,7 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
+| `meta[].group` | `"kerndaten" \| "referenz"` | ja |  | „kerndaten“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja |  | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -245,9 +265,11 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `look` | `object` | ja |  | Einstellungen der Gestaltung |
 | `look.logoHeight` | `number` | ja |  | Größte Höhe des Logos in mm |
 | `look.logoWidth` | `number` | ja |  | Größte Breite des Logos in mm |
-| `look.logoLeft` | `boolean` | ja |  | Logo links statt rechts |
+| `look.logoLeft` | `boolean` | ja |  | Logo links; false bei „rechts“ und „mitte“, look.logoPosition nennt alle drei |
+| `look.logoPosition` | `"links" \| "mitte" \| "rechts"` | ja |  | Stelle des Logos im Briefkopf |
 | `look.foldMarks` | `boolean` | ja |  | Falz- und Lochmarken drucken |
 | `look.backgroundPages` | `"erste" \| "alle"` | ja |  | Briefpapier nur auf der ersten oder auf allen Seiten |
+| `look.options` | `object` | nein |  | Optionen eines eingebauten Layouts, schon aufgelöst, etwa { fuss: „rechts“ }; leer bei eigenen Layouts |
 | `font` | `object` | ja |  | Gewählte Schrift; Familien, wie Typst sie nennt |
 | `font.regular` | `string` | ja |  | Familie für normalen Text |
 | `font.medium` | `string` | ja |  | Familie für mittelfett |
@@ -309,7 +331,7 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 
 ### Einstellungen der Gestaltung
 
-Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.
+Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. „Mitte“ bei der Stelle des Logos folgt derselben Regel: Liest ein Layout nur `look.logoLeft`, steht das Logo dort rechts, und Haben graut „Mitte“ aus, sobald kein Beleg es mehr mittig setzt. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.
 
 | Einstellung | Feld | Belegarten |
 | --- | --- | --- |
@@ -317,7 +339,8 @@ Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr
 | Schrift | `font` | alle |
 | Logo | `logo` | alle |
 | Größe des Logos | `look.logoHeight` oder `look.logoWidth` | alle |
-| Seite des Logos | `look.logoLeft` | alle |
+| Stelle des Logos | `look.logoLeft` oder `look.logoPosition` | alle |
+| Stelle des Logos „Mitte“ | `look.logoPosition` | alle |
 | Falz- und Lochmarken | `look.foldMarks` | alle |
 | GiroCode | `qr` | Rechnung, Storno und Korrektur; Mahnung |
 | Artikelnummer | `itemNumbers` | Rechnung, Storno und Korrektur; Angebot; Auftragsbestätigung; Lieferschein |
