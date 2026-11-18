@@ -52,11 +52,12 @@ describe.each(["SKR03", "SKR04"] as const)("Normale Vorauszahlung %s ohne Datenb
 it("datierte Korrektur mindert im neuen Verfahren erhaltene Steuer erst mit der gespeicherten Erstattung", () => {
   const negative = (shares: TaxShare[]) => shares.map((share) => ({ ...share, base: -share.base, tax: -share.tax }));
   expect(
-    advanceVatPlan(
-      total,
-      [{ date: "2025-12-13", paid: part }, performance, { date: "2026-01-25", correction: negative(total) }, { date: "2026-02-13", paid: negative(part) }],
-      true,
-    ),
+    advanceVatPlan(total, [
+      { date: "2025-12-13", paid: part },
+      performance,
+      { date: "2026-01-25", correction: negative(total), untilRefund: true },
+      { date: "2026-02-13", paid: negative(part) },
+    ]),
   ).toEqual([
     { date: "2025-12-13", shares: part },
     { date: "2026-01-20", shares: rest },

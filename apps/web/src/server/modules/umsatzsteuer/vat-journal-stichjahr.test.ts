@@ -308,8 +308,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal: Zeiträume, Sto
         expect(lines.length).toBe(2);
         await invoices.finalizeInvoice(actor, draft.id);
         const rechnung = { kz81: 10_000, tax81: 1_900, kz86: 5_000, tax86: 350 };
-        // Bei Ist wirkt die Gutschrift erst mit der Erstattung, die hier noch fehlt
-        await gleich({ 9: rechnung, 10: versteuerung === "ist" ? {} : { kz81: -10_000, tax81: -1_900, kz86: -5_000, tax86: -350 } });
+        // Die Rechnung ist bezahlt: Die Gutschrift wirkt bei Ist wie bei Soll erst mit der Erstattung, die hier noch fehlt
+        // (#853, UStAE 17.1 Abs. 2 Satz 3; rechnungen/rueckgewaehr.test.ts)
+        await gleich({ 9: rechnung, 10: {} });
       }, 60_000);
     }
   }

@@ -90,9 +90,9 @@ describe.skipIf(!testDatabaseUrl)("Normale Rechnung mit Leistungszeitraum ohne V
     return rows.find((row) => row.account === account)?.saldo ?? 0;
   }
 
-  async function kz81(month: number) {
-    const figures = await vat.computeVatFigures({ year: 2026, month });
-    expect.soft((await reports.vatAbgleich({ year: 2026, month })).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
+  async function kz81(month: number, year = 2026) {
+    const figures = await vat.computeVatFigures({ year, month });
+    expect.soft((await reports.vatAbgleich({ year, month })).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
     return { kz81: figures.kz81, tax81: figures.tax81 };
   }
 
@@ -119,26 +119,37 @@ describe.skipIf(!testDatabaseUrl)("Normale Rechnung mit Leistungszeitraum ohne V
     }, 20_000);
 
   // Rechnung mit und ohne Leistungszeitraum, sonst gleich: Die Steuer darf nicht davon abhängen, ob das Feld befüllt ist.
+  // Bereits vereinnahmtes Entgelt mindert sich erst mit der Rückzahlung (§ 17 UStG, UStAE 17.1 Abs. 2 Satz 3,
+  // BFH V R 34/09), bei Soll wie bei Ist. Entscheidung: https://github.com/firsttris/haben/pull/1228#issuecomment-6925771896
   for (const service of [null, "2026-10-05"] as const)
-    it(`Soll, bezahlt, dann Rechnungskorrektur um 10 % im Dezember (Leistung ${service ?? "ohne Angabe"})`, async () => {
-      await sql`update company set rechtsform = 'einzelunternehmen'`;
-      const final = await invoice(service, null, "2026-10-05");
-      await pay(final.id, "2026-10-20", 119_000);
-      const draft = await invoices.createCorrection(actor, final.id, "2026-12-10");
-      await invoices.updateDraft(actor, draft.id, {
-        contactId,
-        issueDate: "2026-12-10",
-        serviceFrom: service,
-        serviceTo: null,
-        paymentTermDays: 0,
-        format: "zugferd",
-        note: "",
-        lines: [{ description: "Nachlass", quantity: 1000, unit: "Psch.", unitPrice: -10_000, taxRate: 1900 }],
-      });
-      await invoices.finalizeInvoice(actor, draft.id);
-      // docs/rechnungen.md, „Verrechnen ohne Zahlung“: Bei Soll mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat.
-      // Die neue Doku nennt den Erstattungszeitpunkt nur für die vollständige Rückabwicklung.
-      expect(await kz81(10)).toEqual({ kz81: 100_000, tax81: 19_000 });
-      expect(await kz81(12)).toEqual({ kz81: -10_000, tax81: -1_900 });
-    }, 20_000);
+    for (const { frame, mode } of [
+      { frame: "SKR03", mode: "soll" },
+      { frame: "SKR04", mode: "ist" },
+    ] as const)
+      it(`${frame}, ${mode}, bezahlt, dann Rechnungskorrektur um 10 % im Dezember, Erstattung im Januar (Leistung ${service ?? "ohne Angabe"})`, async () => {
+        await sql`update company set rechtsform = 'einzelunternehmen', kontenrahmen = ${frame}, versteuerung = ${mode}`;
+        const final = await invoice(service, null, "2026-10-05");
+        await pay(final.id, "2026-10-20", 119_000);
+        const draft = await invoices.createCorrection(actor, final.id, "2026-12-10");
+        await invoices.updateDraft(actor, draft.id, {
+          contactId,
+          issueDate: "2026-12-10",
+          serviceFrom: service,
+          serviceTo: null,
+          paymentTermDays: 0,
+          format: "zugferd",
+          note: "",
+          lines: [{ description: "Nachlass", quantity: 1000, unit: "Psch.", unitPrice: -10_000, taxRate: 1900 }],
+        });
+        const correction = await invoices.finalizeInvoice(actor, draft.id);
+        expect(correction.reductionRule).toBe("rueckgewaehr");
+        expect(await kz81(10)).toEqual({ kz81: 100_000, tax81: 19_000 });
+        expect(await kz81(12)).toEqual({ kz81: 0, tax81: 0 });
+        await pay(correction.id, "2027-01-15", -11_900);
+        expect(await kz81(1, 2027)).toEqual({ kz81: -10_000, tax81: -1_900 });
+        const accounts = ACCOUNTS[frame];
+        expect(await balance(accounts.ust[1900], "2027-12-31")).toBe(-17_100);
+        expect(await balance(accounts.ustNichtFaellig[1900], "2027-12-31")).toBe(0);
+        expect((await reports.checkIntegrity("2028-01-01")).abgleich.abweichungen).toEqual([]);
+      }, 30_000);
 });
