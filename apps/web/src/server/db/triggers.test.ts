@@ -162,11 +162,11 @@ describe.skipIf(!testDatabaseUrl)("Sperren und Eindeutigkeit in der Datenbank (P
 
     const [original] = await sql`insert into invoices (status, number, issue_date, due_date, locked_at)
       values ('final', 'RE-1', '2026-01-10', '2026-01-24', now()) returning id`;
-    await sql`insert into invoices (kind, status, number, issue_date, due_date, corrects_id, locked_at)
-      values ('storno', 'final', 'RE-2', '2026-01-11', '2026-01-11', ${original!.id}, now())`;
+    await sql`insert into invoices (kind, status, number, issue_date, due_date, corrects_id, locked_at, reduction_rule)
+      values ('storno', 'final', 'RE-2', '2026-01-11', '2026-01-11', ${original!.id}, now(), 'rueckgewaehr')`;
     await expect(
-      sql`insert into invoices (kind, status, number, issue_date, due_date, corrects_id, locked_at)
-        values ('storno', 'final', 'RE-3', '2026-01-11', '2026-01-11', ${original!.id}, now())`,
+      sql`insert into invoices (kind, status, number, issue_date, due_date, corrects_id, locked_at, reduction_rule)
+        values ('storno', 'final', 'RE-3', '2026-01-11', '2026-01-11', ${original!.id}, now(), 'rueckgewaehr')`,
     ).rejects.toThrow(/invoices_one_storno/);
   });
 });

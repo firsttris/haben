@@ -1,5 +1,5 @@
 {
-  "id": "bd650ecf-0559-4bfc-a7a8-189baaf61fe2",
+  "id": "8f4df660-e6fe-4c20-82d1-e162f9700c01",
   "prevId": "2639a4f7-b743-4865-8373-6680af9ff9bf",
   "version": "7",
   "dialect": "postgresql",
@@ -8170,19 +8170,6 @@
           "notNull": true,
           "default": "'{}'::text[]"
         },
-        "after_fetch": {
-          "name": "after_fetch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'seen'"
-        },
-        "archive_folder": {
-          "name": "archive_folder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "enabled": {
           "name": "enabled",
           "type": "boolean",
@@ -9160,6 +9147,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "reduction_rule": {
+          "name": "reduction_rule",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -9696,6 +9689,10 @@
         "invoices_advance_accounting": {
           "name": "invoices_advance_accounting",
           "value": "\"invoices\".\"advance_accounting\" is null or \"invoices\".\"advance_accounting\" = 'deferred'"
+        },
+        "invoices_reduction_rule": {
+          "name": "invoices_reduction_rule",
+          "value": "\"invoices\".\"reduction_rule\" is null or (\"invoices\".\"reduction_rule\" = 'rueckgewaehr' and \"invoices\".\"kind\" <> 'rechnung')"
         },
         "invoices_replaces_schluss": {
           "name": "invoices_replaces_schluss",

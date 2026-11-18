@@ -9,7 +9,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * und die übrigen Vorgänge vergleicht abgleich-vorgang.ts.
  *
  * Nicht verglichen: Abschlags- und Schlussrechnungen (die Schlussrechnung bucht die Anzahlungen gegen, das Bilanzverfahren
- * bucht um) und aus Lexoffice übernommene Rechnungen (gebucht gegen den Saldenvortrag, docs/adr/journal-als-quelle.md).
+ * bucht um), reine Steuerumbuchungen (bis zur Rückzahlung gehaltene Steuer, #853) und aus Lexoffice übernommene Rechnungen (gebucht gegen den Saldenvortrag, docs/adr/journal-als-quelle.md).
  */
 
 /** Steuerschlüssel einer Erlöszeile (revenueTaxCode) */
@@ -68,6 +68,9 @@ export async function belegZeilen(year: number, q: Db | Tx = db): Promise<BelegZ
     const a = ACCOUNTS[entry.kontenrahmen as Kontenrahmen];
     const steuerkonten = new Set<string>([...Object.values(a.ust), ...Object.values(a.ustNichtFaellig)]);
     const eigene = lines.filter((l) => l.entryId === entry.id);
+    // Reine Umbuchung zwischen „Umsatzsteuer“ und „nicht fällig“: Steuer, die eine Korrektur erst mit der Rückzahlung
+    // mindert (#853, advance-vat.ts); sie ist keine Buchung der Rechnung selbst
+    if (eigene.every((l) => steuerkonten.has(l.account))) continue;
     const haben = (l: (typeof eigene)[number]) => l.credit - l.debit;
     // Korrektur einer übernommenen Rechnung (legacyCorrectionPosting): das Netto auf dem Saldenvortrag, bei Ist ohne Schlüssel
     const netto = eigene
