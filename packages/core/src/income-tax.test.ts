@@ -503,4 +503,45 @@ describe("steuerPrognose", () => {
     expect(mitUeberhang.zvE).toBe(ohneUeberhang.zvE);
     expect(mitUeberhang.einkommensteuer).toBe(ohneUeberhang.einkommensteuer);
   });
+
+  it("verrechnet bei Zusammenveranlagung den Überhang eines Ehegatten mit den Basisbeiträgen des anderen (§ 26b, § 10 Abs. 4b Satz 2 EStG)", () => {
+    // Zusammen veranlagte Ehegatten sind ein Steuerpflichtiger (§ 26b EStG); der Überhang wird zuerst innerhalb der Nr. 3
+    // verrechnet, nur der Rest wird hinzugerechnet. BMF vom 24.5.2017, Rz. 130: die Basisbeiträge zählen in der Summe.
+    // A: 1.000 € Beiträge, 2.000 € Erstattung. B: 3.000 € Beiträge. Übrige Vorsorge 3.000 €, Höchstbetrag 2 × 2.800 €.
+    // Nr. 3 gemeinsam 2.000 €, mit Nr. 3a 5.000 € unter dem Höchstbetrag: Abzug 5.000 €, nichts hinzuzurechnen.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: true,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: { pkv: 1_000_00, pkvErstattung: 2_000_00 }, b: { gkv: 3_000_00 }, sonstige: 3_000_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(0);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(p.vorsorge).toBe(5_000_00);
+    expect(p.zvE).toBe(60_000_00 - 5_000_00 - 72_00);
+  });
+
+  it("rechnet das Beispiel aus dem BMF-Schreiben vom 24.5.2017, Rz. 204", () => {
+    // KV-Basis 1.200 €, Pflege 300 €, Erstattung KV-Basis 1.600 €: Überhang 400 €, mit der Pflege verrechnet 100 €.
+    // Kirchensteuer 200 € gezahlt, 1.500 € erstattet: Überhang 1.300 €. Hinzurechnung 100 € + 1.300 € = 1.400 €.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: { pkv: 1_200_00, ppv: 300_00, pkvErstattung: 1_600_00 } },
+        sonderausgaben: { kirchensteuerGezahlt: 200_00, kirchensteuerErstattet: 1_500_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(1_400_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(61_400_00);
+    expect(p.vorsorge).toBe(0);
+    expect(p.zvE).toBe(61_400_00 - 36_00);
+  });
 });
