@@ -192,6 +192,26 @@ describe.skipIf(!testDatabaseUrl)("BWA nach Zufluss und Abfluss (Postgres, #1380
     expect(zeile(bericht, "verschiedeneKosten").betrag).toBe(5_000);
   }, 60_000);
 
+  it("nennt die Jahre, deren AfA im Anlagenverzeichnis noch nicht gebucht ist", async () => {
+    await reset("ist", "SKR03");
+    const anlagen = await import("../buchhaltung/index.ts");
+    await anlagen.createAsset(actor, {
+      name: "Schreibtisch",
+      kind: "buero",
+      method: "linear",
+      acquisitionDate: "2026-03-01",
+      cost: 240_000,
+      usefulLifeMonths: 156,
+      openingDate: "2026-03-01",
+      openingBookValue: 240_000,
+      disposalDate: null,
+      note: "",
+    });
+    expect((await bwa.bwaBericht(bwaZeitraum("monat", 2026, 3), "keiner")).afaOffen).toEqual([2026]);
+    // Kumuliert reicht nur bis zum Ende des Zeitraums: Dezember 2025 berührt 2026 nicht
+    expect((await bwa.bwaBericht(bwaZeitraum("monat", 2025, 12), "keiner")).afaOffen).toEqual([]);
+  }, 60_000);
+
   it("GmbH: noch keine BWA nach Zufluss, alle Zeilen leer", async () => {
     await reset("soll", "SKR04", "gmbh");
     await beleg("2027-03-01", 5_000, "software", "privat");

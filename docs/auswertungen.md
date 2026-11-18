@@ -127,7 +127,7 @@ Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlung
 
 ## BWA
 
-„BWA“ im Kopf der Auswertungen öffnet die betriebswirtschaftliche Auswertung: wie der Betrieb in einem Monat, einem Quartal, einem Jahr oder einem freien Zeitraum (von–bis) dasteht. Sie rechnet aus denselben Zahlungen wie die EÜR und bucht nichts; über ein ganzes Jahr ergibt sie den Gewinn der EÜR. Zeitraum, Vergleich und eine aufgeklappte Zeile stehen in der Adresse, ein Link zeigt also dieselbe Auswertung.
+„BWA“ im Kopf der Auswertungen öffnet die betriebswirtschaftliche Auswertung: wie der Betrieb in einem Monat, einem Quartal, einem Jahr oder einem freien Zeitraum (von–bis) dasteht. Sie rechnet aus denselben Zahlungen wie die EÜR und bucht nichts; über ein ganzes Jahr ergibt sie den Gewinn der EÜR, sobald das Jahr im Anlagenverzeichnis gebucht ist. Zeitraum, Vergleich und eine aufgeklappte Zeile stehen in der Adresse, ein Link zeigt also dieselbe Auswertung.
 
 Gegliedert ist sie wie die Einnahmen-Ausgaben-BWA von DATEV (BWA-Form 43): Erlöse, Umsatzsteuer, Kosten nach Kostenart (Material, Fremdleistungen, Personal, Raum, Steuern und Versicherungen, Fahrzeug, Werbung und Reisen, Warenabgabe, Instandhaltung, Abschreibungen, verschiedene Kosten), Zinsen, Vorsteuer und Umsatzsteuer-Zahlungen, darunter das vorläufige Ergebnis. Welche Kostenart ein Konto hat, folgt den Kontengruppen des DATEV-Kontenrahmens; ein [eigenes Konto](buchhaltung.md#eigene-konten) zählt wie seine Kategorie.
 
@@ -140,11 +140,11 @@ Gegliedert ist sie wie die Einnahmen-Ausgaben-BWA von DATEV (BWA-Form 43): Erlö
 
 Anders als die EÜR zählt die BWA nicht abziehbare Ausgaben (30 % der Bewirtung, Gewerbesteuer, nicht abziehbare Nebenleistungen) als Kosten, denn bezahlt sind sie trotzdem. Die Zeile „nicht abziehbare Ausgaben“ darunter führt zum Gewinn laut EÜR. Eine Umsatzsteuer-Vorauszahlung vom 1. bis 10. Januar steht wie in der EÜR am 31. Dezember des Vorjahres (§ 11 Abs. 2 Satz 2 EStG).
 
-Ein Klick auf eine Zeile zeigt darunter, was darin steht: je Kategorie mit Konto die Zahlungen mit Datum, Betrag und Link zur Rechnung oder zum Beleg.
+Ein Klick auf eine Zeile zeigt darunter, was darin steht: je Kategorie die Zahlungen mit Datum, Betrag und Link zur Rechnung oder zum Beleg. Die Kontonummer führt zum Kontenblatt; das zeigt die Buchungen nach Buchungsdatum, nicht nach Zahlung.
 
 Grenzen:
 
-- Abschreibungen zeigt die BWA erst, wenn das Jahr im [Anlagenverzeichnis](anlagen.md) gebucht ist; bis dahin weist sie darauf hin.
+- Abschreibungen, Restbuchwerte und die Privatnutzung von Fahrzeugen zeigt die BWA erst, wenn das Jahr im [Anlagenverzeichnis](anlagen.md) gebucht ist. Die EÜR rechnet sie vorher schon aus dem Anlagenverzeichnis; bis dahin weicht der Gewinn ab, und die BWA weist darauf hin.
 - Zinserträge und andere steuerfreie Einnahmen stehen bei den Erlösen, weil die EÜR sie in einer Zeile mit den steuerfreien Umsätzen führt.
 - GmbH und UG bilanzieren; ihre BWA nach der Kurzfristigen Erfolgsrechnung (DATEV BWA-Form 01) fehlt noch.
 

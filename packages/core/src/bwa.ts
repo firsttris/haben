@@ -100,27 +100,19 @@ const KOSTEN: ReadonlySet<Form43Zeile> = new Set([
 /** Zeile der Form 43 je Kostenart eines Kontos */
 const JE_KOSTENART: Record<Kostenart, Form43Zeile> = {
   erloese: "erloese",
-  bestandsveraenderung: "sonstigeErloese",
-  eigenleistungen: "sonstigeErloese",
   sonstigeErloese: "sonstigeErloese",
-  neutralerErtrag: "sonstigeErloese",
-  zinsertrag: "sonstigeErloese",
-  verrechneteKalkulatorischeKosten: "sonstigeErloese",
   material: "material",
   fremdleistungen: "fremdleistungen",
   personal: "personal",
   raum: "raum",
   betrieblicheSteuern: "steuernVersicherungenBeitraege",
   versicherungen: "steuernVersicherungenBeitraege",
-  steuernEinkommen: "steuernVersicherungenBeitraege",
   kfz: "kfz",
   werbeReise: "werbeReise",
   warenabgabe: "warenabgabe",
   instandhaltung: "instandhaltung",
   abschreibungen: "abschreibungen",
   sonstigeKosten: "verschiedeneKosten",
-  zinsaufwand: "sonstigeAufwendungen",
-  neutralerAufwand: "sonstigeAufwendungen",
 };
 
 /** Zeilen der EÜR ohne eigenes Konto */

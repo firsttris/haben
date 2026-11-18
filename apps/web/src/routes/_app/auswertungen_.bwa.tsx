@@ -7,7 +7,7 @@ import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { formatDate } from "../../lib/format.ts";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 import { getBwa, getBwaZeile } from "../../server/functions/bwa.ts";
-import type { BwaGruppe, BwaZeileWerte } from "../../server/modules/auswertungen/index.ts";
+import type { BwaBericht, BwaGruppe, BwaZeileWerte } from "../../server/modules/auswertungen/index.ts";
 import styles from "../../styles/auswertungen.css?url";
 
 /*
@@ -93,8 +93,6 @@ function BwaPage() {
   const { jahr, art, zeitraum, vergleich } = auswahl(suche);
   const neu = (s: Partial<Suche>) =>
     navigate({ search: { jahr, zeitraum: art, vergleich, ...(art === "frei" ? { von: zeitraum.von, bis: zeitraum.bis } : {}), ...s } });
-  const jahre = Array.from({ length: LETZTES_JAHR - ERSTES_JAHR + 1 }, (_, i) => LETZTES_JAHR - i).filter((j) => j <= currentYear() + 1);
-  const mitVergleich = bericht.vergleich !== null;
   const offeneZeile = suche.zeile ? bericht.zeilen.find((z) => z.key === suche.zeile) : undefined;
 
   return (
@@ -109,52 +107,7 @@ function BwaPage() {
           </div>
           <h1>BWA {zeitraumText(zeitraum)}</h1>
         </div>
-        <div className="actions" style={{ alignItems: "end", flexWrap: "wrap" }}>
-          <Field label="Jahr">
-            {(control) => (
-              <select {...control} value={jahr} onChange={(e) => neu({ jahr: Number(e.target.value), zeile: undefined })} disabled={art === "frei"}>
-                {jahre.map((j) => (
-                  <option key={j} value={j}>
-                    {j}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          <Field label="Zeitraum">
-            {(control) => (
-              <select
-                {...control}
-                value={art}
-                onChange={(e) =>
-                  neu(
-                    e.target.value === "frei"
-                      ? { zeitraum: "frei", von: zeitraum.von, bis: zeitraum.bis, zeile: undefined }
-                      : { zeitraum: e.target.value, von: undefined, bis: undefined, zeile: undefined },
-                  )
-                }
-              >
-                {ZEITRAEUME.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-                <option value="frei">Von–bis</option>
-              </select>
-            )}
-          </Field>
-          <Field label="Vergleich">
-            {(control) => (
-              <select {...control} value={vergleich} onChange={(e) => neu({ vergleich: e.target.value as Vergleich })}>
-                {VERGLEICHE.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-        </div>
+        <ZeitraumWahl jahr={jahr} art={art} zeitraum={zeitraum} vergleich={vergleich} neu={neu} />
       </div>
 
       {art === "frei" && (
@@ -170,66 +123,134 @@ function BwaPage() {
         <>
           {bericht.afaOffen.length > 0 && (
             <div className="banner banner-info" role="note">
-              Die Abschreibungen {bericht.afaOffen.join(", ")} sind noch nicht gebucht. Die BWA zeigt sie erst, wenn das Jahr im{" "}
-              <Link to="/anlagen">Anlagenverzeichnis</Link> gebucht ist; die EÜR rechnet sie bis dahin aus dem Anlagenverzeichnis.
+              Die Anlagen {bericht.afaOffen.join(", ")} sind im <Link to="/anlagen">Anlagenverzeichnis</Link> noch nicht gebucht. Bis dahin fehlen hier
+              Abschreibungen, Restbuchwerte und die Privatnutzung von Fahrzeugen; die EÜR rechnet sie schon aus dem Anlagenverzeichnis, ihr Gewinn weicht
+              deshalb ab.
             </div>
           )}
-          <section className="card">
-            <h2>Einnahmen-Ausgaben-BWA</h2>
-            <p className="small muted">
-              Nach Zahlungsdatum wie die EÜR (§ 4 Abs. 3, § 11 EStG), Einnahmen mit Umsatzsteuer, Ausgaben mit Vorsteuer; gegliedert nach DATEV-Form 43. Eine
-              Zeile öffnet, was darin steht.
-            </p>
-            <ScrollTable className="report-table euer-table">
-              <caption className="visually-hidden">BWA {zeitraumText(zeitraum)}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Position</th>
-                  <th scope="col" className="num">
-                    {zeitraumText(zeitraum, true)}
-                  </th>
-                  {mitVergleich && (
-                    <>
-                      <th scope="col" className="num">
-                        {zeitraumText(bericht.vergleich!, true)}
-                      </th>
-                      <th scope="col" className="num">
-                        Abweichung
-                      </th>
-                      <th scope="col" className="num">
-                        in %
-                      </th>
-                    </>
-                  )}
-                  <th scope="col" className="num">
-                    Kumuliert {zeitraumText(bericht.kumuliert, true)}
-                  </th>
-                  {bericht.vergleichKumuliert && (
-                    <th scope="col" className="num">
-                      Kumuliert {zeitraumText(bericht.vergleichKumuliert, true)}
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {bericht.zeilen
-                  .filter((z) => !leer(z))
-                  .map((z) => (
-                    <BwaZeile
-                      key={z.key}
-                      zeile={z}
-                      mitVergleich={mitVergleich}
-                      kumuliertVergleich={bericht.vergleichKumuliert !== null}
-                      offen={z.key === suche.zeile}
-                    />
-                  ))}
-              </tbody>
-            </ScrollTable>
-          </section>
-          {offeneZeile && details && <ZeileDetails titel={`${offeneZeile.label} · ${zeitraumText(zeitraum)}`} gruppen={details} />}
+          <BwaTabelle bericht={bericht} zeitraum={zeitraum} offen={suche.zeile} />
+          {offeneZeile && details && (
+            <ZeileDetails titel={`${offeneZeile.label} · ${zeitraumText(zeitraum)}`} jahr={Number(zeitraum.von.slice(0, 4))} gruppen={details} />
+          )}
         </>
       )}
     </>
+  );
+}
+
+function ZeitraumWahl({
+  jahr,
+  art,
+  zeitraum,
+  vergleich,
+  neu,
+}: {
+  jahr: number;
+  art: string;
+  zeitraum: Zeitraum;
+  vergleich: Vergleich;
+  neu: (s: Partial<Suche>) => void;
+}) {
+  const jahre = Array.from({ length: LETZTES_JAHR - ERSTES_JAHR + 1 }, (_, i) => LETZTES_JAHR - i).filter((j) => j <= currentYear() + 1);
+  return (
+    <div className="actions" style={{ alignItems: "end", flexWrap: "wrap" }}>
+      <Field label="Jahr">
+        {(control) => (
+          <select {...control} value={jahr} onChange={(e) => neu({ jahr: Number(e.target.value), zeile: undefined })} disabled={art === "frei"}>
+            {jahre.map((j) => (
+              <option key={j} value={j}>
+                {j}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field label="Zeitraum">
+        {(control) => (
+          <select
+            {...control}
+            value={art}
+            onChange={(e) =>
+              neu(
+                e.target.value === "frei"
+                  ? { zeitraum: "frei", von: zeitraum.von, bis: zeitraum.bis, zeile: undefined }
+                  : { zeitraum: e.target.value, von: undefined, bis: undefined, zeile: undefined },
+              )
+            }
+          >
+            {ZEITRAEUME.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+            <option value="frei">Von–bis</option>
+          </select>
+        )}
+      </Field>
+      <Field label="Vergleich">
+        {(control) => (
+          <select {...control} value={vergleich} onChange={(e) => neu({ vergleich: e.target.value as Vergleich })}>
+            {VERGLEICHE.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+    </div>
+  );
+}
+
+function BwaTabelle({ bericht, zeitraum, offen }: { bericht: BwaBericht; zeitraum: Zeitraum; offen: Form43Zeile | undefined }) {
+  const mitVergleich = bericht.vergleich !== null;
+  return (
+    <section className="card">
+      <h2>Einnahmen-Ausgaben-BWA</h2>
+      <p className="small muted">
+        Nach Zahlungsdatum wie die EÜR (§ 4 Abs. 3, § 11 EStG), Einnahmen mit Umsatzsteuer, Ausgaben mit Vorsteuer; gegliedert nach DATEV-Form 43. Eine Zeile
+        öffnet, was darin steht.
+      </p>
+      <ScrollTable className="report-table euer-table">
+        <caption className="visually-hidden">BWA {zeitraumText(zeitraum)}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Position</th>
+            <th scope="col" className="num">
+              {zeitraumText(zeitraum, true)}
+            </th>
+            {mitVergleich && (
+              <>
+                <th scope="col" className="num">
+                  {zeitraumText(bericht.vergleich!, true)}
+                </th>
+                <th scope="col" className="num">
+                  Abweichung
+                </th>
+                <th scope="col" className="num">
+                  in %
+                </th>
+              </>
+            )}
+            <th scope="col" className="num">
+              Kumuliert {zeitraumText(bericht.kumuliert, true)}
+            </th>
+            {bericht.vergleichKumuliert && (
+              <th scope="col" className="num">
+                Kumuliert {zeitraumText(bericht.vergleichKumuliert, true)}
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {bericht.zeilen
+            .filter((z) => !leer(z))
+            .map((z) => (
+              <BwaZeile key={z.key} zeile={z} mitVergleich={mitVergleich} kumuliertVergleich={bericht.vergleichKumuliert !== null} offen={z.key === offen} />
+            ))}
+        </tbody>
+      </ScrollTable>
+    </section>
   );
 }
 
@@ -300,7 +321,7 @@ function FreierZeitraum({ zeitraum, onChange }: { zeitraum: Zeitraum; onChange: 
   );
 }
 
-function ZeileDetails({ titel, gruppen }: { titel: string; gruppen: BwaGruppe[] }) {
+function ZeileDetails({ titel, jahr, gruppen }: { titel: string; jahr: number; gruppen: BwaGruppe[] }) {
   return (
     <section className="card bwa-details" id="details" aria-labelledby="details-titel">
       <h2 id="details-titel">{titel}</h2>
@@ -308,7 +329,14 @@ function ZeileDetails({ titel, gruppen }: { titel: string; gruppen: BwaGruppe[] 
       {gruppen.map((g) => (
         <ScrollTable key={g.euerZeile} className="report-table">
           <caption>
-            {g.konto ? `${g.konto} · ` : ""}
+            {g.konto && (
+              <>
+                <Link to="/konten/$konto" params={{ konto: g.konto }} search={{ jahr }} title="Kontenblatt, nach Buchungsdatum">
+                  {g.konto}
+                </Link>{" "}
+                ·{" "}
+              </>
+            )}
             {g.label}: <span className="amount">{formatEuro(g.betrag)}</span>
           </caption>
           <thead>
