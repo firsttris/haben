@@ -108,6 +108,14 @@ describe.skipIf(!testDatabaseUrl)("Belegfeld 1 ohne Nummer im DATEV-Abgleich (Po
     expect(offen.rows).toHaveLength(0);
   });
 
+  it("lässt die Zeile auch in der Zeitraumabfrage des Werkzeugs weg", async () => {
+    // Dieselbe Einordnung für das Werkzeug `lexoffice_buchungen`: Es filtert offen, wenn `ohneBeleg` gesetzt ist
+    await laden(["Beispielzahldienst"]);
+    const zeitraum = await archive.datevBookingsForPeriod({ year: 2025, account: "", unmatched: true, limit: 50 });
+    expect(zeitraum.total).toBe(0);
+    expect(zeitraum.rows).toHaveLength(0);
+  });
+
   it.each(["RE20250009", "Beleg 7", "16032026_19000"])("lässt eine Nummer mit Ziffer (%s) offen, wenn der Beleg fehlt", async (feld) => {
     const { jahr, liste } = await laden([feld]);
 
