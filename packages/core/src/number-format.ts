@@ -19,6 +19,14 @@ export const DEFAULT_CUSTOMER_NUMBER_FORMAT = "K-{NNNN}";
 
 export const MAX_NUMBER_FORMAT_LENGTH = 30;
 
+/**
+ * So lang darf eine Belegnummer höchstens sein: DATEV liest im Belegfeld 1 nur 36 Zeichen („ASCII-Import:
+ * Feldbeschreibungen für Standardformate“, Dok.-Nr. 1003221, Feld 11); der Export kürzt ohne Rückmeldung, deshalb hält
+ * das Festschreiben längere Nummern auf. Erst mit {KUNDENNR} kann eine Nummer das Format übersteigen (Kundennummern
+ * bis zu 40 Zeichen).
+ */
+export const MAX_DOCUMENT_NUMBER_LENGTH = 36;
+
 const PLACEHOLDER = /\{([^{}]*)\}/g;
 const COUNTER = /^N{1,6}$/;
 const YEAR = /^(JJJJ|JJ)$/;
@@ -62,6 +70,15 @@ export function customerNumberProblem(kundennummer: string | null | undefined): 
     return "Die Kundennummer darf nur Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt enthalten, weil sie in der Belegnummer steht.";
   }
   return null;
+}
+
+/**
+ * Warum eine Belegnummer für DATEV zu lang ist, als Satz für die Oberfläche; null = in Ordnung. Zwei Nummern, die im
+ * Belegfeld 1 gleich aussehen, verwechseln dort die offenen Posten.
+ */
+export function documentNumberLengthProblem(number: string): string | null {
+  if (number.length <= MAX_DOCUMENT_NUMBER_LENGTH) return null;
+  return `Die Nummer ${number} ist länger als ${MAX_DOCUMENT_NUMBER_LENGTH} Zeichen; DATEV übernimmt nur ${MAX_DOCUMENT_NUMBER_LENGTH} Zeichen als Belegnummer. Bitte eine kürzere Kundennummer oder ein kürzeres Nummernformat wählen.`;
 }
 
 /**

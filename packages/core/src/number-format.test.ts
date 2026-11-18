@@ -3,6 +3,7 @@ import { purposeContainsNumber } from "./matching.ts";
 import {
   counterCircle,
   customerNumberProblem,
+  documentNumberLengthProblem,
   effectiveCustomerNumber,
   issueDateBeforeLastFinalized,
   DEFAULT_CUSTOMER_NUMBER_FORMAT,
@@ -117,6 +118,14 @@ describe("Platzhalter {KUNDENNR} (#1426)", () => {
     expect(numberFormatError("RE-{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
     // Neben Jahr und Monat ist sie erlaubt: die haben feste Breite
     expect(numberFormatError("{JJJJ}{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
+  });
+});
+
+describe("documentNumberLengthProblem (#1426)", () => {
+  it("lässt Nummern bis 36 Zeichen zu und meldet längere", () => {
+    expect(documentNumberLengthProblem("RE-2026-ACME-001")).toBeNull();
+    expect(documentNumberLengthProblem("X".repeat(36))).toBeNull();
+    expect(documentNumberLengthProblem("X".repeat(37))).toMatch(/36 Zeichen.*DATEV/);
   });
 });
 

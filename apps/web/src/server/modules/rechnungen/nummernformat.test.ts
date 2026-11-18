@@ -164,6 +164,25 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
     expect((await sql`select status from quotes where id = ${quote.id}`)[0]!.status).toBe("draft");
   });
 
+  it("hält Nummern über 36 Zeichen auf, weil DATEV das Belegfeld 1 kürzt (#1426)", async () => {
+    // Der gemeldete Fall: eine 32-stellige Kundennummer ergibt mit {KUNDENNR} 45 Zeichen; zweimal dieselbe
+    // Belegfeld-1-Nummer ließe offene Posten in DATEV zusammenfallen
+    const lang = (await createContact("b7a4d3bb872a4f82ae936d0c15293612")).id;
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(lang)).id);
+    expect(original.number).toBe("2026-001");
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}" });
+    const draft = await invoiceDraft(lang);
+    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/36 Zeichen.*DATEV/);
+    // Auch das Storno darf keine Nummer erzeugen, die DATEV kürzt
+    await expect(invoices.cancelInvoice(actor, original.id, "2026-03-05")).rejects.toThrow(/36 Zeichen.*DATEV/);
+    const [counter] = await sql`select last from invoice_number_counters where year = 2026`;
+    expect(counter!.last).toBe(1);
+    expect((await sql`select status from invoices where id = ${draft.id}`)[0]!.status).toBe("draft");
+    // Eine kürzere Kundennummer passt wieder unter 36 Zeichen
+    await updateKundennummer(lang, "ACME");
+    expect((await invoices.finalizeInvoice(actor, draft.id)).number).toBe("RE-2026-ACME-002");
+  });
+
   it("vergibt dem Storno die Kundennummer des Originals, auch wenn die des Kontakts inzwischen anders ist (#1426)", async () => {
     await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
     const acme = (await createContact("ACME")).id;

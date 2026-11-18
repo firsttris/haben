@@ -19,6 +19,7 @@ import {
   formatEuro,
   counterCircle,
   customerNumberProblem,
+  documentNumberLengthProblem,
   effectiveCustomerNumber,
   formatDocumentNumber,
   issueDateBeforeLastFinalized,
@@ -361,6 +362,8 @@ export function InvoiceEditor({
   const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, contact, corrects);
   // Dasselbe Problem wie in buyerIssues, aber live aus dem Formular: Bei einem neuen oder geänderten Entwurf steht sonst nichts da
   const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects)) : null;
+  // Zu lang für DATEV (Belegfeld 1, 36 Zeichen): dasselbe hält das Festschreiben auf, Angebote exportiert DATEV nicht
+  const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
@@ -686,6 +689,7 @@ export function InvoiceEditor({
     ...new Set([
       ...currentSellerIssues.map((i) => `Firmendaten: ${i}`),
       ...(customerNumberIssue ? [customerNumberIssue.replace(/\.$/, "")] : []),
+      ...(numberLengthIssue ? [numberLengthIssue.replace(/\.$/, "")] : []),
       ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten"))),
     ]),
   ];
