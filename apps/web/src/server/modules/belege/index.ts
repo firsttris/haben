@@ -8,7 +8,9 @@
 export {
   applyPublishedRates,
   bookDocument,
+  bookingIssueList,
   bookingIssues,
+  type BookingIssue,
   deleteDocument,
   DocumentError,
   documentFileProblem,
