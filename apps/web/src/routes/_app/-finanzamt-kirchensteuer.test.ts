@@ -77,24 +77,25 @@ function fixture(angabenAus: number | null) {
 }
 
 const render = () => renderToStaticMarkup(createElement(Route.options.component as ComponentType));
+const HINWEIS =
+  "Zur Kirchensteuer in deinen Angaben gehört auch die einbehaltene Lohnkirchensteuer laut Lohnsteuerbescheinigung (Nr. 6, für den Ehegatten Nr. 7)";
 
-describe("Finanzamt: Hinweis zur Lohnkirchensteuer bei fortgeschriebenen Angaben (#1451)", () => {
+describe("Finanzamt: Hinweis zur Lohnkirchensteuer bei übernommenen Angaben (#1451)", () => {
   beforeEach(() => {
     state.data = fixture(JAHR - 1);
   });
 
-  it("Angaben aus dem Vorjahr: der Hinweis nennt beide Jahre und die Lohnkirchensteuer", () => {
-    state.data = fixture(2025);
+  it("Angaben aus dem Vorjahr: der Hinweis nennt die Lohnkirchensteuer und den Überhang", () => {
+    state.data = fixture(JAHR - 1);
     const html = render();
-    expect(html).toContain("Die Angaben aus 2025 rechnet Haben für 2026 fort.");
-    expect(html).toContain("Lohnkirchensteuer laut Lohnsteuerbescheinigung (Nr. 6)");
+    expect(html).toContain(HINWEIS);
     expect(html).toContain("§ 10 Abs. 4b Satz 3 EStG");
   });
 
-  it("Angaben aus dem laufenden Jahr: kein Hinweis, sie werden nicht fortgeschrieben", () => {
+  it("Angaben aus dem laufenden Jahr: kein Hinweis, sie werden nicht übernommen", () => {
     state.data = fixture(JAHR);
     const html = render();
-    expect(html).not.toContain("rechnet Haben für");
+    expect(html).not.toContain(HINWEIS);
     expect(html).not.toContain("Lohnkirchensteuer");
   });
 
