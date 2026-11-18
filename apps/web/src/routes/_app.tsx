@@ -306,8 +306,8 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
       aria-keyshortcuts={`${ariaKuerzel(PALETTE_KUERZEL)} ${ariaKuerzel(PALETTE_ALT_KUERZEL)}`}
     >
       <Icon name="search" size={18} />
-      <span className="nav-search-label">Schnellsuche</span>
-      <NavTip>Schnellsuche</NavTip>
+      <span className="nav-search-label">Suche</span>
+      <NavTip>Suche</NavTip>
       <Kuerzel tasten={PALETTE_KUERZEL} className="nav-kbd" aria-hidden="true" />
       <Kuerzel tasten={PALETTE_ALT_KUERZEL} className="nav-kbd" aria-hidden="true" />
     </button>

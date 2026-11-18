@@ -14,9 +14,10 @@ import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
  * - Geldtransit: Eine Umbuchung zwischen eigenen Konten mit einem privaten Konto auf beiden Seiten ist Entnahme gegen
  *   Entnahme.
  *
- * Mehr fällt nicht weg: Die Steuern des Betriebs bleiben von dort buchbar, gegen Entnahme bzw. Einlage
- * (server/modules/bank/steuerzahlung.ts, ustPrivatPosting). Kategorie, Rechnung und Beleg buchen dort noch gegen die Bank
- * (Rest von #873).
+ * Mehr fällt nicht weg: Was bleibt, bucht auf einem privaten Konto gegen die Richtung des Zahlungskontos, also gegen
+ * Privatentnahme, Privateinlage oder das Gesellschafter-Verrechnungskonto statt gegen die Bank (posting.ts,
+ * privatKontoPosting; angewandt in server/modules/bank/bank.ts). Das gilt für Steuern, Kategorie, Aufladung, Rechnung,
+ * Beleg, Darlehen und die Lohnzahlungen gleichermaßen.
  */
 
 /**
@@ -59,7 +60,8 @@ export function direktKategorienFuerKonto(zweck: AccountPurpose | null): ReturnT
 
 /**
  * Buchungsarten, die nicht aus dem Angebot des Kontos stammen, sondern immer zur Wahl stehen: Kategorie, Aufladung,
- * Steuer und Darlehen. Sie hängen nicht am Kontozweck und buchen auf einem privaten Konto weiter gegen die Bank (#873).
+ * Steuer und Darlehen. Sie hängen nicht am Kontozweck; auf einem privaten Konto buchen sie wie jede andere Art gegen
+ * Entnahme, Einlage oder das Gesellschafter-Verrechnungskonto (privatKontoPosting, #873).
  */
 export const FREIE_BUCHUNGSARTEN = ["kategorie", "aufladung", "steuer", "darlehen"] as const;
 

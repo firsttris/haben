@@ -1,7 +1,6 @@
 import {
   STEUER_POSTEN_KEYS,
   STEUERART_KEYS,
-  privatZahlung,
   steuerKontierung,
   steuerzahlungPosting,
   steuerzahlungText,
@@ -82,13 +81,11 @@ export async function steuerbuchung(
   const ausRueckstellung = kontierung.rueckstellung
     ? Math.min(-amount, await offeneRueckstellung(tx, kontierung.rueckstellung, angabe.jahr, bank.bookingDate, company.kontenrahmen))
     : 0;
-  // Privates Konto (#866, #873): Das Geld fließt ins Private oder kommt von dort, die Gegenzeile ist deshalb die
-  // Privatentnahme bzw. -einlage und nicht die Bank. Das gilt für jede Steuerart, nicht nur die Umsatzsteuer: Auch
-  // Gewerbesteuer und die Steuern der GmbH laufen über das Privatkonto. Die Steuern des Inhabers und die einbehaltene
-  // Kapitalertragsteuer lehnt die Kontierung dort ab, weil sie kein Geschäftsvorfall sind (#873).
-  const zahlungskonto = privatesKonto ? privatZahlung(amount, company.kontenrahmen, company.rechtsform) : undefined;
+  // Privates Konto (#866, #873): Die Steuern des Inhabers und die einbehaltene Kapitalertragsteuer lehnt schon die
+  // Kontierung ab, weil sie dort kein Geschäftsvorfall sind. Alles andere bucht gegen die Bank und wird in bookPart
+  // einmal für jede Buchungsart auf Entnahme bzw. Einlage umgestellt (privatKontoPosting).
   return {
-    lines: steuerzahlungPosting(kontierung, amount, ausRueckstellung, company.kontenrahmen, zahlungskonto),
+    lines: steuerzahlungPosting(kontierung, amount, ausRueckstellung, company.kontenrahmen),
     description: `${steuerzahlungText(angabe, amount)} · ${bank.counterpartyName || "Finanzamt"}`,
     target: { taxType: angabe.art, taxYear: angabe.jahr, taxItem: angabe.posten },
   };

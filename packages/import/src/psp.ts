@@ -120,6 +120,18 @@ export function isStripeHeader(c: Columns): boolean {
   );
 }
 
+/**
+ * Zahlungen ohne Kunde und ohne Beschreibung haben keine Gegenpartei; Stripe füllt beides nur, wenn der Bericht die Spalten
+ * enthält. Empfohlen werden nur die Kundenspalten: Der Name steht nicht im Dedup-Hash, der Zweck (mit der Beschreibung)
+ * schon, ein neuer Zweck legte einen schon importierten Zeitraum ein zweites Mal an.
+ */
+function stripeUnnamedWarning(count: number): string[] {
+  if (count === 0) return [];
+  return [
+    `${count} ${count === 1 ? "Zahlung hat" : "Zahlungen haben"} weder Kunde noch Beschreibung, deshalb ohne Name. Wähle beim Erstellen des Berichts in Stripe unter „Spalten“ zusätzlich customer_name und customer_email.`,
+  ];
+}
+
 /** Saldenverlauf von Stripe („Balance history“, alter und neuer Export), nur Euro */
 export function parseStripe(rows: string[][], headerRow: number): ParsedStatement {
   const c = new Columns(rows[headerRow]!);
@@ -131,10 +143,15 @@ export function parseStripe(rows: string[][], headerRow: number): ParsedStatemen
   const currency = c.getter("currency");
   const description = c.getter("description");
   // Der alte Saldenverlauf hat keine Kundenspalte; dann steht der Kunde meist in der Beschreibung
-  const customer = c.getter("customeremail", "customername");
+  const customerName = c.getter("customername");
+  const customerEmail = c.getter("customeremail");
+  // Der Hinweis rät, die Kundenspalten zu wählen: nur sinnvoll, solange der Bericht keine hat (leer ist bei einer Gast-Zahlung normal)
+  const hatKundenspalten = c.has("customername", "customeremail");
+  const customer = (row: string[]) => customerName(row) || customerEmail(row);
 
   const list: Tx[] = [];
   let foreign = 0;
+  let unnamed = 0;
   rows.slice(headerRow + 1).forEach((row, i) => {
     if (isBlankRow(row)) return;
     const where = `Zeile ${headerRow + i + 2}`;
@@ -148,6 +165,7 @@ export function parseStripe(rows: string[][], headerRow: number): ParsedStatemen
     const grossAmount = requireAmount(parseDotAmount(gross(row)), gross(row), where);
     const feeAmount = fee(row) ? requireAmount(parseDotAmount(fee(row)), fee(row), where) : 0;
     const payout = /^payout/i.test(kind);
+    if (!hatKundenspalten && /^(charge|payment)$/i.test(kind) && grossAmount !== 0 && !normalizeText(description(row))) unnamed++;
     if (grossAmount !== 0) {
       list.push({
         bookingDate,
@@ -172,7 +190,12 @@ export function parseStripe(rows: string[][], headerRow: number): ParsedStatemen
       });
     }
   });
-  return finish({ format: "stripe-csv", currency: "EUR", transactions: indexed(list), warnings: skippedWarning(foreign, "nicht in Euro") });
+  return finish({
+    format: "stripe-csv",
+    currency: "EUR",
+    transactions: indexed(list),
+    warnings: [...skippedWarning(foreign, "nicht in Euro"), ...stripeUnnamedWarning(unnamed)],
+  });
 }
 
 // Shopify Payments -----------------------------------------------------------------------------------------------

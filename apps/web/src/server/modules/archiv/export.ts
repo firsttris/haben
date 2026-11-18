@@ -32,7 +32,8 @@ import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
 import { bankImportFiles, importsOfYear } from "./export-bankimporte.ts";
-import { BOM, csv, csvLine, type CsvValue, iso, money } from "./csv.ts";
+import { BOM, csv, csvLine, type CsvValue, iso, json, money } from "./csv.ts";
+import { kontaktFiles } from "./export-kontakte.ts";
 import { berlinStart, yearEnd, yearStart } from "./jahr.ts";
 
 export { csv, csvField, csvLine, type CsvValue, money } from "./csv.ts";
@@ -65,8 +66,6 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
   }
   return groups;
 }
-
-const json = (value: unknown) => (value === null || value === undefined ? "" : JSON.stringify(value));
 
 // ---------------------------------------------------------------------------
 // Dateinamen
@@ -1207,15 +1206,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
-  const versions = await db.select().from(schema.contactVersions).orderBy(asc(schema.contactVersions.contactId), asc(schema.contactVersions.version));
-  yield {
-    path: "stammdaten/kontakt-versionen.csv",
-    content: csv(
-      ["Kontakt-ID", "Version", "Name", "Angelegt", "Daten (JSON)"],
-      versions.map((v) => [v.contactId, v.version, String(v.data.name ?? ""), iso(v.createdAt), json(v.data)]),
-    ),
-    compress: true,
-  };
+  yield* kontaktFiles(year);
   yield {
     path: "stammdaten/bankkonten.csv",
     content: csv(
@@ -1775,6 +1766,8 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
                          Übermittlungsprotokoll aus Mein ELSTER (PDF).
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
+                         Nur wenn vorhanden: Bestätigungen von USt-IdNrn. beim BZSt im
+                         Jahr (ustid-bestaetigungen.csv) mit der Antwort als Nachweis.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
                          Lexware Office, sevDesk, FastBill oder BuchhaltungsButler (Spalte
                          Quelle; in Lexoffice-ID steht bei sevDesk Art und ID, z. B. invoice/123,

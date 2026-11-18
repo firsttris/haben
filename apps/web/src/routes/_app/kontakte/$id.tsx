@@ -1,33 +1,40 @@
-import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod/mini";
 import { ContactForm } from "../../../components/ContactForm.tsx";
 import { ContactHistory } from "../../../components/ContactHistory.tsx";
 import { ContactPersonsCard } from "../../../components/ContactPersonsCard.tsx";
 import { MandateCard } from "../../../components/MandateCard.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { UstIdBestaetigungCard } from "../../../components/UstIdBestaetigungCard.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../../lib/jahre.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { archiveContact, getContactDetail, getContactHistory } from "../../../server/functions/contacts.ts";
 import { getContactPersons } from "../../../server/functions/contact-persons.ts";
 import { getMandates } from "../../../server/functions/mandate.ts";
+import { getUstIdBestaetigungen } from "../../../server/functions/ustid-bestaetigung.ts";
 import chartStyles from "../../../styles/auswertungen.css?url";
 import styles from "../../../styles/kontakte.css?url";
 
 export const Route = createFileRoute("/_app/kontakte/$id")({
-  /** Jahr der Listen unter „Umsatz und Rechnungen“ und „Ausgaben und Belege“; ohne das neueste mit Einträgen */
-  validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))) }),
+  validateSearch: z.object({
+    /** Jahr der Listen unter „Umsatz und Rechnungen“ und „Ausgaben und Belege“; ohne das neueste mit Einträgen */
+    jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))),
+    /** Gerade angelegt: USt-IdNr. beim BZSt bestätigen, wenn fällig (#1385) */
+    bestaetigen: z.optional(z.boolean()),
+  }),
   loaderDeps: ({ search }) => ({ jahr: search.jahr }),
   loader: async ({ params, deps }) => {
-    const [detail, mandates, personen, history] = await Promise.all([
+    const [detail, mandates, personen, history, ustid] = await Promise.all([
       getContactDetail({ data: params.id }),
       getMandates({ data: params.id }),
       getContactPersons({ data: params.id }),
       getContactHistory({ data: { id: params.id, year: deps.jahr } }),
+      getUstIdBestaetigungen({ data: params.id }),
     ]);
-    return { ...detail, ...mandates, ...personen, history };
+    return { ...detail, ...mandates, ...personen, history, ustid };
   },
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.contact.name ?? "Kontakt"} · Haben` }],
@@ -41,12 +48,23 @@ export const Route = createFileRoute("/_app/kontakte/$id")({
 });
 
 function ContactPage() {
-  const { contact, versions, mandates, persons, today, history } = Route.useLoaderData();
+  const { contact, versions, mandates, persons, today, history, ustid } = Route.useLoaderData();
+  const { bestaetigen } = Route.useSearch();
   const router = useRouter();
+  const navigate = useNavigate({ from: Route.fullPath });
   const archive = useServerFn(archiveContact);
   const { busy, notice, run } = useAction();
   // Kontakt, der gerade gespeichert wurde; das Formular entsteht danach mit der neuen Version neu (key) und zeigt die Meldung von hier
   const [savedId, setSavedId] = useState<string | null>(null);
+  // Kontakt, für den nach dem Anlegen (Suchparameter) oder Speichern einmal beim BZSt nachgefragt wird; eine ID wie savedId,
+  // denn beim Wechsel zu einem anderen Kontakt bleibt die Seite stehen
+  const [pruefenFuer, setPruefenFuer] = useState<string | null>(null);
+  // Den Suchparameter gleich nehmen, solange die Seite den Kontakt zeigt; später träfe die Navigation die Seite, auf der man dann ist
+  useEffect(() => {
+    if (!bestaetigen) return;
+    setPruefenFuer(contact.id);
+    void navigate({ search: (s) => ({ ...s, bestaetigen: undefined }), replace: true });
+  }, [bestaetigen, contact.id, navigate]);
   return (
     <>
       <div className="page-head">
@@ -77,8 +95,28 @@ function ContactPage() {
       </div>
       <NoticeBanner notice={notice} />
       <div className="grid-main">
-        <ContactForm key={contact.version} contact={contact} saved={savedId === contact.id} onUpdated={() => setSavedId(contact.id)} />
+        <ContactForm
+          key={contact.version}
+          contact={contact}
+          saved={savedId === contact.id}
+          onUpdated={() => {
+            setSavedId(contact.id);
+            setPruefenFuer(contact.id);
+          }}
+        />
         <div className="stack">
+          {/* Abgeschaltet wie vor #1385: ohne Karte, außer es gibt schon Antworten */}
+          {(ustid.bestaetigungen.length > 0 || ustid.zustand.art === "bereit" || ustid.zustand.art === "ohne-eigene") && (
+            <UstIdBestaetigungCard
+              key={contact.id}
+              contactId={contact.id}
+              ustId={contact.ustId}
+              bestaetigungen={ustid.bestaetigungen}
+              zustand={ustid.zustand}
+              nachSpeichern={pruefenFuer === contact.id}
+              onNachSpeichernErledigt={() => setPruefenFuer((id) => (id === contact.id ? null : id))}
+            />
+          )}
           <ContactPersonsCard contactId={contact.id} persons={persons} />
           <MandateCard
             contactId={contact.id}

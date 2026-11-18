@@ -34,3 +34,6 @@ export function money(cents: number | null | undefined): string {
 
 /** Zeitpunkt als ISO 8601 in UTC, leer ohne Wert */
 export const iso = (value: Date | null | undefined) => (value ? value.toISOString() : "");
+
+/** Wert als JSON, leer ohne Wert */
+export const json = (value: unknown) => (value === null || value === undefined ? "" : JSON.stringify(value));

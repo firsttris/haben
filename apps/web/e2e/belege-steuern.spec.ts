@@ -28,6 +28,7 @@ import {
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
 import { vorsteuerPruefen } from "./belege-vorsteuer.ts";
+import { ustIdBestaetigungPruefen } from "./ustid-bestaetigung.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -1748,6 +1749,8 @@ test("Kontaktformular: Gleiche USt-IdNr. wird gemeldet, auch beim archivierten K
   await page.getByRole("button", { name: "Archivieren" }).click();
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
+
+ustIdBestaetigungPruefen(() => page);
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
