@@ -2059,6 +2059,20 @@
       "when": 1795023802154,
       "tag": "0293_appstore_fiskalperiode",
       "breakpoints": true
+    },
+    {
+      "idx": 294,
+      "version": "7",
+      "when": 1795031263798,
+      "tag": "0294_bank_dubletten",
+      "breakpoints": true
+    },
+    {
+      "idx": 295,
+      "version": "7",
+      "when": 1795031266866,
+      "tag": "0295_bank_dubletten_trigger",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import { formatHundredths } from "@haben/core";
 import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueArchiveDeliveries } from "./modules/ablage/index.ts";
 import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
-import { runDueBankSyncs, runDueFintsSyncs } from "./modules/bank/index.ts";
+import { runDueBankSyncs, runDueFintsSyncs, runExistingDuplicateCheck } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
 import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modules/belege/index.ts";
@@ -17,6 +17,16 @@ const HOUR = 60 * 60 * 1000;
 
 /** Ein Lauf auf einmal; Fehler landen im Log, der nächste Lauf versucht es erneut */
 let running = false;
+
+async function runDueBankJobs() {
+  try {
+    const result = await runExistingDuplicateCheck();
+    if (result) console.log(`Bankdubletten: Bestand geprüft, ${result.added} Verdachtspaare`);
+  } catch (error) {
+    console.error("Bankdublettenprüfung", error);
+  }
+  return runDueBankSyncs();
+}
 
 export async function runScheduledJobs(): Promise<void> {
   if (running) return;
@@ -46,7 +56,7 @@ export async function runScheduledJobs(): Promise<void> {
     console.error("Dauerbelege", error);
   }
   try {
-    const result = await runDueBankSyncs();
+    const result = await runDueBankJobs();
     if (result.synced > 0) console.log(`Kontoabruf: ${result.synced} Verbindungen, ${result.added} neue Umsätze`);
     for (const error of result.errors) console.warn(error);
   } catch (error) {

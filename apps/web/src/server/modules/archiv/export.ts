@@ -2,7 +2,7 @@ import { FILE_STATE_LABELS, FILE_STATUS_LABELS, fileStatesForYear, latestFileSta
 import { mitIndexXml } from "./beschreibung.ts";
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { bankAccountIncludedSql } from "../../db/bank-open.ts";
+import { bankAccountIncludedSql, bankDuplicateConfirmedSql, bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { effectivePayment } from "../auswertungen/index.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
@@ -820,7 +820,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.iban));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const transactions = await db
-    .select()
+    .select({
+      ...getTableColumns(schema.bankTransactions),
+      open: bankOpenAmountSql.mapWith(Number),
+      neutralized: bankNeutralizedSql.mapWith(Boolean),
+      duplicate: bankDuplicateConfirmedSql.mapWith(Boolean),
+    })
     .from(schema.bankTransactions)
     .where(
       and(
@@ -830,7 +835,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       ),
     )
     .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
-  const transactionById = new Map(transactions.map((t) => [t.id, t]));
+  const transactionById = new Map<string, typeof schema.bankTransactions.$inferSelect>(transactions.map((t) => [t.id, t]));
   const allocations = transactions.length
     ? await db
         .select()
@@ -864,11 +869,6 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
         .orderBy(asc(schema.bankNeutralizations.createdAt), asc(schema.bankNeutralizations.id))
     : [];
-  const reversedNeutralizations = new Set(neutralizations.flatMap((n) => (n.reversesId ? [n.reversesId] : [])));
-  const neutralized = new Set(
-    neutralizations.filter((n) => !n.reversesId && !reversedNeutralizations.has(n.id)).flatMap((n) => [n.transactionId, n.counterTransactionId]),
-  );
-
   const usedBankPaths = new Set<string>();
   for (const [accountId, rows] of groupBy(transactions, (t) => t.bankAccountId)) {
     const account = accountById.get(accountId);
@@ -890,6 +890,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           "Verrechnet",
           "Importdatei",
           "Umsatz-ID",
+          "Dublette",
         ],
         rows.map((t) => {
           const allocated = allocatedByTransaction.get(t.id) ?? 0;
@@ -904,10 +905,11 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
             t.type,
             t.bankReference,
             money(allocated),
-            money(neutralized.has(t.id) ? 0 : t.amount - allocated),
-            neutralized.has(t.id),
+            money(t.open),
+            t.neutralized,
             importById.get(t.importId)?.filename ?? t.importId,
             t.id,
+            t.duplicate,
           ];
         }),
       ),
@@ -1740,6 +1742,8 @@ kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufe
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
                          Bareinnahmen auf Rechnungen die Rechnungsnummer.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
+                         Bestätigte Dubletten behalten ihren Betrag und ihre Importdatei,
+                         stehen als Dublette in der Liste und haben einen offenen Betrag von 0.
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
 bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze

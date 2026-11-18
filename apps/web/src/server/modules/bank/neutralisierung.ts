@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { bankNeutralizedSql, bankNotPrivateMarkedSql, bankOpenAmountSql, bankPrivateMarkedSql } from "../../db/bank-open.ts";
+import { bankDuplicateProposalEligibleSql, bankNeutralizedSql, bankNotPrivateMarkedSql, bankOpenAmountSql, bankPrivateMarkedSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
@@ -104,6 +104,7 @@ async function candidates(transaction: { id: string; bankAccountId: string; amou
           ne(schema.bankTransactions.id, transaction.id),
           sql`${bankOpenAmountSql} = ${schema.bankTransactions.amount}`,
           bankNotPrivateMarkedSql,
+          bankDuplicateProposalEligibleSql,
         ),
       )
       // Die zeitlich nächsten zuerst: Kartenprüfung und Rückbuchung liegen meist wenige Tage auseinander
@@ -127,6 +128,7 @@ export async function neutralizationView(transactionId: string) {
       bookingDate: schema.bankTransactions.bookingDate,
       open: bankOpenAmountSql.mapWith(Number),
       privat: bankPrivateMarkedSql.mapWith(Boolean),
+      eligible: bankDuplicateProposalEligibleSql.mapWith(Boolean),
     })
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, transactionId));
@@ -163,6 +165,6 @@ export async function neutralizationView(transactionId: string) {
   return {
     active: entries.find((e) => !e.reversed) ?? null,
     reversed: entries.filter((e) => e.reversed),
-    candidates: transaction.open === transaction.amount && !transaction.privat ? await candidates(transaction) : [],
+    candidates: transaction.eligible && transaction.open === transaction.amount && !transaction.privat ? await candidates(transaction) : [],
   };
 }

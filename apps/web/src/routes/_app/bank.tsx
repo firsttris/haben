@@ -7,6 +7,7 @@ import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.ts
 import { vorschlagTitel } from "../../components/DirektVorschlag.ts";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
+import { BankDuplicateNotice } from "../../components/BankDuplicateNotice.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { FintsAbruf } from "../../components/FintsAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
@@ -51,6 +52,7 @@ import {
   splitTransaction,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
+import { decideBankDuplicate } from "../../server/functions/bank-dubletten.ts";
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
 import { ExcludeAccountButton, ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
@@ -1034,6 +1036,7 @@ function AllocationPanel({
   const transferFn = useServerFn(transferBetweenAccounts);
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
   const neutralizeFn = useServerFn(neutralizeBankTransactions);
+  const decideDuplicateFn = useServerFn(decideBankDuplicate);
   const reverseNeutralizationFn = useServerFn(reverseBankNeutralization);
   const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization, lastschrift, sammelrechnung } = detail;
   const batchFn = useServerFn(allocateDirectDebitBatchFn);
@@ -1183,6 +1186,10 @@ function AllocationPanel({
     }
   }
 
+  const duplicateNotice = (
+    <BankDuplicateNotice tx={tx} reviews={detail.duplicateReviews} busy={busy} onDecision={(data) => void run(() => decideDuplicateFn({ data }))} />
+  );
+
   // Auf einem privaten Konto ohne Buchungsart bleibt nur die Kennzeichnung: „Zuordnen", „Direkt buchen" und „Aufteilen"
   // wären beim selben Umsatz eine zweite Aussage zum selben Vorgang — sie gelten erst, wenn die Kennzeichnung aufgehoben
   // ist (#1088)
@@ -1190,6 +1197,7 @@ function AllocationPanel({
     return (
       <aside ref={panel} className="card" aria-label="Umsatz" style={{ gap: 16 }}>
         <PrivatUmsatz tx={tx} busy={busy} notice={notice} onAufheben={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))} />
+        {duplicateNotice}
       </aside>
     );
 
@@ -1208,6 +1216,8 @@ function AllocationPanel({
         </div>
         {tx.open !== 0 && tx.open !== tx.amount && <div className="small">Noch offen: {formatEuro(Math.abs(tx.open))}</div>}
       </div>
+
+      {duplicateNotice}
 
       {allocations.length > 0 && (
         <div className="stack" style={{ gap: 8 }}>
