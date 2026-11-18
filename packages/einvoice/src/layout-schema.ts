@@ -37,7 +37,17 @@ const common = {
   reference: text("Bezugszeile unter der Überschrift, etwa auf die stornierte Rechnung").nullable(),
   senderLine: text("Kleine Absenderzeile über dem Anschriftfeld"),
   recipient: z.array(z.string()).describe("Anschrift des Empfängers, eine Zeile je Eintrag"),
-  meta: z.array(row).describe("Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen"),
+  meta: z
+    .array(
+      row.extend({
+        group: z
+          .enum(["kerndaten", "referenz"])
+          .describe(
+            "„kerndaten“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann",
+          ),
+      }),
+    )
+    .describe("Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen"),
   payment: text("Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift").nullable(),
   qr: text("GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird").nullable().optional(),
   footer: z.array(z.array(z.string())).describe("Spalten der Fußzeile, je Spalte die Zeilen als Text"),
@@ -52,9 +62,14 @@ const common = {
     .strictObject({
       logoHeight: z.number().describe("Größte Höhe des Logos in mm"),
       logoWidth: z.number().describe("Größte Breite des Logos in mm"),
-      logoLeft: flag("Logo links statt rechts"),
+      logoLeft: flag("Logo links; false bei „rechts“ und „mitte“, look.logoPosition nennt alle drei"),
+      logoPosition: z.enum(["links", "mitte", "rechts"]).describe("Stelle des Logos im Briefkopf"),
       foldMarks: flag("Falz- und Lochmarken drucken"),
       backgroundPages: z.enum(["erste", "alle"]).describe("Briefpapier nur auf der ersten oder auf allen Seiten"),
+      options: z
+        .record(z.string(), z.string())
+        .optional()
+        .describe("Optionen eines eingebauten Layouts, schon aufgelöst, etwa { fuss: „rechts“ }; leer bei eigenen Layouts"),
     })
     .describe("Einstellungen der Gestaltung"),
   font: z
@@ -279,7 +294,9 @@ export const LAYOUT_GESTALTUNG = {
   font: { label: "Schrift", felder: "font", belege: ALLE_BELEGE },
   logo: { label: "Logo", felder: "logo", belege: ALLE_BELEGE },
   logoSize: { label: "Größe des Logos", felder: "look.logoHeight|look.logoWidth", belege: ALLE_BELEGE },
-  logoPosition: { label: "Seite des Logos", felder: "look.logoLeft", belege: ALLE_BELEGE },
+  logoPosition: { label: "Stelle des Logos", felder: "look.logoLeft|look.logoPosition", belege: ALLE_BELEGE },
+  // Kennt ein Layout nur look.logoLeft, setzt es „mitte“ rechts; Hinweis nur, wenn es die Stelle überhaupt liest
+  logoMitte: { label: "Stelle des Logos „Mitte“", felder: "look.logoPosition", belege: ALLE_BELEGE },
   foldMarks: { label: "Falz- und Lochmarken", felder: "look.foldMarks", belege: ALLE_BELEGE },
   giroCode: { label: "GiroCode", felder: "qr", belege: ["rechnung", "mahnung"] },
   itemNumber: { label: "Artikelnummer", felder: "itemNumbers", belege: ["rechnung", "angebot", "auftragsbestaetigung", "lieferschein"] },

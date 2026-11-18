@@ -90,22 +90,22 @@ describe("Referenzen im PDF", () => {
   it("zeigt gesetzte Referenzen im Kopfblock der Rechnung", () => {
     const data = pdfData({ ...sampleDocument(), references });
     expect(data.meta).toContainEqual({ label: "Ihre Bestellung", value: "4500012345" });
-    expect(data.meta).toContainEqual({ label: "Unser Auftrag", value: "AN-2026-007" });
-    expect(data.meta).toContainEqual({ label: "Lieferschein", value: "LS-0815" });
+    expect(data.meta).toContainEqual({ label: "Unser Auftrag", value: "AN-2026-007", group: "referenz" });
+    expect(data.meta).toContainEqual({ label: "Lieferschein", value: "LS-0815", group: "referenz" });
   });
 
   it("zeigt auf Englisch englische Bezeichnungen", () => {
     const data = pdfData({ ...sampleDocument(), language: "en", references });
     expect(data.meta).toContainEqual({ label: "Your order", value: "4500012345" });
-    expect(data.meta).toContainEqual({ label: "Our order", value: "AN-2026-007" });
-    expect(data.meta).toContainEqual({ label: "Delivery note", value: "LS-0815" });
+    expect(data.meta).toContainEqual({ label: "Our order", value: "AN-2026-007", group: "referenz" });
+    expect(data.meta).toContainEqual({ label: "Delivery note", value: "LS-0815", group: "referenz" });
   });
 
   // Steuerzeichen (etwa aus einer kopierten Bestellnummer) kann keine Schrift setzen; Typst bricht das PDF/A sonst ab
   it("lässt Steuerzeichen aus den Referenzen im Kopfblock weg", () => {
     const data = pdfData({ ...sampleDocument(), references: { buyerOrder: "4500\u000712345", sellerOrder: "\u0001", despatchAdvice: "LS-\u001B0815" } });
     expect(data.meta).toContainEqual({ label: "Ihre Bestellung", value: "450012345" });
-    expect(data.meta).toContainEqual({ label: "Lieferschein", value: "LS-0815" });
+    expect(data.meta).toContainEqual({ label: "Lieferschein", value: "LS-0815", group: "referenz" });
     expect(data.meta.map((m) => m.label)).not.toContain("Unser Auftrag");
   });
 
@@ -128,7 +128,7 @@ describe("Referenzen im PDF", () => {
   it("zeigt die Referenzen im Angebot und in der Auftragsbestätigung", () => {
     expect(quotePdfData(quote).meta).toContainEqual({ label: "Ihre Bestellung", value: "4500012345" });
     expect(confirmationPdfData(quote, "2026-09-05").meta).toContainEqual({ label: "Ihre Bestellung", value: "4500012345" });
-    expect(quotePdfData(quote).meta).toContainEqual({ label: "Lieferschein", value: "LS-0815" });
+    expect(quotePdfData(quote).meta).toContainEqual({ label: "Lieferschein", value: "LS-0815", group: "referenz" });
   });
 
   it("zeigt die Referenzen im Lieferschein", () => {
@@ -142,6 +142,6 @@ describe("Referenzen im PDF", () => {
       references: { buyerOrder: "4500012345", sellerOrder: "AN-2026-007" },
     });
     expect(data.meta).toContainEqual({ label: "Ihre Bestellung", value: "4500012345" });
-    expect(data.meta).toContainEqual({ label: "Unser Auftrag", value: "AN-2026-007" });
+    expect(data.meta).toContainEqual({ label: "Unser Auftrag", value: "AN-2026-007", group: "referenz" });
   });
 });
