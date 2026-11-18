@@ -107,6 +107,30 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Abruf mit überlappenden Fenstern (Postg
       const [zweite] = await sql`select amount from bank_transactions where bank_reference = 'etsy-112'`;
       expect(zweite?.amount).toBe(-470);
     });
+
+    it("verrechnet die später gekommene Steuer einer schon übernommenen Erstattung nicht mit einer anderen", async () => {
+      const erstattung1: EtsyLedgerEntry = {
+        entry_id: 120,
+        amount: -1000,
+        currency: "EUR",
+        ledger_type: "REFUND_GROSS",
+        reference_type: "shop_payment_refund",
+        reference_id: "6000000001",
+        created_timestamp: ts("2023-06-20T12:00:00Z"),
+      };
+      // Die Steuer der ersten Erstattung bucht Etsy erst 20 Minuten später
+      const steuer1: EtsyLedgerEntry = { ...steuer, entry_id: 121, amount: 60, ledger_type: "sales_tax_refund", created_timestamp: ts("2023-06-20T12:20:00Z") };
+      const erstattung2: EtsyLedgerEntry = { ...erstattung1, entry_id: 122, amount: -500, reference_id: "6000000002", created_timestamp: ts("2023-06-20T15:00:00Z") };
+      const steuer2: EtsyLedgerEntry = { ...steuer1, entry_id: 123, amount: 30, created_timestamp: ts("2023-06-20T15:00:00Z") };
+
+      await etsy.importEtsyLedger(actor, [erstattung1], { ...optionen, reference: "11" }, abruf("2023-06-20T12:10:00Z"));
+      await etsy.importEtsyLedger(actor, [erstattung1, steuer1, erstattung2, steuer2], { ...optionen, reference: "12" }, abruf("2023-06-20T18:00:00Z"));
+
+      expect(await summe()).toBe(-1000 + 60 - 500 + 30);
+      // Zwei Erstattungen derselben Bestellung am selben Tag: Welche Steuer zu welcher gehört, rät Haben nicht
+      const [zweite] = await sql`select amount from bank_transactions where bank_reference = 'etsy-122'`;
+      expect(zweite?.amount).toBe(-500);
+    });
   });
 
   describe("Wechsel der Einstellung „Gebühren bündeln“", () => {
