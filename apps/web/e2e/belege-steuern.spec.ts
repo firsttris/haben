@@ -213,6 +213,54 @@ test("Beleg prüfen: Die Wahl per Suche übernimmt die Privatanteil-Vorgabe der 
   }
 });
 
+test("Beleg prüfen: Ein geleertes Kategoriefeld gilt sofort als leer, auch wenn Enter vor dem Verlassen speichert", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "kategorieleer.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("kategorieleer.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /kategorieleer\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  const speichern = page.getByRole("button", { name: "Speichern", exact: true });
+  await waehleKategorie(kategorie, "telefon");
+  // Feld leeren und ohne es zu verlassen speichern: das erste Enter schließt die Liste, das zweite schickt das Formular ab
+  await kategorie.fill("");
+  await kategorie.press("Enter");
+  await kategorie.press("Enter");
+  await expect(speichern).toBeDisabled();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  // Gespeichert ist, was im Feld stand: keine Kategorie, nicht die alte
+  await expect(page.getByLabel("Kategorie")).toHaveValue("");
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Dauerbeleg: Ein geleertes Kategoriefeld verlangt beim Anlegen per Enter wieder eine Kategorie", async () => {
+  await go("/dauerbelege/neu");
+  // Alles andere ist ausgefüllt: Nur die Kategorie hält das Anlegen auf
+  await page.getByLabel("Bezeichnung").fill("Lagerraum Kategorie leer");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Hafen Immobilien GmbH");
+  await page.getByLabel("Erster Beleg am").fill(day(30));
+  await page
+    .locator("input[type=file]")
+    .setInputFiles([{ name: "lagervertrag.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Lagervertrag\n%%EOF\n") }]);
+  await page.getByLabel("Netto 1").fill("80,00");
+  const vorlageKategorie = page.getByLabel("Kategorie");
+  await waehleKategorie(vorlageKategorie, "miete");
+  await vorlageKategorie.fill("");
+  await vorlageKategorie.press("Enter");
+  await vorlageKategorie.press("Enter");
+  await expect(vorlageKategorie).toHaveAccessibleDescription("Wähle die Kategorie.");
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+});
+
 test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {
   await go("/einstellungen?bereich=persoenlich");
   const taxpayer = page.getByRole("form", { name: "Persönliche Angaben" });
