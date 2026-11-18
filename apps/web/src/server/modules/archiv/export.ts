@@ -289,6 +289,25 @@ export async function exportYears(now = new Date()): Promise<number[]> {
   return [...years].sort((a, b) => b - a);
 }
 
+function bankTransactionsForYear(year: number) {
+  return db
+    .select({
+      ...getTableColumns(schema.bankTransactions),
+      open: bankOpenAmountSql.mapWith(Number),
+      neutralized: bankNeutralizedSql.mapWith(Boolean),
+      duplicate: bankDuplicateConfirmedSql.mapWith(Boolean),
+    })
+    .from(schema.bankTransactions)
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, yearStart(year)),
+        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    )
+    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
+}
+
 async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> {
   const [company] = await db.select().from(schema.company).where(eq(schema.company.id, 1));
   const problems: string[] = [];
@@ -819,22 +838,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   // Ein ausgeschlossenes Konto (#462) gehört nicht zu dieser Firma und fehlt im Archiv
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.iban));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
-  const transactions = await db
-    .select({
-      ...getTableColumns(schema.bankTransactions),
-      open: bankOpenAmountSql.mapWith(Number),
-      neutralized: bankNeutralizedSql.mapWith(Boolean),
-      duplicate: bankDuplicateConfirmedSql.mapWith(Boolean),
-    })
-    .from(schema.bankTransactions)
-    .where(
-      and(
-        gte(schema.bankTransactions.bookingDate, yearStart(year)),
-        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
-        bankAccountIncludedSql("bank_account_id"),
-      ),
-    )
-    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
+  const transactions = await bankTransactionsForYear(year);
   const transactionById = new Map<string, typeof schema.bankTransactions.$inferSelect>(transactions.map((t) => [t.id, t]));
   const allocations = transactions.length
     ? await db

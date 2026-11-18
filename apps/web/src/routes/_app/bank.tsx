@@ -1009,6 +1009,24 @@ function nextOpenAfter(transactions: Data["transactions"], id: string): string |
   return after.find((t) => t.open !== 0 && t.id !== id)?.id;
 }
 
+function AllocationTransactionHeader({ tx }: { tx: Detail["transaction"] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
+      <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
+      <div className="amount" style={{ fontSize: 24, fontWeight: 600, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
+        {tx.amount > 0 ? "+" : "−"}
+        {formatEuro(Math.abs(tx.amount))}
+      </div>
+      <div className="small muted" style={{ overflowWrap: "anywhere" }}>
+        {tx.purpose}
+        {tx.counterpartyIban ? ` · ${tx.counterpartyIban.replace(/(.{4})/g, "$1 ").trim()}` : ""}
+      </div>
+      {tx.open !== 0 && tx.open !== tx.amount && <div className="small">Noch offen: {formatEuro(Math.abs(tx.open))}</div>}
+    </div>
+  );
+}
+
 function AllocationPanel({
   detail,
   directKinds,
@@ -1203,19 +1221,7 @@ function AllocationPanel({
 
   return (
     <aside ref={panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
-        <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
-        <div className="amount" style={{ fontSize: 24, fontWeight: 600, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
-          {tx.amount > 0 ? "+" : "−"}
-          {formatEuro(Math.abs(tx.amount))}
-        </div>
-        <div className="small muted" style={{ overflowWrap: "anywhere" }}>
-          {tx.purpose}
-          {tx.counterpartyIban ? ` · ${tx.counterpartyIban.replace(/(.{4})/g, "$1 ").trim()}` : ""}
-        </div>
-        {tx.open !== 0 && tx.open !== tx.amount && <div className="small">Noch offen: {formatEuro(Math.abs(tx.open))}</div>}
-      </div>
+      <AllocationTransactionHeader tx={tx} />
 
       {duplicateNotice}
 
