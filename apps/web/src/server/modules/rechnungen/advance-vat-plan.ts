@@ -219,7 +219,7 @@ export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db |
 export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceTaxReader(q)): Promise<ManagedAdvancePlan[]> {
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
-  // Vorjahresanzahlungen zählen, wenn im Zieljahr Zahlung, Korrektur oder Schlussleistung anfällt. Nicht die komplette
+  // Vorjahresanzahlungen zählen, wenn im Zieljahr Zahlung, Verrechnung, Korrektur oder Schlussleistung anfällt. Nicht die komplette
   // Historie je Quartal ausrechnen: Nur Kandidaten-IDs ermitteln, dann deren zusammenhängenden Plan laden.
   // Rechnungen mit normalen Buchungen nur, wenn ein Storno oder eine Korrektur das Kennzeichen „rueckgewaehr“ trägt.
   const candidates = await q.execute<{ id: string }>(sql`with recursive up(id, parent) as (
@@ -242,6 +242,7 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
       where coalesce(a.date, b.booking_date) >= ${start} and coalesce(a.date, b.booking_date) < ${end}
     union select f.root_id from family f join cash_entries c on c.invoice_id = f.id where c.date >= ${start} and c.date < ${end}
     union select f.root_id from family f join write_offs w on w.invoice_id = f.id where w.date >= ${start} and w.date < ${end}
+    union select f.root_id from family f join invoice_settlements s on s.invoice_id = f.id where s.date >= ${start} and s.date < ${end}
     union select f.root_id from family f join invoice_lines l on l.deduction_of = f.id
       join invoices i on i.id = l.invoice_id and i.status = 'final'
       left join invoices c on c.corrects_id = i.id and c.kind = 'storno' and c.status = 'final'
