@@ -62,7 +62,7 @@ import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/Sk
 import { certificateUploadNotice } from "../../lib/certificate-notice.ts";
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
-import { type Notice, useAction } from "../../lib/use-action.ts";
+import { useAction } from "../../lib/use-action.ts";
 import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
@@ -1007,12 +1007,12 @@ function CertificateForm() {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    let done: Notice = null;
     void run(async () => {
-      done = certificateUploadNotice(await upload({ data }), data.get("pin") !== "");
+      const done = certificateUploadNotice(await upload({ data }), data.get("pin") !== "");
       form.reset();
       await router.invalidate();
-    }).then((ok) => ok && setNotice(done));
+      setNotice(done);
+    });
   }
 
   return (
