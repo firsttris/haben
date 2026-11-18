@@ -195,7 +195,7 @@ Kategorie und Bezahlung schlägt Haben aus allen gebuchten Belegen desselben Lie
 - **Kategorie:** die häufigste, bei Gleichstand die zuletzt gebuchte. Ein [aufgeteilter Beleg](#auf-mehrere-kategorien-aufteilen) zählt bei jeder seiner Kategorien, insgesamt aber einmal.
 - **Bezahlung:** über das Geschäftskonto, privat (in GmbH und UG vom Gesellschafter ausgelegt) oder bar aus der Kasse, nur wenn sie mindestens zweimal und bei mehr als der Hälfte der Belege so gebucht wurde. Die Vorgabe „Über das Geschäftskonto“ stellt also kein einzelner privat bezahlter Beleg um.
 
-Unter dem Feld **Kategorie** bzw. unter **Bezahlung** steht, wie oft und wann zuletzt, etwa „Bisher 7 von 9 Belegen als Software und Lizenzen gebucht, zuletzt am 03.11.2026“ oder „Bisher 2× privat bezahlt, zuletzt am 05.11.2026“. Hast du etwas anderes gewählt, übernimmst du den Vorschlag mit **übernehmen**. Liest Haben einen Beleg aus einer E-Rechnung oder mit der KI aus, trägt es Kategorie und Bezahlung gleich so ein. Gebucht wird der Beleg trotzdem erst mit **Bestätigen und buchen**; bis dahin bleibt er „Zu prüfen“.
+Unter dem Feld **Kategorie** bzw. unter **Bezahlung** steht, wie oft und wann zuletzt, etwa „Bisher 7 von 9 Belegen als 6837 · Software und Lizenzen gebucht, zuletzt am 03.11.2026“ oder „Bisher 2× privat bezahlt, zuletzt am 05.11.2026“. Hast du etwas anderes gewählt, übernimmst du den Vorschlag mit **übernehmen**. Liest Haben einen Beleg aus einer E-Rechnung oder mit der KI aus, trägt es Kategorie und Bezahlung gleich so ein. Gebucht wird der Beleg trotzdem erst mit **Bestätigen und buchen**; bis dahin bleibt er „Zu prüfen“.
 
 Für Bankumsätze ohne Beleg lernt der Bankabgleich auf dieselbe Weise aus früheren Zuordnungen (siehe [Bank](bank.md#vorschläge-ohne-rechnung-und-geldtransit)).
 
@@ -220,7 +220,7 @@ Die Erkennung läuft auch ohne KI-Auslesung: Ein PDF mit Textebene wird dann all
 
 ## Kategorien
 
-Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/src/posting.ts`. Jede Kategorie gehört zu einer Gruppe: Büro und IT, Räume und Ausstattung, Reisen, Fahrzeug, Werbung und Bewirtung, Beratung und Weiterbildung, Versicherungen und Beiträge, Personal, Waren und Fremdleistungen, Sonstiges, Anlagegut und Zoll. Die Gruppe steht im Beleg unter jedem Treffer und lässt sich mitsuchen; sie ordnet nur die Liste, Konto und Buchung hängen allein an der Kategorie.
+Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/src/posting.ts`. Vor der Bezeichnung steht die Nummer dieses Kontos im Kontenrahmen der Firma, etwa „6805 · Telefon“ in SKR04 und „4920 · Telefon“ in SKR03; „6805“ oder „Telefon“ finden die Kategorie. Bei „Anlagegut“ ist es nur die Standardnummer der Kategorie; gebucht wird auf das Anlagekonto der Art. Die Spalte „Kategorie“ der Belegliste zeigt die Nummer ebenfalls und sortiert danach. Jede Kategorie gehört zu einer Gruppe: Büro und IT, Räume und Ausstattung, Reisen, Fahrzeug, Werbung und Bewirtung, Beratung und Weiterbildung, Versicherungen und Beiträge, Personal, Waren und Fremdleistungen, Sonstiges, Anlagegut und Zoll. Die Gruppe steht im Beleg unter jedem Treffer und lässt sich mitsuchen; sie ordnet nur die Liste, Konto und Buchung hängen allein an der Kategorie.
 
 | Kategorie | SKR03 | SKR04 |
 | --- | --- | --- |

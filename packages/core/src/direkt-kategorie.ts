@@ -1,5 +1,14 @@
 import { taxIncluded, type BasisPoints, type Cents } from "./money.ts";
-import { ACCOUNTS, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS, side, type ExpenseCategory, type Kontenrahmen, type PostingLine } from "./posting.ts";
+import {
+  ACCOUNTS,
+  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_KEYS,
+  kategorieMitKonto,
+  side,
+  type ExpenseCategory,
+  type Kontenrahmen,
+  type PostingLine,
+} from "./posting.ts";
 
 /*
  * Direkt buchen mit Kategorie und Steuersatz (Roadmap Platz 1, #324): Ein Bankumsatz ohne Beleg geht auf eine Einnahme-
@@ -171,4 +180,9 @@ export function aufladungPosting(angabe: KategorieAngabe, amount: Cents, kontenr
   const fehler = aufladungFehler(angabe);
   if (fehler) throw new RangeError(fehler);
   return kategoriePosting(angabe, amount, kontenrahmen);
+}
+
+/** Wie `kategorieText`, nur für die Oberfläche: Ausgaben mit der Nummer des Kontos („6805 · Telefon“, #1438); der Buchungstext bleibt bei `kategorieText` */
+export function kategorieAnzeige(angabe: KategorieAngabe, kontenrahmen: Kontenrahmen): string {
+  return istEinnahme(angabe.kategorie) ? kategorieText(angabe) : kategorieMitKonto(kontenrahmen, angabe.kategorie);
 }

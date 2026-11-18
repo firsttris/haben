@@ -207,6 +207,17 @@ export const EXPENSE_CATEGORIES = {
 
 export type ExpenseCategory = keyof typeof EXPENSE_CATEGORIES;
 
+/**
+ * Anzeige einer Ausgabekategorie mit der Nummer ihres Kontos im Kontenrahmen der Firma („6805 · Telefon“, #1438), nur für die
+ * Oberfläche: Buchungstexte, Exporte und gespeicherte Werte bleiben bei der Bezeichnung. Unbekannte Werte (etwa aus einem Import)
+ * erscheinen unverändert.
+ */
+export function kategorieMitKonto(kontenrahmen: Kontenrahmen, kategorie: string): string {
+  if (!Object.hasOwn(EXPENSE_CATEGORIES, kategorie)) return kategorie;
+  const eintrag = EXPENSE_CATEGORIES[kategorie as ExpenseCategory];
+  return `${eintrag[kontenrahmen]} · ${eintrag.label}`;
+}
+
 export const EXPENSE_CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORIES) as [ExpenseCategory, ...ExpenseCategory[]];
 
 export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
