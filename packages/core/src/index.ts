@@ -107,7 +107,6 @@ export {
   advanceUsesPayments,
   type AdvanceVatEvent,
   type AdvanceVatChange,
-  type AdvanceVatSchedule,
 } from "./anzahlung-steuer.ts";
 export * from "./anzahlung-bilanz.ts";
 export * from "./advance-receivables.ts";

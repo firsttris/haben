@@ -55,7 +55,6 @@ export function advanceVatDifference(before: readonly AdvanceVatChange[], after:
 }
 
 type Key = "base" | "tax";
-const ZERO = (rate: BasisPoints): TaxShare => ({ rate, base: 0, tax: 0 });
 const gross = (s: Pick<TaxShare, "base" | "tax">) => s.base + s.tax;
 
 /** Laufender Stand einer Rechnung samt Korrekturen, Tag für Tag (advanceVatSchedule). */
@@ -78,40 +77,37 @@ const sum = (shares: readonly TaxShare[], rate: BasisPoints, key: Key) => shares
  * tatsächlich zurückgezahlt wird, und zwar in dem Besteuerungszeitraum, in dem die Rückgewähr erfolgt“. Abs. 8 Satz 5:
  * „Wird die Leistung nach Vereinnahmung des Entgelts rückgängig gemacht, entsteht der Berichtigungsanspruch nach § 17
  * Abs. 2 Nr. 3 UStG erst mit der Rückgewähr des Entgelts (vgl. BFH-Urteil vom 02.09.2010 – V R 34/09, BStBl II 2011
- * S. 991)“. Gehalten wird höchstens die Minderung der gekennzeichneten Korrekturen, nur in Höhe der Überzahlung und je
- * Satz so, wie sie dort entstanden ist. Lässt sich eine Teilüberzahlung bei mehreren Sätzen nicht so zuordnen, ist das
- * Ergebnis unklar und der Schreibweg lehnt ab (Entscheidung: https://github.com/firsttris/haben/pull/1228#issuecomment-6940857265).
+ * S. 991)“. Gehalten wird nur die Überzahlung, höchstens die Minderung der gekennzeichneten Korrekturen. Sie
+ * verteilt sich auf die Sätze im Verhältnis dieser Minderung je Satz, in Cent gerundet, der Rest auf den größten Anteil;
+ * innerhalb eines Satzes Netto und Steuer im Verhältnis der Korrektur. Eingehendes Geld wird nie abgelehnt
+ * (Entscheidung des Maintainers zu #1228).
  * https://www.gesetze-im-internet.de/ustg_1980/__17.html, UStAE Stand 19.10.2026:
  * https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.pdf
  */
-function heldUntilRefund(rates: readonly BasisPoints[], s: Stand): { held: TaxShare[]; unclear: boolean } {
+function heldUntilRefund(rates: readonly BasisPoints[], s: Stand): TaxShare[] {
   const claims = [...s.claims.values()].filter((claim) => claim.reduce((n, c) => n + gross(c), 0) > 0).flat();
-  const over = rates.map((rate) => {
-    const d = (key: Key) => sum(s.paid, rate, key) - sum(s.amount, rate, key) + sum(s.writtenOff, rate, key) - sum(claims, rate, key);
-    return { rate, base: d("base"), tax: d("tax") };
-  });
-  const limit = rates.map((rate) => ({ rate, base: -sum(s.flagged, rate, "base"), tax: -sum(s.flagged, rate, "tax") }));
-  const total = Math.max(
+  const over = rates.reduce(
+    (n, rate) =>
+      n +
+      (["base", "tax"] as const).reduce(
+        (m, key) => m + sum(s.paid, rate, key) - sum(s.amount, rate, key) + sum(s.writtenOff, rate, key) - sum(claims, rate, key),
+        0,
+      ),
     0,
-    Math.min(
-      over.reduce((n, o) => n + gross(o), 0),
-      limit.reduce((n, l) => n + Math.max(0, gross(l)), 0),
-    ),
   );
-  const held = over.map((o, i) => {
-    const l = limit[i]!;
-    if (gross(o) <= 0 || gross(l) <= 0) return ZERO(o.rate);
-    return gross(o) >= gross(l) ? l : o;
+  const limits = rates
+    .map((rate) => ({ rate, base: -sum(s.flagged, rate, "base"), tax: -sum(s.flagged, rate, "tax") }))
+    .filter((l) => gross(l) > 0)
+    .sort((a, b) => gross(b) - gross(a));
+  const limit = limits.reduce((n, l) => n + gross(l), 0);
+  const total = Math.max(0, Math.min(over, limit));
+  if (!total) return [];
+  const parts = limits.map((l, i) => (i === 0 ? 0 : Math.round((total * gross(l)) / limit)));
+  parts[0] = total - parts.reduce((n, p) => n + p, 0);
+  return limits.map((l, i) => {
+    const tax = Math.round((parts[i]! * l.tax) / gross(l));
+    return { rate: l.rate, base: parts[i]! - tax, tax };
   });
-  const heldTotal = held.reduce((n, h) => n + gross(h), 0);
-  if (heldTotal <= total) return { held, unclear: false };
-  return { held: rates.map(ZERO), unclear: total > 0 };
-}
-
-export interface AdvanceVatSchedule {
-  changes: AdvanceVatChange[];
-  /** Erster Tag, an dem sich eine Teilüberzahlung nicht eindeutig auf die Steuersätze verteilen lässt */
-  unclear: string | null;
 }
 
 /**
@@ -121,7 +117,7 @@ export interface AdvanceVatSchedule {
  * normalen Soll-Buchungen einer Rechnung ohne Anzahlungsverfahren. Gleiche Tage werden zusammen gerechnet.
  * Quelle: https://www.gesetze-im-internet.de/ustg_1980/__13.html
  */
-export function advanceVatSchedule(total: readonly TaxShare[], events: readonly AdvanceVatEvent[], mode: "plan" | "held" = "plan"): AdvanceVatSchedule {
+export function advanceVatSchedule(total: readonly TaxShare[], events: readonly AdvanceVatEvent[], mode: "plan" | "held" = "plan"): AdvanceVatChange[] {
   const byDate = new Map<string, AdvanceVatEvent[]>();
   for (const event of events) byDate.set(event.date, [...(byDate.get(event.date) ?? []), event]);
   const rates = [
@@ -133,7 +129,6 @@ export function advanceVatSchedule(total: readonly TaxShare[], events: readonly 
   ];
   const s: Stand = { paid: [], writtenOff: [], amount: [...total], flagged: [], claims: new Map(), performed: 0 };
   let previous: TaxShare[] = [];
-  let unclear: string | null = null;
   const changes: AdvanceVatChange[] = [];
   for (const [date, day] of [...byDate].sort(([a], [b]) => a.localeCompare(b))) {
     for (const e of day) {
@@ -145,8 +140,7 @@ export function advanceVatSchedule(total: readonly TaxShare[], events: readonly 
       s.performed += e.performance ?? 0;
     }
     const kept = heldUntilRefund(rates, s);
-    if (kept.unclear) unclear ??= date;
-    const held = (rate: BasisPoints, key: Key) => sum(kept.held, rate, key);
+    const held = (rate: BasisPoints, key: Key) => sum(kept, rate, key);
     const taxable = (rate: BasisPoints, key: Key) => {
       if (mode === "held") return held(rate, key);
       if (s.performed <= 0) return sum(s.paid, rate, key);
@@ -159,10 +153,10 @@ export function advanceVatSchedule(total: readonly TaxShare[], events: readonly 
     if (shares.length) changes.push({ date, shares });
     previous = target;
   }
-  return { changes, unclear };
+  return changes;
 }
 
 /** Steuerplan neuer Anzahlungen und Vorauszahlungen (advanceVatSchedule, „plan“). */
 export function advanceVatPlan(total: readonly TaxShare[], events: readonly AdvanceVatEvent[]): AdvanceVatChange[] {
-  return advanceVatSchedule(total, events).changes;
+  return advanceVatSchedule(total, events);
 }

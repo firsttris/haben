@@ -137,13 +137,14 @@ export interface ManagedAdvancePlan {
   /** Sonderumsätze: normale Ausbuchungsbasis abziehen, damit deren Neutralisierung nicht doppelt gemeldet wird. */
   postingChanges: AdvanceVatChange[];
   balanceChanges: AdvanceBalanceChange[];
-  /** Erster Tag, an dem sich eine Teilüberzahlung nicht eindeutig auf die Steuersätze verteilen lässt (advanceVatSchedule) */
-  unclear: string | null;
 }
 
-/** Rechnung mit normalen Buchungen: Erstattungsregel nur als Ergänzung (ManagedAdvancePlan, „refund“). */
+/**
+ * Rechnung mit normalen Buchungen, auch ein Teilleistungs-Abschlag: Erstattungsregel nur als Ergänzung
+ * (ManagedAdvancePlan, „refund“). Anzahlungen versteuert ihr eigener Plan.
+ */
 export const refundOnly = (original: Pick<Invoice, "advanceType" | "advanceAccounting" | "variant">) =>
-  original.advanceType === null && (original.advanceAccounting === null || original.variant === "schluss");
+  original.advanceType !== "anzahlung" && (original.advanceAccounting === null || original.variant === "schluss");
 
 /** Gegenprobe aus den Nebenbüchern, ausdrücklich ohne Journalzeilen zu lesen. */
 export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db | Tx = db, taxes = invoiceTaxReader(q)): Promise<ManagedAdvancePlan> {
@@ -165,8 +166,8 @@ export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db |
     const held =
       original.status === "final" && advanceUsesPayments(original.taxTreatment) && (await taxes.companyMode(original)) === "soll"
         ? advanceVatSchedule(total, [...events, ...correctionEvents(original, posted, totals)], "held")
-        : { changes: [], unclear: null };
-    return { original, kind: "refund", invoiceIds: new Set(), changes: held.changes, postingChanges: held.changes, balanceChanges: [], unclear: held.unclear };
+        : [];
+    return { original, kind: "refund", invoiceIds: new Set(), changes: held, postingChanges: held, balanceChanges: [] };
   }
   const normal = original.variant === null && original.advanceAccounting === "deferred";
   const cancellation = normal ? invoices.find((invoice) => invoice.kind === "storno" && invoice.correctsId === original.id) : undefined;
@@ -193,12 +194,11 @@ export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db |
     .where(eq(schema.company.id, 1));
   // Sonderumsätze verwenden denselben Plan, aber keine Zahlungsereignisse (§ 18b UStG).
   const special = original.advanceAccounting === "deferred" && ["reverse_charge", "ig_lieferung", "drittland"].includes(original.taxTreatment);
-  const schedule = advanceUsesPayments(original.taxTreatment)
+  const changes = advanceUsesPayments(original.taxTreatment)
     ? advanceVatSchedule(total, [...events, ...performance.vat])
     : special
       ? advanceVatSchedule(total, [...events.filter((event) => !event.paid), ...performance.vat])
-      : { changes: [], unclear: null };
-  const changes = schedule.changes;
+      : [];
   const normalWriteOffs = events.flatMap((event) =>
     event.writtenOff?.length ? [{ date: event.date, shares: event.writtenOff.map((share) => ({ ...share, base: -share.base, tax: -share.tax })) }] : [],
   );
@@ -212,7 +212,6 @@ export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db |
       original.advanceAccounting === "deferred" && isKapitalgesellschaft(company!.rechtsform)
         ? advanceBalancePlan(total, [...events, ...performance.balance], company!.kontenrahmen, original.taxTreatment)
         : [],
-    unclear: schedule.unclear,
   };
 }
 
@@ -231,7 +230,7 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
       (advance_type = 'anzahlung' and (tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr')
         or (advance_accounting = 'deferred' and tax_treatment in ('reverse_charge', 'ig_lieferung', 'drittland'))))
       or (variant is null and corrects_id is null and advance_accounting = 'deferred')
-      or (id in (select id from up where parent is null) and advance_type is null
+      or (id in (select id from up where parent is null) and advance_type is distinct from 'anzahlung'
         and (advance_accounting is null or variant = 'schluss') and tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr'))
     )
     union all select f.root_id, i.id from family f join invoices i on i.corrects_id = f.id where i.status = 'final'

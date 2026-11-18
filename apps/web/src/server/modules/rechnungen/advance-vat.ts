@@ -10,7 +10,6 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { loadAdvanceVatPlan, refundOnly } from "./advance-vat-plan.ts";
-import { UserError } from "../../errors.ts";
 import { invoiceTaxReader } from "./invoice-tax.ts";
 
 type Invoice = typeof schema.invoices.$inferSelect;
@@ -86,11 +85,6 @@ export async function withAdvanceVatChange<T>(tx: Tx, invoiceId: string | null, 
   const result = await work();
   for (const [i, original] of originals.entries()) {
     const after = await loadAdvanceVatPlan(original, tx);
-    if (after.unclear && !before[i]!.unclear) {
-      throw new UserError(
-        `Rechnung ${after.original.number}: Die Überzahlung am ${after.unclear} lässt sich nicht eindeutig den Steuersätzen zuordnen, deren Steuer bis zur Rückzahlung bestehen bleibt. Korrigiere anteilig über alle Steuersätze der Rechnung.`,
-      );
-    }
     const changes = advanceVatDifference(before[i]!.postingChanges, after.postingChanges);
     const balanceChanges = advanceBalanceDifference(before[i]!.balanceChanges, after.balanceChanges);
     if (!changes.length && !balanceChanges.length) continue;
