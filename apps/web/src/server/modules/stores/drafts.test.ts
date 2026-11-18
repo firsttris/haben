@@ -1,8 +1,9 @@
-import { gzipSync, strToU8, zipSync } from "fflate";
+import { strToU8, zipSync } from "fflate";
 import { generateKeyPairSync } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AppStoreClient, GooglePlayClient } from "@haben/import";
+import { APPLE_TEST_PERIOD, appleFinanceReport } from "../../../test-fixtures/apple-finanzbericht.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -23,22 +24,17 @@ const googleReport = zipSync({
     ].join("\n"),
   ),
 });
-const appleReport = gzipSync(
-  strToU8(
-    [
-      "Vendor Name\tStart Date\tEnd Date\tExtended Partner Share\tPartner Share Currency\tSale or Return",
-      "Muster\t09/28/2026\t11/01/2026\t7.00\tEUR\tS",
-      "Muster\t09/28/2026\t11/01/2026\t10.81\tUSD\tS",
-    ].join("\n"),
-  ),
-);
+const appleReport = appleFinanceReport([
+  ["7.00", "EUR"],
+  ["10.81", "USD"],
+]);
 
 const google = new Map([["earnings/earnings_202609.zip", googleReport]]);
 const googleClient: GooglePlayClient = {
   listEarnings: async () => [...google.keys()].map((name) => ({ name, month: "2026-09", size: 1 })),
   download: async (name) => google.get(name)!,
 };
-const appleClient: AppStoreClient = { financeDetail: async (month) => (month === "2026-10" ? appleReport : null) };
+const appleClient: AppStoreClient = { financeDetail: async (period) => (period === APPLE_TEST_PERIOD ? appleReport : null) };
 
 const CASES = [
   { kontenrahmen: "SKR03", versteuerung: "ist" },
