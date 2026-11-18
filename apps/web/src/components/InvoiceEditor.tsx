@@ -137,18 +137,24 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlanInConfirmation?: boolean;
 };
 
+function previewCustomerNumber(
+  contact: Pick<ContactOption, "kundennummer"> | null,
+  corrects: { buyer?: { kundennummer?: string } | null } | null,
+): string | undefined {
+  return corrects ? effectiveCustomerNumber(corrects.buyer, contact) : (contact?.kundennummer ?? undefined);
+}
+
 // {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals, solange sie taugt
-// (#1426); fehlt sie, steht statt der Nummer der Hinweis — die Vorschau darf kein {KUNDENNR} als Text zeigen
-function previewNumber(
+// (#1426); ohne verwendbare Nummer bleibt {KUNDENNR} stehen, das Problem dazu steht in der Liste über dem Formular
+export function previewNumber(
   format: string,
   date: string,
   counter: number,
   contact: Pick<ContactOption, "kundennummer"> | null,
   corrects: { buyer?: { kundennummer?: string } | null } | null,
 ): string {
-  const kundennummer = corrects ? effectiveCustomerNumber(corrects.buyer, contact) : (contact?.kundennummer ?? undefined);
-  const issue = usesCustomerNumber(format) ? customerNumberProblem(kundennummer) : null;
-  return issue ?? formatDocumentNumber(format, date, counter, kundennummer);
+  const kundennummer = previewCustomerNumber(contact, corrects);
+  return formatDocumentNumber(format, date, counter, usesCustomerNumber(format) && customerNumberProblem(kundennummer) ? undefined : kundennummer);
 }
 
 export function InvoiceEditor({
@@ -353,6 +359,8 @@ export function InvoiceEditor({
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
   const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, contact, corrects);
+  // Dasselbe Problem wie in buyerIssues, aber live aus dem Formular: Bei einem neuen oder geänderten Entwurf steht sonst nichts da
+  const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects)) : null;
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
@@ -674,7 +682,13 @@ export function InvoiceEditor({
   };
 
   const currentSellerIssues = alreadyPaid || (!quote && kind !== "rechnung") ? sellerIssues.filter((i) => i !== "IBAN fehlt") : sellerIssues;
-  const blocking = [...currentSellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
+  const blocking = [
+    ...new Set([
+      ...currentSellerIssues.map((i) => `Firmendaten: ${i}`),
+      ...(customerNumberIssue ? [customerNumberIssue.replace(/\.$/, "")] : []),
+      ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten"))),
+    ]),
+  ];
 
   return (
     <>
