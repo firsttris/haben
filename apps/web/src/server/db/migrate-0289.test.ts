@@ -14,7 +14,8 @@ const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
  * Oktober fehlen; der Abruf beginnt deshalb wieder im August. Google Play bleibt, wie es ist.
  */
 describe.skipIf(!testDatabaseUrl)("Migration 0289: Abruf von App Store Connect drei Monate zurück (Postgres)", () => {
-  it("setzt fetch_from nur für den App Store zurück", async () => {
+  /** Instanz auf dem Stand vor 0289 mit beiden Zugängen bei fetch_from = 2026-11, danach die Migration */
+  async function migriert(vorher: (sql: postgres.Sql) => Promise<void>) {
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
     const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
     await admin`drop database if exists ${admin(name)} with (force)`;
@@ -32,14 +33,29 @@ describe.skipIf(!testDatabaseUrl)("Migration 0289: Abruf von App Store Connect d
       await migrate(drizzle(sql), { migrationsFolder: previous });
       await sql`insert into store_connections (store, config, ciphertext, fetch_from) values
         ('appstore', '{"store":"appstore"}', '\\x00', '2026-11-01'), ('googleplay', '{"store":"googleplay"}', '\\x00', '2026-11-01')`;
+      await vorher(sql);
       await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
-      expect(await sql`select store, to_char(fetch_from, 'YYYY-MM-DD') as fetch_from from store_connections order by store`).toEqual([
-        { store: "appstore", fetch_from: "2026-08-01" },
-        { store: "googleplay", fetch_from: "2026-11-01" },
-      ]);
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+      const rows = await sql`select store, to_char(fetch_from, 'YYYY-MM-DD') as fetch_from from store_connections order by store`;
+      return Object.fromEntries(rows.map((r) => [r.store, r.fetch_from]));
     } finally {
       await sql.end();
     }
+  }
+
+  const bericht = async (sql: postgres.Sql, store: string, kind: string) => {
+    const [file] = await sql`insert into archive_files (kind, year, filename, mime_type, size, sha256)
+      values ('storebericht', 2026, 'bericht.gz', 'application/gzip', 1, ${"0".repeat(64)}) returning id`;
+    await sql`insert into store_reports (store, report_kind, part, period, sha256, archive_file_id)
+      values (${store}, ${kind}, 'Z1', '2026-10', ${"0".repeat(64)}, ${file!.id})`;
+  };
+
+  it("setzt fetch_from zurück, wenn schon Berichte des App Store im Archiv liegen; Google Play bleibt", async () => {
+    expect(await migriert((sql) => bericht(sql, "appstore", "finance_detail"))).toEqual({ appstore: "2026-08-01", googleplay: "2026-11-01" });
+  }, 120_000);
+
+  it("lässt einen Zugang ohne archivierten Bericht des App Store beim gewählten Monat", async () => {
+    // Abruf lief noch nie oder schlug fehl: keine Lücke, sonst kämen drei Monate vor dem gewählten Beginn ins Konto
+    expect(await migriert((sql) => bericht(sql, "googleplay", "earnings"))).toEqual({ appstore: "2026-11-01", googleplay: "2026-11-01" });
   }, 120_000);
 });
