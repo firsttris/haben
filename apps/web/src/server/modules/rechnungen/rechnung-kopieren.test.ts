@@ -15,6 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
   let persons: typeof import("../stammdaten/contact-persons.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let integrity: typeof import("../auswertungen/integrity.ts");
+  let quotes: typeof import("./quotes.ts");
   const actor = "test-user";
   const heute = "2026-11-18";
   let contactId: string;
@@ -26,6 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
     persons = await import("../stammdaten/contact-persons.ts");
     contacts = await import("../stammdaten/contacts.ts");
     integrity = await import("../auswertungen/integrity.ts");
+    quotes = await import("./quotes.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -35,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
   beforeEach(async () => {
     await leeren(
       sql,
-    )`truncate invoice_lines, invoices, invoice_number_counters, contact_persons, contact_versions, contacts, journal_lines, journal_entries, company cascade`;
+    )`truncate quote_lines, quotes, quote_number_counters, invoice_lines, invoices, invoice_number_counters, contact_persons, contact_versions, contacts, journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
@@ -170,5 +172,48 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
     await expect(kopieren.copyInvoice(actor, korrektur.id, heute)).rejects.toThrow(/Korrekturen/);
     const storno = await invoices.cancelInvoice(actor, (await final()).id, "2026-10-05");
     await expect(kopieren.copyInvoice(actor, storno.id, heute)).rejects.toThrow(/Stornorechnungen/);
+  });
+
+  const finalQuote = async () =>
+    quotes.finalizeQuote(
+      actor,
+      (
+        await quotes.createQuoteDraft(actor, {
+          contactId,
+          issueDate: "2026-09-15",
+          validUntil: "2026-10-15",
+          serviceFrom: null,
+          serviceTo: null,
+          note: "",
+          lines: [{ description: "Einführung Lagerverwaltung", quantity: 1000, unit: "Psch." as const, unitPrice: 300_000, taxRate: 1900 as const }],
+        })
+      ).id,
+    );
+
+  it("übernimmt den Bezug zum Angebot nicht: das Angebot bleibt mit dem Original abgerechnet", async () => {
+    const quote = await finalQuote();
+    const original = await invoices.finalizeInvoice(actor, (await quotes.quoteToInvoice(actor, quote.id, "2026-10-01", null)).id);
+    expect(original.quoteId).toBe(quote.id);
+    const copy = await kopieren.copyInvoice(actor, original.id, heute);
+    expect(copy).toMatchObject({ quoteId: null, variant: null, gross: original.gross });
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(original.id);
+  });
+
+  it("lehnt Abschlagsrechnungen ab", async () => {
+    const quote = await finalQuote();
+    const abschlag = await invoices.finalizeInvoice(
+      actor,
+      (
+        await invoices.createDraft(
+          actor,
+          draftInput({
+            variant: "abschlag",
+            quoteId: quote.id,
+            lines: [{ description: "1. Abschlag", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 1900 as const }],
+          }),
+        )
+      ).id,
+    );
+    await expect(kopieren.copyInvoice(actor, abschlag.id, heute)).rejects.toThrow(/Abschlags- und Schlussrechnungen/);
   });
 });
