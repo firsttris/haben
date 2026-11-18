@@ -48,7 +48,8 @@ export const externalInvoiceSchema = z.strictObject({
   serviceTo: z.iso.date().nullable().default(null),
   status: z.enum(["open", "paid", "partlyPaid", "voided", "unknown"]),
   taxes: z.array(tax).min(1).max(20),
-  taxType: z.enum(LEGACY_TAX_TYPES as [string, ...string[]]),
+  // oss kommt nur aus dem Abruf von sevDesk (Regel 18 bis 20); docs/belegimport.md führt ihn nicht
+  taxType: z.enum(LEGACY_TAX_TYPES as [string, ...string[]]).exclude(["oss"]),
   categories: z
     .array(z.strictObject({ categoryId: key, name: z.string().max(300), ...tax.shape }))
     .max(200)

@@ -742,7 +742,7 @@ export async function reconciliation() {
                 payments: legacyPayments(v),
                 taxType: v.taxType,
                 taxSubType: v.taxSubType,
-                vatFields: vatFieldsOf(v.taxSetId, taxSets),
+                vatFields: vatFieldsOf(v.taxSetId, taxSets, v.taxType),
               })),
             versteuerung,
           ).filter((m) => m.month.startsWith(`${year}-`));

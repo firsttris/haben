@@ -115,6 +115,32 @@ test("Hochladen, dem Angebot zuordnen, in der Vorschau sehen und löschen", asyn
   await page.context().close();
 });
 
+test("Ein Layout, das nur look.logoLeft kennt: Hinweis zu „Mitte“, der Knopf bleibt an, solange andere Belege mittig setzen", async ({ browser }) => {
+  const page = await einstellungen(browser);
+  // Wie ein Layout von vor look.logoPosition: die Stelle nur aus logoLeft
+  const alt = (await startvorlage(page)).replaceAll("logoPosition", "logoAlt");
+  await datei(page, "Altes Angebot", alt);
+  await expect(meldung(page)).toContainText("Geprüft und gespeichert");
+  try {
+    await karte(page).getByLabel("Layout für Angebot").selectOption({ label: "Altes Angebot" });
+    await expect(karte(page).getByRole("status").first()).toContainText("Gespeichert");
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    const blatt = page.getByRole("region", { name: "Logo und Blatt" });
+    await expect(blatt).toContainText("Wirkt nicht auf Angebote: Das Layout „Altes Angebot“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts.");
+    await expect(blatt.getByRole("group", { name: "Stelle des Logos" }).getByRole("button", { name: "Mitte", exact: true })).toBeEnabled();
+  } finally {
+    const zeile = karte(page).getByRole("listitem").filter({ hasText: "Altes Angebot" });
+    await zeile.getByRole("button", { name: "Löschen" }).click();
+    await page
+      .getByRole("dialog", { name: /Layout „Altes Angebot“ löschen\?/ })
+      .getByRole("button", { name: "Layout löschen" })
+      .click();
+    await expect(karte(page).getByText("Altes Angebot", { exact: true })).toHaveCount(0);
+  }
+  await page.context().close();
+});
+
 test("Die Downloads liefern die eingebauten Layouts, Beispieldaten, Feldvertrag und Anleitung", async ({ browser }) => {
   const page = await einstellungen(browser);
   expect(await startvorlage(page)).toContain("json(bytes(sys.inputs.data))");

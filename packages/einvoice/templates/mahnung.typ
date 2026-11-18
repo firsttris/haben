@@ -142,7 +142,10 @@
 
 // Logo oben im Briefkopf, Seite und größte Maße aus dem Profil
 #if d.at("logo", default: none) != none {
-  place(top + if look.logoLeft { left } else { right }, context {
+  // look.logoPosition kam nach logoLeft in den Vertrag; „mitte“ steht mittig auf dem Blatt, nicht im Satzspiegel
+  let stelle = look.at("logoPosition", default: if look.logoLeft { "links" } else { "rechts" })
+  let mitte = 105mm - (25mm + (210mm - 25mm - 20mm) / 2)
+  place(top + if stelle == "links" { left } else if stelle == "mitte" { center } else { right }, dx: if stelle == "mitte" { mitte } else { 0mm }, context {
     let hoch = image(d.logo, height: look.logoHeight * 1mm)
     if measure(hoch).width > look.logoWidth * 1mm { image(d.logo, width: look.logoWidth * 1mm) } else { hoch }
   })
