@@ -95,6 +95,8 @@ const envSchema = z
     ENABLE_BANKING_KEY: z.string().optional(),
     ENABLE_BANKING_KEY_FILE: z.string().optional(),
     ENABLE_BANKING_API_URL: z.string().url().optional(),
+    /** Basis-URL der Vivid Business API (#1393), nur zum Testen oder falls Vivid die Adresse ändert */
+    VIVID_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
     /**
      * Kontoabruf über FinTS (#654): eigene Registrierungsnummer des Produkts bei der Deutschen Kreditwirtschaft
      * (HKVVB Produktbezeichnung, an..25). Haben bringt keine mit; ohne sie bleibt FinTS aus.

@@ -3,8 +3,8 @@ import { decrypt } from "../../crypto.ts";
 import { schema, type Tx } from "../../db/index.ts";
 
 /**
- * Ein Konto, ein Abruf (#654): Verbindet Enable Banking oder FinTS ein Konto, fällt es aus jeder anderen Verbindung,
- * über welchen Weg auch immer. Beide Wege schreiben den Verwendungszweck verschieden, der Dubletten-Hash erkennte
+ * Ein Konto, ein Abruf (#654): Verbindet Enable Banking, FinTS oder Vivid ein Konto, fällt es aus jeder anderen Verbindung,
+ * über welchen Weg auch immer. Die Wege schreiben den Verwendungszweck verschieden, der Dubletten-Hash erkennte
  * dieselbe Zahlung sonst nicht.
  *
  * Eine Zustimmung bei Enable Banking ohne Konten wird gelöscht; ihre Sitzungen gibt die Funktion zurück, damit der
@@ -21,6 +21,15 @@ export async function kontenUebernehmen(tx: Tx, bankAccountIds: Set<string>, aus
   for (const v of fints) {
     const bleiben = v.accounts.filter((a) => !bankAccountIds.has(a.bankAccountId));
     if (bleiben.length < v.accounts.length) await tx.update(schema.fintsConnections).set({ accounts: bleiben }).where(eq(schema.fintsConnections.id, v.id));
+  }
+  // Eine Vivid-Verbindung ohne Konten hat keinen Zweck mehr (#1393): Ihr Schlüssel gilt nur für diese Firma, ein neuer
+  // Schlüssel legt eine neue Verbindung an
+  const vivid = await tx.select({ id: schema.vividConnections.id, accounts: schema.vividConnections.accounts }).from(schema.vividConnections);
+  for (const v of vivid) {
+    const bleiben = v.accounts.filter((a) => !bankAccountIds.has(a.bankAccountId));
+    if (bleiben.length === v.accounts.length) continue;
+    if (bleiben.length > 0) await tx.update(schema.vividConnections).set({ accounts: bleiben }).where(eq(schema.vividConnections.id, v.id));
+    else await tx.delete(schema.vividConnections).where(eq(schema.vividConnections.id, v.id));
   }
   const eb = await tx
     .select({ id: schema.bankConnections.id, accounts: schema.bankConnections.accounts, ciphertext: schema.bankConnections.ciphertext })

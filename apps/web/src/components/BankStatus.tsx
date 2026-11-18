@@ -74,6 +74,22 @@ export function FintsStatus({ status }: { status: keyof typeof FINTS_STATUS }) {
   );
 }
 
+const VIVID_STATUS: Record<"aktiv" | "fehler", StatusLook> = {
+  aktiv: { text: "Aktiv", tone: "ok" },
+  // Vivid hat den Schlüssel abgelehnt (abgelaufen, gelöscht, ohne Recht): Es kommen keine Umsätze mehr
+  fehler: { text: "Schlüssel abgelehnt", tone: "danger", emphasis: "urgent" },
+};
+
+/** Zustand einer Verbindung zum Abruf über die Vivid Business API (#1393) */
+export function VividStatus({ status }: { status: keyof typeof VIVID_STATUS }) {
+  const { text, ...look } = VIVID_STATUS[status];
+  return (
+    <Status {...look} inline>
+      {text}
+    </Status>
+  );
+}
+
 /** Zustand einer Verbindung zum automatischen Abruf; läuft die Zustimmung bald ab, ist das dringend */
 export function ConnectionStatus({ connection: c }: { connection: { status: keyof typeof CONNECTION_STATUS; renewSoon: boolean; validUntil: string | null } }) {
   if (c.renewSoon)

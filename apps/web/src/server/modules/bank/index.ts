@@ -22,6 +22,8 @@ export {
 export { fintsVerbinden, fintsVerbindenSchema, listFintsConnections, removeFintsConnection } from "./fints.ts";
 export { fintsAbrufen, runDueFintsSyncs } from "./fints-abruf.ts";
 export { fintsConfigured } from "./fints-produkt.ts";
+export { listVividConnections, removeVividConnection, vividVerbinden, vividVerbindenSchema } from "./vivid.ts";
+export { runDueVividSyncs, vividAbrufen } from "./vivid-abruf.ts";
 export { type FintsSchritt, vorgangFortsetzen as fintsFortsetzen, vorgangVerwerfen as fintsVerwerfen } from "./fints-vorgang.ts";
 export {
   accountSchema,

@@ -40,6 +40,8 @@ export const DURCHLAEUFE = {
   "fremdrechnung-kleinunternehmer": 29,
   // Kontoabruf über FinTS (#654): nur dieser Server hat FINTS_PRODUKT_ID, die nachgebaute Bank liegt auf FINTS_BANK_PORT
   "fints-abruf": 30,
+  // Kontoabruf über Vivid (#1393): 31 gehört der nachgebauten FinTS-Bank, die nachgebaute Vivid-API liegt auf VIVID_PORT
+  "vivid-abruf": 32,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
@@ -48,6 +50,9 @@ export const ENABLE_BANKING_PORT = PORT + 9;
 
 /** Nachgebaute FinTS-Bank in fints-abruf.spec.ts (@haben/import/fints-testbank) */
 export const FINTS_BANK_PORT = PORT + 31;
+
+/** Nachgebaute Vivid Business API in vivid-abruf.spec.ts (VIVID_API_URL) */
+export const VIVID_PORT = PORT + 33;
 
 /** Platzhalter für FINTS_PRODUKT_ID im Durchlauf „fints-abruf“; eine echte Registrierungsnummer steht nie im Repository */
 export const FINTS_PRODUKT_E2E = "HABENE2ETESTPRODUKT";

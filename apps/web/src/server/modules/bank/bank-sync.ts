@@ -352,7 +352,7 @@ export function followUpStart(syncedTo: string, lastFileBooking: string | null, 
 }
 
 /** Letzter Buchungstag aus einem Dateiimport oder einem anderen Abrufweg (nicht aus diesem Abruf) */
-async function lastFileBooking(bankAccountId: string, format: "enablebanking" | "fints"): Promise<string | null> {
+export async function lastFileBooking(bankAccountId: string, format: "enablebanking" | "fints" | "vivid"): Promise<string | null> {
   const [row] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })
     .from(schema.bankTransactions)

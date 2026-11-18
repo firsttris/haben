@@ -96,6 +96,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `postfach_requests` | Abrufe des ELSTER-Postfachs und Bestätigungen der Abholung mit XML | nur anhängen, Audit ohne XML |
 | `postfach_documents` | Abgeholte Bescheide und Mitteilungen, Datei im Dokumentenspeicher | nur anhängen, Audit |
 | `vast_requests` | Belegabrufe (Liste und Abholung) mit XML, je Person und Jahr | nur anhängen, Audit ohne XML |
+| `vivid_connections` | Verbindungen für den Kontoabruf über die Vivid Business API: Status (aktiv, Schlüssel abgelehnt), Konten mit Kennung bei Vivid und Abrufstand; API-Schlüssel verschlüsselt | Audit ohne Chiffrat |
 | `fints_connections` | Verbindungen für den Kontoabruf über FinTS: Bank, Bankleitzahl, FinTS-Adresse, Anmeldename, gewähltes TAN-Verfahren, Status (aktiv, TAN nötig, Fehler), Konten mit Abrufstand; PIN mit BPD, UPD und Kundensystem-ID der Bank verschlüsselt, damit sie nicht bei jedem Abruf im Audit-Log stehen | Audit ohne Chiffrat |
 | `enable_banking_settings` | Zugang zu Enable Banking (eine Zeile): Application ID, privater Schlüssel verschlüsselt; geht vor den Umgebungsvariablen | Audit ohne Schlüssel |
 | `store_connections` | Zugänge zu den Finanzberichten von Google Play und App Store Connect, eine Zeile je Store: Angaben ohne Geheimnis, Servicekonto-JSON bzw. .p8 verschlüsselt, Stand des Abrufs | Audit ohne Schlüssel |

@@ -2354,6 +2354,24 @@ export const fintsConnections = pgTable("fints_connections", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Verbindungen für den Kontoabruf über die Vivid Business API (#1393): ein API-Schlüssel, verschlüsselt in `ciphertext`.
+ * `accounts[].uid` ist die `id` des Kontos bei Vivid, zugleich die Kennung der Quellenbindung (import_sources). Status
+ * „fehler“: Vivid hat den Schlüssel abgelehnt (abgelaufen, gelöscht, ohne Recht); der Hintergrund versucht es nicht wieder.
+ */
+export const vividConnections = pgTable("vivid_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** API-Schlüssel, AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
+  ciphertext: bytea("ciphertext").notNull(),
+  status: text("status", { enum: ["aktiv", "fehler"] })
+    .notNull()
+    .default("aktiv"),
+  accounts: jsonb("accounts").$type<BankConnectionAccount[]>().notNull().default([]),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Importierte Umsätze; unveränderlich ab Import. Eingang positiv, Ausgang negativ. */
 export const bankTransactions = pgTable(
   "bank_transactions",
