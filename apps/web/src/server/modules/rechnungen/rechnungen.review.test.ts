@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -37,8 +38,6 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
-    (await import("./index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     invoices = await import("./invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);
@@ -72,10 +71,10 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
 
   async function corrected() {
     // 1.000 € + 190 € = 1.190 €, fällig am 16.10.2026; Korrektur um 200 € + 38 € = 238 €
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const correction = await invoices.createCorrection(actor, original.id, "2026-10-05");
     await invoices.updateDraft(actor, correction.id, { ...draft([line(-20_000)]), issueDate: "2026-10-05", paymentTermDays: 0 });
-    return { original, correction: await invoices.finalizeInvoice(actor, correction.id) };
+    return { original, correction: await invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand) };
   }
 
   async function pay(invoiceId: string, amount: number, date: string) {
@@ -167,21 +166,21 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
 
   it("eine vollständig korrigierte Rechnung ist nicht zu mahnen", async () => {
     const dunning = await import("./dunning.ts");
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
-    await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, original.id, "2026-10-05")).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
+    await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, original.id, "2026-10-05")).id, kleinunternehmerStand);
     expect((await dunning.overdueInvoices("2026-10-29")).map((i) => i.id)).not.toContain(original.id);
     await expect(dunning.dunningDraft(original.id, "2026-10-29")).rejects.toThrow(/nichts offen/);
   }, 60_000);
 
   it("Mehrere Korrekturen mindern eine Rechnung höchstens bis auf 0", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const first = await invoices.createCorrection(actor, original.id, "2026-10-05");
     await invoices.updateDraft(actor, first.id, { ...draft([line(-80_000)]), issueDate: "2026-10-05", paymentTermDays: 0 });
-    await invoices.finalizeInvoice(actor, first.id);
+    await invoices.finalizeInvoice(actor, first.id, kleinunternehmerStand);
     const second = await invoices.createCorrection(actor, original.id, "2026-10-06");
     await invoices.updateDraft(actor, second.id, { ...draft([line(-80_000)]), issueDate: "2026-10-06", paymentTermDays: 0 });
     // 1.000 € − 800 € − 800 € = −600 €: die Rechnung wäre unter 0 gemindert
-    await expect(invoices.finalizeInvoice(actor, second.id)).rejects.toThrow();
+    await expect(invoices.finalizeInvoice(actor, second.id, kleinunternehmerStand)).rejects.toThrow();
   }, 60_000);
 
   it("Kleinunternehmer-Rechnung lässt sich nach dem Wechsel zur Regelbesteuerung noch stornieren", async () => {
@@ -189,6 +188,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
     const original = await invoices.finalizeInvoice(
       actor,
       (await invoices.createDraft(actor, draft([line(100_000, 0)], { taxTreatment: "kleinunternehmer", issueDate: "2025-11-03" }))).id,
+      kleinunternehmerStand,
     );
     // Ausschalten geht jederzeit
     await sql`update company set kleinunternehmer = false`;

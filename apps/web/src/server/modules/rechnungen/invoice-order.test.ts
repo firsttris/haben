@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Rechnungen nach Rechnungsdatum (Postgres)", () => {
   let sql: postgres.Sql;
@@ -12,8 +13,6 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen nach Rechnungsdatum (Postgres)", (
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
-    (await import("./index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     database = await import("../../db/index.ts");
     invoices = await import("./invoices.ts");
     const contacts = await import("../stammdaten/contacts.ts");
@@ -52,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen nach Rechnungsdatum (Postgres)", (
       await sql`update company set invoice_number_format=${format!}`;
       const created = await draft(date!);
       await sql`update invoices set created_at=${createdAt!} where id=${created.id}`;
-      finals.push((await invoices.finalizeInvoice("test-user", created.id)).id);
+      finals.push((await invoices.finalizeInvoice("test-user", created.id, kleinunternehmerStand)).id);
     }
     newestDraft = (await draft("2026-11-11")).id;
     oldestDraft = (await draft("2023-01-01")).id;

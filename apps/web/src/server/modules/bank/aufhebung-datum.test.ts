@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today } from "../../today.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Aufhebung einer Bank-Zuordnung trägt ihr eigenes Datum (#782): Die Gegenbuchung wirkt am Tag, an dem die Aufhebung
@@ -81,7 +82,7 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
       note: "",
       lines: [{ description: "Leistungen Februar", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   /** Zahlungseingang im März, dem Umsatz zugeordnet; gibt die Zuordnung zurück */

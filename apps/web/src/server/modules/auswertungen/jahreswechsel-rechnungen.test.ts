@@ -2,6 +2,7 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
  * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, #1116, docs/adr/journal-als-quelle.md), beide Monate aus
@@ -101,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
     lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.net, taxRate: l.rate })),
   });
   const invoice = async (issueDate: string, lines: { net: number; rate: 1900 | 700 }[]) =>
-    invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput(issueDate, lines))).id);
+    invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput(issueDate, lines))).id, kleinunternehmerStand);
   const gemischt = (issueDate: string) =>
     invoice(issueDate, [
       { net: 100_000, rate: 1900 },
@@ -231,7 +232,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
         const inv = await invoice("2026-12-10", [{ net: 100_000, rate: 1900 }]);
         const korrektur = await invoices.createCorrection(actor, inv.id, "2027-01-10");
         await invoices.updateDraft(actor, korrektur.id, { ...draftInput("2027-01-10", [{ net: -20_000, rate: 1900 }]), paymentTermDays: 0 });
-        await invoices.finalizeInvoice(actor, korrektur.id);
+        await invoices.finalizeInvoice(actor, korrektur.id, kleinunternehmerStand);
         // 800,00 € + 152,00 € = 952,00 €
         await zahlung(inv.id, "20.01.27", "952,00");
         expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? { kz81: 100_000, tax81: 19_000 } : {}));

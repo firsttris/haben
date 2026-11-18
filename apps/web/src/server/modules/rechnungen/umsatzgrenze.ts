@@ -28,32 +28,30 @@ export type UmsatzStand = (
 ) => Promise<{ aktuell: { netto: number }; vorjahr: { netto: number }; jahresgrenze: number; vorjahresgrenzeUeberschritten: boolean }>;
 
 /**
- * Stelle für den vereinnahmten Umsatz (#1108): Er entsteht in `auswertungen` aus der EÜR des Journals, die selbst
- * `rechnungen` braucht. Damit kein Ring zwischen den Modulen entsteht, belegt `server/plugins/umsatzgrenze.ts` die Stelle
- * beim Start einmal; Tests, die Kleinunternehmer-Rechnungen festschreiben, belegen sie in ihrem Aufbau.
+ * Für Storno und Korrektur: Sie sind keine Rechnung (`kind` „rechnung“), die Rückfrage entfällt dort, der Umsatz wird
+ * nie gefragt.
  */
-let umsatzStand: UmsatzStand | null = null;
-
-export function belegeUmsatzStand(stand: UmsatzStand): void {
-  umsatzStand = stand;
-}
+export const OHNE_UMSATZSTAND: UmsatzStand = () => {
+  throw new Error("Storno und Korrektur fragen den vereinnahmten Umsatz nicht ab.");
+};
 
 /**
- * Rückfrage anhand des vereinnahmten Umsatzes und des Netto-Rechnungsbetrags. Ist die Stelle nicht belegt, bricht das
- * Festschreiben ab, statt die Rückfrage still auszulassen.
+ * Rückfrage anhand des vereinnahmten Umsatzes und des Netto-Rechnungsbetrags. Den Umsatz rechnet `auswertungen` aus der
+ * EÜR des Journals, die selbst `rechnungen` braucht (#1108); wer festschreibt, übergibt deshalb `umsatzStand`
+ * (`kleinunternehmerStand`), statt dass `rechnungen` ihn importiert.
  */
 export async function pruefeUmsatzgrenze(
   tx: Tx,
   invoice: Pick<Invoice, "kind" | "issueDate" | "taxTreatment">,
   rechnung: number,
   foundedOn: string | null,
+  umsatzStand: UmsatzStand,
   bestaetigt?: UmsatzgrenzeBestaetigung,
 ): Promise<void> {
   if (invoice.kind !== "rechnung" || invoice.taxTreatment !== "kleinunternehmer" || rechnung <= 0) return;
   const heute = today();
   if (invoice.issueDate > `${heute.slice(0, 4)}-12-31`) return;
 
-  if (!umsatzStand) throw new Error("Die Prüfung der Kleinunternehmergrenze ist nicht eingerichtet (server/plugins/umsatzgrenze.ts).");
   const { aktuell, vorjahr, jahresgrenze, vorjahresgrenzeUeberschritten } = await umsatzStand(heute, foundedOn, tx);
   if (!vorjahresgrenzeUeberschritten && aktuell.netto + rechnung <= jahresgrenze) return;
   const vorjahresumsatz = vorjahresgrenzeUeberschritten ? vorjahr.netto : undefined;

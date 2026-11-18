@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
   let api: typeof import("./index.ts");
@@ -293,14 +294,14 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect((await call(t, "PATCH", url, { paymentMethod: "ueberweisung" })).json).toMatchObject({ paidVia: null, paidOn: null });
       expect((await call(t, "PATCH", url, paid)).status).toBe(200);
 
-      const final = await rechnungen.finalizeInvoice(actor, invoice.id);
+      const final = await rechnungen.finalizeInvoice(actor, invoice.id, kleinunternehmerStand);
       expect(final.xml).toContain("<ram:TotalPrepaidAmount>57.12</ram:TotalPrepaidAmount>");
       expect((await call(t, "GET", url)).json).toMatchObject({ ...paid, status: "final", listStatus: "offen", open: 5_712, paid: 0 });
       const [seal] = await sql`select columns from seals where table_name = 'invoices' and row_id = ${invoice.id}`;
       expect(seal!.columns.invoices).toEqual(expect.arrayContaining(["paid_via", "paid_on"]));
       await expect(sql`update invoices set paid_via = 'geändert' where id = ${invoice.id}`).rejects.toThrow(/festgeschrieben/);
       const correction = await rechnungen.createCorrection(actor, final.id, today);
-      expect(await rechnungen.finalizeInvoice(actor, correction.id)).toMatchObject({ kind: "korrektur", paidOn: null, paidVia: null });
+      expect(await rechnungen.finalizeInvoice(actor, correction.id, kleinunternehmerStand)).toMatchObject({ kind: "korrektur", paidOn: null, paidVia: null });
       expect(await rechnungen.cancelInvoice(actor, final.id, today)).toMatchObject({ kind: "storno", paidOn: null, paidVia: null });
     }, 30_000);
 
@@ -461,7 +462,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect((await call(t, "PATCH", `/rechnungen/${created.id}`, { externalId: "778" })).status).toBe(400);
 
       // Festschreiben bleibt ein Klick in Haben
-      const final = await rechnungen.finalizeInvoice(actor, created.id as string);
+      const final = await rechnungen.finalizeInvoice(actor, created.id as string, kleinunternehmerStand);
       const read = await call(t, "GET", `/rechnungen/${created.id}`);
       expect(read.status).toBe(200);
       expect(schemas.invoiceSchema.parse(read.json)).toMatchObject({

@@ -2,6 +2,7 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Stornos im Folgejahr von Buchungen, die noch im Format vor #551 bzw. #552 gebucht sind (Fälle aus Runde 3 des TDD-Reviews
@@ -28,8 +29,6 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Folgejahr von Buchungen im alten F
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
-    (await import("../rechnungen/index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     figures = await import("./vat-figures.ts");
     vat = await import("./vat.ts");
     bank = await import("../bank/bank.ts");
@@ -82,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Folgejahr von Buchungen im alten F
       lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
       ...extra,
     } as never);
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   type Figures = Awaited<ReturnType<typeof figures.computeVatFigures>>;

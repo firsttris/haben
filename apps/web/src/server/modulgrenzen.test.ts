@@ -98,8 +98,8 @@ describe("Modulgrenzen", () => {
     expect(lint("modules/rechnungen/umsatzgrenze.ts", `import { kleinunternehmerStand } from "../auswertungen/index.ts";`)).toHaveLength(1);
     expect(lint("modules/rechnungen/invoices.ts", `import { kleinunternehmerStand } from "../auswertungen/index.ts";`)).toHaveLength(1);
     expect(lint("modules/rechnungen/umsatzgrenze.ts", `import { annualOverview } from "../jahreserklaerung/index.ts";`)).toHaveLength(1);
-    // Die zusammensetzende Stelle darf beide Module importieren
-    expect(lint("plugins/umsatzgrenze.ts", `import { kleinunternehmerStand } from "../modules/auswertungen/index.ts";`)).toEqual([]);
+    // Wer festschreibt, übergibt den Umsatz von oben: eine Server Function darf beide Module importieren
+    expect(lint("functions/invoices.ts", `import { kleinunternehmerStand } from "../modules/auswertungen/index.ts";`)).toEqual([]);
   });
 
   it("ein Modul, das in der Schichtenfolge fehlt, meldet die Prüfung", () => {

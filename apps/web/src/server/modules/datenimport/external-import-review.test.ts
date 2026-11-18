@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const renderer = vi.hoisted(() => ({ pause: null as (() => Promise<void>) | null }));
 vi.mock("@haben/einvoice", async (original) => ({
@@ -45,8 +46,6 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: Regressionen aus der ersten Revi
     imports.runExternalImport("review-user", { version: 2, source: "review-originale", kontenrahmen: "SKR03", entries }, async () => pdf);
   beforeAll(async () => {
     sql = await setupTestDb();
-    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
-    (await import("../rechnungen/index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     imports = await import("./external-import.ts");
     invoices = await import("../rechnungen/index.ts");
     archive = await import("../archiv/index.ts");
@@ -119,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: Regressionen aus der ersten Revi
       reached();
       await proceed;
     };
-    const finalizing = invoices.finalizeInvoice("review-user", draft.id);
+    const finalizing = invoices.finalizeInvoice("review-user", draft.id, kleinunternehmerStand);
     const observed = finalizing.then(
       () => null,
       (error: unknown) => error,

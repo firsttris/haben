@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const IBAN = "DE12120300001234567890";
 
@@ -95,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       ...refs,
       lines: [{ description: "Leistungen August", quantity: 1000, unit: "Psch.", unitPrice: net, taxRate: 1900 }],
     });
-    return { invoice: await invoices.finalizeInvoice(actor, draft.id), contact };
+    return { invoice: await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand), contact };
   }
 
   it("legt das Konto aus der IBAN an, überspringt Dubletten und erkennt Lücken", async () => {
@@ -759,7 +760,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       exemptionReason: "Nicht im Inland steuerbare Leistung",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 119_000, taxRate: 0 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     // 1.190,00 USD / 1,0812 = 1.100,63 €
     expect(invoice.gross).toBe(110_063);
     await bank.importStatement(

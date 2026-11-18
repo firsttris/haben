@@ -4,6 +4,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #853: Ausgabe derselben normalen Vorauszahlung, keine vorbereiteten Journal-/Anmeldungszeilen.
@@ -81,7 +82,7 @@ describe.skipIf(!testDatabaseUrl)("Normale Vorauszahlung: Ausgaben und vorhanden
       note: "",
       lines: [{ description: "Vereinbarte Softwareeinrichtung", quantity: 1000, unit: "Psch.", unitPrice: 70_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
   const pay = (id: string) => bank.createCashInvoiceEntry(actor, { invoiceId: id, date: "2025-12-13", amount: 83_300 }, "2026-02-10");
 
