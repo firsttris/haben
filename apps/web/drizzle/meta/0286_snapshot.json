@@ -1,5 +1,5 @@
 {
-  "id": "beba94d6-55c1-478a-a51c-b9fc5d4ac440",
+  "id": "d22ba1b1-6367-4b5b-89bd-5d9d9cfe084d",
   "prevId": "5388f14a-0421-431a-9c2f-a84743f038b0",
   "version": "7",
   "dialect": "postgresql",
@@ -6582,7 +6582,7 @@
           "name": "abruf_start",
           "type": "date",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "sammelzeilen": {
           "name": "sammelzeilen",

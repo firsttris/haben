@@ -5,7 +5,7 @@ CREATE TABLE "etsy_connections" (
 	"shop_name" text DEFAULT '' NOT NULL,
 	"ciphertext" "bytea" NOT NULL,
 	"fetch_from" date NOT NULL,
-	"abruf_start" date,
+	"abruf_start" date NOT NULL,
 	"sammelzeilen" boolean DEFAULT true NOT NULL,
 	"rhythmus" text DEFAULT 'taeglich' NOT NULL,
 	"last_sync_at" timestamp with time zone,

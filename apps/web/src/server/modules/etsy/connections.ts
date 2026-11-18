@@ -103,11 +103,12 @@ export function etsyClientFor(
 
 /** Schreibt Geheimnis und Token einer Verbindung; `ciphertext` wird dabei neu gebildet */
 export async function storeEtsySecret(actor: string, secret: EtsySecret, values: Partial<typeof schema.etsyConnections.$inferInsert> = {}) {
+  const start = values.fetchFrom ?? `${today().slice(0, 7)}-01`;
   const data = { ...values, ciphertext: encrypt(new TextEncoder().encode(JSON.stringify(secret))), updatedAt: new Date() };
   await withActor(actor, (tx) =>
     tx
       .insert(schema.etsyConnections)
-      .values({ id: "etsy", keystring: values.keystring ?? "", fetchFrom: values.fetchFrom ?? `${today().slice(0, 7)}-01`, ...data })
+      .values({ id: "etsy", keystring: values.keystring ?? "", fetchFrom: start, abrufStart: start, ...data })
       .onConflictDoUpdate({ target: schema.etsyConnections.id, set: data }),
   );
 }
@@ -231,7 +232,7 @@ export async function etsySummary() {
     shopId: connection?.row.shopId ?? "",
     shopName: connection?.row.shopName ?? "",
     // Die Wahl aus den Einstellungen, nicht der vorrückende Stand des Abrufs (der steht in naechsterAbrufAb)
-    fetchFrom: (connection?.row.abrufStart ?? connection?.row.fetchFrom)?.slice(0, 7) ?? today().slice(0, 7),
+    fetchFrom: connection?.row.abrufStart.slice(0, 7) ?? today().slice(0, 7),
     naechsterAbrufAb: connection?.row.fetchFrom ?? null,
     sammelzeilen: connection?.row.sammelzeilen ?? true,
     rhythmus: (connection?.row.rhythmus ?? "taeglich") as EtsyRhythmus,

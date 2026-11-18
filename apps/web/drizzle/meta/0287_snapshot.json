@@ -1,6 +1,6 @@
 {
-  "id": "6163ec5f-de2c-4b87-88dd-27eb1b1868f5",
-  "prevId": "beba94d6-55c1-478a-a51c-b9fc5d4ac440",
+  "id": "658c037d-888a-4d63-b715-f2802f1dceab",
+  "prevId": "d22ba1b1-6367-4b5b-89bd-5d9d9cfe084d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6582,7 +6582,7 @@
           "name": "abruf_start",
           "type": "date",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "sammelzeilen": {
           "name": "sammelzeilen",

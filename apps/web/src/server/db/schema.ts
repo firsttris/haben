@@ -4431,8 +4431,8 @@ export const etsyConnections = pgTable(
     ciphertext: bytea("ciphertext").notNull(),
     /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */
     fetchFrom: date("fetch_from").notNull(),
-    /** Der in den Einstellungen gewählte erste Monat (1. des Monats); leer bei Zugängen von vor der Spalte */
-    abrufStart: date("abruf_start"),
+    /** Der in den Einstellungen gewählte erste Monat (1. des Monats) */
+    abrufStart: date("abruf_start").notNull(),
     /** Gebühren und Werbung je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
     sammelzeilen: boolean("sammelzeilen").notNull().default(true),
     /** Wie oft der Zeitplan abruft: stuendlich, taeglich, woechentlich oder monatlich (ab dem 5.) */
