@@ -1,6 +1,7 @@
 import { accountingTypeKinds, type AccountingTypeKinds, accountingTypeUnclear, taxTypeOf } from "../auswertungen/index.ts";
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { datevFieldWithoutNumber, datevInternalId, datevOpenBooking, truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { bookingsCheckDetail, datevBookingCounts } from "./datev-abgleich.ts";
 import { SEVDESK_EXPORT_IST_CHECK, sevdeskExportIstIssue, sevdeskExportYear, voucherSourceChecks, withoutExportImage } from "./sevdesk-export-abgleich.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "../auswertungen/index.ts";
 import { accountingTypeChecks, accountingTypeDecidable, accountingTypeIssue, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
@@ -628,25 +629,7 @@ export async function reconciliation() {
   const vatIssueOf = (year: number) =>
     [paymentIssueOf(year), unclearAccountsIn(year) ? ACCOUNTING_TYPE_VAT_ISSUE : null, exportIstIssueOf(year)].filter(Boolean).join(" ") || null;
 
-  // Belegfelder des Stapels, wie Liste und Abgleich sie prüfen: eine Definition, damit beide dieselbe Zahl nennen (#1355)
-  const stackFields = { number: "b.voucher_field1", link: "b.document_link", file: "b.file_id", date: "b.date", contra: "b.contra_account" };
-  const openBooking = datevOpenBooking(stackFields, company.kontenrahmen);
-  const fieldWithoutNumber = datevFieldWithoutNumber(stackFields, company.kontenrahmen);
-  // Ohne JIT: Die Filter fragen je Zeile Belege und Kontenrahmen ab, die geschätzten Kosten liegen weit über der Ausführung
-  const bookingRows = await ohneJit((tx) =>
-    tx.execute<{
-      year: number;
-      total: number;
-      unmatched: number;
-      without_number: number;
-      field_without_number: number;
-    }>(sql`
-    select extract(year from b.date)::int as year, count(*)::int as total,
-      count(*) filter (where b.voucher_field1 <> '' and ${openBooking} and not ${fieldWithoutNumber})::int as unmatched,
-      count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number,
-      count(*) filter (where ${fieldWithoutNumber})::int as field_without_number
-    from datev_bookings b group by 1`),
-  );
+  const bookingRows = await datevBookingCounts(company.kontenrahmen);
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
   // Protokolle der aus sevDesk übernommenen Voranmeldungen zählen wie abgelegte ELSTER-Protokolle (#472)
   const vatProtocols = await db
@@ -689,7 +672,7 @@ export async function reconciliation() {
   const fastbillPartlyCanceled = await fastbillPartlyCanceledByYear();
   const years = new Set<number>(fastbillWaiting.keys());
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
-  for (const b of bookingRows) years.add(Number(b.year));
+  for (const year of bookingRows.keys()) years.add(year);
   for (const f of files) if (f.year) years.add(f.year);
   // Jahre mit aus sevDesk übernommenen Voranmeldungen, auch ohne Belege und ohne Protokoll (#472)
   for (const r of await db.selectDistinct({ year: schema.legacyVatReports.year }).from(schema.legacyVatReports)) years.add(r.year);
@@ -732,7 +715,7 @@ export async function reconciliation() {
       const withoutFile = fileStatuses.filter((f) => OPEN_FILE_STATUSES.has(f) && f !== "anhang_fehlt").length;
       const sevdeskExport = sevdeskExportYear(yearRows);
       const unchecked = vouchers.filter((v) => v.status === "unchecked").length;
-      const bookings = bookingRows.find((b) => Number(b.year) === year);
+      const bookings = bookingRows.get(year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
       const elster = kinds("elster") + vatProtocols.filter((p) => p.year === year).length;
       // Ist-Versteuerung: Zahlungen aus dem Zahlungsstatus; sonst Belegdatum
@@ -795,17 +778,7 @@ export async function reconciliation() {
           // Buchungen ohne Belegnummer (Umbuchungen, Privates) brauchen nicht immer einen Beleg; sie stehen nur im Hinweis.
           // Ein Belegfeld ohne Ziffer ist keine Nummer, sondern etwa der Name eines Zahlungsdienstleisters (#1355).
           label: "Jede Buchung mit Belegnummer findet ihren Beleg",
-          detail: bookings
-            ? [
-                bookings.unmatched === 0 ? "alle gefunden" : `${bookings.unmatched} ohne passenden Beleg`,
-                bookings.without_number > 0 ? `${bookings.without_number} ohne Belegnummer` : "",
-                bookings.field_without_number > 0
-                  ? `${bookings.field_without_number} ${bookings.field_without_number === 1 ? "Belegfeld" : "Belegfelder"} ohne Nummer`
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(", ")
-            : "–",
+          detail: bookings ? bookingsCheckDetail(bookings) : "–",
         },
         ...(nurAccountable ? [] : [{ ok: kinds("idea") > 0, label: "IDEA-Export archiviert", detail: kinds("idea") > 0 ? "liegt vor" : "fehlt" }]),
         {
@@ -834,7 +807,7 @@ export async function reconciliation() {
         withoutFile,
         files: fileCounts(fileStatuses),
         unchecked,
-        bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,
+        bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.withoutNumber } : null,
         vat,
         vatIssue,
         taxTypes: [...taxTypes].map(([taxType, count]) => ({ taxType, count })).sort((a, b) => b.count - a.count),

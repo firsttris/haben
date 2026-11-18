@@ -105,6 +105,9 @@ export function datevInternalId(field: string): SQL<boolean> {
  * dort ihren Namen oder ein Kürzel hinein, nicht eine Rechnungsnummer. Ein leeres Feld bleibt ohne Beleg, ein Feld mit
  * Ziffer gilt als Nummer, auch wenn sie nicht vollständig ist. Kein Namensraten: Die Prüfung ist strukturell und gilt
  * damit auch für Anbieter, die es heute noch nicht gibt.
+ *
+ * DATEV erlaubt in Feld 11 auch reine Buchstabenfolgen (ASCII-Import, Feldbeschreibungen für Standardformate, Dok.-Nr.
+ * 1003221); dass ein Feld ohne Ziffer keine Nummer ist, ist deshalb eine Regel aus #1355 und keine Vorgabe von DATEV.
  */
 export function datevOhneBelegnummer(field: string): SQL<boolean> {
   const f = sql.raw(field);
@@ -122,8 +125,8 @@ export interface DatevBookingFields {
 
 /**
  * Die Buchung ist ohne Beleg offen: keiner der drei Wege greift, also kein Beleg zur Nummer oder GUID, keine interne
- * Kennung und kein Konto ohne Belegpflicht. Liste und Abgleich teilen diese eine Definition, damit sie dieselbe Zahl
- * nennen (#1355).
+ * Kennung und kein Konto ohne Belegpflicht. Liste und Abgleich teilen diese eine Definition, damit sie ein Belegfeld
+ * ohne Nummer gleich zählen (#1355).
  */
 export function datevOpenBooking(fields: DatevBookingFields, kontenrahmen: "SKR03" | "SKR04"): SQL<boolean> {
   return sql<boolean>`(not ${datevBookingFound(fields)} and not ${datevInternalId(fields.number)}
