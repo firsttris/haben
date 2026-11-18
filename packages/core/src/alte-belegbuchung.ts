@@ -15,7 +15,8 @@ import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
  * man an einer Zeile mit „keineVSt“ (Steuer ohne Abzug) oder einer Entnahme mit Steuerschlüssel (privates Netto); mit
  * vollem Vorsteuerabzug und ohne Privatanteil ist die Korrektur null. Den Privatanteil ordnet die Funktion nur zu, wenn die
  * Buchung genau einen dieser Steuerschlüssel trägt; Erwerb zu 19 % und 7 % mit Privatanteil auf einem Beleg bleibt, wie
- * gebucht.
+ * gebucht. Der Aufrufer wendet die Funktion nur auf Belegbuchungen an, die vor dem Update auf das Journal angelegt wurden
+ * (belegAusAlterVersion in apps/web); die Form allein unterscheidet keine Versionen.
  */
 
 const SELBST_GESCHULDET: ReadonlySet<string> = new Set(["RC13bEU", "RC13bDrittland", "IGE19", "IGE7"]);

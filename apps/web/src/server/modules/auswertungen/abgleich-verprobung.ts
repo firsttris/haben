@@ -12,6 +12,7 @@ import {
 import { and, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
+import { belegAusAlterVersion } from "../umsatzsteuer/index.ts";
 
 /*
  * Umsatzsteuer-Verprobung im Journal (#1116, verprobeBuchung in @haben/core): je Buchung die Steuer auf den Steuerkonten
@@ -34,6 +35,8 @@ export interface JournalBuchung {
   sourceType: (typeof schema.journalEntries.$inferSelect)["sourceType"];
   sourceId: string;
   zeilen: JournalZeile[];
+  /** Belegbuchung aus einer Version vor dem Update auf das Journal (belegAusAlterVersion) */
+  alt: boolean;
   /** Rechnungen und ihre Ausbuchungen behalten das Verfahren der ursprünglichen Rechnung. */
   versteuerung?: Versteuerung;
 }
@@ -51,6 +54,7 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
       kontenrahmen: e.kontenrahmen,
       sourceType: e.sourceType,
       sourceId: e.sourceId,
+      alt: belegAusAlterVersion,
       account: l.account,
       debit: l.debit,
       credit: l.credit,
@@ -83,6 +87,7 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
         kontenrahmen: r.kontenrahmen as Kontenrahmen,
         sourceType: r.sourceType,
         sourceId: r.sourceId,
+        alt: r.alt === true,
         versteuerung: !r.invoiceDate
           ? undefined
           : await taxes.postingMode({
@@ -121,12 +126,8 @@ export function verprobungsZeilen(
   return buchungen
     .filter((b) => months.has(b.month) && b.sourceType !== "asset")
     .flatMap((b) =>
-      // Belegbuchungen mit Erwerb von vor #551 mit der Bemessungsgrundlage wie heute (#1396)
-      verprobeBuchung(
-        b.kontenrahmen,
-        b.versteuerung ?? versteuerung,
-        b.sourceType === "document" ? mitBemessungWieHeute(b.kontenrahmen, b.zeilen) : b.zeilen,
-      ).map((a) => ({
+      // Belegbuchungen alter Versionen mit Erwerb mit der Bemessungsgrundlage wie heute (#1396)
+      verprobeBuchung(b.kontenrahmen, b.versteuerung ?? versteuerung, b.alt ? mitBemessungWieHeute(b.kontenrahmen, b.zeilen) : b.zeilen).map((a) => ({
         posten: `${ART[a.art]} ${a.satz / 100} % zur Bemessungsgrundlage ${formatEuro(a.bemessung)}: Buchung „${b.description}“ vom ${datum(b.date)}`,
         schluessel: `buchung:${b.id}:${a.art}:${a.satz}`,
         journal: a.steuer,

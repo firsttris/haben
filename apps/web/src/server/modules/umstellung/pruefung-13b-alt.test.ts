@@ -68,12 +68,15 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update: § 13b und Erwerb aus V
 
   /**
    * Die Zeilen der Belegbuchung so, wie Haben sie bis v0.6 schrieb (git show 0c2bab5e): Steuer ohne Abzug in die Aufwandszeile
-   * mit dem Steuerschlüssel, privates Netto zur privaten Steuer ohne Steuerschlüssel. Salden je Konto bleiben gleich.
+   * mit dem Steuerschlüssel, privates Netto zur privaten Steuer ohne Steuerschlüssel. Salden je Konto bleiben gleich. `vorUpdate`:
+   * angelegt vor dem Update auf das Journal (vor der Zeile, die die Migration in journal_umstellung schreibt), wie bei einer
+   * Instanz, die mit v0.6 gebucht hat.
    */
-  async function wieVor551(kr: "SKR03" | "SKR04") {
+  async function wieVor551(kr: "SKR03" | "SKR04", vorUpdate = true) {
     const privatentnahmen = kr === "SKR03" ? "1800" : "2100";
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
+      if (vorUpdate) await tx`update journal_entries set created_at = (select min(at) from journal_umstellung) - interval '30 days'`;
       for (const k of await tx`select id, entry_id, account, debit from journal_lines where tax_code = 'keineVSt'`) {
         await tx`update journal_lines set debit = debit + ${k.debit} where entry_id = ${k.entry_id} and account = ${k.account}
           and tax_code in ('RC13bEU', 'RC13bDrittland', 'IGE19', 'IGE7')`;
@@ -110,4 +113,17 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update: § 13b und Erwerb aus V
           expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
           expect(await vat.computedValues({ year: 2026, month: 4 })).toEqual(werte);
         }, 60_000);
+
+  // Dieselbe Zeilenform in einer Buchung nach dem Update hat keine alte Version geschrieben: Sie bleibt, wie gebucht, und die
+  // Abweichung fällt auf, statt umgedeutet zu werden
+  for (const kr of ["SKR03", "SKR04"] as const)
+    it(`Zeilenform von vor #551 in einer Buchung nach dem Update: wie gebucht, Befund (${kr})`, async () => {
+      await reset(kr, "soll");
+      await beleg("eu", false, 0);
+      await gesendet();
+      await wieVor551(kr, false);
+      expect(await umstellung.umstellungBefunde(2027, today)).toEqual([
+        expect.objectContaining({ bereich: "ustva", schluessel: "gesendet:2026-04:Kz 46", journal: 11_900, quelle: 10_000 }),
+      ]);
+    }, 60_000);
 });
