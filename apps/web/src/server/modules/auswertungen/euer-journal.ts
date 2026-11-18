@@ -25,6 +25,7 @@ import {
   buchungen,
   type EuerBeitraege,
   buchungenJe,
+  firmenKontenrahmen,
   offenerPosten,
   verrechnungenJeRechnung,
   type Zeile,
@@ -119,12 +120,6 @@ async function verrechnungenImJahr(q: Db | Tx, year: number): Promise<Verrechnun
     .orderBy(asc(s.date), asc(s.createdAt), asc(s.id));
 }
 
-/** Kontenrahmen der Firma: für einen Beleg ganz ohne Buchung die einzige Angabe zum Rahmen (aus Lexoffice übernommen) */
-async function firmenKontenrahmen(q: Db | Tx): Promise<Kontenrahmen> {
-  const [firma] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).limit(1);
-  return firma?.kontenrahmen ?? "SKR03";
-}
-
 export interface EuerJournal {
   summe: EuerAusJournal;
   kleinunternehmerUmsatz: { netto: number; steuerfrei: boolean };
@@ -160,6 +155,12 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1)
     nach.zeilen[key] = (nach.zeilen[key] ?? 0) + vorzeichen * betrag;
   nach.bewirtungNichtAbziehbar += vorzeichen * von.bewirtungNichtAbziehbar;
   nach.gewerbesteuerNichtAbziehbar += vorzeichen * von.gewerbesteuerNichtAbziehbar;
+}
+
+/** Addiert die Wirkung zur Summe des Jahres und zum Monat ihres Datums */
+function zaehle(summe: EuerAusJournal, monate: EuerAusJournal[], datum: string, beitrag: EuerAusJournal) {
+  dazu(summe, beitrag);
+  dazu(monate[Number(datum.slice(5, 7)) - 1]!, beitrag);
 }
 
 /**
@@ -285,16 +286,14 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   for (const b of jahr) {
     const beitrag = await wirkung(b);
     beitraege?.({ ...b, invoiceId: null, documentId: null, ...zielVon.get(b.sourceId) }, beitrag);
-    dazu(summe, beitrag);
-    dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
+    zaehle(summe, monate, b.date, beitrag);
   }
   // Verrechnungen (#274) wie eine Zahlung im Monat der Aufrechnung; der Rahmen dient nur einem Beleg ganz ohne Buchung
   const belegKontenrahmen = verrechnet.length > 0 ? await firmenKontenrahmen(q) : "SKR03";
   for (const v of verrechnet) {
     const beitrag = await wirkungVerrechnung(v);
     beitraege?.({ ...v, kontenrahmen: belegKontenrahmen, sourceType: "verrechnung", sourceId: v.id, invoiceId: null, documentId: v.dokumentId }, beitrag);
-    dazu(summe, beitrag);
-    dazu(monate[Number(v.date.slice(5, 7)) - 1]!, beitrag);
+    zaehle(summe, monate, v.date, beitrag);
   }
   return { summe, kleinunternehmerUmsatz, uebernommen, ungeklaerteImporte, monate };
 
