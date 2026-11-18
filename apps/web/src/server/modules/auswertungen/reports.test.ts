@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 01.10.2026:";"10.000,00 €"\n""\n`;
@@ -106,7 +107,7 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
       note: "",
       lines: [{ description: "Leistungen August", quantity: 1000, unit: "Psch.", unitPrice: 400_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
 
     const telekom = await bookedDocument(1, {
       supplierName: "Telekom",
@@ -293,7 +294,7 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
         note: "",
         lines: [{ description: "Leistungen Oktober", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
       });
-      const invoice = await invoices.finalizeInvoice(actor, draft.id);
+      const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
       // Unbezahlt: Die EÜR hätte im Oktober nichts, der Umsatz zählt mit der Buchung der Rechnung
       expect(await reports.umsatzImMonat("2026-10")).toBe(100_000);
       await invoices.cancelInvoice(actor, invoice.id, "2026-11-03");

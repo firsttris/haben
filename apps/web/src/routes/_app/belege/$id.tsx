@@ -33,23 +33,26 @@ import { EigenesKontoWahl, passendesKonto } from "../../../components/EigenesKon
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { CategoryCombobox } from "../../../components/CategoryCombobox.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "../../../components/ContactCombobox.tsx";
 import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { fehlerFelder, formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { aendereBetragszeile, betragszeileAus, betragszeileGespeichert, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
-import { PRIVATANTEIL_FEHLER, parsePrivatanteil } from "../../../lib/anteil.ts";
+import { PRIVATANTEIL_FEHLER, parsePrivatanteil, privatanteilVorgabe } from "../../../lib/anteil.ts";
 import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
-import { KATEGORIE_BEISPIEL, KategorieOptionen } from "../../../components/KategorieOptionen.tsx";
+import { KATEGORIE_BEISPIEL } from "../../../components/KategorieGruppen.ts";
 import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
 import { WeitereAngaben, inWeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
+import { readContinuePreference, subscribeContinuePreference, writeContinuePreference } from "./-beleg-weiter.ts";
+import { type Detail, Preview } from "./-beleg-vorschau.tsx";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
 function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
@@ -68,7 +71,6 @@ export const Route = createFileRoute("/_app/belege/$id")({
   component: DocumentPage,
 });
 
-type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 type Rate = BetragsSatz;
 
 interface AmountState extends Betragszeile {
@@ -77,37 +79,8 @@ interface AmountState extends Betragszeile {
 
 let nextKey = 1;
 
-const CONTINUE_KEY = "haben-belege-weiter";
 /** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
 const BUCHEN_KUERZEL: readonly Taste[] = ["mod", "Enter"];
-
-/** Voreinstellung „nach dem Buchen weiter“: an, solange nichts anderes gemerkt ist; ohne Speicher (privates Fenster) einfach an */
-function readContinuePreference(): boolean {
-  if (continueFallback !== null) return continueFallback;
-  try {
-    return window.localStorage.getItem(CONTINUE_KEY) !== "nein";
-  } catch {
-    return true;
-  }
-}
-
-const continueListeners = new Set<() => void>();
-/** Ohne Speicher (privates Fenster) gilt die Wahl, bis die Seite neu geladen wird */
-let continueFallback: boolean | null = null;
-
-function subscribeContinuePreference(listener: () => void) {
-  continueListeners.add(listener);
-  return () => continueListeners.delete(listener);
-}
-
-function writeContinuePreference(value: boolean) {
-  try {
-    window.localStorage.setItem(CONTINUE_KEY, value ? "ja" : "nein");
-  } catch {
-    continueFallback = value;
-  }
-  for (const listener of continueListeners) listener();
-}
 
 function DocumentPage() {
   const data = Route.useLoaderData();
@@ -278,33 +251,6 @@ function DocumentPage() {
         </div>
       </div>
     </>
-  );
-}
-
-function Preview({ doc }: { doc: Detail["document"] }) {
-  const src = `/api/beleg/${doc.id}`;
-  if (doc.mimeType === "application/pdf") {
-    return (
-      <>
-        <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Beleg ${doc.filename}`} />
-        <a className="btn pdf-open" href={src} target="_blank" rel="noreferrer">
-          PDF öffnen
-        </a>
-      </>
-    );
-  }
-  if (doc.mimeType.startsWith("image/") && doc.mimeType !== "image/heic") {
-    return <img className="doc-image" src={src} alt={`Beleg ${doc.filename}`} />;
-  }
-  return (
-    <section className="card">
-      <p className="muted" style={{ margin: 0 }}>
-        Für {doc.mimeType === "application/xml" ? "XML-Rechnungen" : "dieses Format"} gibt es keine Vorschau.{" "}
-        <a href={src} target="_blank" rel="noreferrer">
-          Datei öffnen
-        </a>
-      </p>
-    </section>
   );
 }
 
@@ -727,8 +673,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                           onClick={() => {
                             const hint = data.categoryHint!.category;
                             touch(setCategory)(hint);
-                            const preset = data.privateShares[hint];
-                            setPrivateShare(preset ? String(preset) : "");
+                            setPrivateShare(privatanteilVorgabe(data.privateShares, hint));
                           }}
                         >
                           übernehmen
@@ -743,20 +688,17 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               style={{ gridColumn: "1 / -1" }}
             >
               {(control) => (
-                <select
+                <CategoryCombobox
                   {...control}
+                  categories={categories}
                   value={category}
-                  onChange={(e) => {
-                    touch(setCategory)(e.target.value);
-                    setOwnAccountId(passendesKonto(ownAccounts, e.target.value, ownAccountId));
+                  onChoose={(next) => {
+                    touch(setCategory)(next);
+                    setOwnAccountId(passendesKonto(ownAccounts, next, ownAccountId));
                     // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
-                    const preset = data.privateShares[e.target.value];
-                    setPrivateShare(preset ? String(preset) : "");
+                    setPrivateShare(privatanteilVorgabe(data.privateShares, next));
                   }}
-                >
-                  <option value="">Bitte wählen</option>
-                  <KategorieOptionen categories={categories} />
-                </select>
+                />
               )}
             </Field>
           )}

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const rendering = vi.hoisted(() => ({ hook: null as null | (() => Promise<void>) }));
 
@@ -88,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
     ["ug", "SKR04", "ist"],
   ] as const)("%s, %s, %s: trotz null Journalbuchungen bleibt das finale Bilanzverfahren gegen Rechtsformwechsel geschützt", async (form, frame, mode) => {
     await sql`update company set rechtsform = ${form}, kontenrahmen = ${frame}, versteuerung = ${mode}`;
-    const finalized = await invoices.finalizeInvoice(actor, (await draft()).id);
+    const finalized = await invoices.finalizeInvoice(actor, (await draft()).id, kleinunternehmerStand);
     expect(finalized.advanceAccounting).toBe("deferred");
     expect(await sql`select id from journal_entries`).toEqual([]);
     const sealed = await sql`select digest, columns from seals where table_name = 'invoices' and row_id = ${finalized.id}`;
@@ -103,7 +104,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
   });
 
   it("auch direkter SQL-Wechsel kann die finale Anzahlungsentscheidung ohne Journal nicht umgehen", async () => {
-    const finalized = await invoices.finalizeInvoice(actor, (await draft()).id);
+    const finalized = await invoices.finalizeInvoice(actor, (await draft()).id, kleinunternehmerStand);
     expect(await sql`select id from journal_entries`).toEqual([]);
     await expect(sql`update company set rechtsform = 'einzelunternehmen' where id = 1`).rejects.toThrow(/festgeschriebene.*Anzahlungsanforderung/);
     expect((await company.loadCompany()).rechtsform).toBe("gmbh");
@@ -111,7 +112,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
   });
 
   it("die neue Rechtsformsperre sperrt ohne Buchung keinen Kontenrahmenwechsel und keine gewöhnlichen Firmendaten", async () => {
-    const finalized = await invoices.finalizeInvoice(actor, (await draft()).id);
+    const finalized = await invoices.finalizeInvoice(actor, (await draft()).id, kleinunternehmerStand);
     const locks = await guard.settingsLocks(today);
     expect(locks.kontenrahmen).toBeNull();
     expect(locks.kleinunternehmer).toBeNull();
@@ -164,7 +165,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
       await guard.saveCompany(actor, { ...current, rechtsform: "einzelunternehmen" }, today);
       switched = true;
     };
-    const failure = await invoices.finalizeInvoice(actor, created.id).then(
+    const failure = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand).then(
       () => null,
       (error: Error & { cause?: Error }) => `${error.message} ${error.cause?.message ?? ""}`,
     );

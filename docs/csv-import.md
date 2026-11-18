@@ -75,7 +75,7 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 | Straße, PLZ, Ort, Land | Straße, PLZ, Ort, Land, auch „Straße (Rechnungsadresse)“ … und „Straße 1“ … wie bei Lexware Office | Land siehe [Werte](#werte). Die Lieferadresse („… (Lieferadresse)“, „Straße 2“ …) übernimmt Haben nicht |
 | E-Mail | E-Mail, Email, E-Mail-Adresse, Geschäftlich (E-Mail), E-Mail 1 | Mehrere Adressen mit Komma oder Semikolon, höchstens fünf, wie im Formular |
 | Telefon | Telefon, Telefonnummer, Rufnummer, Geschäftlich (Rufnummer), Telefon 1 | Ziffern, Leerzeichen und `+ ( ) / - .`, wie im Formular |
-| USt-IdNr. | USt-IdNr., USt-ID, Umsatzsteuer-ID, Umsatzsteuer ID, Umsatzsteuernummer | Form wie `DE123456789`; die deutsche auch mit Prüfziffer (ISO 7064). Ob sie erteilt ist, weiß nur das BZSt |
+| USt-IdNr. | USt-IdNr., USt-ID, Umsatzsteuer-ID, Umsatzsteuer ID, Umsatzsteuernummer | Form wie `DE123456789`; die deutsche auch mit Prüfziffer (ISO 7064). Ob sie erteilt ist, bestätigt das BZSt auf der [Detailseite des Kontakts](kontakte.md#ust-idnr-beim-bzst-bestätigen); der Import fragt nicht an |
 | IBAN | IBAN | Prüfziffer nach ISO 13616; Leerzeichen fallen weg |
 | Leitweg-ID | Leitweg-ID | |
 | Rolle | Rolle, Typ, Kontaktart | „Kunde“, „Lieferant“ oder beides. Ohne Spalte: Lieferant, wenn nur eine Lieferantennummer oder ein Kreditor dasteht, beides bei Nummern für beide Rollen, sonst Kunde. Hat die Datei eine Spalte Lieferantennummer, aber keine Kundennummer (Lieferanten-Vorlage von Lexware Office), ist auch eine Zeile ohne Nummer ein Lieferant |

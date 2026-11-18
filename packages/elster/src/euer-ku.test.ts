@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEuerXml, euerTotals } from "./erklaerung.ts";
+import { buildEuerXml, euerTotals } from "./euer-erklaerung.ts";
 import { EUER_FIELDS } from "./euer-felder.ts";
 
 const input = {

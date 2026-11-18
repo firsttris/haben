@@ -81,6 +81,7 @@ import {
   invoicePayments,
   paidByTarget,
   paperCancellationIds,
+  paymentProcedure,
   unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
@@ -122,9 +123,11 @@ export const accountSchema = z.object({
 
 /**
  * Ein Import mit Inhalt: Der Eintrag eines abgelehnten Abrufs (`recordRefusedBatch`) hat weder Zeitraum noch Umsätze und
- * zählt nicht als letzter Import (Kontostand, Saldenfolge). Ohne diese Bedingung käme er bei `desc(periodTo)` zuerst.
+ * zählt nicht als letzter Import (Kontostand, Saldenfolge). Ohne diese Bedingung käme er bei `desc(periodTo)` zuerst. Ebenso
+ * der Eintrag zu einem Umsatz, den Haben nach einem Konflikt übernommen hat (`resolveConflict`): ohne Zeitraum und Salden.
  */
-const echterImport = sql`not (${schema.bankImports.periodTo} is null and ${schema.bankImports.added} = 0 and ${schema.bankImports.skipped} = 0)`;
+const echterImport = sql`not (${schema.bankImports.periodTo} is null and ${schema.bankImports.added} = 0 and ${schema.bankImports.skipped} = 0)
+  and not exists (select 1 from import_resolutions r join bank_transactions t on t.id = r.transaction_id where t.import_id = ${schema.bankImports.id})`;
 
 export async function listAccounts() {
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
@@ -1216,7 +1219,7 @@ async function invoiceBooking(
 ): Promise<{ lines: PostingLine[]; description: string; target: Zuordnungsziel }> {
   const invoice = await lockInvoice(tx, part.invoiceId);
   if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
-  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount);
+  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount, await paymentProcedure(invoice, tx));
   if (dateProblem) throw new BankError(dateProblem);
 
   const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);

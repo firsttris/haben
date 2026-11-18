@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** Wird während des Renderns von PDF und XML aufgerufen; der Test misst dort, ob die Hash-Kette gesperrt ist */
 const rendering = vi.hoisted(() => ({ hook: null as null | (() => Promise<void>) }));
@@ -86,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     rendering.hook = async () => {
       seen.push(await chainLocked());
     };
-    const final = await invoices.finalizeInvoice(actor, created.id);
+    const final = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(seen).toEqual([false]);
     expect(final).toMatchObject({ status: "final", number: `${year}-001`, numberCounter: 1 });
     expect(final.xml).toContain(`${year}-001`);
@@ -121,16 +122,21 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
       const umsatz = grenze - 100;
       await bar(umsatz);
       const genau = await entwurf(100);
-      expect(await invoices.finalizeInvoice(actor, genau.id)).toMatchObject({ status: "final", numberCounter: 1 });
+      expect(await invoices.finalizeInvoice(actor, genau.id, kleinunternehmerStand)).toMatchObject({ status: "final", numberCounter: 1 });
 
       const darueber = await entwurf(101);
-      await expect(invoices.finalizeInvoice(actor, darueber.id)).rejects.toMatchObject({ umsatz, rechnung: 101, grenze });
+      await expect(invoices.finalizeInvoice(actor, darueber.id, kleinunternehmerStand)).rejects.toMatchObject({ umsatz, rechnung: 101, grenze });
       expect(await sql`select status, number from invoices where id = ${darueber.id}`).toEqual([{ status: "draft", number: null }]);
       await bar(1);
-      await expect(invoices.finalizeInvoice(actor, darueber.id, { umsatz, rechnung: 101, grenze })).rejects.toMatchObject({ umsatz: umsatz + 1 });
+      await expect(invoices.finalizeInvoice(actor, darueber.id, kleinunternehmerStand, { umsatz, rechnung: 101, grenze })).rejects.toMatchObject({
+        umsatz: umsatz + 1,
+      });
       const aktuell = { umsatz: umsatz + 1, rechnung: 101 };
-      await expect(invoices.finalizeInvoice(actor, darueber.id, { ...aktuell, grenze: grenze + 1 })).rejects.toMatchObject({ grenze });
-      expect(await invoices.finalizeInvoice(actor, darueber.id, { ...aktuell, grenze })).toMatchObject({ status: "final", numberCounter: 2 });
+      await expect(invoices.finalizeInvoice(actor, darueber.id, kleinunternehmerStand, { ...aktuell, grenze: grenze + 1 })).rejects.toMatchObject({ grenze });
+      expect(await invoices.finalizeInvoice(actor, darueber.id, kleinunternehmerStand, { ...aktuell, grenze })).toMatchObject({
+        status: "final",
+        numberCounter: 2,
+      });
     },
     30_000,
   );
@@ -164,14 +170,16 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
 
     await einnahme(2_500_000);
     const genau = await entwurf();
-    expect(await invoices.finalizeInvoice(actor, genau.id)).toMatchObject({ status: "final" });
+    expect(await invoices.finalizeInvoice(actor, genau.id, kleinunternehmerStand)).toMatchObject({ status: "final" });
 
     await einnahme(1);
     const darueber = await entwurf();
     const bestaetigung = { umsatz: 0, rechnung: 10_000, grenze: 10_000_000 };
-    await expect(invoices.finalizeInvoice(actor, darueber.id, bestaetigung)).rejects.toMatchObject({ vorjahresumsatz: 2_500_001 });
+    await expect(invoices.finalizeInvoice(actor, darueber.id, kleinunternehmerStand, bestaetigung)).rejects.toMatchObject({ vorjahresumsatz: 2_500_001 });
     expect(await sql`select status, number from invoices where id = ${darueber.id}`).toEqual([{ status: "draft", number: null }]);
-    expect(await invoices.finalizeInvoice(actor, darueber.id, { ...bestaetigung, vorjahresumsatz: 2_500_001 })).toMatchObject({ status: "final" });
+    expect(await invoices.finalizeInvoice(actor, darueber.id, kleinunternehmerStand, { ...bestaetigung, vorjahresumsatz: 2_500_001 })).toMatchObject({
+      status: "final",
+    });
   }, 30_000);
 
   it("andere Schreibvorgänge laufen, während eine Rechnung gerendert wird", async () => {
@@ -194,13 +202,13 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
       });
       writtenMeanwhile = true;
     };
-    await invoices.finalizeInvoice(actor, created.id);
+    await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(writtenMeanwhile).toBe(true);
   }, 30_000);
 
   it("Nummern bleiben lückenlos und eindeutig, auch bei gleichzeitigem Festschreiben", async () => {
     const drafts = await Promise.all(Array.from({ length: 6 }, () => invoices.createDraft(actor, draft())));
-    const finals = await Promise.all(drafts.map((d) => invoices.finalizeInvoice(actor, d.id)));
+    const finals = await Promise.all(drafts.map((d) => invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand)));
     expect(finals.map((f) => f.numberCounter).sort((a, b) => a! - b!)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(new Set(finals.map((f) => f.number)).size).toBe(6);
     const [counter] = await sql`select last from invoice_number_counters where year = ${year}`;
@@ -212,11 +220,11 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     rendering.hook = async () => {
       throw new Error("Renderer abgestürzt");
     };
-    await expect(invoices.finalizeInvoice(actor, first.id)).rejects.toThrow(/Renderer abgestürzt/);
+    await expect(invoices.finalizeInvoice(actor, first.id, kleinunternehmerStand)).rejects.toThrow(/Renderer abgestürzt/);
     rendering.hook = null;
     const [counter] = await sql`select last from invoice_number_counters where year = ${year}`;
     expect(counter).toBeUndefined();
-    expect((await invoices.finalizeInvoice(actor, first.id)).number).toBe(`${year}-001`);
+    expect((await invoices.finalizeInvoice(actor, first.id, kleinunternehmerStand)).number).toBe(`${year}-001`);
   }, 30_000);
 
   it("die nächste Nummer festzulegen wartet auf ein laufendes Festschreiben und sieht danach dessen Nummer", async () => {
@@ -233,25 +241,28 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
       );
       await new Promise((resolve) => setTimeout(resolve, 150));
     };
-    await invoices.finalizeInvoice(actor, created.id);
+    await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(await change).toMatch(new RegExp(`größer als ${year}-001`));
     await invoices.setNextNumber(actor, `${year}-01-15`, 40);
-    const next = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const next = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     expect(next.number).toBe(`${year}-040`);
   }, 30_000);
 
   it("Storno und gleichzeitiges Festschreiben blockieren sich nicht gegenseitig", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const other = await invoices.createDraft(actor, draft());
     const today = `${year}-06-01`;
-    const [storno, final] = await Promise.all([invoices.cancelInvoice(actor, original.id, today), invoices.finalizeInvoice(actor, other.id)]);
+    const [storno, final] = await Promise.all([
+      invoices.cancelInvoice(actor, original.id, today),
+      invoices.finalizeInvoice(actor, other.id, kleinunternehmerStand),
+    ]);
     expect(new Set([storno.number, final.number])).toEqual(new Set([`${year}-002`, `${year}-003`]));
   }, 30_000);
 
   it("Korrektur festschreiben und dieselbe Rechnung stornieren, gleichzeitig: keine Verklemmung", async () => {
     // finalizeDraft sperrt die korrigierte Rechnung und dann den Nummernkreis; das Storno muss dieselbe Reihenfolge
     // nehmen. Eine eigene Verbindung hält das Original, bis beide warten: die Korrektur zuerst, dann das Storno.
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const correction = await invoices.createCorrection(actor, original.id, `${year}-06-01`);
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     let release!: () => void;
@@ -266,7 +277,7 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
         () => ok,
         (e: Error) => `${e.message} ${(e as { cause?: Error }).cause?.message ?? ""}`,
       );
-    const finalizing = outcome(invoices.finalizeInvoice(actor, correction.id), "korrigiert");
+    const finalizing = outcome(invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand), "korrigiert");
     await wait(300);
     const cancelling = outcome(invoices.cancelInvoice(actor, original.id, `${year}-06-02`), "storniert");
     await wait(300);

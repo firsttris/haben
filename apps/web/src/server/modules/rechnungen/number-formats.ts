@@ -28,8 +28,9 @@ export async function saveNumberFormats(actor: string, formats: NumberFormats): 
     ["Rechnungen", invoice, invoiceRunning],
     ["Angebote", quote, quoteRunning],
   ] as const) {
-    // Beginnt der Zähler jedes Jahr neu, macht erst das Jahr die Nummer eindeutig; läuft er durch, reicht der Zähler
-    const problem = numberFormatError(format, { requireYear: !running });
+    // Beginnt der Zähler jedes Jahr neu, macht erst das Jahr die Nummer eindeutig; läuft er durch, reicht der Zähler.
+    // {KUNDENNR} trägt die Kundennummer des Käufers ein (#1426) — im Kundennummern-Format ergäbe sie keinen Sinn.
+    const problem = numberFormatError(format, { requireYear: !running, allowCustomer: true });
     if (problem) throw new NumberFormatError(`Nummernformat für ${label}: ${problem}`);
   }
   await withActor(actor, async (tx) => {

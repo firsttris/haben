@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** #750: Ein bloßes Schluss-Papierstorno begründet keine Erstattung; ein echter Anzahlungsstorno vor Leistung schon. */
 describe.skipIf(!testDatabaseUrl)("Bankerstattung bei Anzahlungs- und Schlussstorno (Postgres)", () => {
@@ -70,7 +71,7 @@ describe.skipIf(!testDatabaseUrl)("Bankerstattung bei Anzahlungs- und Schlusssto
       advanceType: "anzahlung",
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(invoice).toMatchObject({ advanceAccounting: "deferred", gross: 35_700 });
     const payment = await transaction("12.12.26", "Anzahlung", "357,00");
     await bank.allocate(actor, { kind: "invoice", transactionId: payment, invoiceId: invoice.id, amount: 35_700 });
@@ -91,7 +92,7 @@ describe.skipIf(!testDatabaseUrl)("Bankerstattung bei Anzahlungs- und Schlusssto
       deducts: [advance.id],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(final).toMatchObject({ advanceAccounting: "deferred", gross: 83_300 });
     const payment = await transaction("25.01.27", "Schlusszahlung", "833,00");
     await bank.allocate(actor, { kind: "invoice", transactionId: payment, invoiceId: final.id, amount: 83_300 });

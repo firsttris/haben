@@ -5,6 +5,7 @@ import { parseEInvoiceXml } from "@haben/einvoice";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Zahlungssatz bei Storno und Korrektur (Postgres)", () => {
   let sql: postgres.Sql;
@@ -61,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungssatz bei Storno und Korrektur (Postgr
       taxTreatment: "kleinunternehmer",
       lines: [{ description: "Beispielleistung", quantity: 1000, unit: "Psch.", unitPrice: gross, taxRate: 0 }],
     });
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     if (payment > 0) await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-11-11", amount: payment }, "2026-11-13");
     return final;
   }
@@ -98,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungssatz bei Storno und Korrektur (Postgr
 
   it("verspricht bei einer unbezahlten Rechnungskorrektur keine Auszahlung", async () => {
     const invoice = await original();
-    const correction = await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, invoice.id, "2026-11-12")).id);
+    const correction = await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, invoice.id, "2026-11-12")).id, kleinunternehmerStand);
     expect(textOf(correction.pdf!)).not.toContain("Der Betrag wird Ihnen erstattet.");
     expect(correction.xml).not.toContain("Der Betrag wird Ihnen erstattet.");
   });
@@ -138,7 +139,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungssatz bei Storno und Korrektur (Postgr
       taxTreatment: "kleinunternehmer",
       lines: [{ description: "Korrektur", quantity: 1000, unit: "Psch.", unitPrice: -20, taxRate: 0 }],
     });
-    const correction = await invoices.finalizeInvoice(actor, draft.id);
+    const correction = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     if (refunded) await refund(correction.id, 20);
     await original(0, language, format, 150);
     const [before] = await sql`select (select count(*)::int from allocations) as allocations, (select count(*)::int from cash_entries) as cash`;

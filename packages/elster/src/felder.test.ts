@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEuerXml, type AveuerAnlage } from "./erklaerung.ts";
+import { buildEuerXml, type AveuerAnlage } from "./euer-erklaerung.ts";
 import { buildUstErklaerungXml } from "./ust-erklaerung.ts";
 import { buildEstXml } from "./est.ts";
 import { elsterFelder, meinElsterWerte, NUR_AUSLESEN } from "./felder.ts";

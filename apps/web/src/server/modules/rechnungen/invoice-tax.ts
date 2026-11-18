@@ -1,4 +1,4 @@
-import { advanceUsesPayments, type Versteuerung } from "@haben/core";
+import { advanceUsesPayments, isKapitalgesellschaft, type Versteuerung } from "@haben/core";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
@@ -129,7 +129,10 @@ export function invoiceTaxReader(q: Db | Tx = db) {
   }
   async function managedAdvance(invoice: Reference): Promise<Reference | null> {
     const first = await original(invoice);
-    return first.advanceType === "anzahlung" && advanceUsesPayments(first.taxTreatment ?? "regulaer") ? first : null;
+    return (first.advanceType === "anzahlung" || (first.variant === null && first.advanceAccounting === "deferred")) &&
+      advanceUsesPayments(first.taxTreatment ?? "regulaer")
+      ? first
+      : null;
   }
   // "ist" bedeutet hier Steuer zunächst nicht fällig buchen, nicht die Firmen-Versteuerung wechseln.
   async function postingMode(invoice: Reference): Promise<Versteuerung> {
@@ -148,6 +151,7 @@ export function invoiceTaxReader(q: Db | Tx = db) {
     const current = await snapshot(invoice);
     const first = await original(current);
     if (first.advanceAccounting !== "deferred") return true;
+    if (first.variant === null) return false;
     return first.advanceType !== "anzahlung" && !current.replacesInvoiceId && !(current.kind === "storno" && first.variant === "schluss");
   }
   async function date(invoice: Invoice): Promise<string> {
@@ -165,3 +169,9 @@ export const invoicePostingMode = (invoice: Reference, q: Db | Tx = db) => invoi
 export const invoicePaymentPostingMode = (invoice: Reference, q: Db | Tx = db) => invoiceTaxReader(q).paymentPostingMode(invoice);
 export const invoiceVatDate = (invoice: Invoice, q: Db | Tx = db) => invoiceTaxReader(q).date(invoice);
 export const managedAdvance = (invoice: Reference, q: Db | Tx = db) => invoiceTaxReader(q).managedAdvance(invoice);
+
+/** Verfahren einer Rechnung für advancePaymentDateProblem: Versteuerung ihres Steuerjahres und Rechtsform der Firma. */
+export async function paymentProcedure(invoice: Reference, q: Db | Tx = db): Promise<{ versteuerung: Versteuerung; kapitalgesellschaft: boolean }> {
+  const [company] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).where(eq(schema.company.id, 1));
+  return { versteuerung: await invoiceTaxReader(q).companyMode(invoice), kapitalgesellschaft: isKapitalgesellschaft(company!.rechtsform) };
+}

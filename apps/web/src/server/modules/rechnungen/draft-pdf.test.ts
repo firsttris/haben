@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** Was die Entwurfs-Builder bekommen haben; das PDF selbst prüft packages/einvoice (entwurf.test.ts) */
 const seen = vi.hoisted(() => ({ invoice: [] as unknown[], quote: [] as unknown[], dunning: [] as unknown[] }));
@@ -137,7 +138,7 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
         await sql`select status, number, pdf, xml, updated_at = ${draft.updatedAt.toISOString()}::timestamptz as unchanged from invoices where id = ${draft.id}`;
       expect(row).toMatchObject({ status: "draft", number: null, pdf: null, xml: null, unchanged: true });
       // Festschreiben vergibt danach die erste Nummer: Der Entwurf hat keine verbraucht
-      expect((await invoices.finalizeInvoice(actor, draft.id)).number).toBe("2026-001");
+      expect((await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).number).toBe("2026-001");
     });
 
     it("ein weiterer Download zeigt den neuen Stand", async () => {
@@ -156,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
     });
 
     it("Korrektur geht an die Anschrift der ursprünglichen Rechnung und nennt sie", async () => {
-      const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+      const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
       await sql`update contacts set name = 'Nordwerk Neu GmbH' where id = ${contactId}`;
       const correction = await invoices.createCorrection(actor, original.id, "2026-10-05");
       const file = await drafts.invoiceDraftPdf(correction.id);
@@ -169,7 +170,7 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
     });
 
     it("keine für festgeschriebene oder unbekannte Rechnungen, ohne Kunden eine Meldung", async () => {
-      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
       expect(await drafts.invoiceDraftPdf(final.id)).toBeNull();
       expect(await drafts.invoiceDraftPdf("00000000-0000-4000-8000-000000000000")).toBeNull();
       const empty = await invoices.createDraft(actor, invoiceDraft({ contactId: null }));
@@ -233,7 +234,7 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
     });
 
     it("PDF mit den Beträgen der Mahnung, ohne sie zu speichern", async () => {
-      const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+      const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
       const before = await untouched();
       const file = await dunning.dunningDraftPdf(input(invoice.id, { fee: 500, interest: "geschaeftskunde" }), "2026-10-15");
       expect(file.filename).toBe("Zahlungserinnerung-Entwurf-2026-10-15.pdf");
@@ -248,7 +249,7 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
     });
 
     it("prüft wie beim Erstellen: fällig, Frist, Mahnstufe", async () => {
-      const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+      const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
       await expect(dunning.dunningDraftPdf(input(invoice.id), "2026-09-10")).rejects.toThrow("noch nicht fällig");
       await expect(dunning.dunningDraftPdf(input(invoice.id, { dueDate: "2026-10-15" }), "2026-10-15")).rejects.toThrow("in der Zukunft");
       await dunning.createDunning(actor, input(invoice.id), "2026-10-15");

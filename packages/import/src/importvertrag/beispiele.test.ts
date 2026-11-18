@@ -26,8 +26,8 @@ function accept(input: unknown, binding: SourceBinding) {
 }
 
 const sum = (movements: ImportMovement[]) => movements.reduce((s, m) => s + m.amount, 0);
-const remember = (binding: SourceBinding, movements: ImportMovement[]): Map<string, KnownMovement> =>
-  new Map(movements.map((m) => [movementKey(binding, m), knownMovement(m)]));
+const remember = (binding: SourceBinding, movements: ImportMovement[]): Map<string, KnownMovement[]> =>
+  new Map(movements.map((m) => [movementKey(binding, m), [knownMovement(m)]]));
 
 describe("Beispiel eBay", () => {
   const first = accept(fixture("ebay"), ebay);

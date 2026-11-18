@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 type Sent = { attachments?: { filename: string; contentType: string; content: Buffer | string }[] };
 
@@ -134,7 +135,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres
   it("sperrt die Anhänge mit dem Festschreiben, in der App und in der Datenbank, und versiegelt sie mit der Rechnung", async () => {
     const { id } = await draft();
     const { id: attachmentId } = await attachments.addInvoiceAttachment(actor, id, { bytes: pdf("Stundenzettel"), filename: "stundenzettel.pdf" });
-    await invoices.finalizeInvoice(actor, id);
+    await invoices.finalizeInvoice(actor, id, kleinunternehmerStand);
 
     await expect(attachments.addInvoiceAttachment(actor, id, { bytes: pdf("später"), filename: "spaeter.pdf" })).rejects.toThrow(/festgeschrieben/);
     await expect(attachments.removeInvoiceAttachment(actor, id, attachmentId)).rejects.toThrow(/festgeschrieben/);
@@ -156,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres
 
   it("ein Siegel ohne Anhänge in seinen Spalten (vor 0125) ergibt denselben Inhalt wie bisher", async () => {
     const { id } = await draft();
-    await invoices.finalizeInvoice(actor, id);
+    await invoices.finalizeInvoice(actor, id, kleinunternehmerStand);
     const [row] = await sql`
       select haben_seal_digest('invoices', ${id}::uuid, s.columns - 'invoice_attachments') as ohne,
              encode(sha256(convert_to(jsonb_build_object(
@@ -191,7 +192,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres
     const { id } = await draft("xrechnung-cii");
     const zettel = await attachments.addInvoiceAttachment(actor, id, { bytes: pdf("Stundenzettel"), filename: "stundenzettel.pdf" });
     await attachments.addInvoiceAttachment(actor, id, { bytes: pdf("Intern"), filename: "intern.pdf" });
-    const final = await invoices.finalizeInvoice(actor, id);
+    const final = await invoices.finalizeInvoice(actor, id, kleinunternehmerStand);
     await mail.saveMailSettings(actor, {
       host: "smtp.example.com",
       port: 465,
@@ -238,7 +239,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres
   it("das Jahresarchiv enthält die Anhänge festgeschriebener Rechnungen mit anhaenge.csv, Entwürfe nicht", async () => {
     const { id } = await draft();
     await attachments.addInvoiceAttachment(actor, id, { bytes: pdf("Stundenzettel"), filename: "Stundenzettel September.pdf" });
-    const final = await invoices.finalizeInvoice(actor, id);
+    const final = await invoices.finalizeInvoice(actor, id, kleinunternehmerStand);
     const open = await draft();
     await attachments.addInvoiceAttachment(actor, open.id, { bytes: pdf("Entwurf"), filename: "entwurf.pdf" });
 

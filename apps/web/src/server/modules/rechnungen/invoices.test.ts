@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   let invoices: typeof import("./invoices.ts");
@@ -67,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     const ue = await units.createUnit(actor, { label: "UE", code: "C62" });
     const created = await invoices.createDraft(actor, draft([{ ...line(2500, 0, 2000), unit: "UE" }]));
     await units.setUnitArchived(actor, ue.id, true);
-    const final = await invoices.finalizeInvoice(actor, created.id);
+    const final = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(final.xml).toMatch(/unitCode="C62"/);
     expect(final.xml).not.toMatch(/unitCode="(HUR|H87)"/);
     const storno = await invoices.cancelInvoice(actor, final.id, "2026-10-05");
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   it("meldet vor dem Festschreiben eine Einheit ohne Code, etwa aus der REST-API", async () => {
     const created = await invoices.createDraft(actor, draft([{ ...line(100), unit: "Karton" }]));
     expect(await invoices.finalizeIssues(created.id)).toContainEqual(expect.stringContaining("Einheit „Karton“"));
-    await expect(invoices.finalizeInvoice(actor, created.id)).rejects.toThrow("Karton");
+    await expect(invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand)).rejects.toThrow("Karton");
   });
 
   it("speichert die Beschreibung einer Position, schreibt sie ins XML und übernimmt sie ins Storno", async () => {
@@ -87,7 +88,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     });
     const stored = await sql`select position, description, detail from invoice_lines where invoice_id = ${created.id} order by position`;
     expect(stored.map((r) => r.detail)).toEqual(["Konzeption und Umsetzung\nlaut Rahmenvertrag RV-2026-17", ""]);
-    const final = await invoices.finalizeInvoice(actor, created.id);
+    const final = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(final.xml).toContain("Konzeption und Umsetzung");
     const storno = await invoices.cancelInvoice(actor, final.id, "2026-10-05");
     const [first] = await sql`select detail from invoice_lines where invoice_id = ${storno.id} and position = 1`;
@@ -98,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   it("Einleitung und Hinweis stehen festgeschrieben in XML und Siegel; die Rechnung lässt sich danach nicht mehr ändern", async () => {
     const created = await invoices.createDraft(actor, { ...draft(), intro: "Bestellnummer 4500123456\nProjekt Phoenix", note: "Vielen Dank." });
     expect(created.intro).toBe("Bestellnummer 4500123456\nProjekt Phoenix");
-    const final = await invoices.finalizeInvoice(actor, created.id);
+    const final = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(final.xml).toContain("Bestellnummer 4500123456");
     expect(final.xml!.indexOf("Bestellnummer 4500123456")).toBeLessThan(final.xml!.indexOf("Vielen Dank."));
     const [seal] = await sql`select columns from seals where table_name = 'invoices' and row_id = ${final.id}`;
@@ -122,7 +123,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     const stammdaten = await import("../stammdaten/index.ts");
     await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.0812" }], "bmf");
     expect(await invoices.applyPublishedRatesToDrafts(actor)).toBe(1);
-    const final = await invoices.finalizeInvoice(actor, waiting.id);
+    const final = await invoices.finalizeInvoice(actor, waiting.id, kleinunternehmerStand);
     // 950,00 / 1,0812 = 878,65 €; 180,50 / 1,0812 = 166,94 €
     expect(final).toMatchObject({ currency: "USD", exchangeRate: "1.081200", exchangeRateSource: "ust", net: 87_865, tax: 16_694, gross: 104_559 });
     expect(final.xml).toContain("<ram:InvoiceCurrencyCode>USD</ram:InvoiceCurrencyCode>");
@@ -174,8 +175,8 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     const first = await invoices.createDraft(actor, draft());
     const second = await invoices.createDraft(actor, draft());
 
-    const finalSecond = await invoices.finalizeInvoice(actor, second.id);
-    const finalFirst = await invoices.finalizeInvoice(actor, first.id);
+    const finalSecond = await invoices.finalizeInvoice(actor, second.id, kleinunternehmerStand);
+    const finalFirst = await invoices.finalizeInvoice(actor, first.id, kleinunternehmerStand);
     expect(finalSecond.number).toBe("2026-034");
     expect(finalFirst.number).toBe("2026-035");
 
@@ -194,7 +195,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
 
   it("Festgeschriebenes ist unveränderlich", async () => {
     const d = await invoices.createDraft(actor, draft());
-    const final = await invoices.finalizeInvoice(actor, d.id);
+    const final = await invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
     await expect(sql`update invoices set note = 'x' where id = ${final.id}`).rejects.toThrow(/festgeschrieben/);
     await expect(sql`update invoice_lines set net = 1 where invoice_id = ${final.id}`).rejects.toThrow(/festgeschrieben/);
     await expect(sql`delete from journal_lines`).rejects.toThrow(/festgeschrieben/);
@@ -205,13 +206,13 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   it("schlägt das Rendern fehl, entsteht keine Nummer", async () => {
     const d = await invoices.createDraft(actor, draft());
     await sql`update company set email = ''`;
-    await expect(invoices.finalizeInvoice(actor, d.id)).rejects.toThrow(/E-Mail/);
+    await expect(invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand)).rejects.toThrow(/E-Mail/);
     const [counter] = await sql`select count(*)::int as n from invoice_number_counters`;
     expect(counter?.n).toBe(0);
   });
 
   it("Storno hebt die Rechnung auf und bucht gegen", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-10-05");
     expect(storno).toMatchObject({ kind: "storno", gross: -113_050, correctsId: original.id, status: "final" });
     expect(storno.xml).toContain("381");
@@ -230,7 +231,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   }, 30_000);
 
   it("doppeltes Storno wird abgelehnt, auch gleichzeitig", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const results = await Promise.allSettled([
       invoices.cancelInvoice(actor, original.id, "2026-10-05"),
       invoices.cancelInvoice(actor, original.id, "2026-10-05"),
@@ -244,22 +245,22 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   }, 30_000);
 
   it("Korrektur nach Storno wird abgelehnt", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const correction = await invoices.createCorrection(actor, original.id, "2026-10-05");
     await invoices.cancelInvoice(actor, original.id, "2026-10-05");
     expect(await invoices.finalizeIssues(correction.id)).toContain(`Die Rechnung ${original.number} ist bereits storniert`);
-    await expect(invoices.finalizeInvoice(actor, correction.id)).rejects.toThrow(/bereits storniert/);
+    await expect(invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand)).rejects.toThrow(/bereits storniert/);
     const [row] = await sql`select status, number from invoices where id = ${correction.id}`;
     expect(row).toMatchObject({ status: "draft", number: null });
   }, 30_000);
 
   it("Rechnungskorrektur mindert den Betrag und muss negativ sein", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const correction = await invoices.createCorrection(actor, original.id, "2026-10-05");
     expect(correction).toMatchObject({ kind: "korrektur", status: "draft", gross: -113_050 });
 
     await invoices.updateDraft(actor, correction.id, { ...draft([line(-9500, 1900, 2000)]), paymentTermDays: 0 });
-    const final = await invoices.finalizeInvoice(actor, correction.id);
+    const final = await invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand);
     expect(final.gross).toBe(-22_610);
 
     const summary = await invoices.invoiceSummary("2026-10-05");
@@ -267,7 +268,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   }, 30_000);
 
   it("Kontaktänderung legt Version an, Rechnung behält alte Anschrift", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const updated = await contacts.updateContact(actor, contactId, {
       kundennummer: "10001",
       name: "Nordwerk Software GmbH",
@@ -290,12 +291,13 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   }, 30_000);
 
   it("ZUGFeRD-PDF trägt das XML", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id, kleinunternehmerStand);
     const pdf = final.pdf!.toString("latin1");
     expect(pdf).toMatch(/factur-x\.xml|zugferd-invoice\.xml/);
   }, 30_000);
   it("Abschlags- und Schlussrechnung: Abzug mit Netto und Steuer, nur einmal, Storno in der richtigen Reihenfolge", async () => {
-    const final = async (input: Parameters<typeof invoices.createDraft>[1]) => invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    const final = async (input: Parameters<typeof invoices.createDraft>[1]) =>
+      invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id, kleinunternehmerStand);
     const a1 = await final({ ...draft([line(300_000)]), variant: "abschlag" });
     const a2 = await final({ ...draft([line(100_000), line(10_000, 700)]), variant: "abschlag" });
     expect(a1).toMatchObject({ number: "2026-001", variant: "abschlag", gross: 357_000 });
@@ -332,7 +334,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     ]);
     expect(stored[2]!.description).toMatch(/^Abzüglich Abschlagsrechnung 2026-001 vom 02\.10\.2026 \(netto 3\.000,00\s€, USt 570,00\s€\)$/);
 
-    const finalSchluss = await invoices.finalizeInvoice(actor, schluss.id);
+    const finalSchluss = await invoices.finalizeInvoice(actor, schluss.id, kleinunternehmerStand);
     expect(finalSchluss.number).toBe("2026-004");
     expect(finalSchluss.xml).toContain("<ram:TypeCode>380</ram:TypeCode>");
     expect(finalSchluss.xml).toMatch(/InvoiceReferencedDocument>\s*<ram:IssuerAssignedID>2026-001</);
@@ -358,7 +360,10 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     const a3 = await final({ ...draft([line(100_000)]), variant: "abschlag" });
     const s1 = await invoices.createDraft(actor, { ...draft(full), variant: "schluss", deducts: [a3.id] });
     const s2 = await invoices.createDraft(actor, { ...draft(full), variant: "schluss", deducts: [a3.id] });
-    const finals = await Promise.allSettled([invoices.finalizeInvoice(actor, s1.id), invoices.finalizeInvoice(actor, s2.id)]);
+    const finals = await Promise.allSettled([
+      invoices.finalizeInvoice(actor, s1.id, kleinunternehmerStand),
+      invoices.finalizeInvoice(actor, s2.id, kleinunternehmerStand),
+    ]);
     expect(finals.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(String((finals.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/schon in Schlussrechnung/);
 
