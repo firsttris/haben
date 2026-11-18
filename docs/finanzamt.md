@@ -56,13 +56,15 @@ Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die S
 
 ### Steuerprognose
 
-Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte für 2024 bis 2026 sind gegen den Programmablaufplan des BMF abgeglichen, die für 2023 folgen dem Gesetzestext. Zum hochgerechneten Gewinn kommt ein Erstattungsüberhang bei den Basisbeiträgen der Kranken- und Pflegeversicherung hinzu ([§ 10 Abs. 4b Satz 3 EStG](https://www.gesetze-im-internet.de/estg/__10.html)). Vom hochgerechneten Gewinn zieht Haben ab:
+Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte für 2024 bis 2026 sind gegen den Programmablaufplan des BMF abgeglichen, die für 2023 folgen dem Gesetzestext. Vom hochgerechneten Gewinn zieht Haben ab:
 
 - Arbeitslohn: Einkünfte nach Werbungskosten bzw. Arbeitnehmer-Pauschbetrag kommen zum Gewinn hinzu,
-- Vorsorgeaufwand: Rentenversicherung voll (bei Arbeitnehmern abzüglich des Arbeitgeberanteils), Basis-Kranken- und Pflegeversicherung voll, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person, 1.900 € bei Arbeitnehmern,
+- Vorsorgeaufwand: Rentenversicherung voll (bei Arbeitnehmern abzüglich des Arbeitgeberanteils), Basis-Kranken- und Pflegeversicherung voll, bei einem Erstattungsüberhang dieser Beiträge höchstens bis null, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person, 1.900 € bei Arbeitnehmern,
 - Sonderausgaben: Kirchensteuer und Spenden (bis 20 % des Gesamtbetrags der Einkünfte, also Gewinn, Arbeitslohn und ein Erstattungsüberhang), mindestens den Pauschbetrag von 36 € bzw. 72 €,
 - Kinderbetreuungskosten (bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind),
 - Krankheitskosten über der zumutbaren Belastung.
+
+Zum Gewinn kommt dagegen ein Erstattungsüberhang bei den Basisbeiträgen der Kranken- und Pflegeversicherung hinzu: Übersteigen Erstattungen und Arbeitgeberzuschüsse die Beiträge einer Person, bleibt deren Abzug bei null, und der Überhang erhöht den Gesamtbetrag der Einkünfte ([§ 10 Abs. 4b Satz 3 EStG](https://www.gesetze-im-internet.de/estg/__10.html)).
 
 Bei Zusammenveranlagung gilt der Splittingtarif. Für Kinder vergleicht Haben Kindergeld und Kinderfreibeträge (Günstigerprüfung), haushaltsnahe Aufwendungen mindern die Steuer nach § 35a EStG. Solidaritätszuschlag mit Freigrenze und Milderungszone; Kirchensteuer mit 8 % in Baden-Württemberg und Bayern, sonst 9 %, bei nur einem kirchensteuerpflichtigen Ehegatten vereinfacht zur Hälfte.
 
