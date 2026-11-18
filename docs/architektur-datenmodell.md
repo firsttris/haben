@@ -28,7 +28,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `company_logo` | Aktuelles Firmenlogo (PNG oder JPEG) für Rechnungen, Angebote und Mahnungen; höchstens eine Zeile | Audit ohne Bilddaten (mit SHA-256) |
 | `letterhead_background` | Aktuelles Briefpapier (PNG oder JPEG, aus einem PDF die erste Seite als Bild) hinter den Belegen; höchstens eine Zeile | Audit ohne Bilddaten (mit SHA-256) |
 | `beleg_layouts` | Eigene Belegvorlagen (#113): Name, Art (`beleg` oder `mahnung`), Typst-Quelltext, SHA-256, Version des Feldvertrags, Pakete und `approved_sha256` (Freigabe der Pakete für genau diesen Quelltext); Paket-Cache je Layout unter `DOCUMENTS_DIR/vorlagen/<id>/pakete` | Audit mit Quelltext |
-| `letterhead_profiles` | Gestaltung der Belege als JSON (`settings`: Layout je Belegart, Akzentfarbe, Logo-Größe und -Seite, Schalter, eigene Fußzeile); heute genau ein Standardprofil (`is_default`), ohne Zeile gelten die Vorgaben aus `packages/core` | höchstens ein Standardprofil, Akzentfarbe nur `#RRGGBB`, Audit |
+| `letterhead_profiles` | Gestaltung der Belege als JSON (`settings`: Layout je Belegart, Akzentfarbe, Logo-Größe und -Stelle, Schalter, eigene Fußzeile); heute genau ein Standardprofil (`is_default`), ohne Zeile gelten die Vorgaben aus `packages/core` | höchstens ein Standardprofil, Akzentfarbe nur `#RRGGBB`, Audit |
 | `custom_pages` | [Eigene Seiten](eigene-seiten.md): Name, Adresse und ob der Menüeintrag die Seite im Rahmen zeigt oder in einem neuen Tab öffnet (`open_in_new_tab`) | Audit |
 | `procedure_details` | [Angaben zum Betrieb](verfahrensdokumentation.md#angaben-zum-betrieb) für die Verfahrensdokumentation (Verantwortliche, Ort der Aufbewahrung, Papierbelege, Betrieb des Servers, Datensicherung, Ablage von Schlüsseln, Ergänzungen); genau eine Zeile | Audit, kein `TRUNCATE` |
 | `exchange_rates` | Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat, vom BMF abgerufen oder von Hand eingetragen; Belege und Rechnungen speichern ihren Kurs selbst | Audit |
@@ -149,7 +149,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `sevdesk_accounting_types` | Kontostamm der Buchungskonten aus sevDesk (`GET /AccountingType/{id}`), unverändert; eindeutig je Konto und Stand | nur anhängen, Audit, TRUNCATE gesperrt |
 | `sevdesk_accounting_type_decisions` | Kontoart einer sevDesk-Gutschrift auf ein Buchungskonto, von Hand festgelegt (Erlös- oder Aufwandskonto); die jüngste gilt | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
-| `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
+| `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer Auftrags-PDF-Abrufe mit Buchhaltungsversion | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
 | `legacy_dunnings` | Mahnungen aus sevDesk, je Stufe eine Zeile mit Kennung der gemahnten Rechnung, Stufe, Frist, gemahntem Betrag und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_dunning_files` | PDFs der Mahnungen aus sevDesk mit Prüfsumme | nur anhängen, Audit, TRUNCATE gesperrt |

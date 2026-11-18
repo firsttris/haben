@@ -125,6 +125,33 @@ test("Fragen erneut durchgehen: vorausgefüllt, geänderte Rechtsform erst nach 
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toHaveValue("einzelunternehmen");
 });
 
+test("„Weiß ich noch nicht“ nach „Ja“ oder „Nein“ speichert und lässt den Bereich im Menü (#1362)", async () => {
+  await gehe(page, "/einstellungen?bereich=bereiche");
+  await page.getByRole("link", { name: "Fragen erneut durchgehen" }).click();
+  await page.waitForURL("**/einrichtung");
+  await page.getByRole("button", { name: "Weiter" }).click();
+  await page.getByRole("button", { name: "Weiter" }).click();
+
+  // Vorausgefüllt mit „Ja“; „Weiß ich noch nicht“ danach nimmt die Antwort zurück, statt sie leer mitzuschicken
+  await expect(frage("Schreibst du Angebote?").getByRole("radio", { name: "Ja" })).toBeChecked();
+  await antworten(frage("Schreibst du Angebote?"), "Weiß ich noch nicht");
+  await antworten(frage("Nimmst du Bargeld ein?"), "Nein");
+  await antworten(frage("Nimmst du Bargeld ein?"), "Weiß ich noch nicht");
+  await antworten(frage("Ziehst du Geld per Lastschrift ein?"), "Nein");
+  await page.getByRole("button", { name: "Fertig" }).click();
+  // Vor dem Fix: „Invalid input: expected boolean, received undefined“, die Seite bleibt stehen
+  await expect(page).toHaveURL(/\/einstellungen\?bereich=bereiche$/);
+
+  // Nur „Nein“ blendet aus; die beiden offenen Bereiche bleiben
+  await expect(menue().getByRole("link", { name: "Lastschriften", exact: true })).toHaveCount(0);
+  for (const da of ["Angebote", "Kasse"]) await expect(menue().getByRole("link", { name: da, exact: true })).toBeVisible();
+  const karte = page.getByRole("region", { name: "Bereiche im Menü" });
+  await expect(karte.getByRole("checkbox", { name: "Kasse", exact: true })).toBeChecked();
+  await expect(karte.getByRole("checkbox", { name: "Lastschriften", exact: true })).not.toBeChecked();
+  await karte.getByRole("checkbox", { name: "Lastschriften", exact: true }).check();
+  await expect(menue().getByRole("link", { name: "Lastschriften", exact: true })).toBeVisible();
+});
+
 test("Leere Belegliste: Satz mit Beispiel, Weg zum Postfach, kein Filter und keine doppelte Postfach-Zeile (#1253)", async () => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await gehe(page, "/belege");

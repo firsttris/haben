@@ -1,4 +1,4 @@
-import type { TaxTreatment } from "@haben/core";
+import type { OutgoingTaxDetails, TaxTreatment } from "@haben/core";
 import { eq } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import type { Company, Contact } from "../stammdaten/index.ts";
@@ -22,6 +22,8 @@ export interface TakenOverInvoice extends RebuiltInvoice {
   serviceDate?: string | null;
   taxTreatment: TaxTreatment;
   exemptionReason?: string;
+  /** Befreiungsvorschrift und tatsächlicher Leistungsort; ohne Angabe ungeklärt */
+  taxDetails?: OutgoingTaxDetails | null;
   note: string;
   /** Das Original: wird nicht neu erzeugt */
   pdf: Uint8Array;
@@ -59,6 +61,7 @@ export async function createTakenOverInvoice(
       priceMode: p.priceMode,
       taxTreatment: p.taxTreatment,
       exemptionReason: p.exemptionReason ?? "",
+      taxDetails: p.taxDetails ?? null,
       net: p.totals.net,
       tax: p.totals.tax,
       gross: p.totals.gross,

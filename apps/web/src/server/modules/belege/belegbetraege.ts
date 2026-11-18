@@ -35,7 +35,7 @@ export function euroAmounts(input: {
   if (!input.exchangeRate) return originals.map((o) => ({ ...o, net: 0, tax: 0 }));
   const euro = convertForeignAmounts(originals, input.exchangeRate, Boolean(input.reverseCharge));
   if (euro.some((e) => Math.abs(e.net) > MAX_EURO_CENTS || Math.abs(e.tax) > MAX_EURO_CENTS)) {
-    throw new DocumentError("Der umgerechnete Betrag ist zu groß. Stimmt der Kurs (1 EUR = … Fremdwährung)?");
+    throw new DocumentError("Der umgerechnete Betrag ist zu groß. Stimmt der Kurs (1 EUR = … Fremdwährung)?", { felder: ["exchangeRate"] });
   }
   return originals.map((o, i) => ({ ...o, net: euro[i]!.net, tax: euro[i]!.tax }));
 }

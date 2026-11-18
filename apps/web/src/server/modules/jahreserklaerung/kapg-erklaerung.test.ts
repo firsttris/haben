@@ -69,8 +69,36 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
   };
 
   describe.each([
-    ["SKR03", { bank: "1200", erloes: "8400", ust: "1776", miete: "4210", elektro: "4575", kontokorrent: "2118", renten: "2127", bewirtung: "4650" }],
-    ["SKR04", { bank: "1800", erloes: "4400", ust: "3806", miete: "6310", elektro: "6565", kontokorrent: "7318", renten: "7327", bewirtung: "6640" }],
+    [
+      "SKR03",
+      {
+        bank: "1200",
+        erloes: "8400",
+        ust: "1776",
+        miete: "4210",
+        mieteGesellschafter: "4222",
+        elektro: "4575",
+        kontokorrent: "2118",
+        darlehenGesellschafter: "2114",
+        renten: "2127",
+        bewirtung: "4650",
+      },
+    ],
+    [
+      "SKR04",
+      {
+        bank: "1800",
+        erloes: "4400",
+        ust: "3806",
+        miete: "6310",
+        mieteGesellschafter: "6313",
+        elektro: "6565",
+        kontokorrent: "7318",
+        darlehenGesellschafter: "7316",
+        renten: "7327",
+        bewirtung: "6640",
+      },
+    ],
   ] as const)("%s", (kontenrahmen, k) => {
     it.each(["ist", "soll"] as const)(
       "%s: Körperschaft- und Gewerbesteuererklärung prüfen, echt erst nach dem Abschluss",
@@ -81,8 +109,10 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
           [k.erloes, 0, 6_000_000],
           [k.ust, 0, 1_140_000],
         ]);
+        // Ein Drittel der Miete an den Gesellschafter (Kennzeichen K im DATEV-Kontenrahmen, #1346)
         await book("2025-04-01", [
-          [k.miete, 1_200_000, 0],
+          [k.miete, 800_000, 0],
+          [k.mieteGesellschafter, 400_000, 0],
           [k.bank, 0, 1_200_000],
         ]);
         await book("2025-05-01", [
@@ -94,7 +124,8 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
           [k.bank, 0, 960_000],
         ]);
         await book("2025-07-01", [
-          [k.kontokorrent, 300_000, 0],
+          [k.kontokorrent, 100_000, 0],
+          [k.darlehenGesellschafter, 200_000, 0],
           [k.renten, 120_000, 0],
           [k.bank, 0, 420_000],
         ]);
@@ -121,12 +152,13 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
         }
         const rows = await sql`select form, request_xml from annual_submissions order by created_at`;
         expect(rows.map((r) => r.form)).toEqual(["kst", "gewst"]);
-        // Miete in voller Höhe; den Hinzurechnungsbetrag ermittelt das Finanzamt
+        // Miete in voller Höhe, mit der an den Gesellschafter; den Hinzurechnungsbetrag ermittelt das Finanzamt
         expect(rows[1]!.request_xml).toContain("<E4003602>12000</E4003602>");
         // Leasing für Elektrofahrzeuge und Fahrräder in Zeile 54, nicht in Zeile 53
         expect(rows[1]!.request_xml).toContain("<E4004402>9600</E4004402>");
         expect(rows[1]!.request_xml).not.toContain("E4003502");
-        // Kontokorrentzinsen bei den Entgelten für Schulden (Zeile 50), Renten und dauernde Lasten in Zeile 51
+        // Kontokorrentzinsen und Zinsen für das Gesellschafterdarlehen bei den Entgelten für Schulden (Zeile 50), Renten und
+        // dauernde Lasten in Zeile 51
         expect(rows[1]!.request_xml).toContain("<E4003202>3000</E4003202>");
         expect(rows[1]!.request_xml).toContain("<E4003302>1200</E4003302>");
         expect(rows[0]!.request_xml).toContain("<E8101301>300</E8101301>");

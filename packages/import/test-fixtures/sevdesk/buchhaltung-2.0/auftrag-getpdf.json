@@ -1,0 +1,152 @@
+{
+  "vorher": {
+    "id": "ID_6",
+    "objectName": "Order",
+    "additionalInformation": null,
+    "create": "2026-11-16T21:27:36+01:00",
+    "update": "2026-11-16T21:27:36+01:00",
+    "orderNumber": "<anon>",
+    "contact": {
+      "id": "ID_2",
+      "objectName": "Contact"
+    },
+    "orderDate": "2026-11-16T00:00:00+01:00",
+    "status": "100",
+    "header": "<anon>",
+    "headText": "<anon>",
+    "footText": "<anon>",
+    "addressName": "<anon>",
+    "addressStreet": null,
+    "addressZip": null,
+    "addressCity": null,
+    "addressCountry": {
+      "id": "1",
+      "objectName": "StaticCountry"
+    },
+    "createUser": {
+      "id": "ID_3",
+      "objectName": "SevUser"
+    },
+    "sevClient": {
+      "id": "ID_4",
+      "objectName": "SevClient"
+    },
+    "deliveryTerms": null,
+    "paymentTerms": null,
+    "version": "0",
+    "smallSettlement": "0",
+    "contactPerson": {
+      "id": "ID_3",
+      "objectName": "SevUser"
+    },
+    "taxRate": "0",
+    "taxText": "0",
+    "addressParentName": null,
+    "taxType": null,
+    "orderType": "AN",
+    "sendDate": null,
+    "addressParentName2": null,
+    "addressName2": null,
+    "addressGender": null,
+    "address": "<anon>",
+    "currency": "EUR",
+    "sumNet": "1",
+    "sumTax": "0.19",
+    "sumGross": "1.19",
+    "sumDiscounts": "0",
+    "sumNetForeignCurrency": "0",
+    "sumTaxForeignCurrency": "0",
+    "sumGrossForeignCurrency": "0",
+    "sumDiscountsForeignCurrency": "0",
+    "weight": "0",
+    "customerInternalNote": null,
+    "showNet": "1",
+    "sendType": null,
+    "sumDiscountNet": "0",
+    "sumDiscountGross": "0",
+    "sumDiscountNetForeignCurrency": "0",
+    "sumDiscountGrossForeignCurrency": "0",
+    "taxRule": {
+      "id": "1",
+      "objectName": "TaxRule"
+    }
+  },
+  "getPdf": {
+    "status": 200,
+    "contentType": "application/json",
+    "bytes": 33989
+  },
+  "nachher": {
+    "id": "ID_6",
+    "objectName": "Order",
+    "additionalInformation": null,
+    "create": "2026-11-16T21:27:36+01:00",
+    "update": "2026-11-16T21:27:36+01:00",
+    "orderNumber": "<anon>",
+    "contact": {
+      "id": "ID_2",
+      "objectName": "Contact"
+    },
+    "orderDate": "2026-11-16T00:00:00+01:00",
+    "status": "100",
+    "header": "<anon>",
+    "headText": "<anon>",
+    "footText": "<anon>",
+    "addressName": "<anon>",
+    "addressStreet": null,
+    "addressZip": null,
+    "addressCity": null,
+    "addressCountry": {
+      "id": "1",
+      "objectName": "StaticCountry"
+    },
+    "createUser": {
+      "id": "ID_3",
+      "objectName": "SevUser"
+    },
+    "sevClient": {
+      "id": "ID_4",
+      "objectName": "SevClient"
+    },
+    "deliveryTerms": null,
+    "paymentTerms": null,
+    "version": "0",
+    "smallSettlement": "0",
+    "contactPerson": {
+      "id": "ID_3",
+      "objectName": "SevUser"
+    },
+    "taxRate": "0",
+    "taxText": "0",
+    "addressParentName": null,
+    "taxType": null,
+    "orderType": "AN",
+    "sendDate": null,
+    "addressParentName2": null,
+    "addressName2": null,
+    "addressGender": null,
+    "address": "<anon>",
+    "currency": "EUR",
+    "sumNet": "1",
+    "sumTax": "0.19",
+    "sumGross": "1.19",
+    "sumDiscounts": "0",
+    "sumNetForeignCurrency": "0",
+    "sumTaxForeignCurrency": "0",
+    "sumGrossForeignCurrency": "0",
+    "sumDiscountsForeignCurrency": "0",
+    "weight": "0",
+    "customerInternalNote": null,
+    "showNet": "1",
+    "sendType": null,
+    "sumDiscountNet": "0",
+    "sumDiscountGross": "0",
+    "sumDiscountNetForeignCurrency": "0",
+    "sumDiscountGrossForeignCurrency": "0",
+    "taxRule": {
+      "id": "1",
+      "objectName": "TaxRule"
+    }
+  },
+  "geaenderteFelder": {}
+}

@@ -46,6 +46,12 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unbekannter Fehler";
 }
 
+/** Felder, an denen ein Fachfehler des Servers liegt (`felder` am UserError); leer, wenn er keine nennt */
+export function fehlerFelder(error: unknown): string[] {
+  const felder = (error as { felder?: unknown } | null)?.felder;
+  return Array.isArray(felder) ? felder.filter((feld): feld is string => typeof feld === "string") : [];
+}
+
 /** Nutzungsdauer „2,5“ oder „2.5“ Jahre in ganzen Monaten; null, wenn leer, nicht positiv oder kein ganzer Monat */
 export function parseUsefulLifeMonths(years: string): number | null {
   const months = Number(years.trim().replace(",", ".")) * 12;

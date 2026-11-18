@@ -287,7 +287,7 @@ Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewä
 
 Ein [KI-Assistent](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) liest die Salden je Konto und Monat und die einzelnen Buchungen über die Werkzeuge `lexoffice_konten` und `lexoffice_buchungen`.
 
-Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit dem Filter „Nur ohne passenden Beleg“, und darunter die Umsätze je Konto. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
+Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit dem Filter „Nur ohne passenden Beleg“, und darunter die Umsätze je Konto. Enthält Belegfeld 1 keine einzige Ziffer (etwa den Namen eines Zahlungsdienstleisters in einer Zahlungszeile), trägt kein Beleg das Feld als Nummer und findet die Buchung auch sonst keinen Beleg, ist sie kein offener Punkt: Sie bleibt sichtbar, erscheint nicht im Filter „Nur ohne passenden Beleg“ und zählt im Abgleich unter „ohne Belegnummer“, wie ein leeres Feld, solange die Zeile einen Beleg braucht (nicht Privat, Geldtransit oder Vortrag). Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
 
 ### Abschluss aus dem DATEV-Stapel (GmbH und UG)
 
@@ -345,7 +345,7 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 | Belege und Rechnungen per API abgerufen | mindestens ein Beleg mit Datum in diesem Jahr vorliegt; Buchungen ohne Beleg werden extra gezählt |
 | Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg, bestätigt dateilose Belege aus sevDesk und aus dem Accountable-Stapel ([Dateistand](sevdesk.md#dateistand)) und Belege aus der Export-ZIP ohne Belegbild ausgenommen; „Belege mit fehlender Datei ansehen“ zeigt die Liste |
 | DATEV-Buchungsstapel übernommen | Buchungen mit Datum in diesem Jahr eingelesen sind |
-| Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Lexoffice-Beleg mit derselben Nummer existiert (Leerzeichen und Groß-/Kleinschreibung egal); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt; „Buchungen ohne passenden Beleg ansehen“ zeigt die übrigen |
+| Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Beleg mit derselben Nummer oder über die GUID im Beleglink existiert (Leerzeichen und Groß-/Kleinschreibung egal; bei Buchungen aus der Export-ZIP von sevDesk zählt nur die GUID); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt; ein Belegfeld ohne Ziffer ist keine Nummer ([DATEV-Buchungen](#datev-buchungsstapel)); „Buchungen ohne passenden Beleg ansehen“ zeigt die übrigen |
 | IDEA-Export archiviert | eine Datei der Art IDEA mit diesem Jahr vorliegt |
 | ELSTER-Protokolle archiviert | mindestens ein ELSTER-Protokoll mit diesem Jahr vorliegt |
 | Kontoauszüge archiviert | mindestens ein Kontoauszug mit diesem Jahr vorliegt |
@@ -399,7 +399,7 @@ Die Steuerart liest Haben aus der gespeicherten Antwort der API (`taxConditions.
 | Steuerfrei (`vatfree`) | Steuerfrei |
 | mit Unterart Fernverkauf oder elektronische Dienstleistung | OSS |
 
-Kz 21, 41 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die übrigen wie die regulären Umsätze. Die Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67) rechnet Haben nicht nach: Buchhaltungsbelege tragen in der API keine eigene Steuerart dafür.
+Kz 21, 41, 45 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die übrigen wie die regulären Umsätze. Kz 45 meldet Haben selbst [mit der Rechnung](umsatzsteuer.md#umsätze-ohne-steuer-kz-21-41-43-45-und-48); hat Lexware Office sie mit der Zahlung gemeldet, weicht Kz 45 im Abgleich zwischen dem Monat der Rechnung und dem der Zahlung ab. Die Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67) rechnet Haben nicht nach: Buchhaltungsbelege tragen in der API keine eigene Steuerart dafür.
 
 Bei Soll-Versteuerung zählen Einnahmen nach Belegdatum. Bei Ist-Versteuerung zählen sie anteilig nach Datum der einzelnen Zahlungen aus dem Zahlungsstatus; Skonto, Mahnkosten, Kursdifferenzen und Forderungsausfälle zählen dabei nicht. Gutschriften mindern die Umsätze.
 

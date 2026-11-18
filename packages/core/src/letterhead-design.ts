@@ -40,7 +40,7 @@ export const LOGO_SIZES = {
   l: { height: 24, width: 80 },
 } as const;
 export type LogoSize = keyof typeof LOGO_SIZES;
-export type LogoPosition = "links" | "rechts";
+export type LogoPosition = "links" | "mitte" | "rechts";
 
 /**
  * Schriften der Belege (SIL OFL 1.1, Dateien in packages/einvoice/fonts). PDF/A verlangt eingebettete Schriften, deshalb
@@ -129,7 +129,7 @@ export const letterheadDesignInputSchema = z
   .object({
     accent: z.string().regex(ACCENT_PATTERN),
     logoSize: z.enum(["s", "m", "l"]),
-    logoPosition: z.enum(["links", "rechts"]),
+    logoPosition: z.enum(["links", "mitte", "rechts"]),
     foldMarks: z.boolean(),
     giroCode: z.boolean(),
     customerNumber: z.boolean(),
