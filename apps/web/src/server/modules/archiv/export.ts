@@ -1786,8 +1786,9 @@ bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen un
                          Skonto zu einer Bareinnahme die Nummer im Kassenbuch.
 bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA-256,
                          Zeitraum, Salden und Hinweisen; abgelehnte Abrufe ohne Zeitraum
-                         nach dem Tag des Abrufs. Die Auszugsdateien selbst speichert
-                         Haben nicht.
+                         nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres
+                         verbunden hat (etwa vom 30.12.), auch im Jahr dieses Umsatzes.
+                         Die Auszugsdateien selbst speichert Haben nicht.
 bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
                          Ereignis der Bank die Quelle mit Stichtag, der Abruf und der
                          Umsatz, den Haben angelegt oder verbunden hat.
