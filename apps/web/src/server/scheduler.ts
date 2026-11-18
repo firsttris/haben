@@ -1,5 +1,5 @@
 import { formatHundredths } from "@haben/core";
-import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
+import { kleinunternehmerStand, runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueArchiveDeliveries } from "./modules/ablage/index.ts";
 import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
 import { runDueBankSyncs, runDueFintsSyncs, runExistingDuplicateCheck } from "./modules/bank/index.ts";
@@ -32,7 +32,7 @@ export async function runScheduledJobs(): Promise<void> {
   if (running) return;
   running = true;
   try {
-    const result = await runDueRecurring(today());
+    const result = await runDueRecurring(today(), kleinunternehmerStand);
     if (result.created > 0 || result.errors.length > 0) {
       console.log(`Wiederkehrende Rechnungen: ${result.created} angelegt, ${result.finalized} festgeschrieben, ${result.mailed} per E-Mail versandt`);
       for (const error of result.errors) console.warn(error);

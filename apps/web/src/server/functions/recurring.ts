@@ -15,6 +15,7 @@ import {
   updateRecurring,
 } from "../modules/rechnungen/index.ts";
 import { sevdeskRecurringOrigin } from "../modules/archiv/index.ts";
+import { kleinunternehmerStand } from "../modules/auswertungen/index.ts";
 import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
 
@@ -82,4 +83,4 @@ export const removeRecurring = createServerFn({ method: "POST" })
 /** Fällige Termine sofort ausführen, statt auf den stündlichen Lauf zu warten */
 export const runRecurringNow = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(() => runDueRecurring(today()));
+  .handler(() => runDueRecurring(today(), kleinunternehmerStand));

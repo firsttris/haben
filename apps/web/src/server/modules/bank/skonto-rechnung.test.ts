@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const COMPANY_IBAN = "DE89370400440532013000";
 const CUSTOMER_IBAN = "DE02100100100006820101";
@@ -91,7 +92,7 @@ describe.skipIf(!testDatabaseUrl)("Skonto auf Ausgangsrechnungen (Postgres)", ()
       format,
       lines: [{ description: "Leistungen September", quantity: 1000, unit: "Psch.", unitPrice: 400_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function balances() {
@@ -221,7 +222,7 @@ describe.skipIf(!testDatabaseUrl)("Skonto auf Ausgangsrechnungen (Postgres)", ()
     const draft = await invoices.createDraft(actor, { ...base, skonto: [{ days: 10, percent: 200 }] });
     const updated = await invoices.updateDraft(actor, draft.id, { ...base, skonto: [{ days: 5, percent: 300 }] });
     expect(updated.skonto).toEqual([{ days: 5, percent: 300 }]);
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(final.pdf).not.toBeNull();
     await expect(sql`update invoices set skonto = '[]'::jsonb where id = ${draft.id}`).rejects.toThrow();
 

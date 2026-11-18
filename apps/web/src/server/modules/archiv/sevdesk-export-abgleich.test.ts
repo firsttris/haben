@@ -10,7 +10,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Wunsch weggelassen), ein Darlehen ohne Beleglink (ohne Belegbild im Export). Dazu erfundene Zeilen: eine zweite Zeile
  * der Rechnung mit anderer Belegfeld-1-Nummer, ein zweiter Beleg mit derselben Nummer wie die Rechnung und eigener GUID
  * (…09) an einem anderen Tag, die Zahlung der Rechnung (Bank an Debitor, ohne Beleglink) und eine Privatentnahme ohne
- * Belegnummer. Konten je Kontenrahmen: SKR03 Bank 1200, Privat 1800; SKR04 Bank 1800, Privat 2100 (packages/core/src/posting.ts).
+ * Belegnummer. Konten je Kontenrahmen: SKR03 Bank 1200, Privat 1800; SKR04 Bank 1800, Privat 2100 (packages/core/src/kontenplan.ts).
  */
 
 type Kontenrahmen = "SKR03" | "SKR04";

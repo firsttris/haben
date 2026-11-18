@@ -3,6 +3,7 @@ import { sql as query } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 // Produktgrenze aus https://github.com/firsttris/haben/issues/433#issuecomment-6853419682:
 // keine verschiedenen bekannten Befreiungen in einer Schlussrechnung, auch bei ungeklärten Altdaten.
@@ -67,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Review #926: Konflikte zwischen mehreren Absc
 
   async function advance(taxDetails: OutgoingTaxDetails | null, treatment?: TaxTreatment) {
     const draft = await invoices.createDraft(actor, { ...input(taxDetails, 10_000, treatment), variant: "abschlag" });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function advances() {
@@ -99,7 +100,7 @@ describe.skipIf(!testDatabaseUrl)("Review #926: Konflikte zwischen mehreren Absc
       await tx.execute(query`update invoice_taxes set base = base - 10000 where invoice_id = ${final.id} and rate = 0`);
     });
     expect((await invoices.getInvoice(final.id))!.invoice).toMatchObject({ status: "draft", net: 30_000, tax: 0, gross: 30_000 });
-    const error: unknown = await invoices.finalizeInvoice(actor, final.id).catch((caught: unknown) => caught);
+    const error: unknown = await invoices.finalizeInvoice(actor, final.id, kleinunternehmerStand).catch((caught: unknown) => caught);
     expect({ rejected: error instanceof invoices.InvoiceError, status: (await invoices.getInvoice(final.id))!.invoice.status }).toEqual({
       rejected: true,
       status: "draft",
@@ -149,7 +150,13 @@ describe.skipIf(!testDatabaseUrl)("Review #926: Konflikte zwischen mehreren Absc
     const draft = await invoices.createDraft(actor, all);
     await invoices.updateDraft(actor, draft.id, { ...all, note: "Ergänzte Notiz" });
     expect(await invoices.finalizeIssues(draft.id)).toEqual([]);
-    expect(await invoices.finalizeInvoice(actor, draft.id)).toMatchObject({ status: "final", taxDetails: final, net: 30_000, tax: 0, gross: 30_000 });
+    expect(await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).toMatchObject({
+      status: "final",
+      taxDetails: final,
+      net: 30_000,
+      tax: 0,
+      gross: 30_000,
+    });
     expect(await sql`select to_jsonb(i) as row from invoices i where id in (${original.id}, ${known.id}) order by id`).toEqual(before);
     expect((await invoices.getInvoice(original.id))!.invoice.taxDetails).toEqual(first);
   });

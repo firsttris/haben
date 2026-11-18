@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildBankverbindungXml, isValidIdnr } from "./bankverbindung.ts";
-import { buildEuerXml, type AveuerAnlage } from "./erklaerung.ts";
+import { buildEuerXml, type AveuerAnlage } from "./euer-erklaerung.ts";
 import { buildUstErklaerungXml } from "./ust-erklaerung.ts";
 import type { EuerFigures } from "./euer-felder.ts";
 import { buildEstXml, type EstAngaben, type EstArbeitnehmer, type EstXmlInput } from "./est.ts";

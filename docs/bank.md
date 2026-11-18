@@ -515,7 +515,7 @@ Bei **Ist-Versteuerung** geht die Umsatzsteuer zurück auf „nicht fällig“ (
 Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die Bank im Soll und das Gegenkonto im Haben; auf einem Konto mit dem Zweck **privat** steht dort die Privatentnahme bzw. die Einlage ([Privates Konto](#privates-konto-geschäftsvorfälle-gegen-entnahme-und-einlage)). Steuerzahlungen stehen unter [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen).
 
 > [!IMPORTANT]
-> Die Konten stammen aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+> Die Konten stammen aus `packages/core/src/kontenplan.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
 
 ## Zuordnung aufheben
 

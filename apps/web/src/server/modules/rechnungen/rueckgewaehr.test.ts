@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #853: Storno und Korrektur mindern bereits vereinnahmte Umsatzsteuer erst mit der Rückzahlung (§ 17 UStG, UStAE 17.1
@@ -83,7 +84,7 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres
       note: "",
       lines,
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function correctionDraft(originalId: string, date: string, lines: Line[]) {
@@ -102,7 +103,7 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres
   }
 
   async function correction(originalId: string, date: string, lines: Line[] = [beratung(-10_000)]) {
-    return invoices.finalizeInvoice(actor, (await correctionDraft(originalId, date, lines)).id);
+    return invoices.finalizeInvoice(actor, (await correctionDraft(originalId, date, lines)).id, kleinunternehmerStand);
   }
 
   /** Korrektur wie vor #853 festgeschrieben: normale Buchung, versiegelt, ohne Kennzeichen. */
@@ -294,6 +295,11 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres
     await invoices.settleInvoices(actor, { invoiceId: original.id, counterInvoiceId: old.id, amount: 11_900, date: "2026-01-12", note: "Alte Korrektur" });
     // Verrechnet: 1.071 € vereinnahmt, Entgelt 952 €; die 119 € der neuen Korrektur bleiben bis zur Rückzahlung besteuert
     expect(await kz(1, 2026)).toEqual({ kz81: 10_000, tax81: 1_900 });
+    // Die Quelle der Voranmeldung nennt die Verrechnung mit Bezug zur Ursprungsrechnung
+    const { revenue } = await vat.computeVatFigures({ year: 2026, month: 1 });
+    expect(revenue.map(({ date, invoiceId, base, tax }) => ({ date, invoiceId, base, tax }))).toEqual([
+      { date: "2026-01-12", invoiceId: original.id, base: 10_000, tax: 1_900 },
+    ]);
     await integrity();
   }, 40_000);
 

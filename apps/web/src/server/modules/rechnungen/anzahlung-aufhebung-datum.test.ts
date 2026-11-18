@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Anzahlung: Die Aufhebung ihrer Bankzuordnung wirkt am Tag der Aufhebung (#782). Der Vorauszahlungsplan liest die
@@ -75,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
       advanceType: "anzahlung",
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   /** Zahlungseingang am `day` (TT.MM.JJ), der Rechnung zugeordnet; gibt die Zuordnung zurück */
@@ -150,7 +151,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
       deducts: [invoice.id],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    await invoices.finalizeInvoice(actor, final.id);
+    await invoices.finalizeInvoice(actor, final.id, kleinunternehmerStand);
     await journalUndNebenbuch(2026, 3, 10_000, 1_900);
     await journalUndNebenbuch(2026, 5, 90_000, 17_100);
 
