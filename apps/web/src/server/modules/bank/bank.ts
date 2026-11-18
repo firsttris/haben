@@ -1050,7 +1050,8 @@ const DIRECT_KINDS = [
 
 /**
  * Aufladung eines Guthabens (#1356): eine direkte Zuordnungsart wie „kategorie“, aber mit Pflicht-Kostenkategorie und
- * ohne Steuersatz, weil Vorsteuer erst mit der Rechnung über die Leistung entsteht (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Sie steht neben
+ * ohne Steuersatz: Die Aufladung selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG), und Vorsteuer entsteht erst mit der
+ * Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Sie steht neben
  * den zwölf in DIRECT_KINDS und nicht darin: Die Zuordnungs-Schemata sind eine `discriminatedUnion`, und dort darf jeder
  * Wert nur einmal vorkommen — die Aufladung trägt zusätzlich die Kategorie.
  */

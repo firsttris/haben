@@ -6,8 +6,8 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 /*
  * Aufladung eines Guthabens (#1356) mit Postgres: Eine Bankzahlung ohne Beleg, bei der das Geld beim Anbieter als
  * Guthaben liegt und erst über eine spätere Rechnung verbraucht wird. Sie ist im Monat der Zahlung Betriebsausgabe
- * (§ 11 Abs. 2 EStG) und trägt keine Vorsteuer, die entsteht erst mit der Rechnung über die Leistung
- * (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Geprüft wird die Buchung selbst (Konten, Betrag, keine Vorsteuerzeile), die Ablehnung einer
+ * (§ 11 Abs. 2 EStG). Sie selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG, Mehrzweck-Gutschein), Vorsteuer entsteht
+ * erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Geprüft wird die Buchung selbst (Konten, Betrag, keine Vorsteuerzeile), die Ablehnung einer
  * Einnahme und eines erfundenen Steuersatzes, EÜR und Voranmeldung, der DATEV-Stapel und dass die übrigen
  * Zuordnungsarten und der Abgleich der DATEV-Buchungen unverändert bleiben.
  */

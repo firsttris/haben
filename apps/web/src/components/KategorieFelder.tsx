@@ -116,11 +116,12 @@ export const AUFLADUNG_OPTION = { value: "aufladung", label: AUFLADUNG.text } as
 
 /** Hinweis unter den Feldern einer Aufladung: warum kein Steuersatz und wann die Vorsteuer entsteht (#1356) */
 const AUFLADUNG_HINWEIS =
-  "Gebucht als Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG), ohne Vorsteuer: Die entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG).";
+  "Gebucht als Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG). Die Aufladung selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG, Mehrzweck-Gutschein); die Vorsteuer entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG).";
 
 /**
  * Felder einer Aufladung eines Guthabens (#1356): dieselbe Kategorie wie bei „Direkt buchen“, aber nur Ausgaben. Einen
- * Steuersatz gibt es hier nicht: Vorsteuer entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG).
+ * Steuersatz gibt es hier nicht: Die Aufladung selbst unterliegt nicht der Umsatzsteuer (§ 3 Abs. 15 UStG), die Vorsteuer
+ * entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG).
  */
 export function AufladungFelder({
   options,
