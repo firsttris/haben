@@ -2052,6 +2052,20 @@
       "when": 1795017190700,
       "tag": "0292_importvertrag_konflikte_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 293,
+      "version": "7",
+      "when": 1795026053249,
+      "tag": "0293_rueckgewaehr_kennzeichen",
+      "breakpoints": true
+    },
+    {
+      "idx": 294,
+      "version": "7",
+      "when": 1795026060627,
+      "tag": "0294_rueckgewaehr_kennzeichen_trigger",
+      "breakpoints": true
     }
   ]
 }

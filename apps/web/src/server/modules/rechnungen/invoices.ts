@@ -1242,6 +1242,8 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
         advanceType: invoice.advanceType,
         advanceAccounting: invoice.advanceAccounting,
         replacesInvoiceId: invoice.replacesInvoiceId,
+        // Ab #853 mindern Storno und Korrektur bereits Vereinnahmtes erst mit der Rückzahlung (Trigger invoices_reduction_rule)
+        reductionRule: invoice.kind === "rechnung" ? null : "rueckgewaehr",
         number,
         numberYear: circle,
         numberCounter: counter,
