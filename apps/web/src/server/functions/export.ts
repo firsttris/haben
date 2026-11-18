@@ -32,4 +32,4 @@ export const importSettingsFile = createServerFn({ method: "POST" })
     if (file.size > MAX_SETTINGS_FILE_BYTES) throw new UserError("Die Datei ist zu groß für eine Einstellungsdatei.");
     return { file };
   })
-  .handler(async ({ data, context }) => importSettings(context.user.id, await data.file.text(), today()));
+  .handler(async ({ data, context }) => importSettings(context.user.id, new Uint8Array(await data.file.arrayBuffer()), today()));

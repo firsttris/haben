@@ -5,23 +5,40 @@ import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { auswahl, FELDER } from "./felder.ts";
 import { SETTINGS_EXPORT_FORMAT, SETTINGS_EXPORT_VERSION } from "./format.ts";
-import { embed, withChecksum } from "./integritaet.ts";
+import { fileRef, withChecksum } from "./integritaet.ts";
+import { settingsZip } from "./zip.ts";
 
 /*
- * Einstellungen und Stammdaten als eine JSON-Datei für eine neue Instanz (#488): etwa nach dem Testen, um im neuen
- * Geschäftsjahr mit frischer Datenbank, aber ohne neue Einrichtung zu beginnen. Was mitgeht und was nicht, steht in
- * felder.ts. Dateien (Logo, Briefpapier, Standardanhänge) stehen als Base64 mit ihrem SHA-256 darin, die ganze Datei
- * trägt eine Prüfsumme (integritaet.ts). Sie enthält persönliche Angaben, Steuernummer und Bankverbindung, aber keine
- * Geheimnisse.
+ * Einstellungen und Stammdaten als ZIP für eine neue Instanz (#488): etwa nach dem Testen, um im neuen Geschäftsjahr
+ * mit frischer Datenbank, aber ohne neue Einrichtung zu beginnen. Was mitgeht und was nicht, steht in felder.ts. Die
+ * Daten stehen in `einstellungen.json`, Logo, Briefpapier und Standardanhänge als Dateien daneben, je mit SHA-256 in der
+ * JSON, die selbst eine Prüfsumme trägt (integritaet.ts, zip.ts). Das ZIP enthält persönliche Angaben, Steuernummer
+ * und Bankverbindung, aber keine Geheimnisse.
  */
 
 export function settingsExportFilename(now = new Date()): string {
-  return `Haben-Einstellungen-${today(now)}.json`;
+  return `Haben-Einstellungen-${today(now)}.zip`;
 }
 
-/** Liest alles aus einem Stand, damit etwa ein Textbaustein nicht auf einen Kontakt zeigt, der in der Datei fehlt */
+/** Dateiname eines Standardanhangs im ZIP: Nummer vorn, damit gleiche Namen nicht zusammenfallen */
+const anhangPfad = (nummer: number, filename: string) => `standardanhaenge/${nummer}-${filename.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 80)}`;
+
+export async function exportSettingsZip(now = new Date()): Promise<Uint8Array> {
+  const { datei, dateien } = await exportSettings(now);
+  return settingsZip(datei, dateien, now);
+}
+
+/**
+ * Die JSON und die Dateien für daneben. Liest alles aus einem Stand, damit etwa ein Textbaustein nicht auf einen
+ * Kontakt zeigt, der in der Datei fehlt
+ */
 export async function exportSettings(now = new Date()) {
-  return db.transaction(
+  const dateien: Record<string, Uint8Array> = {};
+  const ablegen = (pfad: string, bytes: Uint8Array) => {
+    dateien[pfad] = bytes;
+    return fileRef(pfad, bytes);
+  };
+  const datei = await db.transaction(
     async (tx) => {
       const f = FELDER;
       const [firma] = await tx.select(auswahl(f.company)).from(schema.company);
@@ -58,8 +75,8 @@ export async function exportSettings(now = new Date()) {
         company: firma ?? null,
         einrichtung: einrichtung ?? null,
         letterheadProfiles: profile,
-        logo: logo ? { format: logo.format, ...embed(logo.logo) } : null,
-        background: briefpapier ? { format: briefpapier.format, ...embed(briefpapier.background) } : null,
+        logo: logo ? { format: logo.format, ...ablegen(`logo.${logo.format}`, logo.logo) } : null,
+        background: briefpapier ? { format: briefpapier.format, ...ablegen(`briefpapier.${briefpapier.format}`, briefpapier.background) } : null,
         layouts,
         units,
         articles,
@@ -68,7 +85,9 @@ export async function exportSettings(now = new Date()) {
         textBlocks,
         ownAccounts,
         mail: mail ?? null,
-        quoteDefaultAttachments: await Promise.all(anhaenge.map(async ({ sha256, ...anhang }) => ({ ...anhang, ...embed(await loadFile(sha256)) }))),
+        quoteDefaultAttachments: await Promise.all(
+          anhaenge.map(async ({ sha256, ...anhang }, i) => ({ ...anhang, ...ablegen(anhangPfad(i + 1, anhang.filename), await loadFile(sha256)) })),
+        ),
         customPages,
         procedureDetails: verfahrensdoku ?? null,
         vatFrequencies,
@@ -76,4 +95,5 @@ export async function exportSettings(now = new Date()) {
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
+  return { datei, dateien };
 }

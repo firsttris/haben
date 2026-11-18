@@ -1,28 +1,30 @@
 import { MAX_LOGO_BYTES } from "@haben/core";
+import { strFromU8 } from "fflate";
 import { z } from "zod";
-import { geprueft, UserError } from "../../errors.ts";
+import { geprueft } from "../../errors.ts";
 import { MAX_DOCUMENT_SIZE } from "../../grenzen.ts";
 import { MAX_INVOICE_ATTACHMENTS } from "../rechnungen/index.ts";
 import { MAX_BACKGROUND_BYTES } from "../stammdaten/index.ts";
 import { SETTINGS_EXPORT_FORMAT, SETTINGS_EXPORT_VERSION } from "./format.ts";
-import { checksumProblem, unembed } from "./integritaet.ts";
+import { checksumProblem, type FileRef, referenced } from "./integritaet.ts";
+import { SETTINGS_JSON, SettingsFileError, unzipSettings, type ZipLimits } from "./zip.ts";
 
 /*
- * Einstellungsdatei (#488) lesen, bevor etwas geschrieben wird: JSON, Prüfsumme der ganzen Datei, Format und Version,
- * Aufbau, dann jede eingebettete Datei gegen ihren SHA-256. Die Werte selbst prüfen danach die Module mit den Schemas
- * ihrer Formulare.
+ * Einstellungsdatei (#488) lesen, bevor etwas geschrieben wird: ZIP mit Grenzen entpacken, dann in `einstellungen.json`
+ * Format, Version, Prüfsumme und Aufbau, dann jede Datei daneben gegen ihren SHA-256. Die Werte selbst prüfen danach die
+ * Module mit den Schemas ihrer Formulare.
  */
 
-export class SettingsFileError extends UserError {}
+/** Logo, Briefpapier und alle Standardanhänge an ihrer Grenze, dazu reichlich Platz für die Stammdaten */
+export const MAX_SETTINGS_FILE_BYTES = MAX_LOGO_BYTES + MAX_BACKGROUND_BYTES + MAX_INVOICE_ATTACHMENTS * MAX_DOCUMENT_SIZE + 50 * 1024 * 1024;
 
-/** Logo, Briefpapier und alle Standardanhänge an ihrer Grenze, in Base64, dazu reichlich Platz für die Stammdaten */
-export const MAX_SETTINGS_FILE_BYTES =
-  Math.ceil(((MAX_LOGO_BYTES + MAX_BACKGROUND_BYTES + MAX_INVOICE_ATTACHMENTS * MAX_DOCUMENT_SIZE) * 4) / 3) + 50 * 1024 * 1024;
+/** Die JSON, Logo, Briefpapier und die Standardanhänge, dazu Ordner */
+const ZIP_LIMITS: ZipLimits = { maxEntries: 3 + MAX_INVOICE_ATTACHMENTS + 5, maxUnpackedBytes: MAX_SETTINGS_FILE_BYTES };
 
 const objekt = z.record(z.string(), z.unknown());
 const zeilen = z.array(objekt);
-const eingebettet = z.object({ sha256: z.string().regex(/^[0-9a-f]{64}$/), data: z.string() });
-const bild = eingebettet.extend({ format: z.enum(["png", "jpg"]) });
+const verweis = z.object({ file: z.string().max(200), sha256: z.string().regex(/^[0-9a-f]{64}$/) });
+const bild = verweis.extend({ format: z.enum(["png", "jpg"]) });
 
 const aufbauSchema = z.object({
   format: z.literal(SETTINGS_EXPORT_FORMAT),
@@ -40,7 +42,7 @@ const aufbauSchema = z.object({
   textBlocks: zeilen,
   ownAccounts: zeilen,
   mail: objekt.nullable(),
-  quoteDefaultAttachments: z.array(eingebettet.extend({ filename: z.string().max(300) })).max(100),
+  quoteDefaultAttachments: z.array(verweis.extend({ filename: z.string().max(300) })).max(100),
   customPages: zeilen,
   procedureDetails: objekt.nullable(),
   vatFrequencies: zeilen,
@@ -52,19 +54,19 @@ export type SettingsFile = Omit<z.infer<typeof aufbauSchema>, "logo" | "backgrou
   quoteDefaultAttachments: { filename: string; bytes: Uint8Array }[];
 };
 
-function datei(bezeichnung: string, file: z.infer<typeof eingebettet>): Uint8Array {
-  const bytes = unembed(file);
-  if (!bytes) throw new SettingsFileError(`${bezeichnung}: Die Prüfsumme der Datei stimmt nicht, sie ist beschädigt.`);
-  return bytes;
+function json(files: Record<string, Uint8Array>): unknown {
+  const bytes = Object.hasOwn(files, SETTINGS_JSON) ? files[SETTINGS_JSON] : undefined;
+  if (!bytes) throw new SettingsFileError(`Das ist keine Einstellungsdatei von Haben: Im ZIP fehlt ${SETTINGS_JSON}.`);
+  try {
+    return JSON.parse(strFromU8(bytes));
+  } catch {
+    throw new SettingsFileError(`${SETTINGS_JSON} im ZIP ist kein gültiges JSON.`);
+  }
 }
 
-export function readSettingsFile(text: string): SettingsFile {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new SettingsFileError("Die Datei ist kein JSON. Erwartet wird die Datei aus „Einstellungen exportieren“.");
-  }
+export function readSettingsZip(archive: Uint8Array, limits: ZipLimits = ZIP_LIMITS): SettingsFile {
+  const files = unzipSettings(archive, limits);
+  const parsed = json(files);
   const kopf = (parsed ?? {}) as { format?: unknown; version?: unknown };
   if (kopf.format !== SETTINGS_EXPORT_FORMAT) throw new SettingsFileError("Das ist keine Einstellungsdatei von Haben.");
   if (typeof kopf.version === "number" && kopf.version > SETTINGS_EXPORT_VERSION)
@@ -72,6 +74,11 @@ export function readSettingsFile(text: string): SettingsFile {
   const problem = checksumProblem(parsed);
   if (problem) throw new SettingsFileError(problem);
   const aufbau = geprueft(aufbauSchema, parsed, "Einstellungsdatei");
+  const datei = (bezeichnung: string, ref: FileRef): Uint8Array => {
+    const bytes = referenced(files, ref);
+    if (!bytes) throw new SettingsFileError(`${bezeichnung}: ${ref.file} fehlt im ZIP oder passt nicht zur Prüfsumme.`);
+    return bytes;
+  };
   return {
     ...aufbau,
     logo: aufbau.logo && datei("Logo", aufbau.logo),

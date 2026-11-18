@@ -6,7 +6,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
-export { exportSettings, settingsExportFilename } from "./export.ts";
+export { exportSettings, exportSettingsZip, settingsExportFilename } from "./export.ts";
 export { importSettings } from "./import.ts";
 export { MAX_SETTINGS_FILE_BYTES } from "./lesen.ts";
 export { schonAngelegt } from "./neu.ts";

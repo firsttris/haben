@@ -4,7 +4,7 @@ export function SettingsExportCard() {
     <section className="card" aria-labelledby="settings-export-heading">
       <h2 id="settings-export-heading">Einstellungen exportieren</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Firmendaten, persönliche Angaben, Beleggestaltung, Textbausteine, E-Mail-Vorlagen, Nummernformate, eigene Konten, Artikel und Kontakte als JSON-Datei,
+        Firmendaten, persönliche Angaben, Beleggestaltung, Textbausteine, E-Mail-Vorlagen, Nummernformate, eigene Konten, Artikel und Kontakte als ZIP-Datei,
         etwa um nach dem Testen mit einer neuen Instanz zu beginnen. Zugangsdaten (Bank, ELSTER-Zertifikat, E-Mail-Versand, KI und API), Zählerstände der
         Rechnungs- und Angebotsnummern und alles Gebuchte gehen nicht mit.
       </p>

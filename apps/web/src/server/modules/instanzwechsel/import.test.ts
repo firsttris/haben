@@ -1,4 +1,5 @@
 import { designWithDefaults } from "@haben/core";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type postgres from "postgres";
@@ -13,6 +14,12 @@ const PDF = new TextEncoder().encode("%PDF-1.7\nAllgemeine Geschäftsbedingungen
 const HEUTE = "2026-12-20";
 const ERIKA = { idnr: "65929970489", anrede: "Frau", vorname: "Erika", name: "Mustermann", geburtsdatum: "1980-05-17", religion: "11", beruf: "Designerin" };
 const actor = "inhaber-neu";
+
+/** Die JSON aus dem ZIP, wie der Import sie liest */
+const einstellungen = (zip: Uint8Array) => JSON.parse(strFromU8(unzipSync(zip)["einstellungen.json"]!));
+
+/** Dasselbe ZIP mit ersetzten Dateien */
+const neuGepackt = (dateien: Record<string, Uint8Array>, ersetzt: Record<string, Uint8Array>) => zipSync({ ...dateien, ...ersetzt });
 
 type Zeile = Record<string, unknown>;
 const gesetzt = (zeile: Zeile, feld: string) => ({ ...zeile, [feld]: zeile[feld] !== null });
@@ -108,8 +115,8 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
   }
 
   /** Exportieren, die Testinstanz verwerfen: danach ist die Datenbank wie eine neue Instanz */
-  async function exportierenUndNeu(): Promise<string> {
-    const text = JSON.stringify(await instanzwechsel.exportSettings(new Date("2026-12-20T10:00:00Z")), null, 2);
+  async function exportierenUndNeu(): Promise<Uint8Array> {
+    const text = await instanzwechsel.exportSettingsZip(new Date("2026-12-20T10:00:00Z"));
     await neuBeginnen();
     return text;
   }
@@ -161,12 +168,13 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
 
   it("ergibt nach dem Übernehmen wieder dieselbe Datei, bis auf neue IDs und Zeitpunkte", async () => {
     await testinstanz();
-    const vorher = JSON.parse(await exportierenUndNeu());
+    const zip = await exportierenUndNeu();
+    const vorher = einstellungen(zip);
     await mailEinrichten();
 
-    await instanzwechsel.importSettings(actor, JSON.stringify(vorher), HEUTE);
+    await instanzwechsel.importSettings(actor, zip, HEUTE);
 
-    const nachher = JSON.parse(JSON.stringify(await instanzwechsel.exportSettings(new Date("2026-12-20T10:00:00Z"))));
+    const nachher = einstellungen(await instanzwechsel.exportSettingsZip(new Date("2026-12-20T10:00:00Z")));
     expect(vergleichbar(nachher)).toEqual(vergleichbar(vorher));
   });
 
@@ -299,18 +307,32 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
       expect(await sql`select 1 from ${sql(tabelle)}`, tabelle).toEqual([]);
   });
 
-  it("lehnt eine veränderte oder beschädigte Datei ab, bevor sie etwas schreibt", async () => {
+  it("lehnt ein verändertes oder beschädigtes ZIP ab, bevor es etwas schreibt", async () => {
     await testinstanz();
-    const text = await exportierenUndNeu();
+    const zip = await exportierenUndNeu();
+    const dateien = unzipSync(zip);
 
-    const geaendert = JSON.parse(text);
+    const geaendert = einstellungen(zip);
     geaendert.company.iban = "DE02120300000000202051";
-    await expect(instanzwechsel.importSettings(actor, JSON.stringify(geaendert), HEUTE)).rejects.toThrow(/Prüfsumme stimmt nicht/);
-
-    const abgeschnitten = text.slice(0, Math.floor(text.length / 2));
-    await expect(instanzwechsel.importSettings(actor, abgeschnitten, HEUTE)).rejects.toThrow(/kein JSON/);
+    await expect(
+      instanzwechsel.importSettings(actor, neuGepackt(dateien, { "einstellungen.json": strToU8(JSON.stringify(geaendert)) }), HEUTE),
+    ).rejects.toThrow(/Prüfsumme stimmt nicht/);
+    await expect(instanzwechsel.importSettings(actor, neuGepackt(dateien, { "logo.png": PNG.subarray(0, 20) }), HEUTE)).rejects.toThrow(
+      "Logo: logo.png fehlt im ZIP oder passt nicht zur Prüfsumme.",
+    );
+    await expect(instanzwechsel.importSettings(actor, zip.subarray(0, Math.floor(zip.length / 2)), HEUTE)).rejects.toThrow(/keine ZIP-Datei oder beschädigt/);
 
     expect(await sql`select 1 from company`).toEqual([]);
+  });
+
+  it("entpackt nur bis zur Grenze, ein ZIP mit riesigem Inhalt bricht ab (Zip-Bombe)", async () => {
+    const { readSettingsZip } = await import("./lesen.ts");
+    const bombe = zipSync({ "einstellungen.json": new Uint8Array(2 * 1024 * 1024) });
+
+    expect(bombe.length).toBeLessThan(20_000);
+    expect(() => readSettingsZip(bombe, { maxEntries: 20, maxUnpackedBytes: 1024 * 1024 })).toThrow(/entpackt größer/);
+    const viele = zipSync(Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`${i}.txt`, strToU8("x")])));
+    expect(() => readSettingsZip(viele, { maxEntries: 20, maxUnpackedBytes: 1024 * 1024 })).toThrow(/mehr als 20 Einträge/);
   });
 
   it("übernimmt einen Textbaustein, dessen Kontakt inzwischen kein Kunde mehr ist", async () => {
@@ -351,11 +373,11 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
   });
 
   it("lehnt eine fremde Datei und eine aus einer neueren Version ab", async () => {
-    await expect(instanzwechsel.importSettings(actor, JSON.stringify({ name: "Kontakte" }), HEUTE)).rejects.toThrow(
-      "Das ist keine Einstellungsdatei von Haben.",
+    await expect(instanzwechsel.importSettings(actor, strToU8(JSON.stringify({ name: "Kontakte" })), HEUTE)).rejects.toThrow(/keine ZIP-Datei/);
+    await expect(instanzwechsel.importSettings(actor, zipSync({ "kontakte.csv": strToU8("Name\n") }), HEUTE)).rejects.toThrow(
+      "Das ist keine Einstellungsdatei von Haben: Im ZIP fehlt einstellungen.json.",
     );
-    await expect(instanzwechsel.importSettings(actor, JSON.stringify({ format: "haben-einstellungen", version: 2 }), HEUTE)).rejects.toThrow(
-      /neueren Version von Haben/,
-    );
+    const neuer = zipSync({ "einstellungen.json": strToU8(JSON.stringify({ format: "haben-einstellungen", version: 2 })) });
+    await expect(instanzwechsel.importSettings(actor, neuer, HEUTE)).rejects.toThrow(/neueren Version von Haben/);
   });
 });

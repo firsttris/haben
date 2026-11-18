@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { checksumProblem, embed, unembed, withChecksum } from "./integritaet.ts";
+import { checksumProblem, fileRef, referenced, withChecksum } from "./integritaet.ts";
 
 const datei = () =>
   withChecksum({ format: "haben-einstellungen", version: 1, company: { name: "Muster Design", ort: "Leipzig" }, contacts: [{ name: "Nordwerk" }] });
@@ -40,18 +40,20 @@ describe("Prüfsumme der Einstellungsdatei", () => {
   });
 });
 
-describe("Eingebettete Dateien", () => {
+describe("Dateien im ZIP", () => {
   const bytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0, 255, 17]);
 
-  it("trägt Base64 und den SHA-256 der Bytes und liefert sie unverändert zurück", () => {
-    const datei = embed(bytes);
-    expect(datei).toEqual({ sha256: createHash("sha256").update(bytes).digest("hex"), data: Buffer.from(bytes).toString("base64") });
-    expect(unembed(datei)).toEqual(bytes);
+  it("nennt Pfad und SHA-256 der Bytes und liefert sie unverändert zurück", () => {
+    const ref = fileRef("logo.png", bytes);
+    expect(ref).toEqual({ file: "logo.png", sha256: createHash("sha256").update(bytes).digest("hex") });
+    expect(referenced({ "logo.png": bytes }, ref)).toEqual(bytes);
   });
 
-  it("liefert nichts, wenn die Bytes nicht zum SHA-256 passen", () => {
-    const datei = embed(bytes);
-    expect(unembed({ ...datei, data: Buffer.from(bytes.subarray(0, 4)).toString("base64") })).toBeNull();
-    expect(unembed({ ...datei, data: `${datei.data.slice(0, -4)}AAAA` })).toBeNull();
+  it("liefert nichts, wenn die Datei fehlt oder nicht zum SHA-256 passt", () => {
+    const ref = fileRef("logo.png", bytes);
+    expect(referenced({}, ref)).toBeNull();
+    expect(referenced({ "logo.png": bytes.subarray(0, 4) }, ref)).toBeNull();
+    expect(referenced({ "anderes.png": bytes }, ref)).toBeNull();
+    expect(referenced({}, { file: "constructor", sha256: ref.sha256 })).toBeNull();
   });
 });

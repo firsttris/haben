@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { strFromU8, unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -8,7 +9,7 @@ const LAYOUT = "4f1e2d3c-6b5a-4978-8a1b-2c3d4e5f6a70";
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const JPG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 4, 5, 6]);
 const PDF = new TextEncoder().encode("%PDF-1.7\nAllgemeine Geschäftsbedingungen\n%%EOF\n");
-const eingebettet = (bytes: Uint8Array) => ({ sha256: createHash("sha256").update(bytes).digest("hex"), data: Buffer.from(bytes).toString("base64") });
+const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
   let instanzwechsel: typeof import("./index.ts");
@@ -61,8 +62,9 @@ describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
   }
 
   /** Wie die Datei beim Herunterladen ankommt */
+  /** Die JSON, wie sie im ZIP steht */
   async function datei() {
-    return JSON.parse(JSON.stringify(await instanzwechsel.exportSettings(new Date("2026-12-20T10:00:00Z"))));
+    return JSON.parse(JSON.stringify((await instanzwechsel.exportSettings(new Date("2026-12-20T10:00:00Z"))).datei));
   }
 
   it("nimmt Firmendaten, Gestaltung und Stammdaten mit, ohne Zugänge und Bestätigungen dieser Instanz", async () => {
@@ -109,13 +111,24 @@ describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
     expect(export_.procedureDetails).toMatchObject({ verantwortlich: "Erika Mustermann" });
   });
 
-  it("nimmt Logo, Briefpapier und Standardanhänge als Datei mit und eigene Layouts ohne Freigabe der Pakete", async () => {
+  it("legt Logo, Briefpapier und Standardanhänge als Dateien ins ZIP und eigene Layouts ohne Freigabe der Pakete in die JSON", async () => {
     await testinstanz();
-    const export_ = await datei();
+    const zip = unzipSync(await instanzwechsel.exportSettingsZip(new Date("2026-12-20T10:00:00Z")));
+    const export_ = JSON.parse(strFromU8(zip["einstellungen.json"]!));
 
-    expect(export_.logo).toEqual({ format: "png", ...eingebettet(PNG) });
-    expect(export_.background).toEqual({ format: "jpg", ...eingebettet(JPG) });
-    expect(export_.quoteDefaultAttachments).toEqual([{ filename: "AGB.pdf", mimeType: "application/pdf", ...eingebettet(PDF) }]);
+    expect(
+      Object.keys(zip)
+        .filter((name) => !name.endsWith("/"))
+        .sort(),
+    ).toEqual(["briefpapier.jpg", "einstellungen.json", "logo.png", "standardanhaenge/1-AGB.pdf"]);
+    expect(export_.logo).toEqual({ format: "png", file: "logo.png", sha256: sha256(PNG) });
+    expect(zip["logo.png"]).toEqual(PNG);
+    expect(export_.background).toEqual({ format: "jpg", file: "briefpapier.jpg", sha256: sha256(JPG) });
+    expect(zip["briefpapier.jpg"]).toEqual(JPG);
+    expect(export_.quoteDefaultAttachments).toEqual([
+      { filename: "AGB.pdf", mimeType: "application/pdf", file: "standardanhaenge/1-AGB.pdf", sha256: sha256(PDF) },
+    ]);
+    expect(zip["standardanhaenge/1-AGB.pdf"]).toEqual(PDF);
     expect(export_.layouts).toEqual([
       {
         id: LAYOUT,
@@ -140,14 +153,7 @@ describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
     await testinstanz();
     const text = JSON.stringify(await datei());
 
-    for (const zugang of [
-      "smtp.example.org",
-      "versand@example.org",
-      "geheimes-passwort",
-      Buffer.from("geheimes-passwort").toString("base64"),
-      "hash-des-kalender-abos",
-    ])
-      expect(text).not.toContain(zugang);
+    for (const zugang of ["smtp.example.org", "versand@example.org", "geheimes-passwort", "hash-des-kalender-abos"]) expect(text).not.toContain(zugang);
   });
 
   it("trägt eine Prüfsumme, die eine geänderte Datei erkennt", async () => {
@@ -169,6 +175,6 @@ describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
   });
 
   it("nennt Datum und Haben im Dateinamen", () => {
-    expect(instanzwechsel.settingsExportFilename(new Date("2026-12-31T23:30:00Z"))).toBe("Haben-Einstellungen-2027-01-01.json");
+    expect(instanzwechsel.settingsExportFilename(new Date("2026-12-31T23:30:00Z"))).toBe("Haben-Einstellungen-2027-01-01.zip");
   });
 });

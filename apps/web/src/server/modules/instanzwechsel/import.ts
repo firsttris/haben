@@ -20,7 +20,7 @@ import {
 } from "../stammdaten/index.ts";
 import { saveFrequencyIn } from "../umsatzsteuer/index.ts";
 import { procedureDetailsSchema, putProcedureDetails } from "../verfahrensdoku/index.ts";
-import { readSettingsFile, type SettingsFile } from "./lesen.ts";
+import { readSettingsZip, type SettingsFile } from "./lesen.ts";
 import { nichtNeuMeldung, schonAngelegt } from "./neu.ts";
 
 /*
@@ -55,8 +55,8 @@ const ownAccountSchema = z.object({
   archivedAt: z.string().min(1).nullable(),
 });
 
-export async function importSettings(actor: string, text: string, today: string): Promise<SettingsImportResult> {
-  const datei = readSettingsFile(text);
+export async function importSettings(actor: string, archive: Uint8Array, today: string): Promise<SettingsImportResult> {
+  const datei = readSettingsZip(archive);
   const result = await withActor(actor, async (tx) => {
     // Zwei Übernahmen gleichzeitig sähen beide eine leere Instanz
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('haben-einstellungen-uebernehmen', 0))`);

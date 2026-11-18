@@ -1,10 +1,11 @@
 import { sha256Of } from "../../storage.ts";
 
 /*
- * Prüfsummen der Einstellungsdatei (#488). Jede eingebettete Datei trägt den SHA-256 ihrer Bytes, die ganze Datei den
- * SHA-256 ihres Inhalts ohne dieses Feld. So fällt beim Import auf, wenn die Datei abgeschnitten, beschädigt oder von
- * Hand geändert wurde. Gegen Absicht schützt das nicht, wer ändert, kann neu rechnen; der Import prüft deshalb jeden
- * Wert wie die Formulare und schreibt nur, was der Inhaber auch selbst eintragen dürfte.
+ * Prüfsummen der Einstellungsdatei (#488). Die JSON im ZIP nennt jede Datei daneben mit dem SHA-256 ihrer Bytes und trägt
+ * selbst den SHA-256 ihres Inhalts ohne dieses Feld; damit deckt ihre Prüfsumme auch die Dateien ab. So fällt beim
+ * Import auf, wenn das ZIP abgeschnitten, beschädigt oder von Hand geändert wurde. Gegen Absicht schützt das nicht, wer
+ * ändert, kann neu rechnen; der Import prüft deshalb jeden Wert wie die Formulare und schreibt nur, was der Inhaber
+ * auch selbst eintragen dürfte.
  */
 
 /** SHA-256 des kompakten JSON in der Reihenfolge der Datei; Einrückung und Zeilenenden der Datei zählen nicht */
@@ -25,14 +26,15 @@ export function checksumProblem(file: unknown): string | null {
   return null;
 }
 
-export type EmbeddedFile = { sha256: string; data: string };
+/** Verweis der JSON auf eine Datei im ZIP: Pfad und SHA-256 ihrer Bytes */
+export type FileRef = { file: string; sha256: string };
 
-export function embed(bytes: Uint8Array): EmbeddedFile {
-  return { sha256: sha256Of(bytes), data: Buffer.from(bytes).toString("base64") };
+export function fileRef(file: string, bytes: Uint8Array): FileRef {
+  return { file, sha256: sha256Of(bytes) };
 }
 
-/** Bytes einer eingebetteten Datei, null wenn sie nicht zu ihrem SHA-256 passen */
-export function unembed(file: EmbeddedFile): Uint8Array | null {
-  const bytes = new Uint8Array(Buffer.from(file.data, "base64"));
-  return sha256Of(bytes) === file.sha256 ? bytes : null;
+/** Bytes einer Datei aus dem ZIP, null wenn sie fehlt oder nicht zu ihrem SHA-256 passt */
+export function referenced(files: Readonly<Record<string, Uint8Array>>, ref: FileRef): Uint8Array | null {
+  const bytes = Object.hasOwn(files, ref.file) ? files[ref.file] : undefined;
+  return bytes && sha256Of(bytes) === ref.sha256 ? bytes : null;
 }

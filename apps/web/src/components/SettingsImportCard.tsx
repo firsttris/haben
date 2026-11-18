@@ -1,6 +1,8 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { strFromU8, unzipSync } from "fflate";
 import { useState } from "react";
+import { EINSTELLUNGEN_JSON } from "../lib/einstellungsdatei.ts";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { importSettingsFile } from "../server/functions/export.ts";
@@ -18,14 +20,18 @@ async function fakten(file: File): Promise<ConfirmFact[]> {
   const facts: ConfirmFact[] = [{ label: "Datei", value: file.name }];
   if (file.size > FAKTEN_BIS) return facts;
   try {
-    const inhalt = JSON.parse(await file.text()) as { company?: { name?: unknown }; exportedAt?: unknown; appVersion?: unknown; contacts?: unknown };
+    // Nur die JSON und nur bis zur Grenze entpacken; fflate legt den Puffer in der angegebenen Größe an
+    const zip = unzipSync(new Uint8Array(await file.arrayBuffer()), { filter: (f) => f.name === EINSTELLUNGEN_JSON && f.originalSize <= FAKTEN_BIS });
+    const json = zip[EINSTELLUNGEN_JSON];
+    if (!json) return facts;
+    const inhalt = JSON.parse(strFromU8(json)) as { company?: { name?: unknown }; exportedAt?: unknown; appVersion?: unknown; contacts?: unknown };
     if (typeof inhalt.company?.name === "string" && inhalt.company.name) facts.push({ label: "Firma", value: inhalt.company.name, strong: true });
     if (typeof inhalt.exportedAt === "string") facts.push({ label: "Exportiert", value: formatDateTime(inhalt.exportedAt) });
     // Beide Instanzen sollten dieselbe Version haben (docs/einrichtung-echtbetrieb.md); so fällt ein Unterschied vor dem Übernehmen auf
     if (typeof inhalt.appVersion === "string") facts.push({ label: "Mit Haben", value: inhalt.appVersion });
     if (Array.isArray(inhalt.contacts)) facts.push({ label: "Kontakte", value: String(inhalt.contacts.length) });
   } catch {
-    // Keine JSON-Datei: Der Server meldet das mit Grund
+    // Kein ZIP mit lesbarer JSON: Der Server meldet das mit Grund
   }
   return facts;
 }
@@ -75,7 +81,7 @@ export function SettingsImportCard({ neueInstanz }: { neueInstanz: boolean }) {
       <NoticeBanner notice={notice} />
       {neueInstanz && (
         <div className="actions">
-          <UploadButton accept="application/json,.json" inputLabel="Einstellungsdatei" disabled={busy} onFiles={waehlen}>
+          <UploadButton accept="application/zip,.zip" inputLabel="Einstellungsdatei" disabled={busy} onFiles={waehlen}>
             Datei übernehmen …
           </UploadButton>
         </div>

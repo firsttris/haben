@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { strToU8, zipSync } from "fflate";
 import { USER } from "./daten.ts";
 import { durchlaufSeite, gehe, SETUP_CODE } from "./einrichtung.ts";
 
@@ -180,7 +181,7 @@ test("Am Handy ohne waagrechtes Scrollen, hell und dunkel", async () => {
   }
 });
 
-/** Einstellungsdatei, wie „Einstellungen exportieren“ sie schreibt, mit einem Kontakt und passender Prüfsumme (#488) */
+/** Einstellungsdatei, wie „Einstellungen exportieren“ sie schreibt: ZIP mit einem Kontakt und passender Prüfsumme (#488) */
 function einstellungsdatei(): Buffer {
   const kontakt = {
     id: "0b6a1c1e-5d7e-4f0a-9a43-1f2d3c4b5a60",
@@ -234,7 +235,7 @@ function einstellungsdatei(): Buffer {
     vatFrequencies: [],
   };
   const sha256 = createHash("sha256").update(JSON.stringify(inhalt)).digest("hex");
-  return Buffer.from(JSON.stringify({ ...inhalt, sha256 }, null, 2));
+  return Buffer.from(zipSync({ "einstellungen.json": strToU8(JSON.stringify({ ...inhalt, sha256 }, null, 2)) }));
 }
 
 test("Neue Instanz übernimmt die Einstellungsdatei einer anderen, danach gibt es die Karte nicht mehr (#488)", async () => {
@@ -244,10 +245,10 @@ test("Neue Instanz übernimmt die Einstellungsdatei einer anderen, danach gibt e
   await expect(karte).toContainText("nur, solange hier noch keine Kontakte");
   await karte
     .getByLabel("Einstellungsdatei")
-    .setInputFiles({ name: "Haben-Einstellungen-2026-12-20.json", mimeType: "application/json", buffer: einstellungsdatei() });
+    .setInputFiles({ name: "Haben-Einstellungen-2026-12-20.zip", mimeType: "application/zip", buffer: einstellungsdatei() });
 
   const dialog = page.getByRole("dialog", { name: "Einstellungen übernehmen?" });
-  await expect(dialog).toContainText("Haben-Einstellungen-2026-12-20.json");
+  await expect(dialog).toContainText("Haben-Einstellungen-2026-12-20.zip");
   await expect(dialog).toContainText("Kontakte");
   await dialog.getByRole("button", { name: "Übernehmen" }).click();
   await expect(karte).toContainText("Einstellungen übernommen, dazu 1 Kontakt, 0 Artikel, 0 Textbausteine, 0 eigene Layouts.");

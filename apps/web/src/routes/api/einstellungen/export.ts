@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireUser } from "../../../server/rollen.ts";
-import { exportSettings, settingsExportFilename } from "../../../server/modules/instanzwechsel/index.ts";
+import { exportSettingsZip, settingsExportFilename } from "../../../server/modules/instanzwechsel/index.ts";
 
 /**
- * Einstellungen und Stammdaten als JSON für eine neue Instanz (#488). Nur für den Inhaber: Die Datei enthält persönliche
+ * Einstellungen und Stammdaten als ZIP für eine neue Instanz (#488). Nur für den Inhaber: Die Datei enthält persönliche
  * Angaben, Steuer-ID und Bankverbindung, die die Steuerberatung für ihre Arbeit nicht braucht.
  */
 export const Route = createFileRoute("/api/einstellungen/export")({
@@ -13,9 +13,10 @@ export const Route = createFileRoute("/api/einstellungen/export")({
         const user = await requireUser(request, "inhaber");
         if (user instanceof Response) return user;
         const now = new Date();
-        return new Response(JSON.stringify(await exportSettings(now), null, 2), {
+        // Kopie mit eigenem ArrayBuffer, wie Response ihn als Body verlangt
+        return new Response(new Uint8Array(await exportSettingsZip(now)), {
           headers: {
-            "Content-Type": "application/json; charset=utf-8",
+            "Content-Type": "application/zip",
             "Content-Disposition": `attachment; filename="${settingsExportFilename(now)}"`,
             "Cache-Control": "private, no-store",
             "X-Content-Type-Options": "nosniff",
