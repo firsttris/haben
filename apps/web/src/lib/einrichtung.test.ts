@@ -5,6 +5,7 @@ import {
   antwortenAus,
   einrichtungsAufgaben,
   fragenFehlen,
+  mitBereich,
   offeneFragen,
   rueckfrageAenderungen,
   type Stand,
@@ -183,5 +184,19 @@ describe("fragenFehlen", () => {
     expect(fragenFehlen({ eingerichtet: true, firmendatenGespeichert: false, firmenname: "" })).toBe(false);
     expect(fragenFehlen({ eingerichtet: false, firmendatenGespeichert: true, firmenname: "" })).toBe(false);
     expect(fragenFehlen({ eingerichtet: false, firmendatenGespeichert: false, firmenname: "Musterbetrieb" })).toBe(false);
+  });
+});
+
+describe("mitBereich", () => {
+  it("setzt „Ja“ und „Nein“ und lässt die anderen Bereiche stehen", () => {
+    expect(mitBereich({ kasse: true }, "angebote", false)).toStrictEqual({ kasse: true, angebote: false });
+    expect(mitBereich({ kasse: false }, "kasse", true)).toStrictEqual({ kasse: true });
+  });
+
+  it("nimmt bei „Weiß ich noch nicht“ den Schlüssel heraus, statt ihn auf undefined zu setzen", () => {
+    // toStrictEqual: toEqual hielte { kasse: undefined } für gleich, die Prüfung am Server nicht
+    const bereiche = mitBereich({ kasse: true, angebote: false }, "kasse", null);
+    expect(bereiche).toStrictEqual({ angebote: false });
+    expect(Object.keys(bereiche)).toEqual(["angebote"]);
   });
 });
