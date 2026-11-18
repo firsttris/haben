@@ -45,6 +45,7 @@ export function Combobox<T>({
   "aria-invalid": invalid = false,
   className = "",
   onBlur,
+  onKeyDown: beforeKey,
 }: {
   id?: string;
   /** Zugänglicher Name, wenn kein <label htmlFor> zum Feld gehört */
@@ -64,6 +65,8 @@ export function Combobox<T>({
   "aria-invalid"?: boolean | undefined;
   className?: string;
   onBlur?: () => void;
+  /** Vor der eigenen Behandlung, etwa um bei Enter einen Wert zu übernehmen, bevor das Formular abgeschickt wird */
+  onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -101,6 +104,7 @@ export function Combobox<T>({
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.nativeEvent.isComposing) return;
+    beforeKey?.(event);
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (event.altKey) {
