@@ -34,8 +34,6 @@ import {
   type QuoteListStatus,
   outgoingTaxIssues,
   treatmentIssues,
-  customerNumberProblem,
-  usesCustomerNumber,
 } from "@haben/core";
 import { buildQuotePdf, texts, type QuoteDocument, type QuoteDocumentLine } from "@haben/einvoice";
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
@@ -47,7 +45,17 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { quoteDraftLineSchema } from "./draft-line.ts";
-import { buyerFrom, effectivePriceMode, insertDraft, invoiceDiscountOf, lineDiscountOf, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
+import {
+  buyerFrom,
+  buyerIssues,
+  effectivePriceMode,
+  insertDraft,
+  invoiceDiscountOf,
+  lineDiscountOf,
+  openAbschlaege,
+  sellerFrom,
+  type Invoice,
+} from "./invoices.ts";
 import { removeFiles, unusedFiles } from "./attachment-store.ts";
 import { attachStoredToQuote, copyQuoteAttachments, quoteAttachmentFiles } from "./quote-attachments.ts";
 import { listQuoteDefaultAttachments } from "./quote-default-attachments.ts";
@@ -451,12 +459,7 @@ export async function quoteIssues(id: string): Promise<string[]> {
     }),
   );
   if (quote.taxTreatment === "steuerfrei" && !quote.exemptionReason) issues.push("Befreiungsvorschrift fehlt");
-  if (!contact) issues.push("Kunde fehlt");
-  // {KUNDENNR} im Angebotsformat trägt die Kundennummer des Käufers ein (#1426)
-  if (contact && usesCustomerNumber(company.quoteNumberFormat)) {
-    const problem = customerNumberProblem(contact.kundennummer);
-    if (problem) issues.push(problem);
-  }
+  issues.push(...buyerIssues(company.quoteNumberFormat, contact));
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (quote.gross <= 0) issues.push("Angebotssumme muss positiv sein");

@@ -136,6 +136,20 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlanInConfirmation?: boolean;
 };
 
+// {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals (#1426); fehlt sie,
+// steht statt der Nummer der Hinweis — die Vorschau darf kein {KUNDENNR} als Text zeigen
+function previewNumber(
+  format: string,
+  date: string,
+  counter: number,
+  contact: Pick<ContactOption, "kundennummer"> | null,
+  corrects: { buyer?: { kundennummer?: string } | null } | null,
+): string {
+  const kundennummer = corrects ? corrects.buyer?.kundennummer : (contact?.kundennummer ?? undefined);
+  const issue = usesCustomerNumber(format) ? customerNumberProblem(kundennummer) : null;
+  return issue ?? formatDocumentNumber(format, date, counter, kundennummer);
+}
+
 export function InvoiceEditor({
   id: initialId,
   kind,
@@ -337,11 +351,7 @@ export function InvoiceEditor({
   // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
-  // {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals (#1426); fehlt sie,
-  // steht statt der Nummer der Hinweis — die Vorschau darf kein {KUNDENNR} als Text zeigen
-  const previewKdnr = corrects ? corrects.buyer?.kundennummer : (contact?.kundennummer ?? undefined);
-  const numberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewKdnr) : null;
-  const nextNumber = numberIssue ?? formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, previewKdnr);
+  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, contact, corrects);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot

@@ -1030,6 +1030,19 @@ export async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
 
 export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
+/**
+ * Probleme beim Käufer vor dem Festschreiben: fehlt er, fehlt seine Kundennummer für {KUNDENNR} oder taugt sie nicht
+ * als Teil der Nummer. Storno und Korrektur nehmen die Kundennummer des Originals, nicht die des Kontakts (#1426).
+ */
+export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null): string[] {
+  const issues = contact ? [] : ["Kunde fehlt"];
+  if (usesCustomerNumber(format) && (contact || corrects)) {
+    const problem = customerNumberProblem(corrects ? corrects.buyer?.kundennummer : contact?.kundennummer);
+    if (problem) issues.push(problem);
+  }
+  return issues;
+}
+
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
 export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<string[]> {
   const data = await getInvoice(id, q);
@@ -1040,12 +1053,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
   issues.push(...(await versteuerungIssues(company, invoice.issueDate, q)));
-  if (!contact) issues.push("Kunde fehlt");
-  // {KUNDENNR} trägt die Kundennummer des Käufers ein, beim Storno und der Korrektur die des Originals (#1426)
-  if (usesCustomerNumber(company.invoiceNumberFormat) && (contact || data.corrects)) {
-    const problem = customerNumberProblem(data.corrects ? data.corrects.buyer?.kundennummer : contact?.kundennummer);
-    if (problem) issues.push(problem);
-  }
+  issues.push(...buyerIssues(company.invoiceNumberFormat, contact, data.corrects));
   if (invoice.advanceType === "teilleistung") {
     if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
     if ((invoice.serviceTo ?? invoice.serviceFrom ?? "") > invoice.issueDate) issues.push("Die Teilleistung ist am Rechnungsdatum noch nicht erbracht");
