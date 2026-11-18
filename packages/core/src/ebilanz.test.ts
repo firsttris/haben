@@ -140,6 +140,18 @@ describe("ebilanzPosition: Miete, Pacht, Leasing und Zinsen", () => {
     for (const account of konten) expect(ebilanzPosition(kontenrahmen, account, 100_00), account).toBe(position);
   });
 
+  // Zinsen und Miete an Gesellschafter auf den Positionen für Kapitalgesellschaften (label-guidance-de 6.9 und 6.10, #1346)
+  it.each([
+    ["SKR03", "2114", "2117", "4222", "4958"],
+    ["SKR04", "7316", "7317", "6313", "6833"],
+  ] as const)("%s: Zinsen und Miete an Gesellschafter", (kontenrahmen, darlehen, ueber25, unbeweglich, beweglich) => {
+    const position = (account: string) => ebilanzPosition(kontenrahmen, account, 100_00);
+    expect(position(darlehen)).toBe("is.netIncome.regular.fin.netInterest.expenses.regularInterest.PartnersLoans.other");
+    expect(position(ueber25)).toBe("is.netIncome.regular.fin.netInterest.expenses.regularInterest.PartnersLoans.participationOver25pt");
+    expect(position(unbeweglich)).toBe(`${OC}.leaseFix.shareholders`);
+    expect(position(beweglich)).toBe(`${OC}.leaseMoveable.shareholders`);
+  });
+
   it.each(["SKR03", "SKR04"] as const)("%s: kein Konto der Hinzurechnung auf einer Auffangposition", (kontenrahmen) => {
     const auffang = new Set(Object.values(EBILANZ_AUFFANG));
     const konten = Object.values(GEWST_HINZURECHNUNG_KONTEN[kontenrahmen]).flat();

@@ -54,8 +54,9 @@ describe.skipIf(!testDatabaseUrl)("Abgleich der DATEV-Buchungen nach Kontenrahme
   });
 
   it("SKR03 aus Lexoffice: eine Erlösbuchung, deren Rechnung im Archiv fehlt, bleibt offen", async () => {
-    // Bisher meldete der Abgleich diese Zeile; dass Accountable keine Rechnungen exportiert, ändert nichts an Lexoffice
-    expect(await unmatched("03", [`1190,00;"S";"EUR";;;;1200;8400;"";1503;"RE-FEHLT";"";;"Zahlung RE-FEHLT"`])).toBe(1);
+    // Bisher meldete der Abgleich diese Zeile; dass Accountable keine Rechnungen exportiert, ändert nichts an Lexoffice.
+    // Die Nummer trägt Ziffern: Ein Belegfeld ohne Ziffer gilt als Buchung ohne Belegnummer (#1355)
+    expect(await unmatched("03", [`1190,00;"S";"EUR";;;;1200;8400;"";1503;"RE-2023-0001";"";;"Zahlung RE-2023-0001"`])).toBe(1);
   });
 
   it("SKR04: eine Buchung gegen die Bank 1800 mit unbekannter Belegnummer bleibt offen", async () => {

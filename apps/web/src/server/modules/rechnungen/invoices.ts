@@ -1504,21 +1504,12 @@ export async function setNextNumber(actor: string, date: string, next: number, k
 export async function invoiceSummary(today: string) {
   const list = await listInvoices(today);
   const open = list.filter((i) => i.kind === "rechnung" && i.open !== 0);
-  const month = today.slice(0, 7);
-  const previousMonth = (() => {
-    const [y, m] = month.split("-").map(Number) as [number, number];
-    return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
-  })();
-  const finals = list.filter((i) => i.status === "final" && i.listStatus !== "storniert" && i.kind !== "storno");
-  const revenue = (prefix: string) => finals.filter((i) => i.issueDate.startsWith(prefix)).reduce((sum, i) => sum + i.net, 0);
   return {
     // Wie die offenen Forderungen in den Auswertungen (openPositions): alles Festgeschriebene mit offenem Betrag,
     // also auch Korrekturen und Erstattungen aus Stornos bezahlter Rechnungen
     openTotal: list.filter((i) => i.status === "final" && i.open !== 0).reduce((sum, i) => sum + i.open, 0),
     openCount: open.length,
     overdueCount: open.filter((i) => i.listStatus === "ueberfaellig").length,
-    revenueMonth: { key: month, net: revenue(month) },
-    revenuePreviousMonth: { key: previousMonth, net: revenue(previousMonth) },
     recent: list.filter((i) => i.status === "final").slice(0, 5),
     drafts: list.filter((i) => i.status === "draft").length,
   };

@@ -5,7 +5,7 @@ import { datei, formularOeffnen, fremdesPdf } from "./fremdrechnung-formular.ts"
 
 /**
  * Eigener Durchlauf zu #660 mit einer Kleinunternehmer-Firma (der Wechsel geht nur ohne Buchungen im Jahr, deshalb nicht
- * im Durchlauf „fremdrechnung“): Das Formular bietet nur § 19 UStG an, und eine Rechnung, mit der die Umsatzgrenze
+ * im Durchlauf „fremdrechnung“): Das Formular bietet § 19 UStG und Auslandsleistungen mit Pflicht-Leistungsort an (#1392), und eine Rechnung, mit der die Umsatzgrenze
  * überschritten werden könnte, wird erst nach der Rückfrage übernommen. Die Prüfungen selbst stehen in fremdrechnung.test.ts.
  */
 test.describe.configure({ mode: "serial" });
@@ -28,13 +28,21 @@ test("Einrichtung als Kleinunternehmer mit einem Kunden", async () => {
   await kontaktAnlegen(page, CUSTOMERS[0]!);
 });
 
-test("Kleinunternehmer: nur § 19 zur Auswahl; über der Umsatzgrenze wird erst nach der Rückfrage übernommen", async () => {
+test("Kleinunternehmer: § 19 oder Auslandsleistung mit Pflicht-Leistungsort; über der Umsatzgrenze wird erst nach der Rückfrage übernommen", async () => {
   await formularOeffnen(page);
   await datei(page, "FS-2001.pdf", await fremdesPdf(page, "FS-2001"));
   const behandlung = page.getByLabel("Steuerbehandlung");
-  await expect(behandlung.locator("option")).toHaveCount(1);
+  await expect(behandlung.locator("option")).toHaveCount(4);
+  await expect(behandlung.locator("option[value=regulaer]")).toHaveCount(0);
+  await expect(behandlung.locator("option[value=steuerfrei]")).toHaveCount(0);
   await expect(behandlung).toHaveValue("kleinunternehmer");
-  await expect(page.getByText("Als Kleinunternehmer übernimmt Haben hier nur Rechnungen nach § 19 UStG.")).toBeVisible();
+  await expect(behandlung).toHaveAccessibleDescription(/Auslandsleistungen mit geklärtem Leistungsort/);
+  // Für eine Auslandsleistung sind Land und Bestätigung Pflicht (§ 19 Abs. 2 UStG zählt nur steuerbare Umsätze)
+  await behandlung.selectOption("drittland");
+  await expect(page.getByLabel("Land des tatsächlichen Leistungsorts")).toHaveJSProperty("required", true);
+  await expect(page.getByLabel("Ausländische Umsatzsteuer")).toHaveJSProperty("required", true);
+  await behandlung.selectOption("kleinunternehmer");
+  await expect(page.getByLabel("Land des tatsächlichen Leistungsorts")).toHaveCount(0);
 
   await page.getByLabel("Rechnungsnummer").fill("FS-2001");
   await page.getByLabel("Rechnungsdatum").fill(day(-20));

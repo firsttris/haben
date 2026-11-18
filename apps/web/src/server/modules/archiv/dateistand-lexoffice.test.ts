@@ -1,5 +1,6 @@
 import { unzipSync } from "fflate";
 import { beforeAll, describe, expect, it } from "vitest";
+import { ruecknahmeText } from "../../../components/archiv/dateistand-texte.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -7,6 +8,9 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Belegbild. Sie lässt sich deshalb bestätigen, so wie eine Accountable-Buchung ohne Beleg-GUID. Eine Ausgabe, deren
  * Datei nur im Export fehlt, trägt das Merkmal nicht und bleibt gesperrt; Rechnung und Gutschrift ebenso. Export und
  * Abgleich lesen dieselbe Entscheidung wie die Belegansicht.
+ *
+ * #1317: Eine Bestätigung lässt sich mit Grund zurücknehmen. Für die Sicherung heißt das: nach der Rücknahme steht die
+ * Buchung wieder als „Buchung ohne Beleg“, der Knopf ist wieder da und die erneute Bestätigung geht durch.
  */
 
 type Dateistand = typeof import("./dateistand.ts");
@@ -45,11 +49,12 @@ async function beleg(lexofficeId: string, options: { type?: string; ohneBeleg?: 
 }
 
 async function staende(voucherId: string) {
-  const { eq } = await import("drizzle-orm");
+  const { asc, eq } = await import("drizzle-orm");
   return dbm.db
     .select({ state: dbm.schema.legacyFileStates.state, message: dbm.schema.legacyFileStates.message })
     .from(dbm.schema.legacyFileStates)
-    .where(eq(dbm.schema.legacyFileStates.voucherId, voucherId));
+    .where(eq(dbm.schema.legacyFileStates.voucherId, voucherId))
+    .orderBy(asc(dbm.schema.legacyFileStates.createdAt), asc(dbm.schema.legacyFileStates.id));
 }
 
 /** Jahresexport auspacken: die Belegliste und der Verlauf des Dateistands */
@@ -92,6 +97,24 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Sicherung: Buchung ohne Beleg best�
 
     const nachher = await archiv.legacyVoucherDetail(voucher);
     expect(nachher!.fileState).toMatchObject({ status: "ohne_datei_bestaetigt", canConfirmWithoutFile: false });
+  });
+
+  it("lässt nach der Rücknahme erneut bestätigen und sagt den Satz der Sicherung", async () => {
+    const voucher = await beleg("fVoucher-7006", { ohneBeleg: true });
+    await dateistand.confirmWithoutFile("test-user", voucher, "Kassenbon liegt nicht vor");
+    await dateistand.revokeFileConfirmation("test-user", voucher, "falsche Zeile erwischt");
+
+    // Nach der Rücknahme steht die Buchung wieder als „Buchung ohne Beleg“ da, und der Knopf ist wieder da (#1317)
+    const nachRuecknahme = (await archiv.legacyVoucherDetail(voucher))!.fileState;
+    expect(nachRuecknahme).toMatchObject({ status: "ohne_beleg", ohneBeleg: true, canConfirmWithoutFile: true });
+    // Die Rückfrage „Bestätigung zurücknehmen?“ hängt am Merkmal ohneBeleg, nicht an der Quelle: hier der Satz der Sicherung
+    expect(ruecknahmeText(nachRuecknahme.ohneBeleg)).toContain("wieder als offen, wie vor der Bestätigung");
+    expect(ruecknahmeText(nachRuecknahme.ohneBeleg)).not.toContain("Abgleich");
+
+    // Und der Knopf tut, was er verspricht: die erneute Bestätigung geht durch
+    await dateistand.confirmWithoutFile("test-user", voucher, "zweite Prüfung");
+    expect((await staende(voucher)).map((z) => z.state)).toEqual(["bestaetigt_ohne_datei", "bestaetigung_zurueckgenommen", "bestaetigt_ohne_datei"]);
+    expect((await archiv.legacyVoucherDetail(voucher))!.fileState).toMatchObject({ status: "ohne_datei_bestaetigt", canConfirmWithoutFile: false });
   });
 
   it("weist eine Buchung ab, die die Sicherung mit Beleg führt", async () => {

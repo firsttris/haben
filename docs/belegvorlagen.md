@@ -19,7 +19,7 @@ Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben 
 
 Unter **Einstellungen › Beleggestaltung › Layouts**:
 
-- **Hochladen:** Name, Art (Belege oder Mahnung) und die `.typ`-Datei, bis 256 KB. Zuerst sucht Haben im Quelltext jedes Pflichtfeld (Spalte „Pflicht im Layout“ in den [Feldern](#felder)), etwa `taxNote` für den Hinweis bei Reverse Charge, auch wenn kein Beispiel es füllt. Dann setzt das Layout mit jedem Beispiel seiner Art, darunter Entwurf, Bruttopreise mit 40 Positionen, Fremdwährung, Kleinunternehmer, Storno und Lieferschein, und liest das PDF. Fehlt eine Pflichtangabe (Absender mit vollständiger Anschrift, Empfänger, Bezeichnung des Belegs, bei Storno der Bezug auf die Rechnung, Nummer und Daten, Positionen, Summen mit Umsatzsteuer und Steuersatz, Hinweis ohne Steuerausweis, Hinweis auf Skonto, auf Rechnungen Steuernummer oder USt-IdNr., bei GmbH und UG die Angaben nach § 35a GmbHG) oder auf einer Seite der Vermerk „ENTWURF“, oder braucht ein Lauf länger als 5 Sekunden, wird nichts gespeichert und die Meldung nennt den Grund.
+- **Hochladen:** Name, Art (Belege oder Mahnung) und die `.typ`-Datei, bis 256 KB. Zuerst sucht Haben im Quelltext jedes Pflichtfeld (Spalte „Pflicht im Layout“ in den [Feldern](#felder)), etwa `taxNote` für den Hinweis bei Reverse Charge, auch wenn kein Beispiel es füllt. Dann setzt das Layout mit jedem Beispiel seiner Art, darunter Entwurf, Bruttopreise mit 40 Positionen, ein Infoblock mit 15 Zeilen, Fremdwährung, Kleinunternehmer, Storno und Lieferschein, und liest das PDF. Fehlt eine Pflichtangabe (Absender mit vollständiger Anschrift, Empfänger, Bezeichnung des Belegs, bei Storno der Bezug auf die Rechnung, Nummer und Daten, Positionen, Summen mit Umsatzsteuer und Steuersatz, Hinweis ohne Steuerausweis, Hinweis auf Skonto, auf Rechnungen Steuernummer oder USt-IdNr., bei GmbH und UG die Angaben nach § 35a GmbHG) oder auf einer Seite der Vermerk „ENTWURF“, oder braucht ein Lauf länger als 5 Sekunden, wird nichts gespeichert und die Meldung nennt den Grund.
 - **Grenzen des Betreibers:** Mit `LAYOUTS_MAX_COUNT` (Anzahl) und `LAYOUTS_MAX_MB` (Speicher samt Paketen) begrenzt der Betreiber die eigenen Layouts, ohne Angabe gilt keine Grenze ([Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen)). Ist sie erreicht, lehnt Haben das Hochladen mit dem Grund ab.
 - **Zuordnen:** Je Belegart wählst du das eingebaute oder ein eigenes Layout. Storno und Korrektur folgen der Rechnung, Mahnungen brauchen ein Layout der Art Mahnung. Das gilt für alles, was ab dann erzeugt wird, auch für Entwürfe und die Vorschau; festgeschriebene Belege behalten ihr PDF.
 - **Einstellungen, die das Layout nicht verwendet:** Unter Logo und Blatt, Briefpapier und Akzentfarbe ist eine Einstellung aus, wenn kein Layout, das sie zeigen könnte, ihr Feld nennt, etwa der GiroCode, wenn die Layouts für Rechnung und Mahnung `qr` nicht verwenden. Der Hinweis darunter nennt Layout und Feld. Zeigt ein anderes Layout die Einstellung noch, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Welche Einstellung an welchem Feld hängt, steht unter [Einstellungen der Gestaltung](#einstellungen-der-gestaltung). Auch das ist nur ein Blick in den Quelltext, keine Gewähr.
@@ -90,6 +90,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
+| `meta[].group` | `"kerndaten" \| "referenz"` | ja |  | „kerndaten“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja | ja | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -107,9 +108,11 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `look` | `object` | ja |  | Einstellungen der Gestaltung |
 | `look.logoHeight` | `number` | ja |  | Größte Höhe des Logos in mm |
 | `look.logoWidth` | `number` | ja |  | Größte Breite des Logos in mm |
-| `look.logoLeft` | `boolean` | ja |  | Logo links statt rechts |
+| `look.logoLeft` | `boolean` | ja |  | Logo links; false bei „rechts“ und „mitte“, look.logoPosition nennt alle drei |
+| `look.logoPosition` | `"links" \| "mitte" \| "rechts"` | ja |  | Stelle des Logos im Briefkopf |
 | `look.foldMarks` | `boolean` | ja |  | Falz- und Lochmarken drucken |
 | `look.backgroundPages` | `"erste" \| "alle"` | ja |  | Briefpapier nur auf der ersten oder auf allen Seiten |
+| `look.options` | `object` | nein |  | Optionen eines eingebauten Layouts, schon aufgelöst, etwa { fuss: „rechts“ }; leer bei eigenen Layouts |
 | `font` | `object` | ja |  | Gewählte Schrift; Familien, wie Typst sie nennt |
 | `font.regular` | `string` | ja |  | Familie für normalen Text |
 | `font.medium` | `string` | ja |  | Familie für mittelfett |
@@ -206,6 +209,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `meta` | `object[]` | ja | ja | Angaben rechts neben der Anschrift: Nummer, Datum, Leistungsdatum, Kundennummer, Referenzen |
 | `meta[].label` | `string` | ja |  | Bezeichnung, links |
 | `meta[].value` | `string` | ja |  | Wert, rechts |
+| `meta[].group` | `"kerndaten" \| "referenz"` | ja |  | „kerndaten“ bei den Kerndaten (Nummer, Datum, Leistungsdatum, Kundennummer, Bestellung des Kunden …), „referenz“ bei weiteren Referenzen (unser Auftrag, Lieferschein, Leitweg-ID …), die ein Layout gesondert setzen kann |
 | `payment` | `null \| string` | ja |  | Satz zur Zahlung, etwa Fälligkeit, Skonto oder Lastschrift |
 | `qr` | `null \| string` | nein |  | GiroCode als SVG; null oder fehlt, wenn keiner gedruckt wird |
 | `footer` | `string[][]` | ja | ja | Spalten der Fußzeile, je Spalte die Zeilen als Text |
@@ -223,9 +227,11 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `look` | `object` | ja |  | Einstellungen der Gestaltung |
 | `look.logoHeight` | `number` | ja |  | Größte Höhe des Logos in mm |
 | `look.logoWidth` | `number` | ja |  | Größte Breite des Logos in mm |
-| `look.logoLeft` | `boolean` | ja |  | Logo links statt rechts |
+| `look.logoLeft` | `boolean` | ja |  | Logo links; false bei „rechts“ und „mitte“, look.logoPosition nennt alle drei |
+| `look.logoPosition` | `"links" \| "mitte" \| "rechts"` | ja |  | Stelle des Logos im Briefkopf |
 | `look.foldMarks` | `boolean` | ja |  | Falz- und Lochmarken drucken |
 | `look.backgroundPages` | `"erste" \| "alle"` | ja |  | Briefpapier nur auf der ersten oder auf allen Seiten |
+| `look.options` | `object` | nein |  | Optionen eines eingebauten Layouts, schon aufgelöst, etwa { fuss: „rechts“ }; leer bei eigenen Layouts |
 | `font` | `object` | ja |  | Gewählte Schrift; Familien, wie Typst sie nennt |
 | `font.regular` | `string` | ja |  | Familie für normalen Text |
 | `font.medium` | `string` | ja |  | Familie für mittelfett |
@@ -287,7 +293,7 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 
 ### Einstellungen der Gestaltung
 
-Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.
+Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Akzentfarbe und Logo bleiben immer an, denn Entgeltabrechnung und Steuerbescheinigung setzt Haben stets mit dem eingebauten Layout. „Mitte“ bei der Stelle des Logos folgt derselben Regel: Liest ein Layout nur `look.logoLeft`, steht das Logo dort rechts, und Haben graut „Mitte“ aus, sobald kein Beleg es mehr mittig setzt. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.
 
 | Einstellung | Feld | Belegarten |
 | --- | --- | --- |
@@ -295,7 +301,8 @@ Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr
 | Schrift | `font` | alle |
 | Logo | `logo` | alle |
 | Größe des Logos | `look.logoHeight` oder `look.logoWidth` | alle |
-| Seite des Logos | `look.logoLeft` | alle |
+| Stelle des Logos | `look.logoLeft` oder `look.logoPosition` | alle |
+| Stelle des Logos „Mitte“ | `look.logoPosition` | alle |
 | Falz- und Lochmarken | `look.foldMarks` | alle |
 | GiroCode | `qr` | Rechnung, Storno und Korrektur; Mahnung |
 | Artikelnummer | `itemNumbers` | Rechnung, Storno und Korrektur; Angebot; Auftragsbestätigung; Lieferschein |
