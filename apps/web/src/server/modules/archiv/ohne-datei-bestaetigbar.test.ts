@@ -42,7 +42,22 @@ describe("ohneDateiBestaetigbar", () => {
     expect(ohneDateiBestaetigbar({ source: "accountable", lexofficeId: "accountable/row/200", type: "salesinvoice" })).toBe(false);
   });
 
+  it("lässt eine Buchung ohne Beleg aus der Lexoffice-Sicherung zu (#1318)", () => {
+    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-1", type: "purchaseinvoice", ohneBeleg: true })).toBe(true);
+  });
+
+  it("verlangt bei der Sicherung das Merkmal ohne Beleg", () => {
+    // Eine Ausgabe, deren Datei nur im Export fehlt, trägt das Merkmal nicht: sie bleibt gesperrt
+    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-2", type: "purchaseinvoice", ohneBeleg: false })).toBe(false);
+    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-3", type: "purchaseinvoice" })).toBe(false);
+  });
+
+  it("lehnt Rechnung und Gutschrift aus der Sicherung auch mit dem Merkmal ab", () => {
+    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-4", type: "salesinvoice", ohneBeleg: true })).toBe(false);
+    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-5", type: "creditnote", ohneBeleg: true })).toBe(false);
+  });
+
   it("lehnt fremde Quellen ab", () => {
-    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "voucher/ID_1", type: "purchaseinvoice" })).toBe(false);
+    expect(ohneDateiBestaetigbar({ source: "wiso", lexofficeId: "wiso/1", type: "purchaseinvoice", ohneBeleg: true })).toBe(false);
   });
 });

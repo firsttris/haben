@@ -19,6 +19,13 @@ describe("Text über einer Buchung ohne Datei", () => {
     expect(text).not.toContain("kommt ohne Einzelbeleg");
   });
 
+  it("lädt eine Buchung ohne Beleg aus der Sicherung zum Bestätigen ein (#1318)", () => {
+    const text = ohneBelegText("quelle_ohne_beleg", "Lexware Office", true);
+    expect(text).toContain("Buchung ohne Beleg");
+    expect(text).toContain("hält es hier fest");
+    expect(text).not.toContain("GUID");
+  });
+
   it("behauptet für fremde Quellen ohne GUID nichts über einen Einzelbeleg", () => {
     for (const quelle of ["WISO", "Lexware Office"]) {
       const text = ohneBelegText("quelle_ohne_beleg", quelle, false);

@@ -126,9 +126,10 @@ In Lexware Office kannst du einen Bankumsatz direkt einer Kategorie zuordnen, oh
 Das Skript findet sie über die Bankumsätze: Hat ein Umsatz mehr Zuordnungen, als Belege aus der Belegliste auf ihn verweisen, fragt es die Zuordnungen ab und lädt jede Buchung ohne Beleg mit Kategorie, Steuersatz und Betrag. Haben übernimmt sie so:
 
 - Als Einnahme- bzw. Ausgabebeleg ohne Nummer und ohne Datei. Als Kontakt steht der Name aus dem Bankumsatz da, als Notiz „Buchung ohne Beleg“ und der Verwendungszweck.
+- In der Belegansicht lässt sich eine solche Buchung als „ohne Datei“ bestätigen: Wer geprüft hat, dass es keinen Beleg gibt, hält das mit Zeitpunkt und Benutzer fest. Das gilt nur für Buchungen, die die Sicherung als Buchung ohne Beleg führt; eine Ausgabe, deren Datei nur im Export fehlt, trägt das Merkmal nicht und bleibt gesperrt, Rechnungen und Gutschriften ebenso. Die Bestätigung ersetzt keinen Eigenbeleg, für den Vorsteuerabzug braucht es weiter die Rechnung.
 - Die Steuer rechnet Haben aus Betrag und Satz wie bei den übrigen Belegen; Lexware Office rechnet die Vorsteuer aus dem Bruttobetrag heraus (250,00 € zu 19 % → 39,92 €).
 - Bezahlt ist die Buchung am Buchungstag des Bankumsatzes; bei Ist-Versteuerung zählen Einnahmen in diesem Monat.
-- Im Abgleich je Jahr zählt die Prüfung „Jeder Beleg hat eine Datei“ sie nicht mit, die erste Prüfung nennt ihre Zahl.
+- Im Abgleich je Jahr zählt die Prüfung „Jeder Beleg hat eine Datei“ sie nicht mit, die erste Prüfung nennt ihre Zahl. Nach einer Bestätigung steht bei ihnen „ohne Datei (bestätigt)“, wie bei den übrigen Quellen.
 - **Privat und Geldtransit:** Buchungen, deren Kategorien alle „privat“, „Geldtransit“, „Einkommensteuer“, „Kirchensteuer“ oder „Solidaritätszuschlag“ im Namen tragen, sind archiviert, zählen aber weder in den Einnahmen und Ausgaben noch in der Umsatzsteuer je Monat. Der Abgleich je Jahr weist sie getrennt aus. Lexware Office kennzeichnet private Kategorien nicht, Haben erkennt sie nur am Namen. Bei GmbH und UG ordnet Haben anders ein, siehe [Einordnung bei GmbH und UG](#einordnung-bei-gmbh-und-ug).
 
 Hast du per API umgezogen, fehlen diese Buchungen. Lass dann zusätzlich das Skript laufen und lade die Sicherung hoch; den Kasten dafür zeigt Haben erst, wenn kein API-Schlüssel mehr gespeichert ist, entferne ihn also vorher mit „Schlüssel entfernen“: Haben überspringt die Belege, die schon da sind, und übernimmt nur die Buchungen ohne Beleg.
@@ -343,7 +344,7 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 | Prüfung | Erfüllt, wenn |
 | --- | --- |
 | Belege und Rechnungen per API abgerufen | mindestens ein Beleg mit Datum in diesem Jahr vorliegt; Buchungen ohne Beleg werden extra gezählt |
-| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg, bestätigt dateilose Belege aus sevDesk und aus dem Accountable-Stapel ([Dateistand](sevdesk.md#dateistand)) und Belege aus der Export-ZIP ohne Belegbild ausgenommen; „Belege mit fehlender Datei ansehen“ zeigt die Liste |
+| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg, bestätigt dateilose Belege aus sevDesk, aus dem Accountable-Stapel und aus der Lexoffice-Sicherung ([Dateistand](sevdesk.md#dateistand)) und Belege aus der Export-ZIP ohne Belegbild ausgenommen; „Belege mit fehlender Datei ansehen“ zeigt die Liste |
 | DATEV-Buchungsstapel übernommen | Buchungen mit Datum in diesem Jahr eingelesen sind |
 | Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Lexoffice-Beleg mit derselben Nummer existiert (Leerzeichen und Groß-/Kleinschreibung egal); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt; „Buchungen ohne passenden Beleg ansehen“ zeigt die übrigen |
 | IDEA-Export archiviert | eine Datei der Art IDEA mit diesem Jahr vorliegt |

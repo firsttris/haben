@@ -137,9 +137,10 @@ export async function recordFileState(tx: Tx, voucherId: string, finding: Findin
 }
 
 /**
- * Eine Person hat geprüft, dass der Beleg keine Datei hat. Erlaubt sind Belege aus sevDesk und aus dem Accountable-Stapel
- * (ohneDateiBestaetigbar), nie Rechnung oder Gutschrift: deren Original-PDF ist Pflicht. Verlangt ist der offene Stand
- * „ohne Datei“; ein fehlgeschlagener Abruf und ein schon bestätigter Beleg lassen sich nicht wegbestätigen.
+ * Eine Person hat geprüft, dass der Beleg keine Datei hat. Erlaubt sind Belege aus sevDesk, aus dem Accountable-Stapel und
+ * Buchungen ohne Beleg aus der Lexoffice-Sicherung (ohneDateiBestaetigbar), nie Rechnung oder Gutschrift: deren
+ * Original-PDF ist Pflicht. Verlangt ist der offene Stand „ohne Datei“; ein fehlgeschlagener Abruf und ein schon
+ * bestätigter Beleg lassen sich nicht wegbestätigen.
  */
 export async function confirmWithoutFile(actor: string, voucherId: string, note: string): Promise<void> {
   await withActor(actor, async (tx) => {
@@ -167,6 +168,11 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
       );
     if (voucher.source === "accountable" && voucher.documentPresent === true)
       throw new FileStateError("Accountable meldet zu dieser Buchung „Dokument vorhanden“; ein Einzelbeleg existiert, er hängt nur nicht an dieser Buchung.");
+    if (voucher.source === "lexoffice" && voucher.type !== "purchaseinvoice")
+      throw new FileStateError("Rechnungen und Gutschriften brauchen ihr Original-PDF; ein fehlendes PDF lässt sich nicht als „ohne Datei“ bestätigen.");
+    // Nur eine Buchung ohne Beleg hatte in der Quelle nie ein Belegbild; fehlt die Datei nur im Export, ist das keine Aussage
+    if (voucher.source === "lexoffice" && !voucher.ohneBeleg)
+      throw new FileStateError("Diese Buchung führt die Sicherung als Buchung mit Beleg; die Datei fehlt nur im Export, das lässt sich hier nicht bestätigen.");
     if (!ohneDateiBestaetigbar(voucher)) throw new FileStateError(`Aus der Quelle ${voucher.source} lassen sich keine Belege ohne Datei bestätigen.`);
     const [{ files } = { files: 0 }] = await tx
       .select({ files: sql<number>`count(*)::int` })
@@ -180,8 +186,9 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
       .limit(1);
     if (Number(files) > 0) throw new FileStateError("Der Beleg hat eine Datei.");
     if (latest?.state === "bestaetigt_ohne_datei") throw new FileStateError("Schon bestätigt.");
-    // Aus dem Accountable-Stapel kommt kein Abruf, dort gibt es keinen Stand: das Merkmal ohneBeleg genügt
-    const standOffen = latest?.state === "ohne_datei" || (latest?.state == null && voucher.source === "accountable" && voucher.ohneBeleg);
+    // Aus dem Accountable-Stapel und der Lexoffice-Sicherung kommt kein Abruf, dort gibt es keinen Stand: das Merkmal ohneBeleg genügt
+    const standOffen =
+      latest?.state === "ohne_datei" || (latest?.state == null && (voucher.source === "accountable" || voucher.source === "lexoffice") && voucher.ohneBeleg);
     if (!standOffen)
       throw new FileStateError(
         latest?.state === "abruf_fehlgeschlagen"
@@ -189,15 +196,18 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
           : "Erst ein Abruf aus sevDesk stellt fest, ob der Beleg eine Datei nennt.",
       );
     const text = note.trim();
+    const herkunft = voucher.source === "accountable" ? "Accountable-Stapel" : voucher.source === "lexoffice" ? "Lexoffice-Sicherung" : "In sevDesk geprüft";
     await tx.insert(schema.legacyFileStates).values({
       voucherId,
       importId: null,
       state: "bestaetigt_ohne_datei",
       message: text
-        ? `${voucher.source === "accountable" ? "Accountable-Stapel" : "In sevDesk geprüft"}: ${text}`
+        ? `${herkunft}: ${text}`
         : voucher.source === "accountable"
           ? "Accountable-Stapel: keine Beleg-GUID, kein Belegbild vorhanden."
-          : "In sevDesk geprüft: keine Datei hinterlegt.",
+          : voucher.source === "lexoffice"
+            ? "Lexoffice-Sicherung: Buchung ohne Beleg, kein Belegbild in der Quelle."
+            : "In sevDesk geprüft: keine Datei hinterlegt.",
       createdBy: actor,
     });
   });

@@ -493,11 +493,11 @@ export async function legacyVoucherDetail(id: string) {
   // Dateistand mit Verlauf (#345); bestätigen lässt sich ein Beleg mit offenem Stand „ohne Datei“, Quelle siehe ohneDateiBestaetigbar
   const fileStates = await fileStateHistory(id);
   const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
-  // Offener Stand „ohne Datei“ oder eine Buchung ohne Beleg aus dem Accountable-Stapel, wenn die Quelle es hergibt (#1235)
+  // Offener Stand „ohne Datei“ oder eine Buchung ohne Beleg aus dem Accountable-Stapel bzw. der Lexoffice-Sicherung, wenn die Quelle es hergibt (#1235, #1318)
   const canConfirmWithoutFile =
     (fileStatus === "ohne_datei_offen" || fileStatus === "ohne_beleg") &&
     files.length === 0 &&
-    ohneDateiBestaetigbar({ ...voucher, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent });
+    ohneDateiBestaetigbar({ ...voucher, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent, ohneBeleg: voucher.ohneBeleg });
   const { positionAccounts, ...shown } = voucher;
   const categories = positionAccounts ? sevdeskCategories(voucher.categories, positionAccounts, await loadSevdeskAccountCategories()) : voucher.categories;
   // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).
