@@ -1222,8 +1222,7 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
   }
 
-  // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung; ihr {KUNDENNR} ist die des Originals (#1426).
-  // Der Käufer-Snapshot ist nur gelesen und darf deshalb vor der Sperre des Nummernkreises stehen.
+  // Storno/Korrektur: Anschrift und {KUNDENNR} des Originals (#1426); nur gelesen, daher vor der Nummernkreis-Sperre
   const seller = sellerFrom(company);
   const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
 
