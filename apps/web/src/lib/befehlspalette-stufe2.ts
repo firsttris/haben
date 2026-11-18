@@ -100,7 +100,7 @@ function buildRecurringAndCatalogSections(remote: CommandPaletteResult): Palette
         kind: "link",
         title: rd.name,
         meta: [rd.supplierName, intervalLabel(rd.intervalMonths), `nächster Termin ${formatDate(rd.nextDate)}`].join(" · "),
-        icon: "calendar",
+        icon: "repeat",
         to: "/dauerbelege/$id",
         params: { id: rd.id },
         status: { kind: "recurringDocument", status: rd.status, lastError: rd.lastError },
@@ -135,14 +135,14 @@ function buildRecurringAndCatalogSections(remote: CommandPaletteResult): Palette
       (se): PaletteItem => ({
         id: `service-${se.id}`,
         kind: "link",
-        title: se.description || se.project || "Leistung",
+        title: se.description || se.project || "Zeiteintrag",
         meta: [se.customer, formatDate(se.workedOn), `${se.minutes} Min.`].filter(Boolean).join(" · "),
-        icon: "calendar",
+        icon: "clock",
         to: "/leistungen",
       }),
     ),
   ];
-  if (catalog.length > 0) sections.push({ id: "katalog", label: "Artikel, Textbausteine & Leistungen", items: catalog });
+  if (catalog.length > 0) sections.push({ id: "katalog", label: "Artikel, Textbausteine & Zeiteinträge", items: catalog });
   return sections;
 }
 

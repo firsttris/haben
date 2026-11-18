@@ -19,6 +19,7 @@ import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { LockedAndArchived } from "../../../components/ArchiveStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
+import { InvoiceCopyButton } from "../../../components/InvoiceCopyButton.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { InvoiceServiceEntries } from "../../../components/InvoiceServiceEntries.tsx";
 import { RechnungVerrechnung } from "../../../components/RechnungVerrechnung.tsx";
@@ -235,6 +236,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               Lieferschein
             </a>
           )}
+          {inhaber && <InvoiceCopyButton invoice={invoice} action={{ busy, run }} />}
         </div>
       </div>
 

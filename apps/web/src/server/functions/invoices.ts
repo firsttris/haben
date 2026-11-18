@@ -12,6 +12,7 @@ import { editorContext } from "../modules/stammdaten/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import {
   cancelInvoice,
+  copyInvoice,
   createCorrection,
   createDraft,
   deleteDraft,
@@ -274,6 +275,14 @@ export const correctFinalInvoice = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     const draft = await createCorrection(context.user.id, data, today());
+    return { id: draft.id };
+  });
+
+export const copyFinalInvoice = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    const draft = await copyInvoice(context.user.id, data, today());
     return { id: draft.id };
   });
 

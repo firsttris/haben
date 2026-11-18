@@ -1,19 +1,10 @@
-import {
-  amountError,
-  formatDecimal,
-  formatEuro,
-  isKapitalgesellschaft,
-  kategorieArt,
-  kategorieText,
-  parseEuro,
-  startwertFuerBuchungsart,
-  type DirectBooking,
-} from "@haben/core";
+import { AUFLADUNG, amountError, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro, startwertFuerBuchungsart, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
+import { vorschlagTitel } from "../../components/DirektVorschlag.ts";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
@@ -23,7 +14,15 @@ import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.ts
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
-import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
+import {
+  aufladungWahl,
+  AUFLADUNG_OPTION,
+  DirektKategorieFelder,
+  KategorieFelder,
+  kategorieWahlFuer,
+  type KategorieOptionen,
+  type KategorieWahl,
+} from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
@@ -126,6 +125,7 @@ const KIND_LABEL = {
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
   kategorie: "Direkt",
+  aufladung: AUFLADUNG.text,
 } as const;
 
 /**
@@ -172,7 +172,16 @@ function zuAufhebendeZuordnung(
 }
 
 /** „Direkt buchen“: Buchungsarten ohne Beleg, Kategorie mit Steuersatz, Steuerzahlung mit Steuerart, Bezugsjahr und Teil, Darlehen */
-type DirectChoice = DirectBooking | "kategorie" | "steuer" | "darlehen";
+type DirectChoice = DirectBooking | "kategorie" | "aufladung" | "steuer" | "darlehen";
+/**
+ * Nutzlast einer Direktbuchung auf eine Kategorie: Die Aufladung trägt dieselben Felder, aber nie einen Steuersatz
+ * (#1356). Dialog und Buchung lesen beide `aufladungWahl`, damit Anzeige und Buchung nicht auseinanderlaufen.
+ */
+function direktKategorie(kind: "kategorie" | "aufladung", transactionId: string, amount: number, kategorie: KategorieWahl) {
+  return kind === "aufladung"
+    ? { kind: "aufladung" as const, transactionId, amount, kategorie: aufladungWahl(kategorie) }
+    : { kind: "kategorie" as const, transactionId, amount, kategorie };
+}
 const KATEGORIE_OPTION = { value: "kategorie", label: "Einnahme oder Ausgabe (Kategorie, Steuersatz)" } as const;
 const STEUER_OPTION = { value: "steuer", label: "Steuerzahlung oder Erstattung (Finanzamt, Gemeinde)" } as const;
 const DARLEHEN_OPTION = { value: "darlehen", label: "Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren" } as const;
@@ -206,13 +215,15 @@ const FORMAT_LABEL = (format: string) =>
               ? "eBay"
               : format === "etsy-csv"
                 ? "Etsy"
-                : format === "googleplay-earnings"
-                  ? "Google Play"
-                  : format === "appstore-finance"
-                    ? "App Store"
-                    : format === "store-payout"
-                      ? "Auszahlung"
-                      : "CSV";
+                : format === "etsy-ledger"
+                  ? "Etsy (Abruf)"
+                  : format === "googleplay-earnings"
+                    ? "Google Play"
+                    : format === "appstore-finance"
+                      ? "App Store"
+                      : format === "store-payout"
+                        ? "Auszahlung"
+                        : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -1092,8 +1103,8 @@ function AllocationPanel({
         if (!darlehen.loanId) return;
         return runAndAdvance(() => allocateFn({ data: { kind: "darlehen", transactionId: tx.id, amount: signedAmount, darlehen } }), completes);
       }
-      if (directKind === "kategorie") {
-        return runAndAdvance(() => allocateFn({ data: { kind: "kategorie", transactionId: tx.id, amount: signedAmount, kategorie } }), completes);
+      if (directKind === "kategorie" || directKind === "aufladung") {
+        return runAndAdvance(() => allocateFn({ data: direktKategorie(directKind, tx.id, signedAmount, kategorie) }), completes);
       }
       if (directKind !== "steuer") {
         return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
@@ -1340,11 +1351,7 @@ function AllocationPanel({
             <div className="stack" style={{ gap: 10 }}>
               <div className="section-label">Vorschlag ohne Rechnung</div>
               <div className="match-card">
-                <span style={{ fontWeight: 600 }}>
-                  {direct.kategorie
-                    ? `${kategorieArt(direct.kategorie.kategorie) === "einnahme" ? "Einnahme" : "Ausgabe"}: ${kategorieText(direct.kategorie)}`
-                    : directKinds.find((k) => k.value === direct.kind)?.label}
-                </span>
+                <span style={{ fontWeight: 600 }}>{vorschlagTitel(direct) ?? directKinds.find((k) => k.value === direct.kind)?.label}</span>
                 <ul className="reasons">
                   {direct.reasons.map((reason) => (
                     <li key={reason}>
@@ -1385,7 +1392,7 @@ function AllocationPanel({
               hint={
                 <>
                   {DIRECT_HINT}
-                  {tx.amount < 0 && directKind !== "kategorie" && (
+                  {tx.amount < 0 && directKind !== "kategorie" && directKind !== "aufladung" && (
                     <>
                       <br />
                       Für Ausgaben mit Rechnung den Beleg erst unter <Link to="/belege">Belege</Link> hochladen und buchen.
@@ -1396,7 +1403,8 @@ function AllocationPanel({
             >
               {(control) => (
                 <select {...control} value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
-                  {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                  {/* Eine Aufladung gibt es nur im Einzelunternehmen (#1356): In GmbH und UG ist die Zahlung eine Forderung */}
+                  {[...directKinds, KATEGORIE_OPTION, ...(gesellschaft ? [] : [AUFLADUNG_OPTION]), STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>
                       {k.label}
                     </option>
@@ -1410,8 +1418,8 @@ function AllocationPanel({
             <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} jahrFehler={error("jahr")} />
           )}
           {mode === "direct" && directKind === "darlehen" && <DarlehenFelder options={darlehenOptionen} value={darlehen} onChange={setDarlehen} />}
-          {mode === "direct" && directKind === "kategorie" && (
-            <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
+          {mode === "direct" && (directKind === "kategorie" || directKind === "aufladung") && (
+            <DirektKategorieFelder kind={directKind} options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
           )}
 
           <Field label="Betrag" error={error("amount")}>
@@ -1693,6 +1701,7 @@ function SplitForm({
                     </option>
                   ))}
                 </optgroup>
+                {/* Die Aufladung bleibt eine Einzelbuchung und ist kein Teil einer Aufteilung (#1356) */}
                 <optgroup label="Direkt buchen">
                   {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>

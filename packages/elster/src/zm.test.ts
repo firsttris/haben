@@ -66,6 +66,12 @@ describe("buildZmXml (Datenart ZMDO)", () => {
     expect(xml).toContain(`<zeile umsatzart="S"><knre>ATU12345678</knre><betrag>0</betrag></zeile>`);
   });
 
+  // Die Nummer steht schon so beim BZSt; zurücknehmen muss gehen, auch wenn sie nicht zum Aufbau des Landes passt (#1413)
+  it("Berichtigung: nimmt eine gemeldete Nummer im falschen Aufbau mit 0 zurück", () => {
+    const xml = buildZmXml({ ...base, berichtigt: true, zeilen: [{ ustId: "ATU1234567", art: "S", betrag: 0 }] });
+    expect(xml).toContain(`<zeile umsatzart="S"><knre>ATU1234567</knre><betrag>0</betrag></zeile>`);
+  });
+
   it("Straße ohne Hausnummer bleibt ganz", () => {
     const xml = buildZmXml({ ...base, anschrift: { ...base.anschrift, strasse: "Am Markt" } });
     expect(xml).toContain("<strasse>Am Markt</strasse>\n<plz>");

@@ -8,6 +8,9 @@ import { fintsDay } from "./map.ts";
  * Kundensystem-ID, zwei TAN-Verfahren (pushTAN entkoppelt, chipTAN mit TAN), starke Kundenauthentifizierung bei der
  * Anmeldung oder beim Umsatzabruf (je einmal, wie die Ausnahme nach Art. 10 der Delegierten Verordnung (EU) 2018/389, heute
  * 180 Tage) und Umsätze als MT940 (HKKAZ), auf Wunsch so, dass lib-fints sie nicht lesen kann.
+ * Die Freigabe in der App meldet sie wie echte Banken mit 3955 („Sicherheitsfreigabe erfolgt über anderen Kanal“), solange
+ * sie aussteht mit 3956. Auf Wunsch verhält sie sich wie die Consorsbank: eine eingetippte TAN bei der Anmeldung mit
+ * pushTAN, der Umsatzabruf laut HIPINS ohne TAN, ohne HKTAN aber mit 9075 abgelehnt.
  * Segmente nach FinTS 3.0 (Formals, PIN/TAN), Rückmeldungscodes nach der Liste „FinTS Rückmeldungscodes“ der DK (Stand
  * 03.02.2026); nur 9952 steht nicht darin, so lehnte eine echte Bank beim ersten Test ab (firsttris/haben#1289).
  */
@@ -47,6 +50,8 @@ export interface FintsTestbankAnfrage {
   produktId?: string;
   pin?: string;
   tan?: string;
+  /** TAN-Prozess aus HKTAN: 4 beim Auftrag, 2 mit TAN, S als Statusabfrage bei der Freigabe in der App */
+  tanProzess?: string;
   /** Sicherheitsfunktion aus HNSHK: 999 ohne Verfahren, sonst das gewählte TAN-Verfahren */
   verfahren?: number;
   iban?: string;
@@ -63,6 +68,17 @@ export interface FintsTestbank {
     scaBeiUmsaetzen: boolean;
     /** pushTAN: In der App freigegeben */
     freigegeben: boolean;
+    /**
+     * pushTAN wie die Consorsbank mit ihrer App (firsttris/haben#654, python-fints#218): Die Anmeldung verlangt eine TAN aus
+     * der App zum Eintippen (0030 ohne 3955), obwohl die BPD das Verfahren als entkoppelt führen; eine Statusabfrage dazu
+     * (HKTAN Prozess S) lehnt sie mit 9010 ab und bricht den Dialog ab (9800)
+     */
+    appTanEintippen: boolean;
+    /**
+     * Wie die Consorsbank (firsttris/haben#654, python-fints#218): HIPINS führt den Umsatzabruf ohne TAN (HKKAZ:N), einen
+     * Abruf ohne HKTAN lehnt sie aber mit 9075 ab. Gilt für die BPD der nächsten ersten Synchronisierung.
+     */
+    umsatzTanVerschwiegen: boolean;
     /** Antwortet mit HTTP 503 */
     nichtErreichbar: boolean;
     /** HKKAZ: :61: ohne Kundenreferenz, die SWIFT MT940 verlangt (sonst NONREF); lib-fints kann das MT940 dann nicht lesen */
@@ -136,8 +152,8 @@ interface Bank {
   optionen: FintsTestbankOptionen;
   konten: FintsTestbankKonto[];
   zustand: FintsTestbank["zustand"];
-  /** Aufträge, die auf TAN oder Freigabe warten, nach Auftragsreferenz */
-  offen: Map<string, { art: "HKIDN" | "HKKAZ"; iban?: string; von?: string; bis?: string }>;
+  /** Aufträge, die auf TAN oder Freigabe warten, nach Auftragsreferenz; eintippen: TAN verlangt, keine Freigabe in der App */
+  offen: Map<string, { art: "HKIDN" | "HKKAZ"; eintippen?: boolean; iban?: string; von?: string; bis?: string }>;
   zaehler: number;
 }
 
@@ -150,7 +166,7 @@ const ref = (s: Seg | undefined) => s?.header.segNr ?? 0;
 const bpd = (bank: Bank, r: number) => [
   `HIBPA:{n}:3:${r}+1+280:${bank.blz}+${esc(bank.optionen.bankname ?? "Testbank")}+1+1+300`,
   `HITANS:{n}:7:${r}+1+1+0+J:N:0:${PUSH}:2:pushTAN2.0:Decoupled::pushTAN 2.0:::Freigabe:2048:N:2:N:0:0:N:N:00:0:N:1:60:1:1:J:J:${CHIPTAN}:2:HHD1.3.0:HHD:1.3.0:chipTAN manuell:6:1:TAN-Nummer:2048:N:2:N:0:0:N:N:00:0:N:1`,
-  `HIPINS:{n}:1:${r}+1+1+0+5:20:6:Anmeldename:Kunden-ID:HKKAZ:J:HKSAL:N:HKTAN:N:HKIDN:J:HKTAB:N`,
+  `HIPINS:{n}:1:${r}+1+1+0+5:20:6:Anmeldename:Kunden-ID:HKKAZ:${bank.zustand.umsatzTanVerschwiegen ? "N" : "J"}:HKSAL:N:HKTAN:N:HKIDN:J:HKTAB:N`,
   `HIKAZS:{n}:7:${r}+1+1+0+90:N:N`,
 ];
 
@@ -169,9 +185,30 @@ function umsatzAntwort(bank: Bank, r: number, iban = "", von = "2000-01-01", bis
   return [`HIRMS:{n}:2:${r}+0020::Der Auftrag wurde ausgeführt.`, `HIKAZ:{n}:7:${r}+@${Buffer.byteLength(daten, "latin1")}@${daten}`];
 }
 
-const tanAnfrage = (r: number, referenz: string, entkoppelt: boolean, code = "0030") => [
-  `HIRMS:{n}:2:${r}+${code}::${entkoppelt ? "Bitte in der App freigeben." : "Auftrag empfangen - Sicherheitsfreigabe erforderlich."}`,
-  `HITAN:{n}:7:${r}+4++${referenz}+${entkoppelt ? "Bitte bestätigen Sie den Zugriff in Ihrer Banking-App." : "Bitte geben Sie die TAN ein."}`,
+/**
+ * Wie die Bank eine Freigabe verlangt: tan mit TAN (0030), app in der App (0030 und 3955, wie die Consorsbank bei einer
+ * Überweisung), ausstehend solange die Freigabe in der App fehlt (3956), appTan mit TAN aus der App wie die Consorsbank bei
+ * der Anmeldung (0030 ohne 3955, ihr Text)
+ */
+type Freigabe = "tan" | "app" | "ausstehend" | "appTan";
+
+const ERFORDERLICH = "0030::Auftrag empfangen - Sicherheitsfreigabe erforderlich.";
+const RUECKMELDUNG: Record<Freigabe, string> = {
+  tan: ERFORDERLICH,
+  app: `${ERFORDERLICH}+3955::Sicherheitsfreigabe erfolgt über anderen Kanal.`,
+  ausstehend: "3956::Starke Kundenauthentifizierung noch ausstehend.",
+  appTan: ERFORDERLICH,
+};
+const CHALLENGE: Record<Freigabe, string> = {
+  tan: "Bitte geben Sie die TAN ein.",
+  app: "Bitte bestätigen Sie den Zugriff in Ihrer Banking-App.",
+  ausstehend: "Bitte bestätigen Sie den Zugriff in Ihrer Banking-App.",
+  appTan: "Bitte generieren Sie eine TAN mit Ihrer Banking App oder Ihrem TAN Generator und geben diese hier ein.",
+};
+
+const tanAnfrage = (r: number, referenz: string, freigabe: Freigabe) => [
+  `HIRMS:{n}:2:${r}+${RUECKMELDUNG[freigabe]}`,
+  `HITAN:{n}:7:${r}+4++${referenz}+${CHALLENGE[freigabe]}`,
 ];
 
 /** Dialogaufbau (HKIDN, HKVVB, HKSYN, HKTAN): ohne TAN-Verfahren nur BPD, mit Verfahren je nach SCA TAN oder UPD */
@@ -186,8 +223,10 @@ function anmeldung(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage, d
   if (verfahren === 999 || !hktan) return { dialogId, segmente: antwort };
   if (bank.zustand.scaBeiAnmeldung) {
     const referenz = `REF${bank.zaehler}`;
-    bank.offen.set(referenz, { art: "HKIDN" });
-    return { dialogId, segmente: [...antwort, ...tanAnfrage(ref(hktan), referenz, verfahren === PUSH)] };
+    const eintippen = verfahren !== PUSH || bank.zustand.appTanEintippen;
+    bank.offen.set(referenz, { art: "HKIDN", eintippen });
+    const freigabe = verfahren !== PUSH ? "tan" : eintippen ? "appTan" : "app";
+    return { dialogId, segmente: [...antwort, ...tanAnfrage(ref(hktan), referenz, freigabe)] };
   }
   return { dialogId, segmente: [...antwort, `HIRMS:{n}:2:${ref(hktan)}+3076::Starke Kundenauthentifizierung nicht notwendig.`, ...upd(bank, ref(vvb))] };
 }
@@ -196,8 +235,19 @@ function anmeldung(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage, d
 function tanFortsetzung(bank: Bank, hktan: Seg & { tanProcess: string; orderRef?: string }, anfrage: FintsTestbankAnfrage, dialogId: string): Antwort {
   const auftrag = bank.offen.get(hktan.orderRef ?? "");
   if (!auftrag) return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(hktan)}+9210::Auftragsreferenz unbekannt.`] };
+  if (hktan.tanProcess === "S" && auftrag.eintippen) {
+    // Statt der verlangten TAN nur eine Statusabfrage: so antwortete die Consorsbank (firsttris/haben#654)
+    bank.offen.delete(hktan.orderRef!);
+    return {
+      dialogId,
+      segmente: [
+        "HIRMG:{n}:2+9800::Der Dialog wurde abgebrochen. Bitte melden Sie sich erneut an.",
+        `HIRMS:{n}:2:${ref(hktan)}+9010::Verarbeitung nicht möglich.`,
+      ],
+    };
+  }
   if (hktan.tanProcess === "S" && !bank.zustand.freigegeben) {
-    return { dialogId, segmente: [OK, ...tanAnfrage(ref(hktan), hktan.orderRef!, true, "3956")] };
+    return { dialogId, segmente: [OK, ...tanAnfrage(ref(hktan), hktan.orderRef!, "ausstehend")] };
   }
   if (hktan.tanProcess === "2" && anfrage.tan !== bank.tan) {
     return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(hktan)}+9941::TAN ungültig.`] };
@@ -220,10 +270,17 @@ function umsatzAbruf(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage,
   const von = fintsDay(kaz.from);
   const bis = fintsDay(kaz.to);
   Object.assign(anfrage, { iban, von, bis });
+  if (!hktan && bank.zustand.umsatzTanVerschwiegen) {
+    // So antwortete die Consorsbank mit ihrem App-Verfahren (firsttris/haben#654)
+    return {
+      dialogId,
+      segmente: ["HIRMG:{n}:2+9050::Nachricht teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(kaz)}+9075::Starke Authentifizierung erforderlich.`],
+    };
+  }
   if (hktan && bank.zustand.scaBeiUmsaetzen) {
     const referenz = `REF${++bank.zaehler}`;
-    bank.offen.set(referenz, { art: "HKKAZ", iban, von, bis });
-    return { dialogId, segmente: [OK, ...tanAnfrage(ref(hktan), referenz, anfrage.verfahren === PUSH)] };
+    bank.offen.set(referenz, { art: "HKKAZ", eintippen: anfrage.verfahren !== PUSH, iban, von, bis });
+    return { dialogId, segmente: [OK, ...tanAnfrage(ref(hktan), referenz, anfrage.verfahren === PUSH ? "app" : "tan")] };
   }
   return { dialogId, segmente: [OK, ...umsatzAntwort(bank, ref(kaz), iban, von, bis)] };
 }
@@ -257,6 +314,7 @@ function beantworten(bank: Bank, body: Buffer): string {
     produktId: feld<{ productId: string }>(segmente, "HKVVB")?.productId,
     pin: unterschrift?.customSignature?.pin,
     tan: unterschrift?.customSignature?.tan,
+    tanProzess: feld<{ tanProcess: string }>(segmente, "HKTAN")?.tanProcess,
     verfahren: feld<{ secFunc: number }>(segmente, "HNSHK")?.secFunc,
   };
   bank.zustand.anfragen.push(anfrage);
@@ -273,7 +331,16 @@ export async function startFintsTestbank(optionen: FintsTestbankOptionen): Promi
     tan: optionen.tan ?? "123456",
     optionen,
     konten: optionen.konten ?? [],
-    zustand: { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, mt940Unlesbar: false, anfragen: [] },
+    zustand: {
+      scaBeiAnmeldung: false,
+      scaBeiUmsaetzen: false,
+      freigegeben: false,
+      appTanEintippen: false,
+      umsatzTanVerschwiegen: false,
+      nichtErreichbar: false,
+      mt940Unlesbar: false,
+      anfragen: [],
+    },
     offen: new Map(),
     zaehler: 0,
   };

@@ -1,4 +1,4 @@
-import { formatEuro, kategorieAnteil, type DirektKategorie } from "@haben/core";
+import { AUFLADUNG, formatEuro, kategorieAnteil, kategorieArt, type DirektKategorie } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { Field } from "./Field.tsx";
 
@@ -100,4 +100,62 @@ export function KategorieFelder({
       </span>
     </div>
   );
+}
+
+/**
+ * Wahl einer Aufladung (#1356): Eine Aufladung ist eine Ausgabe ohne Steuersatz. Steht aus einem gelernten Vorschlag
+ * (#295) noch eine Einnahme oder ein Steuersatz in der Wahl, gilt „Sonstiger Aufwand“ ohne Satz — Anzeige und Buchung
+ * lesen beide hier.
+ */
+export function aufladungWahl(wahl: KategorieWahl): KategorieWahl {
+  return { kategorie: kategorieArt(wahl.kategorie) === "ausgabe" ? wahl.kategorie : "sonstiges", steuersatz: 0 };
+}
+
+/** Eintrag im Zuordnungsdialog, direkt neben „Kategorie“ (#1356) */
+export const AUFLADUNG_OPTION = { value: "aufladung", label: AUFLADUNG.text } as const;
+
+/** Hinweis unter den Feldern einer Aufladung: warum kein Steuersatz und wann die Vorsteuer entsteht (#1356) */
+const AUFLADUNG_HINWEIS =
+  "Gebucht als Aufwand im Monat der Zahlung (§ 11 Abs. 2 EStG). Die Aufladung selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG, Mehrzweck-Gutschein); die Vorsteuer entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG).";
+
+/**
+ * Felder einer Aufladung eines Guthabens (#1356): dieselbe Kategorie wie bei „Direkt buchen“, aber nur Ausgaben. Einen
+ * Steuersatz gibt es hier nicht: Die Aufladung selbst unterliegt nicht der Umsatzsteuer (§ 3 Abs. 15 UStG), die Vorsteuer
+ * entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG).
+ */
+export function AufladungFelder({
+  options,
+  value,
+  amount,
+  onChange,
+}: {
+  options: KategorieOptionen;
+  value: KategorieWahl;
+  amount: number | null;
+  onChange: (wahl: KategorieWahl) => void;
+}) {
+  const ausgaben = { ...options, kategorien: options.kategorien.filter((k) => k.art === "ausgabe") };
+  return (
+    <>
+      <KategorieFelder options={ausgaben} value={aufladungWahl(value)} amount={amount} onChange={onChange} />
+      <span className="small muted">{AUFLADUNG_HINWEIS}</span>
+    </>
+  );
+}
+
+/**
+ * Felder einer Direktbuchung auf eine Kategorie (#1356): dieselben Felder für „Kategorie“ und „Aufladung“, nur die
+ * Aufladung ohne Steuersatz. Eine Stelle, damit Dialog und Buchung dieselbe Wahl lesen.
+ */
+export function DirektKategorieFelder({
+  kind,
+  ...felder
+}: {
+  kind: "kategorie" | "aufladung";
+  options: KategorieOptionen;
+  value: KategorieWahl;
+  amount: number | null;
+  onChange: (wahl: KategorieWahl) => void;
+}) {
+  return kind === "aufladung" ? <AufladungFelder {...felder} /> : <KategorieFelder {...felder} />;
 }

@@ -2640,6 +2640,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "kategorie",
   // Private Spende vom Geschäftskonto auf das Privatkonto „Zuwendungen, Spenden“ (Einzelunternehmen)
   "spende",
+  // Aufladung eines Guthabens: Ausgabe ohne Vorsteuer auf eine Pflicht-Kostenkategorie (#1356)
+  "aufladung",
 ]);
 
 /**
@@ -2734,9 +2736,10 @@ export const allocations = pgTable(
       sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
     ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    // Eine Aufladung trägt wie die Direktbuchung auf eine Kategorie ihre Pflicht-Kostenkategorie (#1356)
     check(
       "allocations_kategorie",
-      sql`case when ${t.kind}::text = 'kategorie' then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
+      sql`case when ${t.kind}::text in ('kategorie', 'aufladung') then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
     ),
     check(
       "allocations_loan",
@@ -4410,6 +4413,42 @@ export const journalUmstellung = pgTable("journal_umstellung", {
   version: text("version"),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Zugang zum Zahlungsverlauf von Etsy Payments über die Open API v3 (Einstellungen › Bank). Genau eine Zeile, weil
+ * Haben einen Shop je Installation anbindet. Das gemeinsame Geheimnis der Etsy-App und die Zugangs- und
+ * Erneuerungstoken liegen verschlüsselt in ciphertext; der App-Schlüssel (keystring) ist nicht geheim. Wird die
+ * Verbindung getrennt, bleiben Schlüssel und Geheimnis stehen, damit sie ohne neue Eingabe wieder aufgenommen werden kann.
+ */
+export const etsyConnections = pgTable(
+  "etsy_connections",
+  {
+    /** Es gibt genau eine Verbindung; der feste Wert hält es dabei */
+    id: text("id").primaryKey().default("etsy"),
+    /** App-Schlüssel der Etsy-App (keystring) */
+    keystring: text("keystring").notNull(),
+    /** Kennung und Name des Shops, beim Verbinden von Etsy ermittelt */
+    shopId: text("shop_id").notNull().default(""),
+    shopName: text("shop_name").notNull().default(""),
+    /** Gemeinsames Geheimnis, Token und die offene Anmeldung (state, PKCE-Verifier): AES-256-GCM */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */
+    fetchFrom: date("fetch_from").notNull(),
+    /** Der in den Einstellungen gewählte erste Monat (1. des Monats) */
+    abrufStart: date("abruf_start").notNull(),
+    /** Gebühren und Werbung je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
+    sammelzeilen: boolean("sammelzeilen").notNull().default(true),
+    /** Wie oft der Zeitplan abruft: stuendlich, taeglich, woechentlich oder monatlich (ab dem 5.) */
+    rhythmus: text("rhythmus").notNull().default("taeglich"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("etsy_connections_id", sql`${t.id} = 'etsy'`),
+    check("etsy_connections_rhythmus", sql`${t.rhythmus} in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich')`),
+  ],
+);
 
 /**
  * Angaben zum Betrieb für die Verfahrensdokumentation (#860), genau eine Zeile (id = 1): was Haben nicht wissen kann.

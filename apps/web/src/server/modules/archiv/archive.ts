@@ -2,7 +2,7 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, otherDatevExportName, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { datevFieldWithoutNumber, datevInternalId, datevOpenBooking } from "./datev-belegnummer.ts";
+import { datevAufladung, datevFieldWithoutNumber, datevInternalId, datevOpenBooking } from "./datev-belegnummer.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
@@ -203,7 +203,7 @@ const datevFields = {
   contra: "datev_bookings.contra_account",
 };
 
-export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number }) {
+export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number; aufladung?: boolean }) {
   const conditions: SQL[] = [gte(schema.datevBookings.date, `${filter.year}-01-01`), lte(schema.datevBookings.date, `${filter.year}-12-31`)];
   if (filter.search.trim()) {
     const term = `%${filter.search.trim()}%`;
@@ -221,7 +221,13 @@ export async function listDatevBookings(filter: { year: number; search: string; 
   const openSql = datevOpenBooking(datevFields, kontenrahmen);
   // Belegfeld ohne Nummer: Solche Zeilen sind kein offener Punkt und zählen wie ein leeres Feld unter „ohne Belegnummer“ (#1355)
   const withoutNumberSql = datevFieldWithoutNumber(datevFields, kontenrahmen);
-  if (filter.unmatched) conditions.push(openSql, sql`not ${withoutNumberSql}`);
+  // Eine Aufladung ohne Bezug ist weder ein offener Punkt noch erledigt, sondern eine eigene Gruppe (#1356). Das Merkmal
+  // gilt nur bei leerem Belegfeld 1: Steht dort eine Belegnummer, ist die Zeile offen wie jede andere, bis ein Beleg sie
+  // trägt, und keine Aufladung ohne Bezug (#1369).
+  // Die Klammern sind nötig: Ohne sie bindet ein `not` davor nur an den ersten Teil und die Zeile fiele aus beiden Filtern.
+  const aufladungSql = sql<boolean>`(${datevAufladung("datev_bookings.text")} and btrim(datev_bookings.voucher_field1) = '')`;
+  if (filter.aufladung) conditions.push(aufladungSql);
+  if (filter.unmatched) conditions.push(openSql, sql`not ${withoutNumberSql}`, sql`not ${aufladungSql}`);
   const where = and(...conditions);
   const pageSize = 100;
   const [rows, [total]] = await Promise.all([
@@ -237,8 +243,11 @@ export async function listDatevBookings(filter: { year: number; search: string; 
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        // Eine interne Kennung ist nichts, wozu ein Beleg fehlt; ein Belegfeld ohne Nummer ebenso wenig
-        matched: sql<boolean>`not ${openSql}`,
+        // Eine interne Kennung ist nichts, wozu ein Beleg fehlt; ein Belegfeld ohne Nummer ebenso wenig.
+        // Eine Aufladung ohne Bezug ist weder gefunden noch ein offener Punkt, sondern ihre eigene Gruppe (#1356)
+        matched: sql<boolean>`not ${openSql} and not ${aufladungSql}`,
+        /** Aufladung eines Guthabens ohne Bezug auf die spätere Rechnung (#1356) */
+        aufladung: aufladungSql,
         filename: schema.archiveFiles.filename,
       })
       .from(schema.datevBookings)

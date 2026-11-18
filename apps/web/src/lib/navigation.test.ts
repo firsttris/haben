@@ -159,8 +159,6 @@ const GETEILTE_SYMBOLE: Partial<Record<IconName, readonly string[]>> = {
   mail: ["/finanzamt", "/sv-meldeportal"],
   // Abschluss des Jahres, als Steuererklärung oder als Bilanz der Gesellschaft
   annual: ["/abschluss", "/jahreserklaerung"],
-  // Noch ohne eigenes Symbol
-  calendar: ["/dauerbelege", "/fristen", "/leistungen"],
   // Bargeld, in der Kasse und als Ausschüttung an die Gesellschafter
   cash: ["/ausschuettungen", "/kasse"],
 };
