@@ -142,6 +142,9 @@ test("Buchung ohne Beleg-GUID lässt sich in der Belegansicht bestätigen", asyn
   await karte.getByLabel("Grund der Rücknahme").fill("Falsche Zeile geprüft");
   await karte.getByRole("button", { name: "Bestätigung zurücknehmen" }).click();
   const ruecknahme = page.getByRole("dialog", { name: "Bestätigung zurücknehmen?" });
+  // #1317: Im Stapel gilt der Beleg danach nur wieder als offen; der Abgleich zählt ihn weiter nicht als fehlende Datei (#1235)
+  await expect(ruecknahme).toContainText("wie vor der Bestätigung");
+  await expect(ruecknahme).not.toContainText("Abgleich");
   await ruecknahme.getByRole("button", { name: "Zurücknehmen" }).click();
   await expect(karte).toContainText("Buchung ohne Beleg");
   await expect(karte.getByRole("button", { name: "Buchung ohne Beleg bestätigen" })).toHaveCount(1);

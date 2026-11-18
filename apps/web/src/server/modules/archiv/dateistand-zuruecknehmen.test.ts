@@ -20,7 +20,12 @@ let dbm: DbModul;
 let importId: string;
 
 /** Beleg im Archiv; `source` sevdesk mit „voucher/…“, damit er sich bestätigen lässt oder es am PDF scheitert */
-async function beleg(lexofficeId: string, type: string, source: "sevdesk" | "accountable" = "sevdesk", raw: Record<string, unknown> = {}): Promise<string> {
+async function beleg(
+  lexofficeId: string,
+  type: string,
+  source: "sevdesk" | "accountable" | "wiso" = "sevdesk",
+  raw: Record<string, unknown> = {},
+): Promise<string> {
   const [row] = await dbm.db
     .insert(dbm.schema.lexofficeVouchers)
     .values({
@@ -203,5 +208,13 @@ describe.skipIf(!testDatabaseUrl)("Bestätigung „ohne Datei“ zurücknehmen",
     expect((await lexoffice.legacyVoucherDetail(sevdesk))!.fileState.ohneBeleg).toBe(false);
     await dateistand.revokeFileConfirmation("test-user", sevdesk, "falsch geprüft");
     expect((await lexoffice.legacyVoucherDetail(sevdesk))!.fileState).toMatchObject({ status: "ohne_datei_offen", ohneBeleg: false });
+
+    // Das Merkmal kommt aus dem Import, nicht aus der Quelle: WISO trägt es ohne Beleg-GUID und bleibt unbestätigbar
+    const wiso = await beleg("wiso/1", "voucher", "wiso", { ohneBeleg: true });
+    expect((await lexoffice.legacyVoucherDetail(wiso))!.fileState).toMatchObject({
+      status: "ohne_beleg",
+      ohneBeleg: true,
+      canConfirmWithoutFile: false,
+    });
   });
 });
