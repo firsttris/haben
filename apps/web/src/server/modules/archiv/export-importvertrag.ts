@@ -105,11 +105,13 @@ const ENTSCHEIDUNG = { keep: "Bisherigen behalten", add: "Als weiteren Umsatz ü
 
 /**
  * Zeilen für `bank/klaerungen.csv`: je geklärtem Konflikt der bisherige und der gelieferte Kern, die Entscheidung und der
- * neue Umsatz; `null` ohne Klärung im Jahr. Das Jahr zählt nach dem Buchungstag des bisherigen Umsatzes. „Import-ID“ ist
+ * neue Umsatz; `null` ohne Klärung im Jahr. Die Zeile steht im Jahr des bisherigen und, über den Jahreswechsel, auch in dem des
+ * neuen Umsatzes, damit jedes Archiv den Umsatz aus der Klärung erklärt. „Import-ID“ ist
  * der abgelehnte Abruf, der den Konflikt gemeldet hat.
  */
 export async function klaerungenFuerArchiv(year: number): Promise<(string | number | null)[][] | null> {
   const bisher = alias(schema.bankTransactions, "bisher");
+  const neu = alias(schema.bankTransactions, "neu");
   const rows = await db
     .select({
       account: sql<string>`coalesce(${schema.bankAccounts.iban}, ${schema.bankAccounts.name})`,
@@ -122,7 +124,14 @@ export async function klaerungenFuerArchiv(year: number): Promise<(string | numb
     .innerJoin(schema.importMovements, eq(schema.importMovements.id, schema.importConflicts.movementId))
     .innerJoin(bisher, eq(bisher.id, schema.importMovements.transactionId))
     .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, bisher.bankAccountId))
-    .where(and(sql`${bisher.bookingDate} between ${yearStart(year)}::date and ${yearEnd(year)}::date`, bankAccountIncludedSql("bisher.bank_account_id")))
+    .leftJoin(neu, eq(neu.id, schema.importResolutions.transactionId))
+    .where(
+      and(
+        sql`(${bisher.bookingDate} between ${yearStart(year)}::date and ${yearEnd(year)}::date
+          or ${neu.bookingDate} between ${yearStart(year)}::date and ${yearEnd(year)}::date)`,
+        bankAccountIncludedSql("bisher.bank_account_id"),
+      ),
+    )
     .orderBy(asc(schema.bankAccounts.iban), asc(bisher.bookingDate), asc(schema.importResolutions.createdAt));
   if (rows.length === 0) return null;
   return rows.map((r) => [

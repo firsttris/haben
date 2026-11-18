@@ -15,7 +15,7 @@ import { berlinStart, yearEnd, yearStart } from "./jahr.ts";
 /**
  * Importe, die ins Archiv eines Jahres gehören: mit Umsätzen oder Zeitraum im Jahr, ohne Zeitraum nach dem Tag des Imports,
  * Lieferungen des Importvertrags, die einen Umsatz des Jahres verbunden haben (etwa vor ihrem Fenster, #306), und abgelehnte
- * Abrufe, deren Konflikt zu einem Umsatz des Jahres geklärt ist, damit `bank/quellen.csv` und `bank/klaerungen.csv` auf eine
+ * Abrufe, deren Konflikt zu einem Umsatz des Jahres (bisheriger oder neuer) geklärt ist, damit `bank/quellen.csv` und `bank/klaerungen.csv` auf eine
  * Zeile von `bank/importe.csv` verweisen
  */
 export function importsOfYear(year: number) {
@@ -34,8 +34,9 @@ export function importsOfYear(year: number) {
           and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
         or exists (select 1 from import_conflicts c join import_resolutions r on r.conflict_id = c.id
           join import_movements m on m.id = c.movement_id join bank_transactions t on t.id = m.transaction_id
-          where c.bank_import_id = ${schema.bankImports.id}
-          and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date))`,
+          left join bank_transactions n on n.id = r.transaction_id where c.bank_import_id = ${schema.bankImports.id}
+          and (t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date
+            or n.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)))`,
         bankAccountIncludedSql("bank_account_id"),
       ),
     )

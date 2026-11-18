@@ -51,7 +51,7 @@ const ENTSCHEIDUNGEN = [
   {
     value: "add",
     label: "Als weiteren Umsatz übernehmen",
-    hint: "Haben legt den gelieferten Umsatz zusätzlich an. Der bisherige bleibt mit seinen Zuordnungen stehen und bekommt einen Hinweis; die Doppelung gleichst du selbst aus, etwa mit einer Verrechnung.",
+    hint: "Haben legt den gelieferten Umsatz zusätzlich an. Der bisherige bleibt mit seinen Zuordnungen stehen; beide bekommen einen Hinweis aufeinander.",
   },
 ] as const;
 
@@ -154,7 +154,7 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
 /** Stichtag eines Kontos (#306), hinter dem Konto am Abruf: ab dann kommen seine Umsätze aus dem Bankabruf */
 export function stichtagText(stichtage: { bankAccountId: string; cutoverDate: string; filesBefore: boolean }[], bankAccountId: string): string {
   const s = stichtage.find((x) => x.bankAccountId === bankAccountId);
-  return s ? ` (Bankabruf seit ${formatDate(s.cutoverDate)}${s.filesBefore ? ", davor Dateien" : ""})` : "";
+  return s ? ` (Bankabruf seit ${formatDate(s.cutoverDate)}${s.filesBefore ? ", davor Dateien oder FinTS" : ""})` : "";
 }
 
 type Bezug = { id: string; bookingDate: string; amount: number };
@@ -178,7 +178,7 @@ export function KlaerungHinweis({ klaerung }: { klaerung: { added: Bezug[]; prev
               {verweis(u)}
             </span>
           ))}
-          . Die Doppelung gleichst du selbst aus, etwa mit einer Verrechnung.
+          .
         </p>
       )}
       {klaerung.previous && (

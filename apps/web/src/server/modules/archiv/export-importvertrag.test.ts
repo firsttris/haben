@@ -170,7 +170,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
   });
 
   it("schreibt je geklärtem Konflikt eine Zeile nach bank/klaerungen.csv, mit dem abgelehnten Abruf im Importprotokoll", async () => {
-    const { storeBatch } = await import("../bank/import-batch.ts");
+    const { MovementConflictError, storeBatch } = await import("../bank/import-batch.ts");
     const konflikt = await import("../bank/import-konflikt.ts");
     const { db } = await import("../../db/index.ts");
     const iban = "DE91100000000123456789";
@@ -187,8 +187,9 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     };
     const { accountId } = await db.transaction((t) => storeBatch(t, lieferung("89.00", "k1"), null));
     const zweite = lieferung("98.00", "k2");
-    await expect(db.transaction((t) => storeBatch(t, zweite, accountId))).rejects.toThrow("Konflikt");
-    await db.transaction((t) => konflikt.recordRefusedBatch(t, accountId, zweite, "Konflikt"));
+    const fehler = await db.transaction((t) => storeBatch(t, zweite, accountId)).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(MovementConflictError);
+    await db.transaction((t) => konflikt.recordRefusedBatch(t, accountId, zweite, fehler as InstanceType<typeof MovementConflictError>));
     const [offen] = (await konflikt.openConflicts()).filter((k) => k.sourceEventId === "ER-40");
     const { transactionId } = await konflikt.resolveConflict("inhaber-1", { conflictId: offen!.id, decision: "add" });
 
@@ -212,6 +213,50 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     expect(teil).toMatch(/<Name>Betrag geliefert<\/Name>\s*<Numeric>/);
     expect(teil).toMatch(/<Name>Buchungstag bisher<\/Name>\s*<Date>/);
     expect(text(archiv2026["LIESMICH.txt"])).toContain("bank/klaerungen.csv");
+  });
+
+  it("zeigt eine Klärung über den Jahreswechsel auch im Archiv des neuen Umsatzes", async () => {
+    const { MovementConflictError, storeBatch } = await import("../bank/import-batch.ts");
+    const konflikt = await import("../bank/import-konflikt.ts");
+    const { db } = await import("../../db/index.ts");
+    const iban = "DE27100777770209299700";
+    const lieferung = (datum: string, fetchId: string) => {
+      const transactions = [buchung("ER-50", datum, "50.00")];
+      const fenster = { transactions, balances: [], dateFrom: "2026-12-20", dateTo: "2027-01-05" };
+      return {
+        batch: enableBankingBatch({ externalAccountId: "hash-wechsel", ...fenster, fetchedAt: "2027-01-05T23:00:00+01:00", fetchId }),
+        binding: { provider: "enablebanking", externalAccountId: "hash-wechsel", accountKind: "bank" as const },
+        statement: enableBankingStatement({ account: { uid: "u5", account_id: { iban }, name: "Wechselkonto" }, ...fenster }),
+        eventOf: entryReferenceOf(transactions),
+        source: { filename: `Abruf Testbank ${fetchId}`, sha256: fetchId.padEnd(64, "0") },
+      };
+    };
+    // Die Bank verschiebt den Buchungstag über den Jahreswechsel; der Nutzer übernimmt den gelieferten als weiteren Umsatz
+    const { accountId } = await db.transaction((t) => storeBatch(t, lieferung("2026-12-30", "w1"), null));
+    const zweite = lieferung("2027-01-02", "w2");
+    const fehler = await db.transaction((t) => storeBatch(t, zweite, accountId)).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(MovementConflictError);
+    await db.transaction((t) => konflikt.recordRefusedBatch(t, accountId, zweite, fehler as InstanceType<typeof MovementConflictError>));
+    const [offen] = (await konflikt.openConflicts()).filter((k) => k.sourceEventId === "ER-50");
+    const { transactionId } = await konflikt.resolveConflict("inhaber-1", { conflictId: offen!.id, decision: "add" });
+
+    for (const jahr of [2026, 2027]) {
+      const dateien = await archiv(exporter, jahr);
+      const zeilen = text(dateien["bank/klaerungen.csv"])
+        .trim()
+        .split(/\r?\n/)
+        .slice(1)
+        .filter((z) => z.includes(";ER-50;"));
+      expect(
+        zeilen.map((z) => z.split(";")[14]),
+        `Archiv ${jahr}`,
+      ).toEqual([transactionId]);
+      const importIds = text(dateien["bank/importe.csv"])
+        .trim()
+        .split(/\r?\n/)
+        .map((z) => z.split(";").at(-1));
+      expect(importIds, `Archiv ${jahr}`).toContain(zeilen[0]!.split(";")[11]);
+    }
   });
 
   it("beschreibt die Datei in index.xml und nennt sie in der LIESMICH", () => {

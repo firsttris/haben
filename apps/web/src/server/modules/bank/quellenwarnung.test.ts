@@ -170,6 +170,52 @@ describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum
     expect((await cutoverDates()).find((c) => c.cutoverDate === "2026-10-01")).toMatchObject({ filesBefore: false });
   });
 
+  it("nennt „davor Dateien oder FinTS“, wenn vor dem Stichtag eine Datei steht", async () => {
+    const iban = "DE89370400440532013000";
+    const datei: ParsedStatement = {
+      format: "camt053",
+      accountIban: iban,
+      currency: "EUR",
+      periodFrom: "2026-08-01",
+      periodTo: "2026-08-31",
+      transactions: [umsatz("2026-08-20", -1000, "Miete August")],
+      warnings: [],
+    };
+    await db.db.transaction((tx) => bank.storeStatement(tx, datei, { filename: "august.xml", sha256: "august.xml" }, null));
+    const transactions: EbTransaction[] = [
+      {
+        entry_reference: "ER-9",
+        transaction_amount: { currency: "EUR", amount: "10.00" },
+        credit_debit_indicator: "DBIT",
+        status: "BOOK",
+        booking_date: "2026-09-10",
+        creditor: { name: "Miete" },
+        remittance_information: ["Miete September"],
+      },
+    ];
+    const fenster = { transactions, balances: [], dateFrom: "2026-09-01", dateTo: "2026-09-30" };
+    const { storeBatch } = await import("./import-batch.ts");
+    const { accountId } = await db.db.transaction((tx) =>
+      storeBatch(
+        tx,
+        {
+          batch: enableBankingBatch({ externalAccountId: "hash-f", ...fenster, fetchedAt: "2026-09-30T12:00:00+02:00", fetchId: "f1" }),
+          binding: { provider: "enablebanking", externalAccountId: "hash-f", accountKind: "bank" },
+          statement: enableBankingStatement({ account: { uid: "u", account_id: { iban }, name: "Mietkonto" }, ...fenster }),
+          eventOf: entryReferenceOf(transactions),
+          source: { filename: "Abruf Testbank 2026-09-30", sha256: "f1".padEnd(64, "0") },
+        },
+        null,
+      ),
+    );
+    const { cutoverDates } = await import("./andere-importe.ts");
+    expect((await cutoverDates()).find((c) => c.bankAccountId === accountId)).toEqual({
+      bankAccountId: accountId,
+      cutoverDate: "2026-08-21",
+      filesBefore: true,
+    });
+  });
+
   it("schweigt beim Wechsel vom alten zum neuen DKB-CSV derselben Bank", async () => {
     // DKB hat das CSV-Format geändert; der Dubletten-Hash erkennt dieselben Umsätze in beiden Formaten (dedup.test.ts)
     const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../../../../../../packages/import/test-fixtures/${name}`, import.meta.url)));

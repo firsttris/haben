@@ -103,7 +103,7 @@ export function connectedRanges(window: { from: string; to: string }, ranges: { 
 
 /**
  * Stichtag je Konto mit Quellenbindung, für die Anzeige am Abruf: ab diesem Tag kommen die Umsätze aus dem Bankabruf;
- * `filesBefore`, wenn davor Umsätze aus Dateien oder FinTS stehen
+ * `filesBefore`, wenn davor Umsätze aus Dateien oder FinTS stehen (jedes Format außer `enablebanking`)
  */
 export async function cutoverDates(): Promise<{ bankAccountId: string; cutoverDate: string; filesBefore: boolean }[]> {
   const rows = await db

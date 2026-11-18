@@ -9,7 +9,7 @@ import { axeVerstoesse, bestaetigen, durchlaufSeite, einrichten, gehe, ohneAxeVe
  * Projekt „verrechnung“): Rechnung und Gutschrift desselben Lieferanten entstehen über die Oberfläche, verrechnet und
  * wieder aufgehoben wird in der Karte der Beleg-Detailseite. axe prüft die Seite mit der Karte (WCAG 2.2 AA, Desktop
  * und Handy), damit die Karte nicht nur im Code, sondern auch im Browser ohne Verstoß bleibt. Dazu „Konflikt klären“ im Abruf
- * (#306): Die Doppelung, die „Als weiteren Umsatz übernehmen“ hinterlässt, gleicht eine Verrechnung aus.
+ * (#306): Dialog und Hinweis an beiden Umsätzen.
  */
 
 test.describe.configure({ mode: "serial" });
