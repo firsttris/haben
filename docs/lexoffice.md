@@ -287,7 +287,7 @@ Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewä
 
 Ein [KI-Assistent](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) liest die Salden je Konto und Monat und die einzelnen Buchungen über die Werkzeuge `lexoffice_konten` und `lexoffice_buchungen`.
 
-Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit dem Filter „Nur ohne passenden Beleg“, und darunter die Umsätze je Konto. Enthält Belegfeld 1 keine einzige Ziffer (etwa den Namen eines Zahlungsdienstleisters in einer Zahlungszeile) und findet die Buchung auch sonst keinen Beleg, gilt sie als Buchung ohne Belegnummer: Sie bleibt sichtbar, trägt in der Spalte **Beleg** den Hinweis **Belegfeld ohne Nummer** und erscheint nicht im Filter „Nur ohne passenden Beleg“. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
+Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit dem Filter „Nur ohne passenden Beleg“, und darunter die Umsätze je Konto. Enthält Belegfeld 1 keine einzige Ziffer (etwa den Namen eines Zahlungsdienstleisters in einer Zahlungszeile) und findet die Buchung auch sonst keinen Beleg, ist sie kein offener Punkt: Sie bleibt sichtbar, trägt in der Spalte **Beleg** den Hinweis **Belegfeld ohne Nummer**, erscheint nicht im Filter „Nur ohne passenden Beleg“ und wird im Abgleich als Belegfeld ohne Nummer gezählt. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
 
 ### Abschluss aus dem DATEV-Stapel (GmbH und UG)
 
@@ -351,8 +351,6 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 | Kontoauszüge archiviert | mindestens ein Kontoauszug mit diesem Jahr vorliegt |
 
 Daneben stehen Einnahmen netto, Umsatzsteuer, Ausgaben netto und Vorsteuer, jeweils nach Belegdatum, und die letzte Rechnungsnummer des Jahres. Vergleiche die Summen mit den Auswertungen in Lexware Office.
-
-Wie viele Buchungen ein Belegfeld ohne Nummer tragen, nennt der Abgleich in derselben Zeile wie die Buchungen ohne Belegnummer.
 
 Was weder Einnahme noch Ausgabe ist, fehlt in diesen Summen und in der Umsatzsteuer je Monat, steht aber in einer eigenen Tabelle **Weder Einnahme noch Ausgabe**: je Art die Zahl der Belege und Buchungen, Zufluss und Abfluss brutto; Gutschriften mindern sie. Im Einzelunternehmen ist das „Privat und Geldtransit“ (siehe [Buchungen ohne Beleg](#buchungen-ohne-beleg)), bei GmbH und UG gilt die folgende Einordnung. Weicht eine Summe von Lexware Office ab, steckt der Unterschied oft hier.
 
