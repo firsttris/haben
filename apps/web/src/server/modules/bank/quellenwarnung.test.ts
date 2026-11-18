@@ -216,6 +216,34 @@ describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum
     });
   });
 
+  it("nennt beim Etsy-Abruf mit Stichtag nicht den Bankabruf als Quelle (#306)", async () => {
+    // Wechsel von der Etsy-CSV auf den Etsy-Abruf (Quellenbindung „etsy“ über storeBatch): Bankabruf gibt es hier nicht
+    const [konto] = await sql<{ id: string }[]>`insert into bank_accounts (name, purpose, provider, ledger_index)
+      values ('Etsy Payments', 'zahlungsdienstleister', 'etsy', 3) returning id`;
+    const csv: ParsedStatement = { format: "etsy-csv", currency: "EUR", transactions: [umsatz("2026-10-06", 1500, "Etsy Verkauf CSV")], warnings: [] };
+    await db.db.transaction((tx) => bank.storeStatement(tx, csv, { filename: "etsy-oktober.csv", sha256: "etsy-oktober.csv" }, konto!.id));
+    const { importEtsyLedger } = await import("../etsy/index.ts");
+    const r = await importEtsyLedger(
+      "test",
+      [
+        {
+          entry_id: 1,
+          amount: 2200,
+          currency: "EUR",
+          ledger_type: "PAYMENT_GROSS",
+          reference_type: "shop_payment",
+          reference_id: "5000000001",
+          created_timestamp: Math.floor(new Date("2026-10-06T10:00:00Z").getTime() / 1000),
+        },
+      ],
+      { sammelzeilen: false, reference: "2026-10-31" },
+      { shopId: "shop-q", fetchFrom: "2026-10-01", now: new Date("2026-10-31T10:00:00Z") },
+    );
+    const quelle = r.messages.find((m) => m.includes("Stichtag"));
+    expect(quelle).toContain("Seit dem Stichtag 2026-10-06");
+    expect(quelle).not.toContain("Bankabruf");
+  });
+
   it("schweigt beim Wechsel vom alten zum neuen DKB-CSV derselben Bank", async () => {
     // DKB hat das CSV-Format geändert; der Dubletten-Hash erkennt dieselben Umsätze in beiden Formaten (dedup.test.ts)
     const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../../../../../../packages/import/test-fixtures/${name}`, import.meta.url)));
