@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ASSET_ACCOUNTS } from "./afa.ts";
 import { abschluss, type Posten, postenForSaldo, postenOf } from "./hgb.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
+import { SACHENTNAHME_FRUEHERE_KONTEN, SACHENTNAHME_KONTEN } from "./manual.ts";
 import { PAUSCHALE_KONTEN } from "./pauschalen.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, paymentProviderAccount, type Kontenrahmen } from "./posting.ts";
 import { PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
@@ -64,6 +65,17 @@ describe("Zuordnung zu Bilanz und GuV (§ 266, § 275 Abs. 5 HGB)", () => {
     ["SKR04", "7600", "steuern"],
   ] as const)("%s %s → %s", (kr, account, posten) => {
     expect(postenOf(kr, account)).toBe(posten);
+  });
+
+  // Die Kachel „Umsatz“ der Übersicht zählt nur Umsatzerlöse: private Nutzung und Sachentnahme, auf die Haben bucht, gehören nicht dazu
+  it.each(
+    (["SKR03", "SKR04"] as const).flatMap((kr) =>
+      [...Object.values(PRIVATE_USE_ACCOUNTS[kr]), ...Object.values(SACHENTNAHME_KONTEN[kr]), ...Object.keys(SACHENTNAHME_FRUEHERE_KONTEN[kr])].map(
+        (account) => [kr, account] as const,
+      ),
+    ),
+  )("unentgeltliche Wertabgabe %s %s ist ein sonstiger Ertrag", (kr, account) => {
+    expect(postenOf(kr, account)).toBe("sonstigeErtraege");
   });
 
   it.each([

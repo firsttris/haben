@@ -639,17 +639,18 @@ function missingRateIssue(doc: Document, todayDate: string): string {
  * keine deutsche Umsatzsteuer. Haben rechnet die Erwerbsteuer zu 19 oder 7 %; steuerfreie Erwerbe (§ 4b UStG, Kz 91)
  * und andere Sätze (Kz 95/98) unterstützt es nicht.
  */
-function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): string[] {
-  const issues: string[] = [];
-  if (amounts.some((a) => a.taxRate === 0)) issues.push("Beim innergemeinschaftlichen Erwerb steht jede Zeile auf 19 % oder 7 %");
+function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): BookingIssue[] {
+  const issues: BookingIssue[] = [];
+  if (amounts.some((a) => a.taxRate === 0)) issues.push({ text: "Beim innergemeinschaftlichen Erwerb steht jede Zeile auf 19 % oder 7 %" });
   // Geprüft wie die USt-IdNr. einer Lieferung in der Zusammenfassenden Meldung: Länderkennzeichen eines anderen Mitgliedstaats
   const ustId = normalizeUstId(doc.supplierUstId ?? "");
-  if (!ustId) issues.push("Beim innergemeinschaftlichen Erwerb fehlt die USt-IdNr. des Lieferanten");
+  const feld = "supplierUstId";
+  if (!ustId) issues.push({ text: "Beim innergemeinschaftlichen Erwerb fehlt die USt-IdNr. des Lieferanten", feld });
   else if (ustId.startsWith("DE"))
-    issues.push("Lieferant mit deutscher USt-IdNr.: kein innergemeinschaftlicher Erwerb, die Rechnung muss deutsche Umsatzsteuer ausweisen");
+    issues.push({ text: "Lieferant mit deutscher USt-IdNr.: kein innergemeinschaftlicher Erwerb, die Rechnung muss deutsche Umsatzsteuer ausweisen", feld });
   else {
     const problem = ustIdProblem(ustId, "L");
-    if (problem) issues.push(`Lieferant ${problem}`);
+    if (problem) issues.push({ text: `Lieferant ${problem}`, feld });
   }
   return issues;
 }
@@ -670,39 +671,52 @@ function igErwerbFirmaIssues(doc: Document, company: Company, vollerVorsteuerabz
   return [];
 }
 
+/** Was vor dem Buchen fehlt, als Satz; `feld` nennt das Feld am Beleg, an dem es liegt, benannt wie in `documentInputSchema` */
+export interface BookingIssue {
+  text: string;
+  feld?: keyof DocumentInput;
+}
+
 /** Was vor dem Buchen fehlt; leere Liste = bereit. Mit Aufteilung (splits) statt der Kategorie die Zeilen geprüft. */
 export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): string[] {
-  const issues: string[] = [];
-  if (!doc.supplierName) issues.push("Lieferant fehlt");
-  if (!doc.documentDate) issues.push("Belegdatum fehlt");
-  if (splits.length > 0) issues.push(...splitBookingIssues(doc, amounts, splits));
-  else if (!doc.category) issues.push("Kategorie fehlt");
+  return bookingIssueList(doc, amounts, todayDate, splits).map((issue) => issue.text);
+}
+
+/** Wie bookingIssues, je Hinweis mit dem Feld, an dem er liegt */
+export function bookingIssueList(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): BookingIssue[] {
+  const issues: BookingIssue[] = [];
+  const add = (...texts: string[]) => issues.push(...texts.map((text) => ({ text })));
+  if (!doc.supplierName) add("Lieferant fehlt");
+  if (!doc.documentDate) add("Belegdatum fehlt");
+  if (splits.length > 0) add(...splitBookingIssues(doc, amounts, splits));
+  else if (!doc.category) add("Kategorie fehlt");
   const foreign = doc.currency !== "EUR";
-  if (foreign && !doc.exchangeRate) issues.push(missingRateIssue(doc, todayDate));
-  if (foreign && amounts.some((a) => a.originalNet === null || a.originalTax === null)) issues.push(`Beträge in ${doc.currency} fehlen`);
+  if (foreign && !doc.exchangeRate) issues.push({ text: missingRateIssue(doc, todayDate), feld: "exchangeRate" });
+  if (foreign && amounts.some((a) => a.originalNet === null || a.originalTax === null)) add(`Beträge in ${doc.currency} fehlen`);
   // Bei Fremdwährung zählen die Beträge laut Beleg; ohne Kurs stehen die Euro-Beträge noch auf 0
   const values = foreign ? amounts.map((a) => ({ net: a.originalNet ?? 0, tax: a.originalTax ?? 0 })) : amounts;
-  if (values.length === 0 || values.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
+  if (values.length === 0 || values.every((a) => a.net === 0 && a.tax === 0)) add("Beträge fehlen");
   // Mit Kurs, aber umgerechnet 0,00 € (winzige Beträge oder ein falscher Kurs): eine Buchung ohne Zeilen ginge nicht
-  else if (foreign && doc.exchangeRate && amounts.every((a) => a.net === 0 && a.tax === 0)) issues.push("Umgerechnet 0,00 €, bitte den Kurs prüfen");
+  else if (foreign && doc.exchangeRate && amounts.every((a) => a.net === 0 && a.tax === 0))
+    issues.push({ text: "Umgerechnet 0,00 €, bitte den Kurs prüfen", feld: "exchangeRate" });
   // Vor #331 ließ sich die selbst geschuldete Steuer von Hand ändern; solche Entwürfe erst neu speichern
   if (doc.reverseCharge && !foreign && amounts.some((a) => a.tax !== taxOf(a.net, a.taxRate))) {
-    issues.push(`${doc.reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : "Steuer § 13b"} passt nicht zu Netto und Satz; öffne den Beleg und speichere ihn`);
+    add(`${doc.reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : "Steuer § 13b"} passt nicht zu Netto und Satz; öffne den Beleg und speichere ihn`);
   }
   if (doc.reverseCharge === "ig_erwerb") issues.push(...igErwerbIssues(doc, amounts));
   else if (doc.reverseCharge) {
-    if (amounts.some((a) => a.taxRate === 0)) issues.push("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
-    if (doc.category === "anlage") issues.push("§ 13b bei Anlagegütern wird nicht unterstützt");
+    if (amounts.some((a) => a.taxRate === 0)) add("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
+    if (doc.category === "anlage") add("§ 13b bei Anlagegütern wird nicht unterstützt");
     // § 13b Abs. 1 und Abs. 2 Nr. 1 UStG: nur sonstige Leistungen und Werklieferungen; Waren sind innergemeinschaftlicher Erwerb (§ 1a UStG) oder Einfuhr
-    if (doc.category === "wareneinkauf") issues.push("§ 13b gilt nicht für Wareneinkäufe");
+    if (doc.category === "wareneinkauf") add("§ 13b gilt nicht für Wareneinkäufe");
   }
   if (doc.category === "anlage") {
     const net = amounts.reduce((s, a) => s + a.net, 0);
-    if (!doc.asset) issues.push("Angaben zur Anlage fehlen");
-    else if (doc.privateShare > 0) issues.push("Ein Privatanteil bei Anlagegütern wird nicht unterstützt");
-    else if (net <= 0) issues.push("Gutschriften zu Anlagen werden nicht unterstützt");
+    if (!doc.asset) add("Angaben zur Anlage fehlen");
+    else if (doc.privateShare > 0) add("Ein Privatanteil bei Anlagegütern wird nicht unterstützt");
+    else if (net <= 0) add("Gutschriften zu Anlagen werden nicht unterstützt");
     else if (doc.documentDate) {
-      issues.push(...assetIssues(documentScheduleAsset(doc.asset, doc.documentDate, net)));
+      add(...assetIssues(documentScheduleAsset(doc.asset, doc.documentDate, net)));
     }
   }
   return issues;
@@ -740,7 +754,8 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   const vorsteuerAnteil = abziehbarerAnteil(company, doc.vorsteuerAnteil);
   const wirksameBetraege = amounts.map((a) => ({ ...a, vorsteuerAnteil: abziehbarerAnteil(company, a.vorsteuerAnteil ?? vorsteuerAnteil) }));
   const vorsteuerAbzug = wirksameBetraege.some((a) => a.vorsteuerAnteil > 0);
-  const issues = bookingIssues(doc, amounts, today(), splits);
+  const vorab = bookingIssueList(doc, amounts, today(), splits);
+  const issues = vorab.map((issue) => issue.text);
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
   if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
@@ -775,7 +790,9 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // Eigene Sachkonten (#270): Kontenrahmen oder Kategorie können sich seit dem Speichern geändert haben; das Konto selbst darf archiviert sein
   const gespeichert = { beleg: doc.ownAccountId, zeilen: splits.map((s) => s.ownAccountId) };
   issues.push(...(await documentOwnAccountProblems(tx, doc, splits, gespeichert)).map((p) => p.replace(/.$/, "")));
-  if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
+  // Mit den Feldern der Hinweise, damit die Seite sie zeigen kann
+  const felder = vorab.flatMap((issue) => (issue.feld ? [issue.feld] : []));
+  if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`, { felder });
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
   const totals = belegSummen(doc, amounts);
