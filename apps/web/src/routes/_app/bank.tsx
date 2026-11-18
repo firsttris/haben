@@ -259,12 +259,7 @@ function BankPage() {
         <ImportControls data={data} />
       </div>
 
-      <BankSync
-        sync={data.sync}
-        fints={data.fints}
-        vivid={data.vivid}
-        result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null}
-      />
+      <BankSync abruf={data} result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null} />
 
       {data.accounts.length === 0 ? (
         <section className="card">
@@ -499,7 +494,8 @@ function AccountSettings({
 type Sync = Data["sync"];
 
 /** Automatischer Abruf über Enable Banking, FinTS (#654) und Vivid (#1393): verbundene Banken, Abruf, Erneuern und Trennen */
-function BankSync({ sync, fints, vivid, result }: { sync: Sync; fints: Data["fints"]; vivid: Data["vivid"]; result: { ok: boolean; message: string } | null }) {
+function BankSync({ abruf, result }: { abruf: Pick<Data, "sync" | "fints" | "vivid">; result: { ok: boolean; message: string } | null }) {
+  const { sync, fints, vivid } = abruf;
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const syncFn = useServerFn(syncBankConnection);

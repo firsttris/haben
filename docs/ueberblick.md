@@ -50,6 +50,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Bankimport und Abgleich](bank.md) | Automatischer Abruf per PSD2 (Enable Banking), FinTS oder Vivid-API, DKB, Commerzbank, ING, C24, N26, Swan, CAMT.053, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg |
 | [Andere Banken](bank-spaltenzuordnung.md) | CSV einer Bank ohne eigenes Format: Spalten einmal zuordnen, gespeichert je Konto |
 | [Abruf über FinTS](bank-fints.md) | Bankkonten direkt bei der Bank abrufen, mit PIN, TAN-Verfahren und pushTAN, ohne Enable Banking |
+| [Abruf über Vivid](bank-vivid.md) | Konten bei Vivid Business mit API-Schlüssel abrufen, 90 Tage, vorgemerkte Kartenzahlungen, Grenzen der API |
 | [Zahlungsdienstleister](bank-zahlungsdienstleister.md) | PayPal, Stripe, Shopify Payments, eBay, Etsy, SumUp, Google Play und App Store mit Gebühren und Auszahlungen |
 | [Steuerzahlungen und Darlehen](bank-steuern-darlehen.md) | Zahlungen an Finanzamt und Gemeinde, Erstattungen, Darlehen mit Tilgung und Zinsen |
 
