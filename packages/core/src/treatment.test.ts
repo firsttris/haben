@@ -18,6 +18,14 @@ describe("treatmentIssues", () => {
     ]);
   });
 
+  it("Storno und Korrektur einer innergemeinschaftlichen Lieferung ohne den Aufbau, aber mit den Regeln von ERiC (#1413)", () => {
+    const gutschrift = { rates: [0], sellerUstId: "DE123456789", buyerCountry: "AT", correctsInvoice: true };
+    expect(treatmentIssues("ig_lieferung", { ...gutschrift, buyerUstId: "ATU1234" })).toEqual([]);
+    expect(treatmentIssues("ig_lieferung", { ...gutschrift, buyerUstId: "AT1234" })).toEqual([
+      "AT1234: nach dem Länderkennzeichen 5 bis 12 Buchstaben, Ziffern, + oder *",
+    ]);
+  });
+
   it("Ausfuhrlieferung nicht an einen Kunden in Monaco, das zum Gemeinschaftsgebiet gehört", () => {
     expect(treatmentIssues("ausfuhr", { rates: [0], sellerUstId: "DE123456789", buyerCountry: "MC" })).toEqual([
       expect.stringContaining("Ausfuhrlieferung nur an Kunden außerhalb der EU"),

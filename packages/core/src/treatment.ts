@@ -118,7 +118,15 @@ export function treatmentNote(treatment: TaxTreatment, exemptionReason?: string 
 /** Was an einer Rechnung mit dieser Behandlung fehlt oder nicht passt; leer = in Ordnung. */
 export function treatmentIssues(
   treatment: TaxTreatment,
-  input: { rates: BasisPoints[]; sellerUstId?: string; buyerUstId?: string; buyerCountry?: string; exemptionReason?: string | null },
+  input: {
+    rates: BasisPoints[];
+    sellerUstId?: string;
+    buyerUstId?: string;
+    buyerCountry?: string;
+    exemptionReason?: string | null;
+    /** Storno oder Korrektur: übernimmt die USt-IdNr. der festgeschriebenen Rechnung, die sich nicht mehr berichtigen lässt */
+    correctsInvoice?: boolean;
+  },
 ): string[] {
   if (treatment === "regulaer") return [];
   const issues: string[] = [];
@@ -132,12 +140,13 @@ export function treatmentIssues(
   if (treatment === "ig_lieferung") {
     // § 14a Abs. 3 UStG: auf der Rechnung die USt-IdNr. von Lieferer und Abnehmer; § 6a Abs. 1 Satz 1 Nr. 4: der Abnehmer
     // verwendet eine ihm von einem anderen Mitgliedstaat erteilte USt-IdNr. Geprüft wie in der Zusammenfassenden Meldung, dazu
-    // der Aufbau je Mitgliedstaat (#1413): Nach dem Festschreiben ließe sich die Nummer nicht mehr berichtigen.
+    // der Aufbau je Mitgliedstaat (#1413): Nach dem Festschreiben ließe sich die Nummer nicht mehr berichtigen. Storno und
+    // Korrektur nicht, sie nehmen eine festgeschriebene Rechnung zurück, auch eine von vor #1413.
     if (!input.sellerUstId?.trim()) issues.push("Innergemeinschaftliche Lieferung braucht deine USt-IdNr. in den Firmendaten (§ 14a Abs. 3 UStG)");
     const buyerUstId = normalizeUstId(input.buyerUstId ?? "");
     if (!buyerUstId) issues.push("Innergemeinschaftliche Lieferung braucht die USt-IdNr. des Kunden (§ 6a Abs. 1 Nr. 4 UStG)");
     else {
-      const problem = ustIdProblem(buyerUstId, "L") ?? ustIdAufbauProblem(buyerUstId);
+      const problem = ustIdProblem(buyerUstId, "L") ?? (input.correctsInvoice ? null : ustIdAufbauProblem(buyerUstId));
       if (problem) issues.push(problem);
     }
     // Nordirland gehört für Waren weiter zum Gemeinschaftsgebiet (XI-Nummer bei Ländercode GB)
