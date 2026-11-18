@@ -113,7 +113,7 @@ Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinse
 
 Geschäftsvorfälle darfst du auf einem Privatkonto buchen; Haben stellt dafür die Gegenzeile um. Läuft das Geld über ein Konto mit dem Zweck **privat**, steht an der Stelle der Bank die Richtung des Zahlungskontos: ein Eingang als Privatentnahme (SKR03 1800, SKR04 2100, § 4 Abs. 1 Satz 2 EStG), ein Ausgang als Privateinlage (SKR03 1890, SKR04 2180, § 4 Abs. 1 Satz 8 EStG); in GmbH und UG steht dort in beiden Richtungen das Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510), weil § 4 EStG die Buchung dort nicht trägt. Das gilt für jede Buchungsart: Umsatzsteuer-Voranmeldung und Steuerzahlungen, Sondervorauszahlung, Rechnung, Beleg, Kategorie, Lohn und Darlehen. Der Vorgang selbst bleibt richtig gebucht — die Forderung ist getilgt, die Verbindlichkeit bezahlt, die Umsatzsteuer fällig —, nur das Geld kam nicht über das Geschäftskonto.
 
-Ausgenommen bleiben Kontoführung, Bankgebühren und Zinsen ([oben](#konto)): Die sind auf einem privaten Konto privat, kein Betriebsvorfall, und werden dort nicht gebucht. Ebenso „Privat“, Spende und Geldtransit.
+Ausgenommen bleiben Kontoführung, Bankgebühren und Zinsen: Die sind auf einem privaten Konto privat, kein Betriebsvorfall, und werden dort nicht gebucht. Ebenso „Privat“, Spende und Geldtransit.
 
 Jedes Konto hat einen Zweck. Sonst bucht Haben auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
 
