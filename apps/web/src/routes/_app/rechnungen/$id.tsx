@@ -19,6 +19,7 @@ import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { LockedAndArchived } from "../../../components/ArchiveStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
+import { InvoiceCopyButton } from "../../../components/InvoiceCopyButton.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { InvoiceServiceEntries } from "../../../components/InvoiceServiceEntries.tsx";
 import { RechnungVerrechnung } from "../../../components/RechnungVerrechnung.tsx";
@@ -28,7 +29,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
 import { legacySource } from "../../../lib/altbestand.ts";
-import { cancelFinalInvoice, copyFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
+import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { OutcomeStatus, Status } from "../../../components/Status.tsx";
@@ -235,7 +236,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               Lieferschein
             </a>
           )}
-          {inhaber && <CopyButton invoice={invoice} action={{ busy, run }} />}
+          {inhaber && <InvoiceCopyButton invoice={invoice} action={{ busy, run }} />}
         </div>
       </div>
 
@@ -545,28 +546,6 @@ function FinalInvoice({ data }: { data: Detail }) {
         </div>
       </div>
     </>
-  );
-}
-
-type ActionState = Pick<ReturnType<typeof useAction>, "busy" | "run">;
-
-/**
- * Nächste ähnliche Rechnung: neuer Entwurf mit Kunde und Positionen. Abschlag und Schlussrechnung entstehen aus dem Angebot,
- * Storno und Korrektur aus der Rechnung; dort gibt es den Knopf nicht.
- */
-function CopyButton({ invoice, action }: { invoice: Detail["invoice"]; action: ActionState }) {
-  const copy = useServerFn(copyFinalInvoice);
-  const navigate = useNavigate();
-  if (invoice.kind !== "rechnung" || invoice.variant !== null) return null;
-  const onCopy = () =>
-    action.run(async () => {
-      const draft = await copy({ data: invoice.id });
-      await navigate({ to: "/rechnungen/$id", params: { id: draft.id } });
-    });
-  return (
-    <button type="button" className="btn" onClick={() => void onCopy()} disabled={action.busy}>
-      Kopieren
-    </button>
   );
 }
 
