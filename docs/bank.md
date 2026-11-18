@@ -352,7 +352,7 @@ Greift keine der Regeln aus [Vorschläge ohne Rechnung](#vorschläge-ohne-rechnu
 So gelernt werden:
 
 - Kontoführung und Bankgebühren, Privat, Spenden, Mahngebühren und Zinserträge;
-- [Einnahmen und Ausgaben auf eine Kategorie](#auf-eine-kategorie-buchen), jede Kategorie und jeder Steuersatz für sich: Hast du die Aufladungen beim Kiosk zweimal als Telefon gebucht, steht beim dritten Mal „Ausgabe: Telefon“ als Vorschlag da, und unter **Direkt buchen** sind Art und Kategorie schon gewählt. Zwei Zahlungen eines Privatkunden mit 7 % und eine mit 19 % ergeben „Einnahme: Erlöse 7 %“. Eine Kategorie, die am Tag des Umsatzes so nicht buchbar wäre, schlägt Haben nicht vor, etwa Erlöse mit 19 %, wenn du inzwischen Kleinunternehmer bist.
+- [Einnahmen und Ausgaben auf eine Kategorie](#auf-eine-kategorie-buchen), jede Kategorie und jeder Steuersatz für sich: Hast du die Aufladungen beim Kiosk zweimal als Telefon gebucht, steht beim dritten Mal „Ausgabe: Telefon“ als Vorschlag da, und unter **Direkt buchen** sind Art und Kategorie schon gewählt. Zwei Zahlungen eines Privatkunden mit 7 % und eine mit 19 % ergeben „Einnahme: Erlöse 7 %“. Eine Kategorie, die am Tag des Umsatzes so nicht buchbar wäre, schlägt Haben nicht vor, etwa Erlöse mit 19 %, wenn du inzwischen Kleinunternehmer bist. Dasselbe gilt für eine [Aufladung eines Guthabens](#aufladung-eines-guthabens): Sie wird mit ihrer Ausgabekategorie gelernt, die Karte nennt aber „Aufladung Guthaben“ und darunter die Felder mit der Kategorie; in GmbH und UG bietet Haben sie nicht an.
 
 Nie gelernt werden Geldtransit (dafür braucht es die Gegenbuchung), alles mit dem Finanzamt, weil über dieselbe IBAN Umsatzsteuer und private Steuern laufen, und Lohn, Sozialversicherung, Steuerzahlungen und Darlehen: Dort ändern sich Abrechnung, Steuerart und Jahr oder der Teil der Rate von Zahlung zu Zahlung, und die Regeln oben kennen sie besser.
 
@@ -375,6 +375,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 |
 | Steuerzahlung oder Erstattung (Finanzamt, Gemeinde), siehe [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen) | je nach Steuerart und Teil | je nach Steuerart und Teil |
 | Einnahme oder Ausgabe (Kategorie, Steuersatz), siehe [Auf eine Kategorie buchen](#auf-eine-kategorie-buchen) | Konto der Kategorie | Konto der Kategorie |
+| Aufladung Guthaben (nur Einzelunternehmen), siehe [Aufladung eines Guthabens](#aufladung-eines-guthabens) | Konto der Kategorie | Konto der Kategorie |
 | Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren, siehe [Darlehen](bank-steuern-darlehen.md#darlehen) | je nach Darlehen und Teil | je nach Darlehen und Teil |
 | Kapitalertragsteuer an das Finanzamt (Ausschüttung), nur GmbH und UG | 1746 Verbindlichkeiten aus Einbehaltungen | 3760 |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 |
@@ -386,6 +387,21 @@ Eine **Spende** vom Geschäftskonto ist im Einzelunternehmen keine Betriebsausga
 Die drei Lohnzahlungen bezahlen, was eine festgeschriebene [Lohnabrechnung](lohn.md#buchung) als Verbindlichkeit gebucht hat, und höchstens so viel, wie auf dem Konto noch offen ist; ohne festgeschriebene Abrechnung lehnt Haben sie ab. Ein Eingang (Rückzahlung, Erstattung) geht nur, soweit das Konto überzahlt ist. Lohnsteuer, Soli und Kirchensteuer überweist du gemeinsam als „Lohnsteuer an das Finanzamt“, im Minijob die Pauschsteuer mit den Beiträgen an die Minijob-Zentrale. Eine Lastschrift des Finanzamts über genau den Gesamtbetrag (Kz 83) einer übermittelten [Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung) schlägt Haben als „Lohnsteuer an das Finanzamt“ vor. Im Einzelunternehmen zählen sie in der EÜR am Tag der Zahlung als Ausgaben für Personal.
 
 Für Ausgaben mit Rechnung gilt: erst den Beleg unter [Belege](belege.md) hochladen und buchen, dann hier zuordnen. Direkt gebuchte Ausgaben haben keine Vorsteuer.
+
+### Aufladung eines Guthabens
+
+Bei manchen Anbietern zahlst du Geld ein, das dort als Guthaben liegt und erst später über eine Rechnung verbraucht wird: die Aufladung eines Mobilfunk-Guthabens, ein Guthaben beim Kiosk oder beim Hosting-Anbieter. Ist das Guthaben ein Mehrzweck-Gutschein, gibt es für die Aufladung selbst keine Rechnung. Dann ordnest du den Umsatz unter **Direkt buchen** als **Aufladung Guthaben** zu und wählst die **Kategorie**, zu der der Aufwand gehört; einen Steuersatz gibt es dort nicht.
+
+Gebucht wird Bank gegen das Konto der gewählten Ausgabekategorie, ohne Vorsteuer. Die Aufladung selbst trägt keine Umsatzsteuer: Beim Mehrzweck-Gutschein unterliegt die vorangegangene Übertragung nicht der Umsatzsteuer (§ 3 Abs. 15 UStG). Beim Einzweck-Gutschein ist dagegen schon die Aufladung die Leistung (§ 3 Abs. 14 UStG); dort brauchst du eine Rechnung, und der Betrag geht über [Belege](belege.md). Für den Vorsteuerabzug ist ohnehin eine Rechnung nötig, hier die über den Verbrauch des Guthabens (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Damit ist die Aufladung im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG). Eine Aufladung trägt nie einen Steuersatz; Haben lehnt eine Einnahmekategorie und jede andere Kategorie ab, die einen Beleg verlangt.
+
+Die Aufladung braucht keinen Beleg: Sie steht in der EÜR als Ausgabe ihrer Kategorie und im DATEV-Buchungsstapel ohne Belegnummer. Verbraucht die spätere Rechnung das Guthaben, steht dort eine Position „Verrechnung Guthaben“: Sie mindert den Aufwand der Rechnung, ohne dass Geld fließt. Diese Verrechnung kann Haben noch nicht buchen. Bis der Bezug zwischen Aufladung und Rechnung kommt (Teil 2 von [#1356](https://github.com/firsttris/haben/issues/1356)), bildet deshalb keine der beiden Buchungen Aufwand und Vorsteuer der Rechnung zugleich richtig ab:
+
+- **Nur die Aufladung buchen, die Rechnung liegen lassen:** Der Aufwand steht einmal, im Monat der Zahlung; die Vorsteuer der Rechnung bleibt ungenutzt. Das ist die Regel bis Teil 2.
+- **Die Rechnung zusätzlich als Beleg buchen:** Die Vorsteuer der Rechnung wäre abziehbar, aber der verrechnete Teil bleibt als offener Posten stehen, weil für ihn kein Geld fließt — und sobald du ihn mit einer Zahlung ausgleichst, zählt die EÜR den Aufwand ein zweites Mal.
+
+Mit dem Bezug zählt der Aufwand einmal, und die Vorsteuer kommt aus der Rechnung.
+
+Die Buchung als Ausgabe gilt für die EÜR des Einzelunternehmens (§ 11 Abs. 2 EStG). In GmbH und UG bietet Haben die Zuordnungsart deshalb weder an noch bucht sie sie: Dort bleibt der gezahlte Betrag bis zur Rechnung ein Vermögensgegenstand (§ 246 Abs. 1 Satz 1 HGB), und die Aktivierung über ein eigenes Sachkonto ist noch nicht gebaut ([#1281](https://github.com/firsttris/haben/issues/1281)).
 
 ### Auf eine Kategorie buchen
 

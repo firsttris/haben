@@ -9,6 +9,7 @@ import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
   ASSET_KINDS,
+  AUFLADUNG,
   ASSET_METHODS,
   csvDecimal,
   formatDegressiveRate,
@@ -272,6 +273,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
   kategorie: "Direkt auf Kategorie",
+  aufladung: AUFLADUNG.label,
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",

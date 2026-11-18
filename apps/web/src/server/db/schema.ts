@@ -2640,6 +2640,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "kategorie",
   // Private Spende vom Geschäftskonto auf das Privatkonto „Zuwendungen, Spenden“ (Einzelunternehmen)
   "spende",
+  // Aufladung eines Guthabens: Ausgabe ohne Vorsteuer auf eine Pflicht-Kostenkategorie (#1356)
+  "aufladung",
 ]);
 
 /**
@@ -2734,9 +2736,10 @@ export const allocations = pgTable(
       sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
     ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    // Eine Aufladung trägt wie die Direktbuchung auf eine Kategorie ihre Pflicht-Kostenkategorie (#1356)
     check(
       "allocations_kategorie",
-      sql`case when ${t.kind}::text = 'kategorie' then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
+      sql`case when ${t.kind}::text in ('kategorie', 'aufladung') then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
     ),
     check(
       "allocations_loan",
