@@ -2405,7 +2405,7 @@ export const importSources = pgTable(
     /** Enable Banking: `identification_hash` des Kontos */
     externalAccountId: text("external_account_id").notNull(),
     accountKind: text("account_kind", { enum: ["bank", "psp"] }).notNull(),
-    /** Erster Tag, den diese Quelle liefert; davor decken Dateiimporte das Konto ab */
+    /** Erster Tag, den diese Quelle liefert; davor decken Dateien oder frühere Abrufe das Konto ab */
     cutoverDate: date("cutover_date", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

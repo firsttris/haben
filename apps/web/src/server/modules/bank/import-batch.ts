@@ -17,7 +17,7 @@ import {
   withDedupHashes,
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
-import { connectedRanges, otherImports, otherRanges } from "./andere-importe.ts";
+import { connectedRanges, cutoverFor, otherImports, otherRanges } from "./andere-importe.ts";
 import { BankError, type ImportResult, insertStatement, knownHashes, prepareStatement, statementResult } from "./bank.ts";
 
 /*
@@ -38,6 +38,8 @@ export interface StoreBatchInput {
   /** Ereignis zu einem Umsatz des Auszugs; ohne stabile Kennung undefined, dann erkennt Haben ihn wie bisher am Inhalt */
   eventOf: (t: ParsedTransaction) => string | undefined;
   source: { filename: string; sha256: string };
+  /** „Umsätze abrufen ab“ des Kontos; vor diesem Tag beginnt der Stichtag einer neuen Bindung nie */
+  fetchFrom?: string;
 }
 
 export interface BatchResult extends ImportResult {
@@ -52,8 +54,11 @@ export interface BatchResult extends ImportResult {
 
 type Row = ParsedTransaction & { dedupHash: string };
 
-/** Quellenbindung zur Kennung; fehlt sie, wird sie für dieses Konto angelegt. Gehört sie zu einem anderen Konto, Fehler. */
-async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId: string) {
+/**
+ * Quellenbindung zur Kennung; fehlt sie, wird sie für dieses Konto mit ihrem Stichtag angelegt. Gehört sie zu einem anderen
+ * Konto, Fehler.
+ */
+async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId: string, cutover: () => Promise<string>) {
   const where = and(eq(schema.importSources.provider, binding.provider), eq(schema.importSources.externalAccountId, binding.externalAccountId));
   const [existing] = await tx.select().from(schema.importSources).where(where);
   if (existing) {
@@ -63,7 +68,13 @@ async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId:
   // Parallel angelegt: der eindeutige Index hält die zweite Bindung ab, dann gilt die erste
   await tx
     .insert(schema.importSources)
-    .values({ bankAccountId: accountId, provider: binding.provider, externalAccountId: binding.externalAccountId, accountKind: binding.accountKind })
+    .values({
+      bankAccountId: accountId,
+      provider: binding.provider,
+      externalAccountId: binding.externalAccountId,
+      accountKind: binding.accountKind,
+      cutoverDate: await cutover(),
+    })
     .onConflictDoNothing();
   const [created] = await tx.select().from(schema.importSources).where(where);
   if (created!.bankAccountId !== accountId) throw new BankError("Die Quelle des Abrufs ist schon mit einem anderen Konto verbunden.");
@@ -138,7 +149,7 @@ type Linked = { movement: ImportMovement; hash?: string; transactionId?: string 
 async function planRows(
   tx: Tx,
   accountId: string,
-  source: { createdAt: Date },
+  source: { createdAt: Date; cutoverDate: string | null },
   rows: Row[],
   fresh: Map<string, ImportMovement>,
   eventOf: StoreBatchInput["eventOf"],
@@ -161,6 +172,8 @@ async function planRows(
     accountId,
     [...fresh.values()].filter(beforeWindow).map((m) => m.bookingDate),
     [...aliases.values()],
+    // Mit Stichtag nur Dateien nach der Bindung; eine Bindung ohne Stichtag (vor 3b) gleicht wie bisher mit allen ab
+    source.cutoverDate ? source.createdAt : undefined,
   );
   const insert: Row[] = [];
   const linked: Linked[] = [];
@@ -291,7 +304,8 @@ async function recordBatch(
 export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: string | null): Promise<BatchResult> {
   const { statement, binding } = input;
   const { account, continuity } = await prepareStatement(tx, statement, input.source.filename, accountId);
-  const source = await sourceFor(tx, binding, account.id);
+  const windowFrom = statement.periodFrom ?? input.batch.coverage.from;
+  const source = await sourceFor(tx, binding, account.id, () => cutoverFor(tx, account.id, windowFrom, input.fetchFrom));
   const validation = validateBatch(input.batch, { ...binding, ...(source.cutoverDate ? { cutoverDate: source.cutoverDate } : {}) });
   if (!validation.ok) throw new BankError(`Abruf nach dem Importvertrag abgelehnt: ${validation.problems.join(" ")}`);
   const { batch } = validation;

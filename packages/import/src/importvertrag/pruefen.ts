@@ -56,9 +56,9 @@ function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
 
 /** Grund, eine sonst gültige Bewegung nicht zu übernehmen, oder null */
 function rejection(m: ImportMovement, binding: SourceBinding): Omit<RejectedMovement, "sourceEventId" | "component"> | null {
-  // Vor dem Stichtag zuerst: Diese Zeit decken Dateiimporte ab, auch für Bewegungen in fremder Währung
+  // Vor dem Stichtag zuerst: Diese Zeit decken Dateien oder frühere Abrufe ab, auch für Bewegungen in fremder Währung
   if (binding.cutoverDate && m.bookingDate < binding.cutoverDate) {
-    return { reason: `Vor dem Stichtag ${binding.cutoverDate} der Quelle; diese Zeit decken Dateiimporte ab.`, blocking: false };
+    return { reason: `Vor dem Stichtag ${binding.cutoverDate} der Quelle; diese Zeit decken Dateien oder frühere Abrufe ab.`, blocking: false };
   }
   // Zunächst nur Euro; alles andere sichtbar ablehnen (#306)
   if (m.currency !== "EUR") return { reason: `Währung ${m.currency}: Haben übernimmt nur Euro.`, blocking: true };
