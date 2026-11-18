@@ -6,7 +6,7 @@ export function SettingsExportCard() {
       <p className="small muted" style={{ margin: 0 }}>
         Firmendaten, persönliche Angaben, Beleggestaltung, Textbausteine, E-Mail-Vorlagen, Nummernformate, eigene Konten, Artikel und Kontakte als JSON-Datei,
         etwa um nach dem Testen mit einer neuen Instanz zu beginnen. Zugangsdaten (Bank, ELSTER-Zertifikat, E-Mail-Versand, KI und API), Zählerstände der
-        Nummernkreise und alles Gebuchte gehen nicht mit.
+        Rechnungs- und Angebotsnummern und alles Gebuchte gehen nicht mit.
       </p>
       <p className="small muted" style={{ margin: 0 }}>
         Die Datei enthält Steuernummer, Steuer-ID und Bankverbindung: so sicher aufbewahren wie ein Backup.

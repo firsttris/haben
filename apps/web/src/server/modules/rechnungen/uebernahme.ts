@@ -9,8 +9,9 @@ import { QuoteError } from "./quotes.ts";
 
 /*
  * Nummernformate und Standardanhänge aus der Einstellungsdatei einer anderen Instanz (#488) in der Transaktion des
- * Aufrufers. Zählerstände kommen nicht mit: Die neue Instanz beginnt bei 1, wer anders beginnen will, stellt die nächste
- * Nummer ein. Die Anhänge kommen als Bytes, deren SHA-256 modules/instanzwechsel schon geprüft hat.
+ * Aufrufers. Zählerstände der Rechnungs- und Angebotsnummern kommen nicht mit: Die neue Instanz beginnt bei 1, wer anders
+ * beginnen will, stellt die nächste Nummer ein. Die Anhänge kommen als Bytes, deren SHA-256 modules/instanzwechsel schon
+ * geprüft hat.
  */
 
 const formateSchema = z.object({
