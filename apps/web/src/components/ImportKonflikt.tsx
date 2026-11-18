@@ -44,15 +44,15 @@ function Spalte({ titel, umsatz, zuordnung }: { titel: string; umsatz: Umsatz; z
 
 /** Wer liefert: der Bankabruf (Bank › Automatischer Abruf) oder der Etsy-Abruf (Einstellungen › Bank) */
 const QUELLEN = {
-  bank: { wer: "Die Bank", von: "von der Bank", abruf: "aus dem Abruf dieses Kontos" },
-  etsy: { wer: "Etsy", von: "von Etsy", abruf: "aus dem Etsy-Abruf" },
+  bank: { wer: "Die Bank", von: "von der Bank", angaben: "der Bank", abruf: "aus dem Abruf dieses Kontos" },
+  etsy: { wer: "Etsy", von: "von Etsy", angaben: "von Etsy", abruf: "aus dem Etsy-Abruf" },
 } as const;
 
 const ENTSCHEIDUNGEN = [
   {
     value: "keep",
     label: "Bisherigen Umsatz behalten",
-    hint: (von: string) => `Die Angaben ${von} gelten künftig als bekannt; ein neuer Umsatz entsteht nicht.`,
+    hint: (angaben: string) => `Die Angaben ${angaben} gelten künftig als bekannt; ein neuer Umsatz entsteht nicht.`,
   },
   {
     value: "add",
@@ -105,7 +105,7 @@ export function KonfliktKlaeren({
     if (ok) setEntscheidung("keep");
   }
 
-  const { wer, von, abruf } = QUELLEN[quelle];
+  const { wer, von, angaben, abruf } = QUELLEN[quelle];
   const zuordnung = konflikt
     ? konflikt.previous.open === 0
       ? "Ganz zugeordnet"
@@ -150,7 +150,7 @@ export function KonfliktKlaeren({
                     <span>{e.label}</span>
                   </label>
                   <span id={`konflikt-${e.value}-hint`} className="field-hint">
-                    {e.hint(von)}
+                    {e.hint(angaben)}
                   </span>
                 </div>
               ))}
@@ -180,8 +180,9 @@ export function stichtagText(stichtage: { bankAccountId: string; cutoverDate: st
 type Bezug = { id: string; bookingDate: string; amount: number };
 
 /** Hinweis in der Detailansicht: am bisherigen Umsatz die nach einem Konflikt übernommenen, am übernommenen der bisherige */
-export function KlaerungHinweis({ klaerung }: { klaerung: { added: Bezug[]; previous: Bezug | null } | null }) {
+export function KlaerungHinweis({ klaerung }: { klaerung: { provider: string; added: Bezug[]; previous: Bezug | null } | null }) {
   if (!klaerung) return null;
+  const { wer } = klaerung.provider === "etsy" ? QUELLEN.etsy : QUELLEN.bank;
   const verweis = (u: Bezug) => (
     <Link from="/bank" to="/bank" search={(prev) => ({ ...prev, umsatz: u.id })}>
       {formatDate(u.bookingDate)}, {betrag(u.amount)}
@@ -191,7 +192,7 @@ export function KlaerungHinweis({ klaerung }: { klaerung: { added: Bezug[]; prev
     <div className="banner banner-info" role="note">
       {klaerung.added.length > 0 && (
         <p style={{ margin: 0 }}>
-          Die Bank hat diesen Umsatz später anders geliefert. Nach dem Konflikt steht er zusätzlich als eigener Umsatz da:{" "}
+          {wer} hat diesen Umsatz später anders geliefert. Nach dem Konflikt steht er zusätzlich als eigener Umsatz da:{" "}
           {klaerung.added.map((u, i) => (
             <span key={u.id}>
               {i > 0 && " · "}

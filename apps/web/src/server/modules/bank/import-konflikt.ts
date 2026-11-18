@@ -154,8 +154,14 @@ export async function resolveConflict(actor: string, input: z.infer<typeof resol
  */
 export async function klaerungView(transactionId: string) {
   const previous = sql`(select m.transaction_id from import_movements m where m.id = ${schema.importConflicts.movementId})`;
+  const provider = sql`(select s.provider from import_movements m join import_sources s on s.id = m.source_id where m.id = ${schema.importConflicts.movementId})`;
   const rows = await db
-    .select({ previous: sql<string>`${previous}`, added: schema.importResolutions.transactionId, at: schema.importResolutions.createdAt })
+    .select({
+      previous: sql<string>`${previous}`,
+      provider: sql<string>`${provider}`,
+      added: schema.importResolutions.transactionId,
+      at: schema.importResolutions.createdAt,
+    })
     .from(schema.importResolutions)
     .innerJoin(schema.importConflicts, eq(schema.importConflicts.id, schema.importResolutions.conflictId))
     .where(
@@ -171,6 +177,8 @@ export async function klaerungView(transactionId: string) {
     return t!;
   };
   return {
+    /** Wer anders geliefert hat (Anbieter der Quelle): ein Konto hat genau eine Quelle */
+    provider: rows[0]!.provider,
     /** Weitere Umsätze, die nach einem Konflikt zu diesem übernommen wurden */
     added: await Promise.all(rows.filter((r) => r.previous === transactionId).map((r) => other(r.added!))),
     /** Der bisherige Umsatz, wenn dieser aus einer Klärung stammt */
