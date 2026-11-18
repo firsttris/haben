@@ -68,6 +68,37 @@ describe("Etsy-Client", () => {
     expect(rufe[0]!.headers.authorization).toBe("Bearer gut");
   });
 
+  it("liefert eine Zeile genau auf der Grenze zweier Fenster nur einmal", async () => {
+    // Die OpenAPI-Beschreibung nennt min_created und max_created „the earliest/latest unix timestamp for when a record was
+    // created“, ohne zu sagen, ob die Grenzen dazugehören; der Nachbau nimmt beide als eingeschlossen an
+    const from = 1_700_000_000;
+    const to = from + 40 * 24 * 60 * 60;
+    const grenze = from + 31 * 24 * 60 * 60;
+    const zeilen = [
+      { entry_id: 1, amount: 100, currency: "EUR", ledger_type: "PAYMENT_GROSS", created_timestamp: from + 10 },
+      { entry_id: 2, amount: -20, currency: "EUR", ledger_type: "prolist", created_timestamp: grenze },
+      { entry_id: 3, amount: 300, currency: "EUR", ledger_type: "PAYMENT_GROSS", created_timestamp: to - 10 },
+    ];
+    const { fetch } = mockFetch((ruf) => {
+      const url = new URL(ruf.url);
+      const min = Number(url.searchParams.get("min_created"));
+      const max = Number(url.searchParams.get("max_created"));
+      const results = zeilen.filter((z) => z.created_timestamp >= min && z.created_timestamp <= max);
+      return { count: results.length, results };
+    });
+    const client = createEtsyClient({
+      keystring: "abc",
+      shopId: "12345",
+      tokens: GUELTIG,
+      baseUrl: "https://etsy.test/v3/application",
+      runtime: { ...lauf, fetch },
+    });
+
+    const entries = await client.ledger(from, to);
+
+    expect(entries.map((e) => e.entry_id)).toEqual([1, 2, 3]);
+  });
+
   it("erneuert ein abgelaufenes Zugangstoken und meldet es zurück", async () => {
     const gemeldet: EtsyTokens[] = [];
     const { fetch, rufe } = mockFetch((ruf) => {
