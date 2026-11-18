@@ -223,3 +223,5 @@ Ohne `FINTS_PRODUKT_ID` bleibt FinTS aus; Enable Banking und der Dateiimport lau
 Beim Verbinden fragt Haben nach Bankleitzahl, FinTS-Adresse, Anmeldename und PIN. Die Adresse nennt die Bank, meist auf ihren Seiten zu HBCI oder FinTS oder in der Anleitung für Banking-Programme; sie beginnt mit `https://`. Eine Liste der Adressen bringt Haben nicht mit.
 
 Was an die Bank geht: Produktnummer und Version von Haben, Anmeldename und PIN und danach Abrufe von Umsätzen der Konten, über TLS direkt zur Bank. Die PIN speichert Haben verschlüsselt in der Datenbank wie das SMTP-Passwort, damit der tägliche Abruf ohne dich läuft; im Audit-Log steht sie nicht. Eine TAN speichert Haben nie. Zahlungen auslösen kann Haben über FinTS nicht.
+
+<a id="lexware-office-api"></a>Adresse und Schlüssel der Lexware-Office-API stehen unter [Umzug aus Lexoffice](lexoffice.md#andere-api-adresse).
