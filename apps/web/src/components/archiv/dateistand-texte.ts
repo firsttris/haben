@@ -34,9 +34,10 @@ export function ohneBelegText(grund: OhneBelegGrund, product: string, bestaetigb
 }
 
 /**
- * Satz in der Rückfrage „Bestätigung zurücknehmen?“ (#1317). Was danach gilt, hängt an der Quelle: Im Accountable-Stapel
- * bleibt der Beleg „ohne Beleg“, und der Abgleich zählt ihn weiter nicht als fehlende Datei (#1235). Bei sevDesk fällt er
- * auf „ohne Datei“ zurück und zählt dort wieder zu den Belegen ohne Datei.
+ * Satz in der Rückfrage „Bestätigung zurücknehmen?“ (#1317). Was danach gilt, hängt am Merkmal ohneBeleg aus dem Import,
+ * nicht an der Quelle: Bei einer Buchung ohne Beleg (Accountable-Stapel, Lexoffice-Sicherung) bleibt der Beleg „ohne
+ * Beleg“, und der Abgleich zählt ihn weiter nicht als fehlende Datei (#1235). Bei sevDesk fällt er auf „ohne Datei“
+ * zurück und zählt dort wieder zu den Belegen ohne Datei.
  */
 export function ruecknahmeText(ohneBeleg: boolean): string {
   return ohneBeleg
