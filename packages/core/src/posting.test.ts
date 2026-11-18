@@ -612,13 +612,18 @@ describe("kategorieMitKonto (#1438)", () => {
     expect(kategorieMitKonto("SKR03", "telefon")).toBe("4920 · Telefon");
   });
 
+  it("zeigt das Anlagegut ohne Nummer, denn gebucht wird auf das Anlagekonto der Art", () => {
+    expect(kategorieMitKonto("SKR03", "anlage")).toBe("Anlagegut (wird abgeschrieben)");
+    expect(kategorieMitKonto("SKR04", "anlage")).toBe("Anlagegut (wird abgeschrieben)");
+  });
+
   it("lässt unbekannte Werte unverändert", () => {
     expect(kategorieMitKonto("SKR03", "gibtEsNicht")).toBe("gibtEsNicht");
   });
 
-  it("hat für jede Kategorie in beiden Kontenrahmen eine Nummer", () => {
+  it("hat für jede Kategorie außer dem Anlagegut in beiden Kontenrahmen eine Nummer", () => {
     for (const kr of ["SKR03", "SKR04"] as const) {
-      for (const key of EXPENSE_CATEGORY_KEYS) expect(kategorieMitKonto(kr, key)).toMatch(/^\d{4} · .+/);
+      for (const key of EXPENSE_CATEGORY_KEYS.filter((k) => k !== "anlage")) expect(kategorieMitKonto(kr, key)).toMatch(/^\d{4} · .+/);
     }
   });
 });

@@ -11,9 +11,9 @@ const name = (key: Kategorie): string => (istEinnahme(key) ? EINNAHME_KATEGORIEN
 
 /**
  * Was das Suchfeld für den Schlüssel zeigt: bei Ausgaben die Nummer des Kontos und der Name, „4920 · Telefon“ in SKR03
- * (#1438); Einnahmen ohne Nummer, ihr Erlöskonto hängt am Steuersatz
+ * (#1438); Einnahmen und Anlagegut ohne Nummer: das Erlöskonto hängt am Steuersatz, das Anlagekonto an der Art
  */
-export const kategorieName = (key: Kategorie): RegExp => new RegExp(istEinnahme(key) ? `^${maskiert(name(key))}$` : `^[0-9]{4} · ${maskiert(name(key))}$`);
+export const kategorieName = (key: Kategorie): RegExp => new RegExp(istEinnahme(key) || key === "anlage" ? `^${maskiert(name(key))}$` : `^[0-9]{4} · ${maskiert(name(key))}$`);
 
 /** Kategorie im Suchfeld wählen: Name eintippen und den Treffer anklicken (das Feld ist kein <select> mehr) */
 export async function waehleKategorie(feld: Locator, key: Kategorie): Promise<void> {
