@@ -152,6 +152,8 @@ test("nach einer abgelehnten PIN den Zugang ändern", async () => {
   await expect(abruf().getByText("Testbank verbunden, 0 neue Umsätze.")).toBeVisible();
   await expect(abruf().getByText("Aktiv")).toBeVisible();
   await expect(abruf().getByRole("button", { name: "Zugang ändern" })).toHaveCount(0);
+  // Das Formular schließt wie beim ersten Verbinden, mit der PIN darin bleibt nichts stehen
+  await expect(page.getByRole("form", { name: "Über FinTS verbinden" })).toHaveCount(0);
 });
 
 test("pushTAN: wartet auf die Freigabe in der App", async () => {
