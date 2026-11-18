@@ -2024,6 +2024,13 @@
       "when": 1795002778948,
       "tag": "0288_aufladung",
       "breakpoints": true
+    },
+    {
+      "idx": 289,
+      "version": "7",
+      "when": 1795013233625,
+      "tag": "0289_appstore_fiskalperiode",
+      "breakpoints": true
     }
   ]
 }
