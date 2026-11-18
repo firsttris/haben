@@ -4,7 +4,8 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
-import { recordRefusedBatch, storeBatch } from "./import-batch.ts";
+import { storeBatch } from "./import-batch.ts";
+import { recordRefusedBatch } from "./import-konflikt.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
 import { kontokennung } from "./kontokennung.ts";
 import { lastOtherBooking } from "./andere-importe.ts";
