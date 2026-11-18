@@ -5,6 +5,7 @@ import {
   type EvatrAntwort,
   evatrAntwortSchema,
   type EvatrArt,
+  evatrFrisch,
   evatrGueltig,
   evatrMeldung,
   evatrNachweis,
@@ -15,7 +16,8 @@ import {
   isValidGermanUstId,
   normalizeUstId,
 } from "@haben/core";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
+import { formatDate } from "../../../lib/format.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
@@ -191,4 +193,75 @@ export async function bestaetigeUstId(
   if (!zweiteAntwort.ok) return { neu: 1, hinweis: `Name und Anschrift nicht bestätigt: ${zweiteAntwort.hinweis}` };
   await speichere(actor, contactId, "qualifiziert", qualifiziert, zweiteAntwort);
   return { neu: 2, hinweis: null };
+}
+
+/** Letzte Antwort je angefragter Nummer, gleich an welchem Kontakt; für die Vorprüfung der ZM */
+export async function letzteBestaetigungen(nummern: readonly string[]): Promise<Map<string, UstIdBestaetigung>> {
+  const letzte = new Map<string, UstIdBestaetigung>();
+  if (!nummern.length) return letzte;
+  const b = schema.ustidBestaetigungen;
+  const rows = await db
+    .select()
+    .from(b)
+    .where(inArray(b.angefragteUstid, [...nummern]))
+    .orderBy(desc(b.createdAt), desc(b.anfrageZeitpunkt));
+  for (const row of rows) if (!letzte.has(row.angefragteUstid)) letzte.set(row.angefragteUstid, row);
+  return letzte;
+}
+
+/** Ob sich überhaupt bestätigen lässt: eingeschaltet und mit gültiger eigener USt-IdNr. */
+export async function evatrMoeglich(): Promise<boolean> {
+  return !evatrAbgeschaltet() && isValidGermanUstId(normalizeUstId((await loadCompany()).ustId));
+}
+
+/**
+ * Einfache Abfrage einer bestimmten Nummer, etwa einer in der Zusammenfassenden Meldung gemeldeten, die von der heutigen am
+ * Kontakt abweichen kann. Der Nachweis kommt an den Kontakt der Rechnung.
+ */
+export async function bestaetigeNummer(
+  actor: string,
+  contactId: string,
+  ustId: string,
+  via: EvatrVerbindung = verbindung(),
+): Promise<{ hinweis: string | null }> {
+  if (evatrAbgeschaltet()) throw new ContactError(ZUSTAND_TEXT.aus);
+  const company = await loadCompany();
+  if (!isValidGermanUstId(normalizeUstId(company.ustId))) throw new ContactError(ZUSTAND_TEXT["ohne-eigene"]);
+  if (!evatrPruefbar(ustId)) return { hinweis: `${ustId}: ${ZUSTAND_TEXT["nicht-pruefbar"]}` };
+  const anfrage: EvatrAnfrage = { anfragendeUstid: normalizeUstId(company.ustId), angefragteUstid: normalizeUstId(ustId) };
+  const antwort = await frage(anfrage, via);
+  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}` };
+  await speichere(actor, contactId, "einfach", anfrage, antwort);
+  return { hinweis: null };
+}
+
+/**
+ * Vor dem Festschreiben einer Rechnung mit Reverse Charge oder innergemeinschaftlicher Lieferung (#1385): Ist die letzte
+ * Antwort zur Nummer des Kontakts gültig und höchstens EVATR_FRIST_TAGE alt, gibt es nichts zu sagen; sonst fragt Haben das
+ * BZSt neu. Zurück kommt ein Hinweis für die Rückfrage oder null; das Festschreiben sperrt er nie. Abgeschaltet wie vorher.
+ */
+export async function ustIdVorFestschreiben(
+  actor: string,
+  contactId: string,
+  jetzt = new Date(),
+  via: EvatrVerbindung = verbindung(),
+): Promise<{ hinweis: string | null }> {
+  const contact = await ladeKontakt(contactId);
+  const nummer = normalizeUstId(contact.ustId);
+  const letzteZurNummer = async () => (await listUstIdBestaetigungen(contactId)).find((b) => b.angefragteUstid === nummer);
+  const vorher = await letzteZurNummer();
+  if (vorher && evatrGueltig(vorher.status) && evatrFrisch(vorher.anfrageZeitpunkt, jetzt)) return { hinweis: null };
+  // Ohne prüfbare Nummer meldet das Festschreiben selbst, was fehlt (outgoingTaxIssues)
+  if (evatrAbgeschaltet() || !evatrPruefbar(contact.ustId)) return { hinweis: null };
+  let ergebnis: UstIdBestaetigungsErgebnis;
+  try {
+    ergebnis = await bestaetigeUstId(actor, contactId, {}, via);
+  } catch (error) {
+    if (error instanceof ContactError) return { hinweis: `${nummer}: ${error.message}` };
+    throw error;
+  }
+  const neu = await letzteZurNummer();
+  if (neu && neu.id !== vorher?.id) return { hinweis: evatrGueltig(neu.status) ? null : `Laut BZSt ist ${nummer} nicht gültig: ${evatrMeldung(neu)}.` };
+  const zuletzt = vorher ? `Zuletzt am ${formatDate(vorher.anfrageZeitpunkt)}: ${evatrMeldung(vorher)}.` : "Bestätigt ist sie noch nicht.";
+  return { hinweis: `${nummer} ließ sich gerade nicht beim BZSt bestätigen: ${ergebnis.hinweis}. ${zuletzt}` };
 }

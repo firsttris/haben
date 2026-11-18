@@ -24,6 +24,7 @@ import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/ind
 import { loadCompany } from "../stammdaten/index.ts";
 import { vatFiguresContext, computeVatFigures } from "./vat-figures.ts";
 import { VatError } from "./vat.ts";
+import { zmBestaetigung } from "./zm-bestaetigung.ts";
 
 /*
  * Zusammenfassende Meldung (§ 18a UStG) an das BZSt. Haben meldet die sonstigen Leistungen an Unternehmer im übrigen
@@ -218,7 +219,7 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
     kennzahlGesendet(period, "kz21", q),
   ]);
   const zeilen = zmZeilen(quellen);
-  const kz41 = await kennzahlGesendet(period, "kz41", q);
+  const [kz41, bestaetigung] = await Promise.all([kennzahlGesendet(period, "kz41", q), zmBestaetigung(zeilen.map((z) => z.ustId))]);
   const sent = meldungen.length > 0;
   const gemeldet = gemeldeterStand(meldungen);
   const voranmeldungen = monthsOfPeriod(period).length;
@@ -235,7 +236,9 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
     naechste: { berichtigt: sent, zeilen: sent ? zmBerichtigung(gemeldet, zeilen) : zeilen },
     kz21,
     kz41,
-    issues: zmIssues({ company, quellen, zeilen, kz21, kz41, voranmeldungen }),
+    /** Bestätigung der gemeldeten USt-IdNrn. beim BZSt (#1385) */
+    bestaetigung: { moeglich: bestaetigung.moeglich, offen: bestaetigung.offen },
+    issues: [...zmIssues({ company, quellen, zeilen, kz21, kz41, voranmeldungen }), ...bestaetigung.issues],
   };
 }
 

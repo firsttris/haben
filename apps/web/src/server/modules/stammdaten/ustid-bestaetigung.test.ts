@@ -1,38 +1,9 @@
 import type postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
-import type { EvatrVerbindung } from "./ustid-bestaetigung.ts";
+import { evatrFehler as fehler, evatrOk as ok, evatrDienst as dienst } from "../../test-evatr.ts";
 
-/*
- * Bestätigung beim BZSt (#1385) gegen einen nachgebauten Dienst; keine echte Abfrage. Die Antworten haben die Form der
- * Testabfrage vom 2026-11-18 mit den Beispielwerten der OpenAPI-Beschreibung.
- */
-
-type Antwort = { status: number; body: unknown } | "kein-netz";
-
-function dienst(...antworten: Antwort[]) {
-  const anfragen: Record<string, string>[] = [];
-  const via: EvatrVerbindung = {
-    url: "http://evatr.test/app/v1/abfrage",
-    fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
-      anfragen.push(JSON.parse(String(init?.body)));
-      const antwort = antworten.shift();
-      if (!antwort) throw new Error("unerwartete Abfrage");
-      if (antwort === "kein-netz") throw new TypeError("fetch failed");
-      return new Response(JSON.stringify(antwort.body), { status: antwort.status, headers: { "Content-Type": "application/json" } });
-    }) as typeof fetch,
-  };
-  return { via, anfragen };
-}
-
-const ok = (id: string, erg?: Record<string, string>): Antwort => ({
-  status: 200,
-  body: { id, anfrageZeitpunkt: "2026-11-18T14:34:36.318854732+01:00", status: "evatr-0000", ...erg },
-});
-const fehler = (status: number, code: string): Antwort => ({
-  status,
-  body: { id: "f1", anfrageZeitpunkt: "2026-11-18T14:34:44.75460082+01:00", status: code },
-});
+/* Bestätigung beim BZSt (#1385) gegen den nachgebauten Dienst aus test-evatr.ts; keine echte Abfrage. */
 
 describe.skipIf(!testDatabaseUrl)("USt-IdNr. beim BZSt bestätigen (Postgres)", () => {
   let sql: postgres.Sql;

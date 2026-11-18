@@ -21,6 +21,8 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   let abgleich: typeof import("../auswertungen/abgleich.ts");
 
   beforeAll(async () => {
+    // Abgeschaltet ist die Vorprüfung wie vor der Bestätigung beim BZSt (#1385); die prüft zm-bestaetigung.test.ts
+    process.env.HABEN_EVATR = "off";
     sql = await setupTestDb();
     zm = await import("./zm.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
@@ -33,6 +35,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   }, 30_000);
 
   afterAll(async () => {
+    delete process.env.HABEN_EVATR;
     await sql?.end();
   });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   evatrAnfrage,
   evatrAntwortSchema,
+  evatrFrisch,
   evatrGueltig,
   evatrMeldung,
   evatrNachweis,
@@ -160,5 +161,14 @@ describe("evatrNeuNoetig", () => {
   it("eine zuletzt ungültige Nummer nicht bei jedem Speichern, deutsche nie", () => {
     expect(evatrNeuNoetig({ ...kontakt, name: "Neu" }, [{ ...einfach, status: "evatr-2001" }, qualifiziert])).toBe(false);
     expect(evatrNeuNoetig({ ...kontakt, ustId: "DE123456789" }, [])).toBe(false);
+  });
+});
+
+describe("evatrFrisch", () => {
+  it("gilt 30 Tage ab dem Zeitpunkt beim BZSt, danach nicht mehr", () => {
+    const jetzt = new Date("2026-12-18T12:00:00Z");
+    expect(evatrFrisch("2026-11-18T12:00:00Z", jetzt)).toBe(true);
+    expect(evatrFrisch(new Date("2026-11-18T11:59:59Z"), jetzt)).toBe(false);
+    expect(evatrFrisch("2026-12-18T12:00:00Z", jetzt)).toBe(true);
   });
 });

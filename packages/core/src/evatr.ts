@@ -99,6 +99,17 @@ export const evatrNachweis = (status: string) => NACHWEIS.has(status);
 /** Gültig zum Anfragezeitpunkt; evatr-2008 heißt gültig mit einer Besonderheit der qualifizierten Abfrage */
 export const evatrGueltig = (status: string) => status === "evatr-0000" || status === "evatr-2008";
 
+/**
+ * So lange gilt eine gültige Antwort vor dem Festschreiben und in der ZM als aktuell; danach fragt Haben neu. Eine feste
+ * Frist nennt weder § 18e UStG noch UStAE 18e.1; bestätigt wird der Stand am Tag der Anfrage, rückwirkend nichts (FAQ des BZSt)
+ */
+export const EVATR_FRIST_TAGE = 30;
+
+/** Ob eine Antwort höchstens EVATR_FRIST_TAGE alt ist */
+export function evatrFrisch(anfrageZeitpunkt: Date | string, jetzt: Date): boolean {
+  return jetzt.getTime() - new Date(anfrageZeitpunkt).getTime() <= EVATR_FRIST_TAGE * 86_400_000;
+}
+
 /** Höchstzahl qualifizierter Abfragen „für diese Session“ erreicht; das BZSt rät, mit einer einfachen neu zu beginnen */
 export const EVATR_LIMIT = "evatr-0008";
 
