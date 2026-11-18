@@ -342,6 +342,57 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     expect(issues.filter((i) => i.tone === "error")).toEqual([]);
   });
 
+  // Vor #1413 prüfte das Festschreiben nur das Länderkennzeichen. Storno und Korrektur übernehmen Kunde und USt-IdNr. der
+  // Rechnung (finalizeDraft: corrects.buyer), lassen sich an der Nummer also nicht berichtigen; sie müssen gehen, sonst
+  // bleibt die Lieferung in Kz 41 und in der ZM stehen
+  it.each(["Storno", "Korrektur"] as const)(
+    "%s einer innergemeinschaftlichen Lieferung, die vor der Prüfung des Aufbaus mit ATU1234 festgeschrieben wurde",
+    async (weg) => {
+      await reset("SKR03", "soll");
+      const kunde = {
+        kundennummer: "",
+        name: "Wiener Werkstatt GmbH",
+        strasse: "Ringstraße 1",
+        plz: "1010",
+        ort: "Wien",
+        land: "AT",
+        email: "einkauf@kunde.example",
+        ustId: "ATU12345678",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
+      };
+      const contact = await contacts.createContact(actor, kunde);
+      const draft = await invoices.createDraft(actor, {
+        contactId: contact.id,
+        issueDate: "2026-09-20",
+        serviceFrom: "2026-09-20",
+        serviceTo: null,
+        paymentTermDays: 14,
+        format: "zugferd",
+        note: "",
+        taxTreatment: "ig_lieferung",
+        lines: [{ description: "Hardware", quantity: 1000, unit: "Stk." as const, unitPrice: 100_000, taxRate: 0 }],
+      });
+      const rechnung = await invoices.finalizeInvoice(actor, draft.id);
+      // Stand aus der Zeit vor dem Update: Kunde und festgeschriebene Rechnung mit ATU1234, das damals durchging
+      await contacts.updateContact(actor, contact.id, { ...kunde, ustId: "ATU1234" });
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update invoices set buyer = jsonb_set(buyer, '{ustId}', '"ATU1234"') where id = ${rechnung.id}`;
+      });
+      expect((await zm.zmOverview({ year: 2026, month: 43 })).zeilen).toEqual([{ ustId: "ATU1234", art: "L", betrag: 100_000 }]);
+
+      const gutschrift =
+        weg === "Storno"
+          ? await invoices.cancelInvoice(actor, rechnung.id, "2026-09-28")
+          : await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, rechnung.id, "2026-09-28")).id);
+      expect(gutschrift.buyer?.ustId).toBe("ATU1234");
+      expect((await zm.zmOverview({ year: 2026, month: 43 })).zeilen).toEqual([]);
+    },
+    60_000,
+  );
+
   // § 18a Abs. 1 Satz 2 UStG: Maßgeblich ist die Summe der Bemessungsgrundlagen, nicht die je Zeile auf volle Euro
   // abgeschnittenen Beträge der Meldung; 50.001,20 € übersteigen 50.000 €
   it("Monatsmeldung: Grenze von 50.000 € nach der Summe der Bemessungsgrundlagen, nicht der abgeschnittenen Zeilen", () => {
