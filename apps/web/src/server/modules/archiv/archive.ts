@@ -221,8 +221,11 @@ export async function listDatevBookings(filter: { year: number; search: string; 
   const openSql = datevOpenBooking(datevFields, kontenrahmen);
   // Belegfeld ohne Nummer: Solche Zeilen sind kein offener Punkt und zählen wie ein leeres Feld unter „ohne Belegnummer“ (#1355)
   const withoutNumberSql = datevFieldWithoutNumber(datevFields, kontenrahmen);
-  // Eine Aufladung ohne Bezug ist weder ein offener Punkt noch erledigt, sondern eine eigene Gruppe (#1356)
-  const aufladungSql = datevAufladung("datev_bookings.text");
+  // Eine Aufladung ohne Bezug ist weder ein offener Punkt noch erledigt, sondern eine eigene Gruppe (#1356). Das Merkmal
+  // gilt nur bei leerem Belegfeld 1: Steht dort eine Belegnummer, ist die Zeile offen wie jede andere, bis ein Beleg sie
+  // trägt, und keine Aufladung ohne Bezug (#1369).
+  // Die Klammern sind nötig: Ohne sie bindet ein `not` davor nur an den ersten Teil und die Zeile fiele aus beiden Filtern.
+  const aufladungSql = sql<boolean>`(${datevAufladung("datev_bookings.text")} and btrim(datev_bookings.voucher_field1) = '')`;
   if (filter.aufladung) conditions.push(aufladungSql);
   if (filter.unmatched) conditions.push(openSql, sql`not ${withoutNumberSql}`, sql`not ${aufladungSql}`);
   const where = and(...conditions);
