@@ -73,5 +73,13 @@ export async function quellenHinweis(
   if (fremd.length === 0) return null;
   const aus = fremd.map((f) => `${FORMAT_NAMEN[f.format as StatementFormat] ?? f.format} (${f.filename})`).join(", ");
   const neu = FORMAT_NAMEN[format];
-  return `Für dieses Konto liegen im Zeitraum ${von} bis ${bis} schon Umsätze aus ${aus}. Der Auszug (${neu}) hat ${added} Umsätze neu angelegt; prüfe, ob sie doppelt sind. Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz.`;
+  // Mit Stichtag (#306) ist die Quelle schon gewechselt: ab ihm kommen die Umsätze aus dem Abruf
+  const [bindung] = await tx
+    .select({ cutoverDate: schema.importSources.cutoverDate })
+    .from(schema.importSources)
+    .where(and(eq(schema.importSources.bankAccountId, bankAccountId), lte(schema.importSources.cutoverDate, bis)));
+  const weiter = bindung?.cutoverDate
+    ? `Seit dem Stichtag ${bindung.cutoverDate} holt der Bankabruf die Umsätze dieses Kontos; eine Datei braucht es danach nur für eine Lücke im Abruf.`
+    : "Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz.";
+  return `Für dieses Konto liegen im Zeitraum ${von} bis ${bis} schon Umsätze aus ${aus}. Der Auszug (${neu}) hat ${added} Umsätze neu angelegt; prüfe, ob sie doppelt sind. ${weiter}`;
 }

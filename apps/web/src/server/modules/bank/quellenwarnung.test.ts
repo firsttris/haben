@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type ParsedStatement, parseStatement, type StatementFormat } from "@haben/import";
+import { enableBankingBatch, enableBankingStatement, entryReferenceOf, type ParsedStatement, parseStatement, type StatementFormat } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -114,6 +114,49 @@ describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum
     });
     expect(r.quelle).toContain("Abruf Swan 2026-09-30");
     expect(r.quelle).not.toContain("enablebanking");
+  });
+
+  it("nennt den Stichtag, wenn das Konto schon per Abruf mit Quellenbindung läuft (#306)", async () => {
+    const iban = "DE02120300000000202051";
+    const transactions = [
+      {
+        entry_reference: "ER-1",
+        transaction_amount: { currency: "EUR", amount: "25.00" },
+        credit_debit_indicator: "DBIT",
+        status: "BOOK",
+        booking_date: "2026-10-10",
+        creditor: { name: "Hosting" },
+        remittance_information: ["Hosting"],
+      },
+    ];
+    const fenster = { transactions, balances: [], dateFrom: "2026-10-01", dateTo: "2026-10-31" };
+    const { storeBatch } = await import("./import-batch.ts");
+    await db.db.transaction((tx) =>
+      storeBatch(
+        tx,
+        {
+          batch: enableBankingBatch({ externalAccountId: "hash-q", ...fenster, fetchedAt: "2026-10-31T12:00:00+01:00", fetchId: "q1" }),
+          binding: { provider: "enablebanking", externalAccountId: "hash-q", accountKind: "bank" },
+          statement: enableBankingStatement({ account: { uid: "u", account_id: { iban }, name: "Abrufkonto" }, ...fenster }),
+          eventOf: entryReferenceOf(transactions),
+          source: { filename: "Abruf Testbank 2026-10-31", sha256: "q1".padEnd(64, "0") },
+        },
+        null,
+      ),
+    );
+    const statement: ParsedStatement = {
+      format: "camt053",
+      accountIban: iban,
+      currency: "EUR",
+      periodFrom: "2026-10-01",
+      periodTo: "2026-10-31",
+      transactions: [umsatz("2026-10-11", -2500, "Hosting Oktober")],
+      warnings: [],
+    };
+    const r = await db.db.transaction((tx) => bank.storeStatement(tx, statement, { filename: "oktober.xml", sha256: "oktober.xml" }, null));
+    expect(r.quelle).toContain("Abruf Testbank 2026-10-31");
+    expect(r.quelle).toContain("Seit dem Stichtag 2026-10-01 holt der Bankabruf die Umsätze dieses Kontos");
+    expect(r.quelle).not.toContain("Wer die Quelle wechselt");
   });
 
   it("schweigt beim Wechsel vom alten zum neuen DKB-CSV derselben Bank", async () => {
