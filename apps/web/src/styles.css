@@ -673,6 +673,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .todo-body { display: flex; flex-direction: column; gap: 2px; flex-grow: 1; }
 .todo-title { font-weight: 500; }
 .todo-action { font-size: 13px; color: var(--link); font-weight: 500; }
+.todo-weitere summary { padding: 8px 12px; border-radius: 8px; color: var(--link); font-size: 13px; font-weight: 500; }
+.todo-weitere[open] summary { margin-bottom: 4px; }
 
 /* Kennzahlentabelle */
 .kz-table { display: flex; flex-direction: column; }

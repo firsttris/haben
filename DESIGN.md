@@ -49,7 +49,7 @@ Die Knopfarten (#30, `styles.css`):
 | `btn btn-danger` | Löschen, Entfernen, Stornieren, Widerrufen, Abo beenden, Ausschalten. |
 | `btn btn-destructive` | Bestätigung von Unumkehrbarem im `ConfirmDialog` (`danger`): voll in Rot. |
 | `btn btn-dashed` | Nur zum Anfügen einer Zeile oder eines Eintrags im Formular, etwa „+ Position“, „+ Steuersatz“, „+ Kind“. |
-| `btn btn-ghost` | Nebenaktion in einer Werkzeugleiste, etwa Blättern oder Vergrößern und Ausblenden der Vorschau: ohne Rahmen, Fläche erst beim Überfahren. Nie für die Hauptaktion. |
+| `btn btn-ghost` | Nebenaktion in einer Werkzeugleiste oder als Nebenlink im Seitenkopf (Voranmeldung auf der Übersicht), etwa Blättern oder Vergrößern und Ausblenden der Vorschau: ohne Rahmen, Fläche erst beim Überfahren. Nie für die Hauptaktion. |
 | `btn-icon` | Quadratischer Knopf nur mit Symbol, mit `aria-label`; zusammen mit `btn-ghost` oder `btn-sm`. |
 | `btn-sm` | Kleiner Knopf; ersetzt Inline-`minHeight`. |
 
@@ -122,6 +122,8 @@ Eine Trefferzeile zeigt Symbolkachel, Titel und darunter Kontext. Am Desktop ste
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.
+
+Auf der Übersicht steht „Zu erledigen“ vor der Reihe: Fristen der nächsten zwei Wochen zuerst (auch überfällige), die früheste vorn, dann Warnung vor Hinweis vor Anstehendem. Die Reihe entfällt, solange keine Zahlen da sind (`ohneKennzahlen`).
 
 ### Status
 

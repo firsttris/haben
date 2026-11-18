@@ -3,10 +3,11 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { daysUntil, formatDate, formatDateTime, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
 import { KleinunternehmerHinweise } from "../../components/KleinunternehmerHinweise.tsx";
+import { UebersichtAufgaben, ZUERST, ordneAufgaben, type Todo } from "../../components/UebersichtAufgaben.tsx";
+import { UebersichtKennzahlen, ohneKennzahlen } from "../../components/UebersichtKennzahlen.tsx";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
-import type { SettingsArea } from "../../lib/settings-areas.ts";
 import { einrichtungsAufgaben } from "../../lib/einrichtung.ts";
 
 export const Route = createFileRoute("/_app/")({
@@ -18,18 +19,6 @@ export const Route = createFileRoute("/_app/")({
   component: OverviewPage,
 });
 
-interface Todo {
-  /** Nur bei Einträgen aus Listen nötig; sonst ist der Titel eindeutig */
-  id?: string;
-  title: string;
-  detail: string;
-  action: string;
-  tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/einrichtung" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
-  /** Bereich der Einstellungen, wenn to „/einstellungen“ ist */
-  bereich?: SettingsArea;
-}
-
 const BESCHEID_LABEL: Record<string, string> = {
   ESB: "Steuerbescheid",
   DivaBescheidESt: "Einkommensteuerbescheid",
@@ -39,8 +28,6 @@ const BESCHEID_LABEL: Record<string, string> = {
   DivaBescheidFEIN: "Feststellungsbescheid",
   DivaSonstigerVA: "Bescheid",
 };
-
-const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--muted)" };
 
 function OverviewPage() {
   const data = Route.useLoaderData();
@@ -54,6 +41,7 @@ function OverviewPage() {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,
       detail: `Fällig ${formatLongDate(data.dueDate)}`,
+      frist: data.dueDate,
       action: "Öffnen",
       tone: daysUntil(data.dueDate) <= 3 ? "warn" : "info",
       to: "/umsatzsteuer/$zeitraum",
@@ -74,6 +62,7 @@ function OverviewPage() {
       id: `ustva-${posten.vatReturnId}`,
       title: `Umsatzsteuer ${periodLabel(posten)}${posten.berichtigt ? " (Berichtigung)" : ""} nicht bezahlt`,
       detail: `${formatEuro(posten.offen)} offen, fällig seit ${formatLongDate(posten.faellig)}; Lastschrift im Bankabgleich der Voranmeldung zuordnen`,
+      frist: posten.faellig,
       action: "Zur Bank",
       tone: "warn",
       to: "/bank",
@@ -136,6 +125,7 @@ function OverviewPage() {
       id: `bescheid-${appeal.id}`,
       title: `Bescheid ${appeal.veranlagungszeitraum ? `${appeal.veranlagungszeitraum} ` : ""}prüfen`,
       detail: `${BESCHEID_LABEL[appeal.datenart] ?? "Bescheid"} · Einspruch bis ${formatDate(appeal.fristende)}`,
+      frist: appeal.fristende,
       action: "Ansehen",
       tone: days <= 7 ? "warn" : "info",
       to: "/finanzamt",
@@ -178,6 +168,7 @@ function OverviewPage() {
     todos.push({
       title: certificateDays < 0 ? "ELSTER-Zertifikat abgelaufen" : "ELSTER-Zertifikat läuft bald ab",
       detail: `Gültig bis ${formatDate(data.certificate.validUntil!)}`,
+      frist: data.certificate.validUntil!,
       action: "Erneuern",
       tone: "warn",
       to: "/einstellungen",
@@ -216,6 +207,10 @@ function OverviewPage() {
     });
   }
 
+  const geordnet = ordneAufgaben(todos);
+  // Steht die Voranmeldung nicht unter den offenen Aufgaben (gesendet, keine Pflicht oder unter „Weitere“), bleibt der Weg hier
+  const voranmeldungOffen = geordnet.slice(0, ZUERST).some((todo) => todo.to === "/umsatzsteuer/$zeitraum");
+
   return (
     <>
       <div className="page-head">
@@ -224,8 +219,8 @@ function OverviewPage() {
           <h1>Übersicht</h1>
         </div>
         <div className="actions">
-          {showVatPeriod && (
-            <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: key }} className="btn">
+          {showVatPeriod && !voranmeldungOffen && (
+            <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: key }} className="btn btn-ghost">
               Voranmeldung {periodLabel(data.period)}
             </Link>
           )}
@@ -243,127 +238,49 @@ function OverviewPage() {
 
       {data.kleinunternehmerStand && <KleinunternehmerHinweise stand={data.kleinunternehmerStand} />}
 
-      <div className="grid-4">
-        <Link to="/auswertungen" hash="receivables" className="card card-link">
-          <div className="kpi-label">Offene Forderungen</div>
-          <div className="kpi-value">{formatEuro(data.invoices.openTotal)}</div>
-          <div className="small" style={{ color: data.invoices.overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
-            {data.invoices.openCount} {data.invoices.openCount === 1 ? "Rechnung" : "Rechnungen"}
-            {data.invoices.overdueCount ? ` · ${data.invoices.overdueCount} überfällig` : ""}
-          </div>
-        </Link>
-        <Link to="/auswertungen" hash="payables" className="card card-link">
-          <div className="kpi-label">Offene Verbindlichkeiten</div>
-          <div className="kpi-value">{formatEuro(data.invoices.payables.total)}</div>
-          <div className="small" style={{ color: data.invoices.payables.overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
-            {data.invoices.payables.count} {data.invoices.payables.count === 1 ? "Beleg" : "Belege"}
-            {data.invoices.payables.overdueCount
-              ? ` · ${data.invoices.payables.overdueCount} überfällig`
-              : data.invoices.payables.nextDue
-                ? ` · nächste fällig ${formatDate(data.invoices.payables.nextDue)}`
-                : ""}
-          </div>
-        </Link>
-        <div className="card">
-          <div className="kpi-label">Umsatz {periodLabel(data.previousMonth).split(" ")[0]} (netto)</div>
-          <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth)}</div>
-          <div className="small muted">Erlöse nach Buchungsdatum</div>
-        </div>
-        {showVatPeriod && (
-          <div className="card">
-            <div className="kpi-label">USt-Zahllast {periodLabel(data.period)}</div>
-            <div className="kpi-value">{formatEuro(data.current?.status === "sent" ? data.current.kz83 : data.computedKz83)}</div>
-            <div className="small muted">
-              {sent
-                ? `gesendet ${formatDate(data.current!.sentAt!)} · ${periodOpen === 0 ? "ausgeglichen" : `${periodOpen > 0 ? "offen" : "Erstattung offen"} ${formatEuro(Math.abs(periodOpen))}`}`
-                : vatRequired
-                  ? `Voranmeldung fällig ${formatDate(data.dueDate)}`
-                  : "keine reguläre Voranmeldung"}
-            </div>
-          </div>
-        )}
-        {taxAccount && taxAccount.balance !== null && !data.kleinunternehmer && (
-          <div className="card">
-            <div className="kpi-label">{taxAccount.name}</div>
-            <div className="kpi-value">{formatEuro(taxAccount.balance)}</div>
-            <div className="small" style={{ color: taxShortfall > 0 ? "var(--warn-ink)" : "var(--muted)" }}>
-              Steuerkonto ·{" "}
-              {zahllast <= 0 && zahllastOffen === 0
-                ? "keine Zahllast offen"
-                : zahllastOffen === 0
-                  ? `Zahllast ${formatEuro(zahllast)} bezahlt`
-                  : taxShortfall > 0
-                    ? `Zahllast ${formatEuro(zahllastOffen)} – es fehlen ${formatEuro(taxShortfall)}`
-                    : `Zahllast ${formatEuro(zahllastOffen)} – gedeckt`}
-            </div>
-          </div>
-        )}
-        {[
-          ...data.invoices.bank.filter((a) => a.balance !== null && a.purpose === "geschaeft"),
-          ...data.invoices.bank.filter((a) => a.balance !== null && a.purpose !== "geschaeft" && a.purpose !== "steuer"),
-        ]
-          .slice(0, 1)
-          .map((a) => (
-            <div className="card" key={a.id}>
-              <div className="kpi-label">Kontostand {a.name}</div>
-              <div className="kpi-value">{formatEuro(a.balance!)}</div>
-              <div className="small muted">{a.balanceDate ? `Stand letzter Import ${formatDate(a.balanceDate)}` : "Stand letzter Import"}</div>
-            </div>
-          ))}
-      </div>
+      <UebersichtAufgaben geordnet={geordnet} zeitraum={key} />
+
+      {!ohneKennzahlen(data) && (
+        <UebersichtKennzahlen
+          data={data}
+          showVatPeriod={showVatPeriod}
+          sent={sent}
+          vatRequired={vatRequired}
+          periodOpen={periodOpen}
+          zahllast={zahllast}
+          zahllastOffen={zahllastOffen}
+          taxShortfall={taxShortfall}
+          taxAccount={taxAccount}
+        />
+      )}
 
       <div className="grid-main">
-        <div className="stack">
-          <section className="card" aria-labelledby="todo-heading">
-            <h2 id="todo-heading">Zu erledigen</h2>
-            {todos.length === 0 ? (
-              <p className="muted">Alles erledigt.</p>
+        {(vatRequired || data.recent.length > 0) && (
+          <section className="card" aria-labelledby="recent-heading">
+            <h2 id="recent-heading">Letzte Voranmeldungen</h2>
+            {data.recent.length === 0 ? (
+              <p className="muted">Noch keine Voranmeldung über Haben gesendet.</p>
             ) : (
-              todos.map((todo) => (
-                <Link
-                  key={todo.id ?? todo.title}
-                  to={todo.to}
-                  params={{ zeitraum: key }}
-                  search={todo.bereich ? { bereich: todo.bereich } : {}}
-                  className="todo"
-                >
-                  <span className="todo-dot" style={{ background: DOT[todo.tone] }} />
-                  <span className="todo-body">
-                    <span className="todo-title">{todo.title}</span>
-                    <span className="small muted">{todo.detail}</span>
-                  </span>
-                  <span className="todo-action">{todo.action}</span>
-                </Link>
+              data.recent.map((entry) => (
+                <div key={entry.id} className="history-row">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: periodKey(entry) }}>
+                      {periodLabel(entry)}
+                      {entry.berichtigt ? " (berichtigt)" : ""}
+                    </Link>
+                    <span className="small muted">gesendet {formatDate(entry.sentAt!)}</span>
+                  </div>
+                  <span className="amount">{formatEuro(entry.kz83)}</span>
+                </div>
               ))
             )}
+            {/* Das Zertifikat ist keine Kennzahl; es gehört zum Senden der Voranmeldungen, Ablauf und Fehlen meldet „Zu erledigen“ */}
+            <p className="small muted" style={{ margin: 0 }}>
+              ELSTER-Zertifikat: {data.certificate ? data.certificate.filename : "nicht hinterlegt"}
+              {data.certificate && (data.certificate.validUntil ? ` · gültig bis ${formatDate(data.certificate.validUntil)}` : " · Ablaufdatum unbekannt")}
+            </p>
           </section>
-          {(vatRequired || data.recent.length > 0) && (
-            <section className="card" aria-labelledby="recent-heading">
-              <h2 id="recent-heading">Letzte Voranmeldungen</h2>
-              {data.recent.length === 0 ? (
-                <p className="muted">Noch keine Voranmeldung über Haben gesendet.</p>
-              ) : (
-                data.recent.map((entry) => (
-                  <div key={entry.id} className="history-row">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: periodKey(entry) }}>
-                        {periodLabel(entry)}
-                        {entry.berichtigt ? " (berichtigt)" : ""}
-                      </Link>
-                      <span className="small muted">gesendet {formatDate(entry.sentAt!)}</span>
-                    </div>
-                    <span className="amount">{formatEuro(entry.kz83)}</span>
-                  </div>
-                ))
-              )}
-              {/* Das Zertifikat ist keine Kennzahl; es gehört zum Senden der Voranmeldungen, Ablauf und Fehlen meldet „Zu erledigen“ */}
-              <p className="small muted" style={{ margin: 0 }}>
-                ELSTER-Zertifikat: {data.certificate ? data.certificate.filename : "nicht hinterlegt"}
-                {data.certificate && (data.certificate.validUntil ? ` · gültig bis ${formatDate(data.certificate.validUntil)}` : " · Ablaufdatum unbekannt")}
-              </p>
-            </section>
-          )}
-        </div>
+        )}
         <section className="card" aria-labelledby="invoices-heading">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 id="invoices-heading">Letzte Rechnungen</h2>
@@ -372,9 +289,14 @@ function OverviewPage() {
             </Link>
           </div>
           {data.invoices.recent.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
-              Noch keine festgeschriebene Rechnung.
-            </p>
+            <>
+              <p className="muted" style={{ margin: 0 }}>
+                Noch keine festgeschriebene Rechnung.
+              </p>
+              <Link to="/rechnungen/neu" className="btn" style={{ alignSelf: "flex-start" }}>
+                Erste Rechnung schreiben
+              </Link>
+            </>
           ) : (
             <div className="table">
               {data.invoices.recent.map((invoice) => (

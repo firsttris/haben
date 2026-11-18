@@ -117,7 +117,9 @@ test("Kleinunternehmer-Ersteinrichtung: Übersicht ohne reguläre UStVA-Aufforde
         await expect(page.getByText(/ERiC ist nicht eingerichtet/)).toHaveCount(0);
         await expect(page.getByRole("heading", { name: "Letzte Voranmeldungen" })).toHaveCount(0);
         await expect(page.getByRole("link", { name: "Neue Rechnung", exact: true })).toBeVisible();
-        await expect(page.getByText("Offene Forderungen", { exact: true })).toBeVisible();
+        // Noch nichts erfasst: statt Karten mit 0,00 € der Weg zur ersten Rechnung
+        await expect(page.getByText("Offene Forderungen", { exact: true })).toHaveCount(0);
+        await expect(page.getByRole("link", { name: "Erste Rechnung schreiben" })).toBeVisible();
       }
     }
   } finally {
