@@ -201,6 +201,10 @@ export function createEtsyClient(options: EtsyClientOptions): EtsyClient {
     },
 
     async ledger(from: number, to: number): Promise<EtsyLedgerEntry[]> {
+      // Je entry_id nur einmal: Ob Etsy die Grenzen min_created und max_created einschließt, beschreibt die API nicht, und
+      // das nächste Fenster beginnt in der Sekunde, in der das vorige endet; auch eine Seite kann sich verschieben, wenn
+      // während des Abrufs eine Zeile dazukommt. Zweimal dieselbe Kennung lehnt der Importvertrag ab.
+      const gesehen = new Set<number>();
       const out: EtsyLedgerEntry[] = [];
       for (let start = from; start <= to; start += ETSY_MAX_WINDOW_SECONDS) {
         const ende = Math.min(start + ETSY_MAX_WINDOW_SECONDS, to);
@@ -212,7 +216,11 @@ export function createEtsyClient(options: EtsyClientOptions): EtsyClient {
             offset: String(offset),
           });
           const results = page.results ?? [];
-          out.push(...results);
+          for (const entry of results) {
+            if (entry.entry_id !== undefined && gesehen.has(entry.entry_id)) continue;
+            if (entry.entry_id !== undefined) gesehen.add(entry.entry_id);
+            out.push(entry);
+          }
           if (results.length === 0 || offset + PAGE_SIZE >= (page.count ?? 0)) break;
           await runtime.sleep(250);
         }

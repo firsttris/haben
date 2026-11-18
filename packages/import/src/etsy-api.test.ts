@@ -58,12 +58,13 @@ describe("Etsy-Client", () => {
     const to = from + 40 * 24 * 60 * 60;
     const entries = await client.ledger(from, to);
 
-    // Zwei Fenster (31 Tage, dann der Rest), im ersten zwei Seiten; die Antwort des Nachbaus wiederholt sich
+    // Zwei Fenster (31 Tage, dann der Rest), im ersten zwei Seiten; die Antwort des Nachbaus wiederholt sich, und dieselbe
+    // entry_id kommt nur einmal in den Verlauf
     const grenze = from + 31 * 24 * 60 * 60;
     expect(fenster).toHaveLength(4);
     expect(fenster[0]).toBe(`${from}-${grenze}`);
     expect(fenster[2]).toBe(`${grenze}-${to}`);
-    expect(entries.map((e) => e.created_timestamp)).toEqual([1, 1, 2, 2]);
+    expect(entries.map((e) => e.entry_id)).toEqual([2, 1]);
     expect(rufe[0]!.headers["x-api-key"]).toBe("abc:geheim");
     expect(rufe[0]!.headers.authorization).toBe("Bearer gut");
   });
