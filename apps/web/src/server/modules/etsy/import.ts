@@ -103,7 +103,9 @@ async function bekannteZeilen(shopId: string, entries: EtsyLedgerEntry[]): Promi
     .from(schema.importMovements)
     .innerJoin(schema.importSources, eq(schema.importSources.id, schema.importMovements.sourceId))
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.importMovements.transactionId))
-    .where(and(eq(schema.importSources.provider, "etsy"), eq(schema.importSources.externalAccountId, shopId), inArray(schema.importMovements.sourceEventId, ids)));
+    .where(
+      and(eq(schema.importSources.provider, "etsy"), eq(schema.importSources.externalAccountId, shopId), inArray(schema.importMovements.sourceEventId, ids)),
+    );
   return new Map(rows.map((r) => [r.id, { order: r.zweck?.match(/Etsy Bestellung (\d+)/)?.[1], verrechnet: Number(r.umsatz) - Number(r.zeile) }]));
 }
 

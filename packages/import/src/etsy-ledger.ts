@@ -280,67 +280,67 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
   }
 
   sortiert.forEach(({ entry, tag: buchungstag }) => {
-      if (entry.currency && entry.currency.toUpperCase() !== "EUR") {
-        fremdwaehrung++;
+    if (entry.currency && entry.currency.toUpperCase() !== "EUR") {
+      fremdwaehrung++;
+      return;
+    }
+    if (entry.amount === 0) return;
+    const kind = KINDS[entry.ledger_type];
+    const order =
+      kind === "verkauf" || kind === "erstattung"
+        ? // Etsy liefert die Kennung je Typ als Text oder als Zahl; der Abruf liefert Texte, deshalb angleichen
+          options.orderFor?.(entry.reference_id === undefined ? "" : String(entry.reference_id))
+        : kind === "steuer" && entry.reference_id !== undefined
+          ? String(entry.reference_id)
+          : undefined;
+    const bucket = kind ? BUCKETS[kind] : undefined;
+    const schluessel = bucket ? etsySammelKennung(bucket.reference, buchungstag.slice(0, 7)) : undefined;
+    // Steht die Sammelzeile schon im Konto, bleiben die Zeilen weg, auch wenn das Bündeln inzwischen aus ist
+    if (schluessel !== undefined && options.schonGebuendelt?.has(schluessel)) {
+      schonDa++;
+      return;
+    }
+    // Monate und Arten, die schon einzeln im Konto stehen, bleiben einzeln, auch wenn das Bündeln inzwischen an ist
+    if (sammelzeilen && kind && bucket && schluessel !== undefined && !einzeln.has(schluessel)) {
+      const monat = buchungstag.slice(0, 7);
+      // Gebühren eines noch laufenden Monats bleiben liegen: die Sammelzeile entsteht erst, wenn er vorbei ist
+      if (options.gebuehrenBis !== undefined && monatsende(monat) > options.gebuehrenBis) {
+        spaeter++;
         return;
       }
-      if (entry.amount === 0) return;
-      const kind = KINDS[entry.ledger_type];
-      const order =
-        kind === "verkauf" || kind === "erstattung"
-          ? // Etsy liefert die Kennung je Typ als Text oder als Zahl; der Abruf liefert Texte, deshalb angleichen
-            options.orderFor?.(entry.reference_id === undefined ? "" : String(entry.reference_id))
-          : kind === "steuer" && entry.reference_id !== undefined
-            ? String(entry.reference_id)
-            : undefined;
-      const bucket = kind ? BUCKETS[kind] : undefined;
-      const schluessel = bucket ? etsySammelKennung(bucket.reference, buchungstag.slice(0, 7)) : undefined;
-      // Steht die Sammelzeile schon im Konto, bleiben die Zeilen weg, auch wenn das Bündeln inzwischen aus ist
-      if (schluessel !== undefined && options.schonGebuendelt?.has(schluessel)) {
-        schonDa++;
+      const vorhanden = gebuendelt.get(schluessel);
+      if (vorhanden) {
+        vorhanden.amount += entry.amount;
         return;
       }
-      // Monate und Arten, die schon einzeln im Konto stehen, bleiben einzeln, auch wenn das Bündeln inzwischen an ist
-      if (sammelzeilen && kind && bucket && schluessel !== undefined && !einzeln.has(schluessel)) {
-        const monat = buchungstag.slice(0, 7);
-        // Gebühren eines noch laufenden Monats bleiben liegen: die Sammelzeile entsteht erst, wenn er vorbei ist
-        if (options.gebuehrenBis !== undefined && monatsende(monat) > options.gebuehrenBis) {
-          spaeter++;
-          return;
-        }
-        const vorhanden = gebuendelt.get(schluessel);
-        if (vorhanden) {
-          vorhanden.amount += entry.amount;
-          return;
-        }
-        gebuendelt.set(schluessel, {
-          amount: entry.amount,
-          purpose: `${bucket.prefix} · ${bucket.purpose} ${monat}`,
-          type: bucket.type,
-          monat,
-          reference: schluessel,
-        });
-        return;
-      }
-      const frueher = bekannt(entry);
-      if (kind === "steuer" && !frueher && order !== undefined && schonVerrechnet(pool, settlementKey(order, buchungstag), entry.amount)) return;
-      if (!kind) unbekannt.push(entry.ledger_type);
-      const tx: Tx = {
-        bookingDate: buchungstag,
+      gebuendelt.set(schluessel, {
         amount: entry.amount,
-        currency: "EUR",
-        counterpartyName: "Etsy",
-        purpose: kind ? purposeOf(kind, entry, buchungstag, order) : `Etsy ${entry.ledger_type} · ${buchungstag}`,
-        type: kind ? typeOf(kind) : entry.ledger_type,
-        // Die entry_id ist im Verlauf eindeutig und bleibt es auch beim zweiten Abruf
-        bankReference: entry.entry_id ? `etsy-${entry.entry_id}` : undefined,
-      };
-      list.push(tx);
-      // Mit schon übernommenen Zeilen verrechnet dieser Abruf nichts: Ihr Umsatz steht schon im Konto und bliebe unverändert
-      if (!frueher && order !== undefined && (kind === "verkauf" || kind === "erstattung" || kind === "steuer")) {
-        orders.set(tx, settlementKey(order, buchungstag));
-      }
-    });
+        purpose: `${bucket.prefix} · ${bucket.purpose} ${monat}`,
+        type: bucket.type,
+        monat,
+        reference: schluessel,
+      });
+      return;
+    }
+    const frueher = bekannt(entry);
+    if (kind === "steuer" && !frueher && order !== undefined && schonVerrechnet(pool, settlementKey(order, buchungstag), entry.amount)) return;
+    if (!kind) unbekannt.push(entry.ledger_type);
+    const tx: Tx = {
+      bookingDate: buchungstag,
+      amount: entry.amount,
+      currency: "EUR",
+      counterpartyName: "Etsy",
+      purpose: kind ? purposeOf(kind, entry, buchungstag, order) : `Etsy ${entry.ledger_type} · ${buchungstag}`,
+      type: kind ? typeOf(kind) : entry.ledger_type,
+      // Die entry_id ist im Verlauf eindeutig und bleibt es auch beim zweiten Abruf
+      bankReference: entry.entry_id ? `etsy-${entry.entry_id}` : undefined,
+    };
+    list.push(tx);
+    // Mit schon übernommenen Zeilen verrechnet dieser Abruf nichts: Ihr Umsatz steht schon im Konto und bliebe unverändert
+    if (!frueher && order !== undefined && (kind === "verkauf" || kind === "erstattung" || kind === "steuer")) {
+      orders.set(tx, settlementKey(order, buchungstag));
+    }
+  });
 
   const settled = settleTax(list, orders, mitSteuer);
   for (const b of gebuendelt.values()) {
