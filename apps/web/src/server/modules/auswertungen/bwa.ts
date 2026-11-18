@@ -98,7 +98,8 @@ export async function bwaBericht(zeitraum: Zeitraum, vergleich: Vergleich, q: Db
   const werteVgl = vgl ? form43(alle, vgl) : null;
   const werteVglKum = vglKum ? form43(alle, vglKum) : null;
   const afaOffen: number[] = [];
-  for (const jahr of jahreVon(kum)) if ((await listAssets(jahr, q)).some((a) => a.pending)) afaOffen.push(jahr);
+  // Alle Jahre des Zeitraums; kumuliert liegt im letzten davon
+  for (const jahr of jahreVon(zeitraum)) if ((await listAssets(jahr, q)).some((a) => a.pending)) afaOffen.push(jahr);
   return {
     kapitalgesellschaft,
     zeitraum,
