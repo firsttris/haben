@@ -1,5 +1,5 @@
 import { desc, eq, or, sql } from "drizzle-orm";
-import { simpleParser, type Attachment } from "mailparser";
+import { simpleParser } from "mailparser";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { decrypt, encrypt } from "../../crypto.ts";
@@ -8,7 +8,8 @@ import { db, schema } from "../../db/index.ts";
 import { DocumentError, uploadDocument } from "./documents.ts";
 import { normalizeSenders, senderAllowed } from "./inbox-absender.ts";
 import { MAX_MAIL_SIZE } from "../../grenzen.ts";
-import { type Connector, imapConnect, type InboxConnection, InboxError } from "./inbox-imap.ts";
+import { clean, errorText, isBeleg, settle } from "./inbox-danach.ts";
+import { type Connector, imapConnect, InboxError } from "./inbox-imap.ts";
 
 /**
  * Belege per E-Mail: Haben ruft ein Postfach über IMAP ab, legt die Anhänge ungelesener Mails als
@@ -149,13 +150,6 @@ export async function deleteInboxSettings(actor: string): Promise<void> {
   await withActor(actor, (tx) => tx.delete(schema.inboxSettings).where(eq(schema.inboxSettings.id, 1)));
 }
 
-/** Signaturbilder und eingebettete Logos sind keine Belege */
-function isBeleg(attachment: Attachment): boolean {
-  if (attachment.related) return false;
-  if (attachment.contentDisposition === "inline" && attachment.contentType.startsWith("image/")) return false;
-  return true;
-}
-
 export interface InboxRunResult {
   messages: number;
   documents: number;
@@ -204,21 +198,6 @@ async function freeKey(base: string): Promise<string | null> {
   while (taken.has(retryKey(base, n))) n++;
   return retryKey(base, n);
 }
-
-/** War die schon abgelegte Mail ohne Verlust abgelegt (Belege oder Dubletten, nichts übersprungen)? Nur dann darf sie beim Löschen weg. */
-async function filedLossless(bytes: Buffer): Promise<boolean> {
-  const mail = await simpleParser(bytes);
-  const rows = await earlierRows(keyOf(messageIdOf(mail, bytes)));
-  const filed = rows.filter((row) => !isRetryable(row));
-  return filed.length > 0 && filed.every((row) => row.skipped.length === 0 && (row.documentIds.length > 0 || row.duplicates > 0));
-}
-
-/** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
-const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, "");
-
-/** Die Ursache statt der Drizzle-Hülle mit der ganzen Abfrage */
-const errorText = (e: unknown) => clean(e instanceof Error ? (e.cause instanceof Error ? e.cause.message : e.message) : String(e));
 
 async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
   const mail = await simpleParser(source.bytes);
@@ -272,9 +251,7 @@ async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: 
       })
       .onConflictDoNothing({ target: schema.inboxMessages.messageId });
   });
-  // Löschen ist nur ohne Verlust erlaubt: etwas abgelegt (Beleg oder Dublette) und nichts übersprungen, auch keine fehlenden Anhänge oder zu große Mail
-  const lossless = skipped.length === 0 && created + duplicates > 0;
-  return { documents: created, duplicates, skipped: skipped.length, lossless };
+  return { documents: created, duplicates, skipped: skipped.length };
 }
 
 function messageIdOf(mail: { messageId?: string }, bytes: Buffer) {
@@ -307,20 +284,17 @@ async function recordFailure(actor: string, bytes: Buffer, error: unknown) {
 }
 
 /**
- * Was nach dem Ablegen mit der Mail geschieht. Verschoben oder gelöscht wird nur, was fehlerfrei abgelegt oder
- * protokolliert ist; gelöscht außerdem nur, wenn kein Anhang übersprungen wurde. Sonst bleibt sie, als gelesen markiert.
- */
-async function settle(connection: InboxConnection, settings: InboxSettings, uid: number, outcome: { ok: boolean; lossless: boolean }) {
-  if (outcome.ok && settings.afterFetch === "move" && settings.archiveFolder) return connection.move(uid, settings.archiveFolder);
-  if (outcome.ok && outcome.lossless && settings.afterFetch === "delete") return connection.remove(uid);
-  return connection.markSeen(uid);
-}
-
-/**
  * Freigegebene Mails verarbeiten und danach gelesen markieren, verschieben oder löschen. Mails anderer Absender bleiben ungelesen; von ihnen
  * wird nur die Absenderadresse aus dem Umschlag gelesen und die Anzahl gezählt, nichts gespeichert.
  */
-async function fetchFolder(settings: InboxSettings, password: string, actor: string, background: (work: Promise<void>) => void, result: InboxRunResult) {
+async function fetchFolder(
+  settings: InboxSettings,
+  password: string,
+  actor: string,
+  background: (work: Promise<void>) => void,
+  result: InboxRunResult,
+  problems: string[],
+) {
   const connection = await connector(settings, password, settings.folder);
   try {
     let handled = 0;
@@ -339,11 +313,12 @@ async function fetchFolder(settings: InboxSettings, password: string, actor: str
       } catch (failure) {
         // Lässt sich nicht einmal der Fehler speichern (Datenbank weg), bricht der Lauf ab und die Mail bleibt ungelesen
         await recordFailure(actor, source.bytes, failure);
-        done = { documents: 0, duplicates: 0, skipped: 1, lossless: false };
+        done = { documents: 0, duplicates: 0, skipped: 1 };
         ok = false;
       }
-      // Erst nach dem Ablegen oder Protokollieren; eine schon abgelegte Mail (done = null) nur, wenn sie verlustfrei abgelegt wurde
-      await settle(connection, settings, uid, { ok, lossless: done ? done.lossless : await filedLossless(source.bytes) });
+      // Erst nach dem Ablegen oder Protokollieren
+      const problem = await settle(connection, settings, uid, source, ok);
+      if (problem) problems.push(problem);
       if (!done) continue;
       result.messages++;
       result.documents += done.documents;
@@ -361,13 +336,19 @@ export async function fetchInbox(actor: string, background: (work: Promise<void>
   if (!settings) throw new InboxError("Es ist kein Postfach für Belege eingerichtet.");
   const result: InboxRunResult = { messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 0 };
   let error: string | null = null;
+  const problems: string[] = [];
   try {
     const password = new TextDecoder().decode(decrypt(settings.ciphertext));
-    await fetchFolder(settings, password, actor, background, result);
+    await fetchFolder(settings, password, actor, background, result, problems);
   } catch (e) {
     error = errorText(e);
   }
-  await db.update(schema.inboxSettings).set({ lastRunAt: new Date(), lastRejected: result.rejected, lastError: error }).where(eq(schema.inboxSettings.id, 1));
+  // Ein Mail, die sich nicht verschieben oder löschen ließ, hält den Abruf nicht an; der Fehler steht danach in lastError
+  const settleError = problems[0] ? `${problems[0]}${problems.length > 1 ? ` (und ${problems.length - 1} weitere)` : ""}` : null;
+  await db
+    .update(schema.inboxSettings)
+    .set({ lastRunAt: new Date(), lastRejected: result.rejected, lastError: error ?? settleError })
+    .where(eq(schema.inboxSettings.id, 1));
   if (error) throw new InboxError(`Abruf fehlgeschlagen: ${error}`);
   return result;
 }

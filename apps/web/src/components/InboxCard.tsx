@@ -39,6 +39,8 @@ export function InboxCard({ data }: { data: Data }) {
   const [afterFetch, setAfterFetch] = useState<AfterFetch>(s?.afterFetch ?? "seen");
   const action = useAction();
   const [removing, setRemoving] = useState(false);
+  /** Das Formular, dessen Speichern noch auf die Rückfrage zu „Löschen“ wartet */
+  const [askingDelete, setAskingDelete] = useState<HTMLFormElement | null>(null);
   const { busy, notice } = action;
 
   const run = (work: () => Promise<Notice>) =>
@@ -57,7 +59,12 @@ export function InboxCard({ data }: { data: Data }) {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const element = event.currentTarget;
+    // Löschen lässt sich nicht zurückholen: beim Umstellen erst fragen
+    if (afterFetch === "delete" && s?.afterFetch !== "delete") setAskingDelete(event.currentTarget);
+    else submit(event.currentTarget);
+  }
+
+  function submit(element: HTMLFormElement) {
     const form = new FormData(element);
     const text = (name: string) => String(form.get(name) ?? "").trim();
     void run(async () => {
@@ -83,6 +90,20 @@ export function InboxCard({ data }: { data: Data }) {
 
   return (
     <>
+      <ConfirmDialog
+        open={askingDelete !== null}
+        title="Abgerufene Mails löschen?"
+        confirmLabel="Löschen aktivieren"
+        danger
+        onConfirm={() => askingDelete && submit(askingDelete)}
+        onClose={() => setAskingDelete(null)}
+      >
+        <p>
+          Haben löscht ab dem nächsten Abruf jede Mail im Postfach, deren Anhänge als Belege abgelegt sind. Haben behält die Anhänge sowie Absender und Betreff
+          in der Notiz am Beleg; Mailtext und Original sind danach weg. Gelöschte Mails lassen sich nicht zurückholen, bei manchen Anbietern liegen sie zunächst
+          im Papierkorb.
+        </p>
+      </ConfirmDialog>
       <form className="card form-card" onSubmit={onSubmit} aria-labelledby="inbox-heading">
         <div className="form-card-head">
           <h2 id="inbox-heading">Belege per E-Mail</h2>
@@ -271,8 +292,9 @@ function NachAbrufFelder({ settings, afterFetch, setAfterFetch }: { settings: Se
       )}
       {afterFetch === "delete" && (
         <p className="small muted">
-          Die Mail liegt danach nur noch in Haben. Mails ohne Anhang, mit Anhängen, die Haben nicht ablegen kann, und zu große Mails löscht Haben nicht; sie
-          bleiben als gelesen markiert im Postfach. Bei manchen Anbietern landet eine gelöschte Mail zunächst im Papierkorb.
+          Haben behält die Anhänge als Belege sowie Absender und Betreff in der Notiz; Mailtext und Original sind danach weg. Mails ohne Anhang, mit Anhängen,
+          die Haben nicht ablegen kann, und zu große Mails löscht Haben nicht; sie bleiben als gelesen markiert im Postfach. Bei manchen Anbietern landet eine
+          gelöschte Mail zunächst im Papierkorb. Der Server muss gezieltes Löschen (UIDPLUS) beherrschen, sonst bricht der Abruf mit einer Meldung ab.
         </p>
       )}
     </>

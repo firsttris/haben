@@ -1,6 +1,6 @@
 {
-  "id": "2f688cef-895f-40c3-b8b5-2a0f43f052a5",
-  "prevId": "020a3dee-1ccc-44b7-b474-408790c8121a",
+  "id": "9d9b9dcf-8eaa-4b64-835b-402cc81b6064",
+  "prevId": "7e1502fb-1623-494d-8382-f8614d733a3a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8226,6 +8226,10 @@
         "inbox_settings_single_row": {
           "name": "inbox_settings_single_row",
           "value": "\"inbox_settings\".\"id\" = 1"
+        },
+        "inbox_settings_after_fetch": {
+          "name": "inbox_settings_after_fetch",
+          "value": "\"inbox_settings\".\"after_fetch\" in ('seen', 'move', 'delete')"
         }
       },
       "isRLSEnabled": false

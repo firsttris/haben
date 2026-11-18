@@ -231,6 +231,11 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       expect((await inbox.inboxSummary()).settings).toMatchObject({ afterFetch: "move", archiveFolder: "Belege/Abgeholt" });
     });
 
+    it("lässt in der Datenbank nur bekannte Werte für „Nach dem Abruf“ zu", async () => {
+      await inbox.saveInboxSettings(actor, settings);
+      await expect(sql`update inbox_settings set after_fetch = 'archivieren'`).rejects.toThrow(/inbox_settings_after_fetch/);
+    });
+
     it("braucht für „verschieben“ einen eigenen Zielordner und vergisst ihn bei anderen Einstellungen", async () => {
       await expect(inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move" })).rejects.toThrow(/Zielordner fehlt/);
       await expect(inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: "belege" })).rejects.toThrow(/anderer sein/);
@@ -242,30 +247,72 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       expect((await inbox.inboxSummary()).settings).toMatchObject({ afterFetch: "seen", archiveFolder: null });
     });
 
-    it("lässt eine Mail liegen, wenn das Verschieben scheitert, und holt sie beim nächsten Abruf nicht doppelt ab", async () => {
+    it("markiert eine Mail gelesen, wenn das Verschieben scheitert, meldet den Fehler und hält den Abruf nicht an", async () => {
       await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: "Archiv" });
-      await deliver(rechnung("eins"));
-      const kept = box.get(1)!;
-      inbox.setInboxConnectorForTests(async () => ({
-        sender: async () => "rechnung@funknetz.example",
-        unseen: async () => (kept.seen ? [] : [1]),
-        source: async () => ({ bytes: kept.source, tooLarge: false }),
-        markSeen: async () => {},
+      await deliver(rechnung("eins"), rechnung("zwei"));
+      inbox.setInboxConnectorForTests(async (...args) => ({
+        ...(await memory(...args)),
         move: async () => {
           throw new Error("TRYCREATE Mailbox doesn't exist");
         },
-        remove: async () => {},
-        close: async () => {},
       }));
       try {
-        await expect(inbox.fetchInbox(actor)).rejects.toThrow(/Abruf fehlgeschlagen: TRYCREATE/);
-        await expect(inbox.fetchInbox(actor)).rejects.toThrow(/TRYCREATE/);
+        // Beide Mails werden abgelegt; die erste hält den Abruf nicht an
+        await expect(inbox.fetchInbox(actor)).resolves.toMatchObject({ messages: 2, documents: 2 });
       } finally {
         inbox.setInboxConnectorForTests(memory);
       }
-      expect(kept.seen).toBe(false);
-      expect(await sql`select 1 from documents`).toHaveLength(1);
-      expect(await sql`select 1 from inbox_messages`).toHaveLength(1);
+      expect([...box.values()].map((m) => m.seen)).toEqual([true, true]);
+      expect((await inbox.inboxSummary()).settings?.lastError).toMatch(/TRYCREATE.*\(und 1 weitere\)/);
+      expect(await sql`select 1 from documents`).toHaveLength(2);
+      // Der nächste Lauf hat keinen Fehler und legt nichts doppelt ab
+      await inbox.fetchInbox(actor);
+      expect((await inbox.inboxSummary()).settings?.lastError).toBeNull();
+      expect(await sql`select 1 from documents`).toHaveLength(2);
+    });
+
+    it("markiert eine Mail gelesen, wenn das Löschen scheitert", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      await deliver(rechnung("eins"));
+      inbox.setInboxConnectorForTests(async (...args) => ({
+        ...(await memory(...args)),
+        remove: async () => {
+          throw new Error("Mail 1 ließ sich nicht löschen.");
+        },
+      }));
+      try {
+        await inbox.fetchInbox(actor);
+      } finally {
+        inbox.setInboxConnectorForTests(memory);
+      }
+      expect(box.get(1)!.seen).toBe(true);
+      expect((await inbox.inboxSummary()).settings?.lastError).toMatch(/ließ sich nicht löschen/);
+    });
+
+    it("löscht eine wieder ungelesene Mail nicht, deren Beleg inzwischen gelöscht wurde", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("weg"));
+      await inbox.fetchInbox(actor);
+      const [doc] = await inbox.inboxSummary().then(() => sql`select id from documents`);
+      const documents = await import("./documents.ts");
+      await documents.deleteDocument(actor, doc!.id);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(true);
+      expect(box.get(1)!.seen).toBe(true);
+    });
+
+    it("löscht eine Mail nicht, deren Message-ID eine andere, abgelegte Mail trägt", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("erste"), { ...rechnung("zweite"), messageId: "<erste@funknetz.example>" });
+      box.get(2)!.seen = true;
+      await inbox.fetchInbox(actor);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(2)!.seen = false;
+      await inbox.fetchInbox(actor);
+      // Der Anhang der zweiten Mail liegt nicht in Haben
+      expect(box.has(2)).toBe(true);
     });
   });
 
