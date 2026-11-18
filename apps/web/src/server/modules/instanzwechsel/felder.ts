@@ -112,7 +112,7 @@ export const FELDER = {
   }),
   belegLayouts: felder(schema.belegLayouts, ["id", "name", "art", "source", "schemaVersion", "packages"], {
     sha256: "Ergibt sich aus dem Quelltext",
-    approvedSha256: "Die Freigabe der Pakete gibt man in der neuen Instanz neu",
+    approvedSha256: "Ergibt sich beim Import aus dem Quelltext; die Pakete lädt man in der neuen Instanz auf Klick nach, wie nach einem Restore",
     createdAt: ANGELEGT,
     updatedAt: GEAENDERT,
   }),

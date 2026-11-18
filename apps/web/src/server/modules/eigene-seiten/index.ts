@@ -8,6 +8,7 @@
 export {
   checkCustomPageEmbedding,
   createCustomPage,
+  insertCustomPage,
   CustomPageError,
   customPageInputSchema,
   deleteCustomPage,

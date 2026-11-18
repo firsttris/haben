@@ -248,7 +248,8 @@ export async function createContact(actor: string, input: ContactInput): Promise
 }
 
 /** Legt einen Kontakt in der laufenden Transaktion an; auch für den CSV-Import, der alle Zeilen in einer Transaktion anlegt */
-export async function insertContact(tx: Tx, input: ContactInput): Promise<Contact> {
+/** `id` nur für die Übernahme aus einer anderen Instanz (#488), damit Ansprechpartner und Textbausteine ihren Kontakt behalten */
+export async function insertContact(tx: Tx, input: ContactInput, id?: string): Promise<Contact> {
   const values = clean(input);
   // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht; nur an Kunden,
   // ein reiner Lieferant hat keine Kundennummer (#224)
@@ -257,7 +258,7 @@ export async function insertContact(tx: Tx, input: ContactInput): Promise<Contac
   const [created] = await samePersonenkonto(tx, () =>
     tx
       .insert(schema.contacts)
-      .values({ ...values, kundennummer })
+      .values({ ...values, kundennummer, ...(id ? { id } : {}) })
       .returning(),
   );
   return created!;

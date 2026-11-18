@@ -1,9 +1,9 @@
 import { numberFormatError } from "@haben/core";
 import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { schema } from "../../db/index.ts";
+import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { loadCompany } from "../stammdaten/index.ts";
+import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { startRunning } from "./number-counter.ts";
 
 /** Nummernformate für Rechnungen und Angebote; sie gelten für alles, was ab dann festgeschrieben wird */
@@ -20,10 +20,15 @@ export interface NumberFormats {
 
 export async function saveNumberFormats(actor: string, formats: NumberFormats): Promise<void> {
   const company = await loadCompany();
+  await withActor(actor, (tx) => putNumberFormats(tx, formats, company));
+}
+
+/** saveNumberFormats in der Transaktion des Aufrufers; `current` sagt, welche Zähler schon über den Jahreswechsel laufen */
+export async function putNumberFormats(tx: Tx, formats: NumberFormats, current: Pick<Company, "invoiceCounterRunning" | "quoteCounterRunning">): Promise<void> {
   const invoice = formats.invoice.trim();
   const quote = formats.quote.trim();
-  const invoiceRunning = formats.invoiceRunning ?? company.invoiceCounterRunning;
-  const quoteRunning = formats.quoteRunning ?? company.quoteCounterRunning;
+  const invoiceRunning = formats.invoiceRunning ?? current.invoiceCounterRunning;
+  const quoteRunning = formats.quoteRunning ?? current.quoteCounterRunning;
   for (const [label, format, running] of [
     ["Rechnungen", invoice, invoiceRunning],
     ["Angebote", quote, quoteRunning],
@@ -32,18 +37,16 @@ export async function saveNumberFormats(actor: string, formats: NumberFormats): 
     const problem = numberFormatError(format, { requireYear: !running });
     if (problem) throw new NumberFormatError(`Nummernformat für ${label}: ${problem}`);
   }
-  await withActor(actor, async (tx) => {
-    if (invoiceRunning && !company.invoiceCounterRunning) await startRunning(tx, "rechnung");
-    if (quoteRunning && !company.quoteCounterRunning) await startRunning(tx, "angebot");
-    await tx
-      .update(schema.company)
-      .set({
-        invoiceNumberFormat: invoice,
-        quoteNumberFormat: quote,
-        invoiceCounterRunning: invoiceRunning,
-        quoteCounterRunning: quoteRunning,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.company.id, 1));
-  });
+  if (invoiceRunning && !current.invoiceCounterRunning) await startRunning(tx, "rechnung");
+  if (quoteRunning && !current.quoteCounterRunning) await startRunning(tx, "angebot");
+  await tx
+    .update(schema.company)
+    .set({
+      invoiceNumberFormat: invoice,
+      quoteNumberFormat: quote,
+      invoiceCounterRunning: invoiceRunning,
+      quoteCounterRunning: quoteRunning,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.company.id, 1));
 }

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import { MailError } from "./errors.ts";
 import { readCertificate } from "./graph/certificate.ts";
 
@@ -37,6 +37,9 @@ const common = {
     .transform((templates): MailTemplates => Object.fromEntries(Object.entries(templates).filter(([, t]) => t.subject || t.body))),
   pruefwertMail: z.boolean().default(true),
 };
+
+/** Absender, Erinnerungen und Vorlagen ohne Versandweg, für die Übernahme aus einer anderen Instanz */
+export const mailCommonSchema = z.object(common);
 
 const smtpSchema = z.object({
   transport: z.literal("smtp"),
@@ -159,6 +162,20 @@ export async function saveMailSettings(actor: string, input: MailSettingsInput):
       .values({ id: 1, ...values })
       .onConflictDoUpdate({ target: schema.mailSettings.id, set: values }),
   );
+}
+
+/**
+ * Absender, Erinnerungen und Vorlagen aus der Einstellungsdatei einer anderen Instanz (#488), ohne Zugang. Nur, wenn der
+ * Versand hier schon eingerichtet ist; eine Zeile ohne Zugang gibt es nicht. Liefert, ob etwas übernommen wurde.
+ */
+export async function putMailTemplates(tx: Tx, input: z.input<typeof mailCommonSchema>): Promise<boolean> {
+  const data = mailCommonSchema.parse(input);
+  const updated = await tx
+    .update(schema.mailSettings)
+    .set({ ...data, reminderDays: [...new Set(data.reminderDays)].sort((a, b) => b - a), updatedAt: new Date() })
+    .where(eq(schema.mailSettings.id, 1))
+    .returning({ id: schema.mailSettings.id });
+  return updated.length > 0;
 }
 
 export async function deleteMailSettings(actor: string): Promise<void> {

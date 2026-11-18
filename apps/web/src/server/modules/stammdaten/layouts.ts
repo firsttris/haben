@@ -6,7 +6,7 @@ import { createRenderClient, LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfReq
 import { eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import { checkLayout, LayoutError, MAX_LAYOUT_BYTES, packagesIn, typstMeldung } from "./layout-pruefung.ts";
 import { clearPackages, directorySize, dropRenderer, packageCache, rendererFor, samePackages } from "./layout-pakete.ts";
 import {
@@ -195,6 +195,38 @@ export async function createLayout(
     }),
   );
   return { id };
+}
+
+/**
+ * Layout aus der Einstellungsdatei einer anderen Instanz (#488) in der Transaktion des Aufrufers, mit seiner ID, damit die
+ * Gestaltung es weiter zuordnet. Pakete lädt es nicht: Ihre Freigabe galt dort für genau diesen Quelltext, nachgeladen
+ * werden sie wie nach einem Restore nur auf Klick (reloadPackages, das die Liste mit Typst Universe neu abgleicht).
+ */
+export async function insertImportedLayout(
+  tx: Tx,
+  input: { id: string; name: string; art: LayoutArt; source: string; schemaVersion: number; packages: LayoutPackage[] },
+): Promise<void> {
+  const name = cleanName(input.name);
+  const genannt = new Set(input.packages.map(packageSpec));
+  if (checkSource(input.source).some((pkg) => !genannt.has(packageSpec(pkg)))) throw new LayoutError("Die Pakete passen nicht zum Quelltext.");
+  if (input.schemaVersion < 1 || input.schemaVersion > LAYOUT_SCHEMA_VERSION)
+    throw new LayoutError(
+      `Das Layout ist für den Feldvertrag v${input.schemaVersion} geschrieben; diese Version von Haben kennt bis v${LAYOUT_SCHEMA_VERSION}.`,
+    );
+  const [vorhanden] = await tx.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts).where(eq(schema.belegLayouts.name, name));
+  if (vorhanden) throw new LayoutError(`Es gibt schon ein Layout „${name}“.`);
+  const sha256 = createHash("sha256").update(input.source).digest("hex");
+  const packages = input.packages.map(({ name, version }) => ({ name, version }));
+  await tx.insert(schema.belegLayouts).values({
+    id: input.id,
+    name,
+    art: input.art,
+    source: input.source,
+    sha256,
+    schemaVersion: input.schemaVersion,
+    packages,
+    approvedSha256: packages.length > 0 ? sha256 : null,
+  });
 }
 
 /** Neuer Quelltext für ein bestehendes Layout; die Zuordnung bleibt, Pakete fragen neu */

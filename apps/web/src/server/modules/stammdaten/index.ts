@@ -152,3 +152,13 @@ export {
   type TextBlock,
   type TextBlockInput,
 } from "./text-blocks.ts";
+export {
+  artikelUebernehmen,
+  einheitenUebernehmen,
+  einrichtungUebernehmen,
+  firmaErgaenzen,
+  kontakteUebernehmen,
+  textbausteineUebernehmen,
+  UebernahmeError,
+} from "./uebernahme.ts";
+export { gestaltungUebernehmen, type Gestaltung } from "./uebernahme-gestaltung.ts";

@@ -41,12 +41,15 @@ async function checkContact(tx: Tx, contactId: string | null) {
 }
 
 export async function createTextBlock(actor: string, input: TextBlockInput): Promise<TextBlock> {
+  return withActor(actor, (tx) => insertTextBlock(tx, input));
+}
+
+/** createTextBlock in der Transaktion des Aufrufers */
+export async function insertTextBlock(tx: Tx, input: TextBlockInput): Promise<TextBlock> {
   const values = textBlockInputSchema.parse(input);
-  return withActor(actor, async (tx) => {
-    await checkContact(tx, values.contactId);
-    const [row] = await tx.insert(schema.textBlocks).values(values).returning();
-    return row!;
-  });
+  await checkContact(tx, values.contactId);
+  const [row] = await tx.insert(schema.textBlocks).values(values).returning();
+  return row!;
 }
 
 export async function updateTextBlock(actor: string, id: string, input: TextBlockInput): Promise<TextBlock> {

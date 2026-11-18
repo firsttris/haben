@@ -31,6 +31,7 @@ import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { SettingsExportCard } from "../../components/SettingsExportCard.tsx";
+import { SettingsImportCard } from "../../components/SettingsImportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
@@ -224,6 +225,7 @@ function SettingsPage() {
     ownAccounts,
     units,
     ablage,
+    neueInstanz,
   } = Route.useLoaderData();
   const search = Route.useSearch();
   const bereich = search.bereich ?? "firma";
@@ -312,6 +314,7 @@ function SettingsPage() {
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (
             <>
+              <SettingsImportCard neueInstanz={neueInstanz} />
               <ExportCard years={exportYears} />
               <SettingsExportCard />
               <DatevCard years={exportYears} numbers={datev} />

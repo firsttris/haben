@@ -537,9 +537,15 @@ Rechnungen, Buchungen und Bankumsätze aus dem Testen lassen sich nicht löschen
 - Absender und Vorlagen der E-Mails, Textbausteine, eigene Konten, eigene Seiten und die Angaben zur Verfahrensdokumentation
 - Einheiten, Artikel und Kontakte mit Ansprechpartnern
 
-Nicht in der Datei sind Zugangsdaten (Kontoabruf, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, KI-Schlüssel, API-Tokens, Kalender-Abo), Konten und Passkeys, die Zählerstände der Nummernkreise und alles Gebuchte. Anlagen übernimmst du per [CSV-Import](csv-import.md#anlagen). Die Pakete eigener Layouts gibst du in der neuen Instanz neu frei.
+Nicht in der Datei sind Zugangsdaten (Kontoabruf, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, KI-Schlüssel, API-Tokens, Kalender-Abo), Konten und Passkeys, die Zählerstände der Nummernkreise und alles Gebuchte. Anlagen übernimmst du per [CSV-Import](csv-import.md#anlagen). Die Datei enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre sie so sicher auf wie ein Backup; herunterladen kann sie nur der Inhaber.
 
-Die Datei enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre sie so sicher auf wie ein Backup; herunterladen kann sie nur der Inhaber.
+In der neuen Instanz:
+
+1. Konto anlegen ([Konto anlegen](#konto-anlegen)). Soll der E-Mail-Versand Absender und Vorlagen mitbringen, richte ihn jetzt unter **Einstellungen › E-Mail** ein.
+2. Unter **Einstellungen › Export** bei **Einstellungen übernehmen** die Datei wählen und bestätigen. Haben prüft die Prüfsummen der Datei und jeden Wert wie im Formular und übernimmt alles oder nichts; ein Fehler nennt den Eintrag. Schon eingetragene Firmendaten und Gestaltung ersetzt die Datei.
+3. Braucht ein eigenes Layout Pakete, unter **Einstellungen › Beleggestaltung** **Pakete neu laden**; bis dahin lässt sich mit dem Layout nichts erzeugen.
+
+Übernehmen geht nur, solange die Instanz neu ist: ohne Kontakte, Artikel, Belege, Rechnungen, Buchungen und Bankumsätze. Danach verschwindet die Karte. Einen Umzug ins Archiv machst du deshalb erst danach, denn er legt Kontakte an. Die Nummernkreise beginnen bei 1; die nächste Nummer stellst du unter [Rechnungsnummern](#rechnungsnummern) ein.
 
 ## Wie es weitergeht
 

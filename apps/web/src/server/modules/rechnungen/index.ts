@@ -158,3 +158,4 @@ export {
   type ForeignInvoiceInput,
   type ForeignInvoiceProposal,
 } from "./fremdrechnung.ts";
+export { nummernformateUebernehmen, standardanhaengeUebernehmen } from "./uebernahme.ts";
