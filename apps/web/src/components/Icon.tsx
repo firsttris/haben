@@ -44,6 +44,15 @@ const PATHS = {
   reports: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   mail: <path d="M3 6h18v12H3zM3 7l9 6 9-6" />,
   calendar: <path d="M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2" />,
+  // Zeiteinträge: Uhr
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  // Dauerbeleg: Kreislauf aus zwei Pfeilen, kehrt wieder
+  repeat: <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" />,
   annual: <path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h4" />,
   quote: <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h3M15.5 16.5l1.5 1.5 3-3" />,
   pauschale: <path d="M3 11l7-6 7 6M5 9.5V19h10V9.5M8.5 19v-5h3v5M19 4v16M19 8h2M19 14h2" />,

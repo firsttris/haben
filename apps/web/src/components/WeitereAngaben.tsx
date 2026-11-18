@@ -1,3 +1,4 @@
+import { normalizeUstId, ustIdAufbauProblem, ustIdProblem } from "@haben/core";
 import type { ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import type { BookingIssue } from "../server/modules/belege/index.ts";
@@ -29,11 +30,13 @@ type WeitereAngabenFeld = (typeof WEITERE_ANGABEN_FELDER)[number];
 export const inWeitereAngaben = (feld: string | undefined): feld is WeitereAngabenFeld => (WEITERE_ANGABEN_FELDER as readonly string[]).includes(feld ?? "");
 
 /**
- * USt-IdNr. aus einem anderen EU-Land (ohne DE; Griechenland hat EL): Länderkennzeichen und danach 5 bis 12 Zeichen wie in
- * `ustIdProblem` (packages/core/src/zm.ts), denn dort lehnt der Server eine kürzere beim Erwerb ab
+ * USt-IdNr. aus einem anderen EU-Land, wie der Server sie beim Erwerb annimmt (`ustIdProblem`, Aufbau je Mitgliedstaat);
+ * ohne Nordirland (XI), dessen Nummern nur für Waren gelten, nicht für den Hinweis auf § 13b
  */
-const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z+*]{5,12}$/;
-export const isEuVatId = (text: string) => EU_VAT_PREFIX.test(text.replace(/\s/g, "").toUpperCase());
+export const isEuVatId = (text: string) => {
+  const ustId = normalizeUstId(text);
+  return !ustId.startsWith("XI") && (ustIdProblem(ustId, "L") ?? ustIdAufbauProblem(ustId)) === null;
+};
 
 /** Wie das Schema des Servers (`documentInputSchema`): ein Leistungsende vor dem Beginn lehnt er ab */
 export const leistungsendeFehler = (serviceFrom: string, serviceTo: string) =>

@@ -2635,6 +2635,9 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
 
 test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde filtern und löschen (#417)", async () => {
   await go("/leistungen");
+  // Die Seite heißt Zeiteinträge, die Adresse bleibt /leistungen (#1253)
+  await expect(page.getByRole("heading", { level: 1, name: "Zeiteinträge" })).toBeVisible();
+  await expect(page).toHaveTitle("Zeiteinträge · Haben");
   await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
   await page.getByRole("button", { name: "Neuer Eintrag" }).click();
   const neu = page.getByRole("form", { name: "Neuer Eintrag" });

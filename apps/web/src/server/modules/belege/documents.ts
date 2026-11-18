@@ -20,6 +20,7 @@ import {
   taxOf,
   VOLLER_ABZUG,
   normalizeUstId,
+  ustIdAufbauProblem,
   ustIdProblem,
   maxDegressiveRate,
   usesUsefulLife,
@@ -642,14 +643,14 @@ function missingRateIssue(doc: Document, todayDate: string): string {
 function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): BookingIssue[] {
   const issues: BookingIssue[] = [];
   if (amounts.some((a) => a.taxRate === 0)) issues.push({ text: "Beim innergemeinschaftlichen Erwerb steht jede Zeile auf 19 % oder 7 %" });
-  // Geprüft wie die USt-IdNr. einer Lieferung in der Zusammenfassenden Meldung: Länderkennzeichen eines anderen Mitgliedstaats
+  // Geprüft wie die USt-IdNr. einer Lieferung in der Zusammenfassenden Meldung, dazu der Aufbau je Mitgliedstaat (#1413)
   const ustId = normalizeUstId(doc.supplierUstId ?? "");
   const feld = "supplierUstId";
   if (!ustId) issues.push({ text: "Beim innergemeinschaftlichen Erwerb fehlt die USt-IdNr. des Lieferanten", feld });
   else if (ustId.startsWith("DE"))
     issues.push({ text: "Lieferant mit deutscher USt-IdNr.: kein innergemeinschaftlicher Erwerb, die Rechnung muss deutsche Umsatzsteuer ausweisen", feld });
   else {
-    const problem = ustIdProblem(ustId, "L");
+    const problem = ustIdProblem(ustId, "L") ?? ustIdAufbauProblem(ustId);
     if (problem) issues.push({ text: `Lieferant ${problem}`, feld });
   }
   return issues;
