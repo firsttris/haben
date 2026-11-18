@@ -9,7 +9,7 @@ import type { EmployeeInput } from "../lohn/employees.ts";
  * Privatentnahme (SKR03 1800, SKR04 2100), bei einem Ausgang die Privateinlage (SKR03 1890, SKR04 2180), in GmbH und
  * UG in beiden Richtungen das Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510). Die Regel steht in bookPart an
  * einer Stelle (privatKontoPosting in @haben/core) und gilt damit für Steuern, Sondervorauszahlung, Kategorie,
- * Rechnung, Beleg, Lohn und Darlehen. Je Buchungsart ein Fall, dazu die Gegenprobe auf dem Geschäftskonto.
+ * Rechnung, Beleg, Lohn, Darlehen und Aufladung. Je Buchungsart ein Fall, dazu die Gegenprobe auf dem Geschäftskonto.
  *
  * Nicht dabei sind Kontoführung, Bankgebühren und Zinsen: Die sind auf einem privaten Konto privat, kein Betriebsvorfall
  * (§ 12 Nr. 1 EStG, § 20 EStG). Der Abgleich bietet sie dort nicht an und lehnt sie ab, statt sie gegen Entnahme zu
@@ -84,6 +84,7 @@ describe.skipIf(!testDatabaseUrl)("Privatkonto: jede Buchungsart gegen Entnahme 
   let documents: typeof import("../belege/documents.ts");
   let darlehen: typeof import("./darlehen.ts");
   let lohn: typeof import("../lohn/index.ts");
+  let figures: typeof import("../umsatzsteuer/vat-figures.ts");
   let sql: postgres.Sql;
   const actor = "privatkonto-test";
   let lauf = 0;
@@ -96,6 +97,7 @@ describe.skipIf(!testDatabaseUrl)("Privatkonto: jede Buchungsart gegen Entnahme 
     documents = await import("../belege/documents.ts");
     darlehen = await import("./darlehen.ts");
     lohn = await import("../lohn/index.ts");
+    figures = await import("../umsatzsteuer/vat-figures.ts");
   }, 60_000);
 
   afterAll(async () => {
@@ -356,6 +358,25 @@ describe.skipIf(!testDatabaseUrl)("Privatkonto: jede Buchungsart gegen Entnahme 
       { account: "0630", debit: 800_00, credit: 0 },
       { account: "1890", debit: 0, credit: 800_00 },
     ]);
+  });
+
+  it.each([
+    ["SKR03", "ist", { aufwand: "4900", einlage: "1890" }],
+    ["SKR04", "soll", { aufwand: "6300", einlage: "2180" }],
+  ] as const)("%s, %s: Aufladung eines Guthabens bucht Aufwand gegen die Privateinlage, ohne Vorsteuer", async (kontenrahmen, versteuerung, konten) => {
+    await firma({ kontenrahmen, versteuerung });
+    const privat = await konto("privat");
+    const transaction = await umsatz(privat, "2026-11-18", -90_00, "Funknetz Mobil");
+
+    await bank.allocate(actor, { kind: "aufladung", transactionId: transaction, amount: -90_00, kategorie: { kategorie: "sonstiges", steuersatz: 0 } });
+
+    // Keine Zeile auf der Bank; die Einlage steht in beiden Kontenrahmen vor dem Aufwandskonto
+    expect(await zeilen(transaction)).toEqual([
+      { account: konten.einlage, debit: 0, credit: 90_00 },
+      { account: konten.aufwand, debit: 90_00, credit: 0 },
+    ]);
+    // Keine Vorsteuer: Die Aufladung selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG)
+    expect((await figures.computeVatFigures({ year: 2026, month: 11 })).kz66).toBe(0);
   });
 
   it("in der GmbH bucht die Sondervorauszahlung gegen das Gesellschafter-Verrechnungskonto", async () => {
