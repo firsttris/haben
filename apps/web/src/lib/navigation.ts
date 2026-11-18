@@ -71,7 +71,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { to: "/lastschriften", icon: "debit", label: "Lastschriften" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
-      { to: "/leistungen", icon: "clock", label: "Zeiterfassung" },
+      { to: "/leistungen", icon: "clock", label: "Zeiteinträge" },
       { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
     ],
   },

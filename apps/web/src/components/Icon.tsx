@@ -44,7 +44,7 @@ const PATHS = {
   reports: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   mail: <path d="M3 6h18v12H3zM3 7l9 6 9-6" />,
   calendar: <path d="M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2" />,
-  // Zeiterfassung: Uhr
+  // Zeiteinträge: Uhr
   clock: (
     <>
       <circle cx="12" cy="12" r="9" />

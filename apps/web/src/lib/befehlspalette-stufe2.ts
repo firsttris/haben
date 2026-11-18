@@ -142,7 +142,7 @@ function buildRecurringAndCatalogSections(remote: CommandPaletteResult): Palette
       }),
     ),
   ];
-  if (catalog.length > 0) sections.push({ id: "katalog", label: "Artikel, Textbausteine & Zeiterfassung", items: catalog });
+  if (catalog.length > 0) sections.push({ id: "katalog", label: "Artikel, Textbausteine & Zeiteinträge", items: catalog });
   return sections;
 }
 
