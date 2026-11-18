@@ -31,6 +31,7 @@ export const SCHICHTEN = [
   "archiv",
   "datenimport",
   "stores",
+  "etsy",
   "mcp",
   "api",
 ] as const;

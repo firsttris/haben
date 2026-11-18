@@ -151,3 +151,4 @@ export {
 } from "./verrechnung.ts";
 export { gemeldeteVoranmeldungen } from "./bank.ts";
 export { bankCsvMappingSchema, csvZuordnungSchema, importCsvZuordnung, importStatementFile, type CsvImportResult } from "./csv-zuordnung.ts";
+export { recordRefusedBatch, storeBatch, type BatchResult, type StoreBatchInput } from "./import-batch.ts";
