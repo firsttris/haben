@@ -1009,22 +1009,24 @@ function nextOpenAfter(transactions: Data["transactions"], id: string): string |
   return after.find((t) => t.open !== 0 && t.id !== id)?.id;
 }
 
-function AllocationTransactionHeader({ tx }: { tx: Detail["transaction"] }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
-      <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
-      <div className="amount" style={{ fontSize: 24, fontWeight: 600, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
-        {tx.amount > 0 ? "+" : "−"}
-        {formatEuro(Math.abs(tx.amount))}
-      </div>
-      <div className="small muted" style={{ overflowWrap: "anywhere" }}>
-        {tx.purpose}
-        {tx.counterpartyIban ? ` · ${tx.counterpartyIban.replace(/(.{4})/g, "$1 ").trim()}` : ""}
-      </div>
-      {tx.open !== 0 && tx.open !== tx.amount && <div className="small">Noch offen: {formatEuro(Math.abs(tx.open))}</div>}
-    </div>
-  );
+function useAllocationActions(nextOpenId: string | undefined) {
+  const router = useRouter();
+  const navigate = useNavigate({ from: "/bank" });
+  const action = useAction();
+  const run = (work: () => Promise<unknown>) =>
+    action.run(async () => {
+      await work();
+      await router.invalidate();
+    });
+
+  // Ist der Umsatz danach ganz zugeordnet, weiter zum nächsten offenen, wie bei den Belegen
+  const runAndAdvance = (work: () => Promise<unknown>, completes: boolean) =>
+    action.run(async () => {
+      await work();
+      if (completes && nextOpenId) await navigate({ search: (prev) => ({ ...prev, umsatz: nextOpenId }), replace: true });
+      else await router.invalidate();
+    });
+  return { busy: action.busy, notice: action.notice, run, runAndAdvance };
 }
 
 function AllocationPanel({
@@ -1042,8 +1044,6 @@ function AllocationPanel({
   kategorieOptionen: KategorieOptionen;
   nextOpenId: string | undefined;
 }) {
-  const router = useRouter();
-  const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
   const markPrivatFn = useServerFn(markBankTransactionPrivate);
   const unmarkPrivatFn = useServerFn(unmarkBankTransactionPrivate);
@@ -1076,27 +1076,12 @@ function AllocationPanel({
   // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung
   const [kategorie, setKategorie] = useState<KategorieWahl>(() => direct?.kategorie ?? kategorieWahlFuer(kategorieOptionen, tx.amount));
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
-  const action = useAction();
-  const { busy, notice } = action;
+  const { busy, notice, run, runAndAdvance } = useAllocationActions(nextOpenId);
   const [reversing, setReversing] = useState<AufzuhebendeZuordnung | null>(null);
   const primaryButton = useRef<HTMLButtonElement>(null);
 
   const parsedAmount = parseEuro(amount);
   const signedAmount = parsedAmount === null ? null : Math.sign(tx.amount) * Math.abs(parsedAmount);
-
-  const run = (work: () => Promise<unknown>) =>
-    action.run(async () => {
-      await work();
-      await router.invalidate();
-    });
-
-  // Ist der Umsatz danach ganz zugeordnet, weiter zum nächsten offenen, wie bei den Belegen
-  const runAndAdvance = (work: () => Promise<unknown>, completes: boolean) =>
-    action.run(async () => {
-      await work();
-      if (completes && nextOpenId) await navigate({ search: (prev) => ({ ...prev, umsatz: nextOpenId }), replace: true });
-      else await router.invalidate();
-    });
 
   const selectedCandidate = candidates.find((c) => `${c.type}:${c.id}` === candidate);
   const {
@@ -1221,7 +1206,19 @@ function AllocationPanel({
 
   return (
     <aside ref={panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
-      <AllocationTransactionHeader tx={tx} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
+        <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
+        <div className="amount" style={{ fontSize: 24, fontWeight: 600, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
+          {tx.amount > 0 ? "+" : "−"}
+          {formatEuro(Math.abs(tx.amount))}
+        </div>
+        <div className="small muted" style={{ overflowWrap: "anywhere" }}>
+          {tx.purpose}
+          {tx.counterpartyIban ? ` · ${tx.counterpartyIban.replace(/(.{4})/g, "$1 ").trim()}` : ""}
+        </div>
+        {tx.open !== 0 && tx.open !== tx.amount && <div className="small">Noch offen: {formatEuro(Math.abs(tx.open))}</div>}
+      </div>
 
       {duplicateNotice}
 
