@@ -11,12 +11,13 @@ import {
 } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
+import { GebuehrZeile, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
 import { FintsAbruf } from "../../components/FintsAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
@@ -225,7 +226,9 @@ function BankPage() {
   const navigate = useNavigate({ from: "/bank" });
   const filter = search.filter ?? "offen";
   const selectedId = data.detail?.transaction.id;
-  const index = data.transactions.findIndex((t) => t.id === selectedId);
+  const dienstleister = useMemo(() => new Set(data.accounts.filter((a) => a.purpose === "zahlungsdienstleister").map((a) => a.id)), [data.accounts]);
+  const { zeilen, sichtbar } = useGebuehrZeilen(data.transactions, dienstleister);
+  const index = sichtbar.findIndex((t) => t.id === selectedId);
   const selectedAccount = data.accounts.find((a) => a.id === data.accountId);
   // „Alle Konten“ zeigt die Umsätze aller Konten, etwa für „Alle anzeigen“ der Schnellsuche (#617)
   const konto = data.allAccounts ? ("alle" as const) : (data.accountId ?? undefined);
@@ -239,7 +242,7 @@ function BankPage() {
       if (isDialogOpen() || target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
       const step = event.key === "j" ? 1 : event.key === "k" ? -1 : 0;
       if (!step) return;
-      const next = data.transactions[index + step];
+      const next = sichtbar[index + step];
       if (next) {
         event.preventDefault();
         void navigate({ search: (prev) => ({ ...prev, umsatz: next.id }), replace: true });
@@ -248,7 +251,7 @@ function BankPage() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [data.transactions, index, navigate]);
+  }, [sichtbar, index, navigate]);
 
   return (
     <>
@@ -337,7 +340,7 @@ function BankPage() {
                   {filter === "offen" ? "Alles zugeordnet." : filter === "vorschlag" ? "Keine Umsätze mit Vorschlag." : "Keine Umsätze."}
                 </p>
               )}
-              {data.transactions.map((tx) => (
+              {zeilen.map(({ umsatz: tx, gebuehr }) => (
                 <Link
                   key={tx.id}
                   id={`tx-${tx.id}`}
@@ -359,6 +362,7 @@ function BankPage() {
                   <div className="num" style={{ color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
                     {tx.amount > 0 ? "+" : "−"}
                     {formatEuro(Math.abs(tx.amount))}
+                    {gebuehr && <GebuehrZeile betrag={gebuehr.amount} />}
                   </div>
                   <div>
                     <TransactionStatus tx={tx} />
@@ -374,7 +378,7 @@ function BankPage() {
                 steuerOptionen={{ steuerarten: data.steuerarten, steuerPosten: data.steuerPosten }}
                 darlehenOptionen={{ loans: data.loans, loanParts: data.loanParts }}
                 kategorieOptionen={{ kategorien: data.kategorien, kleinunternehmer: data.kleinunternehmer }}
-                nextOpenId={nextOpenAfter(data.transactions, data.detail.transaction.id)}
+                nextOpenId={nextOpenAfter(sichtbar, data.detail.transaction.id)}
               />
             ) : (
               <aside className="card" aria-label="Zuordnung">
