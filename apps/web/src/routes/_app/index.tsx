@@ -266,8 +266,8 @@ function OverviewPage() {
         </Link>
         <div className="card">
           <div className="kpi-label">Umsatz {periodLabel(data.previousMonth).split(" ")[0]} (netto)</div>
-          <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth.net)}</div>
-          <div className="small muted">nach Rechnungsdatum</div>
+          <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth)}</div>
+          <div className="small muted">Erlöse nach Buchungsdatum</div>
         </div>
         {showVatPeriod && (
           <div className="card">
