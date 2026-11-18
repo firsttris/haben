@@ -163,8 +163,10 @@ plugins:
   - search
   # Schriften (Inter, JetBrains Mono) und andere externe Dateien lädt der Build herunter und legt sie
   # unter assets/external/ ab, damit der Browser keine Google Fonts oder CDNs anfragt (Datenschutz).
-  # Ausgenommen das Werbe-SDK, das der Videoplayer des Themes (Plyr) nur für Anzeigen nachlädt
+  # Ausgenommen das Werbe-SDK, das der Videoplayer des Themes (Plyr) nur für Anzeigen nachlädt.
+  # Nur in der CI (GitHub setzt CI=true): lokal und in Sessions ohne Netz bräche --strict sonst ab.
   - privacy:
+      enabled: !ENV [CI, false]
       assets_exclude:
         - imasdk.googleapis.com/*
 

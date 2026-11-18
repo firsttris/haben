@@ -96,7 +96,8 @@ jobs:
       # Datenschutz: Schriften kommen von haben.app selbst (privacy-Plugin), nicht von Google Fonts;
       # Impressum und Datenschutzerklärung stehen im Fuß jeder Seite (copyright in mkdocs.yml)
       - run: "! grep -rlE '//fonts\\.(googleapis|gstatic)\\.com' site --include='*.html'"
-      - run: test -z "$(grep -L 'speicherstadt.app/datenschutz/' site/*.html)"
+      - run: test -z "$(grep -L 'speicherstadt.app/datenschutz/' site/*.html site/adr/*.html)"
+      - run: test -z "$(grep -L 'teufel-it.de/de/impressum/' site/*.html site/adr/*.html)"
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
