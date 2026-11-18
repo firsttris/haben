@@ -1,4 +1,4 @@
-import { evatrFrisch, evatrGueltig, evatrMeldung, evatrPruefbar } from "@haben/core";
+import { evatrFrischGueltig, evatrGueltig, evatrMeldung, evatrPruefbar } from "@haben/core";
 import { inArray } from "drizzle-orm";
 import { formatDate } from "../../../lib/format.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -7,16 +7,14 @@ import type { ZmIssue } from "./zm.ts";
 
 /*
  * Bestätigung der gemeldeten USt-IdNrn. beim BZSt in der Vorprüfung der Zusammenfassenden Meldung (#1385). Die Vorprüfung
- * nennt jede Nummer, deren letzte Antwort fehlt oder nicht evatr-0000 ist, als Hinweis; senden sperrt das nicht. Abgefragt
- * wird einfach, nacheinander (das BZSt verarbeitet nur Einzelabfragen), der Nachweis kommt an den Kontakt der Rechnung.
- * Abgeschaltet oder ohne eigene USt-IdNr. bleibt die Vorprüfung wie vorher.
+ * nennt jede Nummer, deren letzte Antwort fehlt oder nicht evatr-0000 ist; senden sperrt das nicht. Abgefragt wird einfach,
+ * nacheinander (das BZSt verarbeitet nur Einzelabfragen), nach einem Ausfall nicht weiter (das BZSt bittet, später erneut zu
+ * fragen); der Nachweis kommt an den Kontakt der Rechnung. Abgeschaltet oder ohne eigene USt-IdNr. wie vorher.
  */
 
 type Stand = Pick<UstIdBestaetigung, "status" | "anfrageZeitpunkt" | "gueltigAb" | "gueltigBis">;
 
-const frischGueltig = (b: Stand | undefined, jetzt: Date) => Boolean(b && evatrGueltig(b.status) && evatrFrisch(b.anfrageZeitpunkt, jetzt));
-
-/** Hinweis je gemeldeter Nummer ohne Antwort oder mit einer Antwort ungleich evatr-0000 */
+/** Je gemeldeter Nummer ohne Antwort oder mit einer Antwort ungleich evatr-0000 eine Warnung; evatr-2008 ist gültig, nur ein Hinweis */
 export function zmBestaetigungIssues(nummern: readonly string[], letzte: ReadonlyMap<string, Stand>): ZmIssue[] {
   return nummern.flatMap((nummer): ZmIssue[] => {
     const b = letzte.get(nummer);
@@ -24,7 +22,7 @@ export function zmBestaetigungIssues(nummern: readonly string[], letzte: Readonl
     const text = b
       ? `${nummer}: am ${formatDate(b.anfrageZeitpunkt)} laut BZSt „${evatrMeldung(b)}“ (${b.status}).`
       : `${nummer}: beim BZSt noch nicht bestätigt.`;
-    return [{ tone: "warn", text }];
+    return [{ tone: b && evatrGueltig(b.status) ? "info" : "warn", text }];
   });
 }
 
@@ -35,7 +33,7 @@ export async function zmBestaetigung(nummern: readonly string[], jetzt = new Dat
   const letzte = await letzteBestaetigungen(pruefbar);
   return {
     moeglich: true,
-    offen: pruefbar.filter((nummer) => !frischGueltig(letzte.get(nummer), jetzt)).length,
+    offen: pruefbar.filter((nummer) => !evatrFrischGueltig(letzte.get(nummer), jetzt)).length,
     issues: zmBestaetigungIssues(pruefbar, letzte),
   };
 }
@@ -57,16 +55,20 @@ export async function bestaetigeZmNummern(
   const letzte = await letzteBestaetigungen(nummern);
   const hinweise: string[] = [];
   let gefragt = 0;
-  for (const nummer of nummern) {
-    if (frischGueltig(letzte.get(nummer), jetzt)) continue;
+  const offen = nummern.filter((nummer) => !evatrFrischGueltig(letzte.get(nummer), jetzt));
+  for (const [i, nummer] of offen.entries()) {
     const contactId = quellen.map((quelle) => (quelle.ustId === nummer ? kontaktVon.get(quelle.invoiceId) : null)).find(Boolean);
     if (!contactId) {
       hinweise.push(`${nummer}: keine Rechnung mit Kontakt, an dem der Nachweis stehen könnte`);
       continue;
     }
     gefragt += 1;
-    const { hinweis } = await bestaetigeNummer(actor, contactId, nummer, options.via);
+    const { hinweis, gespeichert } = await bestaetigeNummer(actor, contactId, nummer, options.via);
     if (hinweis) hinweise.push(hinweis);
+    if (!gespeichert && offen.length > i + 1) {
+      hinweise.push(`${offen.slice(i + 1).join(", ")} nicht angefragt; versuch es später noch einmal.`);
+      break;
+    }
   }
   return { gefragt, hinweise };
 }

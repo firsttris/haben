@@ -219,9 +219,14 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
     kennzahlGesendet(period, "kz21", q),
   ]);
   const zeilen = zmZeilen(quellen);
-  const [kz41, bestaetigung] = await Promise.all([kennzahlGesendet(period, "kz41", q), zmBestaetigung(zeilen.map((z) => z.ustId))]);
   const sent = meldungen.length > 0;
   const gemeldet = gemeldeterStand(meldungen);
+  const naechsteZeilen = sent ? zmBerichtigung(gemeldet, zeilen) : zeilen;
+  // Nur was als Nächstes gesendet würde: eine Bestätigung von heute belegt ein schon gemeldetes Quartal nicht (FAQ des BZSt)
+  const [kz41, bestaetigung] = await Promise.all([
+    kennzahlGesendet(period, "kz41", q),
+    naechsteZeilen.length ? zmBestaetigung(naechsteZeilen.map((z) => z.ustId)) : { moeglich: false, offen: 0, issues: [] },
+  ]);
   const voranmeldungen = monthsOfPeriod(period).length;
   return {
     period,
@@ -233,7 +238,7 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
     /** Stand beim BZSt nach allen echt übermittelten Meldungen */
     gemeldet,
     /** Was als Nächstes gesendet würde: die Erstmeldung oder die geänderten Zeilen als Berichtigung */
-    naechste: { berichtigt: sent, zeilen: sent ? zmBerichtigung(gemeldet, zeilen) : zeilen },
+    naechste: { berichtigt: sent, zeilen: naechsteZeilen },
     kz21,
     kz41,
     /** Bestätigung der gemeldeten USt-IdNrn. beim BZSt (#1385) */

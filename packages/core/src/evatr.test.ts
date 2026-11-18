@@ -3,6 +3,7 @@ import {
   evatrAnfrage,
   evatrAntwortSchema,
   evatrFrisch,
+  evatrFrischGueltig,
   evatrGueltig,
   evatrMeldung,
   evatrNachweis,
@@ -170,5 +171,16 @@ describe("evatrFrisch", () => {
     expect(evatrFrisch("2026-11-18T12:00:00Z", jetzt)).toBe(true);
     expect(evatrFrisch(new Date("2026-11-18T11:59:59Z"), jetzt)).toBe(false);
     expect(evatrFrisch("2026-12-18T12:00:00Z", jetzt)).toBe(true);
+  });
+});
+
+describe("evatrFrischGueltig", () => {
+  it("nur eine gültige Antwort aus der Frist; evatr-2008 zählt als gültig", () => {
+    const jetzt = new Date("2026-11-20T12:00:00Z");
+    expect(evatrFrischGueltig({ status: "evatr-0000", anfrageZeitpunkt: "2026-11-18T12:00:00Z" }, jetzt)).toBe(true);
+    expect(evatrFrischGueltig({ status: "evatr-2008", anfrageZeitpunkt: "2026-11-18T12:00:00Z" }, jetzt)).toBe(true);
+    expect(evatrFrischGueltig({ status: "evatr-2001", anfrageZeitpunkt: "2026-11-18T12:00:00Z" }, jetzt)).toBe(false);
+    expect(evatrFrischGueltig({ status: "evatr-0000", anfrageZeitpunkt: "2026-09-18T12:00:00Z" }, jetzt)).toBe(false);
+    expect(evatrFrischGueltig(undefined, jetzt)).toBe(false);
   });
 });

@@ -86,17 +86,34 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. vor dem Festschreiben bestätigen (
     expect(alt.hinweis).toContain("Zuletzt am 18.11.2026: Gültig.");
   });
 
-  it("abgeschaltet oder mit deutscher Nummer wie vorher: kein Hinweis, keine Abfrage", async () => {
+  it("abgeschaltet wie vorher: kein Hinweis, keine Abfrage", async () => {
     process.env.HABEN_EVATR = "off";
     expect(await modul.ustIdVorFestschreiben(actor, contactId, AM_TAG, dienst().via)).toEqual({ hinweis: null });
-    delete process.env.HABEN_EVATR;
+  });
+
+  it("eine Nummer, die sich nicht bestätigen lässt, ergibt einen Hinweis ohne Abfrage", async () => {
+    // Reverse Charge prüft den Aufbau beim Festschreiben nicht (outgoingTaxIssues nur bei der Lieferung)
+    await contacts.updateContact(actor, contactId, kontakt("ATU1234567"));
+    expect(await modul.ustIdVorFestschreiben(actor, contactId, AM_TAG, dienst().via)).toEqual({
+      hinweis: "ATU1234567: Bestätigen lässt sich nur die USt-IdNr. eines anderen EU-Mitgliedstaats mit passendem Aufbau.",
+    });
     await contacts.updateContact(actor, contactId, kontakt("DE123456788"));
+    expect((await modul.ustIdVorFestschreiben(actor, contactId, AM_TAG, dienst().via)).hinweis).toContain("DE123456788: Bestätigen lässt sich nur");
+    // Ohne Nummer meldet das Festschreiben selbst, was fehlt
+    await contacts.updateContact(actor, contactId, kontakt(""));
     expect(await modul.ustIdVorFestschreiben(actor, contactId, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+  });
+
+  it("ohne gültige eigene USt-IdNr. sagt der Hinweis das, ohne Abfrage", async () => {
+    await sql`update company set ust_id = 'DE123456789' where id = 1`;
+    expect((await modul.ustIdVorFestschreiben(actor, contactId, AM_TAG, dienst().via)).hinweis).toBe(
+      "ATU12345678: Für die Bestätigung braucht es deine deutsche USt-IdNr. in den Firmendaten.",
+    );
   });
 
   it("eine bestimmte Nummer, etwa aus der ZM, auch wenn der Kontakt heute eine andere hat", async () => {
     const { via, anfragen } = dienst(ok("zm"));
-    expect(await modul.bestaetigeNummer(actor, contactId, "FR12345678901", via)).toEqual({ hinweis: null });
+    expect(await modul.bestaetigeNummer(actor, contactId, "FR12345678901", via)).toEqual({ hinweis: null, gespeichert: true });
     expect(anfragen).toEqual([{ anfragendeUstid: "DE123456788", angefragteUstid: "FR12345678901" }]);
     const letzte = await modul.letzteBestaetigungen(["FR12345678901", "ATU12345678"]);
     expect(letzte.get("FR12345678901")).toMatchObject({ contactId, art: "einfach", status: "evatr-0000" });

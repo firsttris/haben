@@ -110,6 +110,11 @@ export function evatrFrisch(anfrageZeitpunkt: Date | string, jetzt: Date): boole
   return jetzt.getTime() - new Date(anfrageZeitpunkt).getTime() <= EVATR_FRIST_TAGE * 86_400_000;
 }
 
+/** Ob die Antwort gültig und höchstens EVATR_FRIST_TAGE alt ist; dann fragen Festschreiben und ZM nicht neu */
+export function evatrFrischGueltig(antwort: { status: string; anfrageZeitpunkt: Date | string } | undefined, jetzt: Date): boolean {
+  return Boolean(antwort && evatrGueltig(antwort.status) && evatrFrisch(antwort.anfrageZeitpunkt, jetzt));
+}
+
 /** Höchstzahl qualifizierter Abfragen „für diese Session“ erreicht; das BZSt rät, mit einer einfachen neu zu beginnen */
 export const EVATR_LIMIT = "evatr-0008";
 

@@ -5,7 +5,7 @@ import {
   type EvatrAntwort,
   evatrAntwortSchema,
   type EvatrArt,
-  evatrFrisch,
+  evatrFrischGueltig,
   evatrGueltig,
   evatrMeldung,
   evatrNachweis,
@@ -223,16 +223,16 @@ export async function bestaetigeNummer(
   contactId: string,
   ustId: string,
   via: EvatrVerbindung = verbindung(),
-): Promise<{ hinweis: string | null }> {
+): Promise<{ hinweis: string | null; gespeichert: boolean }> {
   if (evatrAbgeschaltet()) throw new ContactError(ZUSTAND_TEXT.aus);
   const company = await loadCompany();
   if (!isValidGermanUstId(normalizeUstId(company.ustId))) throw new ContactError(ZUSTAND_TEXT["ohne-eigene"]);
-  if (!evatrPruefbar(ustId)) return { hinweis: `${ustId}: ${ZUSTAND_TEXT["nicht-pruefbar"]}` };
+  if (!evatrPruefbar(ustId)) return { hinweis: `${ustId}: ${ZUSTAND_TEXT["nicht-pruefbar"]}`, gespeichert: false };
   const anfrage: EvatrAnfrage = { anfragendeUstid: normalizeUstId(company.ustId), angefragteUstid: normalizeUstId(ustId) };
   const antwort = await frage(anfrage, via);
-  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}` };
+  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, gespeichert: false };
   await speichere(actor, contactId, "einfach", anfrage, antwort);
-  return { hinweis: null };
+  return { hinweis: null, gespeichert: true };
 }
 
 /**
@@ -250,9 +250,10 @@ export async function ustIdVorFestschreiben(
   const nummer = normalizeUstId(contact.ustId);
   const letzteZurNummer = async () => (await listUstIdBestaetigungen(contactId)).find((b) => b.angefragteUstid === nummer);
   const vorher = await letzteZurNummer();
-  if (vorher && evatrGueltig(vorher.status) && evatrFrisch(vorher.anfrageZeitpunkt, jetzt)) return { hinweis: null };
-  // Ohne prüfbare Nummer meldet das Festschreiben selbst, was fehlt (outgoingTaxIssues)
-  if (evatrAbgeschaltet() || !evatrPruefbar(contact.ustId)) return { hinweis: null };
+  if (evatrFrischGueltig(vorher, jetzt) || evatrAbgeschaltet()) return { hinweis: null };
+  // Ohne Nummer meldet das Festschreiben selbst, was fehlt (outgoingTaxIssues); den Aufbau prüft es nur bei der Lieferung
+  if (!nummer) return { hinweis: null };
+  if (!evatrPruefbar(nummer)) return { hinweis: `${nummer}: ${ZUSTAND_TEXT["nicht-pruefbar"]}` };
   let ergebnis: UstIdBestaetigungsErgebnis;
   try {
     ergebnis = await bestaetigeUstId(actor, contactId, {}, via);

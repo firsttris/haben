@@ -91,6 +91,24 @@ describe.skipIf(!testDatabaseUrl)("ZM: gemeldete USt-IdNrn. beim BZSt bestätige
     expect(await bestaetigung.bestaetigeZmNummern(actor, quellen, { via: dienst().via })).toEqual({ gefragt: 0, hinweise: [] });
   });
 
+  it("evatr-2008 ist gültig: nur ein Hinweis zur Besonderheit, keine Warnung", () => {
+    const letzte = new Map([["ATU12345678", { status: "evatr-2008", anfrageZeitpunkt: new Date(), gueltigAb: null, gueltigBis: null }]]);
+    expect(bestaetigung.zmBestaetigungIssues(["ATU12345678"], letzte)).toEqual([{ tone: "info", text: expect.stringContaining("Besonderheit") }]);
+  });
+
+  it("nach einem Ausfall fragt der Knopf die übrigen Nummern nicht mehr", async () => {
+    const quellen = [
+      { invoiceId: (await zm.zmOverview(q3)).quellen[0]!.invoiceId, ustId: "ATU12345678" },
+      { invoiceId: (await zm.zmOverview(q3)).quellen[0]!.invoiceId, ustId: "FR12345678901" },
+    ];
+    const spaeter = new Date(Date.now() + 31 * 86_400_000);
+    const { via, anfragen } = dienst("kein-netz", ok("fr"));
+    const ergebnis = await bestaetigung.bestaetigeZmNummern(actor, quellen, { jetzt: spaeter, via });
+    expect(anfragen).toHaveLength(1);
+    expect(ergebnis.gefragt).toBe(1);
+    expect(ergebnis.hinweise).toEqual([expect.stringContaining("Keine Antwort vom BZSt"), "FR12345678901 nicht angefragt; versuch es später noch einmal."]);
+  });
+
   it("ein Ausfall kommt als Hinweis zurück; abgeschaltet bleibt die Vorprüfung wie vorher", async () => {
     const quellen = (await zm.zmOverview(q3)).quellen;
     const spaeter = new Date(Date.now() + 31 * 86_400_000);
@@ -104,5 +122,15 @@ describe.skipIf(!testDatabaseUrl)("ZM: gemeldete USt-IdNrn. beim BZSt bestätige
     const aus = await zm.zmOverview(q3);
     expect(aus.bestaetigung).toEqual({ moeglich: false, offen: 0 });
     expect(aus.issues.some((i) => i.text.startsWith("ATU12345678:"))).toBe(false);
+  });
+
+  it("ein gesendetes Quartal ohne Berichtigung fragt nichts mehr: eine Bestätigung von heute belegt die Vergangenheit nicht", async () => {
+    const zeilen = (await zm.zmOverview(q3)).zeilen;
+    await sql`insert into zm_submissions (year, month, berichtigt, zeilen, kind, ok, code, message, request_xml, response_xml, server_response_xml)
+      values (2026, 43, false, ${JSON.stringify(zeilen)}::jsonb, 'send', true, 0, 'ok', '', '', '')`;
+    const gesendet = await zm.zmOverview(q3);
+    expect(gesendet.naechste.zeilen).toEqual([]);
+    expect(gesendet.bestaetigung).toEqual({ moeglich: false, offen: 0 });
+    expect(gesendet.issues.some((i) => i.text.startsWith("ATU12345678:"))).toBe(false);
   });
 });
