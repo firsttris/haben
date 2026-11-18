@@ -48,7 +48,7 @@ describe("ustIdProblem: Aufbau je Mitgliedstaat (#1413)", () => {
     ["FR", ["FR12345678901", "FRAB123456789", "FR1A123456789"], ["FR1234567890", "FR12A45678901", "FR123456789012"]],
     ["HR", ["HR12345678901"], ["HR1234567890", "HR123456789012"]],
     ["HU", ["HU12345678"], ["HU1234567", "HU123456789"]],
-    ["IE", ["IE1234567A", "IE1A23456B", "IE1+23456B", "IE1234567FA"], ["IE12345678", "IE1234567", "IE1234567XZ", "IE1234567AW"]],
+    ["IE", ["IE1234567A", "IE1A23456B", "IE1+23456B", "IE1234567FA"], ["IE12345678", "IE1234567", "IE1234567XZ", "IE1234567AJ"]],
     ["IT", ["IT12345678901"], ["IT1234567890", "IT123456789012"]],
     ["LT", ["LT123456789", "LT123456789012"], ["LT1234567890", "LT12345678"]],
     ["LU", ["LU12345678"], ["LU1234567", "LU123456789"]],
@@ -65,6 +65,13 @@ describe("ustIdProblem: Aufbau je Mitgliedstaat (#1413)", () => {
   ])("%s", (land, gueltig, falsch) => {
     for (const id of gueltig) expect(ustIdProblem(id, "L"), id).toBeNull();
     for (const id of falsch) expect(ustIdProblem(id, "L"), id).toMatch(new RegExp(`^${id.replace(/[+*]/g, "\\$&")}: .*${land}`));
+  });
+
+  // Revenue, Tax and Duty Manual „Filing and paying Stamp Duty on Instruments“, Kapitel 3, Abschnitte 1.2.1 und 1.2.3: Ältere
+  // PPS-Nummern verheirateter Frauen haben an neunter Stelle ein W, und die Steuernummer eines Einzelunternehmers ist seine
+  // PPS-Nummer (revenue.ie, „What is a Tax Reference Number?“). Das BZSt nennt an neunter Stelle nur A bis I.
+  it("nimmt eine irische Nummer mit W an neunter Stelle an (ältere PPS-Nummer einer verheirateten Frau)", () => {
+    expect(ustIdProblem("IE1234567AW", "L")).toBeNull();
   });
 
   it("nennt den Aufbau, den das Land vorgibt", () => {
