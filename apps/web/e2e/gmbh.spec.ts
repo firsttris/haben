@@ -1,3 +1,4 @@
+import { waehleKategorie } from "./kategorie.ts";
 import { filePickerPruefen } from "./dateiauswahl.ts";
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
@@ -522,7 +523,7 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   await page.getByLabel("Lieferant", { exact: true }).fill("Codewerk Lizenzen GmbH");
   await page.getByLabel("Rechnungsnummer").fill("L-4711");
   await page.getByLabel("Belegdatum").fill(currentDay());
-  await page.getByLabel("Kategorie").selectOption("software");
+  await waehleKategorie(page.getByLabel("Kategorie"), "software");
   // Wie im Anlass (#237): der Bruttobetrag im Feld „Netto“
   await page.getByLabel("Netto", { exact: true }).fill("119,00");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
