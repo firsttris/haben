@@ -1,5 +1,5 @@
 {
-  "id": "37fdacf9-9b28-4d02-bdc8-c7620cdd7838",
+  "id": "d22ba1b1-6367-4b5b-89bd-5d9d9cfe084d",
   "prevId": "5388f14a-0421-431a-9c2f-a84743f038b0",
   "version": "7",
   "dialect": "postgresql",
@@ -505,7 +505,7 @@
         },
         "allocations_kategorie": {
           "name": "allocations_kategorie",
-          "value": "case when \"allocations\".\"kind\"::text in ('kategorie', 'aufladung') then \"allocations\".\"category\" is not null and \"allocations\".\"tax_rate\" is not null else \"allocations\".\"category\" is null and \"allocations\".\"tax_rate\" is null end"
+          "value": "case when \"allocations\".\"kind\"::text = 'kategorie' then \"allocations\".\"category\" is not null and \"allocations\".\"tax_rate\" is not null else \"allocations\".\"category\" is null and \"allocations\".\"tax_rate\" is null end"
         },
         "allocations_loan": {
           "name": "allocations_loan",
@@ -6531,6 +6531,106 @@
         "enable_banking_settings_single_row": {
           "name": "enable_banking_settings_single_row",
           "value": "\"enable_banking_settings\".\"id\" = 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.etsy_connections": {
+      "name": "etsy_connections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "'etsy'"
+        },
+        "keystring": {
+          "name": "keystring",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shop_id": {
+          "name": "shop_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "shop_name": {
+          "name": "shop_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetch_from": {
+          "name": "fetch_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "abruf_start": {
+          "name": "abruf_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sammelzeilen": {
+          "name": "sammelzeilen",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "rhythmus": {
+          "name": "rhythmus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'taeglich'"
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "etsy_connections_id": {
+          "name": "etsy_connections_id",
+          "value": "\"etsy_connections\".\"id\" = 'etsy'"
+        },
+        "etsy_connections_rhythmus": {
+          "name": "etsy_connections_rhythmus",
+          "value": "\"etsy_connections\".\"rhythmus\" in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich')"
         }
       },
       "isRLSEnabled": false
@@ -19265,8 +19365,7 @@
         "zinsertrag",
         "darlehen",
         "kategorie",
-        "spende",
-        "aufladung"
+        "spende"
       ]
     },
     "public.bundesland": {

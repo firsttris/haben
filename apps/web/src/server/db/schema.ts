@@ -2405,7 +2405,7 @@ export const importSources = pgTable(
     /** Enable Banking: `identification_hash` des Kontos */
     externalAccountId: text("external_account_id").notNull(),
     accountKind: text("account_kind", { enum: ["bank", "psp"] }).notNull(),
-    /** Erster Tag, den diese Quelle liefert; davor decken Dateiimporte das Konto ab */
+    /** Erster Tag, den diese Quelle liefert; davor decken Dateien oder frühere Abrufe das Konto ab */
     cutoverDate: date("cutover_date", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -3638,7 +3638,8 @@ export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
  * - abruf_fehlgeschlagen: sevDesk nennt eine Datei (oder bei Rechnung und Gutschrift ist das PDF Pflicht), der Abruf scheiterte.
  * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
  * - bestaetigt_ohne_datei: eine Person hat geprüft, dass der Beleg keine Datei hat (bei sevDesk der Abruf, beim
- *   Accountable-Stapel der fehlende Einzelbeleg), festgehalten mit created_by und Zeitpunkt.
+ *   Accountable-Stapel der fehlende Einzelbeleg, bei der Lexoffice-Sicherung die Buchung ohne Beleg), festgehalten mit
+ *   created_by und Zeitpunkt.
  * - bestaetigung_zurueckgenommen: eine Person hat eine solche Bestätigung mit Grund zurückgenommen (#1317). Die
  *   Bestätigung bleibt als frühere Zeile stehen, der Beleg gilt wieder als offen.
  * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
@@ -4412,6 +4413,42 @@ export const journalUmstellung = pgTable("journal_umstellung", {
   version: text("version"),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Zugang zum Zahlungsverlauf von Etsy Payments über die Open API v3 (Einstellungen › Bank). Genau eine Zeile, weil
+ * Haben einen Shop je Installation anbindet. Das gemeinsame Geheimnis der Etsy-App und die Zugangs- und
+ * Erneuerungstoken liegen verschlüsselt in ciphertext; der App-Schlüssel (keystring) ist nicht geheim. Wird die
+ * Verbindung getrennt, bleiben Schlüssel und Geheimnis stehen, damit sie ohne neue Eingabe wieder aufgenommen werden kann.
+ */
+export const etsyConnections = pgTable(
+  "etsy_connections",
+  {
+    /** Es gibt genau eine Verbindung; der feste Wert hält es dabei */
+    id: text("id").primaryKey().default("etsy"),
+    /** App-Schlüssel der Etsy-App (keystring) */
+    keystring: text("keystring").notNull(),
+    /** Kennung und Name des Shops, beim Verbinden von Etsy ermittelt */
+    shopId: text("shop_id").notNull().default(""),
+    shopName: text("shop_name").notNull().default(""),
+    /** Gemeinsames Geheimnis, Token und die offene Anmeldung (state, PKCE-Verifier): AES-256-GCM */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */
+    fetchFrom: date("fetch_from").notNull(),
+    /** Der in den Einstellungen gewählte erste Monat (1. des Monats) */
+    abrufStart: date("abruf_start").notNull(),
+    /** Gebühren und Werbung je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
+    sammelzeilen: boolean("sammelzeilen").notNull().default(true),
+    /** Wie oft der Zeitplan abruft: stuendlich, taeglich, woechentlich oder monatlich (ab dem 5.) */
+    rhythmus: text("rhythmus").notNull().default("taeglich"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("etsy_connections_id", sql`${t.id} = 'etsy'`),
+    check("etsy_connections_rhythmus", sql`${t.rhythmus} in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich')`),
+  ],
+);
 
 /**
  * Angaben zum Betrieb für die Verfahrensdokumentation (#860), genau eine Zeile (id = 1): was Haben nicht wissen kann.

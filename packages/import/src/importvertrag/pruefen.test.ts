@@ -138,7 +138,12 @@ describe("validateBatch", () => {
     if (!result.ok) return;
     expect(result.accepted.map((m) => m.sourceEventId)).toEqual(["E-2"]);
     expect(result.rejected).toEqual([
-      { sourceEventId: "E-1", component: "main", reason: "Vor dem Stichtag 2026-10-03 der Quelle; diese Zeit decken Dateiimporte ab.", blocking: false },
+      {
+        sourceEventId: "E-1",
+        component: "main",
+        reason: "Vor dem Stichtag 2026-10-03 der Quelle; diese Zeit decken Dateien oder frühere Abrufe ab.",
+        blocking: false,
+      },
     ]);
     expect(result.blocking).toBe(0);
   });

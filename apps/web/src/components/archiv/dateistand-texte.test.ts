@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { ohneBelegText, ruecknahmeHinweis, ruecknahmeText } from "./dateistand-texte.ts";
 
 /*
- * Die vier Sätze über einer Buchung ohne Datei (#1235, #1322). Sie hängen am Grund, nicht an „bestätigbar“: WISO und die
- * Lexoffice-Sicherung setzen das Merkmal ohne Beleg-GUID, dort darf kein Satz über eine GUID stehen.
+ * Die Sätze über einer Buchung ohne Datei (#1235, #1318, #1322). Sie hängen am Grund und beim fehlenden Beleglink und bei
+ * der Quelle ohne Beleg daran, ob sich bestätigen lässt: WISO und die Lexoffice-Sicherung setzen das Merkmal ohne
+ * Beleg-GUID, dort darf kein Satz über eine GUID stehen.
  */
 describe("Text über einer Buchung ohne Datei", () => {
   it("lädt nur beim fehlenden Beleglink zum Bestätigen ein", () => {
@@ -17,6 +18,13 @@ describe("Text über einer Buchung ohne Datei", () => {
     expect(text).toContain("Beleg-GUID");
     expect(text).toContain("fehlt nur im Export");
     expect(text).not.toContain("kommt ohne Einzelbeleg");
+  });
+
+  it("lädt eine Buchung ohne Beleg aus der Sicherung zum Bestätigen ein (#1318)", () => {
+    const text = ohneBelegText("quelle_ohne_beleg", "Lexware Office", true);
+    expect(text).toContain("Buchung ohne Beleg");
+    expect(text).toContain("hält es hier fest");
+    expect(text).not.toContain("GUID");
   });
 
   it("nennt bei „Dokument Vorhanden“ den anderen Beleg derselben Rechnung", () => {

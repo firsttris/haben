@@ -494,11 +494,11 @@ export async function legacyVoucherDetail(id: string) {
   // Dateistand mit Verlauf (#345); bestätigen lässt sich ein Beleg mit offenem Stand „ohne Datei“, Quelle siehe ohneDateiBestaetigbar
   const fileStates = await fileStateHistory(id);
   const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
-  // Offener Stand „ohne Datei“ oder eine Buchung ohne Beleg aus dem Accountable-Stapel, wenn die Quelle es hergibt (#1235)
+  // Offener Stand „ohne Datei“ oder eine Buchung ohne Beleg aus dem Accountable-Stapel bzw. der Lexoffice-Sicherung, wenn die Quelle es hergibt (#1235, #1318)
   const canConfirmWithoutFile =
     (fileStatus === "ohne_datei_offen" || fileStatus === "ohne_beleg") &&
     files.length === 0 &&
-    ohneDateiBestaetigbar({ ...voucher, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent });
+    ohneDateiBestaetigbar({ ...voucher, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent, ohneBeleg: voucher.ohneBeleg });
   const { positionAccounts, ...shown } = voucher;
   const categories = positionAccounts ? sevdeskCategories(voucher.categories, positionAccounts, await loadSevdeskAccountCategories()) : voucher.categories;
   // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).
@@ -527,7 +527,7 @@ export async function legacyVoucherDetail(id: string) {
       label: FILE_STATUS_LABELS[fileStatus],
       history: fileStates,
       canConfirmWithoutFile,
-      // Merkmal aus dem Import, nicht aus dem Stand: die Rückfrage unterscheidet daran den Accountable-Stapel von sevDesk (#1317)
+      // Merkmal aus dem Import, nicht aus dem Stand: die Rückfrage unterscheidet daran die Buchung ohne Beleg (Stapel, Sicherung) von sevDesk (#1317)
       ohneBeleg: voucher.ohneBeleg,
       // Warum keine Datei da ist, hängt an Quelle, Beleg-GUID und „Dokument Vorhanden“ (#1235, #1322)
       ohneBelegGrund: ohneBelegGrund({ source: voucher.source, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent }),

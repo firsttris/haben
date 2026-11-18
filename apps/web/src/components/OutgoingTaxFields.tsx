@@ -1,7 +1,7 @@
 import { outgoingTaxIssues, section4Note, TAX_TREATMENTS, type OutgoingTaxDetails, type TaxTreatment } from "@haben/core";
 import { Field } from "./Field.tsx";
 
-const EMPTY_DETAILS: OutgoingTaxDetails = { exemption: null, ancillary: null, foreignPlace: null, assetDisposal: false };
+export const EMPTY_DETAILS: OutgoingTaxDetails = { exemption: null, ancillary: null, foreignPlace: null, assetDisposal: false };
 const KU_TREATMENTS: TaxTreatment[] = ["kleinunternehmer", "steuerfrei", "reverse_charge", "drittland", "eu_sonstige"];
 
 interface TaxFieldsProps {
@@ -148,7 +148,14 @@ function ExemptionFields({
   );
 }
 
-function ForeignTaxFields({ values, disabled, update, treatment, kleinunternehmer }: DetailsProps & Pick<TaxFieldsProps, "treatment" | "kleinunternehmer">) {
+/** Tatsächlicher Leistungsort einer Auslandsleistung; auch die Übernahme einer Fremdrechnung fragt ihn so ab (#1392) */
+export function ForeignTaxFields({
+  values,
+  disabled,
+  update,
+  treatment,
+  kleinunternehmer,
+}: DetailsProps & Pick<TaxFieldsProps, "treatment" | "kleinunternehmer">) {
   const required = kleinunternehmer || treatment === "eu_sonstige";
   return (
     <>

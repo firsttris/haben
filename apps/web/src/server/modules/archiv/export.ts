@@ -32,6 +32,7 @@ import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
+import { bankImportFiles, importsOfYear } from "./export-bankimporte.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 import { procedureMarkdown } from "../verfahrensdoku/index.ts";
@@ -88,7 +89,7 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
   return groups;
 }
 
-const iso = (value: Date | null | undefined) => (value ? value.toISOString() : "");
+export const iso = (value: Date | null | undefined) => (value ? value.toISOString() : "");
 const json = (value: unknown) => (value === null || value === undefined ? "" : JSON.stringify(value));
 
 // ---------------------------------------------------------------------------
@@ -216,10 +217,10 @@ export function toReadableStream(chunks: AsyncGenerator<Uint8Array>): ReadableSt
 // ---------------------------------------------------------------------------
 // Inhalte eines Jahres
 
-const yearStart = (year: number) => `${year}-01-01`;
-const yearEnd = (year: number) => `${year}-12-31`;
+export const yearStart = (year: number) => `${year}-01-01`;
+export const yearEnd = (year: number) => `${year}-12-31`;
 /** Beginn eines Jahres in deutscher Zeit, für Zeitstempel-Spalten */
-const berlinStart = (year: number) => sql`(${`${year}-01-01 00:00:00`}::timestamp at time zone 'Europe/Berlin')`;
+export const berlinStart = (year: number) => sql`(${`${year}-01-01 00:00:00`}::timestamp at time zone 'Europe/Berlin')`;
 
 const KIND_LABELS: Record<string, string> = {
   rechnung: "Rechnung",
@@ -872,20 +873,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
         .orderBy(asc(schema.allocations.createdAt), asc(schema.allocations.id))
     : [];
-  const imports = await db
-    .select()
-    .from(schema.bankImports)
-    .where(
-      and(
-        sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
-            and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
-          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date)
-          or (${schema.bankImports.periodTo} is null and ${schema.bankImports.createdAt} >= ${berlinStart(year)}
-            and ${schema.bankImports.createdAt} < ${berlinStart(year + 1)}))`,
-        bankAccountIncludedSql("bank_account_id"),
-      ),
-    )
-    .orderBy(asc(schema.bankImports.createdAt));
+  const imports = await importsOfYear(year);
   const importById = new Map(imports.map((i) => [i.id, i]));
 
   const allocatedByTransaction = new Map<string, number>();
@@ -1072,42 +1060,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       compress: true,
     };
   }
-  yield {
-    path: "bank/importe.csv",
-    content: csv(
-      [
-        "Konto",
-        "Datei",
-        "SHA-256",
-        "Format",
-        "Zeitraum von",
-        "Zeitraum bis",
-        "Anfangssaldo",
-        "Endsaldo",
-        "Neu",
-        "Übersprungen",
-        "Hinweise",
-        "Importiert",
-        "Import-ID",
-      ],
-      imports.map((i) => [
-        accountById.get(i.bankAccountId)?.iban ?? accountById.get(i.bankAccountId)?.name,
-        i.filename,
-        i.sha256,
-        i.format,
-        i.periodFrom,
-        i.periodTo,
-        money(i.openingBalance),
-        money(i.closingBalance),
-        i.added,
-        i.skipped,
-        i.warnings.join(" | "),
-        iso(i.createdAt),
-        i.id,
-      ]),
-    ),
-    compress: true,
-  };
+  yield* bankImportFiles(year, imports, accountById);
 
   // Umsatzsteuer ----------------------------------------------------------
   const vatReturns = await db
@@ -1835,8 +1788,12 @@ bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen un
                          Skonto zu einer Bareinnahme die Nummer im Kassenbuch.
 bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA-256,
                          Zeitraum, Salden und Hinweisen; abgelehnte Abrufe ohne Zeitraum
-                         nach dem Tag des Abrufs. Die Auszugsdateien selbst speichert
-                         Haben nicht.
+                         nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres
+                         verbunden hat (etwa vom 30.12.), auch im Jahr dieses Umsatzes.
+                         Die Auszugsdateien selbst speichert Haben nicht.
+bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
+                         Ereignis der Bank die Quelle mit Stichtag, der Abruf und der
+                         Umsatz, den Haben angelegt oder verbunden hat.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),
                          jede Prüfung und Übermittlung (übermittlungen.csv) mit
                          ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML;
