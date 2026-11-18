@@ -172,4 +172,11 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-03-05");
     expect(storno.number).toBe("RE-ACME-002");
   });
+
+  it("endet die Meldung beim Festschreiben ohne Kundennummer nicht mit zwei Punkten (#1426)", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
+    const ohne = (await createContact("")).id;
+    await expect(invoices.finalizeInvoice(actor, (await invoiceDraft(ohne)).id)).rejects.toThrow(/enthält\.$/);
+    await expect(invoices.finalizeInvoice(actor, (await invoiceDraft(ohne)).id)).rejects.not.toThrow(/\.\.$/);
+  });
 });

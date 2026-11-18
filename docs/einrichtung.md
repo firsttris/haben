@@ -406,7 +406,7 @@ Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034
 
 - Jahr und Monat kommen aus dem Rechnungs- bzw. Angebotsdatum, nicht aus dem Tag des Festschreibens: Eine Rechnung vom 31. Oktober, die du am 2. November festschreibst, heißt `RE-2026-10-…`. Die Überschrift im Editor zeigt die voraussichtliche Nummer schon so.
 - Die laufende Nummer muss genau einmal vorkommen. Beginnt der Zähler jedes Jahr neu, gehört auch das Jahr dazu, erst damit bleibt jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG); der Monat allein reicht nicht.
-- Mit `{KUNDENNR}` braucht der Kunde eine Kundennummer; fehlt sie, schreibt Haben den Beleg nicht fest und sagt es. Storno und Rechnungskorrektur tragen die Kundennummer der ursprünglichen Rechnung, nicht die des Kontakts von heute. Der Zähler bleibt für alle Kunden gemeinsam.
+- Mit `{KUNDENNR}` braucht der Kunde eine Kundennummer aus Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt; fehlt sie oder enthält sie andere Zeichen, schreibt Haben den Beleg nicht fest und sagt es. Storno und Rechnungskorrektur tragen die Kundennummer der ursprünglichen Rechnung, nicht die des Kontakts von heute. Der Zähler bleibt für alle Kunden gemeinsam.
 - Außerhalb der Platzhalter gehen Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt, insgesamt höchstens 30 Zeichen. Leerzeichen und Schrägstrich gehen nicht, weil die Nummer auch im Dateinamen und im Verwendungszweck steht.
 - Unter dem Feld steht ein Beispiel oder, was am Format nicht passt.
 

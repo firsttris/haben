@@ -1038,7 +1038,8 @@ export function buyerIssues(format: string, contact: Contact | null, corrects: {
   const issues = contact ? [] : ["Kunde fehlt"];
   if (usesCustomerNumber(format) && (contact || corrects)) {
     const problem = customerNumberProblem(corrects ? corrects.buyer?.kundennummer : contact?.kundennummer);
-    if (problem) issues.push(problem);
+    // ganze Sätze ohne Schlusspunkt in die Liste, „Noch nicht bereit: …“ setzt ihn selbst
+    if (problem) issues.push(problem.replace(/\.$/, ""));
   }
   return issues;
 }
