@@ -83,11 +83,28 @@ export interface VividAbrufInput {
 
 type Unsupported = ImportBatch["unsupported"][number];
 
+/** Tag der letzten Änderung in Deutschland; bei einer Kartenzahlung meist die Buchung */
+function geaendert(t: VividTransaction): string | undefined {
+  const date = t.updated_at ? new Date(t.updated_at) : null;
+  return date && !Number.isNaN(date.getTime()) ? germanDay(date) : undefined;
+}
+
+/**
+ * Vor dem Fenster decken Dateien oder ein anderer Abrufweg die Tage ab, nach ihrem Buchungstag. Vivid datiert eine
+ * Kartenzahlung aber auf die Freigabe: Eine vor dem Fenster freigegebene, danach gebuchte kennt der andere Weg nicht. Sie
+ * kommt deshalb mit (der Vertrag nimmt Bewegungen vor dem Fenster an), eine noch vorgemerkte bleibt sichtbar. Was schon vor
+ * dem Fenster abgeschlossen war, fehlt bewusst.
+ */
+function vorDemFenster(t: VividTransaction, input: VividAbrufInput): "weglassen" | "vormerkung" | "verspaetet" {
+  if (t.state === "pending") return "vormerkung";
+  const zuletzt = geaendert(t);
+  return t.state === "completed" && zuletzt !== undefined && zuletzt >= input.dateFrom ? "verspaetet" : "weglassen";
+}
+
 /** Bewegung aus einem abgeschlossenen Umsatz, sonst der Eintrag unter `unsupported`; null vor dem Fenster */
 function einordnen(t: VividTransaction, input: VividAbrufInput): { movement: ImportMovement; tx: ParsedTransaction } | Unsupported | null {
   const tag = vividTag(t);
-  // Vor dem Fenster: Diese Tage decken Dateien oder ein anderer Abrufweg ab; schon abgerufene erkennt Haben ohnehin an der id
-  if (tag && tag < input.dateFrom) return null;
+  if (tag && tag < input.dateFrom && vorDemFenster(t, input) === "weglassen") return null;
   const skip = (reason: string): Unsupported => ({ sourceEventId: t.id, ...(tag ? { bookingDate: tag } : {}), reason });
   // abgelehnt ist ein Endzustand: sichtbar, hält den Zeitraum aber nicht offen
   if (t.state === "declined") return { sourceEventId: t.id, reason: "Abgelehnt (declined); wird nie gebucht.", final: true };
@@ -140,6 +157,12 @@ export function vividAbruf(input: VividAbrufInput): { batch: ImportBatch; statem
     )
     .map(({ tx }, index) => ({ ...tx, index }));
   const vorgemerkt = unsupported.filter((u) => u.reason.startsWith("Vorgemerkt")).length;
+  const verspaetet = movements
+    .filter((m) => m.bookingDate < input.dateFrom)
+    .map(
+      (m) =>
+        `${m.sourceEventId}: Tag ${m.bookingDate} vor dem Abrufbeginn ${input.dateFrom}, erst danach gebucht und deshalb übernommen. Steht er schon aus einer Datei da, ist er doppelt.`,
+    );
   const statement: ParsedStatement = {
     format: "vivid",
     accountIban: vividIban(input.account),
@@ -148,7 +171,7 @@ export function vividAbruf(input: VividAbrufInput): { batch: ImportBatch; statem
     periodFrom: input.dateFrom,
     periodTo: input.dateTo,
     transactions,
-    warnings: vorgemerkt > 0 ? [`${vorgemerkt} vorgemerkte Umsätze folgen, sobald Vivid sie bucht.`] : [],
+    warnings: [...(vorgemerkt > 0 ? [`${vorgemerkt} vorgemerkte Umsätze folgen, sobald Vivid sie bucht.`] : []), ...verspaetet],
   };
   const batch: ImportBatch = {
     contractVersion: IMPORT_CONTRACT_VERSION,

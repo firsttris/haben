@@ -37,9 +37,13 @@ export async function vividVerbinden(actor: string, input: z.input<typeof vividV
   const today = todayInGermany(now);
   const data = vividVerbindenSchema.parse(input);
   if (data.fetchFrom && data.fetchFrom > today) throw new BankError("Der Abruf kann nicht in der Zukunft beginnen.");
+  const api = vividClientFor(data.apiKey);
   let konten;
   try {
-    konten = await vividClientFor(data.apiKey).accounts();
+    konten = (await api.accounts()).filter((k) => k.state !== "closed");
+    // Das Recht für Umsätze vor der Übernahme prüfen: Sonst endete eine laufende Verbindung über Enable Banking oder FinTS,
+    // und der erste Abruf scheiterte. Die Rechte gelten je Schlüssel, ein Konto reicht
+    if (konten[0]) await api.transactions(konten[0].id);
   } catch (error) {
     throw new BankError(`Vivid hat den Schlüssel nicht angenommen: ${error instanceof Error ? error.message : String(error)}`);
   }

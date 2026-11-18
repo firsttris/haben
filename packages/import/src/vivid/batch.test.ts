@@ -122,7 +122,11 @@ describe("vividAbruf", () => {
 
   it("lässt Umsätze vor dem Fenster weg und hält einen nach dem Fenster nicht fest", () => {
     const { batch, statement } = vividAbruf(
-      input([tx({ id: "vor", show_at: "2026-10-31T10:00:00Z" }), tx({ id: "nach", show_at: "2026-11-18T23:30:00Z" }), tx({ id: "drin" })]),
+      input([
+        tx({ id: "vor", show_at: "2026-10-31T10:00:00Z", updated_at: "2026-10-31T10:00:00Z" }),
+        tx({ id: "nach", show_at: "2026-11-18T23:30:00Z" }),
+        tx({ id: "drin" }),
+      ]),
     );
     expect(batch.movements.map((m) => m.sourceEventId)).toEqual(["drin"]);
     expect(batch.unsupported).toEqual([
@@ -130,6 +134,23 @@ describe("vividAbruf", () => {
     ]);
     expect(statement.transactions.map((t) => t.bankReference)).toEqual(["drin"]);
     expect(validateBatch(batch, binding).ok && validateBatch(batch, binding)).toMatchObject({ blocking: 0 });
+  });
+
+  it("übernimmt eine Zahlung vor dem Fenster, die erst danach gebucht wurde, und meldet sie", () => {
+    // Autorisiert vor dem Wechsel, gebucht danach: Die Datei bis zum Vortag kennt sie nicht, sonst ginge sie verloren
+    const spaet = tx({ id: "spaet", show_at: "2026-10-30T10:00:00Z", updated_at: "2026-11-02T08:00:00Z" });
+    // Schon vor dem Fenster gebucht: deckt die Datei ab
+    const frueh = tx({ id: "frueh", show_at: "2026-10-29T10:00:00Z", updated_at: "2026-10-31T08:00:00Z" });
+    const offen = tx({ id: "offen", state: "pending", show_at: "2026-10-30T12:00:00Z", updated_at: "2026-10-30T12:00:00Z" });
+    const { batch, statement } = vividAbruf(input([spaet, frueh, offen]));
+    expect(batch.movements.map((m) => [m.sourceEventId, m.bookingDate])).toEqual([["spaet", "2026-10-30"]]);
+    expect(batch.unsupported).toEqual([{ sourceEventId: "offen", bookingDate: "2026-10-30", reason: "Vorgemerkt (pending); folgt, sobald Vivid ihn bucht." }]);
+    expect(statement.warnings).toEqual([
+      "1 vorgemerkte Umsätze folgen, sobald Vivid sie bucht.",
+      "spaet: Tag 2026-10-30 vor dem Abrufbeginn 2026-11-01, erst danach gebucht und deshalb übernommen. Steht er schon aus einer Datei da, ist er doppelt.",
+    ]);
+    const result = validateBatch(batch, binding);
+    expect(result.ok && [result.accepted.map((m) => m.sourceEventId), result.blocking]).toEqual([["spaet"], 0]);
   });
 
   it("ordnet Erstattung und Gebühr als eigene Arten ein und nennt Überweisungen ohne erfundene Gegenseite", () => {

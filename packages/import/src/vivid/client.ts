@@ -83,7 +83,7 @@ const MAX_RETRIES = 3;
 export interface VividClient {
   /** Prüft den Schlüssel */
   ping(): Promise<void>;
-  /** Offene Zahlungskonten, die der Ersteller des Schlüssels sieht */
+  /** Zahlungskonten, die der Ersteller des Schlüssels sieht, auch geschlossene: Dort kann noch eine Zahlung gebucht werden */
   accounts(): Promise<VividAccount[]>;
   /** Alle Umsätze eines Kontos aus den letzten 90 Tagen, über alle Seiten */
   transactions(accountId: string): Promise<VividTransaction[]>;
@@ -142,7 +142,7 @@ export function vividClient(options: VividClientOptions): VividClient {
       await json("/api/v1/ping", z.looseObject({}), {});
     },
     async accounts() {
-      return (await json("/api/v1/accounts/current/list", z.looseObject({ accounts: z.array(accountSchema).default([]) }), {})).accounts;
+      return (await json("/api/v1/accounts/current/list", z.looseObject({ accounts: z.array(accountSchema).default([]) }), { include_closed: true })).accounts;
     },
     async transactions(accountId) {
       const all: VividTransaction[] = [];

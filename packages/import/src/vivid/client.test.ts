@@ -74,6 +74,8 @@ describe("vividClient", () => {
     );
     expect(await client.accounts()).toEqual([]);
     expect(calls).toHaveLength(2);
+    // Auch geschlossene Konten: dort kann noch eine Vormerkung gebucht werden
+    expect(calls[1]!.body).toEqual({ include_closed: true });
     expect(sleeps).toEqual([7000]);
   });
 

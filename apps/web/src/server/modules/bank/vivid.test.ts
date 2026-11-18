@@ -43,6 +43,10 @@ function fakeVivid() {
     ],
     transactions: {} as Record<string, VividTransaction[]>,
     abgelehnt: null as Error | null,
+    /** Nur der Abruf der Umsätze scheitert, wie bei einem Schlüssel ohne transactions:read */
+    ohneUmsatzrecht: null as Error | null,
+    /** Vivid nennt geschlossene Konten nur mit include_closed */
+    geschlossen: [] as VividAccount[],
     keys: [] as string[],
   };
   const client = (apiKey: string): VividClient => {
@@ -56,10 +60,11 @@ function fakeVivid() {
       },
       async accounts() {
         pruefen();
-        return state.accounts;
+        return [...state.accounts, ...state.geschlossen];
       },
       async transactions(accountId) {
         pruefen();
+        if (state.ohneUmsatzrecht) throw state.ohneUmsatzrecht;
         return state.transactions[accountId] ?? [];
       },
     };
@@ -115,6 +120,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über Vivid (Postgres)", () => {
 
   beforeEach(() => {
     api.state.abgelehnt = null;
+    api.state.ohneUmsatzrecht = null;
   });
 
   it("verbindet, ordnet nur Konten in Euro mit IBAN zu und holt ab dem Tag nach der Datei die abgeschlossenen Umsätze", async () => {
@@ -239,6 +245,58 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über Vivid (Postgres)", () => {
     );
   });
 
+  it("übernimmt eine Kartenzahlung, die vor dem Abrufbeginn autorisiert und erst danach gebucht wurde", async () => {
+    const [v] = await verbindungen();
+    // Autorisiert vor dem Tag nach der CSV (30.09.), gebucht nach dem Verbinden: kein anderer Weg kennt sie
+    api.state.transactions["konto-haupt"] = [
+      ...api.state.transactions["konto-haupt"]!,
+      umsatz("u-spaet", "2026-09-29", "-20.00", { updated_at: "2026-11-29T08:00:00Z" }),
+    ];
+    expect(await abruf.vividAbrufen(ACTOR, v!.id, zeit("2026-11-29"))).toMatchObject({ ok: true, neu: 1 });
+    expect((await umsaetze(IBAN_HAUPT)).filter((u) => u.tag === "2026-09-29")).toEqual([
+      { tag: "2026-09-29", betrag: -2000, purpose: "Kartenzahlung, Karte …4242, Leipzig, DE", name: "Kaffee Beispiel", format: "vivid" },
+    ]);
+    const [protokoll] =
+      await sql`select i.warnings from bank_imports i join bank_accounts a on a.id = i.bank_account_id where i.format = 'vivid' and a.iban = ${IBAN_HAUPT} order by i.created_at desc limit 1`;
+    expect(protokoll!.warnings.join(" ")).toContain("u-spaet: Tag 2026-09-29 vor dem Abrufbeginn");
+  });
+
+  it("ruft ein geschlossenes Konto weiter ab, statt einen Fehler zu melden", async () => {
+    const [v] = await verbindungen();
+    const ruecklage = api.state.accounts.find((a) => a.id === "konto-ruecklage")!;
+    api.state.accounts = api.state.accounts.filter((a) => a.id !== "konto-ruecklage");
+    api.state.geschlossen = [{ ...ruecklage, state: "closed" }];
+    api.state.transactions["konto-ruecklage"] = [
+      ...api.state.transactions["konto-ruecklage"]!,
+      umsatz("r-2", "2026-11-25", "-1000.00", { account_id: "konto-ruecklage", type: "transfer", merchant: null, card: null }),
+    ];
+    expect(await abruf.vividAbrufen(ACTOR, v!.id, zeit("2026-11-30"))).toMatchObject({ ok: true, neu: 1 });
+    api.state.accounts = [...api.state.accounts, ruecklage];
+    api.state.geschlossen = [];
+  });
+
+  it("lässt eine Verbindung über Enable Banking stehen, wenn dem Schlüssel das Recht für Umsätze fehlt", async () => {
+    const [eb] = await sql`
+      insert into bank_connections (aspsp_name, aspsp_country, psu_type, status, accounts)
+      select 'Testbank', 'DE', 'business', 'aktiv', jsonb_build_array(jsonb_build_object(
+        'uid', 'eb-1', 'iban', ${IBAN_RUECKLAGE}::text, 'name', 'Rücklage', 'bankAccountId', a.id, 'syncedTo', null))
+      from bank_accounts a where a.iban = ${IBAN_RUECKLAGE} returning id`;
+    const vorher = await verbindungen();
+    api.state.ohneUmsatzrecht = new VividApiError(
+      "Dem API-Schlüssel fehlt ein Recht (accounts:read und transactions:read).",
+      403,
+      "scope_denied",
+      "/api/v1/transactions/list",
+    );
+    await expect(vivid.vividVerbinden(ACTOR, { apiKey: "vivid_sk_v1_ohne_recht" }, zeit("2026-11-30"))).rejects.toThrow(
+      "Vivid hat den Schlüssel nicht angenommen: Dem API-Schlüssel fehlt ein Recht (accounts:read und transactions:read).",
+    );
+    expect(await verbindungen()).toEqual(vorher);
+    const [nachher] = await sql`select jsonb_array_length(accounts)::int as n from bank_connections where id = ${eb!.id}`;
+    expect(nachher).toEqual({ n: 1 });
+    await sql`delete from bank_connections where id = ${eb!.id}`;
+  });
+
   it("lehnt einen Schlüssel ab, den Vivid nicht annimmt, ohne etwas zu speichern", async () => {
     const vorher = await verbindungen();
     api.state.abgelehnt = new VividApiError("Der API-Schlüssel ist ungültig.", 401, "invalid_key", "/api/v1/accounts/current/list");
@@ -255,7 +313,7 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über Vivid (Postgres)", () => {
     expect(eintrag!.accounts.map((a) => a.iban)).toEqual([IBAN_HAUPT, IBAN_RUECKLAGE]);
     await vivid.removeVividConnection(ACTOR, eintrag!.id);
     expect(await verbindungen()).toEqual([]);
-    expect((await umsaetze(IBAN_HAUPT)).length).toBe(4);
+    expect((await umsaetze(IBAN_HAUPT)).length).toBe(5);
   });
 });
 
