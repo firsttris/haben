@@ -4,8 +4,9 @@ import type { TaxShare } from "./posting.ts";
 
 /**
  * #853: Bereits vereinnahmte Umsatzsteuer mindert sich erst mit der Rückzahlung (§ 17 UStG, UStAE 17.1 Abs. 2 Satz 3,
- * BFH V R 34/09), nur in Höhe der Überzahlung und je Satz so, wie sie entstanden ist. Entscheidung:
- * https://github.com/firsttris/haben/pull/1228#issuecomment-6940857265
+ * BFH V R 34/09), nur in Höhe der Überzahlung. Sie verteilt sich auf die Sätze im Verhältnis der Minderung der
+ * gekennzeichneten Korrekturen je Satz (Entscheidung des Maintainers zu #1228; zuvor
+ * https://github.com/firsttris/haben/pull/1228#issuecomment-6940857265).
  */
 const s19 = (base: number, tax: number): TaxShare => ({ rate: 1900, base, tax });
 const s7 = (base: number, tax: number): TaxShare => ({ rate: 700, base, tax });
@@ -20,17 +21,14 @@ describe("Steuer bis zur Rückzahlung", () => {
         { date: "2026-12-10", correction: [s19(-10_000, -1_900)], untilRefund: true },
         { date: "2027-01-15", paid: [s19(-10_000, -1_900)] },
       ]),
-    ).toEqual({
-      changes: [
-        { date: "2026-12-10", shares: [s19(10_000, 1_900)] },
-        { date: "2027-01-15", shares: [s19(-10_000, -1_900)] },
-      ],
-      unclear: null,
-    });
+    ).toEqual([
+      { date: "2026-12-10", shares: [s19(10_000, 1_900)] },
+      { date: "2027-01-15", shares: [s19(-10_000, -1_900)] },
+    ]);
   });
 
   it("unbezahlt: kein Rückzahlungsanspruch, nichts zu halten", () => {
-    expect(held([{ date: "2026-12-10", correction: [s19(-10_000, -1_900)], untilRefund: true }])).toEqual({ changes: [], unclear: null });
+    expect(held([{ date: "2026-12-10", correction: [s19(-10_000, -1_900)], untilRefund: true }])).toEqual([]);
   });
 
   it("Teilzahlung: hält nur die Überzahlung über dem geminderten Entgelt", () => {
@@ -40,7 +38,7 @@ describe("Steuer bis zur Rückzahlung", () => {
       held([
         { date: "2026-10-20", paid },
         { date: "2026-12-10", correction: [s19(-10_000, -1_900)], untilRefund: true },
-      ]).changes,
+      ]),
     ).toEqual([{ date: "2026-12-10", shares: [s19(2_437, 463)] }]);
   });
 
@@ -49,7 +47,7 @@ describe("Steuer bis zur Rückzahlung", () => {
       held([
         { date: "2026-10-20", paid: total },
         { date: "2026-12-10", correction: [s19(-10_000, -1_900)] },
-      ]).changes,
+      ]),
     ).toEqual([]);
   });
 
@@ -59,7 +57,7 @@ describe("Steuer bis zur Rückzahlung", () => {
         { date: "2026-10-20", paid: total },
         { date: "2026-12-10", correction: [s19(-10_000, -1_900)], untilRefund: true },
         { date: "2026-12-20", paid: [s19(-100_000, -19_000)] },
-      ]).changes,
+      ]),
     ).toEqual([
       { date: "2026-12-10", shares: [s19(10_000, 1_900)] },
       { date: "2026-12-20", shares: [s19(-10_000, -1_900)] },
@@ -71,7 +69,7 @@ describe("Steuer bis zur Rückzahlung", () => {
       held([
         { date: "2026-10-20", paid: [s19(110_000, 20_900)] },
         { date: "2026-12-10", correction: [s19(-10_000, -1_900)], untilRefund: true },
-      ]).changes,
+      ]),
     ).toEqual([{ date: "2026-12-10", shares: [s19(10_000, 1_900)] }]);
   });
 
@@ -86,14 +84,14 @@ describe("Steuer bis zur Rückzahlung", () => {
     const refundNew: AdvanceVatEvent = { date: "2027-02-10", paid: old };
 
     it("neue hält 19 €, Erstattung der alten mindert nicht erneut, Erstattung der neuen schon", () => {
-      expect(held([...base, refundOld, refundNew]).changes).toEqual([
+      expect(held([...base, refundOld, refundNew])).toEqual([
         { date: "2026-12-10", shares: [s19(10_000, 1_900)] },
         { date: "2027-02-10", shares: [s19(-10_000, -1_900)] },
       ]);
     });
 
     it("umgekehrte Reihenfolge der Erstattungen", () => {
-      expect(held([...base, { ...refundNew, date: "2027-01-10" }, { ...refundOld, date: "2027-02-10" }]).changes).toEqual([
+      expect(held([...base, { ...refundNew, date: "2027-01-10" }, { ...refundOld, date: "2027-02-10" }])).toEqual([
         { date: "2026-12-10", shares: [s19(10_000, 1_900)] },
         { date: "2027-01-10", shares: [s19(-10_000, -1_900)] },
       ]);
@@ -111,7 +109,7 @@ describe("Steuer bis zur Rückzahlung", () => {
             { date: "2026-12-10", correction: [s19(-10_000, -1_900)], untilRefund: true },
           ],
           mixed,
-        ).changes,
+        ),
       ).toEqual([{ date: "2026-12-10", shares: [s19(10_000, 1_900)] }]);
     });
 
@@ -124,10 +122,10 @@ describe("Steuer bis zur Rückzahlung", () => {
           ],
           mixed,
         ),
-      ).toEqual({ changes: [], unclear: null });
+      ).toEqual([]);
     });
 
-    it("150 € bezahlt, auf 107 € gemindert: 43 € Überzahlung, nicht eindeutig auf die Sätze verteilbar", () => {
+    it("150 € bezahlt, auf 107 € gemindert: 43 € Überzahlung, ganz beim geminderten Satz 19 %", () => {
       expect(
         held(
           [
@@ -136,11 +134,12 @@ describe("Steuer bis zur Rückzahlung", () => {
           ],
           mixed,
         ),
-      ).toEqual({ changes: [], unclear: "2026-12-10" });
+      ).toEqual([{ date: "2026-12-10", shares: [s19(3_613, 687)] }]);
     });
 
-    it("anteilige Korrektur über beide Sätze bei Teilüberzahlung: eindeutig je Satz", () => {
-      // 219,85 € von 226 € bezahlt, 10 % Nachlass über beide Sätze: 16,45 € Überzahlung
+    it("Korrektur über beide Sätze bei Teilüberzahlung: im Verhältnis der Minderung je Satz, Rest auf den größten Anteil", () => {
+      // 219,85 € von 226 € bezahlt, 10 % Nachlass über beide Sätze: 16,45 € Überzahlung, davon 1.070/2.260 auf 7 % = 7,79 €
+      // (gerundet), der Rest 8,66 € auf 19 %; je Satz Steuer im Verhältnis der Korrektur
       expect(
         held(
           [
@@ -149,7 +148,7 @@ describe("Steuer bis zur Rückzahlung", () => {
           ],
           mixed,
         ),
-      ).toEqual({ changes: [{ date: "2026-12-10", shares: [s19(735, 140), s7(720, 50)] }], unclear: null });
+      ).toEqual([{ date: "2026-12-10", shares: [s19(728, 138), s7(728, 51)] }]);
     });
   });
 
@@ -160,7 +159,7 @@ describe("Steuer bis zur Rückzahlung", () => {
         { date: "2026-01-20", performance: 1 },
         { date: "2026-02-10", correction: [s19(-10_000, -1_900)], untilRefund: true },
         { date: "2026-03-10", paid: [s19(-10_000, -1_900)] },
-      ]).changes,
+      ]),
     ).toEqual([
       { date: "2026-01-10", shares: total },
       { date: "2026-03-10", shares: [s19(-10_000, -1_900)] },

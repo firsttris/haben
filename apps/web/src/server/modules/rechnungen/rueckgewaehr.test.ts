@@ -156,13 +156,13 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres
     await bank.allocate(actor, { kind: "invoice", transactionId: transaction!.id, invoiceId, amount });
   }
 
-  async function figures(month: number) {
-    const f = await vat.computeVatFigures({ year: 2026, month });
-    expect.soft((await reports.vatAbgleich({ year: 2026, month })).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
+  async function figures(month: number, year = 2026) {
+    const f = await vat.computeVatFigures({ year, month });
+    expect.soft((await reports.vatAbgleich({ year, month })).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
     return { kz81: f.kz81, tax81: f.tax81, kz86: f.kz86, tax86: f.tax86 };
   }
-  const kz = async (month: number) => {
-    const { kz81, tax81 } = await figures(month);
+  const kz = async (month: number, year = 2026) => {
+    const { kz81, tax81 } = await figures(month, year);
     return { kz81, tax81 };
   };
 
@@ -283,6 +283,20 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres
     await integrity();
   }, 40_000);
 
+  // Die Verrechnung der alten Korrektur ist das einzige Ereignis im Folgejahr; auch dann gehört die Kette in dessen Plan.
+  it("SKR03, Soll: Verrechnung einer alten Korrektur im Folgejahr gibt die Steuer der neuen bis zur Rückzahlung frei", async () => {
+    const original = await invoice([beratung(100_000)], "2025-05-05");
+    await pay(original.id, "2025-05-20", 107_100);
+    const old = await legacyCorrection(original.id, "2025-06-10");
+    await correction(original.id, "2025-07-10");
+    // Der Anspruch aus der alten Korrektur ist offen: keine Überzahlung, die neue mindert sofort
+    expect(await kz(7, 2025)).toEqual({ kz81: -10_000, tax81: -1_900 });
+    await invoices.settleInvoices(actor, { invoiceId: original.id, counterInvoiceId: old.id, amount: 11_900, date: "2026-01-12", note: "Alte Korrektur" });
+    // Verrechnet: 1.071 € vereinnahmt, Entgelt 952 €; die 119 € der neuen Korrektur bleiben bis zur Rückzahlung besteuert
+    expect(await kz(1, 2026)).toEqual({ kz81: 10_000, tax81: 1_900 });
+    await integrity();
+  }, 40_000);
+
   describe("mehrere Steuersätze, Korrektur nur des 19-%-Teils", () => {
     const lines = [beratung(10_000), beratung(10_000, 700)];
 
@@ -291,15 +305,6 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres
       await pay(original.id, "2026-05-20", 5_000);
       await correction(original.id, "2026-06-10");
       expect(await figures(6)).toEqual({ kz81: -10_000, tax81: -1_900, kz86: 0, tax86: 0 });
-      await integrity();
-    }, 30_000);
-
-    it("150 € bezahlt: 43 € Überzahlung lassen sich nicht eindeutig zuordnen, Haben lehnt ab", async () => {
-      const original = await invoice(lines);
-      await pay(original.id, "2026-05-20", 15_000);
-      const draft = await correctionDraft(original.id, "2026-06-10", [beratung(-10_000)]);
-      await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/Überzahlung.*nicht eindeutig.*Steuersätzen/);
-      expect((await sql`select status from invoices where id = ${draft.id}`)[0]!.status).toBe("draft");
       await integrity();
     }, 30_000);
 
