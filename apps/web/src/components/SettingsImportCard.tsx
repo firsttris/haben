@@ -2,7 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { strFromU8, unzipSync } from "fflate";
 import { useState } from "react";
-import { EINSTELLUNGEN_JSON } from "../lib/einstellungsdatei.ts";
+import { istEinstellungenJson } from "../lib/einstellungsdatei.ts";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { importSettingsFile } from "../server/functions/export.ts";
@@ -21,8 +21,8 @@ async function fakten(file: File): Promise<ConfirmFact[]> {
   if (file.size > FAKTEN_BIS) return facts;
   try {
     // Nur die JSON und nur bis zur Grenze entpacken; fflate legt den Puffer in der angegebenen Größe an
-    const zip = unzipSync(new Uint8Array(await file.arrayBuffer()), { filter: (f) => f.name === EINSTELLUNGEN_JSON && f.originalSize <= FAKTEN_BIS });
-    const json = zip[EINSTELLUNGEN_JSON];
+    const zip = unzipSync(new Uint8Array(await file.arrayBuffer()), { filter: (f) => istEinstellungenJson(f.name) && f.originalSize <= FAKTEN_BIS });
+    const [json] = Object.values(zip);
     if (!json) return facts;
     const inhalt = JSON.parse(strFromU8(json)) as { company?: { name?: unknown }; exportedAt?: unknown; appVersion?: unknown; contacts?: unknown };
     if (typeof inhalt.company?.name === "string" && inhalt.company.name) facts.push({ label: "Firma", value: inhalt.company.name, strong: true });
@@ -74,9 +74,9 @@ export function SettingsImportCard({ neueInstanz }: { neueInstanz: boolean }) {
     <section className="card" aria-labelledby="settings-import-heading">
       <h2 id="settings-import-heading">Einstellungen übernehmen</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Die Datei aus „Einstellungen exportieren“ einer anderen Instanz, etwa der Testinstanz. Das geht nur, solange hier noch keine Kontakte, Artikel, Belege,
-        Rechnungen oder Buchungen angelegt sind. Firmendaten und Beleggestaltung dieser Instanz werden dabei ersetzt. Absender und Vorlagen der E-Mails kommen
-        nur mit, wenn der Versand hier schon eingerichtet ist.
+        Die Datei aus „Einstellungen exportieren“ einer anderen Instanz, etwa der Testinstanz. Das geht nur, solange hier noch keine Kontakte, Artikel oder
+        anderen Stammdaten und keine Belege, Rechnungen oder Buchungen angelegt sind. Firmendaten und Beleggestaltung dieser Instanz werden dabei ersetzt.
+        Absender, Vorlagen und Erinnerungen der E-Mails kommen nur mit, wenn der Versand hier schon eingerichtet ist.
       </p>
       <NoticeBanner notice={notice} />
       {neueInstanz && (

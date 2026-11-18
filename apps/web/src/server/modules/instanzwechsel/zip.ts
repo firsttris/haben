@@ -1,5 +1,5 @@
 import { strToU8, type UnzipFileInfo, unzipSync, type Zippable, zipSync } from "fflate";
-import { EINSTELLUNGEN_JSON } from "../../../lib/einstellungsdatei.ts";
+import { EINSTELLUNGEN_JSON, istEinstellungenJson } from "../../../lib/einstellungsdatei.ts";
 import { UserError } from "../../errors.ts";
 
 /*
@@ -43,17 +43,30 @@ export function unzipSettings(archive: Uint8Array, limits: ZipLimits): Record<st
   let entries = 0;
   let bytes = 0;
   const filter = (file: UnzipFileInfo) => {
-    const ordner = file.name.endsWith("/");
+    const ohneDaten = file.name.endsWith("/") || macosMetadaten(file.name);
     entries += 1;
-    if (!ordner) bytes += Math.max(file.size, file.originalSize);
+    if (!ohneDaten) bytes += Math.max(file.size, file.originalSize);
     if (entries > limits.maxEntries) grenze = `Das ZIP hat mehr als ${limits.maxEntries} Einträge; eine Einstellungsdatei hat weniger.`;
     else if (bytes > limits.maxUnpackedBytes) grenze = "Das ZIP ist entpackt größer, als eine Einstellungsdatei sein kann.";
     if (grenze) throw new Error(grenze);
-    return !ordner;
+    return !ohneDaten;
   };
+  let files: Record<string, Uint8Array>;
   try {
-    return unzipSync(archive, { filter });
+    files = unzipSync(archive, { filter });
   } catch {
     throw new SettingsFileError(grenze ?? "Die Datei ist keine ZIP-Datei oder beschädigt. Erwartet wird das ZIP aus „Einstellungen exportieren“.");
   }
+  return abDerJson(files);
+}
+
+/** Was der Finder beim Packen dazulegt (erweiterte Attribute unter __MACOSX/ und als ._Datei), gehört nicht zur Datei */
+const macosMetadaten = (name: string) => name.startsWith("__MACOSX/") || name.split("/").some((teil) => teil.startsWith("._"));
+
+/** Pfade ab dem Ordner der JSON, wenn jemand das entpackte ZIP samt Ordner wieder gepackt hat (istEinstellungenJson) */
+function abDerJson(files: Record<string, Uint8Array>): Record<string, Uint8Array> {
+  const json = Object.keys(files).filter(istEinstellungenJson);
+  if (json.length !== 1 || json[0] === SETTINGS_JSON) return files;
+  const ordner = json[0]!.slice(0, -SETTINGS_JSON.length);
+  return Object.fromEntries(Object.entries(files).flatMap(([name, bytes]) => (name.startsWith(ordner) ? [[name.slice(ordner.length), bytes] as const] : [])));
 }

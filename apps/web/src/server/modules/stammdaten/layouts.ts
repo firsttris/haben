@@ -199,8 +199,9 @@ export async function createLayout(
 
 /**
  * Layout aus der Einstellungsdatei einer anderen Instanz (#488) in der Transaktion des Aufrufers, mit seiner ID, damit die
- * Gestaltung es weiter zuordnet. Pakete lädt es nicht: Ihre Freigabe galt dort für genau diesen Quelltext, nachgeladen
- * werden sie wie nach einem Restore nur auf Klick (reloadPackages, das die Liste mit Typst Universe neu abgleicht).
+ * Gestaltung es weiter zuordnet. Ohne Pakete setzt es das Layout wie beim Hochladen zur Probe (checkLayout). Pakete lädt
+ * es nicht: Ihre Freigabe galt dort für genau diesen Quelltext, nachgeladen und dabei zur Probe gesetzt werden sie wie
+ * nach einem Restore nur auf Klick (reloadPackages, das die Liste mit Typst Universe neu abgleicht).
  */
 export async function insertImportedLayout(
   tx: Tx,
@@ -218,6 +219,7 @@ export async function insertImportedLayout(
     );
   const [vorhanden] = await tx.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts).where(eq(schema.belegLayouts.name, name));
   if (vorhanden) throw new LayoutError(`Es gibt schon ein Layout „${name}“.`);
+  if (input.packages.length === 0) await checkLayout({ id: input.id, source: input.source, art: input.art });
   const sha256 = createHash("sha256").update(input.source).digest("hex");
   const packages = input.packages.map(({ name, version }) => ({ name, version }));
   await tx.insert(schema.belegLayouts).values({

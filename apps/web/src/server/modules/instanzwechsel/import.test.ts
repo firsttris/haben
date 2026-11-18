@@ -1,4 +1,5 @@
 import { designWithDefaults } from "@haben/core";
+import { startvorlage } from "@haben/einvoice";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -20,6 +21,29 @@ const einstellungen = (zip: Uint8Array) => JSON.parse(strFromU8(unzipSync(zip)["
 
 /** Dasselbe ZIP mit ersetzten Dateien */
 const neuGepackt = (dateien: Record<string, Uint8Array>, ersetzt: Record<string, Uint8Array>) => zipSync({ ...dateien, ...ersetzt });
+
+/**
+ * Das ZIP, nachdem Safari es beim Laden entpackt hat (Voreinstellung „Sichere Dateien nach dem Laden öffnen“, das ZIP
+ * kommt in den Papierkorb) und der Finder den Ordner mit „Komprimieren“ wieder gepackt hat: alles im Ordner, mit
+ * Ordnereinträgen und unter __MACOSX/ den erweiterten Attributen je Datei. Aufbau wie `ditto -c -k --sequesterRsrc --keepParent`.
+ */
+function vomFinderNeuGepackt(zip: Uint8Array, ordner: string): Uint8Array {
+  const leer = new Uint8Array(0);
+  const attribute = strToU8("Mac OS X        ATTR com.apple.quarantine");
+  const neu: Record<string, Uint8Array> = { [`${ordner}/`]: leer, "__MACOSX/": leer, [`__MACOSX/${ordner}/`]: leer };
+  for (const [name, bytes] of Object.entries(unzipSync(zip))) {
+    neu[`${ordner}/${name}`] = bytes;
+    if (name.endsWith("/")) {
+      neu[`__MACOSX/${ordner}/${name}`] = leer;
+      neu[`__MACOSX/${ordner}/._${name.slice(0, -1)}`] = attribute;
+    } else {
+      const teile = name.split("/");
+      const datei = teile.pop()!;
+      neu[`__MACOSX/${ordner}/${teile.map((teil) => `${teil}/`).join("")}._${datei}`] = attribute;
+    }
+  }
+  return zipSync(neu);
+}
 
 type Zeile = Record<string, unknown>;
 const gesetzt = (zeile: Zeile, feld: string) => ({ ...zeile, [feld]: zeile[feld] !== null });
@@ -96,7 +120,7 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     await sql`insert into articles(number, description, unit, unit_price, tax_rate) values ('L-1', 'Jahreslizenz', 'Lizenz', 49000, 1900)`;
     await sql`insert into own_accounts(kontenrahmen, account, name, parent_category, created_by) values ('SKR04', '6999', 'Software-Abos', 'software', 'test-user')`;
     await sql`insert into beleg_layouts(id, name, art, source, sha256, schema_version, packages)
-      values (${LAYOUT}, 'Mein Layout', 'beleg', '#let rechnung(daten) = [Rechnung]', 'x', 1, '[]'::jsonb)`;
+      values (${LAYOUT}, 'Mein Layout', 'beleg', ${startvorlage("beleg")}, 'x', 1, '[]'::jsonb)`;
     await sql`insert into letterhead_profiles(name, is_default, settings)
       values ('Standard', true, ${JSON.stringify({ accent: "#1F6FEB", font: "plex-sans", layouts: { rechnung: { kind: "eigen", id: LAYOUT } } })}::jsonb)`;
     await sql`insert into company_logo(id, logo, format, sha256) values (1, ${Buffer.from(PNG)}, 'png', 'x')`;
@@ -221,6 +245,16 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     );
   });
 
+  it("setzt ein eigenes Layout ohne Pakete wie beim Hochladen zur Probe und lehnt eines ohne Pflichtangaben ab", async () => {
+    await testinstanz();
+    await sql`update beleg_layouts set source = '#let rechnung(daten) = [Rechnung]' where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow(
+      /^Layout „Mein Layout“: Das Layout verwendet diese Pflichtfelder nicht/,
+    );
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
   it("schreibt jede Änderung mit der Person ins Änderungsprotokoll", async () => {
     await testinstanz();
     const text = await exportierenUndNeu();
@@ -274,7 +308,7 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
   it("hält beim Übernehmen die Höchstzahl eigener Layouts des Betreibers ein (LAYOUTS_MAX_COUNT)", async () => {
     const layouts = await import("../stammdaten/layouts.ts");
     const { withActor } = await import("../../db/actor.ts");
-    const layout = (id: string, name: string) => ({ id, name, art: "beleg" as const, source: "#let x = 1", schemaVersion: 1, packages: [] });
+    const layout = (id: string, name: string) => ({ id, name, art: "beleg" as const, source: startvorlage("beleg"), schemaVersion: 1, packages: [] });
 
     await expect(
       withActor(actor, async (tx) => {
@@ -333,6 +367,22 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(() => readSettingsZip(bombe, { maxEntries: 20, maxUnpackedBytes: 1024 * 1024 })).toThrow(/entpackt größer/);
     const viele = zipSync(Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`${i}.txt`, strToU8("x")])));
     expect(() => readSettingsZip(viele, { maxEntries: 20, maxUnpackedBytes: 1024 * 1024 })).toThrow(/mehr als 20 Einträge/);
+  });
+
+  it("übernimmt das ZIP auch, wenn Safari es entpackt und der Finder den Ordner wieder gepackt hat", async () => {
+    await testinstanz();
+    // Zehn Standardanhänge, so viele, wie es geben kann: Mit den Attributen unter __MACOSX/ hat das ZIP fast doppelt so viele Einträge
+    for (let i = 2; i <= 10; i++) {
+      const pdf = new TextEncoder().encode(`%PDF-1.7\nAnhang ${i}\n%%EOF\n`);
+      await sql`insert into quote_default_attachments(filename, mime_type, sha256, size) values (${`Anhang ${i}.pdf`}, 'application/pdf', ${await storage.storeFile(pdf)}, ${pdf.length})`;
+    }
+    const zip = await exportierenUndNeu();
+
+    await instanzwechsel.importSettings(actor, vomFinderNeuGepackt(zip, "Haben-Einstellungen-2026-12-20"), HEUTE);
+
+    expect((await sql`select name from company`)[0]!.name).toBe("Muster Design");
+    expect((await sql`select logo from company_logo`)[0]!.logo).toEqual(Buffer.from(PNG));
+    expect(await sql`select count(*)::int as anzahl from quote_default_attachments`).toEqual([{ anzahl: 10 }]);
   });
 
   it("übernimmt einen Textbaustein, dessen Kontakt inzwischen kein Kunde mehr ist", async () => {

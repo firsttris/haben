@@ -18,8 +18,8 @@ import { SETTINGS_JSON, SettingsFileError, unzipSettings, type ZipLimits } from 
 /** Logo, Briefpapier und alle Standardanhänge an ihrer Grenze, dazu reichlich Platz für die Stammdaten */
 export const MAX_SETTINGS_FILE_BYTES = MAX_LOGO_BYTES + MAX_BACKGROUND_BYTES + MAX_INVOICE_ATTACHMENTS * MAX_DOCUMENT_SIZE + 50 * 1024 * 1024;
 
-/** Die JSON, Logo, Briefpapier und die Standardanhänge, dazu Ordner */
-const ZIP_LIMITS: ZipLimits = { maxEntries: 3 + MAX_INVOICE_ATTACHMENTS + 5, maxUnpackedBytes: MAX_SETTINGS_FILE_BYTES };
+/** Die JSON, Logo, Briefpapier und die Standardanhänge, dazu Ordner; doppelt, weil der Finder beim Packen je Eintrag einen unter __MACOSX/ anlegt */
+const ZIP_LIMITS: ZipLimits = { maxEntries: 2 * (3 + MAX_INVOICE_ATTACHMENTS + 5), maxUnpackedBytes: MAX_SETTINGS_FILE_BYTES };
 
 const objekt = z.record(z.string(), z.unknown());
 const zeilen = z.array(objekt);
