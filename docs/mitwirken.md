@@ -96,6 +96,8 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Jede Seite in `docs/` mit `description:` im Front Matter | Workflow „Docs“ (`docs.yml`) | Fehler |
 | Jede versiegelte, nur anhängbare oder gegen Löschen gesperrte Tabelle und jede, deren Löschen das Audit-Log aufzeichnet, hat einen Trigger vor `TRUNCATE` | `apps/web/src/server/db/truncate.test.ts` in `bun run test` (mit Postgres) | Fehler |
 
+Meldet `bun run lint` bei `altdateien.json` oder `altstellen.json` „kann mit … `--aufraeumen` …“, läuft der Befehl im selben Pull Request, und die kürzere Liste wird mitcommittet.
+
 Was „PR-Regeln“ meldet, steht auch als ein Kommentar im Pull Request, bei jedem Push aktualisiert (Workflow „PR-Regeln Kommentar“; er startet aus der Fassung auf `main`, eine Änderung an ihm wirkt also erst nach dem Merge).
 
 Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibung <datei>` dasselbe wie der Workflow, nur mit git und in unter einer Sekunde; verglichen wird mit `origin/main` (`--basis` für einen anderen Stand). Den Hinweis auf Selbstprüfung und Review gibt es nur im Workflow.
