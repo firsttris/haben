@@ -273,7 +273,7 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
     dueDate: invoice.dueDate ?? addDays(invoice.issueDate, 14),
     serviceFrom: invoice.serviceFrom ?? null,
     serviceTo: invoice.serviceTo ?? null,
-    // Ein Kleinunternehmer übernimmt nur Rechnungen nach § 19 UStG (andere Behandlungen braucht strukturierte Angaben, die das Formular nicht abfragt)
+    // Beim Kleinunternehmer § 19 UStG: eine Auslandsleistung wählt er selbst, weil der Leistungsort ausdrücklich zu bestätigen ist
     taxTreatment: company.kleinunternehmer ? "kleinunternehmer" : (special ?? "regulaer"),
     taxes,
     contactId: matches.length === 1 ? matches[0]!.id : null,

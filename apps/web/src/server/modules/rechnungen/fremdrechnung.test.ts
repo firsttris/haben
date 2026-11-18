@@ -220,7 +220,58 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
         ]),
       );
     }, 30_000);
+
+    it(`${kontenrahmen}, ${versteuerung}: Leistungsort EU nur mit bestätigtem Land im EU-Ausland, Reverse Charge mit Leistungsort`, async () => {
+      await company(kontenrahmen, versteuerung);
+      const contactId = await customer("AT", "ATU12345678");
+      const eu = (number: string, taxTreatment: string, taxDetails: unknown) =>
+        input(contactId, { number, taxTreatment, taxes: [{ rate: 0, net: 10_000, tax: 0 }], taxDetails });
+      const at = { exemption: null, ancillary: null, foreignPlace: { country: "AT", noForeignVat: true }, assetDisposal: false };
+
+      await expect(foreign.adoptForeignInvoice(actor, eu("RE-2026-0060", "eu_sonstige", null), pdf)).rejects.toThrow(/sonstige EU-Leistung/);
+      await expect(
+        foreign.adoptForeignInvoice(actor, eu("RE-2026-0061", "eu_sonstige", { ...at, foreignPlace: { country: "AT", noForeignVat: false } }), pdf),
+      ).rejects.toThrow(/sonstige EU-Leistung/);
+      await expect(
+        foreign.adoptForeignInvoice(actor, eu("RE-2026-0062", "reverse_charge", { ...at, foreignPlace: { country: "CH", noForeignVat: true } }), pdf),
+      ).rejects.toThrow(/Leistungsort passt nicht/);
+      expect(await sql`select 1 from invoices`).toHaveLength(0);
+
+      const sonstige = await foreign.adoptForeignInvoice(actor, eu("RE-2026-0063", "eu_sonstige", at), pdf);
+      const rc = await foreign.adoptForeignInvoice(actor, eu("RE-2026-0064", "reverse_charge", at), pdf);
+      const rows = await sql`select number, tax_treatment, tax_details from invoices order by number`;
+      expect(rows).toEqual([
+        { number: "RE-2026-0063", tax_treatment: "eu_sonstige", tax_details: at },
+        { number: "RE-2026-0064", tax_treatment: "reverse_charge", tax_details: at },
+      ]);
+
+      await cash.createCashInvoiceEntry(actor, { invoiceId: sonstige.id, date: "2026-10-02", amount: 10_000 }, today);
+      await cash.createCashInvoiceEntry(actor, { invoiceId: rc.id, date: "2026-10-03", amount: 10_000 }, today);
+      const result = await auswertungen.gesamtumsatzForYear(2026);
+      expect(result.items.map((i) => [i.occurredOn, i.decision])).toEqual(
+        expect.arrayContaining([
+          ["2026-10-02", "excluded"],
+          ["2026-10-03", "excluded"],
+        ]),
+      );
+    }, 30_000);
   }
+
+  it("Kleinunternehmer: Leistung ins Nicht-EU-Ausland nur mit bestätigtem Leistungsort, dann nicht im Gesamtumsatz und ohne Umsatzgrenze", async () => {
+    await company("SKR03", "ist");
+    await sql`update company set kleinunternehmer = true where id = 1`;
+    const contactId = await customer("CH");
+    const place = { exemption: null, ancillary: null, foreignPlace: { country: "CH", noForeignVat: true }, assetDisposal: false };
+    // 120.000 € über der Grenze: Ein nicht steuerbarer Umsatz zählt nicht zum Gesamtumsatz, also keine Rückfrage zur Umsatzgrenze
+    const drittland = (number: string, taxDetails: unknown) =>
+      input(contactId, { number, taxTreatment: "drittland", taxes: [{ rate: 0, net: 12_000_000, tax: 0 }], taxDetails });
+    await expect(foreign.adoptForeignInvoice(actor, drittland("RE-2026-0070", null), pdf)).rejects.toThrow(/Als Kleinunternehmer/);
+    const { id } = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0071", place), pdf);
+    await cash.createCashInvoiceEntry(actor, { invoiceId: id, date: "2026-10-02", amount: 12_000_000 }, today);
+    const result = await auswertungen.gesamtumsatzForYear(2026);
+    expect(result.items.map((i) => [i.occurredOn, i.decision])).toEqual([["2026-10-02", "excluded"]]);
+    expect(result.included).toBe(0);
+  }, 30_000);
 
   it("liest Nummer, Datum, Steuer und Kunde aus der E-Rechnung und schlägt ohne PDF fehl", async () => {
     await company("SKR03", "soll");
