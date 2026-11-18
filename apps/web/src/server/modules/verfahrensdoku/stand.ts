@@ -59,6 +59,8 @@ export interface InstanzStand {
   bankabruf: { aspspName: string; status: string; validUntil: Date | null; lastSyncAt: Date | null }[];
   /** Kontoabruf über FinTS (#654) */
   fintsabruf: { bankName: string; status: string; lastSyncAt: Date | null }[];
+  /** Kontoabruf über die Vivid Business API (#1393) */
+  vividabruf: { status: string; lastSyncAt: Date | null }[];
 }
 
 async function company(): Promise<InstanzStand["company"]> {
@@ -150,13 +152,18 @@ async function bankabruf() {
     .orderBy(c.createdAt);
 }
 
+async function vividabruf() {
+  const c = schema.vividConnections;
+  return db.select({ status: c.status, lastSyncAt: c.lastSyncAt }).from(c).orderBy(c.createdAt);
+}
+
 async function fintsabruf() {
   const c = schema.fintsConnections;
   return db.select({ bankName: c.bankName, status: c.status, lastSyncAt: c.lastSyncAt }).from(c).orderBy(c.createdAt);
 }
 
 export async function readInstanzStand(now = new Date()): Promise<InstanzStand> {
-  const [firma, accounts, apiTokens, datenbank, backup, versionen, head, mail, inbox, archiv, cert, gesendet, konten, abruf, fints] = await Promise.all([
+  const [firma, accounts, apiTokens, datenbank, backup, versionen, head, mail, inbox, archiv, cert, gesendet, konten, abruf, fints, vivid] = await Promise.all([
     company(),
     zugaenge(),
     tokens(now),
@@ -172,6 +179,7 @@ export async function readInstanzStand(now = new Date()): Promise<InstanzStand> 
     bankkonten(),
     bankabruf(),
     fintsabruf(),
+    vividabruf(),
   ]);
   return {
     version: pkg.version,
@@ -191,5 +199,6 @@ export async function readInstanzStand(now = new Date()): Promise<InstanzStand> 
     bankkonten: konten,
     bankabruf: abruf,
     fintsabruf: fints,
+    vividabruf: vivid,
   };
 }

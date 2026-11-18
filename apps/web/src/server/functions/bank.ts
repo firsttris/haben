@@ -63,7 +63,7 @@ import {
 } from "../modules/bank/index.ts";
 import { deleteEnableBankingSettings, enableBankingSettingsSchema, enableBankingSettingsSummary, saveEnableBankingSettings } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
-import { fintsConfigured, listFintsConnections } from "../modules/bank/index.ts";
+import { fintsConfigured, listFintsConnections, listVividConnections } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
@@ -134,6 +134,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       ),
       sync: { configured: await enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
       fints: { configured: fintsConfigured(), connections: await listFintsConnections() },
+      vivid: { connections: await listVividConnections() },
     };
   });
 

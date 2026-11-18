@@ -2920,6 +2920,20 @@
       "function": "public.haben_seal()"
     },
     {
+      "table": "public.vivid_connections",
+      "name": "vivid_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vivid_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.vivid_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vivid_connections",
+      "name": "vivid_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vivid_connections_no_truncate BEFORE TRUNCATE ON public.vivid_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.write_offs",
       "name": "write_offs_append_only",
       "enabled": "O",
