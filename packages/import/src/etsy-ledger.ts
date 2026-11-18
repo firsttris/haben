@@ -23,7 +23,9 @@ import type { ParsedStatement } from "./types.ts";
  * - Die Steuer des Käufers (sales_tax, etwa US Sales Tax) zieht Etsy ein und führt sie ab; sie ist weder Erlös noch
  *   Gebühr. Wie beim CSV-Import wird sie mit dem Verkauf bzw. der Erstattung derselben Bestellung am selben Tag verrechnet
  *   (settleTax), damit der Verkauf mit dem Betrag der Rechnung ankommt; im Zweck des Verkaufs steht dann, welche Steuer
- *   Etsy abgeführt hat. Ohne genau einen solchen Partner bleibt sie mit Bestellnummer einzeln stehen.
+ *   Etsy abgeführt hat. Ohne genau einen solchen Partner bleibt sie mit Bestellnummer einzeln stehen, ebenso,
+ *   wenn der Partner schon mit einem früheren Abruf kam; steckt sie schon in einem übernommenen Verkauf, kommt sie nicht
+ *   noch einmal (`bekannt`).
  * - Gebühren und Werbung je Monat und Art zu je einer Zeile gebündelt, am letzten Tag des Monats: dieselben Arten wie die
  *   Positionen der Gebührenrechnung (Listing, Renew Expired, Renew Sold, Transaction, Processing, Etsy Ads, Offsite Ads),
  *   Gutschriften jeweils in ihrer Art. Jede Zeile beginnt mit „Gebühr“, damit der Bankabgleich sie der Sammelrechnung
@@ -136,7 +138,8 @@ export interface EtsyLedgerOptions {
   orderFor?: (referenceId: string) => string | undefined;
   /**
    * Gebühren und Werbung je Monat und Art zu einer Zeile bündeln (Vorgabe). Aus schaltet das ab: dann bleibt jede Zeile des
-   * Verlaufs ein eigener Umsatz, wie in der CSV-Datei von Etsy.
+   * Verlaufs ein eigener Umsatz, wie in der CSV-Datei von Etsy. Gilt nur für Arten und Monate, die noch nicht im Konto
+   * stehen: schon gebündelte (`schonGebuendelt`) bleiben weg, schon einzeln übernommene (`bekannt`) bleiben einzeln.
    */
   sammelzeilen?: boolean;
   /**
@@ -147,8 +150,9 @@ export interface EtsyLedgerOptions {
    */
   gebuehrenBis?: string;
   /**
-   * Sammelzeilen, die schon im Konto stehen (etsySammelKennung). Ihre Zeilen bleiben weg: Ein Abruf, der wegen der
-   * Überlappung in einen schon gebündelten Monat reicht, ergäbe sonst eine zweite Sammelzeile mit einer Teilsumme.
+   * Sammelzeilen, die schon im Konto stehen (etsySammelKennung). Ihre Zeilen bleiben weg, auch wenn das Bündeln inzwischen
+   * aus ist: Ein Abruf, der wegen der Überlappung in einen schon gebündelten Monat reicht, ergäbe sonst eine zweite
+   * Sammelzeile mit einer Teilsumme oder dieselben Gebühren noch einmal einzeln.
    */
   schonGebuendelt?: ReadonlySet<string>;
   /**
