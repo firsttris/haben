@@ -187,6 +187,41 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
       ),
     ).rejects.toThrow(/Vorschrift/);
   }, 30_000);
+  /**
+   * #1392: Der tatsächliche Leistungsort einer Auslandsleistung kommt wie im Rechnungseditor als strukturierte Angabe mit;
+   * erst bestätigt nimmt der Gesamtumsatz nach § 19 Abs. 2 UStG den Umsatz aus (§ 3a UStG), ohne Angabe bleibt er ungeklärt.
+   */
+  for (const [kontenrahmen, versteuerung] of [
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const) {
+    it(`${kontenrahmen}, ${versteuerung}: übernimmt den bestätigten Leistungsort einer Leistung ins Nicht-EU-Ausland für den Gesamtumsatz`, async () => {
+      await company(kontenrahmen, versteuerung);
+      const contactId = await customer("CH");
+      const drittland = (number: string, taxDetails: unknown) =>
+        input(contactId, { number, taxTreatment: "drittland", taxes: [{ rate: 0, net: 12_345, tax: 0 }], taxDetails });
+      const place = { exemption: null, ancillary: null, foreignPlace: { country: "CH", noForeignVat: true }, assetDisposal: false };
+
+      const confirmed = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0050", place), pdf);
+      const open = await foreign.adoptForeignInvoice(actor, drittland("RE-2026-0051", null), pdf);
+      const [row] = await sql`select tax_details from invoices where id = ${confirmed.id}`;
+      expect(row!.tax_details).toEqual(place);
+      await expect(
+        foreign.adoptForeignInvoice(actor, drittland("RE-2026-0052", { ...place, foreignPlace: { country: "AT", noForeignVat: true } }), pdf),
+      ).rejects.toThrow(/Leistungsort passt nicht/);
+
+      await cash.createCashInvoiceEntry(actor, { invoiceId: confirmed.id, date: "2026-10-02", amount: 12_345 }, today);
+      await cash.createCashInvoiceEntry(actor, { invoiceId: open.id, date: "2026-10-03", amount: 12_345 }, today);
+      const result = await auswertungen.gesamtumsatzForYear(2026);
+      expect(result.items.map((i) => [i.occurredOn, i.decision])).toEqual(
+        expect.arrayContaining([
+          ["2026-10-02", "excluded"],
+          ["2026-10-03", "unknown"],
+        ]),
+      );
+    }, 30_000);
+  }
+
   it("liest Nummer, Datum, Steuer und Kunde aus der E-Rechnung und schlägt ohne PDF fehl", async () => {
     await company("SKR03", "soll");
     const contactId = await customer("DE", "DE811128135");

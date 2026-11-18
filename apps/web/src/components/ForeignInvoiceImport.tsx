@@ -1,9 +1,9 @@
-import { amountError, formatDecimal, parseEuro, TAX_TREATMENTS, type TaxTreatment } from "@haben/core";
+import { amountError, formatDecimal, type OutgoingTaxDetails, parseEuro, TAX_TREATMENTS, type TaxTreatment } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import type { UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
 import { adoptForeignInvoiceFn, readForeignInvoice } from "../server/functions/fremdrechnung.ts";
-import { treatmentHint } from "./OutgoingTaxFields.tsx";
+import { EMPTY_DETAILS, ForeignTaxFields, treatmentHint } from "./OutgoingTaxFields.tsx";
 import { ContactCombobox, savedAsChoice } from "./ContactCombobox.tsx";
 import { Field } from "./Field.tsx";
 import { FilePicker } from "./FilePicker.tsx";
@@ -118,6 +118,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   const [newContactName, setNewContactName] = useState<string | null>(null);
   const [treatment, setTreatment] = useState<TaxTreatment>(read.kleinunternehmer ? "kleinunternehmer" : p.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState("");
+  /** Nur der Leistungsort einer Auslandsleistung; null = ungeklärt, nie aus der Kundenanschrift vorbelegt */
+  const [foreignPlace, setForeignPlace] = useState<OutgoingTaxDetails["foreignPlace"]>(null);
   const [rows, setRows] = useState<TaxRow[]>(
     p.taxes.length > 0
       ? p.taxes.map((t) => ({ rate: String(t.rate), net: formatDecimal(t.net), tax: formatDecimal(t.tax) }))
@@ -142,6 +144,7 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
       contactId,
       taxTreatment: treatment,
       exemptionReason,
+      taxDetails: FOREIGN.has(treatment) && foreignPlace ? { ...EMPTY_DETAILS, foreignPlace } : null,
       serviceFrom: basics.serviceFrom || null,
       serviceTo: basics.serviceTo || null,
       taxes,
@@ -169,7 +172,13 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         <CustomerSection proposal={p} customers={customers} contactId={contactId} onContactId={setContactId} onNewContact={setNewContactName} />
         <TaxSection
           treatment={treatment}
-          onTreatment={setTreatment}
+          onTreatment={(value) => {
+            setTreatment(value);
+            // Wie im Rechnungseditor: Eine neue Behandlung braucht eine erneute Bestätigung des Leistungsorts
+            setForeignPlace(null);
+          }}
+          foreignPlace={foreignPlace}
+          onForeignPlace={setForeignPlace}
           kleinunternehmer={read.kleinunternehmer}
           exemptionReason={exemptionReason}
           onExemptionReason={setExemptionReason}
@@ -284,14 +293,17 @@ function BasicsSection({ value, onChange }: { value: Basics; onChange: (value: B
   );
 }
 
+/** Behandlungen mit tatsächlichem Leistungsort im Ausland (§ 3a UStG); nur für sie fragt das Formular ihn ab */
+const FOREIGN = new Set<TaxTreatment>(["reverse_charge", "drittland", "eu_sonstige"]);
+
 /**
  * Behandlungen, die die Übernahme annimmt: Ein Kleinunternehmer übernimmt nur Rechnungen nach § 19 UStG, alle anderen nicht diese.
- * Sonstige Leistungen im EU-Ausland und die übrigen Befreiungen von Kleinunternehmern brauchen strukturierte Angaben (Leistungsort,
- * Vorschrift), die das Formular nicht abfragt; der Server lehnt sie ab, also werden sie nicht angeboten.
+ * Die übrigen Befreiungen von Kleinunternehmern brauchen eine strukturierte Vorschrift, die das Formular nicht abfragt; der Server
+ * lehnt sie ab, also werden sie nicht angeboten.
  */
 function offeredTreatments(kleinunternehmer: boolean): TaxTreatment[] {
   const all = Object.keys(TAX_TREATMENTS) as TaxTreatment[];
-  return kleinunternehmer ? ["kleinunternehmer"] : all.filter((key) => key !== "eu_sonstige" && key !== "kleinunternehmer");
+  return kleinunternehmer ? ["kleinunternehmer"] : all.filter((key) => key !== "kleinunternehmer");
 }
 
 function TaxSection({
@@ -300,12 +312,16 @@ function TaxSection({
   kleinunternehmer,
   exemptionReason,
   onExemptionReason,
+  foreignPlace,
+  onForeignPlace,
   rows,
   onRows,
 }: {
   treatment: TaxTreatment;
   kleinunternehmer: boolean;
   onTreatment: (treatment: TaxTreatment) => void;
+  foreignPlace: OutgoingTaxDetails["foreignPlace"];
+  onForeignPlace: (place: OutgoingTaxDetails["foreignPlace"]) => void;
   exemptionReason: string;
   onExemptionReason: (reason: string) => void;
   rows: TaxRow[];
@@ -334,6 +350,15 @@ function TaxSection({
             <input {...control} value={exemptionReason} onChange={(e) => onExemptionReason(e.target.value)} required={treatment === "steuerfrei"} />
           )}
         </Field>
+      )}
+      {FOREIGN.has(treatment) && (
+        <ForeignTaxFields
+          values={{ ...EMPTY_DETAILS, foreignPlace }}
+          disabled={false}
+          update={(patch) => onForeignPlace(patch.foreignPlace ?? null)}
+          treatment={treatment}
+          kleinunternehmer={kleinunternehmer}
+        />
       )}
       <TaxRowFields rows={rows} onChange={onRows} />
       <div className="actions">
