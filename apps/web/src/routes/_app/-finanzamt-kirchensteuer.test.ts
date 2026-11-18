@@ -78,7 +78,7 @@ function fixture(angabenAus: number | null) {
 
 const render = () => renderToStaticMarkup(createElement(Route.options.component as ComponentType));
 const HINWEIS =
-  "Zur Kirchensteuer in deinen Angaben gehört auch die einbehaltene Lohnkirchensteuer laut Lohnsteuerbescheinigung (Nr. 6, für den Ehegatten Nr. 7)";
+  "Zur Kirchensteuer in deinen Angaben gehört auch die einbehaltene Lohnkirchensteuer (in der Lohnsteuerbescheinigung Nr. 6 und 7, bei sonstigen Bezügen Nr. 13 und 14)";
 
 describe("Finanzamt: Hinweis zur Lohnkirchensteuer bei übernommenen Angaben (#1451)", () => {
   beforeEach(() => {

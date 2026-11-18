@@ -522,6 +522,28 @@ describe("steuerPrognose", () => {
     expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + p.einkuenfteArbeit);
   });
 
+  it("bleibt bei hoher Erstattung ein Überhang, ist er ohne die Lohnkirchensteuer nur zu hoch", () => {
+    // Derselbe Fall mit 900 € erstattet: Ohne die Lohnkirchensteuer im Feld rechnet Haben 700 € hinzu, mit ihr
+    // 220 €. Der Überhang verschwindet also nicht in jedem Fall, er ist dann nur zu hoch. Der Hinweis sagt beides.
+    const angaben = {
+      ...base.angaben,
+      vorsorge: { a: {} },
+      arbeitnehmer: { a: { bescheinigungen: [{ brutto: 60_000_00, kirchensteuer: 480_00 }], werbungskosten: {} } },
+      sonderausgaben: { kirchensteuerGezahlt: 200_00, kirchensteuerErstattet: 900_00 },
+    };
+    const ohne = steuerPrognose({ ...base, year: 2025, zusammen: false, gewinn: 60_000_00, angaben });
+    expect(ohne.erstattungsueberhang).toBe(700_00);
+    const mit = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...angaben, sonderausgaben: { kirchensteuerGezahlt: 680_00, kirchensteuerErstattet: 900_00 } },
+    });
+    expect(mit.erstattungsueberhang).toBe(220_00);
+    expect(mit.gesamtbetragEinkuenfte).toBe(ohne.gesamtbetragEinkuenfte - 480_00);
+  });
+
   it("rechnet einen Überhang der übrigen Vorsorgeaufwendungen (Nr. 3a) nicht hinzu", () => {
     // Nr. 3a verrechnet nur in sich: ein negativer Betrag dort kürzt den Abzug nicht unter die Basisbeiträge und
     // erhöht den Gesamtbetrag der Einkünfte nicht, § 10 Abs. 4b Satz 3 EStG nennt nur Nr. 3 und Nr. 4.
