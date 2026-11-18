@@ -18,6 +18,7 @@ import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx"
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { FintsAbruf } from "../../components/FintsAbruf.tsx";
+import { VividAbruf } from "../../components/VividAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -192,7 +193,7 @@ function itemTarget(type: string | undefined, id: string, amount: number) {
 }
 
 const FORMAT_LABEL = (format: string) =>
-  format === "enablebanking" || format === "fints"
+  format === "enablebanking" || format === "fints" || format === "vivid"
     ? "Abruf"
     : format.startsWith("camt")
       ? "CAMT.053"
@@ -258,7 +259,12 @@ function BankPage() {
         <ImportControls data={data} />
       </div>
 
-      <BankSync sync={data.sync} fints={data.fints} result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null} />
+      <BankSync
+        sync={data.sync}
+        fints={data.fints}
+        vivid={data.vivid}
+        result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null}
+      />
 
       {data.accounts.length === 0 ? (
         <section className="card">
@@ -492,8 +498,8 @@ function AccountSettings({
 
 type Sync = Data["sync"];
 
-/** Automatischer Abruf über Enable Banking und FinTS (#654): verbundene Banken, Abruf, Erneuern und Trennen */
-function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; result: { ok: boolean; message: string } | null }) {
+/** Automatischer Abruf über Enable Banking, FinTS (#654) und Vivid (#1393): verbundene Banken, Abruf, Erneuern und Trennen */
+function BankSync({ sync, fints, vivid, result }: { sync: Sync; fints: Data["fints"]; vivid: Data["vivid"]; result: { ok: boolean; message: string } | null }) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const syncFn = useServerFn(syncBankConnection);
@@ -501,21 +507,10 @@ function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; r
   const connectFn = useServerFn(connectBank);
   const [connecting, setConnecting] = useState(false);
   const [fintsConnecting, setFintsConnecting] = useState(false);
+  const [vividConnecting, setVividConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState<Sync["connections"][number] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
-
-  if (!sync.configured && sync.connections.length === 0 && !fints.configured && fints.connections.length === 0) {
-    return (
-      <p className="small muted" style={{ margin: "0 0 16px" }}>
-        Automatischer Abruf: mit einer Enable-Banking-Anwendung oder über FinTS holt Haben die Umsätze täglich selbst. Einrichten unter{" "}
-        <Link to="/einstellungen" search={{ bereich: "bank" }}>
-          Einstellungen › Bank
-        </Link>
-        .
-      </p>
-    );
-  }
 
   async function run(id: string, work: () => Promise<void>) {
     setBusy(id);
@@ -552,6 +547,9 @@ function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; r
               Über FinTS verbinden
             </button>
           )}
+          <button type="button" className="btn" onClick={() => setVividConnecting((v) => !v)} disabled={busy !== null}>
+            Vivid verbinden
+          </button>
         </div>
       </div>
 
@@ -587,12 +585,27 @@ function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; r
         <p>Die abgerufenen Umsätze bleiben erhalten.</p>
       </ConfirmDialog>
 
-      {sync.connections.length === 0 && fints.connections.length === 0 && !connecting && !fintsConnecting && (
-        <p className="small muted" style={{ margin: 0 }}>
-          Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder CAMT bleibt daneben
-          möglich.
-        </p>
-      )}
+      {sync.connections.length === 0 &&
+        fints.connections.length === 0 &&
+        vivid.connections.length === 0 &&
+        !connecting &&
+        !fintsConnecting &&
+        !vividConnecting && (
+          <p className="small muted" style={{ margin: 0 }}>
+            Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder CAMT bleibt daneben
+            möglich.
+            {!sync.configured && !fints.configured && (
+              <>
+                {" "}
+                Andere Banken über Enable Banking oder FinTS richtest du unter{" "}
+                <Link to="/einstellungen" search={{ bereich: "bank" }}>
+                  Einstellungen › Bank
+                </Link>{" "}
+                ein.
+              </>
+            )}
+          </p>
+        )}
 
       {sync.connections.map((c) => {
         const canSync = c.status === "aktiv";
@@ -643,6 +656,7 @@ function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; r
       })}
 
       <FintsAbruf fints={fints} verbinden={fintsConnecting} setVerbinden={setFintsConnecting} />
+      <VividAbruf vivid={vivid} verbinden={vividConnecting} setVerbinden={setVividConnecting} />
 
       {messages.length > 0 && (
         <ul className="upload-messages" role="status">
