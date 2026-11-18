@@ -50,12 +50,34 @@ describe.skipIf(!testDatabaseUrl)("Migration 0293: Abruf von App Store Connect d
       values (${store}, ${kind}, 'Z1', '2026-10', ${"0".repeat(64)}, ${file!.id})`;
   };
 
-  it("setzt fetch_from zurück, wenn schon Berichte des App Store im Archiv liegen; Google Play bleibt", async () => {
-    expect(await migriert((sql) => bericht(sql, "appstore", "finance_detail"))).toEqual({ appstore: "2026-08-01", googleplay: "2026-11-01" });
+  /** Letzter Abruf des App Store nach dem letzten Speichern des Zugangs (`nach`) oder davor */
+  const abruf = (sql: postgres.Sql, wann: "nach" | "vor") =>
+    sql`update store_connections set last_sync_at = updated_at + ${wann === "nach" ? "1 hour" : "-1 hour"}::interval where store = 'appstore'`;
+
+  it("setzt fetch_from zurück, wenn Berichte des App Store im Archiv liegen und seit dem Speichern ein Abruf lief; Google Play bleibt", async () => {
+    const stand = await migriert(async (sql) => {
+      await bericht(sql, "appstore", "finance_detail");
+      await abruf(sql, "nach");
+    });
+    expect(stand).toEqual({ appstore: "2026-08-01", googleplay: "2026-11-01" });
   }, 120_000);
 
   it("lässt einen Zugang ohne archivierten Bericht des App Store beim gewählten Monat", async () => {
-    // Abruf lief noch nie oder schlug fehl: keine Lücke, sonst kämen drei Monate vor dem gewählten Beginn ins Konto
-    expect(await migriert((sql) => bericht(sql, "googleplay", "earnings"))).toEqual({ appstore: "2026-11-01", googleplay: "2026-11-01" });
+    // Kein Abruf hat je einen Bericht geholt: keine Lücke, sonst kämen drei Monate vor dem gewählten Beginn ins Konto
+    const stand = await migriert(async (sql) => {
+      await bericht(sql, "googleplay", "earnings");
+      await abruf(sql, "nach");
+    });
+    expect(stand).toEqual({ appstore: "2026-11-01", googleplay: "2026-11-01" });
+  }, 120_000);
+
+  it("lässt einen Monat, der nach dem letzten Abruf neu gewählt wurde, auch mit altem Bericht im Archiv", async () => {
+    // Alter Bericht im Archiv, danach „Berichte ab Monat“ neu gespeichert (updated_at nach last_sync_at), etwa nach dem
+    // Löschen und erneuten Anlegen des Zugangs: Der Bericht belegt keine Lücke zu diesem Monat (Review zu #1444)
+    const stand = await migriert(async (sql) => {
+      await bericht(sql, "appstore", "finance_detail");
+      await abruf(sql, "vor");
+    });
+    expect(stand).toEqual({ appstore: "2026-11-01", googleplay: "2026-11-01" });
   }, 120_000);
 });
