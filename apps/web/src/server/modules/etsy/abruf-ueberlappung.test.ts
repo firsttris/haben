@@ -137,6 +137,62 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Abruf mit überlappenden Fenstern (Postg
       const [zweite] = await sql`select amount from bank_transactions where bank_reference = 'etsy-122'`;
       expect(zweite?.amount).toBe(-500);
     });
+
+    it("zählt zwei schon verrechnete Steuerzeilen einer Erstattung nicht noch einmal, wenn eine zweite Erstattung mit Steuer dazukommt", async () => {
+      const erstattung1: EtsyLedgerEntry = {
+        entry_id: 130,
+        amount: -1000,
+        currency: "EUR",
+        ledger_type: "REFUND_GROSS",
+        reference_type: "shop_payment_refund",
+        reference_id: "6000000001",
+        created_timestamp: ts("2023-06-20T12:00:00Z"),
+      };
+      // Etsy bucht die Steuer der ersten Erstattung in zwei Zeilen
+      const steuer1a: EtsyLedgerEntry = {
+        ...steuer,
+        entry_id: 131,
+        amount: 60,
+        ledger_type: "sales_tax_refund",
+        created_timestamp: ts("2023-06-20T12:00:00Z"),
+      };
+      const steuer1b: EtsyLedgerEntry = { ...steuer1a, entry_id: 132, amount: 30 };
+      const erstattung2: EtsyLedgerEntry = {
+        ...erstattung1,
+        entry_id: 133,
+        amount: -500,
+        reference_id: "6000000002",
+        created_timestamp: ts("2023-06-20T15:00:00Z"),
+      };
+      const steuer2: EtsyLedgerEntry = { ...steuer1a, entry_id: 134, amount: 20, created_timestamp: ts("2023-06-20T15:00:00Z") };
+
+      await etsy.importEtsyLedger(actor, [erstattung1, steuer1a, steuer1b], { ...optionen, reference: "13" }, abruf("2023-06-20T13:00:00Z"));
+      await etsy.importEtsyLedger(
+        actor,
+        [erstattung1, steuer1a, steuer1b, erstattung2, steuer2],
+        { ...optionen, reference: "14" },
+        abruf("2023-06-20T18:00:00Z"),
+      );
+
+      expect(await summe()).toBe(-1000 + 60 + 30 - 500 + 20);
+      const [zweite] = await sql`select amount from bank_transactions where bank_reference = 'etsy-133'`;
+      expect(zweite?.amount).toBe(-480);
+    });
+
+    it("zählt zwei schon verrechnete Steuerzeilen eines Verkaufs nicht noch einmal, wenn eine Steuerzeile nachgetragen wird", async () => {
+      const steuerA: EtsyLedgerEntry = { ...steuer, entry_id: 141, amount: -145 };
+      const steuerB: EtsyLedgerEntry = { ...steuer, entry_id: 142, amount: -50 };
+      // Am Nachmittag bucht Etsy zur selben Bestellung noch eine Steuerzeile
+      const steuerC: EtsyLedgerEntry = { ...steuer, entry_id: 143, amount: -100, created_timestamp: ts("2023-06-13T14:00:00Z") };
+
+      await etsy.importEtsyLedger(actor, [verkauf, steuerA, steuerB], { ...optionen, reference: "15" }, abruf("2023-06-13T11:00:00Z"));
+      await etsy.importEtsyLedger(actor, [verkauf, steuerA, steuerB, steuerC], { ...optionen, reference: "16" }, abruf("2023-06-13T15:00:00Z"));
+
+      expect(await summe()).toBe(2495 - 145 - 50 - 100);
+      // Der Verkauf bleibt, wie er war; die nachgetragene Steuer steht einzeln
+      const [nachgetragen] = await sql`select amount from bank_transactions where bank_reference = 'etsy-143'`;
+      expect(nachgetragen?.amount).toBe(-100);
+    });
   });
 
   describe("Wechsel der Einstellung „Gebühren bündeln“", () => {
