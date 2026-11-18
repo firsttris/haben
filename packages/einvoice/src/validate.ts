@@ -51,6 +51,7 @@ export function validateForFormat(doc: InvoiceDocument): string[] {
       buyerUstId: buyer.ustId,
       buyerCountry: buyer.land,
       exemptionReason: doc.exemptionReason,
+      correctsInvoice: isCreditNote(doc),
     }),
   );
 
