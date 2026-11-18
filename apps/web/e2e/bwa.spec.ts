@@ -41,5 +41,5 @@ test("BWA: freier Zeitraum von–bis", async ({ page }) => {
   await form.getByLabel("Bis").fill(`${YEAR}-05-15`);
   await form.getByRole("button", { name: "Anzeigen" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(`BWA 01.03.${YEAR}–15.05.${YEAR}`);
-  await expect(page.getByRole("columnheader", { name: `01.03.${YEAR - 1}–15.05.${YEAR - 1}` })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: `01.03.–15.05.${YEAR - 1}` })).toBeVisible();
 });

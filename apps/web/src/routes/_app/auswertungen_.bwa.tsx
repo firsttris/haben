@@ -59,25 +59,24 @@ const VERGLEICHE: [Vergleich, string][] = [
   ["keiner", "Kein Vergleich"],
 ];
 
-/** „01.03.2027–15.05.2027“, ein ganzer Monat als „März 2027“, ein ganzes Jahr als „2027“ */
-function zeitraumText({ von, bis }: Zeitraum): string {
+const kurzerMonat = (monat: number) => MONTHS[monat - 1]!.slice(0, 3);
+
+/**
+ * Ein Zeitraum als Text. Ausgeschrieben für die Überschrift („3. Quartal 2027“, „März 2027“, „01.03.2027–15.05.2027“), kurz
+ * für die Spalten („Q3/2027“, „Mär 2027“, „01.03.–15.05.2027“, mehrere Monate „Jan–Sep 2027“). Ein ganzes Jahr ist „2027“.
+ */
+function zeitraumText({ von, bis }: Zeitraum, kurz = false): string {
   const [vj, vm, vt] = von.split("-").map(Number) as [number, number, number];
   const [bj, bm] = bis.split("-").map(Number) as [number, number];
   const monatsende = new Date(Date.UTC(bj, bm, 0)).getUTCDate() === Number(bis.slice(8));
   if (vt === 1 && monatsende && vj === bj) {
     if (vm === 1 && bm === 12) return String(vj);
-    if (vm === bm) return `${MONTHS[vm - 1]} ${vj}`;
-    if ((vm - 1) % 3 === 0 && bm === vm + 2) return `${(vm + 2) / 3}. Quartal ${vj}`;
+    if (vm === bm) return kurz ? `${kurzerMonat(vm)} ${vj}` : `${MONTHS[vm - 1]} ${vj}`;
+    if ((vm - 1) % 3 === 0 && bm === vm + 2) return kurz ? `Q${(vm + 2) / 3}/${vj}` : `${(vm + 2) / 3}. Quartal ${vj}`;
+    if (kurz) return `${kurzerMonat(vm)}–${kurzerMonat(bm)} ${vj}`;
   }
+  if (kurz && vj === bj) return `${formatDate(von).slice(0, 6)}–${formatDate(bis)}`;
   return `${formatDate(von)}–${formatDate(bis)}`;
-}
-
-/** Kumulierter Zeitraum kurz: „Jan–Sep 2026“ */
-function kumuliertText(z: Zeitraum): string {
-  const [, bm] = z.bis.split("-").map(Number) as [number, number];
-  const ganz = new Date(Date.UTC(Number(z.bis.slice(0, 4)), bm, 0)).getUTCDate() === Number(z.bis.slice(8));
-  if (!ganz) return `${formatDate(z.von)}–${formatDate(z.bis)}`;
-  return bm === 1 ? `${MONTHS[0]!.slice(0, 3)} ${z.bis.slice(0, 4)}` : `${MONTHS[0]!.slice(0, 3)}–${MONTHS[bm - 1]!.slice(0, 3)} ${z.bis.slice(0, 4)}`;
 }
 
 /** Abweichung in Prozent mit einer Nachkommastelle, damit die Spalte bündig steht */
@@ -187,12 +186,12 @@ function BwaPage() {
                 <tr>
                   <th scope="col">Position</th>
                   <th scope="col" className="num">
-                    {zeitraumText(zeitraum)}
+                    {zeitraumText(zeitraum, true)}
                   </th>
                   {mitVergleich && (
                     <>
                       <th scope="col" className="num">
-                        {zeitraumText(bericht.vergleich!)}
+                        {zeitraumText(bericht.vergleich!, true)}
                       </th>
                       <th scope="col" className="num">
                         Abweichung
@@ -203,11 +202,11 @@ function BwaPage() {
                     </>
                   )}
                   <th scope="col" className="num">
-                    Kumuliert {kumuliertText(bericht.kumuliert)}
+                    Kumuliert {zeitraumText(bericht.kumuliert, true)}
                   </th>
                   {bericht.vergleichKumuliert && (
                     <th scope="col" className="num">
-                      Kumuliert {kumuliertText(bericht.vergleichKumuliert)}
+                      Kumuliert {zeitraumText(bericht.vergleichKumuliert, true)}
                     </th>
                   )}
                 </tr>
