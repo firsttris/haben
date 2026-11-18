@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { daysUntil, formatDayMonth, formatZeitraumAbJahresanfang, parseUsefulLifeMonths, relativeDays } from "./format.ts";
+import { daysUntil, fehlerFelder, formatDayMonth, formatZeitraumAbJahresanfang, parseUsefulLifeMonths, relativeDays } from "./format.ts";
+
+describe("fehlerFelder", () => {
+  it("liest die Felder, die der Server an einen Fachfehler hängt, und sonst keine", () => {
+    expect(fehlerFelder(Object.assign(new Error("Noch nicht bereit"), { felder: ["supplierUstId", 3] }))).toEqual(["supplierUstId"]);
+    expect(fehlerFelder(new Error("Interner Fehler"))).toEqual([]);
+    expect(fehlerFelder(Object.assign(new Error("x"), { felder: "supplierUstId" }))).toEqual([]);
+    expect(fehlerFelder(null)).toEqual([]);
+  });
+});
 
 describe("parseUsefulLifeMonths", () => {
   it("liest Jahre mit Komma oder Punkt", () => {

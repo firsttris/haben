@@ -86,6 +86,20 @@ const KINDS: [RegExp, string][] = [
 const labelOf = (kind: string) => KINDS.find(([pattern]) => pattern.test(kind))?.[1];
 const isPayout = (kind: string) => /^(deposit|überweisung|ueberweisung|auszahlung|payout)$/i.test(kind);
 
+/**
+ * Die Art „Zahlung“ sind zwei Vorgänge, die der Etsy-Zahlungsverlauf getrennt führt (#1313): „Kartenzahlung“ ist der
+ * Einzug von der hinterlegten Karte (billing_payment), „Gebühr für Rückerstattung …“ der Ausgleich des negativen
+ * Guthabens nach einer Erstattung (RECOUP). Beides bringt Geld von außen ins Guthaben und ist keine Gebühr. „Ausgleich“
+ * statt „Verrechnung“, weil Verrechnung in Haben den Ausgleich offener Posten ohne Zahlung meint. Andere Titel, auch
+ * die englischen, bleiben eine unbekannte Art mit Hinweis.
+ */
+function paymentKind(kind: string, title: string): "Karteneinzug" | "Ausgleich" | undefined {
+  if (!/^(zahlung|payment)$/i.test(kind)) return undefined;
+  if (/^gebühr für rückerstattung\b/i.test(title)) return "Ausgleich";
+  if (/^kartenzahlung$/i.test(title)) return "Karteneinzug";
+  return undefined;
+}
+
 /** Betrag der Auszahlung aus dem Titel, etwa „€1,225.76 sent to your bank account“, als negativer Umsatz */
 const PAYOUT_AMOUNT = /€\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/;
 
@@ -196,6 +210,14 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
       // Haben erkennt eine Auszahlung im Konto des Dienstleisters am Wort „Auszahlung“ im Zweck (PAYOUT_PURPOSE in
       // @haben/core); Etsy nennt sie je nach Sprache „Überweisung“, „Deposit“ oder anders
       list.push({ ...base, amount: payoutAmount(title(row), where), purpose: describe("Auszahlung"), type: "Auszahlung" });
+      return;
+    }
+    const zahlung = paymentKind(kind, normalizeText(title(row)));
+    if (zahlung) {
+      // Der Zweck bleibt „Zahlung · …“ wie vor #1313: Der Dedup-Hash rechnet mit ihm (dedup.ts), ein neuer Zweck legte
+      // einen schon importierten Monat beim erneuten Import doppelt an. Nur die Art ist neu.
+      if (net(row)) list.push({ ...base, amount: cents(net(row)), purpose, type: zahlung });
+      else empty++;
       return;
     }
     const label = labelOf(kind);

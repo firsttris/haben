@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * Artikel aus sevDesk (GET /Part) im Abruf (#472): Anlage wie beim CSV-Import, Verknüpfung über die sevDesk-ID, kein
@@ -8,10 +9,6 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  */
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
 
 const UNITIES = [
   { id: "1", objectName: "Unity", name: "Stk", translationCode: "UNITY_PIECE", uneceTradeUnitCode: "C62" },
@@ -53,18 +50,14 @@ const PARTS = [
 
 function fakeApi(options: { partFehler?: boolean } = {}) {
   const calls: string[] = [];
-  const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const path = url.pathname.replace(/^\/api\/v1/, "");
-    calls.push(`${init?.method ?? "GET"} ${path}`);
-    if (new Headers(init?.headers).get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
-    const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
+  const fetchFn = sevdeskFakeFetch(({ path, method, list, headers }) => {
+    calls.push(`${method} ${path}`);
+    if (headers.get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
     if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "2.0" } });
     if (path === "/Part") return options.partFehler ? json({ error: { message: "kaputt" } }, 500) : list(PARTS);
     if (path === "/Unity") return list(UNITIES);
     if (path.startsWith("/") && !path.slice(1).includes("/")) return list([]);
-    return json({ error: { message: `unbekannt ${path}` } }, 404);
-  }) as typeof fetch;
+  });
   return { fetchFn, calls };
 }
 

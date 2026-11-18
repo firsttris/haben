@@ -2288,6 +2288,11 @@ export type BankConnectionAccount = {
   /** Kennung des Kontos bei Enable Banking, gilt für die Dauer der Zustimmung; bei FinTS die IBAN */
   uid: string;
   iban: string;
+  /**
+   * Kennung des Kontos bei Enable Banking über Zustimmungen hinweg (`identification_hash`), Quellenbindung des
+   * Importvertrags (#306); null, wenn die Bank keine nennt, fehlt, solange Haben noch nicht nachgefragt hat
+   */
+  identificationHash?: string | null;
   name: string;
   bankAccountId: string;
   /** Abgerufen bis einschließlich dieses Tages */
@@ -2382,6 +2387,92 @@ export const bankTransactions = pgTable(
     index("bank_transactions_counterparty_iban_trgm_idx").using("gin", sql`haben_unaccent(${t.counterpartyIban}) gin_trgm_ops`),
     index("bank_transactions_amount_search_idx").on(t.amount),
     index("bank_transactions_booking_date_search_idx").on(t.bookingDate),
+  ],
+);
+
+/**
+ * Quellenbindung des Importvertrags (#306): Konto und Kennung beim Anbieter. Eine neue Verbindung oder erneute Zustimmung
+ * mit derselben Kennung findet dieselbe Bindung, es entsteht kein zweites logisches Konto. Nur anhängen.
+ */
+export const importSources = pgTable(
+  "import_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bankAccountId: uuid("bank_account_id")
+      .notNull()
+      .references(() => bankAccounts.id),
+    provider: text("provider").notNull(),
+    /** Enable Banking: `identification_hash` des Kontos */
+    externalAccountId: text("external_account_id").notNull(),
+    accountKind: text("account_kind", { enum: ["bank", "psp"] }).notNull(),
+    /** Erster Tag, den diese Quelle liefert; davor decken Dateiimporte das Konto ab */
+    cutoverDate: date("cutover_date", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("import_sources_identity").on(t.provider, t.externalAccountId), check("import_sources_kind", sql`${t.accountKind} in ('bank', 'psp')`)],
+);
+
+/** Jede angenommene Lieferung des Importvertrags mit ihrem Prüfwert und dem Stand danach; nur anhängen */
+export const importBatches = pgTable(
+  "import_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => importSources.id),
+    idempotencyKey: text("idempotency_key").notNull(),
+    fetchId: text("fetch_id").notNull(),
+    partIndex: integer("part_index").notNull(),
+    partLast: boolean("part_last").notNull(),
+    coverageFrom: date("coverage_from", { mode: "string" }).notNull(),
+    coverageTo: date("coverage_to", { mode: "string" }).notNull(),
+    /** Nicht übernommene Ereignisse, die den Zeitraum offen lassen, und der früheste offene Tag */
+    blocking: integer("blocking").notNull(),
+    openFrom: date("open_from", { mode: "string" }),
+    /** `batchFingerprint`: Dieselbe Lieferung noch einmal liefert das bisherige Ergebnis, mit anderem Inhalt ist sie ein Konflikt */
+    fingerprint: text("fingerprint").notNull(),
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    /** Vollständig abgerufen bis einschließlich (`advanceCheckpoint`) nach dieser Lieferung */
+    checkpoint: date("checkpoint", { mode: "string" }),
+    complete: boolean("complete").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("import_batches_key").on(t.sourceId, t.idempotencyKey), index("import_batches_source_created").on(t.sourceId, t.createdAt)],
+);
+
+/**
+ * Quellenidentität: Jede übernommene Bewegung mit ihrem buchungsrelevanten Kern und dem Umsatz, den sie in Haben ergibt.
+ * Daran erkennt Haben sie in späteren Lieferungen wieder; ein anderer Kern ist ein Konflikt. Nur anhängen.
+ */
+export const importMovements = pgTable(
+  "import_movements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => importSources.id),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => importBatches.id),
+    sourceEventId: text("source_event_id").notNull(),
+    component: text("component", { enum: ["main", "fee"] }).notNull(),
+    kind: text("kind").notNull(),
+    bookingDate: date("booking_date", { mode: "string" }).notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
+    currency: text("currency").notNull(),
+    /** Prüfwert aller Angaben der ersten Lieferung (`knownMovement`) */
+    details: text("details").notNull(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("import_movements_identity").on(t.sourceId, t.sourceEventId, t.component),
+    uniqueIndex("import_movements_transaction").on(t.transactionId),
+    check("import_movements_component", sql`${t.component} in ('main', 'fee')`),
   ],
 );
 

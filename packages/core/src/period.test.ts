@@ -10,6 +10,7 @@ import {
   parsePeriodKey,
   periodKey,
   periodLabel,
+  previousMonthKey,
   quarterOfMonth,
 } from "./period.ts";
 
@@ -111,5 +112,13 @@ describe("Datum in Deutschland, unabhängig von der Zeitzone des Prozesses", () 
   it("currentMonth: der Monat", () => {
     expect(currentMonth(silvester)).toEqual({ year: 2027, month: 1 });
     expect(currentMonth(sommer)).toEqual({ year: 2026, month: 7 });
+  });
+});
+
+describe("previousMonthKey", () => {
+  it("Vormonat eines Tages als JJJJ-MM, im Januar der Dezember des Vorjahres", () => {
+    expect(previousMonthKey("2026-11-14")).toBe("2026-10");
+    expect(previousMonthKey("2026-10-01")).toBe("2026-09");
+    expect(previousMonthKey("2027-01-31")).toBe("2026-12");
   });
 });

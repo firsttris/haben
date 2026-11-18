@@ -1,6 +1,6 @@
 import type { EbTransaction } from "@haben/import";
 import { describe, expect, it } from "vitest";
-import { berlinTimestamp, vertragHinweise } from "./vertrag-abruf.ts";
+import { abrufNachVertrag, berlinTimestamp } from "./vertrag-abruf.ts";
 
 const tx = (over: Partial<EbTransaction> = {}): EbTransaction => ({
   entry_reference: "ER-1",
@@ -12,17 +12,6 @@ const tx = (over: Partial<EbTransaction> = {}): EbTransaction => ({
   ...over,
 });
 
-const abruf = (transactions: EbTransaction[], over = {}) => ({
-  iban: "DE12500105170648489890",
-  transactions,
-  balances: [],
-  dateFrom: "2026-10-01",
-  dateTo: "2026-10-09",
-  now: new Date("2026-10-09T20:00:00Z"),
-  fetchId: "abruf-1",
-  ...over,
-});
-
 describe("berlinTimestamp", () => {
   it("nennt Zeit und Offset in Deutschland, auch nach Mitternacht UTC-seitig", () => {
     expect(berlinTimestamp(new Date("2026-10-09T22:30:00Z"))).toBe("2026-10-10T00:30:00+02:00");
@@ -30,42 +19,47 @@ describe("berlinTimestamp", () => {
   });
 });
 
-describe("vertragHinweise", () => {
-  it("meldet nichts, wenn der Abruf dem Vertrag entspricht", () => {
-    expect(vertragHinweise(abruf([tx(), tx({ entry_reference: "ER-2" })]))).toEqual([]);
+describe("abrufNachVertrag", () => {
+  const nachVertrag = (transactions: EbTransaction[]) =>
+    abrufNachVertrag({
+      identificationHash: "hash-1",
+      transactions,
+      balances: [],
+      statement: { format: "enablebanking", currency: "EUR", transactions: [], warnings: [] },
+      dateFrom: "2026-10-01",
+      dateTo: "2026-10-09",
+      now: new Date("2026-10-09T20:00:00Z"),
+      fetchId: "abruf-1",
+      source: { filename: "Abruf", sha256: "x" },
+    });
+
+  it("bindet an den identification_hash", () => {
+    const { input, hinweise } = nachVertrag([tx()]);
+    expect(input.binding).toEqual({ provider: "enablebanking", externalAccountId: "hash-1", accountKind: "bank" });
+    expect(input.batch.externalAccountId).toBe("hash-1");
+    expect(hinweise).toEqual([]);
   });
 
-  it("nennt gebuchte Umsätze ohne entry_reference", () => {
-    expect(vertragHinweise(abruf([tx(), tx({ entry_reference: null, transaction_id: "T-9" }), tx({ entry_reference: null })]))).toEqual([
-      "2 Umsätze ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
+  it("nennt Umsätze ohne entry_reference, ohne dass sie den Zeitraum offenhalten", () => {
+    const { input, hinweise } = nachVertrag([tx(), tx({ entry_reference: null, transaction_id: "T-9" }), tx({ entry_reference: " " })]);
+    expect(hinweise).toEqual(["2 Umsätze ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt."]);
+    expect(input.batch.unsupported).toEqual([]);
+  });
+
+  it("nennt Umsätze nach dem Fenster und doppelt gelieferte, die nicht übernommen werden", () => {
+    const { hinweise } = nachVertrag([
+      tx(),
+      tx(),
+      tx({ entry_reference: "ER-2", booking_date: "2026-09-28" }),
+      tx({ entry_reference: "ER-3", booking_date: "2026-10-12" }),
+    ]);
+    expect(hinweise).toEqual([
+      "1 Umsatz nach dem abgerufenen Zeitraum nicht übernommen; der nächste Abruf holt ihn.",
+      "1 Umsatz mit derselben Referenz der Bank doppelt geliefert und einmal übernommen.",
     ]);
   });
 
-  it("wiederholt vorgemerkte Umsätze nicht, die meldet schon der Abruf", () => {
-    expect(vertragHinweise(abruf([tx({ status: "PDNG" })]))).toEqual([]);
-  });
-
-  it("nennt, was der Vertrag an der ganzen Lieferung ablehnt", () => {
-    expect(vertragHinweise(abruf([tx({ booking_date: "2026-10-12" })]))).toEqual([
-      "Prüfung nach dem Importvertrag (#306): ER-1/main: Buchungstag 2026-10-12 liegt außerhalb des Fensters 2026-10-01 bis 2026-10-09.",
-    ]);
-  });
-
-  it("nennt die Umsätze ohne entry_reference auch dann, wenn der Vertrag die ganze Lieferung ablehnt", () => {
-    expect(vertragHinweise(abruf([tx({ entry_reference: null }), tx({ entry_reference: "ER-2", booking_date: "2026-09-30" })]))).toEqual([
-      "1 Umsatz ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
-      "Prüfung nach dem Importvertrag (#306): ER-2/main: Buchungstag 2026-09-30 liegt außerhalb des Fensters 2026-10-01 bis 2026-10-09.",
-    ]);
-  });
-
-  it("zählt eine leere entry_reference wie eine fehlende", () => {
-    expect(vertragHinweise(abruf([tx({ entry_reference: " " })]))).toEqual([
-      "1 Umsatz ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
-    ]);
-  });
-
-  it("lässt einen Saldo mit einem Tag, den es nicht gibt, weg, statt die Lieferung abzulehnen", () => {
-    const balances = [{ balance_amount: { currency: "EUR", amount: "1.00" }, balance_type: "CLBD", reference_date: "2026-02-30" }];
-    expect(vertragHinweise(abruf([tx()], { balances }))).toEqual([]);
+  it("lässt vorgemerkte Umsätze unter unsupported", () => {
+    expect(nachVertrag([tx({ status: "PDNG" })]).input.batch.unsupported).toHaveLength(1);
   });
 });

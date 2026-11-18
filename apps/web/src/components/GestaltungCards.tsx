@@ -11,7 +11,7 @@ import { layoutHint, LayoutHintText, layoutHintId, type LayoutHints } from "./La
 import { LogoUpload } from "./LogoUpload.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
-/** Größe und Seite des Logos und die Schalter, auch ohne einen Beleg geöffnet zu haben */
+/** Größe und Stelle des Logos und die Schalter, auch ohne einen Beleg geöffnet zu haben */
 export function LetterheadOptionsCard({ design, logo, hints }: { design: LetterheadDesign; logo: string | null; hints?: LayoutHints | undefined }) {
   const draft = useDesignDraft(design);
   const router = useRouter();

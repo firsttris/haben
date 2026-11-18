@@ -25,6 +25,7 @@ spec:
         app.kubernetes.io/component: restore
     spec:
       enableServiceLinks: false
+      automountServiceAccountToken: false
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
@@ -38,27 +39,22 @@ spec:
           image: {{ include "haben.backupImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args: ["sleep", "infinity"]
-          {{- with include "haben.backupEnv" . | trim }}
           env:
-            {{- . | nindent 12 }}
-          {{- end }}
+            {{- include "haben.backupEnv" . | trim | nindent 12 }}
           envFrom:
             - secretRef:
                 name: {{ include "haben.backupSecret" . }}
+          # Wie die App: restore.sh legt die Belege als Nutzer 1000 an
           securityContext:
-            allowPrivilegeEscalation: false
+            {{- include "haben.securityContext" 1000 | nindent 12 }}
           volumeMounts:
             # Schreibbar: restore.sh ersetzt die Belege
             - name: belege
               mountPath: /belege
-            {{- with include "haben.backupVolumeMounts" . | trim }}
-            {{- . | nindent 12 }}
-            {{- end }}
+            {{- include "haben.backupVolumeMounts" . | trim | nindent 12 }}
       volumes:
         - name: belege
           persistentVolumeClaim:
             claimName: {{ include "haben.fullname" . }}-belege
-        {{- with include "haben.backupVolumes" . | trim }}
-        {{- . | nindent 8 }}
-        {{- end }}
+        {{- include "haben.backupVolumes" . | trim | nindent 8 }}
 {{- end }}

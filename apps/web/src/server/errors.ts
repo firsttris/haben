@@ -12,8 +12,18 @@ import {
 } from "@haben/import";
 import { ZodError } from "zod";
 
-/** Fachfehler, deren Meldung der Nutzer sehen soll. Alles andere wird zentral als „Interner Fehler“ ausgegeben. */
-export class UserError extends Error {}
+/**
+ * Fachfehler, deren Meldung der Nutzer sehen soll. Alles andere wird zentral als „Interner Fehler“ ausgegeben. `felder` nennt
+ * die Felder des Formulars, an denen der Fehler liegt; der Browser bekommt sie mit der Meldung (`fehlerFelder`).
+ */
+export class UserError extends Error {
+  readonly felder: readonly string[];
+
+  constructor(message?: string, { felder = [], ...options }: ErrorOptions & { felder?: readonly string[] } = {}) {
+    super(message, options);
+    this.felder = felder;
+  }
+}
 
 /** Fehler der Pakete, deren Meldung ebenfalls für den Nutzer bestimmt ist */
 const PACKAGE_USER_ERRORS = [
@@ -79,4 +89,21 @@ export function userMessage(error: unknown): string | undefined {
   if (error instanceof ZodError) return issueText(error.issues);
   if (error instanceof Error) return validatorIssues(error);
   return undefined;
+}
+
+/**
+ * Fehler ohne Stack und eigene Properties für den Browser; nur die Felder eines Fachfehlers gehen mit (Adapter in
+ * lib/feldfehler.ts)
+ */
+export function clientError(message: string, felder: readonly string[] = []): Error {
+  const error = new Error(message);
+  delete error.stack;
+  if (felder.length > 0) Object.assign(error, { felder: [...felder] });
+  return error;
+}
+
+/** Fehler für den Browser mit Meldung und Feldern, wenn er für den Nutzer bestimmt ist; sonst undefined („Interner Fehler“) */
+export function userClientError(error: unknown): Error | undefined {
+  const message = userMessage(error);
+  return message === undefined ? undefined : clientError(message, error instanceof UserError ? error.felder : []);
 }

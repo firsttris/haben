@@ -365,6 +365,29 @@ test("Eine gespeicherte Logo-Größe steht nach dem Wechsel des Bereichs noch da
   }
 });
 
+test("Das Logo lässt sich mittig setzen, die Wahl bleibt nach dem Speichern", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Logo und Blatt" });
+  const stelle = karte.getByRole("group", { name: "Stelle des Logos" });
+  await expect(stelle.getByRole("button")).toHaveText(["Links", "Mitte", "Rechts"]);
+  await stelle.getByRole("button", { name: "Mitte", exact: true }).click();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+  await bereichHinUndZurueck(page);
+  try {
+    await expect(stelle.getByRole("button", { name: "Mitte", exact: true })).toHaveAttribute("aria-pressed", "true");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await stelle.getByRole("button", { name: "Rechts", exact: true }).click();
+    await karte.getByRole("button", { name: "Speichern" }).click();
+    await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+    await page.context().close();
+  }
+});
+
 test("Ein hochgeladenes Logo steht nach dem Wechsel des Bereichs noch da", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await page.goto("/einstellungen?bereich=gestaltung");

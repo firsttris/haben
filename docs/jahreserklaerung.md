@@ -9,11 +9,20 @@ description: >-
 
 Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **Umsatzsteuererklärung** und die **Anlage EÜR** mit dem Anlagenverzeichnis (**Anlage AVEÜR**) und übermittelt beide über ERiC an das Finanzamt, wie die [Voranmeldung](umsatzsteuer.md). Dazu kommt die **Einkommensteuererklärung** mit den Anlagen, die ein Selbständiger typischerweise braucht: Der Gewinn kommt aus der EÜR; Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
 
-Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
+Die Seite zeigt je Erklärung Hinweise, die Summen und einen eigenen Bereich zum Übermitteln. Bei der Umsatzsteuererklärung sind das die Umsatzsteuer, das Vorauszahlungssoll und die Abschlusszahlung bzw. Erstattung, bei der Anlage EÜR die Summe der Betriebseinnahmen und -ausgaben und der Gewinn. Die einzelnen Zeilen mit Kennzahl bzw. Feldkennung stehen eingeklappt hinter **Zeilen anzeigen**. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
-Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Bei der Einkommensteuererklärung steht ohne Übermittlung und ohne Vermerk „Nicht aus Haben übermittelt“; senden lässt sie sich trotzdem über den Kasten **Einkommensteuererklärung übermitteln**.
+Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“, bei der Umsatzsteuererklärung eines Kleinunternehmers ab 2024 „Keine Erklärung nötig“. Bei der Einkommensteuererklärung steht ohne Übermittlung und ohne Vermerk „Nicht aus Haben übermittelt“; senden lässt sie sich trotzdem über den Kasten **Einkommensteuererklärung übermitteln**.
 
-Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt. Bei einer GmbH oder UG entfällt sie.
+Oben auf der Seite stehen die Erklärungen in der Reihenfolge, in der sie anstehen: Umsatzsteuer, Anlage EÜR, Einkommensteuer. Zu jeder gehört eine kurze Angabe, woher sie ihre Zahlen hat, der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt.
+
+Darunter steht **Nächster Schritt:** mit der ersten Erklärung, die weder übermittelt noch als abgegeben vermerkt ist:
+
+- „… prüfen und übermitteln“, oder „Hinweise zur … klären“, wenn ihre Hinweise einen Fehler nennen.
+- Die Einkommensteuer nennt der Schritt nie: Haben weiß nicht, ob sie außerhalb abgegeben wurde.
+- Die Umsatzsteuererklärung nennt er nicht für Jahre ab 2024, in denen du am 31.12. Kleinunternehmer bist; du gibst sie dann nicht mehr ab (§ 18 Abs. 3 UStG, wie in den [Fristen](fristen.md)).
+- Sind alle geschuldeten Erklärungen übermittelt oder vermerkt, steht dort, dass alle abgegeben sind; sonst, dass Haben keinen Schritt kennt.
+
+Eine Zeile mit Links zu **Belege von ELSTER** und **Verlauf** schließt den Kasten ab. Bei einer GmbH oder UG gibt es stattdessen eine Sprungleiste zu Umsatz-, Körperschaft- und Gewerbesteuer, den Angaben und dem Verlauf.
 
 Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
@@ -23,7 +32,7 @@ Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körpers
 2. **Einstellungen:** Für die Anlage EÜR braucht Haben die **Einkunftsart** (selbständige Arbeit oder Gewerbebetrieb) und die **Art des Betriebs** (z. B. „Softwareentwicklung“).
 3. **Nur prüfen:** ERiC prüft das XML gegen das Schema und die Plausibilitätsregeln des Jahres. Erst hier zeigt sich, ob die Feldkennungen für das Jahr passen.
 4. **Testübermittlung** mit Zertifikat und PIN: geht an den ELSTER-Server, aber nicht ans Finanzamt (Testmerker). Das Protokoll-PDF liegt im Verlauf.
-5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und im Dialog **Verbindlich senden** bestätigen. Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
+5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und im Dialog **Verbindlich senden** bestätigen. Der Dialog nennt Erklärung, Jahr und das Ergebnis: die Abschlusszahlung bzw. Erstattung, bei der Anlage EÜR den Gewinn bzw. Verlust, bei der Einkommensteuer den Gewinn laut EÜR (bei 0 € entfällt die Zeile; ein Verlust steht als „Verlust laut EÜR“ im Dialog). Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
 
 Jede Prüfung und Übermittlung speichert Haben mit XML, Antwort, Protokoll und den gesendeten Werten; ändern oder löschen lässt sich das nicht. Je Erklärung und Jahr ist nur eine Echtübermittlung möglich. Eine berichtigte Erklärung gibst du über das ELSTER-Portal ab.
 
@@ -277,7 +286,7 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im Dokumentationspaket von ERiC (Download siehe [Roadmap](roadmap.md#blockiert)). Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im Dokumentationspaket von ERiC (`ERiC-<Version>-Dokumentation.zip` auf download.elster.de). Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
 

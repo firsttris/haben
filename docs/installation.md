@@ -35,7 +35,7 @@ Für den laufenden Betrieb gibt es eigene Seiten:
 | --- | --- |
 | <a id="getrennte-datenbankrollen"></a><a id="umgebungsvariablen"></a><a id="datenablage"></a>[Konfiguration](installation-konfiguration.md) | Getrennte Datenbankrollen, alle Umgebungsvariablen, wo Datenbank, Belege und ERiC liegen |
 | <a id="backup-und-wiederherstellen"></a><a id="repository-auf-einem-zweiten-system"></a><a id="wiederherstellen"></a><a id="updates"></a><a id="postgresql-update"></a>[Backup und Updates](installation-backup.md) | Tägliches Backup, zweites System, Test-Restore, Wiederherstellen, Updates, PostgreSQL-Update |
-| <a id="eric-einbinden"></a><a id="elster-auf-arm64"></a><a id="ki-auslesung-anthropic"></a><a id="ki-auslesung-über-openai-kompatible-schnittstelle"></a><a id="kontoabruf-enable-banking"></a><a id="lexware-office-api"></a>[Anbindungen](installation-anbindungen.md) | ERiC (auch auf arm64), KI-Auslesung mit Anthropic oder einem eigenen Dienst, Kontoabruf, Lexware-Office-API |
+| <a id="eric-einbinden"></a><a id="elster-auf-arm64"></a><a id="ki-auslesung-anthropic"></a><a id="ki-auslesung-über-openai-kompatible-schnittstelle"></a><a id="kontoabruf-enable-banking"></a>[Anbindungen](installation-anbindungen.md) | ERiC (auch auf arm64), KI-Auslesung mit Anthropic oder einem eigenen Dienst, Kontoabruf |
 | <a id="single-sign-on-mit-openid-connect"></a>[Single Sign-on](installation-sso.md) | Anmeldung über OpenID Connect mit Rollen aus Gruppen |
 | <a id="häufige-probleme"></a>[Häufige Probleme](installation-probleme.md) | Fehler beim Start, mit ERiC, Netz, Proxy und Anmeldung |
 
@@ -224,6 +224,7 @@ Läuft auf dem Server schon ein Reverse Proxy, etwa Apache, nginx, Nginx Proxy M
 - bis zu 300 Sekunden auf eine Antwort warten. Eine Übermittlung an ELSTER wartet in der Anfrage auf ERiC, und ein Lauf darf bis zu 120 Sekunden dauern. Die Belegerkennung läuft dagegen im Hintergrund. Der Standard liegt bei nginx und Apache bei 60 Sekunden (im Apache-Paket von Debian bei 300), bei Nginx Proxy Manager bei 90; danach sieht der Browser einen Fehler 502 oder 504.
 - `X-Forwarded-For` mit genau einer Adresse setzen, der des Clients. Haben begrenzt Anmeldeversuche je Client-Adresse; ohne den Header zählen alle Anfragen als eine Adresse. Apache, Caddy, Nginx Proxy Manager und Traefik setzen ihn von selbst, bei nginx und HAProxy trägst du ihn ein.
 - die Sicherheits-Header setzen wie in den Beispielen: HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer). Haben setzt nur `Content-Security-Policy: frame-ancestors 'self'` selbst, auf der Zustimmungsseite für [Connectors](ki-assistenten.md#connector-in-claudeai) `'none'` und `X-Frame-Options: DENY`.
+- den `Cache-Control` von Haben nicht überschreiben und keine Seiten, `/_serverFn` oder `/api` cachen, etwa mit „Cache Everything“ bei Cloudflare oder `proxy_cache` in nginx. Haben setzt den Header selbst: `private, no-store` für alles mit Daten, `no-cache` für Dateien wie `sw.js`, ein Jahr für `/assets/`.
 
 Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-For` fälschen, und es gäbe kein HTTPS.
 

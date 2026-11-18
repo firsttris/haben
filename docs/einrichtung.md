@@ -142,7 +142,7 @@ Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](
 
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
-- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
+- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Stelle legst du unter [Logo und Blatt](#logo-und-blatt) fest. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
 - Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
@@ -166,7 +166,7 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 | --- | --- |
 | Schrift | IBM Plex Sans (ab Werk), IBM Plex Serif, Source Sans 3, Figtree, Fira Sans, Inter, Libre Franklin, Literata, Lora oder Nunito Sans; im PDF eingebettet, wie PDF/A es verlangt |
 | Logo S, M, L | Höchstens 12 × 40 mm, 18 × 60 mm (ab Werk) oder 24 × 80 mm; auch L endet über dem Anschriftfeld |
-| Logo links, rechts | Seite im Briefkopf |
+| Logo links, Mitte, rechts | Stelle im Briefkopf; „Mitte“ steht mittig auf dem Blatt. Ein eigenes Layout, das nur `look.logoLeft` kennt, setzt es bei „Mitte“ rechts |
 | Falz- und Lochmarken | Striche am linken Rand für den Fensterumschlag nach DIN 5008 |
 | GiroCode | QR-Code für die Überweisung, auf Rechnung und Mahnung |
 | Kundennummer | Nur auf dem Blatt; das XML der E-Rechnung nennt sie weiter |
@@ -372,6 +372,8 @@ Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im 
 - Gesendete [Zusammenfassende Meldungen](umsatzsteuer.md#zusammenfassende-meldung) gegen Kz 21 und 41 des Quartals aus dem Journal.
 - Rechnung und Vorgang gegen ihre Buchung.
 - Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Steuer, bei neueren Vermerken jede damals gerechnete Zahl.
+
+Belege mit § 13b oder innergemeinschaftlichem Erwerb, die vor Version 0.7.0 gebucht wurden, tragen im Journal die Steuer ohne Vorsteuerabzug in derselben Aufwandszeile wie das Netto bzw. das private Netto ohne Steuerschlüssel auf den Entnahmen. Für Kz 46, 84, 89 und 93 und die Verprobung rechnet Haben bei Buchungen, die vor dem Update angelegt wurden, und ihren Stornos die Bemessungsgrundlage so, wie eine heutige Buchung sie trüge; die gebuchten Zeilen bleiben unverändert ([#1396](https://github.com/firsttris/haben/issues/1396)). Nur Erwerb zu 19 % und 7 % auf einem Beleg mit Privatanteil bleibt, wie gebucht.
 
 Offene Zeiträume und nicht abgegebene Jahreserklärungen rechnen ohne Vergleich aus dem Journal. Stimmt alles, ändert sich nichts, was beim Finanzamt ist, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
 

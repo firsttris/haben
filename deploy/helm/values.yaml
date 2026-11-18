@@ -37,7 +37,11 @@ app:
     eric:
       size: 2Gi
       storageClass: ""
+  # /tmp liegt im Arbeitsspeicher und zählt gegen limits.memory: ELSTER-Zertifikat bei jedem Aufruf von ERiC und
+  # Arbeitskopien beim Auslesen von PDFs
   resources: {}
+  # Obergrenze für /tmp, etwa "256Mi"; leer: bis zum Memory-Limit der App, ohne Limit bis zum Speicher des Knotens
+  tmpSizeLimit: ""
   # Etwa ERiC von Hand (ERIC_HOME) oder die x86_64-Laufzeit für ELSTER auf arm64 (ERIC_WORKER_COMMAND), aus extraVolumes
   extraVolumeMounts: []
 

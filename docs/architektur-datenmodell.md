@@ -28,7 +28,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `company_logo` | Aktuelles Firmenlogo (PNG oder JPEG) für Rechnungen, Angebote und Mahnungen; höchstens eine Zeile | Audit ohne Bilddaten (mit SHA-256) |
 | `letterhead_background` | Aktuelles Briefpapier (PNG oder JPEG, aus einem PDF die erste Seite als Bild) hinter den Belegen; höchstens eine Zeile | Audit ohne Bilddaten (mit SHA-256) |
 | `beleg_layouts` | Eigene Belegvorlagen (#113): Name, Art (`beleg` oder `mahnung`), Typst-Quelltext, SHA-256, Version des Feldvertrags, Pakete und `approved_sha256` (Freigabe der Pakete für genau diesen Quelltext); Paket-Cache je Layout unter `DOCUMENTS_DIR/vorlagen/<id>/pakete` | Audit mit Quelltext |
-| `letterhead_profiles` | Gestaltung der Belege als JSON (`settings`: Layout je Belegart, Akzentfarbe, Logo-Größe und -Seite, Schalter, eigene Fußzeile); heute genau ein Standardprofil (`is_default`), ohne Zeile gelten die Vorgaben aus `packages/core` | höchstens ein Standardprofil, Akzentfarbe nur `#RRGGBB`, Audit |
+| `letterhead_profiles` | Gestaltung der Belege als JSON (`settings`: Layout je Belegart, Akzentfarbe, Logo-Größe und -Stelle, Schalter, eigene Fußzeile); heute genau ein Standardprofil (`is_default`), ohne Zeile gelten die Vorgaben aus `packages/core` | höchstens ein Standardprofil, Akzentfarbe nur `#RRGGBB`, Audit |
 | `custom_pages` | [Eigene Seiten](eigene-seiten.md): Name, Adresse und ob der Menüeintrag die Seite im Rahmen zeigt oder in einem neuen Tab öffnet (`open_in_new_tab`) | Audit |
 | `procedure_details` | [Angaben zum Betrieb](verfahrensdokumentation.md#angaben-zum-betrieb) für die Verfahrensdokumentation (Verantwortliche, Ort der Aufbewahrung, Papierbelege, Betrieb des Servers, Datensicherung, Ablage von Schlüsseln, Ergänzungen); genau eine Zeile | Audit, kein `TRUNCATE` |
 | `exchange_rates` | Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat, vom BMF abgerufen oder von Hand eingetragen; Belege und Rechnungen speichern ihren Kurs selbst | Audit |
@@ -69,6 +69,9 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `cash_entries` | Kassenbuch: jede Bewegung der Barkasse mit lückenloser Nummer, Beleg oder Art (Einlage, Entnahme, Geldtransit, Bareinnahme auf eine Rechnung mit `invoice_id` und Steueranteil wie bei `allocations`, Bareinnahme ohne Rechnung mit Behandlung und Satz in `tax_treatment`, `tax_rate`, nur zusammen und nur dort), Buchung; Storno als Gegenzeile | nur anhängen, Bareinnahme nur auf eine festgeschriebene Rechnung, Audit |
 | `bank_imports` | Jede importierte Auszugsdatei mit SHA-256, Zeitraum, Salden, bei einer eigenen Zuordnung mit dieser (`csv_mapping`) | nur anhängen, Audit |
 | `bank_transactions` | Importierte Umsätze mit Hash zur Deduplizierung; EndToEndId, soweit der Auszug sie nennt | nur anhängen |
+| `import_sources` | Quellenbindung des Importvertrags ([#306](https://github.com/firsttris/haben/issues/306)): Konto und Kennung beim Anbieter, eindeutig je Anbieter und Kennung | nur anhängen, Audit |
+| `import_batches` | Angenommene Lieferungen mit Prüfwert, Fenster, offenen Ereignissen und dem Abrufstand danach | nur anhängen, Audit |
+| `import_movements` | Quellenidentität: Ereignis und Komponente mit buchungsrelevantem Kern und dem Umsatz in `bank_transactions` | nur anhängen, Audit |
 | `sepa_transfers` | Erzeugte SEPA-Dateien (pain.001) mit Auftraggeberkonto, Ausführungsdatum, Anzahl, Summe und XML | nur anhängen, Audit |
 | `sepa_transfer_items` | Je Beleg eine Überweisung der Datei: EndToEndId (eindeutig), Betrag, Skonto, Empfänger, IBAN, Verwendungszweck | nur anhängen, Audit |
 | `sepa_direct_debits` | Erzeugte Lastschriftdateien (pain.008, #445) mit Gläubigerkonto, Anzahl, Summe und XML | nur anhängen, Audit |
@@ -146,7 +149,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `sevdesk_accounting_types` | Kontostamm der Buchungskonten aus sevDesk (`GET /AccountingType/{id}`), unverändert; eindeutig je Konto und Stand | nur anhängen, Audit, TRUNCATE gesperrt |
 | `sevdesk_accounting_type_decisions` | Kontoart einer sevDesk-Gutschrift auf ein Buchungskonto, von Hand festgelegt (Erlös- oder Aufwandskonto); die jüngste gilt | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
-| `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
+| `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer Auftrags-PDF-Abrufe mit Buchhaltungsversion | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
 | `legacy_dunnings` | Mahnungen aus sevDesk, je Stufe eine Zeile mit Kennung der gemahnten Rechnung, Stufe, Frist, gemahntem Betrag und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_dunning_files` | PDFs der Mahnungen aus sevDesk mit Prüfsumme | nur anhängen, Audit, TRUNCATE gesperrt |

@@ -40,11 +40,19 @@ describe("Einstellungen, die ein eigenes Layout nicht verwendet", () => {
   it("ein Feld von mehreren genügt, ein längerer Name zählt nicht", () => {
     expect(
       ungenutzteGestaltung("d.palette.ink d.font d.logo d.look.logoWidth d.look.logoLeft d.look.foldMarks d.qr d.background d.look.backgroundPages", "mahnung"),
-    ).toEqual([]);
+    ).toEqual(["logoMitte"]);
     // qrPlaceholder ist nicht qr, itemNumber nicht itemNumbers
     const nur = ungenutzteGestaltung("d.qrPlaceholder l.itemNumber", "beleg");
     expect(nur).toContain("giroCode");
     expect(nur).toContain("itemNumber");
+  });
+
+  it("meldet „Mitte“ nur, wenn das Layout die Stelle des Logos liest, aber nicht look.logoPosition", () => {
+    expect(ungenutzteGestaltung("d.look.logoLeft", "beleg")).toContain("logoMitte");
+    expect(ungenutzteGestaltung("d.look.logoPosition", "beleg")).not.toContain("logoMitte");
+    const ohneStelle = ungenutzteGestaltung("d.logo", "beleg");
+    expect(ohneStelle).toContain("logoPosition");
+    expect(ohneStelle).not.toContain("logoMitte");
   });
 
   it("eine Mahnung meldet nur, was auf Mahnungen wirkt", () => {
@@ -103,5 +111,30 @@ describe("Hinweise in der Beleggestaltung", () => {
   it("mehrere Felder: weder … noch", () => {
     const hinweise = gestaltungsHinweise({ ...eingebaut, mahnung: { name: "Grau", ungenutzt: ["accent"] } });
     expect(hinweise.accent?.text).toBe("Wirkt nicht auf Mahnungen: Das Layout „Grau“ verwendet weder accent noch palette.");
+  });
+
+  it("„Mitte“ bei einem Layout mit nur logoLeft: Hinweis, an, solange ein anderer Beleg mittig setzen kann", () => {
+    const hinweise = gestaltungsHinweise({ ...eingebaut, rechnung: { name: "Alt", ungenutzt: ["logoMitte"] } });
+    expect(hinweise.logoMitte).toEqual({
+      aus: false,
+      text: "Wirkt nicht auf Rechnungen: Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts.",
+    });
+  });
+
+  it("„Mitte“ ist aus, wenn kein Beleg das Logo mittig setzen kann", () => {
+    const alt = { name: "Alt", ungenutzt: ["logoMitte"] as const };
+    const hinweise = gestaltungsHinweise({ rechnung: alt, angebot: alt, auftragsbestaetigung: alt, lieferschein: alt, mahnung: alt });
+    expect(hinweise.logoMitte).toEqual({ aus: true, text: "Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts." });
+  });
+
+  it("„Mitte“ ist auch aus, wenn die übrigen Belege die Stelle des Logos gar nicht lesen", () => {
+    const alt = { name: "Alt", ungenutzt: ["logoMitte"] as const };
+    const fest = { name: "Fest", ungenutzt: ["logoPosition"] as const };
+    const hinweise = gestaltungsHinweise({ rechnung: alt, angebot: fest, auftragsbestaetigung: fest, lieferschein: fest, mahnung: fest });
+    expect(hinweise.logoPosition?.aus).toBe(false);
+    expect(hinweise.logoMitte).toEqual({
+      aus: true,
+      text: "Wirkt nicht auf Rechnungen: Das Layout „Alt“ verwendet look.logoPosition nicht. „Mitte“ steht dort rechts.",
+    });
   });
 });

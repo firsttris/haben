@@ -1,5 +1,5 @@
-import { isKapitalgesellschaft, type EuerResult, LOHN_ZAHLUNGEN, documentOpen, periodKey, vatPostenLabel } from "@haben/core";
-import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { isKapitalgesellschaft, type Cents, type EuerResult, LOHN_ZAHLUNGEN, documentOpen, periodKey, postenOf, vatPostenLabel } from "@haben/core";
+import { and, eq, gte, inArray, isNull, lt, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { euerAusDemJournal } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -59,6 +59,28 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
  */
 export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {
   return euerAusDemJournal(year, q, { ohneManuelle: isKapitalgesellschaft((await loadCompany(q)).rechtsform) });
+}
+
+/**
+ * Umsatz eines Monats (`JJJJ-MM`) netto für die Kachel der Übersicht: Saldo der Konten im Posten „1. Umsatzerlöse“ der
+ * GuV (§ 277 Abs. 1 HGB, Zuordnung nach dem DATEV-Kontenrahmen, postenOf) nach Buchungsdatum, in Einzelunternehmen
+ * und GmbH gleich. Rechnungen aus Haben sind gebucht und zählen mit, ebenso Buchungen aus dem Datenimport (#1116);
+ * Stornos, Gutschriften und Erlösschmälerungen mindern. Zinsen, Mahn- und Kurserträge sind sonstige Erträge und fehlen.
+ */
+export async function umsatzImMonat(monat: string, q: Db | Tx = db): Promise<Cents> {
+  const teile = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(monat);
+  if (!teile) throw new Error(`Monat ${monat} ist nicht JJJJ-MM`);
+  const [jahr, m] = [Number(teile[1]), Number(teile[2])];
+  const bis = m === 12 ? `${jahr + 1}-01-01` : `${jahr}-${String(m + 1).padStart(2, "0")}-01`;
+  const e = schema.journalEntries;
+  const l = schema.journalLines;
+  const rows = await q
+    .select({ kontenrahmen: e.kontenrahmen, account: l.account, haben: sql<string>`sum(${l.credit} - ${l.debit})` })
+    .from(l)
+    .innerJoin(e, eq(l.entryId, e.id))
+    .where(and(gte(e.date, `${monat}-01`), lt(e.date, bis), ne(e.sourceType, "eroeffnung")))
+    .groupBy(e.kontenrahmen, l.account);
+  return rows.filter((r) => postenOf(r.kontenrahmen, r.account) === "umsatzerloese").reduce((sum, r) => sum + Number(r.haben), 0);
 }
 
 export interface OpenPosition {
@@ -198,13 +220,17 @@ export async function openPositions(today: string, { bis }: { bis?: string } = {
   };
 }
 
-/** Jahre mit Bankumsätzen, Rechnungen oder Belegen, für die Jahresauswahl */
+/**
+ * Jahre mit Bankumsätzen, Rechnungen, Belegen oder Buchungen, für die Jahresauswahl. Die EÜR rechnet aus dem Journal
+ * (#1116); ein Jahr, das nur über den Datenimport gebucht ist, gehört deshalb ebenso in die Auswahl.
+ */
 export async function reportYears(): Promise<number[]> {
   const rows = await db.execute<{ year: number }>(sql`
     select distinct extract(year from d)::int as year from (
       select booking_date as d from bank_transactions where bank_account_id not in (select id from bank_accounts where excluded_at is not null)
       union all select issue_date from invoices where status = 'final'
       union all select document_date from documents where status = 'gebucht' and document_date is not null
+      union all select date from journal_entries
     ) dates order by 1`);
   return [...rows].map((r) => Number(r.year));
 }
