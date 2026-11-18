@@ -101,4 +101,27 @@ describe("Steuerabgleich des Etsy-Abrufs", () => {
 
     expect(summe(statement.transactions.filter((t) => t.bankReference !== "etsy-160"))).toBe(-16);
   });
+
+  it("erkennt schon verrechnete Steuer bei mehr als 16 offenen Steuerzeilen an der Summe aller", () => {
+    const bestellung = "1000000112";
+    const zeit = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+    // Früher mit dem Verkauf verrechnet: 17 Zeilen über je −0,01 €, zusammen −0,17 €
+    const bekannt = new Map([["170", { order: bestellung, verrechnet: -17 }]]);
+    const steuern: EtsyLedgerEntry[] = Array.from({ length: 17 }, (_, i) => ({
+      entry_id: 300 + i,
+      amount: -1,
+      currency: "EUR",
+      ledger_type: "sales_tax",
+      reference_id: bestellung,
+      created_timestamp: zeit("2023-06-13T10:00:00Z"),
+    }));
+    const entries: EtsyLedgerEntry[] = [
+      { entry_id: 170, amount: 2495, currency: "EUR", ledger_type: "PAYMENT_GROSS", reference_id: "P1", created_timestamp: zeit("2023-06-13T10:00:00Z") },
+      ...steuern,
+    ];
+
+    const statement = parseEtsyLedger(entries, { orderFor: () => bestellung, bekannt });
+
+    expect(statement.transactions.filter((t) => t.bankReference !== "etsy-170")).toEqual([]);
+  });
 });
