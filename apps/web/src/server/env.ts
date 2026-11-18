@@ -107,7 +107,7 @@ const envSchema = z
     GOOGLE_PLAY_TOKEN_URL: z.string().url().optional(),
     GOOGLE_PLAY_STORAGE_URL: z.string().url().optional(),
     APP_STORE_CONNECT_URL: z.string().url().optional(),
-    /** Etsy Open API v3; nur für Tests gesetzt, sonst gelten die echten Adressen */
+    /** Etsy Open API v3: nur im E2E-Durchlauf „etsy-abruf“ auf die nachgebaute API gesetzt, sonst gelten die echten Adressen */
     ETSY_API_URL: z.string().url().optional(),
     ETSY_TOKEN_URL: z.string().url().optional(),
     ETSY_AUTH_URL: z.string().url().optional(),
