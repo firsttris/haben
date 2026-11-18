@@ -24,6 +24,7 @@ import { InvoiceError } from "./invoice-error.ts";
 import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 import { rebuildInvoiceLines } from "./positionen-nachbilden.ts";
 import { createTakenOverInvoice } from "./rechnung-uebernehmen.ts";
+import { outgoingTaxDetailsSchema } from "./tax-details.ts";
 
 /*
  * Ausgangsrechnung aus einem Fremdsystem übernehmen (#660): Die Rechnung ist dort geschrieben und verschickt worden und
@@ -61,6 +62,8 @@ export const foreignInvoiceSchema = z.object({
   taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
   /** Befreiungsvorschrift wie auf der Rechnung, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“; bei steuerfreien Umsätzen Pflicht */
   exemptionReason: z.string().trim().max(500).default(""),
+  /** Tatsächlicher Leistungsort wie im Rechnungseditor (#1392); null = ungeklärt, nie aus der Kundenanschrift abgeleitet */
+  taxDetails: outgoingTaxDetailsSchema,
   /** Netto und Steuer je Steuersatz (Basispunkte), wie auf der Rechnung ausgewiesen */
   taxes: z
     .array(z.strictObject({ rate: z.number().int().min(0).max(10_000), net: cents, tax: cents }))
@@ -114,7 +117,7 @@ async function assertAdoptable(
   const issues = [
     ...sellerIssues(company, true).map((issue) => `Firmendaten: ${issue}`),
     ...(await versteuerungIssues(company, input.issueDate, tx)),
-    ...outgoingTaxIssues(input.taxTreatment, null, company.kleinunternehmer),
+    ...outgoingTaxIssues(input.taxTreatment, input.taxDetails, company.kleinunternehmer),
     ...treatmentIssues(input.taxTreatment, {
       rates: totals.taxes.map((t) => t.rate),
       sellerUstId: company.ustId,
@@ -169,6 +172,7 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
         serviceDate: leistungsdatum({ belegdatum: input.issueDate, leistungVon: input.serviceFrom, leistungBis: input.serviceTo }),
         taxTreatment: input.taxTreatment,
         exemptionReason: input.exemptionReason,
+        taxDetails: input.taxDetails,
         note: "Aus dem Fremdsystem übernommen; das PDF ist das Original.",
         priceMode,
         totals,
@@ -269,7 +273,7 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
     dueDate: invoice.dueDate ?? addDays(invoice.issueDate, 14),
     serviceFrom: invoice.serviceFrom ?? null,
     serviceTo: invoice.serviceTo ?? null,
-    // Ein Kleinunternehmer übernimmt nur Rechnungen nach § 19 UStG (andere Behandlungen braucht strukturierte Angaben, die das Formular nicht abfragt)
+    // Beim Kleinunternehmer § 19 UStG: eine Auslandsleistung wählt er selbst, weil der Leistungsort ausdrücklich zu bestätigen ist
     taxTreatment: company.kleinunternehmer ? "kleinunternehmer" : (special ?? "regulaer"),
     taxes,
     contactId: matches.length === 1 ? matches[0]!.id : null,
