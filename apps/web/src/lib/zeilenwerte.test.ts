@@ -4,7 +4,7 @@ import { ERKLAERTE_ZEILEN, zeilenFelder } from "./zeilenwerte.ts";
 
 describe("erklärte Zeilen (#997)", () => {
   it("nimmt jede Zeile der Anlage EÜR auf, die Haben selbst übermittelt (EUER_FIELDS)", () => {
-    // Haben schreibt auch E6004101 und E6004301 ins XML (packages/elster/src/erklaerung.ts); eine außerhalb
+    // Haben schreibt auch E6004101 und E6004301 ins XML (packages/elster/src/euer-erklaerung.ts); eine außerhalb
     // abgegebene Erklärung kann sie also ebenso enthalten
     const felder = new Set(zeilenFelder("euer"));
     expect(Object.keys(EUER_FIELDS).filter((k) => !felder.has(k))).toEqual([]);

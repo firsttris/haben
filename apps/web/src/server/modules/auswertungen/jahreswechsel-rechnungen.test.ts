@@ -11,7 +11,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Erwartung je Versteuerung (docs/buchhaltung.md „Ist- und Soll-Versteuerung“): Soll nach Rechnungsdatum (§ 13 Abs. 1
  * Nr. 1 Buchst. a Satz 1 UStG), Ist mit der Zahlung (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); Skonto mindert bei Soll im Monat
  * der Ausbuchung (§ 17 Abs. 1 UStG), bei Ist zählt nur, was bezahlt ist. Der Steueranteil einer Teilzahlung ist
- * Zahlbetrag × Steuer ÷ Brutto je Satz, gerundet (paidTaxShares in packages/core/src/posting.ts).
+ * Zahlbetrag × Steuer ÷ Brutto je Satz, gerundet (paidTaxShares in packages/core/src/steueranteile.ts).
  *
  * Rechnung mit 1.000,00 € zu 19 % und 500,00 € zu 7 %: 190,00 € und 35,00 € Steuer, 1.725,00 € brutto.
  * Teilzahlung 1.000,00 € im Dezember: Steuer gesamt 225 × 1000 / 1725 = 130,43 €; je Satz 110,14 € auf 579,71 € und
