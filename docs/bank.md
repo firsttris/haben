@@ -7,14 +7,14 @@ description: >-
 
 # Bankimport und Abgleich
 
-Unter **Bank** holst du die Umsätze automatisch über Enable Banking oder FinTS ab oder importierst Kontoauszüge als Datei, und ordnest jeden Umsatz einer Rechnung, einem Beleg oder einer direkten Buchung zu. Haben schlägt passende offene Posten mit Begründung vor. Jede Zuordnung erzeugt sofort eine festgeschriebene Buchung.
+Unter **Bank** holst du die Umsätze automatisch über Enable Banking, FinTS oder die API von Vivid Business ab oder importierst Kontoauszüge als Datei, und ordnest jeden Umsatz einer Rechnung, einem Beleg oder einer direkten Buchung zu. Haben schlägt passende offene Posten mit Begründung vor. Jede Zuordnung erzeugt sofort eine festgeschriebene Buchung.
 
 <img src="screenshot-bank.png#only-light" alt="Bankabgleich mit Umsatzliste links und rechts dem ausgewählten Zahlungseingang, dem besten Treffer Rechnung 2026-034 und den Gründen Betrag stimmt exakt und Rechnungsnummer im Verwendungszweck" width="900">
 <img src="screenshot-bank-dunkel.png#only-dark" alt="Bankabgleich mit Umsatzliste links und rechts dem ausgewählten Zahlungseingang, dem besten Treffer Rechnung 2026-034 und den Gründen Betrag stimmt exakt und Rechnungsnummer im Verwendungszweck" width="900">
 
 ## Automatischer Abruf
 
-Ist Enable Banking eingerichtet (unter **Einstellungen › Bank**, siehe [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking)), steht unter **Bank** der Bereich **Automatischer Abruf** mit dem Knopf **Bank verbinden**. Mit FinTS steht dort **Über FinTS verbinden**, siehe [Abruf über FinTS](#abruf-über-fints).
+Ist Enable Banking eingerichtet (unter **Einstellungen › Bank**, siehe [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking)), steht unter **Bank** der Bereich **Automatischer Abruf** mit dem Knopf **Bank verbinden**. Mit FinTS steht dort **Über FinTS verbinden**, siehe [Abruf über FinTS](#abruf-über-fints). **Vivid verbinden** steht immer dort, siehe [Abruf über Vivid](#abruf-über-vivid).
 
 1. **Bank verbinden** klicken, die Bank suchen und auswählen. Gewählt ist die markierte Bank; bleibt nach der Suche nur eine übrig, ist sie schon gewählt. Unter der Liste steht, zu welcher Bank es weitergeht. Bietet die Bank beides an, wählst du Geschäfts- oder Privatkonto; das entscheidet, mit welchem Online-Banking-Zugang du dich gleich anmeldest. Unter **Umsätze abrufen ab** steht der Jahresbeginn; beginnt deine Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trägst du hier diesen Tag ein (siehe [Welche Umsätze abgerufen werden](#welche-umsätze-abgerufen-werden)).
 2. **Weiter zur Bank** führt zur Anmeldeseite deiner Bank. Dort meldest du dich an, bestätigst mit TAN und wählst die Konten aus.
@@ -49,6 +49,23 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 ### Abruf über FinTS
 
 Mit einer eigenen Registrierungsnummer für FinTS holt Haben die Umsätze direkt bei der Bank, mit PIN und TAN, ohne Enable Banking. Verbinden, TAN, welche Umsätze kommen, Fehler und was passiert, wenn ein Konto schon über Enable Banking kommt, stehen in [Abruf über FinTS](bank-fints.md).
+
+### Abruf über Vivid
+
+Konten bei Vivid Business holt Haben über deren eigene [API](https://api.prime.vivid.money/sme-integration/docs/), ohne Enable Banking und ohne FinTS. Dafür brauchst du einen API-Schlüssel aus Vivid ([Anbindungen](installation-anbindungen.md#kontoabruf-über-vivid)).
+
+1. Unter **Bank** **Vivid verbinden** klicken, den API-Schlüssel einfügen und **Verbinden**.
+2. Haben ordnet die Konten in Euro über die IBAN zu, legt fehlende an („Vivid Hauptkonto …1234“) und holt sofort die Umsätze. Danach ruft es einmal täglich ab; **Jetzt abrufen** holt sie sofort.
+
+Was dabei gilt:
+
+- **Zeitraum:** Vivid gibt nur die letzten 90 Tage heraus. Der erste Abruf beginnt wie oben unter [Welche Umsätze abgerufen werden](#welche-umsätze-abgerufen-werden), aber nie früher; ältere Umsätze importierst du per Datei, die Meldung nach dem Verbinden nennt den Zeitraum. Jeder Abruf liest alle 90 Tage und erkennt schon abgerufene Umsätze an ihrer Kennung bei Vivid, nie vor dem Tag nach dem letzten Umsatz aus einer Datei oder einem anderen Abruf.
+- **Vorgemerkte Kartenzahlungen** übernimmt Haben erst, wenn Vivid sie bucht, dann mit dem Tag der Zahlung und dem endgültigen Betrag. Abgelehnte Zahlungen kommen nie.
+- **Tag:** Vivid nennt keinen Buchungstag, nur den Zeitpunkt der Zahlung aus deiner Sicht, bei Karten die Freigabe. Haben nimmt dessen Tag in deutscher Zeit; er kann vom Buchungstag im Kontoauszug abweichen.
+- **Verwendungszweck und Gegenseite:** Die API nennt beides nicht. Bei Kartenzahlungen steht der Händler als Gegenseite, im Zweck Art, Karte, Ort und Betrag in Fremdwährung; bei Überweisungen nur „Überweisung“. Die [Vorschläge](#vorschläge) gehen dort nur nach Betrag.
+- **Kontostand:** Vivid nennt nur den verfügbaren Betrag, keinen gebuchten Saldo. Haben übernimmt keinen und prüft keine Salden.
+- **Schlüssel abgelehnt:** Ist der Schlüssel abgelaufen (nach höchstens 180 Tagen), gelöscht oder fehlt ihm ein Recht, steht die Verbindung auf **Schlüssel abgelehnt**, und der tägliche Abruf ruht. Mit **Vivid verbinden** und einem neuen Schlüssel macht Haben dort weiter, wo es aufgehört hat; die alte Verbindung fällt weg.
+- Ein Konto ruft Haben nur über einen Weg ab: Kam es bisher über Enable Banking oder FinTS, fällt es dort heraus. **Trennen** löscht den Schlüssel in Haben; in Vivid gilt er, bis du ihn dort löschst.
 
 ## Unterstützte Formate
 

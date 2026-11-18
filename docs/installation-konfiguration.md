@@ -81,6 +81,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `GOOGLE_PLAY_TOKEN_URL`, `GOOGLE_PLAY_STORAGE_URL` | nein | Andere Adressen für Anmeldung und Cloud Storage beim Abruf der [Google-Play-Berichte](bank-zahlungsdienstleister.md#google-play-und-app-store), nur zum Testen. Standard `https://oauth2.googleapis.com/token` bzw. `https://storage.googleapis.com` | `http://localhost:4556` |
 | `APP_STORE_CONNECT_URL` | nein | Andere Basis-URL von App Store Connect beim Abruf der [Finanzberichte](bank-zahlungsdienstleister.md#google-play-und-app-store), nur zum Testen. Standard `https://api.appstoreconnect.apple.com` | `http://localhost:4557` |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
+| `VIVID_API_URL` | nein | Andere Basis-URL der Vivid Business API, nur zum Testen oder falls Vivid die Adresse ändert. Standard `https://api.prime.vivid.money/sme-integration` | `http://localhost:4556` |
 | `SEVDESK_API_URL` | nein | Andere Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert. Standard `https://my.sevdesk.de/api/v1`; Ablauf in [Umzug aus sevDesk](sevdesk.md) | `https://my.sevdesk.de/api/v1` |
 | `FASTBILL_API_URL` | nein | Andere Adresse der FastBill-API, nur zum Testen. Standard `https://my.fastbill.com/api/1.0/api.php`; Ablauf in [Umzug aus FastBill](fastbill.md) | `https://my.fastbill.com/api/1.0/api.php` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
@@ -89,7 +90,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 
 Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` und `MIGRATION_DATABASE_URL` wie eingetragen, ohne `DATABASE_URL` den bisherigen Zugang aus `DB_PASSWORD`; `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
 
-In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unter `app` › `environment` stehen. Andere, etwa `HABEN_SETUP_CODE`, `HABEN_SCHEDULER`, `HABEN_UPDATE_CHECK`, `LEXOFFICE_API_URL`, `FASTBILL_API_URL` oder `SEVDESK_API_URL`, wirken in `.env` allein nicht; trag sie in der `compose.override.yml` beim Dienst `app` unter `environment` ein. Bei den Quadlets gelten alle Zeilen aus `haben.env`.
+In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unter `app` › `environment` stehen. Andere, etwa `HABEN_SETUP_CODE`, `HABEN_SCHEDULER`, `HABEN_UPDATE_CHECK`, `LEXOFFICE_API_URL`, `FASTBILL_API_URL`, `SEVDESK_API_URL` oder `VIVID_API_URL`, wirken in `.env` allein nicht; trag sie in der `compose.override.yml` beim Dienst `app` unter `environment` ein. Bei den Quadlets gelten alle Zeilen aus `haben.env`.
 
 ## Datenablage
 

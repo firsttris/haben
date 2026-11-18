@@ -1,7 +1,7 @@
 ---
 title: "ERiC, KI-Auslesung, Kontoabruf einbinden"
 description: >-
-  ERiC für ELSTER einbinden (auch auf arm64), KI-Auslesung mit Anthropic oder einem OpenAI-kompatiblen Dienst wie Ollama, Kontoabruf über Enable Banking oder FinTS.
+  ERiC für ELSTER einbinden (auch auf arm64), KI-Auslesung mit Anthropic oder einem OpenAI-kompatiblen Dienst wie Ollama, Kontoabruf über Enable Banking, FinTS oder Vivid.
 ---
 
 # Anbindungen
@@ -223,6 +223,16 @@ Ohne `FINTS_PRODUKT_ID` bleibt FinTS aus; Enable Banking und der Dateiimport lau
 Beim Verbinden fragt Haben nach Bankleitzahl, FinTS-Adresse, Anmeldename und PIN. Die Adresse nennt die Bank, meist auf ihren Seiten zu HBCI oder FinTS oder in der Anleitung für Banking-Programme; sie beginnt mit `https://`. Eine Liste der Adressen bringt Haben nicht mit.
 
 Was an die Bank geht: Produktnummer und Version von Haben, Anmeldename und PIN und danach Abrufe von Umsätzen der Konten, über TLS direkt zur Bank. Die PIN speichert Haben verschlüsselt in der Datenbank wie das SMTP-Passwort, damit der tägliche Abruf ohne dich läuft; im Audit-Log steht sie nicht. Eine TAN speichert Haben nie. Zahlungen auslösen kann Haben über FinTS nicht.
+
+## Kontoabruf über Vivid
+
+Für Konten bei Vivid Business; der Betreiber richtet nichts ein. Den API-Schlüssel legt jemand mit dem Recht **Manage API tokens** in Vivid an, die API gibt es in den bezahlten Tarifen ([API-Beschreibung von Vivid](https://api.prime.vivid.money/sme-integration/docs/)):
+
+1. In Vivid Business im Web **API** öffnen und **Add API token** wählen.
+2. Die Rechte `accounts:read` und `transactions:read` ankreuzen, die Laufzeit wählen (höchstens 180 Tage). Wer den Schlüssel auf IP-Adressen beschränkt, trägt die Adresse ein, unter der der Server von Haben ins Internet geht.
+3. Den Schlüssel kopieren (Vivid zeigt ihn nur einmal) und in Haben unter **Bank** › **Vivid verbinden** einfügen.
+
+Der Schlüssel sieht, was die Person sieht, die ihn angelegt hat; verlässt sie die Firma, gilt er nicht mehr. Haben speichert ihn verschlüsselt in der Datenbank, im Audit-Log steht er nicht. Die API ist nur lesend: Zahlungen kann Haben darüber nicht auslösen. Haben spricht nur mit `api.prime.vivid.money`, über TLS.
 
 ## Lexware-Office-API
 
