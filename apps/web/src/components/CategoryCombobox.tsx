@@ -11,7 +11,8 @@ export interface CategoryChoice {
 
 /**
  * Kategorie suchen und wählen, statt in einer langen Liste zu blättern. Wer die Eingabe stehen lässt, ohne zu wählen,
- * behält die bisherige Kategorie; ein geleertes Feld nimmt sie weg (onChoose mit leerem Wert).
+ * behält die bisherige Kategorie; ein geleertes Feld nimmt sie sofort weg (onChoose mit leerem Wert), nicht erst beim
+ * Verlassen: Sonst speicherte ein Enter davor die alte Kategorie, die nicht mehr im Feld steht.
  */
 export function CategoryCombobox({
   categories,
@@ -36,7 +37,11 @@ export function CategoryCombobox({
       {...control}
       commitOnTab
       value={query ?? chosen?.label ?? ""}
-      onInput={setQuery}
+      onInput={(text) => {
+        setQuery(text);
+        // Ein Feld, das schon leer war, bleibt unberührt, sonst gälte der Beleg als geändert und der Privatanteil ginge verloren
+        if (text.trim() === "" && value !== "") onChoose("");
+      }}
       search={() => searchOptions(sorted, query ?? "", (c) => [c.label, gruppeVon(c.value)])}
       describe={(c) => ({ key: c.value, label: c.label, meta: gruppeVon(c.value), selected: c.value === value })}
       onPick={(c) => {
@@ -46,12 +51,7 @@ export function CategoryCombobox({
       }}
       placeholder="Bitte wählen oder suchen"
       required={required}
-      onBlur={() => {
-        if (query === null) return;
-        // Ein Feld, das schon leer war, bleibt unberührt, sonst gälte der Beleg als geändert und der Privatanteil ginge verloren
-        if (query.trim() === "" && value !== "") onChoose("");
-        setQuery(null);
-      }}
+      onBlur={() => setQuery(null)}
     />
   );
 }
