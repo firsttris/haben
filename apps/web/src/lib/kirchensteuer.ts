@@ -1,15 +1,18 @@
 /*
  * Hinweis zur gezahlten Kirchensteuer (#1451): Zur Kirchensteuer nach § 10 Abs. 1 Nr. 4 EStG gehört auch die
- * einbehaltene Lohnkirchensteuer der Lohnsteuerbescheinigung. Sie steht dort in Nr. 6 und 7 (laufender Arbeitslohn,
- * Nr. 7 nur bei Konfessionsverschiedenheit) und in Nr. 13 und 14 (ermäßigt besteuerte sonstige Bezüge). Wer sie im
- * Feld vergisst, trägt zu niedrige Beiträge ein; die Prognose weist dann einen Erstattungsüberhang aus, den es nicht
- * gibt, oder setzt einen bestehenden zu hoch an (§ 10 Abs. 4b Satz 3 EStG), und das zu versteuernde Einkommen liegt
- * zu hoch.
+ * einbehaltene Lohnkirchensteuer der Lohnsteuerbescheinigung. Sie steht dort in Nr. 6 und in Nr. 7 (der Anteil aus
+ * dem eigenen Lohn für die Kirche des Ehegatten, bei Konfessionsverschiedenheit) sowie in Nr. 13 und 14 (ermäßigt
+ * besteuerte sonstige Bezüge). Daneben ist ein gezahltes Kirchgeld abziehbar. Wer das vergisst, trägt zu niedrige
+ * Beiträge ein; die Prognose weist dann einen Erstattungsüberhang aus, den es nicht gibt, oder setzt einen
+ * bestehenden zu hoch an (§ 10 Abs. 4b Satz 3 EStG), und das zu versteuernde Einkommen liegt zu hoch.
+ * Nicht abziehbar ist nur die Kirchensteuer zur Abgeltungsteuer: der Zuschlag zur Kapitalertragsteuer und zur
+ * Steuer nach dem gesonderten Tarif des § 32d Abs. 1 EStG (Halbsatz 2 der Nummer 4). Wird der Kapitalertrag
+ * tariflich besteuert, zählt die Kirchensteuer darauf mit.
  */
 
 /** Am Eingabefeld „Gezahlte Kirchensteuer“ der Jahreserklärung */
 export const KIRCHENSTEUER_HINWEIS =
-  "Vorauszahlungen und Nachzahlungen, dazu die einbehaltene Lohnkirchensteuer (in der Lohnsteuerbescheinigung Nr. 6 und 7, bei sonstigen Bezügen Nr. 13 und 14); nicht die Kirchensteuer auf Kapitalerträge";
+  "Vorauszahlungen, Nachzahlungen und Kirchgeld, dazu die einbehaltene Lohnkirchensteuer (in der Lohnsteuerbescheinigung Nr. 6 und 7, bei sonstigen Bezügen Nr. 13 und 14); nicht die Kirchensteuer zur Abgeltungsteuer";
 
 /**
  * In der Vorauszahlungs-Prognose, solange sie die Angaben des Vorjahres übernimmt: Ohne den Hinweis bleibt die
