@@ -247,13 +247,15 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
       setOffen({ fuer, schritt: s });
       return;
     }
+    // Erst neu laden, dann Formular schließen und melden: Verbinden ersetzt die Verbindung samt ID, und „Trennen“ an der
+    // alten Zeile fände sie nicht mehr
+    await router.invalidate();
     setOffen(null);
     if (fuer === "neu") {
       setVerbinden(false);
       setVorlage(null);
     }
     setMeldungen(meldungenAus(s));
-    await router.invalidate();
   }
 
   async function run(id: string, work: () => Promise<void>) {
