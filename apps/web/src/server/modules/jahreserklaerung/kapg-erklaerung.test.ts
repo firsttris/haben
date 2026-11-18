@@ -71,11 +71,33 @@ describe.skipIf(!testDatabaseUrl)("Erklärungen der GmbH (Postgres)", () => {
   describe.each([
     [
       "SKR03",
-      { bank: "1200", erloes: "8400", ust: "1776", miete: "4210", mieteGesellschafter: "4222", elektro: "4575", kontokorrent: "2118", darlehenGesellschafter: "2114", renten: "2127", bewirtung: "4650" },
+      {
+        bank: "1200",
+        erloes: "8400",
+        ust: "1776",
+        miete: "4210",
+        mieteGesellschafter: "4222",
+        elektro: "4575",
+        kontokorrent: "2118",
+        darlehenGesellschafter: "2114",
+        renten: "2127",
+        bewirtung: "4650",
+      },
     ],
     [
       "SKR04",
-      { bank: "1800", erloes: "4400", ust: "3806", miete: "6310", mieteGesellschafter: "6313", elektro: "6565", kontokorrent: "7318", darlehenGesellschafter: "7316", renten: "7327", bewirtung: "6640" },
+      {
+        bank: "1800",
+        erloes: "4400",
+        ust: "3806",
+        miete: "6310",
+        mieteGesellschafter: "6313",
+        elektro: "6565",
+        kontokorrent: "7318",
+        darlehenGesellschafter: "7316",
+        renten: "7327",
+        bewirtung: "6640",
+      },
     ],
   ] as const)("%s", (kontenrahmen, k) => {
     it.each(["ist", "soll"] as const)(

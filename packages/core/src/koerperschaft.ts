@@ -94,7 +94,12 @@ const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konte
     ["renten", ["2127"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
     // Mit Mietleasing für technische Anlagen und Maschinen (4810) und Betriebs- und Geschäftsausstattung (4965); Miete,
     // Pacht und Lizenzen auch als Fremdleistungen (3170, 3175, 3180); Miete und Pacht an Gesellschafter (4958)
-    ["beweglich", ["3170", "4570", "4810", "4958", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    [
+      "beweglich",
+      ["3170", "4570", "4810", "4958", "4960", "4961", "4963", "4965"],
+      2000,
+      "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)",
+    ],
     ["elektro", ["4575"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
     // Mit Miete und Pacht an Gesellschafter (4222) und Garagenmiete
     ["unbeweglich", ["3175", "4210", "4211", "4215", "4220", "4222", "4550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
@@ -103,7 +108,12 @@ const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konte
   SKR04: [
     ["zinsen", ["7300", "7309", "7310", "7316", "7317", "7318", "7319", "7320", "7325", "7326", "7329"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["renten", ["7327"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
-    ["beweglich", ["5970", "6498", "6560", "6833", "6835", "6836", "6838", "6840"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    [
+      "beweglich",
+      ["5970", "6498", "6560", "6833", "6835", "6836", "6838", "6840"],
+      2000,
+      "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)",
+    ],
     ["elektro", ["6565"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
     ["unbeweglich", ["5975", "6310", "6313", "6315", "6316", "6317", "6550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
     ["rechte", ["5980", "6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
