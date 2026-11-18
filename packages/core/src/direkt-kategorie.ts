@@ -144,7 +144,7 @@ export function kategorieText(angabe: KategorieAngabe): string {
  * erst über eine spätere Rechnung verbraucht wird (etwa die Aufladung eines Mobilfunk-Guthabens). Bei der EÜR ist sie
  * im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG). Die Aufladung selbst trägt keine Umsatzsteuer: Beim
  * Mehrzweck-Gutschein unterliegt die vorangegangene Übertragung nicht der Umsatzsteuer (§ 3 Abs. 15 UStG); die Vorsteuer
- * entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Beim Einzweck-Gutschein ist schon die
+ * entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Beim Einzweck-Gutschein ist schon die
  * Aufladung die Leistung (§ 3 Abs. 14 UStG) — dann der Weg über Belege. Gebucht wird wie „Direkt buchen“ auf eine
  * Ausgabekategorie: Bank gegen Aufwandskonto, kein Beleg.
  */
@@ -161,7 +161,7 @@ export const AUFLADUNG = {
 export function aufladungFehler(angabe: KategorieAngabe): string | null {
   if (kategorieArt(angabe.kategorie) !== "ausgabe") return "Eine Aufladung ist eine Ausgabe; bitte eine Ausgabekategorie wählen.";
   if (angabe.steuersatz !== 0) {
-    return "Eine Aufladung trägt keine Vorsteuer (§ 3 Abs. 15 UStG); sie entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG).";
+    return "Eine Aufladung trägt keine Vorsteuer, weil sie selbst nicht der Umsatzsteuer unterliegt (§ 3 Abs. 15 UStG); sie entsteht erst mit der Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG).";
   }
   return kategorieFehler(angabe, false);
 }

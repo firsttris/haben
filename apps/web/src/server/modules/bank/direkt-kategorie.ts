@@ -61,7 +61,7 @@ export async function kategoriebuchung(
  * erst über eine spätere Rechnung verbraucht wird. Gebucht wie „Direkt buchen“ mit 0 %: Bank gegen das Konto der
  * Pflicht-Kostenkategorie, keine Vorsteuer, kein Beleg. Einen Steuersatz nimmt sie nicht an, auch keinen mitgegebenen:
  * Die Aufladung selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG), Vorsteuer entsteht erst mit der Rechnung über die
- * Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG).
+ * Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG).
  */
 export function aufladungBuchung(
   bank: { counterpartyName: string },
