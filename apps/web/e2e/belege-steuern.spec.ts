@@ -191,6 +191,13 @@ test("Beleg prüfen: Die Wahl per Suche übernimmt die Privatanteil-Vorgabe der 
     await page.waitForLoadState("networkidle");
     const kategorie = page.getByLabel("Kategorie");
     const privat = page.getByLabel("Privatanteil in %", { exact: true });
+    // Tippen, wieder löschen und das Feld verlassen ändert bei leerer Kategorie nichts, auch ein eingetragener Anteil bleibt
+    await privat.fill("5");
+    await kategorie.fill("x");
+    await kategorie.fill("");
+    await page.keyboard.press("Tab");
+    await expect(kategorie).toHaveValue("");
+    await expect(privat).toHaveValue("5");
     // Telefon hat eine Vorgabe, Bürobedarf keine: die Wahl setzt oder leert den Anteil
     await waehleKategorie(kategorie, "telefon");
     await expect(privat).toHaveValue("20");

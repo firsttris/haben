@@ -48,7 +48,8 @@ export function CategoryCombobox({
       required={required}
       onBlur={() => {
         if (query === null) return;
-        if (query.trim() === "") onChoose("");
+        // Ein Feld, das schon leer war, bleibt unberührt, sonst gälte der Beleg als geändert und der Privatanteil ginge verloren
+        if (query.trim() === "" && value !== "") onChoose("");
         setQuery(null);
       }}
     />
