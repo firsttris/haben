@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { aggregateZm, gemeldeterStand, isValidGermanUstId, normalizeUstId, ustIdProblem, zmBerichtigung, zmEuro, zmFrist, type ZmZeile } from "./zm.ts";
+import {
+  aggregateZm,
+  gemeldeterStand,
+  isValidGermanUstId,
+  normalizeUstId,
+  ustIdAufbauProblem,
+  ustIdProblem,
+  zmBerichtigung,
+  zmEuro,
+  zmFrist,
+  type ZmZeile,
+} from "./zm.ts";
 
 describe("normalizeUstId", () => {
   it("Großbuchstaben ohne Leerzeichen, Punkte und Bindestriche", () => {
@@ -33,7 +44,7 @@ describe("ustIdProblem (Prüfregeln des ERiC-Plugins checkZMDO)", () => {
 });
 
 // Aufbau laut BZSt, „Aufbau der USt-IdNr. in den EU-Mitgliedstaaten“ (Stand 12.12.2025), auf die UStAE 18e.2 verweist
-describe("ustIdProblem: Aufbau je Mitgliedstaat (#1413)", () => {
+describe("ustIdAufbauProblem: Aufbau je Mitgliedstaat (#1413)", () => {
   it.each([
     ["AT", ["ATU12345678"], ["ATU1234", "AT12345678", "ATU1234567X"]],
     ["BE", ["BE0123456789", "BE1123456789"], ["BE123456789", "BE01234567890"]],
@@ -63,20 +74,25 @@ describe("ustIdProblem: Aufbau je Mitgliedstaat (#1413)", () => {
     ["SK", ["SK1234567890"], ["SK123456789", "SK12345678901"]],
     ["XI", ["XI123456789", "XI123456789012", "XIGD001", "XIHA500"], ["XI12345678", "XI1234567890", "XIAB123"]],
   ])("%s", (land, gueltig, falsch) => {
-    for (const id of gueltig) expect(ustIdProblem(id, "L"), id).toBeNull();
-    for (const id of falsch) expect(ustIdProblem(id, "L"), id).toMatch(new RegExp(`^${id.replace(/[+*]/g, "\\$&")}: .*${land}`));
+    for (const id of gueltig) expect(ustIdAufbauProblem(id), id).toBeNull();
+    for (const id of falsch) expect(ustIdAufbauProblem(id), id).toMatch(new RegExp(`^${id.replace(/[+*]/g, "\\$&")}: .*${land}`));
   });
 
   // Revenue, Tax and Duty Manual „Filing and paying Stamp Duty on Instruments“, Kapitel 3, Abschnitte 1.2.1 und 1.2.3: Ältere
   // PPS-Nummern verheirateter Frauen haben an neunter Stelle ein W, und die Steuernummer eines Einzelunternehmers ist seine
   // PPS-Nummer (revenue.ie, „What is a Tax Reference Number?“). Das BZSt nennt an neunter Stelle nur A bis I.
   it("nimmt eine irische Nummer mit W an neunter Stelle an (ältere PPS-Nummer einer verheirateten Frau)", () => {
-    expect(ustIdProblem("IE1234567AW", "L")).toBeNull();
+    expect(ustIdAufbauProblem("IE1234567AW")).toBeNull();
   });
 
   it("nennt den Aufbau, den das Land vorgibt", () => {
-    expect(ustIdProblem("ATU1234", "L")).toBe("ATU1234: eine USt-IdNr. aus Österreich hat nach AT ein U und acht Ziffern");
-    expect(ustIdProblem("BE123456789", "S")).toMatch(/zehn Ziffern; einer alten neunstelligen wird eine 0 vorangestellt/);
+    expect(ustIdAufbauProblem("ATU1234")).toBe("ATU1234: eine USt-IdNr. aus Österreich hat nach AT ein U und acht Ziffern");
+    expect(ustIdAufbauProblem("BE123456789")).toMatch(/zehn Ziffern; einer alten neunstelligen wird eine 0 vorangestellt/);
+  });
+
+  it("überlässt fehlende, deutsche und fremde Kennzeichen ustIdProblem, das wie ERiC den Aufbau nicht prüft", () => {
+    for (const id of ["", "DE123456788", "GB123456789", "CH123456789"]) expect(ustIdAufbauProblem(id), id).toBeNull();
+    expect(ustIdProblem("ATU1234", "L")).toBeNull();
   });
 });
 

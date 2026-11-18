@@ -1,4 +1,4 @@
-import { ustIdProblem } from "@haben/core";
+import { ustIdAufbauProblem, ustIdProblem } from "@haben/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -46,7 +46,7 @@ describe("Weitere Angaben am Beleg", () => {
 
   it("hält eine USt-IdNr. aus der EU nur für gültig, wenn auch der Server sie beim Erwerb annimmt (Aufbau je Mitgliedstaat, #1413)", () => {
     for (const nummer of ["FR1234", "FR12345", "FR1234567890123", "NL123456789B01", "IE6388047V", "ATU12345678", "ATU1234", "DE812871812"]) {
-      expect(isEuVatId(nummer), nummer).toBe(ustIdProblem(nummer, "L") === null);
+      expect(isEuVatId(nummer), nummer).toBe((ustIdProblem(nummer, "L") ?? ustIdAufbauProblem(nummer)) === null);
     }
     expect(isEuVatId("ATU1234")).toBe(false);
     expect(isEuVatId(" atu 1234 5678 ")).toBe(true);

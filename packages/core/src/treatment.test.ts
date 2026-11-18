@@ -12,6 +12,12 @@ describe("treatmentIssues", () => {
     expect(treatmentIssues("ig_lieferung", { rates: [0], sellerUstId: "DE123456789", buyerUstId: "FR40303265045", buyerCountry: "MC" })).toEqual([]);
   });
 
+  it("innergemeinschaftliche Lieferung nur mit einer USt-IdNr. im Aufbau des Landes (#1413)", () => {
+    expect(treatmentIssues("ig_lieferung", { rates: [0], sellerUstId: "DE123456789", buyerUstId: "ATU1234", buyerCountry: "AT" })).toEqual([
+      "ATU1234: eine USt-IdNr. aus Österreich hat nach AT ein U und acht Ziffern",
+    ]);
+  });
+
   it("Ausfuhrlieferung nicht an einen Kunden in Monaco, das zum Gemeinschaftsgebiet gehört", () => {
     expect(treatmentIssues("ausfuhr", { rates: [0], sellerUstId: "DE123456789", buyerCountry: "MC" })).toEqual([
       expect.stringContaining("Ausfuhrlieferung nur an Kunden außerhalb der EU"),

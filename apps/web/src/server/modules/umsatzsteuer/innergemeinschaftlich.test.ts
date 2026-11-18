@@ -294,6 +294,9 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     await expect(documents.bookDocument(actor, ohne)).rejects.toThrow("USt-IdNr. des Lieferanten");
     const deutsch = await erwerb({ supplierUstId: "DE987654321", book: false });
     await expect(documents.bookDocument(actor, deutsch)).rejects.toThrow("deutscher USt-IdNr.");
+    // Aufbau je Mitgliedstaat (#1413): ATU und acht Ziffern
+    const kurz = await erwerb({ supplierUstId: "ATU1234", book: false });
+    await expect(documents.bookDocument(actor, kurz)).rejects.toThrow("Lieferant ATU1234: eine USt-IdNr. aus Österreich hat nach AT ein U und acht Ziffern");
 
     await reset("SKR03", "ist", true);
     const ku = await erwerb({ book: false });
@@ -320,6 +323,24 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     expect(sep).toMatchObject({ kz66: 9_500, kz89: 0, kz61: 0 });
     expect((await lines(id)).map((l) => l.account)).toEqual(["1576", "1600", "3200"]);
   }, 60_000);
+
+  // Festgeschriebene Rechnungen lassen sich nicht mehr ändern; eine Sperre ließe die Meldung des Quartals nicht mehr zu (#1413)
+  it("Vorprüfung: eine USt-IdNr. im falschen Aufbau ist eine Warnung, keine Sperre", () => {
+    const issues = zm.zmIssues({
+      company: { ustId: "DE136695976", name: "Testfirma", strasse: "Musterstraße 1", plz: "93047", ort: "Regensburg" },
+      quellen: [
+        { invoiceId: "r1", number: "RE-1", customer: "Wiener Werkstatt", date: "2026-08-03", type: "invoice", ustId: "ATU1234", art: "S", base: 100_000 },
+      ],
+      zeilen: [{ ustId: "ATU1234", art: "S", betrag: 100_000 }],
+      kz21: 100_000,
+      voranmeldungen: 1,
+    });
+    expect(issues).toContainEqual({
+      tone: "warn",
+      text: "Rechnung RE-1 an Wiener Werkstatt: ATU1234: eine USt-IdNr. aus Österreich hat nach AT ein U und acht Ziffern.",
+    });
+    expect(issues.filter((i) => i.tone === "error")).toEqual([]);
+  });
 
   // § 18a Abs. 1 Satz 2 UStG: Maßgeblich ist die Summe der Bemessungsgrundlagen, nicht die je Zeile auf volle Euro
   // abgeschnittenen Beträge der Meldung; 50.001,20 € übersteigen 50.000 €
