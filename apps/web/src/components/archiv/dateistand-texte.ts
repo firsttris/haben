@@ -1,5 +1,5 @@
 /**
- * Warum zu einer Buchung keine Datei da ist, entscheidet, was über ihr steht (#1235). Drei Fälle, drei Sätze:
+ * Warum zu einer Buchung keine Datei da ist, entscheidet, was über ihr steht (#1235, #1318). Vier Sätze für drei Gründe:
  *
  * - kein Beleglink: Der Accountable-Stapel nennt für die Buchung gar keine Beleg-GUID. Es gibt keinen Einzelbeleg, das
  *   lässt sich bestätigen.

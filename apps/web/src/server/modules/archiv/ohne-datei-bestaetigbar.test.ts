@@ -54,7 +54,7 @@ describe("ohneDateiBestaetigbar", () => {
 
   it("lehnt Rechnung und Gutschrift aus der Sicherung auch mit dem Merkmal ab", () => {
     expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-4", type: "salesinvoice", ohneBeleg: true })).toBe(false);
-    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-5", type: "creditnote", ohneBeleg: true })).toBe(false);
+    expect(ohneDateiBestaetigbar({ source: "lexoffice", lexofficeId: "fVoucher-5", type: "purchasecreditnote", ohneBeleg: true })).toBe(false);
   });
 
   it("lehnt fremde Quellen ab", () => {

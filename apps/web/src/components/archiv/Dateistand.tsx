@@ -19,7 +19,7 @@ type FileState = Awaited<ReturnType<typeof getLegacyVoucher>>["fileState"];
 type FileStatus = FileState["status"];
 
 const LOOK: Partial<Record<FileStatus, { word: string; tone: "warn" | "danger" | "neutral"; emphasis?: "notice" }>> = {
-  // Ein Merkmal der Quelle, kein Auftrag: bestätigen ist nur im Accountable-Stapel und dort auf Wunsch möglich (DESIGN.md › Status)
+  // Ein Merkmal der Quelle, kein Auftrag: bestätigen lässt es sich im Accountable-Stapel und bei Buchungen ohne Beleg aus der Lexoffice-Sicherung, sonst bleibt es ein Merkmal (DESIGN.md › Status)
   ohne_beleg: { word: "Ohne Beleg", tone: "warn" },
   ohne_datei: { word: "Keine", tone: "warn", emphasis: "notice" },
   ohne_datei_offen: { word: "Prüfen", tone: "warn", emphasis: "notice" },
@@ -45,8 +45,8 @@ export function FileStatusCell({ status, files }: { status: FileStatus; files: n
  * Ersetzt die leere Vorschau: was fehlt und was als Nächstes zu tun ist.
  *
  * `grund` unterscheidet die Fälle hinter `ohne_beleg`: Buchung ohne Beleglink, Buchung mit Beleg-GUID und fehlender Datei
- * im Export, und Buchungen fremder Quellen, die das Merkmal ohne GUID setzen. Nur im ersten Fall lädt der Satz zum
- * Bestätigen ein; dort erscheint auch der Knopf.
+ * im Export, und Buchungen fremder Quellen, die das Merkmal ohne GUID setzen. Bestätigen lässt sich der fehlende
+ * Beleglink und die Buchung ohne Beleg aus der Lexoffice-Sicherung; nur dann lädt der Satz ein und erscheint der Knopf.
  */
 export function MissingFileBanner({
   status,

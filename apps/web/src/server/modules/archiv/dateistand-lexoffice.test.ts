@@ -105,7 +105,8 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Sicherung: Buchung ohne Beleg bestÃ
   it("hÃ¤lt Rechnung und Gutschrift aus der Sicherung gesperrt, auch als Buchung ohne Beleg", async () => {
     const rechnung = await beleg("fVoucher-7003", { type: "salesinvoice", ohneBeleg: true });
     await expect(dateistand.confirmWithoutFile("test-user", rechnung, "")).rejects.toThrow("Original-PDF");
-    const gutschrift = await beleg("fVoucher-7004", { type: "creditnote", ohneBeleg: true });
+    // Gutschriften aus der Sicherung kommen als FinancialPurchaseCreditNote (packages/import/src/lexoffice/web/convert.ts)
+    const gutschrift = await beleg("fVoucher-7004", { type: "purchasecreditnote", ohneBeleg: true });
     await expect(dateistand.confirmWithoutFile("test-user", gutschrift, "")).rejects.toThrow("Original-PDF");
 
     expect(await staende(rechnung)).toHaveLength(0);

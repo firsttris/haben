@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ohneBelegText } from "./dateistand-texte.ts";
 
 /*
- * Die drei Sätze über einer Buchung ohne Datei (#1235). Sie hängen am Grund, nicht an „bestätigbar“: WISO und die
- * Lexoffice-Sicherung setzen das Merkmal ohne Beleg-GUID, dort darf kein Satz über eine GUID stehen.
+ * Die Sätze über einer Buchung ohne Datei (#1235, #1318). Sie hängen am Grund und daran, ob sich bestätigen lässt:
+ * WISO und die Lexoffice-Sicherung setzen das Merkmal ohne Beleg-GUID, dort darf kein Satz über eine GUID stehen.
  */
 describe("Text über einer Buchung ohne Datei", () => {
   it("lädt nur beim fehlenden Beleglink zum Bestätigen ein", () => {
