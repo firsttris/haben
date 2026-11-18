@@ -125,7 +125,8 @@ function bild(photo: ClientResponse["tanPhoto"]): string | undefined {
  * aussteht 3956 (FinTS 3.0 Sicherheitsverfahren PIN/TAN, Rel. 2020, Kap. B „Abläufe beim Zwei-Schritt-Verfahren“,
  * Decoupled, Schritte 1b und 2b; Rückmeldungscodes der DK). Verlangt sie bei einem entkoppelten Verfahren nur 0030, will sie eine TAN zum
  * Eintippen, so die Consorsbank bei der Anmeldung mit ihrer App (firsttris/haben#654). python-fints entscheidet ebenso
- * nach dem Code (fints/client.py); dass 3955 neben 0030 genügt, bringt dort erst der offene python-fints#218.
+ * nach dem Code: bei der Dialoginitialisierung wertet es 3955 neben 0030 schon aus (fints/dialog.py), bei Aufträgen
+ * (fints/client.py) bringt das erst der offene python-fints#218.
  */
 const FREIGABE_IN_DER_APP = new Set([3955, 3956]);
 
