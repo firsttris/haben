@@ -2,7 +2,7 @@
  * Hinweis zur gezahlten Kirchensteuer (#1451): Zur Kirchensteuer nach § 10 Abs. 1 Nr. 4 EStG gehört auch die
  * einbehaltene Lohnkirchensteuer der Lohnsteuerbescheinigung. Sie steht dort in Nr. 6 und in Nr. 7 (der Anteil aus
  * dem eigenen Lohn für die Kirche des Ehegatten, bei Konfessionsverschiedenheit) sowie in Nr. 13 und 14 für
- * ermäßigt besteuerte sonstige Bezüge — die Felder sind im Muster ab 2025 unbesetzt, weil die Fünftelregelung im
+ * ermäßigt besteuerte sonstige Bezüge — die Felder sind im Muster für 2026 unbesetzt, weil die Fünftelregelung im
  * Lohnsteuerabzug entfallen ist; Bescheinigungen bis 2024 weisen sie aus. Daneben ist ein gezahltes Kirchgeld
  * abziehbar. Wer das vergisst, trägt zu niedrige Beiträge ein; die Prognose weist dann einen
  * Erstattungsüberhang aus, den es nicht gibt, oder setzt einen bestehenden zu hoch an (§ 10 Abs. 4b Satz 3 EStG),

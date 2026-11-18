@@ -11,7 +11,7 @@ describe("Hinweis zur gezahlten Kirchensteuer (#1451)", () => {
     // unbesetzt (Schreiben vom 29.8.2025).
     expect(KIRCHENSTEUER_HINWEIS).toContain("Nr. 6 und 7, bis 2024 bei sonstigen Bezügen auch Nr. 13 und 14");
     // Der alte Hinweis nannte nur die Ausnahme; die bleibt richtig und muss bleiben
-    // Nur der Zuschlag zur Abgeltungsteuer ist ausgeschlossen; Kirchensteuer auf tariflich besteuerten
+    // Nur der Zuschlag zur Abgeltungsteuer ist ausgeschlossen; Kirchensteuer auf tariflich besteuerte
     // Kapitalerträge zählt mit (§ 10 Abs. 1 Nr. 4 Halbsatz 2 EStG).
     expect(KIRCHENSTEUER_HINWEIS).toContain("nicht die Kirchensteuer zur Abgeltungsteuer");
     expect(KIRCHENSTEUER_HINWEIS).not.toContain("auf Kapitalerträge");
