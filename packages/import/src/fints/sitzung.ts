@@ -1,6 +1,8 @@
 import { type BankAccount, type BankAnswer, type BankingInformation, type ClientResponse, FinTSClient, FinTSConfig, type Statement } from "lib-fints";
 import { bankdatenNichtLoggen } from "./log.ts";
 import { lesefehler, lesefehlerMerken, type UmsatzFormat, umsatzFormat } from "./lesefehler.ts";
+import { mitEingetippterTan } from "./tan-eintippen.ts";
+import { umsatzabrufMitTanSchritt } from "./tan-schritt.ts";
 
 /**
  * Dünne Schicht über lib-fints (FinTS 3.0 mit PIN/TAN): baut den Client, übersetzt Antworten der Bank in
@@ -45,7 +47,7 @@ export interface FintsTanAnfrage {
 /** abgelehnt: Text der Bank und alle Rückmeldungscodes, damit die App bekannte Fälle erklären kann */
 export type FintsAntwort<T> = { art: "ok"; wert: T } | { art: "tan"; anfrage: FintsTanAnfrage } | { art: "abgelehnt"; meldung: string; codes: number[] };
 
-/** Fortsetzung nach einer TAN-Anfrage; ohne tan bei entkoppelten Verfahren */
+/** Fortsetzung nach einer TAN-Anfrage; ohne tan bei Freigabe in der App */
 export interface FintsWeiter {
   referenz: string;
   tan?: string;
@@ -118,14 +120,25 @@ function bild(photo: ClientResponse["tanPhoto"]): string | undefined {
   return `data:${photo.mimeType};base64,${Buffer.from(photo.image).toString("base64")}`;
 }
 
+/**
+ * Freigabe in der App nur, wenn die Bank sie so meldet: 3955 „Sicherheitsfreigabe erfolgt über anderen Kanal“, solange sie
+ * aussteht 3956 (FinTS 3.0 Sicherheitsverfahren PIN/TAN, Rel. 2020, Kap. B „Abläufe beim Zwei-Schritt-Verfahren“,
+ * Decoupled, Schritte 1b und 2b; Rückmeldungscodes der DK). Verlangt sie bei einem entkoppelten Verfahren nur 0030, will sie eine TAN zum
+ * Eintippen, so die Consorsbank bei der Anmeldung mit ihrer App (firsttris/haben#654). python-fints entscheidet ebenso
+ * nach dem Code: bei der Dialoginitialisierung wertet es 3955 neben 0030 schon aus (fints/dialog.py), bei Aufträgen
+ * (fints/client.py) bringt das erst der offene python-fints#218.
+ */
+const FREIGABE_IN_DER_APP = new Set([3955, 3956]);
+
 function antwort<T>(client: FinTSClient, response: ClientResponse, wert: () => T): FintsAntwort<T> {
   if (response.requiresTan) {
+    const entkoppelt = (client.config.selectedTanMethod?.isDecoupled ?? false) && response.bankAnswers.some((a) => FREIGABE_IN_DER_APP.has(a.code));
     return {
       art: "tan",
       anfrage: {
         referenz: response.tanReference ?? "",
         text: fintsChallengeText(response.tanChallenge) || "Bitte den Auftrag mit TAN freigeben.",
-        entkoppelt: client.config.selectedTanMethod?.isDecoupled ?? false,
+        entkoppelt,
         bild: bild(response.tanPhoto),
       },
     };
@@ -139,7 +152,9 @@ function antwort<T>(client: FinTSClient, response: ClientResponse, wert: () => T
  * liefert die erlaubten Verfahren, erst die zweite mit gewähltem Verfahren die Konten.
  */
 export async function fintsSynchronisieren(client: FinTSClient, weiter?: FintsWeiter): Promise<FintsAntwort<BankingInformation>> {
-  const response = weiter ? await client.synchronizeWithTan(weiter.referenz, weiter.tan) : await client.synchronize();
+  const response = weiter
+    ? await mitEingetippterTan(client, weiter.tan, () => client.synchronizeWithTan(weiter.referenz, weiter.tan))
+    : await client.synchronize();
   return antwort(client, response, () => client.config.bankingInformation);
 }
 
@@ -154,7 +169,9 @@ function datum(tag: string): Date {
 
 /**
  * Gebuchte Umsätze eines Kontos von bis einschließlich (CAMT, wenn die Bank es für das Konto anbietet, sonst MT940).
- * Wirft, wenn lib-fints die Umsätze nicht lesen kann (lesefehler.ts), statt sie als leer zu melden.
+ * Wirft, wenn lib-fints die Umsätze nicht lesen kann (lesefehler.ts), statt sie als leer zu melden. Verlangt die Bank
+ * entgegen HIPINS einen TAN-Schritt (9075), fragt sie Haben einmal mit TAN-Schritt neu (tan-schritt.ts), auch nach einer
+ * Fortsetzung: Brauchte schon die Anmeldung des Abrufs eine TAN, geht HKKAZ im selben Dialog danach ohne HKTAN hinaus.
  */
 export async function fintsUmsaetze(
   client: FinTSClient,
@@ -163,9 +180,9 @@ export async function fintsUmsaetze(
   bis: string,
   weiter?: FintsWeiter,
 ): Promise<FintsAntwort<FintsAuszug[]>> {
-  const response = weiter
-    ? await client.getAccountStatementsWithTan(weiter.referenz, weiter.tan)
-    : await client.getAccountStatements(konto, datum(von), datum(bis));
+  const abrufen = () => client.getAccountStatements(konto, datum(von), datum(bis));
+  let response = weiter ? await mitEingetippterTan(client, weiter.tan, () => client.getAccountStatementsWithTan(weiter.referenz, weiter.tan)) : await abrufen();
+  if (umsatzabrufMitTanSchritt(client, response)) response = await abrufen();
   const fehler = lesefehler(response);
   if (fehler) {
     throw new Error(

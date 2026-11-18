@@ -247,13 +247,15 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
       setOffen({ fuer, schritt: s });
       return;
     }
+    // Erst neu laden, dann Formular schließen und melden: Verbinden ersetzt die Verbindung samt ID, und „Trennen“ an der
+    // alten Zeile fände sie nicht mehr
+    await router.invalidate();
     setOffen(null);
     if (fuer === "neu") {
       setVerbinden(false);
       setVorlage(null);
     }
     setMeldungen(meldungenAus(s));
-    await router.invalidate();
   }
 
   async function run(id: string, work: () => Promise<void>) {
@@ -280,7 +282,9 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
         (offen?.fuer === "neu" ? (
           <SchrittForm key={offen.schritt.vorgang} schritt={offen.schritt} onSchritt={(s) => ergebnis("neu", s)} onAbbrechen={schliessen} />
         ) : (
-          <VerbindenForm key={vorlage?.id ?? "neu"} vorlage={vorlage} onSchritt={(s) => ergebnis("neu", s)} onAbbrechen={schliessen} />
+          // Nicht die ID der Verbindung allein: Die trägt schon ihre Zeile unten, und mit demselben Schlüssel blieb das
+          // Formular nach „Zugang ändern“ im DOM stehen
+          <VerbindenForm key={vorlage ? `zugang-${vorlage.id}` : "neu"} vorlage={vorlage} onSchritt={(s) => ergebnis("neu", s)} onAbbrechen={schliessen} />
         ))}
 
       <ConfirmDialog
