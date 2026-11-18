@@ -34,7 +34,7 @@ function RecurringPage() {
       <div className="page-head">
         <div>
           <div className="eyebrow">Verkauf</div>
-          <h1>Rechnungen</h1>
+          <h1>Wiederkehrende Rechnungen</h1>
         </div>
         <div className="actions">
           {due > 0 && (

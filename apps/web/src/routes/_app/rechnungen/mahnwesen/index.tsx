@@ -17,7 +17,7 @@ function DunningPage() {
       <div className="page-head">
         <div>
           <div className="eyebrow">Verkauf</div>
-          <h1>Rechnungen</h1>
+          <h1>Mahnwesen</h1>
         </div>
       </div>
       <InvoiceTabs />
