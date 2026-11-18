@@ -75,11 +75,31 @@ describe("Schalter der Gestaltung im PDF", () => {
     ).toMatch(/Umsatzsteuer 19\s?%/);
   });
 
-  it("gibt Größe und Seite des Logos und die Marken an die Vorlage", () => {
-    expect(templateInputs({}, {})).toMatchObject({ look: { logoHeight: 18, logoWidth: 60, logoLeft: false, foldMarks: true } });
+  it("gibt Größe und Stelle des Logos und die Marken an die Vorlage", () => {
+    expect(templateInputs({}, {})).toMatchObject({ look: { logoHeight: 18, logoWidth: 60, logoLeft: false, logoPosition: "rechts", foldMarks: true } });
     expect(templateInputs({}, { options: { ...DEFAULT_OPTIONS, logoSize: "l", logoPosition: "links", foldMarks: false } })).toMatchObject({
-      look: { logoHeight: 24, logoWidth: 80, logoLeft: true, foldMarks: false },
+      look: { logoHeight: 24, logoWidth: 80, logoLeft: true, logoPosition: "links", foldMarks: false },
     });
+  });
+
+  it("gibt jeder Zeile im Infoblock eine Gruppe, „kerndaten“ wo keine andere steht", () => {
+    const data = {
+      meta: [
+        { label: "Rechnungsnummer", value: "1" },
+        { label: "Lieferschein", value: "LS-1", group: "referenz" },
+      ],
+    };
+    expect(templateInputs(data, {})).toMatchObject({
+      meta: [
+        { label: "Rechnungsnummer", value: "1", group: "kerndaten" },
+        { label: "Lieferschein", value: "LS-1", group: "referenz" },
+      ],
+    });
+  });
+
+  // Ein eigenes Layout, das nur logoLeft kennt, setzt das Logo bei „mitte“ rechts wie bisher
+  it("gibt das Logo in der Mitte als logoPosition, logoLeft bleibt false", () => {
+    expect(templateInputs({}, { options: { ...DEFAULT_OPTIONS, logoPosition: "mitte" } })).toMatchObject({ look: { logoLeft: false, logoPosition: "mitte" } });
   });
 
   it("die Mahnung folgt denselben Schaltern", () => {

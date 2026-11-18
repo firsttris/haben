@@ -11,6 +11,12 @@ const templates = fixture("rechnungsvorlage-wkr.json") as {
 const generated = fixture("rechnungen-aus-vorlage.json") as SevInvoice[];
 const byId = (id: string) => templates.find((t) => String(t.invoice.id) === id)!;
 
+const v2 = JSON.parse(readFileSync(new URL("../../test-fixtures/sevdesk/buchhaltung-2.0/rechnungsvorlage-wkr.json", import.meta.url), "utf8")) as {
+  vorlage: SevInvoice;
+  positions: SevDocumentPos[];
+  erzeugteRechnungen: SevInvoice[];
+}[];
+
 describe("sevDesk-Vorlagen wiederkehrender Rechnungen", () => {
   it("liest die Intervalle von sevDesk in Monaten, Wochen und Tage gehen nicht", () => {
     expect(sevIntervalMonths("P0Y1M")).toBe(1);
@@ -36,6 +42,24 @@ describe("sevDesk-Vorlagen wiederkehrender Rechnungen", () => {
     expect(sevBilling("ID_15", generated)).toEqual({
       billing: "unklar",
       evidence: 0,
+    });
+  });
+
+  it("liest an Vorlagen aus Version 2.0 vorschüssig ab; später fertiggestellte Rechnungen lassen es offen", () => {
+    const result = Object.fromEntries(
+      v2.map(({ vorlage, positions, erzeugteRechnungen }) => {
+        const mapped = mapSevRecurringInvoice(vorlage, positions, erzeugteRechnungen);
+        return [`${vorlage.id} ${vorlage.accountIntervall} ${vorlage.status}`, mapped.ok ? mapped.billing : "nicht übernommen"];
+      }),
+    );
+    expect(result).toEqual({
+      "ID_1 P0Y1M 100": "vorschuessig",
+      "ID_11 P0Y3M 100": "vorschuessig",
+      // Jahresvorlage: Rechnungsdatum im Lauf des Jahres, nicht am Anfang
+      "ID_17 P1Y 100": "unklar",
+      "ID_23 P0Y3M 50": "vorschuessig",
+      "ID_29 P0Y3M 50": "vorschuessig",
+      "ID_35 P0Y0M1W 100": "nicht übernommen",
     });
   });
 

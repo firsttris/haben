@@ -80,28 +80,42 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
  * steuerlichen Ursprung (Fußnote 4 und „Erläuterungen zur Kennzeichnung“); nicht alle Konten damit gehören hierher. Nicht
  * dabei sind die Zinsen nach §§ 233a bis 237 AO, Abschreibungen auf ein Disagio, Vergütungen an Mitunternehmer und
  * Aufwendungen nach §§ 3 Nr. 40, 3c EStG bzw. § 8b KStG (etwa 2115, 2116 / 7350, 7351, Fußnote 9).
+ *
+ * Zinsen und Miete an Gesellschafter tragen nur das Kennzeichen K, kein G (die Gewerbesteuer der Körperschaften rechnet
+ * DATEV im Programm Körperschaftsteuer, „Erläuterungen zur Kennzeichnung“). Sie gehören trotzdem dazu: § 8 Nr. 1 a, d und e
+ * fragt nicht, wer Gläubiger oder Vermieter ist, und die Ausnahme für Mitunternehmer gibt es bei der GmbH nicht (#1346).
  */
 export type HinzurechnungArt = "zinsen" | "renten" | "beweglich" | "elektro" | "unbeweglich" | "rechte";
 const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: BasisPoints, text: string][]> = {
   SKR03: [
     // Mit den Zinsen zur Finanzierung des Anlagevermögens aus dem Darlehen (darlehen.ts), an verbundene Unternehmen,
-    // auf Kontokorrentkonten und für Gebäude
-    ["zinsen", ["2100", "2109", "2110", "2118", "2119", "2120", "2125", "2126", "2129"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    // auf Kontokorrentkonten und für Gebäude, für Gesellschafterdarlehen (2114) und an Gesellschafter mit mehr als 25 % (2117)
+    ["zinsen", ["2100", "2109", "2110", "2114", "2117", "2118", "2119", "2120", "2125", "2126", "2129"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["renten", ["2127"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
     // Mit Mietleasing für technische Anlagen und Maschinen (4810) und Betriebs- und Geschäftsausstattung (4965); Miete,
-    // Pacht und Lizenzen auch als Fremdleistungen (3170, 3175, 3180)
-    ["beweglich", ["3170", "4570", "4810", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    // Pacht und Lizenzen auch als Fremdleistungen (3170, 3175, 3180); Miete und Pacht an Gesellschafter (4958)
+    [
+      "beweglich",
+      ["3170", "4570", "4810", "4958", "4960", "4961", "4963", "4965"],
+      2000,
+      "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)",
+    ],
     ["elektro", ["4575"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
-    // Mit Garagenmiete
-    ["unbeweglich", ["3175", "4210", "4211", "4215", "4220", "4550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    // Mit Miete und Pacht an Gesellschafter (4222) und Garagenmiete
+    ["unbeweglich", ["3175", "4210", "4211", "4215", "4220", "4222", "4550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
     ["rechte", ["3180", "4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
   SKR04: [
-    ["zinsen", ["7300", "7309", "7310", "7318", "7319", "7320", "7325", "7326", "7329"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["zinsen", ["7300", "7309", "7310", "7316", "7317", "7318", "7319", "7320", "7325", "7326", "7329"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["renten", ["7327"], 10_000, "Renten und dauernde Lasten (§ 8 Nr. 1 b)"],
-    ["beweglich", ["5970", "6498", "6560", "6835", "6836", "6838", "6840"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    [
+      "beweglich",
+      ["5970", "6498", "6560", "6833", "6835", "6836", "6838", "6840"],
+      2000,
+      "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)",
+    ],
     ["elektro", ["6565"], 1000, "Miete und Leasing für Elektrofahrzeuge und Fahrräder (§ 8 Nr. 1 d Satz 2)"],
-    ["unbeweglich", ["5975", "6310", "6315", "6316", "6317", "6550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    ["unbeweglich", ["5975", "6310", "6313", "6315", "6316", "6317", "6550"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
     ["rechte", ["5980", "6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
 };

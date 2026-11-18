@@ -1,4 +1,5 @@
 import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
+import { feldfehlerAdapter } from "./lib/feldfehler.ts";
 import { csrfOptions } from "./server/csrf.ts";
 import { withCacheControl, withFrameAncestors } from "./server/security-headers.ts";
 
@@ -8,4 +9,7 @@ const securityHeaders = createMiddleware().server(async ({ next, request }) => {
   return { ...result, response: withCacheControl(withFrameAncestors(result.response, new URL(request.url).pathname)) };
 });
 
-export const startInstance = createStart(() => ({ requestMiddleware: [createCsrfMiddleware(csrfOptions), securityHeaders] }));
+export const startInstance = createStart(() => ({
+  requestMiddleware: [createCsrfMiddleware(csrfOptions), securityHeaders],
+  serializationAdapters: [feldfehlerAdapter],
+}));

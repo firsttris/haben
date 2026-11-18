@@ -390,4 +390,45 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     const stand = await zahlung.ustvaPosten(undefined, { bis: "2024-12-31" });
     expect(stand.posten.map((p) => [p.vatReturnId, p.offen])).toEqual([[alt!.id, 19_000]]);
   });
+
+  /** Altbestand Dezember 2024 (190,00 €, vor vat_items_since gesendet), am `zahlung` (TT.MM.JJ) mit 10,00 € angezahlt, Bezug aufgehoben am `aufhebung` */
+  async function altbestandMitAufhebung(zahlung: string, aufhebung: string) {
+    const [alt] = await sql`insert into vat_returns (year, month, status, source, kz81, kz83, transfer_ticket, sent_at, locked_at)
+      values (2024, 12, 'sent', 'manuell', 100000, 19000, 'etALT202412', '2025-01-09T10:00:00Z', '2025-01-09T10:00:00Z') returning id`;
+    await bank.importStatement(actor, { bytes: dkbCsv([row(zahlung, "Finanzamt Regensburg", "USt 12/24", "-10,00")]), filename: "anzahlung.csv" }, null);
+    const [ustZahlung] = await sql`select id from bank_transactions where amount = -1_000`;
+    await bank.allocate(actor, { kind: "ustva", transactionId: ustZahlung!.id as string, vatReturnId: alt!.id as string, amount: -1_000 });
+    const [zuordnung] = await sql`select id from allocations where vat_return_id = ${alt!.id as string}`;
+    await bank.reverseAllocation(actor, zuordnung!.id as string, aufhebung);
+    return alt!.id as string;
+  }
+
+  it("lässt eine Voranmeldung aus dem Altbestand im Stand, deren Bezug erst nach dem Stichtag aufgehoben wurde (#1323)", async () => {
+    const alt = await altbestandMitAufhebung("20.12.24", "2026-02-20");
+
+    // Am 31.12.2024 waren 10,00 € bezahlt und 180,00 € offen; die Aufhebung vom Februar 2026 ändert den Stand nicht
+    const stand = await zahlung.ustvaPosten(undefined, { bis: "2024-12-31" });
+    expect(stand.posten.map((p) => [p.vatReturnId, p.bezahlt, p.offen])).toEqual([[alt, 1_000, 18_000]]);
+    // Heute fehlt der Bezug, der Altbestand ist kein Posten mehr
+    expect((await zahlung.ustvaPosten()).posten).toEqual([]);
+  });
+
+  it("nimmt eine Voranmeldung aus dem Altbestand aus dem Stand, deren Bezug schon vor dem Stichtag aufgehoben wurde", async () => {
+    // Kontenrahmen und Versteuerung ändern den Weg nicht; SKR04 und Soll, damit beide einmal vorkommen
+    await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'soll'`;
+    await altbestandMitAufhebung("20.12.24", "2024-12-28");
+
+    expect((await zahlung.ustvaPosten(undefined, { bis: "2024-12-31" })).posten).toEqual([]);
+  });
+
+  it("lässt eine Voranmeldung aus dem Altbestand offen im Stand, deren Zahlung mit Bezug und Aufhebung beide nach dem Stichtag liegen", async () => {
+    // Die Zahlung nach dem Stichtag macht die Voranmeldung zum Posten, die spätere Aufhebung zählt zum Stichtag nicht
+    // (Vorgabe im Issue #1323); am 31.12.2024 war die Steuer entstanden und nichts bezahlt
+    const alt = await altbestandMitAufhebung("10.02.25", "2025-03-01");
+
+    const stand = await zahlung.ustvaPosten(undefined, { bis: "2024-12-31" });
+    expect(stand.posten.map((p) => [p.vatReturnId, p.offen])).toEqual([[alt, 19_000]]);
+    // Zum 31.12.2025 war der Bezug schon aufgehoben
+    expect((await zahlung.ustvaPosten(undefined, { bis: "2025-12-31" })).posten).toEqual([]);
+  });
 });

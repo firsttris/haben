@@ -116,8 +116,7 @@ test("Steuerbehandlung: nur, was die Übernahme annimmt; die Befreiungsvorschrif
   await datei(page, "FS-1003.pdf", await fremdesPdf(page, "FS-1003"));
   const behandlung = page.getByLabel("Steuerbehandlung");
   const vorschrift = page.getByLabel("Befreiungsvorschrift");
-  // Nicht angeboten: sonstige Leistung im EU-Ausland (Leistungsort fehlt im Formular) und Kleinunternehmer ohne eingeschaltete Einstellung
-  await expect(behandlung.locator("option[value=eu_sonstige]")).toHaveCount(0);
+  // Nicht angeboten: Kleinunternehmer ohne eingeschaltete Einstellung
   await expect(behandlung.locator("option[value=kleinunternehmer]")).toHaveCount(0);
   await expect(behandlung.locator("option[value=steuerfrei]")).toHaveCount(1);
   await expect(vorschrift).toHaveCount(0);
@@ -127,6 +126,30 @@ test("Steuerbehandlung: nur, was die Übernahme annimmt; die Befreiungsvorschrif
   await expect(behandlung).toHaveAccessibleDescription(/Steuerbefreiung nach § 4 UStG/);
   await behandlung.selectOption("ig_lieferung");
   await expect(behandlung).toHaveAccessibleDescription(/§ 4 Nr\. 1 Buchst\. b, § 6a UStG/);
+});
+
+test("Auslandsleistung: Leistungsort wie im Rechnungseditor, bei der sonstigen EU-Leistung Pflicht, nie aus der Kundenanschrift vorbelegt (#1392)", async () => {
+  await formularOeffnen(page);
+  await datei(page, "FS-1005.pdf", await fremdesPdf(page, "FS-1005"));
+  const behandlung = page.getByLabel("Steuerbehandlung");
+  const land = page.getByLabel("Land des tatsächlichen Leistungsorts");
+  const auslandsSteuer = page.getByLabel("Ausländische Umsatzsteuer");
+  await expect(land).toHaveCount(0);
+  await behandlung.selectOption("drittland");
+  await expect(land).toHaveValue("");
+  await expect(land).toHaveJSProperty("required", false);
+  await expect(page.getByText("Gesamtumsatz: Leistungsort ungeklärt.")).toBeVisible();
+  await land.fill("ch");
+  await expect(land).toHaveValue("CH");
+  await auslandsSteuer.selectOption("bestaetigt");
+  await expect(page.getByText("Gesamtumsatz: Leistungsort ungeklärt.")).toHaveCount(0);
+  // Eine andere Behandlung verlangt eine neue Bestätigung
+  await behandlung.selectOption("eu_sonstige");
+  await expect(land).toHaveValue("");
+  await expect(land).toHaveJSProperty("required", true);
+  await expect(auslandsSteuer).toHaveJSProperty("required", true);
+  await behandlung.selectOption("regulaer");
+  await expect(land).toHaveCount(0);
 });
 
 test("Ein negativer Betrag wird schon im Formular abgefangen", async () => {
