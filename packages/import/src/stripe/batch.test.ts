@@ -52,6 +52,26 @@ describe("stripeBatch", () => {
     expect(result.blocking).toBe(0);
   });
 
+  it("setzt Name und Verwendungszweck der Zahlung aus dem Charge, wenn die Balance Transaction keine Beschreibung hat", () => {
+    const result = accept([
+      txn({ description: null, customerName: "Beispiel GmbH", chargeDescription: "Rechnung 2026-117", invoice: "RE-0026" }),
+      txn({ id: "txn_2", description: null }),
+    ]);
+    const [paid, , bare] = result.accepted;
+    expect(paid).toMatchObject({ counterpartyName: "Beispiel GmbH", purpose: "Rechnung 2026-117 · RE-0026" });
+    // Die Gebühr hat Stripe als Gegenseite, nicht den Kunden
+    expect(result.accepted[1]).toMatchObject({ component: "fee", counterpartyName: "Stripe" });
+    expect(bare!.counterpartyName).toBeUndefined();
+    expect(bare!.purpose).toBe("charge");
+  });
+
+  it("lässt bei Auszahlung und Stripe-Rechnung Stripe als Gegenpartei, auch wenn ein Kunde bekannt wäre", () => {
+    const result = accept([
+      txn({ id: "txn_3", amount: -9700, fee: 0, net: -9700, reporting_category: "payout", type: "payout", source: "po_1", customerName: "Beispiel GmbH" }),
+    ]);
+    expect(result.accepted[0]!.counterpartyName).toBe("Stripe");
+  });
+
   it("nimmt auch noch nicht verfügbares Guthaben (pending) an", () => {
     expect(accept([txn({ status: "pending" })]).accepted).toHaveLength(2);
   });

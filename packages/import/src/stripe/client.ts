@@ -27,6 +27,15 @@ export interface StripeClientOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
+/** Angaben des Kunden am Charge (`ch_…`, bei SEPA und Wallets `py_…`), nicht an der Balance Transaction */
+const chargeDetailsShape = {
+  billing_details: z.looseObject({ name: z.string().nullish(), email: z.string().nullish() }).nullish(),
+  receipt_email: z.string().nullish(),
+  description: z.string().nullish(),
+  /** Stripe-Rechnung, zu der die Zahlung gehört: ID, aufgeklappt das Objekt */
+  invoice: z.union([z.string(), z.looseObject({ id: z.string(), number: z.string().nullish() })]).nullish(),
+};
+
 const balanceTransactionSchema = z.looseObject({
   id: z.string(),
   /** Bruttobetrag in der kleinsten Einheit, mit Vorzeichen */
@@ -49,7 +58,16 @@ const balanceTransactionSchema = z.looseObject({
       z.string(),
       z.looseObject({
         id: z.string(),
-        charge: z.union([z.string(), z.looseObject({ balance_transaction: z.union([z.string(), z.looseObject({ id: z.string() })]).nullish() })]).nullish(),
+        ...chargeDetailsShape,
+        charge: z
+          .union([
+            z.string(),
+            z.looseObject({
+              ...chargeDetailsShape,
+              balance_transaction: z.union([z.string(), z.looseObject({ id: z.string() })]).nullish(),
+            }),
+          ])
+          .nullish(),
       }),
     ])
     .nullish(),
@@ -78,14 +96,42 @@ export interface StripeBalanceTransaction {
   status?: string | null;
   type: string;
   relatedTransactionId?: string;
+  /** Aus dem Charge (bei Erstattung und Streit aus dem der ursprünglichen Zahlung): Name des Kunden, sonst seine E-Mail-Adresse */
+  customerName?: string;
+  /** Beschreibung des Charge, falls die Balance Transaction keine hat */
+  chargeDescription?: string;
+  /** Nummer der Stripe-Rechnung, aufgeklappt, sonst ihre ID (`in_…`) */
+  invoice?: string;
+}
+
+type ChargeDetails = {
+  billing_details?: { name?: string | null; email?: string | null } | null;
+  receipt_email?: string | null;
+  description?: string | null;
+  invoice?: string | { id: string; number?: string | null } | null;
+};
+
+/** Kundenangaben aus einem aufgeklappten Charge; was fehlt, bleibt weg */
+function chargeInfo(charge: ChargeDetails | null | undefined) {
+  if (!charge) return {};
+  const name = charge.billing_details?.name?.trim() || charge.billing_details?.email?.trim() || charge.receipt_email?.trim();
+  const description = charge.description?.trim();
+  const invoice = typeof charge.invoice === "object" && charge.invoice ? charge.invoice.number?.trim() || charge.invoice.id : charge.invoice || undefined;
+  return {
+    ...(name ? { customerName: name } : {}),
+    ...(description ? { chargeDescription: description } : {}),
+    ...(invoice ? { invoice } : {}),
+  };
 }
 
 function normalize(raw: z.infer<typeof balanceTransactionSchema>): StripeBalanceTransaction {
   const { source, ...rest } = raw;
   if (!source || typeof source === "string") return { ...rest, source: source ?? null };
-  const bt = typeof source.charge === "object" && source.charge ? source.charge.balance_transaction : null;
+  const charge = typeof source.charge === "object" && source.charge ? source.charge : null;
+  const bt = charge?.balance_transaction;
   const related = typeof bt === "string" ? bt : bt?.id;
-  return { ...rest, source: source.id, ...(related ? { relatedTransactionId: related } : {}) };
+  // Zahlung: der Charge ist die Quelle selbst; Erstattung und Streit verweisen mit `charge` auf die Zahlung
+  return { ...rest, source: source.id, ...chargeInfo(charge ?? source), ...(related ? { relatedTransactionId: related } : {}) };
 }
 
 const listSchema = z.looseObject({ data: z.array(balanceTransactionSchema), has_more: z.boolean() });
@@ -132,7 +178,9 @@ export class StripeClient {
         // Erste Sekunde nach dem letzten Tag, ausgeschlossen
         "created[lt]": String(startOfDay(dateTo) + 86_400),
       });
-      // Bei Erstattung und Streit nennt die Zahlung, auf die sie sich beziehen; andere Arten haben kein `charge`
+      // `source` klappt bei einer Zahlung den Charge mit Name, E-Mail und Beschreibung des Kunden auf, `source.charge`
+      // bei Erstattung und Streit die Zahlung, auf die sie sich beziehen. Andere Arten haben keinen Charge.
+      query.append("expand[]", "data.source");
       query.append("expand[]", "data.source.charge");
       if (startingAfter) query.set("starting_after", startingAfter);
       const result = await this.#json(`/v1/balance_transactions?${query}`, listSchema);

@@ -54,11 +54,38 @@ describe("StripeClient", () => {
     const plain = { ...txn("txn_c"), source: "ch_1" };
     const { client: c, calls } = client([json({ object: "list", data: [refund, payout, plain], has_more: false })]);
     const all = await c.balanceTransactions("2026-10-01", "2026-10-31");
-    expect(calls[0]!.url.searchParams.get("expand[]")).toBe("data.source.charge");
+    expect(calls[0]!.url.searchParams.getAll("expand[]")).toEqual(["data.source", "data.source.charge"]);
     expect(all.map((t) => [t.id, t.source, t.relatedTransactionId])).toEqual([
       ["txn_r", "re_1", "txn_c"],
       ["txn_p", "po_1", undefined],
       ["txn_c", "ch_1", undefined],
+    ]);
+  });
+
+  it("übernimmt Name, Beschreibung und Rechnung des Kunden aus dem Charge, bei Erstattung aus der ursprünglichen Zahlung", async () => {
+    const charge = {
+      id: "ch_1",
+      object: "charge",
+      billing_details: { name: "Beispiel GmbH", email: "buchhaltung@beispiel.test" },
+      receipt_email: "quittung@beispiel.test",
+      description: "Rechnung 2026-117",
+      invoice: { id: "in_1", number: "RE-0026" },
+    };
+    const sepa = { ...txn("txn_s"), source: { id: "py_1", object: "charge", billing_details: { name: null, email: "kunde@beispiel.test" }, invoice: "in_2" } };
+    const refund = { ...txn("txn_r"), type: "refund", source: { id: "re_1", object: "refund", charge: { ...charge, balance_transaction: "txn_c" } } };
+    const { client: c } = client([
+      json({
+        object: "list",
+        data: [{ ...txn("txn_c"), source: charge }, sepa, refund, { ...txn("txn_x"), source: { id: "ch_9", object: "charge" } }],
+        has_more: false,
+      }),
+    ]);
+    const all = await c.balanceTransactions("2026-10-01", "2026-10-31");
+    expect(all.map((t) => [t.id, t.customerName, t.chargeDescription, t.invoice])).toEqual([
+      ["txn_c", "Beispiel GmbH", "Rechnung 2026-117", "RE-0026"],
+      ["txn_s", "kunde@beispiel.test", undefined, "in_2"],
+      ["txn_r", "Beispiel GmbH", "Rechnung 2026-117", "RE-0026"],
+      ["txn_x", undefined, undefined, undefined],
     ]);
   });
 

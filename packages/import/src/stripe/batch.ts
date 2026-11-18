@@ -81,7 +81,9 @@ function movements(t: StripeBalanceTransaction): ImportMovement[] | string {
     ...(RELATED.has(kind) && t.relatedTransactionId ? { relatedEventId: t.relatedTransactionId } : {}),
   };
   const stripe = STRIPE_IST_GEGENPARTEI.has(kind);
-  const purpose = t.description?.trim() || category;
+  // Zahlung, Erstattung, Streit: der Kunde aus dem Charge; bei Auszahlung und Gebühr ist Stripe die Gegenseite
+  const customer = stripe ? undefined : t.customerName;
+  const purpose = [t.description?.trim() || t.chargeDescription || category, t.invoice].filter(Boolean).join(" · ");
   const list: ImportMovement[] = [];
   // Eine Bewegung über 0 gibt es nicht; eine reine Gebühr (Betrag 0) bleibt als Gebührenkomponente
   if (t.amount !== 0) {
@@ -89,7 +91,7 @@ function movements(t: StripeBalanceTransaction): ImportMovement[] | string {
       ...base,
       component: "main",
       amount: t.amount,
-      ...(stripe ? { counterpartyName: "Stripe" } : {}),
+      ...(stripe ? { counterpartyName: "Stripe" } : customer ? { counterpartyName: customer } : {}),
       purpose,
       references,
     });
