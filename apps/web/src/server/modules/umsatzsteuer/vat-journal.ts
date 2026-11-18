@@ -14,14 +14,19 @@ import { and, asc, eq, gte, lt, notInArray, or, sql } from "drizzle-orm";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
+const updateAufDasJournal = sql`(select min(${schema.journalUmstellung.at}) from ${schema.journalUmstellung})`;
+
 /**
  * Belegbuchung aus einer Version vor dem Update auf das Journal (v0.10): angelegt vor der ersten Zeile in
- * journal_umstellung, die die Migration 0275 beim Update schreibt. Nur solche Buchungen kann Haben vor #551 geschrieben haben;
- * mitBemessungWieHeute gilt nur für sie, Buchungen neuer Versionen deutet es so nie um (#1396). Ohne die Tabelle oder ihre
- * erste Zeile: keine. Fällt journal_umstellung mit #1201 weg, muss dieser Zeitpunkt bleiben.
+ * journal_umstellung, die die Migration 0275 beim Update schreibt, oder der Storno einer solchen. Nur solche Buchungen kann
+ * Haben vor #551 geschrieben haben; ein späterer Storno kehrt die gebuchten Zeilen um, wenn die heutigen nicht auf jedem
+ * Konto dasselbe ergeben (zeilenWieHeute). mitBemessungWieHeute gilt nur für sie, Buchungen neuer Versionen deutet es so
+ * nie um (#1396). Ohne die Tabelle oder ihre erste Zeile: keine. Fällt journal_umstellung mit #1201 weg, muss dieser
+ * Zeitpunkt bleiben.
  */
-export const belegAusAlterVersion = sql<boolean>`(${schema.journalEntries.sourceType} = 'document'
-  and ${schema.journalEntries.createdAt} < (select min(${schema.journalUmstellung.at}) from ${schema.journalUmstellung}))`;
+export const belegAusAlterVersion = sql<boolean>`(${schema.journalEntries.sourceType} = 'document' and coalesce(
+  (select o.created_at from journal_entries o where o.id = ${schema.journalEntries.reversesId}), ${schema.journalEntries.createdAt}
+) < ${updateAufDasJournal})`;
 
 /*
  * Kennzahlen der Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): die Quelle der Voranmeldung,
