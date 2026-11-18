@@ -1,6 +1,6 @@
 import { addDays } from "@haben/core";
-import { and, eq, gte, inArray, max, ne, notInArray, sql } from "drizzle-orm";
-import { schema, type Tx } from "../../db/index.ts";
+import { and, eq, gte, inArray, isNotNull, max, ne, notInArray, sql } from "drizzle-orm";
+import { db, schema, type Tx } from "../../db/index.ts";
 
 /*
  * Andere Importe eines Kontos (Datei, FinTS, Abruf vor der Bindung) aus Sicht einer Lieferung des Importvertrags (#306):
@@ -99,4 +99,22 @@ export function connectedRanges(window: { from: string; to: string }, ranges: { 
   function touches(r: { from: string; to: string }) {
     return r.from <= addDays(to, 1) && r.to >= addDays(from, -1);
   }
+}
+
+/**
+ * Stichtag je Konto mit Quellenbindung, für die Anzeige am Abruf: ab diesem Tag kommen die Umsätze aus dem Bankabruf;
+ * `filesBefore`, wenn davor Umsätze aus Dateien oder FinTS stehen (jedes Format außer `enablebanking`)
+ */
+export async function cutoverDates(): Promise<{ bankAccountId: string; cutoverDate: string; filesBefore: boolean }[]> {
+  const rows = await db
+    .select({
+      bankAccountId: schema.importSources.bankAccountId,
+      cutoverDate: schema.importSources.cutoverDate,
+      filesBefore: sql<boolean>`exists (select 1 from bank_transactions t join bank_imports i on i.id = t.import_id
+        where t.bank_account_id = import_sources.bank_account_id and i.format <> 'enablebanking'
+        and t.booking_date < import_sources.cutover_date)`,
+    })
+    .from(schema.importSources)
+    .where(isNotNull(schema.importSources.cutoverDate));
+  return rows.map((r) => ({ bankAccountId: r.bankAccountId, cutoverDate: r.cutoverDate!, filesBefore: r.filesBefore }));
 }

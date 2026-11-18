@@ -1,7 +1,9 @@
 import { evatrMeldung } from "@haben/core";
 import { and, asc, eq, gte, lt } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { type ArchiveFile, berlinStart, csv, iso, json } from "./export.ts";
+import { csv, iso, json } from "./csv.ts";
+import type { ArchiveFile } from "./export.ts";
+import { berlinStart } from "./jahr.ts";
 
 /*
  * Versionen der Kontakte und Bestätigungen ihrer USt-IdNrn. beim BZSt (#1385) im Jahresarchiv. Die Versionen sind der Stand
