@@ -1,5 +1,5 @@
 import { type FintsClient, type FintsKonto, type FintsZugang, fintsClient, fintsKonten, fintsSynchronisieren, fintsTanVerfahren } from "@haben/import";
-import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, min } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError } from "./bank.ts";
 import { accountFetchFrom, zustimmungenBeenden } from "./bank-sync.ts";
@@ -9,7 +9,7 @@ import { fintsProduktOderFehler } from "./fints-produkt.ts";
 import { type FintsSchritt, mitTan, vorgangMerken } from "./fints-vorgang.ts";
 import { fremdwaehrung, kontenUebernehmen, neuAngelegt } from "./konto-uebernahme.ts";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import type { BankConnectionAccount } from "../../db/schema.ts";
 import { today as todayInGermany } from "../../today.ts";
 
@@ -169,6 +169,19 @@ function hinweiseZuKonten(neu: string[], abgewaehlt: string[], ohneIban: number,
 }
 
 /**
+ * Erster Tag, den FinTS ein Konto schon einmal abgerufen hat; null, wenn noch nie. Ein abgewähltes Konto verliert mit der
+ * Verbindung seinen Abrufstand. Wieder angehakt, holte der erste Abruf ohne Umsätze sonst ab Jahresbeginn, beim Umzug unter
+ * dem Jahr auch Tage vor „Umsätze abrufen ab“, die in der alten Buchhaltung stehen (followUpStart in bank-sync.ts).
+ */
+async function fintsAbgerufenAb(tx: Tx, bankAccountId: string): Promise<string | null> {
+  const [row] = await tx
+    .select({ von: min(schema.bankImports.periodFrom) })
+    .from(schema.bankImports)
+    .where(and(eq(schema.bankImports.bankAccountId, bankAccountId), eq(schema.bankImports.format, "fints")));
+  return row?.von ?? null;
+}
+
+/**
  * Legt die Verbindung mit den gewählten Konten an und ordnet sie über die IBAN zu (fehlende werden angelegt). Ein neuer
  * Zugang derselben Bank mit demselben Anmeldenamen (etwa nach einer neuen PIN) löst den alten ab und übernimmt dessen
  * Abrufstand; ein Konto, das die Person dabei abwählt, behält seine Umsätze und wird nicht mehr abgerufen. Konten, die
@@ -187,13 +200,14 @@ async function speichern(v: Verbindung, { fremdwaehrung, ohneIban }: ReturnType<
       const bankAccount = await accountForIban(tx, iban, `${bankName}${konto.product ? ` ${konto.product}` : ""} …${iban.slice(-4)}`.slice(0, 100));
       if (!bekannt) neu.push(bankAccount.name);
       const vorher = andere.flatMap((o) => o.accounts).find((a) => a.bankAccountId === bankAccount.id);
+      const abgerufenAb = vorher || v.fetchFrom ? null : await fintsAbgerufenAb(tx, bankAccount.id);
       accounts.push({
         uid: iban,
         iban,
         name: bankAccount.name,
         bankAccountId: bankAccount.id,
         syncedTo: vorher?.syncedTo ?? null,
-        ...accountFetchFrom(vorher, v.fetchFrom),
+        ...accountFetchFrom(vorher, v.fetchFrom ?? abgerufenAb),
       });
     }
     // Derselbe Zugang neu (etwa nach einer neuen PIN) löst den alten ab; dessen Abrufstand steht schon in accounts
