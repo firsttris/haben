@@ -517,7 +517,7 @@ Der Beleg geht dann an OpenRouter und an den Anbieter des Modells. Wie lange sie
 
 ## Bankkonten
 
-Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking oder FinTS legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking) und [Kontoabruf über FinTS](installation-anbindungen.md#kontoabruf-über-fints), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
+Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking oder FinTS legt Haben beim Verbinden die freigegebenen Konten an, bei FinTS die gewählten (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking) und [Kontoabruf über FinTS](installation-anbindungen.md#kontoabruf-über-fints), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
 
 1. Auf der Seite **Bank** „Konto hinzufügen“ wählen.
 2. Name (z. B. „N26 Business“) und IBAN eintragen und „Konto anlegen“.

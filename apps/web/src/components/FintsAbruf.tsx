@@ -108,7 +108,7 @@ function VerbindenForm({ vorlage, onSchritt, onAbbrechen }: { vorlage: Verbindun
       <Field
         label="Umsätze abrufen ab"
         error={fehler("fetchFrom")}
-        hint="Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind."
+        hint="Gilt für Konten, die Haben noch nicht abruft, auch für ein wieder angehaktes. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind."
       >
         {(control) => <input {...control} type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} />}
       </Field>
