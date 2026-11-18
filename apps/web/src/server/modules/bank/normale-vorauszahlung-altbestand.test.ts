@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { invoicePosting } from "@haben/core";
+import { ACCOUNTS, invoicePosting } from "@haben/core";
 import { eq } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -138,11 +138,11 @@ describe.skipIf(!testDatabaseUrl)("Neue Vorauszahlung auf unmarkierte normale Al
     const payment = await transaction();
     const before = await state();
     await expect(bank.allocate(actor, { kind: "invoice", transactionId: payment, invoiceId: invoice.id, amount: 11_900 })).rejects.toThrow(
-      /Alt-Rechnung.*Bestandskorrektur.*datiert/,
+      /Alt-Rechnung.*Storniere sie.*Leistungszeitraum neu/,
     );
     expect(await state()).toEqual(before);
     await expect(bank.allocateSplit(actor, { transactionId: payment, parts: [{ kind: "invoice", invoiceId: invoice.id, amount: 11_900 }] })).rejects.toThrow(
-      /Alt-Rechnung.*Bestandskorrektur.*datiert/,
+      /Alt-Rechnung.*Storniere sie.*Leistungszeitraum neu/,
     );
     expect(await state()).toEqual(before);
     expect((await bank.transactionDetail(payment))?.transaction.open).toBe(11_900);
@@ -154,7 +154,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Vorauszahlung auf unmarkierte normale Al
     const invoice = await legacyInvoice();
     const before = await state();
     await expect(bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2025-12-13", amount: 11_900 }, "2026-03-01")).rejects.toThrow(
-      /Alt-Rechnung.*Bestandskorrektur.*datiert/,
+      /Alt-Rechnung.*Storniere sie.*Leistungszeitraum neu/,
     );
     expect(await state()).toEqual(before);
     const cash = await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-01-20", amount: 11_900 }, "2026-03-01");
@@ -162,6 +162,53 @@ describe.skipIf(!testDatabaseUrl)("Neue Vorauszahlung auf unmarkierte normale Al
     const after = await state();
     expect(after.invoices).toEqual(before.invoices);
     expect(after.returns).toEqual(before.returns);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
+  // Der in der Meldung genannte Weg: Storno der Alt-Rechnung, neue Rechnung mit Leistungszeitraum, Zahlung dorthin.
+  it("GmbH/SKR04/Soll: Storno und neue Rechnung mit Leistungszeitraum nehmen die Vorauszahlung im Eingangsmonat auf", async () => {
+    await sql`update company set kontenrahmen = 'SKR04'`;
+    const vat = await import("../umsatzsteuer/index.ts");
+    const reports = await import("../auswertungen/index.ts");
+    const legacy = await legacyInvoice();
+    const payment = await transaction();
+    await invoices.cancelInvoice(actor, legacy.id, "2026-01-31");
+    const draft = await invoices.createDraft(actor, {
+      contactId,
+      issueDate: "2026-01-31",
+      serviceFrom: "2026-01-10",
+      serviceTo: "2026-01-20",
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      lines: [{ description: "Softwareeinrichtung", quantity: 1000, unit: "Psch.", unitPrice: 70_000, taxRate: 1900 }],
+    });
+    const fresh = await invoices.finalizeInvoice(actor, draft.id);
+    expect(fresh.advanceAccounting).toBe("deferred");
+    await bank.allocate(actor, { kind: "invoice", transactionId: payment, invoiceId: fresh.id, amount: 11_900 });
+    const month = async (year: number, m: number) => {
+      const f = await vat.computeVatFigures({ year, month: m });
+      expect((await reports.vatAbgleich({ year, month: m })).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
+      return { kz81: f.kz81, tax81: f.tax81 };
+    };
+    // Gemeldeter Dezember: Die Vorauszahlung ist dort zu berichtigen (§ 13 Abs. 1 Nr. 1 a Satz 4 UStG)
+    expect(await month(2025, 12)).toEqual({ kz81: 10_000, tax81: 1_900 });
+    expect(await month(2026, 1)).toEqual({ kz81: 60_000, tax81: 11_400 });
+    const saldo = async (account: string) =>
+      (await accounting.saldenliste({ from: "2025-01-01", to: "2025-12-31" })).find((row) => row.account === account)?.saldo ?? 0;
+    // GmbH: der Nettobetrag bis zur Leistung als erhaltene Anzahlung (§ 266 Abs. 3 C.3 HGB)
+    expect(await saldo(ACCOUNTS.SKR04.erhalteneAnzahlungen)).toBe(-10_000);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
+  // Ist ohne Bilanz: Der bisherige Weg ist dort steuerlich schon richtig (§ 13 Abs. 1 Nr. 1 b UStG, § 11 EStG).
+  // Entscheidung: https://github.com/firsttris/haben/pull/1228#issuecomment-6925771896
+  it("Einzelunternehmen/SKR03/Ist: lässt die Zahlung vor der Leistung auf dem bisherigen Weg zu", async () => {
+    await sql`update company set rechtsform = 'einzelunternehmen', versteuerung = 'ist'`;
+    const invoice = await legacyInvoice();
+    const payment = await transaction();
+    await bank.allocate(actor, { kind: "invoice", transactionId: payment, invoiceId: invoice.id, amount: 11_900 });
+    expect((await bank.transactionDetail(payment))?.transaction.open).toBe(0);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 });
