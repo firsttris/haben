@@ -143,4 +143,18 @@ describe("etsyLedgerBatch", () => {
     ]);
     expect(batch.movements[0]?.sourceTimestamp).toBe("2026-10-05T10:00:00.000Z");
   });
+
+  it("führt die Umsatzsteuer auf Gebühren (vat_seller_services) als Gebühr, nicht unter unsupported", () => {
+    const batch = etsyLedgerBatch({
+      ...base,
+      entries: [
+        entry({ entry_id: 1, sequence_number: 1, amount: -20, ledger_type: "listing" }),
+        entry({ entry_id: 2, sequence_number: 2, amount: -4, ledger_type: "vat_seller_services", parent_entry_id: 1 }),
+      ],
+    });
+    expect(batch.unsupported).toEqual([]);
+    expect(batch.movements.find((m) => m.sourceEventId === "2")).toMatchObject({ kind: "fee", amount: -4, references: { relatedEventId: "1" } });
+    const result = validateBatch(batch, binding);
+    expect(result.ok && result.blocking).toBe(0);
+  });
 });

@@ -348,4 +348,18 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
     expect(statement.format).toBe("etsy-ledger");
     expect(statement.currency).toBe("EUR");
   });
+
+  it("bündelt die Umsatzsteuer auf Gebühren (vat_seller_services) als eigene Gebührenzeile", () => {
+    const entries: EtsyLedgerEntry[] = [
+      { entry_id: 700, amount: -19, currency: "EUR", ledger_type: "listing", reference_id: "1", created_timestamp: am("2023-06-07") },
+      { entry_id: 701, amount: -4, currency: "EUR", ledger_type: "vat_seller_services", parent_entry_id: 700, created_timestamp: am("2023-06-07") },
+      { entry_id: 702, amount: -27, currency: "EUR", ledger_type: "vat_seller_services", created_timestamp: am("2023-06-08") },
+    ];
+
+    const statement = parseEtsyLedger(entries, { orderFor });
+
+    const vat = statement.transactions.find((t) => t.purpose === "Gebühr · Umsatzsteuer auf Gebühren (VAT) 2023-06");
+    expect(vat).toMatchObject({ amount: -31, type: "Gebühr", bookingDate: "2023-06-30", bankReference: "etsy-gebuehrenumsatzsteuer-2023-06" });
+    expect(statement.warnings.join(" ")).not.toContain("unbekanntem Typ");
+  });
 });
