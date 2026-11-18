@@ -1,6 +1,7 @@
 import { finish, indexed, type Tx } from "./common.ts";
 import { StatementParseError } from "./errors.ts";
 import { settlementKey, settleTax, unsettledTaxWarning } from "./etsy.ts";
+import { BUCKETS, KINDS, type Kind, purposeOf, typeOf } from "./etsy-ledger-arten.ts";
 import { steuerAbgleich } from "./etsy-steuerabgleich.ts";
 import type { ParsedStatement } from "./types.ts";
 
@@ -10,13 +11,7 @@ import type { ParsedStatement } from "./types.ts";
  * „Finanzen › Monatliche Abrechnungen“ ist der Verlauf nicht auf einen Monat begrenzt und trägt je Zeile eine
  * eindeutige `entry_id` und einen Typ.
  *
- * Die Typen sind nirgends beschrieben; die Zuordnung stammt aus dem echten Verlauf (2.347 Zeilen, Juli 2022 bis
- * Mai 2026) und ist gegen alle 25 Gebührenrechnungen von Juli 2022 bis April 2026 geprüft: Die Summe der Gebühren
- * und Werbung eines Monats (nach dem Tag der Zeile) ergibt jede Rechnungssumme auf den Cent, auch je Rechnungsposition
- * bis auf Rundungscents der Rechnung selbst. Zwei Typen sind leicht zu verkennen:
- *
- * - `shipping_transaction` ist die Transaktionsgebühr auf das Porto (Rechnungsposition „Transaction Fees“), kein Versand.
- * - `transaction_quantity` ist die Einstellgebühr für weitere verkaufte Stücke (Position „Listing Fees“) und trägt Geld.
+ * Welche Ledger-Typen Haben wie bucht, steht in etsy-ledger-arten.ts.
  *
  * Gebucht wird wie beim CSV-Import (etsy.ts) und nach der Etsy-Gebührenrechnung:
  *
@@ -57,66 +52,6 @@ export interface EtsyLedgerEntry {
   reference_id?: string | number;
   parent_entry_id?: number;
 }
-
-/** Wie Haben eine Zeile des Verlaufs bucht */
-type Kind =
-  | "verkauf"
-  | "erstattung"
-  | "steuer"
-  | "einstellgebuehr"
-  | "verlaengerung"
-  | "verkaufsverlaengerung"
-  | "transaktionsgebuehr"
-  | "zahlungsgebuehr"
-  | "etsyads"
-  | "offsiteads"
-  | "auszahlung"
-  | "karteneinzug"
-  | "ausgleich";
-
-/** Zuordnung der Ledger-Typen; geprüft gegen die Gebührenrechnungen 07/2022 bis 04/2026 */
-const KINDS: Record<string, Kind> = {
-  PAYMENT_GROSS: "verkauf",
-  REFUND_GROSS: "erstattung",
-  sales_tax: "steuer",
-  sales_tax_refund: "steuer",
-  listing: "einstellgebuehr",
-  listing_refund: "einstellgebuehr",
-  transaction_quantity: "einstellgebuehr",
-  renew_expired: "verlaengerung",
-  auto_renew_expired: "verlaengerung",
-  renew_sold_auto: "verkaufsverlaengerung",
-  renew_sold_auto_refund: "verkaufsverlaengerung",
-  transaction: "transaktionsgebuehr",
-  transaction_refund: "transaktionsgebuehr",
-  shipping_transaction: "transaktionsgebuehr",
-  shipping_transaction_refund: "transaktionsgebuehr",
-  PAYMENT_PROCESSING_FEE: "zahlungsgebuehr",
-  REFUND_PROCESSING_FEE: "zahlungsgebuehr",
-  prolist: "etsyads",
-  offsite_ads_fee: "offsiteads",
-  DISBURSE2: "auszahlung",
-  billing_payment: "karteneinzug",
-  RECOUP: "ausgleich",
-};
-
-/** Ob Haben den Typ einer Verlaufszeile kennt (Zuordnung oben); unbekannte kommen einzeln mit Hinweis */
-export const isKnownEtsyLedgerType = (ledgerType: string): boolean => Object.hasOwn(KINDS, ledgerType);
-
-/**
- * Bezeichnung der Sammelzeile je Art, in der Reihenfolge und mit den Namen der Rechnungspositionen (in Klammern).
- * Gebühren und Werbung beginnen mit „Gebühr“ (Zuordnung zur Sammelrechnung); Werbung bleibt als Art „Werbung“ wie beim
- * CSV-Import.
- */
-const BUCKETS: Partial<Record<Kind, { purpose: string; type: string; prefix: string; reference: string }>> = {
-  einstellgebuehr: { purpose: "Einstellgebühren (Listing Fees)", type: "Gebühr", prefix: "Gebühr", reference: "einstellgebuehren" },
-  verlaengerung: { purpose: "Verlängerungen (Renew Expired Fees)", type: "Gebühr", prefix: "Gebühr", reference: "verlaengerungen" },
-  verkaufsverlaengerung: { purpose: "Verlängerungen nach Verkauf (Renew Sold Fees)", type: "Gebühr", prefix: "Gebühr", reference: "verkaufsverlaengerungen" },
-  transaktionsgebuehr: { purpose: "Transaktionsgebühren (Transaction Fees)", type: "Gebühr", prefix: "Gebühr", reference: "transaktionsgebuehren" },
-  zahlungsgebuehr: { purpose: "Zahlungsabwicklung (Processing Fees)", type: "Gebühr", prefix: "Gebühr", reference: "zahlungsgebuehren" },
-  etsyads: { purpose: "Etsy Ads (Etsy Ads Fees)", type: "Werbung", prefix: "Gebühr", reference: "etsyads" },
-  offsiteads: { purpose: "Offsite Ads (Offsite Ads Fees)", type: "Werbung", prefix: "Gebühr", reference: "offsiteads" },
-};
 
 /** Betrag in Euro für den Zweck, aus ganzen Cent ohne Gleitkomma */
 function euro(cent: number): string {
@@ -179,75 +114,27 @@ function monatsende(monat: string): string {
   return letzter.toISOString().slice(0, 10);
 }
 
-/** Zweck einer einzelnen Zeile; Auszahlungen tragen das Wort, das Haben als Geldtransit erkennt */
-function purposeOf(kind: Kind, entry: EtsyLedgerEntry, tag: string, order: string | undefined): string {
-  const reference = entry.reference_id ?? "";
-  switch (kind) {
-    case "verkauf":
-      return order ? `Verkauf · Etsy Bestellung ${order}` : `Verkauf · Etsy Zahlung ${reference}`;
-    case "erstattung":
-      return order ? `Erstattung · Etsy Bestellung ${order}` : `Erstattung · Etsy ${reference}`;
-    case "steuer":
-      return order ? `Sales Tax · Etsy Bestellung ${order}` : `Sales Tax · Etsy ${reference}`;
-    case "auszahlung":
-      return `Auszahlung · Etsy ${tag}`;
-    case "karteneinzug":
-      return `Karteneinzug · Etsy ${tag}`;
-    case "ausgleich":
-      return `Ausgleich · Etsy ${tag}`;
-    default:
-      return `Gebühr · Etsy ${entry.ledger_type} ${tag}`;
-  }
-}
-
-/** Umsatztyp (im Jahresexport Spalte „Umsatztyp“); Verkauf, Erstattung und Steuer wie in etsy.ts */
-function typeOf(kind: Kind): string {
-  switch (kind) {
-    case "verkauf":
-      return "Verkauf";
-    case "erstattung":
-      return "Erstattung";
-    case "auszahlung":
-      return "Auszahlung";
-    case "karteneinzug":
-      return "Karteneinzug";
-    case "ausgleich":
-      return "Ausgleich";
-    case "etsyads":
-    case "offsiteads":
-      return "Werbung";
-    case "steuer":
-      return "Umsatzsteuer";
-    default:
-      return "Gebühr";
-  }
-}
-
 function unbekanntWarning(typen: string[]): string[] {
   if (typen.length === 0) return [];
   const namen = [...new Set(typen)].map((t) => t || "ohne Typ").join(", ");
   return [`${typen.length} ${typen.length === 1 ? "Zeile" : "Zeilen"} mit unbekanntem Typ (${namen}) einzeln übernommen.`];
 }
 
-/** Zahlungsverlauf von Etsy Payments als Kontoauszug. Zeilen ohne Euro werden übersprungen und gemeldet. */
-export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerOptions = {}): ParsedStatement {
-  const sammelzeilen = options.sammelzeilen ?? true;
-  const list: Tx[] = [];
-  // Verkäufe, Erstattungen und Steuerzeilen merken sich Bestellung und Tag für settleTax
-  const orders = new Map<Tx, string>();
-  const gebuendelt = new Map<string, { amount: number; purpose: string; type: string; monat: string; reference: string }>();
-  const unbekannt: string[] = [];
-  let fremdwaehrung = 0;
-  let spaeter = 0;
-  let schonDa = 0;
-  const bekannt = (entry: EtsyLedgerEntry) => (entry.entry_id === undefined ? undefined : options.bekannt?.get(String(entry.entry_id)));
+type Zeile = { entry: EtsyLedgerEntry; tag: string };
+type Bekannt = (entry: EtsyLedgerEntry) => { order?: string; verrechnet: number } | undefined;
+type Sammelzeile = { amount: number; purpose: string; type: string; monat: string; reference: string };
 
-  const sortiert = entries
-    .map((entry, position) => ({ entry, tag: tag(entry, `Zeile ${position + 1}`) }))
-    .sort((a, b) => (a.entry.created_timestamp ?? 0) - (b.entry.created_timestamp ?? 0));
+/** Was der Abruf neben den Umsätzen zählt, für die Hinweise */
+interface Zaehler {
+  unbekannt: string[];
+  fremdwaehrung: number;
+  spaeter: number;
+  schonDa: number;
+}
 
-  // Sales Tax über überlappende Abrufe: was schon im Konto steckt und was dieser Abruf verrechnen darf
-  const { drin, verrechenbar } = steuerAbgleich(
+/** Sales Tax über überlappende Abrufe: was schon im Konto steckt und was dieser Abruf verrechnen darf */
+function abgleich(sortiert: Zeile[], options: EtsyLedgerOptions, bekannt: Bekannt) {
+  return steuerAbgleich(
     sortiert
       .filter(({ entry }) => entry.amount !== 0 && (!entry.currency || entry.currency.toUpperCase() === "EUR"))
       .map(({ entry, tag: buchungstag }) => {
@@ -269,102 +156,145 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
         };
       }),
   );
+}
 
-  // Art und Monat (etsySammelKennung), von denen ein früherer Abruf schon Gebühren einzeln übernommen hat
+/** Art und Monat (etsySammelKennung), von denen ein früherer Abruf schon Gebühren einzeln übernommen hat */
+function einzelnImKonto(sortiert: Zeile[], bekannt: Bekannt): Set<string> {
   const einzeln = new Set<string>();
   for (const { entry, tag: buchungstag } of sortiert) {
     const bucket = BUCKETS[KINDS[entry.ledger_type] as Kind];
     if (bucket && bekannt(entry)) einzeln.add(etsySammelKennung(bucket.reference, buchungstag.slice(0, 7)));
   }
+  return einzeln;
+}
 
-  sortiert.forEach(({ entry, tag: buchungstag }) => {
-    if (entry.currency && entry.currency.toUpperCase() !== "EUR") {
-      fremdwaehrung++;
-      return;
-    }
-    if (entry.amount === 0) return;
-    const kind = KINDS[entry.ledger_type];
-    const order =
-      kind === "verkauf" || kind === "erstattung"
-        ? // Etsy liefert die Kennung je Typ als Text oder als Zahl; der Abruf liefert Texte, deshalb angleichen
-          options.orderFor?.(entry.reference_id === undefined ? "" : String(entry.reference_id))
-        : kind === "steuer" && entry.reference_id !== undefined
-          ? String(entry.reference_id)
-          : undefined;
-    const bucket = kind ? BUCKETS[kind] : undefined;
-    const schluessel = bucket ? etsySammelKennung(bucket.reference, buchungstag.slice(0, 7)) : undefined;
-    // Steht die Sammelzeile schon im Konto, bleiben die Zeilen weg, auch wenn das Bündeln inzwischen aus ist
-    if (schluessel !== undefined && options.schonGebuendelt?.has(schluessel)) {
-      schonDa++;
-      return;
-    }
-    // Monate und Arten, die schon einzeln im Konto stehen, bleiben einzeln, auch wenn das Bündeln inzwischen an ist
-    if (sammelzeilen && kind && bucket && schluessel !== undefined && !einzeln.has(schluessel)) {
-      const monat = buchungstag.slice(0, 7);
-      // Gebühren eines noch laufenden Monats bleiben liegen: die Sammelzeile entsteht erst, wenn er vorbei ist
-      if (options.gebuehrenBis !== undefined && monatsende(monat) > options.gebuehrenBis) {
-        spaeter++;
-        return;
-      }
-      const vorhanden = gebuendelt.get(schluessel);
-      if (vorhanden) {
-        vorhanden.amount += entry.amount;
-        return;
-      }
-      gebuendelt.set(schluessel, {
-        amount: entry.amount,
-        purpose: `${bucket.prefix} · ${bucket.purpose} ${monat}`,
-        type: bucket.type,
-        monat,
-        reference: schluessel,
-      });
-      return;
-    }
-    const frueher = bekannt(entry);
-    if (drin.has(entry)) return;
-    if (!kind) unbekannt.push(entry.ledger_type);
-    const tx: Tx = {
-      bookingDate: buchungstag,
-      amount: entry.amount,
-      currency: "EUR",
-      counterpartyName: "Etsy",
-      purpose: kind ? purposeOf(kind, entry, buchungstag, order) : `Etsy ${entry.ledger_type} · ${buchungstag}`,
-      type: kind ? typeOf(kind) : entry.ledger_type,
-      // Die entry_id ist im Verlauf eindeutig und bleibt es auch beim zweiten Abruf
-      bankReference: entry.entry_id ? `etsy-${entry.entry_id}` : undefined,
-    };
-    list.push(tx);
-    // Mit schon übernommenen Zeilen verrechnet dieser Abruf nichts: Ihr Umsatz steht schon im Konto und bliebe unverändert
-    const verrechnen = kind === "steuer" ? verrechenbar.has(entry) : kind === "verkauf" || kind === "erstattung";
-    if (!frueher && order !== undefined && verrechnen) {
-      orders.set(tx, settlementKey(order, buchungstag));
-    }
-  });
-
-  const settled = settleTax(list, orders, mitSteuer);
-  for (const b of gebuendelt.values()) {
-    settled.list.push({
-      bookingDate: monatsende(b.monat),
-      amount: b.amount,
-      currency: "EUR",
-      counterpartyName: "Etsy",
-      purpose: b.purpose,
-      type: b.type,
-      bankReference: `etsy-${b.reference}`,
-    });
+/**
+ * Gebühr oder Werbung in ihre Sammelzeile, sofern gebündelt wird; true, wenn die Zeile damit erledigt ist (gebündelt,
+ * schon gebündelt im Konto oder aus einem noch laufenden Monat).
+ */
+function buendeln(
+  { entry, tag: buchungstag }: Zeile,
+  options: EtsyLedgerOptions,
+  einzeln: ReadonlySet<string>,
+  gebuendelt: Map<string, Sammelzeile>,
+  zaehler: Zaehler,
+): boolean {
+  const kind = KINDS[entry.ledger_type];
+  const bucket = kind ? BUCKETS[kind] : undefined;
+  if (!bucket) return false;
+  const monat = buchungstag.slice(0, 7);
+  const schluessel = etsySammelKennung(bucket.reference, monat);
+  // Steht die Sammelzeile schon im Konto, bleiben die Zeilen weg, auch wenn das Bündeln inzwischen aus ist
+  if (options.schonGebuendelt?.has(schluessel)) {
+    zaehler.schonDa++;
+    return true;
   }
+  // Monate und Arten, die schon einzeln im Konto stehen, bleiben einzeln, auch wenn das Bündeln inzwischen an ist
+  if (!(options.sammelzeilen ?? true) || einzeln.has(schluessel)) return false;
+  // Gebühren eines noch laufenden Monats bleiben liegen: die Sammelzeile entsteht erst, wenn er vorbei ist
+  if (options.gebuehrenBis !== undefined && monatsende(monat) > options.gebuehrenBis) {
+    zaehler.spaeter++;
+    return true;
+  }
+  const vorhanden = gebuendelt.get(schluessel);
+  if (vorhanden) vorhanden.amount += entry.amount;
+  else
+    gebuendelt.set(schluessel, {
+      amount: entry.amount,
+      purpose: `${bucket.prefix} · ${bucket.purpose} ${monat}`,
+      type: bucket.type,
+      monat,
+      reference: schluessel,
+    });
+  return true;
+}
 
-  settled.list.sort((a, b) => a.bookingDate.localeCompare(b.bookingDate));
-  const warnings = [...unbekanntWarning(unbekannt), ...unsettledTaxWarning(settled.unsettled)];
+/** Bestellnummer einer Zeile für Zweck und settleTax: bei Verkauf und Erstattung aus dem Payments-Abruf, bei der Steuer direkt */
+function bestellungVon(kind: Kind | undefined, entry: EtsyLedgerEntry, options: EtsyLedgerOptions): string | undefined {
+  if (kind === "verkauf" || kind === "erstattung") {
+    // Etsy liefert die Kennung je Typ als Text oder als Zahl; der Abruf liefert Texte, deshalb angleichen
+    return options.orderFor?.(entry.reference_id === undefined ? "" : String(entry.reference_id));
+  }
+  return kind === "steuer" && entry.reference_id !== undefined ? String(entry.reference_id) : undefined;
+}
+
+/** Umsatz aus einer einzelnen Zeile */
+function einzelUmsatz(entry: EtsyLedgerEntry, kind: Kind | undefined, buchungstag: string, order: string | undefined): Tx {
+  return {
+    bookingDate: buchungstag,
+    amount: entry.amount,
+    currency: "EUR",
+    counterpartyName: "Etsy",
+    purpose: kind ? purposeOf(kind, entry, buchungstag, order) : `Etsy ${entry.ledger_type} · ${buchungstag}`,
+    type: kind ? typeOf(kind) : entry.ledger_type,
+    // Die entry_id ist im Verlauf eindeutig und bleibt es auch beim zweiten Abruf
+    bankReference: entry.entry_id ? `etsy-${entry.entry_id}` : undefined,
+  };
+}
+
+/** Umsatz einer Sammelzeile, am letzten Tag des Monats */
+function sammelUmsatz(b: Sammelzeile): Tx {
+  return {
+    bookingDate: monatsende(b.monat),
+    amount: b.amount,
+    currency: "EUR",
+    counterpartyName: "Etsy",
+    purpose: b.purpose,
+    type: b.type,
+    bankReference: `etsy-${b.reference}`,
+  };
+}
+
+function hinweise(zaehler: Zaehler, unsettled: number): string[] {
+  const { fremdwaehrung, spaeter, schonDa } = zaehler;
+  const warnings = [...unbekanntWarning(zaehler.unbekannt), ...unsettledTaxWarning(unsettled)];
   if (fremdwaehrung > 0) warnings.push(`${fremdwaehrung} ${fremdwaehrung === 1 ? "Zeile" : "Zeilen"} nicht in Euro übersprungen.`);
   if (spaeter > 0) warnings.push(`${spaeter} Gebühren- und Werbezeile(n) aus einem noch laufenden Monat kommen mit dem nächsten Abruf als Sammelzeile.`);
   if (schonDa > 0) {
     warnings.push(`${schonDa} Gebühren- und Werbezeile(n) aus einem schon gebündelten Monat übersprungen; die Sammelzeile steht bereits im Konto.`);
   }
+  return warnings;
+}
+
+/** Zahlungsverlauf von Etsy Payments als Kontoauszug. Zeilen ohne Euro werden übersprungen und gemeldet. */
+export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerOptions = {}): ParsedStatement {
+  const list: Tx[] = [];
+  // Verkäufe, Erstattungen und Steuerzeilen merken sich Bestellung und Tag für settleTax
+  const orders = new Map<Tx, string>();
+  const gebuendelt = new Map<string, Sammelzeile>();
+  const zaehler: Zaehler = { unbekannt: [], fremdwaehrung: 0, spaeter: 0, schonDa: 0 };
+  const bekannt: Bekannt = (entry) => (entry.entry_id === undefined ? undefined : options.bekannt?.get(String(entry.entry_id)));
+
+  const sortiert = entries
+    .map((entry, position) => ({ entry, tag: tag(entry, `Zeile ${position + 1}`) }))
+    .sort((a, b) => (a.entry.created_timestamp ?? 0) - (b.entry.created_timestamp ?? 0));
+  const { drin, verrechenbar } = abgleich(sortiert, options, bekannt);
+  const einzeln = einzelnImKonto(sortiert, bekannt);
+
+  for (const zeile of sortiert) {
+    const { entry, tag: buchungstag } = zeile;
+    if (entry.currency && entry.currency.toUpperCase() !== "EUR") {
+      zaehler.fremdwaehrung++;
+      continue;
+    }
+    if (entry.amount === 0 || buendeln(zeile, options, einzeln, gebuendelt, zaehler) || drin.has(entry)) continue;
+    const kind = KINDS[entry.ledger_type];
+    if (!kind) zaehler.unbekannt.push(entry.ledger_type);
+    const order = bestellungVon(kind, entry, options);
+    const tx = einzelUmsatz(entry, kind, buchungstag, order);
+    list.push(tx);
+    // Mit schon übernommenen Zeilen verrechnet dieser Abruf nichts: Ihr Umsatz steht schon im Konto und bliebe unverändert
+    const verrechnen = kind === "steuer" ? verrechenbar.has(entry) : kind === "verkauf" || kind === "erstattung";
+    if (!bekannt(entry) && order !== undefined && verrechnen) orders.set(tx, settlementKey(order, buchungstag));
+  }
+
+  const settled = settleTax(list, orders, mitSteuer);
+  settled.list.push(...[...gebuendelt.values()].map(sammelUmsatz));
+  settled.list.sort((a, b) => a.bookingDate.localeCompare(b.bookingDate));
   return finish({
     format: "etsy-ledger",
     currency: "EUR",
     transactions: indexed(settled.list),
-    warnings,
+    warnings: hinweise(zaehler, settled.unsettled),
   });
 }

@@ -1,4 +1,5 @@
-import { isKnownEtsyLedgerType, type EtsyLedgerEntry } from "./etsy-ledger.ts";
+import type { EtsyLedgerEntry } from "./etsy-ledger.ts";
+import { isKnownEtsyLedgerType } from "./etsy-ledger-arten.ts";
 import { IMPORT_CONTRACT_VERSION, type ImportBatch, type ImportMovement, type MovementKind } from "./importvertrag/types.ts";
 
 /*
