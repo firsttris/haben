@@ -167,6 +167,44 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       expect(Object.keys(moved)).toEqual([]);
     });
 
+    it("löscht eine wieder ungelesene Mail nicht, deren früherer Abruf einen Anhang übersprungen hat", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      await deliver({
+        ...rechnung("gemischt"),
+        attachments: [
+          { filename: "gemischt.pdf", content: pdf("gemischt") },
+          { filename: "AGB.docx", content: Buffer.from("PK\u0003\u0004") },
+        ],
+      });
+      await inbox.fetchInbox(actor);
+      expect(box.get(1)!.seen).toBe(true);
+      // Wieder ungelesen (oder der Lauf brach nach dem Ablegen vor dem Markieren ab): schon protokolliert, aber nicht verlustfrei
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(true);
+      expect(box.get(1)!.seen).toBe(true);
+    });
+
+    it("löscht eine wieder ungelesene zu große Mail nicht", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      await deliver(rechnung("riesig"));
+      box.get(1)!.tooLarge = true;
+      await inbox.fetchInbox(actor);
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(true);
+    });
+
+    it("löscht eine wieder ungelesene, verlustfrei abgelegte Mail", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("gut"));
+      await inbox.fetchInbox(actor);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(false);
+    });
+
     it("verschiebt abgelegte Mails in den Zielordner und lässt fehlgeschlagene im Eingang", async () => {
       await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: " Belege/Abgeholt " });
       await deliver(rechnung("kaputt"), rechnung("gut"));
