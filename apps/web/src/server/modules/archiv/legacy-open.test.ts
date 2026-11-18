@@ -206,6 +206,46 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     ]);
   });
 
+  // #1317: Nach der Rücknahme einer Bestätigung „ohne Datei“ gilt der Beleg wieder als offen; der Grund beim Übernehmen
+  // kommt aus takeoverFileIssue und nennt den Weg über die Belegansicht. Eine stehende Bestätigung behält ihren eigenen
+  // Satz, ein Beleg ohne Stand bleibt bei „keine Datei aus …“.
+  it("nennt nach der Rücknahme einer Bestätigung wieder den Weg über die Belegansicht (#1317)", async () => {
+    const zurueckgenommen = await legacyVoucher({
+      source: "sevdesk",
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-80",
+      date: "2026-09-25",
+      net: 10_000,
+      tax: 1_900,
+    });
+    // Verlauf wie nach Bestätigung und Rücknahme: die ältere Zeile bestätigt, die jüngere nimmt zurück
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by, created_at)
+      values (${zurueckgenommen}, 'bestaetigt_ohne_datei', 'In sevDesk geprüft: keine Datei hinterlegt.', 'test-user', now() - interval '1 day')`;
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by)
+      values (${zurueckgenommen}, 'bestaetigung_zurueckgenommen', 'Bestätigung zurückgenommen: falscher Beleg geprüft', 'test-user')`;
+    // Gegenprobe: wo die Bestätigung steht, bleibt der bisherige Satz
+    const bestaetigt = await legacyVoucher({
+      source: "sevdesk",
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-81",
+      date: "2026-09-26",
+      net: 10_000,
+      tax: 1_900,
+    });
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by)
+      values (${bestaetigt}, 'bestaetigt_ohne_datei', 'In sevDesk geprüft: keine Datei hinterlegt.', 'test-user')`;
+
+    expect((await legacy.openLegacyItems()).map((i) => [i.number, i.blocker])).toEqual([
+      ["B-80", "ohne Datei, Bestätigung zurückgenommen – prüfen, dann erneut bestätigen und in Haben von Hand erfassen"],
+      ["B-81", "ohne Datei (bestätigt) – in Haben von Hand erfassen"],
+    ]);
+    // Ohne Datei gibt es nichts zu übernehmen; die Übernahme nennt denselben Grund
+    await expect(legacy.takeOverLegacyItem(actor, zurueckgenommen)).rejects.toThrow(/Bestätigung zurückgenommen/);
+    expect(await sql`select 1 from documents where lexoffice_voucher_id = ${zurueckgenommen}`).toHaveLength(0);
+  });
+
   it("übernimmt eine offene Rechnung; Zahlung im Bankabgleich macht die Umsatzsteuer fällig (Ist)", async () => {
     const id = await legacyVoucher({
       type: "invoice",
