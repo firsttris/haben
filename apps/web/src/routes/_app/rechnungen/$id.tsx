@@ -28,7 +28,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
 import { legacySource } from "../../../lib/altbestand.ts";
-import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
+import { cancelFinalInvoice, copyFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { OutcomeStatus, Status } from "../../../components/Status.tsx";
@@ -178,6 +178,7 @@ function FinalInvoice({ data }: { data: Detail }) {
   const navigate = useNavigate();
   const cancel = useServerFn(cancelFinalInvoice);
   const correct = useServerFn(correctFinalInvoice);
+  const copy = useServerFn(copyFinalInvoice);
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   /** Was gerade per E-Mail versendet wird: die Rechnung oder eine Mahnung */
@@ -203,6 +204,14 @@ function FinalInvoice({ data }: { data: Detail }) {
   const onCorrect = () =>
     run(async () => {
       const draft = await correct({ data: invoice.id });
+      await navigate({ to: "/rechnungen/$id", params: { id: draft.id } });
+    });
+
+  // Nächste ähnliche Rechnung: neuer Entwurf mit Kunde und Positionen; Abschlag und Schlussrechnung entstehen aus dem Angebot
+  const canCopy = inhaber && invoice.kind === "rechnung" && invoice.variant === null;
+  const onCopy = () =>
+    run(async () => {
+      const draft = await copy({ data: invoice.id });
       await navigate({ to: "/rechnungen/$id", params: { id: draft.id } });
     });
 
@@ -234,6 +243,11 @@ function FinalInvoice({ data }: { data: Detail }) {
             <a className="btn" href={`/api/dokument/lieferschein-rechnung/${invoice.id}`} target="_blank" rel="noreferrer">
               Lieferschein
             </a>
+          )}
+          {canCopy && (
+            <button type="button" className="btn" onClick={() => void onCopy()} disabled={busy}>
+              Kopieren
+            </button>
           )}
         </div>
       </div>
