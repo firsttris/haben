@@ -197,6 +197,15 @@ Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. 
 
 Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auch mit der IBAN der Gegenseite.
 
+### Vorschläge bestätigen
+
+Bei Umsätzen mit Vorschlag steht in der Liste unter dem Verwendungszweck, was gebucht würde („Vorschlag: Rechnung R-2026-001“, „Vorschlag: Erlöse 19 %“). Davor steht ein Markierfeld; **Alle Vorschläge markieren** über der Liste setzt alle Haken, die Leertaste markiert den Umsatz mit dem Fokus. **… bestätigen** bucht alle markierten Umsätze in einem Schritt, genau so, als hättest du jeden einzeln mit **Zuordnen** bzw. **Buchen** gebucht: dieselbe Buchung, festgeschrieben, nur mit Gegenbuchung aufzuheben.
+
+- Bestätigen lässt sich ein Vorschlag nur, wenn er ohne Rückfrage buchbar ist: eine Rechnung oder ein Beleg mit genau dem Betrag des Umsatzes (ohne Skonto, Kursdifferenz oder Gebühr), eine Buchung auf eine Kategorie nach früheren Zuordnungen und die einfachen Arten ohne weitere Angaben (Privat, Spende, Gebühren und ähnliche). Geldtransit, Steuer, Darlehen, Voranmeldungen und Aufladungen bleiben beim Einzelbuchen in der Detailansicht; Umsätze ohne bestätigbaren Vorschlag haben kein Markierfeld.
+- Haben bucht auch hier nie von selbst: Gebucht wird erst mit dem Klick auf **… bestätigen**. Der Server berechnet den Vorschlag dabei neu und bucht, was er jetzt ergibt.
+- Es wird alles oder nichts gebucht. Geht bei einem Umsatz etwas schief, etwa weil ein Beleg inzwischen bezahlt ist, bleibt auch der Rest ungebucht, und die Meldung nennt den Umsatz.
+- Ein einzelner Umsatz lässt sich markieren und bestätigen; in der Detailansicht bucht **Zuordnen** den Vorschlag wie bisher.
+
 ## Vorschläge
 
 Für den noch offenen Teil eines Umsatzes sucht Haben unter den offenen Posten: festgeschriebene Rechnungen und Rechnungskorrekturen, die nicht storniert und nicht voll bezahlt sind, gebuchte, nicht stornierte Belege mit Bezahlung über das Geschäftskonto und die Zahllast bzw. Erstattung abgegebener Voranmeldungen (siehe [Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Infrage kommen nur Posten in derselben Richtung: Eingänge für Rechnungen, Ausgänge für Belege und Rechnungskorrekturen.
@@ -423,6 +432,8 @@ Die Buchung als Ausgabe gilt für die EÜR des Einzelunternehmens (§ 11 Abs. 2 
 Eine Einnahme ohne Rechnung, etwa die Zahlung eines Privatkunden, oder eine kleine Ausgabe ohne Beleg buchst du unter **Direkt buchen** als **Einnahme oder Ausgabe (Kategorie, Steuersatz)**. Du wählst die **Kategorie** in einem Suchfeld: Bei Ausgaben steht die Nummer des Kontos im Kontenrahmen der Firma vor der Bezeichnung („6805 · Telefon“ in SKR04), und „6805“, „Telefon“ oder die Gruppe finden sie. Bei Erlösen wählst du außerdem den **Steuersatz** (19 % oder 7 %); Haben zeigt Netto und Umsatzsteuer des Betrags an. Das geht auch als Teil einer Aufteilung.
 
 Gebucht wird nur auf eine Kategorie, nicht frei auf ein Konto mit Steuerschlüssel: Voranmeldung, EÜR und E-Bilanz hängen an den Kategorien und ihren Konten (siehe [Roadmap](roadmap.md#bewusst-nicht)). Für Vorgänge ohne Bankumsatz, etwa eine Sachentnahme, gibt es [freie Buchungen mit Steuerschlüssel](buchhaltung.md#manuelle-und-freie-buchungen); Bank- und Steuerkonten lassen sich auch dort nicht bebuchen.
+
+Schon vor dem Buchen zeigt die Karte **Wird gebucht**, was Haben bucht: je Zeile Konto mit Nummer, Steuer und Betrag, die Umsatzsteuer als eigene Zeile (die Bankzeile ist der Umsatz selbst). Sie ändert sich mit Kategorie, Steuersatz und Betrag und ist nur eine Anzeige.
 
 | Kategorie | SKR03 | SKR04 | Voranmeldung | EÜR (Einzelunternehmen) |
 | --- | --- | --- | --- | --- |
