@@ -11,7 +11,7 @@ import {
   type LohnZahlung,
   lohnZahlungKonto,
   directPosting,
-  ustPrivatPosting,
+  privatKontoPosting,
   documentOpen,
   exchangeDifferenceBankPosting,
   exchangeDifferencePosting,
@@ -1302,10 +1302,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   } else if (part.kind === "ustva") {
     // Buchung wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820); neu ist nur der Bezug auf die Voranmeldung
     const label = await assertUstvaOffen(tx, part.vatReturnId, part.amount);
-    lines =
-      bank.purpose === "privat"
-        ? ustPrivatPosting(part.amount, company.kontenrahmen, company.rechtsform)
-        : directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
+    lines = directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
     description = `${label} · ${bank.counterpartyName || "Finanzamt"}`;
     target = { vatReturnId: part.vatReturnId };
   } else if (part.kind === "darlehen") {
@@ -1321,14 +1318,17 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
   } else {
     if (isLohnZahlung(part.kind)) await assertLohnOffen(tx, part.kind, part.amount, company.kontenrahmen);
-    lines =
-      part.kind === "ustVorauszahlung" && bank.purpose === "privat"
-        ? ustPrivatPosting(part.amount, company.kontenrahmen, company.rechtsform)
-        : directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
+    lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
     // In GmbH und UG ist „privat“ das Gesellschafter-Verrechnungskonto; so steht es auch im Buchungstext
     const label = part.kind === "privat" && isKapitalgesellschaft(company.rechtsform) ? "gesellschafter" : part.kind;
     description = `${bank.counterpartyName || "Bankumsatz"} · ${label}`;
   }
+  // Privates Konto (#873): Die Richtung des Zahlungskontos gilt für jede Buchungsart — ein Eingang ist eine
+  // Privatentnahme, ein Ausgang eine Privateinlage, in GmbH und UG das Gesellschafter-Verrechnungskonto. Die
+  // Entscheidung fällt hier einmal für alle Zweige (privatKontoPosting). Nicht hierher gehören Kontoführung,
+  // Bankgebühren und Zinsen: Die sind auf einem privaten Konto privat, kein Betriebsvorfall (§ 12 Nr. 1 EStG,
+  // § 20 EStG); der Abgleich bietet sie dort nicht an und lehnt sie oben ab (konto-angebot.ts).
+  if (bank.purpose === "privat") lines = privatKontoPosting(lines, part.amount, company.kontenrahmen, company.rechtsform);
 
   const kind = part.kind === "ustva" ? "ustVorauszahlung" : part.kind === "ruecklastschrift" ? "invoice" : part.kind;
   const [allocation] = await insertAllocation(tx, { transactionId: bank.id, kind, amount: part.amount, splitId, ...target });

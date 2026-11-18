@@ -836,16 +836,17 @@ export function privatZahlung(amount: Cents, kontenrahmen: Kontenrahmen, rechtsf
 }
 
 /**
- * Umsatzsteuer-Erstattung, die auf einem privaten Konto eingeht (#866): Die Forderung gegen das
- * Finanzamt wird erfüllt, das Geld fließt aber ins Private. Gebucht wird deshalb gegen die
- * Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto,
- * nicht gegen die Bank. Auf einem Geschäftskonto bleibt es bei directPosting.
+ * Zahlung über ein privates Konto (#866, #873): Die Zeilen einer Buchung, die gegen die Bank gehen, werden auf das
+ * Konto gestellt, über das das Geld tatsächlich lief — bei einem Eingang die Privatentnahme, bei einem Ausgang die
+ * Privateinlage (privatZahlung), in GmbH und UG das Gesellschafter-Verrechnungskonto. Die Regel gilt so für jede
+ * Buchungsart, und der Aufrufer wendet sie einmal an, statt sie in jedem Zweig zu wiederholen. Auf einem
+ * Geschäftskonto entfällt der Aufruf; dort bleibt es bei 1200 bzw. 1800, bei einem Zahlungsdienstleister bei dessen
+ * Verrechnungskonto.
  */
-export function ustPrivatPosting(amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
-  const accounts = ACCOUNTS[kontenrahmen];
-  return [side(privatZahlung(amount, kontenrahmen, rechtsform), amount, true, null), side(accounts.ustVorauszahlung, amount, false, null)].filter(
-    (line) => line.debit !== 0 || line.credit !== 0,
-  );
+export function privatKontoPosting(lines: PostingLine[], amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
+  const bank = ACCOUNTS[kontenrahmen].bank;
+  const konto = privatZahlung(amount, kontenrahmen, rechtsform);
+  return lines.map((line) => (line.account === bank ? { ...line, account: konto } : line));
 }
 
 /** Kassenbuchungen ohne Beleg: Einlage und Entnahme, Geld von der Bank in die Kasse und zurück */
