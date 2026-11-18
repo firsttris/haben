@@ -21,7 +21,7 @@ async function fakten(file: File): Promise<ConfirmFact[]> {
     const inhalt = JSON.parse(await file.text()) as { company?: { name?: unknown }; exportedAt?: unknown; appVersion?: unknown; contacts?: unknown };
     if (typeof inhalt.company?.name === "string" && inhalt.company.name) facts.push({ label: "Firma", value: inhalt.company.name, strong: true });
     if (typeof inhalt.exportedAt === "string") facts.push({ label: "Exportiert", value: formatDateTime(inhalt.exportedAt) });
-    // Beide Instanzen sollten dieselbe Version haben (docs/einrichtung.md); so fällt ein Unterschied vor dem Übernehmen auf
+    // Beide Instanzen sollten dieselbe Version haben (docs/einrichtung-echtbetrieb.md); so fällt ein Unterschied vor dem Übernehmen auf
     if (typeof inhalt.appVersion === "string") facts.push({ label: "Mit Haben", value: inhalt.appVersion });
     if (Array.isArray(inhalt.contacts)) facts.push({ label: "Kontakte", value: String(inhalt.contacts.length) });
   } catch {

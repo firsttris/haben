@@ -18,6 +18,7 @@ import {
   kontakteUebernehmen,
   textbausteineUebernehmen,
 } from "../stammdaten/index.ts";
+import { saveFrequencyIn } from "../umsatzsteuer/index.ts";
 import { procedureDetailsSchema, putProcedureDetails } from "../verfahrensdoku/index.ts";
 import { readSettingsFile, type SettingsFile } from "./lesen.ts";
 import { nichtNeuMeldung, schonAngelegt } from "./neu.ts";
@@ -38,6 +39,13 @@ export interface SettingsImportResult {
   /** Absender und Vorlagen der E-Mails: übernommen, oder nicht, weil der Versand hier noch nicht eingerichtet ist; null = keine in der Datei */
   mail: boolean | null;
 }
+
+/** Wie die Frage zur Voranmeldung in der Einrichtung: ein Wechsel im Jahr nur zu Beginn eines Quartals */
+const frequencySchema = z.object({
+  year: z.number().int().min(2000).max(2100),
+  fromMonth: z.union([z.literal(1), z.literal(4), z.literal(7), z.literal(10)]),
+  frequency: z.enum(["monatlich", "vierteljaehrlich", "keine"]),
+});
 
 const ownAccountSchema = z.object({
   kontenrahmen: z.enum(["SKR03", "SKR04"]),
@@ -69,6 +77,8 @@ async function uebernehmen(tx: Tx, actor: string, datei: SettingsFile, today: st
   }
   // Nach den Firmendaten, sonst erledigte deren Speichern die offenen Fragen aus der Datei
   if (datei.einrichtung) await einrichtungUebernehmen(tx, datei.einrichtung);
+  // In der Reihenfolge der Datei (Jahr, Monat): saveFrequencyIn ersetzt im selben Jahr alles ab dem Monat
+  for (const raw of datei.vatFrequencies) await saveFrequencyIn(tx, geprueft(frequencySchema, raw, "Voranmeldungszeitraum"));
   await gestaltungUebernehmen(tx, { profiles: datei.letterheadProfiles, logo: datei.logo, background: datei.background, layouts: datei.layouts });
   // Einheiten vor den Artikeln, Kontakte vor ihren Ansprechpartnern und Textbausteinen
   await einheitenUebernehmen(tx, datei.units);

@@ -313,6 +313,43 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(await sql`select 1 from company`).toEqual([]);
   });
 
+  it("übernimmt einen Textbaustein, dessen Kontakt inzwischen kein Kunde mehr ist", async () => {
+    await testinstanz();
+    // Erlaubt in der alten Instanz: updateTextBlock lässt den Kontakt am Baustein, auch wenn er nur noch Lieferant ist
+    await sql`update contacts set is_customer = false, is_supplier = true where id = ${KUNDE}`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    expect(await sql`select name, contact_id from text_blocks`).toEqual([{ name: "Rahmenvertrag", contact_id: KUNDE }]);
+  });
+
+  it("lässt bei Microsoft Graph ohne eigenes Postfach das Postfach des Versands, wie es war", async () => {
+    await testinstanz();
+    const text = await exportierenUndNeu();
+    await sql`insert into mail_settings(id, transport, graph_tenant_id, graph_client_id, graph_auth, ciphertext, from_address, reminder_to)
+      values (1, 'graph', 'firma.onmicrosoft.com', '0b6a1c1e-5d7e-4f0a-9a43-1f2d3c4b5a61', 'secret', ${Buffer.from("x")}, 'versand@echt.example', 'erika@echt.example')`;
+
+    expect((await instanzwechsel.importSettings(actor, text, HEUTE)).mail).toBe(true);
+
+    // Aus diesem Postfach sendet Graph (transport-graph.ts: graphMailbox || fromAddress); es gehört zum Zugang
+    const [mail] = await sql`select graph_mailbox, from_address from mail_settings`;
+    expect(mail!.graph_mailbox ?? mail!.from_address).toBe("versand@echt.example");
+  });
+
+  it("übernimmt den Voranmeldungszeitraum, nach dem die Einrichtung in der alten Instanz gefragt hat", async () => {
+    await testinstanz();
+    // Antwort „vierteljährlich“ auf die Frage zur Voranmeldung: einrichtungSpeichern schreibt sie in vat_frequencies
+    await sql`insert into vat_frequencies(year, from_month, frequency) values (2026, 1, 'vierteljaehrlich')`;
+    const text = await exportierenUndNeu();
+    await leeren(sql)`truncate vat_frequencies`;
+
+    await instanzwechsel.importSettings(actor, text, HEUTE);
+
+    // Die neue Instanz fragt danach nicht mehr (Firmenname und fragenAt aus der Datei, fragenFehlen in lib/einrichtung.ts)
+    const { einrichtungStand } = await import("../auswertungen/index.ts");
+    expect((await einrichtungStand(HEUTE)).stand.voranmeldung).toBe("vierteljaehrlich");
+  });
+
   it("lehnt eine fremde Datei und eine aus einer neueren Version ab", async () => {
     await expect(instanzwechsel.importSettings(actor, JSON.stringify({ name: "Kontakte" }), HEUTE)).rejects.toThrow(
       "Das ist keine Einstellungsdatei von Haben.",

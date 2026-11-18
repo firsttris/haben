@@ -187,6 +187,8 @@ export const FELDER = {
     createdAt: ANGELEGT,
   }),
   customPages: felder(schema.customPages, ["name", "url", "openInNewTab"], { id: "Nichts verweist darauf", createdAt: ANGELEGT, updatedAt: GEAENDERT }),
+  // Fragt die Einrichtung ab; ohne ihn stünde die neue Instanz ohne Rückfrage auf „monatlich“
+  vatFrequencies: felder(schema.vatFrequencies, ["year", "fromMonth", "frequency"], { updatedAt: GEAENDERT }),
   procedureDetails: felder(
     schema.procedureDetails,
     ["verantwortlich", "datensicherung", "aufbewahrungsort", "papierbelege", "serverbetrieb", "schluesselablage", "ergaenzungen"],

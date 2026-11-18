@@ -170,12 +170,20 @@ export async function saveMailSettings(actor: string, input: MailSettingsInput):
  */
 export async function putMailTemplates(tx: Tx, input: z.input<typeof mailCommonSchema>): Promise<boolean> {
   const data = mailCommonSchema.parse(input);
-  const updated = await tx
-    .update(schema.mailSettings)
-    .set({ ...data, reminderDays: [...new Set(data.reminderDays)].sort((a, b) => b - a), updatedAt: new Date() })
-    .where(eq(schema.mailSettings.id, 1))
-    .returning({ id: schema.mailSettings.id });
-  return updated.length > 0;
+  const m = schema.mailSettings;
+  const [vorher] = await tx
+    .select({ transport: m.transport, graphMailbox: m.graphMailbox, fromAddress: m.fromAddress })
+    .from(m)
+    .where(eq(m.id, 1))
+    .for("update");
+  if (!vorher) return false;
+  // Graph ohne eigenes Postfach sendet aus dem Postfach der Absenderadresse (transport-graph.ts): Sie gehört dann zum Zugang
+  const fromAddress = vorher.transport === "graph" && !vorher.graphMailbox ? vorher.fromAddress : data.fromAddress;
+  await tx
+    .update(m)
+    .set({ ...data, fromAddress, reminderDays: [...new Set(data.reminderDays)].sort((a, b) => b - a), updatedAt: new Date() })
+    .where(eq(m.id, 1));
+  return true;
 }
 
 export async function deleteMailSettings(actor: string): Promise<void> {

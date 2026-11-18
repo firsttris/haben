@@ -231,6 +231,7 @@ function einstellungsdatei(): Buffer {
     quoteDefaultAttachments: [],
     customPages: [],
     procedureDetails: null,
+    vatFrequencies: [],
   };
   const sha256 = createHash("sha256").update(JSON.stringify(inhalt)).digest("hex");
   return Buffer.from(JSON.stringify({ ...inhalt, sha256 }, null, 2));

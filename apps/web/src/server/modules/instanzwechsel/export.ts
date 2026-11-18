@@ -46,6 +46,10 @@ export async function exportSettings(now = new Date()) {
         .orderBy(asc(schema.quoteDefaultAttachments.createdAt), asc(schema.quoteDefaultAttachments.id));
       const customPages = await tx.select(auswahl(f.customPages)).from(schema.customPages).orderBy(asc(schema.customPages.name));
       const [verfahrensdoku] = await tx.select(auswahl(f.procedureDetails)).from(schema.procedureDetails);
+      const vatFrequencies = await tx
+        .select(auswahl(f.vatFrequencies))
+        .from(schema.vatFrequencies)
+        .orderBy(asc(schema.vatFrequencies.year), asc(schema.vatFrequencies.fromMonth));
       return withChecksum({
         format: SETTINGS_EXPORT_FORMAT,
         version: SETTINGS_EXPORT_VERSION,
@@ -67,6 +71,7 @@ export async function exportSettings(now = new Date()) {
         quoteDefaultAttachments: await Promise.all(anhaenge.map(async ({ sha256, ...anhang }) => ({ ...anhang, ...embed(await loadFile(sha256)) }))),
         customPages,
         procedureDetails: verfahrensdoku ?? null,
+        vatFrequencies,
       });
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },

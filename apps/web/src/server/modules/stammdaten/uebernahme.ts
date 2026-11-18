@@ -151,7 +151,7 @@ export async function textbausteineUebernehmen(tx: Tx, blocks: readonly unknown[
     const bezeichnung = `Textbaustein ${genannt(raw, "name")}`;
     const input = geprueft(textBlockInputSchema, raw, bezeichnung);
     const { archivedAt } = geprueft(archiviert, raw, bezeichnung);
-    const created = await mitBezeichnung(bezeichnung, () => insertTextBlock(tx, input));
+    const created = await mitBezeichnung(bezeichnung, () => insertTextBlock(tx, input, { uebernommen: true }));
     if (archivedAt) await tx.update(schema.textBlocks).set({ archivedAt: new Date() }).where(eq(schema.textBlocks.id, created.id));
   }
 }

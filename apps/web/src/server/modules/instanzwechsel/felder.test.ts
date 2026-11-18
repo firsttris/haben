@@ -16,8 +16,8 @@ describe("Felder des Einstellungsexports", () => {
 
   it("nimmt keine verschlüsselte Spalte mit", () => {
     const geheim = Object.values(FELDER).flatMap(({ table, mit }) => {
-      const spalten = getTableColumns(table);
-      return mit.filter((key) => spalten[key as keyof typeof spalten]?.name.includes("ciphertext")).map((key) => `${getTableName(table)}.${key}`);
+      const spalten: Record<string, { name: string }> = getTableColumns(table);
+      return mit.filter((key) => spalten[key]?.name.includes("ciphertext")).map((key) => `${getTableName(table)}.${key}`);
     });
     expect(geheim).toEqual([]);
   });
@@ -31,6 +31,6 @@ describe("Felder des Einstellungsexports", () => {
     // bisherigen Version weiter liest; danach den neuen Wert eintragen
     const felder = Object.fromEntries(Object.entries(FELDER).map(([name, { mit }]) => [name, [...mit].sort()]));
     const sha256 = createHash("sha256").update(JSON.stringify(felder)).digest("hex");
-    expect({ version: SETTINGS_EXPORT_VERSION, sha256 }).toEqual({ version: 1, sha256: "12a61ea8afe3310f1704e6334c6e11ea5d2b9584cb4e626f2fe31c7451c893aa" });
+    expect({ version: SETTINGS_EXPORT_VERSION, sha256 }).toEqual({ version: 1, sha256: "85524f638a0248cfe4b53e33be9d9098a756089a095dfe1ece387756da6283cd" });
   });
 });

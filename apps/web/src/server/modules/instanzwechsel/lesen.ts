@@ -43,6 +43,7 @@ const aufbauSchema = z.object({
   quoteDefaultAttachments: z.array(eingebettet.extend({ filename: z.string().max(300) })).max(100),
   customPages: zeilen,
   procedureDetails: objekt.nullable(),
+  vatFrequencies: zeilen,
 });
 
 export type SettingsFile = Omit<z.infer<typeof aufbauSchema>, "logo" | "background" | "quoteDefaultAttachments"> & {

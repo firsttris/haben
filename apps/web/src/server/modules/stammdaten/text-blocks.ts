@@ -44,10 +44,15 @@ export async function createTextBlock(actor: string, input: TextBlockInput): Pro
   return withActor(actor, (tx) => insertTextBlock(tx, input));
 }
 
-/** createTextBlock in der Transaktion des Aufrufers */
-export async function insertTextBlock(tx: Tx, input: TextBlockInput): Promise<TextBlock> {
+/**
+ * createTextBlock in der Transaktion des Aufrufers. `uebernommen`: aus einer anderen Instanz (#488); die Zuordnung bestand
+ * dort schon und bleibt wie bei updateTextBlock, auch wenn der Kontakt inzwischen kein Kunde mehr ist
+ */
+export async function insertTextBlock(tx: Tx, input: TextBlockInput, { uebernommen = false }: { uebernommen?: boolean } = {}): Promise<TextBlock> {
   const values = textBlockInputSchema.parse(input);
-  await checkContact(tx, values.contactId);
+  if (!uebernommen) await checkContact(tx, values.contactId);
+  else if (values.contactId && (await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, values.contactId))).length === 0)
+    throw new TextBlockError("Kontakt nicht gefunden.");
   const [row] = await tx.insert(schema.textBlocks).values(values).returning();
   return row!;
 }
