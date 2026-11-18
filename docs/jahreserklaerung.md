@@ -55,7 +55,7 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 - Der Kasten zum Übermitteln verschwindet; eine Übermittlung aus Haben ist nicht mehr vorgesehen.
 - Meldungen, die Haben aus seinen eigenen Daten ableitet, treten zurück, weil sie dem Vermerk sonst widersprächen: die Nullerklärung, „Keine Betriebseinnahmen und -ausgaben im Jahr“ und der Hinweis auf fehlende Voranmeldungen.
 
-Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
+Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Ausnahme: Anlage EÜR und Einkommensteuererklärung desselben Jahres, die zusammen übermittelt wurden, tragen beide das eine Ticket aus dem Protokoll. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
 
 ### Zeilenwerte aus dem Übermittlungsprotokoll
 
