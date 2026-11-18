@@ -178,7 +178,6 @@ function FinalInvoice({ data }: { data: Detail }) {
   const navigate = useNavigate();
   const cancel = useServerFn(cancelFinalInvoice);
   const correct = useServerFn(correctFinalInvoice);
-  const copy = useServerFn(copyFinalInvoice);
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   /** Was gerade per E-Mail versendet wird: die Rechnung oder eine Mahnung */
@@ -204,14 +203,6 @@ function FinalInvoice({ data }: { data: Detail }) {
   const onCorrect = () =>
     run(async () => {
       const draft = await correct({ data: invoice.id });
-      await navigate({ to: "/rechnungen/$id", params: { id: draft.id } });
-    });
-
-  // Nächste ähnliche Rechnung: neuer Entwurf mit Kunde und Positionen; Abschlag und Schlussrechnung entstehen aus dem Angebot
-  const canCopy = inhaber && invoice.kind === "rechnung" && invoice.variant === null;
-  const onCopy = () =>
-    run(async () => {
-      const draft = await copy({ data: invoice.id });
       await navigate({ to: "/rechnungen/$id", params: { id: draft.id } });
     });
 
@@ -244,11 +235,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               Lieferschein
             </a>
           )}
-          {canCopy && (
-            <button type="button" className="btn" onClick={() => void onCopy()} disabled={busy}>
-              Kopieren
-            </button>
-          )}
+          {inhaber && <CopyButton invoice={invoice} action={{ busy, run }} />}
         </div>
       </div>
 
@@ -558,6 +545,28 @@ function FinalInvoice({ data }: { data: Detail }) {
         </div>
       </div>
     </>
+  );
+}
+
+type ActionState = Pick<ReturnType<typeof useAction>, "busy" | "run">;
+
+/**
+ * Nächste ähnliche Rechnung: neuer Entwurf mit Kunde und Positionen. Abschlag und Schlussrechnung entstehen aus dem Angebot,
+ * Storno und Korrektur aus der Rechnung; dort gibt es den Knopf nicht.
+ */
+function CopyButton({ invoice, action }: { invoice: Detail["invoice"]; action: ActionState }) {
+  const copy = useServerFn(copyFinalInvoice);
+  const navigate = useNavigate();
+  if (invoice.kind !== "rechnung" || invoice.variant !== null) return null;
+  const onCopy = () =>
+    action.run(async () => {
+      const draft = await copy({ data: invoice.id });
+      await navigate({ to: "/rechnungen/$id", params: { id: draft.id } });
+    });
+  return (
+    <button type="button" className="btn" onClick={() => void onCopy()} disabled={action.busy}>
+      Kopieren
+    </button>
   );
 }
 
