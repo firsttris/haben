@@ -9,12 +9,12 @@ import { testDatabaseUrl } from "../test-db.ts";
 const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 
 /*
- * Migration 0289 (#1424) auf einer bestehenden Instanz: Der Abruf von App Store Connect stand nach dem letzten Lauf bei
+ * Migration 0293 (#1424) auf einer bestehenden Instanz: Der Abruf von App Store Connect stand nach dem letzten Lauf bei
  * fetch_from = 2026-11, geholt hatte er damit Apples Perioden bis 2026-10, also die Berichte bis Juli 2026. August bis
  * Oktober fehlen; der Abruf beginnt deshalb wieder im August. Google Play bleibt, wie es ist.
  */
-describe.skipIf(!testDatabaseUrl)("Migration 0289: Abruf von App Store Connect drei Monate zurück (Postgres)", () => {
-  /** Instanz auf dem Stand vor 0289 mit beiden Zugängen bei fetch_from = 2026-11, danach die Migration */
+describe.skipIf(!testDatabaseUrl)("Migration 0293: Abruf von App Store Connect drei Monate zurück (Postgres)", () => {
+  /** Instanz auf dem Stand vor 0293 mit beiden Zugängen bei fetch_from = 2026-11, danach die Migration */
   async function migriert(vorher: (sql: postgres.Sql) => Promise<void>) {
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
     const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Migration 0289: Abruf von App Store Connect d
     const previous = mkdtempSync(join(tmpdir(), "haben-migrationen-"));
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta", "_journal.json"), "utf8"));
-    const idx = full.entries.findIndex((e: { idx: number }) => e.idx === 289);
+    const idx = full.entries.findIndex((e: { idx: number }) => e.idx === 293);
     writeFileSync(join(previous, "meta", "_journal.json"), JSON.stringify({ ...full, entries: full.entries.slice(0, idx) }));
     const sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
     const { drizzle } = await import("drizzle-orm/postgres-js");

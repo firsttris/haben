@@ -130,6 +130,14 @@ export {
   type MandateOption,
 } from "./sepa-mandate.ts";
 export {
+  bestaetigeUstId,
+  listUstIdBestaetigungen,
+  ustIdBestaetigungen,
+  type UstIdBestaetigung,
+  type UstIdBestaetigungsErgebnis,
+  type UstIdBestaetigungsZustand,
+} from "./ustid-bestaetigung.ts";
+export {
   ansprechpartnerSnapshot,
   ContactPersonError,
   contactPersonInputSchema,

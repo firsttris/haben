@@ -23,7 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import type { BankCsvMapping } from "@haben/import";
+import type { BankCsvMapping, ParsedTransaction } from "@haben/import";
 import type { LetterheadDesign, OutgoingTaxDetails } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
@@ -1309,6 +1309,55 @@ export const sepaMandateRevocations = pgTable(
   (t) => [uniqueIndex("sepa_mandate_revocations_mandate").on(t.mandateId)],
 );
 
+/**
+ * Bestätigungen ausländischer USt-IdNrn. beim BZSt (§ 18e UStG, #1385), nur anhängen: je Antwort des BZSt, die etwas über
+ * die Nummer sagt, eine Zeile mit den gesendeten Angaben und dem empfangenen Datensatz unverändert als Nachweis
+ * der qualifizierten Abfrage (UStAE 18e.1 Abs. 2 Sätze 3 bis 5, FAQ des BZSt). Fehler des Dienstes stehen nicht hier.
+ */
+export const ustidBestaetigungen = pgTable(
+  "ustid_bestaetigungen",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    art: text("art", { enum: ["einfach", "qualifiziert"] }).notNull(),
+    /** Gesendet: eigene und angefragte USt-IdNr., bei qualifizierter Abfrage Name und Anschrift (Straße und PLZ optional) */
+    anfragendeUstid: text("anfragende_ustid").notNull(),
+    angefragteUstid: text("angefragte_ustid").notNull(),
+    firmenname: text("firmenname"),
+    strasse: text("strasse"),
+    plz: text("plz"),
+    ort: text("ort"),
+    /** Empfangen: Status (evatr-…), Zeitpunkt der Anfrage beim BZSt, Gültigkeit und Vergleich A bis D je Angabe */
+    status: text("status").notNull(),
+    anfrageZeitpunkt: timestamp("anfrage_zeitpunkt", { withTimezone: true }).notNull(),
+    gueltigAb: text("gueltig_ab"),
+    gueltigBis: text("gueltig_bis"),
+    ergFirmenname: text("erg_firmenname"),
+    ergStrasse: text("erg_strasse"),
+    ergPlz: text("erg_plz"),
+    ergOrt: text("erg_ort"),
+    /** Technische ID der Antwort */
+    bzstId: text("bzst_id"),
+    /** Der empfangene Datensatz, wie er kam */
+    antwort: text("antwort").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ustid_bestaetigungen_contact").on(t.contactId, t.createdAt),
+    check("ustid_bestaetigungen_art", sql`${t.art} in ('einfach', 'qualifiziert')`),
+    check("ustid_bestaetigungen_status", sql`${t.status} ~ '^evatr-[0-9]{4}$'`),
+    check(
+      "ustid_bestaetigungen_vergleich",
+      sql`coalesce(${t.ergFirmenname}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergStrasse}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergPlz}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergOrt}, 'A') in ('A', 'B', 'C', 'D')`,
+    ),
+    // Qualifiziert heißt: mit Name und Ort (OpenAPI-Beschreibung der eVatR-API)
+    check("ustid_bestaetigungen_qualifiziert", sql`${t.art} = 'einfach' or (${t.firmenname} is not null and ${t.ort} is not null)`),
+  ],
+);
+
 export const invoiceKindEnum = pgEnum("invoice_kind", ["rechnung", "storno", "korrektur"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "final"]);
 
@@ -2473,6 +2522,61 @@ export const importMovements = pgTable(
     uniqueIndex("import_movements_identity").on(t.sourceId, t.sourceEventId, t.component),
     uniqueIndex("import_movements_transaction").on(t.transactionId),
     check("import_movements_component", sql`${t.component} in ('main', 'fee')`),
+  ],
+);
+
+/**
+ * Konflikt des Importvertrags (#306, 3b): Die Bank liefert eine schon übernommene Bewegung mit anderem Kern (Betrag,
+ * Währung, Buchungstag oder Art). Haben hält den gelieferten Kern und den Umsatz fest, den der Abruf daraus angelegt
+ * hätte, bis der Nutzer ihn klärt (`import_resolutions`). Je Bewegung und geliefertem Kern ein Eintrag; nur anhängen.
+ */
+export const importConflicts = pgTable(
+  "import_conflicts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Die zuerst übernommene Bewegung; sie nennt Quelle, Ereignis, Komponente und den bisherigen Umsatz */
+    movementId: uuid("movement_id")
+      .notNull()
+      .references(() => importMovements.id),
+    kind: text("kind").notNull(),
+    bookingDate: date("booking_date", { mode: "string" }).notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
+    currency: text("currency").notNull(),
+    /** Prüfwert aller gelieferten Angaben (`knownMovement`) */
+    details: text("details").notNull(),
+    /** Der Umsatz, wie ihn der Abruf angelegt hätte; „Als weiteren Umsatz übernehmen“ legt genau diesen an */
+    transaction: jsonb("transaction").$type<ParsedTransaction>().notNull(),
+    /** Der abgelehnte Abruf im Importprotokoll, der den Konflikt zuerst gemeldet hat */
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("import_conflicts_core").on(t.movementId, t.kind, t.bookingDate, t.amount, t.currency)],
+);
+
+/**
+ * Entscheidung zu einem Konflikt (#306, 3b), genau eine je Konflikt; nur anhängen. „keep“: Der gelieferte Kern gilt
+ * künftig als bekannt, der bisherige Umsatz bleibt allein. „add“: Haben hat den gelieferten Umsatz zusätzlich angelegt
+ * (`transaction_id`); der bisherige bleibt mit seinen Zuordnungen stehen und zeigt einen Hinweis auf den neuen.
+ */
+export const importResolutions = pgTable(
+  "import_resolutions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conflictId: uuid("conflict_id")
+      .notNull()
+      .references(() => importConflicts.id),
+    decision: text("decision", { enum: ["keep", "add"] }).notNull(),
+    transactionId: uuid("transaction_id").references(() => bankTransactions.id),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("import_resolutions_conflict").on(t.conflictId),
+    uniqueIndex("import_resolutions_transaction").on(t.transactionId),
+    check("import_resolutions_decision", sql`${t.decision} in ('keep', 'add')`),
+    check("import_resolutions_transaction", sql`(${t.decision} = 'add') = (${t.transactionId} is not null)`),
   ],
 );
 

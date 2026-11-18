@@ -122,9 +122,11 @@ export const accountSchema = z.object({
 
 /**
  * Ein Import mit Inhalt: Der Eintrag eines abgelehnten Abrufs (`recordRefusedBatch`) hat weder Zeitraum noch Umsätze und
- * zählt nicht als letzter Import (Kontostand, Saldenfolge). Ohne diese Bedingung käme er bei `desc(periodTo)` zuerst.
+ * zählt nicht als letzter Import (Kontostand, Saldenfolge). Ohne diese Bedingung käme er bei `desc(periodTo)` zuerst. Ebenso
+ * der Eintrag zu einem Umsatz, den Haben nach einem Konflikt übernommen hat (`resolveConflict`): ohne Zeitraum und Salden.
  */
-const echterImport = sql`not (${schema.bankImports.periodTo} is null and ${schema.bankImports.added} = 0 and ${schema.bankImports.skipped} = 0)`;
+const echterImport = sql`not (${schema.bankImports.periodTo} is null and ${schema.bankImports.added} = 0 and ${schema.bankImports.skipped} = 0)
+  and not exists (select 1 from import_resolutions r join bank_transactions t on t.id = r.transaction_id where t.import_id = ${schema.bankImports.id})`;
 
 export async function listAccounts() {
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
