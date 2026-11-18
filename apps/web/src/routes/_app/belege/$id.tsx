@@ -26,6 +26,7 @@ import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react
 import { flushSync } from "react-dom";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { type DuplikatZiel, useBelegDuplizieren } from "../../../components/BelegDuplizieren.tsx";
 import { BelegUmsatzsteuer } from "../../../components/BelegUmsatzsteuer.tsx";
 import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
@@ -62,8 +63,8 @@ function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boo
 }
 
 export const Route = createFileRoute("/_app/belege/$id")({
-  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
-  validateSearch: z.object({ geprueft: z.optional(z.boolean()) }),
+  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“; dupliziert und vorhanden: nach „Beleg duplizieren“ */
+  validateSearch: z.object({ geprueft: z.optional(z.boolean()), dupliziert: z.optional(z.string()), vorhanden: z.optional(z.boolean()) }),
   loader: ({ params }) => getDocumentDetail({ data: params.id }),
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.document.supplierName || "Beleg"} · Haben` }],
@@ -86,14 +87,14 @@ function DocumentPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const navigate = useNavigate();
-  const { geprueft } = Route.useSearch();
+  const { geprueft, ...duplikat } = Route.useSearch();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const { document: doc, navigation } = data;
   const running = doc.extractionStatus === "laeuft";
   // Das Formular meldet ungespeicherte Änderungen; beim Wechsel des Belegs setzt es sich mit false neu auf
   const [dirty, setDirty] = useState(false);
   // Ungespeicherte Änderungen: erst nachfragen, der Dialog wechselt und verwirft sie
-  const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
+  const [pending, setPending] = useState<{ from: string; to: string; ziel?: DuplikatZiel } | null>(null);
   const pendingId = pending?.from === doc.id ? pending.to : null;
 
   useEffect(() => {
@@ -102,17 +103,16 @@ function DocumentPage() {
     return () => clearInterval(timer);
   }, [running, router]);
 
-  function leaveTo(id: string) {
-    if (id === "liste") void navigate({ to: "/belege" });
-    else void navigate({ to: "/belege/$id", params: { id } });
-  }
+  const leaveTo = (id: string, ziel?: DuplikatZiel) =>
+    void (id === "liste" ? navigate({ to: "/belege" }) : navigate({ to: "/belege/$id", params: { id }, search: ziel }));
 
   /** Zu einem anderen Beleg oder ("liste") zurück zur Liste; bei ungespeicherten Änderungen erst nachfragen */
-  function go(id: string | null) {
+  function go(id: string | null, ziel?: DuplikatZiel) {
     if (!id) return;
-    if (dirty) setPending({ from: doc.id, to: id });
-    else leaveTo(id);
+    if (dirty) setPending({ from: doc.id, to: id, ziel });
+    else leaveTo(id, ziel);
   }
+  const duplizieren = useBelegDuplizieren({ id: doc.id, entwurf: doc.status === "neu" }, duplikat, go);
 
   // J/K bzw. Pfeiltasten springen zum nächsten bzw. vorigen Beleg, wie im Bankabgleich
   useEffect(() => {
@@ -203,14 +203,16 @@ function DocumentPage() {
           <a className="btn" href={`/api/beleg/${doc.id}?download`}>
             Original herunterladen
           </a>
+          {inhaber && !running && duplizieren.knopf}
         </div>
       </div>
+      {duplizieren.hinweise}
       <ConfirmDialog
         open={pendingId !== null}
         title="Ohne Speichern wechseln?"
         confirmLabel="Ohne Speichern wechseln"
         danger
-        onConfirm={() => pendingId && leaveTo(pendingId)}
+        onConfirm={() => pendingId && leaveTo(pendingId, pending?.ziel)}
         onClose={() => setPending(null)}
       >
         <p>Der Beleg hat ungespeicherte Änderungen. Beim Wechsel gehen sie verloren.</p>

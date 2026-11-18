@@ -41,7 +41,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 | | |
 |---|---|
-| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
+| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Duplizieren, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
 | [Belege aus dem Ausland](belege-ausland.md) | Reverse Charge nach § 13b, innergemeinschaftlicher Erwerb, Einfuhrumsatzsteuer, Fremdwährung |
 | [Belege bezahlen](belege-bezahlen.md) | Bezahlung über Geschäftskonto, privat oder Kasse, Überweisen per SEPA-Datei mit Skonto, Verrechnen ohne Zahlung |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand, Wege zur Betriebsstätte (Entfernungspauschale); Buchung und Storno |
