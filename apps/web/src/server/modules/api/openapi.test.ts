@@ -79,6 +79,22 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
     expect(doc.components.schemas.ArticlePatch).not.toHaveProperty("required");
   });
 
+  it("beschreibt Angebote nur zum Lesen, mit eigenem Recht und der Art jeder Position", () => {
+    expect(Object.keys(doc.paths["/angebote"]!)).toEqual(["get"]);
+    expect(Object.keys(doc.paths["/angebote/{id}"]!)).toEqual(["get"]);
+    expect(doc.paths["/angebote"]).toMatchObject({
+      get: {
+        security: [{ token: ["angebote:lesen"] }],
+        responses: { 200: { content: { "application/json": { schema: { $ref: "#/components/schemas/QuoteList" } } } } },
+      },
+    });
+    expect(doc.paths["/angebote/{id}"]).toMatchObject({
+      get: { responses: { 200: { content: { "application/json": { schema: { $ref: "#/components/schemas/Quote" } } } } } },
+    });
+    const lines = (doc.components.schemas.Quote as { properties: { lines: unknown } }).properties.lines;
+    expect(JSON.stringify(lines)).toContain('"alternative"');
+  });
+
   it("beschreibt Einheiten: Cent, Basispunkte, Tausendstel", () => {
     const line = doc.components.schemas.InvoiceLineInput as { properties: Record<string, { description?: string; type?: string }>; required: string[] };
     expect(line.properties.quantity!.description).toMatch(/Tausendsteln/);
