@@ -35,23 +35,24 @@ const alsZeile = (account: string, saldo: number, taxCode: PostingLine["taxCode"
 
 const SELBST_GESCHULDET: readonly string[] = ["RC13bEU", "RC13bDrittland", "IGE19", "IGE7"];
 
-/** Die Zeilen so, wie Haben sie vor #551 buchte; ohne Vorsteuerabzug für einen Satz je Beleg */
+/**
+ * Die Zeilen so, wie Haben sie vor #551 buchte: Die Steuer ohne Abzug („keineVSt“) kommt in die Zeile mit dem Steuerschlüssel
+ * davor auf demselben Konto (documentPosting und documentSplitPosting buchen sie direkt danach), das private Netto zur
+ * privaten Steuer ohne Steuerschlüssel.
+ */
 function wieVor551(kr: Kontenrahmen, zeilen: readonly PostingLine[]): PostingLine[] {
   const privatentnahmen = ACCOUNTS[kr].privatentnahmen;
-  const ohneAbzug = salden(zeilen.filter((z) => z.taxCode === "keineVSt"));
   const result: PostingLine[] = [];
   let privat = 0;
   for (const z of zeilen) {
-    if (z.taxCode === "keineVSt") continue;
     if (z.account === privatentnahmen) {
       privat += z.debit - z.credit;
       continue;
     }
-    const steuer = ohneAbzug.get(z.account);
-    if (steuer !== undefined && z.taxCode && SELBST_GESCHULDET.includes(z.taxCode)) {
-      result.push(alsZeile(z.account, z.debit - z.credit + steuer, z.taxCode));
-      ohneAbzug.delete(z.account);
-    } else result.push(z);
+    const davor = result.at(-1);
+    if (z.taxCode === "keineVSt" && davor?.account === z.account && davor.taxCode && SELBST_GESCHULDET.includes(davor.taxCode))
+      result[result.length - 1] = alsZeile(z.account, davor.debit - davor.credit + z.debit - z.credit, davor.taxCode);
+    else result.push(z);
   }
   if (privat !== 0) result.push(alsZeile(privatentnahmen, privat, null));
   return result;
@@ -109,6 +110,16 @@ describe.each(["SKR03", "SKR04"] as const)("Belegbuchung von vor #551 mit der Be
     expect(kennzahlen(kr, alt)).toEqual({ kz89: 10_000, tax89: 1_900, kz93: 5_000, tax93: 350 });
     expect(verprobeBuchung(kr, "soll", alt)).not.toEqual([]);
     expect(verprobeBuchung(kr, "soll", mitBemessungWieHeute(kr, alt))).toEqual([]);
+  });
+
+  it.each([true, false])("Erwerb zu 19 %% und 7 %% mit Privatanteil, Vorsteuerabzug %s: bleibt, wie gebucht", (abzug) => {
+    // Der Privatanteil lässt sich aus dem Journal nicht centgenau auf die Sätze aufteilen; dann auch die Steuer nicht abziehen
+    const t = totals({ rate: 1900, base: 10_000 }, { rate: 700, base: 5_000 });
+    const heute = documentPosting(t, "wareneinkauf", kr, "einzelunternehmen", "privat", abzug, undefined, 30, "ig_erwerb");
+    const alt = wieVor551(kr, heute);
+    expect(salden(alt)).toEqual(salden(heute));
+    expect(alt.filter((z) => z.taxCode === "keineVSt")).toEqual([]);
+    expect(mitBemessungWieHeute(kr, alt)).toEqual(alt);
   });
 
   it("Aufgeteilter Beleg mit § 13b ohne Vorsteuerabzug auf zwei Konten: Kz 46 ist die Summe der Netto", () => {
