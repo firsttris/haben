@@ -30,6 +30,7 @@ export const SCHICHTEN = [
   "verfahrensdoku",
   "archiv",
   "datenimport",
+  "instanzwechsel",
   "stores",
   "etsy",
   "mcp",

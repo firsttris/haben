@@ -112,6 +112,7 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     ["datev", "export"],
     ["ablage", "export"],
     ["backup", "export"],
+    ["instanz", "export"],
     ["zertifikat", "elster"],
   ])("findet bei „%s“ den Einstellungsbereich %s", (suche, bereich) => {
     const bereiche = seiten.filter((s) => s.settingsArea);

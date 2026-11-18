@@ -30,6 +30,7 @@ import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
+import { SettingsExportCard } from "../../components/SettingsExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
@@ -312,6 +313,7 @@ function SettingsPage() {
           {bereich === "export" && (
             <>
               <ExportCard years={exportYears} />
+              <SettingsExportCard />
               <DatevCard years={exportYears} numbers={datev} />
               <ArchiveTargetCard data={ablage} />
               <IntegrityCard head={chainHead} />

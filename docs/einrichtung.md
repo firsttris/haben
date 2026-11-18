@@ -66,7 +66,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Bereiche** ([Menüpunkte ein- und ausblenden](#bereiche-ausblenden)), **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Bereiche** ([Menüpunkte ein- und ausblenden](#bereiche-ausblenden)), **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, [Einstellungen](#von-der-testinstanz-in-den-echtbetrieb), DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
 
 Ebenfalls unten links wählst du **Farbe** und **Modus**: Wald (Grün, Standard), Ozean, Pflaume oder Graphit, jeweils hell, dunkel oder **System**, das der Einstellung deines Geräts folgt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jeder Farbe gleich.
 
@@ -526,6 +526,20 @@ Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf ü
 3. Beim Import das Konto in der Auswahl „Konto“ wählen und die Datei hochladen.
 
 Name und Zweck eines Kontos (Geschäftskonto, Steuerkonto, Rücklagen, Privatkonto) änderst du auf der Seite **Bank** mit **Name und Zweck**, auch für automatisch angelegte Konten (siehe [Bank](bank.md#name-und-zweck)). Jede IBAN gibt es nur einmal. Alle Bankkonten buchen auf dasselbe Finanzkonto (1200 bei SKR03, 1800 bei SKR04). Import, Abgleich und Buchungen sind in [Bank](bank.md) beschrieben.
+
+## Von der Testinstanz in den Echtbetrieb
+
+Rechnungen, Buchungen und Bankumsätze aus dem Testen lassen sich nicht löschen (GoBD). Für den Echtbetrieb beginnst du deshalb mit einer frischen Datenbank und nimmst die Einrichtung als Datei mit: Unter **Einstellungen › Export** lädt **Einstellungen exportieren** eine JSON-Datei herunter. Sie enthält:
+
+- Firmendaten mit Mahnwesen und Privatanteilen, persönliche Angaben und ausgeblendete Bereiche
+- Beleggestaltung mit Logo, Briefpapier und eigenen Layouts
+- Nummernformate, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote und Kundennummern
+- Absender und Vorlagen der E-Mails, Textbausteine, eigene Konten, eigene Seiten und die Angaben zur Verfahrensdokumentation
+- Einheiten, Artikel und Kontakte mit Ansprechpartnern
+
+Nicht in der Datei sind Zugangsdaten (Kontoabruf, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, KI-Schlüssel, API-Tokens, Kalender-Abo), Konten und Passkeys, die Zählerstände der Nummernkreise und alles Gebuchte. Anlagen übernimmst du per [CSV-Import](csv-import.md#anlagen). Die Pakete eigener Layouts gibst du in der neuen Instanz neu frei.
+
+Die Datei enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre sie so sicher auf wie ein Backup; herunterladen kann sie nur der Inhaber.
 
 ## Wie es weitergeht
 
