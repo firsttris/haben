@@ -24,7 +24,7 @@ import type { ParsedStatement } from "./types.ts";
  *   etsy-steuerabgleich.ts.
  * - Gebühren und Werbung je Monat und Art zu je einer Zeile gebündelt, am letzten Tag des Monats: dieselben Arten wie die
  *   Positionen der Gebührenrechnung (Listing, Renew Expired, Renew Sold, Transaction, Processing, Etsy Ads, Offsite Ads),
- *   Gutschriften jeweils in ihrer Art. Jede Zeile beginnt mit „Gebühr“, damit der Bankabgleich sie der Sammelrechnung
+ *   Gutschriften jeweils in ihrer Art; dazu die Umsatzsteuer, die Etsy ohne USt-IdNr. auf die Gebühren berechnet. Jede Zeile beginnt mit „Gebühr“, damit der Bankabgleich sie der Sammelrechnung
  *   zuordnen kann.
  * - Auszahlung (DISBURSE2) als eigener Umsatz: Geldtransit, kein Erlös.
  * - Karteneinzug (billing_payment) und Ausgleich (RECOUP) bleiben einzeln und werden nicht zu Gebühren gerechnet; „Ausgleich“

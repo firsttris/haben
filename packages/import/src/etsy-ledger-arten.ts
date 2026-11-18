@@ -24,6 +24,7 @@ export type Kind =
   | "zahlungsgebuehr"
   | "etsyads"
   | "offsiteads"
+  | "gebuehrenumsatzsteuer"
   | "auszahlung"
   | "karteneinzug"
   | "ausgleich";
@@ -49,6 +50,9 @@ export const KINDS: Record<string, Kind> = {
   REFUND_PROCESSING_FEE: "zahlungsgebuehr",
   prolist: "etsyads",
   offsite_ads_fee: "offsiteads",
+  // Umsatzsteuer auf die Gebühren, wenn bei Etsy keine USt-IdNr. hinterlegt ist; parent_entry_id nennt die Gebühr
+  // (OpenAPI von Etsy). Nicht an einem echten Verlauf ohne USt-IdNr. geprüft.
+  vat_seller_services: "gebuehrenumsatzsteuer",
   DISBURSE2: "auszahlung",
   billing_payment: "karteneinzug",
   RECOUP: "ausgleich",
@@ -70,6 +74,7 @@ export const BUCKETS: Partial<Record<Kind, { purpose: string; type: string; pref
   zahlungsgebuehr: { purpose: "Zahlungsabwicklung (Processing Fees)", type: "Gebühr", prefix: "Gebühr", reference: "zahlungsgebuehren" },
   etsyads: { purpose: "Etsy Ads (Etsy Ads Fees)", type: "Werbung", prefix: "Gebühr", reference: "etsyads" },
   offsiteads: { purpose: "Offsite Ads (Offsite Ads Fees)", type: "Werbung", prefix: "Gebühr", reference: "offsiteads" },
+  gebuehrenumsatzsteuer: { purpose: "Umsatzsteuer auf Gebühren (VAT)", type: "Gebühr", prefix: "Gebühr", reference: "gebuehrenumsatzsteuer" },
 };
 
 /** Zweck einer einzelnen Zeile; Auszahlungen tragen das Wort, das Haben als Geldtransit erkennt */
