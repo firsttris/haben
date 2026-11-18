@@ -215,7 +215,7 @@ Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in d
 | eigene Steuerart (taxType `custom`) | Kennzahlen der Steuerart |
 | alles andere | Andere Sätze |
 
-Regel 17 bucht sevDesk im DATEV-Export auf 8338 (SKR03), das Konto für nicht steuerbare Leistungen im Drittland ([#472](https://github.com/firsttris/haben/issues/472)). Ob eine Rechnung mit `noteu` eine Leistung oder eine Lieferung ins Drittland war, sagt sevDesk nicht; die OpenAPI ordnet `noteu` der Regel 17 zu. War es eine Ausfuhrlieferung, gehört sie in Kz 43: vergleiche solche Rechnungen mit der übermittelten Voranmeldung. Kz 45 zählt bei Ist-Versteuerung wie in [Lexware Office](lexoffice.md#umsatzsteuer-je-monat) im Monat der Rechnung.
+Regel 17 bucht sevDesk im DATEV-Export auf 8338 (SKR03), das Konto für nicht steuerbare Leistungen im Drittland ([#472](https://github.com/firsttris/haben/issues/472)). Ob eine Rechnung mit `noteu` eine Leistung oder eine Lieferung ins Drittland war, sagt sevDesk nicht; die OpenAPI ordnet `noteu` der Regel 17 zu. War es eine Ausfuhrlieferung, gehört sie in Kz 43: vergleiche solche Rechnungen mit der übermittelten Voranmeldung. Kz 21, 41, 45 und 60 zählen bei Ist-Versteuerung wie in [Lexware Office](lexoffice.md#umsatzsteuer-je-monat) im Monat der Rechnung.
 
 Im [Gesamtumsatz nach § 19 UStG](auswertungen.md#gesamtumsatz-nach--19-ustg) zählen Rechnungen mit Regel 5 als Umsatz im Inland. Regel 17, 21 und taxType `noteu` bleiben dort ungeklärt, weil der Leistungsort im Ausland nicht bestätigt ist, Regel 18 bis 20 ebenso.
 
