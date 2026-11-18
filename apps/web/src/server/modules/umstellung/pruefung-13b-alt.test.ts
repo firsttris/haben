@@ -15,6 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update: § 13b und Erwerb aus V
   let umstellung: typeof import("./index.ts");
   let documents: typeof import("../belege/documents.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
+  let cancellation: typeof import("../belege/cancellation.ts");
   const actor = "test-user";
   const today = "2026-10-04";
   let docSeq = 0;
@@ -24,13 +25,16 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update: § 13b und Erwerb aus V
     umstellung = await import("./index.ts");
     documents = await import("../belege/documents.ts");
     vat = await import("../umsatzsteuer/index.ts");
+    cancellation = await import("../belege/cancellation.ts");
   }, 30_000);
   afterAll(async () => {
     await sql?.end();
   });
 
   async function reset(kr: "SKR03" | "SKR04", v: "ist" | "soll") {
-    await leeren(sql)`truncate journal_umstellung, vat_return_submissions, vat_returns, journal_lines, journal_entries, document_amounts,
+    await leeren(
+      sql,
+    )`truncate journal_umstellung, document_cancellations, vat_return_submissions, vat_returns, journal_lines, journal_entries, document_amounts,
       documents, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -57,6 +61,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update: § 13b und Erwerb aus V
       ...(vorsteuerAbzug ? {} : { vorsteuerAnteil: 0 }),
     });
     await documents.bookDocument(actor, id);
+    return id;
   }
 
   /** Gesendete Voranmeldung April mit den Werten aus der heutigen Buchung */
@@ -76,14 +81,16 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update: § 13b und Erwerb aus V
     const privatentnahmen = kr === "SKR03" ? "1800" : "2100";
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
-      if (vorUpdate) await tx`update journal_entries set created_at = (select min(at) from journal_umstellung) - interval '30 days'`;
-      for (const k of await tx`select id, entry_id, account, debit from journal_lines where tax_code = 'keineVSt'`) {
-        await tx`update journal_lines set debit = debit + ${k.debit} where entry_id = ${k.entry_id} and account = ${k.account}
+      // Nur die Belegbuchung selbst; ein Storno nach dem Update behält seinen Zeitpunkt
+      if (vorUpdate) await tx`update journal_entries set created_at = (select min(at) from journal_umstellung) - interval '30 days' where reverses_id is null`;
+      // Soll oder Haben, damit es auch für einen Storno gilt
+      for (const k of await tx`select id, entry_id, account, debit, credit from journal_lines where tax_code = 'keineVSt'`) {
+        await tx`update journal_lines set debit = debit + ${k.debit}, credit = credit + ${k.credit} where entry_id = ${k.entry_id} and account = ${k.account}
           and tax_code in ('RC13bEU', 'RC13bDrittland', 'IGE19', 'IGE7')`;
         await tx`delete from journal_lines where id = ${k.id}`;
       }
-      for (const p of await tx`select id, entry_id, debit from journal_lines where account = ${privatentnahmen} and tax_code is not null`) {
-        await tx`update journal_lines set debit = debit + ${p.debit} where entry_id = ${p.entry_id} and account = ${privatentnahmen} and tax_code is null`;
+      for (const p of await tx`select id, entry_id, debit, credit from journal_lines where account = ${privatentnahmen} and tax_code is not null`) {
+        await tx`update journal_lines set debit = debit + ${p.debit}, credit = credit + ${p.credit} where entry_id = ${p.entry_id} and account = ${privatentnahmen} and tax_code is null`;
         await tx`delete from journal_lines where id = ${p.id}`;
       }
     });
@@ -125,5 +132,24 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update: § 13b und Erwerb aus V
       expect(await umstellung.umstellungBefunde(2027, today)).toEqual([
         expect.objectContaining({ bereich: "ustva", schluessel: "gesendet:2026-04:Kz 46", journal: 11_900, quelle: 10_000 }),
       ]);
+    }, 60_000);
+
+  // Storno eines alten Belegs nach dem Update: Ergeben die heutigen Zeilen nicht auf jedem Konto dasselbe (zeilenWieHeute),
+  // kehrt er die gebuchten in der alten Form um. Er gehört zur alten Buchung und wird wie sie gelesen (Hinweis aus der
+  // Selbstprüfung)
+  for (const kr of ["SKR03", "SKR04"] as const)
+    it(`Storno nach dem Update in der Form von vor #551: mindert Kz 46 um das Netto (${kr})`, async () => {
+      await reset(kr, "soll");
+      const id = await beleg("eu", false, 0);
+      await gesendet();
+      await wieVor551(kr);
+      await cancellation.cancelDocument(actor, id, { reason: "Doppelt erfasst" } as never, "2026-05-10");
+      // Die Gegenbuchung liegt im Mai (April ist gemeldet) und trägt die alte Form
+      await wieVor551(kr, false);
+      const [storno] =
+        await sql`select date::text, created_at > (select min(at) from journal_umstellung) as nach_update from journal_entries where reverses_id is not null`;
+      expect(storno).toEqual({ date: "2026-05-10", nach_update: true });
+      expect((await vat.computedValues({ year: 2026, month: 5 })).kz46).toBe(-10_000);
+      expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
     }, 60_000);
 });
