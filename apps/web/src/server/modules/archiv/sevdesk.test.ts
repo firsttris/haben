@@ -1,14 +1,11 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const PDF = new TextEncoder().encode("%PDF-1.4\n% Rechnung RE-1001\n%%EOF\n");
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
 
 const INVOICES = [
   {
@@ -75,12 +72,9 @@ const VOUCHERS = [
 /** Nachgebaute sevDesk-API */
 function fakeApi(options: { failVoucher?: boolean } = {}) {
   const calls: string[] = [];
-  const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const path = url.pathname.replace(/^\/api\/v1/, "");
+  const fetchFn = sevdeskFakeFetch(({ path, list, headers }) => {
     calls.push(path);
-    if (new Headers(init?.headers).get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
-    const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
+    if (headers.get("authorization") !== TOKEN) return json({ error: { message: "Authentication required" } }, 401);
     switch (path) {
       case "/Tools/bookkeepingSystemVersion":
         return json({ objects: { version: "2.0" } });
@@ -97,12 +91,6 @@ function fakeApi(options: { failVoucher?: boolean } = {}) {
         return list([{ id: 1, contact: { id: "8" }, type: "EMAIL", value: "erika@example.com", main: true }]);
       case "/Invoice":
         return list(INVOICES);
-      case "/CreditNote":
-      case "/Order":
-      case "/VatReport":
-      case "/Part":
-      case "/TaxSet":
-        return list([]);
       case "/Voucher":
         return list(VOUCHERS);
       case "/Invoice/101/getPositions":
@@ -122,8 +110,7 @@ function fakeApi(options: { failVoucher?: boolean } = {}) {
       });
     }
     if (/^\/Invoice\/\d+\/getXml$/.test(path)) return json({ error: { message: "keine E-Rechnung" } }, 400);
-    return json({ error: { message: `unbekannt ${path}` } }, 404);
-  }) as typeof fetch;
+  });
   return { fetchFn, calls };
 }
 

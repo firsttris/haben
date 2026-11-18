@@ -223,7 +223,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(thisYear, `${thisYear + 1}-03-01`)).ust.issues.some((i) => i.tone === "fehler" && /ab 2024 keine/.test(i.text))).toBe(
       true,
     );
+    expect((await annual.annualOverview(thisYear, `${thisYear + 1}-03-01`)).ust.geschuldet).toBe(false);
     expect((await annual.annualOverview(2025, TODAY)).ust.issues.some((i) => /Kleinunternehmer/.test(i.text))).toBe(false);
+    expect((await annual.annualOverview(2025, TODAY)).ust.geschuldet).toBe(true);
     // Die Texte je nach Jahr: ab 2024 keine Erklärung, für 2023 noch eine (übers ELSTER-Portal)
     const issue = (ku: boolean, year: number) =>
       annual
@@ -240,6 +242,21 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Timeout, arbeitet sein Code weiter, und `loadCompany` legt die Firma in genau dem Fenster zwischen Truncate und
     // Insert des nächsten `beforeEach` an – daher kam der company_pkey-Fehler.
   }, 20_000);
+
+  it("Kleinunternehmer schon 2023: für 2023 ist die Umsatzsteuererklärung noch geschuldet, erst ab 2024 nicht mehr (§ 18 Abs. 3 UStG)", async () => {
+    // Stand am 31.12.2023 laut Protokoll, wie in den Fristen. Das Protokoll leert kein beforeEach; die späteren Tests
+    // dieser Datei sähen sonst auch für ihre Jahre einen Kleinunternehmer, daher danach leeren
+    await sql`insert into audit_log (at, actor, table_name, row_id, action, new_value)
+      values ('2023-06-01T12:00:00Z', 'test', 'company', '1', 'UPDATE', '{"kleinunternehmer": true}'::jsonb)`;
+    try {
+      const ust2023 = (await annual.annualOverview(2023, TODAY)).ust;
+      expect(ust2023.issues.some((i) => /Für 2023 gibst du auch als Kleinunternehmer/.test(i.text))).toBe(true);
+      expect(ust2023.geschuldet).toBe(true);
+      expect((await annual.annualOverview(2024, TODAY)).ust.geschuldet).toBe(false);
+    } finally {
+      await leeren(sql)`truncate audit_log`;
+    }
+  });
 
   it.each([
     ["SKR03", "ist"],

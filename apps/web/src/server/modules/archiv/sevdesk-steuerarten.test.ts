@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import belege from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/belege-credit-debit.json";
 import steuerarten from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/tax-set.json";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * Eigene Steuerarten aus sevDesk (#472): Der Abruf speichert GET /TaxSet je Lauf unverändert; der Abgleich der Umsatzsteuer
@@ -57,8 +58,6 @@ describe.skipIf(!testDatabaseUrl)("Eigene Steuerarten aus sevDesk im Abgleich (P
   let taxSets: unknown[] | "fehler" = [];
   const calls: string[] = [];
 
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-
   beforeAll(async () => {
     sql = await setupTestDb();
     sevdesk = await import("./sevdesk.ts");
@@ -83,21 +82,12 @@ describe.skipIf(!testDatabaseUrl)("Eigene Steuerarten aus sevDesk im Abgleich (P
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL) => {
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
+          fetch: sevdeskFakeFetch(({ path, url, list }) => {
             calls.push(path);
-            const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
-            if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "1.0" } });
             if (path === "/Voucher") return list(vouchers.map((v) => v.voucher));
             if (path === "/VoucherPos") return list(vouchers.find((v) => v.voucher.id === url.searchParams.get("voucher[id]"))?.positions ?? []);
             if (path === "/TaxSet") return taxSets === "fehler" ? json({ error: { message: "kaputt" } }, 500) : list(taxSets);
-            // Kontostamm der Positionen (Kategorie, #1182): ein Aufwandskonto, damit er die Steuerart nicht berührt
-            const konto = /^\/AccountingType\/(.+)$/.exec(path);
-            if (konto) return json({ objects: [{ id: konto[1], objectName: "AccountingType", skr03: "3100", skr04: "5900" }] });
-            if (!path.slice(1).includes("/")) return list([]);
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
     await sevdesk.saveSevdeskKey("test-user", TOKEN);
