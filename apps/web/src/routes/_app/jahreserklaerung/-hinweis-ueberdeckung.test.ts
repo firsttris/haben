@@ -8,9 +8,11 @@ import { describe, expect, it } from "vitest";
  * Quelltext: Der Hinweis muss vor der Knopfzeile stehen.
  */
 const quelle = readFileSync(new URL("./$jahr.tsx", import.meta.url), "utf8");
+/** Die Knopfzeile mit dem Bestätigungsdialog steht seit der Aufteilung der Seite in einer eigenen Datei */
+const senden = readFileSync(new URL("./-jahr-senden.tsx", import.meta.url), "utf8");
 
-const stelle = (text: string) => {
-  const index = quelle.indexOf(text);
+const stelle = (text: string, inQuelle = quelle) => {
+  const index = inQuelle.indexOf(text);
   expect(index, `nicht gefunden: ${text}`).toBeGreaterThan(-1);
   return index;
 };
@@ -30,9 +32,9 @@ describe("Euro-Hinweis im Einkommensteuer-Formular (#871)", () => {
 
 describe("Bestätigungsdialog vor dem Senden einer Jahreserklärung (#1253)", () => {
   it("nennt das Ergebnis der Erklärung unter den Fakten, wie die Voranmeldung die Zahllast", () => {
-    const fakten = quelle.slice(stelle("confirmFacts={["));
+    const fakten = senden.slice(stelle("confirmFacts={[", senden));
     expect(fakten.slice(0, fakten.indexOf("]}"))).toContain("...(ergebnis ? [ergebnis] : [])");
     // dieselbe Zahl wie die Tabelle: UstSummen zeigt anzeige.abschluss (mit Vermerk der erklärte Betrag)
-    expect(quelle).toContain('jahresergebnisFakt(form, form === "ust" ? data.ust.anzeige.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn)');
+    expect(senden).toContain('jahresergebnisFakt(form, form === "ust" ? data.ust.anzeige.abschluss : form === "euer" ? data.euer.gewinn : data.est.gewinn)');
   });
 });

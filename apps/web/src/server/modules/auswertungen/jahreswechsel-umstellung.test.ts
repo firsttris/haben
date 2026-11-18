@@ -2,6 +2,7 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
  * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, #1116, docs/adr/journal-als-quelle.md): Umstellungen zum 1.1.2027 über die Firmendaten (saveCompany mit ihren Sperren) und die
@@ -133,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
       lines: [{ description: "Leistung", quantity: 1000, unit: "Monat", unitPrice: net, taxRate: ku ? 0 : 1900 }],
       ...extra,
     } as never);
-    return invoices.finalizeInvoice(actor, d.id);
+    return invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
   }
   async function beleg(date: string, net: number, tax: number) {
     seq++;

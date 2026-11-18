@@ -55,6 +55,72 @@ export function zuflussTag(beschluss: KapEStAInput["beschluss"]): string {
   return beschluss.auszahlungstag ?? tagDanach(beschluss.datum);
 }
 
+/** Anmeldungszeitraum und Schuldner der Kapitalerträge */
+function allgemeineAngaben(zufluss: string, s: KapEStAInput["schuldner"], adresse: ReturnType<typeof splitStrasse>): XmlNode {
+  return [
+    "AllgAngaben",
+    [
+      ["AnmZtr", datum(zufluss)],
+      [
+        "Schuldner",
+        [
+          ["Name", s.name],
+          ["Telefon", s.telefon?.replace(/[^0-9/+-]/g, "") || undefined],
+          ["Email", s.email || undefined],
+          [
+            "StrAdrInl",
+            [
+              ["Str", adresse?.strasse ?? s.strasse],
+              ["Hausnummer", adresse?.hausnummer],
+              ["HNrZusatz", adresse?.zusatz],
+              ["PLZ", s.plz],
+              ["Ort", s.ort],
+            ],
+          ],
+        ],
+      ],
+    ],
+  ];
+}
+
+/** Kapitalerträge aus dem Beschluss (KapEZ) */
+function kapitalertraege(input: KapEStAInput, b: KapEStAInput["beschluss"]): XmlNode {
+  return [
+    "KapEZ",
+    [
+      [
+        "KapErtrSch25",
+        [
+          ["KapErtr", [["KapESch25", wholeEuros(input.ertrag)]]],
+          [
+            "KapESt",
+            [
+              ["KapESch25St", elsterDecimal(input.kapest).replace(",", ".")],
+              ["KapESch25StSum", elsterDecimal(input.kapest).replace(",", ".")],
+            ],
+          ],
+          [
+            "Soli",
+            [
+              ["KapESch25Sz", elsterDecimal(input.soli).replace(",", ".")],
+              ["KapESch25SzSum", elsterDecimal(input.soli).replace(",", ".")],
+            ],
+          ],
+          [
+            "GewVertBeschl",
+            [
+              ["GewVertBeschlDat", datum(b.datum)],
+              ["GewVertBeschlBet", wholeEuros(b.betrag)],
+              ["GewVertBeschlTag", b.auszahlungstag ? datum(b.auszahlungstag) : undefined],
+              ["TagNachBeschl", b.auszahlungstag ? undefined : datum(tagDanach(b.datum))],
+            ],
+          ],
+        ],
+      ],
+    ],
+  ];
+}
+
 export function buildKapEStAXml(input: KapEStAInput): string {
   checkSteuernummer13(input.steuernummer13);
   const zufluss = zuflussTag(input.beschluss);
@@ -82,64 +148,8 @@ export function buildKapEStAXml(input: KapEStAInput): string {
       ["BuStNr", input.steuernummer13],
       // 0 = erstmalige Anmeldung
       ["BArt", "0"],
-      [
-        "AllgAngaben",
-        [
-          ["AnmZtr", datum(zufluss)],
-          [
-            "Schuldner",
-            [
-              ["Name", s.name],
-              ["Telefon", s.telefon?.replace(/[^0-9/+-]/g, "") || undefined],
-              ["Email", s.email || undefined],
-              [
-                "StrAdrInl",
-                [
-                  ["Str", adresse?.strasse ?? s.strasse],
-                  ["Hausnummer", adresse?.hausnummer],
-                  ["HNrZusatz", adresse?.zusatz],
-                  ["PLZ", s.plz],
-                  ["Ort", s.ort],
-                ],
-              ],
-            ],
-          ],
-        ],
-      ],
-      [
-        "KapEZ",
-        [
-          [
-            "KapErtrSch25",
-            [
-              ["KapErtr", [["KapESch25", wholeEuros(input.ertrag)]]],
-              [
-                "KapESt",
-                [
-                  ["KapESch25St", elsterDecimal(input.kapest).replace(",", ".")],
-                  ["KapESch25StSum", elsterDecimal(input.kapest).replace(",", ".")],
-                ],
-              ],
-              [
-                "Soli",
-                [
-                  ["KapESch25Sz", elsterDecimal(input.soli).replace(",", ".")],
-                  ["KapESch25SzSum", elsterDecimal(input.soli).replace(",", ".")],
-                ],
-              ],
-              [
-                "GewVertBeschl",
-                [
-                  ["GewVertBeschlDat", datum(b.datum)],
-                  ["GewVertBeschlBet", wholeEuros(b.betrag)],
-                  ["GewVertBeschlTag", b.auszahlungstag ? datum(b.auszahlungstag) : undefined],
-                  ["TagNachBeschl", b.auszahlungstag ? undefined : datum(tagDanach(b.datum))],
-                ],
-              ],
-            ],
-          ],
-        ],
-      ],
+      allgemeineAngaben(zufluss, s, adresse),
+      kapitalertraege(input, b),
       // Gesamtsummen der Zeilen 25, 26 und 33; die Kapitalertragsteuer hier in vollen Euro
       [
         "KapErtrSch15",

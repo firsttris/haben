@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Innergemeinschaftlicher Erwerb (§ 1a UStG) am Eingangsbeleg, innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a
@@ -149,7 +150,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
       taxTreatment: options.treatment,
       lines: [{ description: "Hardware", quantity: 1000, unit: "Stk." as const, unitPrice: options.net, taxRate: 0 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function lines(sourceId: string) {
@@ -374,7 +375,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
         taxTreatment: "ig_lieferung",
         lines: [{ description: "Hardware", quantity: 1000, unit: "Stk." as const, unitPrice: 100_000, taxRate: 0 }],
       });
-      const rechnung = await invoices.finalizeInvoice(actor, draft.id);
+      const rechnung = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
       // Stand aus der Zeit vor dem Update: Kunde und festgeschriebene Rechnung mit ATU1234, das damals durchging
       await contacts.updateContact(actor, contact.id, { ...kunde, ustId: "ATU1234" });
       await sql.begin(async (tx) => {
@@ -386,7 +387,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
       const gutschrift =
         weg === "Storno"
           ? await invoices.cancelInvoice(actor, rechnung.id, "2026-09-28")
-          : await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, rechnung.id, "2026-09-28")).id);
+          : await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, rechnung.id, "2026-09-28")).id, kleinunternehmerStand);
       expect(gutschrift.buyer?.ustId).toBe("ATU1234");
       expect((await zm.zmOverview({ year: 2026, month: 43 })).zeilen).toEqual([]);
     },

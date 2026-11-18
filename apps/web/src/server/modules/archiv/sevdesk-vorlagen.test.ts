@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const fixture = (name: string) =>
   JSON.parse(readFileSync(new URL(`../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/${name}`, import.meta.url), "utf8"));
@@ -168,7 +169,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Vorlagen wiederkehrender Rechnungen (
   });
 
   it("erzeugt aus übernommenen Vorlagen keine Rechnung, solange sie pausiert sind", async () => {
-    const result = await rechnungen.runDueRecurring("2030-01-01");
+    const result = await rechnungen.runDueRecurring("2030-01-01", kleinunternehmerStand);
     expect(result.created).toBe(0);
     expect(Number((await sql`select count(*) as n from invoices`)[0]!.n)).toBe(0);
   });
@@ -222,7 +223,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Vorlagen wiederkehrender Rechnungen (
       sendByMail: r.sendByMail,
       paymentMethod: r.paymentMethod as "ueberweisung",
     });
-    await rechnungen.runDueRecurring("2026-12-31");
+    await rechnungen.runDueRecurring("2026-12-31", kleinunternehmerStand);
     const issued = await sql`select issue_date, service_to from invoices where recurring_id = ${r.id} order by issue_date`;
     expect(issued.map((i) => [i.issue_date, i.service_to])).toEqual([
       ["2026-11-30", "2026-11-30"],

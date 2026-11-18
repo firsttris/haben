@@ -6,6 +6,7 @@ import nodemailer from "nodemailer";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 type Sent = { text: string; html: string };
 
@@ -82,7 +83,7 @@ describe.skipIf(!testDatabaseUrl)("Geschäftsbriefe nach § 35a GmbHG (Postgres)
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
     expect(await invoices.finalizeIssues(draft.id)).toEqual([]);
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   beforeEach(async () => {

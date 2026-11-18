@@ -2,6 +2,7 @@ import type { EuerLine, EuerResult } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 const ACCOUNT_IBAN = "DE89370400440532013000";
 
@@ -132,6 +133,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: Rücklastschrift im Fol
                 sepaMandateId: mandateId,
               })
             ).id,
+            kleinunternehmerStand,
           );
         const a = await invoice(25_001);
         const b = await invoice(10_000);

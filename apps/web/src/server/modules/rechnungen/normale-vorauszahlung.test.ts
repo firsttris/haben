@@ -3,6 +3,7 @@ import { datevAccountTotals, parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #853: Eine normale Rechnung ändert den Charakter einer vor Leistung erhaltenen Zahlung nicht.
@@ -73,7 +74,7 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
       note: "Vereinbarte vollständige Softwareeinrichtung am angegebenen Leistungstag",
       lines: [{ description: "Softwareeinrichtung", quantity: 1000, unit: "Psch.", unitPrice: 70_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   // Derselbe CSV-Import wie im Bankabgleich, anschließend die öffentliche Zuordnungs-API.
@@ -285,7 +286,7 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     const finalized = await invoice();
     await pay(finalized.id, "bank", "2025-12-13", 11_900);
     const draft = await invoices.createCorrection(actor, finalized.id, "2026-01-25");
-    const correction = await invoices.finalizeInvoice(actor, draft.id);
+    const correction = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     await tax(2025, 12, 10_000, 1_900);
     await tax(2026, 1, 0, 0);
     expect.soft((await reports.openPositions("2026-01-31")).advanceRefunds).toMatchObject([{ open: -11_900 }]);
@@ -336,7 +337,7 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     };
     const draft = await invoices.createDraft(actor, input);
     expect(await invoices.finalizeIssues(draft.id)).toEqual([]);
-    const finalized = await invoices.finalizeInvoice(actor, draft.id);
+    const finalized = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(finalized).toMatchObject({ buyer: expect.objectContaining({ land: "AT" }), taxTreatment: "regulaer", currency: "EUR", net: 70_000, tax: 13_300 });
     await pay(finalized.id, "bank", "2025-12-13", 83_300);
     expect.soft(finalized.advanceAccounting).toBe("deferred");
@@ -355,7 +356,11 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
       lines: [{ ...input.lines[0]!, description: "Beratung für den österreichischen Geschäftsbetrieb", taxRate: 0 }],
     });
     expect(await invoices.finalizeIssues(euDraft.id)).toEqual([]);
-    expect(await invoices.finalizeInvoice(actor, euDraft.id)).toMatchObject({ advanceAccounting: null, taxTreatment: "reverse_charge", tax: 0 });
+    expect(await invoices.finalizeInvoice(actor, euDraft.id, kleinunternehmerStand)).toMatchObject({
+      advanceAccounting: null,
+      taxTreatment: "reverse_charge",
+      tax: 0,
+    });
     expect.soft(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ kz81: 0, tax81: 0, kz21: 70_000 });
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });

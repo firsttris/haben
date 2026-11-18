@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Kleinunternehmer mit eigener Steuerbefreiung (§ 4 Nr. 14 Buchst. a oder Nr. 21 UStG) in der Anlage EÜR:
@@ -70,7 +71,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit § 4 Nr. 14 a in der EÜ
       exemptionReason: "",
       ...{ taxDetails: { exemption: { number: "14", letter: "a" }, ancillary: null, foreignPlace: null, assetDisposal: false } },
     });
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-10-10", amount: 100_00 }, "2026-10-10");
 
     expect((await annual.euerYear(2026)).figures).toMatchObject({ kleinunternehmer: 100_00, kleinunternehmerAbzuege: 100_00 });
@@ -103,7 +104,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit § 4 Nr. 14 a in der EÜ
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 100_00, taxRate: 0 }],
       taxDetails: { exemption, ancillary: null, foreignPlace: country === "DE" ? null : { country, noForeignVat: true }, assetDisposal: false },
     });
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-10-10", amount: 100_00 }, "2026-10-10");
     const result = await annual.euerYear(2026);
     expect(result.figures).toMatchObject({ kleinunternehmer: 100_00, kleinunternehmerAbzuege: 100_00 });
@@ -129,7 +130,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit § 4 Nr. 14 a in der EÜ
       lines: [{ description: "Heilbehandlung", quantity: 1000, unit: "Psch.", unitPrice: 100_00, taxRate: 0 }],
       taxDetails: { exemption: { number: "14", letter: "a" }, ancillary: null, foreignPlace: null, assetDisposal: false },
     });
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     for (const [date, amount] of [
       [`${year - 1}-10-10`, 30_00],
       [`${year + 1}-01-10`, 70_00],
