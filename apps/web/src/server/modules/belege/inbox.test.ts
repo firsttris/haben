@@ -136,7 +136,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       expect(await sql`select 1 from documents`).toHaveLength(1);
     });
 
-    it("löscht keine Mail, an der die Verarbeitung scheitert, und keine mit übersprungenem Anhang", async () => {
+    it("löscht keine Mail, an der die Verarbeitung scheitert, keine mit übersprungenem Anhang und keine ohne Anhang", async () => {
       await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
       await deliver(
         rechnung("kaputt"),
@@ -158,11 +158,12 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       } finally {
         await sql`alter table documents drop constraint test_kaputt`;
       }
-      // Übrig: kaputt, gemischt, riesig, jeweils als gelesen markiert; gut und der Newsletter sind weg
+      // Übrig: kaputt, gemischt, riesig und der Newsletter ohne Anhang, jeweils als gelesen markiert; nur gut ist weg
       expect([...box.entries()].map(([uid, m]) => [uid, m.seen])).toEqual([
         [1, true],
         [2, true],
         [3, true],
+        [5, true],
       ]);
       expect(Object.keys(moved)).toEqual([]);
     });
@@ -203,6 +204,17 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       box.get(1)!.seen = false;
       await inbox.fetchInbox(actor);
       expect(box.has(1)).toBe(false);
+    });
+
+    it("löscht eine wieder ungelesene Mail, deren Anhang als Dublette abgelegt war", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("gut"), { ...rechnung("gut"), subject: "Fwd", messageId: "<fwd@funknetz.example>" });
+      await inbox.fetchInbox(actor);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(2)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(2)).toBe(false);
+      expect(box.has(1)).toBe(true);
     });
 
     it("verschiebt abgelegte Mails in den Zielordner und lässt fehlgeschlagene im Eingang", async () => {

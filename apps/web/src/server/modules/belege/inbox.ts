@@ -178,14 +178,23 @@ const retryKey = (messageId: string, n: number) => `${messageId.slice(0, 970)}${
  * abgelegt ist. Verarbeitung und Fehlerprotokoll nehmen denselben Schlüssel, sonst verschluckt
  * `onConflictDoNothing` den Eintrag eines Fehlschlags nach einem Nachholen.
  */
-async function freeKey(base: string): Promise<string | null> {
+async function earlierRows(base: string) {
   const prefix = retryKey(base, 1).slice(0, -1);
   const rows = await db
-    .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
+    .select({
+      messageId: schema.inboxMessages.messageId,
+      skipped: schema.inboxMessages.skipped,
+      documentIds: schema.inboxMessages.documentIds,
+      duplicates: schema.inboxMessages.duplicates,
+    })
     .from(schema.inboxMessages)
     .where(or(eq(schema.inboxMessages.messageId, base), sql`starts_with(${schema.inboxMessages.messageId}, ${prefix})`));
   // Nur Schlüssel aus retryKey; eine andere Mail kann eine Message-ID haben, die genauso beginnt
-  const earlier = rows.filter((row) => row.messageId === base || /^(?:\)| [1-9]\d*\))$/.test(row.messageId.slice(prefix.length)));
+  return rows.filter((row) => row.messageId === base || /^(?:\)| [1-9]\d*\))$/.test(row.messageId.slice(prefix.length)));
+}
+
+async function freeKey(base: string): Promise<string | null> {
+  const earlier = await earlierRows(base);
   // inbox_messages ist nur zu ergänzen: der Eintrag eines Fehlschlags bleibt stehen,
   // und wer die Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
   if (earlier.some((row) => !isRetryable(row))) return null;
@@ -194,6 +203,14 @@ async function freeKey(base: string): Promise<string | null> {
   let n = 1;
   while (taken.has(retryKey(base, n))) n++;
   return retryKey(base, n);
+}
+
+/** War die schon abgelegte Mail ohne Verlust abgelegt (Belege oder Dubletten, nichts übersprungen)? Nur dann darf sie beim Löschen weg. */
+async function filedLossless(bytes: Buffer): Promise<boolean> {
+  const mail = await simpleParser(bytes);
+  const rows = await earlierRows(keyOf(messageIdOf(mail, bytes)));
+  const filed = rows.filter((row) => !isRetryable(row));
+  return filed.length > 0 && filed.every((row) => row.skipped.length === 0 && (row.documentIds.length > 0 || row.duplicates > 0));
 }
 
 /** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
@@ -255,8 +272,8 @@ async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: 
       })
       .onConflictDoNothing({ target: schema.inboxMessages.messageId });
   });
-  // Löschen ist nur ohne Verlust erlaubt: nichts übersprungen außer „keine Anhänge“, und die Mail war nicht zu groß
-  const lossless = skipped.every((reason) => reason === "keine Anhänge");
+  // Löschen ist nur ohne Verlust erlaubt: etwas abgelegt (Beleg oder Dublette) und nichts übersprungen, auch keine fehlenden Anhänge oder zu große Mail
+  const lossless = skipped.length === 0 && created + duplicates > 0;
   return { documents: created, duplicates, skipped: skipped.length, lossless };
 }
 
@@ -325,8 +342,8 @@ async function fetchFolder(settings: InboxSettings, password: string, actor: str
         done = { documents: 0, duplicates: 0, skipped: 1, lossless: false };
         ok = false;
       }
-      // Erst nach dem Ablegen oder Protokollieren; eine schon abgelegte Mail (done = null) darf weg
-      await settle(connection, settings, uid, { ok, lossless: done?.lossless ?? true });
+      // Erst nach dem Ablegen oder Protokollieren; eine schon abgelegte Mail (done = null) nur, wenn sie verlustfrei abgelegt wurde
+      await settle(connection, settings, uid, { ok, lossless: done ? done.lossless : await filedLossless(source.bytes) });
       if (!done) continue;
       result.messages++;
       result.documents += done.documents;

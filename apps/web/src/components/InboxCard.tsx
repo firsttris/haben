@@ -72,7 +72,7 @@ export function InboxCard({ data }: { data: Data }) {
           outboundFolder: text("outboundFolder") || null,
           allowedSenders: absender(text("allowedSenders")),
           afterFetch,
-          archiveFolder: afterFetch === "move" ? text("archiveFolder") || null : null,
+          archiveFolder: text("archiveFolder") || null,
           enabled: form.get("enabled") === "on",
         },
       });
@@ -271,8 +271,8 @@ function NachAbrufFelder({ settings, afterFetch, setAfterFetch }: { settings: Se
       )}
       {afterFetch === "delete" && (
         <p className="small muted">
-          Die Mail liegt danach nur noch in Haben. Anhänge, die Haben nicht ablegen kann, und zu große Mails löscht Haben nicht; sie bleiben als gelesen
-          markiert im Postfach. Bei manchen Anbietern landet eine gelöschte Mail zunächst im Papierkorb.
+          Die Mail liegt danach nur noch in Haben. Mails ohne Anhang, mit Anhängen, die Haben nicht ablegen kann, und zu große Mails löscht Haben nicht; sie
+          bleiben als gelesen markiert im Postfach. Bei manchen Anbietern landet eine gelöschte Mail zunächst im Papierkorb.
         </p>
       )}
     </>

@@ -69,7 +69,7 @@ export async function imapConnect(settings: InboxSettings, password: string, fol
     },
     move: async (uid, destination) => {
       const moved = await client.messageMove(String(uid), destination, { uid: true });
-      if (!moved) throw new InboxError(`Mail ${uid} ließ sich nicht nach „${destination}“ verschieben.`);
+      if (!moved) throw new InboxError(`Mail ${uid} ließ sich nicht nach „${destination}“ verschieben; der Ordner muss im Postfach bestehen.`);
     },
     remove: async (uid) => {
       if (!(await client.messageDelete(String(uid), { uid: true }))) throw new InboxError(`Mail ${uid} ließ sich nicht löschen.`);
