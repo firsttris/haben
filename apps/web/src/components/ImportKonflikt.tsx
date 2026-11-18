@@ -108,7 +108,7 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
           <form onSubmit={(event) => void absenden(event)}>
             <p style={{ margin: 0 }}>
               Die Bank liefert diesen Umsatz ({konflikt.sourceEventId}) jetzt anders als beim ersten Abruf. Bis du entscheidest, übernimmt Haben aus dem Abruf
-              dieses Kontos nichts.
+              dieses Kontos nichts. Die Entscheidung lässt sich nicht zurücknehmen.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <Spalte titel="Bisher in Haben" umsatz={konflikt.previous} {...(zuordnung ? { zuordnung } : {})} />
