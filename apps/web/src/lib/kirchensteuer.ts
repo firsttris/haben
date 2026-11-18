@@ -8,8 +8,7 @@
  * Erstattungsüberhang aus, den es nicht gibt, oder setzt einen bestehenden zu hoch an (§ 10 Abs. 4b Satz 3 EStG),
  * und das zu versteuernde Einkommen liegt zu hoch.
  * Nicht abziehbar ist nur die Kirchensteuer zur Abgeltungsteuer: der Zuschlag zur Kapitalertragsteuer und zur
- * Steuer nach dem gesonderten Tarif des § 32d Abs. 1 EStG (Halbsatz 2 der Nummer 4). Wird der Kapitalertrag
- * tariflich besteuert, zählt die Kirchensteuer darauf mit.
+ * Steuer nach dem gesonderten Tarif des § 32d Abs. 1 EStG (Halbsatz 2 der Nummer 4).
  */
 
 /** Am Eingabefeld „Gezahlte Kirchensteuer“ der Jahreserklärung */
