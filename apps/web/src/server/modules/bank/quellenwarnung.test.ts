@@ -1,5 +1,13 @@
 import { readFileSync } from "node:fs";
-import { enableBankingBatch, enableBankingStatement, entryReferenceOf, type ParsedStatement, parseStatement, type StatementFormat } from "@haben/import";
+import {
+  type EbTransaction,
+  enableBankingBatch,
+  enableBankingStatement,
+  entryReferenceOf,
+  type ParsedStatement,
+  parseStatement,
+  type StatementFormat,
+} from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -118,7 +126,7 @@ describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum
 
   it("nennt den Stichtag, wenn das Konto schon per Abruf mit Quellenbindung läuft (#306)", async () => {
     const iban = "DE02120300000000202051";
-    const transactions = [
+    const transactions: EbTransaction[] = [
       {
         entry_reference: "ER-1",
         transaction_amount: { currency: "EUR", amount: "25.00" },
@@ -157,6 +165,9 @@ describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum
     expect(r.quelle).toContain("Abruf Testbank 2026-10-31");
     expect(r.quelle).toContain("Seit dem Stichtag 2026-10-01 holt der Bankabruf die Umsätze dieses Kontos");
     expect(r.quelle).not.toContain("Wer die Quelle wechselt");
+    // Hinter dem Konto unter „Automatischer Abruf“: Bankabruf seit dem Stichtag, davor keine Dateien
+    const { cutoverDates } = await import("./andere-importe.ts");
+    expect((await cutoverDates()).find((c) => c.cutoverDate === "2026-10-01")).toMatchObject({ filesBefore: false });
   });
 
   it("schweigt beim Wechsel vom alten zum neuen DKB-CSV derselben Bank", async () => {

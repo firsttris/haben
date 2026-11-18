@@ -111,8 +111,8 @@ export async function cutoverDates(): Promise<{ bankAccountId: string; cutoverDa
       bankAccountId: schema.importSources.bankAccountId,
       cutoverDate: schema.importSources.cutoverDate,
       filesBefore: sql<boolean>`exists (select 1 from bank_transactions t join bank_imports i on i.id = t.import_id
-        where t.bank_account_id = ${schema.importSources.bankAccountId} and i.format <> 'enablebanking'
-        and t.booking_date < ${schema.importSources.cutoverDate})`,
+        where t.bank_account_id = import_sources.bank_account_id and i.format <> 'enablebanking'
+        and t.booking_date < import_sources.cutover_date)`,
     })
     .from(schema.importSources)
     .where(isNotNull(schema.importSources.cutoverDate));

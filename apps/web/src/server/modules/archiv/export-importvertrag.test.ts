@@ -169,6 +169,51 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
     expect(importIds).toContain(januar!.id);
   });
 
+  it("schreibt je geklärtem Konflikt eine Zeile nach bank/klaerungen.csv, mit dem abgelehnten Abruf im Importprotokoll", async () => {
+    const { storeBatch } = await import("../bank/import-batch.ts");
+    const konflikt = await import("../bank/import-konflikt.ts");
+    const { db } = await import("../../db/index.ts");
+    const iban = "DE91100000000123456789";
+    const lieferung = (amount: string, fetchId: string) => {
+      const transactions = [buchung("ER-40", "2026-03-10", amount)];
+      const fenster = { transactions, balances: [], dateFrom: "2026-03-01", dateTo: "2026-03-20" };
+      return {
+        batch: enableBankingBatch({ externalAccountId: "hash-klaerung", ...fenster, fetchedAt: "2026-03-20T23:00:00+01:00", fetchId }),
+        binding: { provider: "enablebanking", externalAccountId: "hash-klaerung", accountKind: "bank" as const },
+        statement: enableBankingStatement({ account: { uid: "u4", account_id: { iban }, name: "Klärkonto" }, ...fenster }),
+        eventOf: entryReferenceOf(transactions),
+        source: { filename: `Abruf Testbank ${fetchId}`, sha256: fetchId.padEnd(64, "0") },
+      };
+    };
+    const { accountId } = await db.transaction((t) => storeBatch(t, lieferung("89.00", "k1"), null));
+    const zweite = lieferung("98.00", "k2");
+    await expect(db.transaction((t) => storeBatch(t, zweite, accountId))).rejects.toThrow("Konflikt");
+    await db.transaction((t) => konflikt.recordRefusedBatch(t, accountId, zweite, "Konflikt"));
+    const [offen] = (await konflikt.openConflicts()).filter((k) => k.sourceEventId === "ER-40");
+    const { transactionId } = await konflikt.resolveConflict("inhaber-1", { conflictId: offen!.id, decision: "add" });
+
+    const archiv2026 = await archiv(exporter, 2026);
+    const [kopf, ...zeilen] = text(archiv2026["bank/klaerungen.csv"]).trim().split(/\r?\n/);
+    expect(kopf).toBe(
+      "Konto;Ereignis;Komponente;Buchungstag bisher;Betrag bisher;Art bisher;Buchungstag geliefert;Betrag geliefert;Art geliefert;Währung;Konflikt seit;Import-ID;Entscheidung;Umsatz-ID bisher;Umsatz-ID neu;Geklärt von;Geklärt am;Klärungs-ID",
+    );
+    const zeile = zeilen[0]!.split(";");
+    expect(zeilen).toHaveLength(1);
+    expect(zeile.slice(0, 10)).toEqual([iban, "ER-40", "main", "2026-03-10", "-89,00", "payment", "2026-03-10", "-98,00", "payment", "EUR"]);
+    expect(zeile.slice(12, 16)).toEqual(["Als weiteren Umsatz übernommen", offen!.previous.id, transactionId, "inhaber-1"]);
+    // Der abgelehnte Abruf hat keinen Zeitraum; er steht trotzdem im Importprotokoll dieses Archivs
+    const importIds = text(archiv2026["bank/importe.csv"])
+      .trim()
+      .split(/\r?\n/)
+      .map((z) => z.split(";").at(-1));
+    expect(importIds).toContain(zeile[11]);
+    const xml = text(archiv2026["index.xml"]);
+    const teil = xml.slice(xml.indexOf("<URL>bank/klaerungen.csv</URL>"), xml.indexOf("</Table>", xml.indexOf("<URL>bank/klaerungen.csv</URL>")));
+    expect(teil).toMatch(/<Name>Betrag geliefert<\/Name>\s*<Numeric>/);
+    expect(teil).toMatch(/<Name>Buchungstag bisher<\/Name>\s*<Date>/);
+    expect(text(archiv2026["LIESMICH.txt"])).toContain("bank/klaerungen.csv");
+  });
+
   it("beschreibt die Datei in index.xml und nennt sie in der LIESMICH", () => {
     const xml = text(files["index.xml"]);
     const teil = xml.slice(xml.indexOf("<URL>bank/quellen.csv</URL>"), xml.indexOf("</Table>", xml.indexOf("<URL>bank/quellen.csv</URL>")));

@@ -35,6 +35,11 @@ const TYPEN: { pfad: RegExp; zahlen: string[]; daten: string[] }[] = [
   { pfad: /^bank\/[^/]+\/umsaetze\.csv$/, zahlen: ["Betrag", "Zugeordnet", "Offen"], daten: ["Buchungsdatum", "Wertstellung"] },
   { pfad: /^bank\/zuordnungen\.csv$/, zahlen: ["Betrag"], daten: ["Buchungsdatum"] },
   { pfad: /^bank\/quellen\.csv$/, zahlen: ["Betrag"], daten: ["Stichtag", "Buchungstag"] },
+  {
+    pfad: /^bank\/klaerungen\.csv$/,
+    zahlen: ["Betrag bisher", "Betrag geliefert"],
+    daten: ["Buchungstag bisher", "Buchungstag geliefert"],
+  },
   // Kassenbuch (cashBookCsv): Einnahme und Ausgabe sind je Zeile eine von beiden, die andere bleibt leer; der Anfangsbestand hat nur den Bestand
   { pfad: /^kasse\/kassenbuch\.csv$/, zahlen: ["Einnahme", "Ausgabe", "Bestand"], daten: ["Datum"] },
 ];

@@ -7,16 +7,7 @@ import { effectivePayment } from "../auswertungen/index.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
-import {
-  ASSET_KINDS,
-  ASSET_METHODS,
-  csvDecimal,
-  formatDegressiveRate,
-  formatExchangeRate,
-  isKapitalgesellschaft,
-  PAUSCHALE_LABEL,
-  WRITE_OFF_KINDS,
-} from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, formatDegressiveRate, formatExchangeRate, isKapitalgesellschaft, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
@@ -32,6 +23,10 @@ import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
 import { bankImportFiles, importsOfYear } from "./export-bankimporte.ts";
+import { BOM, csv, csvLine, type CsvValue, iso, money } from "./csv.ts";
+import { berlinStart, yearEnd, yearStart } from "./jahr.ts";
+
+export { csv, csvField, csvLine, type CsvValue, money } from "./csv.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 import { procedureMarkdown } from "../verfahrensdoku/index.ts";
@@ -47,35 +42,9 @@ import { procedureMarkdown } from "../verfahrensdoku/index.ts";
 
 export const HABEN_VERSION: string = pkg.version;
 
-// ---------------------------------------------------------------------------
-// CSV: UTF-8 mit BOM, Semikolon, Dezimalkomma, ISO-Daten, Quoting nach RFC 4180
-
-export type CsvValue = string | number | boolean | null | undefined;
-
-export function csvField(value: CsvValue): string {
-  if (value === null || value === undefined) return "";
-  const raw = typeof value === "boolean" ? (value ? "ja" : "nein") : String(value);
-  // Text, den Tabellenprogramme als Formel lesen würden, entschärfen; negative Beträge bleiben Zahlen
-  const text = typeof value === "string" && /^[=+@\t\r]|^-(?!\d+(,\d+)?$)/.test(raw) ? `'${raw}` : raw;
-  return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-export function csvLine(values: CsvValue[]): string {
-  return `${values.map(csvField).join(";")}\r\n`;
-}
+// CSV und Jahresgrenzen stehen in csv.ts und jahr.ts, damit Teile des Archivs sie ohne export.ts nutzen
 
 const encoder = new TextEncoder();
-const BOM = "﻿";
-
-export function csv(header: string[], rows: CsvValue[][]): Uint8Array {
-  return encoder.encode(BOM + csvLine(header) + rows.map(csvLine).join(""));
-}
-
-/** Cent als Dezimalzahl mit Komma, ohne Tausenderpunkt: 123456 → "1234,56" */
-export function money(cents: number | null | undefined): string {
-  if (cents === null || cents === undefined) return "";
-  return csvDecimal(cents);
-}
 
 function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
   const groups = new Map<K, T[]>();
@@ -88,7 +57,6 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
   return groups;
 }
 
-export const iso = (value: Date | null | undefined) => (value ? value.toISOString() : "");
 const json = (value: unknown) => (value === null || value === undefined ? "" : JSON.stringify(value));
 
 // ---------------------------------------------------------------------------
@@ -215,11 +183,6 @@ export function toReadableStream(chunks: AsyncGenerator<Uint8Array>): ReadableSt
 
 // ---------------------------------------------------------------------------
 // Inhalte eines Jahres
-
-export const yearStart = (year: number) => `${year}-01-01`;
-export const yearEnd = (year: number) => `${year}-12-31`;
-/** Beginn eines Jahres in deutscher Zeit, für Zeitstempel-Spalten */
-export const berlinStart = (year: number) => sql`(${`${year}-01-01 00:00:00`}::timestamp at time zone 'Europe/Berlin')`;
 
 const KIND_LABELS: Record<string, string> = {
   rechnung: "Rechnung",
@@ -1792,6 +1755,9 @@ bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA
 bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
                          Ereignis der Bank die Quelle mit Stichtag, der Abruf und der
                          Umsatz, den Haben angelegt oder verbunden hat.
+bank/klaerungen.csv      Nur wenn vorhanden: geklärte Konflikte im Abruf: bisheriger und
+                         gelieferter Umsatz, die Entscheidung und ein neu angelegter
+                         Umsatz; der abgelehnte Abruf steht in bank/importe.csv.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),
                          jede Prüfung und Übermittlung (übermittlungen.csv) mit
                          ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML;
