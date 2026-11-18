@@ -18,6 +18,8 @@ export type StatementFormat =
   | "enablebanking"
   /** Abruf über FinTS (HKKAZ mit MT940 oder HKCAZ mit CAMT.052), #654 */
   | "fints"
+  /** Abruf über die Vivid Business API, #1393 */
+  | "vivid"
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
   | "accountable-xlsx"
   | "paypal-csv"

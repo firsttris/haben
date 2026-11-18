@@ -26,6 +26,7 @@ export * from "./accountable/index.ts";
 export * from "./fastbill/index.ts";
 export * from "./enablebanking/index.ts";
 export * from "./fints/index.ts";
+export * from "./vivid/index.ts";
 export * from "./importvertrag/index.ts";
 export * from "./stores/index.ts";
 export * from "./csv-import/index.ts";
