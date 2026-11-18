@@ -4,7 +4,8 @@ import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
 
 /*
  * Belegbuchungen mit § 13b oder innergemeinschaftlichem Erwerb aus Versionen vor #551 (bis v0.6) tragen die
- * Bemessungsgrundlage nicht so, wie die Voranmeldung sie meldet (#1396):
+ * Bemessungsgrundlage nicht so, wie die Voranmeldung sie meldet (#1396). Bemessungsgrundlage ist das Entgelt ohne die
+ * Umsatzsteuer (§ 10 Abs. 1 Satz 1 und 2 UStG), bei § 13b auch für den privat bezogenen Teil (§ 13b Abs. 5 Satz 7 UStG):
  * - ohne Vorsteuerabzug stand die Steuer mit dem Netto in einer Aufwandszeile mit dem Steuerschlüssel (Kz 46 zu hoch);
  * - mit Privatanteil standen privates Netto und private Steuer zusammen ohne Steuerschlüssel auf den Entnahmen (Kz 46 zu
  *   niedrig).
@@ -50,6 +51,9 @@ export function mitBemessungWieHeute(kontenrahmen: Kontenrahmen, zeilen: readonl
     else if (vorsteuer.has(z.account)) add(vorsteuer.get(z.account)!, z.debit - z.credit);
     else if (z.account === a.privatentnahmen) privat += z.debit - z.credit;
   }
+  // Erwerb zu 19 % und 7 % mit Privatanteil: Das private Netto lässt sich keinem Satz centgenau zuordnen; ohne es wäre auch
+  // der Abzug der Steuer falsch, also wie gebucht
+  if (aufwand.size > 1 && privat !== 0) return [...zeilen];
   if (aufwand.size === 1) add([...aufwand.keys()][0]!, privat);
   return zeilen.map((z, i) => {
     for (const [code, index] of aufwand) {
