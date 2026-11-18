@@ -17,7 +17,7 @@ import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.ts
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
-import { GebuehrZeile, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
+import { GebuehrWahl, GebuehrZeile, gebuehrMoeglich, useGebuehrWahl, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
 import { FintsAbruf } from "../../components/FintsAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
@@ -40,6 +40,7 @@ import {
   unmarkBankTransactionPrivate,
   allocateTransactionWithRest,
   allocateProviderFees,
+  allocatePaymentAndFee,
   connectBank,
   disconnectBank,
   getBankOverview,
@@ -379,6 +380,7 @@ function BankPage() {
                 darlehenOptionen={{ loans: data.loans, loanParts: data.loanParts }}
                 kategorieOptionen={{ kategorien: data.kategorien, kleinunternehmer: data.kleinunternehmer }}
                 nextOpenId={nextOpenAfter(sichtbar, data.detail.transaction.id)}
+                gebuehr={zeilen.find((z) => z.umsatz.id === selectedId)?.gebuehr ?? null}
               />
             ) : (
               <aside className="card" aria-label="Zuordnung">
@@ -1005,6 +1007,7 @@ function AllocationPanel({
   darlehenOptionen,
   kategorieOptionen,
   nextOpenId,
+  gebuehr,
 }: {
   detail: Detail;
   directKinds: Data["directKinds"];
@@ -1012,6 +1015,8 @@ function AllocationPanel({
   darlehenOptionen: DarlehenOptionen;
   kategorieOptionen: KategorieOptionen;
   nextOpenId: string | undefined;
+  /** Gebühr derselben Bewegung, wenn der Umsatz eine Zahlung mit abgezogener Gebühr ist */
+  gebuehr: Data["transactions"][number] | null;
 }) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
@@ -1021,6 +1026,7 @@ function AllocationPanel({
   const splitFn = useServerFn(splitTransaction);
   const restFn = useServerFn(allocateTransactionWithRest);
   const feesFn = useServerFn(allocateProviderFees);
+  const paymentFeeFn = useServerFn(allocatePaymentAndFee);
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
@@ -1111,6 +1117,11 @@ function AllocationPanel({
     const choice = mode === "best" && best ? `${best.item.type}:${best.item.id}` : candidate;
     const [type, id] = choice.split(":");
     if (!id) return;
+    if (gebuehrWahl.mitbuchen && (type === "invoice" || type === "document")) {
+      const posten = type === "invoice" ? ({ kind: "invoice", invoiceId: id } as const) : ({ kind: "document", documentId: id } as const);
+      const gebuehrBelegId = gebuehrWahl.beleg || undefined;
+      return runAndAdvance(() => paymentFeeFn({ data: { transactionId: tx.id, target: posten, amount: signedAmount, gebuehrBelegId } }), true);
+    }
     return runAndAdvance(() => allocateFn({ data: { ...itemTarget(type, id, signedAmount), transactionId: tx.id } }), completes);
   }
 
@@ -1133,6 +1144,8 @@ function AllocationPanel({
   // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu, die Gutschriften nur,
   // wenn alles zusammen genau den Beleg ergibt (allocateFeesToDocument).
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
+  // Zahlung mit der Gebühr ihrer Bewegung: ganze Zahlung auf eine Rechnung oder einen Beleg, die Gebühr gleich mit
+  const gebuehrWahl = useGebuehrWahl(gebuehrMoeglich({ gebuehr, tx, skontoRest, posten: target?.type, signedAmount }));
   const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
   const [splitInitial, setSplitInitial] = useState<typeof target>(undefined);
@@ -1433,6 +1446,8 @@ function AllocationPanel({
             )}
           </Field>
 
+          {gebuehr && gebuehrWahl.moeglich && <GebuehrWahl gebuehr={gebuehr} wahl={gebuehrWahl} belege={splitCandidates} busy={busy} />}
+
           <div className="actions">
             {mode !== "other" && (
               <button type="button" className="btn" onClick={() => setMode("other")} disabled={busy}>
@@ -1453,7 +1468,13 @@ function AllocationPanel({
               disabled={busy || (mode === "direct" && directKind === "darlehen" && !darlehen.loanId)}
               onClick={() => void submitAllocation()}
             >
-              {mode === "direct" ? "Buchen" : skontoRest !== 0 ? `Zuordnen, Rest ${formatEuro(Math.abs(skontoRest))} als Skonto` : "Zuordnen"}
+              {mode === "direct"
+                ? "Buchen"
+                : skontoRest !== 0
+                  ? `Zuordnen, Rest ${formatEuro(Math.abs(skontoRest))} als Skonto`
+                  : gebuehrWahl.mitbuchen
+                    ? "Zuordnen und Gebühr buchen"
+                    : "Zuordnen"}
             </button>
           </div>
           {feeRest !== 0 && (
