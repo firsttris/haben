@@ -295,7 +295,7 @@ describe("App Store: Finanzbericht Detailed (Z1)", () => {
     expect(() => parseAppStoreFinanceDetail(appleReport([]))).toThrow(/keine Vorgänge/);
     expect(() => parseAppStoreFinanceDetail(appleReport(rows, { start: "" }))).toThrow(/Zeitraum/);
     // Ohne Summenblock fehlt die Gegenprobe; eine fremde Zeile nach den Vorgängen ist kein Summenblock
-    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: [] }))).toThrow(/Summenblock fehlt/);
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: [] }))).toThrow(/fehlt der Summenblock/);
     expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: ["Total_Rows\t4"] }))).toThrow(/Ungültiger Betrag „“ \(Zeile 9\)/);
     // Die Summen im Bericht sind die Gegenprobe: fehlt eine Zeile, passt der Summenblock nicht mehr
     expect(() => parseAppStoreFinanceDetail(appleReport(rows.slice(0, 3), { summary: appleSummary(rows) }))).toThrow(/JPY.*Summenblock/);

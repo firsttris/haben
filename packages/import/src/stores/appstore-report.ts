@@ -58,20 +58,21 @@ function readAppleRows(rows: string[][]): { from: string; to: string; groups: Ma
   if (!from || !to || from > to) throw new StatementParseError("Im Finanzbericht fehlt der Zeitraum (Start Date und End Date vor der Kopfzeile).");
 
   const col = headerIndex(rows[headerRow]!);
-  const at = { date: col("Transaction Date"), amount: col("Extended Partner Share"), currency: col("Partner Share Currency"), kind: col("Sale or Return") };
+  const at = { amount: col("Extended Partner Share"), currency: col("Partner Share Currency"), kind: col("Sale or Return") };
   const groups = new Map<string, AppleGroup>();
-  /** Spalten des Summenblocks, sobald er beginnt */
+  /** Spalten des Summenblocks, sobald seine Kopfzeile kam */
   let summary: { amount: number; currency: number } | null = null;
   const sums = new Map<string, number>();
   for (const [i, row] of rows.slice(headerRow + 1).entries()) {
     if (row.every((cell) => cell.trim() === "")) continue;
-    const where = `Zeile ${headerRow + i + 2}`;
-    if (!summary && appleDate(row[at.date] ?? "") === null) {
-      const sumCol = headerIndex(row);
+    // Der Summenblock beginnt mit seiner Kopfzeile. Am Transaction Date lässt er sich nicht erkennen: Apple lässt es leer,
+    // wenn der Vorgang mehr als 30 Tage vor der Abrechnung lag (Financial report fields, „Detailed“).
+    const sumCol = headerIndex(row);
+    if (!summary && sumCol("Extended Partner Share") >= 0 && sumCol("Partner Share Currency") >= 0) {
       summary = { amount: sumCol("Extended Partner Share"), currency: sumCol("Partner Share Currency") };
-      if (summary.amount < 0 || summary.currency < 0) throw new StatementParseError(`Unerwartete ${where} im Finanzbericht: weder Vorgang noch Summenblock.`);
       continue;
     }
+    const where = `Zeile ${headerRow + i + 2}`;
     const cells = summary ?? at;
     const rawAmount = (row[cells.amount] ?? "").trim();
     const micros = parseMicros(rawAmount);
@@ -90,11 +91,10 @@ function readAppleRows(rows: string[][]): { from: string; to: string; groups: Ma
     groups.set(currency, group);
   }
   if (groups.size === 0) throw new StatementParseError("Der Finanzbericht enthält keine Vorgänge.");
-  if (summary) {
-    for (const currency of new Set([...groups.keys(), ...sums.keys()])) {
-      if ((groups.get(currency)?.micros ?? 0) !== (sums.get(currency) ?? 0))
-        throw new StatementParseError(`Die Vorgänge in ${currency} ergeben nicht die Summe im Summenblock des Finanzberichts; die Datei ist unvollständig.`);
-    }
+  if (!summary) throw new StatementParseError("Im Finanzbericht fehlt der Summenblock am Ende; die Datei ist unvollständig.");
+  for (const currency of new Set([...groups.keys(), ...sums.keys()])) {
+    if ((groups.get(currency)?.micros ?? 0) !== (sums.get(currency) ?? 0))
+      throw new StatementParseError(`Die Vorgänge in ${currency} ergeben nicht die Summe im Summenblock des Finanzberichts; die Datei ist unvollständig.`);
   }
   return { from, to, groups };
 }
