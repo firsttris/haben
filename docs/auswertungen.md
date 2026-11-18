@@ -113,6 +113,8 @@ Die eigene Steuerbefreiung ist ausdrücklich zugeordnet. § 4 Nr. 8 Buchst. i, N
 
 Unter **Berechnungsgrundlage und ungeklärte Zuordnungen** siehst du die Quellen, den Zahlungstag, das Nettoentgelt und den Grund der Einordnung. Alte freie Befreiungstexte sowie nicht belegte Zahlungsdaten werden nicht erraten. Solange solche Fälle offen sind, heißt die Summe **Bekannter Teilbetrag**; ungeklärte Werte sind darin nicht enthalten. Ein Bezahlt-Status allein belegt weder Betrag noch Zahlungsdatum.
 
+Ein auf einem [privaten Konto](bank.md#privates-konto-umsätze-ohne-buchungsart) als „Privat, kein Betriebsvorgang“ gekennzeichneter Umsatz erscheint hier nicht, weder als Betrag noch als ungeklärte Zuordnung: Er ist kein Betriebsvorgang.
+
 Bankumsätze der Kategorie [Zinserträge](bank.md#auf-eine-kategorie-buchen) bleiben ungeklärt: Ihre Einordnung als Hilfsumsatz nach § 4 Nr. 8 Buchst. a UStG lässt sich nicht hinterlegen.
 
 Eine ausgeglichene manuelle Buchung zwischen Kasse und inländischen Erlöskonten zählt mit dem Buchungstag, wenn jede Erlöszeile ausdrücklich den Steuerschlüssel **KU** trägt. Gegenbuchungen mindern den Betrag. Andere freie oder importierte Buchungen bleiben ohne belegte Zahlungs- und Leistungszuordnung ungeklärt; eine Forderungsentstehung zählt noch nicht als Zufluss.
