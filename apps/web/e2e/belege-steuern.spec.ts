@@ -2225,6 +2225,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   await page.getByLabel("Straße und Hausnummer").fill("Speicherstadt 4");
   await page.getByLabel("PLZ").fill("20457");
   await page.getByLabel("Ort").fill("Hamburg");
+  await weitereAngabenOeffnen(page);
   await page.getByRole("combobox", { name: /^Skonto/ }).selectOption("eigen");
   await page.getByRole("button", { name: "Skontostufe hinzufügen" }).click();
   await page.getByLabel("Stufe 1: Skonto in %").fill("3");

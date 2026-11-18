@@ -1,14 +1,16 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { amountError, evatrPruefbar, formatDecimal, parseEuro, parsePersonenkonto } from "@haben/core";
+import { amountError, evatrPruefbar, parseEuro, parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { UstIdHinweis } from "./UstIdHinweis.tsx";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
 import { Field } from "./Field.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
-import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
+import { ContactWeitereAngaben, weitereAngabenFeld } from "./ContactWeitereAngaben.tsx";
+import { parseSkontoRows, toSkontoRows } from "./SkontoFields.tsx";
+import { errorMessage } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 
 const EMPTY: ContactInput = {
@@ -82,6 +84,7 @@ export function ContactForm({
   // Skonto: null = Vorgabe aus den Einstellungen; eigene Stufen, leer = ohne Skonto
   const [ownSkonto, setOwnSkonto] = useState(contact?.skonto != null);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(contact?.skonto ?? []));
+  const [weitereOffen, setWeitereOffen] = useState(false);
   const initial: ContactInput = contact
     ? {
         ...EMPTY,
@@ -94,7 +97,8 @@ export function ContactForm({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const text = (name: keyof ContactInput) => String(form.get(name) ?? "").trim();
     const format = text("defaultFormat");
     const isCustomer = form.get("isCustomer") === "on";
@@ -104,30 +108,40 @@ export function ContactForm({
     const kreditor = parsePersonenkonto("kreditor", text("kreditorNr"));
     const rate = text("hourlyRateCents") === "" ? null : parseEuro(text("hourlyRateCents"));
     void run(async () => {
-      if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
-      if (!debitor.ok) throw new Error(debitor.error);
-      if (!kreditor.ok) throw new Error(kreditor.error);
-      if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error(amountError("den Stundensatz", 9_500));
-      if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
-      const input = {
-        ...textFields(text),
-        defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
-        language: text("language") === "en" ? "en" : "de",
-        skonto: ownSkonto ? skonto.stufen : null,
-        isCustomer,
-        isSupplier,
-        debitorNr: debitor.value,
-        kreditorNr: kreditor.value,
-        hourlyRateCents: rate,
-      } satisfies ContactInput;
-      const result = await save({ data: { id: contact?.id ?? null, contact: input } });
-      if (onSaved) {
-        onSaved({ ...input, id: result.id });
-      } else if (contact) {
-        onUpdated?.();
-        await router.invalidate();
-      } else {
-        await navigate({ to: "/kontakte/$id", params: { id: result.id }, search: evatrPruefbar(input.ustId) ? { bestaetigen: true } : {} });
+      try {
+        if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
+        if (!debitor.ok) throw new Error(debitor.error);
+        if (!kreditor.ok) throw new Error(kreditor.error);
+        if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error(amountError("den Stundensatz", 9_500));
+        if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
+        const input = {
+          ...textFields(text),
+          defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
+          language: text("language") === "en" ? "en" : "de",
+          skonto: ownSkonto ? skonto.stufen : null,
+          isCustomer,
+          isSupplier,
+          debitorNr: debitor.value,
+          kreditorNr: kreditor.value,
+          hourlyRateCents: rate,
+        } satisfies ContactInput;
+        const result = await save({ data: { id: contact?.id ?? null, contact: input } });
+        if (onSaved) {
+          onSaved({ ...input, id: result.id });
+        } else if (contact) {
+          onUpdated?.();
+          await router.invalidate();
+        } else {
+          await navigate({ to: "/kontakte/$id", params: { id: result.id }, search: evatrPruefbar(input.ustId) ? { bestaetigen: true } : {} });
+        }
+      } catch (error) {
+        // Ein Fehler an einem Feld im eingeklappten Bereich, vom Formular oder vom Server, klappt ihn auf; der Fokus geht ins Feld
+        const feld = weitereAngabenFeld(errorMessage(error));
+        if (feld !== undefined) {
+          flushSync(() => setWeitereOffen(true));
+          (formElement.elements.namedItem(feld) as HTMLElement | null)?.focus();
+        }
+        throw error;
       }
     });
   }
@@ -193,50 +207,6 @@ export function ContactForm({
             )}
           </Field>
         </div>
-        <div className="field-group">
-          <div className="form-row cols-2">
-            <Field label="DATEV-Debitor" describedBy="personenkonten-hint">
-              {(control) => (
-                <input
-                  {...control}
-                  name="debitorNr"
-                  defaultValue={contact?.debitorNr ?? ""}
-                  inputMode="numeric"
-                  placeholder="optional, 10000 bis 69999"
-                  className="mono"
-                />
-              )}
-            </Field>
-            <Field label="DATEV-Kreditor" describedBy="personenkonten-hint">
-              {(control) => (
-                <input
-                  {...control}
-                  name="kreditorNr"
-                  defaultValue={contact?.kreditorNr ?? ""}
-                  inputMode="numeric"
-                  placeholder="optional, 70000 bis 99999"
-                  className="mono"
-                />
-              )}
-            </Field>
-          </div>
-          <p id="personenkonten-hint" className="field-hint">
-            Personenkonten für den DATEV-Export an die Steuerberatung, getrennt von Kunden- und Lieferantennummer.
-          </p>
-        </div>
-        <div className="field-group">
-          <Field label="Stundensatz (€, optional)" hint="Vorgabe für neue Leistungseinträge dieses Kunden; jeder Eintrag behält den Satz vom Anlegen.">
-            {(control) => (
-              <input
-                {...control}
-                name="hourlyRateCents"
-                inputMode="decimal"
-                defaultValue={contact?.hourlyRateCents == null ? "" : formatDecimal(contact.hourlyRateCents)}
-                placeholder="95,00"
-              />
-            )}
-          </Field>
-        </div>
       </section>
 
       <section className="form-section" aria-labelledby="contact-address">
@@ -270,27 +240,12 @@ export function ContactForm({
             {ibanSuggestion && <IbanSuggestionHint suggestion={ibanSuggestion} onTake={() => takeIban(ibanSuggestion.iban)} />}
           </div>
         </div>
-        <Field label="Leitweg-ID (öffentliche Auftraggeber)" hint="Nur bei Rechnungen an Behörden nötig; steht in deren Auftrag.">
-          {(control) => <input {...control} name="leitwegId" defaultValue={initial.leitwegId} className="mono" />}
-        </Field>
       </section>
 
       <section className="form-section" aria-labelledby="contact-invoices">
         <h2 id="contact-invoices">Rechnungen</h2>
         <UnsereLieferantennummerField defaultValue={initial.unsereLieferantennummer ?? ""} />
         <div className="form-row cols-2">
-          <Field label="Standardformat für Rechnungen">
-            {(control) => (
-              <select {...control} name="defaultFormat" defaultValue={initial.defaultFormat ?? ""}>
-                <option value="">wie in den Einstellungen</option>
-                {FORMATS.map((f) => (
-                  <option key={f} value={f}>
-                    {FORMAT_LABEL[f]}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
           <Field label="Sprache von Rechnungen und Angeboten">
             {(control) => (
               <select {...control} name="language" defaultValue={initial.language ?? "de"}>
@@ -299,24 +254,18 @@ export function ContactForm({
               </select>
             )}
           </Field>
-          <Field label="Skonto">
-            {(control) => (
-              <select {...control} value={ownSkonto ? "eigen" : "vorgabe"} onChange={(e) => setOwnSkonto(e.target.value === "eigen")}>
-                <option value="vorgabe">wie in den Einstellungen</option>
-                <option value="eigen">eigenes für diesen Kunden</option>
-              </select>
-            )}
-          </Field>
         </div>
-        {ownSkonto && (
-          <SkontoFields
-            id="contact-skonto"
-            rows={skontoRows}
-            onChange={setSkontoRows}
-            hint="Ohne Stufe bekommt dieser Kunde kein Skonto. Eine Frist, die länger ist als das Zahlungsziel der Rechnung, entfällt dort."
-          />
-        )}
       </section>
+
+      <ContactWeitereAngaben
+        initial={initial}
+        ownSkonto={ownSkonto}
+        onOwnSkonto={setOwnSkonto}
+        skontoRows={skontoRows}
+        onSkontoRows={setSkontoRows}
+        offen={weitereOffen}
+        onOffen={setWeitereOffen}
+      />
 
       <UstIdHinweis
         ustId={ustId}
