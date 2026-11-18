@@ -12,16 +12,16 @@ Rechnungen, Buchungen und Bankumsätze aus dem Testen lassen sich nicht löschen
 - Firmendaten mit Mahnwesen, Privatanteilen und DATEV-Nummern, persönliche Angaben, ausgeblendete Bereiche und den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum)
 - Beleggestaltung mit Logo, Briefpapier und eigenen Layouts
 - Nummernformate, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Format und nächste Kundennummer
-- Absender und Vorlagen der E-Mails, Textbausteine, eigene Konten, eigene Seiten und die Angaben zur Verfahrensdokumentation
+- Absender und Vorlagen der E-Mails, [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail), Textbausteine, eigene Konten, eigene Seiten und die Angaben zur Verfahrensdokumentation
 - Einheiten, Artikel und Kontakte mit Ansprechpartnern
 
-Nicht darin sind Zugangsdaten (Kontoabruf, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, KI-Schlüssel, API-Tokens, Kalender-Abo), Zugänge und Passkeys, die Zählerstände der Rechnungs- und Angebotsnummern, Bankkonten, Mitarbeiter, Darlehen, SEPA-Lastschriftmandate, wiederkehrende Rechnungen, Dauerbelege und alles Gebuchte. Das ZIP enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre es so sicher auf wie ein Backup; herunterladen kann es nur der Inhaber.
+Nicht darin sind Zugangsdaten (Kontoabruf, Google Play, App Store und Etsy, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, Ablage im Dokumentenarchiv, KI-Schlüssel, API-Tokens, Kalender-Abo), Zugänge und Passkeys, die Zählerstände der Rechnungs- und Angebotsnummern, Bankkonten, Mitarbeiter, Darlehen, SEPA-Lastschriftmandate, wiederkehrende Rechnungen, Dauerbelege und alles Gebuchte. Das ZIP enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre es so sicher auf wie ein Backup; herunterladen kann es nur der Inhaber.
 
 Nimm für beide Instanzen dieselbe Version von Haben: Aktualisiere die Testinstanz vor dem Export auf die Version, die du neu installierst. Eine neuere Version kann Werte speichern, die eine ältere beim Übernehmen nicht annimmt; ein ZIP mit neuerem Format lehnt sie ab. Die Rückfrage beim Übernehmen nennt die Version, mit der exportiert wurde.
 
 ## In der neuen Instanz
 
-1. Konto anlegen ([Konto anlegen](einrichtung.md#konto-anlegen)). Soll der E-Mail-Versand Absender und Vorlagen mitbringen, richte ihn jetzt unter **Einstellungen › E-Mail** ein ([E-Mail-Versand](einrichtung-email.md)). Bei Microsoft 365 ohne eigenes Postfach bleibt die Absenderadresse, denn aus ihrem Postfach sendet Haben.
+1. [Konto anlegen](einrichtung.md#konto-anlegen). Soll der E-Mail-Versand Absender, Vorlagen und Erinnerungen mitbringen, richte ihn jetzt unter **Einstellungen › E-Mail** ein ([E-Mail-Versand](einrichtung-email.md)). Bleibt bei Microsoft 365 das Feld **Postfach** leer, behält diese Instanz ihre Absenderadresse, denn aus deren Postfach sendet Haben.
 2. Unter **Einstellungen › Export** in der Karte **Einstellungen übernehmen** mit **Datei übernehmen …** das ZIP wählen und bestätigen. Haben prüft die Prüfsummen von `einstellungen.json` und jeder Datei daneben und jeden Wert wie im Formular und übernimmt alles oder nichts; ein Fehler nennt den Eintrag. Schon eingetragene Firmendaten und Gestaltung ersetzt das ZIP.
 3. Braucht ein eigenes Layout Pakete, unter **Einstellungen › Beleggestaltung** **Pakete neu laden**; bis dahin lässt sich mit dem Layout nichts erzeugen.
 
