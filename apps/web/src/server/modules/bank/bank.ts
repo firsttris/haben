@@ -39,16 +39,13 @@ import {
   suggestMatches,
   type DirectBooking,
   type DirektKategorie,
-  kategorieText,
   type InvoiceTotals,
   type OpenItem,
   type OwnAccount,
   type PostingLine,
   type Steuerart,
   type SteuerPosten,
-  steuerzahlungText,
   type DarlehenTeil,
-  darlehenText,
   type TaxShare,
   inCents,
 } from "@haben/core";
@@ -68,7 +65,8 @@ import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
 import { importAccount } from "./import-konto.ts";
 import { recordDuplicateCandidates } from "./duplicate-scan.ts";
 import { duplicateReviewsForTransaction } from "./duplicate-review.ts";
-import { lockImportObservations, observedHashFilter, recordImportObservations } from "./import-observations.ts";
+import { transactionAllocations } from "./transaction-allocations.ts";
+import { lockImportObservations, recordImportObservations } from "./import-observations.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -96,7 +94,7 @@ import {
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
 import { belegTotals, freigabeNachziehen } from "../umsatzsteuer/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
-import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
+import { assertUstvaOffen, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts";
@@ -291,12 +289,11 @@ export async function storeStatement(
     transactions.map((t) => t.dedupHash),
   );
   const fresh = transactions.filter((t) => !known.has(t.dedupHash));
-  const scanDays = statement.format === "enablebanking" ? [...new Set(fresh.map((row) => row.bookingDate))] : [];
-  if (scanDays.length > 0) await lockImportObservations(tx, account.id, inArray(schema.bankTransactions.bookingDate, scanDays));
-  const observed =
-    statement.format === "enablebanking" && known.size > 0
-      ? await lockImportObservations(tx, account.id, observedHashFilter(transactions.filter((row) => known.has(row.dedupHash))))
-      : [];
+  const fromEnableBanking = statement.format === "enablebanking";
+  const scanDays = fromEnableBanking ? [...new Set(fresh.map((row) => row.bookingDate))] : [];
+  const observed = fromEnableBanking
+    ? await lockImportObservations(tx, account.id, scanDays, { hashes: transactions.filter((row) => known.has(row.dedupHash)) })
+    : [];
   const { importId, transactionIds } = await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
   await recordImportObservations(tx, importId, observed);
   // Ohne Quellenbindung ist auch eine innerhalb des Abrufs eindeutige Referenz kein Beleg über mehrere Abrufe.
@@ -691,47 +688,7 @@ export async function transactionDetail(id: string) {
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, id));
   if (!tx) return null;
-  const allocationRows = await db
-    .select({
-      id: schema.allocations.id,
-      kind: schema.allocations.kind,
-      amount: schema.allocations.amount,
-      reversesId: schema.allocations.reversesId,
-      splitId: schema.allocations.splitId,
-      createdAt: schema.allocations.createdAt,
-      invoiceId: schema.allocations.invoiceId,
-      invoiceNumber: schema.invoices.number,
-      documentId: schema.allocations.documentId,
-      documentSupplier: schema.documents.supplierName,
-      documentNumber: schema.documents.invoiceNumber,
-      vatReturnId: schema.allocations.vatReturnId,
-      taxType: schema.allocations.taxType,
-      taxYear: schema.allocations.taxYear,
-      taxItem: schema.allocations.taxItem,
-      loanName: schema.loans.name,
-      loanPart: schema.allocations.loanPart,
-      category: schema.allocations.category,
-      taxRate: schema.allocations.taxRate,
-    })
-    .from(schema.allocations)
-    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
-    .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
-    .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
-    .where(eq(schema.allocations.transactionId, id))
-    // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
-    .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
-  const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
-  const vatLabels = await ustvaLabels(allocationRows.flatMap((a) => (a.vatReturnId ? [a.vatReturnId] : [])));
-  const allocations = allocationRows
-    .filter((a) => !a.reversesId)
-    .map((a) => ({
-      ...a,
-      reversed: reversed.has(a.id),
-      vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
-      steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
-      darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
-      kategorieLabel: a.category && a.taxRate !== null ? kategorieText({ kategorie: a.category, steuersatz: a.taxRate }) : null,
-    }));
+  const allocations = await transactionAllocations(id);
 
   const duplicateReviews = await duplicateReviewsForTransaction(tx.id);
   const automatic = duplicateReviews.every((review) => review.decision === "distinct");

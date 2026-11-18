@@ -1,28 +1,40 @@
-import { and, eq, inArray, or, type SQL } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 
-/** Der alte Dubletten-Hash enthält keine Währung. Einen Abruf deshalb nur mit passender Währung belegen. */
-export function observedHashFilter(rows: { dedupHash: string; currency: string }[]): SQL | undefined {
+type Observation = {
+  ids?: readonly string[];
+  hashes?: readonly { dedupHash: string; currency: string }[];
+};
+
+/** Vor dem Audit die Prüf- und Beobachtungszeilen gemeinsam nach ID sperren, wie bei einer Verrechnung. */
+export async function lockImportObservations(
+  tx: Tx,
+  accountId: string,
+  days: readonly string[],
+  { ids = [], hashes = [] }: Observation = {},
+): Promise<string[]> {
+  // Der alte Dubletten-Hash enthält keine Währung. Einen Abruf nur mit passender Währung belegen.
   const groups = new Map<string, Set<string>>();
-  for (const { dedupHash, currency } of rows) {
-    const hashes = groups.get(currency) ?? new Set<string>();
-    hashes.add(dedupHash);
-    groups.set(currency, hashes);
+  for (const { dedupHash, currency } of hashes) {
+    const group = groups.get(currency) ?? new Set<string>();
+    group.add(dedupHash);
+    groups.set(currency, group);
   }
   const t = schema.bankTransactions;
-  return or(...[...groups].map(([currency, hashes]) => and(eq(t.currency, currency), inArray(t.dedupHash, [...hashes]))));
-}
-
-/** Fremdschlüssel zu vorhandenen Umsätzen vor dem ersten Audit-Eintrag sperren. */
-export async function lockImportObservations(tx: Tx, accountId: string, filter: SQL | undefined): Promise<string[]> {
+  const observedIds = new Set(ids);
+  const filter = or(
+    days.length ? inArray(t.bookingDate, days) : undefined,
+    observedIds.size ? inArray(t.id, [...observedIds]) : undefined,
+    ...[...groups].map(([currency, group]) => and(eq(t.currency, currency), inArray(t.dedupHash, [...group]))),
+  );
   if (!filter) return [];
   const rows = await tx
-    .select({ id: schema.bankTransactions.id })
-    .from(schema.bankTransactions)
-    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), filter))
-    .orderBy(schema.bankTransactions.id)
+    .select({ id: t.id, currency: t.currency, hash: t.dedupHash })
+    .from(t)
+    .where(and(eq(t.bankAccountId, accountId), filter))
+    .orderBy(t.id)
     .for("key share");
-  return rows.map(({ id }) => id);
+  return rows.filter(({ id, currency, hash }) => observedIds.has(id) || groups.get(currency)?.has(hash)).map(({ id }) => id);
 }
 
 /** Neue Zeilen sind bereits über ihren Import verbunden, hier nur wieder gelieferte Zeilen speichern. */

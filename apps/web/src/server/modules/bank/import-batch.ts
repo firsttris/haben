@@ -1,4 +1,4 @@
-import { and, arrayOverlaps, eq, inArray, or, sql } from "drizzle-orm";
+import { and, arrayOverlaps, eq, inArray, sql } from "drizzle-orm";
 import {
   advanceCheckpoint,
   batchFingerprint,
@@ -22,7 +22,7 @@ import { type ImportResult, insertStatement, prepareStatement, statementResult }
 import { BankError } from "./bank-error.ts";
 import { recordDuplicateCandidates } from "./duplicate-scan.ts";
 import { type Linked, planRows } from "./import-batch-plan.ts";
-import { lockImportObservations, observedHashFilter, recordImportObservations } from "./import-observations.ts";
+import { lockImportObservations, recordImportObservations } from "./import-observations.ts";
 
 /*
  * Schritt 3 aus #306: Eine Lieferung des Importvertrags speichern. Bewegungen erkennt Haben an ihrer Quellenidentität
@@ -285,7 +285,7 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
     async () => {
       // Beim ersten Vertragsabruf wird die Quellenbindung selbst auditiert. Mögliche alte Umsätze vorher sperren.
       const days = [...new Set(statement.transactions.map((row) => row.bookingDate).filter((day) => parseDate(day) === day))];
-      if (fromEnableBanking && days.length > 0) await lockImportObservations(tx, account.id, inArray(schema.bankTransactions.bookingDate, days));
+      if (fromEnableBanking) await lockImportObservations(tx, account.id, days);
     },
   );
   const validation = validateBatch(input.batch, { ...binding, ...(source.cutoverDate ? { cutoverDate: source.cutoverDate } : {}) });
@@ -323,14 +323,7 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
   const { insert, linked, fileDays, observedHashes } = await planRows(tx, account.id, source, rows, fresh, input.eventOf, statement.periodFrom, fallback);
   const existingIds = [...observedIds, ...linked.flatMap((row) => (row.transactionId ? [row.transactionId] : []))];
   const scanDays = fromEnableBanking ? [...new Set(insert.map((row) => row.bookingDate))] : [];
-  if (scanDays.length > 0) await lockImportObservations(tx, account.id, inArray(schema.bankTransactions.bookingDate, scanDays));
-  const observed = fromEnableBanking
-    ? await lockImportObservations(
-        tx,
-        account.id,
-        or(existingIds.length > 0 ? inArray(schema.bankTransactions.id, [...new Set(existingIds)]) : undefined, observedHashFilter(observedHashes)),
-      )
-    : [];
+  const observed = fromEnableBanking ? await lockImportObservations(tx, account.id, scanDays, { ids: existingIds, hashes: observedHashes }) : [];
   // Hinweise der Lieferung ins Importprotokoll (bank_imports.warnings), damit sie auch nach dem nächtlichen Abruf zu sehen sind
   const hints = [
     ...validation.hints,
