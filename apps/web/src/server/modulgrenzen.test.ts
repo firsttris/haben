@@ -207,6 +207,7 @@ describe("Struktur der Module", () => {
         "storage.ts",
         "test-db.ts",
         "test-eric.ts",
+        "test-evatr.ts",
         "today.ts",
       ].sort(),
     );
