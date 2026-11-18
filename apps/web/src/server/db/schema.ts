@@ -3621,7 +3621,15 @@ export const lexofficeVoucherFiles = pgTable(
 );
 
 /** Dateistand eines archivierten Belegs, soweit er von „alle Dateien da“ abweicht (#345) */
-export const LEGACY_FILE_STATES = ["ohne_datei", "abruf_fehlgeschlagen", "anhang_fehlt", "bestaetigt_ohne_datei", "nachgeladen", "kein_anhang"] as const;
+export const LEGACY_FILE_STATES = [
+  "ohne_datei",
+  "abruf_fehlgeschlagen",
+  "anhang_fehlt",
+  "bestaetigt_ohne_datei",
+  "bestaetigung_zurueckgenommen",
+  "nachgeladen",
+  "kein_anhang",
+] as const;
 export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
 
 /**
@@ -3631,6 +3639,8 @@ export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
  * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
  * - bestaetigt_ohne_datei: eine Person hat geprüft, dass der Beleg keine Datei hat (bei sevDesk der Abruf, beim
  *   Accountable-Stapel der fehlende Einzelbeleg), festgehalten mit created_by und Zeitpunkt.
+ * - bestaetigung_zurueckgenommen: eine Person hat eine solche Bestätigung mit Grund zurückgenommen (#1317). Die
+ *   Bestätigung bleibt als frühere Zeile stehen, der Beleg gilt wieder als offen.
  * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
  * - kein_anhang: ein späterer Abruf sagt ohne Fehler, dass es den fehlenden Anhang nicht gibt (keine E-Rechnung).
  */

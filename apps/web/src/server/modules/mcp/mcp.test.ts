@@ -296,6 +296,17 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     const beleg = (await run_("lexoffice_beleg", { beleg: "re1" })) as { belege: { apiAntwort: unknown; link: string }[] };
     expect(beleg.belege[0]!.apiAntwort).toEqual({ voucherNumber: "RE1", taxConditions: { taxType: "intraCommunitySupply" }, address: { name: "Kunde SARL" } });
     expect(beleg.belege[0]!.link).toMatch(/\/archiv\/beleg\/[0-9a-f-]{36}$/);
+
+    // Ein Belegfeld ohne Nummer hat nichts zu finden: belegGefunden bleibt null wie bei leerem Feld (#1355)
+    await sql`insert into datev_bookings (file_id, row, date, amount, side, account, contra_account, voucher_field1, raw) values
+      (${file!.id}, 5, '2025-04-15', 1250, 'S', '1200', '4930', 'Beispielzahldienst', '{}'::jsonb)`;
+    const ohneNummer = (await run_("lexoffice_buchungen", { zeitraum: "2025", konto: "4930", ohneBeleg: false, limit: 50 })) as {
+      buchungen: { belegnummer: string; belegGefunden: boolean | null }[];
+    };
+    expect(ohneNummer.buchungen.map((b) => [b.belegnummer, b.belegGefunden])).toEqual([
+      ["", null],
+      ["Beispielzahldienst", null],
+    ]);
   });
 
   it("begrenzt die Anfragen je Token", async () => {

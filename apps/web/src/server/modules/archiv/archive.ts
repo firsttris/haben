@@ -2,7 +2,7 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, otherDatevExportName, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { datevAufladung, datevBookingFound, datevInternalId, datevWithoutReceipt } from "./datev-belegnummer.ts";
+import { datevAufladung, datevFieldWithoutNumber, datevInternalId, datevOpenBooking } from "./datev-belegnummer.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
@@ -194,13 +194,14 @@ export async function loadArchiveFile(id: string) {
   return { ...row, bytes: await loadFile(row.sha256) };
 }
 
-const matchedSql = datevBookingFound({
+/** Felder einer Buchung des DATEV-Stapels, wie sie Abgleich und Liste prüfen */
+const datevFields = {
   number: "datev_bookings.voucher_field1",
   link: "datev_bookings.document_link",
   file: "datev_bookings.file_id",
   date: "datev_bookings.date",
-});
-const internalIdSql = datevInternalId("datev_bookings.voucher_field1");
+  contra: "datev_bookings.contra_account",
+};
 
 export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number; aufladung?: boolean }) {
   const conditions: SQL[] = [gte(schema.datevBookings.date, `${filter.year}-01-01`), lte(schema.datevBookings.date, `${filter.year}-12-31`)];
@@ -217,11 +218,13 @@ export async function listDatevBookings(filter: { year: number; search: string; 
   }
   // Dieselbe Ausnahme wie im Abgleich (reconciliation): Privat, Geldtransit, Vortrag und Accountable-Erlöse brauchen keinen Beleg
   const { kontenrahmen } = await loadCompany();
-  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
+  const openSql = datevOpenBooking(datevFields, kontenrahmen);
+  // Belegfeld ohne Nummer: Solche Zeilen sind kein offener Punkt und zählen wie ein leeres Feld unter „ohne Belegnummer“ (#1355)
+  const withoutNumberSql = datevFieldWithoutNumber(datevFields, kontenrahmen);
   // Eine Aufladung ohne Bezug ist weder ein offener Punkt noch erledigt, sondern eine eigene Gruppe (#1356)
   const aufladungSql = datevAufladung("datev_bookings.text");
   if (filter.aufladung) conditions.push(aufladungSql);
-  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql} and not ${aufladungSql}`);
+  if (filter.unmatched) conditions.push(openSql, sql`not ${withoutNumberSql}`, sql`not ${aufladungSql}`);
   const where = and(...conditions);
   const pageSize = 100;
   const [rows, [total]] = await Promise.all([
@@ -237,8 +240,9 @@ export async function listDatevBookings(filter: { year: number; search: string; 
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        // Eine interne Kennung ist nichts, wozu ein Beleg fehlt
-        matched: sql<boolean>`${matchedSql} or ${internalIdSql} or ${withoutReceiptSql}`,
+        // Eine interne Kennung ist nichts, wozu ein Beleg fehlt; ein Belegfeld ohne Nummer ebenso wenig.
+        // Eine Aufladung ohne Bezug ist weder gefunden noch ein offener Punkt, sondern ihre eigene Gruppe (#1356)
+        matched: sql<boolean>`not ${openSql} and not ${aufladungSql}`,
         /** Aufladung eines Guthabens ohne Bezug auf die spätere Rechnung (#1356) */
         aufladung: aufladungSql,
         filename: schema.archiveFiles.filename,
@@ -289,9 +293,10 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
   if (account) conditions.push(or(eq(schema.datevBookings.account, account), eq(schema.datevBookings.contraAccount, account))!);
   // Dieselbe Ausnahme wie im Abgleich (reconciliation) und in listDatevBookings
   const { kontenrahmen } = await loadCompany();
-  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
-  if (filter.unmatched)
-    conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql}`);
+  const openSql = datevOpenBooking(datevFields, kontenrahmen);
+  // Belegfeld ohne Nummer: zählt wie ein leeres Feld unter „ohne Belegnummer“, damit MCP dieselbe Einordnung nennt (#1355)
+  const withoutNumberSql = datevFieldWithoutNumber(datevFields, kontenrahmen);
+  if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> ''`, openSql, sql`not ${withoutNumberSql}`);
   const where = and(...conditions);
   const [rows, [total]] = await Promise.all([
     db
@@ -304,8 +309,9 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        matched: sql<boolean>`${matchedSql} or ${withoutReceiptSql}`,
-        internalId: internalIdSql,
+        matched: sql<boolean>`not ${openSql}`,
+        internalId: sql<boolean>`${datevInternalId("datev_bookings.voucher_field1")}`,
+        withoutNumber: sql<boolean>`${withoutNumberSql}`,
       })
       .from(schema.datevBookings)
       .where(where)

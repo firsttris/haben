@@ -106,9 +106,29 @@ const VERMERK_COLUMNS = {
 };
 
 /**
+ * Anlage EÜR und Einkommensteuererklärung werden außerhalb von Haben in einer Übermittlung abgegeben, das Protokoll nennt
+ * ein Transferticket für beide (#1371). Dasselbe Ticket ist deshalb nur am Vermerk des jeweils anderen dieser beiden
+ * Formulare desselben Jahres zulässig; Haben übermittelt die EÜR allein, ihr Ticket teilt keine andere Erklärung.
+ */
+function gemeinsamUebermittelt(form: VermerkForm, year: number, zeile: { form: string; year: number; kind: string }): boolean {
+  const paar = new Set([form, zeile.form]);
+  return zeile.kind === "vermerk" && zeile.year === year && paar.size === 2 && paar.has("euer") && paar.has("est");
+}
+
+/** Lehnt ein Transferticket ab, das schon an einer anderen Erklärung steht, außer am Gegenstück aus EÜR und ESt */
+async function pruefeTicketFrei(form: VermerkForm, year: number, transferTicket: string): Promise<void> {
+  const verwendet = await db
+    .select({ form: schema.annualSubmissions.form, year: schema.annualSubmissions.year, kind: schema.annualSubmissions.kind })
+    .from(schema.annualSubmissions)
+    .where(eq(schema.annualSubmissions.transferTicket, transferTicket));
+  const used = verwendet.find((zeile) => !gemeinsamUebermittelt(form, year, zeile));
+  if (used) throw new AnnualError(`Das Transferticket ist schon bei der Erklärung ${used.year} hinterlegt.`);
+}
+
+/**
  * Vermerkt die Abgabe außerhalb von Haben. Unter derselben Sendesperre wie die Übermittlung über ERiC, damit nicht beide
  * zugleich festschreiben. Je Formular und Jahr ist nur ein Vermerk möglich; ein Transferticket gehört zu genau einer
- * Erklärung. Ein abgeschlossenes Jahr bleibt unverändert und nimmt keinen Vermerk mehr auf.
+ * Erklärung, nur Anlage EÜR und Einkommensteuererklärung desselben Jahres teilen sich eins. Ein abgeschlossenes Jahr bleibt unverändert und nimmt keinen Vermerk mehr auf.
  *
  * Der Betrag laut Protokoll bleibt maßgeblich und wird unverändert gespeichert. Weicht er vom in Haben gerechneten Wert ab,
  * verlangt der Vermerk eine ausdrückliche Bestätigung; die Abweichung bleibt an der Zeile festgehalten. Eine harte Sperre
@@ -159,11 +179,7 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
         ),
       );
     if (gesendet) throw new AnnualError(`Die ${FORM_LABEL[form]} ${year} ist schon über Haben übermittelt; ein Vermerk ist nicht nötig.`);
-    const [used] = await db
-      .select({ year: schema.annualSubmissions.year })
-      .from(schema.annualSubmissions)
-      .where(eq(schema.annualSubmissions.transferTicket, transferTicket));
-    if (used) throw new AnnualError(`Das Transferticket ist schon bei der Erklärung ${used.year} hinterlegt.`);
+    await pruefeTicketFrei(form, year, transferTicket);
 
     // Eine erfolgte Abgabe lässt sich nicht zurücknehmen: Der Betrag laut Protokoll gilt, aber eine Abweichung muss
     // ausdrücklich bestätigt werden, statt sie stillschweigend zu übernehmen.
