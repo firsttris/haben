@@ -18,7 +18,7 @@ Deine Steuerberatung kann mit einem eigenen Zugang direkt in Haben nachsehen, st
 
 Die Steuerberatung sieht:
 
-- **Auswertungen** (EÜR, offene Posten, Monatsverlauf) und ihre CSV-Dateien
+- **Auswertungen** (EÜR, BWA, offene Posten, Monatsverlauf) und ihre CSV-Dateien
 - **Buchungen** (Journal) und **Konten** (Saldenliste, Kontenblätter) mit CSV
 - **Belege** mit Originaldatei
 - **Rechnungen**, nur festgeschriebene, mit PDF, XML und Anhängen, dazu ihre Mahnungen

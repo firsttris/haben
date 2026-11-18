@@ -1,4 +1,4 @@
-import { ACCOUNTS, type JournalZeile, type Kontenrahmen, resolveOwnAccount } from "@haben/core";
+import { ACCOUNTS, type EuerAusJournal, type JournalZeile, type Kontenrahmen, resolveOwnAccount } from "@haben/core";
 import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { loadOwnAccountParents } from "../eigene-konten/index.ts";
@@ -21,6 +21,15 @@ export interface Buchung {
   /** Position der Buchung im Audit-Log: daran richtet sich die Reihenfolge von Zahlungen und Verrechnungen (#877) */
   position?: number;
 }
+
+/**
+ * Empfängt, was eine Buchung bzw. eine Verrechnung (#274, `sourceType` „verrechnung“) in der EÜR bewirkt, mit der Rechnung bzw.
+ * dem Beleg, den sie ausgleicht: die Grundlage der BWA nach Zufluss und Abfluss (#1380)
+ */
+export type EuerBeitraege = (
+  buchung: Pick<Buchung, "id" | "date" | "kontenrahmen" | "sourceType" | "sourceId"> & { invoiceId: string | null; documentId: string | null },
+  beitrag: EuerAusJournal,
+) => void;
 
 /** Höchstzahl der IDs je Abfrage mit inArray; PostgreSQL nimmt höchstens 65 535 Parameter je Abfrage */
 export const BLOCK = 5000;

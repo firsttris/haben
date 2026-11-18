@@ -23,6 +23,7 @@ import {
   bloecke,
   type Buchung,
   buchungen,
+  type EuerBeitraege,
   buchungenJe,
   offenerPosten,
   verrechnungenJeRechnung,
@@ -186,9 +187,9 @@ function imZeitraum(year: number, umsatzBis: string | undefined, ohneManuelle: b
 
 /**
  * Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind.
- * `ohneManuelle`: ohne manuelle Buchungen (GmbH und UG, dort Abschlussbuchungen, reports.ts).
+ * `ohneManuelle`: ohne manuelle Buchungen (GmbH und UG, dort Abschlussbuchungen, reports.ts); `beitraege` bekommt die Wirkung je Buchung.
  */
-export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string, ohneManuelle = false): Promise<EuerJournal> {
+export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string, ohneManuelle = false, beitraege?: EuerBeitraege): Promise<EuerJournal> {
   const kuMonate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
   const buchungenImJahr = await buchungen(q, imZeitraum(year, umsatzBis, ohneManuelle));
   // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
@@ -283,6 +284,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   const monate = Array.from({ length: 12 }, () => leereEuerAusJournal());
   for (const b of jahr) {
     const beitrag = await wirkung(b);
+    beitraege?.({ ...b, invoiceId: null, documentId: null, ...zielVon.get(b.sourceId) }, beitrag);
     dazu(summe, beitrag);
     dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
   }
@@ -290,6 +292,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   const belegKontenrahmen = verrechnet.length > 0 ? await firmenKontenrahmen(q) : "SKR03";
   for (const v of verrechnet) {
     const beitrag = await wirkungVerrechnung(v);
+    beitraege?.({ ...v, kontenrahmen: belegKontenrahmen, sourceType: "verrechnung", sourceId: v.id, invoiceId: null, documentId: v.dokumentId }, beitrag);
     dazu(summe, beitrag);
     dazu(monate[Number(v.date.slice(5, 7)) - 1]!, beitrag);
   }

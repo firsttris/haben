@@ -185,3 +185,6 @@
 .est-block-title { flex: 1; font-weight: 600; }
 .est-sub { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); }
 .form-sticky-footer { position: sticky; bottom: 0; z-index: 4; display: flex; flex-direction: column; gap: 8px; margin: 0 -20px -20px; padding: 12px 20px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; }
+
+/* BWA (#1380): je Zeile der EÜR eine Tabelle, ihr Titel linksbündig über der Tabelle */
+.bwa-details caption { caption-side: top; text-align: left; font-weight: 600; padding: 16px 0 4px; }

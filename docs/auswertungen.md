@@ -1,13 +1,13 @@
 ---
 title: "Auswertungen: EÜR, offene Posten und Jahresexport"
 description: >-
-  Einnahmen-Überschuss-Rechnung, Einnahmen und Ausgaben je Monat, offene Posten und das
-  Jahresarchiv als ZIP mit DATEV-Export für die Steuerberatung.
+  Einnahmen-Überschuss-Rechnung, BWA mit Vorjahresvergleich, Einnahmen und Ausgaben je Monat,
+  offene Posten und das Jahresarchiv als ZIP mit DATEV-Export.
 ---
 
 # Auswertungen und Jahresexport
 
-Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
+Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten; unter „BWA“ dieselben Zahlen für einen Monat, ein Quartal oder einen freien Zeitraum mit Vergleich. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
 
 Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR. Bei ihr zeigt die Seite Einnahmen und Ausgaben je Monat nach Zahlung, den Überschuss nach Zahlung und die offenen Posten, aber keine EÜR-Tabelle und kein „EÜR als CSV“; den Gewinn zeigt der [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug).
 
@@ -124,6 +124,29 @@ Diese Grundlage ist weder der EÜR-Gewinn noch die Summe ausgestellter Rechnunge
 ## Einnahmen und Ausgaben je Monat
 
 Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlungsdatum, also ohne Umsatzsteuer, Vorsteuer, Umsatzsteuerzahlungen an oder vom Finanzamt und nicht abziehbare Steuern. Bankgebühren zählen zu den Ausgaben. Fährst du mit der Maus über einen Monat oder springst per Tab-Taste hinein, siehst du die Werte. Unter „Als Tabelle anzeigen“ stehen dieselben Zahlen mit Überschuss je Monat und Jahressumme.
+
+## BWA
+
+„BWA“ im Kopf der Auswertungen öffnet die betriebswirtschaftliche Auswertung: wie der Betrieb in einem Monat, einem Quartal, einem Jahr oder einem freien Zeitraum (von–bis) dasteht. Sie rechnet aus denselben Zahlungen wie die EÜR und bucht nichts; über ein ganzes Jahr ergibt sie den Gewinn der EÜR. Zeitraum, Vergleich und eine aufgeklappte Zeile stehen in der Adresse, ein Link zeigt also dieselbe Auswertung.
+
+Gegliedert ist sie wie die Einnahmen-Ausgaben-BWA von DATEV (BWA-Form 43): Erlöse, Umsatzsteuer, Kosten nach Kostenart (Material, Fremdleistungen, Personal, Raum, Steuern und Versicherungen, Fahrzeug, Werbung und Reisen, Warenabgabe, Instandhaltung, Abschreibungen, verschiedene Kosten), Zinsen, Vorsteuer und Umsatzsteuer-Zahlungen, darunter das vorläufige Ergebnis. Welche Kostenart ein Konto hat, folgt den Kontengruppen des DATEV-Kontenrahmens; ein [eigenes Konto](buchhaltung.md#eigene-konten) zählt wie seine Kategorie.
+
+| Spalte | Bedeutung |
+| --- | --- |
+| Zeitraum | Zahlungen im gewählten Zeitraum, beide Tage eingeschlossen |
+| Vergleich | **Vorjahreszeitraum**: dieselben Kalendertage ein Jahr früher, ganze Monate als ganze Monate (Februar mit Februar, auch im Schaltjahr); **Vorperiode**: der Monat, das Quartal oder das Jahr davor, bei von–bis gleich viele Tage direkt davor |
+| Abweichung, in % | Zeitraum minus Vergleich, in Prozent des Vergleichs; ohne Prozent, wenn der Vergleich 0 ist |
+| Kumuliert | Vom 1. Januar bis zum Ende des Zeitraums; beim Vorjahresvergleich daneben dasselbe im Vorjahr |
+
+Anders als die EÜR zählt die BWA nicht abziehbare Ausgaben (30 % der Bewirtung, Gewerbesteuer, nicht abziehbare Nebenleistungen) als Kosten, denn bezahlt sind sie trotzdem. Die Zeile „nicht abziehbare Ausgaben“ darunter führt zum Gewinn laut EÜR. Eine Umsatzsteuer-Vorauszahlung vom 1. bis 10. Januar steht wie in der EÜR am 31. Dezember des Vorjahres (§ 11 Abs. 2 Satz 2 EStG).
+
+Ein Klick auf eine Zeile zeigt darunter, was darin steht: je Kategorie mit Konto die Zahlungen mit Datum, Betrag und Link zur Rechnung oder zum Beleg.
+
+Grenzen:
+
+- Abschreibungen zeigt die BWA erst, wenn das Jahr im [Anlagenverzeichnis](anlagen.md) gebucht ist; bis dahin weist sie darauf hin.
+- Zinserträge und andere steuerfreie Einnahmen stehen bei den Erlösen, weil die EÜR sie in einer Zeile mit den steuerfreien Umsätzen führt.
+- GmbH und UG bilanzieren; ihre BWA nach der Kurzfristigen Erfolgsrechnung (DATEV BWA-Form 01) fehlt noch.
 
 ## Offene Posten
 

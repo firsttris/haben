@@ -50,6 +50,7 @@ import { Route as AppAnlagenIdRouteImport } from './routes/_app/anlagen/$id'
 import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
 import { Route as AppArchivIndexRouteImport } from './routes/_app/archiv/index'
 import { Route as AppArtikelIndexRouteImport } from './routes/_app/artikel/index'
+import { Route as AppAuswertungenBwaRouteImport } from './routes/_app/auswertungen_.bwa'
 import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
 import { Route as AppBuchungenIndexRouteImport } from './routes/_app/buchungen/index'
@@ -334,6 +335,11 @@ const AppArchivIndexRoute = AppArchivIndexRouteImport.update({
 const AppArtikelIndexRoute = AppArtikelIndexRouteImport.update({
   id: '/artikel/',
   path: '/artikel/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuswertungenBwaRoute = AppAuswertungenBwaRouteImport.update({
+  id: '/auswertungen_/bwa',
+  path: '/auswertungen/bwa',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBelegeIndexRoute = AppBelegeIndexRouteImport.update({
@@ -779,6 +785,7 @@ export interface FileRoutesByFullPath {
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
+  '/auswertungen/bwa': typeof AppAuswertungenBwaRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
@@ -899,6 +906,7 @@ export interface FileRoutesByTo {
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
+  '/auswertungen/bwa': typeof AppAuswertungenBwaRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
@@ -1021,6 +1029,7 @@ export interface FileRoutesById {
   '/_app/angebote/neu': typeof AppAngeboteNeuRoute
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
+  '/_app/auswertungen_/bwa': typeof AppAuswertungenBwaRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
   '/_app/buchungen/neu': typeof AppBuchungenNeuRoute
   '/_app/dauerbelege/$id': typeof AppDauerbelegeIdRoute
@@ -1143,6 +1152,7 @@ export interface FileRouteTypes {
     | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
+    | '/auswertungen/bwa'
     | '/belege/$id'
     | '/buchungen/neu'
     | '/dauerbelege/$id'
@@ -1263,6 +1273,7 @@ export interface FileRouteTypes {
     | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
+    | '/auswertungen/bwa'
     | '/belege/$id'
     | '/buchungen/neu'
     | '/dauerbelege/$id'
@@ -1384,6 +1395,7 @@ export interface FileRouteTypes {
     | '/_app/angebote/neu'
     | '/_app/anlagen/$id'
     | '/_app/anlagen/neu'
+    | '/_app/auswertungen_/bwa'
     | '/_app/belege/$id'
     | '/_app/buchungen/neu'
     | '/_app/dauerbelege/$id'
@@ -1814,6 +1826,13 @@ declare module '@tanstack/react-router' {
       path: '/artikel'
       fullPath: '/artikel/'
       preLoaderRoute: typeof AppArtikelIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/auswertungen_/bwa': {
+      id: '/_app/auswertungen_/bwa'
+      path: '/auswertungen/bwa'
+      fullPath: '/auswertungen/bwa'
+      preLoaderRoute: typeof AppAuswertungenBwaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/belege/': {
@@ -2388,6 +2407,7 @@ interface AppRouteChildren {
   AppAngeboteNeuRoute: typeof AppAngeboteNeuRoute
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
+  AppAuswertungenBwaRoute: typeof AppAuswertungenBwaRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
   AppBuchungenNeuRoute: typeof AppBuchungenNeuRoute
   AppDauerbelegeIdRoute: typeof AppDauerbelegeIdRoute
@@ -2454,6 +2474,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAngeboteNeuRoute: AppAngeboteNeuRoute,
   AppAnlagenIdRoute: AppAnlagenIdRoute,
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
+  AppAuswertungenBwaRoute: AppAuswertungenBwaRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
   AppBuchungenNeuRoute: AppBuchungenNeuRoute,
   AppDauerbelegeIdRoute: AppDauerbelegeIdRoute,
