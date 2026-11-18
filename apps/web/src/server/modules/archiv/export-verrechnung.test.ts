@@ -73,8 +73,8 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Verrechnungen von Belegen (Post
     // Verrechnung zweier Ausgangsrechnungen (#877): Rechnung und Kundenkorrektur ohne Zahlung, dazu die Aufhebung
     const [rechnungRow] = await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross)
       values ('rechnung', 'final', 'RE-2026-001', now(), '2026-03-05', '2026-04-05', 100000, 19000, 119000) returning id`;
-    const [korrekturRow] = await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross, corrects_id)
-      values ('korrektur', 'final', 'RE-2026-002', now(), '2026-03-20', '2026-04-20', -40000, -7600, -47600, ${rechnungRow!.id}) returning id`;
+    const [korrekturRow] = await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross, corrects_id, reduction_rule)
+      values ('korrektur', 'final', 'RE-2026-002', now(), '2026-03-20', '2026-04-20', -40000, -7600, -47600, ${rechnungRow!.id}, 'rueckgewaehr') returning id`;
     ausgangsrechnung = rechnungRow!.id as string;
     kundenkorrektur = korrekturRow!.id as string;
     const [verrechnungRow] = await sql`insert into invoice_settlements (invoice_id, counter_invoice_id, date, amount, note, created_by)

@@ -90,6 +90,7 @@ import {
   invoicePayments,
   paidByTarget,
   paperCancellationIds,
+  paymentProcedure,
   unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
@@ -1248,7 +1249,7 @@ async function invoiceBooking(
 ): Promise<{ lines: PostingLine[]; description: string; target: Zuordnungsziel }> {
   const invoice = await lockInvoice(tx, part.invoiceId);
   if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
-  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount);
+  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount, await paymentProcedure(invoice, tx));
   if (dateProblem) throw new BankError(dateProblem);
 
   const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);

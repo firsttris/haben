@@ -1,5 +1,5 @@
 {
-  "id": "6b92f1b8-5bfb-4508-aa88-73b0372c587c",
+  "id": "8f4df660-e6fe-4c20-82d1-e162f9700c01",
   "prevId": "2639a4f7-b743-4865-8373-6680af9ff9bf",
   "version": "7",
   "dialect": "postgresql",
@@ -2109,346 +2109,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.bank_duplicate_check": {
-      "name": "bank_duplicate_check",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "bank_duplicate_check_single": {
-          "name": "bank_duplicate_check_single",
-          "value": "\"bank_duplicate_check\".\"id\" = 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.bank_duplicate_decisions": {
-      "name": "bank_duplicate_decisions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "review_id": {
-          "name": "review_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decision": {
-          "name": "decision",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reverses_id": {
-          "name": "reverses_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "bank_duplicate_decisions_review": {
-          "name": "bank_duplicate_decisions_review",
-          "columns": [
-            {
-              "expression": "review_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "bank_duplicate_decisions_reversal": {
-          "name": "bank_duplicate_decisions_reversal",
-          "columns": [
-            {
-              "expression": "reverses_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "bank_duplicate_decisions_review_id_bank_duplicate_reviews_id_fk": {
-          "name": "bank_duplicate_decisions_review_id_bank_duplicate_reviews_id_fk",
-          "tableFrom": "bank_duplicate_decisions",
-          "tableTo": "bank_duplicate_reviews",
-          "columnsFrom": [
-            "review_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "bank_duplicate_decisions_reverses_id_bank_duplicate_decisions_id_fk": {
-          "name": "bank_duplicate_decisions_reverses_id_bank_duplicate_decisions_id_fk",
-          "tableFrom": "bank_duplicate_decisions",
-          "tableTo": "bank_duplicate_decisions",
-          "columnsFrom": [
-            "reverses_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "bank_duplicate_decisions_kind": {
-          "name": "bank_duplicate_decisions_kind",
-          "value": "(\"bank_duplicate_decisions\".\"decision\" in ('duplicate', 'distinct') and \"bank_duplicate_decisions\".\"reverses_id\" is null) or (\"bank_duplicate_decisions\".\"decision\" = 'pending' and \"bank_duplicate_decisions\".\"reverses_id\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.bank_duplicate_reviews": {
-      "name": "bank_duplicate_reviews",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "transaction_id": {
-          "name": "transaction_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "original_transaction_id": {
-          "name": "original_transaction_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decision": {
-          "name": "decision",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "bank_duplicate_reviews_pair": {
-          "name": "bank_duplicate_reviews_pair",
-          "columns": [
-            {
-              "expression": "least(\"transaction_id\", \"original_transaction_id\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "greatest(\"transaction_id\", \"original_transaction_id\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "bank_duplicate_reviews_transaction": {
-          "name": "bank_duplicate_reviews_transaction",
-          "columns": [
-            {
-              "expression": "transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "bank_duplicate_reviews_transaction_id_bank_transactions_id_fk": {
-          "name": "bank_duplicate_reviews_transaction_id_bank_transactions_id_fk",
-          "tableFrom": "bank_duplicate_reviews",
-          "tableTo": "bank_transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "bank_duplicate_reviews_original_transaction_id_bank_transactions_id_fk": {
-          "name": "bank_duplicate_reviews_original_transaction_id_bank_transactions_id_fk",
-          "tableFrom": "bank_duplicate_reviews",
-          "tableTo": "bank_transactions",
-          "columnsFrom": [
-            "original_transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "bank_duplicate_reviews_distinct_rows": {
-          "name": "bank_duplicate_reviews_distinct_rows",
-          "value": "\"bank_duplicate_reviews\".\"transaction_id\" <> \"bank_duplicate_reviews\".\"original_transaction_id\""
-        },
-        "bank_duplicate_reviews_decision": {
-          "name": "bank_duplicate_reviews_decision",
-          "value": "\"bank_duplicate_reviews\".\"decision\" in ('pending', 'duplicate', 'distinct')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.bank_import_transactions": {
-      "name": "bank_import_transactions",
-      "schema": "",
-      "columns": {
-        "bank_import_id": {
-          "name": "bank_import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transaction_id": {
-          "name": "transaction_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "bank_import_transactions_transaction": {
-          "name": "bank_import_transactions_transaction",
-          "columns": [
-            {
-              "expression": "transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "bank_import_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "bank_import_transactions_bank_import_id_bank_imports_id_fk": {
-          "name": "bank_import_transactions_bank_import_id_bank_imports_id_fk",
-          "tableFrom": "bank_import_transactions",
-          "tableTo": "bank_imports",
-          "columnsFrom": [
-            "bank_import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "bank_import_transactions_transaction_id_bank_transactions_id_fk": {
-          "name": "bank_import_transactions_transaction_id_bank_transactions_id_fk",
-          "tableFrom": "bank_import_transactions",
-          "tableTo": "bank_transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "bank_import_transactions_bank_import_id_transaction_id_pk": {
-          "name": "bank_import_transactions_bank_import_id_transaction_id_pk",
-          "columns": [
-            "bank_import_id",
-            "transaction_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -7725,12 +7385,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "ambiguous_entry_references": {
-          "name": "ambiguous_entry_references",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": false
-        },
         "bank_import_id": {
           "name": "bank_import_id",
           "type": "uuid",
@@ -9493,6 +9147,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "reduction_rule": {
+          "name": "reduction_rule",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -10029,6 +9689,10 @@
         "invoices_advance_accounting": {
           "name": "invoices_advance_accounting",
           "value": "\"invoices\".\"advance_accounting\" is null or \"invoices\".\"advance_accounting\" = 'deferred'"
+        },
+        "invoices_reduction_rule": {
+          "name": "invoices_reduction_rule",
+          "value": "\"invoices\".\"reduction_rule\" is null or (\"invoices\".\"reduction_rule\" = 'rueckgewaehr' and \"invoices\".\"kind\" <> 'rechnung')"
         },
         "invoices_replaces_schluss": {
           "name": "invoices_replaces_schluss",
