@@ -57,6 +57,7 @@ import { ExcludeAccountButton, ExcludedAccounts } from "../../components/BankKon
 import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
+import { KlaerungHinweis, KonfliktKlaeren, stichtagText } from "../../components/ImportKonflikt.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
 import { ImportMeldungen, importMessages, type ImportMessage } from "../../components/BankImportMeldungen.tsx";
@@ -614,7 +615,9 @@ function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; r
                 <span style={{ fontWeight: 600 }}>{c.aspspName}</span>
                 <ConnectionStatus connection={c} />
               </div>
-              <span className="small muted">{c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}`).join(" · ") || "Keine Konten"}</span>
+              <span className="small muted">
+                {c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}${stichtagText(sync.stichtage, a.bankAccountId)}`).join(" · ") || "Keine Konten"}
+              </span>
               <span className="small muted">
                 {c.lastSyncAt ? `Zuletzt abgerufen ${formatDateTime(c.lastSyncAt)}` : "Noch nicht abgerufen"}
                 {c.validUntil ? ` · Zustimmung bis ${formatDate(c.validUntil)}` : ""}
@@ -630,6 +633,7 @@ function BankSync({ sync, fints, result }: { sync: Sync; fints: Data["fints"]; r
                   Zustimmung erneuern
                 </button>
               )}
+              <KonfliktKlaeren konflikte={sync.konflikte.filter((k) => c.accounts.some((a) => a.bankAccountId === k.bankAccountId))} disabled={busy !== null} />
               {canSync && (
                 <button
                   type="button"
@@ -1241,6 +1245,7 @@ function AllocationPanel({
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
+      <KlaerungHinweis klaerung={detail.klaerung} />
 
       <NoticeBanner notice={notice} />
       <ZuordnungAufheben ziel={reversing} onConfirm={(id, date) => void run(() => reverseFn({ data: { id, date } }))} onClose={() => setReversing(null)} />

@@ -1,5 +1,5 @@
 {
-  "id": "a16c4708-4491-4726-b4c9-c3651341ff93",
+  "id": "15c0f448-480e-4f0d-bfee-49d681cd5240",
   "prevId": "11d8bc6a-1600-41a0-b154-55cfac8b5ede",
   "version": "7",
   "dialect": "postgresql",
@@ -7909,19 +7909,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::text[]"
-        },
-        "after_fetch": {
-          "name": "after_fetch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'seen'"
-        },
-        "archive_folder": {
-          "name": "archive_folder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "enabled": {
           "name": "enabled",
@@ -17960,6 +17947,200 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ustid_bestaetigungen": {
+      "name": "ustid_bestaetigungen",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art": {
+          "name": "art",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anfragende_ustid": {
+          "name": "anfragende_ustid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "angefragte_ustid": {
+          "name": "angefragte_ustid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "firmenname": {
+          "name": "firmenname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "strasse": {
+          "name": "strasse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plz": {
+          "name": "plz",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ort": {
+          "name": "ort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anfrage_zeitpunkt": {
+          "name": "anfrage_zeitpunkt",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gueltig_ab": {
+          "name": "gueltig_ab",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gueltig_bis": {
+          "name": "gueltig_bis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erg_firmenname": {
+          "name": "erg_firmenname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erg_strasse": {
+          "name": "erg_strasse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erg_plz": {
+          "name": "erg_plz",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erg_ort": {
+          "name": "erg_ort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bzst_id": {
+          "name": "bzst_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "antwort": {
+          "name": "antwort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ustid_bestaetigungen_contact": {
+          "name": "ustid_bestaetigungen_contact",
+          "columns": [
+            {
+              "expression": "contact_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ustid_bestaetigungen_contact_id_contacts_id_fk": {
+          "name": "ustid_bestaetigungen_contact_id_contacts_id_fk",
+          "tableFrom": "ustid_bestaetigungen",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ustid_bestaetigungen_art": {
+          "name": "ustid_bestaetigungen_art",
+          "value": "\"ustid_bestaetigungen\".\"art\" in ('einfach', 'qualifiziert')"
+        },
+        "ustid_bestaetigungen_status": {
+          "name": "ustid_bestaetigungen_status",
+          "value": "\"ustid_bestaetigungen\".\"status\" ~ '^evatr-[0-9]{4}$'"
+        },
+        "ustid_bestaetigungen_vergleich": {
+          "name": "ustid_bestaetigungen_vergleich",
+          "value": "coalesce(\"ustid_bestaetigungen\".\"erg_firmenname\", 'A') in ('A', 'B', 'C', 'D') and coalesce(\"ustid_bestaetigungen\".\"erg_strasse\", 'A') in ('A', 'B', 'C', 'D') and coalesce(\"ustid_bestaetigungen\".\"erg_plz\", 'A') in ('A', 'B', 'C', 'D') and coalesce(\"ustid_bestaetigungen\".\"erg_ort\", 'A') in ('A', 'B', 'C', 'D')"
+        },
+        "ustid_bestaetigungen_qualifiziert": {
+          "name": "ustid_bestaetigungen_qualifiziert",
+          "value": "\"ustid_bestaetigungen\".\"art\" = 'einfach' or (\"ustid_bestaetigungen\".\"firmenname\" is not null and \"ustid_bestaetigungen\".\"ort\" is not null)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.vast_belege": {

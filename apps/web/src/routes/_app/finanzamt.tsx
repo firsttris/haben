@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { formatDecimal, formatEuro, gewinnAusPrognose, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -149,6 +149,9 @@ function FinanzamtPage() {
 function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
   const [current, setCurrent] = useState("");
   const p = b.prognose;
+  // Nur der Gewinn ist eine Schätzung für dieses Jahr; Arbeitslohn, Abzüge und Lohnsteuer stammen aus der letzten
+  // Veranlagung. Ohne Jahr an der Zeile liest sich der Block wie eine Rechnung für b.year.
+  const ausAngaben = b.angabenAus !== null && b.angabenAus < b.year ? ` (Angaben ${b.angabenAus})` : "";
   const [wanted, setWanted] = useState(p.jeQuartal > 0 ? formatDecimal(p.jeQuartal) : "");
   const [reason, setReason] = useState("");
   const [usePrognose, setUsePrognose] = useState(true);
@@ -186,16 +189,22 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
           <tbody>
             <tr>
               <th scope="row">Hochgerechneter Gewinn</th>
-              <td className="num">{formatEuro(p.gesamtbetragEinkuenfte - p.einkuenfteArbeit)}</td>
+              <td className="num">{formatEuro(gewinnAusPrognose(p))}</td>
             </tr>
+            {p.erstattungsueberhang > 0 && (
+              <tr>
+                <th scope="row">Erstattungsüberhang (§ 10 Abs. 4b Satz 3 EStG){ausAngaben}</th>
+                <td className="num">{formatEuro(p.erstattungsueberhang)}</td>
+              </tr>
+            )}
             {p.einkuenfteArbeit !== 0 && (
               <tr>
-                <th scope="row">Arbeitslohn nach Werbungskosten</th>
+                <th scope="row">Arbeitslohn nach Werbungskosten{ausAngaben}</th>
                 <td className="num">{formatEuro(p.einkuenfteArbeit)}</td>
               </tr>
             )}
             <tr>
-              <th scope="row">Vorsorge, Sonderausgaben, Kinderbetreuung, Belastungen</th>
+              <th scope="row">Vorsorge, Sonderausgaben, Kinderbetreuung, Belastungen{ausAngaben}</th>
               <td className="num">−{formatEuro(p.vorsorge + p.sonderausgaben + p.kinderbetreuung + p.aussergewoehnlich)}</td>
             </tr>
             <tr>
@@ -220,7 +229,7 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
             )}
             {p.steuerabzug > 0 && (
               <tr>
-                <th scope="row">Lohnsteuer, angerechnet</th>
+                <th scope="row">Lohnsteuer, angerechnet{ausAngaben}</th>
                 <td className="num">−{formatEuro(p.steuerabzug)}</td>
               </tr>
             )}

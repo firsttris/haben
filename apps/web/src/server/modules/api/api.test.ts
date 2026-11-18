@@ -620,6 +620,8 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       const doc = response.json as { openapi: string; paths: Record<string, Record<string, { security: { token: string[] }[] }>> };
       expect(doc.openapi).toBe("3.1.0");
       expect(Object.keys(doc.paths).sort()).toEqual([
+        "/angebote",
+        "/angebote/{id}",
         "/artikel",
         "/artikel/{id}",
         "/belege",
@@ -633,6 +635,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       ]);
       expect(doc.paths["/rechnungen"]!.post!.security).toEqual([{ token: ["rechnungen:entwuerfe"] }]);
       expect(doc.paths["/leistungen"]!.post!.security).toEqual([{ token: ["leistungen:schreiben"] }]);
+      expect(doc.paths["/angebote"]!.get!.security).toEqual([{ token: ["angebote:lesen"] }]);
     });
   });
 });

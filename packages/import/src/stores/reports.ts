@@ -1,5 +1,5 @@
-import { formatRateMonth, foreignToEuro, type Cents } from "@haben/core";
-import { gunzipSync, unzipSync } from "fflate";
+import { formatRateMonth, type Cents } from "@haben/core";
+import { unzipSync } from "fflate";
 import { parseCsv } from "../csv.ts";
 import { decodeText } from "../decode.ts";
 import { StatementParseError } from "../errors.ts";
@@ -11,8 +11,8 @@ import type { ParsedStatement, ParsedTransaction } from "../types.ts";
  * nach Provision und Steuer. Haben übernimmt deshalb je Monat (bei Apple je Monat und Währung) einen Umsatz mit dem
  * Nettobetrag; Umsätze, Gebühren und Steuern stehen nur im Verwendungszweck und im archivierten Original.
  *
- * Aufbau nach den Beschreibungen der Stores; echte Dateien lagen bei der Umsetzung nicht vor. Deshalb erkennt Haben die
- * Spalten über ihre Namen, verlangt nur die für den Betrag nötigen und bricht ab, wenn etwas nicht passt (Währung,
+ * Aufbau nach den Beschreibungen der Stores, bei Apple nach echten Berichten; von Google lagen bei der Umsetzung keine
+ * Dateien vor. Haben erkennt die Spalten über ihre Namen, verlangt nur die für den Betrag nötigen und bricht ab, wenn etwas nicht passt (Währung,
  * Betrag, Datum), statt zu raten. Unbekannte Zeilenarten gehen mit Betrag in den Nettobetrag und werden gemeldet.
  */
 
@@ -20,7 +20,7 @@ import type { ParsedStatement, ParsedTransaction } from "../types.ts";
 export interface StoreSettlement {
   /** Feste Referenz, gleich der des Umsatzes im Konto (bankReference) */
   reference: string;
-  /** Berichtsmonat YYYY-MM (bei Apple der Fiskalmonat) */
+  /** Berichtsmonat YYYY-MM (bei Apple der Kalendermonat der Fiskalperiode) */
   period: string;
   periodFrom: string;
   periodTo: string;
@@ -63,7 +63,7 @@ export function microsToCents(micros: number): Cents {
   return micros < 0 ? -cents : cents;
 }
 
-const euro = (cents: Cents, currency = "EUR") =>
+export const euro = (cents: Cents, currency = "EUR") =>
   `${(cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency === "EUR" ? "€" : currency}`;
 
 const lastDayOf = (month: string) => {
@@ -72,14 +72,14 @@ const lastDayOf = (month: string) => {
 };
 
 /** Text einer CSV/TSV im Bericht; UTF-16 auch ohne BOM (Google empfiehlt, die Dateien von UTF-16 nach UTF-8 zu wandeln) */
-function reportText(bytes: Uint8Array): string {
+export function reportText(bytes: Uint8Array): string {
   const zeros = bytes.subarray(0, 200).filter((b, i) => b === 0 && i % 2 === 1).length;
   const text = zeros > 20 && bytes[0] !== 0xff && bytes[0] !== 0xfe ? new TextDecoder("utf-16le").decode(bytes) : decodeText(bytes);
   return text.replace(/^﻿/, "");
 }
 
 /** Spalten über den genauen Namen (ohne Groß-/Kleinschreibung): „Amount (Buyer Currency)“ und „Amount (Merchant Currency)“ unterscheiden sich nur in der Klammer */
-function headerIndex(header: string[]) {
+export function headerIndex(header: string[]) {
   const names = header.map((h) => h.trim().toLowerCase());
   return (...candidates: string[]) => {
     for (const candidate of candidates) {
@@ -239,137 +239,5 @@ export function parseGooglePlayEarnings(bytes: Uint8Array, options: { period?: s
       warnings,
     },
     settlements: [settlement],
-  };
-}
-
-// ─── App Store Connect: Finance Detail (Z1) ──────────────────────────────────
-
-/*
- * Bericht „All Countries or Regions (Detailed)“ (FINANCE_DETAIL, Region Z1) als gzip-TSV. Spalten laut
- * https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-fields/: u. a. Start Date und
- * End Date (MM/DD/YYYY, Fiskalmonat), Extended Partner Share (Menge × Anteil, positiv oder negativ, zwei
- * Nachkommastellen), Partner Share Currency (ISO), Sale or Return (S/R). Der Anspruch je Währung ist die Summe der
- * Extended Partner Share. Apple zahlt alle Währungen gesammelt in der Währung deines Bankkontos aus, zum Kurs am
- * Zahltag; der steht nicht im Bericht. Haben rechnet Fremdwährung deshalb mit dem Umsatzsteuer-Umrechnungskurs des
- * Fiskalmonats um (§ 16 Abs. 6 UStG); die Differenz zur Zahlung ist eine Kursdifferenz.
- * Summen- oder Fußzeilen (z. B. „Total_Rows“) haben kein gültiges Startdatum und werden übersprungen.
- */
-
-/** Erkennt den Bericht an seiner Kopfzeile */
-export function isAppStoreFinanceHeader(header: string[]): boolean {
-  const col = headerIndex(header);
-  return col("Extended Partner Share") >= 0 && col("Partner Share Currency") >= 0 && col("Start Date") >= 0 && col("End Date") >= 0;
-}
-
-/** MM/DD/YYYY → YYYY-MM-DD; null, wenn kein Datum */
-function appleDate(raw: string): string | null {
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw.trim());
-  if (!match) return null;
-  const date = `${match[3]}-${match[1]!.padStart(2, "0")}-${match[2]!.padStart(2, "0")}`;
-  const parsed = new Date(`${date}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date ? date : null;
-}
-
-/** Umrechnungskurs (1 EUR = Kurs) einer Währung für einen Monat YYYY-MM; null, wenn keiner vorliegt */
-export type RateLookup = (currency: string, month: string) => string | null;
-
-/**
- * Liest den Finanzbericht „Detailed“ von App Store Connect. `period` ist der abgefragte Fiskalmonat; Buchungstag ist das
- * Enddatum des Fiskalmonats laut Bericht. Für Fremdwährung braucht es `rateFor`; fehlt ein Kurs, kommt der Betrag nicht
- * ins Konto (Hinweis), ein späterer Abgleich holt ihn nach.
- */
-export function parseAppStoreFinanceDetail(bytes: Uint8Array, options: { period?: string; rateFor?: RateLookup } = {}): ParsedStoreReport {
-  let raw = bytes;
-  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
-    try {
-      raw = gunzipSync(bytes);
-    } catch {
-      throw new StatementParseError("Die gzip-Datei lässt sich nicht entpacken.");
-    }
-  }
-  const rows = reportText(raw)
-    .split(/\r?\n/)
-    .map((line) => line.split("\t"));
-  const headerRow = rows.findIndex((row) => isAppStoreFinanceHeader(row));
-  if (headerRow < 0)
-    throw new StatementParseError("Das ist kein Finanzbericht von App Store Connect (Spalten Extended Partner Share und Partner Share Currency fehlen).");
-  const col = headerIndex(rows[headerRow]!);
-  const at = { start: col("Start Date"), end: col("End Date"), amount: col("Extended Partner Share"), currency: col("Partner Share Currency") };
-
-  const warnings: string[] = [];
-  const groups = new Map<string, { micros: number; lines: number; sales: number; returns: number }>();
-  const returnsCol = col("Sale or Return");
-  let from = "";
-  let to = "";
-  let skipped = 0;
-  for (const [i, row] of rows.slice(headerRow + 1).entries()) {
-    if (row.every((cell) => cell.trim() === "")) continue;
-    const start = appleDate(row[at.start] ?? "");
-    const end = appleDate(row[at.end] ?? "");
-    if (!start || !end) {
-      skipped++;
-      continue;
-    }
-    const where = `Zeile ${headerRow + i + 2}`;
-    const rawAmount = (row[at.amount] ?? "").trim();
-    const micros = parseMicros(rawAmount);
-    if (micros === null) throw new StatementParseError(`Ungültiger Betrag „${rawAmount}“ (${where}).`);
-    const currency = (row[at.currency] ?? "").trim().toUpperCase();
-    if (!/^[A-Z]{3}$/.test(currency)) throw new StatementParseError(`Ungültige Währung „${currency}“ (${where}).`);
-    if (!from || start < from) from = start;
-    if (end > to) to = end;
-    const group = groups.get(currency) ?? { micros: 0, lines: 0, sales: 0, returns: 0 };
-    group.micros += micros;
-    group.lines++;
-    if (returnsCol >= 0 && (row[returnsCol] ?? "").trim().toUpperCase() === "R") group.returns++;
-    else group.sales++;
-    groups.set(currency, group);
-  }
-  if (groups.size === 0) throw new StatementParseError("Der Finanzbericht enthält keine Vorgänge.");
-  if (skipped > 0) warnings.push(`${skipped} Zeilen ohne gültiges Start- und Enddatum (Summen- oder Fußzeilen) übersprungen.`);
-
-  const period = options.period ?? to.slice(0, 7);
-  // Kurs des Fiskalmonats; dessen Enddatum liegt oft schon im Folgemonat
-  const rateMonth = period;
-  const settlements: StoreSettlement[] = [];
-  const transactions: ParsedTransaction[] = [];
-  for (const [currency, group] of [...groups].sort(([a], [b]) => (a === "EUR" ? -1 : b === "EUR" ? 1 : a.localeCompare(b)))) {
-    const net = microsToCents(group.micros);
-    const rate = currency === "EUR" ? null : (options.rateFor?.(currency, rateMonth) ?? null);
-    const inEuro = currency === "EUR" ? net : rate ? foreignToEuro(net, rate) : null;
-    const reference = `appstore-finance-${period}-${currency}`;
-    settlements.push({
-      reference,
-      period,
-      periodFrom: from,
-      periodTo: to,
-      currency,
-      net,
-      euro: inEuro,
-      rate,
-      parts: [{ label: "Erlösanteil", amount: net }],
-      lines: group.lines,
-    });
-    if (inEuro === null) {
-      warnings.push(
-        `Für ${currency} fehlt der Umsatzsteuer-Umrechnungskurs ${formatRateMonth(rateMonth)}; ${euro(net, currency)} kommen erst ins Konto, wenn der Kurs vorliegt (Einstellungen › Umrechnungskurse).`,
-      );
-      continue;
-    }
-    const conversion = currency === "EUR" ? "" : ` = ${euro(net, currency)} zum Kurs ${rate!.replace(".", ",")} (${formatRateMonth(rateMonth)})`;
-    transactions.push({
-      bookingDate: to,
-      amount: inEuro,
-      currency: "EUR",
-      counterpartyName: "App Store",
-      purpose: `App Store Erlösanteil Fiskalmonat ${formatRateMonth(period)} (${from} bis ${to}) in ${currency}${conversion}; ${group.sales} Verkäufe, ${group.returns} Rückgaben`,
-      type: "Monatsabrechnung",
-      bankReference: reference,
-      index: transactions.length,
-    });
-  }
-  return {
-    statement: { format: "appstore-finance", currency: "EUR", periodFrom: from, periodTo: to, transactions, warnings },
-    settlements,
   };
 }

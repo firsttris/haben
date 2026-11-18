@@ -11,7 +11,7 @@ const serviceAccountJson = JSON.stringify({ type: "service_account", client_emai
 const ISSUER = "57246542-96fe-1a63-e053-0824d011072a";
 const TODAY = new Date("2026-11-10T10:00:00Z");
 
-/** Nachgebaute Stores: Google mit Berichten im Bucket, Apple mit Berichten je Fiskalmonat */
+/** Nachgebaute Stores: Google mit Berichten im Bucket, Apple mit Berichten je Fiskalperiode (Juli und September 2026) */
 const fake = {
   google: new Map<string, Uint8Array>([
     ["earnings/earnings_202608_1-1.zip", new Uint8Array([0x50, 0x4b, 3, 4, 8])],
@@ -20,8 +20,8 @@ const fake = {
     ["earnings/earnings_202610_1-2.zip", new Uint8Array([0x50, 0x4b, 3, 4, 11])],
   ]),
   apple: new Map<string, Uint8Array>([
-    ["2026-07", new Uint8Array([0x1f, 0x8b, 7])],
-    ["2026-09", new Uint8Array([0x1f, 0x8b, 9])],
+    ["2026-10", new Uint8Array([0x1f, 0x8b, 7])],
+    ["2026-12", new Uint8Array([0x1f, 0x8b, 9])],
   ]),
   appleCalls: [] as string[],
   googleFails: false,
@@ -38,9 +38,9 @@ const googleClient: GooglePlayClient = {
 };
 
 const appleClient: AppStoreClient = {
-  async financeDetail(month) {
-    fake.appleCalls.push(month);
-    return fake.apple.get(month) ?? null;
+  async financeDetail(period) {
+    fake.appleCalls.push(period);
+    return fake.apple.get(period) ?? null;
   },
 };
 
@@ -112,7 +112,7 @@ describe.skipIf(!testDatabaseUrl)("Finanzberichte der App-Stores (Postgres)", ()
     await expect(sql`delete from store_reports`).rejects.toThrow();
   });
 
-  it("fragt Apple je Fiskalmonat bis zum Vormonat und gibt Monate ohne Bericht nach drei Monaten auf", async () => {
+  it("fragt Apple je Monat bis zum Vormonat nach der Fiskalperiode und gibt Monate ohne Bericht nach drei Monaten auf", async () => {
     await stores.saveStoreConnection(actor, {
       store: "appstore",
       issuerId: ISSUER,
@@ -121,23 +121,32 @@ describe.skipIf(!testDatabaseUrl)("Finanzberichte der App-Stores (Postgres)", ()
       privateKey: p8,
       fetchFrom: "2026-06",
     });
+    // Schon der Probeabruf beim Speichern fragt Apples Periode zum gewählten Monat ab
+    expect(fake.appleCalls.at(-1)).toBe("2026-09");
     fake.appleCalls.length = 0;
     const result = await stores.syncStore(actor, "appstore", TODAY);
     expect(result.error).toBeNull();
-    // Der Probeabruf beim Speichern zählt nicht mit; abgefragt wird Juni bis Oktober
-    expect(fake.appleCalls).toEqual(["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]);
-    expect(result.added.map((r) => r.filename)).toEqual(["apple_finance_detail_Z1_85012345_2026-07.txt.gz", "apple_finance_detail_Z1_85012345_2026-09.txt.gz"]);
+    // Der Probeabruf beim Speichern zählt nicht mit; abgefragt wird Juni bis Oktober. Apples Fiskaljahr beginnt im
+    // Oktober des Vorjahres: Juni 2026 ist Periode 2026-09, Oktober 2026 ist 2027-01 (#1424)
+    expect(fake.appleCalls).toEqual(["2026-09", "2026-10", "2026-11", "2026-12", "2027-01"]);
+    expect(result.added.map((r) => r.filename)).toEqual(["apple_finance_detail_Z1_85012345_2026-10.txt.gz", "apple_finance_detail_Z1_85012345_2026-12.txt.gz"]);
+    // Im Archiv und in der Übersicht steht der Berichtsmonat, in store_reports Apples Periode
+    const filed = await sql`select note from archive_files where filename like 'apple%' order by filename`;
+    expect(filed.map((f) => f.note)).toEqual(["App Store, Finanzbericht 2026-07", "App Store, Finanzbericht 2026-09"]);
+    expect((await stores.storeConnectionsSummary()).find((c) => c.store === "appstore")).toMatchObject({ reports: 2, latestPeriod: "2026-09" });
 
     // Juni ist älter als drei Monate und bleibt ohne Bericht; August und Oktober werden weiter gefragt
     const [connection] = await sql`select to_char(fetch_from, 'YYYY-MM-DD') as f from store_connections where store = 'appstore'`;
     expect(connection!.f).toBe("2026-08-01");
 
-    fake.apple.set("2026-10", new Uint8Array([0x1f, 0x8b, 10]));
+    fake.apple.set("2027-01", new Uint8Array([0x1f, 0x8b, 10]));
     fake.appleCalls.length = 0;
     const next = await stores.syncStore(actor, "appstore", TODAY);
-    expect(fake.appleCalls).toEqual(["2026-08", "2026-10"]);
-    expect(next.added.map((r) => r.period)).toEqual(["2026-10"]);
-    const [archived] = await sql`select mime_type from archive_files where filename like 'apple%2026-10%'`;
+    expect(fake.appleCalls).toEqual(["2026-11", "2027-01"]);
+    expect(next.added.map((r) => r.period)).toEqual(["2027-01"]);
+    const [archived] = await sql`select mime_type, year from archive_files where filename like 'apple%2027-01%'`;
+    // Oktober 2026: Das Archiv führt den Bericht im Kalenderjahr, nicht in Apples Fiskaljahr 2027
+    expect(archived!.year).toBe(2026);
     expect(archived!.mime_type).toBe("application/gzip");
   });
 
