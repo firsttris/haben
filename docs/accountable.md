@@ -111,7 +111,7 @@ Private Zeilen (SKR03 Gegenkonto 1800 bis 1899 und 1360; SKR04 2100 bis 2199, 14
 
 ## Belegverknüpfung außerhalb des Imports
 
-Die GUID-Verknüpfung aus `document.xml` wertet nur der Import aus. Außerhalb des Imports gibt es dafür keinen Weg, weil die Buchungen, die du in Schritt 4 als DATEV-Buchungsstapel ablegst, keine `document.xml` mitbringen. Der Belegabgleich dort ordnet Buchungen über die Belegnummer zu, und die ist bei Accountable-Ausgaben synthetisch (`TTMMJJJJ_Cent`), siehe oben. Diese Zeilen bleiben deshalb ohne passenden Beleg. Was wirklich verknüpft ist, sagen der Fortschritt des Imports und der Punkt „Jeder Beleg hat eine Datei“.
+Die GUID-Verknüpfung aus `document.xml` wertet nur der Import aus. Der DATEV-Buchungsstapel aus Accountable bringt die GUID dagegen im Feld „Beleglink“ mit, und der Belegabgleich findet die Buchung darüber; ohne Beleglink ordnet er über die Belegnummer zu, die bei Accountable-Ausgaben synthetisch ist (`TTMMJJJJ_Cent`), siehe oben. Fehlt beides, bleibt die Zeile ohne passenden Beleg. Was wirklich verknüpft ist, sagen der Fortschritt des Imports und der Punkt „Jeder Beleg hat eine Datei“.
 
 ## Schritt 2: Export hochladen und übernehmen
 
