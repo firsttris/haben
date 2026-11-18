@@ -187,18 +187,22 @@ const appleLine = ([country, quantity, share, extended, currency, saleOrReturn =
     "",
   ].join("\t");
 
+/** "10.47" oder "-3.49" in Cent, ohne Gleitkomma */
+const toCents = (amount: string) => Number(amount.replace(".", ""));
+const fromCents = (cents: number) => `${cents < 0 ? "-" : ""}${Math.trunc(Math.abs(cents) / 100)}.${String(Math.abs(cents) % 100).padStart(2, "0")}`;
+
 /** Summenblock wie von Apple: je Land und Währung Menge und Summe der Extended Partner Share */
 function appleSummary(rows: AppleRow[]): string[] {
   const sums = new Map<string, { quantity: number; cents: number }>();
   for (const [country, quantity, , extended, currency] of rows) {
     const sum = sums.get(`${country}\t${currency}`) ?? { quantity: 0, cents: 0 };
     sum.quantity += Number(quantity);
-    sum.cents += Math.round(Number(extended) * 100);
+    sum.cents += toCents(extended);
     sums.set(`${country}\t${currency}`, sum);
   }
   return [
     "Country Of Sale\tPartner Share Currency\tQuantity\tExtended Partner Share",
-    ...[...sums].map(([key, s]) => `${key}\t${s.quantity}\t${(s.cents / 100).toFixed(2)}`),
+    ...[...sums].map(([key, s]) => `${key}\t${s.quantity}\t${fromCents(s.cents)}`),
   ];
 }
 
@@ -268,9 +272,21 @@ describe("App Store: Finanzbericht Detailed (Z1)", () => {
     expect(settlements.find((s) => s.currency === "USD")!.euro).toBeNull();
   });
 
-  it("liest auch die ungepackte Datei mit CRLF und ohne Summenblock", () => {
-    const plain = strToU8(appleText([rows[0]!], { summary: [] }).replaceAll("\n", "\r\n"));
+  it("liest auch die ungepackte Datei mit CRLF", () => {
+    const plain = strToU8(appleText([rows[0]!]).replaceAll("\n", "\r\n"));
     expect(parseAppStoreFinanceDetail(plain).statement.transactions[0]).toMatchObject({ amount: 1047, bookingDate: "2026-11-01" });
+  });
+
+  it("zählt einen Vorgang ohne Transaction Date mit", () => {
+    // Apple: „The transaction date is only populated if it occurred within 30 days of the settlement date. Otherwise the
+    // field is blank.“ (Financial report fields, Detailed)
+    const text = appleText(rows).replace("10/05/2026\t10/06/2026", "\t10/06/2026");
+    const { settlements } = parseAppStoreFinanceDetail(strToU8(text));
+    expect(settlements.map((s) => [s.currency, s.net, s.lines])).toEqual([
+      ["EUR", 698, 2],
+      ["JPY", 49000, 1],
+      ["USD", 1750, 1],
+    ]);
   });
 
   it("bricht ab, wenn die Datei kein Finanzbericht ist oder etwas nicht passt", () => {
@@ -278,7 +294,9 @@ describe("App Store: Finanzbericht Detailed (Z1)", () => {
     expect(() => parseAppStoreFinanceDetail(appleReport([["DE", "1", "1", "1,00", "EUR"]], { summary: [] }))).toThrow(/Ungültiger Betrag/);
     expect(() => parseAppStoreFinanceDetail(appleReport([]))).toThrow(/keine Vorgänge/);
     expect(() => parseAppStoreFinanceDetail(appleReport(rows, { start: "" }))).toThrow(/Zeitraum/);
-    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: ["Total_Rows\t4"] }))).toThrow(/Unerwartete Zeile 9/);
+    // Ohne Summenblock fehlt die Gegenprobe; eine fremde Zeile nach den Vorgängen ist kein Summenblock
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: [] }))).toThrow(/Summenblock fehlt/);
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: ["Total_Rows\t4"] }))).toThrow(/Ungültiger Betrag „“ \(Zeile 9\)/);
     // Die Summen im Bericht sind die Gegenprobe: fehlt eine Zeile, passt der Summenblock nicht mehr
     expect(() => parseAppStoreFinanceDetail(appleReport(rows.slice(0, 3), { summary: appleSummary(rows) }))).toThrow(/JPY.*Summenblock/);
     expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: appleSummary([["DE", "3", "3.49", "10.48", "EUR"], ...rows.slice(1)]) }))).toThrow(

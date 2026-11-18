@@ -121,6 +121,8 @@ describe.skipIf(!testDatabaseUrl)("Finanzberichte der App-Stores (Postgres)", ()
       privateKey: p8,
       fetchFrom: "2026-06",
     });
+    // Schon der Probeabruf beim Speichern fragt Apples Periode zum gewählten Monat ab
+    expect(fake.appleCalls.at(-1)).toBe("2026-09");
     fake.appleCalls.length = 0;
     const result = await stores.syncStore(actor, "appstore", TODAY);
     expect(result.error).toBeNull();

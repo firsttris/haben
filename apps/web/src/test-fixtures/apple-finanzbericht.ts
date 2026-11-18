@@ -15,7 +15,8 @@ const HEADER =
 /** Je Vorgang Extended Partner Share, Währung und S (Verkauf) oder R (Rückgabe) */
 export function appleFinanceReport(rows: [amount: string, currency: string, saleOrReturn?: "S" | "R"][]): Uint8Array {
   const sums = new Map<string, number>();
-  for (const [amount, currency] of rows) sums.set(currency, (sums.get(currency) ?? 0) + Math.round(Number(amount) * 100));
+  // Beträge mit zwei Nachkommastellen, in Cent ohne Gleitkomma
+  for (const [amount, currency] of rows) sums.set(currency, (sums.get(currency) ?? 0) + Number(amount.replace(".", "")));
   return gzipSync(
     strToU8(
       [
@@ -28,7 +29,7 @@ export function appleFinanceReport(rows: [amount: string, currency: string, sale
             `10/05/2026\t10/06/2026\t1234567890\tpro\tPro-Version\tMuster Apps\t1F\tDE\t${kind === "R" ? -1 : 1}\t${amount.replace("-", "")}\t${amount}\t${currency}\t4.990\t${currency}\t${kind}\t\t\t\t`,
         ),
         "Country Of Sale\tPartner Share Currency\tQuantity\tExtended Partner Share",
-        ...[...sums].map(([currency, cents]) => `DE\t${currency}\t1\t${(cents / 100).toFixed(2)}`),
+        ...[...sums].map(([currency, cents]) => `DE\t${currency}\t1\t${cents < 0 ? "-" : ""}${Math.trunc(Math.abs(cents) / 100)}.${String(Math.abs(cents) % 100).padStart(2, "0")}`),
         "",
       ].join("\n"),
     ),
