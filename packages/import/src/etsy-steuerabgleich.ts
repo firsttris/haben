@@ -20,7 +20,10 @@ export interface SteuerZeile<E> {
   frueher: { verrechnet: number } | undefined;
 }
 
-/** Höchstens so viele offene Steuerzeilen je Bestellung und Tag durchsucht `passendeZeilen` (2^n Mengen) */
+/**
+ * Höchstens so viele offene Steuerzeilen je Bestellung und Tag durchsucht `passendeZeilen` (2^n Mengen). Darüber zählt
+ * nur eine Zeile mit genau der Summe oder, wenn keine passt, alle offenen Zeilen zusammen, wenn ihre Summe genau passt.
+ */
 const MAX_KANDIDATEN = 16;
 
 /**
@@ -28,7 +31,11 @@ const MAX_KANDIDATEN = 16;
  * der Zeit sortiert); keine, wenn es sie nicht gibt.
  */
 function passendeZeilen<T extends { amount: number }>(zeilen: T[], summe: number): T[] | undefined {
-  if (zeilen.length > MAX_KANDIDATEN) return undefined;
+  if (zeilen.length > MAX_KANDIDATEN) {
+    const einzeln = zeilen.find((z) => z.amount === summe);
+    if (einzeln) return [einzeln];
+    return zeilen.reduce((gesamt, z) => gesamt + z.amount, 0) === summe ? zeilen : undefined;
+  }
   const suche = (start: number, rest: number, anzahl: number): number[] | undefined => {
     if (anzahl === 0) return rest === 0 ? [] : undefined;
     for (let i = start; i <= zeilen.length - anzahl; i++) {
