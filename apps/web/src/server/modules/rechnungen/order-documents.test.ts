@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgres)", () => {
   let docs: typeof import("./order-documents.ts");
@@ -87,6 +88,7 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
           lines,
         })
       ).id,
+      kleinunternehmerStand,
     );
     const note = await docs.deliveryNotePdf("rechnung", invoice.id);
     expect(note.filename).toBe("Lieferschein-2026-001.pdf");

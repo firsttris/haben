@@ -3,6 +3,7 @@ import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
  * #675: Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - / (DATEV „ASCII-Import: Feldbeschreibungen für
@@ -61,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export: Belegfeld 1 im Zeichensatz von 
       note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Std." as const, unitPrice: net, taxRate: 1900 as const }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function beleg(invoiceNumber: string, gross: number) {

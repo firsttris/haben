@@ -2,6 +2,7 @@ import { ACCOUNTS } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Postgres)", () => {
   let sql: postgres.Sql;
@@ -63,7 +64,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     (await sql`select date::text as date from journal_entries where source_type = 'invoice' and source_id = ${id} order by id`).map((r) => r.date);
 
   it("der eingefrorene Leistungstag ist nach dem Festschreiben unveränderlich", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id, kleinunternehmerStand);
     expect(final.serviceDate).toBe("2026-05-31");
     await expect(sql`update invoices set service_date = '2026-07-20' where id = ${final.id}`).rejects.toThrow();
   }, 30_000);
@@ -75,6 +76,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       const final = await invoices.finalizeInvoice(
         actor,
         (await invoices.createDraft(actor, { ...input(), issueDate: "2026-01-08", serviceFrom: "2025-12-01", serviceTo: "2025-12-31" })).id,
+        kleinunternehmerStand,
       );
       // Der gemeinsame Vorauszahlungsplan führt Rechnung und Steuerumbuchung getrennt. Zwei Belege am selben
       // Leistungstag sind keine doppelten Erlöse oder Steuern (§ 13 Abs. 1 Nr. 1 a UStG).
@@ -118,6 +120,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
           advanceType: "anzahlung",
         })
       ).id,
+      kleinunternehmerStand,
     );
     expect(await buchungstage(advance.id)).toEqual(["2026-03-10"]);
     await bank.createCashInvoiceEntry(actor, { invoiceId: advance.id, date: "2026-04-02", amount: 119_000 }, "2026-04-02");
@@ -131,12 +134,14 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     const frueher = await invoices.finalizeInvoice(
       actor,
       (await invoices.createDraft(actor, { ...input(), issueDate: "2025-11-05", serviceFrom: null, serviceTo: null })).id,
+      kleinunternehmerStand,
     );
     await bank.createCashInvoiceEntry(actor, { invoiceId: frueher.id, date: "2025-11-05", amount: 119_000 }, "2025-11-05");
     await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
     const final = await invoices.finalizeInvoice(
       actor,
       (await invoices.createDraft(actor, { ...input(), issueDate: "2026-01-08", serviceFrom: "2025-12-01", serviceTo: "2025-12-31" })).id,
+      kleinunternehmerStand,
     );
     await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-02-03", amount: 119_000 }, "2026-02-03");
     const figures = [
@@ -152,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
   }, 30_000);
 
   it("Storno einer Soll-Rechnung mindert im Monat des Stornos (§ 17 Abs. 1 Satz 7 UStG), nicht im Leistungsmonat", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id, kleinunternehmerStand);
     await invoices.cancelInvoice(actor, final.id, "2026-08-05");
     expect(await vat.computeVatFigures({ year: 2026, month: 5 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
     expect(await vat.computeVatFigures({ year: 2026, month: 8 })).toMatchObject({ kz81: -100_000, tax81: -19_000 });
@@ -164,7 +169,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
 
     it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 153 Abs. 1 AO)", async () => {
       await meldeQ2();
-      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id, kleinunternehmerStand);
       const hinweis = await invoices.leistungsmonatHinweisFuer(final);
       expect(hinweis).toContain("berichtigte Anmeldung");
       expect(hinweis).toContain("Q2/2026");
@@ -176,14 +181,14 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     }, 30_000);
 
     it("schweigt, wenn die Voranmeldung erst nach dem Festschreiben übermittelt wurde: Sie enthält die Rechnung", async () => {
-      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id, kleinunternehmerStand);
       await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
       expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
     }, 30_000);
 
     it("schweigt nach der berichtigten Anmeldung des Leistungszeitraums", async () => {
       await meldeQ2();
-      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id, kleinunternehmerStand);
       expect(await invoices.leistungsmonatHinweisFuer(final)).toContain("Q2/2026");
       await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
       expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
@@ -191,12 +196,13 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
 
     it("schweigt bei Anzahlung und Storno, die nicht nach dem Leistungstag gemeldet werden", async () => {
       await meldeQ2();
-      const soll = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      const soll = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id, kleinunternehmerStand);
       const storno = await invoices.cancelInvoice(actor, soll.id, "2026-08-05");
       expect(await invoices.leistungsmonatHinweisFuer(storno)).toBeNull();
       const anzahlung = await invoices.finalizeInvoice(
         actor,
         (await invoices.createDraft(actor, { ...input(), variant: "abschlag", advanceType: "anzahlung" })).id,
+        kleinunternehmerStand,
       );
       expect(await invoices.leistungsmonatHinweisFuer(anzahlung)).toBeNull();
     }, 30_000);
@@ -204,7 +210,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     it("schweigt bei Ist-Versteuerung", async () => {
       await sql`update company set versteuerung = 'ist'`;
       await meldeQ2();
-      const ist = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      const ist = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id, kleinunternehmerStand);
       expect(await invoices.leistungsmonatHinweisFuer(ist)).toBeNull();
     }, 30_000);
   });

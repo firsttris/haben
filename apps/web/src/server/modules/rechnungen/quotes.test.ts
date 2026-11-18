@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
   let quotes: typeof import("./quotes.ts");
@@ -45,7 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
       quoteId: invoice.quoteId,
       lines: lines.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit as "Psch.", unitPrice: net, taxRate: l.taxRate as 1900 })),
     });
-    return finalize ? invoices.finalizeInvoice(actor, invoice.id) : (await invoices.getInvoice(invoice.id))!.invoice;
+    return finalize ? invoices.finalizeInvoice(actor, invoice.id, kleinunternehmerStand) : (await invoices.getInvoice(invoice.id))!.invoice;
   };
 
   /** Rechnung wie aus dem Editor: Rechnungsart und Angebot gewählt */
@@ -138,7 +139,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     const final = await quotes.quoteToInvoice(actor, quote.id, "2026-11-10", "schluss");
     expect(final).toMatchObject({ serviceFrom: "2026-11-10", serviceTo: null });
     expect(await invoices.finalizeIssues(final.id)).toEqual([]);
-    await invoices.finalizeInvoice(actor, final.id);
+    await invoices.finalizeInvoice(actor, final.id, kleinunternehmerStand);
     const { computeVatFigures } = await import("../umsatzsteuer/index.ts");
     expect(await computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz81: 0, tax81: 0 });
     expect(await computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz81: 0, tax81: 0 });
@@ -176,7 +177,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
 
     // Festgeschrieben hat die Rechnung eine Nummer; XRechnung verlangt dafür eine Telefonnummer des Verkäufers
     await sql`update company set telefon = '+49 941 123456'`;
-    const final = await invoices.finalizeInvoice(actor, again.id);
+    const final = await invoices.finalizeInvoice(actor, again.id, kleinunternehmerStand);
     expect((await quotes.listQuotes("2026-12-01")).find((q) => q.id === quote.id)?.invoiceNumber).toBe(final.number);
   });
 
@@ -255,7 +256,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     // wie /rechnungen/neu?schluss=<Abschlag> bzw. im Editor: Rechnungsart Schlussrechnung, Angebot gewählt
     const schluss = await invoices.createDraft(actor, editorInvoice({ variant: "schluss", quoteId: quote.id, deducts: [first.id] }));
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(schluss.id);
-    await invoices.finalizeInvoice(actor, schluss.id);
+    await invoices.finalizeInvoice(actor, schluss.id, kleinunternehmerStand);
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(schluss.id);
 
     for (const variant of [null, "abschlag", "schluss"] as const) {
@@ -289,7 +290,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
 
     await invoices.updateDraft(actor, created.id, editorInvoice({ variant: "abschlag", quoteId: quote.id, lines: [line(114_000)] }));
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
-    await invoices.finalizeInvoice(actor, created.id);
+    await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
     // Die Schlussrechnung bleibt möglich
     const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
@@ -309,16 +310,16 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     await abschlag(quote.id, 114_000, "2026-10-05");
     const pending = await abschlag(quote.id, 152_000, "2026-11-05", false);
     const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
-    const late = await invoices.finalizeInvoice(actor, pending.id);
+    const late = await invoices.finalizeInvoice(actor, pending.id, kleinunternehmerStand);
     expect(await invoices.finalizeIssues(schluss.id)).toContain(`Abschlagsrechnung ${late.number} zum Angebot ist noch nicht abgezogen`);
-    await expect(invoices.finalizeInvoice(actor, schluss.id)).rejects.toThrow(/noch nicht abgezogen/);
+    await expect(invoices.finalizeInvoice(actor, schluss.id, kleinunternehmerStand)).rejects.toThrow(/noch nicht abgezogen/);
 
     // Mit beiden Abzügen: Summe der Rechnungen gleich dem Angebot
     const { lines } = (await invoices.getInvoice(schluss.id))!;
     const deducts = [...new Set([...lines.flatMap((l) => (l.deductionOf ? [l.deductionOf] : [])), late.id])];
     await invoices.updateDraft(actor, schluss.id, { ...editorInvoice({ variant: "schluss", quoteId: quote.id, deducts }), format: "xrechnung-cii" });
     expect(await invoices.finalizeIssues(schluss.id)).toEqual([]);
-    await invoices.finalizeInvoice(actor, schluss.id);
+    await invoices.finalizeInvoice(actor, schluss.id, kleinunternehmerStand);
     const billed = (await quotes.getQuote(quote.id))!.billing.filter((b) => b.status === "final").reduce((s, b) => s + b.gross, 0);
     expect(billed).toBe(quote.gross);
   });
@@ -353,7 +354,10 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
       const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
       const a = await invoices.createDraft(actor, editorInvoice({ quoteId: quote.id }));
       const b = await invoices.createDraft(actor, editorInvoice({ quoteId: quote.id }));
-      const results = await Promise.allSettled([invoices.finalizeInvoice(actor, a.id), invoices.finalizeInvoice(actor, b.id)]);
+      const results = await Promise.allSettled([
+        invoices.finalizeInvoice(actor, a.id, kleinunternehmerStand),
+        invoices.finalizeInvoice(actor, b.id, kleinunternehmerStand),
+      ]);
       expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
       expect(String((results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/schon mit Rechnung/);
       expect(await sql`select id from invoices where quote_id = ${quote.id} and status = 'final'`).toHaveLength(1);
@@ -365,7 +369,10 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
       const pending = await abschlag(quote.id, 152_000, "2026-11-05", false);
       const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
       expect((await invoices.getInvoice(schluss.id))!.lines.some((l) => l.deductionOf === first.id)).toBe(true);
-      const results = await Promise.allSettled([invoices.finalizeInvoice(actor, pending.id), invoices.finalizeInvoice(actor, schluss.id)]);
+      const results = await Promise.allSettled([
+        invoices.finalizeInvoice(actor, pending.id, kleinunternehmerStand),
+        invoices.finalizeInvoice(actor, schluss.id, kleinunternehmerStand),
+      ]);
       expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
       const billed = (await quotes.getQuote(quote.id))!.billing.filter((b) => b.status === "final").reduce((sum, b) => sum + b.gross, 0);
       expect(billed).toBeLessThanOrEqual(quote.gross);
@@ -375,7 +382,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
   it("ältere Rechnung nur über quotes.invoice_id: nach ihrem Storno ist das Angebot wieder offen", async () => {
     await sql`update company set telefon = '+49 941 123456'`;
     const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
-    const legacy = await invoices.finalizeInvoice(actor, (await quotes.quoteToInvoice(actor, quote.id, "2026-10-05")).id);
+    const legacy = await invoices.finalizeInvoice(actor, (await quotes.quoteToInvoice(actor, quote.id, "2026-10-05")).id, kleinunternehmerStand);
     // Bestand vor dem Bezug simulieren: festgeschriebene Rechnung ohne quote_id, nur über quotes.invoice_id verknüpft
     await sql`alter table invoices disable trigger user`;
     await sql`update invoices set quote_id = null where id = ${legacy.id}`;
@@ -388,7 +395,11 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
 
     await invoices.cancelInvoice(actor, legacy.id, "2026-10-06");
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
-    const replacement = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, editorInvoice({ quoteId: quote.id }))).id);
+    const replacement = await invoices.finalizeInvoice(
+      actor,
+      (await invoices.createDraft(actor, editorInvoice({ quoteId: quote.id }))).id,
+      kleinunternehmerStand,
+    );
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(replacement.id);
   });
 

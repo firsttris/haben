@@ -2,6 +2,7 @@ import { parseDatevBuchungsstapel, datevAccountTotals } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** #623: Eine bereits versteuerte Rechnung behält ihre Versteuerung nach dem Jahreswechsel (§ 20 UStG, UStAE 13.6 Abs. 3). */
 describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechsel (Postgres)", () => {
@@ -95,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
       ...(foreign ? { currency: "USD", exchangeRate: "1" } : {}),
       lines: [{ description: "Leistung Dezember", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     if (!foreign) await bank.createDirectDebitFile(actor, { bankAccountId: account.id, invoiceIds: [invoice.id] }, new Date(`${previousYear}-12-02T08:00:00Z`));
     await bank.allocate(actor, {
       kind: "invoice",
@@ -198,7 +199,11 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
             const credit =
               kind === "storno"
                 ? await invoices.cancelInvoice(actor, original.invoice.id, `${year}-02-08`)
-                : await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, original.invoice.id, `${year}-02-08`)).id);
+                : await invoices.finalizeInvoice(
+                    actor,
+                    (await invoices.createCorrection(actor, original.invoice.id, `${year}-02-08`)).id,
+                    kleinunternehmerStand,
+                  );
             // Vollständig bezahltes neues Original: Die vollständige Rückabwicklung mindert die Steuer erst mit
             // tatsächlicher Rückgewähr, auch bei Soll und nach dem Wechsel (UStAE 17.1 Abs. 8 Satz 5, § 17 UStG).
             // Amtlicher UStAE, Stand 19.10.2026, Abschnitt 17.1 Abs. 8 Satz 5 (BFH 02.09.2010, V R 34/09).

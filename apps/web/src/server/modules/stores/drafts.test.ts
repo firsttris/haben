@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AppStoreClient, GooglePlayClient } from "@haben/import";
 import { APPLE_TEST_PERIOD, appleFinanceReport } from "../../../test-fixtures/apple-finanzbericht.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Rechnungsentwurf je Monatsabrechnung an die Store-Gesellschaft: Reverse Charge an eine Gesellschaft in Irland, nach
@@ -167,7 +168,7 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Rechnungsentwürfe an die Store-G
 
   it("nach Festschreiben und Zuordnung: Kz 21 und Zusammenfassende Meldung, Store-Umsatz erledigt", async () => {
     const [draft] = await sql`select id from invoices where external_source = 'googleplay'`;
-    const final = await invoices.finalizeInvoice(actor, draft!.id);
+    const final = await invoices.finalizeInvoice(actor, draft!.id, kleinunternehmerStand);
     const [revenue] = await sql`select id from bank_transactions where bank_reference = 'googleplay-earnings-2026-09'`;
     await bank.allocate(actor, { kind: "invoice", transactionId: revenue!.id, invoiceId: final.id, amount: 8500 });
 
