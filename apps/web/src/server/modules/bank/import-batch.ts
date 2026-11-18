@@ -18,7 +18,8 @@ import {
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
 import { connectedRanges, cutoverFor, otherImports, otherRanges } from "./andere-importe.ts";
-import { BankError, type ImportResult, insertStatement, knownHashes, prepareStatement, statementResult } from "./bank.ts";
+import { type ImportResult, insertStatement, knownHashes, prepareStatement, statementResult } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 
 /*
  * Schritt 3 aus #306: Eine Lieferung des Importvertrags speichern. Bewegungen erkennt Haben an ihrer Quellenidentität
@@ -53,6 +54,19 @@ export interface BatchResult extends ImportResult {
 }
 
 type Row = ParsedTransaction & { dedupHash: string };
+
+/**
+ * Konflikt mit schon übernommenen Bewegungen (#306, 3b). Trägt sie samt der zuerst übernommenen Bewegung, damit
+ * `recordRefusedBatch` genau diese festhält; bei jedem anderen Grund der Ablehnung gibt es keinen Konflikt.
+ */
+export class MovementConflictError extends BankError {
+  readonly conflicts: { movementId: string; movement: ImportMovement }[];
+
+  constructor(message: string, conflicts: { movementId: string; movement: ImportMovement }[]) {
+    super(message);
+    this.conflicts = conflicts;
+  }
+}
 
 /**
  * Quellenbindung zur Kennung; fehlt sie, wird sie für dieses Konto mit ihrem Stichtag angelegt. Gehört sie zu einem anderen
@@ -334,9 +348,13 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
   if (repeated.outcome === "replay") return replayResult(tx, account, previous!);
   if (repeated.outcome === "conflict") throw new BankError(repeated.message);
 
-  const { known } = await knownMovements(tx, source, binding, validation.accepted);
+  const { known, movementIds } = await knownMovements(tx, source, binding, validation.accepted);
   const { results, conflicts } = classifyMovements(known, binding, validation.accepted);
-  if (conflicts.length > 0) throw new BankError(`Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`);
+  if (conflicts.length > 0)
+    throw new MovementConflictError(
+      `Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`,
+      results.filter((r) => r.outcome === "conflict").map((r) => ({ movementId: movementIds.get(r.key)!, movement: r.movement })),
+    );
   const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [r.movement.sourceEventId, r.movement]));
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat

@@ -490,7 +490,7 @@ export async function syncConnection(actor: string, connectionId: string, today 
       } catch (error) {
         // Ein Konflikt hält nur dieses Konto an; gespeichert ist von diesem Abruf nichts außer der Meldung im Importprotokoll
         if (!(error instanceof BankError)) throw error;
-        await withActor(actor, (tx) => recordRefusedBatch(tx, account.bankAccountId, input, error.message));
+        await withActor(actor, (tx) => recordRefusedBatch(tx, account.bankAccountId, input, error));
         konflikte.push(`${account.name}: ${error.message}`);
         accounts[i] = { ...account, identificationHash };
       }

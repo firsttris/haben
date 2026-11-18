@@ -1,28 +1,20 @@
-import { createHash } from "node:crypto";
 import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import {
-  classifyMovements,
-  type ImportMovement,
-  knownMovement,
-  type ParsedStatement,
-  type ParsedTransaction,
-  type StatementFormat,
-  validateBatch,
-  withDedupHashes,
-} from "@haben/import";
+import { type ImportMovement, knownMovement, type ParsedStatement, type ParsedTransaction, type StatementFormat, withDedupHashes } from "@haben/import";
 import { withActor } from "../../db/actor.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
+import { sha256Of } from "../../storage.ts";
 import { BankError, insertStatement } from "./bank.ts";
-import { freeHash, knownMovements, type StoreBatchInput } from "./import-batch.ts";
+import { freeHash, MovementConflictError, type StoreBatchInput } from "./import-batch.ts";
 
 /*
  * Weg aus einem Konflikt des Importvertrags (#306, 3b, abgestimmt im Issue). Liefert die Bank eine schon übernommene
  * Bewegung mit anderem Kern, nimmt Haben den Abruf des Kontos nicht an (`storeBatch`) und hält den Konflikt hier fest
  * (`import_conflicts`). Der Nutzer entscheidet einmal (`import_resolutions`): Den bisherigen Umsatz behalten, dann gilt
  * der gelieferte Kern künftig als bekannt; oder den gelieferten als weiteren Umsatz übernehmen. Überschrieben wird nie,
- * der bisherige Umsatz bleibt mit seinen Zuordnungen stehen. Danach läuft der Abruf des Kontos wieder.
+ * der bisherige Umsatz bleibt mit seinen Zuordnungen stehen (Unveränderbarkeit nach § 146 Abs. 4 AO). Danach läuft der
+ * Abruf des Kontos wieder.
  */
 
 /** Umsatz zu einer Bewegung: der des Auszugs zum Ereignis, sonst aus der Bewegung selbst (etwa eine Gebühr als Komponente) */
@@ -42,31 +34,17 @@ function transactionOf(input: StoreBatchInput, movement: ImportMovement): Parsed
   };
 }
 
-/** Konflikte einer abgelehnten Lieferung mit schon übernommenen Bewegungen; leer, wenn sie aus einem anderen Grund abgelehnt wurde */
-async function conflictsOf(tx: Tx, input: StoreBatchInput) {
-  const [source] = await tx
-    .select()
-    .from(schema.importSources)
-    .where(and(eq(schema.importSources.provider, input.binding.provider), eq(schema.importSources.externalAccountId, input.binding.externalAccountId)));
-  if (!source) return [];
-  const validation = validateBatch(input.batch, { ...input.binding, ...(source.cutoverDate ? { cutoverDate: source.cutoverDate } : {}) });
-  if (!validation.ok) return [];
-  const { known, movementIds } = await knownMovements(tx, source, input.binding, validation.accepted);
-  return classifyMovements(known, input.binding, validation.accepted)
-    .results.filter((r) => r.outcome === "conflict")
-    .map((r) => ({ movementId: movementIds.get(r.key)!, movement: r.movement }));
-}
-
 /**
  * Ein Abruf, den `storeBatch` abgelehnt hat (Konflikt, ungültige Lieferung), im Importprotokoll des Kontos: ohne Umsätze,
  * ohne Zeitraum und Salden, damit er weder eine Lücke schließt noch einen Kontostand setzt; nur die Meldung. Ein Konflikt
- * mit einer schon übernommenen Bewegung kommt dazu nach `import_conflicts`, derselbe gelieferte Kern nur einmal.
+ * mit einer schon übernommenen Bewegung (`MovementConflictError` aus `storeBatch`) kommt dazu nach `import_conflicts`,
+ * derselbe gelieferte Kern nur einmal; jeder andere Grund ergibt keinen.
  */
-export async function recordRefusedBatch(tx: Tx, accountId: string, input: StoreBatchInput, message: string) {
+export async function recordRefusedBatch(tx: Tx, accountId: string, input: StoreBatchInput, error: BankError) {
   const { format, currency, accountIban, accountName } = input.statement;
-  const empty: ParsedStatement = { format, currency, accountIban, accountName, transactions: [], warnings: [message] };
+  const empty: ParsedStatement = { format, currency, accountIban, accountName, transactions: [], warnings: [error.message] };
   const { importId } = await insertStatement(tx, accountId, empty, input.source, [], 0);
-  const conflicts = await conflictsOf(tx, input);
+  const conflicts = error instanceof MovementConflictError ? error.conflicts : [];
   if (conflicts.length === 0) return;
   await tx
     .insert(schema.importConflicts)
@@ -159,7 +137,7 @@ export async function resolveConflict(actor: string, input: z.infer<typeof resol
         transactions: [fresh],
         warnings: [`${row.sourceEventId}: nach dem Konflikt als weiterer Umsatz übernommen; der bisherige bleibt.`],
       };
-      const source = { filename: `Klärung ${row.sourceEventId}`, sha256: createHash("sha256").update(`klaerung:${row.conflict.id}`).digest("hex") };
+      const source = { filename: `Klärung ${row.sourceEventId}`, sha256: sha256Of(Buffer.from(`klaerung:${row.conflict.id}`, "utf8")) };
       const { transactionIds } = await insertStatement(tx, row.accountId, statement, source, [fresh], 0);
       transactionId = transactionIds.get(fresh.dedupHash) ?? null;
     }

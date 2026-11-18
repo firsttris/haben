@@ -2,6 +2,7 @@ import { type EbBalance, type EbTransaction, enableBankingBatch, enableBankingSt
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import type { BankError } from "./bank-error.ts";
 
 /*
  * Weg aus einem Konflikt (#306, 3b): Die Bank liefert einen schon übernommenen Umsatz mit anderem Betrag. Haben hält den
@@ -40,7 +41,7 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
     try {
       return { ok: true as const, result: await db.transaction((t) => storeBatch(t, input, account?.id ?? null)) };
     } catch (error) {
-      await db.transaction((t) => konflikt.recordRefusedBatch(t, account!.id, input, (error as Error).message));
+      await db.transaction((t) => konflikt.recordRefusedBatch(t, account!.id, input, error as BankError));
       return { ok: false as const, message: (error as Error).message };
     }
   }
@@ -121,6 +122,37 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
     const r = await abruf(anderes, "hash-5", [buchung("ER-6", "2026-11-15", "21.00")]);
     expect(r).toMatchObject({ ok: false, message: expect.stringContaining("anderen Konto") });
     expect((await konflikt.openConflicts()).filter((k) => k.sourceEventId === "ER-6")).toEqual([]);
+  });
+
+  it("nimmt den Umsatz aus der Bewegung, wenn der Auszug keinen zum Ereignis hat (etwa eine Gebühr als Komponente)", async () => {
+    const iban = "DE02500105170137075030";
+    await abruf(iban, "hash-6", [buchung("ER-7", "2026-11-14", "30.00")]);
+    const [bewegung] = await sql<{ id: string; account: string }[]>`select m.id, s.bank_account_id as account from import_movements m
+      join import_sources s on s.id = m.source_id where m.source_event_id = 'ER-7'`;
+    const { MovementConflictError } = await import("./import-batch.ts");
+    const gebuehr = {
+      sourceEventId: "ER-7",
+      component: "fee" as const,
+      kind: "fee" as const,
+      bookingDate: "2026-11-14",
+      amount: -150 as never,
+      currency: "EUR",
+      counterpartyName: "Testbank",
+      purpose: "Gebühr ER-7",
+      references: {},
+    };
+    const fenster = { transactions: [], balances: [], dateFrom: "2026-11-01", dateTo: "2026-11-18" };
+    const input = {
+      batch: enableBankingBatch({ externalAccountId: "hash-6", ...fenster, fetchedAt: "2026-11-18T12:00:00+01:00", fetchId: "gebuehr" }),
+      binding: { provider: "enablebanking", externalAccountId: "hash-6", accountKind: "bank" as const },
+      statement: enableBankingStatement({ account: { uid: "u", account_id: { iban }, name: "Geschäftskonto" }, ...fenster }),
+      eventOf: () => undefined,
+      source: { filename: "Abruf Testbank gebuehr", sha256: "gebuehr".padEnd(64, "0") },
+    };
+    const fehler = new MovementConflictError("Konflikt", [{ movementId: bewegung!.id, movement: gebuehr }]);
+    await db.transaction((t) => konflikt.recordRefusedBatch(t, bewegung!.account, input, fehler));
+    const [k] = (await konflikt.openConflicts()).filter((c) => c.sourceEventId === "ER-7");
+    expect(k!.delivered).toEqual({ bookingDate: "2026-11-14", amount: -150, currency: "EUR", counterpartyName: "Testbank", purpose: "Gebühr ER-7" });
   });
 
   it("klärt einen Konflikt nur einmal", async () => {
