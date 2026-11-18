@@ -421,20 +421,20 @@ describe("steuerPrognose", () => {
     expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
   });
 
-  it("rechnet den Überhang je Person und lässt ihn nicht gegen die Beiträge des anderen auf", () => {
-    // A: 1.000 € Beiträge und 2.000 € Erstattung, Überhang 1.000 €. B: 3.000 € Beiträge.
-    // Der Überhang von A mindert die Beiträge von B nicht, er wird dem Gesamtbetrag hinzugerechnet.
+  it("rechnet bei Zusammenveranlagung den Überhang hinzu, der nach der Verrechnung mit dem anderen Ehegatten bleibt", () => {
+    // A: 1.000 € Beiträge und 5.000 € Erstattung, Überhang 4.000 €. B: 3.000 € Beiträge.
+    // Verrechnet bleibt ein Überhang von 1.000 € (§ 10 Abs. 4b Satz 2 und 3, § 26b EStG), der Abzug ist null.
     const p = steuerPrognose({
       ...base,
       year: 2025,
       zusammen: true,
       gewinn: 60_000_00,
-      angaben: { ...base.angaben, vorsorge: { a: { pkv: 1_000_00, pkvErstattung: 2_000_00 }, b: { gkv: 3_000_00 } } },
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 1_000_00, pkvErstattung: 5_000_00 }, b: { gkv: 3_000_00 } } },
     });
-    expect(p.vorsorge).toBe(3_000_00);
+    expect(p.vorsorge).toBe(0);
     expect(p.erstattungsueberhang).toBe(1_000_00);
     expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_000_00);
-    expect(p.zvE).toBe(60_000_00 + 1_000_00 - 3_000_00 - 72_00);
+    expect(p.zvE).toBe(60_000_00 + 1_000_00 - 72_00);
   });
 
   it("rechnet einen Kirchensteuer-Überhang dem Gesamtbetrag der Einkünfte zu (§ 10 Abs. 4b Satz 3 EStG, Nr. 4)", () => {

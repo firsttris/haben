@@ -5,7 +5,8 @@ import type { Cents } from "./money.ts";
  * Erstattungsüberhang nach § 10 Abs. 4b EStG: Übersteigen Erstattungen und steuerfreie Arbeitgeberzuschüsse die
  * Aufwendungen nach Abs. 1 Nr. 3 (Basiskranken- und Pflegeversicherung) und Nr. 4 (Kirchensteuer), wird der
  * verbleibende Betrag nach Satz 3 dem Gesamtbetrag der Einkünfte hinzugerechnet; der Abzug fällt dabei nicht unter
- * null. Gerechnet wird je Person, damit der Überhang einer Person nicht die Beiträge der anderen mindert.
+ * null. Zusammen veranlagte Ehegatten sind ein Steuerpflichtiger (§ 26b EStG): Der Überhang eines Ehegatten wird nach
+ * Satz 2 zuerst mit den Basisbeiträgen des anderen verrechnet (BMF vom 24.5.2017, Rz. 130 und 203 f.; R 10.1 EStR).
  */
 
 /** Summe; fehlende Beträge zählen als null */
@@ -51,8 +52,8 @@ export function basisBeitrag({ v, an }: { v: Basisvorsorge; an?: Arbeitslohn }):
   return beitraege - summe(v.pkvErstattung, v.agZuschussGkv, v.agZuschussKv, v.agZuschussPv);
 }
 
-/** Überhang der Basisbeiträge, je Person gekappt: was eine Person zu viel erstattet bekam, bleibt bei ihr */
-export const vorsorgeUeberhang = (basis: Cents[]): Cents => summe(...basis.map((b) => Math.max(0, -b)));
+/** Überhang der Basisbeiträge der Veranlagung: was nach der Verrechnung über alle Personen hinaus erstattet wurde */
+export const vorsorgeUeberhang = (basis: Cents[]): Cents => Math.max(0, -summe(...basis));
 
 /** Überhang der Kirchensteuer (Nr. 4): eine Angabe für die Veranlagung, nicht je Person */
 export const kistUeberhang = (gezahlt: Cents | undefined, erstattet: Cents | undefined): Cents => Math.max(0, (erstattet ?? 0) - (gezahlt ?? 0));

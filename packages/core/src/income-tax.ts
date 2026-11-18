@@ -212,7 +212,7 @@ export interface Prognose {
  * Krankenversicherung ohne den Anteil für Krankengeld (4 %). Rürup-Beiträge zählen zur Altersvorsorge und
  * teilen sich den Höchstbetrag mit der gesetzlichen Rentenversicherung. Wahlleistungen einer privaten
  * Krankenversicherung gehören zur übrigen Vorsorge, die steuerfreien Arbeitgeberzuschüsse mindern den
- * abzugsfähigen Betrag der Basisabsicherung. Übersteigen Erstattungen und Zuschüsse die Basisbeiträge einer Person,
+ * abzugsfähigen Betrag der Basisabsicherung. Übersteigen Erstattungen und Zuschüsse die Basisbeiträge der Veranlagung,
  * gibt es keinen negativen Abzug: der Überhang wird nach § 10 Abs. 4b Satz 3 EStG dem Gesamtbetrag der Einkünfte
  * hinzugerechnet und deshalb neben dem Abzug zurückgegeben.
  */
@@ -222,7 +222,7 @@ function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbei
   const hoechstAlter = tarif(year).altersvorsorgeHoechst * personen.length * 100;
   const alter = Math.max(0, Math.floor(Math.min(eigen + ag, hoechstAlter) * altersvorsorgeQuote(year)) - ag);
   const basisJePerson = personen.map(basisBeitrag);
-  const basis = summe(...basisJePerson.map((b) => Math.max(0, b)));
+  const basis = Math.max(0, summe(...basisJePerson));
   const ueberhang = vorsorgeUeberhang(basisJePerson);
   const weitere = summe(
     sonstige,
