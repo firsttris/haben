@@ -272,6 +272,33 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
   });
 
+  // Anlage EÜR und Einkommensteuererklärung gehen in einer Übermittlung, das Protokoll nennt ein Ticket für beide (#1371)
+  it("nimmt das Ticket der Anlage EÜR für die Einkommensteuererklärung desselben Jahres an", async () => {
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "est", 2025, eingabe("ABC123456789", { amount: undefined }), TODAY);
+    expect((await jahresvermerk.jahresvermerke(2025)).map((v) => v.form).sort()).toEqual(["est", "euer"]);
+    // Die Umsatzsteuererklärung bleibt eine eigene Übermittlung
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/Transferticket/);
+  });
+
+  it("nimmt das Ticket der Einkommensteuererklärung für die Anlage EÜR an, aber nicht in einem anderen Jahr", async () => {
+    await jahresvermerk.vermerkeJahresabgabe(actor, "est", 2024, eingabe("ABC123456789", { amount: undefined }), TODAY);
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
+      /Transferticket ist schon bei der Erklärung 2024/,
+    );
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2024, eingabe("ABC123456789", { abweichungBestaetigt: true, filedOn: "2025-05-20" }), TODAY);
+    expect(await jahresvermerk.jahresvermerke(2024)).toHaveLength(2);
+  });
+
+  it("nimmt das Ticket einer über Haben gesendeten Anlage EÜR nicht für die Einkommensteuererklärung", async () => {
+    // Haben übermittelt die EÜR allein; eine außerhalb abgegebene Einkommensteuererklärung hat ihr eigenes Ticket
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'send', true, 0, 'ok', 'ABC123456789', '{}', '', '', '')`;
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "est", 2025, eingabe("ABC123456789", { amount: undefined }), TODAY)).rejects.toThrow(
+      /Transferticket/,
+    );
+  });
+
   it("lehnt ein Transferticket ab, das nicht aus Buchstaben und Ziffern besteht", async () => {
     // Wie bei der Voranmeldung steht das Ticket so im Übermittlungsprotokoll; ein Muster hält Tippfehler fest
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("!!!!------", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
