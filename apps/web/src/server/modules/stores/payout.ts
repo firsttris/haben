@@ -178,6 +178,33 @@ async function chosenMonths(tx: Tx, store: Store, accountId: string, monthIds: s
   return chosen;
 }
 
+/** Der Bankeingang einer Auszahlung, gesperrt: ganz offen, von Google Play oder App Store, auf einem Bankkonto */
+async function storeInflow(tx: Tx, transactionId: string) {
+  // Erst sperren, dann den Dublettenstand lesen: Eine vorherige Entscheidung kann beim Warten wirksam werden.
+  await tx.select({ id: schema.bankTransactions.id }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, transactionId)).for("update");
+  const [bank] = await tx
+    .select({
+      id: schema.bankTransactions.id,
+      amount: schema.bankTransactions.amount,
+      bookingDate: schema.bankTransactions.bookingDate,
+      counterpartyName: schema.bankTransactions.counterpartyName,
+      accountName: schema.bankAccounts.name,
+      purpose: schema.bankAccounts.purpose,
+      open: bankOpenAmountSql.mapWith(Number),
+      eligible: bankDuplicateProposalEligibleSql.mapWith(Boolean),
+    })
+    .from(schema.bankTransactions)
+    .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
+    .where(eq(schema.bankTransactions.id, transactionId));
+  if (!bank) throw new BankError("Umsatz nicht gefunden.");
+  if (!bank.eligible) throw new BankError("Kläre zuerst den Dublettenvermerk zum Zahlungseingang.");
+  const store = storeOfCounterparty(bank.counterpartyName);
+  if (!store || bank.purpose === "zahlungsdienstleister" || bank.amount <= 0)
+    throw new BankError("Das ist kein Eingang von Google Play oder App Store auf einem Bankkonto.");
+  if (bank.open !== bank.amount) throw new BankError("Der Eingang muss noch ganz offen sein.");
+  return { bank, store };
+}
+
 /**
  * Legt aus dem Bankeingang die Auszahlung im Konto des Stores an, verbindet beide als Geldtransit und bucht bei Apple die
  * Kursdifferenz. Alles in einer Transaktion: Passt etwas nicht, bleibt nichts zurück.
@@ -185,28 +212,7 @@ async function chosenMonths(tx: Tx, store: Store, accountId: string, monthIds: s
 export async function takeOverStorePayout(actor: string, input: z.input<typeof storePayoutSchema>): Promise<{ difference: number }> {
   const data = storePayoutSchema.parse(input);
   return withActor(actor, async (tx) => {
-    // Erst sperren, dann den Dublettenstand lesen: Eine vorherige Entscheidung kann beim Warten wirksam werden.
-    await tx.select({ id: schema.bankTransactions.id }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, data.transactionId)).for("update");
-    const [bank] = await tx
-      .select({
-        id: schema.bankTransactions.id,
-        amount: schema.bankTransactions.amount,
-        bookingDate: schema.bankTransactions.bookingDate,
-        counterpartyName: schema.bankTransactions.counterpartyName,
-        accountName: schema.bankAccounts.name,
-        purpose: schema.bankAccounts.purpose,
-        open: bankOpenAmountSql.mapWith(Number),
-        eligible: bankDuplicateProposalEligibleSql.mapWith(Boolean),
-      })
-      .from(schema.bankTransactions)
-      .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
-      .where(eq(schema.bankTransactions.id, data.transactionId));
-    if (!bank) throw new BankError("Umsatz nicht gefunden.");
-    if (!bank.eligible) throw new BankError("Kläre zuerst den Dublettenvermerk zum Zahlungseingang.");
-    const store = storeOfCounterparty(bank.counterpartyName);
-    if (!store || bank.purpose === "zahlungsdienstleister" || bank.amount <= 0)
-      throw new BankError("Das ist kein Eingang von Google Play oder App Store auf einem Bankkonto.");
-    if (bank.open !== bank.amount) throw new BankError("Der Eingang muss noch ganz offen sein.");
+    const { bank, store } = await storeInflow(tx, data.transactionId);
     const label = STORE_LABELS[store];
     const account = await storeAccount(tx, store);
     if (!account) throw new BankError(`Für ${label} gibt es noch kein Konto. Lege es unter Bank als Zahlungsdienstleister an.`);
