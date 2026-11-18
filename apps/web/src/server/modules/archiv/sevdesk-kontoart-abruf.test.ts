@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import antworten from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/accounting-type.json";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * #472: Der Abruf holt nach den Belegen zu jeder archivierten Gutschrift mit `bookingCategory` ACCOUNTING_TYPE und zu jedem
@@ -19,7 +20,6 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf der Buchungskonten (Postgres)",
   const calls: { method: string; path: string }[] = [];
   const answers = new Map<string, () => Response | Promise<Response>>();
 
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const accountingTypeCalls = () =>
     calls
       .filter((c) => c.path.startsWith("/AccountingType/"))
@@ -71,16 +71,13 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf der Buchungskonten (Postgres)",
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
-            calls.push({ method: init?.method ?? "GET", path });
-            const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
+          fetch: sevdeskFakeFetch(({ path, method, list }) => {
+            calls.push({ method, path });
             const answer = answers.get(path);
             if (answer) return answer();
+            // Ein Konto ohne Antwort kennt sevDesk hier nicht (ID_99), statt des Aufwandskontos der Grundlage
+            if (path.startsWith("/AccountingType/")) return json({ error: { message: "Nicht gefunden" } }, 404);
             switch (path) {
-              case "/Tools/bookkeepingSystemVersion":
-                return json({ objects: { version: "1.0" } });
               case "/CreditNote":
                 return list([
                   {
@@ -97,21 +94,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf der Buchungskonten (Postgres)",
                 ]);
               case "/CreditNotePos":
                 return list([{ id: "1", taxRate: "19", sumNet: "1.00", sumTax: "0.19", sumGross: "1.19" }]);
-              case "/Contact":
-              case "/ContactAddress":
-              case "/CommunicationWay":
-              case "/Invoice":
-              case "/Voucher":
-              case "/Order":
-              case "/VatReport":
-              case "/Part":
-              case "/TaxSet":
-              case "/CheckAccount":
-              case "/CheckAccountTransactionLog":
-                return list([]);
             }
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
     await sevdesk.saveSevdeskKey("test-user", TOKEN);

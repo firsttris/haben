@@ -724,6 +724,7 @@ export async function annualOverview(year: number, today: string) {
     erklaerteZeilen(euerVermerk?.id ?? null),
     erklaerteZeilen(estVermerk?.id ?? null),
   ]);
+  const kleinunternehmer = await kleinunternehmerForYear(year);
   /*
    * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
    * Veranlagung nicht, und in einem Jahr ohne Buchungen kehrt sie sogar das Vorzeichen um (0,00 - erklärtes Soll).
@@ -738,11 +739,9 @@ export async function annualOverview(year: number, today: string) {
     year,
     ust: {
       ...ust,
-      issues: [
-        ...base,
-        ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null }),
-        ...abweichungHinweis("ust", ustZeilen, ustVermerk),
-      ],
+      issues: [...base, ...ustIssues(kleinunternehmer, ust, year, { vermerkt: ustVermerk !== null }), ...abweichungHinweis("ust", ustZeilen, ustVermerk)],
+      // Kleinunternehmer geben ab 2024 keine Umsatzsteuererklärung mehr ab (§ 18 Abs. 3 UStG), wie in den Fristen
+      geschuldet: !kleinunternehmer || year < 2024,
       sent: sent("ust"),
       submitted: ustVermerk,
       erklaert: ustZeilen,

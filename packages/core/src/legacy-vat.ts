@@ -87,6 +87,8 @@ const TAX_TYPES: Record<string, { bucket: Bucket; byVoucherDate: boolean }> = {
   thirdPartyCountryService: { bucket: "kz45", byVoucherDate: false },
   thirdPartyCountryDelivery: { bucket: "kz43", byVoucherDate: false },
   photovoltaicEquipment: { bucket: "kz87", byVoucherDate: false },
+  // sevDesk-Steuerregeln 18 bis 20 (One-Stop-Shop); Lexoffice meldet OSS über taxSubType
+  oss: { bucket: "oss", byVoucherDate: false },
 };
 
 /** Steuerarten, die die Nachrechnung kennt; alles andere landet unter „andere“ */

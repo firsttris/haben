@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import vorlagen from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/beleg-aus-vorlage.json";
 import antworten from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/dateistand.json";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * #472: Eine Datei, die in sevDesk erst nach dem ersten Abruf an einen Beleg kommt, holt der nächste Abruf nach. Die
@@ -19,7 +20,6 @@ const { vorlage, beleg } = vorlagen as unknown as { vorlage: Raw; beleg: Raw };
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const VORLAGE_PDF = "%PDF-1.4\n% Vorlage\n";
 const HOCHGELADEN = "2024-03-15T12:00:00+01:00";
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const download = (content: string, filename: string) =>
   json({ objects: { base64Encoded: true, content: Buffer.from(content).toString("base64"), filename, mimetype: "application/pdf" } });
 const doc = (id: string) => ({ id, objectName: "Document" });
@@ -91,17 +91,12 @@ describe.skipIf(!testDatabaseUrl).each([
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
-            expect(init?.method ?? "GET").toBe("GET");
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
+          fetch: sevdeskFakeFetch(({ path, method, list }) => {
+            expect(method).toBe("GET");
             calls.push(path);
-            const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
             const status = broken.get(path);
             if (status) return json({ error: { message: "Serverfehler" } }, status);
             switch (path) {
-              case "/Tools/bookkeepingSystemVersion":
-                return json({ objects: { version: "1.0" } });
               case "/Voucher":
                 return list([vorlage, ...listed()]);
               case "/Voucher/ID_1":
@@ -116,14 +111,7 @@ describe.skipIf(!testDatabaseUrl).each([
             }
             const own = /^\/Document\/(ID_60\d)\/download$/.exec(path);
             if (own) return download(`%PDF-1.4\n% ${own[1]}\n`, `${own[1]}.pdf`);
-            if (
-              /^\/(Contact|ContactAddress|CommunicationWay|Invoice|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport|Part|TaxSet)$/.test(
-                path,
-              )
-            )
-              return list([]);
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
     await sevdesk.saveSevdeskKey("test-user", TOKEN);

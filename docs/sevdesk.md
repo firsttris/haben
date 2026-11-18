@@ -14,7 +14,7 @@ Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md
 Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege**, die [Kontaktseite](kontakte.md#rechnungen-und-belege-am-kontakt) und der Jahresexport behandeln beide Quellen gleich.
 
 > [!WARNING]
-> Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Gezielt angelegte Auftragsdokumente wurden inzwischen mit sevDesk V1 geprüft; ein vollständiger Umzug wurde damit noch nicht getestet. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
+> Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Gezielt angelegte Auftragsdokumente wurden inzwischen mit sevDesk V1 geprüft, der PDF-Abruf auch an einem Entwurf in V2; ein vollständiger Umzug wurde damit noch nicht getestet. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
 
 ## Voraussetzungen
 
@@ -63,6 +63,8 @@ Statt „Belege und Rechnungen per API abgerufen“ zeigt der Abgleich „Belege
 - **Datei fehlt im Export:** Die Buchung hat einen Beleglink, die Datei fehlt in der ZIP-Datei. Das hält „Jeder Beleg hat eine Datei“ offen;
 - **ohne Belegbild im Export:** Belegdaten ohne Beleglink. Kein Fehler, denn auch sevDesk hat dazu kein Bild.
 
+In Buchhaltungsversion 2.0 hat auch ein Beleg ohne Bild einen Beleglink; seine Kennung steht dann in keiner `document.xml`. Haben zählt ihn heute noch als „Datei fehlt im Export“ ([#1374](https://github.com/firsttris/haben/issues/1374)). Prüfe solche Belege in sevDesk, bevor du den Punkt als Fehler behandelst.
+
 Bei „Jede Buchung mit Belegnummer findet ihren Beleg“ findet eine Buchung mit Beleglink ihren Beleg nur über dessen Kennung, auch die weiteren Zeilen desselben Belegs. Zwei Belege mit derselben Nummer zählen so getrennt; Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
 
 Ein Jahr aus dem Export wird bei **Soll-Versteuerung** vollständig, wenn alle Prüfungen aufgehen. Bei **Ist-Versteuerung** bleibt „Zahlungshistorie vollständig“ offen: Der Export ordnet Zahlungen keinem Beleg zu, die Umsatzsteuer je Monat lässt sich daraus nicht ableiten. Vergleiche sie mit den Voranmeldungen in sevDesk.
@@ -84,7 +86,7 @@ Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 210 
 
 ## Schritt 1: Verbindung zu sevDesk
 
-Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit die Version der Buchhaltung ab (`/Tools/bookkeepingSystemVersion`); klappt das, ist der Token gültig. Er wird wie der Lexoffice-Schlüssel mit AES-256-GCM verschlüsselt gespeichert und taucht weder im Änderungsprotokoll noch im Jahresexport auf. Auftrags-PDFs werden ausschließlich bei frisch ermittelter Buchhaltungsversion 1.0 automatisch abgerufen, siehe unten. Nach dem Umzug entfernst du den Token mit „Token entfernen“.
+Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit die Version der Buchhaltung ab (`/Tools/bookkeepingSystemVersion`); klappt das, ist der Token gültig. Er wird wie der Lexoffice-Schlüssel mit AES-256-GCM verschlüsselt gespeichert und taucht weder im Änderungsprotokoll noch im Jahresexport auf. Auftrags-PDFs werden nur bei frisch ermittelter Buchhaltungsversion 1.0 oder 2.0 automatisch abgerufen, siehe unten. Nach dem Umzug entfernst du den Token mit „Token entfernen“.
 
 ## Schritt 2: Kontakte, Rechnungen und Belege abrufen
 
@@ -155,7 +157,7 @@ Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Hab
 
 Die Richtung `creditDebit` beschreibt die OpenAPI nur als „credit (C) or debit (D)“; dass C die Ausgabe ist, ist mit echten Antworten der Buchhaltungsversionen 1.0 und 2.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Frühere Abrufe hatten beide vertauscht. Die Archivkopie bleibt unverändert, Haben liest Richtung und Belegart von sevDesk-Belegen aus der gespeicherten API-Antwort; ein neuer Abruf ist nicht nötig. Wurde vor der Korrektur eine Einnahme als offener Ausgabebeleg übernommen, bleibt sie versiegelt und erscheint weiter als übernommen; prüfe sie und korrigiere sie in Haben.
 
-**Gutschriften** folgen der Buchung von sevDesk, zur Laufzeit aus der gespeicherten Antwort ([#472](https://github.com/firsttris/haben/issues/472)). Honorar und Provision (`bookingCategory` `ROYALTY_ASSIGNED`, `ROYALTY_UNASSIGNED`, `PROVISION`) bucht sevDesk auf ein Aufwandskonto mit Vorsteuer; sie erscheinen als „Ausgabe-Gutschrift“ auf der Ausgabenseite und in Kz 66. Minderleistung (`UNDERACHIEVEMENT`) mindert die Einnahmen. Belegt ist das am DATEV-Export von sevDesk mit je einer Gutschrift in Buchhaltungsversion 1.0 und in 2.0 für `PROVISION` und `ROYALTY_ASSIGNED`; für `ROYALTY_UNASSIGNED` gibt es in 2.0 nur das Buchungskonto (4909), keine Buchung. In 2.0 nennt der Kopf der Gutschrift 0 % und die Steuerregel 9, der Steuersatz steht nur an den Positionen; Haben nimmt ihn wie in 1.0 aus den Positionen. Steuerlich ist das nicht geprüft. Offene Gutschriften aus Honorar und Provision werden nicht als offene Posten übernommen.
+**Gutschriften** folgen der Buchung von sevDesk, zur Laufzeit aus der gespeicherten Antwort ([#472](https://github.com/firsttris/haben/issues/472)). Honorar und Provision (`bookingCategory` `ROYALTY_ASSIGNED`, `ROYALTY_UNASSIGNED`, `PROVISION`) bucht sevDesk auf ein Aufwandskonto mit Vorsteuer; sie erscheinen als „Ausgabe-Gutschrift“ auf der Ausgabenseite und in Kz 66. Minderleistung (`UNDERACHIEVEMENT`) mindert die Einnahmen. Belegt ist das am DATEV-Export von sevDesk mit je einer Gutschrift in Buchhaltungsversion 1.0 und 2.0 für `PROVISION`, `ROYALTY_ASSIGNED` und `ROYALTY_UNASSIGNED`; Minderleistung bucht 2.0 auf Erlösschmälerungen (8720 in SKR03), 1.0 auf das Erlöskonto. In 2.0 nennt der Kopf der Gutschrift 0 % und die Steuerregel 9, der Steuersatz steht nur an den Positionen; Haben nimmt ihn wie in 1.0 aus den Positionen. Steuerlich ist das nicht geprüft. Offene Gutschriften aus Honorar und Provision werden nicht als offene Posten übernommen.
 
 **Gutschriften auf ein Buchungskonto** (`ACCOUNTING_TYPE`, nur Buchhaltungsversion 1.0) bucht sevDesk nach dem gewählten Konto: auf einem Erlöskonto als Minderung der Einnahmen (DATEV: Soll 8200, BU 3, belegt am DATEV-Export von sevDesk), auf einem Aufwandskonto als Ausgabe mit Vorsteuer wie Honorar (DATEV: Soll auf dem gewählten Aufwandskonto, etwa 4930 in SKR03, gegen das Personenkonto, BU 9, belegt am DATEV-Export von sevDesk, [#472](https://github.com/firsttris/haben/issues/472)). Die Gutschrift nennt nur die ID des Kontos. Seine Nummern holt Haben deshalb nach den Belegen über `GET /AccountingType/{id}`, auch für früher abgerufene Gutschriften; der Endpunkt steht in der OpenAPI nur im Abschnitt „Accounting type“, nicht unter den Pfaden. Die Antwort wird unverändert gespeichert. Die Nummer für SKR03 zählt nach SKR03, die für SKR04 nach SKR04, gleich welcher Kontenrahmen in Haben eingerichtet ist; nennen beide dieselbe Art oder fehlt eine, gilt diese Art. Mit Aufwandskonto erscheint die Gutschrift als „Ausgabe-Gutschrift“ in Kz 66 und wird kein offener Posten.
 
@@ -190,13 +192,15 @@ Eine Vorlage für wiederkehrende Belege (`voucherType` RV) wird ein [Dauerbeleg]
 | Intervall `recurringInterval` (`P0Y1M`, `P0Y3M`, `P0Y6M`, `P1Y`) | monatlich, vierteljährlich, halbjährlich, jährlich |
 | Lieferant, Belegnummer, Beträge je Steuersatz, Datei | Lieferant (mit Kontakt, wenn er Lieferant ist), Vertrags- oder Kundennummer, Beträge, Vertrag |
 
-Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) beschreibt die Status nur für Belege (50 Entwurf, 100 offen, 1000 bezahlt), nicht für Vorlagen; die Zuordnung oben ist aus echten Antworten der Buchhaltungsversion 1.0 abgeleitet ([#472](https://github.com/firsttris/haben/issues/472)). Kategorie und Bezahlung kennt die Vorlage nicht: Haben setzt „Sonstiger Aufwand“ und das Geschäftskonto, ändere beides vor dem Fortsetzen. Hat die Vorlage keine Datei, lädst du vor dem Fortsetzen den Vertrag oder die Dauerrechnung hoch ([Ändern, pausieren, beenden](belege.md#ändern-pausieren-beenden)).
+Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) beschreibt die Status nur für Belege (50 Entwurf, 100 offen, 1000 bezahlt), nicht für Vorlagen; die Zuordnung oben ist aus echten Antworten der Buchhaltungsversion 1.0 abgeleitet, 2.0 liefert dieselben Status 50 und 100. In 2.0 liefert `GET /Voucher` die Vorlagen auch ohne Filter; Haben zählt sie nicht als Belege ([#472](https://github.com/firsttris/haben/issues/472)). Kategorie und Bezahlung kennt die Vorlage nicht: Haben setzt „Sonstiger Aufwand“ und das Geschäftskonto, ändere beides vor dem Fortsetzen. Hat die Vorlage keine Datei, lädst du vor dem Fortsetzen den Vertrag oder die Dauerrechnung hoch ([Ändern, pausieren, beenden](belege.md#ändern-pausieren-beenden)).
 
 Nicht übernommen werden Vorlagen für Einnahmen, in anderer Währung als Euro, mit negativer Summe, mit einem anderen Intervall (etwa wöchentlich) oder einem Steuersatz außer 19, 7 und 0 %. Der Abruf nennt sie mit Grund in der Liste der fehlgeschlagenen Belege; lege sie bei Bedarf selbst an.
 
 ### Steuerarten im Abgleich
 
-Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in die Kennzahlen, wie bei Lexoffice:
+Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in die Kennzahlen. Die Regeln nennt die [OpenAPI](https://api.sevdesk.de/openapi.yaml) unter „VAT rules“, mit Kennzahl nur bei Regel 5 (Kz 60) und 21 (Kz 21); die übrigen ordnet Haben nach der Anleitung zur Voranmeldung zu (siehe „Kennzahlen selbst prüfen“). Die ältere taxType steht dort als Vorgänger.
+
+**Einnahmen:**
 
 | sevDesk | Abgleich |
 | --- | --- |
@@ -204,12 +208,28 @@ Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in d
 | Regel 2 „Ausfuhren“ | Kz 43 |
 | Regel 3 „Innergemeinschaftliche Lieferungen“ bzw. taxType `eu` | Kz 41 |
 | Regel 4 „Steuerfreie Umsätze § 4 UStG“, Regel 11 „§ 19 UStG“ bzw. taxType `ss` | Steuerfrei |
+| Regel 5 „Reverse Charge gem. § 13b UStG“ | Kz 60 |
+| Regel 17 „Nicht im Inland steuerbare Leistung“ bzw. taxType `noteu` | Kz 45 |
+| Regel 18 bis 20 „One Stop Shop“ | OSS, nicht in der Voranmeldung |
+| Regel 21 „Reverse Charge gem. § 18b UStG“ | Kz 21 |
 | eigene Steuerart (taxType `custom`) | Kennzahlen der Steuerart |
-| Regel 5 „Reverse Charge § 13b“ und alles andere | Andere Sätze |
+| alles andere | Andere Sätze |
 
-Reverse Charge nach Regel 5 lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60 zuordnen; vergleiche diese Umsätze von Hand.
+Regel 17 bucht sevDesk im DATEV-Export auf 8338 (SKR03), das Konto für nicht steuerbare Leistungen im Drittland ([#472](https://github.com/firsttris/haben/issues/472)). Ob eine Rechnung mit `noteu` eine Leistung oder eine Lieferung ins Drittland war, sagt sevDesk nicht; die OpenAPI ordnet `noteu` der Regel 17 zu. War es eine Ausfuhrlieferung, gehört sie in Kz 43: vergleiche solche Rechnungen mit der übermittelten Voranmeldung.
 
-**Eigene Steuerarten:** Ein Beleg mit taxType `custom` verweist per `taxSet` auf eine Steuerart, die in sevDesk die Kennzahlen der Voranmeldung nennt: `vatReportFieldNet` für die Bemessungsgrundlage, `vatReportFieldTax` für die Steuer, mehrere durch Komma. Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt nur taxType `custom` („Using custom tax set“), den Endpunkt `GET /TaxSet` beschreibt sie nicht; das Verhalten ist mit echten Antworten der Buchhaltungsversion 1.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Haben ruft die Steuerarten bei jedem Abruf ab (`GET /TaxSet`), speichert sie unverändert und nimmt im Abgleich die des jüngsten Abrufs, auch für früher abgerufene Belege.
+Im [Gesamtumsatz nach § 19 UStG](auswertungen.md#gesamtumsatz-nach--19-ustg) zählen Rechnungen mit Regel 5 als Umsatz im Inland. Regel 17, 21 und taxType `noteu` bleiben dort ungeklärt, weil der Leistungsort im Ausland nicht bestätigt ist, Regel 18 bis 20 ebenso.
+
+**Ausgaben:** Vorsteuer Kz 66 wie im Beleg. Bei Reverse Charge rechnet Haben wie sevDesk 19 % auf das Netto:
+
+| sevDesk | Abgleich |
+| --- | --- |
+| Regel 12 „Reverse Charge gem. § 13b Abs. 2 UStG mit Vorsteuerabzug“ | Kz 84, 85 und 67 |
+| Regel 14 „Reverse Charge gem. § 13b Abs. 1 EU Umsätze“ | Kz 46, 47 und 67 |
+| Regel 8 „Innergemeinschaftliche Erwerbe“, Regel 13 „Reverse Charge gem. § 13b UStG ohne Vorsteuerabzug“ | noch keine eigenen Kennzahlen |
+
+Regel 12 trennt Umsätze nach § 13b Abs. 2 Nr. 3 UStG (Kz 73/74) nicht ab; Haben zählt sie in Kz 84/85.
+
+**Eigene Steuerarten:** Ein Beleg mit taxType `custom` verweist per `taxSet` auf eine Steuerart, die in sevDesk die Kennzahlen der Voranmeldung nennt: `vatReportFieldNet` für die Bemessungsgrundlage, `vatReportFieldTax` für die Steuer, mehrere durch Komma. Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt nur taxType `custom` („Using custom tax set“), den Endpunkt `GET /TaxSet` beschreibt sie nicht; das Verhalten ist mit echten Antworten der Buchhaltungsversion 1.0 und 2.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Haben ruft die Steuerarten bei jedem Abruf ab (`GET /TaxSet`), speichert sie unverändert und nimmt im Abgleich die des jüngsten Abrufs, auch für früher abgerufene Belege.
 
 - **Ausgaben:** Das Netto zählt in die genannte Kennzahl der Bemessungsgrundlage (Kz 46, 84, 89 oder 93). Die Steuer rechnet Haben wie sevDesk je Beleg aus Netto und Satz der Steuerart und zählt sie in jede genannte Steuerkennzahl (Kz 47, 85, 67, 61 oder 66), bei Reverse Charge also als Steuer (Kz 47) und Vorsteuer (Kz 67); als Vorsteuer Kz 66 zählt die Steuer im Beleg dann nicht.
 - **Einnahmen:** Die Kennzahl der Bemessungsgrundlage ordnet den Umsatz zu wie die Regeln oben, etwa Kz 41 oder 60.
@@ -220,7 +240,7 @@ Bei einer Steuerart ohne Kennzahlen, etwa für Bezüge von Kleinunternehmern (§
 
 - Kz 46/47: nur sonstige Leistungen nach § 3a Abs. 2 UStG von Unternehmern aus dem übrigen EU-Gebiet (§ 13b Abs. 1).
 - Kz 84/85: Werklieferungen und die übrigen sonstigen Leistungen im Ausland ansässiger Unternehmer, also auch aus dem Drittland (§ 13b Abs. 2 Nr. 1), und die Fälle aus § 13b Abs. 2 Nr. 2 und 4 bis 12, etwa Bauleistungen und Gebäudereinigung.
-- Kz 73/74: Umsätze, die unter das Grunderwerbsteuergesetz fallen (§ 13b Abs. 2 Nr. 3); diese Kennzahl kennt der Abgleich nicht, sie steht unter „Andere Bezüge“.
+- Kz 73/74: Umsätze, die unter das Grunderwerbsteuergesetz fallen (§ 13b Abs. 2 Nr. 3); eine eigene Steuerart mit dieser Kennzahl steht unter „Andere Bezüge“.
 
 Meldet eine Steuerart etwa Leistungen aus dem Drittland in Kz 46/47, hat sevDesk die Voranmeldungen mit dieser Steuerart ebenso gefüllt, und der Abgleich zeigt dieselben Werte. Ob und wie die Voranmeldungen zu berichtigen sind, klärst du mit deiner Steuerberatung oder dem Finanzamt.
 
@@ -253,9 +273,9 @@ Haben archiviert die drei Auftragsarten aus sevDesk (`Order`: `AN`, `AB`, `LI`) 
 
 **Fremdwährung:** Für einen Auftrag in Fremdwährung zeigt und exportiert Haben die `sum*ForeignCurrency`-Summen aus sevDesk. Fehlen sie, bleiben die entsprechenden Beträge leer; EUR-Basisbeträge werden nicht mit einem Fremdwährungscode ausgegeben. Die vollständigen Quellbeträge bleiben in den Originaldaten erhalten.
 
-**Automatische PDFs nur für Buchhaltungsversion 1.0:** Haben ermittelt vor jedem fehlenden Auftrags-PDF die Version frisch über `/Tools/bookkeepingSystemVersion`. Nur exakt `1.0` ist freigegeben. Bei `2.0`, unbekannter Version oder fehlgeschlagener Versionsprüfung werden die Metadaten weiter archiviert; die PDFs bleiben als fehlend markiert und können manuell ergänzt werden. Die Adresse `/api/v1` unterscheidet diese Buchhaltungsversionen nicht. Eine gespeicherte frühere V1-Verbindung oder zusätzliche Aufrufdaten heben die Sperre nicht auf.
+**Automatische PDFs nur für Buchhaltungsversion 1.0 und 2.0:** Haben ermittelt vor jedem fehlenden Auftrags-PDF die Version frisch über `/Tools/bookkeepingSystemVersion`. Freigegeben sind genau `1.0` und `2.0`. Bei unbekannter Version oder fehlgeschlagener Versionsprüfung werden die Metadaten weiter archiviert; die PDFs bleiben als fehlend markiert und können manuell ergänzt werden. Die Adresse `/api/v1` unterscheidet diese Buchhaltungsversionen nicht. Eine früher gespeicherte Version oder zusätzliche Aufrufdaten heben die Sperre nicht auf.
 
-Die [sevDesk-API](https://api.sevdesk.de/#tag/Order) beschreibt `getPdf` mit „commit the order“. Deshalb wurde `preventSendBy=true` gezielt an sieben V1-Dokumenten geprüft: AN, AB und LI, einschließlich Entwürfen, abgelehntem Angebot und teilberechneter AB. Status, Version, Versanddatum/-art und Änderungszeit blieben unverändert. Laut Nutzerrückmeldung blieben auch alle getesteten Entwürfe weiter bearbeitbar; sichtbare Änderungs-/Verlaufseinträge entstanden nicht. Diese Ergebnisse gelten für die geprüften Fälle und **nicht für Buchhaltungsversion 2.0**.
+Die [sevDesk-API](https://api.sevdesk.de/#tag/Order) beschreibt `getPdf` mit „commit the order“. Deshalb wurde `preventSendBy=true` gezielt an sieben V1-Dokumenten geprüft: AN, AB und LI, einschließlich Entwürfen, abgelehntem Angebot und teilberechneter AB. Status, Version, Versanddatum/-art und Änderungszeit blieben unverändert. Laut Nutzerrückmeldung blieben auch alle getesteten Entwürfe weiter bearbeitbar; sichtbare Änderungs-/Verlaufseinträge entstanden nicht. In Buchhaltungsversion 2.0 ist der Abruf an einem Angebot im Entwurf geprüft: Status, Version, Versanddatum und Änderungszeit blieben gleich, das Angebot blieb bearbeitbar, im Verlauf entstand nichts ([#472](https://github.com/firsttris/haben/issues/472)). Diese Ergebnisse gelten für die geprüften Fälle.
 
 **Nachweise und Fehler:** Vor einem PDF-Abruf vergleicht Haben den aktuellen Quellstand mit der Archivkopie. Bei Abweichungen wird das PDF nicht dem alten Stand zugeordnet; die übrigen Dokumente erhalten ihre PDFs weiterhin automatisch. Nach jedem begonnenen PDF-Abruf folgt eine Nachkontrolle, auch nach einer fehlgeschlagenen Antwort. Vorher-/Nachher-Antworten und Fehler bleiben unveränderlich im PDF-Abrufprotokoll erhalten. Eine PDF-Anfrage wird nicht automatisch wiederholt und folgt keiner Weiterleitung. Bei unerwarteten Änderungen, PDF-Fehlern oder fehlender Nachkontrolle setzt Haben weitere automatische Auftrags-PDFs im laufenden Import aus; die Metadaten werden weiter archiviert. Ein auffälliges PDF wird nicht als erfolgreiche Originaldatei zugeordnet. Der offene Punkt steht im Import und im Abrufprotokoll.
 
@@ -285,7 +305,7 @@ Die Voranmeldungen aus sevDesk sind nur ein Nachweis: Haben rechnet sie nicht ne
 
 ### Wiederkehrende Rechnungen
 
-sevDesk liefert die Vorlagen nur mit dem Filter `invoiceType=WKR`; belegt ist das in Buchhaltungsversion 1.0, in 2.0 ist es ungeprüft. Haben legt jede als wiederkehrende Rechnung an, **pausiert** und mit „Entwurf anlegen“, ohne E-Mail-Versand und mit Zahlungsart Überweisung. Sie erzeugt nichts, bis du sie geprüft und **Aktiv** gesetzt hast. Das gilt für jeden Status in sevDesk: deaktiviert (50), aktiv (100) und beendet (1000). Ein Enddatum übernimmt Haben, auch wenn es vor dem nächsten Termin liegt; die Vorlage erzeugt dann auch aktiviert nichts mehr.
+sevDesk liefert die Vorlagen nur mit dem Filter `invoiceType=WKR`; belegt ist das in Buchhaltungsversion 1.0 und 2.0. Haben legt jede als wiederkehrende Rechnung an, **pausiert** und mit „Entwurf anlegen“, ohne E-Mail-Versand und mit Zahlungsart Überweisung. Sie erzeugt nichts, bis du sie geprüft und **Aktiv** gesetzt hast. Das gilt für jeden Status in sevDesk: deaktiviert (50), aktiv (100) und beendet (1000). Ein Enddatum übernimmt Haben, auch wenn es vor dem nächsten Termin liegt; die Vorlage erzeugt dann auch aktiviert nichts mehr.
 
 | sevDesk | Haben |
 | --- | --- |
@@ -303,7 +323,7 @@ sevDesk liefert die Vorlagen nur mit dem Filter `invoiceType=WKR`; belegt ist da
 
 **Platzhalter** wie `[%KONTAKTPERSON%]`, `[%ZAHLUNGSZIEL%]` oder `[%Rechnungsnummer%]` stehen als Text in der Vorlage; Haben ersetzt sie nicht. Der Abruf und die Seite der Vorlage listen, welche vorkommen. Ersetze sie vor dem Aktivieren, etwa durch die [Platzhalter von Haben](rechnungen.md#wiederkehrende-rechnungen) oder festen Text.
 
-**Nachfällig oder vorschüssig** steht in sevDesk in keinem Feld der Vorlage. Haben liest es an den Rechnungen ab, die sevDesk aus ihr erzeugt hat (`origin` zeigt auf die Vorlage): Rechnungsdatum gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Belegt ist das nur für das Monatsintervall in Version 1.0, an 39 Rechnungen einer nachfälligen Vorlage und einer Rechnung einer vorschüssigen.
+**Nachfällig oder vorschüssig** steht in sevDesk in keinem Feld der Vorlage. Haben liest es an den Rechnungen ab, die sevDesk aus ihr erzeugt hat (`origin` zeigt auf die Vorlage): Rechnungsdatum gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Belegt ist das für das Monatsintervall in Version 1.0, an 39 Rechnungen einer nachfälligen Vorlage und einer Rechnung einer vorschüssigen, und in Version 2.0 an vorschüssigen Vorlagen mit Monats- und Quartalsintervall. Weicht das Rechnungsdatum einer erzeugten Rechnung vom Beginn und vom Ende des Zeitraums ab, etwa weil sie später fertiggestellt wurde, bleibt die Vorlage unklar, und du setzt den Leistungszeitraum selbst.
 
 | Ergebnis | Leistungszeitraum in Haben |
 | --- | --- |

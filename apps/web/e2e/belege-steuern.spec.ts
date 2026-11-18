@@ -19,6 +19,7 @@ import {
   kundeWaehlen,
   lieferantWaehlen,
   neuenLieferantenOeffnen,
+  weitereAngabenOeffnen,
   ohneAxeVerstoesse,
   trefferliste,
   randImDialog,
@@ -354,6 +355,27 @@ test("Seiten nur von derselben Origin einbettbar", async () => {
   expect(html.headers()["content-type"]).toContain("text/html");
   expect(html.headers()["content-security-policy"]).toBe("frame-ancestors 'self'");
   expect(html.headers()["x-frame-options"]).toBeUndefined();
+});
+
+test("Cache-Header: Seiten und Server-Funktionen nie in geteilte Caches, Dateien aus public/ neu validieren", async () => {
+  const html = await page.request.get("/rechnungen");
+  expect(html.headers()["cache-control"]).toBe("private, no-store");
+  const serverFn = page.waitForResponse((r) => new URL(r.url()).pathname.startsWith("/_serverFn/") && r.request().method() === "GET");
+  await go("/rechnungen");
+  await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Belege", exact: true }).click();
+  expect((await serverFn).headers()["cache-control"]).toBe("private, no-store");
+  // Nur der gebaute Server: Im Entwicklungsserver liefert Vite public/ und die Assets aus, ohne die routeRules von Nitro
+  if (!process.env.E2E_SERVER_COMMAND) return;
+  for (const datei of ["/sw.js", "/manifest.webmanifest", "/favicon.svg", "/icon-192.png", "/fastbill-belege.js"]) {
+    expect((await page.request.get(datei)).headers()["cache-control"], datei).toBe("no-cache");
+  }
+  const skript = new URL(
+    await page
+      .locator('script[src^="/assets/"], link[href^="/assets/"]')
+      .first()
+      .evaluate((e) => (e as HTMLScriptElement).src || (e as HTMLLinkElement).href),
+  );
+  expect((await page.request.get(skript.pathname)).headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
 });
 
 test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
@@ -1055,23 +1077,29 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // USt-IdNr. liegt in „Weitere Angaben“, die Überschrift zeigt sie auch zugeklappt
+  await weitereAngabenOeffnen(page);
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("IE6388047V");
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("USt-IdNr. IE6388047V");
   await page.getByLabel("Netto", { exact: true }).fill("100");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
-  await expect(page.getByText(/meist § 13b/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(page.getByText(/meist Reverse Charge \(§ 13b\)/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("19,00");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   await expect(page.getByLabel("Steuer § 13b")).toHaveAttribute("readonly", "");
   await expect(page.getByText("Steuer § 13b (automatisch)", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Kz 46\/47/)).toBeVisible();
+  // Die Kennzahlen stehen unter „Details“, der Hinweis am Feld nennt sie nicht
+  await expect(page.getByText(/Kz 46/)).toBeHidden();
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  await expect(page.getByText(/Netto in Kz 46, Steuer in Kz 47, Vorsteuer in Kz 67/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   await page.getByLabel("Netto", { exact: true }).fill("200");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("38,00");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("14,00");
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("drittland");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("drittland");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
@@ -1099,7 +1127,7 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   // Auch gespeicherte Zeilen müssen bei einer Änderung weiter automatisch rechnen.
   await page.getByLabel("Netto", { exact: true }).fill("300");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("21,00");
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("20,99");
   await page.getByLabel("Netto", { exact: true }).fill("400");
@@ -1142,9 +1170,9 @@ test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel beh�
   await amounts.getByLabel("Vorsteuer", { exact: true }).fill("7,78");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Bei § 13b gibt es kein Brutto, gezahlt wird netto; die Steuer rechnet Haben aus dem Netto (111,21 € zu 7 % = 7,78 €)
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveCount(0);
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1419,11 +1447,11 @@ test("Beleg mit § 13b aufteilen: Steuer § 13b je Zeile, innergemeinschaftliche
   await page.getByLabel("Kategorie").selectOption("geldverkehr");
   await page.getByLabel("Netto", { exact: true }).fill("250,00");
 
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   await expect(page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" })).toBeDisabled();
   await expect(page.getByText("mit innergemeinschaftlichem Erwerb noch nicht möglich")).toBeVisible();
 
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("47,50");
   await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
   const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
@@ -1528,7 +1556,13 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await lieferantWaehlen(page, "Hetzner Online GmbH · DE812871812");
+  // Ein Feld für Name und Kontakt (#1253): keine zweite Suche „Aus den Kontakten“, die gewählte Verknüpfung steht als Hinweis am Feld
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
+  await expect(page.getByRole("combobox", { name: /Lieferant|Kontakten/ })).toHaveCount(1);
+  await expect(page.getByLabel("Aus den Kontakten")).toHaveCount(0);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveAccessibleDescription("Aus den Kontakten gewählt.");
+  // Name und USt-IdNr. aus dem Kontakt: Die USt-IdNr. liegt in „Weitere Angaben“, deren Überschrift sie zugeklappt zeigt
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("USt-IdNr. DE812871812");
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
 
   // Lieferant direkt im Beleg anlegen (#330): Name und USt-IdNr. vom Beleg, Rolle Lieferant, Eingaben bleiben
@@ -1542,7 +1576,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await expect(dialog.getByRole("status")).toContainText("gibt es schon „Hetzner Online GmbH“");
   await dialog.getByRole("button", { name: "„Hetzner Online GmbH“ wählen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
 
   await neuenLieferantenOeffnen(page);
   await dialog.getByLabel("Name oder Firma").fill("Druckerei Süd GmbH");
@@ -1551,7 +1585,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Druckerei Süd GmbH");
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue("Druckerei Süd GmbH");
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveAccessibleDescription("Aus den Kontakten gewählt.");
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
   // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1953,12 +1987,13 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("NL123456789B01");
   await page.getByLabel("Kategorie").selectOption("wareneinkauf");
   await page.getByLabel("Netto", { exact: true }).fill("500");
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
   await expect(page.getByText(/bei Ware ein innergemeinschaftlicher Erwerb/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   const tax = page.getByLabel(/^Erwerbsteuer/);
   await expect(tax).toHaveValue("95,00");
   await expect(tax).toHaveAttribute("readonly", "");
@@ -1967,7 +2002,8 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await expect(tax).toHaveValue("114,00");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
   await expect(tax).toHaveValue("42,00");
-  await expect(page.getByText(/Kz 89 \(19 %\)/)).toBeVisible();
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  await expect(page.getByText(/Netto in Kz 89 \(19 %\) bzw\. Kz 93 \(7 %\), Vorsteuer in Kz 61/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   // Nicht buchen: der Beleg würde die folgenden Auswertungen und Bilder verändern
   await page.getByRole("button", { name: "Löschen" }).click();
@@ -2920,7 +2956,7 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
   await expect(iban).toBeFocused();
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Netzwerk Hosting GmbH");
 });
 
 test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
@@ -2975,6 +3011,47 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(zeile).toContainText("DE02 1203 0000 0000 2020 51");
   await go(new URL(kontaktUrl).pathname);
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
+});
+
+test("Jahreserklärung: Summen stehen offen, die Einzelzeilen hinter „Zeilen anzeigen“, auch per Tastatur (#1253)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
+  const euer = page.getByRole("region", { name: "Anlage EÜR", exact: true });
+  await expect(ust.getByRole("row", { name: /^Umsatzsteuer|^Überschuss/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abschlusszahlung|^Erstattung/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Summe Betriebseinnahmen/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Gewinn|^Verlust/ })).toBeVisible();
+  // Zugeklappt: die Zeilen sind nicht zu sehen, der Knopf zum Aufklappen schon
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeHidden();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeHidden();
+  // Mit der Tastatur: Fokus auf „Zeilen anzeigen“, Enter klappt auf
+  const summary = ust.locator("summary").filter({ hasText: "Zeilen anzeigen" });
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abziehbare Vorsteuer aus Rechnungen/ })).toBeVisible();
+  await euer.locator("summary").filter({ hasText: "Zeilen anzeigen" }).click();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeVisible();
+});
+
+test("Jahreserklärung: die Erklärungen stehen in einer nummerierten Reihenfolge, der nächste Schritt führt zum Abschnitt (#1253)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const reihenfolge = page.getByRole("region", { name: "Reihenfolge der Erklärungen" });
+  const eintraege = reihenfolge.getByRole("listitem");
+  await expect(eintraege).toHaveCount(3);
+  await expect(eintraege.nth(0)).toContainText("Umsatzsteuer");
+  await expect(eintraege.nth(1)).toContainText("Anlage EÜR");
+  await expect(eintraege.nth(2)).toContainText("Einkommensteuer");
+  // Die Sprungleiste ist darin aufgegangen: nur noch die Abschnitte darunter
+  await expect(page.getByRole("navigation", { name: "Abschnitte der Jahreserklärung" })).toHaveCount(0);
+  await expect(reihenfolge.getByRole("link", { name: "Verlauf" })).toBeVisible();
+  // Der nächste Schritt ist die erste Erklärung ohne Übermittlung und ohne Vermerk und verlinkt auf ihren Abschnitt
+  const schritt = reihenfolge.locator("p", { hasText: "Nächster Schritt:" });
+  await expect(schritt).toBeVisible();
+  const ziel = await schritt.getByRole("link").getAttribute("href");
+  expect(ziel).toMatch(/^#(ust|euer|est)$/);
+  await schritt.getByRole("link").click();
+  await expect(page.locator(ziel!)).toBeInViewport();
 });
 
 test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Knopfzeile, der Dialog selbst scrollt nicht (WCAG 2.4.11)", async () => {
@@ -3330,6 +3407,7 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await page.getByLabel("Belegdatum").fill(day(-9));
   await page.getByLabel("Kategorie").selectOption("telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("Leistung von").fill(day(-24));
   await page.getByLabel("Leistung bis").fill(day(-9));
   await page.getByRole("button", { name: "Speichern" }).click();
@@ -3338,8 +3416,306 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
 
   await page.reload();
   await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
+  // Zugeklappt nennt die Überschrift den Zeitraum; aufgeklappt stehen die beiden Felder
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("Leistung");
+  await weitereAngabenOeffnen(page);
   await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
+});
+
+test("Beleg prüfen: Seltenes ist eingeklappt, zeigt Gesetztes in der Überschrift und klappt bei einem Fehler auf (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "weitere.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Schreibwaren Lindenhof e. K.") }]);
+  await expect(page.getByText("weitere.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /weitere\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  const ueberschrift = bereich.locator("summary");
+
+  // Zu: die Felder sind nicht zu sehen, die Überschrift nennt die Währung
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(ueberschrift).toHaveText("Weitere Angaben: EUR");
+  await expect(page.getByLabel("Fällig am")).toBeHidden();
+
+  // Was gesetzt ist, steht auch zugeklappt in der Überschrift
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Fällig am").fill(day(14));
+  await ueberschrift.click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(ueberschrift).toContainText(/EUR · fällig \d{2}\.\d{2}\.\d{4}/);
+
+  // Pflicht: Der Erwerb braucht die USt-IdNr. des Lieferanten aus der EU, das Feld liegt dann offen
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
+
+  // Fehler: Ein zugeklappter Bereich verschluckt ihn nicht, „Bestätigen und buchen“ klappt auf und setzt den Fokus aufs Feld
+  await page.getByLabel("Währung").fill("EU");
+  await ueberschrift.click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel("Währung")).toBeFocused();
+  await expect(page.getByLabel("Währung")).toHaveAccessibleDescription(/drei Buchstaben/);
+
+  // Barrierefrei mit aufgeklapptem Bereich, Fehlermeldung und den Details zur Umsatzsteuer, am Desktop und am Handy
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  const vorher = page.viewportSize();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `Beleg mit Weiteren Angaben bei ${width} px`,
+    ).toEqual([]);
+  }
+  if (vorher) await page.setViewportSize(vorher);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Kategorien stehen in Gruppen, ein Beispiel hilft bei der Wahl (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gruppen.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Kopierladen Stadtmitte GmbH") }]);
+  await expect(page.getByText("gruppen.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gruppen\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  await expect(kategorie.locator("optgroup")).toHaveCount(11);
+  await expect(kategorie.locator('optgroup[label="Fahrzeug"] option')).toHaveCount(6);
+  // Dieselben 35 Kategorien wie zuvor und „Bitte wählen“, keine mehr und keine weniger
+  await expect(kategorie.locator("option")).toHaveCount(36);
+  await expect(page.getByText("Z. B. Hosting oder Software unter „Büro und IT“")).toBeVisible();
+  await kategorie.selectOption("kfzBetrieb");
+  await expect(kategorie).toHaveValue("kfzBetrieb");
+  await expect(page.getByText("Z. B. Hosting oder Software unter „Büro und IT“")).toBeHidden();
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Der Hinweis „Vor dem Buchen“ bleibt bei Änderungen stehen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "hinweis.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Druckhaus Elbe GmbH") }]);
+  await expect(page.getByText("hinweis.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /hinweis\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const hinweis = page.locator(".doc-editor .banner").filter({ hasText: "Vor dem Buchen:" });
+  await expect(hinweis).toContainText("Lieferant fehlt");
+  await expect(hinweis).not.toContainText("Stand der letzten Speicherung");
+  // Eine Änderung nimmt den Hinweis nicht weg; er sagt, dass er den letzten gespeicherten Stand meint
+  await page.getByLabel("Rechnungsnummer").fill("DE-2026-17");
+  await expect(hinweis).toContainText("Lieferant fehlt");
+  await expect(hinweis).toContainText("Stand der letzten Speicherung.");
+  // Nach dem Speichern gilt er wieder für den Beleg, wie er jetzt ist
+  await page.getByLabel("Lieferant", { exact: true }).fill("Druckhaus Elbe GmbH");
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(hinweis).not.toContainText("Lieferant fehlt");
+  await expect(hinweis).not.toContainText("Stand der letzten Speicherung");
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Ein Leistungsende vor dem Beginn klappt „Weitere Angaben“ auf und setzt den Fokus aufs Feld (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "zeitraum-fehler.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Schreibwaren Rosengasse e. K.") }]);
+  await expect(page.getByText("zeitraum-fehler.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /zeitraum-fehler\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  // Der Leistungszeitraum endet vor seinem Beginn, der Bereich ist zugeklappt: Speichern klappt ihn auf, wo der Fehler steht
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Leistung von").fill(day(-5));
+  await page.getByLabel("Leistung bis").fill(day(-20));
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByLabel("Rechnungsnummer").fill("RG-4711");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel("Leistung bis")).toBeFocused();
+  await expect(page.getByLabel("Leistung bis")).toHaveAccessibleDescription(/Ende der Leistung liegt vor dem Beginn/);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Erwerb mit einer zu kurzen USt-IdNr. aus der EU legt das Feld offen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "erwerb-kurz.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Lyon SARL") }]);
+  await expect(page.getByText("erwerb-kurz.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /erwerb-kurz\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  // „FR1234“ hat zu wenig Zeichen nach dem Länderkennzeichen (5 bis 12, packages/core/src/zm.ts): der Server lehnt sie ab
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben“ klappt den Bereich auf (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "erwerb-server.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Bordeaux SARL") }]);
+  await expect(page.getByText("erwerb-server.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /erwerb-server\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  const ustId = page.getByLabel(/^USt-IdNr\. des Lieferanten/);
+  // Gespeicherter Erwerb, dem nur eine gültige USt-IdNr. fehlt: „FR1234“ hat nach dem Länderkennzeichen zu wenig Zeichen
+  await page.getByLabel("Lieferant", { exact: true }).fill("Papeterie Bordeaux SARL");
+  await page.getByLabel("Belegdatum").fill(day(-5));
+  await page.getByLabel("Kategorie").selectOption("buero");
+  await page.getByLabel("Netto", { exact: true }).fill("100,00");
+  await weitereAngabenOeffnen(page);
+  await ustId.fill("FR1234");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Speichern", exact: true })).toBeDisabled();
+
+  // Der Hinweis „Vor dem Buchen“ nennt die USt-IdNr.: Das Feld liegt offen
+  await expect(page.locator(".doc-editor .banner").filter({ hasText: "Vor dem Buchen:" })).toContainText("FR1234");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(ustId).toBeVisible();
+
+  // Zugeklappt lehnt der Server das Buchen ab: Seine Meldung klappt den Bereich wieder auf
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.locator(".doc-actions").getByText(/Noch nicht bereit: .*FR1234/)).toBeVisible();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(ustId).toBeVisible();
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+/**
+ * Im Browser: wartet, bis jedes schon angestoßene toggle-Ereignis eines `<details>` gemeldet ist. Der Browser reiht es als
+ * Aufgabe der Quelle „DOM manipulation“ ein (HTML-Standard, „queue a details toggle event task“); das einer Sonde, die erst
+ * danach aufklappt, kommt aus derselben Quelle und damit nach allen früheren
+ */
+async function toggleAbwarten(): Promise<void> {
+  const sonde = document.createElement("details");
+  document.body.append(sonde);
+  await new Promise((resolve) => {
+    sonde.addEventListener("toggle", resolve, { once: true });
+    sonde.open = true;
+  });
+  sonde.remove();
+}
+
+test("Beleg prüfen: Zuklappen und Wahl im selben Bild lassen „Weitere Angaben“ offen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gleichzeitig.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Nantes SARL") }]);
+  await expect(page.getByText("gleichzeitig.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gleichzeitig\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
+  // Das Ereignis des Aufklappens ist durch: der Zustand der Seite ist „offen“
+  await page.evaluate(toggleAbwarten);
+  // Der Browser meldet das Zuklappen erst mit einem späteren toggle-Ereignis: Wer im selben Bild den Erwerb wählt, braucht
+  // das Feld offen. Jedes toggle-Ereignis des Bereichs hält fest, ob er danach offen ist
+  await page.evaluate(() => {
+    const details = document.querySelector<HTMLDetailsElement>("details.weitere-angaben")!;
+    const offen: boolean[] = [];
+    (window as unknown as { toggleOffen: boolean[] }).toggleOffen = offen;
+    details.addEventListener("toggle", () => offen.push(details.open));
+    const frage = [...document.querySelectorAll("select")].find((el) => el.closest(".field")?.textContent?.startsWith("Wer schuldet"))!;
+    details.querySelector("summary")!.click();
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(frage, "ig_erwerb");
+    frage.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(toggleAbwarten);
+  // Kein Ereignis hat ihn zugeklappt, und er steht offen
+  expect(await page.evaluate(() => (window as unknown as { toggleOffen: boolean[] }).toggleOffen)).not.toContain(false);
+  await expect(bereich).toHaveJSProperty("open", true);
+  // Mit der Tastatur: Enter klappt zu, Leertaste auf
+  await bereich.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.keyboard.press("Space");
+  await expect(bereich).toHaveJSProperty("open", true);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
 });
 
 test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {

@@ -4,6 +4,15 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { userMessage, UserError } from "./errors.ts";
 
+describe("UserError", () => {
+  it("nennt die Felder, an denen der Fehler liegt, und behält die Ursache", () => {
+    const cause = new Error("Ursache");
+    const error = new UserError("Kurs prüfen", { felder: ["exchangeRate"], cause });
+    expect(error).toMatchObject({ message: "Kurs prüfen", felder: ["exchangeRate"], cause });
+    expect(new UserError("Ohne Feld").felder).toEqual([]);
+  });
+});
+
 describe("userMessage", () => {
   it("gibt Fachfehler der Dienste und Pakete mit ihrer Meldung weiter", () => {
     class BankError extends UserError {}

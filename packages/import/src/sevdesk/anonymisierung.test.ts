@@ -102,6 +102,15 @@ const FELDER: Record<string, Set<string>> = {
   entryText: new Set(["SEPA Gutschrift (EinzelbuchungHaben)"]),
 };
 
+/** Bezeichnungen der Steuerarten, die sevDesk jedem Konto anlegt (GET /TaxSet, Version 2.0); eigene bleiben `<anon>` */
+const STEUERARTEN_SEVDESK = mit(
+  "Ausfuhren",
+  "Steuerfreie Umsätze §4 UStG",
+  "Reverse Charge gem. §13b UStG",
+  "Innergemeinschaftliche Lieferungen 7%",
+  "Innergemeinschaftliche Lieferungen 19%",
+);
+
 /** Bei diesen Objekten ist `name` ein Name aus dem Kontenrahmen von sevDesk und bleibt */
 const NAME_FREI = new Set(["AccountingType", "AccountDatev", "AccountCategory", "AccountDatevCategory", "AccountingChart", "TaxRule", "Category", "Unity"]);
 
@@ -124,7 +133,14 @@ function pruefeJson(datei: string, wert: unknown): string[] {
     if (inhalt && typeof inhalt === "object") return pruefeJson(datei, inhalt);
     if (inhalt === null || inhalt === "") return [];
     if (feld === "reportingValues") return platzhalterKennzahlen(inhalt) ? [] : [`${datei}: ${feld} = ${String(inhalt)}`];
-    const erlaubt = feld === "name" ? (NAME_FREI.has(String(objekt.objectName)) ? null : nurAnon) : FELDER[feld];
+    const erlaubt =
+      feld === "name"
+        ? NAME_FREI.has(String(objekt.objectName))
+          ? null
+          : nurAnon
+        : feld === "text" && objekt.objectName === "TaxSet"
+          ? STEUERARTEN_SEVDESK
+          : FELDER[feld];
     return erlaubt && !(typeof inhalt === "string" && erlaubt.has(inhalt)) ? [`${datei}: ${feld} = ${String(inhalt)}`] : [];
   });
 }
@@ -167,6 +183,8 @@ const BELEGNUMMERN_2_0 = [
   "-XX-XXX-11-11111-1111111-11111-11111",
   "XX-1111111117",
   "XX-1111111118",
+  // zweite Runde aus #472 und #1106: Stapel und document.xml mit Beleglinks
+  ...Array.from({ length: 11 }, (_, i) => `XX-11111111${21 + i}`),
 ];
 
 /** Nur in buchhaltung-2.0/extf-buchungsstapel.csv: die Beispielzeilen aus dem Bericht */
@@ -265,6 +283,8 @@ describe("Gegenprobe der Anonymisierungsprüfung mit erfundenen Werten", () => {
   it("meldet einen Namen außerhalb des Kontenrahmens, nicht aber ein Buchungskonto", () => {
     expect(pruefeJson("x.json", { objectName: "InvoicePos", name: "Beratung Mustermann" })).toHaveLength(1);
     expect(pruefeJson("x.json", { objectName: "AccountingType", name: "Wareneingang" })).toEqual([]);
+    expect(pruefeJson("x.json", { objectName: "TaxSet", text: "Ausfuhren" })).toEqual([]);
+    expect(pruefeJson("x.json", { objectName: "TaxSet", text: "Bezüge Erika Mustermann" })).toHaveLength(1);
   });
 
   it("lässt Platzhalter und leere Felder zu und prüft verschachtelt", () => {

@@ -162,8 +162,8 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     }
     // Zahlungsdienstleister nennen die Bestellnummer statt der Rechnungsnummer („Payment for Order #…“). Sie entscheidet,
     // wenn mehrere Rechnungen denselben Betrag haben, und zählt deshalb wie die Referenz einer Überweisung aus Haben.
-    // Nur bei exaktem Betrag: Gebühren, Gebühren-Gutschriften und Karteneinzüge nennen dieselbe Bestellnummer, gehören
-    // aber nicht zur Rechnung (Teilzahlungen gibt es bei Plattformen nicht, der Verkauf kommt in voller Höhe).
+    // Nur bei exaktem Betrag: Gebühren, Gebühren-Gutschriften und der Ausgleich des Guthabens nach einer Erstattung nennen
+    // dieselbe Bestellnummer, gehören aber nicht zur Rechnung (Teilzahlungen gibt es bei Plattformen nicht, der Verkauf kommt in voller Höhe).
     const order = exact ? item.orderReferences?.find((r) => compact(r).length >= 5 && purposeContainsNumber(tx.purpose, r, "alphanumeric")) : undefined;
     if (order) {
       score += 60;

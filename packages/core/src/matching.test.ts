@@ -248,7 +248,7 @@ describe("Bestellnummer im Verwendungszweck", () => {
     expect(suggestMatches(tx("Gebühr · Transaction fee · Order #1000000005", -143), items)).toEqual([]);
   });
 
-  // Fälle wie in einer Etsy-Abrechnung (erfundene Nummern): Dieselbe Bestellnummer steht auch bei Gutschriften und dem Karteneinzug
+  // Fälle wie in einer Etsy-Abrechnung (erfundene Nummern): Dieselbe Bestellnummer steht auch bei Gutschriften und dem Ausgleich nach einer Erstattung
   // einer Erstattung, jeweils mit positivem Betrag und anderem Betrag als die Rechnung.
   const verkauf = (order: string, open: number): OpenItem => ({ ...rechnung("2023-007", "2023-06-14", order), open });
   it("gibt für eine Gebühren-Gutschrift mit positivem Betrag keine Bestellnummer-Punkte", () => {
@@ -256,7 +256,7 @@ describe("Bestellnummer im Verwendungszweck", () => {
     expect(suggestMatches(gutschrift, [verkauf("1000000002", 2050)])).toEqual([]);
   });
 
-  it("gibt für den Karteneinzug einer Erstattung keine Bestellnummer-Punkte", () => {
+  it("gibt für den Ausgleich nach einer Erstattung keine Bestellnummer-Punkte", () => {
     const einzug = tx("Zahlung · Gebühr für Rückerstattung 1000000002", 1950);
     expect(suggestMatches(einzug, [verkauf("1000000002", 2050)])).toEqual([]);
   });

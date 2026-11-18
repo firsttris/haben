@@ -7,7 +7,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("TDD-Review: geänderter Quellstand sperrt nur das eigene Auftrags-PDF (Postgres)", () => {
   let sql: postgres.Sql;
   let sevdesk: typeof import("./sevdesk.ts");
-  let version = "2.0";
+  let version = "3.0";
   const headers: Record<string, string> = { "geaendert-1": "Original", "unveraendert-2": "Original" };
   const calls: string[] = [];
   const source = (id: string) => ({
