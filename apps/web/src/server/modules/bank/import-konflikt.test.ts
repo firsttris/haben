@@ -113,6 +113,16 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
     expect(await umsaetze(iban)).toHaveLength(2);
   });
 
+  it("hält keinen Konflikt fest, wenn der Abruf aus einem anderen Grund abgelehnt wurde (Quelle an einem anderen Konto)", async () => {
+    await abruf("DE91100000000123456789", "hash-5", [buchung("ER-6", "2026-11-15", "20.00")]);
+    // Dieselbe Kennung der Bank kommt mit einem anderen Konto: sourceFor lehnt ab, ehe es zum Abgleich kommt
+    const anderes = "DE27100777770209299700";
+    await sql`insert into bank_accounts (name, iban) values ('Anderes Konto', ${anderes})`;
+    const r = await abruf(anderes, "hash-5", [buchung("ER-6", "2026-11-15", "21.00")]);
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("anderen Konto") });
+    expect((await konflikt.openConflicts()).filter((k) => k.sourceEventId === "ER-6")).toEqual([]);
+  });
+
   it("klärt einen Konflikt nur einmal", async () => {
     const iban = "DE12500105170648489890";
     await abruf(iban, "hash-4", [buchung("ER-5", "2026-11-15", "10.00")]);
