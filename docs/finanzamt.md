@@ -54,6 +54,8 @@ Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die S
 | Gewünschte Vorauszahlung je Quartal | vorbelegt mit einem Viertel der voraussichtlichen Steuer, änderbar |
 | Bisherige Vorauszahlung je Quartal | trägst du ein |
 
+Gewinn bis heute, Hochrechnung, Vorjahr und die Rechnung zur voraussichtlichen Steuer stehen zugeklappt unter **Schätzrechnung**; die Überschrift nennt die Vorauszahlung je Termin. Die Adresse `/finanzamt#schaetzung` öffnet sie.
+
 ### Steuerprognose
 
 Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte für 2024 bis 2026 sind gegen den Programmablaufplan des BMF abgeglichen, die für 2023 folgen dem Gesetzestext. Vom hochgerechneten Gewinn zieht Haben ab:

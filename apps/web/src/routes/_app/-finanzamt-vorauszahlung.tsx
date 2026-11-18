@@ -1,18 +1,14 @@
-import { formatDecimal, formatEuro, gewinnAusPrognose, parseEuro } from "@haben/core";
+import { formatDecimal, parseEuro } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { formatZeitraumAbJahresanfang } from "../../lib/format.ts";
-import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { Field } from "../../components/Field.tsx";
 import { type Basis, type Data, prepaymentLetter } from "./-finanzamt-daten.ts";
 import { MessageForm } from "./-finanzamt-nachrichten.tsx";
+import { Schaetzung } from "./-finanzamt-schaetzung.tsx";
 
 export function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
   const [current, setCurrent] = useState("");
   const p = b.prognose;
-  // Nur der Gewinn ist eine Schätzung für dieses Jahr; Arbeitslohn, Abzüge und Lohnsteuer stammen aus der letzten
-  // Veranlagung. Ohne Jahr an der Zeile liest sich der Block wie eine Rechnung für b.year.
-  const ausAngaben = b.angabenAus !== null && b.angabenAus < b.year ? ` (Angaben ${b.angabenAus})` : "";
   const [wanted, setWanted] = useState(p.jeQuartal > 0 ? formatDecimal(p.jeQuartal) : "");
   const [reason, setReason] = useState("");
   const [usePrognose, setUsePrognose] = useState(true);
@@ -29,79 +25,7 @@ export function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis })
           formlos eine Herabsetzung beantragen. Haben schreibt den Antrag mit den Zahlen aus deiner EÜR; du prüfst den Text und schickst ihn als Nachricht an
           dein Finanzamt.
         </p>
-        <ScrollTable className="report-table">
-          <tbody>
-            <tr>
-              <th scope="row">Gewinn {formatZeitraumAbJahresanfang(b.until)} (laufend)</th>
-              <td className="num">{formatEuro(b.profitSoFar)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Hochgerechnet auf {b.year}</th>
-              <td className="num">{formatEuro(b.profitForecast)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Gewinn {b.year - 1}</th>
-              <td className="num">{formatEuro(b.profitLastYear)}</td>
-            </tr>
-          </tbody>
-        </ScrollTable>
-        <h3 style={{ margin: "8px 0 0", fontSize: "1rem" }}>Voraussichtliche Steuer {b.year}</h3>
-        <ScrollTable className="report-table">
-          <tbody>
-            <tr>
-              <th scope="row">Hochgerechneter Gewinn</th>
-              <td className="num">{formatEuro(gewinnAusPrognose(p))}</td>
-            </tr>
-            {p.erstattungsueberhang > 0 && (
-              <tr>
-                <th scope="row">Erstattungsüberhang (§ 10 Abs. 4b Satz 3 EStG){ausAngaben}</th>
-                <td className="num">{formatEuro(p.erstattungsueberhang)}</td>
-              </tr>
-            )}
-            {p.einkuenfteArbeit !== 0 && (
-              <tr>
-                <th scope="row">Arbeitslohn nach Werbungskosten{ausAngaben}</th>
-                <td className="num">{formatEuro(p.einkuenfteArbeit)}</td>
-              </tr>
-            )}
-            <tr>
-              <th scope="row">Vorsorge, Sonderausgaben, Kinderbetreuung, Belastungen{ausAngaben}</th>
-              <td className="num">−{formatEuro(p.vorsorge + p.sonderausgaben + p.kinderbetreuung + p.aussergewoehnlich)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Zu versteuerndes Einkommen{p.kinderfreibetrag ? " (mit Kinderfreibeträgen)" : ""}</th>
-              <td className="num">{formatEuro(p.zvE)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Einkommensteuer</th>
-              <td className="num">{formatEuro(p.einkommensteuer)}</td>
-            </tr>
-            {p.soli > 0 && (
-              <tr>
-                <th scope="row">Solidaritätszuschlag</th>
-                <td className="num">{formatEuro(p.soli)}</td>
-              </tr>
-            )}
-            {p.kirchensteuer > 0 && (
-              <tr>
-                <th scope="row">Kirchensteuer</th>
-                <td className="num">{formatEuro(p.kirchensteuer)}</td>
-              </tr>
-            )}
-            {p.steuerabzug > 0 && (
-              <tr>
-                <th scope="row">Lohnsteuer, angerechnet{ausAngaben}</th>
-                <td className="num">−{formatEuro(p.steuerabzug)}</td>
-              </tr>
-            )}
-            <tr style={{ fontWeight: 600 }}>
-              <th scope="row" style={{ fontWeight: 600 }}>
-                Je Vorauszahlungstermin (ein Viertel)
-              </th>
-              <td className="num">{formatEuro(p.jeQuartal)}</td>
-            </tr>
-          </tbody>
-        </ScrollTable>
+        <Schaetzung basis={b} />
         <p className="small muted" style={{ margin: 0 }}>
           {b.angabenAus === null
             ? "Ohne gespeicherte Angaben zur Einkommensteuer (Vorsorge, Kinder …) rechnet Haben nur mit dem Sonderausgaben-Pauschbetrag. "
