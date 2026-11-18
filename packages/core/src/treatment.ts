@@ -1,5 +1,5 @@
 import type { BasisPoints } from "./money.ts";
-import { normalizeUstId, ustIdProblem } from "./zm.ts";
+import { normalizeUstId, ustIdAufbauProblem, ustIdProblem } from "./zm.ts";
 
 /**
  * Umsatzsteuerliche Behandlung einer Ausgangsrechnung. Außer „regulaer“ stehen alle Positionen
@@ -131,12 +131,13 @@ export function treatmentIssues(
   }
   if (treatment === "ig_lieferung") {
     // § 14a Abs. 3 UStG: auf der Rechnung die USt-IdNr. von Lieferer und Abnehmer; § 6a Abs. 1 Satz 1 Nr. 4: der Abnehmer
-    // verwendet eine ihm von einem anderen Mitgliedstaat erteilte USt-IdNr. Geprüft wie in der Zusammenfassenden Meldung.
+    // verwendet eine ihm von einem anderen Mitgliedstaat erteilte USt-IdNr. Geprüft wie in der Zusammenfassenden Meldung, dazu
+    // der Aufbau je Mitgliedstaat (#1413): Nach dem Festschreiben ließe sich die Nummer nicht mehr berichtigen.
     if (!input.sellerUstId?.trim()) issues.push("Innergemeinschaftliche Lieferung braucht deine USt-IdNr. in den Firmendaten (§ 14a Abs. 3 UStG)");
     const buyerUstId = normalizeUstId(input.buyerUstId ?? "");
     if (!buyerUstId) issues.push("Innergemeinschaftliche Lieferung braucht die USt-IdNr. des Kunden (§ 6a Abs. 1 Nr. 4 UStG)");
     else {
-      const problem = ustIdProblem(buyerUstId, "L");
+      const problem = ustIdProblem(buyerUstId, "L") ?? ustIdAufbauProblem(buyerUstId);
       if (problem) issues.push(problem);
     }
     // Nordirland gehört für Waren weiter zum Gemeinschaftsgebiet (XI-Nummer bei Ländercode GB)

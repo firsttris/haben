@@ -86,23 +86,35 @@ export function normalizeUstId(raw: string): string {
   return compact.startsWith("GR") ? `EL${compact.slice(2)}` : compact;
 }
 
+const aufbauDes = (land: string) => (Object.hasOwn(AUFBAU, land) ? AUFBAU[land] : undefined);
+
 /**
  * Formale Prüfung der USt-IdNr. eines Kunden für die Meldung, wie ERiC sie vornimmt: Länderkennzeichen eines anderen
  * Mitgliedstaats, danach nur Buchstaben, Ziffern, + und *, zusammen 7 bis 14 Zeichen (Schema knre_Type und Mindestlänge im
- * Plugin); nordirische Nummern nur für Lieferungen. Dazu der Aufbau je Land, damit ein Tippfehler nicht erst beim BZSt
- * auffällt (#1413). Ob die Nummer erteilt ist, sagt erst die Bestätigungsabfrage beim BZSt.
+ * Plugin); nordirische Nummern nur für Lieferungen. Ob die Nummer erteilt ist, sagt erst die Bestätigungsabfrage beim BZSt.
  */
 export function ustIdProblem(ustId: string, art: ZmArt): string | null {
   if (!ustId) return "USt-IdNr. des Kunden fehlt";
   const land = ustId.slice(0, 2);
   if (land === "DE") return `${ustId}: eine deutsche USt-IdNr. gehört nicht in die Zusammenfassende Meldung`;
   if (land === "GB") return `${ustId}: britische USt-IdNr. gelten seit dem Brexit nicht mehr; für Nordirland XI`;
-  const aufbau = Object.hasOwn(AUFBAU, land) ? AUFBAU[land] : undefined;
-  if (!aufbau) return `${ustId}: kein Länderkennzeichen eines anderen EU-Mitgliedstaats`;
+  if (!aufbauDes(land)) return `${ustId}: kein Länderkennzeichen eines anderen EU-Mitgliedstaats`;
   if (!/^[A-Z]{2}[A-Z0-9+*]{5,12}$/.test(ustId)) return `${ustId}: nach dem Länderkennzeichen 5 bis 12 Buchstaben, Ziffern, + oder *`;
-  if (!aufbau.muster.test(ustId.slice(2))) return `${ustId}: eine USt-IdNr. aus ${aufbau.aus} hat nach ${land} ${aufbau.form}`;
   if (land === "XI" && art !== "L") return `${ustId}: nordirische USt-IdNr. nur bei Lieferungen, nicht bei sonstigen Leistungen`;
   return null;
+}
+
+/**
+ * Aufbau der Stellen nach dem Länderkennzeichen (#1413), damit ein Tippfehler nicht erst beim BZSt auffällt; ein fehlendes
+ * oder fremdes Kennzeichen meldet ustIdProblem. Sperrt das Buchen eines Erwerbs und das Festschreiben einer Lieferung, wo
+ * sich die Nummer noch berichtigen lässt. In der ZM nur ein Hinweis: Dort stehen festgeschriebene Rechnungen, und eine
+ * schon gemeldete Nummer muss sich zurücknehmen lassen.
+ */
+export function ustIdAufbauProblem(ustId: string): string | null {
+  const land = ustId.slice(0, 2);
+  const aufbau = aufbauDes(land);
+  if (!aufbau || aufbau.muster.test(ustId.slice(2))) return null;
+  return `${ustId}: eine USt-IdNr. aus ${aufbau.aus} hat nach ${land} ${aufbau.form}`;
 }
 
 /**

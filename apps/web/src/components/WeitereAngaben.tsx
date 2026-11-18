@@ -1,4 +1,4 @@
-import { normalizeUstId, ustIdProblem } from "@haben/core";
+import { normalizeUstId, ustIdAufbauProblem, ustIdProblem } from "@haben/core";
 import type { ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import type { BookingIssue } from "../server/modules/belege/index.ts";
@@ -35,7 +35,7 @@ export const inWeitereAngaben = (feld: string | undefined): feld is WeitereAngab
  */
 export const isEuVatId = (text: string) => {
   const ustId = normalizeUstId(text);
-  return !ustId.startsWith("XI") && ustIdProblem(ustId, "L") === null;
+  return !ustId.startsWith("XI") && (ustIdProblem(ustId, "L") ?? ustIdAufbauProblem(ustId)) === null;
 };
 
 /** Wie das Schema des Servers (`documentInputSchema`): ein Leistungsende vor dem Beginn lehnt er ab */
