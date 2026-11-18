@@ -6,7 +6,8 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * GWG über einen Beleg der Kategorie „Anlagegut“ (#1397): Der Beleg bucht auf das GWG-Konto (SKR03 0480, SKR04 0670), das
  * bei einem Beleg der Kategorie „Hardware“ Aufwand ist, bei einer Anlage aber Anlagevermögen. In der EÜR zählt nur die
  * Sofortabschreibung (§ 6 Abs. 2 EStG), sonst stünde das GWG doppelt da. Privat bezahlt hat der Beleg keinen offenen Posten
- * und zählt mit seinen eigenen Zeilen, über die Bank erst mit der Zahlung.
+ * und zählt mit seinen eigenen Zeilen, über die Bank erst mit der Zahlung. Die gezahlte Vorsteuer bleibt Betriebsausgabe
+ * (Anlage EÜR, „Gezahlte Vorsteuerbeträge“); ohne Vorsteuerabzug gehört sie zu den Anschaffungskosten (§ 9b Abs. 1 EStG).
  */
 
 function dkbCsv(rows: string[][]) {
@@ -68,7 +69,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR: GWG über einen Beleg der Kategorie Anl
     return id;
   }
 
-  const ausgaben = async () => (await reports.euerForYear(2026)).ausgaben.filter((l) => l.amount !== 0 && l.key !== "vorsteuer").map((l) => [l.key, l.amount]);
+  const ausgaben = async () => (await reports.euerForYear(2026)).ausgaben.filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]);
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const)
     for (const versteuerung of ["ist", "soll"] as const) {
@@ -76,7 +77,10 @@ describe.skipIf(!testDatabaseUrl)("EÜR: GWG über einen Beleg der Kategorie Anl
         await reset(versteuerung, kontenrahmen, false);
         await gwgBeleg("privat");
         await assets.bookDepreciation(actor, 2026, "2026-12-31");
-        expect(await ausgaben()).toEqual([["gwg", 40_000]]);
+        expect(await ausgaben()).toEqual([
+          ["gwg", 40_000],
+          ["vorsteuer", 7_600],
+        ]);
         expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
       }, 60_000);
 
@@ -94,7 +98,10 @@ describe.skipIf(!testDatabaseUrl)("EÜR: GWG über einen Beleg der Kategorie Anl
         const [t] = await sql<{ id: string; amount: number }[]>`select id, amount from bank_transactions`;
         await bank.allocate(actor, { kind: "document", transactionId: t!.id, documentId: id, amount: t!.amount });
         await assets.bookDepreciation(actor, 2026, "2026-12-31");
-        expect(await ausgaben()).toEqual([["gwg", 40_000]]);
+        expect(await ausgaben()).toEqual([
+          ["gwg", 40_000],
+          ["vorsteuer", 7_600],
+        ]);
         expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
       }, 60_000);
     }
