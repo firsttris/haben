@@ -77,4 +77,28 @@ describe("Steuerabgleich des Etsy-Abrufs", () => {
     expect(summe(neu)).toBe(-145);
     expect(neu.every((t) => t.type === "Umsatzsteuer")).toBe(true);
   });
+
+  it("erkennt schon verrechnete Steuer auch bei mehr als 16 offenen Steuerzeilen am genauen Betrag", () => {
+    const bestellung = "1000000111";
+    const zeit = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+    // Früher mit dem Verkauf verrechnet: −1,00 €; dazu nachgetragen 16 Zeilen über je −0,01 €
+    const bekannt = new Map([["160", { order: bestellung, verrechnet: -100 }]]);
+    const nachgetragen: EtsyLedgerEntry[] = Array.from({ length: 16 }, (_, i) => ({
+      entry_id: 200 + i,
+      amount: -1,
+      currency: "EUR",
+      ledger_type: "sales_tax",
+      reference_id: bestellung,
+      created_timestamp: zeit("2023-06-13T14:00:00Z"),
+    }));
+    const entries: EtsyLedgerEntry[] = [
+      { entry_id: 160, amount: 2495, currency: "EUR", ledger_type: "PAYMENT_GROSS", reference_id: "P1", created_timestamp: zeit("2023-06-13T10:00:00Z") },
+      { entry_id: 161, amount: -100, currency: "EUR", ledger_type: "sales_tax", reference_id: bestellung, created_timestamp: zeit("2023-06-13T10:00:00Z") },
+      ...nachgetragen,
+    ];
+
+    const statement = parseEtsyLedger(entries, { orderFor: () => bestellung, bekannt });
+
+    expect(summe(statement.transactions.filter((t) => t.bankReference !== "etsy-160"))).toBe(-16);
+  });
 });
