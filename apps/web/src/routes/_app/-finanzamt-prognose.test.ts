@@ -21,7 +21,7 @@ import { Route } from "./finanzamt.tsx";
 
 const JAHR = 2026;
 
-/** Erstattungsüberhang gesetzt, damit die Zeile erscheint, um die es geht */
+/** Alle Zeilen der Tabelle gefüllt: Erstattungsüberhang, Arbeitslohn und Lohnsteuer erscheinen nur über null. */
 const prognose = {
   year: JAHR,
   einkuenfteArbeit: 4_200_00,
@@ -44,8 +44,11 @@ const prognose = {
   jeQuartal: 150_00,
 };
 
-/** `angabenAus`: Jahr der Angaben zur Einkommensteuer, auf denen die Prognose beruht; null = keine gespeichert */
-function fixture(angabenAus: number | null) {
+/**
+ * `angabenAus` ist das Jahr der Angaben zur Einkommensteuer, auf denen die Prognose beruht; null = keine gespeichert.
+ * `aenderung` überschreibt einzelne Beträge der Prognose (etwa `einkuenfteArbeit: 0` für Freiberufler ohne Lohn).
+ */
+function fixture(angabenAus: number | null, aenderung: Partial<typeof prognose> = {}) {
   return {
     company: { name: "Beispielfirma", finanzamt: "Finanzamt Musterstadt", steuernummer: "000/000/00000", iban: "DE00 0000 0000 0000 0000 00" },
     taxAccount: null,
@@ -64,7 +67,7 @@ function fixture(angabenAus: number | null) {
       profitForecast: 6_000_00,
       profitLastYear: 5_000_00,
       einkunftsart: "selbstaendig" as const,
-      prognose,
+      prognose: { ...prognose, ...aenderung },
       angabenAus,
       priorBenefitsOmitted: false,
     },
@@ -77,19 +80,61 @@ function fixture(angabenAus: number | null) {
 }
 
 const render = () => renderToStaticMarkup(createElement(Route.options.component as ComponentType));
+/** Wie oft der Zusatz „ (Angaben <jahr>)“ im gerenderten HTML steht */
+const zusatz = (html: string, jahr: number) => html.split(` (Angaben ${jahr})`).length - 1;
 const HINWEIS =
   "Zur Kirchensteuer in deinen Angaben gehört auch die einbehaltene Lohnkirchensteuer (in der Lohnsteuerbescheinigung Nr. 6 und 7, bei sonstigen Bezügen Nr. 13 und 14)";
 
-describe("Finanzamt: Hinweis zur Lohnkirchensteuer bei übernommenen Angaben (#1451)", () => {
+describe("Finanzamt: Voraussichtliche Steuer nennt das Jahr der Angaben (#1449)", () => {
   beforeEach(() => {
     state.data = fixture(JAHR - 1);
   });
 
-  it("Angaben aus dem Vorjahr: der Hinweis nennt die Lohnkirchensteuer und den Überhang", () => {
+  it("Angaben aus einem früheren Jahr: die vier übernommenen Zeilen tragen das Jahr, der Gewinn nicht", () => {
+    state.data = fixture(2025);
+    const html = render();
+    expect(zusatz(html, 2025)).toBe(4);
+    expect(html).toContain('<th scope="row">Erstattungsüberhang (§ 10 Abs. 4b Satz 3 EStG) (Angaben 2025)</th>');
+    expect(html).toContain('<th scope="row">Arbeitslohn nach Werbungskosten (Angaben 2025)</th>');
+    expect(html).toContain('<th scope="row">Vorsorge, Sonderausgaben, Kinderbetreuung, Belastungen (Angaben 2025)</th>');
+    expect(html).toContain('<th scope="row">Lohnsteuer, angerechnet (Angaben 2025)</th>');
+    expect(html).toContain('<th scope="row">Hochgerechneter Gewinn</th>');
+  });
+
+  it("Angaben aus dem laufenden Jahr: kein Zusatz", () => {
+    state.data = fixture(JAHR);
+    const html = render();
+    expect(zusatz(html, JAHR)).toBe(0);
+    expect(html).not.toContain(" (Angaben ");
+    expect(html).toContain('<th scope="row">Arbeitslohn nach Werbungskosten</th>');
+  });
+
+  it("keine Angaben gespeichert: kein Zusatz, die Fußzeile bleibt wie sie ist", () => {
+    state.data = fixture(null);
+    const html = render();
+    expect(html).not.toContain(" (Angaben ");
+    expect(html).toContain("Ohne gespeicherte Angaben zur Einkommensteuer (Vorsorge, Kinder …) rechnet Haben nur mit dem Sonderausgaben-Pauschbetrag.");
+  });
+});
+
+describe("Finanzamt: Hinweis zur Lohnkirchensteuer unter der Prognose (#1451)", () => {
+  beforeEach(() => {
+    state.data = fixture(JAHR - 1);
+  });
+
+  it("Angaben aus dem Vorjahr mit Arbeitslohn: der Hinweis nennt die Lohnkirchensteuer und den Überhang", () => {
     state.data = fixture(JAHR - 1);
     const html = render();
     expect(html).toContain(HINWEIS);
     expect(html).toContain("§ 10 Abs. 4b Satz 3 EStG");
+  });
+
+  it("Angaben aus dem Vorjahr ohne Arbeitslohn: kein Hinweis, Lohnkirchensteuer gibt es dort nicht", () => {
+    state.data = fixture(JAHR - 1, { einkuenfteArbeit: 0 });
+    const html = render();
+    expect(html).not.toContain("Lohnkirchensteuer");
+    // Die Prognose übernimmt die Angaben trotzdem; der Jahres-Zusatz bleibt an den übrigen Zeilen
+    expect(zusatz(html, JAHR - 1)).toBe(3);
   });
 
   it("Angaben aus dem laufenden Jahr: kein Hinweis, sie werden nicht übernommen", () => {
