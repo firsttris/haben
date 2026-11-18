@@ -22,16 +22,7 @@
   "apps/web/src/server/modules/rechnungen/invoices.ts",
   "apps/web/src/server/modules/rechnungen/quotes.ts",
   "apps/web/src/server/modules/umsatzsteuer/vat-figures.ts",
-  "packages/core/src/ebilanz.ts",
-  "packages/core/src/euer.ts",
-  "packages/core/src/hgb.ts",
-  "packages/core/src/matching.ts",
-  "packages/core/src/posting.ts",
   "packages/einvoice/src/incoming.ts",
-  "packages/einvoice/src/xml.ts",
-  "packages/elster/src/erklaerung.ts",
-  "packages/elster/src/est.ts",
-  "packages/import/src/datev.ts",
   "packages/import/src/lexoffice/client.ts",
   "packages/import/src/sevdesk/client.ts"
 ]

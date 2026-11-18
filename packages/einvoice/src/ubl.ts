@@ -2,7 +2,7 @@ import type { Invoice } from "./modell.ts";
 import { el, txt, type XmlElement, xmlDocument } from "./xml-baum.ts";
 
 /*
- * UBL 2.1 (Invoice und CreditNote) für XRechnung UBL, aus dem Rechnungsmodell von toEInvoiceData in xml.ts. Dessen
+ * UBL 2.1 (Invoice und CreditNote) für XRechnung UBL, aus dem Rechnungsmodell von toEInvoiceData in daten.ts. Dessen
  * Schlüssel sind schon die Namen der UBL-Elemente, Attribute stehen als „Element@Attribut“. Die Reihenfolge der Kinder
  * folgt dem Schema (UBL-Invoice-2.1.xsd, UBL-CreditNote-2.1.xsd, UBL-CommonAggregateComponents-2.1.xsd) für die
  * Elemente, die Haben schreibt; ein Schlüssel ohne Platz in ORDER ist ein Fehler.

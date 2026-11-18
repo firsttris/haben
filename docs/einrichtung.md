@@ -276,7 +276,7 @@ Einige Beispiele:
 | Verbindlichkeiten | 1600 | 3300 |
 | Bank (alle Bankkonten) | 1200 | 1800 |
 
-Die vollständige Zuordnung, auch die Aufwandskonten der Belegkategorien, steht in `packages/core/src/posting.ts` und ist in [Buchhaltung](buchhaltung.md) beschrieben.
+Die vollständige Zuordnung, auch die Aufwandskonten der Belegkategorien, steht in `packages/core/src/kontenplan.ts` und ist in [Buchhaltung](buchhaltung.md) beschrieben.
 
 > [!NOTE]
 > Der Code selbst merkt an, dass die Kontenzuordnung vor dem Echtbetrieb mit der Steuerberatung abgeglichen werden sollte. Das gilt besonders für die Aufwandskonten der Belegkategorien.
