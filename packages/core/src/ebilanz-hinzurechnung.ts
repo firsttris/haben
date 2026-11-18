@@ -11,8 +11,9 @@ import type { Kontenrahmen } from "./posting.ts";
  * bei den übrigen Zinsaufwendungen (`expenses.assoc` ist ein Davon-Vermerk außerhalb der Rechenregeln). Miete, Pacht und
  * Lizenzen als Fremdleistungen bleiben bei den bezogenen Leistungen wie die Kategorie Fremdleistungen in ebilanz.ts; eine
  * eigene Position für Miete hat die Taxonomie dort nicht. Zinsen und Miete an Gesellschafter (nur Kennzeichen K) stehen auf
- * den Positionen, die die Taxonomie für Kapitalgesellschaften vorsieht (label-guidance-de 6.9 und 6.10: „Betrifft nur
- * Kapitalgesellschaften“ bzw. „Miet- und Pachtzahlungen an Gesellschafter von Kapitalgesellschaften“). Miete unbeweglich
+ * den Positionen für Gesellschafter von Kapitalgesellschaften, denn „übrige Miete und Pacht“ gilt nur, „soweit nicht an
+ * Mitunternehmer oder Gesellschafter zu entrichten“ (label-guidance-de 6.9 und 6.10; zu `PartnersLoans` „Betrifft nur
+ * Kapitalgesellschaften“). Miete unbeweglich
  * (4210/6310) und Kfz-Leasing (4570/6560) stehen bei den Kategorien in ebilanz.ts, die übrigen Zinsen beim Darlehen. Ein
  * Konto, das koerperschaft.ts neu hinzurechnet, braucht hier oder in ebilanz.ts eine Position (ebilanz.test.ts).
  */

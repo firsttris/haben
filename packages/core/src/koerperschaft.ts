@@ -81,8 +81,8 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
  * dabei sind die Zinsen nach §§ 233a bis 237 AO, Abschreibungen auf ein Disagio, Vergütungen an Mitunternehmer und
  * Aufwendungen nach §§ 3 Nr. 40, 3c EStG bzw. § 8b KStG (etwa 2115, 2116 / 7350, 7351, Fußnote 9).
  *
- * Zinsen und Miete an Gesellschafter tragen nur das Kennzeichen K, weil DATEV die Gewerbesteuer der Körperschaften im
- * Programm Körperschaftsteuer rechnet („Erläuterungen zur Kennzeichnung“). Sie gehören trotzdem dazu: § 8 Nr. 1 a, d und e
+ * Zinsen und Miete an Gesellschafter tragen nur das Kennzeichen K, kein G (die Gewerbesteuer der Körperschaften rechnet
+ * DATEV im Programm Körperschaftsteuer, „Erläuterungen zur Kennzeichnung“). Sie gehören trotzdem dazu: § 8 Nr. 1 a, d und e
  * fragt nicht, wer Gläubiger oder Vermieter ist, und die Ausnahme für Mitunternehmer gibt es bei der GmbH nicht (#1346).
  */
 export type HinzurechnungArt = "zinsen" | "renten" | "beweglich" | "elektro" | "unbeweglich" | "rechte";
