@@ -78,6 +78,9 @@ describe.skipIf(!testDatabaseUrl)("Abrufverlauf über mehrere Tage, #306 (Postgr
   it("verbindet, ruft ab, wiederholt ohne Dublette, übergeht Storniertes und hält das Konto bei einem Konflikt an", async () => {
     amTag(t0);
     await sync.startConnection("test", { aspspName: "Testbank", country: "DE", psuType: "business", fetchFrom: tag(t0, -20) });
+    // created_at setzt die Datenbank mit echter Zeit, die Gültigkeit der Rückleitung prüft completeConnection mit der
+    // Testuhr; ohne Angleichen wäre der Test je nach Tageszeit rot
+    await sql`update bank_connections set created_at = ${new Date().toISOString()}::timestamptz where status = 'wartet'`;
     const [pending] = await sql`select state from bank_connections where status = 'wartet'`;
     expect(await sync.completeConnection("test", { state: pending!.state, code: "c" })).toMatchObject({ ok: true });
     const [connection] = await sync.listConnections();

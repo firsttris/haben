@@ -28,3 +28,20 @@ export function withFrameAncestors(response: Response, pathname = ""): Response 
   else copy.headers.set("Content-Security-Policy", FRAME_ANCESTORS);
   return copy;
 }
+
+/**
+ * Cache-Control der App für Antworten ohne eigenen. Seiten, `/_serverFn` und `/api` hängen vom Sitzungs-Cookie ab;
+ * ohne Header dürfte ein geteilter Cache (CDN mit „Cache Everything“, `proxy_cache`, Varnish) sie speichern und an
+ * andere ausliefern. `no-store` statt `no-cache` wie bei den Dateien (file-response.ts): Der Browser legt
+ * Buchhaltungsdaten auch nicht auf die Platte, und nach dem Abmelden zeigt „Zurück“ keine Seite aus dem bfcache.
+ * Antworten, die gecacht werden sollen, setzen den Header selbst (`/api/kennzeichen`); `/assets/**` und die Dateien aus
+ * `public/` liefert Nitro vor dieser Middleware aus (routeRules in vite.config.ts).
+ */
+export const NO_STORE = "private, no-store";
+
+export function withCacheControl(response: Response): Response {
+  if (response.headers.has("cache-control")) return response;
+  const copy = new Response(response.body, response);
+  copy.headers.set("Cache-Control", NO_STORE);
+  return copy;
+}

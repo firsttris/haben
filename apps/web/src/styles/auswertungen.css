@@ -168,6 +168,12 @@
 .jump-nav { position: sticky; top: var(--below-head); z-index: 5; display: flex; gap: 4px; flex-wrap: wrap; padding: 8px 0; background: var(--ground); border-bottom: 1px solid var(--line); }
 .jump-nav a { padding: 6px 12px; border-radius: 16px; color: var(--ink-2); text-decoration: none; font-size: 13px; font-weight: 500; }
 .jump-nav a:hover { background: var(--accent-tint); color: var(--ink); }
+/* Jahreserklärung: die drei Erklärungen in der Reihenfolge, in der sie anstehen */
+.reihenfolge { display: grid; gap: 12px; margin: 0; padding-left: 24px; }
+.reihenfolge li::marker { color: var(--muted); font-weight: 600; }
+.reihenfolge-zeile { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.reihenfolge-text { display: flex; flex: 1 1 320px; flex-direction: column; gap: 2px; }
+.reihenfolge-text > a { font-weight: 600; }
 /* Zusätzlich zu scroll-padding-top (styles.css): Platz für die Sprungleiste unter dem Kopf */
 .jump-target { scroll-margin-top: 56px; }
 .est-block { border: 1px solid var(--line); border-radius: 10px; padding: 0 16px; }
