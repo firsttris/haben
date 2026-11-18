@@ -47,8 +47,19 @@ export function customTaxSetId(t: string) {
     then ${t}.raw->'taxSet'->>'id' end`)}`;
 }
 
+/**
+ * Ausgaben mit Steuerregel aus Update 2.0 (https://api.sevdesk.de/openapi.yaml, „VAT rules … (Expense)“), Kennzahlen
+ * nach dem Vordruck USt 1 A 2026, Steuer 19 % auf das Netto wie sevDesk („0% (19%)“): 12 „Reverse Charge gem. §13b Abs. 2 UStG
+ * mit Vorsteuerabzug“ Kz 84, 85 und 67; 14 „Reverse Charge gem. §13b Abs. 1 EU Umsätze“ Kz 46, 47 und 67 (Vordruck
+ * USt 1 A 2026). Offen: 8 (innergemeinschaftlicher Erwerb, Satz je Position) und 13 (ohne Vorsteuerabzug, Absatz unklar).
+ */
+const RULE_FIELDS: Record<string, LegacyVatFields> = {
+  "sevdesk:taxRule12": { rate: 1900, net: "84", tax: ["85", "67"] },
+  "sevdesk:taxRule14": { rate: 1900, net: "46", tax: ["47", "67"] },
+};
+
 /** Kennzahlen der eigenen Steuerart: undefined ohne eigene Steuerart, null, wenn sie nicht abgerufen ist */
-export function vatFieldsOf(taxSetId: string | null, taxSets: Map<string, LegacyVatFields>): LegacyVatFields | null | undefined {
-  if (taxSetId === null) return undefined;
+export function vatFieldsOf(taxSetId: string | null, taxSets: Map<string, LegacyVatFields>, taxType?: string | null): LegacyVatFields | null | undefined {
+  if (taxSetId === null) return (taxType && RULE_FIELDS[taxType]) || undefined;
   return taxSets.get(taxSetId) ?? null;
 }
