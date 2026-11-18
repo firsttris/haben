@@ -8,12 +8,12 @@ import { db, schema } from "../../db/index.ts";
 import { DocumentError, uploadDocument } from "./documents.ts";
 import { normalizeSenders, senderAllowed } from "./inbox-absender.ts";
 import { MAX_MAIL_SIZE } from "../../grenzen.ts";
-import { type Connector, imapConnect, InboxError } from "./inbox-imap.ts";
+import { type Connector, imapConnect, type InboxConnection, InboxError } from "./inbox-imap.ts";
 
 /**
  * Belege per E-Mail: Haben ruft ein Postfach über IMAP ab, legt die Anhänge ungelesener Mails als
  * Belege ab (E-Rechnungen gelesen, sonst KI-Auslesung wie beim Hochladen) und markiert die Mail
- * danach als gelesen. Jede Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll.
+ * danach als gelesen, verschiebt sie in einen Ordner oder löscht sie, je nach Einstellung. Jede Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll.
  */
 
 export { InboxError };
@@ -59,8 +59,28 @@ export const inboxSettingsSchema = z
       .default([])
       .transform(normalizeSenders)
       .refine((list) => list.every((entry) => /^[^\s,;<>]+$/.test(entry)), "Je Eintrag eine Adresse oder Domain ohne Leerzeichen"),
+    /** Was nach dem Ablegen mit der Mail im Postfach geschieht */
+    afterFetch: z.enum(["seen", "move", "delete"]).default("seen"),
+    /** Zielordner bei „move“ */
+    archiveFolder: z
+      .string()
+      .trim()
+      .max(200)
+      .nullish()
+      .transform((value) => value || null),
     enabled: z.boolean().default(true),
   })
+  .refine((s) => s.afterFetch !== "move" || !!s.archiveFolder, {
+    path: ["archiveFolder"],
+    message: "Zielordner fehlt",
+  })
+  .refine(
+    (s) => s.afterFetch !== "move" || !s.archiveFolder || ![s.folder, s.outboundFolder].some((f) => f?.toLowerCase() === s.archiveFolder?.toLowerCase()),
+    {
+      path: ["archiveFolder"],
+      message: "Der Zielordner muss ein anderer sein als Eingangs- und Ausgangsordner",
+    },
+  )
   .refine((s) => !s.outboundFolder || s.outboundFolder.toLowerCase() !== s.folder.toLowerCase(), {
     path: ["outboundFolder"],
     message: "Ausgangsordner und Eingangsordner müssen verschieden sein",
@@ -94,6 +114,8 @@ export async function inboxSummary() {
           folder: settings.folder,
           outboundFolder: settings.outboundFolder,
           allowedSenders: settings.allowedSenders,
+          afterFetch: settings.afterFetch,
+          archiveFolder: settings.archiveFolder,
           enabled: settings.enabled,
           lastRunAt: settings.lastRunAt,
           lastRejected: settings.lastRejected,
@@ -106,7 +128,8 @@ export async function inboxSummary() {
 }
 
 export async function saveInboxSettings(actor: string, input: InboxSettingsInput): Promise<void> {
-  const { password, ...rest } = inboxSettingsSchema.parse(input);
+  const { password, ...parsed } = inboxSettingsSchema.parse(input);
+  const rest = { ...parsed, archiveFolder: parsed.afterFetch === "move" ? parsed.archiveFolder : null };
   const existing = await loadInboxSettings();
   if (!password && !existing) throw new InboxError("Passwort fehlt.");
   const values = {
@@ -232,7 +255,9 @@ async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: 
       })
       .onConflictDoNothing({ target: schema.inboxMessages.messageId });
   });
-  return { documents: created, duplicates, skipped: skipped.length };
+  // Löschen ist nur ohne Verlust erlaubt: nichts übersprungen außer „keine Anhänge“, und die Mail war nicht zu groß
+  const lossless = skipped.every((reason) => reason === "keine Anhänge");
+  return { documents: created, duplicates, skipped: skipped.length, lossless };
 }
 
 function messageIdOf(mail: { messageId?: string }, bytes: Buffer) {
@@ -265,7 +290,17 @@ async function recordFailure(actor: string, bytes: Buffer, error: unknown) {
 }
 
 /**
- * Freigegebene Mails verarbeiten und als gelesen markieren. Mails anderer Absender bleiben ungelesen; von ihnen
+ * Was nach dem Ablegen mit der Mail geschieht. Verschoben oder gelöscht wird nur, was fehlerfrei abgelegt oder
+ * protokolliert ist; gelöscht außerdem nur, wenn kein Anhang übersprungen wurde. Sonst bleibt sie, als gelesen markiert.
+ */
+async function settle(connection: InboxConnection, settings: InboxSettings, uid: number, outcome: { ok: boolean; lossless: boolean }) {
+  if (outcome.ok && settings.afterFetch === "move" && settings.archiveFolder) return connection.move(uid, settings.archiveFolder);
+  if (outcome.ok && outcome.lossless && settings.afterFetch === "delete") return connection.remove(uid);
+  return connection.markSeen(uid);
+}
+
+/**
+ * Freigegebene Mails verarbeiten und danach gelesen markieren, verschieben oder löschen. Mails anderer Absender bleiben ungelesen; von ihnen
  * wird nur die Absenderadresse aus dem Umschlag gelesen und die Anzahl gezählt, nichts gespeichert.
  */
 async function fetchFolder(settings: InboxSettings, password: string, actor: string, background: (work: Promise<void>) => void, result: InboxRunResult) {
@@ -281,15 +316,17 @@ async function fetchFolder(settings: InboxSettings, password: string, actor: str
       handled++;
       const source = await connection.source(uid);
       let done: Awaited<ReturnType<typeof processMessage>>;
+      let ok = true;
       try {
         done = await processMessage(actor, source, background);
       } catch (failure) {
         // Lässt sich nicht einmal der Fehler speichern (Datenbank weg), bricht der Lauf ab und die Mail bleibt ungelesen
         await recordFailure(actor, source.bytes, failure);
-        done = { documents: 0, duplicates: 0, skipped: 1 };
+        done = { documents: 0, duplicates: 0, skipped: 1, lossless: false };
+        ok = false;
       }
-      // Erst nach dem Ablegen oder Protokollieren als gelesen markieren
-      await connection.markSeen(uid);
+      // Erst nach dem Ablegen oder Protokollieren; eine schon abgelegte Mail (done = null) darf weg
+      await settle(connection, settings, uid, { ok, lossless: done?.lossless ?? true });
       if (!done) continue;
       result.messages++;
       result.documents += done.documents;

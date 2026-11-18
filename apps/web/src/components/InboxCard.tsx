@@ -13,6 +13,7 @@ import { Status, Tag, type StatusTone } from "./Status.tsx";
 type Data = Awaited<ReturnType<typeof getInbox>>;
 type Settings = Data["settings"];
 type Abruf = Awaited<ReturnType<typeof fetchInboxNow>>;
+type AfterFetch = "seen" | "move" | "delete";
 
 /** Was „Jetzt abrufen“ meldet; Mails nicht freigegebener Absender bleiben ungelesen und zählen nur als Hinweis */
 function abrufText(r: Abruf): string {
@@ -35,6 +36,7 @@ export function InboxCard({ data }: { data: Data }) {
   const [host, setHost] = useState(s?.host ?? "");
   const [port, setPort] = useState(String(s?.port ?? 993));
   const [secure, setSecure] = useState(s?.secure ?? true);
+  const [afterFetch, setAfterFetch] = useState<AfterFetch>(s?.afterFetch ?? "seen");
   const action = useAction();
   const [removing, setRemoving] = useState(false);
   const { busy, notice } = action;
@@ -69,6 +71,8 @@ export function InboxCard({ data }: { data: Data }) {
           folder: text("folder") || "INBOX",
           outboundFolder: text("outboundFolder") || null,
           allowedSenders: absender(text("allowedSenders")),
+          afterFetch,
+          archiveFolder: afterFetch === "move" ? text("archiveFolder") || null : null,
           enabled: form.get("enabled") === "on",
         },
       });
@@ -92,6 +96,10 @@ export function InboxCard({ data }: { data: Data }) {
         <section className="form-section" aria-labelledby="inbox-ordner">
           <h3 id="inbox-ordner">Ordner</h3>
           <OrdnerFelder settings={s} />
+        </section>
+        <section className="form-section" aria-labelledby="inbox-danach">
+          <h3 id="inbox-danach">Nach dem Abruf</h3>
+          <NachAbrufFelder settings={s} afterFetch={afterFetch} setAfterFetch={setAfterFetch} />
         </section>
         <section className="form-section" aria-labelledby="inbox-absender">
           <h3 id="inbox-absender">Absender</h3>
@@ -221,7 +229,7 @@ function OrdnerFelder({ settings }: { settings: Settings }) {
     <>
       <p className="small muted">Am besten eigene Ordner, in die du Rechnungen weiterleitest oder filterst.</p>
       <div className="form-row cols-2">
-        <Field label="Ordner für Eingangsrechnungen" hint="Anhänge werden Belege, die Mail danach gelesen.">
+        <Field label="Ordner für Eingangsrechnungen" hint="Anhänge werden Belege; was danach mit der Mail geschieht, steht unter „Nach dem Abruf“.">
           {(control) => <input {...control} name="folder" defaultValue={settings?.folder ?? "INBOX"} placeholder="INBOX" />}
         </Field>
         <Field
@@ -236,6 +244,37 @@ function OrdnerFelder({ settings }: { settings: Settings }) {
           {(control) => <input {...control} name="outboundFolder" defaultValue={settings?.outboundFolder ?? ""} placeholder="Ausgang" />}
         </Field>
       </div>
+    </>
+  );
+}
+
+/** Was mit einer abgelegten Mail im Postfach geschieht: gelesen, in einen Ordner verschoben oder gelöscht */
+function NachAbrufFelder({ settings, afterFetch, setAfterFetch }: { settings: Settings; afterFetch: AfterFetch; setAfterFetch: (value: AfterFetch) => void }) {
+  return (
+    <>
+      <Field
+        label="Mail im Postfach"
+        hint="Gilt erst, wenn die Anhänge als Belege abgelegt sind. Mails nicht freigegebener Absender und Mails, die sich nicht verarbeiten lassen, bleiben liegen."
+      >
+        {(control) => (
+          <select {...control} value={afterFetch} onChange={(e) => setAfterFetch(e.target.value as AfterFetch)}>
+            <option value="seen">Als gelesen markieren</option>
+            <option value="move">In einen Ordner verschieben</option>
+            <option value="delete">Löschen</option>
+          </select>
+        )}
+      </Field>
+      {afterFetch === "move" && (
+        <Field label="Zielordner" hint="Muss im Postfach schon bestehen und ein anderer sein als die Ordner oben.">
+          {(control) => <input {...control} name="archiveFolder" defaultValue={settings?.archiveFolder ?? ""} placeholder="Belege/Abgeholt" required />}
+        </Field>
+      )}
+      {afterFetch === "delete" && (
+        <p className="small muted">
+          Die Mail liegt danach nur noch in Haben. Anhänge, die Haben nicht ablegen kann, und zu große Mails löscht Haben nicht; sie bleiben als gelesen
+          markiert im Postfach. Bei manchen Anbietern landet eine gelöschte Mail zunächst im Papierkorb.
+        </p>
+      )}
     </>
   );
 }

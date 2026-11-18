@@ -17,6 +17,10 @@ export interface InboxConnection {
   /** Quelltext der Mail; ist sie größer als MAX_MAIL_SIZE, nur die Kopfzeilen */
   source(uid: number): Promise<{ bytes: Buffer; tooLarge: boolean }>;
   markSeen(uid: number): Promise<void>;
+  /** Mail in einen anderen Ordner verschieben (sie verlässt damit den Abrufordner) */
+  move(uid: number, folder: string): Promise<void>;
+  /** Mail im Postfach endgültig löschen */
+  remove(uid: number): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -62,6 +66,13 @@ export async function imapConnect(settings: InboxSettings, password: string, fol
     },
     markSeen: async (uid) => {
       await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
+    },
+    move: async (uid, destination) => {
+      const moved = await client.messageMove(String(uid), destination, { uid: true });
+      if (!moved) throw new InboxError(`Mail ${uid} ließ sich nicht nach „${destination}“ verschieben.`);
+    },
+    remove: async (uid) => {
+      if (!(await client.messageDelete(String(uid), { uid: true }))) throw new InboxError(`Mail ${uid} ließ sich nicht löschen.`);
     },
     close: async () => {
       lock.release();

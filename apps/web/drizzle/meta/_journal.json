@@ -2024,6 +2024,20 @@
       "when": 1795002778948,
       "tag": "0288_aufladung",
       "breakpoints": true
+    },
+    {
+      "idx": 289,
+      "version": "7",
+      "when": 1795012656622,
+      "tag": "0289_inbox_nach_abruf",
+      "breakpoints": true
+    },
+    {
+      "idx": 290,
+      "version": "7",
+      "when": 1795012665736,
+      "tag": "0290_inbox_nach_abruf_trigger",
+      "breakpoints": true
     }
   ]
 }
