@@ -33,6 +33,7 @@ import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
 import { bankImportFiles, importsOfYear } from "./export-bankimporte.ts";
+import { kontaktFiles } from "./export-kontakte.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 import { procedureMarkdown } from "../verfahrensdoku/index.ts";
@@ -90,7 +91,7 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
 }
 
 export const iso = (value: Date | null | undefined) => (value ? value.toISOString() : "");
-const json = (value: unknown) => (value === null || value === undefined ? "" : JSON.stringify(value));
+export const json = (value: unknown) => (value === null || value === undefined ? "" : JSON.stringify(value));
 
 // ---------------------------------------------------------------------------
 // Dateinamen
@@ -1236,15 +1237,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
-  const versions = await db.select().from(schema.contactVersions).orderBy(asc(schema.contactVersions.contactId), asc(schema.contactVersions.version));
-  yield {
-    path: "stammdaten/kontakt-versionen.csv",
-    content: csv(
-      ["Kontakt-ID", "Version", "Name", "Angelegt", "Daten (JSON)"],
-      versions.map((v) => [v.contactId, v.version, String(v.data.name ?? ""), iso(v.createdAt), json(v.data)]),
-    ),
-    compress: true,
-  };
+  yield* kontaktFiles(year);
   yield {
     path: "stammdaten/bankkonten.csv",
     content: csv(
@@ -1801,6 +1794,8 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
                          Übermittlungsprotokoll aus Mein ELSTER (PDF).
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
+                         Nur wenn vorhanden: Bestätigungen von USt-IdNrn. beim BZSt im
+                         Jahr (ustid-bestaetigungen.csv) mit der Antwort als Nachweis.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
                          Lexware Office, sevDesk, FastBill oder BuchhaltungsButler (Spalte
                          Quelle; in Lexoffice-ID steht bei sevDesk Art und ID, z. B. invoice/123,

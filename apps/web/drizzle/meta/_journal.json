@@ -2024,6 +2024,20 @@
       "when": 1795002778948,
       "tag": "0288_aufladung",
       "breakpoints": true
+    },
+    {
+      "idx": 289,
+      "version": "7",
+      "when": 1795011188607,
+      "tag": "0289_ustid_bestaetigungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 290,
+      "version": "7",
+      "when": 1795011190125,
+      "tag": "0290_ustid_bestaetigungen_trigger",
+      "breakpoints": true
     }
   ]
 }

@@ -164,7 +164,7 @@ Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchst
 | Mehr als 50.000 € Lieferungen im Quartal | Senden gesperrt: Die Meldung ist dann monatlich abzugeben (§ 18a Abs. 1 Satz 2 UStG), das kann Haben nicht; gib sie im BZStOnline-Portal ab |
 | Lieferungen im Quartal | Hinweis: Lagen sie in einem der vier vorangegangenen Quartale über 50.000 €, ist ebenfalls monatlich zu melden; und für jede Lieferung gehört der Gelangensnachweis (§ 17a UStDV) zu den Unterlagen |
 
-Die Prüfungen sind die des ERiC-Plugins `checkZMDO`, dazu der Aufbau je Land; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das klärst du vor der ersten Rechnung mit der Bestätigungsabfrage beim BZSt.
+Die Prüfungen sind die des ERiC-Plugins `checkZMDO`, dazu der Aufbau je Land; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das bestätigt das BZSt am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen), am besten vor der ersten Rechnung.
 
 ### Senden
 
