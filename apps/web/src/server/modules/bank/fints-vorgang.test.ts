@@ -40,6 +40,16 @@ describe("Laufende FinTS-Vorgänge", () => {
     await expect(vorgangFortsetzen("anna", tan, { verfahren: 921 })).rejects.toThrow(/kein TAN-Verfahren/);
   });
 
+  it("verlangt bei der Wahl der Konten mindestens eines und lässt den Vorgang bis dahin offen", async () => {
+    const weiter = vi.fn(async (): Promise<FintsSchritt> => fertig);
+    const id = vorgangMerken("anna", "konten", weiter);
+    await expect(vorgangFortsetzen("anna", id, {})).rejects.toThrow("Wähle mindestens ein Konto.");
+    await expect(vorgangFortsetzen("anna", id, { konten: [] })).rejects.toThrow("Wähle mindestens ein Konto.");
+    await expect(vorgangFortsetzen("anna", id, { konten: ["DE02120300000000202051"] })).resolves.toEqual(fertig);
+    expect(weiter).toHaveBeenCalledOnce();
+    expect(weiter).toHaveBeenCalledWith({ konten: ["DE02120300000000202051"] });
+  });
+
   it("verwirft nur eigene Vorgänge", async () => {
     const id = vorgangMerken("anna", "tan", async () => fertig);
     vorgangVerwerfen("bernd", id);

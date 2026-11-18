@@ -331,7 +331,7 @@ export async function completeConnection(
 /**
  * „Umsätze abrufen ab“ eines Kontos nach dem Verbinden: Ein schon abgerufenes Konto behält seinen bisherigen Tag, sonst
  * ginge der Folgeabruf nach dem Erneuern der Zustimmung wieder davor zurück (siehe followUpStart). Der neu gewählte Tag
- * gilt nur für Konten, die noch nie abgerufen wurden.
+ * gilt für alle anderen Konten, auch für ein bei FinTS abgewähltes und wieder angehaktes.
  */
 export function accountFetchFrom(previous: BankConnectionAccount | undefined, chosen: string | null): { fetchFrom?: string } {
   if (previous?.syncedTo) return previous.fetchFrom ? { fetchFrom: previous.fetchFrom } : {};

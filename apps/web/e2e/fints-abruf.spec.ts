@@ -2,12 +2,12 @@ import { type FintsTestbank, type FintsTestbankUmsatz, startFintsTestbank } from
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { databaseUrlFuer, FINTS_BANK_PORT, FINTS_PRODUKT_E2E } from "./durchlaeufe.ts";
-import { bestaetigen, durchlaufSeite, einrichten, gehe } from "./einrichtung.ts";
+import { axeVerstoesse, bestaetigen, durchlaufSeite, einrichten, gehe } from "./einrichtung.ts";
 
 /**
  * Kontoabruf über FinTS (#654) in eigener, leerer Datenbank (Projekt „fints-abruf“, e2e/durchlaeufe.ts). Der Server
  * des Durchlaufs hat als einziger FINTS_PRODUKT_ID (playwright.config.ts); die Bank baut @haben/import/fints-testbank
- * nach: FinTS 3.0 mit PIN/TAN, chipTAN und pushTAN, Umsätze als MT940.
+ * nach: FinTS 3.0 mit PIN/TAN, chipTAN und pushTAN, zwei Konten, Umsätze als MT940.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -58,6 +58,7 @@ test.afterEach(() => {
 
 const abruf = () => page.getByRole("region", { name: "Automatischer Abruf" });
 const freigabe = () => page.getByRole("form", { name: "Freigabe bei der Bank" });
+const kontenwahl = () => page.getByRole("form", { name: "Konten wählen" });
 
 async function zugangEingeben(pin = "12345") {
   const form = page.getByRole("form", { name: "Über FinTS verbinden" });
@@ -95,7 +96,7 @@ test("prüft den Zugang im Formular, bevor Haben die Bank fragt", async () => {
   await form.getByRole("button", { name: "Abbrechen" }).click();
 });
 
-test("verbindet mit TAN-Verfahren und TAN und holt die Umsätze beider Konten", async () => {
+test("verbindet mit TAN-Verfahren und TAN und holt nur die Umsätze des gewählten Kontos", async () => {
   bank.zustand.scaBeiAnmeldung = true;
   await abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
   await zugangEingeben();
@@ -108,11 +109,28 @@ test("verbindet mit TAN-Verfahren und TAN und holt die Umsätze beider Konten", 
   await freigabe().getByLabel("TAN", { exact: true }).fill("123456");
   await freigabe().getByRole("button", { name: "TAN senden" }).click();
 
+  // Erst nach der Anmeldung nennt die Bank die Konten; vorgewählt sind alle
+  const giro = kontenwahl().getByRole("checkbox", { name: "Girokonto …2051" });
+  const tagesgeld = kontenwahl().getByRole("checkbox", { name: "Tagesgeld …9890" });
+  await expect(giro).toBeChecked();
+  await expect(tagesgeld).toBeChecked();
+  // Ohne Konto fragt das Formular, statt weiterzugehen
+  await giro.uncheck();
+  await tagesgeld.uncheck();
+  await kontenwahl().getByRole("button", { name: "Weiter" }).click();
+  await expect(kontenwahl().getByText("Wähle mindestens ein Konto.")).toBeVisible();
+  await expect(giro).toBeFocused();
+  expect(await axeVerstoesse(page)).toEqual([]);
+  await giro.check();
+  await kontenwahl().getByRole("button", { name: "Weiter" }).click();
+
   await expect(abruf().getByText("Testbank verbunden, 2 neue Umsätze.")).toBeVisible();
-  await expect(abruf().getByText(/Neu angelegt: Testbank Girokonto …2051, Testbank Tagesgeld …9890/)).toBeVisible();
-  await expect(abruf().getByText("Testbank Girokonto …2051 · Testbank Tagesgeld …9890")).toBeVisible();
+  await expect(abruf().getByText(/^Neu angelegt: Testbank Girokonto …2051\. /)).toBeVisible();
+  await expect(abruf().getByText("Testbank Girokonto …2051", { exact: true })).toBeVisible();
   await expect(abruf().getByText("Aktiv")).toBeVisible();
+  await expect(abruf().getByRole("button", { name: "Zugang ändern" })).toBeVisible();
   const konten = page.getByRole("navigation", { name: "Konten" });
+  await expect(konten.getByRole("link", { name: /Tagesgeld/ })).toHaveCount(0);
   await expect(konten.getByRole("link", { name: /Testbank Girokonto …2051/ })).toContainText("Abruf");
   await expect(konten.getByRole("link", { name: /Testbank Girokonto …2051/ })).toContainText("1.140,01 €");
   await expect(page.getByText("Mobilfunk").first()).toBeVisible();
@@ -128,7 +146,7 @@ test("„Jetzt abrufen“ fragt die TAN ab, wenn die Bank sie verlangt", async (
   await expect(page.getByText("RE-2026-0050").first()).toBeVisible();
 });
 
-test("nach einer abgelehnten PIN den Zugang ändern", async () => {
+test("nach einer abgelehnten PIN den Zugang ändern und dabei ein Konto dazunehmen", async () => {
   // Wie nach einer neuen PIN bei der Bank: der Abruf im Hintergrund hat aufgehört, die Verbindung steht auf „Fehler“
   const sql = postgres(databaseUrlFuer("fints-abruf"), { max: 1, onnotice: () => {} });
   try {
@@ -149,9 +167,16 @@ test("nach einer abgelehnten PIN den Zugang ändern", async () => {
   // pushTAN: diesmal ohne TAN, die Bank verlangt bei der Anmeldung keine mehr
   await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "pushTAN 2.0" });
   await freigabe().getByRole("button", { name: "Weiter" }).click();
+  // Vorgewählt ist, was die Verbindung bisher abruft
+  await expect(kontenwahl().getByRole("checkbox", { name: "Girokonto …2051" })).toBeChecked();
+  await expect(kontenwahl().getByRole("checkbox", { name: "Tagesgeld …9890" })).not.toBeChecked();
+  await kontenwahl().getByRole("checkbox", { name: "Tagesgeld …9890" }).check();
+  await kontenwahl().getByRole("button", { name: "Weiter" }).click();
   await expect(abruf().getByText("Testbank verbunden, 0 neue Umsätze.")).toBeVisible();
+  await expect(abruf().getByText(/^Neu angelegt: Testbank Tagesgeld …9890\. /)).toBeVisible();
+  await expect(abruf().getByText("Testbank Girokonto …2051 · Testbank Tagesgeld …9890")).toBeVisible();
   await expect(abruf().getByText("Aktiv")).toBeVisible();
-  await expect(abruf().getByRole("button", { name: "Zugang ändern" })).toHaveCount(0);
+  await expect(abruf().getByText("Abruf fehlgeschlagen: PIN ungültig. (9942)")).toHaveCount(0);
 });
 
 test("pushTAN: wartet auf die Freigabe in der App", async () => {

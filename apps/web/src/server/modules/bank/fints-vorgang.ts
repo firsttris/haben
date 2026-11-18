@@ -4,7 +4,7 @@ import { BankError } from "./bank-error.ts";
 
 /**
  * Laufende FinTS-Vorgänge zwischen zwei Anfragen des Browsers (#654): Verlangt die Bank eine TAN oder die Wahl des
- * TAN-Verfahrens, wartet der Dialog mit der Bank, bis die Person antwortet. Der Dialog lebt im Client von lib-fints
+ * TAN-Verfahrens, oder wählt die Person die Konten, wartet der Dialog mit der Bank, bis die Person antwortet. Der Dialog lebt im Client von lib-fints
  * (samt PIN im Speicher) und lässt sich nicht speichern; er bleibt deshalb nur im Prozess, höchstens zehn Minuten und
  * nur für die Person, die ihn begonnen hat. Danach beginnt man neu.
  */
@@ -16,16 +16,19 @@ export interface FintsEingabe {
   tan?: string;
   verfahren?: number;
   medium?: string;
+  /** IBANs der Konten, die Haben übernimmt */
+  konten?: string[];
 }
 
 export type FintsSchritt =
   | { art: "fertig"; ok: boolean; meldung: string; hinweise: string[]; neu: number }
   | { art: "verfahren"; vorgang: string; verfahren: { id: number; name: string; medien: string[] }[] }
+  | { art: "konten"; vorgang: string; konten: { iban: string; name: string; gewaehlt: boolean }[] }
   | { art: "tan"; vorgang: string; text: string; entkoppelt: boolean; bild: string | null; hinweis: string | null };
 
 interface Vorgang {
   actor: string;
-  art: "tan" | "verfahren";
+  art: "tan" | "verfahren" | "konten";
   bis: number;
   weiter: (eingabe: FintsEingabe) => Promise<FintsSchritt>;
 }
@@ -53,6 +56,8 @@ export async function vorgangFortsetzen(actor: string, id: string, eingabe: Fint
   if (!vorgang || vorgang.actor !== actor) throw new BankError("Der Vorgang ist abgelaufen oder unbekannt. Bitte neu beginnen.");
   if (vorgang.art === "tan" && eingabe.verfahren !== undefined) throw new BankError("Hier fehlt die TAN, kein TAN-Verfahren.");
   if (vorgang.art === "verfahren" && eingabe.verfahren === undefined) throw new BankError("Bitte ein TAN-Verfahren wählen.");
+  // Vor dem Verbrauchen: Ohne Konto bleibt der Vorgang offen, und die Person wählt noch einmal
+  if (vorgang.art === "konten" && !eingabe.konten?.length) throw new BankError("Wähle mindestens ein Konto.");
   vorgaenge.delete(id);
   return vorgang.weiter(eingabe);
 }

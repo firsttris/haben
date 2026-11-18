@@ -5,22 +5,20 @@ import { defaultFetchFrom, fetchFromForConnect } from "../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime } from "../lib/format.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import type { getBankOverview } from "../server/functions/bank.ts";
-import { cancelFints, connectFints, continueFints, disconnectFints, syncFints } from "../server/functions/fints.ts";
+import { connectFints, disconnectFints, syncFints } from "../server/functions/fints.ts";
 import { today as todayInGermany } from "../server/today.ts";
 import { FintsStatus } from "./BankStatus.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
+import { type Offen, type Schritt, SchrittForm } from "./FintsSchrittForm.tsx";
 
 /*
  * Kontoabruf über FinTS (#654) auf der Bankseite: Verbinden mit Bankleitzahl, FinTS-Adresse, Anmeldename und PIN,
- * dann die Schritte der Bank (TAN-Verfahren wählen, TAN eingeben oder in der App freigeben), die Verbindungen mit
- * „Jetzt abrufen“, „Zugang ändern“ und „Trennen“.
+ * dann die Schritte aus FintsSchrittForm.tsx, die Verbindungen mit „Jetzt abrufen“, „Zugang ändern“ und „Trennen“.
  */
 
 type Fints = Awaited<ReturnType<typeof getBankOverview>>["fints"];
 type Verbindung = Fints["connections"][number];
-type Schritt = Awaited<ReturnType<typeof continueFints>>;
-type Offen = Exclude<Schritt, { art: "fertig" }>;
 type Meldung = { tone: "ok" | "danger" | "info"; text: string };
 
 export const FINTS_ANLEITUNG = "https://github.com/firsttris/haben/blob/main/docs/installation-anbindungen.md#kontoabruf-über-fints";
@@ -32,106 +30,6 @@ const meldungenAus = (s: Extract<Schritt, { art: "fertig" }>): Meldung[] => [
   { tone: s.ok ? "ok" : "danger", text: s.meldung },
   ...s.hinweise.map((text) => ({ tone: "info" as const, text })),
 ];
-
-/** Was die Bank gerade will: ein TAN-Verfahren oder -Medium wählen, eine TAN eingeben oder in der App freigeben */
-function SchrittForm({ schritt, onSchritt, onAbbrechen }: { schritt: Offen; onSchritt: (s: Schritt) => Promise<void>; onAbbrechen: () => void }) {
-  const weiter = useServerFn(continueFints);
-  const verwerfen = useServerFn(cancelFints);
-  const medien = schritt.art === "verfahren" && schritt.verfahren.length === 1 ? schritt.verfahren[0]!.medien : [];
-  const [wahl, setWahl] = useState(schritt.art === "verfahren" ? (medien[0] ?? String(schritt.verfahren[0]?.id ?? "")) : "");
-  const [tan, setTan] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const {
-    form,
-    error: fehler,
-    check,
-  } = useSubmitCheck({
-    tan: schritt.art === "tan" && !schritt.entkoppelt && !tan.trim() ? "Bitte die TAN eingeben." : null,
-  });
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy || !check()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const data =
-        schritt.art === "tan"
-          ? { vorgang: schritt.vorgang, tan: schritt.entkoppelt ? undefined : tan }
-          : medien.length > 0
-            ? { vorgang: schritt.vorgang, verfahren: schritt.verfahren[0]!.id, medium: wahl }
-            : { vorgang: schritt.vorgang, verfahren: Number(wahl) };
-      await onSchritt(await weiter({ data }));
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function abbrechen() {
-    void verwerfen({ data: schritt.vorgang }).catch(() => undefined);
-    onAbbrechen();
-  }
-
-  return (
-    <form ref={form} onSubmit={onSubmit} className="stack" style={{ gap: 12, maxWidth: 560 }} aria-label="Freigabe bei der Bank" noValidate>
-      {schritt.art === "verfahren" ? (
-        <Field
-          label={medien.length > 0 ? "TAN-Medium" : "TAN-Verfahren"}
-          hint="Wie du Aufträge bei deiner Bank freigibst; die Bank nennt nur, was für deinen Zugang geht."
-        >
-          {(control) => (
-            <select {...control} value={wahl} onChange={(e) => setWahl(e.target.value)}>
-              {medien.length > 0
-                ? medien.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))
-                : schritt.verfahren.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-            </select>
-          )}
-        </Field>
-      ) : (
-        <>
-          <p style={{ margin: 0, whiteSpace: "pre-line" }}>{schritt.text}</p>
-          {schritt.bild && <img src={schritt.bild} alt="Grafik der Bank für die photoTAN" style={{ maxWidth: 240 }} />}
-          {schritt.hinweis && (
-            <div className="banner banner-info" role="status">
-              {schritt.hinweis}
-            </div>
-          )}
-          {!schritt.entkoppelt && (
-            <Field label="TAN" error={fehler("tan")}>
-              {(control) => (
-                <input {...control} value={tan} onChange={(e) => setTan(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required autoFocus />
-              )}
-            </Field>
-          )}
-        </>
-      )}
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
-      <div className="actions">
-        <button type="button" className="btn" onClick={abbrechen} disabled={busy}>
-          Abbrechen
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? "Warte auf die Bank …" : schritt.art === "verfahren" ? "Weiter" : schritt.entkoppelt ? "Freigegeben, weiter" : "TAN senden"}
-        </button>
-      </div>
-    </form>
-  );
-}
 
 /** Zugang zum Online-Banking; mit vorlage für „Zugang ändern“ schon ausgefüllt, nur die PIN fehlt */
 function VerbindenForm({ vorlage, onSchritt, onAbbrechen }: { vorlage: Verbindung | null; onSchritt: (s: Schritt) => Promise<void>; onAbbrechen: () => void }) {
@@ -210,7 +108,7 @@ function VerbindenForm({ vorlage, onSchritt, onAbbrechen }: { vorlage: Verbindun
       <Field
         label="Umsätze abrufen ab"
         error={fehler("fetchFrom")}
-        hint="Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind."
+        hint="Gilt für Konten, die Haben noch nicht abruft, auch für ein wieder angehaktes. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind."
       >
         {(control) => <input {...control} type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} />}
       </Field>
@@ -317,7 +215,7 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
             <button type="button" className="btn btn-danger" disabled={busy !== null} onClick={() => setTrennt(c)}>
               Trennen
             </button>
-            {c.status === "fehler" && fints.configured && (
+            {fints.configured && (
               <button
                 type="button"
                 className="btn"
