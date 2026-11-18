@@ -1,4 +1,4 @@
-import { advanceUsesPayments, type Versteuerung } from "@haben/core";
+import { advanceUsesPayments, isKapitalgesellschaft, type Versteuerung } from "@haben/core";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
@@ -169,3 +169,9 @@ export const invoicePostingMode = (invoice: Reference, q: Db | Tx = db) => invoi
 export const invoicePaymentPostingMode = (invoice: Reference, q: Db | Tx = db) => invoiceTaxReader(q).paymentPostingMode(invoice);
 export const invoiceVatDate = (invoice: Invoice, q: Db | Tx = db) => invoiceTaxReader(q).date(invoice);
 export const managedAdvance = (invoice: Reference, q: Db | Tx = db) => invoiceTaxReader(q).managedAdvance(invoice);
+
+/** Verfahren einer Rechnung für advancePaymentDateProblem: Versteuerung ihres Steuerjahres und Rechtsform der Firma. */
+export async function paymentProcedure(invoice: Reference, q: Db | Tx = db): Promise<{ versteuerung: Versteuerung; kapitalgesellschaft: boolean }> {
+  const [company] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).where(eq(schema.company.id, 1));
+  return { versteuerung: await invoiceTaxReader(q).companyMode(invoice), kapitalgesellschaft: isKapitalgesellschaft(company!.rechtsform) };
+}
