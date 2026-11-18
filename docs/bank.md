@@ -110,19 +110,19 @@ Viele Selbständige haben bei derselben Bank mehrere Konten, etwa ein Geschäfts
 
 Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat, Spende und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ und „Spende“ buchten privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Alle anderen Arten sind dort erlaubt und laufen über Entnahme und Einlage ([unten](#privates-konto-geschäftsvorfälle-gegen-entnahme-und-einlage)). Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
 
-### Privates Konto: Geschäftsvorfälle gegen Entnahme und Einlage
-
-Geschäftsvorfälle darfst du auf einem Privatkonto buchen; Haben stellt dafür die Gegenzeile um. Läuft das Geld über ein Konto mit dem Zweck **privat**, steht an der Stelle der Bank die Richtung des Zahlungskontos: ein Eingang als Privatentnahme (SKR03 1800, SKR04 2100, § 4 Abs. 1 Satz 2 EStG), ein Ausgang als Privateinlage (SKR03 1890, SKR04 2180, § 4 Abs. 1 Satz 8 EStG); in GmbH und UG steht dort in beiden Richtungen das Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510), weil § 4 EStG die Buchung dort nicht trägt. Das gilt für jede Buchungsart: Umsatzsteuer-Voranmeldung und Steuerzahlungen, Sondervorauszahlung, Rechnung, Beleg, Kategorie, Lohn und Darlehen. Der Vorgang selbst bleibt richtig gebucht — die Forderung ist getilgt, die Verbindlichkeit bezahlt, die Umsatzsteuer fällig —, nur das Geld kam nicht über das Geschäftskonto.
-
-Ausgenommen bleiben Kontoführung, Bankgebühren und Zinsen: Die sind auf einem privaten Konto privat, kein Betriebsvorfall, und werden dort nicht gebucht. Ebenso „Privat“, Spende und Geldtransit.
-
-Jedes Konto hat einen Zweck. Sonst bucht Haben auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
+Jedes Konto hat einen Zweck. Außer auf einem privaten Konto bucht Haben auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
 
 N26-Exporte enthalten keine eigene IBAN. Dafür legst du das Konto vorher mit **Konto hinzufügen** an (Name und IBAN) und wählst es vor dem Import in der Auswahl **Konto** aus. Steht die Auswahl auf „aus der Datei“, lehnt Haben eine Datei ohne IBAN ab.
 
 Wählst du ein Konto aus und die Datei nennt eine andere IBAN, bricht der Import mit einer Meldung ab.
 
 Über der Liste steht je Konto ein Reiter mit Format und Datum des letzten Imports und dem Endsaldo. Ist der letzte Import älter als sieben Tage, ist die Angabe hervorgehoben.
+
+### Privates Konto: Geschäftsvorfälle gegen Entnahme und Einlage
+
+Geschäftsvorfälle darfst du auf einem Privatkonto buchen; Haben stellt dafür die Gegenzeile um. Läuft das Geld über ein Konto mit dem Zweck **privat**, steht an der Stelle der Bank die Richtung des Zahlungskontos: ein Eingang als Privatentnahme (SKR03 1800, SKR04 2100, § 4 Abs. 1 Satz 2 EStG), ein Ausgang als Privateinlage (SKR03 1890, SKR04 2180, § 4 Abs. 1 Satz 8 EStG); in GmbH und UG steht dort in beiden Richtungen das Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510), weil § 4 EStG die Buchung dort nicht trägt. Das gilt für jede Buchungsart: Umsatzsteuer-Voranmeldung und Steuerzahlungen des Betriebs, Sondervorauszahlung, Rechnung, Beleg, Kategorie, Lohn und Darlehen. Der Vorgang selbst bleibt richtig gebucht — die Forderung ist getilgt, die Verbindlichkeit bezahlt, die Umsatzsteuer fällig —, nur das Geld kam nicht über das Geschäftskonto.
+
+Ausgenommen bleiben Kontoführung, Bankgebühren und Zinsen: Die sind auf einem privaten Konto privat, kein Betriebsvorfall, und werden dort nicht gebucht. Ebenso „Privat“, Spende und Geldtransit. Zuordnungen, die vor dieser Regel entstanden sind, bleiben gebucht, wie sie sind: Sie stehen weiter gegen das Geschäftskonto (1200 bzw. 1800). Wer sie richtig gebucht haben will, hebt die Zuordnung auf und ordnet den Umsatz neu zu.
 
 ### Privates Konto: Umsätze ohne Buchungsart
 
