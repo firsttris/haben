@@ -6,7 +6,7 @@
  * Zeile im Journal steht und DATEV sie sonst ein zweites Mal herausrechnen würde.
  */
 
-import type { Cents } from "@haben/core";
+import { MAX_DOCUMENT_NUMBER_LENGTH, type Cents } from "@haben/core";
 
 export interface DatevExportLine {
   account: string;
@@ -191,7 +191,7 @@ const voucherField = (value: string) =>
   value
     .replace(/\./g, "-")
     .replace(/[^A-Za-z0-9$&%*+\-/]/g, "")
-    .slice(0, 36);
+    .slice(0, MAX_DOCUMENT_NUMBER_LENGTH);
 
 const nummern = (values: string[]) => {
   const quoted = values.map((v) => `„${v}“`);

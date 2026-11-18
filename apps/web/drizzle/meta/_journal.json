@@ -2052,6 +2052,27 @@
       "when": 1795017190700,
       "tag": "0292_importvertrag_konflikte_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 293,
+      "version": "7",
+      "when": 1795023802154,
+      "tag": "0293_appstore_fiskalperiode",
+      "breakpoints": true
+    },
+    {
+      "idx": 294,
+      "version": "7",
+      "when": 1795031057816,
+      "tag": "0294_rueckgewaehr_kennzeichen",
+      "breakpoints": true
+    },
+    {
+      "idx": 295,
+      "version": "7",
+      "when": 1795031061130,
+      "tag": "0295_rueckgewaehr_kennzeichen_trigger",
+      "breakpoints": true
     }
   ]
 }
