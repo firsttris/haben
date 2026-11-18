@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { formatDecimal, formatEuro, gewinnAusPrognose, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -186,8 +186,14 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
           <tbody>
             <tr>
               <th scope="row">Hochgerechneter Gewinn</th>
-              <td className="num">{formatEuro(p.gesamtbetragEinkuenfte - p.einkuenfteArbeit)}</td>
+              <td className="num">{formatEuro(gewinnAusPrognose(p))}</td>
             </tr>
+            {p.erstattungsueberhang > 0 && (
+              <tr>
+                <th scope="row">Erstattungsüberhang auf Basisbeiträge (§ 10 Abs. 4b EStG)</th>
+                <td className="num">{formatEuro(p.erstattungsueberhang)}</td>
+              </tr>
+            )}
             {p.einkuenfteArbeit !== 0 && (
               <tr>
                 <th scope="row">Arbeitslohn nach Werbungskosten</th>

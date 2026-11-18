@@ -189,6 +189,8 @@ export interface Prognose {
   /** Einkünfte aus nichtselbständiger Arbeit nach Werbungskosten bzw. Pauschbetrag */
   einkuenfteArbeit: Cents;
   gesamtbetragEinkuenfte: Cents;
+  /** Überhang nach § 10 Abs. 4b Satz 3 EStG, im Gesamtbetrag der Einkünfte enthalten */
+  erstattungsueberhang: Cents;
   vorsorge: Cents;
   sonderausgaben: Cents;
   kinderbetreuung: Cents;
@@ -269,6 +271,14 @@ function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbei
   );
   const hoechst = sum(...personen.map(({ an }) => (an && an.bescheinigungen.length > 0 ? 1_900_00 : 2_800_00)));
   return { abzug: alter + Math.max(basis, Math.min(basis + weitere, hoechst)), ueberhang };
+}
+
+/**
+ * Gewinn, den die Vorauszahlungsseite aus der Prognose zurückrechnet: Gesamtbetrag der Einkünfte abzüglich Arbeitslohn
+ * und abzüglich des Erstattungsüberhangs, der ihm nach § 10 Abs. 4b Satz 3 EStG hinzugerechnet wurde.
+ */
+export function gewinnAusPrognose(p: Pick<Prognose, "gesamtbetragEinkuenfte" | "einkuenfteArbeit" | "erstattungsueberhang">): Cents {
+  return p.gesamtbetragEinkuenfte - p.einkuenfteArbeit - p.erstattungsueberhang;
 }
 
 /** Zumutbare Belastung (§ 33 Abs. 3 EStG), stufenweise nach BFH */
@@ -370,6 +380,7 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
     year,
     einkuenfteArbeit,
     gesamtbetragEinkuenfte: gde,
+    erstattungsueberhang: ueberhang,
     vorsorge,
     sonderausgaben,
     kinderbetreuung,

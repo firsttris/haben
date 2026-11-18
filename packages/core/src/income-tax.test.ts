@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { einkommensteuer, kirchensteuerpflichtig, solidaritaetszuschlag, steuerPrognose, type PrognoseInput } from "./income-tax.ts";
+import { einkommensteuer, gewinnAusPrognose, kirchensteuerpflichtig, solidaritaetszuschlag, steuerPrognose, type PrognoseInput } from "./income-tax.ts";
 
 /** Referenzwerte aus dem BMF-Programmablaufplan (Paket lohnsteuer-bmf 2026.3): zvE, Grundtarif, Splitting, Soli einzeln, Soli zusammen */
 const REFERENZ: Record<number, [number, number, number, number, number][]> = {
@@ -375,9 +375,12 @@ describe("steuerPrognose", () => {
       },
     });
     expect(p.vorsorge).toBe(0);
+    expect(p.erstattungsueberhang).toBe(1_400_00);
     expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_400_00);
     expect(p.zvE).toBe(60_000_00 + 1_400_00 - 36_00);
     expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+    // Die Vorauszahlungsseite bildet den Gewinn aus dem Gesamtbetrag; mit dem Überhang muss sie ihn abziehen
+    expect(gewinnAusPrognose(p)).toBe(60_000_00);
   });
 
   it("kennt keinen Überhang, wenn Beiträge und Erstattung gleich hoch sind", () => {
@@ -396,6 +399,7 @@ describe("steuerPrognose", () => {
       angaben: { ...base.angaben, vorsorge: { a: {} } },
     });
     expect(gleich.vorsorge).toBe(0);
+    expect(gleich.erstattungsueberhang).toBe(0);
     expect(gleich.gesamtbetragEinkuenfte).toBe(60_000_00);
     expect(gleich.zvE).toBe(ohneVorsorge.zvE);
     expect(gleich.einkommensteuer).toBe(ohneVorsorge.einkommensteuer);
@@ -411,6 +415,7 @@ describe("steuerPrognose", () => {
       angaben: { ...base.angaben, vorsorge: { a: { pkv: 2_000_00, ppv: 500_00, pkvErstattung: 1_000_00 } } },
     });
     expect(p.vorsorge).toBe(1_500_00);
+    expect(p.erstattungsueberhang).toBe(0);
     expect(p.gesamtbetragEinkuenfte).toBe(60_000_00);
     expect(p.zvE).toBe(60_000_00 - 1_500_00 - 36_00);
     expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
@@ -427,6 +432,7 @@ describe("steuerPrognose", () => {
       angaben: { ...base.angaben, vorsorge: { a: { pkv: 1_000_00, pkvErstattung: 2_000_00 }, b: { gkv: 3_000_00 } } },
     });
     expect(p.vorsorge).toBe(3_000_00);
+    expect(p.erstattungsueberhang).toBe(1_000_00);
     expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_000_00);
     expect(p.zvE).toBe(60_000_00 + 1_000_00 - 3_000_00 - 72_00);
   });
