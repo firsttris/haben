@@ -357,9 +357,23 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
     const entries: EtsyLedgerEntry[] = [
       // Von Etsy nachgetragen: Zeitstempel vor dem früheren Abruf, geliefert erst jetzt
       { entry_id: 112, amount: -500, currency: "EUR", ledger_type: "REFUND_GROSS", reference_id: "R2", created_timestamp: zeit("2023-06-20T11:00:00Z") },
-      { entry_id: 113, amount: 30, currency: "EUR", ledger_type: "sales_tax_refund", reference_id: bestellung, created_timestamp: zeit("2023-06-20T11:00:00Z") },
+      {
+        entry_id: 113,
+        amount: 30,
+        currency: "EUR",
+        ledger_type: "sales_tax_refund",
+        reference_id: bestellung,
+        created_timestamp: zeit("2023-06-20T11:00:00Z"),
+      },
       { entry_id: 110, amount: -1000, currency: "EUR", ledger_type: "REFUND_GROSS", reference_id: "R1", created_timestamp: zeit("2023-06-20T12:00:00Z") },
-      { entry_id: 111, amount: 60, currency: "EUR", ledger_type: "sales_tax_refund", reference_id: bestellung, created_timestamp: zeit("2023-06-20T12:00:00Z") },
+      {
+        entry_id: 111,
+        amount: 60,
+        currency: "EUR",
+        ledger_type: "sales_tax_refund",
+        reference_id: bestellung,
+        created_timestamp: zeit("2023-06-20T12:00:00Z"),
+      },
     ];
 
     const statement = parseEtsyLedger(entries, { orderFor: (r) => ({ R1: bestellung, R2: bestellung })[r], bekannt });

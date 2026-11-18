@@ -1,6 +1,7 @@
 import { finish, indexed, type Tx } from "./common.ts";
 import { StatementParseError } from "./errors.ts";
 import { settlementKey, settleTax, unsettledTaxWarning } from "./etsy.ts";
+import { steuerAbgleich } from "./etsy-steuerabgleich.ts";
 import type { ParsedStatement } from "./types.ts";
 
 /*
@@ -164,26 +165,6 @@ export interface EtsyLedgerOptions {
   bekannt?: ReadonlyMap<string, { order?: string; verrechnet: number }>;
 }
 
-/** Schon übernommener Verkauf oder schon übernommene Erstattung, in der noch Steuer früherer Abrufe steckt */
-interface Verrechnet {
-  key: string;
-  type: "Verkauf" | "Erstattung";
-  rest: number;
-}
-
-/**
- * Schon verrechnete Steuer aufbrauchen: zuerst ein Partner mit genau diesem Rest, sonst einer, in dessen Rest die Steuer
- * noch passt. true, wenn die Steuerzeile damit schon im Konto steht.
- */
-function schonVerrechnet(pool: Verrechnet[], key: string, amount: number): boolean {
-  const type = amount < 0 ? "Verkauf" : "Erstattung";
-  const passend = pool.filter((p) => p.key === key && p.type === type && p.rest !== 0 && Math.sign(p.rest) === Math.sign(amount));
-  const treffer = passend.find((p) => p.rest === amount) ?? passend.find((p) => Math.abs(amount) <= Math.abs(p.rest));
-  if (!treffer) return false;
-  treffer.rest -= amount;
-  return true;
-}
-
 /** Buchungstag aus dem Zeitstempel, in UTC wie im Backoffice; Etsy liefert Epoch-Sekunden */
 function tag(entry: EtsyLedgerEntry, where: string): string {
   if (!entry.created_timestamp) throw new StatementParseError(`Zeile ohne Zeitstempel (${where}).`);
@@ -265,16 +246,29 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
     .map((entry, position) => ({ entry, tag: tag(entry, `Zeile ${position + 1}`) }))
     .sort((a, b) => (a.entry.created_timestamp ?? 0) - (b.entry.created_timestamp ?? 0));
 
-  // Steuer, die frühere Abrufe schon mit Verkauf oder Erstattung verrechnet haben, je Bestellung und Tag
-  const pool: Verrechnet[] = [];
-  for (const { entry, tag: buchungstag } of sortiert) {
-    const frueher = bekannt(entry);
-    const kind = KINDS[entry.ledger_type];
-    if (!frueher || frueher.verrechnet === 0 || (kind !== "verkauf" && kind !== "erstattung")) continue;
-    const order = frueher.order ?? options.orderFor?.(entry.reference_id === undefined ? "" : String(entry.reference_id));
-    if (order === undefined) continue;
-    pool.push({ key: settlementKey(order, buchungstag), type: kind === "verkauf" ? "Verkauf" : "Erstattung", rest: frueher.verrechnet });
-  }
+  // Sales Tax über überlappende Abrufe: was schon im Konto steckt und was dieser Abruf verrechnen darf
+  const { drin, verrechenbar } = steuerAbgleich(
+    sortiert
+      .filter(({ entry }) => entry.amount !== 0 && (!entry.currency || entry.currency.toUpperCase() === "EUR"))
+      .map(({ entry, tag: buchungstag }) => {
+        const art = KINDS[entry.ledger_type];
+        const frueher = bekannt(entry);
+        const order =
+          art === "verkauf" || art === "erstattung"
+            ? (frueher?.order ?? options.orderFor?.(entry.reference_id === undefined ? "" : String(entry.reference_id)))
+            : entry.reference_id === undefined
+              ? undefined
+              : String(entry.reference_id);
+        return {
+          entry,
+          tag: buchungstag,
+          art: art === "verkauf" || art === "erstattung" || art === "steuer" ? art : undefined,
+          amount: entry.amount,
+          order,
+          frueher,
+        };
+      }),
+  );
 
   // Art und Monat (etsySammelKennung), von denen ein früherer Abruf schon Gebühren einzeln übernommen hat
   const einzeln = new Set<string>();
@@ -327,7 +321,7 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
       return;
     }
     const frueher = bekannt(entry);
-    if (kind === "steuer" && !frueher && order !== undefined && schonVerrechnet(pool, settlementKey(order, buchungstag), entry.amount)) return;
+    if (drin.has(entry)) return;
     if (!kind) unbekannt.push(entry.ledger_type);
     const tx: Tx = {
       bookingDate: buchungstag,
@@ -341,7 +335,8 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
     };
     list.push(tx);
     // Mit schon übernommenen Zeilen verrechnet dieser Abruf nichts: Ihr Umsatz steht schon im Konto und bliebe unverändert
-    if (!frueher && order !== undefined && (kind === "verkauf" || kind === "erstattung" || kind === "steuer")) {
+    const verrechnen = kind === "steuer" ? verrechenbar.has(entry) : kind === "verkauf" || kind === "erstattung";
+    if (!frueher && order !== undefined && verrechnen) {
       orders.set(tx, settlementKey(order, buchungstag));
     }
   });
