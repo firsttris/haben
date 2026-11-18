@@ -18,6 +18,9 @@ import {
   formatDecimal,
   formatEuro,
   counterCircle,
+  customerNumberProblem,
+  documentNumberLengthProblem,
+  effectiveCustomerNumber,
   formatDocumentNumber,
   issueDateBeforeLastFinalized,
   type FinalizedCircleRef,
@@ -37,6 +40,7 @@ import {
   type OutgoingTaxDetails,
   type UnitLabel,
   distinctVatRates,
+  usesCustomerNumber,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -134,6 +138,26 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlanInConfirmation?: boolean;
 };
 
+function previewCustomerNumber(
+  contact: Pick<ContactOption, "kundennummer"> | null,
+  corrects: { buyer?: { kundennummer?: string } | null } | null,
+): string | undefined {
+  return corrects ? effectiveCustomerNumber(corrects.buyer, contact) : (contact?.kundennummer ?? undefined);
+}
+
+// {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals, solange sie taugt
+// (#1426); ohne verwendbare Nummer bleibt {KUNDENNR} stehen, das Problem dazu steht in der Liste über dem Formular
+export function previewNumber(
+  format: string,
+  date: string,
+  counter: number,
+  contact: Pick<ContactOption, "kundennummer"> | null,
+  corrects: { buyer?: { kundennummer?: string } | null } | null,
+): string {
+  const kundennummer = previewCustomerNumber(contact, corrects);
+  return formatDocumentNumber(format, date, counter, usesCustomerNumber(format) && customerNumberProblem(kundennummer) ? undefined : kundennummer);
+}
+
 export function InvoiceEditor({
   id: initialId,
   kind,
@@ -186,7 +210,7 @@ export function InvoiceEditor({
   numberRunning?: boolean;
   /** Zuletzt festgeschriebene Rechnung je Kreis (#713) */
   lastFinalized?: Record<number, FinalizedCircleRef>;
-  corrects: { number: string | null; issueDate: string } | null;
+  corrects: { number: string | null; issueDate: string; buyer?: { kundennummer?: string } | null } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
   kleinunternehmer: boolean;
@@ -335,7 +359,11 @@ export function InvoiceEditor({
   // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
-  const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
+  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, contact, corrects);
+  // Dasselbe Problem wie in buyerIssues, aber live aus dem Formular: Bei einem neuen oder geänderten Entwurf steht sonst nichts da
+  const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects)) : null;
+  // Zu lang für DATEV (Belegfeld 1, 36 Zeichen): dasselbe hält das Festschreiben auf, Angebote exportiert DATEV nicht
+  const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
@@ -657,7 +685,14 @@ export function InvoiceEditor({
   };
 
   const currentSellerIssues = alreadyPaid || (!quote && kind !== "rechnung") ? sellerIssues.filter((i) => i !== "IBAN fehlt") : sellerIssues;
-  const blocking = [...currentSellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
+  const blocking = [
+    ...new Set([
+      ...currentSellerIssues.map((i) => `Firmendaten: ${i}`),
+      ...(customerNumberIssue ? [customerNumberIssue.replace(/\.$/, "")] : []),
+      ...(numberLengthIssue ? [numberLengthIssue.replace(/\.$/, "")] : []),
+      ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten"))),
+    ]),
+  ];
 
   return (
     <>

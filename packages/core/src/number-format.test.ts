@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { purposeContainsNumber } from "./matching.ts";
 import {
   counterCircle,
+  customerNumberProblem,
+  documentNumberLengthProblem,
+  effectiveCustomerNumber,
   issueDateBeforeLastFinalized,
   DEFAULT_CUSTOMER_NUMBER_FORMAT,
   DEFAULT_INVOICE_NUMBER_FORMAT,
   DEFAULT_QUOTE_NUMBER_FORMAT,
   formatDocumentNumber,
   numberFormatError,
+  usesCustomerNumber,
 } from "./number-format.ts";
 
 describe("formatDocumentNumber", () => {
@@ -80,6 +84,82 @@ describe("numberFormatError", () => {
     expect(formatDocumentNumber(DEFAULT_CUSTOMER_NUMBER_FORMAT, "2026-01-15", 7)).toBe("K-0007");
     expect(numberFormatError("K-", { requireYear: false })).toMatch(/laufende Nummer/);
     expect(numberFormatError("K {NNNN}", { requireYear: false })).toMatch(/Buchstaben, Ziffern/);
+  });
+});
+
+describe("Platzhalter {KUNDENNR} (#1426)", () => {
+  const allowCustomer = { requireYear: false, allowCustomer: true } as const;
+
+  it("setzt die Kundennummer des Käufers ein, auch eine reine Ziffernnummer", () => {
+    expect(formatDocumentNumber("RE-{KUNDENNR}-{NNN}", "2026-01-15", 1, "ACME")).toBe("RE-ACME-001");
+    expect(formatDocumentNumber("RE-{KUNDENNR}-{NNN}", "2026-01-15", 7, "10042")).toBe("RE-10042-007");
+    expect(formatDocumentNumber("AN-{JJJJ}-{KUNDENNR}-{NN}", "2026-01-15", 34, "K-0001")).toBe("AN-2026-K-0001-34");
+  });
+
+  it("lässt {KUNDENNR} ohne Kundennummer als Text stehen (Vorschau ohne Kunden)", () => {
+    expect(formatDocumentNumber("RE-{KUNDENNR}-{NNN}", "2026-01-15", 1)).toBe("RE-{KUNDENNR}-001");
+  });
+
+  it("erlaubt {KUNDENNR} nur mit allowCustomer", () => {
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", { requireYear: false })).toMatch(/gibt es nicht/);
+    expect(numberFormatError("K-{KUNDENNR}-{NNN}", { requireYear: false })).toBe(
+      "Den Platzhalter {KUNDENNR} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM} und {N} bis {NNNNNN}.",
+    );
+    // Bei Rechnungen und Angeboten nennt die Meldung den Platzhalter als Möglichkeit
+    expect(numberFormatError("RE-{FIRMA}-{NNN}", allowCustomer)).toContain("{KUNDENNR}");
+  });
+
+  it("verlangt {KUNDENNR} höchstens einmal und nie direkt neben der laufenden Nummer", () => {
+    expect(numberFormatError("{KUNDENNR}-{KUNDENNR}-{NNN}", allowCustomer)).toMatch(/nur einmal/);
+    // "1004" + 2001 und "10042" + 1 ergäben beides 10042001
+    expect(numberFormatError("{KUNDENNR}{NNN}", allowCustomer)).toMatch(/direkt neben der laufenden Nummer/);
+    expect(numberFormatError("{NNN}{KUNDENNR}", allowCustomer)).toMatch(/direkt neben der laufenden Nummer/);
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
+    // Neben Jahr und Monat ist sie erlaubt: die haben feste Breite
+    expect(numberFormatError("{JJJJ}{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
+  });
+});
+
+describe("documentNumberLengthProblem (#1426)", () => {
+  it("lässt Nummern bis 36 Zeichen zu und meldet längere", () => {
+    expect(documentNumberLengthProblem("RE-2026-ACME-001")).toBeNull();
+    expect(documentNumberLengthProblem("X".repeat(36))).toBeNull();
+    expect(documentNumberLengthProblem("X".repeat(37))).toMatch(/36 Zeichen.*DATEV/);
+  });
+});
+
+describe("usesCustomerNumber und customerNumberProblem (#1426)", () => {
+  it("erkennt {KUNDENNR} im Format", () => {
+    expect(usesCustomerNumber("RE-{KUNDENNR}-{NNN}")).toBe(true);
+    expect(usesCustomerNumber("RE-{JJJJ}-{NNN}")).toBe(false);
+  });
+
+  it("meldet fehlende und ungeeignete Kundennummern", () => {
+    expect(customerNumberProblem(undefined)).toMatch(/braucht eine Kundennummer.*\{KUNDENNR\}/);
+    expect(customerNumberProblem(null)).toMatch(/braucht eine Kundennummer/);
+    expect(customerNumberProblem("")).toMatch(/braucht eine Kundennummer/);
+    expect(customerNumberProblem("   ")).toMatch(/braucht eine Kundennummer/);
+    expect(customerNumberProblem("A/B")).toMatch(/Buchstaben, Ziffern/);
+    expect(customerNumberProblem("Müller")).toMatch(/Buchstaben, Ziffern/);
+    expect(customerNumberProblem("ACME")).toBeNull();
+    expect(customerNumberProblem("K-0001.A_B")).toBeNull();
+  });
+});
+
+describe("effectiveCustomerNumber (#1426)", () => {
+  it("nimmt die Kundennummer des Originals, solange sie taugt", () => {
+    expect(effectiveCustomerNumber({ kundennummer: "ACME" }, { kundennummer: "NEUE-9" })).toBe("ACME");
+    expect(effectiveCustomerNumber(null, { kundennummer: "ACME" })).toBe("ACME");
+  });
+
+  it("fällt auf die heutige des Kontakts zurück, wenn die des Originals fehlt oder ungültig ist", () => {
+    expect(effectiveCustomerNumber({}, { kundennummer: "ACME" })).toBe("ACME");
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, { kundennummer: "ACME" })).toBe("ACME");
+    // Taugt auch die des Kontakts nicht, bleibt sie die zu meldende Nummer
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, { kundennummer: "K 1" })).toBe("K 1");
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, {})).toBeUndefined();
+    expect(effectiveCustomerNumber(null, null)).toBeUndefined();
   });
 });
 

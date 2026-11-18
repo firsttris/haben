@@ -45,7 +45,17 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { quoteDraftLineSchema } from "./draft-line.ts";
-import { buyerFrom, effectivePriceMode, insertDraft, invoiceDiscountOf, lineDiscountOf, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
+import {
+  buyerFrom,
+  buyerIssues,
+  effectivePriceMode,
+  insertDraft,
+  invoiceDiscountOf,
+  lineDiscountOf,
+  openAbschlaege,
+  sellerFrom,
+  type Invoice,
+} from "./invoices.ts";
 import { removeFiles, unusedFiles } from "./attachment-store.ts";
 import { attachStoredToQuote, copyQuoteAttachments, quoteAttachmentFiles } from "./quote-attachments.ts";
 import { listQuoteDefaultAttachments } from "./quote-default-attachments.ts";
@@ -452,7 +462,7 @@ export async function quoteIssues(id: string): Promise<string[]> {
     }),
   );
   if (quote.taxTreatment === "steuerfrei" && !quote.exemptionReason) issues.push("Befreiungsvorschrift fehlt");
-  if (!contact) issues.push("Kunde fehlt");
+  issues.push(...buyerIssues(company.quoteNumberFormat, contact));
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (quote.gross <= 0) issues.push("Angebotssumme muss positiv sein");
@@ -474,12 +484,13 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const company = await loadCompany(tx);
     const lines = await tx.select().from(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id)).orderBy(asc(schema.quoteLines.position));
     const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, quote.contactId!));
-    // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts)
-    const circle = await circleFor(tx, "angebot", quote.issueDate);
-    const counter = await peekNumber(tx, "angebot", circle);
-    const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, quote.issueDate, counter);
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!, await ansprechpartnerSnapshot(tx, quote.contactPersonId));
+    // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts); {KUNDENNR} wird zur
+    // Kundennummer des Käufers (#1426)
+    const circle = await circleFor(tx, "angebot", quote.issueDate);
+    const counter = await peekNumber(tx, "angebot", circle);
+    const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, quote.issueDate, counter, buyer.kundennummer);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
     const pdf = await withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuotePdf({ ...doc, ...letterhead }));
     const now = new Date();

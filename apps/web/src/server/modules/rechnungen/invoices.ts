@@ -9,6 +9,8 @@ import {
   firstEmail,
   DEFAULT_INVOICE_NUMBER_FORMAT,
   DEFAULT_QUOTE_NUMBER_FORMAT,
+  customerNumberProblem,
+  effectiveCustomerNumber,
   formatDocumentNumber,
   invoiceDueDate,
   invoicePosting,
@@ -32,6 +34,7 @@ import {
   leistungsdatum,
   skontoProblem,
   sortSkonto,
+  usesCustomerNumber,
   discountColumns,
   discountFromColumns,
   discountSchema,
@@ -761,7 +764,8 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     : [];
   const [corrects] = invoice.correctsId
     ? await q
-        .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
+        // buyer: {KUNDENNR} von Storno und Korrektur nimmt die Kundennummer des Originals, solange sie taugt (#1426)
+        .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate, buyer: schema.invoices.buyer })
         .from(schema.invoices)
         .where(eq(schema.invoices.id, invoice.correctsId))
     : [];
@@ -1027,6 +1031,31 @@ export async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
 
 export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
+/**
+ * Probleme beim Käufer vor dem Festschreiben: fehlt er, fehlt seine Kundennummer für {KUNDENNR} oder taugt sie nicht
+ * als Teil der Nummer. Storno und Korrektur nehmen die Kundennummer des Originals, solange sie taugt, sonst die
+ * heutige des Kontakts (#1426).
+ */
+export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null): string[] {
+  const issues = contact ? [] : ["Kunde fehlt"];
+  if (usesCustomerNumber(format) && (contact || corrects)) {
+    const problem = customerNumberProblem(effectiveCustomerNumber(corrects?.buyer, contact));
+    // ganze Sätze ohne Schlusspunkt in die Liste, „Noch nicht bereit: …“ setzt ihn selbst
+    if (problem) issues.push(problem.replace(/\.$/, ""));
+  }
+  return issues;
+}
+
+/**
+ * Käufer für das Festschreiben: bei Storno und Korrektur der festgeschriebene des Originals. Trug der noch keine
+ * verwendbare Kundennummer für {KUNDENNR}, steht hier die heutige des Kontakts, mit der nummeriert wird (#1426).
+ */
+function numberedBuyer(original: Buyer | null, contact: Contact, ansprechpartner: Buyer["ansprechpartner"], format: string): Buyer {
+  const buyer = original ?? buyerFrom(contact, ansprechpartner);
+  const kundennummer = usesCustomerNumber(format) ? effectiveCustomerNumber(original, contact) : buyer.kundennummer;
+  return kundennummer && kundennummer !== buyer.kundennummer ? { ...buyer, kundennummer } : buyer;
+}
+
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
 export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<string[]> {
   const data = await getInvoice(id, q);
@@ -1037,7 +1066,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
   issues.push(...(await versteuerungIssues(company, invoice.issueDate, q)));
-  if (!contact) issues.push("Kunde fehlt");
+  issues.push(...buyerIssues(company.invoiceNumberFormat, contact, data.corrects));
   if (invoice.advanceType === "teilleistung") {
     if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
     if ((invoice.serviceTo ?? invoice.serviceFrom ?? "") > invoice.issueDate) issues.push("Die Teilleistung ist am Rechnungsdatum noch nicht erbracht");
@@ -1206,15 +1235,15 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
   }
 
+  // Storno/Korrektur: Anschrift des Originals, {KUNDENNR} daraus oder vom Kontakt (#1426); nur gelesen, daher vor der Sperre
+  const seller = sellerFrom(company);
+  const buyer = numberedBuyer(corrects?.buyer ?? null, contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId), company.invoiceNumberFormat);
+
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
   const circle = await circleFor(tx, "rechnung", invoice.issueDate);
   const counter = await peekNumber(tx, "rechnung", circle);
-  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter);
-
-  // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
-  const seller = sellerFrom(company);
-  const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
+  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
   const doc = documentFor(
