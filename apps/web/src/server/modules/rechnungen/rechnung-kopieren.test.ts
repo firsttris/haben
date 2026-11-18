@@ -139,7 +139,8 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
     await kopieren.copyInvoice(actor, original.id, heute);
     const after = await invoices.getInvoice(original.id);
     expect(after!.invoice).toMatchObject({ status: "final", number: original.number, pdfSha256: original.pdfSha256, issueDate: "2026-10-01" });
-    expect((await integrity.checkIntegrity(heute)).problems).toEqual([]);
+    // Nur die eigene Rechnung: Siegel aus anderen Testdateien desselben Workers bleiben in der Datenbank stehen
+    expect((await integrity.checkIntegrity(heute)).problems.filter((p) => p.zeile === original.id)).toEqual([]);
   });
 
   it("kopiert auch eine stornierte Rechnung", async () => {
