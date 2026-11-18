@@ -85,6 +85,15 @@ export function antwortenAus(stand: Stand): Antworten {
   };
 }
 
+/**
+ * Antwort zu einem Bereich. „Weiß ich noch nicht“ (null) nimmt den Bereich heraus: Ein Schlüssel mit undefined
+ * besteht die Prüfung am Server nicht (einrichtungSchema, z.partialRecord mit z.boolean()).
+ */
+export function mitBereich(bereiche: Antworten["bereiche"], id: BereichId, wert: boolean | null): Antworten["bereiche"] {
+  const { [id]: _, ...rest } = bereiche;
+  return wert === null ? rest : { ...rest, [id]: wert };
+}
+
 /** Die Angaben nach den Antworten; ein Kleinunternehmer gibt keine Voranmeldung ab, Versteuerung und Zeitraum bleiben */
 export function steuerangabenNach(aktuell: Steuerangaben, antworten: Antworten): Steuerangaben {
   const art = antworten.selbstaendig;

@@ -4,7 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { BereichFragen, StartFrage, UnternehmenFragen } from "../../components/EinrichtungFragen.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
-import { type Antworten, antwortenAus, erneutDurchgehen, rueckfrageAenderungen, steuerangabenNach } from "../../lib/einrichtung.ts";
+import { type Antworten, antwortenAus, erneutDurchgehen, mitBereich, rueckfrageAenderungen, steuerangabenNach } from "../../lib/einrichtung.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { getEinrichtung, saveEinrichtung } from "../../server/functions/einrichtung.ts";
 
@@ -104,9 +104,7 @@ function EinrichtungPage() {
             />
           )}
           {schritt === 1 && <StartFrage wechsel={wechsel} setWechsel={setWechsel} einzelunternehmen={nachher.rechtsform === "einzelunternehmen"} />}
-          {schritt === 2 && (
-            <BereichFragen bereiche={antworten.bereiche} setzen={(id, wert) => setzen("bereiche", { ...antworten.bereiche, [id]: wert ?? undefined })} />
-          )}
+          {schritt === 2 && <BereichFragen bereiche={antworten.bereiche} setzen={(id, wert) => setzen("bereiche", mitBereich(antworten.bereiche, id, wert))} />}
         </section>
         <NoticeBanner notice={notice} />
         {gespeichert ? (
