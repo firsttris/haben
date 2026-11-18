@@ -294,6 +294,11 @@ describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres
     await invoices.settleInvoices(actor, { invoiceId: original.id, counterInvoiceId: old.id, amount: 11_900, date: "2026-01-12", note: "Alte Korrektur" });
     // Verrechnet: 1.071 € vereinnahmt, Entgelt 952 €; die 119 € der neuen Korrektur bleiben bis zur Rückzahlung besteuert
     expect(await kz(1, 2026)).toEqual({ kz81: 10_000, tax81: 1_900 });
+    // Die Quelle der Voranmeldung nennt die Verrechnung mit Bezug zur Ursprungsrechnung
+    const { revenue } = await vat.computeVatFigures({ year: 2026, month: 1 });
+    expect(revenue.map(({ date, invoiceId, base, tax }) => ({ date, invoiceId, base, tax }))).toEqual([
+      { date: "2026-01-12", invoiceId: original.id, base: 10_000, tax: 1_900 },
+    ]);
     await integrity();
   }, 40_000);
 
