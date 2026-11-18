@@ -10,6 +10,7 @@ import {
   DEFAULT_INVOICE_NUMBER_FORMAT,
   DEFAULT_QUOTE_NUMBER_FORMAT,
   customerNumberProblem,
+  effectiveCustomerNumber,
   formatDocumentNumber,
   invoiceDueDate,
   invoicePosting,
@@ -763,7 +764,7 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     : [];
   const [corrects] = invoice.correctsId
     ? await q
-        // buyer: {KUNDENNR} von Storno und Korrektur nimmt die Kundennummer des Originals, nicht die des Kontakts (#1426)
+        // buyer: {KUNDENNR} von Storno und Korrektur nimmt die Kundennummer des Originals, solange sie taugt (#1426)
         .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate, buyer: schema.invoices.buyer })
         .from(schema.invoices)
         .where(eq(schema.invoices.id, invoice.correctsId))
@@ -1032,16 +1033,27 @@ export const sha256 = (data: string | Uint8Array) => createHash("sha256").update
 
 /**
  * Probleme beim Käufer vor dem Festschreiben: fehlt er, fehlt seine Kundennummer für {KUNDENNR} oder taugt sie nicht
- * als Teil der Nummer. Storno und Korrektur nehmen die Kundennummer des Originals, nicht die des Kontakts (#1426).
+ * als Teil der Nummer. Storno und Korrektur nehmen die Kundennummer des Originals, solange sie taugt, sonst die
+ * heutige des Kontakts (#1426).
  */
 export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null): string[] {
   const issues = contact ? [] : ["Kunde fehlt"];
   if (usesCustomerNumber(format) && (contact || corrects)) {
-    const problem = customerNumberProblem(corrects ? corrects.buyer?.kundennummer : contact?.kundennummer);
+    const problem = customerNumberProblem(effectiveCustomerNumber(corrects?.buyer, contact));
     // ganze Sätze ohne Schlusspunkt in die Liste, „Noch nicht bereit: …“ setzt ihn selbst
     if (problem) issues.push(problem.replace(/\.$/, ""));
   }
   return issues;
+}
+
+/**
+ * Käufer für das Festschreiben: bei Storno und Korrektur der festgeschriebene des Originals. Trug der noch keine
+ * verwendbare Kundennummer für {KUNDENNR}, steht hier die heutige des Kontakts, mit der nummeriert wird (#1426).
+ */
+function numberedBuyer(original: Buyer | null, contact: Contact, ansprechpartner: Buyer["ansprechpartner"], format: string): Buyer {
+  const buyer = original ?? buyerFrom(contact, ansprechpartner);
+  const kundennummer = usesCustomerNumber(format) ? effectiveCustomerNumber(original, contact) : buyer.kundennummer;
+  return kundennummer && kundennummer !== buyer.kundennummer ? { ...buyer, kundennummer } : buyer;
 }
 
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
@@ -1223,9 +1235,9 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
   }
 
-  // Storno/Korrektur: Anschrift und {KUNDENNR} des Originals (#1426); nur gelesen, daher vor der Nummernkreis-Sperre
+  // Storno/Korrektur: Anschrift des Originals, {KUNDENNR} daraus oder vom Kontakt (#1426); nur gelesen, daher vor der Sperre
   const seller = sellerFrom(company);
-  const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
+  const buyer = numberedBuyer(corrects?.buyer ?? null, contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId), company.invoiceNumberFormat);
 
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)

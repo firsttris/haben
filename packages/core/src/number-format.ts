@@ -65,6 +65,19 @@ export function customerNumberProblem(kundennummer: string | null | undefined): 
 }
 
 /**
+ * Kundennummer, mit der Storno und Rechnungskorrektur bei {KUNDENNR} nummeriert werden: die festgeschriebene
+ * des Originals, solange sie taugt, sonst die heutige des Kontakts (#1426). Was übrig bleibt, meldet
+ * customerNumberProblem.
+ */
+export function effectiveCustomerNumber(
+  buyer: { kundennummer?: string | null } | null | undefined,
+  contact: { kundennummer?: string | null } | null | undefined,
+): string | undefined {
+  const original = buyer?.kundennummer;
+  return original && !customerNumberProblem(original) ? original : (contact?.kundennummer ?? undefined);
+}
+
+/**
  * Schlüssel des Zählers: das Jahr des Belegdatums, wenn der Zähler jedes Jahr neu beginnt, sonst 0 für den einen
  * durchlaufenden Kreis. So steht er in den Zählertabellen und in number_year der festgeschriebenen Belege.
  */

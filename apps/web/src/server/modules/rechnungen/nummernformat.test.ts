@@ -47,6 +47,20 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
       leitwegId: "",
       defaultFormat: null,
     });
+  const updateKundennummer = (id: string, kundennummer: string) =>
+    contacts.updateContact(actor, id, {
+      kundennummer,
+      name: "Zweitkunde GmbH",
+      strasse: "Werkstraße 9",
+      plz: "10115",
+      ort: "Berlin",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -178,5 +192,50 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
     const ohne = (await createContact("")).id;
     await expect(invoices.finalizeInvoice(actor, (await invoiceDraft(ohne)).id)).rejects.toThrow(/enthält\.$/);
     await expect(invoices.finalizeInvoice(actor, (await invoiceDraft(ohne)).id)).rejects.not.toThrow(/\.\.$/);
+  });
+
+  it("lässt eine vor {KUNDENNR} festgeschriebene Rechnung ohne Kundennummer stornieren, nachdem der Kunde eine bekommen hat (#1426)", async () => {
+    const ohne = (await createContact("")).id;
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(ohne)).id);
+    expect(original.number).toBe("2026-001");
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
+    // Solange auch der Kontakt keine Kundennummer hat, bleibt das Storno gesperrt
+    await expect(invoices.cancelInvoice(actor, original.id, "2026-03-05")).rejects.toThrow(/Kundennummer/);
+    // Trägt die Person sie nach, wie die Meldung es verlangt, nummeriert das Storno mit der heutigen
+    await updateKundennummer(ohne, "ACME");
+    const storno = await invoices.cancelInvoice(actor, original.id, "2026-03-05");
+    expect(storno.number).toBe("RE-ACME-002");
+    // Im Käufer-Snapshot des Stornos steht die Nummer, mit der nummeriert wurde; das Original bleibt unverändert
+    const [stornoRow] = await sql`select buyer from invoices where id = ${storno.id}`;
+    expect(stornoRow!.buyer.kundennummer).toBe("ACME");
+    const [originalRow] = await sql`select buyer from invoices where id = ${original.id}`;
+    expect(originalRow!.buyer.kundennummer ?? null).toBeNull();
+  });
+
+  it("lässt eine Rechnung stornieren, deren Kundennummer im Snapshot ungültig ist, sobald der Kontakt eine gültige hat (#1426)", async () => {
+    const kunde = (await createContact("10/2024")).id;
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(kunde)).id);
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
+    await updateKundennummer(kunde, "ACME");
+    const storno = await invoices.cancelInvoice(actor, original.id, "2026-03-05");
+    expect(storno.number).toBe("RE-ACME-002");
+    const [stornoRow] = await sql`select buyer from invoices where id = ${storno.id}`;
+    expect(stornoRow!.buyer.kundennummer).toBe("ACME");
+    // Der festgeschriebene Snapshot des Originals bleibt unverändert (GoBD)
+    const [originalRow] = await sql`select buyer from invoices where id = ${original.id}`;
+    expect(originalRow!.buyer.kundennummer).toBe("10/2024");
+  });
+
+  it("lässt eine Korrektur einer Rechnung ohne Kundennummer im Original mit der heutigen festschreiben (#1426)", async () => {
+    const ohne = (await createContact("")).id;
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(ohne)).id);
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
+    const korrektur = await invoices.createCorrection(actor, original.id, "2026-03-05");
+    await expect(invoices.finalizeInvoice(actor, korrektur.id)).rejects.toThrow(/Kundennummer/);
+    await updateKundennummer(ohne, "ACME");
+    const final = await invoices.finalizeInvoice(actor, korrektur.id);
+    expect(final.number).toBe("RE-ACME-002");
+    const [row] = await sql`select buyer from invoices where id = ${korrektur.id}`;
+    expect(row!.buyer.kundennummer).toBe("ACME");
   });
 });

@@ -3,6 +3,7 @@ import { purposeContainsNumber } from "./matching.ts";
 import {
   counterCircle,
   customerNumberProblem,
+  effectiveCustomerNumber,
   issueDateBeforeLastFinalized,
   DEFAULT_CUSTOMER_NUMBER_FORMAT,
   DEFAULT_INVOICE_NUMBER_FORMAT,
@@ -134,6 +135,22 @@ describe("usesCustomerNumber und customerNumberProblem (#1426)", () => {
     expect(customerNumberProblem("Müller")).toMatch(/Buchstaben, Ziffern/);
     expect(customerNumberProblem("ACME")).toBeNull();
     expect(customerNumberProblem("K-0001.A_B")).toBeNull();
+  });
+});
+
+describe("effectiveCustomerNumber (#1426)", () => {
+  it("nimmt die Kundennummer des Originals, solange sie taugt", () => {
+    expect(effectiveCustomerNumber({ kundennummer: "ACME" }, { kundennummer: "NEUE-9" })).toBe("ACME");
+    expect(effectiveCustomerNumber(null, { kundennummer: "ACME" })).toBe("ACME");
+  });
+
+  it("fällt auf die heutige des Kontakts zurück, wenn die des Originals fehlt oder ungültig ist", () => {
+    expect(effectiveCustomerNumber({}, { kundennummer: "ACME" })).toBe("ACME");
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, { kundennummer: "ACME" })).toBe("ACME");
+    // Taugt auch die des Kontakts nicht, bleibt sie die zu meldende Nummer
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, { kundennummer: "K 1" })).toBe("K 1");
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, {})).toBeUndefined();
+    expect(effectiveCustomerNumber(null, null)).toBeUndefined();
   });
 });
 

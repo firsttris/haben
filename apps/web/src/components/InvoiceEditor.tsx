@@ -19,6 +19,7 @@ import {
   formatEuro,
   counterCircle,
   customerNumberProblem,
+  effectiveCustomerNumber,
   formatDocumentNumber,
   issueDateBeforeLastFinalized,
   type FinalizedCircleRef,
@@ -136,8 +137,8 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlanInConfirmation?: boolean;
 };
 
-// {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals (#1426); fehlt sie,
-// steht statt der Nummer der Hinweis — die Vorschau darf kein {KUNDENNR} als Text zeigen
+// {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals, solange sie taugt
+// (#1426); fehlt sie, steht statt der Nummer der Hinweis — die Vorschau darf kein {KUNDENNR} als Text zeigen
 function previewNumber(
   format: string,
   date: string,
@@ -145,7 +146,7 @@ function previewNumber(
   contact: Pick<ContactOption, "kundennummer"> | null,
   corrects: { buyer?: { kundennummer?: string } | null } | null,
 ): string {
-  const kundennummer = corrects ? corrects.buyer?.kundennummer : (contact?.kundennummer ?? undefined);
+  const kundennummer = corrects ? effectiveCustomerNumber(corrects.buyer, contact) : (contact?.kundennummer ?? undefined);
   const issue = usesCustomerNumber(format) ? customerNumberProblem(kundennummer) : null;
   return issue ?? formatDocumentNumber(format, date, counter, kundennummer);
 }
