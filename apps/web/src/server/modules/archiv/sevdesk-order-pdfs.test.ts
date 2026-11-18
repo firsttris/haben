@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
         expect(url.searchParams.get("preventSendBy")).toBe("true");
         expect(init?.redirect).toBe("error");
         requested = true;
-        if (changeVersionOnPdf) version = "2.0";
+        if (changeVersionOnPdf) version = "3.0";
         if (changeContentOnPdf) header = "Geändert";
         if (changeOnPdf) sourceChanged = true;
         return json(
@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
       return json([]);
     }) as typeof fetch;
     sevdesk.setSevdeskClientFactory((options) => new SevdeskClient({ ...options, fetch: fetchFn, minIntervalMs: 0, maxRetries: 0 }));
-    // Absichtlich V1 gespeichert: spätere Tests müssen eine frisch ermittelte V2 trotzdem ablehnen.
+    // Absichtlich V1 gespeichert: spätere Tests müssen eine frisch ermittelte, nicht geprüfte Version trotzdem ablehnen.
     await sevdesk.saveSevdeskKey("test-user", "0123456789abcdef0123456789abcdef");
   }, 30_000);
 
@@ -102,7 +102,18 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
     expect(calls.slice(count).some((p) => p.endsWith("/getPdf"))).toBe(false);
   });
 
-  it.each(["2.0", "", "3.0", "1"])("ruft trotz früher gespeicherter V1 bei aktueller Version %s kein PDF ab", async (current) => {
+  it("ruft auch in Buchhaltungsversion 2.0 das PDF ab und hält die Version im Nachweis fest", async () => {
+    // Belegt in #472: getPdf mit preventSendBy ändert an einem Entwurf in 2.0 kein Feld des Auftrags
+    version = "2.0";
+    await sevdesk.startSevdeskImport("test-user", { wait: true });
+    expect(calls.filter((p) => p.endsWith("/getPdf"))).toHaveLength(1);
+    const [file] = await sql`select f.origin from legacy_order_files f join legacy_order_documents d on d.id = f.order_id where d.external_id = ${ids[0]!}`;
+    expect(file).toMatchObject({ origin: "sevdesk" });
+    const [proof] = await sql`select a.* from legacy_order_pdf_attempts a join legacy_order_documents d on d.id = a.order_id where d.external_id = ${ids[0]!}`;
+    expect(proof).toMatchObject({ bookkeeping_version: "2.0", error: null });
+  });
+
+  it.each(["", "3.0", "2.1", "1"])("ruft trotz früher gespeicherter V1 bei aktueller Version %s kein PDF ab", async (current) => {
     version = current;
     const options = { wait: true, orderPdfs: true };
     await sevdesk.startSevdeskImport("test-user", options);
@@ -130,7 +141,7 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
   });
 
   it("ordnet einen seit Archivierung veränderten Quellstand keinem alten Dokument zu", async () => {
-    version = "2.0";
+    version = "3.0";
     await sevdesk.startSevdeskImport("test-user", { wait: true });
     version = "1.0";
     sourceChanged = true;
@@ -143,7 +154,7 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
   });
 
   it("erkennt vor dem Abruf auch geänderten Kopftext ohne neue Status- oder Versionsnummer", async () => {
-    version = "2.0";
+    version = "3.0";
     await sevdesk.startSevdeskImport("test-user", { wait: true });
     version = "1.0";
     header = "Neuer Kopftext";
@@ -154,7 +165,7 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
   });
 
   it("ersetzt ein manuell nachgereichtes Original nicht durch einen späteren automatischen Abruf", async () => {
-    version = "2.0";
+    version = "3.0";
     await sevdesk.startSevdeskImport("test-user", { wait: true });
     const [document] = await sql`select id from legacy_order_documents where external_id = ${ids[0]!}`;
     const { attachOrderPdf } = await import("./orders.ts");
@@ -195,13 +206,13 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
     expect((await sevdesk.latestSevdeskImport())!.progress.failed).toHaveLength(1);
   });
 
-  it("prüft die Version vor jedem PDF erneut und stoppt bei einem Wechsel auf V2", async () => {
+  it("prüft die Version vor jedem PDF erneut und stoppt bei einem Wechsel auf eine nicht geprüfte Version", async () => {
     ids.push(String(++serial));
     changeVersionOnPdf = true;
     await sevdesk.startSevdeskImport("test-user", { wait: true });
     expect(calls.filter((p) => p.endsWith("/getPdf"))).toHaveLength(1);
     expect(calls.filter((p) => p === "/Tools/bookkeepingSystemVersion")).toHaveLength(2);
-    expect((await sevdesk.latestSevdeskImport())!.progress.failed).toMatchObject([{ message: expect.stringContaining("Buchhaltungsversion 2.0") }]);
+    expect((await sevdesk.latestSevdeskImport())!.progress.failed).toMatchObject([{ message: expect.stringContaining("Buchhaltungsversion 3.0") }]);
   });
 
   it("exportiert erfolgreiche und fehlgeschlagene Abrufnachweise im Jahresarchiv", async () => {

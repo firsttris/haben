@@ -452,6 +452,33 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect(documents.bookingIssues(doc.document, doc.amounts)).toContain("§ 13b gilt nicht für Wareneinkäufe");
   });
 
+  it("nennt das Feld eines Hinweises vor dem Buchen, auch wenn der Server das Buchen ablehnt (#1253)", async () => {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 43]), filename: "erwerb-kurz.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Papeterie Lyon SARL",
+      // Zu wenig Zeichen nach dem Länderkennzeichen (ustIdProblem in packages/core/src/zm.ts)
+      supplierUstId: "FR1234",
+      invoiceNumber: "FR-2026-3",
+      documentDate: "2026-09-30",
+      dueDate: null,
+      category: "buero",
+      payment: "bank",
+      note: "",
+      reverseCharge: "ig_erwerb",
+      currency: "EUR",
+      exchangeRate: null,
+      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+    });
+    const doc = (await documents.getDocument(id))!;
+    expect(documents.bookingIssueList(doc.document, doc.amounts)).toEqual([
+      { text: expect.stringMatching(/^Lieferant FR1234: nach dem Länderkennzeichen 5 bis 12/), feld: "supplierUstId" },
+    ]);
+    await expect(documents.bookDocument(actor, id)).rejects.toMatchObject({
+      message: expect.stringMatching(/^Noch nicht bereit: Lieferant FR1234/),
+      felder: ["supplierUstId"],
+    });
+  });
+
   it.each([
     ["eu", "software", "Steuer § 13b"],
     ["ig_erwerb", "buero", "Erwerbsteuer"],
@@ -607,7 +634,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
         exchangeRate: "0,000001",
         amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000_000, originalTax: 0 }],
       }),
-    ).rejects.toThrow(/zu groß/);
+    ).rejects.toMatchObject({ message: expect.stringMatching(/zu groß/), felder: ["exchangeRate"] });
     // 50 Mio. Yen passen nicht in int4-Cent, als Originalbetrag aber schon; umgerechnet (1 EUR = 160 JPY) sind es 312.500 €
     await documents.updateDocument(actor, id, {
       ...base,
@@ -625,7 +652,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
       amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 4, originalTax: 0 }],
     });
     const zero = (await documents.getDocument(id))!;
-    expect(documents.bookingIssues(zero.document, zero.amounts)).toEqual(["Umgerechnet 0,00 €, bitte den Kurs prüfen"]);
+    expect(documents.bookingIssueList(zero.document, zero.amounts)).toEqual([{ text: "Umgerechnet 0,00 €, bitte den Kurs prüfen", feld: "exchangeRate" }]);
 
     await documents.updateDocument(actor, id, {
       ...base,
@@ -649,7 +676,9 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     const after = (await documents.getDocument(id))!;
     expect(after.document).toMatchObject({ currency: "USD", net: 0, tax: 0, gross: 0 });
     expect(after.amounts.map((a) => [a.net, a.originalNet])).toEqual([[0, 10000]]);
-    expect(documents.bookingIssues(after.document, after.amounts, "2026-10-22")).toEqual(["Umrechnungskurs für USD 09/2026 fehlt"]);
+    expect(documents.bookingIssueList(after.document, after.amounts, "2026-10-22")).toEqual([
+      { text: "Umrechnungskurs für USD 09/2026 fehlt", feld: "exchangeRate" },
+    ]);
   });
 
   it("verlangt Pflichtangaben und erlaubt Löschen ungebuchter Belege", async () => {
