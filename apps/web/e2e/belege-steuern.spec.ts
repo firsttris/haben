@@ -201,6 +201,18 @@ test("Beleg prüfen: Die Wahl per Suche übernimmt die Privatanteil-Vorgabe der 
     // Telefon hat eine Vorgabe, Bürobedarf keine: die Wahl setzt oder leert den Anteil
     await waehleKategorie(kategorie, "telefon");
     await expect(privat).toHaveValue("20");
+    // Bis aufs leere Feld löschen und dieselbe Kategorie wieder wählen ändert nichts: der eigene Anteil bleibt
+    await privat.fill("35");
+    await kategorie.fill("");
+    await waehleKategorie(kategorie, "telefon");
+    await expect(privat).toHaveValue("35");
+    // Leeren, etwas anderes suchen und ohne Wahl mit Escape gehen: die bisherige Kategorie bleibt
+    await kategorie.fill("");
+    await kategorie.pressSequentially("büro");
+    await kategorie.press("Escape");
+    await page.keyboard.press("Tab");
+    await expect(kategorie).toHaveValue(kategorieName("telefon"));
+    await expect(privat).toHaveValue("35");
     await waehleKategorie(kategorie, "buero");
     await expect(privat).toHaveValue("");
     // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
