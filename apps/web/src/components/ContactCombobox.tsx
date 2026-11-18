@@ -61,6 +61,7 @@ export function ContactCombobox({
   placeholder,
   onChoose,
   onCreate,
+  freitext,
   ...control
 }: FieldControlProps & {
   contacts: ContactChoice[];
@@ -73,13 +74,14 @@ export function ContactCombobox({
   onChoose: (contactId: string) => void;
   /** Dialog für den neuen Kontakt, mit dem getippten Namen */
   onCreate?: (name: string) => void;
+  freitext?: { value: string; onInput: (text: string) => void };
 }) {
   const text = ROLE_TEXT[rolle];
   /** Was gerade getippt ist; null = es steht der gewählte Kontakt im Feld */
   const [query, setQuery] = useState<string | null>(null);
   const choosable = contacts.filter((c) => inRole(c, rolle) || c.id === contactId);
   const chosen = contacts.find((c) => c.id === contactId);
-  const typed = query?.trim() ?? "";
+  const typed = (freitext ? freitext.value : query)?.trim() ?? "";
   /** Bei Lieferanten hilft die USt-IdNr. bei der Wahl: Sie steht in der zweiten Zeile und ist durchsuchbar */
   const ustIdOf = (c: ContactChoice) => (rolle === "lieferant" ? c.ustId : "");
 
@@ -93,9 +95,10 @@ export function ContactCombobox({
     <Combobox
       {...control}
       commitOnTab
-      value={query ?? (chosen ? contactText(chosen) : "")}
-      onInput={setQuery}
-      search={() => searchOptions(choosable, query ?? "", (c) => [c.name, c.nummer, c.ort, ustIdOf(c)])}
+      freeText={Boolean(freitext)}
+      value={freitext ? freitext.value : (query ?? (chosen ? contactText(chosen) : ""))}
+      onInput={freitext ? freitext.onInput : setQuery}
+      search={() => searchOptions(choosable, freitext ? freitext.value : (query ?? ""), (c) => [c.name, c.nummer, c.ort, ustIdOf(c)])}
       describe={(c) => ({
         key: c.id,
         label: c.name,
@@ -118,7 +121,7 @@ export function ContactCombobox({
       disabled={disabled}
       required={required}
       onBlur={() => {
-        if (query === null) return;
+        if (freitext || query === null) return;
         if (typed === "") choose("");
         else setQuery(null);
       }}
