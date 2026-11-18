@@ -1309,6 +1309,55 @@ export const sepaMandateRevocations = pgTable(
   (t) => [uniqueIndex("sepa_mandate_revocations_mandate").on(t.mandateId)],
 );
 
+/**
+ * Bestätigungen ausländischer USt-IdNrn. beim BZSt (§ 18e UStG, #1385), nur anhängen: je Antwort des BZSt, die etwas über
+ * die Nummer sagt, eine Zeile mit den gesendeten Angaben und dem empfangenen Datensatz unverändert als Nachweis
+ * (UStAE 18e.1 Abs. 2). Fehler des Dienstes stehen nicht hier.
+ */
+export const ustidBestaetigungen = pgTable(
+  "ustid_bestaetigungen",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    art: text("art", { enum: ["einfach", "qualifiziert"] }).notNull(),
+    /** Gesendet: eigene und angefragte USt-IdNr., bei qualifizierter Abfrage Name und Anschrift (Straße und PLZ optional) */
+    anfragendeUstid: text("anfragende_ustid").notNull(),
+    angefragteUstid: text("angefragte_ustid").notNull(),
+    firmenname: text("firmenname"),
+    strasse: text("strasse"),
+    plz: text("plz"),
+    ort: text("ort"),
+    /** Empfangen: Status (evatr-…), Zeitpunkt der Anfrage beim BZSt, Gültigkeit und Vergleich A bis D je Angabe */
+    status: text("status").notNull(),
+    anfrageZeitpunkt: timestamp("anfrage_zeitpunkt", { withTimezone: true }).notNull(),
+    gueltigAb: text("gueltig_ab"),
+    gueltigBis: text("gueltig_bis"),
+    ergFirmenname: text("erg_firmenname"),
+    ergStrasse: text("erg_strasse"),
+    ergPlz: text("erg_plz"),
+    ergOrt: text("erg_ort"),
+    /** Technische ID der Antwort */
+    bzstId: text("bzst_id"),
+    /** Der empfangene Datensatz, wie er kam */
+    antwort: text("antwort").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ustid_bestaetigungen_contact").on(t.contactId, t.createdAt),
+    check("ustid_bestaetigungen_art", sql`${t.art} in ('einfach', 'qualifiziert')`),
+    check("ustid_bestaetigungen_status", sql`${t.status} ~ '^evatr-[0-9]{4}$'`),
+    check(
+      "ustid_bestaetigungen_vergleich",
+      sql`coalesce(${t.ergFirmenname}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergStrasse}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergPlz}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergOrt}, 'A') in ('A', 'B', 'C', 'D')`,
+    ),
+    // Qualifiziert heißt: mit Name und Ort (OpenAPI-Beschreibung der eVatR-API)
+    check("ustid_bestaetigungen_qualifiziert", sql`${t.art} = 'einfach' or (${t.firmenname} is not null and ${t.ort} is not null)`),
+  ],
+);
+
 export const invoiceKindEnum = pgEnum("invoice_kind", ["rechnung", "storno", "korrektur"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "final"]);
 
