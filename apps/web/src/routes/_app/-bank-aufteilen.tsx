@@ -35,6 +35,60 @@ export let nextSplitKey = 1;
 
 export const signed = (cents: number) => `${cents < 0 ? "-" : ""}${formatDecimal(Math.abs(cents))}`;
 
+/** Startzeilen: der gewählte Posten und der Rest, sonst der ganze offene Betrag und eine leere zweite Zeile */
+function startZeilen(
+  tx: Detail["transaction"],
+  initial: SplitTarget | undefined,
+  zweiteZeile: string,
+  start: Pick<SplitRow, "steuer" | "darlehen" | "kategorie">,
+): SplitRow[] {
+  return initial
+    ? [
+        { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), ...start },
+        { key: nextSplitKey++, target: zweiteZeile, amount: signed(tx.open - initial.open), ...start },
+      ]
+    : [
+        { key: nextSplitKey++, target: "", amount: signed(tx.open), ...start },
+        { key: nextSplitKey++, target: zweiteZeile, amount: "", ...start },
+      ];
+}
+
+/** Je Teil Ziel, Betrag und Bezugsjahr; was zur Summe fehlt, steht am Betrag des letzten Teils */
+function teilFehler(rows: SplitRow[], parsed: (number | null)[], rest: number, open: number): Record<string, string | null> {
+  return Object.fromEntries(
+    rows.flatMap((r, i) => [
+      [
+        `ziel-${r.key}`,
+        !r.target ? "Wähle, wohin der Teil gebucht wird." : r.target === "darlehen" && !r.darlehen.loanId ? "Noch kein Darlehen angelegt." : null,
+      ],
+      [
+        `betrag-${r.key}`,
+        parsed[i] === null
+          ? amountError("den Betrag", -12_050)
+          : parsed[i] === 0
+            ? "Der Betrag darf nicht 0 sein."
+            : i === rows.length - 1 && rest !== 0
+              ? // rest mit dem Vorzeichen des Umsatzes fehlt noch, mit dem anderen ist zu viel verteilt
+                Math.sign(rest) === Math.sign(open)
+                ? `Zusammen fehlen noch ${signed(rest)} €.`
+                : `Zusammen sind ${formatDecimal(Math.abs(rest))} € zu viel verteilt.`
+              : null,
+      ],
+      [`jahr-${r.key}`, r.target === "steuer" && !steuerangabe(r.steuer) ? BEZUGSJAHR_FEHLER : null],
+    ]),
+  ) as Record<string, string | null>;
+}
+
+function toPart(row: SplitRow, amount: number): SplitPart {
+  const [type, id] = row.target.split(":");
+  if (id) return itemTarget(type, id, amount);
+  const angabe = steuerangabe(row.steuer);
+  if (row.target === "steuer" && angabe) return { kind: "steuer", amount, steuer: angabe };
+  if (row.target === "darlehen") return { kind: "darlehen", amount, darlehen: row.darlehen };
+  if (row.target === "kategorie") return { kind: "kategorie", amount, kategorie: row.kategorie };
+  return { kind: row.target as DirectBooking, amount };
+}
+
 /** Splitbuchung: den offenen Teil eines Umsatzes auf mehrere Ziele verteilen, Vorzeichen wie auf dem Konto */
 export function SplitForm({
   tx,
@@ -65,59 +119,15 @@ export function SplitForm({
   const start = { steuer: steuerStart, darlehen: darlehenStart, kategorie: kategorieStart };
   // Fehlen die Bankgebühren im Angebot (privates Konto), startet die zweite Zeile leer (#873)
   const zweiteZeile = directKinds.some((k) => k.value === "gebuehren") ? "gebuehren" : "";
-  const [rows, setRows] = useState<SplitRow[]>(() =>
-    initial
-      ? [
-          { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), ...start },
-          { key: nextSplitKey++, target: zweiteZeile, amount: signed(tx.open - initial.open), ...start },
-        ]
-      : [
-          { key: nextSplitKey++, target: "", amount: signed(tx.open), ...start },
-          { key: nextSplitKey++, target: zweiteZeile, amount: "", ...start },
-        ],
-  );
+  const [rows, setRows] = useState<SplitRow[]>(() => startZeilen(tx, initial, zweiteZeile, start));
 
   const parsed = rows.map((r) => parseEuro(r.amount));
   const sum = parsed.reduce<number>((s, p) => s + (p ?? 0), 0);
   const rest = tx.open - sum;
-  // Je Teil Ziel, Betrag und Bezugsjahr; was zur Summe fehlt, steht am Betrag des letzten Teils
-  const { form, error, check } = useSubmitCheck(
-    Object.fromEntries(
-      rows.flatMap((r, i) => [
-        [
-          `ziel-${r.key}`,
-          !r.target ? "Wähle, wohin der Teil gebucht wird." : r.target === "darlehen" && !r.darlehen.loanId ? "Noch kein Darlehen angelegt." : null,
-        ],
-        [
-          `betrag-${r.key}`,
-          parsed[i] === null
-            ? amountError("den Betrag", -12_050)
-            : parsed[i] === 0
-              ? "Der Betrag darf nicht 0 sein."
-              : i === rows.length - 1 && rest !== 0
-                ? // rest mit dem Vorzeichen des Umsatzes fehlt noch, mit dem anderen ist zu viel verteilt
-                  Math.sign(rest) === Math.sign(tx.open)
-                  ? `Zusammen fehlen noch ${signed(rest)} €.`
-                  : `Zusammen sind ${formatDecimal(Math.abs(rest))} € zu viel verteilt.`
-                : null,
-        ],
-        [`jahr-${r.key}`, r.target === "steuer" && !steuerangabe(r.steuer) ? BEZUGSJAHR_FEHLER : null],
-      ]),
-    ) as Record<string, string | null>,
-  );
+  const { form, error, check } = useSubmitCheck(teilFehler(rows, parsed, rest, tx.open));
 
   function update(key: number, patch: Partial<SplitRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  }
-
-  function toPart(row: SplitRow, amount: number): SplitPart {
-    const [type, id] = row.target.split(":");
-    if (id) return itemTarget(type, id, amount);
-    const angabe = steuerangabe(row.steuer);
-    if (row.target === "steuer" && angabe) return { kind: "steuer", amount, steuer: angabe };
-    if (row.target === "darlehen") return { kind: "darlehen", amount, darlehen: row.darlehen };
-    if (row.target === "kategorie") return { kind: "kategorie", amount, kategorie: row.kategorie };
-    return { kind: row.target as DirectBooking, amount };
   }
 
   return (
