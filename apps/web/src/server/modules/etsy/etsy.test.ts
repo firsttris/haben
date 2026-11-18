@@ -298,6 +298,24 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     }
   });
 
+  it("zeigt einen Konflikt an der Karte; nach dem Klären übernimmt der nächste Abruf wieder", async () => {
+    // Etsy liefert die Auszahlung vom 20.06. (entry_id 8) mit anderem Betrag: Der Abruf steht, bis der Nutzer klärt
+    imAbruf = [{ ...verlauf[7]!, amount: -3500 }];
+    try {
+      expect((await etsy.syncEtsy(actor, new Date("2023-07-09T10:00:00Z"))).error).toMatch(/Konflikt/);
+      const { konflikte } = await etsy.etsySummary();
+      expect(konflikte).toMatchObject([{ sourceEventId: "8", previous: { amount: -3490 }, delivered: { amount: -3500 } }]);
+
+      const bank = await import("../bank/index.ts");
+      await bank.resolveConflict(actor, { conflictId: konflikte[0]!.id, decision: "keep" });
+      expect((await etsy.etsySummary()).konflikte).toEqual([]);
+      const weiter = await etsy.syncEtsy(actor, new Date("2023-07-10T10:00:00Z"));
+      expect(weiter).toMatchObject({ error: null, added: 0 });
+    } finally {
+      imAbruf = verlauf;
+    }
+  });
+
   it("trennt die Verbindung, ohne den Schlüssel zu verlieren", async () => {
     await etsy.disconnectEtsyConnection(actor);
     const stand = await etsy.etsySummary();

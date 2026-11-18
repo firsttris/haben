@@ -69,6 +69,7 @@ export async function openConflicts() {
     .select({
       conflict: schema.importConflicts,
       bankAccountId: schema.importSources.bankAccountId,
+      provider: schema.importSources.provider,
       sourceEventId: schema.importMovements.sourceEventId,
       previous: {
         id: schema.bankTransactions.id,
@@ -90,6 +91,7 @@ export async function openConflicts() {
   return rows.map((r) => ({
     id: r.conflict.id,
     bankAccountId: r.bankAccountId,
+    provider: r.provider,
     sourceEventId: r.sourceEventId,
     since: r.conflict.createdAt.toISOString(),
     previous: r.previous,

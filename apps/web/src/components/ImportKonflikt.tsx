@@ -9,8 +9,8 @@ import { FormDialog } from "./FormDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 /*
- * Konflikt im Abruf klären (#306, 3b): Die Bank liefert einen schon übernommenen Umsatz mit anderem Betrag, Buchungstag
- * oder anderer Art. Bis zur Entscheidung nimmt Haben den Abruf dieses Kontos nicht an. Überschrieben wird nie.
+ * Konflikt im Abruf klären (#306, 3b): Die Bank oder Etsy liefert einen schon übernommenen Umsatz mit anderem Betrag,
+ * Buchungstag oder anderer Art. Bis zur Entscheidung nimmt Haben den Abruf dieses Kontos nicht an. Überschrieben wird nie.
  */
 
 type Umsatz = { bookingDate: string; amount: number; counterpartyName: string | null; purpose: string | null };
@@ -42,21 +42,39 @@ function Spalte({ titel, umsatz, zuordnung }: { titel: string; umsatz: Umsatz; z
   );
 }
 
+/** Wer liefert: der Bankabruf (Bank › Automatischer Abruf) oder der Etsy-Abruf (Einstellungen › Bank) */
+const QUELLEN = {
+  bank: { wer: "Die Bank", von: "von der Bank", abruf: "aus dem Abruf dieses Kontos" },
+  etsy: { wer: "Etsy", von: "von Etsy", abruf: "aus dem Etsy-Abruf" },
+} as const;
+
 const ENTSCHEIDUNGEN = [
   {
     value: "keep",
     label: "Bisherigen Umsatz behalten",
-    hint: "Die Angaben der Bank gelten künftig als bekannt; ein neuer Umsatz entsteht nicht.",
+    hint: (von: string) => `Die Angaben ${von} gelten künftig als bekannt; ein neuer Umsatz entsteht nicht.`,
   },
   {
     value: "add",
     label: "Als weiteren Umsatz übernehmen",
-    hint: "Haben legt den gelieferten Umsatz zusätzlich an. Der bisherige bleibt mit seinen Zuordnungen stehen; beide bekommen einen Hinweis aufeinander.",
+    hint: () =>
+      "Haben legt den gelieferten Umsatz zusätzlich an. Der bisherige bleibt mit seinen Zuordnungen stehen; beide bekommen einen Hinweis aufeinander.",
   },
 ] as const;
 
 /** Knopf und Dialog für die offenen Konflikte einer Verbindung; nacheinander, ältester zuerst */
-export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonfliktDaten[]; disabled: boolean }) {
+export function KonfliktKlaeren({
+  konflikte,
+  disabled,
+  quelle = "bank",
+  onGeklaert,
+}: {
+  konflikte: ImportKonfliktDaten[];
+  disabled: boolean;
+  quelle?: keyof typeof QUELLEN;
+  /** Der letzte offene Konflikt ist geklärt; die Etsy-Karte behält dann die Zeile für die Bestätigung */
+  onGeklaert?: () => void;
+}) {
   const router = useRouter();
   const resolve = useServerFn(resolveBankConflict);
   const { busy, notice, run } = useAction();
@@ -82,10 +100,12 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
     if (ok && konflikte.length <= 1) {
       setOpen(false);
       setGeklaert(true);
+      onGeklaert?.();
     }
     if (ok) setEntscheidung("keep");
   }
 
+  const { wer, von, abruf } = QUELLEN[quelle];
   const zuordnung = konflikt
     ? konflikt.previous.open === 0
       ? "Ganz zugeordnet"
@@ -107,12 +127,12 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
         {konflikt && (
           <form onSubmit={(event) => void absenden(event)}>
             <p style={{ margin: 0 }}>
-              Die Bank liefert diesen Umsatz ({konflikt.sourceEventId}) jetzt anders als beim ersten Abruf. Bis du entscheidest, übernimmt Haben aus dem Abruf
-              dieses Kontos nichts. Die Entscheidung lässt sich nicht zurücknehmen.
+              {wer} liefert diesen Umsatz ({konflikt.sourceEventId}) jetzt anders als beim ersten Abruf. Bis du entscheidest, übernimmt Haben {abruf} nichts.
+              Die Entscheidung lässt sich nicht zurücknehmen.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <Spalte titel="Bisher in Haben" umsatz={konflikt.previous} {...(zuordnung ? { zuordnung } : {})} />
-              <Spalte titel="Jetzt von der Bank" umsatz={konflikt.delivered} />
+              <Spalte titel={`Jetzt ${von}`} umsatz={konflikt.delivered} />
             </div>
             <fieldset className="choice-group">
               <legend>Was soll Haben tun?</legend>
@@ -130,7 +150,7 @@ export function KonfliktKlaeren({ konflikte, disabled }: { konflikte: ImportKonf
                     <span>{e.label}</span>
                   </label>
                   <span id={`konflikt-${e.value}-hint`} className="field-hint">
-                    {e.hint}
+                    {e.hint(von)}
                   </span>
                 </div>
               ))}
