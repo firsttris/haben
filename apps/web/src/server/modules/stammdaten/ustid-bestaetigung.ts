@@ -10,6 +10,7 @@ import {
   evatrMeldung,
   evatrNachweis,
   evatrNeuNoetig,
+  evatrNummerFehler,
   evatrPruefbar,
   evatrQualifizierbar,
   evatrZeitpunkt,
@@ -98,7 +99,8 @@ export async function ustIdBestaetigungen(contactId: string): Promise<{ bestaeti
   return { bestaetigungen, zustand: contact ? zustandFuer(contact, company.ustId, bestaetigungen) : { art: "nicht-pruefbar" } };
 }
 
-type Abfrage = { ok: true; antwort: EvatrAntwort; text: string; zeitpunkt: Date } | { ok: false; hinweis: string };
+/** status: der Status einer Antwort ohne Nachweis, null ohne lesbare Antwort */
+type Abfrage = { ok: true; antwort: EvatrAntwort; text: string; zeitpunkt: Date } | { ok: false; hinweis: string; status: string | null };
 
 const KEINE_ANTWORT = "Keine Antwort vom BZSt (Zeitüberschreitung oder Dienst nicht erreichbar); versuch es später noch einmal";
 const UNLESBAR = "Die Antwort des BZSt ließ sich nicht lesen; gespeichert ist nichts, versuch es später noch einmal";
@@ -116,14 +118,14 @@ async function frage(anfrage: EvatrAnfrage, via: EvatrVerbindung): Promise<Abfra
     text = await response.text();
   } catch {
     // Zeitüberschreitung, kein Netz
-    return { ok: false, hinweis: KEINE_ANTWORT };
+    return { ok: false, hinweis: KEINE_ANTWORT, status: null };
   }
   const parsed = text.length > MAX_ANTWORT ? null : evatrAntwortSchema.safeParse(parseJson(text));
-  if (!parsed?.success) return { ok: false, hinweis: UNLESBAR };
-  if (!evatrNachweis(parsed.data.status)) return { ok: false, hinweis: evatrMeldung(parsed.data) };
+  if (!parsed?.success) return { ok: false, hinweis: UNLESBAR, status: null };
+  if (!evatrNachweis(parsed.data.status)) return { ok: false, hinweis: evatrMeldung(parsed.data), status: parsed.data.status };
   // Ohne lesbaren Zeitpunkt des BZSt kein Nachweis; die OpenAPI nennt für das Feld kein Format
   const zeitpunkt = evatrZeitpunkt(parsed.data.anfrageZeitpunkt);
-  if (!zeitpunkt) return { ok: false, hinweis: UNLESBAR };
+  if (!zeitpunkt) return { ok: false, hinweis: UNLESBAR, status: null };
   return { ok: true, antwort: parsed.data, text, zeitpunkt };
 }
 
@@ -223,16 +225,17 @@ export async function bestaetigeNummer(
   contactId: string,
   ustId: string,
   via: EvatrVerbindung = verbindung(),
-): Promise<{ hinweis: string | null; gespeichert: boolean }> {
+): Promise<{ hinweis: string | null; ausfall: boolean }> {
   if (evatrAbgeschaltet()) throw new ContactError(ZUSTAND_TEXT.aus);
   const company = await loadCompany();
   if (!isValidGermanUstId(normalizeUstId(company.ustId))) throw new ContactError(ZUSTAND_TEXT["ohne-eigene"]);
-  if (!evatrPruefbar(ustId)) return { hinweis: `${ustId}: ${ZUSTAND_TEXT["nicht-pruefbar"]}`, gespeichert: false };
+  if (!evatrPruefbar(ustId)) return { hinweis: `${ustId}: ${ZUSTAND_TEXT["nicht-pruefbar"]}`, ausfall: false };
   const anfrage: EvatrAnfrage = { anfragendeUstid: normalizeUstId(company.ustId), angefragteUstid: normalizeUstId(ustId) };
   const antwort = await frage(anfrage, via);
-  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, gespeichert: false };
+  // Ausfall: keine lesbare Antwort oder ein Fehler, der nicht nur diese Nummer betrifft (Dienst, eigene USt-IdNr.)
+  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, ausfall: !evatrNummerFehler(antwort.status ?? "") };
   await speichere(actor, contactId, "einfach", anfrage, antwort);
-  return { hinweis: null, gespeichert: true };
+  return { hinweis: null, ausfall: false };
 }
 
 /**
@@ -251,7 +254,7 @@ export async function ustIdVorFestschreiben(
   const letzteZurNummer = async () => (await listUstIdBestaetigungen(contactId)).find((b) => b.angefragteUstid === nummer);
   const vorher = await letzteZurNummer();
   if (evatrFrischGueltig(vorher, jetzt) || evatrAbgeschaltet()) return { hinweis: null };
-  // Ohne Nummer meldet das Festschreiben selbst, was fehlt (outgoingTaxIssues); den Aufbau prüft es nur bei der Lieferung
+  // Ohne Nummer meldet das Festschreiben selbst, was fehlt (treatmentIssues); den Aufbau prüft es nur bei der Lieferung
   if (!nummer) return { hinweis: null };
   if (!evatrPruefbar(nummer)) return { hinweis: `${nummer}: ${ZUSTAND_TEXT["nicht-pruefbar"]}` };
   let ergebnis: UstIdBestaetigungsErgebnis;

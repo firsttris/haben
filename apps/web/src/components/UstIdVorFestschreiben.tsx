@@ -5,7 +5,7 @@ import { ustIdVorFestschreibenFn } from "../server/functions/ustid-bestaetigung.
 
 /**
  * Hinweis in der Rückfrage zum Festschreiben einer Rechnung mit Reverse Charge oder innergemeinschaftlicher Lieferung (#1385).
- * Beim Öffnen fragt der Server das BZSt, wenn zur Nummer des Kunden keine gültige Antwort aus den letzten 30 Tagen da ist.
+ * Beim Öffnen fragt der Server das BZSt, wenn die letzte Antwort zur Nummer des Kunden nicht gültig oder älter als 30 Tage ist.
  * Ein Hinweis sperrt das Festschreiben nicht.
  */
 export function UstIdVorFestschreiben({ open, contactId }: { open: boolean; contactId: string }) {

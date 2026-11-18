@@ -25,7 +25,8 @@ async function evatrAttrappe(): Promise<Dienst> {
     request.on("end", () => {
       const anfrage = JSON.parse(body) as Record<string, string>;
       dienst.anfragen.push(anfrage);
-      const kopf = { id: `e2e${dienst.anfragen.length}`, anfrageZeitpunkt: "2026-11-18T14:34:36.318854732+01:00" };
+      // Zeitpunkt von jetzt: Eine feste Antwort wäre nach 30 Tagen nicht mehr frisch, und die Tests kippten (Review #1458)
+      const kopf = { id: `e2e${dienst.anfragen.length}`, anfrageZeitpunkt: new Date().toISOString() };
       const [code, antwort] = dienst.ausfall
         ? [503, { ...kopf, status: "evatr-1001" }]
         : dienst.status
@@ -234,7 +235,7 @@ export function zmBestaetigungPruefen(getPage: () => Page) {
       const hinweis = page.getByRole("status").filter({ hasText: "ATU12345678:" });
       await expect(hinweis).toHaveText("ATU12345678: beim BZSt noch nicht bestätigt.");
       const zeilen = page.getByRole("region", { name: "Meldezeilen" });
-      await expect(zeilen).toContainText("1 gemeldete USt-IdNr. ohne gültige Bestätigung des BZSt aus den letzten 30 Tagen.");
+      await expect(zeilen).toContainText("1 gemeldete USt-IdNr.: letzte Antwort des BZSt nicht gültig oder älter als 30 Tage.");
       await zeilen.getByRole("button", { name: "Beim BZSt bestätigen" }).click();
       await expect(zeilen.getByRole("status")).toContainText("1 gemeldete USt-IdNr. beim BZSt angefragt");
       expect(dienst.anfragen).toEqual([{ anfragendeUstid: "DE136695976", angefragteUstid: "ATU12345678" }]);

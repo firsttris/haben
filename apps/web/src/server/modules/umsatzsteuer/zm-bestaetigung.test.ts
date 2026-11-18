@@ -75,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("ZM: gemeldete USt-IdNrn. beim BZSt bestätige
     expect(await bestaetigungsHinweise()).toEqual([{ tone: "warn", text: "ATU12345678: beim BZSt noch nicht bestätigt." }]);
 
     const { via, anfragen } = dienst(fehler(404, "evatr-2001", jetzt()));
-    expect(await bestaetigung.bestaetigeZmNummern(actor, vorher.quellen, { via })).toEqual({ gefragt: 1, hinweise: [] });
+    expect(await bestaetigung.bestaetigeZmNummern(actor, vorher, { via })).toEqual({ gefragt: 1, hinweise: [] });
     expect(anfragen).toEqual([{ anfragendeUstid: "DE136695976", angefragteUstid: "ATU12345678" }]);
     const [zeile] = await sql`select contact_id, art, status from ustid_bestaetigungen`;
     expect(zeile).toMatchObject({ contact_id: contactId, art: "einfach", status: "evatr-2001" });
@@ -83,12 +83,12 @@ describe.skipIf(!testDatabaseUrl)("ZM: gemeldete USt-IdNrn. beim BZSt bestätige
   });
 
   it("nach einer gültigen Antwort kein Hinweis und keine weitere Abfrage", async () => {
-    const quellen = (await zm.zmOverview(q3)).quellen;
-    expect(await bestaetigung.bestaetigeZmNummern(actor, quellen, { via: dienst(ok("zm", undefined, jetzt())).via })).toEqual({ gefragt: 1, hinweise: [] });
+    const meldung = await zm.zmOverview(q3);
+    expect(await bestaetigung.bestaetigeZmNummern(actor, meldung, { via: dienst(ok("zm", undefined, jetzt())).via })).toEqual({ gefragt: 1, hinweise: [] });
     expect(await bestaetigungsHinweise()).toEqual([]);
     expect((await zm.zmOverview(q3)).bestaetigung).toEqual({ moeglich: true, offen: 0 });
     // Der Dienst hätte keine Antwort mehr
-    expect(await bestaetigung.bestaetigeZmNummern(actor, quellen, { via: dienst().via })).toEqual({ gefragt: 0, hinweise: [] });
+    expect(await bestaetigung.bestaetigeZmNummern(actor, meldung, { via: dienst().via })).toEqual({ gefragt: 0, hinweise: [] });
   });
 
   it("evatr-2008 ist gültig: nur ein Hinweis zur Besonderheit, keine Warnung", () => {
@@ -97,22 +97,24 @@ describe.skipIf(!testDatabaseUrl)("ZM: gemeldete USt-IdNrn. beim BZSt bestätige
   });
 
   it("nach einem Ausfall fragt der Knopf die übrigen Nummern nicht mehr", async () => {
+    const invoiceId = (await zm.zmOverview(q3)).quellen[0]!.invoiceId;
     const quellen = [
-      { invoiceId: (await zm.zmOverview(q3)).quellen[0]!.invoiceId, ustId: "ATU12345678" },
-      { invoiceId: (await zm.zmOverview(q3)).quellen[0]!.invoiceId, ustId: "FR12345678901" },
+      { invoiceId, ustId: "ATU12345678" },
+      { invoiceId, ustId: "FR12345678901" },
     ];
+    const meldung = { quellen, naechste: { zeilen: quellen.map((quelle) => ({ ustId: quelle.ustId, betrag: 100 })) } };
     const spaeter = new Date(Date.now() + 31 * 86_400_000);
     const { via, anfragen } = dienst("kein-netz", ok("fr"));
-    const ergebnis = await bestaetigung.bestaetigeZmNummern(actor, quellen, { jetzt: spaeter, via });
+    const ergebnis = await bestaetigung.bestaetigeZmNummern(actor, meldung, { jetzt: spaeter, via });
     expect(anfragen).toHaveLength(1);
     expect(ergebnis.gefragt).toBe(1);
     expect(ergebnis.hinweise).toEqual([expect.stringContaining("Keine Antwort vom BZSt"), "FR12345678901 nicht angefragt; versuch es später noch einmal."]);
   });
 
   it("ein Ausfall kommt als Hinweis zurück; abgeschaltet bleibt die Vorprüfung wie vorher", async () => {
-    const quellen = (await zm.zmOverview(q3)).quellen;
+    const meldung = await zm.zmOverview(q3);
     const spaeter = new Date(Date.now() + 31 * 86_400_000);
-    const ausfall = await bestaetigung.bestaetigeZmNummern(actor, quellen, { jetzt: spaeter, via: dienst(fehler(503, "evatr-1001")).via });
+    const ausfall = await bestaetigung.bestaetigeZmNummern(actor, meldung, { jetzt: spaeter, via: dienst(fehler(503, "evatr-1001")).via });
     expect(ausfall.gefragt).toBe(1);
     expect(ausfall.hinweise[0]).toMatch(/^ATU12345678: .*evatr-1001/);
 

@@ -24,7 +24,7 @@ import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/ind
 import { loadCompany } from "../stammdaten/index.ts";
 import { vatFiguresContext, computeVatFigures } from "./vat-figures.ts";
 import { VatError } from "./vat.ts";
-import { zmBestaetigung } from "./zm-bestaetigung.ts";
+import { zmBestaetigung, zuBestaetigendeNummern } from "./zm-bestaetigung.ts";
 
 /*
  * Zusammenfassende Meldung (§ 18a UStG) an das BZSt. Haben meldet die sonstigen Leistungen an Unternehmer im übrigen
@@ -225,7 +225,7 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
   // Nur was als Nächstes gesendet würde: eine Bestätigung von heute belegt ein schon gemeldetes Quartal nicht (FAQ des BZSt)
   const [kz41, bestaetigung] = await Promise.all([
     kennzahlGesendet(period, "kz41", q),
-    naechsteZeilen.length ? zmBestaetigung(naechsteZeilen.map((z) => z.ustId)) : { moeglich: false, offen: 0, issues: [] },
+    naechsteZeilen.length ? zmBestaetigung([...zuBestaetigendeNummern(naechsteZeilen)]) : { moeglich: false, offen: 0, issues: [] },
   ]);
   const voranmeldungen = monthsOfPeriod(period).length;
   return {

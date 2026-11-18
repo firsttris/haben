@@ -14,6 +14,10 @@ import type { ZmIssue } from "./zm.ts";
 
 type Stand = Pick<UstIdBestaetigung, "status" | "anfrageZeitpunkt" | "gueltigAb" | "gueltigBis">;
 
+/** Nummern, die als Nächstes gemeldet würden (Erstmeldung oder Berichtigung), ohne entfallene Zeilen mit 0 € */
+export const zuBestaetigendeNummern = (zeilen: readonly { ustId: string; betrag: number }[]) =>
+  new Set(zeilen.filter((zeile) => zeile.betrag !== 0).map((zeile) => zeile.ustId));
+
 /** Je gemeldeter Nummer ohne Antwort oder mit einer Antwort ungleich evatr-0000 eine Warnung; evatr-2008 ist gültig, nur ein Hinweis */
 export function zmBestaetigungIssues(nummern: readonly string[], letzte: ReadonlyMap<string, Stand>): ZmIssue[] {
   return nummern.flatMap((nummer): ZmIssue[] => {
@@ -38,14 +42,19 @@ export async function zmBestaetigung(nummern: readonly string[], jetzt = new Dat
   };
 }
 
-/** Fragt jede gemeldete Nummer ohne frische gültige Antwort einfach ab; zurück kommen die Zahl der Abfragen und die Hinweise */
+/**
+ * Fragt jede Nummer der nächsten Meldung ohne frische gültige Antwort einfach ab, wie die Karte sie zählt: nicht schon
+ * gemeldete oder im Quartal stornierte. Zurück kommen die Zahl der Abfragen und die Hinweise.
+ */
 export async function bestaetigeZmNummern(
   actor: string,
-  quellen: readonly { invoiceId: string; ustId: string }[],
+  meldung: { quellen: readonly { invoiceId: string; ustId: string }[]; naechste: { zeilen: readonly { ustId: string; betrag: number }[] } },
   options: { jetzt?: Date; via?: EvatrVerbindung } = {},
   q: Db | Tx = db,
 ): Promise<{ gefragt: number; hinweise: string[] }> {
   const jetzt = options.jetzt ?? new Date();
+  const melden = zuBestaetigendeNummern(meldung.naechste.zeilen);
+  const quellen = meldung.quellen.filter((quelle) => melden.has(quelle.ustId));
   const ids = [...new Set(quellen.map((quelle) => quelle.invoiceId))];
   const rechnungen = ids.length
     ? await q.select({ id: schema.invoices.id, contactId: schema.invoices.contactId }).from(schema.invoices).where(inArray(schema.invoices.id, ids))
@@ -63,9 +72,9 @@ export async function bestaetigeZmNummern(
       continue;
     }
     gefragt += 1;
-    const { hinweis, gespeichert } = await bestaetigeNummer(actor, contactId, nummer, options.via);
+    const { hinweis, ausfall } = await bestaetigeNummer(actor, contactId, nummer, options.via);
     if (hinweis) hinweise.push(hinweis);
-    if (!gespeichert && offen.length > i + 1) {
+    if (ausfall && offen.length > i + 1) {
       hinweise.push(`${offen.slice(i + 1).join(", ")} nicht angefragt; versuch es später noch einmal.`);
       break;
     }

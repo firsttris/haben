@@ -115,6 +115,9 @@ export function evatrFrischGueltig(antwort: { status: string; anfrageZeitpunkt: 
   return Boolean(antwort && evatrGueltig(antwort.status) && evatrFrisch(antwort.anfrageZeitpunkt, jetzt));
 }
 
+/** Fehler der angefragten Nummer selbst (Syntax, Länderkennzeichen); andere Nummern betrifft das nicht, anders als ein Ausfall */
+export const evatrNummerFehler = (status: string) => status === "evatr-0005" || status === "evatr-0012" || status === "evatr-2003";
+
 /** Höchstzahl qualifizierter Abfragen „für diese Session“ erreicht; das BZSt rät, mit einer einfachen neu zu beginnen */
 export const EVATR_LIMIT = "evatr-0008";
 

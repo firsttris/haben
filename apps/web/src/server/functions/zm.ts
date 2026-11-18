@@ -42,4 +42,4 @@ export const submitZmMeldung = createServerFn({ method: "POST" })
 export const bestaetigeZmNummernFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(quarterSchema)
-  .handler(async ({ data: period, context }) => bestaetigeZmNummern(context.user.id, (await zmOverview(period)).quellen));
+  .handler(async ({ data: period, context }) => bestaetigeZmNummern(context.user.id, await zmOverview(period)));

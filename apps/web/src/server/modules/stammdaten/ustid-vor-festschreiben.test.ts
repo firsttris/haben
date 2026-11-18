@@ -92,7 +92,7 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. vor dem Festschreiben bestätigen (
   });
 
   it("eine Nummer, die sich nicht bestätigen lässt, ergibt einen Hinweis ohne Abfrage", async () => {
-    // Reverse Charge prüft den Aufbau beim Festschreiben nicht (outgoingTaxIssues nur bei der Lieferung)
+    // Reverse Charge prüft den Aufbau beim Festschreiben nicht (treatmentIssues nur bei der Lieferung)
     await contacts.updateContact(actor, contactId, kontakt("ATU1234567"));
     expect(await modul.ustIdVorFestschreiben(actor, contactId, AM_TAG, dienst().via)).toEqual({
       hinweis: "ATU1234567: Bestätigen lässt sich nur die USt-IdNr. eines anderen EU-Mitgliedstaats mit passendem Aufbau.",
@@ -113,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. vor dem Festschreiben bestätigen (
 
   it("eine bestimmte Nummer, etwa aus der ZM, auch wenn der Kontakt heute eine andere hat", async () => {
     const { via, anfragen } = dienst(ok("zm"));
-    expect(await modul.bestaetigeNummer(actor, contactId, "FR12345678901", via)).toEqual({ hinweis: null, gespeichert: true });
+    expect(await modul.bestaetigeNummer(actor, contactId, "FR12345678901", via)).toEqual({ hinweis: null, ausfall: false });
     expect(anfragen).toEqual([{ anfragendeUstid: "DE123456788", angefragteUstid: "FR12345678901" }]);
     const letzte = await modul.letzteBestaetigungen(["FR12345678901", "ATU12345678"]);
     expect(letzte.get("FR12345678901")).toMatchObject({ contactId, art: "einfach", status: "evatr-0000" });

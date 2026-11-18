@@ -31,7 +31,7 @@ export function ZmBestaetigung({ period, offen }: { period: { year: number; mont
       <NoticeBanner notice={notice} />
       <p className="small muted" style={{ margin: 0 }}>
         {offen
-          ? `${nummern(offen)} ohne gültige Bestätigung des BZSt aus den letzten ${EVATR_FRIST_TAGE} Tagen.`
+          ? `${nummern(offen)}: letzte Antwort des BZSt nicht gültig oder älter als ${EVATR_FRIST_TAGE} Tage.`
           : `Jede gemeldete USt-IdNr. hat eine gültige Bestätigung des BZSt aus den letzten ${EVATR_FRIST_TAGE} Tagen.`}
       </p>
       {offen > 0 && (
