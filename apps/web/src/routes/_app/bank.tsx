@@ -1,20 +1,10 @@
-import {
-  AUFLADUNG,
-  amountError,
-  formatDecimal,
-  formatEuro,
-  isKapitalgesellschaft,
-  kategorieArt,
-  kategorieText,
-  parseEuro,
-  startwertFuerBuchungsart,
-  type DirectBooking,
-} from "@haben/core";
+import { AUFLADUNG, amountError, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro, startwertFuerBuchungsart, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
+import { vorschlagTitel } from "../../components/DirektVorschlag.ts";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
@@ -1359,11 +1349,7 @@ function AllocationPanel({
             <div className="stack" style={{ gap: 10 }}>
               <div className="section-label">Vorschlag ohne Rechnung</div>
               <div className="match-card">
-                <span style={{ fontWeight: 600 }}>
-                  {direct.kategorie
-                    ? `${kategorieArt(direct.kategorie.kategorie) === "einnahme" ? "Einnahme" : "Ausgabe"}: ${kategorieText(direct.kategorie)}`
-                    : directKinds.find((k) => k.value === direct.kind)?.label}
-                </span>
+                <span style={{ fontWeight: 600 }}>{vorschlagTitel(direct) ?? directKinds.find((k) => k.value === direct.kind)?.label}</span>
                 <ul className="reasons">
                   {direct.reasons.map((reason) => (
                     <li key={reason}>
