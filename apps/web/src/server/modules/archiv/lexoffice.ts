@@ -526,6 +526,8 @@ export async function legacyVoucherDetail(id: string) {
       label: FILE_STATUS_LABELS[fileStatus],
       history: fileStates,
       canConfirmWithoutFile,
+      // Merkmal aus dem Import, nicht aus dem Stand: die Rückfrage unterscheidet daran den Accountable-Stapel von sevDesk (#1317)
+      ohneBeleg: voucher.ohneBeleg,
       // Warum keine Datei da ist, hängt an Quelle, Beleg-GUID und „Dokument Vorhanden“ (#1235, #1322)
       ohneBelegGrund: ohneBelegGrund({ source: voucher.source, guid: voucher.rawGuid, documentPresent: voucher.rawDocumentPresent }),
     },

@@ -20,7 +20,7 @@ let dbm: DbModul;
 let importId: string;
 
 /** Beleg im Archiv; `source` sevdesk mit „voucher/…“, damit er sich bestätigen lässt oder es am PDF scheitert */
-async function beleg(lexofficeId: string, type: string, source: "sevdesk" | "accountable" = "sevdesk"): Promise<string> {
+async function beleg(lexofficeId: string, type: string, source: "sevdesk" | "accountable" = "sevdesk", raw: Record<string, unknown> = {}): Promise<string> {
   const [row] = await dbm.db
     .insert(dbm.schema.lexofficeVouchers)
     .values({
@@ -37,7 +37,7 @@ async function beleg(lexofficeId: string, type: string, source: "sevdesk" | "acc
       gross: 11900,
       taxes: [],
       categories: [],
-      raw: {},
+      raw,
     })
     .returning({ id: dbm.schema.lexofficeVouchers.id });
   return row!.id;
@@ -180,5 +180,28 @@ describe.skipIf(!testDatabaseUrl)("Bestätigung „ohne Datei“ zurücknehmen",
     const abgleich = await lexoffice.reconciliation();
     const jahr = abgleich.years.find((y) => y.year === 2025)!;
     expect(jahr.files.ohneDateiBestaetigt).toBeGreaterThan(0);
+  });
+
+  it("gibt das Merkmal aus dem Import mit, damit die Rückfrage die Quelle unterscheidet", async () => {
+    // Buchung aus dem Accountable-Stapel: ohne Beleg-GUID, bestätigbar, das Merkmal ohneBeleg steht in raw
+    const stapel = await beleg("accountable/row/55", "purchaseinvoice", "accountable", { ohneBeleg: true });
+    await dateistand.confirmWithoutFile("test-user", stapel, "kein Einzelbeleg");
+    expect((await lexoffice.legacyVoucherDetail(stapel))!.fileState).toMatchObject({ status: "ohne_datei_bestaetigt", ohneBeleg: true });
+
+    // Nach der Rücknahme steht er wieder als „ohne Beleg“ da, und der Abgleich zählt ihn weiter nicht als fehlende Datei (#1235)
+    const vorher = (await lexoffice.reconciliation()).years.find((y) => y.year === 2025)!;
+    await dateistand.revokeFileConfirmation("test-user", stapel, "falsche Zeile erwischt");
+    expect((await lexoffice.legacyVoucherDetail(stapel))!.fileState).toMatchObject({ status: "ohne_beleg", ohneBeleg: true });
+    const nachher = (await lexoffice.reconciliation()).years.find((y) => y.year === 2025)!;
+    expect(nachher.withoutFile).toBe(vorher.withoutFile);
+    expect(nachher.files.ohneDateiBestaetigt).toBe(vorher.files.ohneDateiBestaetigt - 1);
+
+    // sevDesk trägt das Merkmal nicht; dort bleibt es beim Rückfall auf „ohne Datei“
+    const sevdesk = await beleg("voucher/ID_908", "voucher");
+    await stand(sevdesk, "ohne_datei");
+    await dateistand.confirmWithoutFile("test-user", sevdesk, "kein Beleg");
+    expect((await lexoffice.legacyVoucherDetail(sevdesk))!.fileState.ohneBeleg).toBe(false);
+    await dateistand.revokeFileConfirmation("test-user", sevdesk, "falsch geprüft");
+    expect((await lexoffice.legacyVoucherDetail(sevdesk))!.fileState).toMatchObject({ status: "ohne_datei_offen", ohneBeleg: false });
   });
 });

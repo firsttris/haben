@@ -26,3 +26,19 @@ export function ohneBelegText(grund: OhneBelegGrund, product: string, bestaetigb
   }
   return `Zu dieser Buchung hat ${product} keine Datei geliefert. Bestätigen lässt sich das hier nicht.`;
 }
+
+/**
+ * Satz in der Rückfrage „Bestätigung zurücknehmen?“ (#1317). Was danach gilt, hängt an der Quelle: Im Accountable-Stapel
+ * bleibt der Beleg „ohne Beleg“, und der Abgleich zählt ihn weiter nicht als fehlende Datei (#1235). Bei sevDesk fällt er
+ * auf „ohne Datei“ zurück und zählt dort wieder zu den Belegen ohne Datei.
+ */
+export function ruecknahmeText(ohneBeleg: boolean): string {
+  return ohneBeleg
+    ? "Der Beleg gilt danach wieder als offen, wie vor der Bestätigung."
+    : "Der Beleg gilt danach wieder als offen; der Abgleich zählt ihn wieder zu den Belegen ohne Datei.";
+}
+
+/** Meldung nach der Rücknahme; derselbe Unterschied wie in der Rückfrage */
+export function ruecknahmeHinweis(ohneBeleg: boolean): string {
+  return `Bestätigung zurückgenommen. ${ruecknahmeText(ohneBeleg)}`;
+}

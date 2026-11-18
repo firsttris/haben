@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ohneBelegText } from "./dateistand-texte.ts";
+import { ohneBelegText, ruecknahmeHinweis, ruecknahmeText } from "./dateistand-texte.ts";
 
 /*
  * Die vier Sätze über einer Buchung ohne Datei (#1235, #1322). Sie hängen am Grund, nicht an „bestätigbar“: WISO und die
@@ -39,5 +39,25 @@ describe("Text über einer Buchung ohne Datei", () => {
     const text = ohneBelegText("kein_beleglink", "Accountable", false);
     expect(text).not.toContain("hält es hier fest");
     expect(text).toBe("Zu dieser Buchung hat Accountable keine Datei geliefert. Bestätigen lässt sich das hier nicht.");
+  });
+});
+
+/*
+ * Was in der Rückfrage „Bestätigung zurücknehmen?“ steht, hängt an der Quelle (#1317): Im Accountable-Stapel zählt der
+ * Abgleich den zurückgenommenen Stand weiter nicht als fehlende Datei (#1235), bei sevDesk fällt er dorthin zurück.
+ */
+describe("Rückfrage „Bestätigung zurücknehmen?“", () => {
+  it("verspricht im Accountable-Stapel nur das Offenwerden, nicht das Zählen im Abgleich", () => {
+    const text = ruecknahmeText(true);
+    expect(text).toContain("wieder als offen, wie vor der Bestätigung");
+    expect(text).not.toContain("Abgleich");
+    expect(ruecknahmeHinweis(true)).toBe(`Bestätigung zurückgenommen. ${text}`);
+  });
+
+  it("nennt bei sevDesk weiter den Abgleich", () => {
+    const text = ruecknahmeText(false);
+    expect(text).toContain("der Abgleich zählt ihn wieder zu den Belegen ohne Datei");
+    expect(text).not.toContain("wie vor der Bestätigung");
+    expect(ruecknahmeHinweis(false)).toBe(`Bestätigung zurückgenommen. ${text}`);
   });
 });

@@ -9,7 +9,7 @@ import { ConfirmDialog, type ConfirmFact } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Status } from "../Status.tsx";
-import { ohneBelegText, type OhneBelegGrund } from "./dateistand-texte.ts";
+import { ohneBelegText, ruecknahmeHinweis, ruecknahmeText, type OhneBelegGrund } from "./dateistand-texte.ts";
 
 /*
  * Dateistand eines archivierten Belegs (#345): ohne Datei laut Quelle (offen bis zur Bestätigung), bestätigt ohne Datei,
@@ -105,7 +105,7 @@ export function FileStateCard({ voucherId, fileState, product, facts }: { vouche
       {fileState.canConfirmWithoutFile && (
         <ConfirmWithoutFile voucherId={voucherId} product={product} facts={facts} ohneBeleg={fileState.status === "ohne_beleg"} />
       )}
-      {fileState.status === "ohne_datei_bestaetigt" && <RevokeConfirmation voucherId={voucherId} facts={facts} />}
+      {fileState.status === "ohne_datei_bestaetigt" && <RevokeConfirmation voucherId={voucherId} facts={facts} ohneBeleg={fileState.ohneBeleg} />}
     </section>
   );
 }
@@ -162,7 +162,7 @@ function ConfirmWithoutFile({ voucherId, product, facts, ohneBeleg }: { voucherI
  * Nimmt die Bestätigung „ohne Datei“ zurück (#1317). Der Grund ist Pflicht; er steht mit Namen und Zeitpunkt als neue Zeile
  * im Verlauf, die Bestätigung bleibt dort stehen.
  */
-function RevokeConfirmation({ voucherId, facts }: { voucherId: string; facts: ConfirmFact[] }) {
+function RevokeConfirmation({ voucherId, facts, ohneBeleg }: { voucherId: string; facts: ConfirmFact[]; ohneBeleg: boolean }) {
   const router = useRouter();
   const revoke = useServerFn(revokeLegacyConfirmation);
   const action = useAction();
@@ -176,7 +176,7 @@ function RevokeConfirmation({ voucherId, facts }: { voucherId: string; facts: Co
     action.run(async () => {
       await revoke({ data: { id: voucherId, reason } });
       await router.invalidate();
-      action.setNotice({ tone: "ok", text: "Bestätigung zurückgenommen. Der Beleg steht wieder als offen im Abgleich." });
+      action.setNotice({ tone: "ok", text: ruecknahmeHinweis(ohneBeleg) });
     });
   return (
     <>
@@ -200,10 +200,7 @@ function RevokeConfirmation({ voucherId, facts }: { voucherId: string; facts: Co
         onConfirm={() => void onConfirm()}
         onClose={() => setOpen(false)}
       >
-        <p>
-          Der Beleg gilt danach wieder als offen; der Abgleich zählt ihn wieder zu den Belegen ohne Datei. Deine Bestätigung bleibt mit Grund und Namen im
-          Verlauf stehen, gelöscht wird nichts.
-        </p>
+        <p>{ruecknahmeText(ohneBeleg)} Deine Bestätigung bleibt mit Grund und Namen im Verlauf stehen, gelöscht wird nichts.</p>
       </ConfirmDialog>
     </>
   );
