@@ -18,6 +18,7 @@ import {
   formatDecimal,
   formatEuro,
   counterCircle,
+  customerNumberProblem,
   formatDocumentNumber,
   issueDateBeforeLastFinalized,
   type FinalizedCircleRef,
@@ -37,6 +38,7 @@ import {
   type OutgoingTaxDetails,
   type UnitLabel,
   distinctVatRates,
+  usesCustomerNumber,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -186,7 +188,7 @@ export function InvoiceEditor({
   numberRunning?: boolean;
   /** Zuletzt festgeschriebene Rechnung je Kreis (#713) */
   lastFinalized?: Record<number, FinalizedCircleRef>;
-  corrects: { number: string | null; issueDate: string } | null;
+  corrects: { number: string | null; issueDate: string; buyer?: { kundennummer?: string } | null } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
   kleinunternehmer: boolean;
@@ -335,7 +337,11 @@ export function InvoiceEditor({
   // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
-  const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
+  // {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals (#1426); fehlt sie,
+  // steht statt der Nummer der Hinweis — die Vorschau darf kein {KUNDENNR} als Text zeigen
+  const previewKdnr = corrects ? corrects.buyer?.kundennummer : (contact?.kundennummer ?? undefined);
+  const numberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewKdnr) : null;
+  const nextNumber = numberIssue ?? formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, previewKdnr);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot

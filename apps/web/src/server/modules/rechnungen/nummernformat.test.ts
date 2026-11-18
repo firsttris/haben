@@ -11,9 +11,9 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
   const actor = "test-user";
   let contactId: string;
 
-  const invoiceDraft = () =>
+  const invoiceDraft = (contact = contactId) =>
     invoices.createDraft(actor, {
-      contactId,
+      contactId: contact,
       issueDate: "2026-03-02",
       serviceFrom: null,
       serviceTo: null,
@@ -22,9 +22,9 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
       note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Std.", unitPrice: 10_000, taxRate: 1900 }],
     });
-  const quoteDraft = () =>
+  const quoteDraft = (contact = contactId) =>
     quotes.createQuoteDraft(actor, {
-      contactId,
+      contactId: contact,
       issueDate: "2026-03-02",
       validUntil: "2026-03-31",
       serviceFrom: null,
@@ -33,6 +33,20 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
       lines: [{ description: "Beratung", quantity: 1000, unit: "Std.", unitPrice: 10_000, taxRate: 1900 }],
     });
   const finalizeNew = async () => (await invoices.finalizeInvoice(actor, (await invoiceDraft()).id)).number;
+  const createContact = (kundennummer: string, name = "Zweitkunde GmbH") =>
+    contacts.createContact(actor, {
+      kundennummer,
+      name,
+      strasse: "Werkstraße 9",
+      plz: "10115",
+      ort: "Berlin",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -110,5 +124,52 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
     expect((await quotes.finalizeQuote(actor, (await quoteDraft()).id)).number).toBe("A2026-12");
     await formats.saveNumberFormats(actor, { invoice: "{JJJJ}-{NNN}", quote: "A{JJJJ}-1{N}" });
     await expect(quotes.finalizeQuote(actor, (await quoteDraft()).id)).rejects.toThrow(/A2026-12 ist schon vergeben/);
+  });
+
+  it("trägt die Kundennummer des Käufers mit {KUNDENNR} in die Nummer ein (#1426)", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{KUNDENNR}-{NNN}", invoiceRunning: true, quoteRunning: true });
+    const acme = (await createContact("ACME")).id;
+    expect((await invoices.finalizeInvoice(actor, (await invoiceDraft(acme)).id)).number).toBe("RE-ACME-001");
+    expect((await quotes.finalizeQuote(actor, (await quoteDraft(acme)).id)).number).toBe("AN-ACME-001");
+    // Der gemeinsame Zähler macht die Nummer eindeutig; {KUNDENNR} vergibt keinen eigenen Kreis
+    expect((await invoices.finalizeInvoice(actor, (await invoiceDraft(contactId)).id)).number).toBe("RE-10001-002");
+  });
+
+  it("meldet bei {KUNDENNR} eine fehlende Kundennummer und lässt den Zähler stehen (#1426)", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{KUNDENNR}-{NNN}", invoiceRunning: true, quoteRunning: true });
+    const ohne = (await createContact("")).id;
+    const draft = await invoiceDraft(ohne);
+    expect(await invoices.finalizeIssues(draft.id)).toEqual([expect.stringMatching(/braucht eine Kundennummer/)]);
+    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/braucht eine Kundennummer/);
+    const quote = await quoteDraft(ohne);
+    expect(await quotes.quoteIssues(quote.id)).toEqual([expect.stringMatching(/braucht eine Kundennummer/)]);
+    await expect(quotes.finalizeQuote(actor, quote.id)).rejects.toThrow(/braucht eine Kundennummer/);
+    expect(await sql`select last from invoice_number_counters`).toEqual([{ last: 0 }]);
+    expect(await sql`select last from quote_number_counters`).toEqual([{ last: 0 }]);
+    expect((await sql`select status from invoices where id = ${draft.id}`)[0]!.status).toBe("draft");
+    expect((await sql`select status from quotes where id = ${quote.id}`)[0]!.status).toBe("draft");
+  });
+
+  it("vergibt dem Storno die Kundennummer des Originals, auch wenn die des Kontakts inzwischen anders ist (#1426)", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
+    const acme = (await createContact("ACME")).id;
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(acme)).id);
+    expect(original.number).toBe("RE-ACME-001");
+    // Die Kundennummer im Beleg ist der Stand beim Festschreiben, nicht die des Kontakts von heute
+    await contacts.updateContact(actor, acme, {
+      kundennummer: "NEUE-9",
+      name: "Zweitkunde GmbH",
+      strasse: "Werkstraße 9",
+      plz: "10115",
+      ort: "Berlin",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const storno = await invoices.cancelInvoice(actor, original.id, "2026-03-05");
+    expect(storno.number).toBe("RE-ACME-002");
   });
 });
