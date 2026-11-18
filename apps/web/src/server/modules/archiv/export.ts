@@ -7,7 +7,16 @@ import { effectivePayment } from "../auswertungen/index.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
-import { ASSET_KINDS, ASSET_METHODS, formatDegressiveRate, formatExchangeRate, isKapitalgesellschaft, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
+import {
+  ASSET_KINDS,
+  AUFLADUNG,
+  ASSET_METHODS,
+  formatDegressiveRate,
+  formatExchangeRate,
+  isKapitalgesellschaft,
+  PAUSCHALE_LABEL,
+  WRITE_OFF_KINDS,
+} from "@haben/core";
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
@@ -235,6 +244,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
   kategorie: "Direkt auf Kategorie",
+  aufladung: AUFLADUNG.label,
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",

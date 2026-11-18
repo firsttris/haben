@@ -16,6 +16,8 @@
 .data-table td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 .data-table .num { text-align: right; white-space: nowrap; }
 .data-table tr.unmatched td { background: var(--warn-soft); }
+/* Aufladung ohne Bezug: eigene Gruppe im Abgleich, kein offener Punkt (#1356) */
+.data-table tr.aufladung td { background: var(--accent-soft); }
 .data-table a { color: var(--accent-ink); }
 .table-scroll { overflow-x: auto; }
 .archive-fingerprint { overflow-wrap: anywhere; }

@@ -23,6 +23,7 @@ import {
   findTransferCounterpart,
   payoutKey,
   aufKontoAngeboten,
+  aufRechtsformAngeboten,
   learnedDirectBooking,
   type DirectSuggestion,
   type LearnedBooking,
@@ -92,7 +93,7 @@ import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts"
 import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
-import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { aufladungBuchung, kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
 import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
@@ -840,6 +841,8 @@ export async function learnedDirectSuggestions(
   const result = new Map<string, DirectSuggestion>();
   if (txs.length === 0) return result;
   const kleinunternehmerAm = await kleinunternehmerHistory();
+  // Eine Aufladung gibt es nur im Einzelunternehmen (#1356): ein Vorschlag aus früheren Buchungen entfällt dort
+  const { rechtsform } = await loadCompany();
   const byIban = await allocationHistory("iban", [...new Set(txs.flatMap((t) => ibanKey(t.counterpartyIban) ?? []))]);
   const rest = txs.filter((t) => !byIban.has(historyKey(ibanKey(t.counterpartyIban), t.amount)));
   const byName = await allocationHistory("name", [...new Set(rest.flatMap((t) => nameKey(t.counterpartyName) ?? []))]);
@@ -849,7 +852,7 @@ export async function learnedDirectSuggestions(
     const history = iban ? { ...iban, basis: "iban" as const } : name ? { ...name, basis: "name" as const } : null;
     const kleinunternehmer = kleinunternehmerAm(lastDayOfMonth(Number(t.bookingDate.slice(0, 4)), Number(t.bookingDate.slice(5, 7))));
     const suggestion = history ? learnedDirectBooking(t, history.kinds, history.total, history.basis, kleinunternehmer) : null;
-    if (suggestion) result.set(t.id, suggestion);
+    if (suggestion && aufRechtsformAngeboten(suggestion.kind, rechtsform)) result.set(t.id, suggestion);
   }
   return result;
 }
@@ -1048,6 +1051,15 @@ const DIRECT_KINDS = [
 ] as const;
 
 /**
+ * Aufladung eines Guthabens (#1356): eine direkte Zuordnungsart wie „kategorie“, aber mit Pflicht-Kostenkategorie und
+ * ohne Steuersatz: Die Aufladung selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG), und Vorsteuer entsteht erst mit der
+ * Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Sie steht neben
+ * den zwölf in DIRECT_KINDS und nicht darin: Die Zuordnungs-Schemata sind eine `discriminatedUnion`, und dort darf jeder
+ * Wert nur einmal vorkommen — die Aufladung trägt zusätzlich die Kategorie.
+ */
+const AUFLADUNG_KIND = "aufladung" as const;
+
+/**
  * Eine Lohnzahlung tilgt nur, was die Lohnabrechnung als Verbindlichkeit gebucht hat, wie eine Zahlung den offenen Betrag
  * eines Belegs: ein Ausgang höchstens die offene Verbindlichkeit, ein Eingang höchstens eine Überzahlung. Im
  * Einzelunternehmen zählte ein Betrag darüber hinaus in der EÜR als Personalausgabe, etwa eine Entnahme des Inhabers.
@@ -1094,6 +1106,8 @@ export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("darlehen"), transactionId: z.uuid(), amount: inCents(z.number().int()), darlehen: loanPartSchema }),
   // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz
   z.object({ kind: z.literal("kategorie"), transactionId: z.uuid(), amount: inCents(z.number().int()), kategorie: kategorieAngabeSchema }),
+  // Aufladung eines Guthabens: Ausgabe ohne Vorsteuer, Pflicht-Kostenkategorie, ohne Steuersatz (#1356)
+  z.object({ kind: z.literal(AUFLADUNG_KIND), transactionId: z.uuid(), amount: inCents(z.number().int()), kategorie: kategorieAngabeSchema }),
 ]);
 
 export type AllocationInput = z.infer<typeof allocationSchema>;
@@ -1115,6 +1129,8 @@ export type SplitInput = z.infer<typeof splitSchema>;
 /** Dazu intern: der Teil einer Zahlung über dem offenen Betrag einer Fremdwährungsrechnung (allocateWithRest) */
 type Part =
   | z.infer<typeof splitPartSchema>
+  // Aufladung eines Guthabens (#1356): mit Pflicht-Kostenkategorie und ohne Steuersatz; kein Teil einer Aufteilung
+  | { kind: "aufladung"; kategorie: z.infer<typeof kategorieAngabeSchema>; amount: number }
   | { kind: "kursdifferenz"; amount: number }
   // Rücklastschrift (#445): negative Zahlung auf die Rechnung mit Bezug auf die zurückgegebene Lastschrift
   | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number }
@@ -1123,6 +1139,10 @@ type Part =
 
 const PRIVAT_NICHT_BUCHBAR =
   "Auf einem privaten Konto ergeben Kontoführung, Zinserträge, Privat und Geldtransit keinen Geschäftsvorfall; diese Buchung ist dort nicht möglich.";
+
+/** Eine Aufladung gibt es nur im Einzelunternehmen (#1356); in GmbH und UG ist die Zahlung eine Forderung, kein Aufwand */
+const AUFLADUNG_NICHT_BUCHBAR =
+  "In GmbH und UG ist eine Aufladung kein Aufwand, sondern eine Forderung an den Anbieter; die Zuordnungsart ist dort nicht möglich.";
 
 /** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
 export async function lockTransaction(tx: Tx, id: string) {
@@ -1268,6 +1288,9 @@ async function documentBooking(
 export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
   // Gebühren, Zinserträge, Privat und Geldtransit ergeben auf einem privaten Konto keinen Geschäftsvorfall (#873)
   if (!aufKontoAngeboten(part.kind, bank.purpose)) throw new BankError(PRIVAT_NICHT_BUCHBAR);
+  // Eine Aufladung gibt es nur im Einzelunternehmen (#1356): Eine Gesellschaft mit Bilanz weist den Betrag bis zur
+  // Rechnung als Forderung aus (§ 246 Abs. 1 HGB), nicht als Aufwand; die Auswahl bietet sie dort auch nicht an
+  if (!aufRechtsformAngeboten(part.kind, company.rechtsform)) throw new BankError(AUFLADUNG_NICHT_BUCHBAR);
   let lines: PostingLine[];
   let description: string;
   let target: Zuordnungsziel = {};
@@ -1293,6 +1316,8 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     ({ lines, description, target } = await steuerbuchung(tx, company, bank, part.steuer, part.amount));
   } else if (part.kind === "kategorie") {
     ({ lines, description, target } = await kategoriebuchung(tx, company.kontenrahmen, bank, part.kategorie, part.amount));
+  } else if (part.kind === "aufladung") {
+    ({ lines, description, target } = aufladungBuchung(bank, part.kategorie, part.amount, company.kontenrahmen));
   } else if (part.kind === "kursdifferenz") {
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;

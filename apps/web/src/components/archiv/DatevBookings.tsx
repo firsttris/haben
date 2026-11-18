@@ -29,11 +29,20 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
           <Link
             to="/archiv"
             activeProps={{}}
-            search={{ ...search, ohneBeleg: search.ohneBeleg ? undefined : true, seite: undefined }}
+            search={{ ...search, ohneBeleg: search.ohneBeleg ? undefined : true, aufladung: undefined, seite: undefined }}
             className={search.ohneBeleg ? "chip active" : "chip"}
             aria-current={search.ohneBeleg ? "page" : undefined}
           >
             Nur ohne passenden Beleg
+          </Link>
+          <Link
+            to="/archiv"
+            activeProps={{}}
+            search={{ ...search, aufladung: search.aufladung ? undefined : true, ohneBeleg: undefined, seite: undefined }}
+            className={search.aufladung ? "chip active" : "chip"}
+            aria-current={search.aufladung ? "page" : undefined}
+          >
+            Aufladung ohne Bezug
           </Link>
           <form onSubmit={onSearch} role="search">
             <label className="search-box">
@@ -65,15 +74,16 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
               </thead>
               <tbody>
                 {data.rows.map((row) => (
-                  <tr key={row.id} className={row.matched ? undefined : "unmatched"}>
+                  <tr key={row.id} className={row.matched ? undefined : row.aufladung ? "aufladung" : "unmatched"}>
                     <td>{formatDate(row.date)}</td>
                     <td className="mono">
                       {row.voucherField1 || "–"}
-                      {!row.matched && <span className="visually-hidden"> (kein passender Beleg)</span>}
+                      {!row.matched && !row.aufladung && <span className="visually-hidden"> (kein passender Beleg)</span>}
                     </td>
                     <td>
                       {row.text}
                       <div className="small muted">
+                        {row.aufladung ? "Aufladung ohne Bezug · " : ""}
                         {row.filename}, Zeile {row.row}
                       </div>
                     </td>
