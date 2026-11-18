@@ -399,7 +399,7 @@ Die Steuerart liest Haben aus der gespeicherten Antwort der API (`taxConditions.
 | Steuerfrei (`vatfree`) | Steuerfrei |
 | mit Unterart Fernverkauf oder elektronische Dienstleistung | OSS |
 
-Kz 21, 41 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die übrigen wie die regulären Umsätze. Die Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67) rechnet Haben nicht nach: Buchhaltungsbelege tragen in der API keine eigene Steuerart dafür.
+Kz 21, 41, 45 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die übrigen wie die regulären Umsätze. Kz 45 meldet Haben selbst [mit der Rechnung](umsatzsteuer.md#umsätze-ohne-steuer-kz-21-41-43-45-und-48); hat Lexware Office sie mit der Zahlung gemeldet, weicht Kz 45 im Abgleich zwischen dem Monat der Rechnung und dem der Zahlung ab. Die Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67) rechnet Haben nicht nach: Buchhaltungsbelege tragen in der API keine eigene Steuerart dafür.
 
 Bei Soll-Versteuerung zählen Einnahmen nach Belegdatum. Bei Ist-Versteuerung zählen sie anteilig nach Datum der einzelnen Zahlungen aus dem Zahlungsstatus; Skonto, Mahnkosten, Kursdifferenzen und Forderungsausfälle zählen dabei nicht. Gutschriften mindern die Umsätze.
 
