@@ -1,6 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { expect, test, type Page } from "@playwright/test";
-import { EVATR_PORT } from "./durchlaeufe.ts";
+import postgres from "postgres";
+import { databaseUrlFuer, EVATR_PORT } from "./durchlaeufe.ts";
 import { gehe, kontrasteInThemes, ohneAxeVerstoesse } from "./einrichtung.ts";
 
 /*
@@ -9,10 +10,11 @@ import { gehe, kontrasteInThemes, ohneAxeVerstoesse } from "./einrichtung.ts";
  * Form der Testabfrage vom 2026-11-18 mit den Beispielwerten der OpenAPI-Beschreibung.
  */
 
-type Dienst = { server: Server; anfragen: Record<string, string>[]; ausfall: boolean };
+/** ausfall: 503 mit evatr-1001; verzoegerung: so viele Millisekunden bis zur Antwort, die Anfrage zählt sofort */
+type Dienst = { server: Server; anfragen: Record<string, string>[]; ausfall: boolean; verzoegerung: number };
 
 async function evatrAttrappe(): Promise<Dienst> {
-  const dienst: Dienst = { server: createServer(), anfragen: [], ausfall: false };
+  const dienst: Dienst = { server: createServer(), anfragen: [], ausfall: false, verzoegerung: 0 };
   dienst.server.on("request", (request, response) => {
     let body = "";
     request.on("data", (chunk) => (body += chunk));
@@ -23,8 +25,10 @@ async function evatrAttrappe(): Promise<Dienst> {
       const [code, antwort] = dienst.ausfall
         ? [503, { ...kopf, status: "evatr-1001" }]
         : [200, { ...kopf, status: "evatr-0000", ...(anfrage.firmenname ? { ergFirmenname: "A", ergStrasse: "B", ergPlz: "A", ergOrt: "A" } : {}) }];
-      response.writeHead(code, { "content-type": "application/json" });
-      response.end(JSON.stringify(antwort));
+      setTimeout(() => {
+        response.writeHead(code, { "content-type": "application/json" });
+        response.end(JSON.stringify(antwort));
+      }, dienst.verzoegerung);
     });
   });
   await new Promise<void>((resolve) => dienst.server.listen(EVATR_PORT, "127.0.0.1", resolve));
@@ -78,7 +82,8 @@ export function ustIdBestaetigungPruefen(getPage: () => Page) {
       await expect(karte.getByText("Alle Abfragen (4)")).toBeVisible();
       expect(dienst.anfragen.at(-1)).toMatchObject({ strasse: "Hauptplatz 2" });
       await page.getByRole("button", { name: "Speichern", exact: true }).click();
-      await expect(page.getByRole("status").filter({ hasText: "Gespeichert." })).toBeVisible();
+      // Die Karte zeigt daneben noch ihre eigene Meldung; gemeint ist die des Formulars
+      await expect(page.getByRole("form", { name: "Kontakt" }).getByRole("status")).toContainText("Gespeichert.");
       await page.waitForLoadState("networkidle");
       expect(dienst.anfragen).toHaveLength(5);
 
@@ -92,6 +97,65 @@ export function ustIdBestaetigungPruefen(getPage: () => Page) {
       await page.getByRole("button", { name: "Archivieren" }).click();
       await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
     } finally {
+      await new Promise((resolve) => dienst.server.close(resolve));
+    }
+  });
+
+  test("Kontakt: Wechsel zu einem anderen Kontakt und Verlassen der Seite lösen nichts aus (#1385)", async () => {
+    const page = getPage();
+    const dienst = await evatrAttrappe();
+    const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+    const namen = ["Talblick GmbH", "Inland Werkstatt GmbH", "Seeblick GmbH"];
+    try {
+      // Nie bestätigt, wie aus einem Import: ohne Kontaktseite angelegt
+      await sql.begin(async (tx) => {
+        await tx`select set_config('haben.actor', 'e2e', true)`;
+        await tx`insert into contacts (name, strasse, plz, ort, land, ust_id) values ('Talblick GmbH', 'Hauptplatz 2', '8010', 'Graz', 'AT', 'ATU22334455')`;
+      });
+
+      // Ein Kontakt ohne USt-IdNr. hat keine Karte; sein Speichern darf beim nächsten Kontakt keine Abfrage auslösen
+      await gehe(page, "/kontakte/neu");
+      await page.getByLabel("Name oder Firma").fill("Inland Werkstatt GmbH");
+      await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+      await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+      await page.getByRole("button", { name: "Speichern", exact: true }).click();
+      await expect(page.getByRole("form", { name: "Kontakt" }).getByRole("status")).toContainText("Gespeichert.");
+      // In derselben Seite zum anderen Kontakt, über die Schnellsuche
+      await page
+        .getByRole("navigation", { name: "Hauptnavigation" })
+        .getByRole("button", { name: /Schnellsuche/ })
+        .click();
+      const palette = page.getByRole("dialog", { name: "Befehlspalette" });
+      await palette.getByRole("combobox").fill("Talblick");
+      await expect(palette.getByRole("option", { name: /Talblick GmbH/ })).toBeVisible();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("heading", { level: 1, name: "Talblick GmbH" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Bestätigung beim BZSt" })).toContainText("Noch nicht bestätigt.");
+      await page.waitForLoadState("networkidle");
+      expect(dienst.anfragen).toHaveLength(0);
+
+      // Anlegen und gleich zu „Rechnung schreiben“, während das BZSt langsam antwortet: die neue Rechnung bleibt offen
+      dienst.verzoegerung = 1_500;
+      await gehe(page, "/kontakte/neu");
+      await page.getByLabel("Name oder Firma").fill("Seeblick GmbH");
+      await page.getByLabel("Ort").fill("Klagenfurt");
+      await page.getByLabel("Land (z. B. DE)").fill("AT");
+      await page.getByLabel("USt-IdNr.").fill("ATU33445566");
+      await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+      await expect.poll(() => dienst.anfragen.length).toBe(1);
+      await page.getByRole("link", { name: "Rechnung schreiben" }).click();
+      await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+      // Die Abfrage läuft auf dem Server zu Ende, die Seite bleibt
+      await expect.poll(() => dienst.anfragen.length).toBe(2);
+      await page.waitForTimeout(2_000);
+      await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+    } finally {
+      // Nicht in den Zahlen der folgenden Tests
+      await sql.begin(async (tx) => {
+        await tx`select set_config('haben.actor', 'e2e', true)`;
+        await tx`update contacts set archived_at = now() where name in ${tx(namen)} and archived_at is null`;
+      });
+      await sql.end();
       await new Promise((resolve) => dienst.server.close(resolve));
     }
   });

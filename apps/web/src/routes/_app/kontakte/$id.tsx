@@ -1,6 +1,6 @@
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod/mini";
 import { ContactForm } from "../../../components/ContactForm.tsx";
 import { ContactHistory } from "../../../components/ContactHistory.tsx";
@@ -56,8 +56,15 @@ function ContactPage() {
   const { busy, notice, run } = useAction();
   // Kontakt, der gerade gespeichert wurde; das Formular entsteht danach mit der neuen Version neu (key) und zeigt die Meldung von hier
   const [savedId, setSavedId] = useState<string | null>(null);
-  // Nach dem Anlegen (Suchparameter) oder Speichern einmal beim BZSt nachfragen, ob die USt-IdNr. bestätigt werden muss
-  const [nachSpeichern, setNachSpeichern] = useState(bestaetigen === true);
+  // Kontakt, für den nach dem Anlegen (Suchparameter) oder Speichern einmal beim BZSt nachgefragt wird; eine ID wie savedId,
+  // denn beim Wechsel zu einem anderen Kontakt bleibt die Seite stehen
+  const [pruefenFuer, setPruefenFuer] = useState<string | null>(null);
+  // Den Suchparameter gleich nehmen, solange die Seite den Kontakt zeigt; später träfe die Navigation die Seite, auf der man dann ist
+  useEffect(() => {
+    if (!bestaetigen) return;
+    setPruefenFuer(contact.id);
+    void navigate({ search: (s) => ({ ...s, bestaetigen: undefined }), replace: true });
+  }, [bestaetigen, contact.id, navigate]);
   return (
     <>
       <div className="page-head">
@@ -94,22 +101,20 @@ function ContactPage() {
           saved={savedId === contact.id}
           onUpdated={() => {
             setSavedId(contact.id);
-            setNachSpeichern(true);
+            setPruefenFuer(contact.id);
           }}
         />
         <div className="stack">
           {/* Abgeschaltet wie vor #1385: ohne Karte, außer es gibt schon Antworten */}
           {(ustid.bestaetigungen.length > 0 || ustid.zustand.art === "bereit" || ustid.zustand.art === "ohne-eigene") && (
             <UstIdBestaetigungCard
+              key={contact.id}
               contactId={contact.id}
               ustId={contact.ustId}
               bestaetigungen={ustid.bestaetigungen}
               zustand={ustid.zustand}
-              nachSpeichern={nachSpeichern}
-              onNachSpeichernErledigt={() => {
-                setNachSpeichern(false);
-                if (bestaetigen) void navigate({ search: (s) => ({ ...s, bestaetigen: undefined }), replace: true });
-              }}
+              nachSpeichern={pruefenFuer === contact.id}
+              onNachSpeichernErledigt={() => setPruefenFuer((id) => (id === contact.id ? null : id))}
             />
           )}
           <ContactPersonsCard contactId={contact.id} persons={persons} />
