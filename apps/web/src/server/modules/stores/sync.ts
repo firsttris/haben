@@ -1,4 +1,4 @@
-import { addReportMonths, reportMonthsBetween } from "@haben/import";
+import { addReportMonths, appleFiscalPeriod, reportMonthsBetween } from "@haben/import";
 import { eq } from "drizzle-orm";
 import { archiveFetchedFile } from "../archiv/index.ts";
 import { withActor } from "../../db/actor.ts";
@@ -15,7 +15,7 @@ import { appStoreClientFor, googlePlayClientFor, loadConnection, STORE_LABELS, S
  * Zahlungsdienstleister-Konto des Stores stehen (import.ts).
  *
  * - Google Play listet die Berichte im Bucket; was dort liegt, ist fertig. Ein Monat kann aus mehreren Dateien bestehen.
- * - App Store Connect hat keine Liste: Haben fragt je Fiskalmonat ab fetch_from bis zum Vormonat. Kein Bericht (404)
+ * - App Store Connect hat keine Liste: Haben fragt je Monat ab fetch_from bis zum Vormonat Apples Fiskalperiode ab. Kein Bericht (404)
  *   heißt „noch nicht abgerechnet“ oder „keine Verkäufe“; Monate, die länger als drei Monate ohne Bericht bleiben,
  *   fragt Haben nicht mehr ab (Apple stellt Berichte bis zum ersten Freitag des Folgemonats bereit).
  */
@@ -37,6 +37,9 @@ export interface StoreSyncResult {
 }
 
 interface FetchedReport {
+  /** Berichtsmonat fürs Archiv (Jahr und Notiz) */
+  month: string;
+  /** Wie in store_reports: der Berichtsmonat, bei Apple die Fiskalperiode */
   period: string;
   part: string;
   filename: string;
@@ -60,8 +63,8 @@ async function saveReport(actor: string, store: Store, report: FetchedReport): P
       sha256,
       filename: report.filename,
       kind: "storebericht",
-      year: Number(report.period.slice(0, 4)),
-      note: `${STORE_LABELS[store]}, Finanzbericht ${report.period}`,
+      year: Number(report.month.slice(0, 4)),
+      note: `${STORE_LABELS[store]}, Finanzbericht ${report.month}`,
       meta: { store, period: report.period, part: report.part },
     });
     const inserted = await tx
@@ -101,15 +104,22 @@ export async function syncStore(actor: string, store: Store, now = new Date()): 
       const api = googlePlayClientFor(config, secret);
       for (const object of await api.listEarnings()) {
         if (object.month < from || known.has(`${object.month} ${object.name}`)) continue;
-        await record({ period: object.month, part: object.name, filename: object.name.split("/").pop()!, bytes: await api.download(object.name) });
+        await record({
+          month: object.month,
+          period: object.month,
+          part: object.name,
+          filename: object.name.split("/").pop()!,
+          bytes: await api.download(object.name),
+        });
       }
     } else if (config.store === "appstore") {
       const api = appStoreClientFor(config, secret);
       const missing: string[] = [];
       for (const month of reportMonthsBetween(from, lastMonth)) {
-        if (known.has(`${month} Z1`)) continue;
-        const bytes = await api.financeDetail(month);
-        if (bytes) await record({ period: month, part: "Z1", filename: `apple_finance_detail_Z1_${config.vendorNumber}_${month}.txt.gz`, bytes });
+        const period = appleFiscalPeriod(month);
+        if (known.has(`${period} Z1`)) continue;
+        const bytes = await api.financeDetail(period);
+        if (bytes) await record({ month, period, part: "Z1", filename: `apple_finance_detail_Z1_${config.vendorNumber}_${period}.txt.gz`, bytes });
         else missing.push(month);
       }
       const cutoff = addReportMonths(currentMonth, -APPLE_GRACE_MONTHS);

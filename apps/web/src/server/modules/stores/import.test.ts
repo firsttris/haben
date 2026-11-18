@@ -1,8 +1,9 @@
-import { gzipSync, strToU8, zipSync } from "fflate";
+import { strToU8, zipSync } from "fflate";
 import { generateKeyPairSync } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AppStoreClient, GooglePlayClient } from "@haben/import";
+import { APPLE_TEST_PERIOD, appleFinanceReport } from "../../../test-fixtures/apple-finanzbericht.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /* Übernahme archivierter Store-Berichte ins Zahlungsdienstleister-Konto; Berichte nachgebaut nach den Beschreibungen der Stores */
@@ -16,16 +17,6 @@ const googleCsv = (rows: [string, string, string][]) =>
     "Description,Transaction Date,Transaction Time,Tax Type,Transaction Type,Refund Type,Product Title,Merchant Currency,Amount (Merchant Currency)",
     ...rows.map(([date, type, amount]) => `GPA.1,"${date}",12:00:00 PM PDT,,${type},,App,EUR,${amount}`),
   ].join("\n");
-
-const appleTsv = (rows: [string, string][]) =>
-  gzipSync(
-    strToU8(
-      [
-        "Vendor Name\tStart Date\tEnd Date\tExtended Partner Share\tPartner Share Currency\tSale or Return",
-        ...rows.map(([amount, currency]) => `Muster\t09/28/2026\t11/01/2026\t${amount}\t${currency}\tS`),
-      ].join("\n"),
-    ),
-  );
 
 const google = new Map<string, Uint8Array>([
   [
@@ -44,8 +35,8 @@ const google = new Map<string, Uint8Array>([
 ]);
 const apple = new Map<string, Uint8Array>([
   [
-    "2026-10",
-    appleTsv([
+    APPLE_TEST_PERIOD,
+    appleFinanceReport([
       ["7.00", "EUR"],
       ["10.81", "USD"],
     ]),
@@ -56,7 +47,7 @@ const googleClient: GooglePlayClient = {
   listEarnings: async () => [...google.keys()].map((name) => ({ name, month: `${name.slice(18, 22)}-${name.slice(22, 24)}`, size: 1 })),
   download: async (name) => google.get(name)!,
 };
-const appleClient: AppStoreClient = { financeDetail: async (month) => apple.get(month) ?? null };
+const appleClient: AppStoreClient = { financeDetail: async (period) => apple.get(period) ?? null };
 
 describe.skipIf(!testDatabaseUrl)("Übernahme der Store-Berichte ins Konto (Postgres)", () => {
   let stores: typeof import("./index.ts");

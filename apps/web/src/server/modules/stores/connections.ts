@@ -1,4 +1,6 @@
 import {
+  appleFiscalPeriod,
+  appleReportMonth,
   checkAppStoreCredentials,
   createAppStoreClient,
   createGooglePlayClient,
@@ -126,7 +128,7 @@ export async function saveStoreConnection(actor: string, input: z.input<typeof s
   try {
     if (config.store === "googleplay") await googlePlayClientFor(config, secret).listEarnings();
     // Ein Monat ohne Bericht (404) ist kein Fehler; abgelehnt werden nur Anmeldung und Rechte
-    else await appStoreClientFor(config, secret).financeDetail(data.fetchFrom);
+    else await appStoreClientFor(config, secret).financeDetail(appleFiscalPeriod(data.fetchFrom));
   } catch (error) {
     throw new StoreError(`${STORE_LABELS[data.store]} lehnt den Zugang ab: ${message(error)}`);
   }
@@ -204,9 +206,10 @@ export async function storeConnectionsSummary() {
       fetchFrom: row.fetchFrom.slice(0, 7),
       label: STORE_LABELS[row.store],
       reports: own.length,
+      // store_reports.period ist bei Apple die Fiskalperiode; angezeigt wird der Berichtsmonat
       latestPeriod:
         own
-          .map((r) => r.period)
+          .map((r) => (row.store === "appstore" ? appleReportMonth(r.period) : r.period))
           .sort()
           .at(-1) ?? null,
     };

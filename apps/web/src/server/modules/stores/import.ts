@@ -53,7 +53,8 @@ export function parseStoreReport(
   return store === "googleplay"
     ? // Die erste Datei eines Monats ist der Bericht, weitere sind Korrekturen
       parseGooglePlayEarnings(bytes, { period: report.period, part: partIndex === 0 ? undefined : String(partIndex + 1) })
-    : parseAppStoreFinanceDetail(bytes, { period: report.period, rateFor });
+    : // Den Monat liest der Parser aus dem Zeitraum im Bericht; report.period ist Apples Fiskalperiode
+      parseAppStoreFinanceDetail(bytes, { rateFor });
 }
 
 /** Alle archivierten Berichte eines Stores, gelesen; nicht lesbare als Hinweis */

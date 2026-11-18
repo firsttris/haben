@@ -3175,7 +3175,7 @@ export const storeReports = pgTable(
      * Berichtsregion (Z1)
      */
     part: text("part").notNull(),
-    /** Berichtsmonat YYYY-MM; bei Apple der Fiskalmonat */
+    /** Berichtsmonat YYYY-MM; bei Apple die Fiskalperiode (Fiskaljahr-Periode, 2026-01 ist der Oktober 2025) */
     period: text("period").notNull(),
     sha256: text("sha256").notNull(),
     archiveFileId: uuid("archive_file_id")

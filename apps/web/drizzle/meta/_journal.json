@@ -2056,15 +2056,8 @@
     {
       "idx": 293,
       "version": "7",
-      "when": 1795026053249,
-      "tag": "0293_rueckgewaehr_kennzeichen",
-      "breakpoints": true
-    },
-    {
-      "idx": 294,
-      "version": "7",
-      "when": 1795026060627,
-      "tag": "0294_rueckgewaehr_kennzeichen_trigger",
+      "when": 1795023802154,
+      "tag": "0293_appstore_fiskalperiode",
       "breakpoints": true
     }
   ]
