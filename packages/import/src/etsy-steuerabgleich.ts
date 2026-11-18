@@ -3,7 +3,7 @@ import { settlementKey } from "./etsy.ts";
 /*
  * Sales Tax im Etsy-Abruf über überlappende Abrufe (etsy-ledger.ts): Welche neue Steuerzeile schon in einem übernommenen
  * Verkauf oder einer übernommenen Erstattung steckt und welche dieser Abruf mit einem neuen Partner verrechnen darf
- * (settleTax). Geraten wird nicht: Was nicht genau passt, bleibt eine eigene Zeile.
+ * (settleTax). Was nicht genau passt, bleibt eine eigene Zeile; gewählt wird nur, wo die Wahl den Kontostand nicht ändert.
  */
 
 type Partner = "Verkauf" | "Erstattung";
@@ -20,10 +20,35 @@ export interface SteuerZeile<E> {
   frueher: { verrechnet: number } | undefined;
 }
 
+/** Höchstens so viele offene Steuerzeilen je Bestellung und Tag durchsucht `passendeZeilen` (2^n Mengen) */
+const MAX_KANDIDATEN = 16;
+
 /**
- * `drin`: Steuerzeilen, die schon im Konto stehen. Je übernommenem Partner zuerst eine Zeile mit genau der damals
- * verrechneten Steuer, sonst alle offenen Steuerzeilen derselben Bestellung und desselben Tages für einen Verkauf bzw.
- * eine Erstattung zusammen, wenn ihre Summe genau passt.
+ * Kleinste Menge der Zeilen mit genau dieser Summe, bei gleicher Größe die mit den früheren Zeilen (die Liste ist nach
+ * der Zeit sortiert); keine, wenn es sie nicht gibt.
+ */
+function passendeZeilen<T extends { amount: number }>(zeilen: T[], summe: number): T[] | undefined {
+  if (zeilen.length > MAX_KANDIDATEN) return undefined;
+  const suche = (start: number, rest: number, anzahl: number): number[] | undefined => {
+    if (anzahl === 0) return rest === 0 ? [] : undefined;
+    for (let i = start; i <= zeilen.length - anzahl; i++) {
+      const weiter = suche(i + 1, rest - zeilen[i]!.amount, anzahl - 1);
+      if (weiter) return [i, ...weiter];
+    }
+    return undefined;
+  };
+  for (let anzahl = 1; anzahl <= zeilen.length; anzahl++) {
+    const treffer = suche(0, summe, anzahl);
+    if (treffer) return treffer.map((i) => zeilen[i]!);
+  }
+  return undefined;
+}
+
+/**
+ * `drin`: Steuerzeilen, die schon im Konto stehen. Je Bestellung, Tag und Partnerart (Verkauf bzw. Erstattung) ist das
+ * die Summe der damals verrechneten Steuer aller übernommenen Partner; Haben sucht unter den offenen Steuerzeilen die
+ * kleinste Menge mit genau dieser Summe, bei gleicher Größe die früheren Zeilen. Welche Zeilen das sind, ändert den
+ * Kontostand nicht: Was nicht dazugehört, hat in Summe immer denselben Betrag. Ohne passende Menge zählt keine Zeile.
  *
  * `verrechenbar`: Steuerzeilen mit genau einem möglichen Partner, und der ist neu. Ein übernommener Partner, mit dem noch
  * keine Steuer verrechnet ist, zählt mit: Bei zwei Erstattungen derselben Bestellung am selben Tag bleibt die Steuer so
@@ -41,18 +66,16 @@ export function steuerAbgleich<E>(zeilen: SteuerZeile<E>[]): { drin: Set<E>; ver
       : [],
   );
 
-  const drin = new Set<E>();
-  const pool = partner.flatMap((p) => (p.frueher && p.frueher.verrechnet !== 0 ? [{ ...p, rest: p.frueher.verrechnet }] : []));
-  for (const p of pool) {
-    const treffer = steuern.find((s) => !drin.has(s.entry) && s.key === p.key && s.partner === p.partner && s.amount === p.rest);
-    if (treffer) {
-      drin.add(treffer.entry);
-      p.rest = 0;
-    }
+  // Schon verrechnete Steuer je Partnerart, Bestellung und Tag
+  const verrechnet = new Map<string, number>();
+  for (const p of partner) {
+    const gruppe = `${p.partner} ${p.key}`;
+    if (p.frueher && p.frueher.verrechnet !== 0) verrechnet.set(gruppe, (verrechnet.get(gruppe) ?? 0) + p.frueher.verrechnet);
   }
-  for (const p of pool.filter((x) => x.rest !== 0)) {
-    const offen = steuern.filter((s) => !drin.has(s.entry) && s.key === p.key && s.partner === p.partner);
-    if (offen.length > 1 && offen.reduce((summe, s) => summe + s.amount, 0) === p.rest) for (const s of offen) drin.add(s.entry);
+  const drin = new Set<E>();
+  for (const [gruppe, summe] of verrechnet) {
+    const offen = steuern.filter((s) => `${s.partner} ${s.key}` === gruppe);
+    for (const s of passendeZeilen(offen, summe) ?? []) drin.add(s.entry);
   }
 
   const verrechenbar = new Set(
