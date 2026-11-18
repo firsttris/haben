@@ -86,6 +86,7 @@ import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
 import { ActionBar } from "./ActionBar.tsx";
 import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
+import { UstIdVorFestschreiben } from "./UstIdVorFestschreiben.tsx";
 
 interface ContactOption {
   id: string;
@@ -720,6 +721,9 @@ export function InvoiceEditor({
                 Das Rechnungsdatum ({formatDate(numberDate)}) liegt vor der zuletzt festgeschriebenen Rechnung {earlierThanLast.number} vom{" "}
                 {formatDate(earlierThanLast.issueDate)}.
               </div>
+            )}
+            {kind === "rechnung" && (taxTreatment === "reverse_charge" || taxTreatment === "ig_lieferung") && (
+              <UstIdVorFestschreiben open={confirming} contactId={contactId} />
             )}
             <p>PDF und XML werden erzeugt und gebucht.</p>
             <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>

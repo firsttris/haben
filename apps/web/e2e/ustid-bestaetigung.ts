@@ -1,8 +1,9 @@
 import { createServer, type Server } from "node:http";
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
+import { YEAR } from "./daten.ts";
 import { databaseUrlFuer, EVATR_PORT } from "./durchlaeufe.ts";
-import { gehe, kontrasteInThemes, ohneAxeVerstoesse } from "./einrichtung.ts";
+import { gehe, kontrasteInThemes, kundeWaehlen, ohneAxeVerstoesse } from "./einrichtung.ts";
 
 /*
  * Bestätigung der USt-IdNr. beim BZSt am Kontakt (#1385), gegen einen nachgebauten eVatR-Dienst auf EVATR_PORT; nur der
@@ -10,11 +11,14 @@ import { gehe, kontrasteInThemes, ohneAxeVerstoesse } from "./einrichtung.ts";
  * Form der Testabfrage vom 2026-11-18 mit den Beispielwerten der OpenAPI-Beschreibung.
  */
 
-/** ausfall: 503 mit evatr-1001; verzoegerung: so viele Millisekunden bis zur Antwort, die Anfrage zählt sofort */
-type Dienst = { server: Server; anfragen: Record<string, string>[]; ausfall: boolean; verzoegerung: number };
+/**
+ * ausfall: 503 mit evatr-1001; status: diese Antwort statt evatr-0000 (evatr-2001 mit 404); verzoegerung: so viele
+ * Millisekunden bis zur Antwort, die Anfrage zählt sofort
+ */
+type Dienst = { server: Server; anfragen: Record<string, string>[]; ausfall: boolean; status: string | null; verzoegerung: number };
 
 async function evatrAttrappe(): Promise<Dienst> {
-  const dienst: Dienst = { server: createServer(), anfragen: [], ausfall: false, verzoegerung: 0 };
+  const dienst: Dienst = { server: createServer(), anfragen: [], ausfall: false, status: null, verzoegerung: 0 };
   dienst.server.on("request", (request, response) => {
     let body = "";
     request.on("data", (chunk) => (body += chunk));
@@ -24,7 +28,9 @@ async function evatrAttrappe(): Promise<Dienst> {
       const kopf = { id: `e2e${dienst.anfragen.length}`, anfrageZeitpunkt: "2026-11-18T14:34:36.318854732+01:00" };
       const [code, antwort] = dienst.ausfall
         ? [503, { ...kopf, status: "evatr-1001" }]
-        : [200, { ...kopf, status: "evatr-0000", ...(anfrage.firmenname ? { ergFirmenname: "A", ergStrasse: "B", ergPlz: "A", ergOrt: "A" } : {}) }];
+        : dienst.status
+          ? [dienst.status === "evatr-2001" ? 404 : 200, { ...kopf, status: dienst.status }]
+          : [200, { ...kopf, status: "evatr-0000", ...(anfrage.firmenname ? { ergFirmenname: "A", ergStrasse: "B", ergPlz: "A", ergOrt: "A" } : {}) }];
       setTimeout(() => {
         response.writeHead(code, { "content-type": "application/json" });
         response.end(JSON.stringify(antwort));
@@ -153,6 +159,89 @@ export function ustIdBestaetigungPruefen(getPage: () => Page) {
         await tx`update contacts set archived_at = now() where name in ${tx(namen)} and archived_at is null`;
       });
       await sql.end();
+      await new Promise((resolve) => dienst.server.close(resolve));
+    }
+  });
+
+  test("Festschreiben: Hinweis bei ungültiger USt-IdNr., keiner nach gültiger Antwort, und frisch keine Abfrage (#1385)", async () => {
+    const page = getPage();
+    const dienst = await evatrAttrappe();
+    const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+    try {
+      await sql.begin(async (tx) => {
+        await tx`select set_config('haben.actor', 'e2e', true)`;
+        await tx`insert into contacts (name, strasse, plz, ort, land, ust_id) values ('Bergsee GmbH', 'Seestraße 4', '6020', 'Innsbruck', 'AT', 'ATU44556677')`;
+      });
+      await gehe(page, "/rechnungen/neu");
+      await kundeWaehlen(page, "Bergsee GmbH · Innsbruck");
+      await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
+      await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+      await page.getByLabel(/Einzelpreis Position 1/).fill("500,00");
+      await page.getByRole("button", { name: "Entwurf speichern" }).click();
+      await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+      await page.waitForLoadState("networkidle");
+      const dialog = page.getByRole("dialog", { name: "Rechnung festschreiben?" });
+
+      // Laut BZSt nicht vergeben: Hinweis in der Rückfrage, Festschreiben bliebe möglich
+      dienst.status = "evatr-2001";
+      await page.getByRole("button", { name: "Festschreiben", exact: true }).first().click();
+      await expect(dialog.getByRole("status")).toContainText("Laut BZSt ist ATU44556677 nicht gültig: Nicht vergeben.");
+      await expect(dialog.getByRole("button", { name: "Festschreiben", exact: true })).toBeEnabled();
+      expect(dienst.anfragen).toHaveLength(1);
+      await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+      // Gültig: Haben fragt neu, einfach und qualifiziert, und sagt nichts
+      dienst.status = null;
+      await page.getByRole("button", { name: "Festschreiben", exact: true }).first().click();
+      await expect.poll(() => dienst.anfragen.length).toBe(3);
+      await expect(dialog.getByText("Frage beim BZSt")).toHaveCount(0);
+      await expect(dialog).not.toContainText("Laut BZSt");
+      await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+      // Eine gültige Antwort von eben reicht: keine weitere Abfrage
+      await page.getByRole("button", { name: "Festschreiben", exact: true }).first().click();
+      await expect(dialog.getByText("Frage beim BZSt")).toHaveCount(0);
+      await page.waitForLoadState("networkidle");
+      expect(dienst.anfragen).toHaveLength(3);
+      await dialog.getByRole("button", { name: "Abbrechen" }).click();
+    } finally {
+      // Nicht in den Zahlen der folgenden Tests: Entwurf weg, Kontakt archiviert
+      await sql.begin(async (tx) => {
+        await tx`select set_config('haben.actor', 'e2e', true)`;
+        const entwuerfe = await tx`select i.id from invoices i join contacts c on c.id = i.contact_id where c.name = 'Bergsee GmbH' and i.status = 'draft'`;
+        for (const { id } of entwuerfe) {
+          await tx`delete from invoice_lines where invoice_id = ${id}`;
+          await tx`delete from invoices where id = ${id}`;
+        }
+        await tx`update contacts set archived_at = now() where name = 'Bergsee GmbH' and archived_at is null`;
+      });
+      await sql.end();
+      await new Promise((resolve) => dienst.server.close(resolve));
+    }
+  });
+}
+
+/**
+ * Nach dem Test „Zusammenfassende Meldung: Leistung ins EU-Ausland“ registriert: Dessen Meldung im 1. Quartal des Folgejahres
+ * nennt ATU12345678, die noch niemand bestätigt hat (beim Anlegen und Festschreiben lief kein nachgebauter Dienst).
+ */
+export function zmBestaetigungPruefen(getPage: () => Page) {
+  test("Zusammenfassende Meldung: gemeldete USt-IdNr. beim BZSt bestätigen (#1385)", async () => {
+    const page = getPage();
+    const dienst = await evatrAttrappe();
+    try {
+      await gehe(page, `/umsatzsteuer/zm/${YEAR + 1}-Q1`);
+      const hinweis = page.getByRole("status").filter({ hasText: "ATU12345678:" });
+      await expect(hinweis).toHaveText("ATU12345678: beim BZSt noch nicht bestätigt.");
+      const zeilen = page.getByRole("region", { name: "Meldezeilen" });
+      await expect(zeilen).toContainText("1 gemeldete USt-IdNr. ohne gültige Bestätigung des BZSt aus den letzten 30 Tagen.");
+      await zeilen.getByRole("button", { name: "Beim BZSt bestätigen" }).click();
+      await expect(zeilen.getByRole("status")).toContainText("1 gemeldete USt-IdNr. beim BZSt angefragt");
+      expect(dienst.anfragen).toEqual([{ anfragendeUstid: "DE136695976", angefragteUstid: "ATU12345678" }]);
+      await expect(hinweis).toHaveCount(0);
+      await expect(zeilen).toContainText("Jede gemeldete USt-IdNr. hat eine gültige Bestätigung des BZSt aus den letzten 30 Tagen.");
+      await expect(zeilen.getByRole("button", { name: "Beim BZSt bestätigen" })).toHaveCount(0);
+    } finally {
       await new Promise((resolve) => dienst.server.close(resolve));
     }
   });
