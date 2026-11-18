@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { direktBuchungenFuerKonto, direktKategorienFuerKonto, startwertFuerBuchungsart } from "./konto-angebot.ts";
+import { aufRechtsformAngeboten, direktBuchungenFuerKonto, direktKategorienFuerKonto, startwertFuerBuchungsart } from "./konto-angebot.ts";
 import { directBookingLabel } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
 
@@ -71,6 +71,22 @@ describe("Angebot im Bankabgleich je Kontozweck", () => {
     expect(privat.directKinds.map((k) => k.value)).not.toContain("zinsertrag");
     expect(privat.kategorien.length).toBeGreaterThan(0);
     expect(angebot("einzelunternehmen", "geschaeft").directKinds.length).toBe(privat.directKinds.length + AUCH_NUR_GESCHAEFT.length);
+  });
+});
+
+describe("Angebot je Rechtsform (#1356)", () => {
+  it("bietet die Aufladung eines Guthabens nur im Einzelunternehmen an", () => {
+    expect(aufRechtsformAngeboten("aufladung", "einzelunternehmen")).toBe(true);
+    expect(aufRechtsformAngeboten("aufladung", "gmbh")).toBe(false);
+    expect(aufRechtsformAngeboten("aufladung", "ug")).toBe(false);
+  });
+
+  it("sperrt in GmbH und UG nur die Aufladung, nicht die übrigen Buchungsarten", () => {
+    for (const rechtsform of ["gmbh", "ug"] as const) {
+      for (const wert of ["kategorie", "steuer", "darlehen", "privat", "gebuehren", "zinsertrag", "spende", "kapest"]) {
+        expect(aufRechtsformAngeboten(wert, rechtsform), `${rechtsform} ${wert}`).toBe(true);
+      }
+    }
   });
 });
 

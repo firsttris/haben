@@ -147,6 +147,8 @@ export function kategorieText(angabe: KategorieAngabe): string {
  * Bank gegen Aufwandskonto, kein Beleg.
  */
 export const AUFLADUNG = {
+  /** Schlüssel der Zuordnungsart in Zuordnung, Journal und Angebot */
+  kind: "aufladung",
   /** Bezeichnung der Zuordnungsart in Listen, Abgleich und Auswertungen */
   label: "Guthaben aufladen, Ausgabe ohne Vorsteuer",
   /** Kurztext im Zuordnungsdialog und im Buchungstext */

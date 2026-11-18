@@ -351,7 +351,7 @@ Greift keine der Regeln aus [Vorschläge ohne Rechnung](#vorschläge-ohne-rechnu
 So gelernt werden:
 
 - Kontoführung und Bankgebühren, Privat, Spenden, Mahngebühren und Zinserträge;
-- [Einnahmen und Ausgaben auf eine Kategorie](#auf-eine-kategorie-buchen), jede Kategorie und jeder Steuersatz für sich: Hast du die Aufladungen beim Kiosk zweimal als Telefon gebucht, steht beim dritten Mal „Ausgabe: Telefon“ als Vorschlag da, und unter **Direkt buchen** sind Art und Kategorie schon gewählt. Zwei Zahlungen eines Privatkunden mit 7 % und eine mit 19 % ergeben „Einnahme: Erlöse 7 %“. Eine Kategorie, die am Tag des Umsatzes so nicht buchbar wäre, schlägt Haben nicht vor, etwa Erlöse mit 19 %, wenn du inzwischen Kleinunternehmer bist.
+- [Einnahmen und Ausgaben auf eine Kategorie](#auf-eine-kategorie-buchen), jede Kategorie und jeder Steuersatz für sich: Hast du die Aufladungen beim Kiosk zweimal als Telefon gebucht, steht beim dritten Mal „Ausgabe: Telefon“ als Vorschlag da, und unter **Direkt buchen** sind Art und Kategorie schon gewählt. Zwei Zahlungen eines Privatkunden mit 7 % und eine mit 19 % ergeben „Einnahme: Erlöse 7 %“. Eine Kategorie, die am Tag des Umsatzes so nicht buchbar wäre, schlägt Haben nicht vor, etwa Erlöse mit 19 %, wenn du inzwischen Kleinunternehmer bist. Dasselbe gilt für eine [Aufladung eines Guthabens](#aufladung-eines-guthabens): Sie wird mit ihrer Ausgabekategorie gelernt; in GmbH und UG bietet Haben sie nicht an.
 
 Nie gelernt werden Geldtransit (dafür braucht es die Gegenbuchung), alles mit dem Finanzamt, weil über dieselbe IBAN Umsatzsteuer und private Steuern laufen, und Lohn, Sozialversicherung, Steuerzahlungen und Darlehen: Dort ändern sich Abrechnung, Steuerart und Jahr oder der Teil der Rate von Zahlung zu Zahlung, und die Regeln oben kennen sie besser.
 
@@ -374,7 +374,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 |
 | Steuerzahlung oder Erstattung (Finanzamt, Gemeinde), siehe [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen) | je nach Steuerart und Teil | je nach Steuerart und Teil |
 | Einnahme oder Ausgabe (Kategorie, Steuersatz), siehe [Auf eine Kategorie buchen](#auf-eine-kategorie-buchen) | Konto der Kategorie | Konto der Kategorie |
-| Aufladung Guthaben, siehe [Aufladung eines Guthabens](#aufladung-eines-guthabens) | Konto der Kategorie | Konto der Kategorie |
+| Aufladung Guthaben (nur Einzelunternehmen), siehe [Aufladung eines Guthabens](#aufladung-eines-guthabens) | Konto der Kategorie | Konto der Kategorie |
 | Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren, siehe [Darlehen](bank-steuern-darlehen.md#darlehen) | je nach Darlehen und Teil | je nach Darlehen und Teil |
 | Kapitalertragsteuer an das Finanzamt (Ausschüttung), nur GmbH und UG | 1746 Verbindlichkeiten aus Einbehaltungen | 3760 |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 |
@@ -395,7 +395,7 @@ Gebucht wird Bank gegen das Konto der gewählten Ausgabekategorie, ohne Vorsteue
 
 Die Aufladung braucht keinen Beleg: Sie steht in der EÜR als Ausgabe ihrer Kategorie und im DATEV-Buchungsstapel ohne Belegnummer. Verbraucht die spätere Rechnung das Guthaben, buchst du sie wie jede andere Rechnung unter [Belege](belege.md). Der Bezug zwischen Aufladung und späterer Rechnung ist noch nicht Teil von Haben.
 
-Die Buchung als Ausgabe gilt für die EÜR des Einzelunternehmens (§ 11 Abs. 2 EStG). In der Bilanz einer GmbH oder UG bleibt der gezahlte Betrag bis zur Rechnung ein Vermögensgegenstand (§ 246 Abs. 1 Satz 1 HGB); dieser Fall ist noch nicht gebaut ([#1281](https://github.com/firsttris/haben/issues/1281)).
+Die Buchung als Ausgabe gilt für die EÜR des Einzelunternehmens (§ 11 Abs. 2 EStG). In GmbH und UG bietet Haben die Zuordnungsart deshalb weder an noch bucht sie sie: Dort bleibt der gezahlte Betrag bis zur Rechnung ein Vermögensgegenstand (§ 246 Abs. 1 Satz 1 HGB), und die Aktivierung über ein eigenes Sachkonto ist noch nicht gebaut ([#1281](https://github.com/firsttris/haben/issues/1281)).
 
 ### Auf eine Kategorie buchen
 

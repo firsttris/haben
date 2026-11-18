@@ -1044,6 +1044,12 @@ function AllocationPanel({
   const returnFn = useServerFn(allocateDirectDebitReturnFn);
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
   const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
+  // Eine Aufladung gibt es nur im Einzelunternehmen (#1356): In GmbH und UG ist die Zahlung vor der Leistung eine
+  // Forderung (§ 246 Abs. 1 HGB), kein Aufwand. Die Auswahl zeigt sie dort nicht; der Server lehnt sie ebenfalls ab
+  // (aufRechtsformAngeboten). Gleiche Liste wie in der Aufteilung, dort ohne Aufladung.
+  const freieBuchungsarten = gesellschaft
+    ? [KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION]
+    : [KATEGORIE_OPTION, AUFLADUNG_OPTION, STEUER_OPTION, DARLEHEN_OPTION];
   // Monate mit abgegebener Voranmeldung: sie entscheiden über die Vorbelegung des Aufhebungstags (#782)
   const gemeldeteMonate = Route.useLoaderData().gemeldeteMonate;
   const best = suggestions[0];
@@ -1415,7 +1421,7 @@ function AllocationPanel({
             >
               {(control) => (
                 <select {...control} value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
-                  {[...directKinds, KATEGORIE_OPTION, AUFLADUNG_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                  {[...directKinds, ...freieBuchungsarten].map((k) => (
                     <option key={k.value} value={k.value}>
                       {k.label}
                     </option>
@@ -1712,8 +1718,9 @@ function SplitForm({
                     </option>
                   ))}
                 </optgroup>
+                {/* Die Aufladung bleibt eine Einzelbuchung und ist kein Teil einer Aufteilung (#1356) */}
                 <optgroup label="Direkt buchen">
-                  {[...directKinds, KATEGORIE_OPTION, AUFLADUNG_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                  {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                     <option key={k.value} value={k.value}>
                       {k.label}
                     </option>

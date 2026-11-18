@@ -23,6 +23,7 @@ import {
   findTransferCounterpart,
   payoutKey,
   aufKontoAngeboten,
+  aufRechtsformAngeboten,
   learnedDirectBooking,
   type DirectSuggestion,
   type LearnedBooking,
@@ -838,6 +839,8 @@ export async function learnedDirectSuggestions(
   const result = new Map<string, DirectSuggestion>();
   if (txs.length === 0) return result;
   const kleinunternehmerAm = await kleinunternehmerHistory();
+  // Eine Aufladung gibt es nur im Einzelunternehmen (#1356): ein Vorschlag aus früheren Buchungen entfällt dort
+  const { rechtsform } = await loadCompany();
   const byIban = await allocationHistory("iban", [...new Set(txs.flatMap((t) => ibanKey(t.counterpartyIban) ?? []))]);
   const rest = txs.filter((t) => !byIban.has(historyKey(ibanKey(t.counterpartyIban), t.amount)));
   const byName = await allocationHistory("name", [...new Set(rest.flatMap((t) => nameKey(t.counterpartyName) ?? []))]);
@@ -847,7 +850,7 @@ export async function learnedDirectSuggestions(
     const history = iban ? { ...iban, basis: "iban" as const } : name ? { ...name, basis: "name" as const } : null;
     const kleinunternehmer = kleinunternehmerAm(lastDayOfMonth(Number(t.bookingDate.slice(0, 4)), Number(t.bookingDate.slice(5, 7))));
     const suggestion = history ? learnedDirectBooking(t, history.kinds, history.total, history.basis, kleinunternehmer) : null;
-    if (suggestion) result.set(t.id, suggestion);
+    if (suggestion && aufRechtsformAngeboten(suggestion.kind, rechtsform)) result.set(t.id, suggestion);
   }
   return result;
 }
@@ -1134,6 +1137,10 @@ type Part =
 const PRIVAT_NICHT_BUCHBAR =
   "Auf einem privaten Konto ergeben Kontoführung, Zinserträge, Privat und Geldtransit keinen Geschäftsvorfall; diese Buchung ist dort nicht möglich.";
 
+/** Eine Aufladung gibt es nur im Einzelunternehmen (#1356); in GmbH und UG ist die Zahlung eine Forderung, kein Aufwand */
+const AUFLADUNG_NICHT_BUCHBAR =
+  "In GmbH und UG ist eine Aufladung kein Aufwand, sondern eine Forderung an den Anbieter; die Zuordnungsart ist dort nicht möglich.";
+
 /** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
 export async function lockTransaction(tx: Tx, id: string) {
   const [bank] = await tx
@@ -1278,6 +1285,9 @@ async function documentBooking(
 export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
   // Gebühren, Zinserträge, Privat und Geldtransit ergeben auf einem privaten Konto keinen Geschäftsvorfall (#873)
   if (!aufKontoAngeboten(part.kind, bank.purpose)) throw new BankError(PRIVAT_NICHT_BUCHBAR);
+  // Eine Aufladung gibt es nur im Einzelunternehmen (#1356): Eine Gesellschaft mit Bilanz weist den Betrag bis zur
+  // Rechnung als Forderung aus (§ 246 Abs. 1 HGB), nicht als Aufwand; die Auswahl bietet sie dort auch nicht an
+  if (!aufRechtsformAngeboten(part.kind, company.rechtsform)) throw new BankError(AUFLADUNG_NICHT_BUCHBAR);
   let lines: PostingLine[];
   let description: string;
   let target: Zuordnungsziel = {};

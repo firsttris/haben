@@ -62,13 +62,13 @@ describe.skipIf(!testDatabaseUrl)("Aufladung eines Guthabens (Postgres)", () => 
     await sql?.end();
   });
 
-  async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
+  async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", rechtsform: "einzelunternehmen" | "gmbh" | "ug" = "einzelunternehmen") {
     await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       archive_files, datev_bookings, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform,
                                    kleinunternehmer, datev_berater_nr, datev_mandant_nr)
       values (1, 'Nordlicht Software', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB',
-              ${kontenrahmen}, ${versteuerung}, 'einzelunternehmen', false, '29098', '55003')`;
+              ${kontenrahmen}, ${versteuerung}, ${rechtsform}, false, '29098', '55003')`;
   }
 
   const umsatz = async (amount: number) => (await sql<{ id: string }[]>`select id from bank_transactions where amount = ${amount}`)[0]!.id;
@@ -174,6 +174,74 @@ describe.skipIf(!testDatabaseUrl)("Aufladung eines Guthabens (Postgres)", () => 
     const [kategorie] = await sql`select tax_code from journal_lines where debit = 1500`;
     expect(aufladung!.tax_code).toBe(kategorie!.tax_code);
     expect(await sql`select count(*)::int as n from allocations where kind = 'kategorie'`).toEqual([{ n: 1 }]);
+  });
+
+  it("bietet die Aufladung in GmbH und UG nicht an und bucht sie dort nicht", async () => {
+    await firma("SKR03", "ist", "gmbh");
+    await bank.importStatement(
+      actor,
+      dkbCsv([
+        ["07.10.26", "Funknetz Mobil", "Guthaben aufladen", "-90,00"],
+        ["08.10.26", "Kiosk am Markt", "Zubehör", "-15,00"],
+      ]),
+      null,
+    );
+
+    // In der Bilanz ist die Zahlung vor der Leistung eine Forderung (§ 246 Abs. 1 HGB), kein Aufwand
+    await expect(
+      bank.allocate(actor, { kind: "aufladung", transactionId: await umsatz(-90_00), amount: -90_00, kategorie: { kategorie: "sonstiges", steuersatz: 0 } }),
+    ).rejects.toThrow(/kein Aufwand, sondern eine Forderung/);
+    expect(await salden()).toEqual({});
+    expect(await sql`select count(*)::int as n from allocations`).toEqual([{ n: 0 }]);
+
+    // Gesperrt ist nur die Aufladung: Eine Direktbuchung auf eine Kategorie geht in der GmbH weiter
+    await bank.allocate(actor, { kind: "kategorie", transactionId: await umsatz(-15_00), amount: -15_00, kategorie: { kategorie: "telefon", steuersatz: 0 } });
+    expect(await salden()).toEqual({ "1200": -15_00, "4920": 15_00 });
+  });
+
+  it("schlägt eine Aufladung aus früheren Buchungen in der GmbH nicht vor", async () => {
+    await firma("SKR03", "ist", "gmbh");
+    await bank.importStatement(
+      actor,
+      dkbCsv([
+        ["07.09.26", "Funknetz Mobil", "Guthaben aufladen", "-90,00"],
+        ["07.10.26", "Funknetz Mobil", "Guthaben aufladen", "-80,00"],
+        ["07.11.26", "Funknetz Mobil", "Guthaben aufladen", "-20,00"],
+      ]),
+      null,
+    );
+    // Bestand aus der Zeit vor der Sperre: zwei Aufladungen, wie sie damals entstanden sind
+    for (const amount of [-90_00, -80_00]) {
+      const [zeile] = await sql<{ id: string }[]>`select id from bank_transactions where amount = ${amount}`;
+      await sql`insert into allocations (transaction_id, kind, amount, category, tax_rate)
+                values (${zeile!.id}, 'aufladung', ${amount}, 'telefon', 0)`;
+    }
+
+    const dritte = (await bank.transactionDetail(await umsatz(-20_00)))!.transaction;
+    expect((await bank.learnedDirectSuggestions([dritte])).size).toBe(0);
+    // Auch die Detailansicht schlägt sie dort nicht vor
+    expect((await bank.transactionDetail(dritte.id))?.direct).toBeNull();
+  });
+
+  it("lernt die Aufladung im Einzelunternehmen wie die anderen freien Buchungsarten", async () => {
+    await firma("SKR03", "ist");
+    await bank.importStatement(
+      actor,
+      dkbCsv([
+        ["07.10.26", "Funknetz Mobil", "Guthaben aufladen", "-90,00"],
+        ["07.11.26", "Funknetz Mobil", "Guthaben aufladen", "-20,00"],
+        ["07.12.26", "Funknetz Mobil", "Guthaben aufladen", "-30,00"],
+      ]),
+      null,
+    );
+    await bank.allocate(actor, { kind: "aufladung", transactionId: await umsatz(-90_00), amount: -90_00, kategorie: { kategorie: "telefon", steuersatz: 0 } });
+    await bank.allocate(actor, { kind: "aufladung", transactionId: await umsatz(-20_00), amount: -20_00, kategorie: { kategorie: "telefon", steuersatz: 0 } });
+
+    const dritte = (await bank.transactionDetail(await umsatz(-30_00)))!.transaction;
+    expect((await bank.learnedDirectSuggestions([dritte])).get(dritte.id)).toMatchObject({
+      kind: "aufladung",
+      kategorie: { kategorie: "telefon", steuersatz: 0 },
+    });
   });
 
   it("steht im Abgleich als eigene Gruppe „Aufladung ohne Bezug“, nicht als offener Punkt", async () => {
