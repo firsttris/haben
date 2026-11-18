@@ -102,4 +102,40 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Abruf mit überlappenden Fenstern (Postg
       expect(zweite?.amount).toBe(-470);
     });
   });
+
+  describe("Wechsel der Einstellung „Gebühren bündeln“", () => {
+    const gebuehren: EtsyLedgerEntry[] = [
+      { entry_id: 200, amount: -19, currency: "EUR", ledger_type: "listing", reference_type: "listing", reference_id: "1", created_timestamp: ts("2023-06-07T10:00:00Z") },
+      { entry_id: 201, amount: -143, currency: "EUR", ledger_type: "transaction", reference_type: "transaction", reference_id: "2", created_timestamp: ts("2023-06-08T10:00:00Z") },
+    ];
+    const spaetere: EtsyLedgerEntry = {
+      entry_id: 202,
+      amount: -20,
+      currency: "EUR",
+      ledger_type: "listing",
+      reference_type: "listing",
+      reference_id: "3",
+      created_timestamp: ts("2023-06-20T10:00:00Z"),
+    };
+
+    it("aus → an: Gebühren eines schon einzeln übernommenen Monats kommen nicht ein zweites Mal als Sammelzeile", async () => {
+      await etsy.importEtsyLedger(actor, gebuehren, { ...optionen, sammelzeilen: false, gebuehrenBis: "2023-06-30", reference: "7" }, abruf("2023-06-10T10:00:00Z"));
+      // Nach dem Umstellen holt der Abruf den Monat noch einmal, dazu eine neue Gebühr desselben Monats
+      await etsy.importEtsyLedger(
+        actor,
+        [...gebuehren, spaetere],
+        { ...optionen, sammelzeilen: true, gebuehrenBis: "2023-06-30", reference: "8" },
+        abruf("2023-07-07T10:00:00Z"),
+      );
+
+      expect(await summe()).toBe(-19 - 143 - 20);
+    });
+
+    it("an → aus: Gebühren eines schon gebündelten Monats kommen nicht ein zweites Mal einzeln", async () => {
+      await etsy.importEtsyLedger(actor, gebuehren, { ...optionen, sammelzeilen: true, gebuehrenBis: "2023-06-30", reference: "9" }, abruf("2023-07-06T10:00:00Z"));
+      await etsy.importEtsyLedger(actor, gebuehren, { ...optionen, sammelzeilen: false, gebuehrenBis: "2023-06-30", reference: "10" }, abruf("2023-07-07T10:00:00Z"));
+
+      expect(await summe()).toBe(-19 - 143);
+    });
+  });
 });
