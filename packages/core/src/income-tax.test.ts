@@ -436,4 +436,71 @@ describe("steuerPrognose", () => {
     expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_000_00);
     expect(p.zvE).toBe(60_000_00 + 1_000_00 - 3_000_00 - 72_00);
   });
+
+  it("rechnet einen Kirchensteuer-Überhang dem Gesamtbetrag der Einkünfte zu (§ 10 Abs. 4b Satz 3 EStG, Nr. 4)", () => {
+    // 1.000 € gezahlt, 3.000 € erstattet: der Abzug bleibt bei null, der Überhang von 2.000 € erhöht das Einkommen
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        sonderausgaben: { kirchensteuerGezahlt: 1_000_00, kirchensteuerErstattet: 3_000_00 },
+      },
+    });
+    expect(p.sonderausgaben).toBe(36_00);
+    expect(p.erstattungsueberhang).toBe(2_000_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 2_000_00);
+    expect(p.zvE).toBe(60_000_00 + 2_000_00 - 36_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+    // Die Vorauszahlungsseite rechnet den Gewinn aus dem Gesamtbetrag zurück, der Überhang muss also wieder raus
+    expect(gewinnAusPrognose(p)).toBe(60_000_00);
+  });
+
+  it("bleibt bei der Kirchensteuer ohne Überhang, wenn die Erstattung unter der Zahlung bleibt", () => {
+    // 3.000 € gezahlt, 1.000 € erstattet: 2.000 € bleiben abziehbar, hinzugerechnet wird nichts
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        sonderausgaben: { kirchensteuerGezahlt: 3_000_00, kirchensteuerErstattet: 1_000_00 },
+      },
+    });
+    expect(p.sonderausgaben).toBe(2_000_00);
+    expect(p.erstattungsueberhang).toBe(0);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(p.zvE).toBe(60_000_00 - 2_000_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+    expect(gewinnAusPrognose(p)).toBe(60_000_00);
+  });
+
+  it("rechnet einen Überhang der übrigen Vorsorgeaufwendungen (Nr. 3a) nicht hinzu", () => {
+    // Nr. 3a verrechnet nur in sich: ein negativer Betrag dort kürzt den Abzug nicht unter die Basisbeiträge und
+    // erhöht den Gesamtbetrag der Einkünfte nicht, § 10 Abs. 4b Satz 3 EStG nennt nur Nr. 3 und Nr. 4.
+    const ohneUeberhang = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { gkv: 3_000_00 } } },
+    });
+    const mitUeberhang = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { gkv: 3_000_00 }, sonstige: -2_000_00 } },
+    });
+    expect(mitUeberhang.vorsorge).toBe(3_000_00);
+    expect(mitUeberhang.erstattungsueberhang).toBe(0);
+    expect(mitUeberhang.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(mitUeberhang.zvE).toBe(ohneUeberhang.zvE);
+    expect(mitUeberhang.einkommensteuer).toBe(ohneUeberhang.einkommensteuer);
+  });
 });

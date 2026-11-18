@@ -189,7 +189,7 @@ export interface Prognose {
   /** Einkünfte aus nichtselbständiger Arbeit nach Werbungskosten bzw. Pauschbetrag */
   einkuenfteArbeit: Cents;
   gesamtbetragEinkuenfte: Cents;
-  /** Überhang nach § 10 Abs. 4b Satz 3 EStG, im Gesamtbetrag der Einkünfte enthalten */
+  /** Überhang nach § 10 Abs. 4b Satz 3 EStG aus Basisbeiträgen und Kirchensteuer, im Gesamtbetrag der Einkünfte enthalten */
   erstattungsueberhang: Cents;
   vorsorge: Cents;
   sonderausgaben: Cents;
@@ -319,9 +319,13 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
     x.vorsorge.sonstige,
   );
   // § 10 Abs. 4b Satz 3 EStG: der Überhang aus Erstattungen und Zuschüssen wird dem Gesamtbetrag der Einkünfte
-  // hinzugerechnet, bevor die Sonderausgaben abgezogen werden.
-  const gde = Math.max(0, input.gewinn + einkuenfteArbeit + ueberhang);
-  const kist = Math.max(0, sum(x.sonderausgaben.kirchensteuerGezahlt) - sum(x.sonderausgaben.kirchensteuerErstattet));
+  // hinzugerechnet, bevor die Sonderausgaben abgezogen werden. Nr. 4 der Vorschrift nennt die Kirchensteuer
+  // daneben; sie steht in der Erklärung als ein Betrag für die Veranlagung, nicht je Person.
+  const kistGezahlt = sum(x.sonderausgaben.kirchensteuerGezahlt);
+  const kistErstattet = sum(x.sonderausgaben.kirchensteuerErstattet);
+  const kistUeberhang = Math.max(0, kistErstattet - kistGezahlt);
+  const gde = Math.max(0, input.gewinn + einkuenfteArbeit + ueberhang + kistUeberhang);
+  const kist = Math.max(0, kistGezahlt - kistErstattet);
   const spenden = Math.min(sum(x.sonderausgaben.spenden), Math.floor(gde * 0.2));
   // Kinderbetreuung: bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind
   const kinderbetreuung = x.kinder.reduce((acc, k) => {
@@ -380,7 +384,7 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
     year,
     einkuenfteArbeit,
     gesamtbetragEinkuenfte: gde,
-    erstattungsueberhang: ueberhang,
+    erstattungsueberhang: ueberhang + kistUeberhang,
     vorsorge,
     sonderausgaben,
     kinderbetreuung,

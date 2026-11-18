@@ -190,7 +190,7 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
             </tr>
             {p.erstattungsueberhang > 0 && (
               <tr>
-                <th scope="row">Erstattungsüberhang auf Basisbeiträge (§ 10 Abs. 4b EStG)</th>
+                <th scope="row">Erstattungsüberhang (§ 10 Abs. 4b Satz 3 EStG)</th>
                 <td className="num">{formatEuro(p.erstattungsueberhang)}</td>
               </tr>
             )}
