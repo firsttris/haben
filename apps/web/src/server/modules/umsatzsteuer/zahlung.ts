@@ -64,9 +64,10 @@ async function filedReturns(q: Db | Tx, bis?: string) {
 
 /**
  * Wirksame Zahlungen „Umsatzsteuer an das Finanzamt“: aufgehobene Zuordnungen und ihre Gegenzeilen fallen weg, so
- * gleicht eine aufgehobene Lastschrift keinen Posten aus.
+ * gleicht eine aufgehobene Lastschrift keinen Posten aus. `auchNachStichtag` nimmt Zuordnungen nach `bis` dazu;
+ * Aufhebungen zählen weiter nur bis `bis`.
  */
-async function vatPayments(q: Db | Tx, bis?: string): Promise<VatPayment[]> {
+async function vatPayments(q: Db | Tx, bis?: string, { auchNachStichtag = false } = {}): Promise<VatPayment[]> {
   const a = schema.allocations;
   const rows = await q
     .select({ id: a.id, vatReturnId: a.vatReturnId, amount: a.amount, bookingDate: schema.bankTransactions.bookingDate })
@@ -82,7 +83,7 @@ async function vatPayments(q: Db | Tx, bis?: string): Promise<VatPayment[]> {
               and coalesce(r.date, (select b.booking_date from bank_transactions b where b.id = r.transaction_id)) <= ${bis})`
           : sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`,
         // Abschlussstand (#1110): der Tag der Zuordnung, sonst der Buchungstag des Umsatzes (#782), bis einschließlich
-        bis ? sql`coalesce(${a.date}, ${schema.bankTransactions.bookingDate}) <= ${bis}` : undefined,
+        bis && !auchNachStichtag ? sql`coalesce(${a.date}, ${schema.bankTransactions.bookingDate}) <= ${bis}` : undefined,
       ),
     );
   return rows;
@@ -113,8 +114,9 @@ export async function ustvaPosten(
   const dauerfrist = await loadDauerfrist(q);
   const alle = vatPosten(returns, (period) => dueDate(period, company.bundesland, dauerfristActive(dauerfrist, period.year)));
   // Ob ein Altbestand Posten ist, hängt an der Zahlung mit Bezug, gleich wann sie kam: Im Abschlussstand (#1110)
-  // zählt sie nicht als bezahlt, macht die Voranmeldung aber zum Posten
-  const mitBezug = bis ? await vatPayments(q) : payments;
+  // zählt sie nicht als bezahlt, macht die Voranmeldung aber zum Posten. Eine Aufhebung erst nach dem Stichtag nimmt
+  // ihr den Bezug nicht (#1323)
+  const mitBezug = bis ? await vatPayments(q, bis, { auchNachStichtag: true }) : payments;
   const posten = mitAltbestand ? alle : ohneAltbestand(alle, await altbestand(q, returns), mitBezug);
   return vatPostenStand(posten, payments);
 }
