@@ -37,8 +37,10 @@ export interface ZmPosten {
  * Je Land der Aufbau der Stellen nach dem Kennzeichen laut BZSt, „Aufbau der Umsatzsteuer-Identifikationsnummer (USt-IdNr.)
  * in den EU-Mitgliedstaaten“ (Stand 12.12.2025), auf die UStAE 18e.2 verweist. Wo das BZSt die Art der Stellen offenlässt
  * (AT nach dem U, CY vor dem Buchstaben), Ziffern wie in der Übersicht der EU-Kommission zu VIES (FAQ Frage 11); beim alten
- * irischen Aufbau an zweiter Stelle auch + und * wie dort. Prüfziffern veröffentlichen die Mitgliedstaaten nicht einheitlich;
- * Haben prüft sie nur bei der eigenen deutschen Nummer.
+ * irischen Aufbau an zweiter Stelle auch + und * wie dort. Beim neuen irischen Aufbau an neunter Stelle auch W: So enden ältere
+ * PPS-Nummern verheirateter Frauen, und bei Einzelunternehmern ist die PPS-Nummer die Steuernummer (Revenue, Tax and Duty
+ * Manual „Filing and paying Stamp Duty on Instruments“, Kapitel 3, 1.2.3). Prüfziffern veröffentlichen die Mitgliedstaaten
+ * nicht einheitlich; Haben prüft sie nur bei der eigenen deutschen Nummer.
  */
 const AUFBAU: Readonly<Record<string, { muster: RegExp; aus: string; form: string }>> = {
   AT: { muster: /^U\d{8}$/, aus: "Österreich", form: "ein U und acht Ziffern" },
@@ -55,7 +57,7 @@ const AUFBAU: Readonly<Record<string, { muster: RegExp; aus: string; form: strin
   HR: { muster: /^\d{11}$/, aus: "Kroatien", form: "elf Ziffern" },
   HU: { muster: /^\d{8}$/, aus: "Ungarn", form: "acht Ziffern" },
   IE: {
-    muster: /^(\d[0-9A-Z+*]\d{5}[A-Z]|\d{7}[A-W][A-I])$/,
+    muster: /^(\d[0-9A-Z+*]\d{5}[A-Z]|\d{7}[A-W][A-IW])$/,
     aus: "Irland",
     form: "acht Zeichen mit einem Buchstaben am Ende (an zweiter Stelle auch ein Buchstabe, + oder *) oder sieben Ziffern und zwei Buchstaben",
   },
