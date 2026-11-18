@@ -316,6 +316,19 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     }
   });
 
+  it("nennt Etsy im Hinweis am Umsatz, wenn ein Etsy-Konflikt als weiterer Umsatz übernommen wurde", async () => {
+    imAbruf = [{ ...verlauf[7]!, amount: -3600 }];
+    try {
+      await etsy.syncEtsy(actor, new Date("2023-07-11T10:00:00Z"));
+      const [konflikt] = (await etsy.etsySummary()).konflikte;
+      const bank = await import("../bank/index.ts");
+      const { transactionId } = await bank.resolveConflict(actor, { conflictId: konflikt!.id, decision: "add" });
+      expect(await bank.klaerungView(transactionId!)).toMatchObject({ provider: "etsy", previous: { amount: -3490 } });
+    } finally {
+      imAbruf = verlauf;
+    }
+  });
+
   it("trennt die Verbindung, ohne den Schlüssel zu verlieren", async () => {
     await etsy.disconnectEtsyConnection(actor);
     const stand = await etsy.etsySummary();
