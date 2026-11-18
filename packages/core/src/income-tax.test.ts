@@ -480,6 +480,48 @@ describe("steuerPrognose", () => {
     expect(gewinnAusPrognose(p)).toBe(60_000_00);
   });
 
+  it("zählt die Lohnkirchensteuer der Bescheinigung nicht mit: der Überhang entsteht (Stand vor #1451)", () => {
+    // 200 € Vorauszahlung stehen im Feld, 300 € Kirchensteuer sind erstattet. Die einbehaltene Lohnkirchensteuer von
+    // 480 € (Nr. 6 der Bescheinigung) geht in den Steuerabzug, nicht in die Sonderausgaben. § 10 Abs. 1 Nr. 4 EStG
+    // meint die im Jahr gezahlte Kirchensteuer, also beides zusammen: Wer die Lohnkirchensteuer im Feld vergisst,
+    // bekommt einen Erstattungsüberhang von 100 €, den es nicht gibt. Der Test hält diesen Stand fest; der Hinweis am
+    // Feld sagt, was dazugehört (#1451).
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 60_000_00, kirchensteuer: 480_00 }], werbungskosten: {} } },
+        sonderausgaben: { kirchensteuerGezahlt: 200_00, kirchensteuerErstattet: 300_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(100_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + p.einkuenfteArbeit + 100_00);
+  });
+
+  it("bleibt ohne Überhang, wenn die Lohnkirchensteuer im Feld gezahlt steht", () => {
+    // Derselbe Fall mit 680 € (= 200 € Vorauszahlung + 480 € Lohnkirchensteuer) im Feld: Der Abzug bleibt positiv,
+    // hinzugerechnet wird nichts, obwohl die Bescheinigung dieselbe ist. Das ist der Beweis, den der Hinweis meint.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 60_000_00, kirchensteuer: 480_00 }], werbungskosten: {} } },
+        sonderausgaben: { kirchensteuerGezahlt: 680_00, kirchensteuerErstattet: 300_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(0);
+    expect(p.sonderausgaben).toBe(380_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + p.einkuenfteArbeit);
+  });
+
   it("rechnet einen Überhang der übrigen Vorsorgeaufwendungen (Nr. 3a) nicht hinzu", () => {
     // Nr. 3a verrechnet nur in sich: ein negativer Betrag dort kürzt den Abzug nicht unter die Basisbeiträge und
     // erhöht den Gesamtbetrag der Einkünfte nicht, § 10 Abs. 4b Satz 3 EStG nennt nur Nr. 3 und Nr. 4.
