@@ -12,12 +12,14 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 /** Eine Ausgabe: Soll Aufwand an Bank (SKR03 4930 an 1200), damit keine Ausnahme ohne Belegpflicht greift. */
 const row = (field: string) => `1,00;"S";"EUR";;;;4930;1200;;0101;"${field}";;;"Bürobedarf"`;
 
-const stapel = (fields: string[]) =>
+const stapelRoh = (zeilen: string[]) =>
   [
     '"EXTF";700;21;"Buchungsstapel";13;;;"";"";"";0;0;20250101;4;20250101;20251231;"";"";;;0;"EUR";;"";;;"";;;"";',
     "Umsatz;Soll-/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basisumsatz;WKZ Basisumsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext",
-    ...fields.map(row),
+    ...zeilen,
   ].join("\r\n");
+
+const stapel = (fields: string[]) => stapelRoh(fields.map(row));
 
 describe.skipIf(!testDatabaseUrl)("Belegfeld 1 ohne Nummer im DATEV-Abgleich (Postgres)", () => {
   let lexoffice: typeof import("./lexoffice.ts");
@@ -67,8 +69,12 @@ describe.skipIf(!testDatabaseUrl)("Belegfeld 1 ohne Nummer im DATEV-Abgleich (Po
   }
 
   async function laden(fields: string[]) {
+    return ladenMit(stapel(fields));
+  }
+
+  async function ladenMit(inhalt: string) {
     await archive.addArchiveFile("test-user", {
-      bytes: new TextEncoder().encode(stapel(fields)),
+      bytes: new TextEncoder().encode(inhalt),
       filename: "EXTF_Buchungsstapel_2025.csv",
       kind: "datev",
       year: null,
@@ -130,6 +136,22 @@ describe.skipIf(!testDatabaseUrl)("Belegfeld 1 ohne Nummer im DATEV-Abgleich (Po
     expect(hinweis.map((r) => r.voucherField1)).toEqual(["Beispielzahldienst", "Beispielkuerzel"]);
     const offen = await archive.listDatevBookings({ year: 2025, search: "", unmatched: true, page: 0 });
     expect(offen.total).toBe(2);
+  });
+
+  it("SKR04: Hinweis nur bei einer Zeile, die einen Beleg braucht", async () => {
+    // Die Bedingung hängt am Kontenrahmen: In SKR04 ist 2100 das Privatkonto, 1800 die Bank
+    await sql`update company set kontenrahmen = 'SKR04'`;
+    const { jahr, liste } = await ladenMit(
+      stapelRoh([`1,00;"S";"EUR";;;;4930;1200;;0101;"Beispielzahldienst";;;"Bürobedarf"`, `1,00;"S";"EUR";;;;1200;2100;;0101;"Beispielzahldienst";;;"Privat"`]),
+    );
+
+    expect(jahr.bookings).toEqual({ total: 2, unmatched: 0, withoutNumber: 0 });
+    expect(pruefung(jahr).detail).toContain("1 Belegfeld ohne Nummer");
+    // Die Ausgabe trägt den Hinweis, die Privatzeile braucht keinen Beleg
+    expect(liste.rows.map((r) => [r.account, r.ohneNummer])).toEqual([
+      ["4930", true],
+      ["1200", false],
+    ]);
   });
 
   it("zählt ein Feld ohne Ziffer, das ein Beleg als Nummer trägt, nicht als Hinweis", async () => {
