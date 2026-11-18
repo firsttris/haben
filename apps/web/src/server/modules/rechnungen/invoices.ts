@@ -1180,6 +1180,19 @@ export async function finalizeInvoice(actor: string, id: string, bestaetigt?: Um
   return withActor(actor, (tx) => finalizeDraft(tx, id, bestaetigt));
 }
 
+/**
+ * Verfahrensspalten beim Festschreiben. Ab #853 mindern Storno und Korrektur bereits Vereinnahmtes erst mit der
+ * Rückzahlung; der Trigger invoices_reduction_rule verlangt das Kennzeichen.
+ */
+function procedureColumns(invoice: Invoice) {
+  return {
+    advanceType: invoice.advanceType,
+    advanceAccounting: invoice.advanceAccounting,
+    replacesInvoiceId: invoice.replacesInvoiceId,
+    reductionRule: invoice.kind === "rechnung" ? null : ("rueckgewaehr" as const),
+  };
+}
+
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
 async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
@@ -1268,9 +1281,7 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
       .update(schema.invoices)
       .set({
         status: "final",
-        advanceType: invoice.advanceType,
-        advanceAccounting: invoice.advanceAccounting,
-        replacesInvoiceId: invoice.replacesInvoiceId,
+        ...procedureColumns(invoice),
         number,
         numberYear: circle,
         numberCounter: counter,
