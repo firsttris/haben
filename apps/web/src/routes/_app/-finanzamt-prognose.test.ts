@@ -83,7 +83,7 @@ const render = () => renderToStaticMarkup(createElement(Route.options.component 
 /** Wie oft der Zusatz „ (Angaben <jahr>)“ im gerenderten HTML steht */
 const zusatz = (html: string, jahr: number) => html.split(` (Angaben ${jahr})`).length - 1;
 const HINWEIS =
-  "Zur Kirchensteuer in deinen Angaben gehört auch die einbehaltene Lohnkirchensteuer (in der Lohnsteuerbescheinigung Nr. 6 und 7, bei sonstigen Bezügen Nr. 13 und 14)";
+  "Zur Kirchensteuer in deinen Angaben gehört auch die einbehaltene Lohnkirchensteuer (in der Lohnsteuerbescheinigung Nr. 6 und 7, bis 2024 bei sonstigen Bezügen auch Nr. 13 und 14)";
 
 describe("Finanzamt: Voraussichtliche Steuer nennt das Jahr der Angaben (#1449)", () => {
   beforeEach(() => {
