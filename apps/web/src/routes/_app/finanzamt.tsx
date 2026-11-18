@@ -8,6 +8,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { elsterNotice, finanzamtFakten, type ElsterKind } from "../../lib/elster.ts";
 import type { ConfirmFact } from "../../components/ConfirmDialog.tsx";
 import { formatDate, formatDateTime, formatZeitraumAbJahresanfang } from "../../lib/format.ts";
+import { kirchensteuerFortschreibung } from "../../lib/kirchensteuer.ts";
 import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
@@ -238,6 +239,13 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
             </tr>
           </tbody>
         </ScrollTable>
+        {/* Angaben aus einem früheren Jahr rechnet die Prognose fort; fehlt dort die Lohnkirchensteuer, wandert
+            derselbe Erstattungsüberhang von Jahr zu Jahr weiter (#1451) */}
+        {b.angabenAus !== null && b.angabenAus < b.year && (
+          <p className="small muted" style={{ margin: 0 }}>
+            {kirchensteuerFortschreibung(b.angabenAus, b.year)}
+          </p>
+        )}
         <p className="small muted" style={{ margin: 0 }}>
           {b.angabenAus === null
             ? "Ohne gespeicherte Angaben zur Einkommensteuer (Vorsorge, Kinder …) rechnet Haben nur mit dem Sonderausgaben-Pauschbetrag. "

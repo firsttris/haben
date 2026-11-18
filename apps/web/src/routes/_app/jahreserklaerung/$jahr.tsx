@@ -12,6 +12,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, jahresergebnisFakt } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
+import { KIRCHENSTEUER_HINWEIS } from "../../../lib/kirchensteuer.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
@@ -471,12 +472,7 @@ function EstSection({ data }: { data: Data }) {
             open={false}
           >
             <div className="form-grid">
-              <Amount
-                name="kistGezahlt"
-                label="Gezahlte Kirchensteuer"
-                value={a.sonderausgaben.kirchensteuerGezahlt}
-                hint="ohne Kirchensteuer auf Kapitalerträge"
-              />
+              <Amount name="kistGezahlt" label="Gezahlte Kirchensteuer" value={a.sonderausgaben.kirchensteuerGezahlt} hint={KIRCHENSTEUER_HINWEIS} />
               <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
               <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
               <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
