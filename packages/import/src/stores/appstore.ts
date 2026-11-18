@@ -21,9 +21,12 @@ const LABEL = "App Store Connect";
 const TOKEN_SECONDS = 15 * 60;
 
 /**
- * Apples Fiskalperiode (YYYY-MM) zu einem Kalendermonat. Das Fiskaljahr beginnt Ende September, Periode 01 ist der
- * Oktober des Vorjahres: 2026-01 liefert den Bericht vom 28.09. bis 01.11.2025. Belegt an 19 Berichten in Folge
- * (Perioden 2025-04 bis 2026-10, #1424); Apples Fiskalkalender steht nur hinter der Anmeldung von App Store Connect.
+ * Apples Fiskalperiode (YYYY-MM) zu einem Kalendermonat. Apples Geschäftsbericht (Form 10-K 2024, Item 1,
+ * https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm): „The Company’s fiscal year
+ * is the 52- or 53-week period that ends on the last Saturday of September.“ Periode 01 ist damit der Oktober des
+ * Vorjahres, auch in Jahren mit 53 Wochen: 2026-01 liefert den Bericht vom 28.09. bis 01.11.2025. Bestätigt an 19
+ * Berichten in Folge (Perioden 2025-04 bis 2026-10, #1424); der Fiskalkalender selbst steht nur hinter der Anmeldung von
+ * App Store Connect.
  */
 export const appleFiscalPeriod = (month: string): string => addReportMonths(month, 3);
 
