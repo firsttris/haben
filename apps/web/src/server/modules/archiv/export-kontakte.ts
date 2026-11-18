@@ -6,7 +6,7 @@ import { type ArchiveFile, berlinStart, csv, iso, json } from "./export.ts";
 /*
  * Versionen der Kontakte und Bestätigungen ihrer USt-IdNrn. beim BZSt (#1385) im Jahresarchiv. Die Versionen sind der Stand
  * beim Export, die Bestätigungen zählen nach dem Zeitpunkt der Anfrage in deutscher Zeit; der empfangene Datensatz ist der
- * Nachweis (UStAE 18e.1 Abs. 2) und steht unverändert in der Spalte „Antwort“. Aus yearFiles in export.ts, damit die lange
+ * Nachweis (UStAE 18e.1 Abs. 2 Sätze 3 bis 5) und steht unverändert in der Spalte „Antwort“. Aus yearFiles in export.ts, damit die lange
  * Funktion nicht weiter wächst.
  */
 

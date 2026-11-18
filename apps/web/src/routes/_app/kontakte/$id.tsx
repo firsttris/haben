@@ -102,6 +102,7 @@ function ContactPage() {
           {(ustid.bestaetigungen.length > 0 || ustid.zustand.art === "bereit" || ustid.zustand.art === "ohne-eigene") && (
             <UstIdBestaetigungCard
               contactId={contact.id}
+              ustId={contact.ustId}
               bestaetigungen={ustid.bestaetigungen}
               zustand={ustid.zustand}
               nachSpeichern={nachSpeichern}

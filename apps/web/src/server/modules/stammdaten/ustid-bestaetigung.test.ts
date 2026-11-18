@@ -130,7 +130,13 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. beim BZSt bestätigen (Postgres)", 
     const ohneNetz = await modul.bestaetigeUstId(actor, contactId, {}, dienst("kein-netz").via);
     expect(ohneNetz.hinweis).toContain("Keine Antwort vom BZSt");
     const kaputt = await modul.bestaetigeUstId(actor, contactId, {}, dienst({ status: 200, body: { status: "gültig" } }).via);
-    expect(kaputt.neu).toBe(0);
+    expect(kaputt).toEqual({ neu: 0, hinweis: expect.stringContaining("ließ sich nicht lesen") });
+    // Gültig, aber ohne lesbaren Zeitpunkt: kein Nachweis, und der Hinweis sagt nicht „Gültig“
+    const ohneZeit = { status: 200, body: { id: "z", anfrageZeitpunkt: "18.11.2026 14:34", status: "evatr-0000" } };
+    expect(await modul.bestaetigeUstId(actor, contactId, {}, dienst(ohneZeit).via)).toEqual({
+      neu: 0,
+      hinweis: expect.stringContaining("ließ sich nicht lesen"),
+    });
     expect(await modul.listUstIdBestaetigungen(contactId)).toEqual([]);
   });
 

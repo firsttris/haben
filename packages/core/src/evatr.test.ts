@@ -146,6 +146,12 @@ describe("evatrNeuNoetig", () => {
     expect(evatrNeuNoetig({ ...kontakt, ort: " musterort " }, [qualifiziert, einfach])).toBe(false);
   });
 
+  it("zurück auf einen früheren Stand: Vergleich mit der letzten qualifizierten Bestätigung, nicht mit irgendeiner", () => {
+    const zuB: EvatrStand = { ...qualifiziert, firmenname: "Musterhaus AG" };
+    // Name erst A, dann B bestätigt, jetzt wieder A; neueste zuerst
+    expect(evatrNeuNoetig(kontakt, [zuB, einfach, qualifiziert, einfach])).toBe(true);
+  });
+
   it("nach einer nur einfachen Bestätigung, etwa beim Limit, beim nächsten Speichern mit Name und Ort", () => {
     expect(evatrNeuNoetig(kontakt, [einfach])).toBe(true);
     expect(evatrNeuNoetig({ ...kontakt, ort: "" }, [einfach])).toBe(false);

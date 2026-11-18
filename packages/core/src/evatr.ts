@@ -8,7 +8,7 @@ import { normalizeUstId, ustIdAufbauProblem, ustIdProblem } from "./zm.ts";
  * GET /app/v1/info/statusmeldungen, gelesen am 2026-11-18. Die Abfrage ist einfach mit anfragendeUstid und angefragteUstid
  * und qualifiziert, sobald auch firmenname und ort besetzt sind (strasse und plz optional). Die FAQ des BZSt verlangen erst
  * eine einfache, dann die qualifizierte Abfrage. Nachweis ist bei Abfragen über die Schnittstelle der vom BZSt empfangene
- * Datensatz (UStAE 18e.1 Abs. 2, FAQ des BZSt); Haben speichert ihn unverändert. Rückwirkend bestätigt das BZSt nichts.
+ * Datensatz (UStAE 18e.1 Abs. 2 Sätze 3 bis 5, FAQ des BZSt); Haben speichert ihn unverändert. Rückwirkend bestätigt das BZSt nichts.
  */
 
 export const EVATR_URL = "https://api.evatr.vies.bzst.de/app/v1/abfrage";
@@ -162,8 +162,9 @@ export interface EvatrStand {
 
 /**
  * Ob nach dem Speichern eines Kontakts eine Abfrage fällig ist: wenn seine Nummer noch nie angefragt wurde, oder wenn sie
- * zuletzt gültig war und es zu Name und Anschrift noch keine qualifizierte Bestätigung gibt. Eine ungültige Nummer fragt
- * Haben nicht bei jedem Speichern neu ab; das geht auf Knopfdruck.
+ * zuletzt gültig war und Name oder Anschrift von der letzten qualifizierten Bestätigung abweichen (auch zurück auf einen
+ * früheren Stand: die Karte zeigt die letzte). Eine ungültige Nummer fragt Haben nicht bei jedem Speichern neu ab; das
+ * geht auf Knopfdruck.
  */
 export function evatrNeuNoetig(kontakt: EvatrKontakt, bisher: readonly EvatrStand[]): boolean {
   if (!evatrPruefbar(kontakt.ustId)) return false;
@@ -172,12 +173,12 @@ export function evatrNeuNoetig(kontakt: EvatrKontakt, bisher: readonly EvatrStan
   if (!zurNummer.length) return true;
   if (!evatrGueltig(zurNummer[0]!.status) || !evatrQualifizierbar(kontakt)) return false;
   const anfrage = evatrAnfrage("", kontakt, "qualifiziert");
-  return !zurNummer.some(
-    (b) =>
-      b.art === "qualifiziert" &&
-      b.firmenname === anfrage.firmenname &&
-      (b.strasse ?? undefined) === anfrage.strasse &&
-      (b.plz ?? undefined) === anfrage.plz &&
-      b.ort === anfrage.ort,
+  const letzte = zurNummer.find((b) => b.art === "qualifiziert");
+  return (
+    !letzte ||
+    letzte.firmenname !== anfrage.firmenname ||
+    (letzte.strasse ?? undefined) !== anfrage.strasse ||
+    (letzte.plz ?? undefined) !== anfrage.plz ||
+    letzte.ort !== anfrage.ort
   );
 }

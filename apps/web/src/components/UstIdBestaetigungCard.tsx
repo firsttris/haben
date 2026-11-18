@@ -1,4 +1,4 @@
-import { EVATR_VERGLEICH, type EvatrVergleich, evatrGueltig, evatrMeldung, evatrWort } from "@haben/core";
+import { EVATR_VERGLEICH, type EvatrVergleich, evatrGueltig, evatrMeldung, evatrWort, normalizeUstId } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
@@ -10,12 +10,15 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { Status } from "./Status.tsx";
 
 /**
- * Bestätigung der USt-IdNr. beim BZSt am Kontakt (#1385): letzter Stand mit Vergleich von Name und Anschrift, Knopf und
- * alle bisherigen Antworten. nachSpeichern fragt einmal nach dem Speichern des Kontakts, wenn der Server es für fällig hält.
+ * Bestätigung der USt-IdNr. beim BZSt am Kontakt (#1385): letzte Antwort zur aktuellen Nummer mit Vergleich von Name und
+ * Anschrift, Knopf und alle bisherigen Antworten, auch zu früheren Nummern. nachSpeichern fragt einmal nach dem Speichern
+ * des Kontakts, wenn der Server es für fällig hält.
  */
 
 type Props = {
   contactId: string;
+  /** Aktuelle USt-IdNr. des Kontakts */
+  ustId: string;
   bestaetigungen: UstIdBestaetigung[];
   zustand: UstIdBestaetigungsZustand;
   nachSpeichern: boolean;
@@ -40,18 +43,20 @@ function Antwort({ b }: { b: UstIdBestaetigung }) {
   );
 }
 
-export function UstIdBestaetigungCard({ contactId, bestaetigungen, zustand, nachSpeichern, onNachSpeichernErledigt }: Props) {
+export function UstIdBestaetigungCard({ contactId, ustId, bestaetigungen, zustand, nachSpeichern, onNachSpeichernErledigt }: Props) {
   const router = useRouter();
   const bestaetige = useServerFn(bestaetigeUstIdFn);
   const { busy, notice, setNotice, run } = useAction();
-  const letzte = bestaetigungen[0];
+  const nummer = normalizeUstId(ustId);
+  const letzte = bestaetigungen.find((b) => b.angefragteUstid === nummer);
   const meldung = letzte && evatrMeldung(letzte);
 
   async function pruefen(nurWennFaellig: boolean) {
     let ergebnis: Awaited<ReturnType<typeof bestaetige>> | undefined;
     const ok = await run(async () => {
       ergebnis = await bestaetige({ data: { contactId, nurWennFaellig } });
-      await router.invalidate();
+      // Nur die Kontaktseite; wer inzwischen woanders ist, bekommt seine Seite nicht neu geladen
+      await router.invalidate({ filter: (match) => match.routeId === "/_app/kontakte/$id" });
     });
     if (!ok || !ergebnis) return;
     if (ergebnis.hinweis) setNotice({ tone: "info", text: ergebnis.hinweis });
@@ -128,7 +133,7 @@ export function UstIdBestaetigungCard({ contactId, bestaetigungen, zustand, nach
           </button>
         </div>
       )}
-      {bestaetigungen.length > 1 && (
+      {bestaetigungen.some((b) => b !== letzte) && (
         <details className="small">
           <summary>Alle Abfragen ({bestaetigungen.length})</summary>
           {bestaetigungen.map((b) => (

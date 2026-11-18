@@ -96,10 +96,14 @@ export async function ustIdBestaetigungen(contactId: string): Promise<{ bestaeti
   return { bestaetigungen, zustand: contact ? zustandFuer(contact, company.ustId, bestaetigungen) : { art: "nicht-pruefbar" } };
 }
 
-type Abfrage = { ok: true; antwort: EvatrAntwort; text: string; zeitpunkt: Date } | { ok: false; antwort: EvatrAntwort | null };
+type Abfrage = { ok: true; antwort: EvatrAntwort; text: string; zeitpunkt: Date } | { ok: false; hinweis: string };
 
-/** Eine Abfrage; jede Antwort in der Form der API kommt zurück, auch Fehler (4xx, 5xx) */
+const KEINE_ANTWORT = "Keine Antwort vom BZSt (Zeitüberschreitung oder Dienst nicht erreichbar); versuch es später noch einmal";
+const UNLESBAR = "Die Antwort des BZSt ließ sich nicht lesen; gespeichert ist nichts, versuch es später noch einmal";
+
+/** Eine Abfrage; jede Antwort in der Form der API kommt zurück, auch Fehler (4xx, 5xx), deren Meldung der Hinweis nennt */
 async function frage(anfrage: EvatrAnfrage, via: EvatrVerbindung): Promise<Abfrage> {
+  let text: string;
   try {
     const response = await via.fetch(via.url, {
       method: "POST",
@@ -107,21 +111,27 @@ async function frage(anfrage: EvatrAnfrage, via: EvatrVerbindung): Promise<Abfra
       body: JSON.stringify(anfrage),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    const text = await response.text();
-    if (text.length > MAX_ANTWORT) return { ok: false, antwort: null };
-    const parsed = evatrAntwortSchema.safeParse(JSON.parse(text));
-    if (!parsed.success) return { ok: false, antwort: null };
-    const zeitpunkt = evatrZeitpunkt(parsed.data.anfrageZeitpunkt);
-    if (!zeitpunkt || !evatrNachweis(parsed.data.status)) return { ok: false, antwort: parsed.data };
-    return { ok: true, antwort: parsed.data, text, zeitpunkt };
+    text = await response.text();
   } catch {
-    // Zeitüberschreitung, kein Netz, kein JSON
-    return { ok: false, antwort: null };
+    // Zeitüberschreitung, kein Netz
+    return { ok: false, hinweis: KEINE_ANTWORT };
   }
+  const parsed = text.length > MAX_ANTWORT ? null : evatrAntwortSchema.safeParse(parseJson(text));
+  if (!parsed?.success) return { ok: false, hinweis: UNLESBAR };
+  if (!evatrNachweis(parsed.data.status)) return { ok: false, hinweis: evatrMeldung(parsed.data) };
+  // Ohne lesbaren Zeitpunkt des BZSt kein Nachweis; die OpenAPI nennt für das Feld kein Format
+  const zeitpunkt = evatrZeitpunkt(parsed.data.anfrageZeitpunkt);
+  if (!zeitpunkt) return { ok: false, hinweis: UNLESBAR };
+  return { ok: true, antwort: parsed.data, text, zeitpunkt };
 }
 
-const fehlerText = (abfrage: Abfrage) =>
-  abfrage.antwort ? evatrMeldung(abfrage.antwort) : "Keine Antwort vom BZSt (Zeitüberschreitung oder Dienst nicht erreichbar); versuch es später noch einmal";
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
 
 async function speichere(actor: string, contactId: string, art: EvatrArt, anfrage: EvatrAnfrage, abfrage: Extract<Abfrage, { ok: true }>) {
   const { antwort } = abfrage;
@@ -171,14 +181,14 @@ export async function bestaetigeUstId(
 
   const einfach = evatrAnfrage(company.ustId, contact, "einfach");
   const ersteAntwort = await frage(einfach, via);
-  if (!ersteAntwort.ok) return { neu: 0, hinweis: fehlerText(ersteAntwort) };
+  if (!ersteAntwort.ok) return { neu: 0, hinweis: ersteAntwort.hinweis };
   await speichere(actor, contactId, "einfach", einfach, ersteAntwort);
   // Name und Anschrift vergleicht das BZSt nur bei gültiger Nummer
   if (!evatrGueltig(ersteAntwort.antwort.status) || !evatrQualifizierbar(contact)) return { neu: 1, hinweis: null };
 
   const qualifiziert = evatrAnfrage(company.ustId, contact, "qualifiziert");
   const zweiteAntwort = await frage(qualifiziert, via);
-  if (!zweiteAntwort.ok) return { neu: 1, hinweis: `Name und Anschrift nicht bestätigt: ${fehlerText(zweiteAntwort)}` };
+  if (!zweiteAntwort.ok) return { neu: 1, hinweis: `Name und Anschrift nicht bestätigt: ${zweiteAntwort.hinweis}` };
   await speichere(actor, contactId, "qualifiziert", qualifiziert, zweiteAntwort);
   return { neu: 2, hinweis: null };
 }

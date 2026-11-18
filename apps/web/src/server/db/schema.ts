@@ -1312,7 +1312,7 @@ export const sepaMandateRevocations = pgTable(
 /**
  * Bestätigungen ausländischer USt-IdNrn. beim BZSt (§ 18e UStG, #1385), nur anhängen: je Antwort des BZSt, die etwas über
  * die Nummer sagt, eine Zeile mit den gesendeten Angaben und dem empfangenen Datensatz unverändert als Nachweis
- * (UStAE 18e.1 Abs. 2). Fehler des Dienstes stehen nicht hier.
+ * der qualifizierten Abfrage (UStAE 18e.1 Abs. 2 Sätze 3 bis 5, FAQ des BZSt). Fehler des Dienstes stehen nicht hier.
  */
 export const ustidBestaetigungen = pgTable(
   "ustid_bestaetigungen",
