@@ -3635,7 +3635,8 @@ export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
  * - abruf_fehlgeschlagen: sevDesk nennt eine Datei (oder bei Rechnung und Gutschrift ist das PDF Pflicht), der Abruf scheiterte.
  * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
  * - bestaetigt_ohne_datei: eine Person hat geprüft, dass der Beleg keine Datei hat (bei sevDesk der Abruf, beim
- *   Accountable-Stapel der fehlende Einzelbeleg), festgehalten mit created_by und Zeitpunkt.
+ *   Accountable-Stapel der fehlende Einzelbeleg, bei der Lexoffice-Sicherung die Buchung ohne Beleg), festgehalten mit
+ *   created_by und Zeitpunkt.
  * - bestaetigung_zurueckgenommen: eine Person hat eine solche Bestätigung mit Grund zurückgenommen (#1317). Die
  *   Bestätigung bleibt als frühere Zeile stehen, der Beleg gilt wieder als offen.
  * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
