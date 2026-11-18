@@ -29,3 +29,4 @@ export { gesendeteAbweichungen, gesendetText, type GesendetAbweichung } from "./
 export { quartalVon, ZM_POSTEN, zmAbweichungen, zmAbweichungenImJahr, type ZmAbweichung } from "./zm-pruefen.ts";
 export { anteilZumRechnungsdatum, ausfuehrungMitFreigabe, belegTotals, vorsteuerAnteile, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 export { freigabeAmAusfuehrung, freigabeNachziehen, freigabeStornieren } from "./vorsteuer-freigabe.ts";
+export { belegAusAlterVersion } from "./vat-journal.ts";

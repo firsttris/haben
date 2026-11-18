@@ -373,6 +373,8 @@ Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im 
 - Rechnung und Vorgang gegen ihre Buchung.
 - Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Steuer, bei neueren Vermerken jede damals gerechnete Zahl.
 
+Belege mit § 13b oder innergemeinschaftlichem Erwerb, die vor Version 0.7.0 gebucht wurden, tragen im Journal die Steuer ohne Vorsteuerabzug in derselben Aufwandszeile wie das Netto bzw. das private Netto ohne Steuerschlüssel auf den Entnahmen. Für Kz 46, 84, 89 und 93 und die Verprobung rechnet Haben bei Buchungen, die vor dem Update angelegt wurden, und ihren Stornos die Bemessungsgrundlage so, wie eine heutige Buchung sie trüge; die gebuchten Zeilen bleiben unverändert ([#1396](https://github.com/firsttris/haben/issues/1396)). Nur Erwerb zu 19 % und 7 % auf einem Beleg mit Privatanteil bleibt, wie gebucht.
+
 Offene Zeiträume und nicht abgegebene Jahreserklärungen rechnen ohne Vergleich aus dem Journal. Stimmt alles, ändert sich nichts, was beim Finanzamt ist, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
 
 **Bei einer Abweichung startet Haben nicht.** Im Log stehen Jahr, Zeitraum und Befund mit beiden Beträgen. Buchungen, Anmeldungen und Firmendaten bleiben unverändert, die bisherige Version läuft auf derselben Datenbank weiter. Meist fehlen älteren Buchungen Steuerschlüssel oder Bemessungsgrundlage. Dann gibt es zwei Wege:
