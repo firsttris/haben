@@ -186,3 +186,8 @@ export function aufladungPosting(angabe: KategorieAngabe, amount: Cents, kontenr
 export function kategorieAnzeige(angabe: KategorieAngabe, kontenrahmen: Kontenrahmen): string {
   return istEinnahme(angabe.kategorie) ? kategorieText(angabe) : kategorieMitKonto(kontenrahmen, angabe.kategorie);
 }
+
+/** Die Kategorien der Auswahl „Direkt buchen“ mit der Nummer des Kontos vor der Bezeichnung der Ausgaben (#1438); Einnahmen bleiben ohne */
+export function kategorienMitKonto(kategorien: ReturnType<typeof direktKategorienFuer>, kontenrahmen: Kontenrahmen): ReturnType<typeof direktKategorienFuer> {
+  return kategorien.map((k) => (k.art === "ausgabe" ? { ...k, label: kategorieMitKonto(kontenrahmen, k.value) } : k));
+}

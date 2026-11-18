@@ -7,6 +7,7 @@ import {
   kategorieFehler,
   kategoriePosting,
   kategorieAnzeige,
+  kategorienMitKonto,
   kategorieText,
   type KategorieAngabe,
 } from "./direkt-kategorie.ts";
@@ -236,5 +237,14 @@ describe("kategorieAnzeige (#1438)", () => {
 
   it("ändert den Buchungstext nicht: kategorieText bleibt bei der Bezeichnung", () => {
     expect(kategorieText({ kategorie: "telefon", steuersatz: 0 })).toBe("Telefon");
+  });
+});
+
+describe("kategorienMitKonto (#1438)", () => {
+  it("setzt die Nummer vor die Ausgaben und lässt die Einnahmen, wie sie sind", () => {
+    const liste = kategorienMitKonto(direktKategorienFuer(), "SKR04");
+    expect(liste.find((k) => k.value === "telefon")?.label).toBe("6805 · Telefon");
+    expect(liste.find((k) => k.value === "erloese")?.label).toBe("Erlöse");
+    expect(liste.map((k) => k.value)).toEqual(direktKategorienFuer().map((k) => k.value));
   });
 });

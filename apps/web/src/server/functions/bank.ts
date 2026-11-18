@@ -10,7 +10,7 @@ import {
   DARLEHEN_TEILE,
   DARLEHEN_TEIL_KEYS,
   formatEuro,
-  kategorieMitKonto,
+  kategorienMitKonto,
   STEUERARTEN,
   steuerartenFor,
 } from "@haben/core";
@@ -95,7 +95,6 @@ export const getBankOverview = createServerFn({ method: "GET" })
     // Das gewählte Konto; in „Alle Konten“ das des gewählten Umsatzes, nach dessen Zweck sich die Buchungsarten richten
     const account = allAccounts ? (accounts.find((a) => a.id === detail?.transaction.bankAccountId) ?? null) : (shown[0] ?? null);
     const excludeBlockedBy = account && !allAccounts ? await excludeBlocker(account.id) : null;
-    const { kontenrahmen } = await loadCompany();
     return {
       accounts,
       /** Monate mit abgegebener Voranmeldung: danach ist der Tag der Aufhebung vorbelegt (#782) */
@@ -126,9 +125,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
-      kategorien: direktKategorienFuerKonto(account?.purpose ?? "geschaeft").map((k) =>
-        k.art === "ausgabe" ? { ...k, label: kategorieMitKonto(kontenrahmen, k.value) } : k,
-      ),
+      kategorien: kategorienMitKonto(direktKategorienFuerKonto(account?.purpose ?? "geschaeft"), (await loadCompany()).kontenrahmen),
       kleinunternehmer: (await loadCompany()).kleinunternehmer,
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
