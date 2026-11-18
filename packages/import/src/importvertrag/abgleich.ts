@@ -80,25 +80,29 @@ function shown(field: keyof Core, core: Core): string {
 /**
  * Ordnet die Bewegungen einer geprüften Lieferung gegen die schon übernommenen ein. Eine Beobachtung (gleicher Kern, andere
  * Angaben, etwa ein später geschwärzter Name) ergänzt nur die Herkunft, ein Konflikt überschreibt nichts; mit einem
- * Konflikt nimmt Haben die ganze Lieferung nicht an.
+ * Konflikt nimmt Haben die ganze Lieferung nicht an. Je Schlüssel kann es mehrere bekannte Kerne geben: zuerst den
+ * übernommenen, danach die, die der Nutzer nach einem Konflikt geklärt hat; nur ein unbekannter Kern ist ein Konflikt.
  */
 export function classifyMovements(
-  known: ReadonlyMap<string, KnownMovement>,
+  known: ReadonlyMap<string, readonly KnownMovement[]>,
   binding: Pick<SourceBinding, "provider" | "externalAccountId">,
   movements: ImportMovement[],
 ): { results: { key: string; movement: ImportMovement; outcome: MovementOutcome }[]; conflicts: string[] } {
   const conflicts: string[] = [];
   const results = movements.map((movement) => {
     const key = movementKey(binding, movement);
-    const before = known.get(key);
-    if (!before) return { key, movement, outcome: "new" as const };
-    const changed = CORE_LABELS.filter(([field]) => before.core[field] !== movement[field]);
-    if (changed.length > 0) {
-      const list = changed.map(([field, name]) => `${name} ${shown(field, before.core)} → ${shown(field, movement)}`).join(", ");
+    const cores = known.get(key) ?? [];
+    const first = cores[0];
+    if (!first) return { key, movement, outcome: "new" as const };
+    const same = cores.find((k) => CORE_LABELS.every(([field]) => k.core[field] === movement[field]));
+    if (!same) {
+      // Die Meldung vergleicht mit dem zuerst übernommenen Kern, dem Stand des Umsatzes in Haben
+      const changed = CORE_LABELS.filter(([field]) => first.core[field] !== movement[field]);
+      const list = changed.map(([field, name]) => `${name} ${shown(field, first.core)} → ${shown(field, movement)}`).join(", ");
       conflicts.push(`${movement.sourceEventId}/${movement.component}: ${list}; nichts überschrieben.`);
       return { key, movement, outcome: "conflict" as const };
     }
-    return { key, movement, outcome: before.details === knownMovement(movement).details ? ("known" as const) : ("observation" as const) };
+    return { key, movement, outcome: same.details === knownMovement(movement).details ? ("known" as const) : ("observation" as const) };
   });
   return { results, conflicts };
 }
