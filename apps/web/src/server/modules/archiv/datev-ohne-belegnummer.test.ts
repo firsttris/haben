@@ -5,8 +5,9 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * #1355: Trägt Belegfeld 1 ein Wort ohne eine einzige Ziffer, ist es keine Belegnummer, sondern etwa der Name eines
- * Zahlungsdienstleisters. Solche Zeilen sind kein offener Punkt, sondern ein Hinweis; ein leeres Feld bleibt offen wie
- * bisher, ein Feld mit Ziffer bleibt offen, wenn der Beleg fehlt. Namen und Nummern sind erfunden.
+ * Zahlungsdienstleisters. Solche Zeilen sind kein offener Punkt, sondern zählen wie ein leeres Feld unter „ohne
+ * Belegnummer“; ein Feld mit Ziffer gilt als Nummer und bleibt offen, wenn der Beleg fehlt. Namen und Nummern sind
+ * erfunden.
  */
 
 /** Eine Ausgabe: Soll Aufwand an Bank (SKR03 4930 an 1200), damit keine Ausnahme ohne Belegpflicht greift. */
@@ -87,18 +88,20 @@ describe.skipIf(!testDatabaseUrl)("Belegfeld 1 ohne Nummer im DATEV-Abgleich (Po
   const pruefung = (jahr: { checks: { label: string; detail: string; ok: boolean }[] }) =>
     jahr.checks.find((c) => c.label === "Jede Buchung mit Belegnummer findet ihren Beleg")!;
 
-  it("führt ein Belegfeld ohne Ziffer als Hinweis und nicht als offenen Punkt", async () => {
+  it("zählt ein Belegfeld ohne Ziffer als Buchung ohne Belegnummer, nicht als offenen Punkt", async () => {
     const { jahr, liste } = await laden(["Beispielzahldienst"]);
 
-    expect(jahr.bookings).toEqual({ total: 1, unmatched: 0, withoutNumber: 0 });
-    expect(pruefung(jahr).detail).toContain("1 Belegfeld ohne Nummer");
-    // Die Buchung bleibt sichtbar, aber als Hinweis statt als offener Punkt
-    expect(liste.total).toBe(1);
-    expect(liste.rows[0]).toMatchObject({ voucherField1: "Beispielzahldienst", matched: false, ohneNummer: true });
+    expect(jahr.bookings).toEqual({ total: 1, unmatched: 0, withoutNumber: 1 });
+    expect(pruefung(jahr).detail).not.toContain("ohne passenden Beleg");
+    expect(pruefung(jahr).detail).toContain("1 ohne Belegnummer");
     expect(pruefung(jahr).ok).toBe(true);
+    // Die Buchung bleibt sichtbar, mit ihrem Feld, aber ohne eigenen Hinweis
+    expect(liste.total).toBe(1);
+    expect(liste.rows[0]).toMatchObject({ voucherField1: "Beispielzahldienst", matched: false });
+    expect(liste.rows[0]).not.toHaveProperty("ohneNummer");
   });
 
-  it("zeigt die Zeile nicht mehr im Filter „Nur ohne passenden Beleg“", async () => {
+  it("zeigt die Zeile nicht im Filter „Nur ohne passenden Beleg“", async () => {
     await laden(["Beispielzahldienst"]);
     const offen = await archive.listDatevBookings({ year: 2025, search: "", unmatched: true, page: 0 });
     expect(offen.total).toBe(0);
@@ -109,8 +112,9 @@ describe.skipIf(!testDatabaseUrl)("Belegfeld 1 ohne Nummer im DATEV-Abgleich (Po
     const { jahr, liste } = await laden([feld]);
 
     expect(jahr.bookings).toEqual({ total: 1, unmatched: 1, withoutNumber: 0 });
-    expect(pruefung(jahr).detail).not.toContain("Belegfeld ohne Nummer");
-    expect(liste.rows[0]).toMatchObject({ matched: false, ohneNummer: false });
+    expect(pruefung(jahr).detail).toContain("1 ohne passenden Beleg");
+    expect(pruefung(jahr).detail).not.toContain("ohne Belegnummer");
+    expect(liste.rows[0]).toMatchObject({ matched: false });
     const offen = await archive.listDatevBookings({ year: 2025, search: "", unmatched: true, page: 0 });
     expect(offen.total).toBe(1);
   });
@@ -119,47 +123,47 @@ describe.skipIf(!testDatabaseUrl)("Belegfeld 1 ohne Nummer im DATEV-Abgleich (Po
     const { jahr, liste } = await laden([""]);
 
     expect(jahr.bookings).toEqual({ total: 1, unmatched: 0, withoutNumber: 1 });
-    expect(pruefung(jahr).detail).not.toContain("Belegfeld ohne Nummer");
-    expect(liste.rows[0]).toMatchObject({ matched: false, ohneNummer: false });
+    expect(pruefung(jahr).detail).toContain("1 ohne Belegnummer");
+    expect(liste.rows[0]).toMatchObject({ voucherField1: "", matched: false });
     const offen = await archive.listDatevBookings({ year: 2025, search: "", unmatched: true, page: 0 });
     expect(offen.total).toBe(1);
   });
 
-  it("zählt im Abgleich so viele Belegfelder ohne Nummer, wie die Liste zeigt", async () => {
+  it("zählt im Abgleich so viele Buchungen ohne Belegnummer, wie die Liste zeigt", async () => {
     const { jahr, liste } = await laden(["Beispielzahldienst", "Beispielkuerzel", "", "RE20250009"]);
+    const zahlen = jahr.bookings!;
 
-    expect(jahr.bookings).toEqual({ total: 4, unmatched: 1, withoutNumber: 1 });
-    expect(pruefung(jahr).detail).toContain("2 Belegfelder ohne Nummer");
-    expect(pruefung(jahr).detail).toContain("1 ohne Belegnummer");
-    const hinweis = liste.rows.filter((r) => r.ohneNummer);
-    expect(hinweis).toHaveLength(2);
-    expect(hinweis.map((r) => r.voucherField1)).toEqual(["Beispielzahldienst", "Beispielkuerzel"]);
+    expect(zahlen).toEqual({ total: 4, unmatched: 1, withoutNumber: 3 });
+    expect(pruefung(jahr).detail).toContain("1 ohne passenden Beleg");
+    expect(pruefung(jahr).detail).toContain("3 ohne Belegnummer");
+    // Dieselbe Zahl aus der Liste: leeres Feld oder ein Feld ohne eine einzige Ziffer
+    const ohneNummer = liste.rows.filter((r) => r.voucherField1.trim() === "" || !/[0-9]/.test(r.voucherField1));
+    expect(ohneNummer.map((r) => r.voucherField1)).toEqual(["Beispielzahldienst", "Beispielkuerzel", ""]);
+    expect(ohneNummer).toHaveLength(zahlen.withoutNumber);
+    // Und offen ist die Zeile mit einer Nummer
     const offen = await archive.listDatevBookings({ year: 2025, search: "", unmatched: true, page: 0 });
-    expect(offen.total).toBe(2);
+    expect(offen.rows.filter((r) => r.voucherField1 !== "")).toHaveLength(zahlen.unmatched);
   });
 
-  it("SKR04: Hinweis nur bei einer Zeile, die einen Beleg braucht", async () => {
+  it("SKR04: zählt nur die Zeile ohne Belegnummer, die einen Beleg braucht", async () => {
     // Die Bedingung hängt am Kontenrahmen: In SKR04 ist 2100 das Privatkonto, 1800 die Bank
     await sql`update company set kontenrahmen = 'SKR04'`;
     const { jahr, liste } = await ladenMit(
       stapelRoh([`1,00;"S";"EUR";;;;4930;1200;;0101;"Beispielzahldienst";;;"Bürobedarf"`, `1,00;"S";"EUR";;;;1200;2100;;0101;"Beispielzahldienst";;;"Privat"`]),
     );
 
-    expect(jahr.bookings).toEqual({ total: 2, unmatched: 0, withoutNumber: 0 });
-    expect(pruefung(jahr).detail).toContain("1 Belegfeld ohne Nummer");
-    // Die Ausgabe trägt den Hinweis, die Privatzeile braucht keinen Beleg
-    expect(liste.rows.map((r) => [r.account, r.ohneNummer])).toEqual([
-      ["4930", true],
-      ["1200", false],
-    ]);
+    expect(jahr.bookings).toEqual({ total: 2, unmatched: 0, withoutNumber: 1 });
+    expect(pruefung(jahr).detail).toContain("1 ohne Belegnummer");
+    // Die Privatzeile braucht keinen Beleg und zählt deshalb auch nicht ohne Belegnummer
+    expect(liste.rows.map((r) => r.account)).toEqual(["4930", "1200"]);
   });
 
-  it("zählt ein Feld ohne Ziffer, das ein Beleg als Nummer trägt, nicht als Hinweis", async () => {
+  it("zählt ein Feld ohne Ziffer, das ein Beleg als Nummer trägt, nicht als Buchung ohne Belegnummer", async () => {
     await beleg("Beispielzahldienst");
     const { jahr, liste } = await laden(["Beispielzahldienst"]);
 
     expect(jahr.bookings).toEqual({ total: 1, unmatched: 0, withoutNumber: 0 });
-    expect(pruefung(jahr).detail).not.toContain("Belegfeld ohne Nummer");
-    expect(liste.rows[0]).toMatchObject({ matched: true, ohneNummer: false });
+    expect(pruefung(jahr).detail).toEqual("alle gefunden");
+    expect(liste.rows[0]).toMatchObject({ matched: true });
   });
 });

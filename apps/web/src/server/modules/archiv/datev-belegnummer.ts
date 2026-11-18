@@ -102,9 +102,9 @@ export function datevInternalId(field: string): SQL<boolean> {
 
 /**
  * Ein gefülltes Belegfeld 1 ohne eine einzige Ziffer trägt keine Belegnummer (#1355): Zahlungsdienstleister schreiben
- * dort ihren Namen oder ein Kürzel hinein, nicht eine Rechnungsnummer. Ein leeres Feld bleibt ohne Beleg, ein Feld mit
- * Ziffer gilt als Nummer, auch wenn sie nicht vollständig ist. Kein Namensraten: Die Prüfung ist strukturell und gilt
- * damit auch für Anbieter, die es heute noch nicht gibt.
+ * dort ihren Namen oder ein Kürzel hinein, nicht eine Rechnungsnummer. Ein Feld mit Ziffer gilt als Nummer, auch wenn
+ * sie nicht vollständig ist. Kein Namensraten: Die Prüfung ist strukturell und gilt damit auch für Anbieter, die es
+ * heute noch nicht gibt.
  *
  * DATEV erlaubt in Feld 11 auch reine Buchstabenfolgen (ASCII-Import, Feldbeschreibungen für Standardformate, Dok.-Nr.
  * 1003221); dass ein Feld ohne Ziffer keine Nummer ist, ist deshalb eine Regel aus #1355 und keine Vorgabe von DATEV.
@@ -126,7 +126,7 @@ export interface DatevBookingFields {
 /**
  * Die Buchung ist ohne Beleg offen: keiner der drei Wege greift, also kein Beleg zur Nummer oder GUID, keine interne
  * Kennung und kein Konto ohne Belegpflicht. Liste und Abgleich teilen diese eine Definition, damit sie ein Belegfeld
- * ohne Nummer gleich zählen (#1355).
+ * ohne Nummer gleich einordnen (#1355).
  */
 export function datevOpenBooking(fields: DatevBookingFields, kontenrahmen: "SKR03" | "SKR04"): SQL<boolean> {
   return sql<boolean>`(not ${datevBookingFound(fields)} and not ${datevInternalId(fields.number)}
@@ -134,8 +134,9 @@ export function datevOpenBooking(fields: DatevBookingFields, kontenrahmen: "SKR0
 }
 
 /**
- * Offene Buchung, deren Belegfeld 1 keine Nummer trägt: Sie ist kein offener Punkt, sondern der Hinweis „Belegfeld ohne
- * Nummer“ (#1355). Trägt ein Beleg das Feld trotzdem als Nummer, greift `datevOpenBooking` nicht und es bleibt beim Fund.
+ * Offene Buchung, deren Belegfeld 1 keine Nummer trägt: Sie ist kein offener Punkt, sondern zählt wie ein leeres Feld
+ * unter „ohne Belegnummer“ (#1355). Trägt ein Beleg das Feld trotzdem als Nummer, greift `datevOpenBooking` nicht und es
+ * bleibt beim Fund.
  */
 export function datevFieldWithoutNumber(fields: DatevBookingFields, kontenrahmen: "SKR03" | "SKR04"): SQL<boolean> {
   return sql<boolean>`(${datevOpenBooking(fields, kontenrahmen)} and ${datevOhneBelegnummer(fields.number)})`;

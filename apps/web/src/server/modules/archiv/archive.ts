@@ -219,7 +219,7 @@ export async function listDatevBookings(filter: { year: number; search: string; 
   // Dieselbe Ausnahme wie im Abgleich (reconciliation): Privat, Geldtransit, Vortrag und Accountable-Erlöse brauchen keinen Beleg
   const { kontenrahmen } = await loadCompany();
   const openSql = datevOpenBooking(datevFields, kontenrahmen);
-  // Belegfeld ohne Nummer: Die Buchung trägt ihre Nummer nur nicht im Feld, ein Hinweis statt eines offenen Punktes (#1355)
+  // Belegfeld ohne Nummer: Solche Zeilen sind kein offener Punkt und zählen wie ein leeres Feld unter „ohne Belegnummer“ (#1355)
   const withoutNumberSql = datevFieldWithoutNumber(datevFields, kontenrahmen);
   if (filter.unmatched) conditions.push(openSql, sql`not ${withoutNumberSql}`);
   const where = and(...conditions);
@@ -237,9 +237,8 @@ export async function listDatevBookings(filter: { year: number; search: string; 
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        // Eine interne Kennung ist nichts, wozu ein Beleg fehlt; ein Belegfeld ohne Nummer ebenso wenig, es steht als Hinweis daneben
+        // Eine interne Kennung ist nichts, wozu ein Beleg fehlt; ein Belegfeld ohne Nummer ebenso wenig
         matched: sql<boolean>`not ${openSql}`,
-        ohneNummer: sql<boolean>`${withoutNumberSql}`,
         filename: schema.archiveFiles.filename,
       })
       .from(schema.datevBookings)
@@ -289,7 +288,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
   // Dieselbe Ausnahme wie im Abgleich (reconciliation) und in listDatevBookings
   const { kontenrahmen } = await loadCompany();
   const openSql = datevOpenBooking(datevFields, kontenrahmen);
-  // Belegfeld ohne Nummer: Die Buchung trägt ihre Nummer nur nicht im Feld, ein Hinweis statt eines offenen Punktes (#1355)
+  // Belegfeld ohne Nummer: zählt wie ein leeres Feld unter „ohne Belegnummer“, damit MCP dieselbe Einordnung nennt (#1355)
   const withoutNumberSql = datevFieldWithoutNumber(datevFields, kontenrahmen);
   if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> ''`, openSql, sql`not ${withoutNumberSql}`);
   const where = and(...conditions);

@@ -65,12 +65,11 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
               </thead>
               <tbody>
                 {data.rows.map((row) => (
-                  <tr key={row.id} className={row.matched || row.ohneNummer ? undefined : "unmatched"}>
+                  <tr key={row.id} className={row.matched ? undefined : "unmatched"}>
                     <td>{formatDate(row.date)}</td>
                     <td className="mono">
                       {row.voucherField1 || "–"}
-                      {row.ohneNummer && <div className="small muted">Belegfeld ohne Nummer</div>}
-                      {!row.matched && !row.ohneNummer && <span className="visually-hidden"> (kein passender Beleg)</span>}
+                      {!row.matched && <span className="visually-hidden"> (kein passender Beleg)</span>}
                     </td>
                     <td>
                       {row.text}
