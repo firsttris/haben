@@ -6,6 +6,7 @@ import {
   databaseUrlFuer,
   type Durchlauf,
   ENABLE_BANKING_PORT,
+  ETSY_PORT,
   FINTS_PRODUKT_E2E,
   habenFirmen,
   LAYOUT_PAKETE_PORT,
@@ -68,6 +69,15 @@ function webServer(durchlauf?: Durchlauf) {
       LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
       // Kontoabruf über FinTS (#654) nur im Durchlauf „fints-abruf“; sonst bleibt FinTS aus wie ohne Registrierungsnummer
       FINTS_PRODUKT_ID: durchlauf === "fints-abruf" ? FINTS_PRODUKT_E2E : "",
+      // Etsy Payments (#1133) nur im Durchlauf „etsy-abruf“ gegen die nachgebaute API; sonst die echten Adressen, die ohne
+      // gespeicherten Zugang nie gefragt werden
+      ...(durchlauf === "etsy-abruf"
+        ? {
+            ETSY_API_URL: `http://127.0.0.1:${ETSY_PORT}/v3/application`,
+            ETSY_TOKEN_URL: `http://127.0.0.1:${ETSY_PORT}/v3/public/oauth/token`,
+            ETSY_AUTH_URL: `http://127.0.0.1:${ETSY_PORT}/oauth/connect`,
+          }
+        : {}),
       // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
       HABEN_FIRMEN: durchlauf === "firmen" ? habenFirmen(serverURL) : "",
     },

@@ -1,5 +1,5 @@
 {
-  "id": "6e7bcdb3-40f7-42f9-a699-2e2c8098a519",
+  "id": "d22ba1b1-6367-4b5b-89bd-5d9d9cfe084d",
   "prevId": "5388f14a-0421-431a-9c2f-a84743f038b0",
   "version": "7",
   "dialect": "postgresql",
@@ -6535,6 +6535,106 @@
       },
       "isRLSEnabled": false
     },
+    "public.etsy_connections": {
+      "name": "etsy_connections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "'etsy'"
+        },
+        "keystring": {
+          "name": "keystring",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shop_id": {
+          "name": "shop_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "shop_name": {
+          "name": "shop_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetch_from": {
+          "name": "fetch_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "abruf_start": {
+          "name": "abruf_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sammelzeilen": {
+          "name": "sammelzeilen",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "rhythmus": {
+          "name": "rhythmus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'taeglich'"
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "etsy_connections_id": {
+          "name": "etsy_connections_id",
+          "value": "\"etsy_connections\".\"id\" = 'etsy'"
+        },
+        "etsy_connections_rhythmus": {
+          "name": "etsy_connections_rhythmus",
+          "value": "\"etsy_connections\".\"rhythmus\" in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.exchange_rates": {
       "name": "exchange_rates",
       "schema": "",
@@ -7389,148 +7489,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.import_conflicts": {
-      "name": "import_conflicts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "movement_id": {
-          "name": "movement_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "booking_date": {
-          "name": "booking_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "details": {
-          "name": "details",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transaction": {
-          "name": "transaction",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bank_import_id": {
-          "name": "bank_import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "import_conflicts_core": {
-          "name": "import_conflicts_core",
-          "columns": [
-            {
-              "expression": "movement_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "booking_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "amount",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "currency",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "import_conflicts_movement_id_import_movements_id_fk": {
-          "name": "import_conflicts_movement_id_import_movements_id_fk",
-          "tableFrom": "import_conflicts",
-          "tableTo": "import_movements",
-          "columnsFrom": [
-            "movement_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "import_conflicts_bank_import_id_bank_imports_id_fk": {
-          "name": "import_conflicts_bank_import_id_bank_imports_id_fk",
-          "tableFrom": "import_conflicts",
-          "tableTo": "bank_imports",
-          "columnsFrom": [
-            "bank_import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.import_movements": {
       "name": "import_movements",
       "schema": "",
@@ -7702,124 +7660,6 @@
         "import_movements_component": {
           "name": "import_movements_component",
           "value": "\"import_movements\".\"component\" in ('main', 'fee')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.import_resolutions": {
-      "name": "import_resolutions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "conflict_id": {
-          "name": "conflict_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decision": {
-          "name": "decision",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transaction_id": {
-          "name": "transaction_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "import_resolutions_conflict": {
-          "name": "import_resolutions_conflict",
-          "columns": [
-            {
-              "expression": "conflict_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "import_resolutions_transaction": {
-          "name": "import_resolutions_transaction",
-          "columns": [
-            {
-              "expression": "transaction_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "import_resolutions_conflict_id_import_conflicts_id_fk": {
-          "name": "import_resolutions_conflict_id_import_conflicts_id_fk",
-          "tableFrom": "import_resolutions",
-          "tableTo": "import_conflicts",
-          "columnsFrom": [
-            "conflict_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "import_resolutions_transaction_id_bank_transactions_id_fk": {
-          "name": "import_resolutions_transaction_id_bank_transactions_id_fk",
-          "tableFrom": "import_resolutions",
-          "tableTo": "bank_transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "import_resolutions_decision": {
-          "name": "import_resolutions_decision",
-          "value": "\"import_resolutions\".\"decision\" in ('keep', 'add')"
-        },
-        "import_resolutions_transaction": {
-          "name": "import_resolutions_transaction",
-          "value": "(\"import_resolutions\".\"decision\" = 'add') = (\"import_resolutions\".\"transaction_id\" is not null)"
         }
       },
       "isRLSEnabled": false
