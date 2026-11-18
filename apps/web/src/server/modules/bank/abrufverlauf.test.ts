@@ -76,7 +76,9 @@ describe.skipIf(!testDatabaseUrl)("Abrufverlauf über mehrere Tage, #306 (Postgr
   const stand = async () => (await sql`select max(checkpoint)::text as c from import_batches`)[0]!.c;
 
   it("verbindet, ruft ab, wiederholt ohne Dublette, übergeht Storniertes und hält das Konto bei einem Konflikt an", async () => {
-    amTag(t0);
+    // Verbinden mit der echten Uhr: Die Datenbank stempelt die Freigabe mit ihrer Zeit (created_at), und completeConnection
+    // prüft deren Alter mit Date.now(); eine Uhr auf 12:00 UTC ließe sie vor etwa 11:50 UTC als abgelaufen gelten
+    vi.useRealTimers();
     await sync.startConnection("test", { aspspName: "Testbank", country: "DE", psuType: "business", fetchFrom: tag(t0, -20) });
     // created_at setzt die Datenbank mit echter Zeit, die Gültigkeit der Rückleitung prüft completeConnection mit der
     // Testuhr; ohne Angleichen wäre der Test je nach Tageszeit rot

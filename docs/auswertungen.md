@@ -231,7 +231,8 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `bank/zuordnungen.csv` | Zuordnungen zu Rechnungen, Belegen und Buchungen ohne Beleg; aufgehobene als Gegenzeile |
 | `bank/verrechnungen.csv` | Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze mit Notiz, ohne Buchung ([Bank](bank.md#gegenläufige-umsätze-verrechnen)); aufgehobene als Gegenzeile |
 | `bank/ausbuchungen.csv` | Nur wenn vorhanden: ausgebuchte Reste (Skonto gewährt und erhalten, Forderungsausfall); aufgehobene als Gegenzeile; bei Skonto zu einer Bareinnahme die Nummer im Kassenbuch |
-| `bank/importe.csv` | Importierte Auszugsdateien und Kontoabrufe mit SHA-256, Zeitraum, Salden und Hinweisen (die Dateien selbst speichert der Bankimport nicht); abgelehnte Abrufe ohne Zeitraum nach dem Tag des Abrufs |
+| `bank/importe.csv` | Importierte Auszugsdateien und Kontoabrufe mit SHA-256, Zeitraum, Salden und Hinweisen (die Dateien selbst speichert der Bankimport nicht); abgelehnte Abrufe ohne Zeitraum nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres verbunden hat (etwa vom 30.12. vor seinem Januar-Fenster), auch im Jahr dieses Umsatzes |
+| `bank/quellen.csv` | Nur wenn vorhanden: Herkunft der abgerufenen Umsätze, je Ereignis der Bank die Quelle mit [Stichtag](bank.md#welche-umsätze-abgerufen-werden), der Abruf und der Umsatz, den Haben angelegt oder verbunden hat |
 | `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML; bei einer [Abgabe außerhalb von Haben](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken) das Übermittlungsprotokoll des Vermerks (PDF) |
 | `lexoffice/` | Nur bei übernommenem Altbestand aus Lexware Office, sevDesk, FastBill und den anderen Umzugsquellen, siehe unten |
 | `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json` |
@@ -251,7 +252,7 @@ Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [
 | --- | --- |
 | `lexoffice/belege/` | Original-PDFs, E-Rechnungs-XML und Anhänge der Lexoffice-Belege des Jahres |
 | `lexoffice/belege.csv` | Je Beleg Art, Richtung, Nummer, Kontakt, Beträge, Status, Zahlungsdatum, Steuersätze und Kategorien als JSON, Dateien mit SHA-256, Lexoffice-ID und [Dateistand](sevdesk.md#dateistand) |
-| `lexoffice/dateistand.csv` | Verlauf des Dateistands von Belegen aus sevDesk und aus dem Accountable-Stapel: fehlende Datei, fehlgeschlagener Abruf, fehlender Anhang, Bestätigung ohne Datei mit Benutzer-ID, Rücknahme einer Bestätigung, nachgeladene Datei |
+| `lexoffice/dateistand.csv` | Verlauf des Dateistands von Belegen aus sevDesk, aus dem Accountable-Stapel und aus der Lexoffice-Sicherung: fehlende Datei, fehlgeschlagener Abruf, fehlender Anhang, Bestätigung ohne Datei mit Benutzer-ID, Rücknahme einer Bestätigung, nachgeladene Datei |
 | `lexoffice/zahlungen.csv` | Einzelzahlungen zu sevDesk-Vorgängen nach Zahlungsdatum: Belegnummer, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle |
 | `lexoffice/datev-buchungen.csv` | Die Zeilen des DATEV-Buchungsstapels mit Datei und Zeilennummer im Original |
 | `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `storebericht` (Finanzberichte von Google Play und App Store), `sonstiges` |
