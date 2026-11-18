@@ -1,4 +1,5 @@
 import { altersvorsorgeQuote, arbeitnehmerPauschbetrag, arbeitslohnErgebnis, type Arbeitslohn } from "./arbeitnehmer.ts";
+import { basisBeitrag, bescheinigt, gesamtbetragEinkuenfte, kistUeberhang, summe, vorsorgeUeberhang, type Basisvorsorge } from "./erstattungsueberhang.ts";
 import { kirchensteuerSatzBasispunkte } from "./lohnsteuer/kirchensteuer.ts";
 import type { Cents } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
@@ -141,24 +142,13 @@ export function kirchensteuerpflichtig(religion: string | undefined): boolean {
   return Boolean(religion) && religion !== "11" && religion !== "10";
 }
 
-export interface PrognoseVorsorge {
+export interface PrognoseVorsorge extends Basisvorsorge {
   rentenversicherung?: Cents;
-  gkv?: Cents;
-  gpv?: Cents;
   gkvZusatz?: Cents;
-  pkv?: Cents;
-  ppv?: Cents;
-  pkvErstattung?: Cents;
   /** Zertifizierte Basisrente (Rürup); zählt zur Altersvorsorge, nicht zum Höchstbetrag der übrigen Vorsorge */
   basisrente?: Cents;
   /** Privat: Wahlleistungen über der Basisabsicherung; gehört zur übrigen Vorsorge */
   pkvWahlleistungen?: Cents;
-  /** Steuerfreier Arbeitgeberzuschuss zur gesetzlichen Krankenversicherung; mindert den abzugsfähigen Betrag */
-  agZuschussGkv?: Cents;
-  /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung; mindert den abzugsfähigen Betrag */
-  agZuschussKv?: Cents;
-  /** Steuerfreier Arbeitgeberzuschuss zur Pflegeversicherung (Nr. 24 c); mindert den abzugsfähigen Betrag */
-  agZuschussPv?: Cents;
 }
 
 export interface PrognoseAngaben {
@@ -214,8 +204,6 @@ export interface Prognose {
   jeQuartal: Cents;
 }
 
-const sum = (...values: (Cents | undefined)[]) => values.reduce<number>((acc, v) => acc + (v ?? 0), 0);
-
 /**
  * Abziehbare Vorsorgeaufwendungen (§ 10 Abs. 1 Nr. 2, 3, 3a und Abs. 3, 4 EStG). Altersvorsorge bis zum
  * Höchstbetrag des Jahres, davon der Arbeitgeberanteil ab. Übrige Vorsorge: Höchstbetrag 2.800 € für
@@ -229,47 +217,26 @@ const sum = (...values: (Cents | undefined)[]) => values.reduce<number>((acc, v)
  * hinzugerechnet und deshalb neben dem Abzug zurückgegeben.
  */
 function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbeitslohn }[], sonstige: Cents | undefined): { abzug: Cents; ueberhang: Cents } {
-  const lstb = (an: Arbeitslohn | undefined, pick: (b: Arbeitslohn["bescheinigungen"][number]) => Cents | undefined) =>
-    an ? sum(...an.bescheinigungen.map(pick)) : 0;
-  const ag = sum(...personen.map(({ an }) => lstb(an, (b) => b.rvArbeitgeber)));
-  const eigen = sum(...personen.map(({ v, an }) => lstb(an, (b) => b.rvArbeitnehmer) + (v.rentenversicherung ?? 0) + (v.basisrente ?? 0)));
+  const ag = summe(...personen.map(({ an }) => bescheinigt(an, (b) => b.rvArbeitgeber)));
+  const eigen = summe(...personen.map(({ v, an }) => bescheinigt(an, (b) => b.rvArbeitnehmer) + (v.rentenversicherung ?? 0) + (v.basisrente ?? 0)));
   const hoechstAlter = tarif(year).altersvorsorgeHoechst * personen.length * 100;
   const alter = Math.max(0, Math.floor(Math.min(eigen + ag, hoechstAlter) * altersvorsorgeQuote(year)) - ag);
-  const basisJePerson = personen.map(({ v, an }) => {
-    const kvAn = lstb(an, (b) => b.kvArbeitnehmer);
-    return (
-      sum(
-        v.gkv,
-        v.gpv,
-        v.pkv,
-        v.ppv,
-        Math.floor(kvAn * 0.96),
-        lstb(an, (b) => b.pvArbeitnehmer),
-      ) -
-      (v.pkvErstattung ?? 0) -
-      (v.agZuschussGkv ?? 0) -
-      (v.agZuschussKv ?? 0) -
-      (v.agZuschussPv ?? 0)
-    );
-  });
-  const basis = sum(...basisJePerson.map((b) => Math.max(0, b)));
-  // § 10 Abs. 4b Satz 3 EStG: Erstattungen und Zuschüsse über den Basisbeiträgen kürzen den Abzug nicht unter null,
-  // der Überhang wird dem Gesamtbetrag der Einkünfte hinzugerechnet. Je Person gerechnet, damit er nicht die
-  // Beiträge der anderen Person mindert.
-  const ueberhang = sum(...basisJePerson.map((b) => Math.max(0, -b)));
-  const weitere = sum(
+  const basisJePerson = personen.map(basisBeitrag);
+  const basis = summe(...basisJePerson.map((b) => Math.max(0, b)));
+  const ueberhang = vorsorgeUeberhang(basisJePerson);
+  const weitere = summe(
     sonstige,
     ...personen.map(({ v, an }) => {
-      const kvAn = lstb(an, (b) => b.kvArbeitnehmer);
-      return sum(
+      const kvAn = bescheinigt(an, (b) => b.kvArbeitnehmer);
+      return summe(
         v.gkvZusatz,
         v.pkvWahlleistungen,
         kvAn - Math.floor(kvAn * 0.96),
-        lstb(an, (b) => b.avArbeitnehmer),
+        bescheinigt(an, (b) => b.avArbeitnehmer),
       );
     }),
   );
-  const hoechst = sum(...personen.map(({ an }) => (an && an.bescheinigungen.length > 0 ? 1_900_00 : 2_800_00)));
+  const hoechst = summe(...personen.map(({ an }) => (an && an.bescheinigungen.length > 0 ? 1_900_00 : 2_800_00)));
   return { abzug: alter + Math.max(basis, Math.min(basis + weitere, hoechst)), ueberhang };
 }
 
@@ -304,8 +271,8 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
   const arbeit = (zusammen ? [x.arbeitnehmer?.a, x.arbeitnehmer?.b] : [x.arbeitnehmer?.a])
     .filter((an): an is Arbeitslohn => Boolean(an && an.bescheinigungen.length > 0))
     .map((an) => arbeitslohnErgebnis(year, an));
-  const einkuenfteArbeit = sum(...arbeit.map((a) => a.einkuenfte));
-  const steuerabzug = sum(...arbeit.map((a) => a.steuerabzug));
+  const einkuenfteArbeit = summe(...arbeit.map((a) => a.einkuenfte));
+  const steuerabzug = summe(...arbeit.map((a) => a.steuerabzug));
   const kinder = x.kinder.length;
 
   const { abzug: vorsorge, ueberhang } = vorsorgeAbzug(
@@ -319,14 +286,14 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
     x.vorsorge.sonstige,
   );
   // § 10 Abs. 4b Satz 3 EStG: der Überhang aus Erstattungen und Zuschüssen wird dem Gesamtbetrag der Einkünfte
-  // hinzugerechnet, bevor die Sonderausgaben abgezogen werden. Nr. 4 der Vorschrift nennt die Kirchensteuer
-  // daneben; sie steht in der Erklärung als ein Betrag für die Veranlagung, nicht je Person.
-  const kistGezahlt = sum(x.sonderausgaben.kirchensteuerGezahlt);
-  const kistErstattet = sum(x.sonderausgaben.kirchensteuerErstattet);
-  const kistUeberhang = Math.max(0, kistErstattet - kistGezahlt);
-  const gde = Math.max(0, input.gewinn + einkuenfteArbeit + ueberhang + kistUeberhang);
+  // hinzugerechnet, bevor die Sonderausgaben abgezogen werden; Nr. 4 der Vorschrift nennt die Kirchensteuer
+  // daneben (siehe erstattungsueberhang.ts).
+  const kistGezahlt = summe(x.sonderausgaben.kirchensteuerGezahlt);
+  const kistErstattet = summe(x.sonderausgaben.kirchensteuerErstattet);
+  const kistUeberhangBetrag = kistUeberhang(kistGezahlt, kistErstattet);
+  const gde = gesamtbetragEinkuenfte(input.gewinn, einkuenfteArbeit, ueberhang, kistUeberhangBetrag);
   const kist = Math.max(0, kistGezahlt - kistErstattet);
-  const spenden = Math.min(sum(x.sonderausgaben.spenden), Math.floor(gde * 0.2));
+  const spenden = Math.min(summe(x.sonderausgaben.spenden), Math.floor(gde * 0.2));
   // Kinderbetreuung: bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind
   const kinderbetreuung = x.kinder.reduce((acc, k) => {
     const kosten = k.kinderbetreuung ?? 0;
@@ -334,7 +301,7 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
   }, 0);
   // Der Sonderausgaben-Pauschbetrag (§ 10c EStG) deckt auch die Kinderbetreuung ab
   const sonderausgaben = Math.max(kist + spenden, (zusammen ? 72 : 36) * 100 - kinderbetreuung);
-  const aussergewoehnlich = Math.max(0, sum(x.krankheitskosten) - zumutbareBelastung(gde, zusammen, kinder));
+  const aussergewoehnlich = Math.max(0, summe(x.krankheitskosten) - zumutbareBelastung(gde, zusammen, kinder));
 
   const einkommen = Math.max(0, gde - vorsorge - sonderausgaben - kinderbetreuung - aussergewoehnlich);
 
@@ -365,9 +332,9 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
   const h = x.haushaltsnah;
   const ermaessigung35a = Math.min(
     tariflich,
-    Math.min(Math.floor(sum(h.minijobs) * 0.2), 510_00) +
-      Math.min(Math.floor(sum(h.dienstleistungen) * 0.2), 4_000_00) +
-      Math.min(Math.floor(sum(h.handwerker) * 0.2), 1_200_00),
+    Math.min(Math.floor(summe(h.minijobs) * 0.2), 510_00) +
+      Math.min(Math.floor(summe(h.dienstleistungen) * 0.2), 4_000_00) +
+      Math.min(Math.floor(summe(h.handwerker) * 0.2), 1_200_00),
   );
   const est = tariflich - ermaessigung35a;
 
@@ -384,7 +351,7 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
     year,
     einkuenfteArbeit,
     gesamtbetragEinkuenfte: gde,
-    erstattungsueberhang: ueberhang + kistUeberhang,
+    erstattungsueberhang: ueberhang + kistUeberhangBetrag,
     vorsorge,
     sonderausgaben,
     kinderbetreuung,
