@@ -50,8 +50,9 @@ export const KINDS: Record<string, Kind> = {
   REFUND_PROCESSING_FEE: "zahlungsgebuehr",
   prolist: "etsyads",
   offsite_ads_fee: "offsiteads",
-  // Umsatzsteuer auf die Gebühren, wenn bei Etsy keine USt-IdNr. hinterlegt ist; parent_entry_id nennt die Gebühr
-  // (OpenAPI von Etsy). Nicht an einem echten Verlauf ohne USt-IdNr. geprüft.
+  // Umsatzsteuer auf die Gebühren: Die OpenAPI von Etsy bindet vat_seller_services über parent_entry_id an die Gebühr.
+  // Shops in der EU ohne hinterlegte USt-IdNr. belastet Etsy damit das Guthaben und listet sie auf der monatlichen
+  // Rechnung (help.etsy.com, „How VAT Is Collected on Seller Fees“). Nicht an einem echten Verlauf ohne USt-IdNr. geprüft.
   vat_seller_services: "gebuehrenumsatzsteuer",
   DISBURSE2: "auszahlung",
   billing_payment: "karteneinzug",
