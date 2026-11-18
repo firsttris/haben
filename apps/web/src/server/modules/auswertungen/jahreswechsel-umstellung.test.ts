@@ -62,6 +62,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
+    (await import("../rechnungen/index.ts")).belegeUmsatzStand((await import("./index.ts")).kleinunternehmerStand);
     figures = await import("../umsatzsteuer/vat-figures.ts");
     bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");

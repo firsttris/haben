@@ -15,6 +15,8 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
+    (await import("./index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     invoices = await import("./index.ts");
     bank = await import("../bank/index.ts");
     ({ advanceReceivablesAt: reader } = await import("./advance-receivables.ts"));

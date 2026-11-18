@@ -28,6 +28,8 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Folgejahr von Buchungen im alten F
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
+    (await import("../rechnungen/index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     figures = await import("./vat-figures.ts");
     vat = await import("./vat.ts");
     bank = await import("../bank/bank.ts");

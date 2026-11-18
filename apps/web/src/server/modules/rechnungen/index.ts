@@ -71,7 +71,7 @@ export { advanceReceivablesAt } from "./advance-receivables.ts";
 export { unbilledAdvanceRequest } from "./advance-invoice.ts";
 export { defaultSkonto } from "./skonto.ts";
 export { InvoiceError } from "./invoice-error.ts";
-export { UmsatzgrenzeError } from "./umsatzgrenze.ts";
+export { belegeUmsatzStand, UmsatzgrenzeError, type UmsatzStand } from "./umsatzgrenze.ts";
 export {
   abschlagLinks,
   assertCustomer,

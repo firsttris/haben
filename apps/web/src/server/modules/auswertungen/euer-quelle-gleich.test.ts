@@ -69,6 +69,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: Kleinunternehmer, Bewir
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
+    (await import("../rechnungen/index.ts")).belegeUmsatzStand((await import("./index.ts")).kleinunternehmerStand);
     reports = await import("./reports.ts");
     assets = await import("../buchhaltung/assets.ts");
     bank = await import("../bank/bank.ts");

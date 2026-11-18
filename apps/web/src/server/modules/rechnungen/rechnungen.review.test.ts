@@ -37,6 +37,8 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
+    (await import("./index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     invoices = await import("./invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);

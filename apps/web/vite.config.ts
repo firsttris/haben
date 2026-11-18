@@ -52,6 +52,8 @@ export default defineConfig(({ command }) => ({
     nitro({
       preset: "node-server",
       plugins: [
+        // zuerst: belegt Stellen der Module, bevor der Scheduler Serienrechnungen festschreiben kann
+        "./src/server/plugins/umsatzgrenze.ts",
         "./src/server/plugins/scheduler.ts",
         "./src/server/plugins/setup-code.ts",
         "./src/server/plugins/datenbank.ts",

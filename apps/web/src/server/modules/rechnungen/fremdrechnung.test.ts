@@ -23,6 +23,8 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
+    (await import("./index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     foreign = await import("./fremdrechnung.ts");
     ({ UmsatzgrenzeError } = await import("./umsatzgrenze.ts"));
     invoices = await import("./invoices.ts");

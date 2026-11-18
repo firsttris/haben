@@ -12,6 +12,8 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen nach Rechnungsdatum (Postgres)", (
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    // Rückfrage zur Kleinunternehmergrenze beim Festschreiben, wie server/plugins/umsatzgrenze.ts beim Start (#1108)
+    (await import("./index.ts")).belegeUmsatzStand((await import("../auswertungen/index.ts")).kleinunternehmerStand);
     database = await import("../../db/index.ts");
     invoices = await import("./invoices.ts");
     const contacts = await import("../stammdaten/contacts.ts");
