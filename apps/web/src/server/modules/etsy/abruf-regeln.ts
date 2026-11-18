@@ -77,19 +77,3 @@ export function abrufFaellig(
   const stichtag = `${heute.slice(0, 7)}-${String(BUENDEL_TAG).padStart(2, "0")}`;
   return heute >= stichtag && letzter.tag < stichtag;
 }
-
-/** Verteilung der Bestellungen nach dem Land des Käufers, als Hinweis im Abrufergebnis */
-export function laenderHinweis(bestellungen: string[], laender: Map<string, string>): string | null {
-  if (bestellungen.length === 0) return null;
-  const zaehl = { DE: 0, US: 0, andere: 0, unbekannt: 0 };
-  for (const id of bestellungen) {
-    const land = laender.get(id);
-    if (!land) zaehl.unbekannt++;
-    else if (land === "DE") zaehl.DE++;
-    else if (land === "US") zaehl.US++;
-    else zaehl.andere++;
-  }
-  // Nur die Zählung: Wie ein Verkauf zu versteuern ist, hängt nicht allein am Land (Ware aus Deutschland in die USA ist eine
-  // Ausfuhrlieferung, § 4 Nr. 1 Buchst. a, § 6 UStG; liefert ein Partner in den USA, liegt der Ort dort, § 3 Abs. 6 UStG)
-  return `Bestellungen nach Land: ${zaehl.DE} Deutschland, ${zaehl.US} USA, ${zaehl.andere} anderes Land, ${zaehl.unbekannt} ohne Land.`;
-}

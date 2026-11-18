@@ -111,12 +111,6 @@ function fakeClient(): EtsyClient {
     async ledger() {
       return imAbruf;
     },
-    async countriesFor() {
-      return new Map([
-        [BESTELLUNG_1, "DE"],
-        [BESTELLUNG_2, "US"],
-      ]);
-    },
     async ordersFor() {
       return new Map([
         ["5000000001", BESTELLUNG_1],
@@ -184,7 +178,6 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     // die Sales Tax geht im Verkauf derselben Bestellung auf
     expect(result.added).toBe(7);
     expect(result.messages.join(" ")).toContain("noch laufenden Monat");
-    expect(result.messages.join(" ")).toContain("Bestellungen nach Land: 1 Deutschland, 1 USA");
 
     const umsaetze = await sql`select purpose, amount, type from bank_transactions order by purpose`;
     expect(umsaetze.map((u) => u.purpose)).toEqual([

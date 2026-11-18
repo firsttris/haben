@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abrufFaellig, gebuehrenBisAm, laenderHinweis, naechsterAbrufStart } from "./abruf-regeln.ts";
+import { abrufFaellig, gebuehrenBisAm, naechsterAbrufStart } from "./abruf-regeln.ts";
 
 describe("Regeln des Etsy-Abrufs", () => {
   it("bündelt einen Monat erst ab dem 5. des Folgemonats", () => {
@@ -68,16 +68,5 @@ describe("Regeln des Etsy-Abrufs", () => {
     expect(abrufFaellig("monatlich", fehler, new Date("2026-11-05T20:00:00Z"), "2026-11-05")).toBe(false);
     expect(abrufFaellig("monatlich", fehler, new Date("2026-11-06T08:00:00Z"), "2026-11-06")).toBe(true);
     expect(abrufFaellig("woechentlich", fehler, new Date("2026-11-06T08:00:00Z"), "2026-11-06")).toBe(true);
-  });
-
-  it("zählt die Bestellungen nach Land", () => {
-    const laender = new Map([
-      ["1", "DE"],
-      ["2", "US"],
-      ["3", "US"],
-      ["4", "FR"],
-    ]);
-    expect(laenderHinweis(["1", "2", "3", "4", "5"], laender)).toBe("Bestellungen nach Land: 1 Deutschland, 2 USA, 1 anderes Land, 1 ohne Land.");
-    expect(laenderHinweis([], laender)).toBeNull();
   });
 });

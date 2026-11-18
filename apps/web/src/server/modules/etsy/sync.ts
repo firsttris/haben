@@ -2,13 +2,13 @@ import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { today as todayInGermany } from "../../today.ts";
-import { abrufFaellig, dayOf, type EtsyRhythmus, gebuehrenBisAm, laenderHinweis, naechsterAbrufStart } from "./abruf-regeln.ts";
+import { abrufFaellig, dayOf, type EtsyRhythmus, gebuehrenBisAm, naechsterAbrufStart } from "./abruf-regeln.ts";
 import { etsyClientFor, EtsyError, loadEtsyConnection, storeEtsySecret } from "./connections.ts";
 import { importEtsyLedger, type EtsyImportResult } from "./import.ts";
 
 /*
  * Abruf des Etsy-Zahlungsverlaufs: holt die Zeilen seit dem letzten Anlauf, löst zu Verkäufen und Erstattungen die
- * Bestellnummer und das Land des Käufers nach und übernimmt alles ins Konto des Zahlungsdienstleisters (import.ts).
+ * Bestellnummer nach und übernimmt alles ins Konto des Zahlungsdienstleisters (import.ts).
  *
  * - Der Verlauf ist kein Monatsbericht: Etsy kann Zeilen nachtragen. Deshalb beginnt jeder Abruf drei Tage vor der
  *   jüngsten Zeile des letzten Laufs, höchstens aber am 1. des ersten noch nicht gebündelten Monats (abruf-regeln.ts).
@@ -70,16 +70,6 @@ async function syncEtsyEinmal(actor: string, now: Date): Promise<EtsySyncResult>
       .map((entry) => (entry.entry_id === undefined ? "" : String(entry.entry_id)))
       .filter(Boolean);
     const orders = verlaufsKennungen.length > 0 ? await client.ordersFor(verlaufsKennungen) : new Map<string, string>();
-    // Das Land des Käufers hilft bei der Steuer der Rechnung (abruf-regeln.ts, laenderHinweis). Gefragt
-    // wird nur für Verkäufe und Erstattungen seit dem letzten Abruf (ein Tag Luft), nicht bei jedem Lauf für den ganzen Monat
-    const seit = connection.row.lastSyncAt ? connection.row.lastSyncAt.getTime() / 1000 - 24 * 60 * 60 : 0;
-    const neueZahlungen = new Set(
-      entries
-        .filter((entry) => (entry.ledger_type === "PAYMENT_GROSS" || entry.ledger_type === "REFUND_GROSS") && (entry.created_timestamp ?? 0) >= seit)
-        .map((entry) => String(entry.reference_id ?? "")),
-    );
-    const bestellungen = [...new Set([...neueZahlungen].map((id) => orders.get(id)).filter((id): id is string => Boolean(id)))];
-    const laender = bestellungen.length > 0 ? await client.countriesFor(bestellungen, { from: Math.max(von, seit), to: bis }) : new Map<string, string>();
     const gebuehrenBis = gebuehrenBisAm(todayInGermany(now));
     const imported: EtsyImportResult = await importEtsyLedger(
       actor,
@@ -95,8 +85,6 @@ async function syncEtsyEinmal(actor: string, now: Date): Promise<EtsySyncResult>
     result.added = imported.added;
     result.accountName = imported.accountName;
     result.messages.push(...imported.messages);
-    const hinweis = laenderHinweis(bestellungen, laender);
-    if (hinweis) result.messages.push(hinweis);
     // Ohne Etsy-Konto ist nichts gespeichert: Der Startpunkt bleibt, sonst holte kein späterer Abruf diese Zeilen mehr
     if (imported.accountName !== null) neuerStart = naechsterAbrufStart(entries.map(dayOf), connection.row.fetchFrom, gebuehrenBis);
     await update(actor, { lastSyncAt: now, lastError: null, fetchFrom: neuerStart });
