@@ -163,7 +163,15 @@ test("Leere Belegliste: Satz mit Beispiel, Weg zum Postfach, kein Filter und kei
   await expect(page.getByRole("navigation", { name: "Filter" })).toHaveCount(0);
   // Der Weg zum Postfach steht im Leerzustand, nicht noch einmal darüber
   await expect(page.getByText("Rechnungen per E-Mail?")).toHaveCount(0);
-  await liste.getByRole("link", { name: "Postfach für Belege einrichten" }).click();
+  // Der Hinweis steht unter dem Knopf, nicht daneben, wo er am Handy mitten im Satz umbräche
+  const knopf = liste.getByRole("link", { name: "Postfach für Belege einrichten" });
+  for (const breite of [1440, 375]) {
+    await page.setViewportSize({ width: breite, height: 1000 });
+    const k = (await knopf.boundingBox())!;
+    const h = (await liste.getByText("Dann holt Haben Rechnungen").boundingBox())!;
+    expect(h.y, `Hinweis unter dem Knopf bei ${breite} px`).toBeGreaterThanOrEqual(k.y + k.height);
+  }
+  await knopf.click();
   await expect(page).toHaveURL(/\/einstellungen\?bereich=email/);
 });
 
