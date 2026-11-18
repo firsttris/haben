@@ -4,18 +4,18 @@ import { db, schema } from "../../db/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { auswahl, FELDER } from "./felder.ts";
+import { embed, withChecksum } from "./integritaet.ts";
 
 /*
  * Einstellungen und Stammdaten als eine JSON-Datei für eine neue Instanz (#488): etwa nach dem Testen, um im neuen
  * Geschäftsjahr mit frischer Datenbank, aber ohne neue Einrichtung zu beginnen. Was mitgeht und was nicht, steht in
- * felder.ts. Dateien (Logo, Briefpapier, Standardanhänge) stehen als Base64 darin. Die Datei enthält persönliche
- * Angaben, Steuernummer und Bankverbindung, aber keine Geheimnisse.
+ * felder.ts. Dateien (Logo, Briefpapier, Standardanhänge) stehen als Base64 mit ihrem SHA-256 darin, die ganze Datei
+ * trägt eine Prüfsumme (integritaet.ts). Sie enthält persönliche Angaben, Steuernummer und Bankverbindung, aber keine
+ * Geheimnisse.
  */
 
 export const SETTINGS_EXPORT_FORMAT = "haben-einstellungen";
 export const SETTINGS_EXPORT_VERSION = 1;
-
-const base64 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
 
 export function settingsExportFilename(now = new Date()): string {
   return `Haben-Einstellungen-${today(now)}.json`;
@@ -48,7 +48,7 @@ export async function exportSettings(now = new Date()) {
         .orderBy(asc(schema.quoteDefaultAttachments.createdAt), asc(schema.quoteDefaultAttachments.id));
       const customPages = await tx.select(auswahl(f.customPages)).from(schema.customPages).orderBy(asc(schema.customPages.name));
       const [verfahrensdoku] = await tx.select(auswahl(f.procedureDetails)).from(schema.procedureDetails);
-      return {
+      return withChecksum({
         format: SETTINGS_EXPORT_FORMAT,
         version: SETTINGS_EXPORT_VERSION,
         exportedAt: now.toISOString(),
@@ -56,8 +56,8 @@ export async function exportSettings(now = new Date()) {
         company: firma ?? null,
         einrichtung: einrichtung ?? null,
         letterheadProfiles: profile,
-        logo: logo ? { format: logo.format, data: base64(logo.logo) } : null,
-        background: briefpapier ? { format: briefpapier.format, data: base64(briefpapier.background) } : null,
+        logo: logo ? { format: logo.format, ...embed(logo.logo) } : null,
+        background: briefpapier ? { format: briefpapier.format, ...embed(briefpapier.background) } : null,
         layouts,
         units,
         articles,
@@ -66,10 +66,10 @@ export async function exportSettings(now = new Date()) {
         textBlocks,
         ownAccounts,
         mail: mail ?? null,
-        quoteDefaultAttachments: await Promise.all(anhaenge.map(async ({ sha256, ...anhang }) => ({ ...anhang, data: base64(await loadFile(sha256)) }))),
+        quoteDefaultAttachments: await Promise.all(anhaenge.map(async ({ sha256, ...anhang }) => ({ ...anhang, ...embed(await loadFile(sha256)) }))),
         customPages,
         procedureDetails: verfahrensdoku ?? null,
-      };
+      });
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );

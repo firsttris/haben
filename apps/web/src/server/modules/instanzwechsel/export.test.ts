@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -7,15 +8,18 @@ const LAYOUT = "4f1e2d3c-6b5a-4978-8a1b-2c3d4e5f6a70";
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const JPG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 4, 5, 6]);
 const PDF = new TextEncoder().encode("%PDF-1.7\nAllgemeine Geschäftsbedingungen\n%%EOF\n");
+const eingebettet = (bytes: Uint8Array) => ({ sha256: createHash("sha256").update(bytes).digest("hex"), data: Buffer.from(bytes).toString("base64") });
 
 describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
   let instanzwechsel: typeof import("./index.ts");
+  let integritaet: typeof import("./integritaet.ts");
   let storage: typeof import("../../storage.ts");
   let sql: postgres.Sql;
 
   beforeAll(async () => {
     sql = await setupTestDb();
     instanzwechsel = await import("./index.ts");
+    integritaet = await import("./integritaet.ts");
     storage = await import("../../storage.ts");
   }, 30_000);
 
@@ -107,9 +111,9 @@ describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
     await testinstanz();
     const export_ = await datei();
 
-    expect(export_.logo).toEqual({ format: "png", data: Buffer.from(PNG).toString("base64") });
-    expect(export_.background).toEqual({ format: "jpg", data: Buffer.from(JPG).toString("base64") });
-    expect(export_.quoteDefaultAttachments).toEqual([{ filename: "AGB.pdf", mimeType: "application/pdf", data: Buffer.from(PDF).toString("base64") }]);
+    expect(export_.logo).toEqual({ format: "png", ...eingebettet(PNG) });
+    expect(export_.background).toEqual({ format: "jpg", ...eingebettet(JPG) });
+    expect(export_.quoteDefaultAttachments).toEqual([{ filename: "AGB.pdf", mimeType: "application/pdf", ...eingebettet(PDF) }]);
     expect(export_.layouts).toEqual([
       {
         id: LAYOUT,
@@ -142,6 +146,16 @@ describe.skipIf(!testDatabaseUrl)("Export der Einstellungen (Postgres)", () => {
       "hash-des-kalender-abos",
     ])
       expect(text).not.toContain(zugang);
+  });
+
+  it("trägt eine Prüfsumme, die eine geänderte Datei erkennt", async () => {
+    await testinstanz();
+    const export_ = await datei();
+
+    expect(export_.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(integritaet.checksumProblem(export_)).toBeNull();
+    export_.contacts[0].iban = "DE89370400440532013000";
+    expect(integritaet.checksumProblem(export_)).toMatch(/Prüfsumme stimmt nicht/);
   });
 
   it("liefert eine leere Instanz ohne Fehler", async () => {
