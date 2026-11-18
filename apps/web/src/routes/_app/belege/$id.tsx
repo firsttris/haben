@@ -40,7 +40,7 @@ import { fehlerFelder, formatDate, formatDateTime, parseUsefulLifeMonths } from 
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { aendereBetragszeile, betragszeileAus, betragszeileGespeichert, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
-import { PRIVATANTEIL_FEHLER, parsePrivatanteil } from "../../../lib/anteil.ts";
+import { PRIVATANTEIL_FEHLER, parsePrivatanteil, privatanteilVorgabe } from "../../../lib/anteil.ts";
 import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
@@ -728,8 +728,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                           onClick={() => {
                             const hint = data.categoryHint!.category;
                             touch(setCategory)(hint);
-                            const preset = data.privateShares[hint];
-                            setPrivateShare(preset ? String(preset) : "");
+                            setPrivateShare(privatanteilVorgabe(data.privateShares, hint));
                           }}
                         >
                           übernehmen
@@ -752,8 +751,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                     touch(setCategory)(next);
                     setOwnAccountId(passendesKonto(ownAccounts, next, ownAccountId));
                     // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
-                    const preset = data.privateShares[next];
-                    setPrivateShare(preset ? String(preset) : "");
+                    setPrivateShare(privatanteilVorgabe(data.privateShares, next));
                   }}
                 />
               )}

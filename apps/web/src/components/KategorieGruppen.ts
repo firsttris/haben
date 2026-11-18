@@ -20,6 +20,9 @@ export const KATEGORIE_GRUPPEN: { label: string; kategorien: readonly ExpenseCat
   { label: "Anlagegut und Zoll", kategorien: ["anlage", "einfuhrumsatzsteuer"] },
 ];
 
+/** Gruppe je Kategorie (#1253); was in keiner Gruppe steht, kommt unter „Weitere“ ans Ende, nichts fällt weg */
+export const gruppeVon = (value: string): string => KATEGORIE_GRUPPEN.find((g) => (g.kategorien as readonly string[]).includes(value))?.label ?? "Weitere";
+
 /** Platz einer Kategorie in der Auswahl: erst die Gruppen, innerhalb einer Gruppe in ihrer Reihenfolge; Unbekanntes ans Ende */
 export const kategorieRang = (value: string): number => {
   const rang = KATEGORIE_GRUPPEN.flatMap((g) => g.kategorien as readonly string[]).indexOf(value);

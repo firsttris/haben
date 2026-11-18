@@ -132,6 +132,22 @@ test("Beleg prüfen: Kategorie per Suche wählen, auch ohne Umlaute, mit Tastatu
   await expect(trefferliste(page).getByRole("option")).toHaveText([/^Bürobedarf\s*Büro und IT$/]);
   await kategorie.press("Enter");
   await expect(kategorie).toHaveValue("Bürobedarf");
+  // Pfeiltasten bewegen durch die Treffer, Enter übernimmt den markierten (der erste ist vorgewählt)
+  await kategorie.fill("kfz");
+  await kategorie.press("ArrowDown");
+  await kategorie.press("Enter");
+  await expect(kategorie).toHaveValue(kategorieName("kfzReparatur"));
+  // Escape schließt die Liste; wer dann weitergeht, behält die bisherige Kategorie
+  await kategorie.fill("hosting");
+  await expect(trefferliste(page)).toBeVisible();
+  await kategorie.press("Escape");
+  await expect(trefferliste(page)).toBeHidden();
+  await page.keyboard.press("Tab");
+  await expect(kategorie).toHaveValue(kategorieName("kfzReparatur"));
+  // Tab übernimmt den ersten Treffer, wie bei Kontakt und Artikel
+  await kategorie.fill("telefon");
+  await kategorie.press("Tab");
+  await expect(kategorie).toHaveValue(kategorieName("telefon"));
   // Mehrere Wörter in beliebiger Reihenfolge, gewählt per Klick
   await kategorie.fill("leasing kfz");
   await trefferliste(page).getByRole("option", { name: "Kfz: Leasing" }).click();
@@ -149,6 +165,45 @@ test("Beleg prüfen: Kategorie per Suche wählen, auch ohne Umlaute, mit Tastatu
   await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
   await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg prüfen: Die Wahl per Suche übernimmt die Privatanteil-Vorgabe der Kategorie", async ({ browser }) => {
+  const vorgabe = async (anteil: string) => {
+    await go("/einstellungen");
+    const firma = page.getByRole("form", { name: "Firmendaten" });
+    await firma.getByLabel("Privatanteil Telefon in %").fill(anteil);
+    await firma.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+  };
+  await vorgabe("20");
+  try {
+    await go("/belege");
+    await page
+      .locator("input[type=file][multiple]")
+      .setInputFiles([{ name: "privatanteil.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+    await expect(page.getByText("privatanteil.jpg: abgelegt.")).toBeVisible();
+    await page
+      .getByRole("link", { name: /privatanteil\.jpg/ })
+      .first()
+      .click();
+    await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    const kategorie = page.getByLabel("Kategorie");
+    const privat = page.getByLabel("Privatanteil in %", { exact: true });
+    // Telefon hat eine Vorgabe, Bürobedarf keine: die Wahl setzt oder leert den Anteil
+    await waehleKategorie(kategorie, "telefon");
+    await expect(privat).toHaveValue("20");
+    await waehleKategorie(kategorie, "buero");
+    await expect(privat).toHaveValue("");
+    // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+    await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+    await bestaetigen(page, "Beleg löschen");
+    await page.waitForURL(/\/belege$/);
+  } finally {
+    // Die folgenden Tests rechnen ohne Vorgabe
+    await vorgabe("");
+  }
 });
 
 test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {

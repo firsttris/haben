@@ -2,15 +2,12 @@ import { useState } from "react";
 import { searchOptions } from "../lib/combobox.ts";
 import { Combobox } from "./Combobox.tsx";
 import type { FieldControlProps } from "./Field.tsx";
-import { KATEGORIE_GRUPPEN, kategorieRang } from "./KategorieGruppen.ts";
+import { gruppeVon, kategorieRang } from "./KategorieGruppen.ts";
 
 export interface CategoryChoice {
   value: string;
   label: string;
 }
-
-/** Gruppe je Kategorie (#1253); was in keiner Gruppe steht, kommt unter „Weitere“ ans Ende, nichts fällt weg */
-const gruppeVon = (value: string) => KATEGORIE_GRUPPEN.find((g) => g.kategorien.includes(value as never))?.label ?? "Weitere";
 
 /**
  * Kategorie suchen und wählen, statt in einer langen Liste zu blättern. Wer die Eingabe stehen lässt, ohne zu wählen,
