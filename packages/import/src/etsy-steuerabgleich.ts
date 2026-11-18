@@ -22,7 +22,8 @@ export interface SteuerZeile<E> {
 
 /**
  * `drin`: Steuerzeilen, die schon im Konto stehen. Je übernommenem Partner zuerst eine Zeile mit genau der damals
- * verrechneten Steuer, sonst alle offenen Zeilen derselben Bestellung und Art, wenn ihre Summe genau passt.
+ * verrechneten Steuer, sonst alle offenen Steuerzeilen derselben Bestellung und desselben Tages für einen Verkauf bzw.
+ * eine Erstattung zusammen, wenn ihre Summe genau passt.
  *
  * `verrechenbar`: Steuerzeilen mit genau einem möglichen Partner, und der ist neu. Ein übernommener Partner, mit dem noch
  * keine Steuer verrechnet ist, zählt mit: Bei zwei Erstattungen derselben Bestellung am selben Tag bleibt die Steuer so

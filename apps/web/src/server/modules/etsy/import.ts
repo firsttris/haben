@@ -88,8 +88,8 @@ export function etsyStatement(entries: EtsyLedgerEntry[], options: EtsyImportOpt
 /**
  * Verlaufszeilen dieses Abrufs, die ein früherer Abruf schon übernommen hat (`import_movements` der Quelle), mit der
  * Bestellnummer aus dem Zweck ihres Umsatzes und der damals verrechneten Steuer (Umsatz minus Zeile). Die verrechnete
- * Steuerzeile selbst steht nicht in `import_movements`: Gespeichert wird je Umsatz genau eine Bewegung, und ihr Umsatz
- * ist der Verkauf.
+ * Steuerzeile selbst steht nicht in `import_movements`: Gespeichert wird je Umsatz genau eine Bewegung, die
+ * des Verkaufs bzw. der Erstattung.
  */
 async function bekannteZeilen(shopId: string, entries: EtsyLedgerEntry[]): Promise<Map<string, { order?: string; verrechnet: number }>> {
   const ids = [...new Set(entries.flatMap((e) => (e.entry_id === undefined ? [] : [String(e.entry_id)])))];
