@@ -2,6 +2,7 @@ import { dunningPdfData, startvorlage, type DunningDocument } from "@haben/einvo
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const seen = vi.hoisted(() => ({ docs: [] as DunningDocument[] }));
 vi.mock("@haben/einvoice", async (importOriginal) => {
@@ -71,7 +72,7 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
       note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    invoiceId = (await invoices.finalizeInvoice(actor, draft.id)).id;
+    invoiceId = (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }, 30_000);
 
   it("unbekannte Rechnung: kein Vorschlag statt Fachfehler, damit die Mahnungsseite 404 zeigt", async () => {

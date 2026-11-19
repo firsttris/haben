@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 type Scenario = "skonto" | "aufteilung";
 type Profile = { kr: "SKR03" | "SKR04"; taxation: "ist" | "soll"; legalForm: "einzelunternehmen" | "gmbh" };
@@ -79,7 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Gemeinsamer Belegstorno entspricht der manuel
       note: "",
       lines: [{ description: "Testleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   async function transaction(scenario: Scenario) {

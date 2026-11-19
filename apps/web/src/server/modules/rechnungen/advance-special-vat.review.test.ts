@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** § 18b Satz 1 Nr. 2 und Satz 3 UStG: vollständiges Entgelt im Zeitraum der EU-Leistung erklären.
  * https://www.gesetze-im-internet.de/ustg_1980/__18b.html
@@ -70,6 +71,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
           lines: [{ description: "Anzahlung EU-Beratung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 0 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     expect(request.advanceAccounting).toBe("deferred");
     await bank.createCashInvoiceEntry(actor, { invoiceId: request.id, date: "2026-12-12", amount: skonto ? 29_400 : 30_000, skonto }, "2026-12-12");
@@ -101,6 +103,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
           lines: [{ description: "EU-Beratung vollständig erbracht", quantity: 1000, unit: "Psch.", unitPrice: total, taxRate: 0 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     expect(final).toMatchObject({ advanceAccounting: "deferred", gross: total - 30_000 });
     return final;
@@ -140,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
   it("Korrektur der EU-Schlussleistung mindert im Änderungsmonat, eine spätere Zahlung meldet nichts doppelt", async () => {
     const { final } = await chain("reverse_charge");
     const correction = await invoices.createCorrection(actor, final.id, "2027-02-12");
-    await invoices.finalizeInvoice(actor, correction.id);
+    await invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand);
     await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2027-03-12", amount: 70_000 }, "2027-03-12");
     const periods = await Promise.all([1, 2, 3].map((month) => vat.computeVatFigures({ year: 2027, month })));
     expect(periods.map((period) => ({ journal: period.kz21 }))).toEqual([{ journal: 100_000 }, { journal: -70_000 }, { journal: 0 }]);

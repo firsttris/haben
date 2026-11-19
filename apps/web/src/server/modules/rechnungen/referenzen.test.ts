@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** Text eines PDFs mit pdftotext (poppler-utils), Leerraum zusammengefasst; ohne das Werkzeug null */
 function pdfText(pdf: Uint8Array): string | null {
@@ -101,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)("Referenzen an Rechnung und Angebot (Postgres)
   it("speichert die Referenzen am Entwurf, getrimmt, und schreibt sie beim Festschreiben in XML und PDF", async () => {
     const created = await invoices.createDraft(actor, invoiceDraft({ ...REFS, buyerOrderReference: "  4500012345 " }));
     expect(created).toMatchObject(REFS);
-    const final = await invoices.finalizeInvoice(actor, created.id);
+    const final = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(final.xml).toMatch(/<cac:OrderReference>\s*<cbc:ID>4500012345<\/cbc:ID>\s*<cbc:SalesOrderID>AU-2026-17<\/cbc:SalesOrderID>/);
     expect(final.xml).toMatch(/<cac:DespatchDocumentReference>\s*<cbc:ID>LS-0815<\/cbc:ID>/);
     const text = pdfText(final.pdf!);
@@ -113,18 +114,18 @@ describe.skipIf(!testDatabaseUrl)("Referenzen an Rechnung und Angebot (Postgres)
   });
 
   it("lässt ohne Referenzen alles wie bisher", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
     expect(final).toMatchObject({ buyerOrderReference: "", sellerOrderReference: "", despatchAdviceReference: "" });
     expect(final.xml).not.toMatch(/OrderReference|DespatchDocumentReference/);
   });
 
   it("sperrt die Referenzen einer festgeschriebenen Rechnung", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft(REFS))).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft(REFS))).id, kleinunternehmerStand);
     await expect(sql`update invoices set buyer_order_reference = 'anders' where id = ${final.id}`).rejects.toThrow();
   });
 
   it("übernimmt die Referenzen in Storno und Rechnungskorrektur", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft(REFS))).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft(REFS))).id, kleinunternehmerStand);
     const correction = await invoices.createCorrection(actor, final.id, "2026-10-05");
     expect(correction).toMatchObject(REFS);
     await invoices.deleteDraft(actor, correction.id);
@@ -175,7 +176,7 @@ describe.skipIf(!testDatabaseUrl)("Referenzen an Rechnung und Angebot (Postgres)
     await quotes.setQuoteDecision(actor, quote.id, "angenommen");
     const confirmation = pdfText((await orderDocuments.confirmationPdf(quote.id)).pdf);
     const note = pdfText((await orderDocuments.deliveryNotePdf("angebot", quote.id)).pdf);
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft(REFS))).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft(REFS))).id, kleinunternehmerStand);
     const invoiceNote = pdfText((await orderDocuments.deliveryNotePdf("rechnung", final.id)).pdf);
     if (confirmation === null || note === null || invoiceNote === null) return;
     expectMeta(confirmation, "Ihre Bestellung", "4500012345");

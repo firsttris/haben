@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** #622: Die Anforderung einer Anzahlung ist bei Soll noch kein ausgeführter Umsatz (§ 13 Abs. 1 Nr. 1 a UStG). */
 describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
@@ -64,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
       advanceType: "anzahlung" as const,
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: rate }],
     };
-    return invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    return invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id, kleinunternehmerStand);
   }
 
   async function tax(year: number, month: number, base: number, amount: number, rate: 1900 | 700 = 1900) {
@@ -136,7 +137,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
       deducts: [advanceId],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   it("die Schlussrechnung versteuert auch den unbezahlten Abschlag; seine spätere Zahlung entsteht nicht doppelt", async () => {
@@ -171,7 +172,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
       advanceType: "teilleistung" as const,
       lines: [{ description: "Abgenommene Teilleistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: 1900 as const }],
     };
-    await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id, kleinunternehmerStand);
     await tax(2026, 11, 30_000, 5_700);
     await tax(2026, 12, 0, 0);
   });
@@ -292,7 +293,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
       lines: [{ description: "Alter Entwurf", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
     await sql`update invoices set advance_type = null where id = ${draft.id}`;
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(invoice.advanceType).toBe("anzahlung");
     await tax(2026, 12, 0, 0);
     await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
@@ -314,9 +315,9 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
       lines: [{ description: "Teilleistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: 1900 as const }],
     };
     const draft = await invoices.createDraft(actor, input);
-    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/Leistungsdatum/);
+    await expect(invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).rejects.toThrow(/Leistungsdatum/);
     await invoices.updateDraft(actor, draft.id, { ...input, serviceFrom: "2027-01-05" });
-    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/noch nicht erbracht/);
+    await expect(invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).rejects.toThrow(/noch nicht erbracht/);
     expect((await invoices.getInvoice(draft.id))!.invoice.number).toBeNull();
   });
 

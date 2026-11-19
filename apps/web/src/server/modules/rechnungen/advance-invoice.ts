@@ -1,4 +1,4 @@
-import { advanceReportingPosting, invoicePosting, type InvoiceTotals, type Kontenrahmen } from "@haben/core";
+import { advanceReportingPosting, invoicePosting, isKapitalgesellschaft, type InvoiceTotals, type Kontenrahmen } from "@haben/core";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { invoicePostingMode, invoiceTaxReader, invoiceVatDate } from "./invoice-tax.ts";
@@ -40,6 +40,13 @@ export async function unbilledAdvanceRequest(invoice: Invoice, date: string, tx:
  */
 export async function advanceInvoicePosting(invoice: Invoice, totals: InvoiceTotals, frame: Kontenrahmen, tx: Tx) {
   const original = await invoiceTaxReader(tx).original(invoice);
+  if (original.variant === null) {
+    const [company] = await tx.select({ rechtsform: schema.company.rechtsform }).from(schema.company).where(eq(schema.company.id, 1));
+    // GmbH/UG: Der Plan ersetzt die gesamte Normalbuchung. EÜR: bestehende Netto-/Zahlungsanteile behalten,
+    // nur die Steuerfälligkeit übernimmt derselbe Plan (§ 11 EStG, § 13 UStG).
+    if (isKapitalgesellschaft(company!.rechtsform)) return [];
+    return [{ date: await invoiceVatDate(invoice, tx), lines: invoicePosting(totals, frame, "ist", invoice.taxTreatment) }];
+  }
   if (original.advanceType === "anzahlung" || invoice.replacesInvoiceId || (invoice.kind === "storno" && original.variant === "schluss")) return [];
   const lines = invoicePosting(totals, frame, await invoicePostingMode(invoice, tx), invoice.taxTreatment);
   if (!lines.length) return [];

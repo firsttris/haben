@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { UserError } from "../errors.ts";
 import { authMiddleware } from "../middleware.ts";
 import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts";
+import { kleinunternehmerStand } from "../modules/auswertungen/index.ts";
 import { adoptForeignInvoiceFile, foreignInvoiceProposal, type ForeignInvoiceInput, UmsatzgrenzeError } from "../modules/rechnungen/index.ts";
 
 /** Wie bei Belegen: höchstens 20 MB, ein Original je Rechnung */
@@ -47,11 +48,16 @@ export const adoptForeignInvoiceFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const bytes = new Uint8Array(await data.file.arrayBuffer());
     try {
-      const { id } = await adoptForeignInvoiceFile(context.user.id, data.parsed as ForeignInvoiceInput, {
-        bytes,
-        filename: data.file.name,
-        mimeType: data.file.type,
-      });
+      const { id } = await adoptForeignInvoiceFile(
+        context.user.id,
+        data.parsed as ForeignInvoiceInput,
+        {
+          bytes,
+          filename: data.file.name,
+          mimeType: data.file.type,
+        },
+        kleinunternehmerStand,
+      );
       return { status: "final" as const, id };
     } catch (error) {
       if (!(error instanceof UmsatzgrenzeError)) throw error;

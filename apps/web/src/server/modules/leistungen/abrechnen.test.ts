@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Abrechenbare Leistungen (#417), zweiter Teil: aus den offenen Einträgen eines Kunden und Zeitraums wird ein Rechnungsentwurf.
@@ -171,7 +172,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     it("sperrt den Eintrag: Dienst und Datenbank lehnen Ändern und Löschen ab", async () => {
       const id = await eintrag();
       const { invoiceId } = await abrechnen_();
-      const final = await invoices.finalizeInvoice(actor, invoiceId);
+      const final = await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand);
       expect(await entries.getServiceEntry(id)).toMatchObject({ invoiceId, invoiceNumber: final.number, invoiceStatus: "final" });
 
       await expect(entries.updateServiceEntry(actor, id, { contactId: kunde, workedOn: "2026-03-02", minutes: 30, description: "x" })).rejects.toThrow(
@@ -191,7 +192,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     it("nach dem Storno ist der Eintrag wieder offen, änderbar und lässt sich neu abrechnen", async () => {
       const id = await eintrag();
       const { invoiceId } = await abrechnen_();
-      await invoices.finalizeInvoice(actor, invoiceId);
+      await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand);
       await invoices.cancelInvoice(actor, invoiceId, heute);
 
       expect(await entries.getServiceEntry(id)).toMatchObject({ invoiceId: null, invoiceNumber: null, invoiceStatus: null });
@@ -206,7 +207,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     it("eine Korrektur gibt den Eintrag nicht frei", async () => {
       const id = await eintrag();
       const { invoiceId } = await abrechnen_();
-      await invoices.finalizeInvoice(actor, invoiceId);
+      await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand);
       await invoices.createCorrection(actor, invoiceId, heute);
       expect((await entries.getServiceEntry(id))!.invoiceId).toBe(invoiceId);
       await expect(abrechnen_()).rejects.toThrow(/keine offenen/);
@@ -252,12 +253,12 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
       const meldung =
         "Der Entwurf enthält Leistungen von Nordwerk Software GmbH; diesen Kunden wählen oder den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen";
       expect(await invoices.finalizeIssues(invoiceId)).toContain(meldung);
-      await expect(invoices.finalizeInvoice(actor, invoiceId)).rejects.toThrow(meldung);
+      await expect(invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand)).rejects.toThrow(meldung);
       expect((await sql`select status from invoices where id = ${invoiceId}`)[0]!.status).toBe("draft");
 
       // zurück zum Kunden der Leistungen geht, dann lässt sich festschreiben
       await invoices.updateDraft(actor, invoiceId, await entwurf(kunde));
-      expect((await invoices.finalizeInvoice(actor, invoiceId)).status).toBe("final");
+      expect((await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand)).status).toBe("final");
     });
   });
 

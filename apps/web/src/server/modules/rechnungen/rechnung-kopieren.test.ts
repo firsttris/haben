@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Rechnung kopieren: Aus einer festgeschriebenen Rechnung entsteht ein neuer Entwurf für die nächste ähnliche Rechnung. Die
@@ -88,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
   });
 
   const final = async (overrides: Record<string, unknown> = {}) =>
-    invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput(overrides))).id);
+    invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput(overrides))).id, kleinunternehmerStand);
 
   it("legt einen Entwurf mit Kunde, Positionen und Angaben an; Datum heute, ohne Nummer und Leistungszeitraum", async () => {
     const original = await final();
@@ -192,7 +193,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
 
   it("übernimmt den Bezug zum Angebot nicht: das Angebot bleibt mit dem Original abgerechnet", async () => {
     const quote = await finalQuote();
-    const original = await invoices.finalizeInvoice(actor, (await quotes.quoteToInvoice(actor, quote.id, "2026-10-01", null)).id);
+    const original = await invoices.finalizeInvoice(actor, (await quotes.quoteToInvoice(actor, quote.id, "2026-10-01", null)).id, kleinunternehmerStand);
     expect(original.quoteId).toBe(quote.id);
     const copy = await kopieren.copyInvoice(actor, original.id, heute);
     expect(copy).toMatchObject({ quoteId: null, variant: null, gross: original.gross });
@@ -213,6 +214,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
           }),
         )
       ).id,
+      kleinunternehmerStand,
     );
     await expect(kopieren.copyInvoice(actor, abschlag.id, heute)).rejects.toThrow(/Abschlags- und Schlussrechnungen/);
   });

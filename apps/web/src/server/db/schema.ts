@@ -1430,6 +1430,12 @@ export const invoices = pgTable(
     advanceAccounting: text("advance_accounting", { enum: ["deferred"] }),
     /** Ersatz einer stornierten Schlussrechnung; deren bereits realisierte Leistung bleibt bestehen (#750). */
     replacesInvoiceId: uuid("replaces_invoice_id"),
+    /**
+     * Storno und Korrektur: „rueckgewaehr“ heißt, bereits vereinnahmte Umsatzsteuer mindert sich erst mit der Rückzahlung
+     * an den Kunden (§ 17 UStG, UStAE 17.1 Abs. 2 Satz 3, BFH V R 34/09). Gesetzt beim Festschreiben (Trigger
+     * invoices_reduction_rule); leer heißt bisheriges Verfahren, das vor #853 festgeschriebene Korrekturen behalten.
+     */
+    reductionRule: text("reduction_rule", { enum: ["rueckgewaehr"] }),
     /** Angebot, aus dem bzw. zu dem die Rechnung entstanden ist; die Schlussrechnung zieht dessen Abschläge ab */
     quoteId: uuid("quote_id").references((): AnyPgColumn => quotes.id),
     /** Abschlagsrechnung zu einer Zeile des Zahlungsplans im Angebot (Index ab 0) */
@@ -1490,6 +1496,7 @@ export const invoices = pgTable(
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     check("invoices_advance_type", sql`${t.advanceType} is null or (${t.variant} = 'abschlag' and ${t.advanceType} in ('anzahlung', 'teilleistung'))`),
     check("invoices_advance_accounting", sql`${t.advanceAccounting} is null or ${t.advanceAccounting} = 'deferred'`),
+    check("invoices_reduction_rule", sql`${t.reductionRule} is null or (${t.reductionRule} = 'rueckgewaehr' and ${t.kind} <> 'rechnung')`),
     check(
       "invoices_replaces_schluss",
       sql`${t.replacesInvoiceId} is null or (${t.replacesInvoiceId} <> ${t.id} and ${t.kind} = 'rechnung' and ${t.variant} is not distinct from 'schluss' and ${t.advanceAccounting} is not distinct from 'deferred' and ${t.correctsId} is null)`,
