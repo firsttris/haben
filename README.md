@@ -33,7 +33,6 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server; Daten gehen nur an Di
 [Schnellstart](#schnellstart) •
 [FAQ](#faq) •
 [Dokumentation](https://haben.app/) •
-[Support und Partnerschaft](#support-und-partnerschaft) •
 [Entwicklung](#entwicklung)
 
 <sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
@@ -154,12 +153,14 @@ Podman Quadlets stehen in [Installation](https://haben.app/installation.html), E
 > sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar,
 > ohne das Passwort lässt sich das Backup nicht öffnen.
 
+Keinen eigenen Server oder keine eigene IT? Haben gibt es gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](https://speicherstadt.app/partner/).
+
 ## FAQ
 
 <details>
 <summary><b>Was kostet Haben?</b></summary>
 
-Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS ab rund 5 € im Monat. Einrichtung, Umzug, Support und Betrieb gibt es auf Wunsch von den Entwicklern, siehe [Support und Partnerschaft](#support-und-partnerschaft).
+Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS ab rund 5 € im Monat.
 </details>
 
 <details>
@@ -323,18 +324,6 @@ Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.h
 
 Weitere Open-Source-Apps für deinen eigenen Server, etwa für Mail, Office-Dokumente, ein Dokumentenarchiv und mehr: **[speicherstadt.app](https://speicherstadt.app)**
 
-## Support und Partnerschaft
-
-Haben ist kostenlos (AGPL). Wer es nicht selbst einrichten oder betreiben will, bekommt Hilfe von den
-Entwicklern:
-
-- **Einrichtung und Umzug** auf deinem Server, auch aus Lexware Office, sevDesk, FastBill, BuchhaltungsButler oder Accountable
-- **Support** bei Updates, Backups und Fragen im Betrieb
-- **Betrieb** von Haben als gehosteter Dienst, ohne eigenen Server
-- **Partnerschaft für IT-Dienstleister und Steuerberatungen**, die Haben bei ihren Kunden einrichten: direkter Draht zur Entwicklung
-
-Mehr auf [speicherstadt.app](https://speicherstadt.app/#support), Anfragen an [info@teufel-it.de](mailto:info@teufel-it.de).
-
 ## Mitwirken
 
 Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und kommentiert im Issue `/übernehmen`. Wie es dann bis zum Merge weitergeht, zeigt [Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
@@ -359,6 +348,7 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
 Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation.<br>
+Für IT-Dienstleister, Hoster und Steuerberatungen: <a href="https://speicherstadt.app/partner/">Partnerprogramm</a>.<br>
 Haben ist keine Steuerberatung. Konten, Kategorien und Aufbewahrung vor dem Echtbetrieb mit deiner Steuerberatung abgleichen.<br>
 ELSTER ist eine Marke der Finanzverwaltung; Lexware Office (lexoffice), sevDesk, FastBill, BuchhaltungsButler, Accountable und DATEV sind Marken ihrer Inhaber. Haben steht weder mit der Finanzverwaltung noch mit diesen Unternehmen in Verbindung.</sub>
 

@@ -7,7 +7,7 @@ description: >-
 
 # Installation
 
-Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md). Keine Zeit für Einrichtung und Betrieb? Die Entwickler richten Haben ein oder betreiben es für dich, siehe [Support und Partnerschaft](support.md).
+Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md). Keinen eigenen Server oder keine eigene IT? Haben gibt es gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](support.md).
 
 ## Überblick
 

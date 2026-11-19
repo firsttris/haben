@@ -1,31 +1,26 @@
 ---
-title: "Support und Partnerschaft"
+title: "Gehostet oder mit Partner"
 description: >-
-  Hilfe von den Entwicklern von Haben: Einrichtung und Umzug, Support im Betrieb, Haben als gehosteter
-  Dienst und Partnerschaft für IT-Dienstleister und Steuerberatungen.
+  Haben ohne eigenen Server oder eigene IT: als gehosteter Dienst oder eingerichtet und betreut von IT-Dienstleistern,
+  Hostern und Steuerberatungen aus dem Partnerprogramm.
 ---
 
-# Support und Partnerschaft
+# Gehostet oder mit Partner
 
-Haben ist kostenlos (AGPL). Wer es nicht selbst einrichten oder betreiben will, bekommt Hilfe von den Entwicklern.
+Diese Doku beschreibt, wie du Haben selbst betreibst. Wer das nicht will, hat zwei Wege.
 
-## Einrichtung und Umzug
+## Gehostet
 
-Die Entwickler richten Haben auf deinem Server ein. Kommst du aus Lexware Office, sevDesk, FastBill,
-BuchhaltungsButler oder Accountable, ziehen sie deine Daten mit um.
+Haben gibt es auf Anfrage als gehosteten Dienst, ohne eigenen Server.
 
-## Support
+## Mit Partner
 
-Hilfe bei Updates, Backups und Fragen im Betrieb.
+IT-Dienstleister, Hoster und Steuerberatungen aus dem [Partnerprogramm](https://speicherstadt.app/partner/) richten
+Haben für ihre Kunden ein und betreuen es.
 
-## Betrieb
+## Fragen zur Nutzung
 
-Haben als gehosteter Dienst, ohne eigenen Server.
-
-## Partnerschaft für IT-Dienstleister und Steuerberatungen
-
-Wer Haben bei seinen Kunden einrichtet, bekommt einen direkten Draht zur Entwicklung.
-
-## Kontakt
-
-Mehr auf [speicherstadt.app](https://speicherstadt.app/#support), Anfragen an [info@teufel-it.de](mailto:info@teufel-it.de).
+Fragen zu Haben gehören in die öffentlichen Kanäle: [Discussions](https://github.com/firsttris/haben/discussions),
+[Discord](https://discord.gg/CT2GQytSYH) oder, bei Fehlern, die [Issues](https://github.com/firsttris/haben/issues).
+Kostenlose Einzelhilfe gibt es nicht; die Einrichtung für eine einzelne Firma übernimmt ein Partner oder, als bezahltes
+Projekt, die Entwicklung (siehe [Partnerprogramm](https://speicherstadt.app/partner/)).
