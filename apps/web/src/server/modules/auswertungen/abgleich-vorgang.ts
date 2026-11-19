@@ -29,8 +29,8 @@ import { zahlungenWieHeute } from "../umsatzsteuer/index.ts";
  *   Bareinnahmen) ist auf den Cent null. So fällt auch ein systematischer Rest auf, den die Verprobung je Buchung mit ihrer
  *   Toleranz nicht sieht. Ist sie ganz bezahlt (ohne Ausbuchung), melden ihre Buchungen bei Ist zusammen genau die
  *   Bemessungsgrundlagen, die die Rechnung bei Soll meldet (Kz 81, 86, 43, 48, 0 %). Zahlungen von vor #552 zählen dabei
- *   wie heute gebucht (zahlungenWieHeute, #1502); das findet ältere Zahlungen ohne Bemessungsgrundlage, die sich so nicht
- *   lesen lassen, auch auf steuerfreie Rechnungen, an denen die Verprobung mangels Steuer nichts sieht.
+ *   wie heute gebucht (zahlungenWieHeute, #1502); jede andere Zahlung ohne Bemessungsgrundlage fällt so auf, auch auf
+ *   einer steuerfreien Rechnung, an der die Verprobung mangels Steuer nichts sieht.
  *
  * Nicht verglichen: aus Lexoffice übernommene Belege und Rechnungen (gebucht gegen den Saldenvortrag), Zuordnungen auf
  * privaten Konten (sie buchen auf Privatkonten), Kassenzeilen aus dem Datenimport (sie hängen an einer Originalbuchung)

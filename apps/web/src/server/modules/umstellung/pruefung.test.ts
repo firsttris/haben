@@ -496,4 +496,63 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
     await leeren(sql)`truncate journal_umstellung`;
     expect(await umstellung.umstellungPruefen(today)).toEqual({ status: "fertig", stand: null });
   }, 60_000);
+  describe("Review #1502: Teilzahlung, Storno nach dem Update, Bareinnahme, Kontenrahmenwechsel", () => {
+    const summeKz81 = async (monate: [number, number][]) => {
+      let s = 0;
+      for (const [year, month] of monate) s += (await vat.computedValues({ year, month })).kz81;
+      return s;
+    };
+    for (const kr of ["SKR03", "SKR04"] as const) {
+      it(`ältere Teilzahlungen ohne Bemessungsgrundlage: wie heute gelesen, kein Befund (${kr}, ist)`, async () => {
+        await reset(kr, "ist");
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "50,00");
+        await pay(inv.id, "20.05.2026", "69,00");
+        const vorher = [await vat.computedValues({ year: 2026, month: 4 }), await vat.computedValues({ year: 2026, month: 5 })];
+        await alteBuchung(kr, "ist");
+        expect([await vat.computedValues({ year: 2026, month: 4 }), await vat.computedValues({ year: 2026, month: 5 })]).toEqual(vorher);
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+      }, 60_000);
+
+      it(`ältere Zuordnung nach dem Update aufgehoben: Storno wie heute gelesen, kein Befund (${kr}, ist)`, async () => {
+        await reset(kr, "ist");
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "119,00");
+        await alteBuchung(kr, "ist");
+        const [a] = await sql`select id from allocations where invoice_id = ${inv.id}`;
+        await bank.reverseAllocation(actor, a!.id, "2026-05-05");
+        const april = (await vat.computedValues({ year: 2026, month: 4 })).kz81;
+        expect(april).not.toBe(0);
+        expect((await vat.computedValues({ year: 2026, month: 5 })).kz81).toBe(-april);
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+      }, 60_000);
+
+      it(`ältere Bareinnahme nach dem Update storniert: kein Befund, Kz 81 zurück (${kr}, ist)`, async () => {
+        await reset(kr, "ist");
+        await leeren(sql)`truncate cash_entries cascade`;
+        const inv = await invoice("2026-03-10");
+        const bar = await bank.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: "2026-04-20", amount: 119_00 }, today);
+        await alteBuchung(kr, "ist");
+        await bank.reverseCashEntry(actor, bar.id, "2026-05-05");
+        const april = (await vat.computedValues({ year: 2026, month: 4 })).kz81;
+        expect(april).not.toBe(0);
+        expect((await vat.computedValues({ year: 2026, month: 5 })).kz81).toBe(-april);
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+      }, 60_000);
+    }
+
+    it("ältere Zuordnung in SKR03, nach Wechsel auf SKR04 aufgehoben: Storno wie heute gelesen, kein Befund (ist)", async () => {
+      await reset("SKR03", "ist");
+      const inv = await invoice("2025-11-10");
+      await pay(inv.id, "20.11.2025", "119,00");
+      await alteBuchung("SKR03", "ist");
+      await sql`update company set kontenrahmen = 'SKR04'`;
+      const [a] = await sql`select id from allocations where invoice_id = ${inv.id}`;
+      await bank.reverseAllocation(actor, a!.id, "2026-02-02");
+      const nov = await summeKz81([[2025, 11]]);
+      expect(nov).not.toBe(0);
+      expect(await summeKz81([[2026, 2]])).toBe(-nov);
+      expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+    }, 60_000);
+  });
 });
