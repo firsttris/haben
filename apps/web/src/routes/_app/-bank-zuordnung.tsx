@@ -20,12 +20,7 @@ import { BuchungsartWahl, KandidatWahl } from "./-bank-zuordnung-wahl.tsx";
 import { BesterTreffer, DirektVorschlagKarte, UmsatzKopf, ZuordnungenListe } from "./-bank-zuordnung-teile.tsx";
 import { type Gebuehr, type Optionen, useZuordnung, type Zuordnung } from "./-bank-zuordnung-zustand.ts";
 
-export function AllocationPanel({
-  detail,
-  nextOpenId,
-  gebuehr,
-  ...optionen
-}: Optionen & { detail: Detail; nextOpenId: string | undefined; gebuehr: Gebuehr }) {
+export function AllocationPanel({ detail, nextOpenId, gebuehr, ...optionen }: Optionen & { detail: Detail; nextOpenId: string | undefined; gebuehr: Gebuehr }) {
   const z = useZuordnung(detail, optionen, nextOpenId, gebuehr);
   const { tx, busy, notice, run, aufrufe } = z;
   // Auf einem privaten Konto ohne Buchungsart bleibt nur die Kennzeichnung: „Zuordnen", „Direkt buchen" und „Aufteilen"
