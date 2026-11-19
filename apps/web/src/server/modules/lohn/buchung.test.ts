@@ -79,7 +79,7 @@ function dkbCsv(rows: [date: string, to: string, purpose: string, amount: string
 
 describe.skipIf(!testDatabaseUrl)("Lohnbuchung (Postgres)", () => {
   let lohn: typeof import("./index.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let manual: typeof import("../buchhaltung/manual.ts");
   let annual: typeof import("../jahreserklaerung/annual.ts");
@@ -90,7 +90,7 @@ describe.skipIf(!testDatabaseUrl)("Lohnbuchung (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     lohn = await import("./index.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("../auswertungen/reports.ts");
     manual = await import("../buchhaltung/manual.ts");
     annual = await import("../jahreserklaerung/annual.ts");

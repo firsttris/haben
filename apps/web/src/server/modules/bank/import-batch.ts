@@ -18,7 +18,7 @@ import {
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
 import { connectedRanges, cutoverFor, otherRanges } from "./andere-importe.ts";
-import { type ImportResult, insertStatement, prepareStatement, statementResult } from "./bank.ts";
+import { type ImportResult, insertStatement, prepareStatement, statementResult } from "./statement-import.ts";
 import { BankError } from "./bank-error.ts";
 import { recordDuplicateCandidates } from "./duplicate-scan.ts";
 import { type Linked, planRows } from "./import-batch-plan.ts";

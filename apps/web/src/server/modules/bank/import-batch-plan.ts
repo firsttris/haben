@@ -2,7 +2,7 @@ import { type ImportMovement, type ParsedTransaction, transactionHash } from "@h
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { otherImports } from "./andere-importe.ts";
-import { knownHashes } from "./bank.ts";
+import { knownHashes } from "./statement-import.ts";
 
 type Row = ParsedTransaction & { dedupHash: string };
 

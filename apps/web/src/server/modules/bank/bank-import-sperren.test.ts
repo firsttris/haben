@@ -16,14 +16,14 @@ const umsatz = (purpose: string, booking_date: string, credit_debit_indicator: "
 describe.skipIf(!testDatabaseUrl)("Sperrreihenfolge beim Bankimport (Postgres)", () => {
   let sql: postgres.Sql;
   let datenbank: typeof import("../../db/index.ts");
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let vertrag: typeof import("./import-batch.ts");
   let neutralisierung: typeof import("./neutralisierung.ts");
 
   beforeAll(async () => {
     sql = await setupTestDb();
     datenbank = await import("../../db/index.ts");
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     vertrag = await import("./import-batch.ts");
     neutralisierung = await import("./neutralisierung.ts");
   }, 60_000);

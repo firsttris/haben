@@ -9,7 +9,7 @@ it.skipIf(!testDatabaseUrl)(
   async () => {
     const sql = await setupTestDb();
     try {
-      const invoices = await import("./invoices.ts");
+      const invoices = await import("./index.ts");
       const { saveNumberFormats } = await import("./number-formats.ts");
       const { createContact } = await import("../stammdaten/contacts.ts");
       await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank)

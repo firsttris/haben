@@ -25,7 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let cash: typeof import("../bank/cash.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -38,7 +38,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     vat = await import("../umsatzsteuer/vat-figures.ts");
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     cash = await import("../bank/cash.ts");
   }, 30_000);
 

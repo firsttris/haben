@@ -134,7 +134,8 @@ describe.skipIf(!testDatabaseUrl)("Sammelknopf mit Gutschriften (Postgres)", () 
   async function gleichzeitig(einzeln: { transactionId: string; amount: number }, documentId: string) {
     const transactionId = einzeln.transactionId;
     const { withActor } = await import("../../db/actor.ts");
-    const { lockTransaction, allocateIn } = await import("./bank.ts");
+    const { lockTransaction } = await import("./payment-booking.ts");
+    const { allocateIn } = await import("./allocation.ts");
     const { sql: query } = await import("drizzle-orm");
     let locked!: () => void;
     const ready = new Promise<void>((resolve) => {

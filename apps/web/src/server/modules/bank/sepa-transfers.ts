@@ -20,7 +20,8 @@ import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { db, schema } from "../../db/index.ts";
 import { today } from "../../today.ts";
 import { loadCompany } from "../stammdaten/index.ts";
-import { BankError, documentPayments } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
+import { documentPayments } from "./settled-amounts.ts";
 import { documentPayees, ibanDecisions, type DocumentPayee } from "./document-payees.ts";
 
 /** Ein offener Beleg, der sich überweisen lässt, oder warum nicht */
@@ -100,7 +101,7 @@ export async function transferCandidates(): Promise<TransferCandidate[]> {
       const open = -documentOpen(doc.gross, paidSoFar);
       const payee = payees.get(doc.id);
       const account = payeeAccount(payee, decisions.get(doc.id) ?? []);
-      // Erhaltenes Skonto bucht Haben nur ohne § 13b, Privatanteil und Anlagegut (bank.ts, writeOff); angeboten nur auf einen noch ganz offenen Beleg
+      // Erhaltenes Skonto bucht Haben nur ohne § 13b, Privatanteil und Anlagegut (write-offs.ts, writeOff); angeboten nur auf einen noch ganz offenen Beleg
       const skontoAllowed = paidSoFar === 0 && doc.reverseCharge === null && doc.privateShare === 0 && doc.category !== "anlage" && doc.documentDate !== null;
       return {
         documentId: doc.id,

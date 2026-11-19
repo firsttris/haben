@@ -2,7 +2,7 @@ import { evatrMeldung } from "@haben/core";
 import { and, asc, eq, gte, lt } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { csv, iso, json } from "./csv.ts";
-import type { ArchiveFile } from "./export.ts";
+import type { ArchiveFile } from "./export-zip.ts";
 import { berlinStart } from "./jahr.ts";
 
 /*

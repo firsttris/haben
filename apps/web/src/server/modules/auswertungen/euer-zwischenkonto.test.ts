@@ -12,7 +12,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("EÜR: Zwischenkonto der Gutschrift „erstattet bereits Bezahltes“ (Postgres, #786)", () => {
   let euerJournal: typeof import("./euer-journal.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let documents: typeof import("../belege/documents.ts");
   let core: typeof import("@haben/core");
   let sql: postgres.Sql;
@@ -23,7 +23,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR: Zwischenkonto der Gutschrift „erstatt
   beforeAll(async () => {
     sql = await setupTestDb();
     euerJournal = await import("./euer-journal.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     documents = await import("../belege/documents.ts");
     core = await import("@haben/core");
   }, 60_000);

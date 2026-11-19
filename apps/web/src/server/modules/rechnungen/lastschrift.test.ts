@@ -5,7 +5,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorlage (Postgres, #445)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let recurring: typeof import("./recurring.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let mandates: typeof import("../stammdaten/sepa-mandate.ts");
@@ -30,7 +30,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     recurring = await import("./recurring.ts");
     contacts = await import("../stammdaten/contacts.ts");
     mandates = await import("../stammdaten/sepa-mandate.ts");

@@ -6,7 +6,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Nachprüfung #1089 (Kennzeichnung „privat, kein Betriebsvorgang", #1088): Randfälle nach dem Kennzeichnen.
  */
 describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsart (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let search: typeof import("./search.ts");
   let privat: typeof import("./privat.ts");
   let auswahl: typeof import("./umsatzauswahl.ts");
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     search = await import("./search.ts");
     privat = await import("./privat.ts");
     auswahl = await import("./umsatzauswahl.ts");

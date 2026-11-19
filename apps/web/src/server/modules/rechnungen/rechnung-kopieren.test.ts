@@ -11,7 +11,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let kopieren: typeof import("./rechnung-kopieren.ts");
   let persons: typeof import("../stammdaten/contact-persons.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
@@ -23,7 +23,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     kopieren = await import("./rechnung-kopieren.ts");
     persons = await import("../stammdaten/contact-persons.ts");
     contacts = await import("../stammdaten/contacts.ts");
@@ -118,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
       correctsId: null,
     });
     expect(copy.id).not.toBe(original.id);
-    const pick = (lines: import("./invoices.ts").InvoiceLine[]) =>
+    const pick = (lines: import("./index.ts").InvoiceLine[]) =>
       lines.map(({ position, description, detail, itemNumber, quantity, unit, unitPrice, taxRate, net, discountPercent, discountAmount }) => ({
         position,
         description,

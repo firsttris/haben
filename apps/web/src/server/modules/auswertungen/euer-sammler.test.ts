@@ -31,9 +31,9 @@ const umsatz = (date: string, purpose: string, amount: string) => [
 
 describe.skipIf(!testDatabaseUrl)("Sammler der BWA in euerAusJournal (Postgres, #1380)", () => {
   let sql: postgres.Sql;
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let cashInvoice: typeof import("../bank/cash-invoice.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let euerJournal: typeof import("./euer-journal.ts");
@@ -43,9 +43,9 @@ describe.skipIf(!testDatabaseUrl)("Sammler der BWA in euerAusJournal (Postgres, 
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     cashInvoice = await import("../bank/cash-invoice.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     euerJournal = await import("./euer-journal.ts");

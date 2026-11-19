@@ -9,20 +9,20 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
  * Die Rechnung behält ihren Betrag, ihr offener Rest sinkt auf 141,50 EUR, und die Korrektur gilt als erledigt.
  */
 describe.skipIf(!testDatabaseUrl)("Verrechnung von Ausgangsrechnung und Kundenkorrektur (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let verrechnung: typeof import("./verrechnung.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     verrechnung = await import("./verrechnung.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 60_000);
 
   afterAll(async () => {

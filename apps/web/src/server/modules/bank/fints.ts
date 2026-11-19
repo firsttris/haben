@@ -1,7 +1,8 @@
 import { type FintsClient, type FintsZugang, fintsClient, fintsKonten, fintsSynchronisieren, fintsTanVerfahren } from "@haben/import";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { accountForIban, BankError } from "./bank.ts";
+import { accountForIban } from "./accounts.ts";
+import { BankError } from "./bank-error.ts";
 import { accountFetchFrom, zustimmungenBeenden } from "./bank-sync.ts";
 import { kontenAbrufen } from "./fints-abruf.ts";
 import { fintsGeheimnisVerschluesseln } from "./fints-geheim.ts";

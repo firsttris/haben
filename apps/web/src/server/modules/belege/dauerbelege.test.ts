@@ -25,7 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerbelege (Postgres)", () => {
   let dauer: typeof import("./dauerbelege.ts");
   let lauf: typeof import("./dauerbelege-lauf.ts");
   let documents: typeof import("./documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -35,7 +35,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerbelege (Postgres)", () => {
     dauer = await import("./dauerbelege.ts");
     lauf = await import("./dauerbelege-lauf.ts");
     documents = await import("./documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     vat = await import("../umsatzsteuer/vat-figures.ts");
   }, 30_000);
 

@@ -25,7 +25,7 @@ function dkbCsv(date: string, amount: string) {
 describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug: Journal und Nebenbücher (Postgres, #433)", () => {
   let sql: postgres.Sql;
   let documents: typeof import("../belege/documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("./reports.ts");
   let quelle: typeof import("./euer-quelle.ts");
   let abgleich: typeof import("./abgleich.ts");
@@ -37,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug: Journal und Nebenbücher (Pos
     sql = await setupTestDb();
     db = (await import("../../db/index.ts")).db;
     documents = await import("../belege/documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("./reports.ts");
     quelle = await import("./euer-quelle.ts");
     abgleich = await import("./abgleich.ts");

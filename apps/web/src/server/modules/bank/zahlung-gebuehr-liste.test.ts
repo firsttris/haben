@@ -3,13 +3,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Zähler „Offen“ bei Zahlung und Gebühr eines Zahlungsdienstleisters (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
   }, 30_000);
 
   afterAll(async () => {

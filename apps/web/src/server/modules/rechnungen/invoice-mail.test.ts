@@ -9,7 +9,7 @@ type Sent = { to: string; bcc?: string; subject: string; text: string; html: str
 describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres)", () => {
   let invoiceMail: typeof import("./invoice-mail.ts");
   let mail: typeof import("../mail/mail.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let dunning: typeof import("./dunning.ts");
   let recurring: typeof import("./recurring.ts");
@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     sql = await setupTestDb();
     invoiceMail = await import("./invoice-mail.ts");
     mail = await import("../mail/mail.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     dunning = await import("./dunning.ts");
     recurring = await import("./recurring.ts");

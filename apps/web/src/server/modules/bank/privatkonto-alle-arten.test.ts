@@ -80,7 +80,7 @@ const ANGESTELLTER: EmployeeInput = {
 
 describe.skipIf(!testDatabaseUrl)("Privatkonto: jede Buchungsart gegen Entnahme und Einlage (Postgres)", () => {
   let bank: typeof import("./index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let darlehen: typeof import("./darlehen.ts");
@@ -93,7 +93,7 @@ describe.skipIf(!testDatabaseUrl)("Privatkonto: jede Buchungsart gegen Entnahme 
   beforeAll(async () => {
     sql = await setupTestDb();
     bank = await import("./index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     darlehen = await import("./darlehen.ts");
