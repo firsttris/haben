@@ -1189,3 +1189,46 @@ test("Handelsregister (#1253): bei vollständigen Angaben zu, zeigt die Nummer u
   await expect(firma.getByLabel("Registernummer")).toHaveValue("HRB 12345 HB");
   await expect(firma.locator("textarea[name=geschaeftsfuehrer]")).toHaveValue("Erika Gesellschafter");
 });
+
+test("BWA der GmbH nach DATEV-Form 01: Forderungsverlust neutral, Zeile bis zum Kontenblatt im Zeitraum (#1380)", async () => {
+  const year = currentYear();
+  // Manuelle Buchung heute: Forderungsverlust gegen das Gesellschafter-Verrechnungskonto
+  await go("/buchungen/neu");
+  const form = page.getByRole("form", { name: "Manuelle Buchung" });
+  await form.getByLabel("Buchungstext").fill("Forderungsausfall Kunde Ostwind");
+  await form.getByLabel("Konto Zeile 1").fill("6930");
+  await form.getByLabel("Soll Zeile 1").fill("12,34");
+  await form.getByLabel("Konto Zeile 2").fill("3510");
+  await form.getByLabel("Haben Zeile 2").fill("12,34");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await page.waitForURL(/\/buchungen\?/);
+
+  await go(`/auswertungen?jahr=${year}`);
+  await page.getByRole("link", { name: "BWA", exact: true }).click();
+  await expect(page).toHaveURL(/\/auswertungen\/bwa/);
+  await page.getByLabel("Zeitraum").selectOption("jahr");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`BWA ${year}`);
+  await expect(page.getByRole("heading", { name: "Kurzfristige Erfolgsrechnung" })).toBeVisible();
+  await expect(page.getByText("Eigene Auswertung von Haben nach dem Aufbau der DATEV-Form 01")).toBeVisible();
+  const tabelle = page.getByRole("table", { name: `BWA ${year}` });
+  await expect(tabelle.getByRole("rowheader", { name: "Betriebsergebnis" })).toBeVisible();
+  await expect(tabelle.getByRole("rowheader", { name: "Vorläufiges Ergebnis" })).toBeVisible();
+  await expect(tabelle.getByRole("rowheader", { name: "Gewinn laut EÜR" })).toHaveCount(0);
+
+  // Die Zeile öffnet ihre Konten; „Warum?“ gibt es nur in Form 43
+  await tabelle.getByRole("link", { name: "Sonstiger neutraler Aufwand" }).click();
+  const details = page.getByRole("region", { name: `Sonstiger neutraler Aufwand · ${year}` });
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("region", { name: "Warum?" })).toHaveCount(0);
+  const konto = details.getByRole("row").filter({ hasText: "6930" });
+  await expect(konto).toContainText("12,34");
+  const link = konto.getByRole("link", { name: "6930" });
+  await expect(link).toHaveAttribute("href", new RegExp(`von=${year}-01-01.*bis=${year}-12-31`));
+  expect(await axe(), "/auswertungen/bwa mit Konten").toEqual([]);
+
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`/konten/6930\\?.*von=${year}-01-01`));
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("6930");
+  await expect(page.getByLabel("Zeitraum")).toHaveValue("frei");
+  await expect(page.getByRole("table").filter({ hasText: "Forderungsausfall Kunde Ostwind" })).toBeVisible();
+});

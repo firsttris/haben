@@ -1,21 +1,35 @@
-import { FORM43_ZEILEN, MONTHS, bwaZeitraum, currentYear, formatEuro, type Form43Zeile, type Vergleich, type Zeitraum } from "@haben/core";
+import {
+  FORM01_ZEILEN,
+  FORM43_ZEILEN,
+  bwaZeitraum,
+  currentYear,
+  formatEuro,
+  isKapitalgesellschaft,
+  type Form01Zeile,
+  type Form43Zeile,
+  type Vergleich,
+  type Zeitraum,
+} from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { z } from "zod/mini";
+import { BwaKonten, Form01Hinweis } from "../../components/BwaForm01.tsx";
+import { BwaTabelle, zeitraumText } from "../../components/BwaTabelle.tsx";
 import { BwaWarum } from "../../components/BwaWarum.tsx";
 import { Field } from "../../components/Field.tsx";
 import { JOURNAL_SOURCE, ZEITRAEUME } from "../../components/Ledger.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { formatDate } from "../../lib/format.ts";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
-import { getBwa, getBwaWarum, getBwaZeile } from "../../server/functions/bwa.ts";
-import type { BwaBericht, BwaGruppe, BwaZeileWerte } from "../../server/modules/auswertungen/index.ts";
+import { getBwa, getBwaKonten, getBwaWarum, getBwaZeile } from "../../server/functions/bwa.ts";
+import type { BwaGruppe } from "../../server/modules/auswertungen/index.ts";
 import styles from "../../styles/auswertungen.css?url";
 
 /*
- * BWA (#1380): Einnahmen-Ausgaben-BWA nach Zufluss und Abfluss für Einzelunternehmen. Zeitraum, Vergleich und die
- * aufgeklappte Zeile stehen in der Adresse, damit eine Auswertung als Link weitergegeben werden kann. Zeiträume wie im
- * Kontenblatt (jahr, q1–q4, m1–m12), dazu „frei“ mit von und bis.
+ * BWA (#1380): Einnahmen-Ausgaben-BWA (Form 43) nach Zufluss und Abfluss für Einzelunternehmen, Kurzfristige
+ * Erfolgsrechnung (Form 01) periodengerecht für GmbH und UG. Zeitraum, Vergleich und die aufgeklappte Zeile stehen in der
+ * Adresse, damit eine Auswertung als Link weitergegeben werden kann. Zeiträume wie im Kontenblatt (jahr, q1–q4, m1–m12),
+ * dazu „frei“ mit von und bis.
  */
 
 const datum = z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/));
@@ -25,7 +39,7 @@ const search = z.object({
   von: z.optional(datum),
   bis: z.optional(datum),
   vergleich: z.optional(z.enum(["vorjahr", "vorperiode", "keiner"])),
-  zeile: z.optional(z.enum(FORM43_ZEILEN)),
+  zeile: z.optional(z.enum([...new Set([...FORM43_ZEILEN, ...FORM01_ZEILEN])] as [string, ...string[]])),
 });
 type Suche = z.infer<typeof search>;
 
@@ -43,14 +57,19 @@ function auswahl(s: Suche): { jahr: number; art: string; zeitraum: Zeitraum; ver
 export const Route = createFileRoute("/_app/auswertungen_/bwa")({
   validateSearch: search,
   loaderDeps: ({ search }) => search,
-  loader: async ({ deps }) => {
+  loader: async ({ deps, context }) => {
     const { zeitraum, vergleich } = auswahl(deps);
-    const [bericht, details, warum] = await Promise.all([
+    // GmbH und UG: Form 01, eine Zeile öffnet ihre Konten; sonst Form 43 mit Vorgängen und „Warum?“
+    const form01 = isKapitalgesellschaft(context.rechtsform);
+    const zeile43 = !form01 && (FORM43_ZEILEN as readonly string[]).includes(deps.zeile ?? "") ? (deps.zeile as Form43Zeile) : undefined;
+    const zeile01 = form01 && (FORM01_ZEILEN as readonly string[]).includes(deps.zeile ?? "") ? (deps.zeile as Form01Zeile) : undefined;
+    const [bericht, details, warum, konten] = await Promise.all([
       getBwa({ data: { zeitraum, vergleich } }),
-      deps.zeile ? getBwaZeile({ data: { zeitraum, zeile: deps.zeile } }) : null,
-      deps.zeile && vergleich !== "keiner" ? getBwaWarum({ data: { zeitraum, vergleich, zeile: deps.zeile } }) : null,
+      zeile43 ? getBwaZeile({ data: { zeitraum, zeile: zeile43 } }) : null,
+      zeile43 && vergleich !== "keiner" ? getBwaWarum({ data: { zeitraum, vergleich, zeile: zeile43 } }) : null,
+      zeile01 ? getBwaKonten({ data: { zeitraum, zeile: zeile01 } }) : null,
     ]);
-    return { bericht, details, warum };
+    return { bericht, details, warum, konten };
   },
   head: () => ({ meta: [{ title: "BWA · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: BwaPage,
@@ -62,35 +81,8 @@ const VERGLEICHE: [Vergleich, string][] = [
   ["keiner", "Kein Vergleich"],
 ];
 
-const kurzerMonat = (monat: number) => MONTHS[monat - 1]!.slice(0, 3);
-
-/**
- * Ein Zeitraum als Text. Ausgeschrieben für die Überschrift („3. Quartal 2027“, „März 2027“, „01.03.2027–15.05.2027“), kurz
- * für die Spalten („Q3/2027“, „Mär 2027“, „01.03.–15.05.2027“, mehrere Monate „Jan–Sep 2027“). Ein ganzes Jahr ist „2027“.
- */
-function zeitraumText({ von, bis }: Zeitraum, kurz = false): string {
-  const [vj, vm, vt] = von.split("-").map(Number) as [number, number, number];
-  const [bj, bm] = bis.split("-").map(Number) as [number, number];
-  const monatsende = new Date(Date.UTC(bj, bm, 0)).getUTCDate() === Number(bis.slice(8));
-  if (vt === 1 && monatsende && vj === bj) {
-    if (vm === 1 && bm === 12) return String(vj);
-    if (vm === bm) return kurz ? `${kurzerMonat(vm)} ${vj}` : `${MONTHS[vm - 1]} ${vj}`;
-    if ((vm - 1) % 3 === 0 && bm === vm + 2) return kurz ? `Q${(vm + 2) / 3}/${vj}` : `${(vm + 2) / 3}. Quartal ${vj}`;
-    if (kurz) return `${kurzerMonat(vm)}–${kurzerMonat(bm)} ${vj}`;
-  }
-  if (kurz && vj === bj) return `${formatDate(von).slice(0, 6)}–${formatDate(bis)}`;
-  return `${formatDate(von)}–${formatDate(bis)}`;
-}
-
-/** Abweichung in Prozent mit einer Nachkommastelle, damit die Spalte bündig steht */
-const prozentFormat = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
-const prozent = (basispunkte: number) => `${prozentFormat.format(basispunkte / 100)}\u00a0%`;
-
-/** Zeilen ohne Betrag in allen Spalten blenden wir aus; Summen und Ergebnis bleiben */
-const leer = (z: BwaZeileWerte) => z.art === "zeile" && [z.betrag, z.kumuliert, z.vergleich ?? 0, z.vergleichKumuliert ?? 0].every((b) => b === 0);
-
 function BwaPage() {
-  const { bericht, details, warum } = Route.useLoaderData();
+  const { bericht, details, warum, konten } = Route.useLoaderData();
   const { user } = Route.useRouteContext();
   const suche = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -107,7 +99,7 @@ function BwaPage() {
             <Link to="/auswertungen" search={{ jahr }}>
               Auswertungen
             </Link>{" "}
-            › Zufluss und Abfluss
+            › {bericht.kapitalgesellschaft ? "Periodengerecht" : "Zufluss und Abfluss"}
           </div>
           <h1>BWA {zeitraumText(zeitraum)}</h1>
         </div>
@@ -118,21 +110,30 @@ function BwaPage() {
         <FreierZeitraum zeitraum={zeitraum} onChange={(z) => neu({ von: z.von, bis: z.bis, jahr: Number(z.bis.slice(0, 4)), zeile: undefined })} />
       )}
 
-      {bericht.kapitalgesellschaft ? (
+      {bericht.afaOffen.length > 0 && (
         <div className="banner banner-info" role="note">
-          GmbH und UG bilanzieren: Ihre BWA rechnet periodengerecht wie die GuV und kommt mit der kurzfristigen Erfolgsrechnung nach DATEV-Form 01. Bis dahin
-          zeigt der <Link to="/abschluss">Jahresabschluss</Link> die GuV.
+          Die Anlagen {bericht.afaOffen.join(", ")} sind im <Link to="/anlagen">Anlagenverzeichnis</Link> noch nicht gebucht. Bis dahin fehlen hier
+          Abschreibungen
+          {bericht.kapitalgesellschaft
+            ? " und Restbuchwerte, ebenso in der GuV."
+            : ", Restbuchwerte und die Privatnutzung von Fahrzeugen; die EÜR rechnet sie schon aus dem Anlagenverzeichnis, ihr Gewinn weicht deshalb ab."}
         </div>
+      )}
+      {bericht.kapitalgesellschaft ? (
+        <>
+          <BwaTabelle bericht={bericht} zeitraum={zeitraum} offen={suche.zeile} titel="Kurzfristige Erfolgsrechnung" aufklappbar={FORM01_ZEILEN}>
+            <Form01Hinweis />
+          </BwaTabelle>
+          {offeneZeile && konten && <BwaKonten titel={`${offeneZeile.label} · ${zeitraumText(zeitraum)}`} zeitraum={zeitraum} konten={konten} />}
+        </>
       ) : (
         <>
-          {bericht.afaOffen.length > 0 && (
-            <div className="banner banner-info" role="note">
-              Die Anlagen {bericht.afaOffen.join(", ")} sind im <Link to="/anlagen">Anlagenverzeichnis</Link> noch nicht gebucht. Bis dahin fehlen hier
-              Abschreibungen, Restbuchwerte und die Privatnutzung von Fahrzeugen; die EÜR rechnet sie schon aus dem Anlagenverzeichnis, ihr Gewinn weicht
-              deshalb ab.
-            </div>
-          )}
-          <BwaTabelle bericht={bericht} zeitraum={zeitraum} offen={suche.zeile} />
+          <BwaTabelle bericht={bericht} zeitraum={zeitraum} offen={suche.zeile} titel="Einnahmen-Ausgaben-BWA" aufklappbar={FORM43_ZEILEN}>
+            <p className="small muted">
+              Eigene Auswertung von Haben nach dem Aufbau der DATEV-Form 43, keine Auswertung von DATEV. Nach Zahlungsdatum wie die EÜR (§ 4 Abs. 3, § 11 EStG),
+              Einnahmen mit Umsatzsteuer, Ausgaben mit Vorsteuer. Eine Zeile öffnet, was darin steht.
+            </p>
+          </BwaTabelle>
           {offeneZeile && details && (
             <ZeileDetails titel={`${offeneZeile.label} · ${zeitraumText(zeitraum)}`} jahr={Number(zeitraum.von.slice(0, 4))} gruppen={details}>
               {warum && bericht.vergleich && (
@@ -207,101 +208,6 @@ function ZeitraumWahl({
         )}
       </Field>
     </div>
-  );
-}
-
-function BwaTabelle({ bericht, zeitraum, offen }: { bericht: BwaBericht; zeitraum: Zeitraum; offen: Form43Zeile | undefined }) {
-  const mitVergleich = bericht.vergleich !== null;
-  return (
-    <section className="card">
-      <h2>Einnahmen-Ausgaben-BWA</h2>
-      <p className="small muted">
-        Eigene Auswertung von Haben nach dem Aufbau der DATEV-Form 43, keine Auswertung von DATEV. Nach Zahlungsdatum wie die EÜR (§ 4 Abs. 3, § 11 EStG),
-        Einnahmen mit Umsatzsteuer, Ausgaben mit Vorsteuer. Eine Zeile öffnet, was darin steht.
-      </p>
-      <ScrollTable className="report-table euer-table">
-        <caption className="visually-hidden">BWA {zeitraumText(zeitraum)}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Position</th>
-            <th scope="col" className="num">
-              {zeitraumText(zeitraum, true)}
-            </th>
-            {mitVergleich && (
-              <>
-                <th scope="col" className="num">
-                  {zeitraumText(bericht.vergleich!, true)}
-                </th>
-                <th scope="col" className="num">
-                  Abweichung
-                </th>
-                <th scope="col" className="num">
-                  in %
-                </th>
-              </>
-            )}
-            <th scope="col" className="num">
-              Kumuliert {zeitraumText(bericht.kumuliert, true)}
-            </th>
-            {bericht.vergleichKumuliert && (
-              <th scope="col" className="num">
-                Kumuliert {zeitraumText(bericht.vergleichKumuliert, true)}
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {bericht.zeilen
-            .filter((z) => !leer(z))
-            .map((z) => (
-              <BwaZeile key={z.key} zeile={z} mitVergleich={mitVergleich} kumuliertVergleich={bericht.vergleichKumuliert !== null} offen={z.key === offen} />
-            ))}
-        </tbody>
-      </ScrollTable>
-    </section>
-  );
-}
-
-function BwaZeile({
-  zeile: z,
-  mitVergleich,
-  kumuliertVergleich,
-  offen,
-}: {
-  zeile: BwaZeileWerte;
-  mitVergleich: boolean;
-  kumuliertVergleich: boolean;
-  offen: boolean;
-}) {
-  const klasse = z.art === "summe" ? "euer-total" : z.art === "ergebnis" ? "euer-result" : undefined;
-  const aufklappbar = z.art === "zeile" && (FORM43_ZEILEN as readonly string[]).includes(z.key);
-  return (
-    <tr className={klasse}>
-      <th scope="row" className={z.art === "zeile" ? "euer-label" : undefined}>
-        {aufklappbar ? (
-          <Link
-            from="/auswertungen/bwa"
-            search={(s: Suche) => ({ ...s, zeile: offen ? undefined : (z.key as Form43Zeile) })}
-            hash={offen ? undefined : "details"}
-            aria-expanded={offen}
-          >
-            {z.label}
-          </Link>
-        ) : (
-          z.label
-        )}
-      </th>
-      <td className="num">{formatEuro(z.betrag)}</td>
-      {mitVergleich && (
-        <>
-          <td className="num">{formatEuro(z.vergleich ?? 0)}</td>
-          <td className="num">{formatEuro(z.abweichung?.betrag ?? 0)}</td>
-          <td className="num">{z.abweichung?.prozent == null ? "–" : prozent(z.abweichung.prozent)}</td>
-        </>
-      )}
-      <td className="num">{formatEuro(z.kumuliert)}</td>
-      {kumuliertVergleich && <td className="num">{formatEuro(z.vergleichKumuliert ?? 0)}</td>}
-    </tr>
   );
 }
 

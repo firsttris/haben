@@ -141,7 +141,16 @@ describe("Kurzfristige Erfolgsrechnung (DATEV-Form 01)", () => {
   });
 
   it("Betrag je Zeile: Ertragszeilen drehen das Vorzeichen des Saldos", () => {
-    const ertrag: Form01Zeile[] = ["umsatzerloese", "bestandsveraenderungen", "eigenleistungen", "sonstigeErloese", "zinsertrag", "neutralErtrag", "kalkulatorisch", "unbesetzt"];
+    const ertrag: Form01Zeile[] = [
+      "umsatzerloese",
+      "bestandsveraenderungen",
+      "eigenleistungen",
+      "sonstigeErloese",
+      "zinsertrag",
+      "neutralErtrag",
+      "kalkulatorisch",
+      "unbesetzt",
+    ];
     for (const zeile of FORM01_ZEILEN) expect(form01Betrag(zeile, -100), zeile).toBe(ertrag.includes(zeile) ? 100 : -100);
   });
 

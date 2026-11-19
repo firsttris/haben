@@ -77,11 +77,9 @@ function ReportsPage() {
             )}
           </nav>
           {stichtagMoeglich && <StandSchalter year={year} stichtag={stichtag} />}
-          {!gesellschaft && (
-            <Link className="btn" to="/auswertungen/bwa" search={{ jahr: year }}>
-              BWA
-            </Link>
-          )}
+          <Link className="btn" to="/auswertungen/bwa" search={{ jahr: year }}>
+            BWA
+          </Link>
           {!gesellschaft && (
             <a className="btn btn-primary" href={`/api/auswertungen/${year}`} download>
               EÜR als CSV
