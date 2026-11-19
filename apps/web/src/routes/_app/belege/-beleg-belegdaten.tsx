@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { EigenesKontoWahl, passendesKonto } from "../../../components/EigenesKontoWahl.tsx";
 import { CategoryCombobox } from "../../../components/CategoryCombobox.tsx";
 import { ContactCombobox, savedAsChoice } from "../../../components/ContactCombobox.tsx";
@@ -18,11 +19,6 @@ export function Belegdaten({ f, data }: { f: DocumentFormState; data: Detail }) 
     locked,
     readOnly,
     running,
-    supplierName,
-    supplierUstId,
-    supplierContactId,
-    newSupplierName,
-    setNewSupplierName,
     invoiceNumber,
     setInvoiceNumber,
     documentDate,
@@ -37,43 +33,12 @@ export function Belegdaten({ f, data }: { f: DocumentFormState; data: Detail }) 
     splitBlocked,
     startSplitting,
     touch,
-    pickSupplier,
-    typeSupplierName,
   } = f;
   return (
     <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
       <legend className="visually-hidden">Belegdaten</legend>
       <div className="form-grid">
-        {/* Ein Feld für Name und Kontakt (#1253): Der Name darf frei stehen, eine Wahl aus den Kontakten verknüpft ihn */}
-        <Field label="Lieferant" hint={supplierContactId ? "Aus den Kontakten gewählt." : undefined}>
-          {(control) => (
-            <ContactCombobox
-              {...control}
-              rolle="lieferant"
-              contacts={data.suppliers}
-              contactId={supplierContactId ?? ""}
-              freitext={{ value: supplierName, onInput: touch(typeSupplierName) }}
-              placeholder="Name eintragen oder Kontakt suchen"
-              disabled={readOnly || running}
-              onChoose={(id) => touch(pickSupplier)(data.suppliers.find((s) => s.id === id) ?? null)}
-              onCreate={readOnly ? undefined : setNewSupplierName}
-            />
-          )}
-        </Field>
-        <NewContactDialog
-          rolle="lieferant"
-          name={newSupplierName}
-          // Anschrift und E-Mail aus der E-Rechnung, Name und USt-IdNr. wie am Beleg; die IBAN nur als Vorschlag zum Übernehmen (#329)
-          prefill={{
-            ...data.supplierSuggestion?.contact,
-            ...(supplierName ? { name: supplierName } : {}),
-            ...(supplierUstId ? { ustId: supplierUstId } : {}),
-          }}
-          ibanSuggestion={data.supplierSuggestion?.iban ?? null}
-          onSaved={(saved) => touch(pickSupplier)(savedAsChoice(saved))}
-          onPickExisting={(id) => touch(pickSupplier)(data.suppliers.find((c) => c.id === id) ?? null)}
-          onClose={() => setNewSupplierName(null)}
-        />
+        <Lieferant f={f} data={data} />
         <Field label="Rechnungsnummer">
           {(control) => <input {...control} value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />}
         </Field>
@@ -85,40 +50,7 @@ export function Belegdaten({ f, data }: { f: DocumentFormState; data: Detail }) 
             <strong>Kategorie:</strong> aufgeteilt auf {splitRows.length} Zeilen, siehe <a href="#aufteilung">Aufteilung auf Kategorien</a>.
           </p>
         ) : (
-          <Field
-            label="Kategorie"
-            hint={
-              data.categoryHint ? (
-                <>
-                  Bisher{" "}
-                  {data.categoryHint.count === data.categoryHint.total
-                    ? `${data.categoryHint.count}×`
-                    : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
-                  als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht, zuletzt am{" "}
-                  {formatDate(data.categoryHint.last)}
-                  {category !== data.categoryHint.category && (
-                    <>
-                      {" · "}
-                      <button
-                        type="button"
-                        className="link-button"
-                        onClick={() => {
-                          const hint = data.categoryHint!.category;
-                          touch(setCategory)(hint);
-                          setPrivateShare(privatanteilVorgabe(data.privateShares, hint));
-                        }}
-                      >
-                        übernehmen
-                      </button>
-                    </>
-                  )}
-                </>
-              ) : category === "" ? (
-                KATEGORIE_BEISPIEL
-              ) : undefined
-            }
-            style={{ gridColumn: "1 / -1" }}
-          >
+          <Field label="Kategorie" hint={kategorieHinweis(f, data)} style={{ gridColumn: "1 / -1" }}>
             {(control) => (
               <CategoryCombobox
                 {...control}
@@ -167,5 +99,76 @@ export function Belegdaten({ f, data }: { f: DocumentFormState; data: Detail }) 
         <BelegWeitereAngaben f={f} data={data} />
       </div>
     </fieldset>
+  );
+}
+
+/** Lieferant als Name oder Kontakt (#1253), mit dem Dialog für einen neuen Kontakt */
+function Lieferant({ f, data }: { f: DocumentFormState; data: Detail }) {
+  const { readOnly, running, supplierName, supplierUstId, supplierContactId, newSupplierName, setNewSupplierName, touch, pickSupplier, typeSupplierName } = f;
+  return (
+    <>
+      {/* Ein Feld für Name und Kontakt (#1253): Der Name darf frei stehen, eine Wahl aus den Kontakten verknüpft ihn */}
+      <Field label="Lieferant" hint={supplierContactId ? "Aus den Kontakten gewählt." : undefined}>
+        {(control) => (
+          <ContactCombobox
+            {...control}
+            rolle="lieferant"
+            contacts={data.suppliers}
+            contactId={supplierContactId ?? ""}
+            freitext={{ value: supplierName, onInput: touch(typeSupplierName) }}
+            placeholder="Name eintragen oder Kontakt suchen"
+            disabled={readOnly || running}
+            onChoose={(id) => touch(pickSupplier)(data.suppliers.find((s) => s.id === id) ?? null)}
+            onCreate={readOnly ? undefined : setNewSupplierName}
+          />
+        )}
+      </Field>
+      <NewContactDialog
+        rolle="lieferant"
+        name={newSupplierName}
+        // Anschrift und E-Mail aus der E-Rechnung, Name und USt-IdNr. wie am Beleg; die IBAN nur als Vorschlag zum Übernehmen (#329)
+        prefill={{
+          ...data.supplierSuggestion?.contact,
+          ...(supplierName ? { name: supplierName } : {}),
+          ...(supplierUstId ? { ustId: supplierUstId } : {}),
+        }}
+        ibanSuggestion={data.supplierSuggestion?.iban ?? null}
+        onSaved={(saved) => touch(pickSupplier)(savedAsChoice(saved))}
+        onPickExisting={(id) => touch(pickSupplier)(data.suppliers.find((c) => c.id === id) ?? null)}
+        onClose={() => setNewSupplierName(null)}
+      />
+    </>
+  );
+}
+
+/** Hinweis an der Kategorie: wie Belege des Lieferanten bisher gebucht wurden, sonst ein Beispiel */
+function kategorieHinweis(f: DocumentFormState, data: Detail): ReactNode {
+  const { category, setCategory, setPrivateShare, touch } = f;
+  if (!data.categoryHint) return category === "" ? KATEGORIE_BEISPIEL : undefined;
+  return (
+    <>
+      Bisher{" "}
+      {data.categoryHint.count === data.categoryHint.total
+        ? `${data.categoryHint.count}×`
+        : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
+      als {data.categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht, zuletzt am{" "}
+      {formatDate(data.categoryHint.last)}
+      {category !== data.categoryHint.category && (
+        <>
+          {" · "}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              const hint = data.categoryHint!.category;
+              touch(setCategory)(hint);
+              setPrivateShare(privatanteilVorgabe(data.privateShares, hint));
+            }}
+          >
+            übernehmen
+          </button>
+        </>
+      )}
+    </>
   );
 }

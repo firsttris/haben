@@ -3,7 +3,8 @@ import { BelegUmsatzsteuer } from "../../../components/BelegUmsatzsteuer.tsx";
 import { betragszeileAus } from "../../../lib/betragszeile.ts";
 import { Field } from "../../../components/Field.tsx";
 import { VorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
-import { type DocumentFormState, type Rate, nextRowKey } from "./-beleg-zustand.ts";
+import { type AmountState, nextRowKey, type Rate } from "./-beleg-zeile.ts";
+import type { DocumentFormState } from "./-beleg-zustand.ts";
 import type { Detail } from "./-beleg-vorschau.tsx";
 
 /** Karte „Beträge je Steuersatz“ mit § 13b, Summe, Vorsteueranteil und Privatanteil */
@@ -39,81 +40,7 @@ export function Betraege({ f, data }: { f: DocumentFormState; data: Detail }) {
       <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Beträge je Steuersatz</legend>
       <BelegUmsatzsteuer value={reverseCharge} onChange={chooseReverseCharge} looksLikeReverseCharge={looksLikeReverseCharge} />
       {rows.map((row, index) => (
-        <div className={reverseCharge ? "amount-row" : "amount-row with-gross"} key={row.key}>
-          <Field label="Satz" error={error(`satz-${row.key}`)}>
-            {(control) => (
-              <select {...control} value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
-                <option value={1900}>19 %</option>
-                <option value={700}>7 %</option>
-                {!reverseCharge && <option value={0}>0 %</option>}
-              </select>
-            )}
-          </Field>
-          <Field label={foreign ? `Netto ${currencyCode}` : "Netto"} error={error(`netto-${row.key}`)}>
-            {(control) => (
-              <input
-                {...control}
-                className="mono"
-                inputMode="decimal"
-                value={row.net}
-                placeholder="0,00"
-                onChange={(e) => updateRow(row.key, { net: e.target.value })}
-              />
-            )}
-          </Field>
-          <Field
-            label={
-              <>
-                {steuerSpalte(reverseCharge, vorsteuerBeleg, [row])}
-                {foreign ? ` ${currencyCode}` : ""}
-                {reverseCharge ? " (automatisch)" : ""}
-              </>
-            }
-            describedBy={reverseCharge ? "self-assessed-tax-hint" : undefined}
-            error={error(`steuer-${row.key}`)}
-          >
-            {(control) => (
-              <input
-                {...control}
-                className="mono"
-                inputMode="decimal"
-                value={row.tax}
-                placeholder="0,00"
-                readOnly={Boolean(reverseCharge)}
-                onChange={(e) => updateRow(row.key, { tax: e.target.value, taxTouched: true })}
-              />
-            )}
-          </Field>
-          {/* Brutto laut Beleg (#917): Eingabe rechnet Netto und Vorsteuer vor; bei § 13b gezahlt wird netto, also kein Brutto */}
-          {!reverseCharge && (
-            <Field label={foreign ? `Brutto ${currencyCode}` : "Brutto"} error={error(`brutto-${row.key}`)}>
-              {(control) => (
-                <input
-                  {...control}
-                  className="mono"
-                  inputMode="decimal"
-                  value={row.gross}
-                  placeholder="0,00"
-                  onChange={(e) => updateRow(row.key, { gross: e.target.value })}
-                />
-              )}
-            </Field>
-          )}
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={`Zeile ${index + 1} entfernen`}
-            disabled={rows.length === 1}
-            onClick={() => {
-              setRows((prev) => prev.filter((r) => r.key !== row.key));
-              setDirty(true);
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-        </div>
+        <AmountRow key={row.key} f={f} row={row} index={index} />
       ))}
       {reverseCharge && (
         <p id="self-assessed-tax-hint" className="small">
@@ -193,5 +120,87 @@ export function Betraege({ f, data }: { f: DocumentFormState; data: Detail }) {
         </Field>
       )}
     </fieldset>
+  );
+}
+
+/** Eine Betragszeile: Satz, Netto, Steuer, Brutto und Entfernen */
+function AmountRow({ f, row, index }: { f: DocumentFormState; row: AmountState; index: number }) {
+  const { reverseCharge, rows, setRows, setDirty, vorsteuerBeleg, currencyCode, foreign, error, updateRow } = f;
+  return (
+    <div className={reverseCharge ? "amount-row" : "amount-row with-gross"}>
+      <Field label="Satz" error={error(`satz-${row.key}`)}>
+        {(control) => (
+          <select {...control} value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
+            <option value={1900}>19 %</option>
+            <option value={700}>7 %</option>
+            {!reverseCharge && <option value={0}>0 %</option>}
+          </select>
+        )}
+      </Field>
+      <Field label={foreign ? `Netto ${currencyCode}` : "Netto"} error={error(`netto-${row.key}`)}>
+        {(control) => (
+          <input
+            {...control}
+            className="mono"
+            inputMode="decimal"
+            value={row.net}
+            placeholder="0,00"
+            onChange={(e) => updateRow(row.key, { net: e.target.value })}
+          />
+        )}
+      </Field>
+      <Field
+        label={
+          <>
+            {steuerSpalte(reverseCharge, vorsteuerBeleg, [row])}
+            {foreign ? ` ${currencyCode}` : ""}
+            {reverseCharge ? " (automatisch)" : ""}
+          </>
+        }
+        describedBy={reverseCharge ? "self-assessed-tax-hint" : undefined}
+        error={error(`steuer-${row.key}`)}
+      >
+        {(control) => (
+          <input
+            {...control}
+            className="mono"
+            inputMode="decimal"
+            value={row.tax}
+            placeholder="0,00"
+            readOnly={Boolean(reverseCharge)}
+            onChange={(e) => updateRow(row.key, { tax: e.target.value, taxTouched: true })}
+          />
+        )}
+      </Field>
+      {/* Brutto laut Beleg (#917): Eingabe rechnet Netto und Vorsteuer vor; bei § 13b gezahlt wird netto, also kein Brutto */}
+      {!reverseCharge && (
+        <Field label={foreign ? `Brutto ${currencyCode}` : "Brutto"} error={error(`brutto-${row.key}`)}>
+          {(control) => (
+            <input
+              {...control}
+              className="mono"
+              inputMode="decimal"
+              value={row.gross}
+              placeholder="0,00"
+              onChange={(e) => updateRow(row.key, { gross: e.target.value })}
+            />
+          )}
+        </Field>
+      )}
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label={`Zeile ${index + 1} entfernen`}
+        disabled={rows.length === 1}
+        onClick={() => {
+          setRows((prev) => prev.filter((r) => r.key !== row.key));
+          setDirty(true);
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </div>
   );
 }
