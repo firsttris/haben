@@ -202,6 +202,35 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(vergleichbar(nachher)).toEqual(vergleichbar(vorher));
   });
 
+  it.each([
+    {
+      fall: "SKR03, Ist, Kleinunternehmer",
+      kontenrahmen: "SKR03",
+      versteuerung: "ist",
+      kleinunternehmer: true,
+      rechtsform: "einzelunternehmen",
+      konto: "4999",
+    },
+    { fall: "SKR04, Soll, GmbH", kontenrahmen: "SKR04", versteuerung: "soll", kleinunternehmer: false, rechtsform: "gmbh", konto: "6999" },
+  ])("ergibt auch mit $fall nach dem Übernehmen wieder dieselbe Datei", async ({ kontenrahmen, versteuerung, kleinunternehmer, rechtsform, konto }) => {
+    await testinstanz();
+    const gmbh = rechtsform === "gmbh";
+    await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}, kleinunternehmer = ${kleinunternehmer}, rechtsform = ${rechtsform},
+      registergericht = ${gmbh ? "Amtsgericht Leipzig" : ""}, registernummer = ${gmbh ? "HRB 12345" : ""}, geschaeftsfuehrer = ${gmbh ? "Erika Mustermann" : ""}`;
+    // Nummer und Kontenrahmen eines eigenen Kontos ändern sich nie (Trigger 0211): neu anlegen
+    await sql`delete from own_accounts`;
+    await sql`insert into own_accounts(kontenrahmen, account, name, parent_category, created_by) values (${kontenrahmen}, ${konto}, 'Software-Abos', 'software', 'test-user')`;
+    const zip = await exportierenUndNeu();
+    await mailEinrichten();
+
+    await instanzwechsel.importSettings(actor, zip, HEUTE);
+
+    const nachher = einstellungen(await instanzwechsel.exportSettingsZip(new Date("2026-12-20T10:00:00Z")));
+    expect(vergleichbar(nachher)).toEqual(vergleichbar(einstellungen(zip)));
+    expect(nachher.company).toMatchObject({ kontenrahmen, versteuerung, kleinunternehmer, rechtsform });
+    expect(nachher.ownAccounts).toEqual([expect.objectContaining({ kontenrahmen, account: konto })]);
+  });
+
   it("übernimmt Logo, Layout samt Zuordnung, Standardanhang und E-Mail-Vorlagen, ohne den Zugang zu ändern", async () => {
     await testinstanz();
     const text = await exportierenUndNeu();
