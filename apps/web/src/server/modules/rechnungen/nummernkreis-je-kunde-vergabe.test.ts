@@ -334,4 +334,32 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #14
     const fremd = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB, "2027-01-05")).id, kleinunternehmerStand);
     expect(fremd.number).toBe("RE-BETA-0001");
   });
+
+  it("vergibt in den Kundenkreisen lückenlos, auch wenn mehrere Belege gleichzeitig festgeschrieben werden", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const drafts = await Promise.all([...Array.from({ length: 5 }, () => invoiceDraft(contactA)), ...Array.from({ length: 3 }, () => invoiceDraft(contactB))]);
+    const finals = await Promise.all(drafts.map((d) => invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand)));
+    const numbers = (kundennummer: string) =>
+      finals
+        .map((f) => f.number!)
+        .filter((n) => n.includes(kundennummer))
+        .sort();
+    expect(numbers("ACME")).toEqual(["RE-2026-ACME-001", "RE-2026-ACME-002", "RE-2026-ACME-003", "RE-2026-ACME-004", "RE-2026-ACME-005"]);
+    expect(numbers("BETA")).toEqual(["RE-2026-BETA-001", "RE-2026-BETA-002", "RE-2026-BETA-003"]);
+    const rows = await sql`select contact_id, last from invoice_number_counters`;
+    expect(Object.fromEntries(rows.map((r) => [r.contact_id, r.last]))).toEqual({ [contactA]: 5, [contactB]: 3 });
+  }, 60_000);
+
+  it("nummeriert Storno und neue Rechnung desselben Kundenkreises parallel ohne Doppelvergabe", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    const draft = await invoiceDraft(contactA);
+    const [storno, next] = await Promise.all([
+      invoices.cancelInvoice(actor, original.id, "2026-12-15"),
+      invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand),
+    ]);
+    expect(new Set([storno.number, next.number])).toEqual(new Set(["RE-2026-ACME-002", "RE-2026-ACME-003"]));
+    const [kreis] = await sql`select last from invoice_number_counters where year = 2026 and contact_id = ${contactA}`;
+    expect(kreis!.last).toBe(3);
+  }, 60_000);
 });
