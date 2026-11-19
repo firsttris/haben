@@ -85,6 +85,7 @@ import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
 import { ActionBar } from "./ActionBar.tsx";
+import { useDuplicateInvoiceItem } from "./InvoiceCopyButton.tsx";
 import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
 
 interface ContactOption {
@@ -308,6 +309,7 @@ export function InvoiceEditor({
   const markTouched = (key: number) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
   const ownAction = useAction();
   const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
+  const duplicateItem = useDuplicateInvoiceItem(!quote && id ? { id, kind, variant } : null, { busy, run });
   const [confirming, setConfirming] = useState(false);
   const [umsatzwarnung, setUmsatzwarnung] = useState<({ id: string } & UmsatzgrenzeBestaetigung) | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -786,6 +788,7 @@ export function InvoiceEditor({
           <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
             Festschreiben
           </button>
+          {duplicateItem && <MoreActionsMenu items={[duplicateItem]} />}
         </div>
       </div>
 
@@ -1446,6 +1449,7 @@ export function InvoiceEditor({
               disabled: busy,
               onSelect: onDraftPdf,
             },
+            ...(duplicateItem ? [duplicateItem] : []),
           ]}
         />
         {/* triggerRef bleibt der Knopf im Kopf: Anheften, Ausblenden und Schließen geben den Fokus dorthin zurück, und

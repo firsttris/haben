@@ -2975,7 +2975,7 @@ test("Artikel-API: Rechte, Anlegen, Suchen und Ändern im Katalog (#297)", async
   expect(await archived.json()).toMatchObject({ data: [{ id: result.id, archived: true }], total: 1 });
 });
 
-test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
+test("Rechnung duplizieren: Ausgangsrechnung als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
   await rechnungFestschreiben(page, {
     customer: "Rheinpixel GmbH · Köln",
     date: day(-4),
@@ -2983,14 +2983,18 @@ test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positi
     gross: "285,60",
   });
   const originalUrl = page.url();
-  await page.getByRole("button", { name: "Kopieren", exact: true }).click();
+  await page.getByRole("button", { name: "Weitere Aktionen", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Rechnung duplizieren", exact: true }).click();
   await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== originalUrl);
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Monatliche Betreuung Server");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("80,00");
   await expect(page.getByLabel("Rechnungsdatum")).not.toHaveValue(day(-4));
 
+  // Auch aus einem Entwurf lässt sich über „Weitere Aktionen“ duplizieren
+  await expect(page.getByRole("button", { name: "Weitere Aktionen", exact: true })).toBeVisible();
+
   await page.goto(originalUrl);
-  await expect(page.getByRole("button", { name: "Kopieren", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Weitere Aktionen", exact: true })).toBeVisible();
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible();
 });
 

@@ -4,16 +4,15 @@ import { draftInputOf } from "./external-reference.ts";
 import { InvoiceError } from "./invoice-error.ts";
 import { assertCustomer, draftSchema, getInvoice, insertDraft, type Invoice } from "./invoices.ts";
 
-/** Warum sich eine Rechnung nicht kopieren lässt; null = sie lässt sich kopieren */
-function copyProblem(invoice: Pick<Invoice, "kind" | "variant" | "status">): string | null {
-  if (invoice.kind !== "rechnung") return "Stornorechnungen und Korrekturen lassen sich nicht kopieren.";
-  if (invoice.variant !== null) return "Abschlags- und Schlussrechnungen lassen sich nicht kopieren; sie entstehen aus dem Angebot.";
-  if (invoice.status !== "final") return "Nur festgeschriebene Rechnungen lassen sich kopieren.";
+/** Warum sich eine Rechnung nicht duplizieren lässt; null = sie lässt sich duplizieren */
+export function copyProblem(invoice: Pick<Invoice, "kind" | "variant">): string | null {
+  if (invoice.kind !== "rechnung") return "Stornorechnungen und Korrekturen lassen sich nicht duplizieren.";
+  if (invoice.variant !== null) return "Abschlags- und Schlussrechnungen lassen sich nicht duplizieren; sie entstehen aus dem Angebot.";
   return null;
 }
 
 /**
- * Neuer Entwurf aus einer festgeschriebenen Rechnung für die nächste ähnliche (docs/rechnungen.md, Festgeschriebene Rechnung).
+ * Neuer Entwurf aus einer bestehenden Ausgangsrechnung (Entwurf oder festgeschrieben, docs/rechnungen.md).
  * Datum heute; Leistungszeitraum und Kurs leer, der Kurs folgt dem neuen Leistungsmonat. Anhänge gehören zur einzelnen
  * Rechnung und bleiben beim Original, ebenso der Bezug zu einem Angebot.
  */
