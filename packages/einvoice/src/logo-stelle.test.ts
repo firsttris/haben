@@ -1,9 +1,9 @@
-import { DEFAULT_OPTIONS, type LogoPosition } from "@haben/core";
+import { DEFAULT_OPTIONS, EINGEBAUTE_LAYOUTS, layoutLogo, layoutOptionen, type LogoPosition } from "@haben/core";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { dunningPdfData } from "./dunning.ts";
 import { BEISPIEL_PNG } from "./layout-beispiele.ts";
-import { pdfData, templateInputs } from "./pdf.ts";
+import { layoutTemplate, pdfData, templateInputs } from "./pdf.ts";
 import { createRenderClient } from "./render-client.ts";
 import { sampleBuyer, sampleDocument, sampleSeller } from "./samples.ts";
 import { PACKAGE_DIR } from "./typst-compiler.ts";
@@ -32,11 +32,15 @@ function bildX(svg: string): { links: number; mitte: number } {
   throw new Error("kein Bild im SVG");
 }
 
-async function logo(vorlage: "rechnung" | "mahnung", data: object, logoPosition: LogoPosition) {
+type Layout = { id: string; optionen: Record<string, string> };
+
+async function logo(vorlage: "rechnung" | "mahnung", data: object, logoPosition: LogoPosition, layout?: Layout) {
+  const letterhead = { logo: { data: BEISPIEL_PNG, format: "png" as const }, options: { ...DEFAULT_OPTIONS, logoPosition }, layout };
+  const datei = layout ? layoutTemplate(vorlage === "rechnung" ? "beleg" : "mahnung", letterhead) : `${vorlage}.typ`;
   const job = {
     workspace: templates,
-    main: join(templates, `${vorlage}.typ`),
-    data: templateInputs(data, { logo: { data: BEISPIEL_PNG, format: "png" }, options: { ...DEFAULT_OPTIONS, logoPosition } }),
+    main: join(templates, datei),
+    data: templateInputs(data, letterhead),
     files: [{ name: "logo.png", base64: Buffer.from(BEISPIEL_PNG).toString("base64") }],
   };
   return bildX((await client.render(job)).svg);
@@ -65,5 +69,28 @@ describe("Stelle des Logos auf dem Blatt", () => {
       const rechts = await logo(vorlage, data, "rechts");
       expect(rechts.links + (rechts.mitte - rechts.links) * 2).toBeCloseTo(190, 1);
     });
+  }
+});
+
+/** Je eingebautes Layout die Fassungen, die eine eigene Vorlage wählen: erste Werte und jeder Wert der ersten Option */
+const fassungen = EINGEBAUTE_LAYOUTS.flatMap((layout) => {
+  const erste = layout.optionen[0];
+  const werte = erste ? erste.werte.map((wert) => layoutOptionen(layout, { [erste.id]: wert.id })) : [layoutOptionen(layout)];
+  return werte.map((optionen) => ({ id: layout.id, optionen, stellen: layoutLogo(layout, optionen) }));
+});
+
+describe("Stelle des Logos in den eingebauten Layouts", () => {
+  for (const { id, optionen, stellen } of fassungen) {
+    for (const [vorlage, data] of [
+      ["rechnung", pdfData(sampleDocument())],
+      ["mahnung", mahnung],
+    ] as const) {
+      it.runIf(stellen.includes("mitte"))(`${id} ${JSON.stringify(optionen)} (${vorlage}) setzt „mitte“ auf 105 mm`, async () => {
+        expect((await logo(vorlage, data, "mitte", { id, optionen })).mitte).toBeCloseTo(105, 1);
+      });
+      it.runIf(stellen.includes("links"))(`${id} ${JSON.stringify(optionen)} (${vorlage}) setzt „links“ an den Satzspiegel`, async () => {
+        expect((await logo(vorlage, data, "links", { id, optionen })).links).toBeLessThan(40);
+      });
+    }
   }
 });

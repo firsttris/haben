@@ -161,7 +161,7 @@ export const EINGEBAUTE_LAYOUTS: readonly EingebautesLayout[] = [
         name: "Fuß",
         werte: [
           { id: "unten", name: "Unten", vorlagen: vorlagen("premium-unten") },
-          { id: "rechts", name: "In der Randspalte", vorlagen: vorlagen("premium-rechts"), logo: ["rechts"] },
+          { id: "rechts", name: "In der Randspalte", vorlagen: vorlagen("premium-rechts") },
         ],
       },
       kerndaten([

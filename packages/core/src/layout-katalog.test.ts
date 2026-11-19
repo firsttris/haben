@@ -15,6 +15,7 @@ import {
 } from "./layout-katalog.ts";
 
 const premium = EINGEBAUTE_LAYOUTS.find((layout) => layout.id === "premium") as EingebautesLayout;
+const elegant = EINGEBAUTE_LAYOUTS.find((layout) => layout.id === "elegant") as EingebautesLayout;
 
 /** Alle Kombinationen, die die Gestaltung anbieten kann: je Option nur erlaubte Werte */
 function kombinationen(layout: EingebautesLayout): Record<string, string>[] {
@@ -80,9 +81,10 @@ describe("Katalog der eingebauten Layouts", () => {
   it("wählt die Vorlage nach dem Fuß und beschränkt das Logo in der Randspalte", () => {
     expect(layoutVorlagen(premium, { fuss: "rechts" }).beleg).toBe("layout-premium-rechts.typ");
     expect(layoutVorlagen(premium, { fuss: "unten" }).mahnung).toBe("layout-premium-unten-mahnung.typ");
-    expect(layoutLogo(premium, { fuss: "rechts" })).toEqual(["rechts"]);
-    expect(logoStelle(premium, { fuss: "rechts" }, "links")).toBe("rechts");
-    expect(logoStelle(premium, { fuss: "unten" }, "links")).toBe("links");
+    expect(layoutLogo(premium, { fuss: "rechts" })).toEqual(["rechts", "links", "mitte"]);
+    expect(layoutLogo(elegant, { fuss: "rechts" })).toEqual(["rechts", "links"]);
+    expect(logoStelle(elegant, { fuss: "rechts" }, "mitte")).toBe("rechts");
+    expect(logoStelle(elegant, { fuss: "unten" }, "mitte")).toBe("mitte");
   });
 
   it("behält von der gespeicherten Wahl nur Bekanntes, auch gesperrte Werte", () => {
