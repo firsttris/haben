@@ -187,12 +187,10 @@ function ServiceEntriesPage() {
                   <div key={e.id} className="table-row service-cols">
                     <div>{formatDate(e.workedOn)}</div>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 500, overflowWrap: "anywhere" }}>{names.get(e.contactId) ?? "Kunde"}</div>
-                      {e.description && (
-                        <div className="small muted" style={{ overflowWrap: "anywhere" }}>
-                          {e.description}
-                        </div>
-                      )}
+                      <div style={{ overflowWrap: "anywhere" }}>
+                        <span style={{ fontWeight: 500 }}>{names.get(e.contactId) ?? "Kunde"}</span>
+                        {e.description && <span className="muted"> · {e.description}</span>}
+                      </div>
                       {serviceEntryNote(e) && (
                         <div className="small muted" style={{ overflowWrap: "anywhere" }}>
                           {serviceEntryNote(e)}
@@ -208,7 +206,11 @@ function ServiceEntriesPage() {
                     </div>
                     <div className="num">
                       {formatDuration(e.minutes)} Std.
-                      {!e.nonBillable && e.billableMinutes !== null && <div className="small muted">abrechenbar {formatDuration(e.billableMinutes)}</div>}
+                      {!e.nonBillable && e.billableMinutes !== null && (
+                        <div className="small muted">
+                          <abbr title="abrechenbar">abr.</abbr> {formatDuration(e.billableMinutes)}
+                        </div>
+                      )}
                     </div>
                     <div className="num">{e.hourlyRateCents === null ? <span className="muted">fehlt</span> : formatEuro(e.hourlyRateCents)}</div>
                     <div className="num">{e.hourlyRateCents === null || e.nonBillable ? "" : formatEuro(billableAmount(e))}</div>

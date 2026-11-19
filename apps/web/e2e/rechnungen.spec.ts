@@ -2751,7 +2751,8 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   await expect(liste).toContainText("1:30 Std.");
   await expect(liste).toContainText("Relaunch Shop");
   // Berechnet wird die abrechenbare Stunde, nicht die erfassten 90 Minuten
-  await expect(liste).toContainText("abrechenbar 1:00");
+  await expect(liste).toContainText("abr. 1:00");
+  await expect(liste.getByTitle("abrechenbar")).toHaveText("abr.");
   await expect(liste).toContainText("95,00");
   await expect(liste).not.toContainText("142,50");
   // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
