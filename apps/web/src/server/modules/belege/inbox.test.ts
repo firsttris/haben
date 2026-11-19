@@ -17,6 +17,8 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
   let lastPassword = "";
   /** Ordner, für die ein Abruf eine Verbindung geöffnet hat */
   let folders: string[] = [];
+  /** Mails, die der Abruf in einen Ordner verschoben hat: Betreff → Zielordner */
+  let moved: Record<string, string> = {};
 
   const pdf = (text: string) => Buffer.from(`%PDF-1.4\n% ${text}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`);
   const composer = nodemailer.createTransport({ streamTransport: true, buffer: true });
@@ -26,27 +28,36 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     for (const mail of mails) box.set(box.size + 1, { source: await build(mail), seen: false });
   };
 
+  const memory: Parameters<typeof import("./inbox.ts").setInboxConnectorForTests>[0] = async (_settings, password, folder) => {
+    lastPassword = password;
+    folders.push(folder);
+    if (failConnect) throw new Error("AUTHENTICATIONFAILED");
+    return {
+      sender: async (uid) => (await simpleParser(box.get(uid)!.source)).from?.value[0]?.address ?? "",
+      unseen: async () => [...box].filter(([, m]) => !m.seen).map(([uid]) => uid),
+      source: async (uid) => {
+        const { source, tooLarge = false } = box.get(uid)!;
+        // Zu groß: der echte Abruf liefert dann nur die Kopfzeilen
+        return { bytes: tooLarge ? source.subarray(0, source.indexOf("\r\n\r\n") + 4) : source, tooLarge };
+      },
+      markSeen: async (uid) => {
+        box.get(uid)!.seen = true;
+      },
+      move: async (uid, folder) => {
+        moved[(await simpleParser(box.get(uid)!.source)).messageId!] = folder;
+        box.delete(uid);
+      },
+      remove: async (uid) => {
+        box.delete(uid);
+      },
+      close: async () => {},
+    };
+  };
+
   beforeAll(async () => {
     sql = await setupTestDb();
     inbox = await import("./inbox.ts");
-    inbox.setInboxConnectorForTests(async (_settings, password, folder) => {
-      lastPassword = password;
-      folders.push(folder);
-      if (failConnect) throw new Error("AUTHENTICATIONFAILED");
-      return {
-        sender: async (uid) => (await simpleParser(box.get(uid)!.source)).from?.value[0]?.address ?? "",
-        unseen: async () => [...box].filter(([, m]) => !m.seen).map(([uid]) => uid),
-        source: async (uid) => {
-          const { source, tooLarge = false } = box.get(uid)!;
-          // Zu groß: der echte Abruf liefert dann nur die Kopfzeilen
-          return { bytes: tooLarge ? source.subarray(0, source.indexOf("\r\n\r\n") + 4) : source, tooLarge };
-        },
-        markSeen: async (uid) => {
-          box.get(uid)!.seen = true;
-        },
-        close: async () => {},
-      };
-    });
+    inbox.setInboxConnectorForTests(memory);
   }, 30_000);
 
   afterAll(async () => {
@@ -58,6 +69,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     box = new Map();
     failConnect = false;
     folders = [];
+    moved = {};
     await leeren(sql)`truncate inbox_messages, inbox_settings, document_amounts, documents cascade`;
   });
 
@@ -110,6 +122,198 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     const summary = await inbox.inboxSummary();
     expect(summary.settings).toMatchObject({ folder: "Belege", lastError: null });
     expect(summary.settings).not.toHaveProperty("ciphertext");
+  });
+
+  describe("Nach dem Abruf", () => {
+    const rechnung = (id: string) => ({ subject: id, messageId: `<${id}@funknetz.example>`, attachments: [{ filename: `${id}.pdf`, content: pdf(id) }] });
+
+    it("löscht abgelegte Mails, lässt aber Mails nicht freigegebener Absender liegen", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete", allowedSenders: ["funknetz.example"] });
+      await deliver(rechnung("eins"), { ...rechnung("fremd"), from: "Spam <spam@fremd.example>" });
+      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0, rejected: 1 });
+      expect([...box.keys()]).toEqual([2]);
+      expect(box.get(2)!.seen).toBe(false);
+      expect(await sql`select 1 from documents`).toHaveLength(1);
+    });
+
+    it("löscht keine Mail, an der die Verarbeitung scheitert, keine mit übersprungenem Anhang und keine ohne Anhang", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      await deliver(
+        rechnung("kaputt"),
+        {
+          ...rechnung("gemischt"),
+          attachments: [
+            { filename: "gemischt.pdf", content: pdf("gemischt") },
+            { filename: "AGB.docx", content: Buffer.from("PK") },
+          ],
+        },
+        rechnung("riesig"),
+        rechnung("gut"),
+        { subject: "Newsletter", messageId: "<news@funknetz.example>", text: "Ohne Anhang" },
+      );
+      box.get(3)!.tooLarge = true;
+      await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
+      try {
+        await inbox.fetchInbox(actor);
+      } finally {
+        await sql`alter table documents drop constraint test_kaputt`;
+      }
+      // Übrig: kaputt, gemischt, riesig und der Newsletter ohne Anhang, jeweils als gelesen markiert; nur gut ist weg
+      expect([...box.entries()].map(([uid, m]) => [uid, m.seen])).toEqual([
+        [1, true],
+        [2, true],
+        [3, true],
+        [5, true],
+      ]);
+      expect(Object.keys(moved)).toEqual([]);
+    });
+
+    it("löscht eine wieder ungelesene Mail nicht, deren früherer Abruf einen Anhang übersprungen hat", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      await deliver({
+        ...rechnung("gemischt"),
+        attachments: [
+          { filename: "gemischt.pdf", content: pdf("gemischt") },
+          { filename: "AGB.docx", content: Buffer.from("PK\u0003\u0004") },
+        ],
+      });
+      await inbox.fetchInbox(actor);
+      expect(box.get(1)!.seen).toBe(true);
+      // Wieder ungelesen (oder der Lauf brach nach dem Ablegen vor dem Markieren ab): schon protokolliert, aber nicht verlustfrei
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(true);
+      expect(box.get(1)!.seen).toBe(true);
+    });
+
+    it("löscht eine wieder ungelesene zu große Mail nicht", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      await deliver(rechnung("riesig"));
+      box.get(1)!.tooLarge = true;
+      await inbox.fetchInbox(actor);
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(true);
+    });
+
+    it("löscht eine wieder ungelesene, verlustfrei abgelegte Mail", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("gut"));
+      await inbox.fetchInbox(actor);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(false);
+    });
+
+    it("löscht eine wieder ungelesene Mail, deren Anhang als Dublette abgelegt war", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("gut"), { ...rechnung("gut"), subject: "Fwd", messageId: "<fwd@funknetz.example>" });
+      await inbox.fetchInbox(actor);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(2)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(2)).toBe(false);
+      expect(box.has(1)).toBe(true);
+    });
+
+    it("verschiebt abgelegte Mails in den Zielordner und lässt fehlgeschlagene im Eingang", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: " Belege/Abgeholt " });
+      await deliver(rechnung("kaputt"), rechnung("gut"));
+      await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
+      try {
+        await inbox.fetchInbox(actor);
+      } finally {
+        await sql`alter table documents drop constraint test_kaputt`;
+      }
+      expect(moved).toEqual({ "<gut@funknetz.example>": "Belege/Abgeholt" });
+      expect([...box.entries()].map(([uid, m]) => [uid, m.seen])).toEqual([[1, true]]);
+      expect((await inbox.inboxSummary()).settings).toMatchObject({ afterFetch: "move", archiveFolder: "Belege/Abgeholt" });
+    });
+
+    it("lässt in der Datenbank nur bekannte Werte für „Nach dem Abruf“ zu", async () => {
+      await inbox.saveInboxSettings(actor, settings);
+      await expect(sql`update inbox_settings set after_fetch = 'archivieren'`).rejects.toThrow(/inbox_settings_after_fetch/);
+    });
+
+    it("braucht für „verschieben“ einen eigenen Zielordner und vergisst ihn bei anderen Einstellungen", async () => {
+      await expect(inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move" })).rejects.toThrow(/Zielordner fehlt/);
+      await expect(inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: "belege" })).rejects.toThrow(/anderer sein/);
+      await expect(inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: "Ausgang", outboundFolder: "AUSGANG" })).rejects.toThrow(
+        /anderer sein/,
+      );
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: "Archiv" });
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen", archiveFolder: "Archiv" });
+      expect((await inbox.inboxSummary()).settings).toMatchObject({ afterFetch: "seen", archiveFolder: null });
+    });
+
+    it("markiert eine Mail gelesen, wenn das Verschieben scheitert, meldet den Fehler und hält den Abruf nicht an", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "move", archiveFolder: "Archiv" });
+      await deliver(rechnung("eins"), rechnung("zwei"));
+      inbox.setInboxConnectorForTests(async (...args) => ({
+        ...(await memory(...args)),
+        move: async () => {
+          throw new Error("TRYCREATE Mailbox doesn't exist");
+        },
+      }));
+      try {
+        // Beide Mails werden abgelegt; die erste hält den Abruf nicht an
+        await expect(inbox.fetchInbox(actor)).resolves.toMatchObject({ messages: 2, documents: 2 });
+      } finally {
+        inbox.setInboxConnectorForTests(memory);
+      }
+      expect([...box.values()].map((m) => m.seen)).toEqual([true, true]);
+      expect((await inbox.inboxSummary()).settings?.lastError).toMatch(/TRYCREATE.*\(und 1 weitere\)/);
+      expect(await sql`select 1 from documents`).toHaveLength(2);
+      // Der nächste Lauf hat keinen Fehler und legt nichts doppelt ab
+      await inbox.fetchInbox(actor);
+      expect((await inbox.inboxSummary()).settings?.lastError).toBeNull();
+      expect(await sql`select 1 from documents`).toHaveLength(2);
+    });
+
+    it("markiert eine Mail gelesen, wenn das Löschen scheitert", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      await deliver(rechnung("eins"));
+      inbox.setInboxConnectorForTests(async (...args) => ({
+        ...(await memory(...args)),
+        remove: async () => {
+          throw new Error("Mail 1 ließ sich nicht löschen.");
+        },
+      }));
+      try {
+        await inbox.fetchInbox(actor);
+      } finally {
+        inbox.setInboxConnectorForTests(memory);
+      }
+      expect(box.get(1)!.seen).toBe(true);
+      expect((await inbox.inboxSummary()).settings?.lastError).toMatch(/ließ sich nicht löschen/);
+    });
+
+    it("löscht eine wieder ungelesene Mail nicht, deren Beleg inzwischen gelöscht wurde", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("weg"));
+      await inbox.fetchInbox(actor);
+      const [doc] = await inbox.inboxSummary().then(() => sql`select id from documents`);
+      const documents = await import("./documents.ts");
+      await documents.deleteDocument(actor, doc!.id);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(1)!.seen = false;
+      await inbox.fetchInbox(actor);
+      expect(box.has(1)).toBe(true);
+      expect(box.get(1)!.seen).toBe(true);
+    });
+
+    it("löscht eine Mail nicht, deren Message-ID eine andere, abgelegte Mail trägt", async () => {
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "seen" });
+      await deliver(rechnung("erste"), { ...rechnung("zweite"), messageId: "<erste@funknetz.example>" });
+      box.get(2)!.seen = true;
+      await inbox.fetchInbox(actor);
+      await inbox.saveInboxSettings(actor, { ...settings, afterFetch: "delete" });
+      box.get(2)!.seen = false;
+      await inbox.fetchInbox(actor);
+      // Der Anhang der zweiten Mail liegt nicht in Haben
+      expect(box.has(2)).toBe(true);
+    });
   });
 
   it("lädt zu große Mails nicht, vermerkt sie und markiert sie gelesen", async () => {
@@ -337,13 +541,17 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     expect(await sql`select 1 from inbox_messages where message_id like '<fremd@fremd.example>%'`).toHaveLength(2);
   });
 
-  it("protokolliert eine Änderung nur der Absenderfreigabe oder des Ausgangsordners", async () => {
+  it("protokolliert eine Änderung nur der Absenderfreigabe, des Ausgangsordners oder des Verhaltens nach dem Abruf", async () => {
     await inbox.saveInboxSettings(actor, settings);
     const max = Number((await sql`select coalesce(max(id), 0) as max from audit_log`)[0]!.max);
     await sql`update inbox_settings set allowed_senders = '{a.example}'`;
     await sql`update inbox_settings set outbound_folder = 'Ausgang'`;
+    await sql`update inbox_settings set after_fetch = 'delete'`;
+    await sql`update inbox_settings set archive_folder = 'Archiv'`;
     const audit = await sql`select action, new_value from audit_log where table_name = 'inbox_settings' and id > ${max} order by id`;
-    expect(audit.map((r) => r.action)).toEqual(["UPDATE", "UPDATE"]);
+    expect(audit.map((r) => r.action)).toEqual(["UPDATE", "UPDATE", "UPDATE", "UPDATE"]);
+    expect(audit[2]!.new_value).toMatchObject({ after_fetch: "delete" });
+    expect(audit[3]!.new_value).toMatchObject({ archive_folder: "Archiv" });
     expect(audit[0]!.new_value).toMatchObject({ allowed_senders: ["a.example"] });
     expect(audit[1]!.new_value).toMatchObject({ outbound_folder: "Ausgang" });
     expect(audit[1]!.new_value).not.toHaveProperty("ciphertext");

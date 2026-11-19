@@ -28,10 +28,10 @@ Kapitel der Doku und in den [Releases](https://github.com/firsttris/haben/releas
 
 | Thema | Grund |
 | --- | --- |
-| Lagerbestand | Kein Kern einer Buchhaltung; gehört in eine Warenwirtschaft (Lexware Office führt keinen, sevDesk nur als Zusatzmodul) |
+| Lagerbestand | Kein Kern einer Buchhaltung; gehört in eine Warenwirtschaft |
 | Stoppuhr, Projektverwaltung und Teamplanung | Gehören in eigene Werkzeuge; abrechenbare Leistungen erfasst Haben selbst oder übernimmt sie über die API („Abrechenbare Leistungen“, [#417](https://github.com/firsttris/haben/issues/417)) |
-| Eigene Shop-Anbindungen, Bestellungen und Versand | Abrechnungen der Zahlungsdienste, API und n8n decken das ab; auch Lexware Office bindet Shops nur über Partner an. Bestellungen mit Status, Druck-Buttons, Sendungsnummern und Webhook-Aktionen würden Haben zum Versandtool machen; eigene Seiten bekommen bewusst keine Anmeldung von Haben, weil eine fremde Seite mit der Sitzung festschreiben oder an ELSTER senden könnte ([#199](https://github.com/firsttris/haben/issues/199)) |
-| Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
+| Eigene Shop-Anbindungen, Bestellungen und Versand | Abrechnungen der Zahlungsdienste, API und n8n decken das ab. Bestellungen mit Status, Druck-Buttons, Sendungsnummern und Webhook-Aktionen würden Haben zum Versandtool machen; eigene Seiten bekommen bewusst keine Anmeldung von Haben, weil eine fremde Seite mit der Sitzung festschreiben oder an ELSTER senden könnte ([#199](https://github.com/firsttris/haben/issues/199)) |
+| Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst |
 | Native Apps | Haben ist eine installierbare Web-App mit Kamera und Teilen-Menü; zwei App-Stores zu pflegen lohnt nicht |
 | CRM mit Aufgaben und Push-Erinnerungen, Mitarbeiterportal | Kein Kern einer Buchhaltung für kleine Betriebe |
 | Mehrere Firmen in einer Installation | Eine Instanz je Firma, Begründung unter [Mehrere Instanzen](installation.md#mehrere-instanzen) ([#66](https://github.com/firsttris/haben/issues/66)) |

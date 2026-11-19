@@ -24,6 +24,7 @@ export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.t
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 export { runDuePruefwertMail } from "./pruefwert-mail.ts";
 export { saveCompany, settingsLocks, type SettingsLocks } from "./settings-guard.ts";
+export { firmendatenUebernehmen } from "./uebernahme.ts";
 export { einrichtungSchema, einrichtungSpeichern, einrichtungStand } from "./einrichtung.ts";
 export { effectivePayment, paymentHistoryIssue, settledOn, unclearFrom, visiblePayment } from "./payment-history.ts";
 export { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";

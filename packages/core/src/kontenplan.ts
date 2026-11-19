@@ -210,6 +210,19 @@ export type ExpenseCategory = keyof typeof EXPENSE_CATEGORIES;
 
 export const EXPENSE_CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORIES) as [ExpenseCategory, ...ExpenseCategory[]];
 
+/**
+ * Anzeige einer Ausgabekategorie mit der Nummer ihres Kontos im Kontenrahmen der Firma („6805 · Telefon“, #1438), nur für die
+ * Oberfläche: Buchungstexte, Exporte und gespeicherte Werte bleiben bei der Bezeichnung. Unbekannte Werte (etwa aus einem Import)
+ * erscheinen unverändert, das Anlagegut ohne Nummer.
+ */
+export function kategorieMitKonto(kontenrahmen: Kontenrahmen, kategorie: string): string {
+  if (!Object.hasOwn(EXPENSE_CATEGORIES, kategorie)) return kategorie;
+  const eintrag = EXPENSE_CATEGORIES[kategorie as ExpenseCategory];
+  // Beim Anlagegut steht das Konto erst mit der Art der Anlage fest (Pkw: SKR03 0320, SKR04 0520), nicht mit der Kategorie
+  if (kategorie === "anlage") return eintrag.label;
+  return `${eintrag[kontenrahmen]} · ${eintrag.label}`;
+}
+
 export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
     // Kapitalgesellschaft: Gesellschafter und Eigenkapital (DATEV-Kontenrahmen SKR03 2026, Art.-Nr. 11174)

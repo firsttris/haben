@@ -130,9 +130,9 @@ test("Beleg prüfen: Kategorie per Suche wählen, auch ohne Umlaute, mit Tastatu
   await expect(trefferliste(page).getByRole("option")).not.toHaveCount(1);
   await kategorie.fill("burobedarf");
   // Der Treffer nennt neben dem Namen die Gruppe (#1253)
-  await expect(trefferliste(page).getByRole("option")).toHaveText([/^Bürobedarf\s*Büro und IT$/]);
+  await expect(trefferliste(page).getByRole("option")).toHaveText([/^[0-9]{4} · Bürobedarf\s*Büro und IT$/]);
   await kategorie.press("Enter");
-  await expect(kategorie).toHaveValue("Bürobedarf");
+  await expect(kategorie).toHaveValue(kategorieName("buero"));
   // Pfeiltasten bewegen durch die Treffer, Enter übernimmt den markierten (der erste ist vorgewählt)
   await kategorie.fill("kfz");
   await kategorie.press("ArrowDown");
@@ -152,12 +152,12 @@ test("Beleg prüfen: Kategorie per Suche wählen, auch ohne Umlaute, mit Tastatu
   // Mehrere Wörter in beliebiger Reihenfolge, gewählt per Klick
   await kategorie.fill("leasing kfz");
   await trefferliste(page).getByRole("option", { name: "Kfz: Leasing" }).click();
-  await expect(kategorie).toHaveValue("Kfz: Leasing");
+  await expect(kategorie).toHaveValue(kategorieName("kfzLeasing"));
   // Ohne Treffer sagt die Liste es; wer die Eingabe stehen lässt, behält die bisherige Kategorie
   await kategorie.fill("xyz");
   await expect(page.getByText("Keine Treffer")).toBeVisible();
   await page.keyboard.press("Tab");
-  await expect(kategorie).toHaveValue("Kfz: Leasing");
+  await expect(kategorie).toHaveValue(kategorieName("kfzLeasing"));
   // Ein geleertes Feld nimmt die Kategorie weg
   await kategorie.fill("");
   await page.keyboard.press("Tab");
@@ -2819,7 +2819,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   await page.waitForLoadState("networkidle");
   const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
   const kategorie = page.locator(".field").filter({ has: page.getByLabel("Kategorie") });
-  await expect(kategorie).toContainText(`Bisher 2× als Telefon gebucht, zuletzt am ${heute}`);
+  await expect(kategorie).toContainText(new RegExp(`Bisher 2× als [0-9]{4} · Telefon gebucht, zuletzt am ${heute.replaceAll(".", "[.]")}`));
   const bezahlung = page.getByRole("group", { name: "Bezahlung" });
   await expect(bezahlung).toContainText(`Bisher 2× privat bezahlt, zuletzt am ${heute}`);
   await expect(bezahlung.getByLabel("Über das Geschäftskonto (Zuordnung beim Bankabgleich)")).toBeChecked();
@@ -2863,7 +2863,7 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByRole("heading", { name: "Erika Beispiel" })).toBeVisible();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("erloese"));
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
   await expect(panel.getByText("100,00 € netto, 19,00 € Umsatzsteuer")).toBeVisible();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
@@ -2878,12 +2878,12 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByRole("heading", { name: "Kiosk am Markt" })).toBeVisible();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "telefon");
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
   await expect(panel.getByText(/ohne Vorsteuer/)).toBeVisible();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
-  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+  await expect(panel.getByText(/Direkt: [0-9]{4} · Telefon/)).toBeVisible();
 
   // In der Voranmeldung des Monats als Direktbuchung unter Kz 81, verlinkt auf den Bankumsatz mit seiner Zuordnung
   await go(`/umsatzsteuer/${day(0).slice(0, 7)}`);
@@ -2924,9 +2924,9 @@ test("Direkt buchen als nicht steuerbare Einnahme: ohne Steuersatz, auch nach We
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
   // Vorbelegt bleibt Erlöse 19 %; der Wechsel setzt den Satz zurück, ein Steuersatz-Feld gibt es dann nicht
-  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("erloese"));
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "nichtSteuerbar");
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
   await expect(panel.getByText("Gebucht als Einnahme ohne Umsatzsteuer, nicht in der Voranmeldung.", { exact: false })).toBeVisible();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
@@ -2936,7 +2936,7 @@ test("Direkt buchen als nicht steuerbare Einnahme: ohne Steuersatz, auch nach We
   await expect(panel.getByText("Rückforderung Erstattung")).toBeVisible();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "nichtSteuerbar");
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
@@ -3034,7 +3034,7 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeHidden();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "telefon");
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
 
@@ -3050,9 +3050,9 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await expect(panel.getByText("Ausgabe: Telefon")).toBeVisible();
   await expect(panel.getByText(`2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am ${day(0).split("-").reverse().join(".")}`)).toBeVisible();
   await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
-  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("telefon");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("telefon"));
   // Nichts ist gebucht, bis bestätigt wird
-  await expect(panel.getByText("Direkt: Telefon")).toBeHidden();
+  await expect(panel.getByText(/Direkt: [0-9]{4} · Telefon/)).toBeHidden();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
   // Danach springt die Auswahl zum nächsten offenen Umsatz; unter „Alle“ steht der gebuchte mit seiner Zuordnung
@@ -3063,7 +3063,7 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
     .click();
   await page.waitForLoadState("networkidle");
   await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
-  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+  await expect(panel.getByText(/Direkt: [0-9]{4} · Telefon/)).toBeVisible();
 });
 
 test("Gelernte Erlöse als Kleinunternehmer, § 19 inzwischen aufgegeben: das Formular zeigt, was gebucht wird (#295)", async () => {
@@ -3709,6 +3709,13 @@ test("Beleg prüfen: Kategorien stehen in Gruppen, ein Beispiel hilft bei der Wa
   await waehleKategorie(kategorie, "kfzBetrieb");
   await expect(kategorie).toHaveValue(kategorieName("kfzBetrieb"));
   await expect(page.getByText("Z. B. Hosting oder Software unter „Büro und IT“")).toBeHidden();
+  // Die Suche findet auch nach der Nummer des Kontos (#1438)
+  await kategorie.fill("Telefon");
+  const nummer = ((await liste.filter({ hasText: "Telefon" }).first().textContent()) ?? "").match(/^[0-9]{4}/)?.[0] ?? "";
+  await kategorie.fill(nummer);
+  await expect(liste).toHaveCount(1);
+  await expect(liste).toContainText("Telefon");
+  await kategorie.press("Escape");
   // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
   const belegUrl = page.url();
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
