@@ -335,7 +335,7 @@ Beispiel: Rechnung 4.760,00 €, der Kunde überweist 4.664,80 € (2 % Skonto).
 
 Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung, vor der Ausführung einer Leistung nach dem Belegdatum nicht ([Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66)). Ohne Vorsteuerabzug mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
 
-**Rechnung minus Korrektur:** Gibt es zur Rechnung eine offene Rechnungskorrektur, die den Rest genau ausgleicht, hat der Kunde die Korrektur gleich abgezogen. Haben bietet dann weder Skonto noch Forderungsausfall noch eine Gebühr an, sondern **Mit Korrektur … aufteilen**. Das öffnet die Aufteilung mit der Rechnung über den vollen Betrag und der Korrektur über ihren negativen Betrag; danach sind beide bezahlt.
+**Rechnung minus Korrektur:** Gibt es zur Rechnung eine offene Rechnungskorrektur, die den Rest genau ausgleicht, hat der Kunde die Korrektur gleich abgezogen. Haben bietet dann weder Skonto noch Forderungsausfall, Gebühr oder Kursdifferenz an, sondern **Mit Korrektur … aufteilen**. Das öffnet die Aufteilung mit der Rechnung über ihren offenen Betrag und der Korrektur über ihren negativen Betrag; danach sind beide bezahlt.
 
 Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du auf der Seite der Rechnung unter **Ausbuchen** (siehe [Rechnungen](rechnungen.md#ausbuchen)). Hebst du die Zuordnung einer Zahlung auf, hebt Haben einen mit ihr ausgebuchten Rest mit auf.
 
