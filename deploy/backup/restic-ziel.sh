@@ -13,11 +13,12 @@ ziel_ist_rclone() {
 }
 
 # Abschnitt aus rclone:<abschnitt>:<pfad>. Die Form rclone::<typ>,<parameter>:<pfad> bringt alles selbst mit und
-# braucht keine Datei; dann bleibt der Name leer.
+# braucht keine Datei; dann bleibt der Name leer. Parameter hinter dem Abschnitt (rclone:<abschnitt>,pass=…:<pfad>,
+# rclone-Doku „Connection strings“) gehören nicht zum Namen und nicht ins Log.
 rclone_ziel_abschnitt() {
   case "${RESTIC_REPOSITORY:-}" in
     rclone::*) printf '' ;;
-    rclone:*) printf '%s' "${RESTIC_REPOSITORY#rclone:}" | cut -d: -f1 ;;
+    rclone:*) printf '%s' "${RESTIC_REPOSITORY#rclone:}" | cut -d: -f1 | cut -d, -f1 ;;
   esac
 }
 
