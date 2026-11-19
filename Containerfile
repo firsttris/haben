@@ -1,6 +1,6 @@
 # Haben – App-Container. ERiC wird nicht mitgeliefert (Lizenz); Haben lädt es auf Wunsch nach /var/lib/haben/eric
 # (Volume) oder es wird nach /opt/eric gemountet.
-FROM docker.io/oven/bun:1.4.4-slim AS build
+FROM docker.io/oven/bun:1.4.5-slim AS build
 WORKDIR /app
 COPY bun.lock bunfig.toml package.json ./
 COPY apps/web/package.json apps/web/
@@ -30,7 +30,7 @@ RUN bun run build \
 # Digest hält den Build reproduzierbar, Renovate hebt ihn an.
 FROM cgr.dev/chainguard/wolfi-base:latest@sha256:71f52fd289650f1d021d60ba11235550b1b5ce124f3797bd254ca70c4cef39f9
 # Dasselbe Bun wie in der Build-Stufe (glibc-Build); Renovate verfolgt oven/bun weiter an beiden Stellen
-COPY --from=docker.io/oven/bun:1.4.4-slim /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=docker.io/oven/bun:1.4.5-slim /usr/local/bin/bun /usr/local/bin/bun
 # poppler-utils: pdftotext und pdftoppm für hochgeladene PDFs (Textebene, Seitenbilder für einen eigenen KI-Dienst),
 # als eigener Prozess. font-liberation: ohne Schriften rendert pdftoppm nicht eingebettete Standardschriften wie
 # Helvetica gar nicht. libgcc: libgcc_s braucht ERiC neben glibc (steckt schon in wolfi-base, hier ausdrücklich).

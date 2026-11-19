@@ -95,6 +95,10 @@ describe("ebilanzPosition", () => {
     ["SKR03", "2742", -1_250, "is.netIncome.regular.operatingTC.otherOpRevenue.insuranceRefunds"],
     ["SKR04", "4970", -1_250, "is.netIncome.regular.operatingTC.otherOpRevenue.insuranceRefunds"],
     ["SKR04", "4970", 420, "is.netIncome.regular.operatingTC.otherOpRevenue.insuranceRefunds"],
+    // Gesetzliche Rücklage der UG (§ 5a Abs. 3 GmbHG, § 266 Abs. 3 A. III. 1. HGB; DATEV-Kontenrahmen 2026: SKR03 S. 3,
+    // SKR04 S. 10, unter „Gewinnrücklagen“): eigene Position, keine Auffangposition im Eigenkapital
+    ["SKR03", "0846", -25_000, "bs.eqLiab.equity.revenueRes.legal"],
+    ["SKR04", "2930", -25_000, "bs.eqLiab.equity.revenueRes.legal"],
   ] as const)("%s %s Saldo %i → %s", (kontenrahmen, account, saldo, position) => {
     expect(ebilanzPosition(kontenrahmen, account, saldo)).toBe(position);
   });
