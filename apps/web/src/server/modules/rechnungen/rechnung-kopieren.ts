@@ -7,15 +7,14 @@ import { assertCustomer, insertDraft } from "./invoice-drafts.ts";
 import { getInvoice, type Invoice } from "./invoices.ts";
 
 /** Warum sich eine Rechnung nicht kopieren lässt; null = sie lässt sich kopieren */
-function copyProblem(invoice: Pick<Invoice, "kind" | "variant" | "status">): string | null {
+function copyProblem(invoice: Pick<Invoice, "kind" | "variant">): string | null {
   if (invoice.kind !== "rechnung") return "Stornorechnungen und Korrekturen lassen sich nicht kopieren.";
   if (invoice.variant !== null) return "Abschlags- und Schlussrechnungen lassen sich nicht kopieren; sie entstehen aus dem Angebot.";
-  if (invoice.status !== "final") return "Nur festgeschriebene Rechnungen lassen sich kopieren.";
   return null;
 }
 
 /**
- * Neuer Entwurf aus einer festgeschriebenen Rechnung für die nächste ähnliche (docs/rechnungen.md, Festgeschriebene Rechnung).
+ * Neuer Entwurf aus einer festgeschriebenen Rechnung oder einem Entwurf für die nächste ähnliche (docs/rechnungen.md, Festgeschriebene Rechnung, Kopieren).
  * Datum heute; Leistungszeitraum und Kurs leer, der Kurs folgt dem neuen Leistungsmonat. Anhänge gehören zur einzelnen
  * Rechnung und bleiben beim Original, ebenso der Bezug zu einem Angebot.
  */

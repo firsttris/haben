@@ -86,7 +86,7 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
               <>
                 {" "}
                 Sitz, Registergericht und Registernummer trägst du unter{" "}
-                <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                <Link to="/einstellungen" search={{ bereich: "firma" }} hash="company-register">
                   Einstellungen › Firmendaten
                 </Link>{" "}
                 ein.

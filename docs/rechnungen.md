@@ -296,7 +296,7 @@ Haben nimmt die Angaben aus den [Firmendaten](einrichtung.md#firmendaten) und se
 
 **Hinweis, keine Sperre:** Fehlt etwas, zeigen Firmendaten und Editor einen Hinweis, das Festschreiben bleibt möglich; der Fuß nennt dann nur, was eingetragen ist. Die Rechnung bleibt umsatzsteuerlich gültig, denn § 14 Abs. 4 UStG verlangt die Angaben nicht; fehlende Angaben kann das Registergericht mit Zwangsgeld durchsetzen ([§ 79 Abs. 1 GmbHG](https://www.gesetze-im-internet.de/gmbhg/__79.html)). Eine Gesellschaft in Gründung hat vor der Eintragung noch keine Registernummer, schreibt aber schon Rechnungen, und Storno und Korrektur müssen immer möglich sein.
 
-**Festgeschriebene Rechnungen bleiben, wie sie sind:** Der Absender ist mit der Rechnung gespeichert, PDF und XML sind gesperrt. Mahnung, Auftragsbestätigung und Lieferschein entstehen dagegen neu und tragen die Angaben aus den aktuellen Firmendaten, auch zu einer älteren Rechnung. Beim Einzelunternehmen ändert sich nichts.
+**Festgeschriebene Rechnungen bleiben, wie sie sind:** Absender und Kunde sind mit der Rechnung gespeichert, PDF und XML sind gesperrt. Mahnung, Auftragsbestätigung und Lieferschein entstehen dagegen neu und tragen Namen, Anschrift und Pflichtangaben aus den aktuellen Firmendaten und Namen und Anschrift des Kunden aus dem aktuellen Kontakt, auch zu einer älteren Rechnung. Bankverbindung, Steuernummer und Kundennummer bleiben wie auf der Rechnung.
 
 ## Buchungen
 
@@ -459,7 +459,7 @@ Scheitert das Festschreiben, etwa weil in den Firmendaten die IBAN fehlt, bleibt
 
 Die Seite einer Vorlage listet alle daraus erzeugten Rechnungen. Löschen lässt sich eine Vorlage nur, solange daraus keine Rechnung entstanden ist; sonst deaktivierst du sie.
 
-Vorlagen aus sevDesk kommen pausiert an, siehe [Umzug aus sevDesk](sevdesk.md#wiederkehrende-rechnungen).
+Vorlagen aus sevDesk und FastBill kommen pausiert an, siehe [Umzug aus sevDesk](sevdesk.md#wiederkehrende-rechnungen) und [Umzug aus FastBill](fastbill.md#wiederkehrende-rechnungen).
 
 ## Rechnungsliste und Status
 
@@ -488,7 +488,7 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 - **PDF herunterladen** liefert `Rechnung-<Nummer>.pdf`.
 - **XML herunterladen** liefert `Rechnung-<Nummer>-cii.xml` bzw. `-ubl.xml`. Bei ZUGFeRD ist das dasselbe XML, das im PDF steckt.
 - **Lieferschein** erzeugt einen Lieferschein mit den Positionen und Mengen der Rechnung, ohne Preise (siehe [Angebote](angebote.md#auftragsbestätigung-und-lieferschein)).
-- **Kopieren** legt für die nächste ähnliche Rechnung einen neuen Entwurf an, mit Kunde, Ansprechpartner (solange aktiv), Einleitung, Positionen (samt Text, Artikelnummer und Rabatt), Hinweis samt [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen), Bestell-, Auftrags- und Lieferscheinnummer, Umsatzsteuer, Preismodus, Währung, Sprache, Format, Gesamtrabatt, Zahlungsziel, Skonto und Zahlungsart. Das Rechnungsdatum ist heute, Nummer, Leistungszeitraum und Kurs sind leer; aus „bereits bezahlt“ wird Überweisung. [Anhänge](#zusätzliche-anhänge) und der Bezug zu einem Angebot bleiben beim Original, das sich nicht ändert. Auch eine stornierte Rechnung lässt sich kopieren, Stornorechnungen, Korrekturen sowie Abschlags- und Schlussrechnungen nicht.
+- **Kopieren** legt für die nächste ähnliche Rechnung einen neuen Entwurf an, mit Kunde, Ansprechpartner (solange aktiv), Einleitung, Positionen (samt Text, Artikelnummer und Rabatt), Hinweis samt [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen), Bestell-, Auftrags- und Lieferscheinnummer, Umsatzsteuer, Preismodus, Währung, Sprache, Format, Gesamtrabatt, Zahlungsziel, Skonto und Zahlungsart. Das Rechnungsdatum ist heute, Nummer, Leistungszeitraum und Kurs sind leer; aus „bereits bezahlt“ wird Überweisung. [Anhänge](#zusätzliche-anhänge) und der Bezug zu einem Angebot bleiben beim Original, das sich nicht ändert. Auch eine stornierte Rechnung lässt sich kopieren, ebenso ein Rechnungsentwurf: Im Editor steht **Kopieren** neben **Festschreiben**, am Handy unter **⋯**; Ungespeichertes wird vorher gespeichert. Stornorechnungen, Korrekturen sowie Abschlags- und Schlussrechnungen lassen sich nicht kopieren.
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
 

@@ -37,6 +37,9 @@ const base = {
   SERVICE_PERIOD_END: "0000-00-00 00:00:00",
   DELIVERY_DATE: "0000-00-00 00:00:00",
   PAYMENTS: [],
+  // Bankverbindung des Kunden, wie invoice.get sie mitliefert (erfunden)
+  BANK_IBAN: "DE02120300000000202051",
+  BANK_ACCOUNT_OWNER: "Muster GmbH",
 };
 
 const OUTGOING = [
@@ -177,6 +180,8 @@ function fakeFastbill(server: Server): typeof fetch {
     const page = (key: string, items: unknown[]) => json({ REQUEST: body, RESPONSE: { [key]: body.OFFSET === 0 ? items : [] } });
     if (body.SERVICE === "customer.get") return page("CUSTOMERS", CUSTOMERS);
     if (body.SERVICE === "expense.get") return page("EXPENSES", EXPENSES);
+    // Vorlagen wiederkehrender Rechnungen prüft fastbill-vorlagen.test.ts; hier gibt es keine
+    if (body.SERVICE === "recurring.get") return page("INVOICES", []);
     // Angebote prüft fastbill-angebote.test.ts; hier gibt es keine
     if (body.SERVICE === "estimate.get") return page("ESTIMATES", []);
     if (body.SERVICE === "invoice.get") {
@@ -232,8 +237,8 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     expect(run).toMatchObject({ status: "fertig", source: "fastbill" });
     // Die Ausgabe 8002 wartet auf ihren Beleg, statt ohne Datei ins Archiv zu kommen
     expect(run!.progress).toMatchObject({ contacts: 2, listed: 6, imported: 5, skipped: 0, files: 5, failed: [], fastbillWaiting: 1 });
-    // Kunden, drei Durchläufe Rechnungen, Ausgaben, Angebote; die Prüfung beim Speichern hat einen eigenen Client, PDFs zählen nicht
-    expect(run!.progress.fastbillCalls).toHaveLength(6);
+    // Kunden, drei Durchläufe Rechnungen, Ausgaben, Vorlagen, Angebote; die Prüfung beim Speichern hat einen eigenen Client, PDFs zählen nicht
+    expect(run!.progress.fastbillCalls).toHaveLength(7);
     // Entwürfe werden gar nicht abgefragt
     expect(server.calls.filter((c) => c.service === "invoice.get").map((c) => c.filter)).toEqual([
       { TYPE: "outgoing" },
@@ -365,7 +370,7 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     await fastbill.startFastbillImport(actor, { wait: true });
     const run = await fastbill.latestFastbillImport();
     expect(run!.progress).toMatchObject({ contacts: 0, imported: 0, skipped: 6, failed: [], fastbillWaiting: 0 });
-    expect(run!.progress.fastbillCalls!.length).toBe(before.length + 6);
+    expect(run!.progress.fastbillCalls!.length).toBe(before.length + 7);
     const [count] = await sql`select count(*)::int as n from lexoffice_vouchers where source = 'fastbill'`;
     expect(count!.n).toBe(7);
   });
@@ -402,6 +407,11 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     await fastbill.startFastbillImport(actor, { wait: true });
     const run = await fastbill.latestFastbillImport();
     expect(run).toMatchObject({ status: "fehler", error: "Login-E-Mail oder API-Schlüssel falsch" });
+  });
+
+  it("legt die Bankverbindung des Kunden nicht ins unveränderliche Archiv (#1540)", async () => {
+    const rows = await sql`select lexoffice_id from lexoffice_vouchers where source = 'fastbill' and (raw ? 'BANK_IBAN' or raw ? 'BANK_ACCOUNT_OWNER')`;
+    expect(rows.map((r) => r.lexoffice_id)).toEqual([]);
   });
 
   it("legt die DOCUMENT_URL (Link mit eigenem Schlüssel) nicht ins unveränderliche Archiv", async () => {

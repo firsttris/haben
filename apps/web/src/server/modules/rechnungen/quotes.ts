@@ -43,7 +43,7 @@ import { ansprechpartnerSnapshot, contactPersonProblem, contactRoleProblem, load
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
-import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
+import { assertNumberingCurrent, circleContact, circleFor, customerNumberConflict, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { quoteDraftLineSchema } from "./draft-line.ts";
 import { openAbschlaege } from "./advance-deductions.ts";
 import { effectivePriceMode } from "./draft-schema.ts";
@@ -481,14 +481,23 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!, await ansprechpartnerSnapshot(tx, quote.contactPersonId));
     // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts); {KUNDENNR} wird zur
-    // Kundennummer des Käufers (#1426)
+    // Kundennummer des Käufers, der Kreis beim Zähler je Kunde der des Kunden (#1426)
     const circle = await circleFor(tx, "angebot", quote.issueDate);
-    const counter = await peekNumber(tx, "angebot", circle);
+    const numberContactId = circleContact(company.quoteCounterPerCustomer, quote.contactId!);
+    if (numberContactId !== null) {
+      const conflict = await customerNumberConflict(tx, contact!);
+      if (conflict) {
+        throw new QuoteError(`Die Kundennummer ${contact!.kundennummer} hat auch „${conflict}“; mit Zähler je Kunde muss sie eindeutig sein.`);
+      }
+    }
+    const counter = await peekNumber(tx, "angebot", circle, numberContactId);
     const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, quote.issueDate, counter, buyer.kundennummer);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
     const pdf = await withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuotePdf({ ...doc, ...letterhead }));
     const now = new Date();
-    await takeNumber(tx, "angebot", circle, counter);
+    await takeNumber(tx, "angebot", circle, counter, numberContactId);
+    const used = { format: company.quoteNumberFormat, date: quote.issueDate, year: circle, contactId: numberContactId };
+    await assertNumberingCurrent(tx, "angebot", used, quote.contactId!);
     const [finalized] = await tx
       .update(schema.quotes)
       .set({
@@ -496,6 +505,7 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
         number,
         numberYear: circle,
         numberCounter: counter,
+        numberContactId,
         contactVersion: contact!.version,
         seller,
         buyer,

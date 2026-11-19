@@ -28,8 +28,14 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     : [];
   const [corrects] = invoice.correctsId
     ? await q
-        // buyer: {KUNDENNR} von Storno und Korrektur nimmt die Kundennummer des Originals, solange sie taugt (#1426)
-        .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate, buyer: schema.invoices.buyer })
+        // buyer: {KUNDENNR} von Storno und Korrektur nimmt im gemeinsamen Kreis die Kundennummer des Originals,
+        // solange sie taugt (#1426)
+        .select({
+          id: schema.invoices.id,
+          number: schema.invoices.number,
+          issueDate: schema.invoices.issueDate,
+          buyer: schema.invoices.buyer,
+        })
         .from(schema.invoices)
         .where(eq(schema.invoices.id, invoice.correctsId))
     : [];

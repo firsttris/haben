@@ -2751,9 +2751,14 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   await expect(liste).toContainText("1:30 Std.");
   await expect(liste).toContainText("Relaunch Shop");
   // Berechnet wird die abrechenbare Stunde, nicht die erfassten 90 Minuten
-  await expect(liste).toContainText("abrechenbar 1:00");
+  await expect(liste).toContainText("abr. 1:00");
+  await expect(liste.getByTitle("abrechenbar")).toHaveText("abr.");
   await expect(liste).toContainText("95,00");
   await expect(liste).not.toContainText("142,50");
+  // Kopf und Zeilen teilen das Raster: „Betrag“ steht rechtsbündig über dem Betrag, nicht über den Knöpfen (#1547)
+  const kopfBetrag = await liste.locator(".table-row.head > div", { hasText: "Betrag" }).boundingBox();
+  const zelleBetrag = await liste.locator(".table-row:not(.head) > .num").nth(2).boundingBox();
+  expect(Math.round(kopfBetrag!.x + kopfBetrag!.width)).toBe(Math.round(zelleBetrag!.x + zelleBetrag!.width));
   // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
   await ohneAxeVerstoesse(page, ["/leistungen"]);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -3070,7 +3075,7 @@ test("Artikel-API: Rechte, Anlegen, Suchen und Ändern im Katalog (#297)", async
   expect(await archived.json()).toMatchObject({ data: [{ id: result.id, archived: true }], total: 1 });
 });
 
-test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
+test("Kopieren: festgeschriebene Rechnung und daraus wieder der Entwurf als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
   await rechnungFestschreiben(page, {
     customer: "Rheinpixel GmbH · Köln",
     date: day(-4),
@@ -3083,6 +3088,17 @@ test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positi
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Monatliche Betreuung Server");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("80,00");
   await expect(page.getByLabel("Rechnungsdatum")).not.toHaveValue(day(-4));
+
+  // Aus dem gerade kopierten Entwurf entsteht mit „Kopieren“ wieder ein neuer Entwurf (#1465); Ungespeichertes wird vorher
+  // gespeichert, die Kopie und der Entwurf selbst zeigen also die geänderte Position
+  const draftUrl = page.url();
+  await page.getByLabel("Beschreibung Position 1").fill("Betreuung Server, Dezember");
+  await page.getByRole("button", { name: "Kopieren", exact: true }).click();
+  await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== draftUrl);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Betreuung Server, Dezember");
+  await expect(page.getByRole("button", { name: "Festschreiben", exact: true }).first()).toBeVisible();
+  await page.goto(draftUrl);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Betreuung Server, Dezember");
 
   await page.goto(originalUrl);
   await expect(page.getByRole("button", { name: "Kopieren", exact: true })).toBeVisible();

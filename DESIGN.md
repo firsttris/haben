@@ -49,7 +49,7 @@ Die Knopfarten (#30, `styles.css`):
 | `btn btn-danger` | Löschen, Entfernen, Stornieren, Widerrufen, Abo beenden, Ausschalten. |
 | `btn btn-destructive` | Bestätigung von Unumkehrbarem im `ConfirmDialog` (`danger`): voll in Rot. |
 | `btn btn-dashed` | Nur zum Anfügen einer Zeile oder eines Eintrags im Formular, etwa „+ Position“, „+ Steuersatz“, „+ Kind“. |
-| `btn btn-ghost` | Nebenaktion in einer Werkzeugleiste, etwa Blättern oder Vergrößern und Ausblenden der Vorschau: ohne Rahmen, Fläche erst beim Überfahren. Nie für die Hauptaktion. |
+| `btn btn-ghost` | Nebenaktion in einer Werkzeugleiste oder als Nebenlink im Seitenkopf (Voranmeldung auf der Übersicht), etwa Blättern oder Vergrößern und Ausblenden der Vorschau: ohne Rahmen, Fläche erst beim Überfahren. Nie für die Hauptaktion. |
 | `btn-icon` | Quadratischer Knopf nur mit Symbol, mit `aria-label`; zusammen mit `btn-ghost` oder `btn-sm`. |
 | `btn-sm` | Kleiner Knopf; ersetzt Inline-`minHeight`. |
 
@@ -122,6 +122,8 @@ Eine Trefferzeile zeigt Symbolkachel, Titel und darunter Kontext. Am Desktop ste
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.
+
+Auf der Übersicht steht „Zu erledigen“ vor der Reihe: Fristen der nächsten zwei Wochen zuerst (auch überfällige), die früheste vorn, dann Warnung vor Hinweis vor Anstehendem; offen stehen die drei dringendsten, der Rest zugeklappt unter „Weitere (n)“. Die Reihe entfällt, solange keine Zahlen da sind (`ohneKennzahlen`). Fehlt „Letzte Voranmeldungen“, nimmt „Letzte Rechnungen“ die ganze Breite (`.uebersicht-listen`).
 
 ### Status
 
@@ -215,6 +217,8 @@ Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedb
 
 Seltenes steht eingeklappt, Gesetztes in der Überschrift („Weitere Angaben: EUR · fällig 30.11.2026“), und ein Fehler an einem Feld darin klappt den Bereich auf, auch einer vom Server; was jeder Beleg oder Kontakt braucht, bleibt draußen. Beim Beleg (`WeitereAngaben`) und beim Kontakt (`ContactWeitereAngaben`) gilt das Muster; den Feldnamen eines Fehlers nennt `felder` (`UserError`, bei Zod-Prüfungen der Pfad), nie der Meldungstext.
 
+Im Formular gilt dasselbe für ganze Abschnitte (`EinklappAbschnitt` in `components/firma/`, Klasse `.form-section-zu`): Die Überschrift ist die Zeile zum Aufklappen, mindestens 48px hoch, mit `›` davor und dem Gesetzten dahinter („Mahnwesen“, dahinter „Basiszinssatz 2,27 % · Gebühren 0 / 5,00 / 10,00 €“). Die Seite hält den Zustand, damit ein Fehler oder ein Link mit Anker (`#company-dunning`) den Abschnitt aufklappen kann; die Felder bleiben zugeklappt im Formular und gehen beim Speichern mit.
+
 ### Datei-Felder
 
 Eine Datei, die mit einem Formular abgeschickt wird, wählt `FilePicker` (`components/FilePicker.tsx`) in einem `Field`, nie ein sichtbares `<input type="file">`: Dessen Knopf beschriftet der Browser in seiner Sprache („Choose File“). `FilePicker` zeigt „Datei wählen“ und den gewählten Namen, nimmt `{...control}` von `Field` an, öffnet den Dialog per Klick und Tastatur selbst und kennt `disabled` und `onChange`. Leeren lässt er sich samt Anzeige über einen neuen `key`.
@@ -247,4 +251,4 @@ Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an di
 - **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Navigationsflächen (`.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
 - **Verläufe:** `styles.css` nutzt `linear-gradient` für den auslaufenden Rand des Blatts in der Vorschau (`.preview-pane-body`, `.preview-dialog-body`, `.sheet-frame::before` und `::after`) und `conic-gradient` für das Farbfeld „Eigene Farbe“ (`.color-swatch-custom`).
-- **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.
+- **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `.form-section-zu > details > summary::before` in `styles.css` (mit leerem Alternativtext `content: "›" / ""`, damit der Schalter nur die Überschrift heißt), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.

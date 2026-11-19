@@ -15,7 +15,7 @@ Rechnungen, Buchungen und Bankumsätze aus dem Testen lassen sich nicht löschen
 - Absender und Vorlagen der E-Mails, [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail), Textbausteine, eigene Konten, eigene Seiten und die Angaben zur Verfahrensdokumentation
 - Einheiten, Artikel und Kontakte mit Ansprechpartnern
 
-Nicht darin sind Zugangsdaten (Kontoabruf, Google Play, App Store, Etsy und Stripe, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, Ablage im Dokumentenarchiv, KI-Schlüssel, API-Tokens, Kalender-Abo), Zugänge und Passkeys, die Zählerstände der Rechnungs- und Angebotsnummern, Bankkonten, Mitarbeiter, Darlehen, SEPA-Lastschriftmandate, wiederkehrende Rechnungen, Dauerbelege und alles Gebuchte. Das ZIP enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre es so sicher auf wie ein Backup; herunterladen kann es nur der Inhaber.
+Nicht darin sind Zugangsdaten (Kontoabruf, Google Play, App Store, Etsy, PayPal und Stripe, ELSTER-Zertifikat, E-Mail-Versand und Belege-Postfach, Ablage im Dokumentenarchiv, KI-Schlüssel, API-Tokens, Kalender-Abo), Zugänge und Passkeys, die Zählerstände der Rechnungs- und Angebotsnummern, Bankkonten, Mitarbeiter, Darlehen, SEPA-Lastschriftmandate, wiederkehrende Rechnungen, Dauerbelege und alles Gebuchte. Das ZIP enthält Steuernummer, Steuer-ID und Bankverbindung. Bewahre es so sicher auf wie ein Backup; herunterladen kann es nur der Inhaber.
 
 Nimm für beide Instanzen dieselbe Version von Haben: Aktualisiere die Testinstanz vor dem Export auf die Version, die du neu installierst. Eine neuere Version kann Werte speichern, die eine ältere beim Übernehmen nicht annimmt; ein ZIP mit neuerem Format lehnt sie ab. Die Rückfrage beim Übernehmen nennt die Version, mit der exportiert wurde.
 

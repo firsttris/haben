@@ -91,12 +91,12 @@ async function legacyRows(sql: postgres.Sql, kontenrahmen: "SKR03" | "SKR04", ve
 async function snapshot(sql: postgres.Sql, ids: LegacyIds, auditSeq: string) {
   const sealedIds = [ids.invoice, ids.allocation, ids.cash, ...ids.entries];
   return {
-    company: await sql`select to_jsonb(c)::text as bytes from company c order by id`,
+    company: await sql`select (to_jsonb(c)-'invoice_counter_per_customer'-'quote_counter_per_customer')::text as bytes from company c order by id`,
     contacts: await sql`select to_jsonb(c)::text as bytes from contacts c order by id`,
-    invoice: await sql`select (to_jsonb(i)-'tax_details')::text as bytes from invoices i where id=${ids.invoice}`,
+    invoice: await sql`select (to_jsonb(i)-'tax_details'-'number_contact_id')::text as bytes from invoices i where id=${ids.invoice}`,
     invoiceLines: await sql`select to_jsonb(l)::text as bytes from invoice_lines l where invoice_id=${ids.invoice} order by id`,
     invoiceTaxes: await sql`select to_jsonb(t)::text as bytes from invoice_taxes t where invoice_id=${ids.invoice} order by rate`,
-    quote: await sql`select (to_jsonb(q)-'tax_details')::text as bytes from quotes q where id=${ids.quote}`,
+    quote: await sql`select (to_jsonb(q)-'tax_details'-'number_contact_id')::text as bytes from quotes q where id=${ids.quote}`,
     quoteLines: await sql`select to_jsonb(l)::text as bytes from quote_lines l where quote_id=${ids.quote} order by id`,
     recurring: await sql`select (to_jsonb(r)-'tax_details')::text as bytes from recurring_invoices r where id=${ids.recurring}`,
     allocations: await sql`select to_jsonb(a)::text as bytes from allocations a where id=${ids.allocation}`,

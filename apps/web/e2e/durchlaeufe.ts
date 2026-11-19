@@ -47,7 +47,9 @@ export const DURCHLAEUFE = {
   "bank-dubletten": 35,
   // Vorschläge der Bankliste markieren und gemeinsam bestätigen (#1440)
   "bank-bestaetigen": 37,
-  // Stripe (#1280): nur dieser Server fragt die nachgebaute Stripe-API auf STRIPE_PORT; 38 und 39 bleiben für PayPal (#1531) frei
+  // PayPal-Umsätze über die Transaction Search (#1512): nur dieser Server fragt die nachgebaute PayPal-API auf PAYPAL_PORT
+  "paypal-abruf": 38,
+  // Stripe (#1280): nur dieser Server fragt die nachgebaute Stripe-API auf STRIPE_PORT
   "stripe-abruf": 40,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
@@ -69,6 +71,9 @@ export const STRIPE_PORT = PORT + 41;
  * Server zeigt dorthin, damit kein Test das echte BZSt fragt
  */
 export const EVATR_PORT = PORT + 34;
+
+/** Nachgebaute Transaction Search von PayPal in paypal-abruf.spec.ts (PAYPAL_API_URL) */
+export const PAYPAL_PORT = PORT + 39;
 
 /** Platzhalter für FINTS_PRODUKT_ID im Durchlauf „fints-abruf“; eine echte Registrierungsnummer steht nie im Repository */
 export const FINTS_PRODUKT_E2E = "HABENE2ETESTPRODUKT";

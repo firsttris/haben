@@ -1,5 +1,5 @@
 import type { Cents } from "@haben/core";
-import { fbCents, fbDate, fbPersonName } from "./map.ts";
+import { fbCents, fbDate, fbForArchive, fbPersonName } from "./map.ts";
 import type { FbEstimate } from "./types.ts";
 
 /*
@@ -24,8 +24,6 @@ export interface FbMappedEstimate {
   raw: Record<string, unknown>;
 }
 
-const HIDDEN = ["DOCUMENT_URL", "BANK_NAME", "BANK_ACCOUNT_NUMBER", "BANK_CODE", "BANK_ACCOUNT_OWNER", "BANK_IBAN", "BANK_BIC"];
-
 const text = (value: unknown) => (value == null ? "" : String(value).trim());
 
 /** null, wenn das Angebot kein Datum hat; dann lässt es sich keinem Jahr zuordnen */
@@ -46,6 +44,6 @@ export function mapFbEstimate(e: FbEstimate): FbMappedEstimate | null {
     net: fbCents(e.SUB_TOTAL),
     tax: fbCents(e.VAT_TOTAL),
     gross: fbCents(e.TOTAL),
-    raw: Object.fromEntries(Object.entries(e).filter(([k]) => !HIDDEN.includes(k))),
+    raw: fbForArchive(e),
   };
 }

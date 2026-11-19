@@ -1,5 +1,6 @@
 import {
   FastbillApiError,
+  fbForArchive,
   type FastbillClient,
   type FbExpense,
   type FbFile,
@@ -15,8 +16,8 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { isUniqueViolation } from "../../errors.ts";
-import { importFastbillEstimates } from "./fastbill-angebote.ts";
 import { waitingReceipt } from "./fastbill-belege.ts";
+import { importAfterVouchers } from "./fastbill-nachlauf.ts";
 import { FastbillError, fastbillCredentials, forgetOtherFastbillCalls, newFastbillClient, otherFastbillCalls } from "./fastbill-zugang.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
@@ -194,10 +195,7 @@ async function runImport(actor: string, importId: string, client: FastbillClient
   await save(true);
   await importListed(actor, importId, client, listed, { invoicesById, creditsByInvoice }, progress, save, signal);
   await save(true);
-  // Erst nach den Kunden: Die Angebote finden ihren Kontakt über contacts.fastbill_id
-  checkAborted(signal);
-  await importFastbillEstimates(actor, importId, client, progress, signal);
-  await save(true);
+  await importAfterVouchers(actor, importId, client, progress, signal, save);
 }
 
 /** 1. Kunden; FastBill führt keine Lieferanten als Kontakte */
@@ -292,15 +290,6 @@ async function importListed(
   }
 }
 
-/**
- * Antwort der API fürs Archiv ohne DOCUMENT_URL: Der Link trägt einen eigenen Schlüssel und öffnet die Datei ohne Anmeldung;
- * im unveränderlichen Archiv und im Jahresexport (quelle.json) bliebe er für immer stehen. Die Datei selbst liegt im Archiv.
- */
-function withoutDocumentUrl(raw: FbInvoice | FbExpense): Record<string, unknown> {
-  const { DOCUMENT_URL: _, ...rest } = raw as Record<string, unknown>;
-  return rest;
-}
-
 type VoucherFile = { role: "pdf" | "anhang"; fileId: string | null; file: FbFile };
 
 async function importVoucher(
@@ -378,7 +367,7 @@ async function storeVoucher(
         // FastBill nennt nur den Namen der Kategorie; er steht als ID und Name
         categories: voucher.categories.map((c) => ({ ...c, name: c.categoryId })),
         payment,
-        raw: withoutDocumentUrl(item.raw),
+        raw: fbForArchive(item.raw),
       },
       files.map((entry) => ({
         role: entry.role,

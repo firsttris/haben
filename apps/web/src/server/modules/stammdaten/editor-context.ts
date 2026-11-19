@@ -1,4 +1,4 @@
-import { legalInfo } from "@haben/core";
+import { circleKey, legalInfo } from "@haben/core";
 import { legalLine } from "@haben/einvoice";
 import { db, schema } from "../../db/index.ts";
 import { today } from "../../today.ts";
@@ -77,8 +77,10 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     /** Vorlagen für den Zahlungsplan im Angebot */
     planTemplates: company.paymentPlanTemplates,
     numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
-    /** Letzte Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
-    numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
+    /** Letzte Nummer je Kreis: Jahr (0 = durchlaufender Zähler), beim Kundenkreis Jahr:Kontakt (#1426) */
+    numberCounters: Object.fromEntries(counters.map((c) => [circleKey(c.year, c.contactId), c.last])) as Record<string, number>,
     numberRunning: kind === "rechnung" ? company.invoiceCounterRunning : company.quoteCounterRunning,
+    /** Zähler kreist je Kunde (#1426): der Editor zeigt den Kreis des gewählten Kontakts */
+    numberPerCustomer: kind === "rechnung" ? company.invoiceCounterPerCustomer : company.quoteCounterPerCustomer,
   };
 }

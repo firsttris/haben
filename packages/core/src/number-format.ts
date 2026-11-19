@@ -97,9 +97,9 @@ export function voucherField(value: string): string {
 }
 
 /**
- * Kundennummer, mit der Storno und Rechnungskorrektur bei {KUNDENNR} nummeriert werden: die festgeschriebene
- * des Originals, solange sie taugt, sonst die heutige des Kontakts (#1426). Was übrig bleibt, meldet
- * customerNumberProblem.
+ * Kundennummer, mit der Storno und Rechnungskorrektur im gemeinsamen Kreis bei {KUNDENNR} nummeriert werden: die
+ * festgeschriebene des Originals, solange sie taugt, sonst die heutige des Kontakts (#1426). Im Kundenkreis gehört
+ * die Nummer zum Kreis und nimmt immer die des Kontakts. Was übrig bleibt, meldet customerNumberProblem.
  */
 export function effectiveCustomerNumber(
   buyer: { kundennummer?: string | null } | null | undefined,
@@ -121,18 +121,34 @@ export function counterCircle(running: boolean, date: string): number {
 export type FinalizedCircleRef = { number: string; issueDate: string };
 
 /**
- * Gibt die zuletzt festgeschriebene Rechnung des Nummernkreises zurück, wenn das gewählte Rechnungsdatum davor liegt;
- * sonst null. Beim Wechsel auf den durchlaufenden Zähler gilt vor der ersten neuen Rechnung noch das jüngste Jahr.
+ * Schlüssel eines Nummernkreises in lastFinalizedByCircle und numberCounters: das Jahr (0 beim durchlaufenden Zähler),
+ * beim Zähler je Kunde Jahr:Kontakt (#1426). Der gemeinsame Kreis trägt keinen Kontakt und heißt wie bisher.
  */
-export function issueDateBeforeLastFinalized(byCircle: Record<number, FinalizedCircleRef>, running: boolean, issueDate: string): FinalizedCircleRef | null {
+export function circleKey(year: number, contactId: string | null): string {
+  return contactId === null ? String(year) : `${year}:${contactId}`;
+}
+
+/**
+ * Gibt die zuletzt festgeschriebene Rechnung des Nummernkreises zurück, wenn das gewählte Rechnungsdatum davor liegt;
+ * sonst null. Beim Wechsel auf den durchlaufenden Zähler gilt vor der ersten neuen Rechnung noch das jüngste Jahr —
+ * beim Zähler je Kunde das jüngste Jahr desselben Kundenkreises (#1426).
+ */
+export function issueDateBeforeLastFinalized(
+  byCircle: Record<string, FinalizedCircleRef>,
+  running: boolean,
+  issueDate: string,
+  contactId: string | null = null,
+): FinalizedCircleRef | null {
   if (!issueDate) return null;
   const circle = counterCircle(running, issueDate);
-  let last = byCircle[circle];
+  let last = byCircle[circleKey(circle, contactId)];
   if (!last && running) {
+    const suffix = contactId === null ? null : `:${contactId}`;
     const years = Object.keys(byCircle)
-      .map(Number)
+      .filter((key) => (suffix === null ? !key.includes(":") : key.endsWith(suffix)))
+      .map((key) => Number(key.split(":")[0]))
       .filter((y) => y > 0);
-    if (years.length > 0) last = byCircle[Math.max(...years)];
+    if (years.length > 0) last = byCircle[circleKey(Math.max(...years), contactId)];
   }
   if (!last || issueDate >= last.issueDate) return null;
   return last;
@@ -142,22 +158,24 @@ export function issueDateBeforeLastFinalized(byCircle: Record<number, FinalizedC
  * Warum ein Format nicht taugt, als Satz für die Oberfläche; null = in Ordnung. requireYear: false für Nummern, deren
  * Zähler nicht jährlich neu beginnt (Kundennummern, durchlaufende Nummernkreise); dort ist das Jahr erlaubt, aber nicht
  * nötig. allowCustomer erlaubt {KUNDENNR}: Rechnungen und Angebote tragen die Nummer ihres Käufers, für die Vergabe
- * neuer Kundennummern ergäbe der Platzhalter keinen Sinn.
+ * neuer Kundennummern ergäbe der Platzhalter keinen Sinn. requireCustomer verlangt {KUNDENNR}: beim Zähler je Kunde
+ * muss die Nummer aus dem Kreis ablesbar bleiben, der Platzhalter ist dann auch ohne allowCustomer erlaubt (#1426).
  */
 export function numberFormatError(
   format: string,
-  { requireYear = true, allowCustomer = false }: { requireYear?: boolean; allowCustomer?: boolean } = {},
+  { requireYear = true, allowCustomer = false, requireCustomer = false }: { requireYear?: boolean; allowCustomer?: boolean; requireCustomer?: boolean } = {},
 ): string | null {
   if (format.length > MAX_NUMBER_FORMAT_LENGTH) return `Das Format darf höchstens ${MAX_NUMBER_FORMAT_LENGTH} Zeichen lang sein.`;
   const names = [...format.matchAll(PLACEHOLDER)].map((m) => m[1]!);
-  const unknown = names.find((name) => !COUNTER.test(name) && !YEAR.test(name) && !MONTH.test(name) && !(allowCustomer && name === CUSTOMER));
+  const customerAllowed = allowCustomer || requireCustomer;
+  const unknown = names.find((name) => !COUNTER.test(name) && !YEAR.test(name) && !MONTH.test(name) && !(customerAllowed && name === CUSTOMER));
   if (unknown !== undefined)
-    return `Den Platzhalter {${unknown}} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM}${allowCustomer ? `, {${CUSTOMER}}` : ""} und {N} bis {NNNNNN}.`;
+    return `Den Platzhalter {${unknown}} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM}${customerAllowed ? `, {${CUSTOMER}}` : ""} und {N} bis {NNNNNN}.`;
   if (!LITERAL.test(format.replace(PLACEHOLDER, ""))) {
     return "Außerhalb der Platzhalter gehen nur Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt.";
   }
   if (names.filter((name) => name === CUSTOMER).length > 1) return `Der Platzhalter {${CUSTOMER}} darf nur einmal vorkommen.`;
-  if (allowCustomer && CUSTOMER_NEXT_TO_COUNTER.test(format)) {
+  if (customerAllowed && CUSTOMER_NEXT_TO_COUNTER.test(format)) {
     return `Der Platzhalter {${CUSTOMER}} darf nicht direkt neben der laufenden Nummer stehen, sonst wird die Nummer nicht mehr eindeutig.`;
   }
   const counters = names.filter((name) => COUNTER.test(name)).length;
@@ -165,5 +183,7 @@ export function numberFormatError(
   if (counters > 1) return "Die laufende Nummer darf nur genau einmal vorkommen.";
   if (requireYear && !names.some((name) => YEAR.test(name)))
     return "Das Format braucht das Jahr ({JJJJ} oder {JJ}), weil die laufende Nummer jedes Jahr neu beginnt.";
+  if (requireCustomer && !names.some((name) => name === CUSTOMER))
+    return `Das Format braucht die Kundennummer ({${CUSTOMER}}), weil jeder Kunde einen eigenen Nummernkreis bekommt.`;
   return null;
 }

@@ -1,6 +1,6 @@
 {
-  "id": "65692cf6-3682-46d1-a93a-12e9fb54ac9c",
-  "prevId": "ef92745b-c3f3-4cf8-a02b-c68ef5dc3cbf",
+  "id": "2c5a67ac-9db0-4c73-b3f8-aa65d68ecc92",
+  "prevId": "7ed74d32-0700-46d9-8ebf-4dc44974b8d7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7486,6 +7486,98 @@
           "name": "fastbill_receipts_expense_id_unique",
           "columns": [
             "expense_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fastbill_recurring_templates": {
+      "name": "fastbill_recurring_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "fastbill_id": {
+          "name": "fastbill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "import_id": {
+          "name": "import_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recurring_id": {
+          "name": "recurring_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hints": {
+          "name": "hints",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw": {
+          "name": "raw",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fastbill_recurring_templates_import_id_lexoffice_imports_id_fk": {
+          "name": "fastbill_recurring_templates_import_id_lexoffice_imports_id_fk",
+          "tableFrom": "fastbill_recurring_templates",
+          "columnsFrom": [
+            "import_id"
+          ],
+          "tableTo": "lexoffice_imports",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "fastbill_recurring_templates_recurring_id_recurring_invoices_id_fk": {
+          "name": "fastbill_recurring_templates_recurring_id_recurring_invoices_id_fk",
+          "tableFrom": "fastbill_recurring_templates",
+          "columnsFrom": [
+            "recurring_id"
+          ],
+          "tableTo": "recurring_invoices",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fastbill_recurring_templates_fastbill_id_unique": {
+          "name": "fastbill_recurring_templates_fastbill_id_unique",
+          "columns": [
+            "fastbill_id"
           ],
           "nullsNotDistinct": false
         }
@@ -18002,92 +18094,6 @@
         "store_reports_kind": {
           "name": "store_reports_kind",
           "value": "(\"store_reports\".\"store\" = 'googleplay' and \"store_reports\".\"report_kind\" = 'earnings') or (\"store_reports\".\"store\" = 'appstore' and \"store_reports\".\"report_kind\" = 'finance_detail')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.stripe_connections": {
-      "name": "stripe_connections",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "'stripe'"
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key_hint": {
-          "name": "key_hint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "ciphertext": {
-          "name": "ciphertext",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fetch_from": {
-          "name": "fetch_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "abruf_start": {
-          "name": "abruf_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rhythmus": {
-          "name": "rhythmus",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'taeglich'"
-        },
-        "last_sync_at": {
-          "name": "last_sync_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "stripe_connections_id": {
-          "name": "stripe_connections_id",
-          "value": "\"stripe_connections\".\"id\" = 'stripe'"
-        },
-        "stripe_connections_rhythmus": {
-          "name": "stripe_connections_rhythmus",
-          "value": "\"stripe_connections\".\"rhythmus\" in ('stuendlich', 'taeglich', 'woechentlich')"
         }
       },
       "isRLSEnabled": false

@@ -21,6 +21,8 @@ export type StatementFormat =
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
   | "accountable-xlsx"
   | "paypal-csv"
+  /** Abruf der Transaction Search über die PayPal-API (#1512) */
+  | "paypal-api"
   | "stripe-csv"
   /** Abruf der Balance Transactions über die Stripe-API (#1280) */
   | "stripe-api"
@@ -36,6 +38,7 @@ export type StatementFormat =
 /** Exporte von Zahlungsdienstleistern: nur in ein Konto mit diesem Zweck importierbar */
 export const PSP_FORMATS: StatementFormat[] = [
   "paypal-csv",
+  "paypal-api",
   "stripe-csv",
   "stripe-api",
   "shopify-payments-csv",

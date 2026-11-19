@@ -7,12 +7,14 @@ import { ContactHistory } from "../../../components/ContactHistory.tsx";
 import { ContactPersonsCard } from "../../../components/ContactPersonsCard.tsx";
 import { MandateCard } from "../../../components/MandateCard.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { NumberingCard } from "../../../components/NumberingCard.tsx";
 import { UstIdBestaetigungCard } from "../../../components/UstIdBestaetigungCard.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../../lib/jahre.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { archiveContact, getContactDetail, getContactHistory } from "../../../server/functions/contacts.ts";
 import { getContactPersons } from "../../../server/functions/contact-persons.ts";
+import { getCustomerNumbering } from "../../../server/functions/invoices.ts";
 import { getMandates } from "../../../server/functions/mandate.ts";
 import { getUstIdBestaetigungen } from "../../../server/functions/ustid-bestaetigung.ts";
 import chartStyles from "../../../styles/auswertungen.css?url";
@@ -27,14 +29,15 @@ export const Route = createFileRoute("/_app/kontakte/$id")({
   }),
   loaderDeps: ({ search }) => ({ jahr: search.jahr }),
   loader: async ({ params, deps }) => {
-    const [detail, mandates, personen, history, ustid] = await Promise.all([
+    const [detail, mandates, personen, history, ustid, kreise] = await Promise.all([
       getContactDetail({ data: params.id }),
       getMandates({ data: params.id }),
       getContactPersons({ data: params.id }),
       getContactHistory({ data: { id: params.id, year: deps.jahr } }),
       getUstIdBestaetigungen({ data: params.id }),
+      getCustomerNumbering({ data: { contactId: params.id } }),
     ]);
-    return { ...detail, ...mandates, ...personen, history, ustid };
+    return { ...detail, ...mandates, ...personen, history, ustid, kreise };
   },
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.contact.name ?? "Kontakt"} · Haben` }],
@@ -48,7 +51,7 @@ export const Route = createFileRoute("/_app/kontakte/$id")({
 });
 
 function ContactPage() {
-  const { contact, versions, mandates, persons, today, history, ustid } = Route.useLoaderData();
+  const { contact, versions, mandates, persons, today, history, ustid, kreise } = Route.useLoaderData();
   const { bestaetigen } = Route.useSearch();
   const router = useRouter();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -126,6 +129,9 @@ function ContactPage() {
             mandates={mandates}
             today={today}
           />
+          {/* Zähler je Kunde (#1426): die Karte einer Art steht nur, wenn deren Kreis läuft und der Kontakt eine Kundennummer trägt */}
+          {contact.kundennummer && kreise.invoice && <NumberingCard numbering={kreise.invoice} contactId={contact.id} />}
+          {contact.kundennummer && kreise.quote && <NumberingCard numbering={kreise.quote} contactId={contact.id} />}
           <section className="card" aria-labelledby="versions-heading">
             <h2 id="versions-heading">Versionen</h2>
             <p className="small muted" style={{ margin: 0 }}>
