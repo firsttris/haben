@@ -26,6 +26,7 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   fints: "FinTS-Abruf",
   "accountable-xlsx": "Accountable",
   "paypal-csv": "PayPal",
+  "paypal-api": "PayPal (Abruf)",
   "stripe-csv": "Stripe",
   "shopify-payments-csv": "Shopify",
   "ebay-csv": "eBay",
@@ -40,7 +41,7 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
 };
 
 /** Anbieter einer Quellenbindung (`import_sources.provider`, #306), wie die Meldung ihn nennt */
-const ABRUF_NAMEN: Record<string, string> = { enablebanking: "der Bankabruf", etsy: "der Etsy-Abruf" };
+const ABRUF_NAMEN: Record<string, string> = { enablebanking: "der Bankabruf", etsy: "der Etsy-Abruf", paypal: "der PayPal-Abruf" };
 
 /**
  * Meldet, wenn im Zeitraum des neuen Auszugs schon Umsätze aus einem anderen Dateiformat liegen und

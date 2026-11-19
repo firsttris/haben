@@ -45,6 +45,10 @@ export const DURCHLAEUFE = {
   // Zahlung und Gebühr eines Zahlungsdienstleisters in einer Zeile und in einem Schritt zugeordnet (#1417)
   "zahlung-gebuehr": 36,
   "bank-dubletten": 35,
+  // Vorschläge der Bankliste markieren und gemeinsam bestätigen (#1440)
+  "bank-bestaetigen": 37,
+  // PayPal-Umsätze über die Transaction Search (#1512): nur dieser Server fragt die nachgebaute PayPal-API auf PAYPAL_PORT
+  "paypal-abruf": 38,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
@@ -62,6 +66,9 @@ export const ETSY_PORT = PORT + 33;
  * Server zeigt dorthin, damit kein Test das echte BZSt fragt
  */
 export const EVATR_PORT = PORT + 34;
+
+/** Nachgebaute Transaction Search von PayPal in paypal-abruf.spec.ts (PAYPAL_API_URL) */
+export const PAYPAL_PORT = PORT + 39;
 
 /** Platzhalter für FINTS_PRODUKT_ID im Durchlauf „fints-abruf“; eine echte Registrierungsnummer steht nie im Repository */
 export const FINTS_PRODUKT_E2E = "HABENE2ETESTPRODUKT";

@@ -1,20 +1,13 @@
 import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import {
-  eventKeyOf,
-  type ImportMovement,
-  knownMovement,
-  type ParsedStatement,
-  type ParsedTransaction,
-  type StatementFormat,
-  withDedupHashes,
-} from "@haben/import";
+import { type ImportMovement, knownMovement, type ParsedStatement, type ParsedTransaction, type StatementFormat, withDedupHashes } from "@haben/import";
 import { withActor } from "../../db/actor.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { sha256Of } from "../../storage.ts";
-import { BankError, insertStatement } from "./bank.ts";
-import { freeHash, MovementConflictError, type StoreBatchInput } from "./import-batch.ts";
+import { BankError } from "./bank-error.ts";
+import { eventKey, freeHash, MovementConflictError, type StoreBatchInput } from "./import-batch.ts";
+import { insertStatement } from "./statement-import.ts";
 
 /*
  * Weg aus einem Konflikt des Importvertrags (#306, 3b, abgestimmt im Issue). Liefert die Bank eine schon übernommene
@@ -25,12 +18,10 @@ import { freeHash, MovementConflictError, type StoreBatchInput } from "./import-
  * Abruf des Kontos wieder.
  */
 
-/**
- * Umsatz zu einer Bewegung: der des Auszugs zu Ereignis und Komponente (`eventKeyOf`, beim REST-Import auch die Gebühr mit
- * „Gebühr“ vorn), sonst aus der Bewegung selbst
- */
+/** Umsatz zu einer Bewegung: der des Auszugs zu ihrem Schlüssel (`eventKey`, auch bei der Gebühr einer Zahlung), sonst aus der Bewegung selbst */
 function transactionOf(input: StoreBatchInput, movement: ImportMovement): ParsedTransaction {
-  const row = input.statement.transactions.find((t) => input.eventOf(t) === eventKeyOf(movement));
+  const key = eventKey(movement);
+  const row = input.statement.transactions.find((t) => input.eventOf(t) === key);
   if (row) return row;
   return {
     bookingDate: movement.bookingDate,

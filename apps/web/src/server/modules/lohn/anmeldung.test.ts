@@ -70,7 +70,7 @@ const MINIJOB: EmployeeInput = {
 
 describe.skipIf(!testDatabaseUrl)("Lohnsteuer-Anmeldung (Postgres)", () => {
   let lohn: typeof import("./index.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let fristen: typeof import("../finanzamt/fristen.ts");
   let crypto: typeof import("../../crypto.ts");
   let sql: postgres.Sql;
@@ -80,7 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Lohnsteuer-Anmeldung (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     lohn = await import("./index.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     fristen = await import("../finanzamt/fristen.ts");
     crypto = await import("../../crypto.ts");
   }, 30_000);

@@ -22,6 +22,7 @@ function NewQuotePage() {
       issues={[]}
       numberCounters={data.numberCounters}
       numberRunning={data.numberRunning}
+      numberPerCustomer={data.numberPerCustomer}
       numberFormat={data.numberFormat}
       corrects={null}
       bundesland={data.bundesland}

@@ -1,0 +1,328 @@
+{
+  "transaction_details": [
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "9XY12345AB678901C",
+        "transaction_event_code": "T0006",
+        "transaction_initiation_date": "2026-10-06T09:14:00+0000",
+        "transaction_updated_date": "2026-10-06T09:14:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "100.00"
+        },
+        "transaction_status": "S",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "-3.00"
+        },
+        "transaction_subject": "Bestellung 2026-117",
+        "invoice_id": "RE-2026-117"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Erika",
+          "surname": "Beispiel",
+          "full_name": "Erika Beispiel"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "8WV23456BC789012D",
+        "transaction_event_code": "T1107",
+        "transaction_initiation_date": "2026-10-12T10:02:00+00:00",
+        "transaction_updated_date": "2026-10-12T10:02:00+00:00",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "-20.00"
+        },
+        "transaction_status": "S",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "0.60"
+        },
+        "transaction_subject": "Teilerstattung Bestellung 2026-117",
+        "paypal_reference_id": "9XY12345AB678901C",
+        "paypal_reference_id_type": "TXN"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Erika",
+          "surname": "Beispiel",
+          "full_name": "Erika Beispiel"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "7UT34567CD890123E",
+        "transaction_event_code": "T0400",
+        "transaction_initiation_date": "2026-10-20T06:00:00+0000",
+        "transaction_updated_date": "2026-10-20T06:00:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "-77.00"
+        },
+        "transaction_status": "S"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001"
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "6SR45678DE901234F",
+        "transaction_event_code": "T0006",
+        "transaction_initiation_date": "2026-10-21T08:00:00+0000",
+        "transaction_updated_date": "2026-10-21T08:00:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "20.00"
+        },
+        "transaction_status": "P",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "0.00"
+        },
+        "transaction_subject": "Bestellung 2026-129"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Alpenblick",
+          "surname": "Kunde",
+          "full_name": "Alpenblick Kunde"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "5QP56789EF012345G",
+        "transaction_event_code": "T0006",
+        "transaction_initiation_date": "2026-10-22T11:30:00+0000",
+        "transaction_updated_date": "2026-10-22T11:30:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "50.00"
+        },
+        "transaction_status": "V",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "-1.75"
+        },
+        "transaction_subject": "Bestellung 2026-131"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Max",
+          "surname": "Muster",
+          "full_name": "Max Muster"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "4ON67890FG123456H",
+        "transaction_event_code": "T0006",
+        "transaction_initiation_date": "2026-10-23T12:00:00+0000",
+        "transaction_updated_date": "2026-10-23T12:00:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "10.00"
+        },
+        "transaction_status": "D",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "0.00"
+        },
+        "transaction_subject": "Bestellung 2026-133"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Anna",
+          "surname": "Abgelehnt",
+          "full_name": "Anna Abgelehnt"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "3NM78901GH234567J",
+        "transaction_event_code": "T0006",
+        "transaction_initiation_date": "2026-10-24T13:00:00+0000",
+        "transaction_updated_date": "2026-10-24T13:00:00+0000",
+        "transaction_amount": {
+          "currency_code": "USD",
+          "value": "30.00"
+        },
+        "transaction_status": "S",
+        "fee_amount": {
+          "currency_code": "USD",
+          "value": "-1.20"
+        },
+        "transaction_subject": "Order 77"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Kunde",
+          "surname": "US",
+          "full_name": "Kunde US"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "2ML89012HJ345678K",
+        "transaction_event_code": "T0001",
+        "transaction_initiation_date": "2026-10-25T07:00:00+0000",
+        "transaction_updated_date": "2026-10-25T07:00:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "-5.00"
+        },
+        "transaction_status": "S",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "0.00"
+        }
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Empfaenger",
+          "surname": "Beispiel",
+          "full_name": "Empfaenger Beispiel"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "1LK90123JK456789L",
+        "transaction_event_code": "T0006",
+        "transaction_initiation_date": "2026-10-20T22:30:00+0000",
+        "transaction_updated_date": "2026-10-20T22:30:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "25.00"
+        },
+        "transaction_status": "S",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "-1.10"
+        },
+        "transaction_subject": "Bestellung 2026-130"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Spaetabend",
+          "surname": "Kunde",
+          "full_name": "Spaetabend Kunde"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {
+        "item_details": [
+          {
+            "item_name": "Lizenz"
+          }
+        ]
+      },
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "GEGENSEITE0001",
+        "transaction_id": "0KJ01234KL567890M",
+        "transaction_event_code": "T1106",
+        "transaction_initiation_date": "2026-10-27T09:00:00+0000",
+        "transaction_updated_date": "2026-10-27T09:00:00+0000",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "-50.00"
+        },
+        "transaction_status": "S",
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "1.75"
+        },
+        "transaction_subject": "Rückbuchung der Zahlung 2026-131",
+        "paypal_reference_id": "5QP56789EF012345G",
+        "paypal_reference_id_type": "TXN"
+      },
+      "payer_info": {
+        "account_id": "GEGENSEITE0001",
+        "payer_name": {
+          "given_name": "Max",
+          "surname": "Muster",
+          "full_name": "Max Muster"
+        }
+      },
+      "shipping_info": {},
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    }
+  ],
+  "account_number": "BEISPIELHAENDLER1",
+  "page": 1,
+  "total_items": 10,
+  "total_pages": 1
+}

@@ -20,7 +20,8 @@ export {
 } from "./archive.ts";
 export { datevAbschluss, type DatevAbschluss, type DatevVortrag } from "./datev-abschluss.ts";
 export { searchArchive, type ArchiveHit } from "./search.ts";
-export { exportFilename, exportYear, exportYears, toReadableStream } from "./export.ts";
+export { exportFilename, exportYear, exportYears } from "./export.ts";
+export { toReadableStream } from "./export-zip.ts";
 export { openItemsOverview, openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
 export { legacyVouchersForContact } from "./kontakt-altbestand.ts";
 export { externalImportOverview, storeLegacyVoucher, storeLegacyOrder, type LegacyOriginalFile, type LegacyKnownPayment } from "./legacy-store.ts";
@@ -49,6 +50,7 @@ export {
   startSevdeskImport,
 } from "./sevdesk.ts";
 export { sevdeskPlaceholders, sevdeskRecurringOrigin } from "./sevdesk-vorlagen.ts";
+export { fastbillRecurringOrigin } from "./fastbill-vorlagen.ts";
 export { decideAccountingType } from "./sevdesk-kontoart-hand.ts";
 export { previewSevdeskAssets, takeOverSevdeskAssets, type SevdeskAssetPreview } from "./sevdesk-anlagen.ts";
 export {
@@ -65,6 +67,8 @@ export {
   uploadFastbillReceipts,
 } from "./fastbill.ts";
 export { fastbillArticlesCsv } from "./fastbill-artikel.ts";
+export { importFastbillTimes, previewFastbillTimes } from "./fastbill-zeiten.ts";
+export { fastbillUsage } from "./fastbill-anfragen.ts";
 export { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "./buchhaltungsbutler.ts";
 export { latestWisoImport, MAX_WISO_CSV_SIZE, previewWisoCsv, startWisoImport, wisoSummary } from "./wiso.ts";
 export {

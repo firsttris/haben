@@ -45,8 +45,9 @@ export function allgemein(s: InstanzStand, angaben: ProcedureDetails): Verfahren
   });
 }
 
-function nummernkreis(name: string, format: string, laufend: boolean): string {
-  return `${name}: Format „${format}“, ${laufend ? "der Zähler läuft über den Jahreswechsel weiter" : "der Zähler beginnt jedes Jahr bei 1"}`;
+function nummernkreis(name: string, format: string, laufend: boolean, jeKunde: boolean): string {
+  const kreis = jeKunde ? ", jeder Kunde hat einen eigenen Zähler; Storno und Korrektur zählen im Kreis, den die Einstellung beim Festschreiben ergibt" : "";
+  return `${name}: Format „${format}“, ${laufend ? "der Zähler läuft über den Jahreswechsel weiter" : "der Zähler beginnt jedes Jahr bei 1"}${kreis}`;
 }
 
 function bank(s: InstanzStand): string[] {
@@ -88,8 +89,8 @@ export function anwender(s: InstanzStand, angaben: ProcedureDetails): Verfahrens
     liste: [
       ...(c
         ? [
-            nummernkreis("Rechnungsnummern", c.invoiceNumberFormat, c.invoiceCounterRunning),
-            nummernkreis("Angebotsnummern", c.quoteNumberFormat, c.quoteCounterRunning),
+            nummernkreis("Rechnungsnummern", c.invoiceNumberFormat, c.invoiceCounterRunning, c.invoiceCounterPerCustomer),
+            nummernkreis("Angebotsnummern", c.quoteNumberFormat, c.quoteCounterRunning, c.quoteCounterPerCustomer),
             c.customerNumberFormat ? `Kundennummern: Format „${c.customerNumberFormat}“, fortlaufend ohne Jahr` : "Kundennummern: von Hand",
           ]
         : []),

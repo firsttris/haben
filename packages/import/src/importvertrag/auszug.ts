@@ -15,7 +15,7 @@ export const IMPORT_CONTRACT_FORMATS = { bank: "importvertrag", psp: "importvert
 
 /** Schlüssel, der Umsatz und Bewegung verbindet: das Ereignis, bei einer anderen Komponente als `main` mit ihr dahinter */
 export const eventKeyOf = (m: Pick<ImportMovement, "sourceEventId" | "component">): string =>
-  m.component === "main" ? m.sourceEventId : `${m.sourceEventId}/${m.component}`;
+  m.component === "main" ? m.sourceEventId : `${m.sourceEventId}#${m.component}`;
 
 const KIND_LABEL: Record<MovementKind, string> = {
   payment: "Zahlung",

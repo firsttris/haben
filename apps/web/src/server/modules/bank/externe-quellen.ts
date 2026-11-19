@@ -5,7 +5,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { sha256Of } from "../../storage.ts";
-import { BankError } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 import { MovementConflictError, type BatchResult, storeBatch, type StoreBatchInput } from "./import-batch.ts";
 import { recordRefusedBatch } from "./import-konflikt.ts";
 

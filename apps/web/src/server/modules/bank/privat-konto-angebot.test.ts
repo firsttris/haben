@@ -8,7 +8,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * direktem Aufruf ab und schlägt sie nicht vor. Bestehende Zuordnungen bleiben aufhebbar.
  */
 describe.skipIf(!testDatabaseUrl)("Privates Konto: Buchungsarten ohne Geschäftsvorfall (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   const GESCHAEFT_IBAN = "DE02100100100006820101";
@@ -16,7 +16,7 @@ describe.skipIf(!testDatabaseUrl)("Privates Konto: Buchungsarten ohne Geschäfts
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
   }, 30_000);
 
   afterAll(async () => {

@@ -124,6 +124,9 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseEbay(detected.rows, detected.headerRow);
     case "etsy-csv":
       return parseEtsy(detected.rows, detected.headerRow);
+    // Der Abruf der Transaction Search von PayPal kommt über die API (paypal/statement.ts), nicht als Datei
+    case "paypal-api":
+      throw new StatementParseError("Der Abruf von PayPal kommt über die API, nicht als Datei.");
     // Der Zahlungsverlauf von Etsy Payments kommt über die API (etsy-ledger.ts), nicht als Datei
     case "etsy-ledger":
       throw new StatementParseError("Der Etsy-Zahlungsverlauf kommt über die API, nicht als Datei.");

@@ -2,7 +2,7 @@
     das Handy die Liste aller Bereiche. `hint` ist der Untertext (ein Satz in Klartext, eine Zeile, ohne Klammern),
     `keywords` sind Fachwörter, die nur die Schnellsuche kennt (#1253) */
 export const SETTINGS_AREAS = [
-  { id: "firma", label: "Firma", hint: "Anschrift, Steuern, Bank, Mahnwesen" },
+  { id: "firma", label: "Firma", hint: "Anschrift, Steuern, Bank, Mahnwesen", keywords: "Handelsregister Privatanteile Tageskurs Basiszinssatz" },
   { id: "persoenlich", label: "Persönliche Angaben", hint: "Steuer-ID, Veranlagung, Ehegatte" },
   { id: "bereiche", label: "Bereiche", hint: "Menüpunkte ein- und ausblenden" },
   { id: "rechnungen", label: "Rechnungen", hint: "Nummern, Zahlungspläne, Anhänge" },

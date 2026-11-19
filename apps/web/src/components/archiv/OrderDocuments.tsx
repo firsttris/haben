@@ -8,21 +8,8 @@ import { YearSwitch } from "./YearSwitch.tsx";
 import { ScrollBox } from "../ScrollTable.tsx";
 import { Field } from "../Field.tsx";
 
-export const ORDER_KINDS = { AN: "Angebot", AB: "Auftragsbestätigung", LI: "Lieferschein" } as const;
-export const ORDER_STATUSES: Record<string, string> = {
-  "100": "Entwurf",
-  "200": "Ausgegeben / versendet",
-  "300": "Abgelehnt",
-  "500": "Angenommen",
-  "750": "Teilweise berechnet",
-  "1000": "Vollständig berechnet",
-  draft: "Entwurf",
-  open: "Offen",
-  declined: "Geschlossen / abgelehnt",
-  accepted: "Angenommen",
-  partlyInvoiced: "Teilweise berechnet",
-  invoiced: "Vollständig berechnet",
-};
+export { ORDER_KINDS, ORDER_STATUSES } from "../../lib/auftraege.ts";
+import { ORDER_KINDS, ORDER_STATUSES } from "../../lib/auftraege.ts";
 type Row = Awaited<ReturnType<typeof getOrderDocuments>>[number];
 
 export function OrderDocuments({ rows, year, years, search }: { rows: Row[]; year: number; years: number[]; search: ArchiveSearch }) {

@@ -21,7 +21,7 @@ import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 import { attachmentsForMail, listInvoiceAttachments } from "./attachments.ts";
 import { listQuoteAttachments, quoteAttachmentsForMail } from "./quote-attachments.ts";
 import { invoiceDocumentTotals } from "./invoice-taxes.ts";
-import { invoiceTitle } from "./invoices.ts";
+import { invoiceTitle, withCurrentBuyer } from "./invoice-document.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
 
 /**
@@ -225,7 +225,9 @@ export async function sendInvoiceMailWithTemplate(actor: string, invoiceId: stri
 async function loadDunning(id: string) {
   const [dunning] = await db.select().from(schema.dunnings).where(eq(schema.dunnings.id, id));
   if (!dunning) throw new MailError("Mahnung nicht gefunden.");
-  return { dunning, invoice: await loadInvoice(dunning.invoiceId) };
+  const invoice = await loadInvoice(dunning.invoiceId);
+  // Die Mahnung ist ein neuer Brief: `{kunde}` nennt denselben Namen wie ihr PDF
+  return { dunning, invoice: invoice.buyer ? { ...invoice, buyer: await withCurrentBuyer(db, invoice.buyer, invoice.contactId) } : invoice };
 }
 
 /** Mahnungen sind deutsch (auch das PDF), also auch Datum und Art in der Mail, selbst bei einer englischen Rechnung */

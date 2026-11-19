@@ -108,7 +108,7 @@ function fakeApi() {
 
 describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
   let sync: typeof import("./bank-sync.ts");
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let db: typeof import("../../db/index.ts");
   let sql: postgres.Sql;
   const api = fakeApi();
@@ -123,7 +123,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     });
     Object.assign(process.env, { ENABLE_BANKING_APP_ID: "app-1", ENABLE_BANKING_KEY: privateKey.replace(/\n/g, "\\n") });
     sync = await import("./bank-sync.ts");
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     db = await import("../../db/index.ts");
     const { EnableBankingClient } = await import("@haben/import");
     sync.setEnableBankingClientFactory((o) => new EnableBankingClient({ ...o, fetch: api.fetchFn }));

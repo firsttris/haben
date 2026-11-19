@@ -106,7 +106,7 @@ describe.skipIf(!testDatabaseUrl)("Externe Quellen und REST-Import (Postgres)", 
     expect(r).toMatchObject({ status: "ok", result: { added: 3, replay: false, checkpoint: "2026-10-31", complete: true } });
     expect(await umsaetze(psp)).toEqual([
       { amount: 4999, purpose: "Bestellung 01-1", bank_reference: "SALE-1" },
-      { amount: -1006, purpose: "Gebühr · Gebühren zu Bestellung 01-1", bank_reference: "SALE-1/fee" },
+      { amount: -1006, purpose: "Gebühr · Gebühren zu Bestellung 01-1", bank_reference: "SALE-1#fee" },
       { amount: -3993, purpose: "Auszahlung PO-1 · Auszahlung", bank_reference: "payout-PO-1|PO-1" },
     ]);
     const [protokoll] = await sql`select format from bank_imports where bank_account_id = ${psp} order by created_at desc limit 1`;
@@ -194,6 +194,6 @@ describe.skipIf(!testDatabaseUrl)("Externe Quellen und REST-Import (Postgres)", 
     const { transactionId } = await konflikt.resolveConflict("test", { conflictId: offen!.id, decision: "add" });
     const [weiterer] = await sql`select amount, purpose, bank_reference from bank_transactions where id = ${transactionId!}`;
     // Mit „Gebühr“ vorn erkennt die Sammelzuordnung sie, wie die Gebühr aus der ersten Lieferung
-    expect(weiterer).toEqual({ amount: -1106, purpose: "Gebühr · Gebühren zu Bestellung 01-1", bank_reference: "SALE-1/fee" });
+    expect(weiterer).toEqual({ amount: -1106, purpose: "Gebühr · Gebühren zu Bestellung 01-1", bank_reference: "SALE-1#fee" });
   });
 });

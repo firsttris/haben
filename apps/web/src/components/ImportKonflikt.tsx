@@ -47,11 +47,13 @@ function Spalte({ titel, umsatz, zuordnung }: { titel: string; umsatz: Umsatz; z
 const QUELLEN = {
   bank: { wer: "Die Bank", von: "von der Bank", angaben: "der Bank", abruf: "aus dem Abruf dieses Kontos" },
   etsy: { wer: "Etsy", von: "von Etsy", angaben: "von Etsy", abruf: "aus dem Etsy-Abruf" },
+  paypal: { wer: "PayPal", von: "von PayPal", angaben: "von PayPal", abruf: "aus dem PayPal-Abruf" },
   extern: { wer: "Der Dienst", von: "vom Dienst", angaben: "des Dienstes", abruf: "aus dieser Quelle" },
 } as const;
 
-/** Texte zum Anbieter einer Quelle (`import_sources.provider`) */
-export const quelleZuAnbieter = (provider: string): keyof typeof QUELLEN => (provider === "etsy" ? "etsy" : isInternalProvider(provider) ? "bank" : "extern");
+/** Texte zum Anbieter einer Quelle (`import_sources.provider`): Etsy und PayPal mit eigenem Namen, übrige interne sind Bankabrufe */
+export const quelleZuAnbieter = (provider: string): keyof typeof QUELLEN =>
+  provider === "etsy" ? "etsy" : provider === "paypal" ? "paypal" : isInternalProvider(provider) ? "bank" : "extern";
 
 const ENTSCHEIDUNGEN = [
   {

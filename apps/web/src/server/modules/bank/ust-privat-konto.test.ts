@@ -11,13 +11,13 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Auf einem Geschäftskonto bleibt es bei 1200 gegen 1780.
  */
 describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
   }, 30_000);
 
   afterAll(async () => {

@@ -99,6 +99,8 @@ export const FELDER = {
       calendarTokenDisabledAt: "Gehört zum Kalender-Abo",
       calendarTokenDisabledReason: "Gehört zum Kalender-Abo",
       mcpEnabled: "Zugang für KI-Assistenten und API schaltet man in der neuen Instanz bewusst ein",
+      invoiceCounterPerCustomer: "Zähler je Kunde bleibt eine Einstellung der Instanz; die Kreise hängen an den Kontakten und zählen dort neu (#1426)",
+      quoteCounterPerCustomer: "Zähler je Kunde bleibt eine Einstellung der Instanz; die Kreise hängen an den Kontakten und zählen dort neu (#1426)",
       elsterDatenschutzAt: "Bestätigung der Datenschutzhinweise gilt für die Instanz, in der sie gegeben wurde (ERiC-Lizenz § 5)",
       updatedAt: GEAENDERT,
     },

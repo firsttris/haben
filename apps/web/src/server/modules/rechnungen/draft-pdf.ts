@@ -5,7 +5,9 @@ import { directDebitFor } from "./lastschrift.ts";
 import { UserError } from "../../errors.ts";
 import { ansprechpartnerSnapshot, loadCompany, loadLetterhead, loadUnitCodes, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
-import { buyerFrom, deductedRefs, documentFor, getInvoice, sellerFrom } from "./invoices.ts";
+import { deductedRefs } from "./advance-deductions.ts";
+import { buyerFrom, documentFor, sellerFrom } from "./invoice-document.ts";
+import { getInvoice } from "./invoices.ts";
 import { getQuote, quoteDocumentFor } from "./quotes.ts";
 
 /*

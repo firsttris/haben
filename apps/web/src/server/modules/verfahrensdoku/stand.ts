@@ -37,6 +37,8 @@ export interface InstanzStand {
     quoteNumberFormat: string;
     invoiceCounterRunning: boolean;
     quoteCounterRunning: boolean;
+    invoiceCounterPerCustomer: boolean;
+    quoteCounterPerCustomer: boolean;
     customerNumberFormat: string;
     datevBeraterNr: string;
     datevMandantNr: string;
@@ -77,6 +79,8 @@ async function company(): Promise<InstanzStand["company"]> {
       quoteNumberFormat: c.quoteNumberFormat,
       invoiceCounterRunning: c.invoiceCounterRunning,
       quoteCounterRunning: c.quoteCounterRunning,
+      invoiceCounterPerCustomer: c.invoiceCounterPerCustomer,
+      quoteCounterPerCustomer: c.quoteCounterPerCustomer,
       customerNumberFormat: c.customerNumberFormat,
       datevBeraterNr: c.datevBeraterNr,
       datevMandantNr: c.datevMandantNr,

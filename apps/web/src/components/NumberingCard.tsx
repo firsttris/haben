@@ -16,19 +16,22 @@ export interface Numbering {
 
 const TITLE = { rechnung: "Rechnungsnummern", angebot: "Angebotsnummern" } as const;
 
-/** Nächste laufende Nummer eines Kreises setzen, etwa beim Umzug aus Lexoffice oder sevDesk; zurück geht nicht */
-export function NumberingCard({ numbering }: { numbering: Numbering }) {
+/** Nächste laufende Nummer eines Kreises setzen, etwa beim Umzug aus Lexoffice oder sevDesk; zurück geht nicht. Mit contactId der Kreis eines Kunden (#1426) */
+export function NumberingCard({ numbering, contactId }: { numbering: Numbering; contactId?: string }) {
   const router = useRouter();
   const save = useServerFn(saveNextNumber);
   const { busy, notice, run } = useAction();
-  const title = `${TITLE[numbering.kind]} ${numbering.running ? "(Zähler läuft weiter)" : numbering.year}`;
-  const id = `numbering-${numbering.kind}`;
+  const stand = numbering.running ? "Zähler läuft weiter" : numbering.year;
+  const title = contactId
+    ? `${TITLE[numbering.kind]} dieses Kunden (${stand})`
+    : `${TITLE[numbering.kind]} ${numbering.running ? "(Zähler läuft weiter)" : numbering.year}`;
+  const id = `numbering-${numbering.kind}${contactId ? `-${contactId}` : ""}`;
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const next = Number(new FormData(event.currentTarget).get("next"));
     void run(async () => {
-      await save({ data: { kind: numbering.kind, next } });
+      await save({ data: { kind: numbering.kind, next, contactId: contactId ?? null } });
       await router.invalidate();
     }, "Nummernkreis gespeichert.");
   }

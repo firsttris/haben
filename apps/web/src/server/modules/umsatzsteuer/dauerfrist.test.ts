@@ -12,7 +12,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
   let fristen: typeof import("../finanzamt/fristen.ts");
   let annual: typeof import("../jahreserklaerung/annual.ts");
   let reports: typeof import("../auswertungen/reports.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let crypto: typeof import("../../crypto.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -25,7 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
     fristen = await import("../finanzamt/fristen.ts");
     annual = await import("../jahreserklaerung/annual.ts");
     reports = await import("../auswertungen/reports.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     crypto = await import("../../crypto.ts");
   }, 30_000);
 

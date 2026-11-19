@@ -60,6 +60,10 @@ Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die 
 
 Die Menüpunkte eines Bereichs, den du mit „Nein“ beantwortest, verschwinden aus dem Menü und aus den Seiten der [Schnellsuche](suche.md): Angebote; Personal mit Lohn und SV-Meldeportal; Kasse; Lastschriften; Anlagen und Darlehen. Mehr passiert nicht: Daten, Buchungen, Auswertungen, Treffer der Schnellsuche, API und direkte Links bleiben, wie sie sind. Unter **Einstellungen › Bereiche** schaltest du jeden Bereich mit einem Haken wieder ein oder aus. Rechnungen, Belege, Bank, Umsatzsteuer und Jahreserklärung stehen immer im Menü. Instanzen von vor dem Update zeigen alle Bereiche.
 
+## Die Übersicht
+
+**Zu erledigen** steht oben auf der Übersicht und zeigt die drei dringendsten Aufgaben: erst Fristen der nächsten zwei Wochen wie Voranmeldung, Zahllast ohne Deckung auf dem Steuerkonto, Einspruch oder Zertifikat (auch überfällige), die nächste zuerst, dann Warnungen vor Hinweisen vor Anstehendem. Die übrigen stehen unter **Weitere (n)**. Steht die Voranmeldung nicht unter den drei, führt im Seitenkopf ein Link zum Zeitraum; bei Kleinunternehmern und Befreiten nur, wenn es dazu eine Voranmeldung oder Zahlen gibt. Die Kennzahlen darunter erscheinen, sobald es Rechnungen, offene Posten, Umsatz im Vormonat, eine Zahllast oder Voranmeldung oder einen Kontostand gibt. Solange keine Rechnung festgeschrieben ist, führt **Erste Rechnung schreiben** unter **Letzte Rechnungen** zur ersten Rechnung.
+
 ## Zugang für die Steuerberatung
 
 Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann: Auswertungen, Journal, Kontenblätter, Belege und Rechnungen ansehen, Dateien, DATEV-Export und Jahresarchiv herunterladen. Unter **Einstellungen › Sicherheit › Zugänge** erzeugst du einen Einladungslink, der einmal und 72 Stunden gilt; die Steuerberatung legt damit Passwort und Passkey selbst an. Sperren und Entfernen geht an derselben Stelle. Buchen, Festschreiben, Senden an ELSTER, Einstellungen, Zertifikat, Bankzugang und API-Tokens bleiben bei dir. Alles Weitere steht in [Zugang für die Steuerberatung](steuerberatung.md).
@@ -90,6 +94,8 @@ Die App ist dieselbe Seite wie im Browser und speichert nichts auf dem Gerät zw
 ## Firmendaten
 
 Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen und in der Voranmeldung stehen. Fehlt etwas für ELSTER, zeigt das Formular oben „Für ELSTER fehlt noch: …“.
+
+Seltenes steht eingeklappt, mit dem Gesetzten in der Überschrift: **Handelsregister und Geschäftsführung** (nur GmbH und UG, „HRB 12345 HB“), **Fremdwährung** („Tageskurs“), **Privatanteile** (nur Einzelunternehmen, „Telefon 20 % · Internet 50 %“) und **Mahnwesen** („Basiszinssatz 2,27 % · Gebühren 0 / 5,00 / 10,00 €“). Die Felder gehen auch zugeklappt mit, wenn du speicherst. Ein Fehler in einem Feld darin und ein Link aus dem [Mahnwesen](rechnungen-zahlung.md#mahnwesen) oder der Hinterlegung klappen den Abschnitt auf; fehlen einer GmbH oder UG Pflichtangaben, steht das Handelsregister offen.
 
 | Feld | Wofür |
 | --- | --- |
@@ -406,7 +412,7 @@ Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034
 
 - Jahr und Monat kommen aus dem Rechnungs- bzw. Angebotsdatum, nicht aus dem Tag des Festschreibens: Eine Rechnung vom 31. Oktober, die du am 2. November festschreibst, heißt `RE-2026-10-…`. Die Überschrift im Editor zeigt die voraussichtliche Nummer schon so.
 - Die laufende Nummer muss genau einmal vorkommen. Beginnt der Zähler jedes Jahr neu, gehört auch das Jahr dazu, erst damit bleibt jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG); der Monat allein reicht nicht.
-- Mit `{KUNDENNR}` braucht der Kunde eine Kundennummer aus Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt; fehlt sie oder enthält sie andere Zeichen, schreibt Haben den Beleg nicht fest und sagt es. Storno und Rechnungskorrektur tragen die Kundennummer der ursprünglichen Rechnung; ist dort keine verwendbare eingefroren, gilt die heutige des Kontakts. Der Zähler bleibt für alle Kunden gemeinsam.
+- Mit `{KUNDENNR}` braucht der Kunde eine Kundennummer aus Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt; fehlt sie oder enthält sie andere Zeichen, schreibt Haben den Beleg nicht fest und sagt es. Storno und Rechnungskorrektur tragen im gemeinsamen Kreis die Kundennummer der ursprünglichen Rechnung — ist dort keine verwendbare eingefroren, die heutige des Kontakts; im Kundenkreis immer die des Kontakts. Mit dem Zähler je Kunde (unten) ist `{KUNDENNR}` Pflicht.
 - Vergibt Haben beim Festschreiben eine neue Rechnungsnummer, muss sie ins [DATEV-Belegfeld 1](auswertungen.md#datev-export-für-die-steuerberatung) passen und darin eindeutig bleiben. Ist etwa `RE-2026-A1_1` schon vergeben, lehnt Haben `RE-2026-A_11` ab: Im Export ergäben beide `RE-2026-A11`.
 - Außerhalb der Platzhalter gehen Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt, insgesamt höchstens 30 Zeichen. Leerzeichen und Schrägstrich gehen nicht, weil die Nummer auch im Dateinamen und im Verwendungszweck steht.
 - Unter dem Feld steht ein Beispiel oder, was am Format nicht passt.
@@ -421,7 +427,9 @@ Neben jedem Format wählst du für Rechnungen und Angebote getrennt, wie der Zä
 | läuft weiter | Über den Jahreswechsel hinweg: `RE-2026-12-0412`, dann `RE-2027-01-0413`. Das Jahr im Format ist frei, `RE-{NNNN}` geht auch. |
 
 Beides ist zulässig; eine Rechnungsnummer muss nur einmalig sein (UStAE 14.5 Abs. 10). Schaltest du auf **läuft weiter**, zählt Haben hinter der letzten Nummer des jüngsten Jahres weiter; die nächste Nummer kannst du danach unter **Rechnungsnummern** bzw. **Angebotsnummern** setzen, etwa auf die nächste aus sevDesk. Zurück auf **beginnt jedes Jahr neu** geht nur mit dem Jahr im Format; der Zähler des Jahres steht dann, wo er vor dem Umschalten stand. Ergibt das eine schon vergebene Nummer, meldet Haben sie wie bei einem Formatwechsel (unten). Storno und Korrektur zählen im selben Kreis wie Rechnungen.
-- Das Format gilt für alles, was ab dann festgeschrieben wird; schon vergebene Nummern bleiben, wie sie sind. Der Zähler läuft beim Wechsel weiter.
+
+- **Eigener Zähler je Kunde** geht mit beiden Zähler-Arten: Jeder Kunde zählt in einem eigenen Kreis, das Format braucht dann `{KUNDENNR}`. Beim Einschalten übernimmt der Kundenkreis den höchsten Zählerstand aus seinen Belegen im gemeinsamen Kreis, wenn das bisherige Format schon `{KUNDENNR}` enthielt. Bei einem Jahreszähler zählt für durchlaufend nummerierte Altbelege das Belegjahr. Ein höherer vorhandener Zählerstand bleibt erhalten; nur ohne bisherigen Stand beginnt der Kreis bei 1. Die Kundennummer muss über alle Kontakte eindeutig sein: Trägt ein zweiter Kunde dieselbe Nummer, schreibt Haben neue Belege im Kundenkreis nicht fest und sagt es; Storno und Rechnungskorrektur gehen trotzdem. Die Kundennummer des Kunden ist gesperrt, sobald ein Beleg in seinem Kreis festgeschrieben ist. Die nächste Nummer seines Kreises steht auf der Seite des Kontakts. Storno und Korrektur zählen wie Rechnungen in dem Kreis, den die Einstellung beim Festschreiben ergibt — ihr Jahr kommt aus dem eigenen Belegdatum, ihre `{KUNDENNR}` im Kundenkreis aus dem Kontakt.
+- Das Format gilt für alles, was ab dann festgeschrieben wird; schon vergebene Nummern bleiben, wie sie sind. Der Zähler läuft beim Wechsel weiter. Schreibt gerade jemand fest, während du speicherst, kann Haben dieses Festschreiben abbrechen und meldet es; dann einfach noch einmal festschreiben.
 - Ergibt das neue Format eine Nummer, die es schon gibt, schreibt Haben nicht fest, sondern meldet „Die Nummer … ist schon vergeben“; der Zähler bleibt stehen. Das passiert nur bei sehr ähnlichen Formaten.
 - Der Bankabgleich findet die Nummer im Verwendungszweck in jedem Format.
 - Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.

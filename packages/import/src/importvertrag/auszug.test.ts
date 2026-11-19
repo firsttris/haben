@@ -21,11 +21,11 @@ describe("statementFromBatch: Auszug aus einer Lieferung (REST-Import, #306)", (
   it("ordnet jedem Umsatz seine Bewegung zu, die Gebühr mit eigener Komponente", () => {
     expect(statement.transactions.map(eventOf)).toEqual([
       "SALE-0001",
-      "SALE-0001/fee",
+      "SALE-0001#fee",
       "SALE-0002",
-      "SALE-0002/fee",
+      "SALE-0002#fee",
       "REFUND-0003",
-      "REFUND-0003/fee",
+      "REFUND-0003#fee",
       "CHARGE-0004",
       "PAYOUT-0001",
     ]);

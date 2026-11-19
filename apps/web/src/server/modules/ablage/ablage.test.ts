@@ -13,7 +13,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 describe.skipIf(!testDatabaseUrl)("Ablage im Archiv (Postgres)", () => {
   let ablage: typeof import("./index.ts");
   let lauf: typeof import("./lauf.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
   let mitId: Empfaenger;
@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Ablage im Archiv (Postgres)", () => {
     sql = await setupTestDb();
     ablage = await import("./index.ts");
     lauf = await import("./lauf.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     mitId = await empfaengerStarten({ status: 201, body: { id: "0b5e3c1a-7d2f-4e8a-9b61-2f4d8c0a1e77", sha256: "egal" } });
     ohneId = await empfaengerStarten({ status: 200, body: "c4a1f0d2-task" });

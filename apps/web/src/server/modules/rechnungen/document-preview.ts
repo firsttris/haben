@@ -51,7 +51,7 @@ import {
   rendererFor,
   typstMeldung,
 } from "../stammdaten/index.ts";
-import { buyerFrom, sellerFrom } from "./invoices.ts";
+import { buyerFrom, sellerFrom } from "./invoice-document.ts";
 import { directDebitFor } from "./lastschrift.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { quoteCalculation } from "./quotes.ts";

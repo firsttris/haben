@@ -34,9 +34,9 @@ const incoming = (date: string, purpose: string, amount: string) => [
 describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal: Zeiträume, Stornos über den Jahreswechsel, Sonderfälle (Postgres)", () => {
   let figures: typeof import("./vat-figures.ts");
   let vat: typeof import("./vat.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let cash: typeof import("../bank/cash-income.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let cancellation: typeof import("../belege/cancellation.ts");
@@ -51,9 +51,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal: Zeiträume, Sto
     sql = await setupTestDb();
     figures = await import("./vat-figures.ts");
     vat = await import("./vat.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     cash = await import("../bank/cash-income.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     cancellation = await import("../belege/cancellation.ts");

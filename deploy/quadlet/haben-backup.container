@@ -12,7 +12,14 @@ Network=haben.network
 Environment=PGHOST=haben-db
 Secret=haben-db-password,type=env,target=PGPASSWORD
 Secret=haben-restic-password,type=env,target=RESTIC_PASSWORD
-# Optional RESTIC_REPOSITORY (sftp:…, s3:…, rest:…) und Zugangsdaten; ohne liegt das Backup im Volume haben-backups
+# Optional RESTIC_REPOSITORY (sftp:…, s3:…, rest:…, rclone:ABSCHNITT:…) und Zugangsdaten; ohne liegt das Backup
+# im Volume haben-backups. Für rclone-Ziele die rclone.conf ins Heimverzeichnis legen und diese Zeile
+# einkommentieren; der Pfad im Container ist im Image als RCLONE_CONFIG hinterlegt
+# Volume=%h/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro
+# Ziele mit Anmeldung (OneDrive, Google Drive, Box) brauchen ein schreibbares Verzeichnis statt der einzelnen Datei,
+# weil rclone den Token zurückschreibt:
+# Volume=%h/haben/rclone:/var/lib/haben-backup/rclone
+# Environment=RCLONE_CONFIG=/var/lib/haben-backup/rclone/rclone.conf
 EnvironmentFile=%h/.config/haben/backup.env
 Volume=haben-belege.volume:/belege:ro
 Volume=haben-backups.volume:/backups

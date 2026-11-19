@@ -24,9 +24,17 @@ const formateSchema = z.object({
 export async function nummernformateUebernehmen(tx: Tx, company: unknown): Promise<void> {
   const formate = geprueft(formateSchema, company, "Nummernformate");
   const [current] = await tx
-    .select({ invoiceCounterRunning: schema.company.invoiceCounterRunning, quoteCounterRunning: schema.company.quoteCounterRunning })
+    .select({
+      invoiceNumberFormat: schema.company.invoiceNumberFormat,
+      quoteNumberFormat: schema.company.quoteNumberFormat,
+      invoiceCounterRunning: schema.company.invoiceCounterRunning,
+      quoteCounterRunning: schema.company.quoteCounterRunning,
+      invoiceCounterPerCustomer: schema.company.invoiceCounterPerCustomer,
+      quoteCounterPerCustomer: schema.company.quoteCounterPerCustomer,
+    })
     .from(schema.company)
     .where(eq(schema.company.id, 1));
+  // Fremdprogramme kennen keine Kundenkreise: die Einstellung bleibt, wie sie ist (#1426)
   await putNumberFormats(
     tx,
     {
@@ -35,7 +43,14 @@ export async function nummernformateUebernehmen(tx: Tx, company: unknown): Promi
       invoiceRunning: formate.invoiceCounterRunning,
       quoteRunning: formate.quoteCounterRunning,
     },
-    current ?? { invoiceCounterRunning: false, quoteCounterRunning: false },
+    current ?? {
+      invoiceNumberFormat: "",
+      quoteNumberFormat: "",
+      invoiceCounterRunning: false,
+      quoteCounterRunning: false,
+      invoiceCounterPerCustomer: false,
+      quoteCounterPerCustomer: false,
+    },
   );
 }
 

@@ -4,31 +4,35 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
- * Rechnung kopieren: Aus einer festgeschriebenen Rechnung entsteht ein neuer Entwurf für die nächste ähnliche Rechnung. Die
+ * Rechnung kopieren: Aus einer festgeschriebenen Rechnung oder einem Entwurf entsteht ein neuer Entwurf für die nächste ähnliche Rechnung. Die
  * Kopie ist ein Entwurf und bucht nichts; SKR03 und SKR04, Ist und Soll spielen erst beim Festschreiben eine Rolle und laufen
  * dort wie bei jeder anderen Rechnung. Das Original bleibt mit Siegel unverändert. Alle Daten sind erfunden.
  */
 
 describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let kopieren: typeof import("./rechnung-kopieren.ts");
   let persons: typeof import("../stammdaten/contact-persons.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let integrity: typeof import("../auswertungen/integrity.ts");
   let quotes: typeof import("./quotes.ts");
+  let attachments: typeof import("./attachments.ts");
+  let invoiceMail: typeof import("./invoice-mail.ts");
   const actor = "test-user";
   const heute = "2026-11-18";
   let contactId: string;
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     kopieren = await import("./rechnung-kopieren.ts");
     persons = await import("../stammdaten/contact-persons.ts");
     contacts = await import("../stammdaten/contacts.ts");
     integrity = await import("../auswertungen/integrity.ts");
     quotes = await import("./quotes.ts");
+    attachments = await import("./attachments.ts");
+    invoiceMail = await import("./invoice-mail.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -38,7 +42,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
   beforeEach(async () => {
     await leeren(
       sql,
-    )`truncate quote_lines, quotes, quote_number_counters, invoice_lines, invoices, invoice_number_counters, contact_persons, contact_versions, contacts, journal_lines, journal_entries, company cascade`;
+    )`truncate mail_log, quote_lines, quotes, quote_number_counters, invoice_lines, invoices, invoice_number_counters, contact_persons, contact_versions, contacts, journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
@@ -118,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
       correctsId: null,
     });
     expect(copy.id).not.toBe(original.id);
-    const pick = (lines: import("./invoices.ts").InvoiceLine[]) =>
+    const pick = (lines: import("./index.ts").InvoiceLine[]) =>
       lines.map(({ position, description, detail, itemNumber, quantity, unit, unitPrice, taxRate, net, discountPercent, discountAmount }) => ({
         position,
         description,
@@ -165,14 +169,83 @@ describe.skipIf(!testDatabaseUrl)("Rechnung kopieren (Postgres)", () => {
     expect((await kopieren.copyInvoice(actor, original.id, heute)).contactPersonId).toBeNull();
   });
 
-  it("lehnt Entwürfe, Stornorechnungen und Korrekturen ab", async () => {
+  it("kopiert auch einen bestehenden Entwurf mit Datum heute und ohne Leistungszeitraum", async () => {
     const draft = await invoices.createDraft(actor, draftInput());
-    await expect(kopieren.copyInvoice(actor, draft.id, heute)).rejects.toThrow(/festgeschriebene/);
+    const copy = await kopieren.copyInvoice(actor, draft.id, heute);
+    expect(copy.id).not.toBe(draft.id);
+    expect(copy).toMatchObject({
+      status: "draft",
+      kind: "rechnung",
+      number: null,
+      contactId,
+      issueDate: heute,
+      dueDate: "2026-12-09",
+      serviceFrom: null,
+      serviceTo: null,
+      intro: draft.intro,
+      note: draft.note,
+      gross: draft.gross,
+    });
+  });
+
+  it("lehnt Stornorechnungen und Korrekturen ab", async () => {
     const original = await final();
     const korrektur = await invoices.createCorrection(actor, original.id, "2026-10-03");
     await expect(kopieren.copyInvoice(actor, korrektur.id, heute)).rejects.toThrow(/Korrekturen/);
     const storno = await invoices.cancelInvoice(actor, (await final()).id, "2026-10-05");
     await expect(kopieren.copyInvoice(actor, storno.id, heute)).rejects.toThrow(/Stornorechnungen/);
+  });
+
+  it("übernimmt § 13b UStG und Skonto, aber weder Festschreibung noch Versand noch Anhänge", async () => {
+    const euKunde = (
+      await contacts.createContact(actor, {
+        kundennummer: "",
+        name: "Alpen Cloud GmbH",
+        strasse: "Ring 10",
+        plz: "1010",
+        ort: "Wien",
+        land: "AT",
+        email: "ap@alpen.example",
+        ustId: "ATU12345678",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
+      })
+    ).id;
+    const draft = await invoices.createDraft(
+      actor,
+      draftInput({
+        contactId: euKunde,
+        taxTreatment: "reverse_charge",
+        exemptionReason: "Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG / Art. 196 MwStSystRL).",
+        priceMode: "netto",
+        skonto: [{ days: 7, percent: 200 }],
+        lines: [{ description: "Cloud-Architektur", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 0 as const }],
+      }),
+    );
+    await attachments.addInvoiceAttachment(actor, draft.id, {
+      bytes: new TextEncoder().encode("%PDF-1.4\nNachweis"),
+      filename: "nachweis.pdf",
+    });
+    const original = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
+    await sql`insert into mail_log (invoice_id, kind, recipient, subject, ok) values (${original.id}, 'rechnung', 'ap@alpen.example', 'Rechnung', true)`;
+
+    const copy = await kopieren.copyInvoice(actor, original.id, heute);
+    expect(copy).toMatchObject({
+      status: "draft",
+      number: null,
+      lockedAt: null,
+      pdf: null,
+      pdfSha256: null,
+      xml: null,
+      xmlSha256: null,
+      taxTreatment: "reverse_charge",
+      exemptionReason: "Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG / Art. 196 MwStSystRL).",
+      skonto: [{ days: 7, percent: 200 }],
+      dueDate: "2026-12-09",
+    });
+    expect(await attachments.listInvoiceAttachments(copy.id)).toEqual([]);
+    expect(await invoiceMail.mailsForInvoice(copy.id)).toEqual([]);
   });
 
   const finalQuote = async () =>

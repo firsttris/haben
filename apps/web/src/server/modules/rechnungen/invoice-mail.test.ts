@@ -9,7 +9,7 @@ type Sent = { to: string; bcc?: string; subject: string; text: string; html: str
 describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres)", () => {
   let invoiceMail: typeof import("./invoice-mail.ts");
   let mail: typeof import("../mail/mail.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let dunning: typeof import("./dunning.ts");
   let recurring: typeof import("./recurring.ts");
@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     sql = await setupTestDb();
     invoiceMail = await import("./invoice-mail.ts");
     mail = await import("../mail/mail.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     dunning = await import("./dunning.ts");
     recurring = await import("./recurring.ts");
@@ -345,6 +345,29 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     expect(await invoiceMail.dunningMailDraft(letzte.id)).toMatchObject({ subject: "Letzte Mahnung 2026-001", body: "Bitte zahlen bis 10.11.2026." });
 
     await expect(mail.saveMailSettings(actor, { ...settings, templates: { "mahnung:en": { subject: "x", body: "" } } })).rejects.toThrow(/Unbekannte Vorlage/);
+  });
+
+  it("Mahnung: {kunde} nennt den heutigen Namen des Kontakts wie das PDF der Mahnung", async () => {
+    await mail.saveMailSettings(actor, { ...settings, templates: { "mahnung:de": { subject: "Mahnung für {kunde}", body: "" } } });
+    await contacts.updateContact(actor, contactId, {
+      kundennummer: "10001",
+      name: "Nordwerk Software AG",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "buchhaltung@nordwerk.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const created = await dunning.createDunning(
+      actor,
+      { invoiceId, level: 1, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" },
+      "2026-10-15",
+    );
+    expect((await invoiceMail.dunningMailDraft(created.id)).subject).toBe("Mahnung für Nordwerk Software AG");
   });
 
   it("schickt Mahnungen mit eigenem PDF", async () => {

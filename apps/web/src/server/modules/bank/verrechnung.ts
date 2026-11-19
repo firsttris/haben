@@ -7,7 +7,7 @@ import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
-import { settledOn } from "./bank.ts";
+import { settledOn } from "./settled-amounts.ts";
 import { belegTotals, freigabeNachziehen } from "../umsatzsteuer/index.ts";
 import { vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { lieferant } from "./verrechnung-abfragen.ts";

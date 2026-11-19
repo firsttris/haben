@@ -12,7 +12,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres)", () => {
   let foreign: typeof import("./fremdrechnung.ts");
   let UmsatzgrenzeError: typeof import("./umsatzgrenze.ts").UmsatzgrenzeError;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let cash: typeof import("../bank/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
@@ -26,7 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     sql = await setupTestDb();
     foreign = await import("./fremdrechnung.ts");
     ({ UmsatzgrenzeError } = await import("./umsatzgrenze.ts"));
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     cash = await import("../bank/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     vat = await import("../umsatzsteuer/index.ts");

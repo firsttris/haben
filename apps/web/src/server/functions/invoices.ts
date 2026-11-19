@@ -28,6 +28,7 @@ import {
   listInvoices,
   newDraftDefaults,
   numbering,
+  contactNumbering,
   abschlagLinks,
   openAbschlaege,
   invoiceSettlementReversalSchema,
@@ -278,7 +279,7 @@ export const correctFinalInvoice = createServerFn({ method: "POST" })
     return { id: draft.id };
   });
 
-export const copyFinalInvoice = createServerFn({ method: "POST" })
+export const copyInvoiceAsDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
@@ -295,10 +296,23 @@ export const getNumbering = createServerFn({ method: "GET" })
     return { invoice, quote };
   });
 
+/** Die Nummernkreise eines Kunden (#1426): je Art nur, wenn deren Zähler je Kunde läuft, sonst null */
+export const getCustomerNumbering = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  // Wie die übrigen Loader der Kontaktseite: eine kaputte Kennung ist 404, nicht 500 (seiten.spec.ts, „kaputte Adresse“)
+  .validator(({ contactId }: { contactId: string }) => ({ contactId: detailId(contactId) }))
+  .handler(async ({ data }) => contactNumbering(today(), data.contactId));
+
 export const saveNextNumber = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ kind: z.enum(["rechnung", "angebot"]).default("rechnung"), next: z.number().int().min(1).max(999_999) }))
+  .validator(
+    z.object({
+      kind: z.enum(["rechnung", "angebot"]).default("rechnung"),
+      next: z.number().int().min(1).max(999_999),
+      contactId: z.string().uuid().nullable().optional(),
+    }),
+  )
   .handler(async ({ data, context }) => {
-    await setNextNumber(context.user.id, today(), data.next, data.kind);
+    await setNextNumber(context.user.id, today(), data.next, data.kind, data.contactId ?? null);
     return { ok: true };
   });

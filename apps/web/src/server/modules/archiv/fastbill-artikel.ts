@@ -1,61 +1,19 @@
-import { FastbillApiError, type FbArticle, fbArticlesCsv } from "@haben/import";
-import { fastbillPreviousCalls, latestFastbillImport } from "./fastbill.ts";
-import { FastbillError, fastbillCredentials, newFastbillClient, noteFastbillCalls } from "./fastbill-zugang.ts";
+import { type FbArticle, fbArticlesCsv } from "@haben/import";
+import { withFastbillRequest } from "./fastbill-anfrage.ts";
+import { FastbillError } from "./fastbill-zugang.ts";
 
 /*
  * Artikel aus FastBill für den Artikel-Import (docs/fastbill.md#artikel): Der Abruf liefert eine CSV in den Spalten des
  * Imports, die Seite „CSV-Import“ zeigt dazu die übliche Vorschau, und übernommen wird dort wie aus einer Datei. So gelten
  * dieselben Prüfungen und Dubletten wie bei jeder Artikelliste, und Haben speichert nichts, bevor du bestätigst.
- *
- * Der Abruf läuft in der Anfrage, nicht im Hintergrund: Je 100 Artikel ein Aufruf. Er zählt auf dieselbe Stundengrenze wie
- * der Abruf der Belege, in beide Richtungen (fastbillPreviousCalls, noteFastbillCalls). Ist sie erreicht, bricht er ab,
- * statt bis zu einer Stunde in der Anfrage zu warten; ebenso, wenn FastBill wegen einer Störung länger warten lässt.
+ * Je 100 Artikel ein Aufruf, in der Anfrage mit der Stundengrenze (fastbill-anfrage.ts).
  */
-
-/** Längste Wartezeit in der Anfrage: Mindestabstand und kurze Wiederholungen ja, die Stundengrenze nein */
-const MAX_WAIT_MS = 30_000;
-
-/** limited: Der Client wartet wegen der Stundengrenze oder weil FastBill bremst (429), nicht wegen einer Störung (503 …) */
-function waitBriefly(ms: number, limited: boolean): Promise<void> {
-  if (ms > MAX_WAIT_MS) {
-    const minutes = Math.ceil(ms / 60_000);
-    const reason = limited ? "Die Stundengrenze deines FastBill-Tarifs ist erreicht." : "FastBill antwortet gerade nicht.";
-    return Promise.reject(new FastbillError(`${reason} Hol die Artikel in ${minutes} Minuten.`));
-  }
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function fastbillArticlesCsv(): Promise<{ filename: string; csv: string; count: number }> {
-  const login = await fastbillCredentials();
-  if (!login) throw new FastbillError("Zuerst im Umzug aus FastBill Login-E-Mail und API-Schlüssel hinterlegen.");
-  const last = await latestFastbillImport();
-  if (last?.status === "laeuft") throw new FastbillError("Gerade läuft ein Abruf aus FastBill. Hol die Artikel, wenn er fertig ist.");
-  const previous = await fastbillPreviousCalls();
-  // Der Client meldet die Stundengrenze und 429 über onRateLimitWait, unmittelbar bevor er schläft
-  let limited = false;
-  const client = newFastbillClient({
-    ...login,
-    previousCalls: previous,
-    onRateLimitWait: () => {
-      limited = true;
-    },
-    sleep: (ms) => {
-      const wait = waitBriefly(ms, limited);
-      limited = false;
-      return wait;
-    },
+  const articles = await withFastbillRequest("Artikel", async (client) => {
+    const list: FbArticle[] = [];
+    for await (const article of client.articles()) list.push(article);
+    return list;
   });
-  const articles: FbArticle[] = [];
-  try {
-    for await (const article of client.articles()) articles.push(article);
-  } catch (error) {
-    if (error instanceof FastbillApiError) throw new FastbillError(`FastBill: ${error.message}`, { cause: error });
-    throw error;
-  } finally {
-    // recentCalls enthält die früheren Aufrufe der letzten Stunde vorn; gemerkt werden nur die eigenen
-    const since = Date.now() - 3_600_000;
-    noteFastbillCalls(client.recentCalls().slice(previous.filter((t) => t > since).length));
-  }
   if (articles.length === 0) throw new FastbillError("In FastBill sind keine Artikel angelegt.");
   return { filename: "fastbill-artikel.csv", csv: fbArticlesCsv(articles), count: articles.length };
 }

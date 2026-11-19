@@ -1,12 +1,13 @@
 import { formatEuro } from "@haben/core";
 import { formatDate } from "../../lib/format.ts";
-import type { Detail, Posten, RestArt } from "./-bank-daten.ts";
+import type { Detail, Korrektur, Posten, RestArt } from "./-bank-daten.ts";
 
 const REST_LABEL = { skonto: "als Skonto", forderungsausfall: "als Forderungsausfall", skontoErhalten: "als erhaltenes Skonto" } as const;
 
 /**
  * Knöpfe, die den Rest einer Zuordnung ausbuchen: als Gebühr, als Kursdifferenz, als Skonto oder Forderungsausfall, und
- * die Sammelzuordnung aller Gebühren eines Monats zum Sammelbeleg des Dienstleisters.
+ * die Sammelzuordnung aller Gebühren eines Monats zum Sammelbeleg des Dienstleisters. Gleicht eine offene Korrektur der
+ * Rechnung den Rest aus, steht statt der Ausbuchung die Aufteilung auf Rechnung und Korrektur (#1398).
  *
  * Den Sammelknopf gibt es bei jedem gewählten Beleg und beim besten Vorschlag, wenn dieser der Sammelbeleg des Monats ist
  * (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu, die Gutschriften nur,
@@ -17,24 +18,37 @@ export function RestAktionen({
   tx,
   sammelrechnung,
   mitSammel,
-  angebot: { feeRest, rest, restKinds, exchangeDifference },
+  angebot: { feeRest, rest, restKinds, exchangeDifference, korrektur },
   busy,
   onFeeRest,
   onSammel,
   onRest,
+  onKorrektur,
 }: {
   target: Posten | undefined;
   tx: Detail["transaction"];
   sammelrechnung: Detail["sammelrechnung"];
   mitSammel: boolean;
-  angebot: { feeRest: number; rest: number; restKinds: RestArt[]; exchangeDifference: number };
+  angebot: { feeRest: number; rest: number; restKinds: RestArt[]; exchangeDifference: number; korrektur: Korrektur | undefined };
   busy: boolean;
   onFeeRest: () => void;
   onSammel: (documentId: string) => void;
   onRest: (kind: RestArt | "kursdifferenz") => void;
+  onKorrektur: () => void;
 }) {
   return (
     <>
+      {korrektur && (
+        <div className="stack" style={{ gap: 8 }}>
+          <button type="button" className="btn" onClick={onKorrektur} disabled={busy}>
+            Mit Korrektur {korrektur.number} aufteilen
+          </button>
+          <span className="small muted">
+            Der Rest von {formatEuro(rest)} entspricht der offenen Korrektur {korrektur.number}: Der Kunde hat die Rechnung abzüglich der Korrektur gezahlt. Die
+            Aufteilung ordnet die Zahlung beiden zu, Rechnung und Korrektur sind danach bezahlt.
+          </span>
+        </div>
+      )}
       {feeRest !== 0 && (
         <div className="stack" style={{ gap: 8 }}>
           <button type="button" className="btn" onClick={onFeeRest} disabled={busy}>

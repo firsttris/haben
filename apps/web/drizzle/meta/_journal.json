@@ -2108,6 +2108,48 @@
       "when": 1795085347613,
       "tag": "0300_importvertrag_referenzen",
       "breakpoints": true
+    },
+    {
+      "idx": 301,
+      "version": "7",
+      "when": 1795096206845,
+      "tag": "0301_fastbill_vorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 302,
+      "version": "7",
+      "when": 1795096207968,
+      "tag": "0302_fastbill_vorlagen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 303,
+      "version": "7",
+      "when": 1795114370068,
+      "tag": "0303_nummernkreis_kunde",
+      "breakpoints": true
+    },
+    {
+      "idx": 304,
+      "version": "7",
+      "when": 1795114391267,
+      "tag": "0304_nummernkreis_kunde_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 305,
+      "version": "7",
+      "when": 1795126612893,
+      "tag": "0305_paypal_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 306,
+      "version": "7",
+      "when": 1795126616239,
+      "tag": "0306_paypal_zugang_trigger",
+      "breakpoints": true
     }
   ]
 }

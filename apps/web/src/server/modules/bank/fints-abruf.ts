@@ -1,6 +1,7 @@
 import { type FintsClient, type FintsKonto, fintsClient, fintsStatement, fintsUmsaetze } from "@haben/import";
 import { eq, isNotNull } from "drizzle-orm";
-import { BankError, storeStatement } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
+import { storeStatement } from "./statement-import.ts";
 import { AUTO_SYNC_INTERVAL_MS, BANK_SYNC_ACTOR, syncStart } from "./bank-sync.ts";
 import { fintsGeheimnisLesen, fintsGeheimnisVerschluesseln } from "./fints-geheim.ts";
 import { fintsConfigured, fintsProduktOderFehler } from "./fints-produkt.ts";

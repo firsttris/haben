@@ -21,13 +21,13 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 const IBAN = "DE12500105170648489890";
 
 describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let db: typeof import("../../db/index.ts");
   let sql: postgres.Sql;
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     db = await import("../../db/index.ts");
   }, 60_000);
 

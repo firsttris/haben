@@ -181,9 +181,11 @@ describe("Fehlerausgabe eines Laufs (stream_without_credentials)", () => {
     const stubs = mkdtempSync(join(tmpdir(), "haben-backup-"));
     try {
       writeFileSync(join(stubs, "restic"), '#!/bin/sh\necho "Fatal: unable to open repository at $RESTIC_REPOSITORY: dial tcp" >&2\nexit 1\n');
+      // rclone gehört ins Image; ohne den Stub bräche die Vorprüfung ab, bevor restic überhaupt läuft
+      writeFileSync(join(stubs, "rclone"), "#!/bin/sh\nexit 0\n");
       writeFileSync(join(stubs, "psql"), "#!/bin/sh\nexit 2\n");
       writeFileSync(join(stubs, "dropdb"), "#!/bin/sh\nexit 0\n");
-      for (const name of ["restic", "psql", "dropdb"]) chmodSync(join(stubs, name), 0o755);
+      for (const name of ["restic", "rclone", "psql", "dropdb"]) chmodSync(join(stubs, name), 0o755);
       const r = spawnSync("bash", [join(DIR, "restore-check.sh")], {
         encoding: "utf8",
         timeout: 10_000,
@@ -210,8 +212,11 @@ describe("Log beim Start des Zeitplans (entrypoint.sh)", () => {
   const stubs = mkdtempSync(join(tmpdir(), "haben-backup-"));
   writeFileSync(join(stubs, "sleep"), "#!/bin/sh\nexit 0\n");
   writeFileSync(join(stubs, "backup.sh"), '#!/bin/sh\nkill -TERM "$PPID"\n');
+  // rclone ist im Image; die Vorprüfung bricht ohne die Binärdatei ab, bevor die Zeile mit dem Ziel erscheint
+  writeFileSync(join(stubs, "rclone"), "#!/bin/sh\nexit 0\n");
   chmodSync(join(stubs, "sleep"), 0o755);
   chmodSync(join(stubs, "backup.sh"), 0o755);
+  chmodSync(join(stubs, "rclone"), 0o755);
   afterAll(() => rmSync(stubs, { recursive: true, force: true }));
 
   it.each([

@@ -1,7 +1,7 @@
 ---
 title: "Umzug aus FastBill mit Abgleich je Jahr"
 description: >-
-  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API übernehmen,
+  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Angebote, Kunden, Artikel und offene Zeiten über die API übernehmen,
   unveränderlich archivieren und kündigen.
 ---
 
@@ -37,12 +37,16 @@ Trag Login-E-Mail, Tarif und API-Schlüssel ein und klicke „Prüfen und speich
 1. **Kunden:** Name (Firma oder Person), Adresse, Land, E-Mail, USt-IdNr. und Kundennummer, als Kontakte mit der Rolle Kunde. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne FastBill-Herkunft, verknüpft Haben ihn. FastBill führt Lieferanten nicht als Kontakte; sie stehen in den Ausgaben nur als Name.
 2. **Belegliste:** Ausgangsrechnungen, Gutschriften und stornierte Rechnungen, je Art ein eigener Abruf, dazu die Ausgaben. Entwürfe bleiben draußen.
 3. **Dateien:** je Rechnung und Gutschrift das PDF, je Ausgabe der hochgeladene Beleg. Gibt FastBill den Beleg einer Ausgabe nur im angemeldeten Browser heraus, wartet die Ausgabe, siehe [Belege, die FastBill nur im Browser herausgibt](#belege-die-fastbill-nur-im-browser-herausgibt).
+4. **Wiederkehrende Rechnungen:** als pausierte Vorlagen, siehe [Wiederkehrende Rechnungen](#wiederkehrende-rechnungen).
+5. **Angebote:** samt PDF als Auftragsdokumente ins Archiv, siehe [Angebote](#angebote).
 
-Die Antwort der API wird je Beleg gespeichert, zum Nachweis; ohne die Download-Adresse (`DOCUMENT_URL`), denn wer sie kennt, lädt den Beleg ohne Anmeldung.
+Die Antwort der API wird je Beleg gespeichert, zum Nachweis; ohne die Download-Adresse (`DOCUMENT_URL`), denn wer sie kennt, lädt den Beleg ohne Anmeldung, und ohne die Bankverbindung des Kunden, die die Buchhaltung nicht braucht. Dasselbe gilt für Angebote und Vorlagen wiederkehrender Rechnungen.
 
 ### Dauer und Stundengrenze
 
 Jede Seite mit bis zu 100 Einträgen ist eine Anfrage, die PDFs zählen nicht dazu. Ist die Grenze deines Tarifs erreicht, wartet der Abruf, bis wieder Anfragen frei sind, und zeigt bis wann. Ein neuer Abruf nach einem Abbruch rechnet die Anfragen der letzten Stunde an und überspringt alles, was schon im Archiv liegt.
+
+Unter „Verbindung zu FastBill“ steht neben dem Tarif, wie viele Anfragen Haben in der letzten Stunde genutzt hat und wie viele noch frei sind; sind keine mehr frei, auch wann die nächste frei wird. FastBill selbst nennt den Rest nicht. Nutzt ein anderes Programm denselben API-Schlüssel, zählen seine Anfragen bei FastBill mit, in Haben aber nicht.
 
 ### Belege, die FastBill nur im Browser herausgibt
 
@@ -108,9 +112,36 @@ Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelka
 - **Währung:** Einen Preis in anderer Währung als Euro übernimmt Haben nicht; die Vorschau zeigt ihn als Fehler.
 - **Stundengrenze:** Der Abruf zählt auf dieselbe Grenze wie der Abruf der Belege, und umgekehrt. Ist sie erreicht oder antwortet FastBill gerade nicht, sagt Haben, in wie vielen Minuten es wieder geht. Während eines laufenden Abrufs holt Haben keine Artikel.
 
+### Wiederkehrende Rechnungen
+
+Jede Vorlage aus FastBill kommt als [wiederkehrende Rechnung](rechnungen.md#wiederkehrende-rechnungen) an, und zwar **pausiert**, als Entwurf und ohne E-Mail. So schicken in der Übergangszeit nicht FastBill und Haben dieselbe Rechnung. Stoppe die Vorlage in FastBill, prüfe sie in Haben und schalte sie dann auf **Aktiv**. Ein neuer Abruf legt keine Vorlage doppelt an, auch wenn du sie in Haben gelöscht hast.
+
+- **Turnus:** monatlich, vierteljährlich, halbjährlich und jährlich. Wöchentlich, alle 2 oder 4 Wochen und alle 2 Monate kennt Haben nicht; solche Vorlagen nennt der Abruf mit Grund, sie legst du von Hand an.
+- **Nächste Rechnung am** ist das Startdatum aus FastBill, denn FastBill nennt keinen nächsten Termin. Liegt es in der Vergangenheit, nimmt Haben den ersten Termin ab heute, damit beim Aktivieren keine nachträglichen Rechnungen entstehen. Prüfe den Termin gegen die letzte Rechnung aus der Vorlage in FastBill. Der Tag des Startdatums ist der Tag der Termine, wie im Editor; nur der 31. heißt Monatsende. Ist die Vorlage in FastBill auf eine Anzahl Rechnungen begrenzt, rechnet Haben das Enddatum ab dem Startdatum; prüfe es.
+- **Positionen** mit Bezeichnung, Text, Art.-Nr., Menge, Einheit, Preis und Steuersatz; netto oder brutto wie in FastBill. Eine Einheit, die Haben weder kennt noch als [eigene Einheit](rechnungen.md#eigene-einheiten) hat, wird „Stk.“; Preise mit Bruchteilen von Cent rundet Haben und nennt das.
+- **Umsatzsteuer** aus dem Umsatzsteuerfall: 0 und `standard` regulär, `small_business_regulation` Kleinunternehmer, `b2b_eu_services` Reverse Charge, `b2b_eu_goods` innergemeinschaftliche Lieferung, `b2b_noneu_goods` Ausfuhr, `b2b_noneu_services` Leistung ins Drittland. Alles außer regulär steht mit Hinweis zum Prüfen auf der Seite der Vorlage.
+- **Nicht übernommen:** Vorlagen in anderer Währung, mit Rabatt, mit einem Steuersatz außer 0, 7 und 19 %, mit dem Umsatzsteuerfall 1 (Lieferung oder Leistung ins EU-Ausland, siehe [Steuerarten](#steuerarten-im-abgleich)) oder `b2c_eu_goods` und `b2c_noneu_goods` (Lieferung an Privatkunden; ob über OSS oder als steuerfreie Ausfuhr, sagt FastBill nicht), ohne Positionen oder Startdatum und solche, deren Kunde nicht übernommen ist. Der Abruf nennt sie je Vorlage.
+- **Zum Prüfen:** Zahlungsart außer Überweisung, Skonto, Leistungszeitraum, Lieferdatum und Notiz übernimmt Haben nicht. Zahlungsziel ist das aus deinen Firmendaten. Was davon eine Vorlage betrifft, steht auf ihrer Seite unter „Aus FastBill übernommen“.
+
+### Angebote
+
+Angebote aus FastBill liegen danach im Archiv unter **Auftragsdokumente**, wie die aus sevDesk: mit Nummer, Datum, Status aus FastBill (Erstellt, Versendet, Angenommen …), Kontakt, Beträgen und dem PDF. Sie buchen nichts und zählen nicht zum Abgleich. Das PDF lädt Haben über den Link aus FastBill, ohne Anmeldung; kommt keins, steht in der Spalte PDF „Fehlt“, und du reichst es auf der Detailseite von Hand nach. Ein neuer Abruf überspringt Angebote, die schon im Archiv liegen; fehlt einem davon das PDF, versucht er es noch einmal und hängt es an, wenn der Link jetzt eins liefert und das Angebot in FastBill bis auf Status und Bankverbindung unverändert ist. Wurde es geändert, steht es in der Liste der fehlgeschlagenen Belege; reich das PDF nach Prüfung auf der Detailseite von Hand nach, dann fehlt es beim nächsten Abruf dort. Im Jahresexport stehen sie unter `fastbill/auftraege/`.
+
+Ein Angebot wird dabei nicht zu einem bearbeitbaren Angebot in Haben: Das bekäme beim Festschreiben eine eigene Nummer. Schreibst du die Rechnung zu einem Angebot aus FastBill in Haben, trag die Angebotsnummer als **Eigene Auftragsnummer** ein ([Bestellnummer, Auftrag und Lieferschein](rechnungen.md#bestellnummer-auftrag-und-lieferschein)).
+
+### Offene Zeiten
+
+Zeiten aus FastBill, die noch auf keiner Rechnung stehen, kommen als [Zeiteinträge](leistungen.md) zum Kunden. Den Kasten **Offene Zeiten** gibt es, sobald der API-Schlüssel hinterlegt ist. **Vorschau holen** ruft Zeiten und Projekte ab und zeigt je Kunde Anzahl, Dauer und Summe netto, dazu was nicht geht; erst **Zeiteinträge übernehmen** legt sie an.
+
+- **Übernommen:** Arbeitstag, Dauer, abrechenbare Dauer (0 heißt nicht abrechenbar), Tätigkeit und der Name des Projekts als Text. Stundensatz ist der des Projekts, ohne Satz im Projekt der des Kunden in Haben.
+- **Nicht übernommen:** Zeiten, die FastBill einer Rechnung zuordnet; sie stecken in der Regel in den Rechnungen im Archiv, prüfe das bei Rechnungsentwürfen und Stornos in FastBill. Außerdem Zeiten ohne Datum oder Dauer, mit einer Dauer oder abrechenbaren Dauer über 24 Stunden, zu Projekten in anderer Währung und solche, deren Kunde in Haben fehlt (zuerst „Alles abrufen“), archiviert oder kein Kunde ist. Die Vorschau nennt sie je Zeit.
+- **Projekte** gibt es in Haben nicht: Laufzeit, Kostenstelle, Projektnummer und Steuersatz des Projekts gehen nicht über; den Steuersatz setzt der Rechnungsentwurf.
+- Ein erneutes Übernehmen aktualisiert offene Einträge über die Kennung der Zeit, statt sie zu verdoppeln. Was in Haben schon abgerechnet ist, bleibt, wie es ist, und zählt in der Vorschau nicht als offen. Beim Bearbeiten eines Eintrags steht „Übernommen aus FastBill“.
+- Der Abruf zählt auf dieselbe Stundengrenze wie Belege und Artikel; je 100 Zeiten oder Projekte eine Anfrage.
+
 ### Grenzen des aktuellen Imports
 
-Angebote, wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
+Eine Projektverwaltung und die Dokumentenablage von FastBill übernimmt Haben nicht.
 
 ## Schritt 3 bis 5
 
@@ -129,6 +160,7 @@ Haben spricht standardmäßig mit `https://my.fastbill.com/api/1.0/api.php`. Mit
 
 - [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer
 - [ ] Keine Ausgabe wartet mehr auf ihren Beleg aus dem Browser-Skript
+- [ ] Angebote im Archiv, fehlende PDFs von Hand nachgereicht
 - [ ] Jeder Beleg hat eine Datei (Abgleich je Jahr); Ausgaben ohne Beleg in FastBill geklärt
 - [ ] Für jedes Geschäftsjahr: DATEV-Buchungsstapel, DATEV-XML-Export, ELSTER-Protokolle und Kontoauszüge abgelegt, jeweils mit Jahr
 - [ ] Einnahmen, Ausgaben, Umsatz- und Vorsteuer je Jahr mit FastBill verglichen

@@ -4,7 +4,9 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { bankDuplicateConfirmedSql } from "../../db/bank-open.ts";
 import { schema } from "../../db/index.ts";
-import { allocateIn, BankError, lockTransaction } from "./bank.ts";
+import { allocateIn } from "./allocation.ts";
+import { BankError } from "./bank-error.ts";
+import { lockTransaction } from "./payment-booking.ts";
 
 export const zahlungMitGebuehrSchema = z.object({
   /** Die Zahlung; ihre Gebühr findet der Server selbst */
