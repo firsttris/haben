@@ -13,7 +13,8 @@ import { progressMessage } from "./lexoffice.ts";
  * Angebote aus FastBill als Auftragsdokumente im Archiv (legacy_order_documents, source fastbill), wie die aus sevDesk:
  * ohne Buchungswirkung, mit dem PDF hinter DOCUMENT_URL. Das PDF lädt FastBill bei Angeboten ohne Anmeldung (echtes Konto,
  * November 2026). Liefert es keins, kommt das Angebot trotzdem ins Archiv und das PDF lässt sich von Hand nachreichen.
- * Schon archivierte Angebote überspringt ein neuer Abruf an ihrer Kennung fastbill/estimate/<ID>.
+ * Schon archivierte Angebote überspringt ein neuer Abruf an ihrer Kennung fastbill/estimate/<ID>; fehlt ihnen das PDF,
+ * holt er es nach, solange das Angebot bis auf Status und Bankverbindung unverändert ist (retryPdf).
  */
 
 // Ein abgelehnter Download-Link betrifft nur dieses Angebot, nicht die Anmeldung (wie stopsRun in fastbill.ts)
