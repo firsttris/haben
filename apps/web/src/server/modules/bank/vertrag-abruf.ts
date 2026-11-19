@@ -1,4 +1,4 @@
-import { type EbBalance, type EbTransaction, enableBankingBatch, entryReferenceOf, OHNE_ENTRY_REFERENCE, type ParsedStatement } from "@haben/import";
+import { type EbBalance, type EbTransaction, enableBankingDelivery, entryReferenceOf, OHNE_ENTRY_REFERENCE, type ParsedStatement } from "@haben/import";
 import type { StoreBatchInput } from "./import-batch.ts";
 
 /*
@@ -39,7 +39,7 @@ export function abrufNachVertrag(abruf: {
   source: StoreBatchInput["source"];
   fetchFrom?: string;
 }): { input: StoreBatchInput; hinweise: string[] } {
-  const batch = enableBankingBatch({
+  const { batch, fallback } = enableBankingDelivery({
     externalAccountId: abruf.identificationHash,
     transactions: abruf.transactions,
     balances: abruf.balances,
@@ -52,20 +52,19 @@ export function abrufNachVertrag(abruf: {
   const ohneReferenz = batch.unsupported.filter((u) => u.reason.includes(OHNE_ENTRY_REFERENCE)).length;
   // Vorgemerkte Umsätze und andere Status meldet schon der Kontoauszug (enableBankingStatement), die nicht doppelt
   const danach = batch.unsupported.filter((u) => u.reason.includes("nach dem abgerufenen Fenster")).length;
-  const gebucht = abruf.transactions.filter((t) => (!t.status || t.status === "BOOK") && t.entry_reference?.trim());
-  const doppelt = gebucht.length - new Set(gebucht.map((t) => t.entry_reference!.trim())).size;
   const umsaetze = (n: number) => `${n} ${n === 1 ? "Umsatz" : "Umsätze"}`;
   const hinweise = [
     ...(ohneReferenz > 0 ? [`${umsaetze(ohneReferenz)} ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt.`] : []),
     ...(danach > 0 ? [`${umsaetze(danach)} nach dem abgerufenen Zeitraum nicht übernommen; der nächste Abruf holt ${danach === 1 ? "ihn" : "sie"}.`] : []),
-    ...(doppelt > 0 ? [`${umsaetze(doppelt)} mit derselben Referenz der Bank doppelt geliefert und einmal übernommen.`] : []),
+    ...(fallback.size > 0 ? [`${umsaetze(fallback.size)} mit mehrfach vergebener Bankreferenz: am Inhalt erkannt.`] : []),
   ];
   return {
     input: {
       batch: { ...batch, unsupported: batch.unsupported.filter((u) => !u.reason.includes(OHNE_ENTRY_REFERENCE)) },
       binding: { provider: "enablebanking", externalAccountId: abruf.identificationHash, accountKind: "bank" },
       statement: abruf.statement,
-      eventOf: entryReferenceOf(abruf.transactions),
+      eventOf: entryReferenceOf(abruf.transactions, fallback),
+      ...(fallback.size > 0 ? { fallbackEvents: new Set(fallback.values()) } : {}),
       source: abruf.source,
       ...(abruf.fetchFrom ? { fetchFrom: abruf.fetchFrom } : {}),
     },

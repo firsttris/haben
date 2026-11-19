@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, arrayOverlaps, eq, inArray, sql } from "drizzle-orm";
 import {
   advanceCheckpoint,
   batchFingerprint,
@@ -9,17 +9,20 @@ import {
   type KnownMovement,
   knownMovement,
   movementKey,
+  parseDate,
   type ParsedStatement,
   type ParsedTransaction,
   type SourceBinding,
-  transactionHash,
   validateBatch,
   withDedupHashes,
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
-import { connectedRanges, cutoverFor, otherImports, otherRanges } from "./andere-importe.ts";
-import { type ImportResult, insertStatement, knownHashes, prepareStatement, statementResult } from "./bank.ts";
+import { connectedRanges, cutoverFor, otherRanges } from "./andere-importe.ts";
+import { type ImportResult, insertStatement, prepareStatement, statementResult } from "./bank.ts";
 import { BankError } from "./bank-error.ts";
+import { recordDuplicateCandidates } from "./duplicate-scan.ts";
+import { type Linked, planRows } from "./import-batch-plan.ts";
+import { lockImportObservations, recordImportObservations } from "./import-observations.ts";
 
 /*
  * Schritt 3 aus #306: Eine Lieferung des Importvertrags speichern. Bewegungen erkennt Haben an ihrer Quellenidentität
@@ -31,6 +34,8 @@ import { BankError } from "./bank-error.ts";
  * bisherige Weg getan hätte. Mit Zeilen, die nach der Bindung kamen, gleicht Haben nie über den Inhalt ab.
  */
 
+export { freeHash } from "./import-batch-plan.ts";
+
 export interface StoreBatchInput {
   batch: ImportBatch;
   binding: Omit<SourceBinding, "cutoverDate">;
@@ -38,6 +43,8 @@ export interface StoreBatchInput {
   statement: ParsedStatement;
   /** Ereignis zu einem Umsatz des Auszugs; ohne stabile Kennung undefined, dann erkennt Haben ihn wie bisher am Inhalt */
   eventOf: (t: ParsedTransaction) => string | undefined;
+  /** Prüfkennungen mehrdeutiger Enable-Banking-Zeilen; nie als Quellenidentität speichern. */
+  fallbackEvents?: ReadonlySet<string>;
   source: { filename: string; sha256: string };
   /** „Umsätze abrufen ab“ des Kontos; vor diesem Tag beginnt der Stichtag einer neuen Bindung nie */
   fetchFrom?: string;
@@ -52,8 +59,6 @@ export interface BatchResult extends ImportResult {
   /** Dieselbe Lieferung kam schon; Haben hat nichts neu gespeichert */
   replay: boolean;
 }
-
-type Row = ParsedTransaction & { dedupHash: string };
 
 /**
  * Konflikt mit schon übernommenen Bewegungen (#306, 3b). Trägt sie samt der zuerst übernommenen Bewegung, damit
@@ -72,13 +77,14 @@ export class MovementConflictError extends BankError {
  * Quellenbindung zur Kennung; fehlt sie, wird sie für dieses Konto mit ihrem Stichtag angelegt. Gehört sie zu einem anderen
  * Konto, Fehler.
  */
-async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId: string, cutover: () => Promise<string>) {
+async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId: string, cutover: () => Promise<string>, beforeInsert: () => Promise<void>) {
   const where = and(eq(schema.importSources.provider, binding.provider), eq(schema.importSources.externalAccountId, binding.externalAccountId));
   const [existing] = await tx.select().from(schema.importSources).where(where);
   if (existing) {
     if (existing.bankAccountId !== accountId) throw new BankError("Die Quelle des Abrufs ist schon mit einem anderen Konto verbunden.");
     return existing;
   }
+  await beforeInsert();
   // Parallel angelegt: der eindeutige Index hält die zweite Bindung ab, dann gilt die erste
   await tx
     .insert(schema.importSources)
@@ -107,7 +113,7 @@ export async function knownMovements(tx: Tx, source: { id: string }, binding: St
     ids.length === 0
       ? []
       : await tx
-          .select({ movementId: schema.importConflicts.movementId, conflict: schema.importConflicts })
+          .select({ movementId: schema.importConflicts.movementId, conflict: schema.importConflicts, transactionId: schema.importResolutions.transactionId })
           .from(schema.importConflicts)
           .innerJoin(schema.importResolutions, eq(schema.importResolutions.conflictId, schema.importConflicts.id))
           .innerJoin(schema.importMovements, eq(schema.importMovements.id, schema.importConflicts.movementId))
@@ -118,42 +124,29 @@ export async function knownMovements(tx: Tx, source: { id: string }, binding: St
     details: r.details,
   });
   const known = new Map<string, KnownMovement[]>();
+  const origins = new Map<string, (string | null)[]>();
   const movementIds = new Map<string, string>();
   for (const r of rows) {
     const key = movementKey(binding, { sourceEventId: r.sourceEventId, component: r.component });
     known.set(key, [core(r)]);
+    origins.set(key, [r.transactionId]);
     movementIds.set(key, r.id);
   }
   const keyOf = new Map(rows.map((r) => [r.id, movementKey(binding, { sourceEventId: r.sourceEventId, component: r.component })]));
-  for (const r of resolved) known.get(keyOf.get(r.movementId)!)?.push(core(r.conflict));
-  return { known, movementIds };
-}
-
-/** Erstes freies Vorkommen des Dubletten-Hashes, damit ein neuer gleichartiger Umsatz den Index nicht verletzt */
-export async function freeHash(tx: Tx, accountId: string, row: Row, taken: Set<string>): Promise<string> {
-  for (let start = 0; ; start += 20) {
-    const candidates = Array.from({ length: 20 }, (_, i) => transactionHash(row, start + i));
-    const known = await knownHashes(tx, accountId, candidates);
-    const free = candidates.find((h) => !known.has(h) && !taken.has(h));
-    if (free) return free;
+  for (const r of resolved) {
+    const key = keyOf.get(r.movementId)!;
+    known.get(key)?.push(core(r.conflict));
+    origins.get(key)?.push(r.transactionId);
   }
-}
-
-/** Umsätze vor der Bindung mit diesem Hash, die noch keiner Bewegung gehören */
-async function aliasCandidates(tx: Tx, accountId: string, source: { createdAt: Date }, hashes: string[]): Promise<Map<string, string>> {
-  if (hashes.length === 0) return new Map();
-  const rows = await tx
-    .select({ id: schema.bankTransactions.id, hash: schema.bankTransactions.dedupHash })
-    .from(schema.bankTransactions)
-    .where(
-      and(
-        eq(schema.bankTransactions.bankAccountId, accountId),
-        inArray(schema.bankTransactions.dedupHash, hashes),
-        lt(schema.bankTransactions.createdAt, source.createdAt),
-        sql`not exists (select 1 from import_movements m where m.transaction_id = ${schema.bankTransactions.id})`,
-      ),
-    );
-  return new Map(rows.map((r) => [r.hash, r.id]));
+  const observedIds = movements.flatMap((m) => {
+    const key = movementKey(binding, m);
+    const found = known
+      .get(key)
+      ?.findIndex(({ core: c }) => c.amount === m.amount && c.currency === m.currency && c.bookingDate === m.bookingDate && c.kind === m.kind);
+    const id = found === undefined ? undefined : origins.get(key)?.[found];
+    return id ? [id] : [];
+  });
+  return { known, movementIds, observedIds };
 }
 
 /** Bisheriges Ergebnis einer wiederholten Lieferung, ohne etwas neu zu speichern */
@@ -173,77 +166,6 @@ async function replayResult(tx: Tx, account: { id: string; name: string }, previ
   };
 }
 
-type Linked = { movement: ImportMovement; hash?: string; transactionId?: string };
-
-/** Welche Umsätze neu angelegt werden und welche Bewegung zu welchem Umsatz gehört (neu oder per Alias) */
-async function planRows(
-  tx: Tx,
-  accountId: string,
-  source: { createdAt: Date; cutoverDate: string | null },
-  rows: Row[],
-  fresh: Map<string, ImportMovement>,
-  eventOf: StoreBatchInput["eventOf"],
-  windowFrom: string | undefined,
-): Promise<{ insert: Row[]; linked: Linked[]; fileDays: string[] }> {
-  const known = await knownHashes(
-    tx,
-    accountId,
-    rows.map((r) => r.dedupHash),
-  );
-  const aliases = await aliasCandidates(
-    tx,
-    accountId,
-    source,
-    rows.filter((r) => fresh.has(eventOf(r) ?? "")).map((r) => r.dedupHash),
-  );
-  const beforeWindow = (m: ImportMovement) => windowFrom !== undefined && m.bookingDate < windowFrom;
-  const inFiles = await otherImports(
-    tx,
-    accountId,
-    [...fresh.values()].filter(beforeWindow).map((m) => m.bookingDate),
-    [...aliases.values()],
-    // Mit Stichtag nur Dateien nach der Bindung; eine Bindung ohne Stichtag (vor 3b) gleicht wie bisher mit allen ab
-    source.cutoverDate ? source.createdAt : undefined,
-  );
-  const insert: Row[] = [];
-  const linked: Linked[] = [];
-  const fileDays: string[] = [];
-  const taken = new Set<string>();
-  for (const row of rows) {
-    const event = eventOf(row);
-    if (event === undefined) {
-      // Ohne stabile Kennung wie bisher: am Inhalt erkannt
-      if (!known.has(row.dedupHash) && !taken.has(row.dedupHash)) {
-        insert.push(row);
-        taken.add(row.dedupHash);
-      }
-      continue;
-    }
-    const movement = fresh.get(event);
-    // Bekannt, abgelehnt oder schon einmal in dieser Lieferung: kein Umsatz
-    if (!movement) continue;
-    fresh.delete(event);
-    const alias = aliases.get(row.dedupHash);
-    const inFile = `${movement.bookingDate}|${movement.amount}`;
-    // Vor dem Fenster und an Tag und Betrag schon aus Datei oder FinTS: mit dieser Zeile verbunden, damit sie verbraucht ist
-    const fromFile = !alias && beforeWindow(movement) ? inFiles.get(inFile)?.shift() : undefined;
-    if (alias) linked.push({ movement, transactionId: alias });
-    else if (fromFile) {
-      linked.push({ movement, transactionId: fromFile });
-      fileDays.push(
-        `${event}: Buchungstag ${movement.bookingDate} vor dem Fenster, mit dem Umsatz gleichen Tags und Betrags aus Datei oder FinTS verbunden, nicht neu angelegt.`,
-      );
-    } else {
-      const hash = known.has(row.dedupHash) || taken.has(row.dedupHash) ? await freeHash(tx, accountId, row, taken) : row.dedupHash;
-      taken.add(hash);
-      insert.push({ ...row, dedupHash: hash });
-      linked.push({ movement, hash });
-    }
-  }
-
-  return { insert, linked, fileDays };
-}
-
 /** Lieferung, Abrufstand und Quellenidentitäten festhalten */
 async function recordBatch(
   tx: Tx,
@@ -253,6 +175,7 @@ async function recordBatch(
   importId: string,
   linked: Linked[],
   transactionIds: Map<string, string>,
+  ambiguousReferences: string[],
 ) {
   const { batch } = validation;
   const parts = await tx
@@ -302,6 +225,7 @@ async function recordBatch(
       blocking: validation.blocking,
       openFrom: validation.openFrom ?? null,
       fingerprint: batchFingerprint(batch),
+      ambiguousEntryReferences: ambiguousReferences.length > 0 ? ambiguousReferences : null,
       bankImportId: importId,
       checkpoint: progress.checkpoint ?? null,
       complete: progress.complete,
@@ -327,6 +251,23 @@ async function recordBatch(
   return progress;
 }
 
+/** Eine bereits belegte Mehrdeutigkeit gilt auch beim späteren Einzelabruf derselben Quelle. */
+async function fallbackFor(tx: Tx, sourceId: string, input: StoreBatchInput, batch: ImportBatch) {
+  const events = new Set(input.fallbackEvents);
+  const labels = new Map(batch.movements.filter((m) => events.has(m.sourceEventId)).map((m) => [m.sourceEventId, m.references?.providerReference]));
+  const observed = [...new Set([...labels.values()].filter((ref): ref is string => ref !== undefined))].sort();
+  const references = [...new Set(batch.movements.filter((m) => !events.has(m.sourceEventId)).map((m) => m.sourceEventId))];
+  if (batch.provider === "enablebanking" && references.length > 0) {
+    const previous = await tx
+      .select({ refs: schema.importBatches.ambiguousEntryReferences })
+      .from(schema.importBatches)
+      .where(and(eq(schema.importBatches.sourceId, sourceId), arrayOverlaps(schema.importBatches.ambiguousEntryReferences, references)));
+    const earlier = new Set(previous.flatMap(({ refs }) => refs ?? []));
+    for (const ref of references) if (earlier.has(ref)) events.add(ref);
+  }
+  return { events, labels, observed };
+}
+
 /**
  * Speichert eine Lieferung unter der Sperre des Kontos. Neue Bewegungen werden Umsätze, bekannte übersprungen, Umsätze
  * ohne stabile Kennung wie bisher über den Inhalt erkannt. Danach rückt der Abrufstand der Quelle vor.
@@ -335,7 +276,18 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
   const { statement, binding } = input;
   const { account, continuity } = await prepareStatement(tx, statement, input.source.filename, accountId);
   const windowFrom = statement.periodFrom ?? input.batch.coverage.from;
-  const source = await sourceFor(tx, binding, account.id, () => cutoverFor(tx, account.id, windowFrom, input.fetchFrom));
+  const fromEnableBanking = statement.format === "enablebanking";
+  const source = await sourceFor(
+    tx,
+    binding,
+    account.id,
+    () => cutoverFor(tx, account.id, windowFrom, input.fetchFrom),
+    async () => {
+      // Beim ersten Vertragsabruf wird die Quellenbindung selbst auditiert. Mögliche alte Umsätze vorher sperren.
+      const days = [...new Set(statement.transactions.map((row) => row.bookingDate).filter((day) => parseDate(day) === day))];
+      if (fromEnableBanking) await lockImportObservations(tx, account.id, days);
+    },
+  );
   const validation = validateBatch(input.batch, { ...binding, ...(source.cutoverDate ? { cutoverDate: source.cutoverDate } : {}) });
   if (!validation.ok) throw new BankError(`Abruf nach dem Importvertrag abgelehnt: ${validation.problems.join(" ")}`);
   const { batch } = validation;
@@ -348,8 +300,10 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
   if (repeated.outcome === "replay") return replayResult(tx, account, previous!);
   if (repeated.outcome === "conflict") throw new BankError(repeated.message);
 
-  const { known, movementIds } = await knownMovements(tx, source, binding, validation.accepted);
-  const { results, conflicts } = classifyMovements(known, binding, validation.accepted);
+  const ambiguity = await fallbackFor(tx, source.id, input, batch);
+  const stable = validation.accepted.filter((m) => !ambiguity.events.has(m.sourceEventId));
+  const { known, movementIds, observedIds } = await knownMovements(tx, source, binding, stable);
+  const { results, conflicts } = classifyMovements(known, binding, stable);
   if (conflicts.length > 0)
     throw new MovementConflictError(
       `Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`,
@@ -359,12 +313,31 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
   const rows = withDedupHashes(statement.transactions);
-  const { insert, linked, fileDays } = await planRows(tx, account.id, source, rows, fresh, input.eventOf, statement.periodFrom);
+  const fallback = fromEnableBanking
+    ? {
+        events: ambiguity.events,
+        accepted: new Set(validation.accepted.filter((m) => ambiguity.events.has(m.sourceEventId)).map((m) => m.sourceEventId)),
+        stableIds: observedIds,
+      }
+    : undefined;
+  const { insert, linked, fileDays, observedHashes } = await planRows(tx, account.id, source, rows, fresh, input.eventOf, statement.periodFrom, fallback);
+  const existingIds = [...observedIds, ...linked.flatMap((row) => (row.transactionId ? [row.transactionId] : []))];
+  const scanDays = fromEnableBanking ? [...new Set(insert.map((row) => row.bookingDate))] : [];
+  const observed = fromEnableBanking ? await lockImportObservations(tx, account.id, scanDays, { ids: existingIds, hashes: observedHashes }) : [];
   // Hinweise der Lieferung ins Importprotokoll (bank_imports.warnings), damit sie auch nach dem nächtlichen Abruf zu sehen sind
-  const hints = [...validation.hints, ...validation.rejected.map((r) => `${r.sourceEventId}: ${r.reason}`), ...fileDays];
+  const hints = [
+    ...validation.hints,
+    ...validation.rejected.map((r) => `${ambiguity.labels.get(r.sourceEventId) ?? r.sourceEventId}: ${r.reason}`),
+    ...fileDays,
+  ];
   const logged = { ...statement, warnings: [...statement.warnings, ...hints] };
   const { importId, transactionIds } = await insertStatement(tx, account.id, logged, input.source, insert, rows.length - insert.length);
-  const progress = await recordBatch(tx, source.id, account.id, validation, importId, linked, transactionIds);
+  const progress = await recordBatch(tx, source.id, account.id, validation, importId, linked, transactionIds, ambiguity.observed);
+  await recordImportObservations(tx, importId, observed);
+  if (scanDays.length > 0) {
+    const stableIds = new Set(linked.flatMap(({ hash }) => (hash && transactionIds.has(hash) ? [transactionIds.get(hash)!] : [])));
+    await recordDuplicateCandidates(tx, account.id, scanDays, new Set(transactionIds.values()), stableIds);
+  }
 
   const result = await statementResult(tx, account, logged, continuity, insert.length, rows);
   return {

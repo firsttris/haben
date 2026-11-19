@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { certificateUploadNotice } from "../../lib/certificate-notice.ts";
 import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { useSubmitCheck } from "../../lib/use-submit-check.ts";
@@ -20,17 +21,19 @@ export function CertificateForm() {
   const router = useRouter();
   const upload = useServerFn(uploadCertificate);
   const remove = useServerFn(removeCertificate);
-  const { busy, notice, run } = useAction();
+  const { busy, notice, setNotice, run } = useAction();
   const [removing, setRemoving] = useState(false);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
+    const data = new FormData(form);
     void run(async () => {
-      await upload({ data: new FormData(form) });
+      const done = certificateUploadNotice(await upload({ data }), data.get("pin") !== "");
       form.reset();
       await router.invalidate();
-    }, "Zertifikat verschlüsselt gespeichert.");
+      setNotice(done);
+    });
   }
 
   return (
@@ -70,7 +73,15 @@ export function CertificateForm() {
       <Field label={certificate ? "Neue Zertifikatsdatei" : "Zertifikatsdatei"}>
         {(control) => <FilePicker {...control} name="file" accept=".pfx" required />}
       </Field>
-      <Field label="Gültig bis (für die Erinnerung 30 Tage vorher)">{(control) => <input {...control} name="validUntil" type="date" />}</Field>
+      <Field label="Zertifikats-PIN (optional)" hint="Haben liest damit nur das Ablaufdatum aus der Datei und speichert sie nicht.">
+        {(control) => <input {...control} name="pin" type="password" autoComplete="off" />}
+      </Field>
+      <Field
+        label="Gültig bis (für die Erinnerung 30 Tage vorher)"
+        hint="Nur nötig ohne PIN oder wenn Haben die Datei damit nicht lesen kann; sonst gilt das Datum aus der Datei."
+      >
+        {(control) => <input {...control} name="validUntil" type="date" />}
+      </Field>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           Hochladen

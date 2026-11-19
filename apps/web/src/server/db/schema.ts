@@ -858,6 +858,12 @@ export const inboxSettings = pgTable(
     outboundFolder: text("outbound_folder"),
     /** Freigegebene Absender (Adresse oder Domain); leer: jeder Absender */
     allowedSenders: text("allowed_senders").array().notNull().default(sql`'{}'::text[]`),
+    /** Was mit einer abgelegten Mail im Postfach geschieht: gelesen markieren, in archive_folder verschieben oder löschen */
+    afterFetch: text("after_fetch", { enum: ["seen", "move", "delete"] })
+      .notNull()
+      .default("seen"),
+    /** Zielordner bei after_fetch = move */
+    archiveFolder: text("archive_folder"),
     enabled: boolean("enabled").notNull().default(true),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     /** Mails nicht freigegebener Absender beim letzten Abruf (nur die Zahl, ohne Absender und Betreff) */
@@ -865,7 +871,7 @@ export const inboxSettings = pgTable(
     lastError: text("last_error"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("inbox_settings_single_row", sql`${t.id} = 1`)],
+  (t) => [check("inbox_settings_single_row", sql`${t.id} = 1`), check("inbox_settings_after_fetch", sql`${t.afterFetch} in ('seen', 'move', 'delete')`)],
 );
 
 /** Abgerufene Mails mit den daraus angelegten Belegen; je Message-ID genau einmal */
@@ -2468,6 +2474,20 @@ export const importSources = pgTable(
   (t) => [uniqueIndex("import_sources_identity").on(t.provider, t.externalAccountId), check("import_sources_kind", sql`${t.accountKind} in ('bank', 'psp')`)],
 );
 
+/** Die in einem Abruf schon vorhandenen Umsätze; neue verbindet bereits bank_transactions.import_id. */
+export const bankImportTransactions = pgTable(
+  "bank_import_transactions",
+  {
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+  },
+  (t) => [primaryKey({ columns: [t.bankImportId, t.transactionId] }), index("bank_import_transactions_transaction").on(t.transactionId, t.bankImportId)],
+);
+
 /** Jede angenommene Lieferung des Importvertrags mit ihrem Prüfwert und dem Stand danach; nur anhängen */
 export const importBatches = pgTable(
   "import_batches",
@@ -2487,6 +2507,8 @@ export const importBatches = pgTable(
     openFrom: date("open_from", { mode: "string" }),
     /** `batchFingerprint`: Dieselbe Lieferung noch einmal liefert das bisherige Ergebnis, mit anderem Inhalt ist sie ein Konflikt */
     fingerprint: text("fingerprint").notNull(),
+    /** Nachweis mehrfach vergebener Enable-Banking-Referenzen in dieser Lieferung. */
+    ambiguousEntryReferences: text("ambiguous_entry_references").array(),
     bankImportId: uuid("bank_import_id")
       .notNull()
       .references(() => bankImports.id),
@@ -2496,6 +2518,62 @@ export const importBatches = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("import_batches_key").on(t.sourceId, t.idempotencyKey), index("import_batches_source_created").on(t.sourceId, t.createdAt)],
+);
+
+/** Verdacht zwischen zwei gespeicherten Umsätzen. Der Import legt nur offene Vermerke an. */
+export const bankDuplicateReviews = pgTable(
+  "bank_duplicate_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    originalTransactionId: uuid("original_transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    decision: text("decision", { enum: ["pending", "duplicate", "distinct"] })
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("bank_duplicate_reviews_pair").on(
+      sql`least(${t.transactionId}, ${t.originalTransactionId})`,
+      sql`greatest(${t.transactionId}, ${t.originalTransactionId})`,
+    ),
+    index("bank_duplicate_reviews_transaction").on(t.transactionId),
+    check("bank_duplicate_reviews_distinct_rows", sql`${t.transactionId} <> ${t.originalTransactionId}`),
+    check("bank_duplicate_reviews_decision", sql`${t.decision} in ('pending', 'duplicate', 'distinct')`),
+  ],
+);
+
+/** Entscheidung oder Gegenzeile zu einem Verdacht. Die Umsätze bleiben gesperrt. */
+export const bankDuplicateDecisions = pgTable(
+  "bank_duplicate_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => bankDuplicateReviews.id),
+    decision: text("decision", { enum: ["pending", "duplicate", "distinct"] }).notNull(),
+    reversesId: uuid("reverses_id").references((): AnyPgColumn => bankDuplicateDecisions.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("bank_duplicate_decisions_review").on(t.reviewId),
+    uniqueIndex("bank_duplicate_decisions_reversal").on(t.reversesId),
+    check(
+      "bank_duplicate_decisions_kind",
+      sql`(${t.decision} in ('duplicate', 'distinct') and ${t.reversesId} is null) or (${t.decision} = 'pending' and ${t.reversesId} is not null)`,
+    ),
+  ],
+);
+
+/** Abschluss der einmaligen Bestandsprüfung, auch wenn kein Verdacht gefunden wurde. */
+export const bankDuplicateCheck = pgTable(
+  "bank_duplicate_check",
+  { id: integer("id").primaryKey(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow() },
+  (t) => [check("bank_duplicate_check_single", sql`${t.id} = 1`)],
 );
 
 /**
