@@ -56,6 +56,12 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 
 Mit einer eigenen Registrierungsnummer für FinTS holt Haben die Umsätze direkt bei der Bank, mit PIN und TAN, ohne Enable Banking. Verbinden, TAN, welche Umsätze kommen, Fehler und was passiert, wenn ein Konto schon über Enable Banking kommt, stehen in [Abruf über FinTS](bank-fints.md).
 
+### Externe Quelle
+
+Ein eigener Dienst, der Zahlungen bei einem Anbieter abholt, etwa Verkäufe, Gebühren und Auszahlungen eines Marktplatzes, liefert sie über die [REST-API](api.md#bankumsätze) als Umsätze in ein Konto. Dafür gibst du die Quelle am Konto frei: Konto wählen, **Externe Quelle hinzufügen**, dann Anbieter und Kennung des Kontos beim Anbieter eintragen, so wie der Dienst sie liefert. Der Stichtag ist der erste Tag, den die Quelle liefert; leer ist es der Tag nach dem letzten Umsatz des Kontos. Davor nimmt Haben nichts an. Ein Konto hat höchstens eine Quelle; ein Konto mit Bankabruf oder Etsy-Abruf bekommt keine externe.
+
+Danach steht unter dem Konto die Quelle mit Stichtag und bis wann geliefert ist, und der Reiter zeigt „REST-Import“. Liefert der Dienst einen schon übernommenen Umsatz anders, steht dort **Konflikt klären**, mit denselben zwei Wegen wie beim [Bankabruf](#welche-umsätze-abgerufen-werden).
+
 ## Unterstützte Formate
 
 | Format | Erkennung | Eigene IBAN in der Datei | Salden |

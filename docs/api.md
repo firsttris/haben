@@ -1,7 +1,8 @@
 ---
-title: "REST-API für Kontakte, Artikel, Rechnungsentwürfe und Angebote"
+title: "REST-API für Kontakte, Artikel, Rechnungsentwürfe, Angebote und Bankumsätze"
 description: >-
-  Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen über die REST-API in Haben pflegen und Angebote lesen.
+  Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen über die REST-API in Haben pflegen, Angebote lesen
+  und Bankumsätze aus eigenen Diensten liefern.
   Mit OpenAPI-Beschreibung.
 ---
 
@@ -21,6 +22,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
 | Artikel | Katalogartikel auflisten, suchen, lesen, anlegen und ändern |
 | Leistungen | Zeiteinträge je Kunde auflisten, lesen, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
+| Bank | Umsätze in eine am Konto freigegebene Quelle liefern und die Quellen mit ihrem Stand lesen; keine Umsätze lesen, nichts zuordnen |
 
 Die vollständige Beschreibung als OpenAPI 3.1 liefert Haben selbst unter `https://<deine Adresse>/api/v1/openapi.json`, ohne Token. Werkzeuge wie Swagger UI, Bruno oder Postman lesen sie ein.
 
@@ -332,10 +334,71 @@ Paperless-ngx schickt neue Dokumente mit einem Workflow ohne eigenen Code an Hab
 
 Über `externalSource` und `externalId` legt ein doppelt ausgelöster Workflow nichts doppelt an (siehe oben). Die Platzhalter im Header ersetzt Paperless nicht; das Token steht dort im Klartext, also nur ein Token mit `belege:anlegen`.
 
+## Bankumsätze
+
+Ein eigener Dienst, der Zahlungen bei einem Anbieter abholt, liefert sie mit `POST /bankimporte` als Umsätze an Haben. Die Lieferung folgt dem Importvertrag aus [#306](https://github.com/firsttris/haben/issues/306) (Schema `BankImport` in der OpenAPI-Beschreibung). Haben legt die Umsätze an; zugeordnet wird wie bei jedem Import im Bankabgleich.
+
+1. **Quelle freigeben:** in Haben unter **Bank** das Konto wählen und [Externe Quelle hinzufügen](bank.md#externe-quelle). Anbieter und Kennung dort sind `provider` und `externalAccountId` jeder Lieferung. Ein Token allein legt keine Quelle an; ohne Freigabe antwortet die API mit `404`.
+2. **Token** mit dem Recht „Bankumsätze in freigegebene Quellen liefern“ (`bank:importieren`).
+3. **Liefern** wie unten.
+
+Jede Bewegung hat eine feste Kennung beim Anbieter (`sourceEventId`) und eine Komponente: `main` für den Betrag, `fee` für die Gebühr, die der Anbieter einbehält. Ein Netto liefert der Dienst nicht, sonst zählte die Gebühr doppelt. Beträge in Cent, nur Euro.
+
+- **Gebühren und Auszahlungen:** Die Gebühr wird ein eigener Umsatz mit „Gebühr“ vorn im Verwendungszweck, eine Auszahlung (`kind: "payout"`) schlägt der Abgleich als Geldtransit zum Eingang auf der Bank vor. Bezug einer Erstattung (`relatedEventId`) und Bestellung (`orderId`) stehen im Verwendungszweck.
+- **Wiederholen:** Dieselbe Lieferung (gleicher `idempotencyKey`, gleicher Inhalt) noch einmal gibt das bisherige Ergebnis mit `200` zurück, ohne etwas anzulegen; derselbe Schlüssel mit anderem Inhalt ist ein Konflikt. Bekannte Bewegungen in einem überlappenden Fenster überspringt Haben.
+- **Seiten:** höchstens 1.000 Bewegungen je Lieferung. Mehr kommen als Teile desselben Abrufs: gleiche `part.fetchId`, `part.index` ab 0, beim letzten `part.last: true`. Erst mit allen Teilen gilt der Zeitraum als vollständig; Ereignisse unter `unsupported` halten ihn offen.
+- **Konflikt:** Kommt eine schon übernommene Bewegung mit anderem Betrag, Tag oder anderer Art, überschreibt Haben nichts, antwortet mit `409` und nimmt aus der Quelle nichts mehr an, bis du am Konto **Konflikt klären** wählst.
+- **Stand:** `GET /bankquellen` nennt je Quelle Stichtag, bis wann vollständig geliefert ist (`checkpoint`) und offene Konflikte.
+
+Eine Zahlung mit Gebühr liefern (erfundene Daten):
+
+```sh
+curl -s -X POST "$HABEN/bankimporte" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d @lieferung.json
+```
+
+```json
+{
+  "contractVersion": 1,
+  "provider": "haben-ebay",
+  "externalAccountId": "verkaeufer-beispiel",
+  "idempotencyKey": "finanzen-2026-10-teil-0",
+  "fetchedAt": "2026-11-01T06:00:00+01:00",
+  "coverage": { "from": "2026-10-01", "to": "2026-10-31" },
+  "part": { "fetchId": "finanzen-2026-10", "index": 0, "last": true },
+  "movements": [
+    {
+      "sourceEventId": "SALE-0001", "component": "main", "kind": "payment", "bookingDate": "2026-10-03",
+      "amount": 4999, "currency": "EUR", "counterpartyName": "Erika Beispiel", "purpose": "Bestellung 01-00000-00001",
+      "references": { "orderId": "01-00000-00001", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "SALE-0001", "component": "fee", "kind": "payment", "bookingDate": "2026-10-03",
+      "amount": -1006, "currency": "EUR", "purpose": "Gebühren zu Bestellung 01-00000-00001",
+      "references": { "orderId": "01-00000-00001", "payoutId": "PAYOUT-0001" }
+    }
+  ]
+}
+```
+
+Die Antwort (`201`):
+
+```json
+{ "replay": false, "added": 2, "skipped": 0, "checkpoint": "2026-10-31", "complete": true, "reason": null, "warnings": [] }
+```
+
+| Status | Bedeutung |
+| --- | --- |
+| 201 | Angenommen, Umsätze angelegt |
+| 200 | Dieselbe Lieferung kam schon; nichts neu angelegt |
+| 404 | Quelle nicht freigegeben |
+| 409 | Konflikt mit einer übernommenen Bewegung oder derselbe Schlüssel mit anderem Inhalt; `issues` nennt die Bewegungen |
+| 413 | Mehr als 1.000 Bewegungen |
+| 422 | Verstoß gegen den Vertrag, etwa andere Version, andere Währung oder Bewegung vor dem Stichtag; `issues` nennt den Grund |
+
 ## Sicherheit
 
 - Der Zugang ist standardmäßig aus. Tokens laufen nach 30, 90 oder 365 Tagen ab und lassen sich einzeln widerrufen. Gespeichert ist nur ihr SHA-256-Hash.
-- Jedes Token hat nur die Rechte, die du ihm gibst. Keines kann buchen, festschreiben, stornieren, versenden oder etwas an ELSTER schicken, und keines sieht Zertifikat, Passwörter, API-Schlüssel oder Steuer-ID. Ein Token mit `belege:anlegen` kann Belege nur hinzufügen, nicht ändern, löschen oder herunterladen.
+- Jedes Token hat nur die Rechte, die du ihm gibst. Keines kann buchen, festschreiben, stornieren, versenden oder etwas an ELSTER schicken, und keines sieht Zertifikat, Passwörter, API-Schlüssel oder Steuer-ID. Ein Token mit `belege:anlegen` kann Belege nur hinzufügen, nicht ändern, löschen oder herunterladen. Ein Token mit `bank:importieren` liefert nur in Quellen, die du am Konto freigegeben hast, und liest keine Umsätze.
 - Die API meldet sich nur mit dem Token an, nie mit dem Sitzungscookie. Eine fremde Webseite, die du im selben Browser öffnest, kann sie deshalb nicht in deinem Namen aufrufen.
 - Ein Token ist so viel wert wie seine Rechte. Halte es in den Zugangsdaten deines Werkzeugs, nicht im Klartext in Skripten oder Workflows, und erreichst du Haben aus dem Internet, dann nur über HTTPS.
 - Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation-sso.md#tokens-nach-gruppenentzug).

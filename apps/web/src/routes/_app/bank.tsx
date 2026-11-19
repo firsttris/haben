@@ -58,27 +58,29 @@ export const Route = createFileRoute("/_app/bank")({
 const FORMAT_LABEL = (format: string) =>
   format === "enablebanking" || format === "fints"
     ? "Abruf"
-    : format.startsWith("camt")
-      ? "CAMT.053"
-      : format === "paypal-csv"
-        ? "PayPal"
-        : format === "stripe-csv"
-          ? "Stripe"
-          : format === "shopify-payments-csv"
-            ? "Shopify"
-            : format === "ebay-csv"
-              ? "eBay"
-              : format === "etsy-csv"
-                ? "Etsy"
-                : format === "etsy-ledger"
-                  ? "Etsy (Abruf)"
-                  : format === "googleplay-earnings"
-                    ? "Google Play"
-                    : format === "appstore-finance"
-                      ? "App Store"
-                      : format === "store-payout"
-                        ? "Auszahlung"
-                        : "CSV";
+    : format.startsWith("importvertrag")
+      ? "REST-Import"
+      : format.startsWith("camt")
+        ? "CAMT.053"
+        : format === "paypal-csv"
+          ? "PayPal"
+          : format === "stripe-csv"
+            ? "Stripe"
+            : format === "shopify-payments-csv"
+              ? "Shopify"
+              : format === "ebay-csv"
+                ? "eBay"
+                : format === "etsy-csv"
+                  ? "Etsy"
+                  : format === "etsy-ledger"
+                    ? "Etsy (Abruf)"
+                    : format === "googleplay-earnings"
+                      ? "Google Play"
+                      : format === "appstore-finance"
+                        ? "App Store"
+                        : format === "store-payout"
+                          ? "Auszahlung"
+                          : "CSV";
 
 /** J/K springen zum nächsten bzw. vorigen Umsatz */
 function useUmsatzTasten(transactions: Data["transactions"], index: number) {
