@@ -90,7 +90,9 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
         },
       },
     });
-    expect(Object.keys(doc.paths["/bankimporte"]!.post.responses)).toEqual(expect.arrayContaining(["404", "409", "413", "422"]));
+    expect(Object.keys((doc.paths["/bankimporte"] as { post: { responses: object } }).post.responses)).toEqual(
+      expect.arrayContaining(["404", "409", "413", "422"]),
+    );
     expect(doc.paths["/bankquellen"]).toMatchObject({ get: { security: [{ token: ["bank:importieren"] }] } });
     const lieferung = doc.components.schemas.BankImport as { required: string[]; properties: Record<string, unknown> };
     expect(lieferung.required).toEqual(
