@@ -132,6 +132,29 @@ describe.skipIf(!testDatabaseUrl)("Externe Quellen und REST-Import (Postgres)", 
     expect(await quellen.externalSources()).toMatchObject([{ openConflicts: 1 }]);
   });
 
+  it("nimmt bei offenem Konflikt auch neue Ereignisse nicht an, nach dem Klären wieder", async () => {
+    const neu = {
+      sourceEventId: "SALE-9",
+      component: "main",
+      kind: "payment",
+      bookingDate: "2026-10-25",
+      amount: 1999,
+      currency: "EUR",
+      purpose: "Bestellung 01-9",
+      references: { orderId: "01-9" },
+    };
+    const gesperrt = await quellen.importExternalBatch("api:t:Dienst", lieferung({ key: "lieferung-3", movements: [neu] }));
+    expect(gesperrt).toMatchObject({ status: "conflict", message: expect.stringMatching(/Konflikt klären/) });
+    expect(await umsaetze(psp)).toHaveLength(3);
+
+    const konflikt = await import("./import-konflikt.ts");
+    const [offen] = await konflikt.openConflicts();
+    await konflikt.resolveConflict("test", { conflictId: offen!.id, decision: "keep" });
+    const danach = await quellen.importExternalBatch("api:t:Dienst", lieferung({ key: "lieferung-4", movements: [neu] }));
+    expect(danach).toMatchObject({ status: "ok", result: { added: 1 } });
+    expect(await umsaetze(psp)).toHaveLength(4);
+  });
+
   it("lehnt eine Lieferung ab, die gegen den Vertrag verstößt, und nennt den Grund", async () => {
     const r = await quellen.importExternalBatch("api:t:Dienst", { ...lieferung({ key: "kaputt" }), contractVersion: 2 });
     expect(r).toMatchObject({ status: "invalid", problems: [expect.stringMatching(/Vertragsversion 2/)] });
