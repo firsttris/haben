@@ -70,6 +70,16 @@ import { ContactPersonField, type ContactPersonOption } from "./ContactPersonFie
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
+import {
+  FINALIZE_DIALOG_TEXT,
+  FINALIZE_HINT,
+  FINALIZE_HINT_ID,
+  FORMAT_HINT,
+  ForeignCurrencyHint,
+  ServiceHint,
+  serviceHintIds,
+  serviceHintState,
+} from "./InvoiceEditorHinweise.tsx";
 import { InvoiceEditorPreview } from "./InvoiceEditorPreview.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { LineKind } from "./LineKind.tsx";
@@ -333,6 +343,8 @@ export function InvoiceEditor({
   /** Bruttopreise nur mit Steuerausweis; ohne sind netto und brutto gleich */
   const grossPrices = !special && priceMode === "brutto";
   const currencyCode = currency.trim().toUpperCase();
+  const serviceHint = serviceHintState({ kind, variant, advanceType, currency: currencyCode, taxTreatment });
+  const serviceHintFor = serviceHintIds(serviceHint);
   const foreign = kind === "rechnung" && currencyCode !== "EUR";
   const amountLabel = grossPrices ? "Brutto" : "Netto";
   // Vorschau: je Abschlagsrechnung und Steuersatz eine negative Position, wie beim Speichern
@@ -721,7 +733,7 @@ export function InvoiceEditor({
                 {formatDate(earlierThanLast.issueDate)}.
               </div>
             )}
-            <p>PDF und XML werden erzeugt und gebucht.</p>
+            <p>{FINALIZE_DIALOG_TEXT}</p>
             <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>
         )}
@@ -783,7 +795,7 @@ export function InvoiceEditor({
           <button type="submit" form="invoice-form" className="btn" disabled={busy || !dirty}>
             Entwurf speichern
           </button>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
+          <button type="button" className="btn btn-primary" title={FINALIZE_HINT} aria-describedby={FINALIZE_HINT_ID} disabled={busy} onClick={onFinalize}>
             Festschreiben
           </button>
         </div>
@@ -1006,7 +1018,7 @@ export function InvoiceEditor({
                   }}
                 />
               )}
-              <Field label="Leistung von" error={error("serviceFrom")}>
+              <Field label="Leistung von" describedBy={serviceHintFor.von} error={error("serviceFrom")}>
                 {(control) => (
                   <input
                     {...control}
@@ -1017,9 +1029,10 @@ export function InvoiceEditor({
                   />
                 )}
               </Field>
-              <Field label="Leistung bis">
+              <Field label="Leistung bis" describedBy={serviceHintFor.bis}>
                 {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
               </Field>
+              <ServiceHint state={serviceHint} />
               <OrderReferenceFields value={references} onChange={touch(setReferences)} disabled={!editable} />
               <Field
                 label="Sprache"
@@ -1075,18 +1088,11 @@ export function InvoiceEditor({
                       {(control) => <input {...control} type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />}
                     </Field>
                   )}
-                  {foreign && (
-                    <span id="invoice-currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
-                      {rateInfo && <strong>{rateInfo}. </strong>}
-                      Preise und Summen in {currencyCode || "der Fremdwährung"}; die Umsatzsteuer steht zusätzlich in Euro auf der Rechnung (§ 14 Abs. 4 Nr. 8
-                      UStG). Gebucht wird in Euro. Ohne eigenen Kurs nimmt Haben den Umsatzsteuer-Umrechnungskurs des Leistungsmonats, sobald das BMF ihn
-                      veröffentlicht hat. Kein GiroCode, keine Abschlags- oder Schlussrechnung, keine Mahnung aus Haben.
-                    </span>
-                  )}
+                  {foreign && <ForeignCurrencyHint currencyCode={currencyCode} rateInfo={rateInfo} />}
                 </>
               )}
               {!quote && (
-                <Field label="E-Rechnungsformat" style={{ gridColumn: "1 / -1" }}>
+                <Field label="E-Rechnungsformat" hint={FORMAT_HINT} style={{ gridColumn: "1 / -1" }}>
                   {(control) => (
                     <select {...control} value={format} onChange={(e) => touch(setFormat)(e.target.value as DraftInput["format"])}>
                       {FORMATS.map((f) => (
@@ -1419,7 +1425,7 @@ export function InvoiceEditor({
 
           {attachments}
 
-          <div className="banner banner-info">
+          <div className="banner banner-info" id={FINALIZE_HINT_ID}>
             <Icon name="info" />
             <span>
               {quote
@@ -1464,7 +1470,7 @@ export function InvoiceEditor({
         <button type="submit" form="invoice-form" className="btn" disabled={busy || !dirty}>
           Entwurf speichern
         </button>
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
+        <button type="button" className="btn btn-primary" title={FINALIZE_HINT} aria-describedby={FINALIZE_HINT_ID} disabled={busy} onClick={onFinalize}>
           Festschreiben
         </button>
       </ActionBar>

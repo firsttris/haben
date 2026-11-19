@@ -93,6 +93,58 @@ test("Grundstücksleistung: fester Aufbewahrungshinweis, Entwurf speichern und e
   await expect(haken).toHaveCount(0);
 });
 
+test("Rechnungskopf: Hinweise zu Leistungszeitraum, Format, Fremdwährung und Festschreiben (#1253)", async () => {
+  await go("/rechnungen/neu");
+  for (const feld of ["Leistung von", "Leistung bis"]) {
+    await expect(page.getByLabel(feld, { exact: true })).toHaveAccessibleDescription(
+      /^Tag oder Zeitraum der Leistung, wenn er vom Rechnungsdatum abweicht\. Beide leer: Auf der Rechnung steht das Rechnungsdatum\. Wirkung auf die Umsatzsteuer bei Zahlung vor der Leistung: siehe Vorauszahlungen\. Vorauszahlungen$/,
+    );
+  }
+  await expect(page.getByLabel("E-Rechnungsformat", { exact: true })).toHaveAccessibleDescription(
+    /^ZUGFeRD passt für die meisten Kunden\. XRechnung nur, wenn der Kunde sie verlangt.*Leitweg-ID/,
+  );
+  const festschreiben = page.getByRole("button", { name: "Festschreiben", exact: true }).first();
+  await expect(festschreiben).toHaveAccessibleDescription(/Nach dem Festschreiben bekommt die Rechnung ihre endgültige Nummer und ist nicht mehr änderbar/);
+  await expect(festschreiben).toHaveAttribute("title", "Danach nicht mehr änderbar, Haben vergibt die Nummer");
+  await expect(page.getByText("Preise und Summen stehen in")).toHaveCount(0);
+  await page.getByLabel("Währung", { exact: true }).fill("USD");
+  await expect(page.getByLabel("Währung", { exact: true })).toHaveAccessibleDescription(
+    /Preise und Summen stehen in USD.*gebucht wird in Euro.*Kein GiroCode.*Mahnung aus Haben\. Mehr zur Fremdwährung$/,
+  );
+  await expect(page.getByRole("link", { name: "Mehr zur Fremdwährung" })).toHaveAttribute("href", /\/rechnungen\.html#rechnungen-in-fremdw/);
+  // Das Vorauszahlungsverfahren gibt es nur für Euro; in Fremdwährung gilt der allgemeine Hinweis
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAccessibleDescription(
+    /^Leistungszeitraum, wenn er vom Rechnungsdatum abweicht\. Beide leer: gilt das Rechnungsdatum\.$/,
+  );
+});
+
+test("Review: im Angebot gilt leer nicht „das Rechnungsdatum“ (#1253)", async () => {
+  await go("/angebote/neu");
+  const hinweis = await page.getByLabel("Leistung von", { exact: true }).evaluate((el) => el.getAttribute("aria-describedby"));
+  expect(hinweis).not.toBeNull();
+  await expect(page.getByLabel("Leistung von", { exact: true })).not.toHaveAccessibleDescription(/Rechnungsdatum/);
+});
+
+test("Review: bei erbrachter Teilleistung (Pflichtfeld) sagt der Hinweis nicht „Leer: gilt das Rechnungsdatum“ (#1253)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  await page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" }).check();
+  const von = page.getByLabel("Leistung von", { exact: true });
+  await expect(von).toHaveAttribute("required", "");
+  await expect(von).not.toHaveAccessibleDescription(/[Ll]eer: gilt das Rechnungsdatum/);
+});
+
+test("Teilleistung: nur „Leistung von“ ist Pflicht, „Leistung bis“ ist nicht als Pflicht beschrieben (#1253)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  await page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" }).check();
+  const bis = page.getByLabel("Leistung bis", { exact: true });
+  await expect(bis).not.toHaveAttribute("required");
+  await expect(bis).not.toHaveAccessibleDescription(/Pflicht/);
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAccessibleDescription("Tag der erbrachten Teilleistung, Pflicht.");
+  await expect(bis).toHaveAccessibleDescription(/Nur bei einem Zeitraum/);
+});
+
 test("Abschlag: Anzahlung ist Vorgabe, erbrachte Teilleistung braucht ein Leistungsdatum (#622)", async () => {
   await go("/rechnungen/neu");
   await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
