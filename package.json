@@ -28,7 +28,7 @@
     "docs:hero": "bun scripts/hero/render.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
     "@firsttris/checks": "github:firsttris/workflows#v1",
     "@tanstack/redact": "0.3.1",
     "@types/node": "^26.0.0",
