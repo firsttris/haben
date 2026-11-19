@@ -22,6 +22,8 @@ function projektOhneListen(): string {
     mkdirSync(dirname(join(ordner, datei)), { recursive: true });
     copyFileSync(join(WURZEL, datei), join(ordner, datei));
   }
+  // Ohne packages/ bricht file-size ab wie früher scripts/dateigroesse (readdirSync("packages"))
+  mkdirSync(join(ordner, "packages"));
   return ordner;
 }
 
