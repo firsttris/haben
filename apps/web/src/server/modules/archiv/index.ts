@@ -66,6 +66,7 @@ export {
   uploadFastbillReceipts,
 } from "./fastbill.ts";
 export { fastbillArticlesCsv } from "./fastbill-artikel.ts";
+export { fastbillUsage } from "./fastbill-anfragen.ts";
 export { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "./buchhaltungsbutler.ts";
 export { latestWisoImport, MAX_WISO_CSV_SIZE, previewWisoCsv, startWisoImport, wisoSummary } from "./wiso.ts";
 export {
