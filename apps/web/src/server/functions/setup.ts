@@ -44,6 +44,8 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     user: user ? { name: user.name, email: user.email, role: user.role } : null,
     // Für die Navigation: eine GmbH oder UG hat keine Pauschalen; erst nach der Anmeldung
     rechtsform: company?.rechtsform ?? null,
+    // Nummern der Konten vor den Kategorien (#1438)
+    kontenrahmen: company?.kontenrahmen ?? null,
     // Mehrere Firmen (#504): in welcher Instanz man gerade arbeitet, für alle Rollen dieser Instanz
     firma: company ? firmaInNavigation(company.name) : null,
     // Zeichen der Firma (#504), getrennt von der Beleggestaltung; das Logo nur auf ausdrückliche Wahl
