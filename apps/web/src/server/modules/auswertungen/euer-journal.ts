@@ -284,7 +284,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   const monate = Array.from({ length: 12 }, () => leereEuerAusJournal());
   for (const b of jahr) {
     const beitrag = await wirkung(b);
-    beitraege?.({ ...b, invoiceId: null, documentId: null, ...zielVon.get(b.sourceId) }, beitrag);
+    beitraege?.({ ...b, invoiceId: null, documentId: null, ...zielVon.get(b.sourceId), id: b.id }, beitrag);
     dazu(summe, beitrag);
     dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
   }
