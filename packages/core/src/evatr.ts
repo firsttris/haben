@@ -99,6 +99,36 @@ export const evatrNachweis = (status: string) => NACHWEIS.has(status);
 /** Gültig zum Anfragezeitpunkt; evatr-2008 heißt gültig mit einer Besonderheit der qualifizierten Abfrage */
 export const evatrGueltig = (status: string) => status === "evatr-0000" || status === "evatr-2008";
 
+/**
+ * So lange gilt eine gültige Antwort vor dem Festschreiben und in der ZM als aktuell; danach fragt Haben neu. Eine feste
+ * Frist nennt weder § 18e UStG noch UStAE 18e.1; bestätigt wird der Stand am Tag der Anfrage, rückwirkend nichts (FAQ des BZSt)
+ */
+export const EVATR_FRIST_TAGE = 30;
+
+/** Ob eine Antwort höchstens EVATR_FRIST_TAGE alt ist */
+export function evatrFrisch(anfrageZeitpunkt: Date | string, jetzt: Date): boolean {
+  return jetzt.getTime() - new Date(anfrageZeitpunkt).getTime() <= EVATR_FRIST_TAGE * 86_400_000;
+}
+
+/** Ob die Antwort gültig und höchstens EVATR_FRIST_TAGE alt ist; dann fragen Festschreiben und ZM nicht neu */
+export function evatrFrischGueltig(antwort: { status: string; anfrageZeitpunkt: Date | string } | undefined, jetzt: Date): boolean {
+  return Boolean(antwort && evatrGueltig(antwort.status) && evatrFrisch(antwort.anfrageZeitpunkt, jetzt));
+}
+
+/**
+ * Für Reverse Charge zählt nur eine frische qualifizierte Bestätigung, bei der Name und Ort nicht „stimmt nicht“ (B) sind:
+ * UStAE 3a.2 Abs. 9 Satz 5 setzt die Bestätigung von Gültigkeit, Name und Anschrift voraus. Straße und PLZ sind optional.
+ */
+export function evatrQualifiziertBestaetigt(
+  antwort: { art: EvatrArt; status: string; anfrageZeitpunkt: Date | string; ergFirmenname: string | null; ergOrt: string | null } | undefined,
+  jetzt: Date,
+): boolean {
+  return Boolean(antwort?.art === "qualifiziert" && evatrFrischGueltig(antwort, jetzt) && antwort.ergFirmenname !== "B" && antwort.ergOrt !== "B");
+}
+
+/** Fehler der angefragten Nummer selbst (Syntax, Länderkennzeichen); andere Nummern betrifft das nicht, anders als ein Ausfall */
+export const evatrNummerFehler = (status: string) => status === "evatr-0005" || status === "evatr-0012" || status === "evatr-2003";
+
 /** Höchstzahl qualifizierter Abfragen „für diese Session“ erreicht; das BZSt rät, mit einer einfachen neu zu beginnen */
 export const EVATR_LIMIT = "evatr-0008";
 

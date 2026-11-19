@@ -30,7 +30,7 @@ import {
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
 import { vorsteuerPruefen } from "./belege-vorsteuer.ts";
-import { ustIdBestaetigungPruefen } from "./ustid-bestaetigung.ts";
+import { ustIdBestaetigungPruefen, zmBestaetigungPruefen } from "./ustid-bestaetigung.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -2147,6 +2147,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   // Eine Testübermittlung zählt nicht als gemeldet: weiter als Erstmeldung
   await expect(page.getByRole("form", { name: "Meldung an das BZSt" })).toBeVisible();
 });
+
+zmBestaetigungPruefen(() => page);
 
 test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart L in der Zusammenfassenden Meldung", async () => {
   // Nach der Zusammenfassenden Meldung oben: USt-IdNr. in den Firmendaten und der Kunde in Wien sind angelegt

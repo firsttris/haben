@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, formatLongDate } from "../../../lib/format.
 import { useAction } from "../../../lib/use-action.ts";
 import { getZm, submitZmMeldung } from "../../../server/functions/zm.ts";
 import { Field } from "../../../components/Field.tsx";
+import { ZmBestaetigung } from "../../../components/umsatzsteuer/ZmBestaetigung.tsx";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/zm/$quartal")({
   loader: ({ params }) => {
@@ -114,6 +115,7 @@ function ZmPage() {
               </table>
             </details>
           )}
+          {data.bestaetigung.moeglich && data.zeilen.length > 0 && <ZmBestaetigung period={data.period} offen={data.bestaetigung.offen} />}
         </section>
         <ZmSenden data={data} />
       </div>
