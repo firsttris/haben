@@ -291,6 +291,22 @@ describe("Übersicht: Aufbau", () => {
     expect(zuerst).toContain('class="btn btn-ghost"');
   });
 
+  // Platzt die Lastschrift, gilt die Steuer nicht als am Fälligkeitstag entrichtet (§ 224 Abs. 2 Nr. 3 AO), es drohen Säumniszuschläge (§ 240 AO)
+  it("Steuerkonto deckt die Zahllast nicht: die Fälligkeit zählt als Frist und geht der späteren Voranmeldung vor", () => {
+    const d = state.data as ReturnType<typeof fixture> & Record<string, unknown>;
+    d.kleinunternehmer = false;
+    d.dueDate = inTagen(5);
+    d.computedKz83 = 100000;
+    (d.invoices as { bank: unknown[] }).bank = [
+      { id: "s1", name: "Rücklage", purpose: "steuer", balance: 20000, balanceDate: null, openCount: 0, staleOpenCount: 0 },
+    ];
+    d.appeals = [1, 2].map((n) => ({ id: `b${n}`, veranlagungszeitraum: 2020 + n, datenart: "ESB", fristende: inTagen(n) }));
+    const zuerst = sichtbar(render());
+    expect(zuerst).toContain("Steuerkonto Rücklage deckt die Zahllast nicht");
+    expect(zuerst).toContain("Es fehlen 800,00");
+    expect(zuerst.indexOf("Bescheid 2022 prüfen")).toBeLessThan(zuerst.indexOf("deckt die Zahllast nicht"));
+  });
+
   const dreiWarnungen = () => {
     const d = state.data as ReturnType<typeof fixture> & Record<string, unknown>;
     d.kleinunternehmer = false;
