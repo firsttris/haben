@@ -111,6 +111,9 @@ describe.skipIf(!testDatabaseUrl)("Externe Quellen und REST-Import (Postgres)", 
     ]);
     const [protokoll] = await sql`select format from bank_imports where bank_account_id = ${psp} order by created_at desc limit 1`;
     expect(protokoll!.format).toBe("importvertrag-psp");
+    // Die Referenzen der Lieferung bleiben an der Bewegung (import_movements.refs, #1486)
+    const [zahlung] = await sql`select refs from import_movements where source_event_id = 'SALE-1' and component = 'main'`;
+    expect(zahlung!.refs).toEqual({ orderId: "01-1", payoutId: "PO-1" });
     expect(await quellen.externalSources()).toMatchObject([{ checkpoint: "2026-10-31", complete: true, openConflicts: 0 }]);
   });
 
