@@ -320,8 +320,7 @@ Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.h
 
 ## Mehr von uns
 
-- Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
-- Word, Excel und PowerPoint ohne Microsoft 365? **[Schreibzeug](https://github.com/firsttris/schreibzeug)** bearbeitet sie im Browser und speichert sie als .docx, .xlsx und .pptx.
+Weitere Open-Source-Apps, die du auf deinem eigenen Server betreibst, etwa für Mail, Kalender und Office-Dokumente: **[speicherstadt.app](https://speicherstadt.app)**
 
 ## Mitwirken
 
@@ -341,8 +340,9 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 
 <div align="center">
 
-⭐ Gefällt dir Haben? Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.<br>
-🐛 [Fehler melden](https://github.com/firsttris/haben/issues/new) · 💡 [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) · ❓ [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) · 💬 [Discord](https://discord.gg/CT2GQytSYH)
+⭐ **Gefällt dir Haben?** Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.
+
+[Fehler melden](https://github.com/firsttris/haben/issues/new) &nbsp;·&nbsp; [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) &nbsp;·&nbsp; [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) &nbsp;·&nbsp; [Discord](https://discord.gg/CT2GQytSYH)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
 Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation. Einrichtung, Umzug, Support und Partnerschaften für IT-Dienstleister und Steuerberatungen: <a href="https://teufel-it.de">teufel-it.de</a>.<br>
