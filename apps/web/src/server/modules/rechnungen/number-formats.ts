@@ -4,7 +4,7 @@ import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
-import { counterContacts, seedCustomerCircles, startRunning, type NumberKind } from "./number-counter.ts";
+import { counterContacts, lockNumbering, seedCustomerCircles, startRunning, type NumberKind } from "./number-counter.ts";
 
 /** Nummernformate für Rechnungen und Angebote; sie gelten für alles, was ab dann festgeschrieben wird */
 
@@ -60,16 +60,24 @@ export async function putNumberFormats(
   // Wird der Zähler je Kunde neu eingeschaltet und trug das bisherige Format schon {KUNDENNR}, beginnt jeder Kunde
   // hinter seiner höchsten Nummer des gemeinsamen Kreises — sonst ergäbe die erste Nummer eine schon vergebene
   // (#1426). Vor startCircles, damit ein neu durchlaufender Kundenkreis den Stand gleich mitbekommt.
-  if (invoicePerCustomer && !current.invoiceCounterPerCustomer && usesCustomerNumber(current.invoiceNumberFormat))
-    await seedCustomerCircles(tx, "rechnung", invoiceRunning);
-  if (quotePerCustomer && !current.quoteCounterPerCustomer && usesCustomerNumber(current.quoteNumberFormat))
-    await seedCustomerCircles(tx, "angebot", quoteRunning);
+  const seedInvoices = invoicePerCustomer && !current.invoiceCounterPerCustomer && usesCustomerNumber(current.invoiceNumberFormat);
+  const seedQuotes = quotePerCustomer && !current.quoteCounterPerCustomer && usesCustomerNumber(current.quoteNumberFormat);
+  const startInvoices = invoiceRunning && (!current.invoiceCounterRunning || (invoicePerCustomer && !current.invoiceCounterPerCustomer));
+  const startQuotes = quoteRunning && (!current.quoteCounterRunning || (quotePerCustomer && !current.quoteCounterPerCustomer));
+  // Seed und startCircles nehmen die Hash-Kette; beide gemeinsamen Kreise 0 deshalb vorher sperren, sonst sperrt der
+  // zweite Schritt seinen Kreis nach der Kette, umgekehrt zum Festschreiben (drizzle/0063), und Postgres verklemmt.
+  if (seedInvoices || seedQuotes || startInvoices || startQuotes) {
+    await lockNumbering(tx, "rechnung", 0, null);
+    await lockNumbering(tx, "angebot", 0, null);
+  }
+  if (seedInvoices) await seedCustomerCircles(tx, "rechnung", invoiceRunning);
+  if (seedQuotes) await seedCustomerCircles(tx, "angebot", quoteRunning);
   // Läuft der Zähler durch, bekommt jeder Kreis eine Zeile für den Kreis 0: neu eingeschaltet oder der Kundenkreis
   // neu dazu, je hinter der letzten Nummer des jüngsten Jahres desselben Kreises (startRunning, #1426). Kontakte
   // ohne Zählerzeile haben noch keine Nummer verbraucht und beginnen einfach bei 1 — es sei denn, sie sind oben
   // beim Einschalten eben hinter ihre Nummern aus dem gemeinsamen Kreis gesetzt worden.
-  if (invoiceRunning && (!current.invoiceCounterRunning || (invoicePerCustomer && !current.invoiceCounterPerCustomer))) await startCircles(tx, "rechnung");
-  if (quoteRunning && (!current.quoteCounterRunning || (quotePerCustomer && !current.quoteCounterPerCustomer))) await startCircles(tx, "angebot");
+  if (startInvoices) await startCircles(tx, "rechnung");
+  if (startQuotes) await startCircles(tx, "angebot");
   await tx
     .update(schema.company)
     .set({
