@@ -29,6 +29,7 @@ describe("ZM-Seite: Hinweis bei fehlendem ERiC", () => {
       sent: false,
       submissions: [],
       naechste: { zeilen: [], berichtigt: false },
+      bestaetigung: { moeglich: false, offen: 0 },
     };
     const Seite = (Route as unknown as { options: { component: ComponentType } }).options.component;
     const html = renderToStaticMarkup(createElement(Seite));

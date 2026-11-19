@@ -13,7 +13,7 @@ import { NAV_GROUPS, STEUERBERATUNG_NAV, navLinkSichtbar } from "../lib/navigati
 import { readNavCollapsed, saveNavCollapsed, subscribeNavCollapsed } from "../lib/nav-rail.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
-import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
+import { ROLLEN_LABEL, STEUERBERATUNG_START, siehtSeite } from "../lib/rollen.ts";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ location }) => {
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_app")({
     if (!state.initialized) throw redirect({ to: "/setup" });
     if (!state.user) throw redirect({ to: "/login" });
     // Die Steuerberatung sieht nur ihre Seiten; die Server Functions prüfen das unabhängig davon selbst
-    if (state.user.role !== "inhaber" && !steuerberatungSieht(location.pathname)) throw redirect({ to: STEUERBERATUNG_START });
+    if (!siehtSeite(state.user.role, location.pathname)) throw redirect({ to: STEUERBERATUNG_START });
     return {
       user: state.user,
       oidc: state.oidc,
