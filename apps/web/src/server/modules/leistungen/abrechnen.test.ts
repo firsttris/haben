@@ -14,7 +14,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
   let sql: postgres.Sql;
   let entries: typeof import("./service-entries.ts");
   let abrechnen: typeof import("./abrechnen.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   const actor = "test-user";
   const heute = "2026-04-01";
@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     sql = await setupTestDb();
     entries = await import("./service-entries.ts");
     abrechnen = await import("./abrechnen.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);
 

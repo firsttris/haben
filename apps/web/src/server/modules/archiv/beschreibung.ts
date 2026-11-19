@@ -1,5 +1,5 @@
 import { beschreibungXml, csvKopfzeile, DTD_DATEI, mitKopfzeile, type SpaltenTyp } from "@firsttris/gobd-kern/beschreibung";
-import type { ArchiveFile } from "./export.ts";
+import type { ArchiveFile } from "./export-zip.ts";
 
 export { csvKopfzeile, DTD_DATEI, type SpaltenTyp };
 
@@ -89,11 +89,11 @@ export function indexXml(info: IndexInfo & { tabellen: Tabelle[] }): string {
 
 /**
  * Dateien im Archiv, die Haben nicht selbst als CSV erzeugt, auch wenn ihr Name auf .csv endet: unveränderte Originale (der
- * DATEV-Stapel und andere Exporte des Altbestands, Auftragsdokumente aus sevDesk, Belege, die jemand hochgeladen hat). Sie
+ * DATEV-Stapel und andere Exporte des Altbestands, Auftragsdokumente aus sevDesk und FastBill, Belege, die jemand hochgeladen hat). Sie
  * haben ein fremdes Format, die index.xml beschreibt sie nicht. Anhänge unter anhaenge/ sind immer PDF; die anhaenge.csv
  * dort schreibt Haben selbst.
  */
-const ORIGINALE = [/^lexoffice\/(originale|belege)\//, /^sevdesk\/auftraege\//, /^belege\/(?!belege\.csv$|verrechnungen\.csv$)/];
+const ORIGINALE = [/^lexoffice\/(originale|belege)\//, /^(sevdesk|fastbill)\/auftraege\//, /^belege\/(?!belege\.csv$|verrechnungen\.csv$)/];
 
 const istEigeneCsv = (path: string) => path.endsWith(".csv") && !ORIGINALE.some((muster) => muster.test(path));
 

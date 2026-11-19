@@ -4,7 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { setContactIbanIfEmpty } from "../stammdaten/index.ts";
-import { BankError } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 import { documentPayees, ibanDecisions } from "./document-payees.ts";
 
 /**

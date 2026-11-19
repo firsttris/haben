@@ -114,7 +114,7 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
       previous: { id: bisher!.id, bookingDate: "2026-11-18", amount: -8900 },
     });
     // Der Eintrag der Klärung im Importprotokoll setzt keinen Kontostand: es bleibt der des letzten Abrufs
-    const { listAccounts } = await import("./bank.ts");
+    const { listAccounts } = await import("./index.ts");
     const konto = (await listAccounts()).find((a) => a.iban === iban)!;
     expect(konto.lastImport?.closingBalance).toBe(150000);
     // Der nächste Abruf mit dem gelieferten Betrag legt nichts noch einmal an

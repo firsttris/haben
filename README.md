@@ -160,6 +160,8 @@ Podman Quadlets stehen in [Installation](https://haben.app/installation.html), E
 > sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar,
 > ohne das Passwort lässt sich das Backup nicht öffnen.
 
+Keinen eigenen Server oder keine eigene IT? Haben gibt es auf [Anfrage](https://haben.app/gehostet.html) gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](https://speicherstadt.app/partner/).
+
 ## FAQ
 
 <details>
@@ -358,7 +360,7 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 [Fehler melden](https://github.com/firsttris/haben/issues/new) &nbsp;·&nbsp; [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) &nbsp;·&nbsp; [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) &nbsp;·&nbsp; [Discord](https://discord.gg/CT2GQytSYH)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
-Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation. Für IT-Dienstleister und Steuerberatungen: Partnerschaft mit direktem Draht zur Entwicklung, dazu Einrichtung, Umzug und Support über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
+Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation. Für IT-Dienstleister, Hoster und Steuerberatungen: <a href="https://speicherstadt.app/partner/">Partnerprogramm</a>.<br>
 Haben ist keine Steuerberatung. Konten, Kategorien und Aufbewahrung vor dem Echtbetrieb mit deiner Steuerberatung abgleichen.<br>
 ELSTER ist eine Marke der Finanzverwaltung; Lexware Office (lexoffice), sevDesk, FastBill, BuchhaltungsButler, Accountable und DATEV sind Marken ihrer Inhaber. Haben steht weder mit der Finanzverwaltung noch mit diesen Unternehmen in Verbindung.</sub>
 

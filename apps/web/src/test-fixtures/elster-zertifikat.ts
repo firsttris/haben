@@ -10,7 +10,7 @@ export const TEST_GUELTIG_BIS = "2030-01-01";
 export const TEST_CA_GUELTIG_BIS = "2028-06-30";
 
 /** rc2-40 hat den Aufbau einer Datei aus Mein ELSTER von 2024 (Zertifikate RC2-40, Schlüssel 3DES, MAC SHA-1) */
-export type Testdatei = "rc2-40" | "3des" | "aes" | "ohne-verschluesselung" | "zu-viele-iterationen";
+export type Testdatei = "rc2-40" | "rc2-128" | "3des" | "aes" | "ohne-verschluesselung" | "zu-viele-iterationen";
 
 export function testZertifikatsdatei(name: Testdatei): Uint8Array {
   return new Uint8Array(readFileSync(new URL(`./elster-zertifikat/${name}.pfx`, import.meta.url)));

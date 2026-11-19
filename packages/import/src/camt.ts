@@ -1,6 +1,7 @@
 import type { Cents } from "@haben/core";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { finish, indexed, optional, optionalReference, pendingWarning, requireAmount, type Tx } from "./common.ts";
+import { gegenparteiAusFreitext } from "./camt-freitext.ts";
 import { StatementParseError } from "./errors.ts";
 import { normalizeIban, normalizeText, parseDate, parseDotAmount, requireDate } from "./text.ts";
 import type { ParsedStatement } from "./types.ts";
@@ -146,13 +147,16 @@ function transaktion(d: unknown, amount: Cents, purposeFallback: string, inBatch
   const ultimate = child(d, "RltdPties", credit ? "UltmtDbtr" : "UltmtCdtr");
   const account = child(d, "RltdPties", credit ? "DbtrAcct" : "CdtrAcct");
   const purpose = purposeOf(d);
+  // Der Text des Eintrags gilt in einer Sammelbuchung nicht für den einzelnen Posten
+  const freitext = text(d, "AddtlTxInf") ?? (inBatch ? "" : additional);
+  const ausFreitext = child(d, "RltdPties") === undefined ? gegenparteiAusFreitext(freitext, purpose, credit) : undefined;
   return {
     bookingDate,
     valueDate,
     amount,
     currency: attr(d, "Ccy", "Amt") ?? entryCurrency,
-    counterpartyName: normalizeText(partyName(party) ?? partyName(ultimate)),
-    counterpartyIban: normalizeIban(text(account, "Id", "IBAN")),
+    counterpartyName: ausFreitext?.name ?? normalizeText(partyName(party) ?? partyName(ultimate)),
+    counterpartyIban: ausFreitext ? ausFreitext.iban : normalizeIban(text(account, "Id", "IBAN")),
     purpose: purpose !== "" ? purpose : purposeFallback,
     type: transactionType(d) ?? transactionType(entry) ?? optional(additional) ?? familyCode(entry),
     // In Sammelbuchungen teilen sich alle Posten die Referenz des Eintrags

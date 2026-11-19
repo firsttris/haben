@@ -45,7 +45,7 @@ describe("Hauptbuch als einziger Schreiber des Journals", () => {
 describe.skipIf(!testDatabaseUrl)("Hauptbuch, Transaktionen und Sperre der Firmendaten (Postgres)", () => {
   let sql: postgres.Sql;
   let ledger: typeof import("./ledger.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let quotes: typeof import("../rechnungen/quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let guard: typeof import("../auswertungen/settings-guard.ts");
@@ -75,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("Hauptbuch, Transaktionen und Sperre der Firme
   beforeAll(async () => {
     sql = await setupTestDb();
     ledger = await import("./ledger.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     quotes = await import("../rechnungen/quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
     guard = await import("../auswertungen/settings-guard.ts");

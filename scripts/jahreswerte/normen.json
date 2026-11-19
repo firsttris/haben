@@ -21,7 +21,7 @@
       "norm": "§ 17 UStG",
       "url": "https://www.gesetze-im-internet.de/ustg_1980/__17.html",
       "zweck": "Berichtigung der Steuer bei Entgeltminderung (Skonto, Forderungsausfall)",
-      "stellen": ["packages/core/src/posting.ts", "apps/web/src/server/modules/umsatzsteuer/vat-figures.ts", "apps/web/src/server/modules/bank/bank.ts"],
+      "stellen": ["packages/core/src/posting.ts", "apps/web/src/server/modules/umsatzsteuer/vat-figures.ts", "apps/web/src/server/modules/bank/write-offs.ts"],
       "sha256": "909c2348bab83751ea288d52b0ed56e25a9dd618fe7ca1a84c9808cab053cdbb"
     },
     {

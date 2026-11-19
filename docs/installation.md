@@ -7,7 +7,7 @@ description: >-
 
 # Installation
 
-Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
+Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md). Keinen eigenen Server oder keine eigene IT? Haben gibt es auf Anfrage gehostet oder über einen IT-Dienstleister aus dem Partnerprogramm, siehe [Gehostet oder mit Partner](gehostet.md).
 
 ## Überblick
 
@@ -108,7 +108,7 @@ In `.env` trägst du ein:
 | `ENCRYPTION_KEY` | `openssl rand -base64 32`, zusätzlich an einem zweiten Ort sichern |
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
 | `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
-| `BACKUP_TIME`, `RESTORE_CHECK_DAYS`, `BACKUP_HOST`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | optional, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
+| `BACKUP_TIME`, `RESTORE_CHECK_DAYS`, `BACKUP_HOST`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `RCLONE_CONFIG` | optional, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
 | `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `EXTRACTION_EXTRA_BODY`, `ENABLE_BANKING_APP_ID`, `HABEN_FIRMEN`, `LAYOUTS_MAX_COUNT`, `LAYOUTS_MAX_MB`, `LAYOUTS_PACKAGES_URL`, `ERIC_WORKER_COMMAND` | optional, siehe [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen) |
 | `OIDC_ONLY`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPES`, `OIDC_DISPLAY_NAME`, `OIDC_GROUPS_CLAIM`, `OIDC_GROUP_INHABER`, `OIDC_GROUP_STEUERBERATUNG` | nur für den SSO-Modus, siehe [Single Sign-on mit OpenID Connect](installation-sso.md) |
 

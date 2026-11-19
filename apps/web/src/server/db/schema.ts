@@ -24,7 +24,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import type { BankCsvMapping, ParsedTransaction } from "@haben/import";
+import type { BankCsvMapping, ImportMovement, ParsedTransaction } from "@haben/import";
 import type { LetterheadDesign, OutgoingTaxDetails } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
@@ -2625,6 +2625,11 @@ export const importMovements = pgTable(
     currency: text("currency").notNull(),
     /** Prüfwert aller Angaben der ersten Lieferung (`knownMovement`) */
     details: text("details").notNull(),
+    /**
+     * Referenzen der ersten Lieferung (Anbieterreferenz, Ereigniscode, EndToEndId, Bezug bei Erstattung und Rückbelastung,
+     * Auszahlung, Bestellung), wie geliefert (#306). Leer bei Bewegungen, die vor dieser Spalte übernommen wurden.
+     */
+    refs: jsonb("refs").$type<ImportMovement["references"]>(),
     transactionId: uuid("transaction_id")
       .notNull()
       .references(() => bankTransactions.id),
@@ -3481,6 +3486,8 @@ export type LexofficeImportProgress = {
   vatReports?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
+  /** Umzug aus FastBill: archivierte, schon vorhandene und Angebote ohne PDF */
+  fastbillEstimates?: { imported: number; known: number; withoutPdf: number };
   /** sevDesk: Artikel aus GET /Part, in diesem Lauf neu angelegt, mit vorhandenen verknüpft und schon früher übernommen */
   sevdeskArticles?: { imported: number; linked: number; known: number };
   /** sevDesk: Dateistand der Belege dieses Laufs nach den Zuständen in legacy_file_states (#345) */
@@ -3561,7 +3568,7 @@ export const legacyOrderFiles = pgTable(
     mimeType: text("mime_type").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
-    origin: text("origin", { enum: ["sevdesk", "manuell", "import"] }).notNull(),
+    origin: text("origin", { enum: ["sevdesk", "fastbill", "manuell", "import"] }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],

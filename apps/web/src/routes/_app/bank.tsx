@@ -8,6 +8,7 @@ import { formatDate, daysUntil } from "../../lib/format.ts";
 import { getBankOverview } from "../../server/functions/bank.ts";
 import { ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
 import { isDialogOpen } from "../../components/ConfirmDialog.tsx";
+import { BestaetigenLeiste, useBestaetigen, useLeertasteMarkiert, ZeilenMarkierung } from "../../components/BankBestaetigen.tsx";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import type { Data } from "./-bank-daten.ts";
 import { AllocationPanel } from "./-bank-zuordnung.tsx";
@@ -114,6 +115,8 @@ function BankPage() {
   const openCount = data.allAccounts ? data.accounts.reduce((sum, a) => sum + a.openCount, 0) : (selectedAccount?.openCount ?? 0);
   const accountName = new Map(data.accounts.map((a) => [a.id, a.name]));
 
+  const bestaetigen = useBestaetigen(sichtbar);
+  useLeertasteMarkiert(bestaetigen);
   useUmsatzTasten(sichtbar, index);
 
   return (
@@ -197,6 +200,7 @@ function BankPage() {
                 {/* key: beim Kontowechsel leer neu aufsetzen, sonst trägt die Suche ins neue Konto */}
                 <SearchBox key={konto ?? ""} initial={search.suche ?? ""} />
               </div>
+              <BestaetigenLeiste b={bestaetigen} />
               <BankSortierKopf sort={sortierung} dir={richtung} />
               {data.transactions.length === 0 && (
                 <p className="muted" style={{ margin: 0, padding: "16px 20px" }}>
@@ -204,29 +208,36 @@ function BankPage() {
                 </p>
               )}
               {zeilen.map(({ umsatz: tx, gebuehr }) => (
-                <Link
-                  key={tx.id}
-                  id={`tx-${tx.id}`}
-                  to="/bank"
-                  search={{ ...search, umsatz: tx.id }}
-                  replace
-                  className={`table-row tx-cols tx-row${tx.id === selectedId ? " selected" : ""}`}
-                  aria-current={tx.id === selectedId ? "true" : undefined}
-                >
-                  <div className="muted small">{formatDate(tx.bookingDate)}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                    <span className="ellipsis" style={{ fontWeight: 500 }}>
-                      {tx.counterpartyName || "–"}
-                    </span>
-                    <span className="small muted ellipsis">
-                      {data.allAccounts ? [accountName.get(tx.bankAccountId), tx.purpose].filter(Boolean).join(" · ") : tx.purpose}
-                    </span>
-                  </div>
-                  <UmsatzBetrag betrag={tx.amount} gebuehr={gebuehr?.amount ?? null} />
-                  <div>
-                    <TransactionStatus tx={tx} />
-                  </div>
-                </Link>
+                <div key={tx.id} className="tx-wrap">
+                  {bestaetigen.markierbar.length > 0 && <ZeilenMarkierung id={tx.id} b={bestaetigen} label={tx.counterpartyName || "Umsatz"} />}
+                  <Link
+                    id={`tx-${tx.id}`}
+                    to="/bank"
+                    search={{ ...search, umsatz: tx.id }}
+                    replace
+                    className={`table-row tx-cols tx-row${tx.id === selectedId ? " selected" : ""}`}
+                    aria-current={tx.id === selectedId ? "true" : undefined}
+                  >
+                    <div className="muted small">{formatDate(tx.bookingDate)}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                      <span className="ellipsis" style={{ fontWeight: 500 }}>
+                        {tx.counterpartyName || "–"}
+                      </span>
+                      <span className="small muted ellipsis">
+                        {data.allAccounts ? [accountName.get(tx.bankAccountId), tx.purpose].filter(Boolean).join(" · ") : tx.purpose}
+                      </span>
+                      {tx.bestaetigung && (
+                        <span className="small" style={{ color: "var(--accent-ink)" }}>
+                          Vorschlag: {tx.bestaetigung.text}
+                        </span>
+                      )}
+                    </div>
+                    <UmsatzBetrag betrag={tx.amount} gebuehr={gebuehr?.amount ?? null} />
+                    <div>
+                      <TransactionStatus tx={tx} />
+                    </div>
+                  </Link>
+                </div>
               ))}
             </section>
             {data.detail ? (
@@ -238,6 +249,7 @@ function BankPage() {
                 darlehenOptionen={{ loans: data.loans, loanParts: data.loanParts }}
                 kategorieOptionen={{ kategorien: data.kategorien, kleinunternehmer: data.kleinunternehmer }}
                 nextOpenId={nextOpenAfter(sichtbar, data.detail.transaction.id)}
+                gebuehr={zeilen.find((z) => z.umsatz.id === selectedId)?.gebuehr ?? null}
               />
             ) : (
               <aside className="card" aria-label="Zuordnung">

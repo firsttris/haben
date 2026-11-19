@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { formatDateTime } from "../../lib/format.ts";
+import { formatDateTime, formatTime } from "../../lib/format.ts";
 import { Field } from "../Field.tsx";
 
 /* Teile der Seite Archiv › Umzug, die nur FastBill braucht: Login-E-Mail und Tarif beim Zugang, Hinweise beim Warten des Abrufs, der Weg zu den Artikeln. */
@@ -90,4 +90,15 @@ export function FastbillArticles() {
       </div>
     </section>
   );
+}
+
+/**
+ * Anfragen der letzten Stunde, wie Haben sie gezählt hat. FastBill nennt den Rest nicht; Anfragen anderer Programme mit
+ * demselben Schlüssel kennt Haben nicht.
+ */
+export function fastbillUsageText(usage: { used: number; freeAt: string | null } | null | undefined, callsPerHour: number): string {
+  if (!usage || usage.used === 0) return "";
+  const free = Math.max(0, callsPerHour - usage.used);
+  const next = usage.freeAt ? `, die nächste wird um ${formatTime(usage.freeAt)} Uhr frei` : "";
+  return ` In der letzten Stunde hat Haben ${usage.used} davon genutzt, ${free} ${free === 1 ? "ist" : "sind"} noch frei${free === 0 ? next : ""}. Anfragen anderer Programme mit demselben Schlüssel zählt FastBill mit, Haben sieht sie nicht.`;
 }

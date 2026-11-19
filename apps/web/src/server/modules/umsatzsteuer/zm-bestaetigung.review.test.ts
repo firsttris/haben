@@ -13,7 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Review #1458: ZM-Knopf „Beim BZSt bestätig
   let sql: postgres.Sql;
   let zm: typeof import("./zm.ts");
   let bestaetigung: typeof import("./zm-bestaetigung.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   const actor = "test-user";
   const q3 = { year: 2026, month: 43 };
@@ -55,7 +55,7 @@ describe.skipIf(!testDatabaseUrl)("Review #1458: ZM-Knopf „Beim BZSt bestätig
     sql = await setupTestDb();
     zm = await import("./zm.ts");
     bestaetigung = await import("./zm-bestaetigung.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     await leeren(sql)`truncate ustid_bestaetigungen, journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, vat_returns, zm_submissions, company cascade`;

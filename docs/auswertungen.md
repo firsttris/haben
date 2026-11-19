@@ -142,6 +142,12 @@ Anders als die EÜR zählt die BWA nicht abziehbare Ausgaben (30 % der Bewirtung
 
 Ein Klick auf eine Zeile mit Beträgen zeigt darunter, was darin steht: je Zeile der EÜR die Zahlungen mit Datum, Betrag und Link zur Rechnung oder zum Beleg. Die Kontonummer führt zum Kontenblatt; das zeigt die Buchungen nach Buchungsdatum, nicht nach Zahlung.
 
+Mit einem Vergleich steht darüber „Warum?“: die Abweichung der Zeile nach Kontakt, die fünf größten einzeln, der Rest als „übrige“. Zusammen ergeben sie genau die Abweichung der Zeile.
+
+- **neu**: im Vergleich keine Zahlung mit dem Kontakt; **weggefallen**: jetzt keine; sonst **gestiegen** oder **gesunken**.
+- Die Spalte „Vorgänge“ zeigt Anzahl und Betrag je Zahlung („3 × 240,00 € statt 1 × 90,00 €“), also ob es mehr Zahlungen waren oder höhere Beträge; drei Teilzahlungen auf eine Rechnung zählen dreimal.
+- Kontakt ist der Kunde der bezahlten Rechnung bzw. der Lieferant des Belegs. Ohne verknüpften Kontakt zählt der Name auf der Rechnung bzw. am Beleg; ohne Namen und bei Zahlungen ohne Rechnung und Beleg (Pauschalen, Lohn, Finanzamt) steht der Betrag unter „Ohne Kontakt“. Ein verknüpfter Kontakt ist verlinkt, für die Steuerberatung nicht, weil sie keine Kontakte öffnet.
+
 Grenzen:
 
 - Abschreibungen, Restbuchwerte und die Privatnutzung von Fahrzeugen zeigt die BWA erst, wenn das Jahr im [Anlagenverzeichnis](anlagen.md) gebucht ist. Die EÜR rechnet sie vorher schon aus dem Anlagenverzeichnis; bis dahin weicht der Gewinn ab, und die BWA weist darauf hin.
@@ -258,7 +264,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `bank/verrechnungen.csv` | Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze mit Notiz, ohne Buchung ([Bank](bank.md#gegenläufige-umsätze-verrechnen)); aufgehobene als Gegenzeile |
 | `bank/ausbuchungen.csv` | Nur wenn vorhanden: ausgebuchte Reste (Skonto gewährt und erhalten, Forderungsausfall); aufgehobene als Gegenzeile; bei Skonto zu einer Bareinnahme die Nummer im Kassenbuch |
 | `bank/importe.csv` | Importierte Auszugsdateien und Kontoabrufe mit SHA-256, Zeitraum, Salden und Hinweisen (die Dateien selbst speichert der Bankimport nicht); abgelehnte Abrufe ohne Zeitraum nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres verbunden hat (etwa vom 30.12. vor seinem Januar-Fenster), auch im Jahr dieses Umsatzes; ein abgelehnter Abruf mit geklärtem Konflikt auch im Jahr des bisherigen und des neuen Umsatzes |
-| `bank/quellen.csv` | Nur wenn vorhanden: Herkunft der abgerufenen Umsätze, je Ereignis der Bank die Quelle mit [Stichtag](bank.md#welche-umsätze-abgerufen-werden), der Abruf und der Umsatz, den Haben angelegt oder verbunden hat |
+| `bank/quellen.csv` | Nur wenn vorhanden: Herkunft der abgerufenen Umsätze, je abgerufenem Ereignis (Bankabruf oder Etsy) die Quelle mit [Stichtag](bank.md#welche-umsätze-abgerufen-werden), der Abruf, der Umsatz, den Haben angelegt oder verbunden hat, und die gelieferten Referenzen: Anbieterreferenz, Ereigniscode, EndToEndId, bei Erstattung und Rückbelastung das ursprüngliche Ereignis, Auszahlung und Bestellung |
 | `bank/klaerungen.csv` | Nur wenn vorhanden: je [geklärtem Konflikt](bank.md#welche-umsätze-abgerufen-werden) im Abruf der bisherige und der gelieferte Umsatz, die Entscheidung, ein neu angelegter Umsatz und wer wann geklärt hat; der abgelehnte Abruf steht in `bank/importe.csv`; im Jahr des bisherigen Umsatzes und, wenn ein neuer angelegt wurde, auch in dessen Jahr |
 | `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML; bei einer [Abgabe außerhalb von Haben](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken) das Übermittlungsprotokoll des Vermerks (PDF) |
 | `lexoffice/` | Nur bei übernommenem Altbestand aus Lexware Office, sevDesk, FastBill und den anderen Umzugsquellen, siehe unten |

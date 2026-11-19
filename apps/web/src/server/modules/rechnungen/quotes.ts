@@ -45,17 +45,11 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { circleContact, circleFor, customerNumberConflict, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { quoteDraftLineSchema } from "./draft-line.ts";
-import {
-  buyerFrom,
-  buyerIssues,
-  effectivePriceMode,
-  insertDraft,
-  invoiceDiscountOf,
-  lineDiscountOf,
-  openAbschlaege,
-  sellerFrom,
-  type Invoice,
-} from "./invoices.ts";
+import { openAbschlaege } from "./advance-deductions.ts";
+import { effectivePriceMode } from "./draft-schema.ts";
+import { buyerFrom, buyerIssues, invoiceDiscountOf, lineDiscountOf, sellerFrom } from "./invoice-document.ts";
+import { insertDraft } from "./invoice-drafts.ts";
+import type { Invoice } from "./invoices.ts";
 import { removeFiles, unusedFiles } from "./attachment-store.ts";
 import { attachStoredToQuote, copyQuoteAttachments, quoteAttachmentFiles } from "./quote-attachments.ts";
 import { listQuoteDefaultAttachments } from "./quote-default-attachments.ts";

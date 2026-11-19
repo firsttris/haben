@@ -9,7 +9,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug bei Aufhebung im Folgejahr", () => {
   let sql: postgres.Sql;
   let documents: typeof import("../belege/documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let journal: typeof import("./euer-quelle.ts");
   let db: typeof import("../../db/index.ts").db;
   let seq = 0;
@@ -19,7 +19,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug bei Aufhebung im Folgejahr", (
     sql = await setupTestDb();
     db = (await import("../../db/index.ts")).db;
     documents = await import("../belege/documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     journal = await import("./euer-quelle.ts");
   }, 30_000);
   afterAll(async () => {

@@ -29,9 +29,9 @@ const row = (date: string, purpose: string, amount: string) => [
  */
 describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("./reports.ts");
   let guard: typeof import("../auswertungen/settings-guard.ts");
   let dunning: typeof import("../rechnungen/dunning.ts");
@@ -41,9 +41,9 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("./reports.ts");
     guard = await import("../auswertungen/settings-guard.ts");
     dunning = await import("../rechnungen/dunning.ts");

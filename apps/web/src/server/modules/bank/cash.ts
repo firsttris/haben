@@ -22,7 +22,8 @@ import { openBooks, openingCash, post, reverseLinesIn } from "../buchhaltung/ind
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
 import { invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
-import { negatedShares, reverseWriteOffRow } from "./bank.ts";
+import { negatedShares } from "./settled-amounts.ts";
+import { reverseWriteOffRow } from "./write-offs.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem

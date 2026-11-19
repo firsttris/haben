@@ -1,5 +1,5 @@
 {
-  "id": "7070ee45-96d1-4d19-a7fc-dde08094ab51",
+  "id": "ef5c31cd-1797-483f-8df5-d02fafa5f0e3",
   "prevId": "8e44d807-e436-4e13-8023-bb7b44d2825b",
   "version": "7",
   "dialect": "postgresql",
@@ -3738,20 +3738,6 @@
         },
         "quote_counter_running": {
           "name": "quote_counter_running",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "invoice_counter_per_customer": {
-          "name": "invoice_counter_per_customer",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "quote_counter_per_customer": {
-          "name": "quote_counter_per_customer",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -8056,6 +8042,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "refs": {
+          "name": "refs",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "transaction_id": {
           "name": "transaction_id",
           "type": "uuid",
@@ -8987,7 +8979,7 @@
         "year": {
           "name": "year",
           "type": "smallint",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "last": {
@@ -8995,41 +8987,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "invoice_number_counters_contact_id_contacts_id_fk": {
-          "name": "invoice_number_counters_contact_id_contacts_id_fk",
-          "tableFrom": "invoice_number_counters",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "invoice_number_counters_year_contact_id_unique": {
-          "name": "invoice_number_counters_year_contact_id_unique",
-          "nullsNotDistinct": true,
-          "columns": [
-            "year",
-            "contact_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -9355,12 +9318,6 @@
         "number_counter": {
           "name": "number_counter",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "number_contact_id": {
-          "name": "number_contact_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -9760,12 +9717,6 @@
               "nulls": "last"
             },
             {
-              "expression": "number_contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
               "expression": "number_counter",
               "isExpression": false,
               "asc": true,
@@ -9773,7 +9724,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"invoices\".\"number_year\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9953,19 +9903,6 @@
         }
       },
       "foreignKeys": {
-        "invoices_number_contact_id_contacts_id_fk": {
-          "name": "invoices_number_contact_id_contacts_id_fk",
-          "tableFrom": "invoices",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "number_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
         "invoices_contact_id_contacts_id_fk": {
           "name": "invoices_contact_id_contacts_id_fk",
           "tableFrom": "invoices",
@@ -14997,7 +14934,7 @@
         "year": {
           "name": "year",
           "type": "smallint",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "last": {
@@ -15005,41 +14942,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "quote_number_counters_contact_id_contacts_id_fk": {
-          "name": "quote_number_counters_contact_id_contacts_id_fk",
-          "tableFrom": "quote_number_counters",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "quote_number_counters_year_contact_id_unique": {
-          "name": "quote_number_counters_year_contact_id_unique",
-          "nullsNotDistinct": true,
-          "columns": [
-            "year",
-            "contact_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -15078,12 +14986,6 @@
         "number_counter": {
           "name": "number_counter",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "number_contact_id": {
-          "name": "number_contact_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -15379,12 +15281,6 @@
               "nulls": "last"
             },
             {
-              "expression": "number_contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
               "expression": "number_counter",
               "isExpression": false,
               "asc": true,
@@ -15392,26 +15288,12 @@
             }
           ],
           "isUnique": true,
-          "where": "\"quotes\".\"number_year\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "quotes_number_contact_id_contacts_id_fk": {
-          "name": "quotes_number_contact_id_contacts_id_fk",
-          "tableFrom": "quotes",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "number_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
         "quotes_contact_id_contacts_id_fk": {
           "name": "quotes_contact_id_contacts_id_fk",
           "tableFrom": "quotes",

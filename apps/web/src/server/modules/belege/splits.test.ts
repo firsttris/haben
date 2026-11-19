@@ -33,7 +33,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg aufteilen (Postgres)", () => {
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let datev: typeof import("../auswertungen/datev-export.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let fileSeq = 0;
@@ -46,7 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg aufteilen (Postgres)", () => {
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     datev = await import("../auswertungen/datev-export.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 30_000);
 
   afterAll(async () => {

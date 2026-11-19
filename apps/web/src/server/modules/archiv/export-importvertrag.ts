@@ -7,8 +7,8 @@ import { yearEnd, yearStart } from "./jahr.ts";
 
 /*
  * Herkunft der abgerufenen Umsätze im Jahresarchiv (#306, 3b): je Bewegung des Importvertrags die Quelle (Anbieter,
- * Kontokennung, Stichtag), das Ereignis der Bank und der Umsatz, den Haben daraus angelegt oder per Alias verbunden hat;
- * dazu je geklärtem Konflikt die Entscheidung. Der Inhalt der Tabellen steht schon in `protokoll/audit.csv`; ohne diese
+ * Kontokennung, Stichtag), das Ereignis (Bankabruf oder Etsy) mit seinen Referenzen und der Umsatz, den Haben daraus
+ * angelegt oder per Alias verbunden hat; dazu je geklärtem Konflikt die Entscheidung. Der Inhalt der Tabellen steht schon in `protokoll/audit.csv`; ohne diese
  * Dateien ließe sich aber nicht ohne Weiteres nachvollziehen, warum ein Umsatz kein zweites Mal angelegt wurde. Die
  * Lieferungen selbst stehen in `bank/importe.csv`; die Spalte „Import-ID“ verweist auf ihre Zeile dort.
  */
@@ -28,6 +28,13 @@ export const QUELLEN_HEADER = [
   "Übernommen",
   "Umsatz-ID",
   "Bewegungs-ID",
+  // Referenzen der Lieferung (`import_movements.refs`); leer bei Bewegungen, die vor dieser Spalte übernommen wurden
+  "Anbieterreferenz",
+  "Ereigniscode",
+  "EndToEndId",
+  "Bezug",
+  "Auszahlung",
+  "Bestellung",
 ];
 
 /**
@@ -77,6 +84,12 @@ export async function quellenFuerArchiv(year: number): Promise<(string | number 
     iso(r.movement.createdAt),
     r.movement.transactionId,
     r.movement.id,
+    r.movement.refs?.providerReference ?? null,
+    r.movement.refs?.eventCode ?? null,
+    r.movement.refs?.endToEndId ?? null,
+    r.movement.refs?.relatedEventId ?? null,
+    r.movement.refs?.payoutId ?? null,
+    r.movement.refs?.orderId ?? null,
   ]);
 }
 

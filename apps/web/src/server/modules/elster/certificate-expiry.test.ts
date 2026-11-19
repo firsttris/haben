@@ -22,11 +22,11 @@ describe("Frühestes Ablaufdatum (#1366)", () => {
 
 describe("Ablaufdatum aus der ELSTER-Zertifikatsdatei (#1366)", () => {
   // Jede Datei enthält auch die Zertifizierungsstelle, die früher abläuft; es zählt nur das Zertifikat zum Schlüssel
-  it.each<Testdatei>(["rc2-40", "3des", "aes", "ohne-verschluesselung"])("liest %s mit der PIN", async (name) => {
+  it.each<Testdatei>(["rc2-40", "rc2-128", "3des", "aes", "ohne-verschluesselung"])("liest %s mit der PIN", async (name) => {
     expect(await readCertificateExpiry(testZertifikatsdatei(name), TEST_PIN)).toBe(TEST_GUELTIG_BIS);
   });
 
-  it.each<Testdatei>(["rc2-40", "3des", "aes"])("%s mit falscher PIN ergibt kein Datum und keinen Fehler", async (name) => {
+  it.each<Testdatei>(["rc2-40", "rc2-128", "3des", "aes"])("%s mit falscher PIN ergibt kein Datum und keinen Fehler", async (name) => {
     expect(await readCertificateExpiry(testZertifikatsdatei(name), "Erika 1366?")).toBeNull();
     expect(await readCertificateExpiry(testZertifikatsdatei(name), "")).toBeNull();
   });

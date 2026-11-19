@@ -7,7 +7,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Verprobung bei Teilabzug (Postgres, #1230)", () => {
   let sql: postgres.Sql;
   let documents: typeof import("../belege/documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let verprobung: typeof import("./abgleich-verprobung.ts");
   const actor = "verprobung-teilabzug-test";
   let seq = 0;
@@ -15,7 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Verprobung bei Teilabzug (Postgres, #1230)", 
   beforeAll(async () => {
     sql = await setupTestDb();
     documents = await import("../belege/documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     verprobung = await import("./abgleich-verprobung.ts");
   }, 30_000);
   afterAll(async () => {

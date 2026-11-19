@@ -1,7 +1,8 @@
 import { PSP_FORMATS, type ParsedStatement } from "@haben/import";
 import { eq } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
-import { accountForIban, BankError, normalizeIban } from "./bank.ts";
+import { accountForIban, normalizeIban } from "./accounts.ts";
+import { BankError } from "./bank-error.ts";
 
 /**
  * Konto für einen Kontoauszug: das gewählte (passend zu IBAN und Art der Datei) oder, ohne Wahl, das zur IBAN der Datei;

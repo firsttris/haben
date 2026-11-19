@@ -9,9 +9,9 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   let zm: typeof import("./zm.ts");
   let figures: typeof import("./vat-figures.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let fristen: typeof import("../finanzamt/fristen.ts");
   let crypto: typeof import("../../crypto.ts");
   let sql: postgres.Sql;
@@ -28,9 +28,9 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
     zm = await import("./zm.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     figures = await import("./vat-figures.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     fristen = await import("../finanzamt/fristen.ts");
     crypto = await import("../../crypto.ts");
   }, 30_000);

@@ -21,7 +21,7 @@ import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 import { attachmentsForMail, listInvoiceAttachments } from "./attachments.ts";
 import { listQuoteAttachments, quoteAttachmentsForMail } from "./quote-attachments.ts";
 import { invoiceDocumentTotals } from "./invoice-taxes.ts";
-import { invoiceTitle } from "./invoices.ts";
+import { invoiceTitle } from "./invoice-document.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
 
 /**

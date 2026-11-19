@@ -20,7 +20,7 @@ function dkbCsv(rows: string[][]) {
 describe.skipIf(!testDatabaseUrl)("Einfuhrumsatzsteuer (Postgres)", () => {
   let documents: typeof import("../belege/documents.ts");
   let figures: typeof import("./vat-figures.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let annual: typeof import("../jahreserklaerung/annual.ts");
@@ -32,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("Einfuhrumsatzsteuer (Postgres)", () => {
     sql = await setupTestDb();
     documents = await import("../belege/documents.ts");
     figures = await import("./vat-figures.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     annual = await import("../jahreserklaerung/annual.ts");

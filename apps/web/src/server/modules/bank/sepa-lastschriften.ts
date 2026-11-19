@@ -6,7 +6,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { findMandate, lastCollections, loadCompany, type Mandate } from "../stammdaten/index.ts";
 import { invoicePayments } from "../rechnungen/index.ts";
-import { BankError } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 import { invoicesWithPendingDirectDebit } from "./lastschrift-abgleich.ts";
 
 /**

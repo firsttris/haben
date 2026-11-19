@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { darf, steuerberatungSieht } from "../lib/rollen.ts";
+import { darf, siehtSeite, steuerberatungSieht } from "../lib/rollen.ts";
 
 /*
  * Rechte der Rolle Steuerberatung (Roadmap Platz 10, Stufe 1). Diese Tests lesen alle Server Functions und API-Routen aus
@@ -16,6 +16,7 @@ const routesApi = fileURLToPath(new URL("../routes/api", import.meta.url));
 /** Lesende Server Functions, die auch die Steuerberatung aufrufen darf. Nur GET, nur Lesen, keine Geheimnisse. */
 const STEUERBERATUNG_LIEST = [
   "bwa.ts:getBwa",
+  "bwa.ts:getBwaWarum",
   "bwa.ts:getBwaZeile",
   "documents.ts:getDocumentDetail",
   "documents.ts:getDocuments",
@@ -124,6 +125,13 @@ describe("Rechte der Rollen", () => {
     ]) {
       expect(steuerberatungSieht(path), path).toBe(false);
     }
+  });
+
+  it("ein Link auf eine Seite, die die Rolle nicht öffnen kann, entfällt (Kontakt in „Warum?“ der BWA)", () => {
+    const kontakt = "/kontakte/0b8f6a52-6d3e-4d43-9a43-3b0c5d1e2f10";
+    expect(siehtSeite("inhaber", kontakt)).toBe(true);
+    expect(siehtSeite("steuerberatung", kontakt)).toBe(false);
+    expect(siehtSeite("steuerberatung", "/belege/0b8f6a52-6d3e-4d43-9a43-3b0c5d1e2f10")).toBe(true);
   });
 });
 

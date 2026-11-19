@@ -5,7 +5,10 @@ import { withActor } from "../../db/actor.ts";
 import { bankDuplicateProposalEligibleSql, bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { openBooks } from "../buchhaltung/index.ts";
-import { BankError, bookPart, lockTransaction, settledOn } from "./bank.ts";
+import { bookPart } from "./allocation.ts";
+import { BankError } from "./bank-error.ts";
+import { lockTransaction } from "./payment-booking.ts";
+import { settledOn } from "./settled-amounts.ts";
 
 export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid() });
 
