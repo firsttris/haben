@@ -1074,7 +1074,8 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .card:has(.tx-check) .tx-wrap:has(> .tx-row.selected) { background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
 .tx-wrap > .tx-check { grid-column: 1; grid-row: 1; align-self: start; display: flex; justify-content: center; padding-top: 12px; }
 .tx-check input { margin: 0; }
-.tx-wrap > .tx-row { grid-column: 2; grid-row: 1; border-top: 0; }
+.tx-wrap > .tx-row { grid-column: 2; grid-row: 1; }
+.card:has(.tx-check) .tx-wrap > .tx-row { border-top: 0; }
 .card:has(.tx-check) .tx-wrap > .tx-row:is(:hover, .selected) { background: none; box-shadow: none; }
 .card:has(.tx-check) .tx-wrap .tx-cols { padding-left: 8px; }
 .card:has(.tx-check) .table-row.head.tx-cols { padding-left: 36px; }

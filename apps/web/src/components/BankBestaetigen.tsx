@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { BESTAETIGEN_HOECHSTENS, ersteMarkierbare, zuVieleMarkiert } from "../lib/bestaetigen-grenze.ts";
+import { BESTAETIGEN_HOECHSTENS, ersteMarkierbare, umschalten } from "../lib/bestaetigen-grenze.ts";
 import { useAction } from "../lib/use-action.ts";
 import { confirmProposalsFn } from "../server/functions/bank-bestaetigen.ts";
 import { isDialogOpen } from "./ConfirmDialog.tsx";
@@ -33,13 +33,11 @@ export function useBestaetigen(umsaetze: readonly MitVorschlag[]) {
     });
   }, [markierbarKey]);
 
-  const toggle = (id: string) =>
-    setMarked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => {
+    const { markiert, voll } = umschalten(marked, id);
+    setMarked(markiert);
+    if (voll) action.setNotice({ tone: "info", text: `Höchstens ${BESTAETIGEN_HOECHSTENS} Umsätze lassen sich auf einmal bestätigen.` });
+  };
 
   const confirm = (ids: readonly string[]) =>
     action.run(async () => {
@@ -79,17 +77,8 @@ export function BestaetigenLeiste({ b }: { b: Bestaetigen }) {
               : `Alle ${b.markierbar.length} Vorschläge markieren`}
           </span>
         </label>
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          disabled={b.busy || b.marked.size === 0 || zuVieleMarkiert(b.marked.size)}
-          onClick={() => void b.confirm([...b.marked])}
-        >
-          {b.marked.size === 0
-            ? "Markierte bestätigen"
-            : zuVieleMarkiert(b.marked.size)
-              ? `Höchstens ${BESTAETIGEN_HOECHSTENS} auf einmal`
-              : `${b.marked.size} bestätigen`}
+        <button type="button" className="btn btn-primary btn-sm" disabled={b.busy || b.marked.size === 0} onClick={() => void b.confirm([...b.marked])}>
+          {b.marked.size === 0 ? "Markierte bestätigen" : `${b.marked.size} bestätigen`}
         </button>
       </div>
       <NoticeBanner notice={b.notice} />
