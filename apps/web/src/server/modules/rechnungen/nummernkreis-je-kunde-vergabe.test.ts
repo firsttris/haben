@@ -258,6 +258,20 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #14
     expect([nextA.number, nextB.number, nextG.number]).toEqual(["RE-2026-ACME-004", "RE-2026-BETA-003", "RE-2026-GAMMA-001"]);
   });
 
+  it("setzt beim Wechsel vom durchlaufenden gemeinsamen in den jährlichen Kundenkreis hinter der vergebenen Nummer fort", async () => {
+    const formate = { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}" };
+    await formats.saveNumberFormats(actor, { ...formate, invoiceRunning: true });
+    const first = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    expect(first.number).toBe("RE-2026-ACME-001");
+    const nextYear = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA, "2027-03-02")).id, kleinunternehmerStand);
+    expect(nextYear.number).toBe("RE-2027-ACME-002");
+    await formats.saveNumberFormats(actor, { ...formate, invoiceRunning: false, invoicePerCustomer: true });
+    const second = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    expect(second.number).toBe("RE-2026-ACME-002");
+    const later = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA, "2027-03-02")).id, kleinunternehmerStand);
+    expect(later.number).toBe("RE-2027-ACME-003");
+  });
+
   it("setzt beim durchlaufenden Zähler den Kundenkreis 0 hinter die gemeinsamen Nummern des Kunden", async () => {
     await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
     await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-ACME-0001
