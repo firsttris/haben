@@ -2,9 +2,10 @@ import { useSyncExternalStore } from "react";
 import type { Notice } from "./use-action.ts";
 
 /*
- * Meldung einer Aktion, die einen Neuaufbau der Komponente übersteht. Nach router.invalidate() baut der Router die Seite
- * gelegentlich neu auf (in der CI belegt: die React-Ids der Seite wechseln von „:R…“ auf „:r…“); eine Meldung im Zustand
- * der Komponente ginge dabei verloren, obwohl die Aktion gelungen ist. Die Meldung steht deshalb hier, je Schlüssel. Der
+ * Meldung einer Aktion, die einen Neuaufbau der Komponente übersteht. Nach router.invalidate() entsteht ein Teil der Seite
+ * gelegentlich neu (in der CI belegt: auf der ZM-Seite die Knoten unter „.grid-main“, deren React-Ids von „:R…“ auf „:r…“
+ * wechseln; Kopf und Hinweise der Seite bleiben, die Route selbst also nicht); die Ursache ist offen. Eine Meldung im
+ * Zustand der Komponente ginge dabei verloren, obwohl die Aktion gelungen ist. Die Meldung steht deshalb hier, je Schlüssel. Der
  * Aufrufer nimmt den Eintrag in der Browser-Historie in den Schlüssel; so gehört die Meldung zu diesem Besuch der Seite
  * und ist nach dem nächsten Aufruf weg.
  */
