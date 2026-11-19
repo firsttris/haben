@@ -212,7 +212,10 @@ export async function insertImportedLayout(
   // In der Transaktion gezählt, damit die Layouts derselben Datei mitzählen
   await checkLimits(limits, Buffer.byteLength(input.source, "utf8"), undefined, tx);
   const genannt = new Set(input.packages.map(packageSpec));
-  if (checkSource(input.source).some((pkg) => !genannt.has(packageSpec(pkg)))) throw new LayoutError("Die Pakete passen nicht zum Quelltext.");
+  const roots = checkSource(input.source);
+  // Pakete ohne #import im Quelltext lädt „Pakete neu laden“ nie; das Layout bliebe ohne Probesatz freigegeben
+  if (roots.some((pkg) => !genannt.has(packageSpec(pkg))) || (roots.length === 0 && genannt.size > 0))
+    throw new LayoutError("Die Pakete passen nicht zum Quelltext.");
   if (input.schemaVersion < 1 || input.schemaVersion > LAYOUT_SCHEMA_VERSION)
     throw new LayoutError(
       `Das Layout ist für den Feldvertrag v${input.schemaVersion} geschrieben; diese Version von Haben kennt bis v${LAYOUT_SCHEMA_VERSION}.`,
