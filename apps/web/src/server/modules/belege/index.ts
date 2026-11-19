@@ -8,7 +8,9 @@
 export {
   applyPublishedRates,
   bookDocument,
+  bookingIssueList,
   bookingIssues,
+  type BookingIssue,
   deleteDocument,
   DocumentError,
   documentFileProblem,
@@ -21,6 +23,7 @@ export {
   updateDocument,
   uploadDocument,
 } from "./documents.ts";
+export { duplicateDocument } from "./duplizieren.ts";
 export { searchBelege, searchDocuments, type DocumentHit, type RecurringDocumentHit } from "./search.ts";
 export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {

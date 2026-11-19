@@ -21,9 +21,10 @@ import { sha256 } from "./invoices.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 import { invoicePostingMode, invoiceVatDate } from "./invoice-tax.ts";
 import { InvoiceError } from "./invoice-error.ts";
-import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
+import { pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import { rebuildInvoiceLines } from "./positionen-nachbilden.ts";
 import { createTakenOverInvoice } from "./rechnung-uebernehmen.ts";
+import { outgoingTaxDetailsSchema } from "./tax-details.ts";
 
 /*
  * Ausgangsrechnung aus einem Fremdsystem übernehmen (#660): Die Rechnung ist dort geschrieben und verschickt worden und
@@ -61,6 +62,8 @@ export const foreignInvoiceSchema = z.object({
   taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
   /** Befreiungsvorschrift wie auf der Rechnung, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“; bei steuerfreien Umsätzen Pflicht */
   exemptionReason: z.string().trim().max(500).default(""),
+  /** Tatsächlicher Leistungsort wie im Rechnungseditor (#1392); null = ungeklärt, nie aus der Kundenanschrift abgeleitet */
+  taxDetails: outgoingTaxDetailsSchema,
   /** Netto und Steuer je Steuersatz (Basispunkte), wie auf der Rechnung ausgewiesen */
   taxes: z
     .array(z.strictObject({ rate: z.number().int().min(0).max(10_000), net: cents, tax: cents }))
@@ -110,11 +113,12 @@ async function assertAdoptable(
   contact: Contact,
   input: AdoptInput,
   totals: { net: number; taxes: { rate: number }[] },
+  umsatzStand: UmsatzStand,
 ): Promise<void> {
   const issues = [
     ...sellerIssues(company, true).map((issue) => `Firmendaten: ${issue}`),
     ...(await versteuerungIssues(company, input.issueDate, tx)),
-    ...outgoingTaxIssues(input.taxTreatment, null, company.kleinunternehmer),
+    ...outgoingTaxIssues(input.taxTreatment, input.taxDetails, company.kleinunternehmer),
     ...treatmentIssues(input.taxTreatment, {
       rates: totals.taxes.map((t) => t.rate),
       sellerUstId: company.ustId,
@@ -129,6 +133,7 @@ async function assertAdoptable(
     { kind: "rechnung", issueDate: input.issueDate, taxTreatment: input.taxTreatment },
     totals.net,
     company.foundedOn,
+    umsatzStand,
     input.bestaetigt,
   );
 }
@@ -136,8 +141,15 @@ async function assertAdoptable(
 /**
  * Legt die Rechnung festgeschrieben an und bucht sie wie beim Festschreiben einer eigenen Rechnung.
  * Mit `xml` (eingebettetes ZUGFeRD oder XRechnung des Originals) bleibt auch die maschinenlesbare Fassung erhalten.
+ * `umsatzStand` braucht die Rückfrage zur Kleinunternehmergrenze (`kleinunternehmerStand`).
  */
-export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInput, pdf: Uint8Array, xml: string | null = null): Promise<{ id: string }> {
+export async function adoptForeignInvoice(
+  actor: string,
+  raw: ForeignInvoiceInput,
+  pdf: Uint8Array,
+  umsatzStand: UmsatzStand,
+  xml: string | null = null,
+): Promise<{ id: string }> {
   const input = foreignInvoiceSchema.parse(raw);
   if (!looksLikePdf(pdf)) throw new InvoiceError("Das Original muss ein PDF sein.");
   if (input.dueDate < input.issueDate) throw new InvoiceError("Das Fälligkeitsdatum liegt vor dem Rechnungsdatum.");
@@ -155,7 +167,7 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
       const company = await openBooks(tx);
       const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, input.contactId));
       if (!contact) throw new InvoiceError("Der Kunde fehlt.");
-      await assertAdoptable(tx, company, contact, input, totals);
+      await assertAdoptable(tx, company, contact, input, totals, umsatzStand);
 
       const invoice = await createTakenOverInvoice(tx, {
         company,
@@ -169,6 +181,7 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
         serviceDate: leistungsdatum({ belegdatum: input.issueDate, leistungVon: input.serviceFrom, leistungBis: input.serviceTo }),
         taxTreatment: input.taxTreatment,
         exemptionReason: input.exemptionReason,
+        taxDetails: input.taxDetails,
         note: "Aus dem Fremdsystem übernommen; das PDF ist das Original.",
         priceMode,
         totals,
@@ -269,7 +282,7 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
     dueDate: invoice.dueDate ?? addDays(invoice.issueDate, 14),
     serviceFrom: invoice.serviceFrom ?? null,
     serviceTo: invoice.serviceTo ?? null,
-    // Ein Kleinunternehmer übernimmt nur Rechnungen nach § 19 UStG (andere Behandlungen braucht strukturierte Angaben, die das Formular nicht abfragt)
+    // Beim Kleinunternehmer § 19 UStG: eine Auslandsleistung wählt er selbst, weil der Leistungsort ausdrücklich zu bestätigen ist
     taxTreatment: company.kleinunternehmer ? "kleinunternehmer" : (special ?? "regulaer"),
     taxes,
     contactId: matches.length === 1 ? matches[0]!.id : null,
@@ -279,7 +292,12 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
 }
 
 /** Wie adoptForeignInvoice, mit der E-Rechnung aus der Datei, falls sie eine enthält und lesbar ist */
-export async function adoptForeignInvoiceFile(actor: string, raw: ForeignInvoiceInput, file: { bytes: Uint8Array; filename: string; mimeType: string }) {
+export async function adoptForeignInvoiceFile(
+  actor: string,
+  raw: ForeignInvoiceInput,
+  file: { bytes: Uint8Array; filename: string; mimeType: string },
+  umsatzStand: UmsatzStand,
+) {
   const read = await readEInvoice(file).catch(() => null);
   if (read) {
     // Nur Rechnungen in Euro: Gutschrift und Fremdwährung warnt schon der Vorschlag, hier wird sie abgelehnt
@@ -290,7 +308,7 @@ export async function adoptForeignInvoiceFile(actor: string, raw: ForeignInvoice
     const problem = xmlMismatch(read.invoice, foreignInvoiceSchema.parse(raw));
     if (problem) throw new InvoiceError(`Die E-Rechnung in der Datei passt nicht zu den Angaben: ${problem}. Das Original wird so nicht übernommen.`);
   }
-  return adoptForeignInvoice(actor, raw, file.bytes, read?.xml ?? null);
+  return adoptForeignInvoice(actor, raw, file.bytes, umsatzStand, read?.xml ?? null);
 }
 
 /** Was an der eingebetteten E-Rechnung von den bestätigten Angaben abweicht, oder null; das XML wird mit der Rechnung archiviert und weitergegeben */

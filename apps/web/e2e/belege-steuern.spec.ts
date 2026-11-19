@@ -1,3 +1,4 @@
+import { kategorieName, waehleKategorie } from "./kategorie.ts";
 import { filePickerPruefen } from "./dateiauswahl.ts";
 import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -19,6 +20,7 @@ import {
   kundeWaehlen,
   lieferantWaehlen,
   neuenLieferantenOeffnen,
+  weitereAngabenOeffnen,
   ohneAxeVerstoesse,
   trefferliste,
   randImDialog,
@@ -27,6 +29,7 @@ import {
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
 import { vorsteuerPruefen } from "./belege-vorsteuer.ts";
+import { ustIdBestaetigungPruefen } from "./ustid-bestaetigung.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -91,7 +94,7 @@ test("Beleg prüfen: Ein Fehler beim Speichern steht nicht hinter den stehenden 
   await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
   await page.getByLabel("Rechnungsnummer").fill("MF-0816");
   await page.getByLabel("Belegdatum").fill(day(-9));
-  await page.getByLabel("Kategorie").selectOption("telefon");
+  await waehleKategorie(page.getByLabel("Kategorie"), "telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
   // Oben im Formular, das in seiner Spalte scrollt; nur dann stehen die Knöpfe über dessen Ende
   const spalte = page.locator(".doc-editor > .stack");
@@ -107,6 +110,200 @@ test("Beleg prüfen: Ein Fehler beim Speichern steht nicht hinter den stehenden 
   await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   if (vorher) await page.setViewportSize(vorher);
+});
+
+test("Beleg prüfen: Kategorie per Suche wählen, auch ohne Umlaute, mit Tastatur und ohne Treffer", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "kategoriesuche.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("kategoriesuche.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /kategoriesuche\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  // Ein Klick zeigt die ganze Liste, Tippen grenzt sie ein; „burobedarf“ findet auch „Bürobedarf“
+  await kategorie.click();
+  await expect(trefferliste(page).getByRole("option")).not.toHaveCount(1);
+  await kategorie.fill("burobedarf");
+  // Der Treffer nennt neben dem Namen die Gruppe (#1253)
+  await expect(trefferliste(page).getByRole("option")).toHaveText([/^[0-9]{4} · Bürobedarf\s*Büro und IT$/]);
+  await kategorie.press("Enter");
+  await expect(kategorie).toHaveValue(kategorieName("buero"));
+  // Pfeiltasten bewegen durch die Treffer, Enter übernimmt den markierten (der erste ist vorgewählt)
+  await kategorie.fill("kfz");
+  await kategorie.press("ArrowDown");
+  await kategorie.press("Enter");
+  await expect(kategorie).toHaveValue(kategorieName("kfzReparatur"));
+  // Escape schließt die Liste; wer dann weitergeht, behält die bisherige Kategorie
+  await kategorie.fill("hosting");
+  await expect(trefferliste(page)).toBeVisible();
+  await kategorie.press("Escape");
+  await expect(trefferliste(page)).toBeHidden();
+  await page.keyboard.press("Tab");
+  await expect(kategorie).toHaveValue(kategorieName("kfzReparatur"));
+  // Tab übernimmt den ersten Treffer, wie bei Kontakt und Artikel
+  await kategorie.fill("telefon");
+  await kategorie.press("Tab");
+  await expect(kategorie).toHaveValue(kategorieName("telefon"));
+  // Mehrere Wörter in beliebiger Reihenfolge, gewählt per Klick
+  await kategorie.fill("leasing kfz");
+  await trefferliste(page).getByRole("option", { name: "Kfz: Leasing" }).click();
+  await expect(kategorie).toHaveValue(kategorieName("kfzLeasing"));
+  // Ohne Treffer sagt die Liste es; wer die Eingabe stehen lässt, behält die bisherige Kategorie
+  await kategorie.fill("xyz");
+  await expect(page.getByText("Keine Treffer")).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(kategorie).toHaveValue(kategorieName("kfzLeasing"));
+  // Ein geleertes Feld nimmt die Kategorie weg
+  await kategorie.fill("");
+  await page.keyboard.press("Tab");
+  await expect(kategorie).toHaveValue("");
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg prüfen: Die Wahl per Suche übernimmt die Privatanteil-Vorgabe der Kategorie", async ({ browser }) => {
+  const vorgabe = async (anteil: string) => {
+    await go("/einstellungen");
+    const firma = page.getByRole("form", { name: "Firmendaten" });
+    await firma.getByLabel("Privatanteil Telefon in %").fill(anteil);
+    await firma.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+  };
+  await vorgabe("20");
+  try {
+    await go("/belege");
+    await page
+      .locator("input[type=file][multiple]")
+      .setInputFiles([{ name: "privatanteil.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+    await expect(page.getByText("privatanteil.jpg: abgelegt.")).toBeVisible();
+    await page
+      .getByRole("link", { name: /privatanteil\.jpg/ })
+      .first()
+      .click();
+    await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    const kategorie = page.getByLabel("Kategorie");
+    const privat = page.getByLabel("Privatanteil in %", { exact: true });
+    // Tippen, wieder löschen und das Feld verlassen ändert bei leerer Kategorie nichts, auch ein eingetragener Anteil bleibt
+    await privat.fill("5");
+    await kategorie.fill("x");
+    await kategorie.fill("");
+    await page.keyboard.press("Tab");
+    await expect(kategorie).toHaveValue("");
+    await expect(privat).toHaveValue("5");
+    // Telefon hat eine Vorgabe, Bürobedarf keine: die Wahl setzt oder leert den Anteil
+    await waehleKategorie(kategorie, "telefon");
+    await expect(privat).toHaveValue("20");
+    // Bis aufs leere Feld löschen und dieselbe Kategorie wieder wählen ändert nichts: der eigene Anteil bleibt
+    await privat.fill("35");
+    await kategorie.fill("");
+    await waehleKategorie(kategorie, "telefon");
+    await expect(privat).toHaveValue("35");
+    // Leeren, etwas anderes suchen und ohne Wahl mit Escape gehen: die bisherige Kategorie bleibt
+    await kategorie.fill("");
+    await kategorie.pressSequentially("büro");
+    await kategorie.press("Escape");
+    await page.keyboard.press("Tab");
+    await expect(kategorie).toHaveValue(kategorieName("telefon"));
+    await expect(privat).toHaveValue("35");
+    await waehleKategorie(kategorie, "buero");
+    await expect(privat).toHaveValue("");
+    // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+    await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+    await bestaetigen(page, "Beleg löschen");
+    await page.waitForURL(/\/belege$/);
+  } finally {
+    // Die folgenden Tests rechnen ohne Vorgabe
+    await vorgabe("");
+  }
+});
+
+test("Beleg prüfen: Ein geleertes Kategoriefeld gilt sofort als leer, auch wenn Enter vor dem Verlassen speichert", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "kategorieleer.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("kategorieleer.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /kategorieleer\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  const speichern = page.getByRole("button", { name: "Speichern", exact: true });
+  await waehleKategorie(kategorie, "telefon");
+  // Feld leeren und ohne es zu verlassen speichern: das erste Enter schließt die Liste, das zweite schickt das Formular ab
+  await kategorie.fill("");
+  await kategorie.press("Enter");
+  await kategorie.press("Enter");
+  await expect(speichern).toBeDisabled();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  // Gespeichert ist, was im Feld stand: keine Kategorie, nicht die alte
+  await expect(page.getByLabel("Kategorie")).toHaveValue("");
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg prüfen: Nach dem Leeren mit den Pfeilen dieselbe Kategorie markiert, übernimmt Enter sie", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "kategoriepfeil.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("kategoriepfeil.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /kategoriepfeil\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  await waehleKategorie(kategorie, "telefon");
+  await kategorie.fill("");
+  // Das leere Feld zeigt alle Kategorien und markiert keine: so lange abwärts, bis Telefon markiert ist
+  const telefon = trefferliste(page)
+    .getByRole("option")
+    .filter({ has: page.getByText(kategorieName("telefon"), { exact: true }) });
+  const telefonId = await telefon.getAttribute("id");
+  for (let schritt = 0; schritt < 60 && (await kategorie.getAttribute("aria-activedescendant")) !== telefonId; schritt++) {
+    await kategorie.press("ArrowDown");
+  }
+  await expect(kategorie).toHaveAttribute("aria-activedescendant", telefonId!);
+  await kategorie.press("Enter");
+  await expect(kategorie).toHaveValue(kategorieName("telefon"));
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Dauerbeleg: Ein geleertes Kategoriefeld verlangt beim Anlegen per Enter wieder eine Kategorie", async () => {
+  await go("/dauerbelege/neu");
+  // Alles andere ist ausgefüllt: Nur die Kategorie hält das Anlegen auf
+  await page.getByLabel("Bezeichnung").fill("Lagerraum Kategorie leer");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Hafen Immobilien GmbH");
+  await page.getByLabel("Erster Beleg am").fill(day(30));
+  await page
+    .locator("input[type=file]")
+    .setInputFiles([{ name: "lagervertrag.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Lagervertrag\n%%EOF\n") }]);
+  await page.getByLabel("Netto 1").fill("80,00");
+  const vorlageKategorie = page.getByLabel("Kategorie");
+  await waehleKategorie(vorlageKategorie, "miete");
+  await vorlageKategorie.fill("");
+  await vorlageKategorie.press("Enter");
+  await vorlageKategorie.press("Enter");
+  await expect(vorlageKategorie).toHaveAccessibleDescription("Wähle die Kategorie.");
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
 });
 
 test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {
@@ -354,6 +551,27 @@ test("Seiten nur von derselben Origin einbettbar", async () => {
   expect(html.headers()["content-type"]).toContain("text/html");
   expect(html.headers()["content-security-policy"]).toBe("frame-ancestors 'self'");
   expect(html.headers()["x-frame-options"]).toBeUndefined();
+});
+
+test("Cache-Header: Seiten und Server-Funktionen nie in geteilte Caches, Dateien aus public/ neu validieren", async () => {
+  const html = await page.request.get("/rechnungen");
+  expect(html.headers()["cache-control"]).toBe("private, no-store");
+  const serverFn = page.waitForResponse((r) => new URL(r.url()).pathname.startsWith("/_serverFn/") && r.request().method() === "GET");
+  await go("/rechnungen");
+  await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Belege", exact: true }).click();
+  expect((await serverFn).headers()["cache-control"]).toBe("private, no-store");
+  // Nur der gebaute Server: Im Entwicklungsserver liefert Vite public/ und die Assets aus, ohne die routeRules von Nitro
+  if (!process.env.E2E_SERVER_COMMAND) return;
+  for (const datei of ["/sw.js", "/manifest.webmanifest", "/favicon.svg", "/icon-192.png", "/fastbill-belege.js"]) {
+    expect((await page.request.get(datei)).headers()["cache-control"], datei).toBe("no-cache");
+  }
+  const skript = new URL(
+    await page
+      .locator('script[src^="/assets/"], link[href^="/assets/"]')
+      .first()
+      .evaluate((e) => (e as HTMLScriptElement).src || (e as HTMLLinkElement).href),
+  );
+  expect((await page.request.get(skript.pathname)).headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
 });
 
 test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
@@ -1055,23 +1273,29 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // USt-IdNr. liegt in „Weitere Angaben“, die Überschrift zeigt sie auch zugeklappt
+  await weitereAngabenOeffnen(page);
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("IE6388047V");
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("USt-IdNr. IE6388047V");
   await page.getByLabel("Netto", { exact: true }).fill("100");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
-  await expect(page.getByText(/meist § 13b/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(page.getByText(/meist Reverse Charge \(§ 13b\)/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("19,00");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   await expect(page.getByLabel("Steuer § 13b")).toHaveAttribute("readonly", "");
   await expect(page.getByText("Steuer § 13b (automatisch)", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Kz 46\/47/)).toBeVisible();
+  // Die Kennzahlen stehen unter „Details“, der Hinweis am Feld nennt sie nicht
+  await expect(page.getByText(/Kz 46/)).toBeHidden();
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  await expect(page.getByText(/Netto in Kz 46, Steuer in Kz 47, Vorsteuer in Kz 67/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   await page.getByLabel("Netto", { exact: true }).fill("200");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("38,00");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("14,00");
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("drittland");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("drittland");
   await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
   const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
@@ -1099,7 +1323,7 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   // Auch gespeicherte Zeilen müssen bei einer Änderung weiter automatisch rechnen.
   await page.getByLabel("Netto", { exact: true }).fill("300");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("21,00");
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
   await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("20,99");
   await page.getByLabel("Netto", { exact: true }).fill("400");
@@ -1142,9 +1366,9 @@ test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel beh�
   await amounts.getByLabel("Vorsteuer", { exact: true }).fill("7,78");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Bei § 13b gibt es kein Brutto, gezahlt wird netto; die Steuer rechnet Haben aus dem Netto (111,21 € zu 7 % = 7,78 €)
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveCount(0);
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
   await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
   // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1323,7 +1547,7 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Lieferant", { exact: true }).fill("Bürohaus Nord GmbH");
   await page.getByLabel("Belegdatum").fill(day(-5));
-  await page.getByLabel("Kategorie").selectOption("wareneinkauf");
+  await waehleKategorie(page.getByLabel("Kategorie"), "wareneinkauf");
   const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
   await amounts.getByLabel("Netto", { exact: true }).fill("170,00");
   await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("32,30");
@@ -1332,9 +1556,9 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
   // Erste Zeile mit der bisherigen Kategorie und dem ganzen Netto, dazu eine leere
   await expect(split.getByLabel("Kategorie")).toHaveCount(2);
-  await expect(split.getByLabel("Kategorie").first()).toHaveValue("wareneinkauf");
+  await expect(split.getByLabel("Kategorie").first()).toHaveValue(kategorieName("wareneinkauf"));
   await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("100,00");
-  await split.getByLabel("Kategorie").nth(1).selectOption("software");
+  await waehleKategorie(split.getByLabel("Kategorie").nth(1), "software");
   await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("50,00");
   await expect(split.getByText("19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen")).toBeVisible();
   // Ohne Kategorie speichert „Speichern“ nicht, sondern sagt an der Zeile, was fehlt (DESIGN.md, Gesperrte Knöpfe)
@@ -1342,7 +1566,7 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   await page.getByRole("button", { name: "Speichern" }).click();
   await expect(split.getByLabel("Kategorie").nth(2)).toBeFocused();
   await expect(split.getByLabel("Kategorie").nth(2)).toHaveAccessibleDescription("Wähle die Kategorie.");
-  await split.getByLabel("Kategorie").nth(2).selectOption("buero");
+  await waehleKategorie(split.getByLabel("Kategorie").nth(2), "buero");
   await split.getByRole("textbox", { name: "Netto", exact: true }).nth(2).fill("20,00");
   await expect(split.getByText("19 %: Zeilen 170,00 € von 170,00 € netto · stimmt")).toBeVisible();
   // Vorsteuer anteilig: 19,00 + 9,50 + 3,80 = 32,30
@@ -1352,7 +1576,7 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
 
   // Eine vierte Zeile mit gleicher Kategorie und gleichem Satz, wieder entfernt
   await split.getByRole("button", { name: "+ Zeile" }).click();
-  await split.getByLabel("Kategorie").nth(3).selectOption("software");
+  await waehleKategorie(split.getByLabel("Kategorie").nth(3), "software");
   await split.getByRole("textbox", { name: "Netto", exact: true }).nth(3).fill("5,00");
   await expect(split.getByText("19 %: Zeilen 175,00 € von 170,00 € netto · 5,00 € zu viel")).toBeVisible();
   await split.getByRole("button", { name: "Zeile 4 der Aufteilung entfernen" }).click();
@@ -1393,7 +1617,7 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   // Aufheben: wieder eine Kategorie, die der ersten Zeile
   await split.getByRole("button", { name: "Aufteilung aufheben" }).click();
   await expect(split).toHaveCount(0);
-  await expect(page.getByLabel("Kategorie")).toHaveValue("wareneinkauf");
+  await expect(page.getByLabel("Kategorie")).toHaveValue(kategorieName("wareneinkauf"));
   // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern; Buchung, EÜR, UStVA und DATEV prüfen die
   // Integrationstests in server/modules/belege/splits.test.ts
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1416,20 +1640,20 @@ test("Beleg mit § 13b aufteilen: Steuer § 13b je Zeile, innergemeinschaftliche
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Lieferant", { exact: true }).fill("Beispiel Payments Ltd.");
   await page.getByLabel("Belegdatum").fill(day(-5));
-  await page.getByLabel("Kategorie").selectOption("geldverkehr");
+  await waehleKategorie(page.getByLabel("Kategorie"), "geldverkehr");
   await page.getByLabel("Netto", { exact: true }).fill("250,00");
 
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   await expect(page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" })).toBeDisabled();
   await expect(page.getByText("mit innergemeinschaftlichem Erwerb noch nicht möglich")).toBeVisible();
 
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("47,50");
   await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
   const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
-  await expect(split.getByLabel("Kategorie").first()).toHaveValue("geldverkehr");
+  await expect(split.getByLabel("Kategorie").first()).toHaveValue(kategorieName("geldverkehr"));
   await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("200,00");
-  await split.getByLabel("Kategorie").nth(1).selectOption("werbung");
+  await waehleKategorie(split.getByLabel("Kategorie").nth(1), "werbung");
   await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("50,00");
   await expect(split.getByText("19 %: Zeilen 250,00 € von 250,00 € netto · stimmt")).toBeVisible();
   await expect(split.getByText("Steuer § 13b 38,00")).toBeVisible();
@@ -1479,7 +1703,7 @@ test("Beleg am Handy: Beträge sind auch mit 16 px Schrift ganz zu lesen", async
         (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
       );
 
-  await handy.getByLabel("Kategorie").selectOption("wareneinkauf");
+  await waehleKategorie(handy.getByLabel("Kategorie"), "wareneinkauf");
   await handy.locator(".amount-row").getByLabel("Netto", { exact: true }).fill("500,00");
   await handy.locator(".amount-row").getByLabel("Vorsteuer", { exact: true }).fill("95,00");
   expect.soft(await abgeschnitten(".amount-row input[inputmode='decimal']"), "Netto und Vorsteuer des Belegs").toEqual([]);
@@ -1528,7 +1752,13 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await lieferantWaehlen(page, "Hetzner Online GmbH · DE812871812");
+  // Ein Feld für Name und Kontakt (#1253): keine zweite Suche „Aus den Kontakten“, die gewählte Verknüpfung steht als Hinweis am Feld
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
+  await expect(page.getByRole("combobox", { name: /Lieferant|Kontakten/ })).toHaveCount(1);
+  await expect(page.getByLabel("Aus den Kontakten")).toHaveCount(0);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveAccessibleDescription("Aus den Kontakten gewählt.");
+  // Name und USt-IdNr. aus dem Kontakt: Die USt-IdNr. liegt in „Weitere Angaben“, deren Überschrift sie zugeklappt zeigt
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("USt-IdNr. DE812871812");
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
 
   // Lieferant direkt im Beleg anlegen (#330): Name und USt-IdNr. vom Beleg, Rolle Lieferant, Eingaben bleiben
@@ -1542,7 +1772,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await expect(dialog.getByRole("status")).toContainText("gibt es schon „Hetzner Online GmbH“");
   await dialog.getByRole("button", { name: "„Hetzner Online GmbH“ wählen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
 
   await neuenLieferantenOeffnen(page);
   await dialog.getByLabel("Name oder Firma").fill("Druckerei Süd GmbH");
@@ -1551,7 +1781,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Druckerei Süd GmbH");
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue("Druckerei Süd GmbH");
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveAccessibleDescription("Aus den Kontakten gewählt.");
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
   // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -1714,6 +1944,8 @@ test("Kontaktformular: Gleiche USt-IdNr. wird gemeldet, auch beim archivierten K
   await page.getByRole("button", { name: "Archivieren" }).click();
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
+
+ustIdBestaetigungPruefen(() => page);
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
@@ -1953,12 +2185,13 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("NL123456789B01");
-  await page.getByLabel("Kategorie").selectOption("wareneinkauf");
+  await waehleKategorie(page.getByLabel("Kategorie"), "wareneinkauf");
   await page.getByLabel("Netto", { exact: true }).fill("500");
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
   await expect(page.getByText(/bei Ware ein innergemeinschaftlicher Erwerb/)).toBeVisible();
-  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
   const tax = page.getByLabel(/^Erwerbsteuer/);
   await expect(tax).toHaveValue("95,00");
   await expect(tax).toHaveAttribute("readonly", "");
@@ -1967,7 +2200,8 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await expect(tax).toHaveValue("114,00");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
   await expect(tax).toHaveValue("42,00");
-  await expect(page.getByText(/Kz 89 \(19 %\)/)).toBeVisible();
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  await expect(page.getByText(/Netto in Kz 89 \(19 %\) bzw\. Kz 93 \(7 %\), Vorsteuer in Kz 61/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   // Nicht buchen: der Beleg würde die folgenden Auswertungen und Bilder verändern
   await page.getByRole("button", { name: "Löschen" }).click();
@@ -2321,7 +2555,7 @@ test("Beleg als Anlagegut: Wechsel von Fahrzeug zu Sonstige Transportmittel läs
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByLabel("Kategorie").selectOption("anlage");
+  await waehleKategorie(page.getByLabel("Kategorie"), "anlage");
   await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
   await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("6");
   await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)" });
@@ -2571,7 +2805,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   // Zwei Belege als Telefon, privat bezahlt
   for (const n of [1, 2]) {
     await beleg(n);
-    await page.getByLabel("Kategorie").selectOption("telefon");
+    await waehleKategorie(page.getByLabel("Kategorie"), "telefon");
     await page.getByLabel("Privat bezahlt (Privateinlage)").check();
     await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
     await bestaetigen(page, "Buchen");
@@ -2584,7 +2818,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   await page.waitForLoadState("networkidle");
   const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
   const kategorie = page.locator(".field").filter({ has: page.getByLabel("Kategorie") });
-  await expect(kategorie).toContainText(`Bisher 2× als Telefon gebucht, zuletzt am ${heute}`);
+  await expect(kategorie).toContainText(new RegExp(`Bisher 2× als [0-9]{4} · Telefon gebucht, zuletzt am ${heute.replaceAll(".", "[.]")}`));
   const bezahlung = page.getByRole("group", { name: "Bezahlung" });
   await expect(bezahlung).toContainText(`Bisher 2× privat bezahlt, zuletzt am ${heute}`);
   await expect(bezahlung.getByLabel("Über das Geschäftskonto (Zuordnung beim Bankabgleich)")).toBeChecked();
@@ -2592,7 +2826,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   await expect(bezahlung.getByLabel("Privat bezahlt (Privateinlage)")).toBeChecked();
   await expect(bezahlung.getByRole("button", { name: "übernehmen" })).toBeHidden();
   await kategorie.getByRole("button", { name: "übernehmen" }).click();
-  await expect(page.getByLabel("Kategorie")).toHaveValue("telefon");
+  await expect(page.getByLabel("Kategorie")).toHaveValue(kategorieName("telefon"));
   // Nichts ist gebucht, bis bestätigt wird
   await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeHidden();
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
@@ -2628,7 +2862,7 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByRole("heading", { name: "Erika Beispiel" })).toBeVisible();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("erloese"));
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
   await expect(panel.getByText("100,00 € netto, 19,00 € Umsatzsteuer")).toBeVisible();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
@@ -2643,12 +2877,12 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByRole("heading", { name: "Kiosk am Markt" })).toBeVisible();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "telefon");
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
   await expect(panel.getByText(/ohne Vorsteuer/)).toBeVisible();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
-  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+  await expect(panel.getByText(/Direkt: [0-9]{4} · Telefon/)).toBeVisible();
 
   // In der Voranmeldung des Monats als Direktbuchung unter Kz 81, verlinkt auf den Bankumsatz mit seiner Zuordnung
   await go(`/umsatzsteuer/${day(0).slice(0, 7)}`);
@@ -2689,9 +2923,9 @@ test("Direkt buchen als nicht steuerbare Einnahme: ohne Steuersatz, auch nach We
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
   // Vorbelegt bleibt Erlöse 19 %; der Wechsel setzt den Satz zurück, ein Steuersatz-Feld gibt es dann nicht
-  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("erloese"));
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "nichtSteuerbar");
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
   await expect(panel.getByText("Gebucht als Einnahme ohne Umsatzsteuer, nicht in der Voranmeldung.", { exact: false })).toBeVisible();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
@@ -2701,7 +2935,7 @@ test("Direkt buchen als nicht steuerbare Einnahme: ohne Steuersatz, auch nach We
   await expect(panel.getByText("Rückforderung Erstattung")).toBeVisible();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("nichtSteuerbar");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "nichtSteuerbar");
   await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
@@ -2735,7 +2969,7 @@ test("Abweichende IBAN der E-Rechnung: Warnung am Beleg, gesperrt unter Überwei
   // Der Abgleich läuft, sobald der Kontakt am Beleg hängt
   await expect(page.getByRole("region", { name: "Bankverbindung prüfen" })).toHaveCount(0);
   await lieferantWaehlen(page, "Netzwerk Hosting GmbH");
-  await page.getByLabel("Kategorie").selectOption("software");
+  await waehleKategorie(page.getByLabel("Kategorie"), "software");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
@@ -2799,7 +3033,7 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeHidden();
   if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("kategorie");
-  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await waehleKategorie(panel.getByRole("combobox", { name: "Kategorie", exact: true }), "telefon");
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
 
@@ -2815,9 +3049,9 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await expect(panel.getByText("Ausgabe: Telefon")).toBeVisible();
   await expect(panel.getByText(`2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am ${day(0).split("-").reverse().join(".")}`)).toBeVisible();
   await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
-  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("telefon");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("telefon"));
   // Nichts ist gebucht, bis bestätigt wird
-  await expect(panel.getByText("Direkt: Telefon")).toBeHidden();
+  await expect(panel.getByText(/Direkt: [0-9]{4} · Telefon/)).toBeHidden();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
   // Danach springt die Auswahl zum nächsten offenen Umsatz; unter „Alle“ steht der gebuchte mit seiner Zuordnung
@@ -2828,7 +3062,7 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
     .click();
   await page.waitForLoadState("networkidle");
   await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
-  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+  await expect(panel.getByText(/Direkt: [0-9]{4} · Telefon/)).toBeVisible();
 });
 
 test("Gelernte Erlöse als Kleinunternehmer, § 19 inzwischen aufgegeben: das Formular zeigt, was gebucht wird (#295)", async () => {
@@ -2920,7 +3154,7 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
   await expect(iban).toBeFocused();
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Netzwerk Hosting GmbH");
 });
 
 test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
@@ -2946,7 +3180,7 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await lieferantWaehlen(page, "Hosting Süd GmbH");
-  await page.getByLabel("Kategorie").selectOption("software");
+  await waehleKategorie(page.getByLabel("Kategorie"), "software");
   // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
   await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
@@ -2975,6 +3209,47 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(zeile).toContainText("DE02 1203 0000 0000 2020 51");
   await go(new URL(kontaktUrl).pathname);
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
+});
+
+test("Jahreserklärung: Summen stehen offen, die Einzelzeilen hinter „Zeilen anzeigen“, auch per Tastatur (#1253)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
+  const euer = page.getByRole("region", { name: "Anlage EÜR", exact: true });
+  await expect(ust.getByRole("row", { name: /^Umsatzsteuer|^Überschuss/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abschlusszahlung|^Erstattung/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Summe Betriebseinnahmen/ })).toBeVisible();
+  await expect(euer.getByRole("row", { name: /^Gewinn|^Verlust/ })).toBeVisible();
+  // Zugeklappt: die Zeilen sind nicht zu sehen, der Knopf zum Aufklappen schon
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeHidden();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeHidden();
+  // Mit der Tastatur: Fokus auf „Zeilen anzeigen“, Enter klappt auf
+  const summary = ust.locator("summary").filter({ hasText: "Zeilen anzeigen" });
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(ust.getByRole("row", { name: /^Umsätze zu 19 %/ })).toBeVisible();
+  await expect(ust.getByRole("row", { name: /^Abziehbare Vorsteuer aus Rechnungen/ })).toBeVisible();
+  await euer.locator("summary").filter({ hasText: "Zeilen anzeigen" }).click();
+  await expect(euer.getByRole("row", { name: /^Entnahmen einschließlich/ })).toBeVisible();
+});
+
+test("Jahreserklärung: die Erklärungen stehen in einer nummerierten Reihenfolge, der nächste Schritt führt zum Abschnitt (#1253)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const reihenfolge = page.getByRole("region", { name: "Reihenfolge der Erklärungen" });
+  const eintraege = reihenfolge.getByRole("listitem");
+  await expect(eintraege).toHaveCount(3);
+  await expect(eintraege.nth(0)).toContainText("Umsatzsteuer");
+  await expect(eintraege.nth(1)).toContainText("Anlage EÜR");
+  await expect(eintraege.nth(2)).toContainText("Einkommensteuer");
+  // Die Sprungleiste ist darin aufgegangen: nur noch die Abschnitte darunter
+  await expect(page.getByRole("navigation", { name: "Abschnitte der Jahreserklärung" })).toHaveCount(0);
+  await expect(reihenfolge.getByRole("link", { name: "Verlauf" })).toBeVisible();
+  // Der nächste Schritt ist die erste Erklärung ohne Übermittlung und ohne Vermerk und verlinkt auf ihren Abschnitt
+  const schritt = reihenfolge.locator("p", { hasText: "Nächster Schritt:" });
+  await expect(schritt).toBeVisible();
+  const ziel = await schritt.getByRole("link").getAttribute("href");
+  expect(ziel).toMatch(/^#(ust|euer|est)$/);
+  await schritt.getByRole("link").click();
+  await expect(page.locator(ziel!)).toBeInViewport();
 });
 
 test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Knopfzeile, der Dialog selbst scrollt nicht (WCAG 2.4.11)", async () => {
@@ -3238,15 +3513,15 @@ test("Eigene Konten: anlegen, am Beleg und in der Aufteilung wählen, buchen, ar
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Lieferant", { exact: true }).fill("Codewerk GmbH");
   await page.getByLabel("Belegdatum").fill(day(-3));
-  await page.getByLabel("Kategorie").selectOption("buero");
+  await waehleKategorie(page.getByLabel("Kategorie"), "buero");
   await expect(page.getByLabel("Eigenes Konto")).toHaveCount(0);
-  await page.getByLabel("Kategorie").selectOption("software");
+  await waehleKategorie(page.getByLabel("Kategorie"), "software");
   await page.getByLabel("Eigenes Konto").selectOption({ label: "4999 Software: Entwicklung" });
   await page.getByRole("group", { name: "Beträge je Steuersatz" }).getByLabel("Netto", { exact: true }).fill("100,00");
   // Kategorie gewechselt: das Konto gehört nicht mehr dazu und fällt weg
-  await page.getByLabel("Kategorie").selectOption("buero");
+  await waehleKategorie(page.getByLabel("Kategorie"), "buero");
   await expect(page.getByLabel("Eigenes Konto")).toHaveCount(0);
-  await page.getByLabel("Kategorie").selectOption("software");
+  await waehleKategorie(page.getByLabel("Kategorie"), "software");
   await expect(page.getByLabel("Eigenes Konto")).toHaveValue("");
 
   // Aufgeteilt: je Zeile wählbar
@@ -3254,7 +3529,7 @@ test("Eigene Konten: anlegen, am Beleg und in der Aufteilung wählen, buchen, ar
   const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
   await split.getByLabel("Eigenes Konto").first().selectOption({ label: "4999 Software: Entwicklung" });
   await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("60,00");
-  await split.getByLabel("Kategorie").nth(1).selectOption("buero");
+  await waehleKategorie(split.getByLabel("Kategorie").nth(1), "buero");
   await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("40,00");
   await expect(split.getByLabel("Eigenes Konto")).toHaveCount(1);
   await page.getByRole("button", { name: "Speichern" }).click();
@@ -3328,8 +3603,9 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
 
   await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
   await page.getByLabel("Belegdatum").fill(day(-9));
-  await page.getByLabel("Kategorie").selectOption("telefon");
+  await waehleKategorie(page.getByLabel("Kategorie"), "telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("Leistung von").fill(day(-24));
   await page.getByLabel("Leistung bis").fill(day(-9));
   await page.getByRole("button", { name: "Speichern" }).click();
@@ -3338,8 +3614,316 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
 
   await page.reload();
   await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
+  // Zugeklappt nennt die Überschrift den Zeitraum; aufgeklappt stehen die beiden Felder
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("Leistung");
+  await weitereAngabenOeffnen(page);
   await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
+});
+
+test("Beleg prüfen: Seltenes ist eingeklappt, zeigt Gesetztes in der Überschrift und klappt bei einem Fehler auf (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "weitere.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Schreibwaren Lindenhof e. K.") }]);
+  await expect(page.getByText("weitere.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /weitere\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  const ueberschrift = bereich.locator("summary");
+
+  // Zu: die Felder sind nicht zu sehen, die Überschrift nennt die Währung
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(ueberschrift).toHaveText("Weitere Angaben: EUR");
+  await expect(page.getByLabel("Fällig am")).toBeHidden();
+
+  // Was gesetzt ist, steht auch zugeklappt in der Überschrift
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Fällig am").fill(day(14));
+  await ueberschrift.click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(ueberschrift).toContainText(/EUR · fällig \d{2}\.\d{2}\.\d{4}/);
+
+  // Pflicht: Der Erwerb braucht die USt-IdNr. des Lieferanten aus der EU, das Feld liegt dann offen
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("");
+
+  // Fehler: Ein zugeklappter Bereich verschluckt ihn nicht, „Bestätigen und buchen“ klappt auf und setzt den Fokus aufs Feld
+  await page.getByLabel("Währung").fill("EU");
+  await ueberschrift.click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel("Währung")).toBeFocused();
+  await expect(page.getByLabel("Währung")).toHaveAccessibleDescription(/drei Buchstaben/);
+
+  // Barrierefrei mit aufgeklapptem Bereich, Fehlermeldung und den Details zur Umsatzsteuer, am Desktop und am Handy
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("eu");
+  await page.getByText("Details zur Voranmeldung", { exact: true }).click();
+  const vorher = page.viewportSize();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `Beleg mit Weiteren Angaben bei ${width} px`,
+    ).toEqual([]);
+  }
+  if (vorher) await page.setViewportSize(vorher);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Kategorien stehen in Gruppen, ein Beispiel hilft bei der Wahl (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gruppen.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Kopierladen Stadtmitte GmbH") }]);
+  await expect(page.getByText("gruppen.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gruppen\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kategorie = page.getByLabel("Kategorie");
+  await kategorie.click();
+  // Dieselben 35 Kategorien wie zuvor, in Gruppen geordnet; jeder Eintrag nennt seine Gruppe
+  const liste = kategorie.locator("xpath=..").getByRole("option");
+  await expect(liste).toHaveCount(35);
+  await expect(liste.filter({ hasText: "Fahrzeug" })).toHaveCount(6);
+  await expect(liste.first()).toContainText("Büro und IT");
+  await expect(page.getByText("Z. B. Hosting oder Software unter „Büro und IT“")).toBeVisible();
+  await kategorie.press("Escape");
+  await waehleKategorie(kategorie, "kfzBetrieb");
+  await expect(kategorie).toHaveValue(kategorieName("kfzBetrieb"));
+  await expect(page.getByText("Z. B. Hosting oder Software unter „Büro und IT“")).toBeHidden();
+  // Die Suche findet auch nach der Nummer des Kontos (#1438)
+  await kategorie.fill("Telefon");
+  const nummer = ((await liste.filter({ hasText: "Telefon" }).first().textContent()) ?? "").match(/^[0-9]{4}/)?.[0] ?? "";
+  await kategorie.fill(nummer);
+  await expect(liste).toHaveCount(1);
+  await expect(liste).toContainText("Telefon");
+  await kategorie.press("Escape");
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Der Hinweis „Vor dem Buchen“ bleibt bei Änderungen stehen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "hinweis.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Druckhaus Elbe GmbH") }]);
+  await expect(page.getByText("hinweis.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /hinweis\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const hinweis = page.locator(".doc-editor .banner").filter({ hasText: "Vor dem Buchen:" });
+  await expect(hinweis).toContainText("Lieferant fehlt");
+  await expect(hinweis).not.toContainText("Stand der letzten Speicherung");
+  // Eine Änderung nimmt den Hinweis nicht weg; er sagt, dass er den letzten gespeicherten Stand meint
+  await page.getByLabel("Rechnungsnummer").fill("DE-2026-17");
+  await expect(hinweis).toContainText("Lieferant fehlt");
+  await expect(hinweis).toContainText("Stand der letzten Speicherung.");
+  // Nach dem Speichern gilt er wieder für den Beleg, wie er jetzt ist
+  await page.getByLabel("Lieferant", { exact: true }).fill("Druckhaus Elbe GmbH");
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(hinweis).not.toContainText("Lieferant fehlt");
+  await expect(hinweis).not.toContainText("Stand der letzten Speicherung");
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Ein Leistungsende vor dem Beginn klappt „Weitere Angaben“ auf und setzt den Fokus aufs Feld (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "zeitraum-fehler.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Schreibwaren Rosengasse e. K.") }]);
+  await expect(page.getByText("zeitraum-fehler.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /zeitraum-fehler\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  // Der Leistungszeitraum endet vor seinem Beginn, der Bereich ist zugeklappt: Speichern klappt ihn auf, wo der Fehler steht
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Leistung von").fill(day(-5));
+  await page.getByLabel("Leistung bis").fill(day(-20));
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByLabel("Rechnungsnummer").fill("RG-4711");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel("Leistung bis")).toBeFocused();
+  await expect(page.getByLabel("Leistung bis")).toHaveAccessibleDescription(/Ende der Leistung liegt vor dem Beginn/);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Erwerb mit einer zu kurzen USt-IdNr. aus der EU legt das Feld offen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "erwerb-kurz.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Lyon SARL") }]);
+  await expect(page.getByText("erwerb-kurz.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /erwerb-kurz\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  // „FR1234“ hat zu wenig Zeichen nach dem Länderkennzeichen (5 bis 12, packages/core/src/zm.ts): der Server lehnt sie ab
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toBeVisible();
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+test("Beleg prüfen: Ein Fehler des Servers zu einem Feld in „Weitere Angaben“ klappt den Bereich auf (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "erwerb-server.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Bordeaux SARL") }]);
+  await expect(page.getByText("erwerb-server.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /erwerb-server\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  const ustId = page.getByLabel(/^USt-IdNr\. des Lieferanten/);
+  // Gespeicherter Erwerb, dem nur eine gültige USt-IdNr. fehlt: „FR1234“ hat nach dem Länderkennzeichen zu wenig Zeichen
+  await page.getByLabel("Lieferant", { exact: true }).fill("Papeterie Bordeaux SARL");
+  await page.getByLabel("Belegdatum").fill(day(-5));
+  await waehleKategorie(page.getByLabel("Kategorie"), "buero");
+  await page.getByLabel("Netto", { exact: true }).fill("100,00");
+  await weitereAngabenOeffnen(page);
+  await ustId.fill("FR1234");
+  await page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ }).selectOption("ig_erwerb");
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Speichern", exact: true })).toBeDisabled();
+
+  // Der Hinweis „Vor dem Buchen“ nennt die USt-IdNr.: Das Feld liegt offen
+  await expect(page.locator(".doc-editor .banner").filter({ hasText: "Vor dem Buchen:" })).toContainText("FR1234");
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(ustId).toBeVisible();
+
+  // Zugeklappt lehnt der Server das Buchen ab: Seine Meldung klappt den Bereich wieder auf
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.locator(".doc-actions").getByText(/Noch nicht bereit: .*FR1234/)).toBeVisible();
+  await expect(bereich).toHaveJSProperty("open", true);
+  await expect(ustId).toBeVisible();
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
+});
+
+/**
+ * Im Browser: wartet, bis jedes schon angestoßene toggle-Ereignis eines `<details>` gemeldet ist. Der Browser reiht es als
+ * Aufgabe der Quelle „DOM manipulation“ ein (HTML-Standard, „queue a details toggle event task“); das einer Sonde, die erst
+ * danach aufklappt, kommt aus derselben Quelle und damit nach allen früheren
+ */
+async function toggleAbwarten(): Promise<void> {
+  const sonde = document.createElement("details");
+  document.body.append(sonde);
+  await new Promise((resolve) => {
+    sonde.addEventListener("toggle", resolve, { once: true });
+    sonde.open = true;
+  });
+  sonde.remove();
+}
+
+test("Beleg prüfen: Zuklappen und Wahl im selben Bild lassen „Weitere Angaben“ offen (#1253)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gleichzeitig.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Papeterie Nantes SARL") }]);
+  await expect(page.getByText("gleichzeitig.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gleichzeitig\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const bereich = page.locator("details.weitere-angaben");
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("FR1234");
+  // Das Ereignis des Aufklappens ist durch: der Zustand der Seite ist „offen“
+  await page.evaluate(toggleAbwarten);
+  // Der Browser meldet das Zuklappen erst mit einem späteren toggle-Ereignis: Wer im selben Bild den Erwerb wählt, braucht
+  // das Feld offen. Jedes toggle-Ereignis des Bereichs hält fest, ob er danach offen ist
+  await page.evaluate(() => {
+    const details = document.querySelector<HTMLDetailsElement>("details.weitere-angaben")!;
+    const offen: boolean[] = [];
+    (window as unknown as { toggleOffen: boolean[] }).toggleOffen = offen;
+    details.addEventListener("toggle", () => offen.push(details.open));
+    const frage = [...document.querySelectorAll("select")].find((el) => el.closest(".field")?.textContent?.startsWith("Wer schuldet"))!;
+    details.querySelector("summary")!.click();
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(frage, "ig_erwerb");
+    frage.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(toggleAbwarten);
+  // Kein Ereignis hat ihn zugeklappt, und er steht offen
+  expect(await page.evaluate(() => (window as unknown as { toggleOffen: boolean[] }).toggleOffen)).not.toContain(false);
+  await expect(bereich).toHaveJSProperty("open", true);
+  // Mit der Tastatur: Enter klappt zu, Leertaste auf
+  await bereich.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(bereich).toHaveJSProperty("open", false);
+  await page.keyboard.press("Space");
+  await expect(bereich).toHaveJSProperty("open", true);
+
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege. Gibt es noch einen offenen, geht es dort weiter
+  const belegUrl = page.url();
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await expect(page).not.toHaveURL(belegUrl);
 });
 
 test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {
@@ -3468,7 +4052,7 @@ test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffe
   await page.getByLabel("Lieferant", { exact: true }).fill("Etsy Ireland UC");
   await page.getByLabel("Rechnungsnummer").fill(`ETSY-${year}-10`);
   await page.getByLabel("Belegdatum").fill(`${year}-10-31`);
-  await page.getByLabel("Kategorie").selectOption("geldverkehr");
+  await waehleKategorie(page.getByLabel("Kategorie"), "geldverkehr");
   await page.getByRole("combobox", { name: /^Satz/ }).selectOption("0");
   // Gebühren minus Gutschriften unten: 7,44 + 9,89 + 8,19 + 93,77 − 1,50 − 1,22
   await page.getByLabel("Netto", { exact: true }).fill("116,57");

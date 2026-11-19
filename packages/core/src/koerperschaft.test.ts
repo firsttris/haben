@@ -274,6 +274,21 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     expect(brutto(rechte, "rechte"), rechte).toBe(100_000);
   });
 
+  /*
+   * Zinsen und Miete an Gesellschafter tragen im DATEV-Kontenrahmen 2026 nur das Kennzeichen K, nicht G (#1346). § 8 Nr. 1
+   * a, d und e GewStG fragt nicht, wer Gläubiger oder Vermieter ist; die Ausnahme für Mitunternehmer gibt es bei der GmbH nicht.
+   */
+  it.each([
+    ["SKR03", ["2114", "2117"], "4222", "4958"],
+    ["SKR04", ["7316", "7317"], "6313", "6833"],
+  ] as const)("%s: Zinsen und Miete an Gesellschafter zählen zur Hinzurechnung (Kennzeichen K)", (kontenrahmen, zinsen, unbeweglich, beweglich) => {
+    const gruppe = (account: string) =>
+      kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag).gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag]);
+    for (const account of zinsen) expect(gruppe(account), account).toEqual([["zinsen", 100_000, 100_000]]);
+    expect(gruppe(unbeweglich), unbeweglich).toEqual([["unbeweglich", 100_000, 50_000]]);
+    expect(gruppe(beweglich), beweglich).toEqual([["beweglich", 100_000, 20_000]]);
+  });
+
   it("Jede Gruppe der Hinzurechnung hat in SKR03 und SKR04 gleich viele Konten", () => {
     const anzahl = (kontenrahmen: "SKR03" | "SKR04") =>
       Object.fromEntries(Object.entries(GEWST_HINZURECHNUNG_KONTEN[kontenrahmen]).map(([art, konten]) => [art, konten.length]));

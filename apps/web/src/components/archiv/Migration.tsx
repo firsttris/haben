@@ -1,32 +1,13 @@
-import { currentYear, MONTHS, formatEuro } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
-import { FilePicker } from "../FilePicker.tsx";
-import {
-  cancelAccountableImport,
-  cancelLexofficeImport,
-  cancelSevdeskImport,
-  getAccountableStatus,
-  getImportStatus,
-  removeLexofficeKey,
-  removeSevdeskToken,
-  saveLexofficeKey,
-  saveSevdeskToken,
-  startAccountableImport,
-  startLexofficeImport,
-  startSevdeskImport,
-  uploadAccountableExport,
-  type getMigration,
-} from "../../server/functions/archive.ts";
-import { cancelFastbillImport, removeFastbillLogin, saveFastbillLogin, startFastbillImport } from "../../server/functions/fastbill.ts";
+import { saveFastbillLogin } from "../../server/functions/fastbill.ts";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { Icon } from "../Icon.tsx";
-import { ScrollBox } from "../ScrollTable.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
@@ -35,116 +16,75 @@ import { SevdeskAssets } from "./SevdeskAssets.tsx";
 import { WisoImport } from "./WisoImport.tsx";
 import { SevdeskExportImport } from "./SevdeskExportImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
-import { SevdeskFileFacts } from "./Dateistand.tsx";
-import { FastbillArticles, FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
+import { FastbillArticles, FastbillLoginFields } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
-import { Status } from "../Status.tsx";
 
-type MigrationData = Awaited<ReturnType<typeof getMigration>>;
-type ImportRow = NonNullable<MigrationData["lastImport"]>;
-/** Quellen mit API-Verbindung: Schlüssel speichern, entfernen, Abruf starten */
-type ConnectedSource = "lexoffice" | "sevdesk" | "fastbill";
-type FastbillPlan = MigrationData["fastbillPlans"][number];
-/** Alle Quellen; Accountable, BuchhaltungsButler und WISO kennen keine API, dort gibt es nur den Datei-Upload */
-type Source = ConnectedSource | "accountable" | "buchhaltungsbutler" | "wiso";
+import { ALL_SOURCES, type ConnectedSource, type FastbillPlan, type MigrationData, SOURCES, type Source } from "./migration-quellen.ts";
+import { ImportCard } from "./MigrationImportCard.tsx";
+import { YearCheck } from "./MigrationJahre.tsx";
 
-/** Was sich je Quelle unterscheidet: Name, Schlüssel und die Server-Funktionen für Verbindung und Abruf */
-const SOURCES = {
-  lexoffice: {
-    product: "Lexware Office",
-    keyLabel: "API-Schlüssel",
-    keyHelp:
-      "Die Public API gibt es im Tarif XL. Den Schlüssel erzeugst du in Lexware Office unter Erweiterungen → Public API (app.lexware.de/addons/public-api). Haben liest nur, es ändert nichts in Lexware Office.",
-    removeLabel: "Schlüssel entfernen",
-    importHelp:
-      "Holt alle Kontakte, Ausgangsrechnungen, Gutschriften und Belege mit ihren Original-PDFs. Die API erlaubt etwa zwei Anfragen pro Sekunde; bei einigen hundert Belegen dauert das eine Weile, du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt alles, was schon da ist.",
-    exportsHelp:
-      "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) und den IDEA-Export aus Lexware Office hoch, dazu die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
-    save: saveLexofficeKey,
-    remove: removeLexofficeKey,
-    cancel: cancelLexofficeImport,
-  },
-  sevdesk: {
-    product: "sevDesk",
-    keyLabel: "API-Token",
-    keyHelp: "Den API-Token findest du in sevDesk unter Einstellungen → Benutzer, beim jeweiligen Benutzer. Haben liest nur, es ändert nichts in sevDesk.",
-    removeLabel: "Token entfernen",
-    importHelp:
-      "Holt alle Kontakte, Rechnungen, Gutschriften und Belege mit ihren PDFs bzw. Belegdateien. Angebote, Auftragsbestätigungen und Lieferscheine werden zusätzlich als Archivkopien übernommen. Auftrags-PDFs werden nur bei frisch bestätigter Buchhaltungsversion 1.0 automatisch abgerufen; bei Version 2.0 oder unbekannter Version können sie manuell ergänzt werden. Du kannst die Seite währenddessen verlassen.",
-    exportsHelp:
-      "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) aus sevDesk hoch, dazu den Datenexport für die Betriebsprüfung (GoBD, als „IDEA-Export“ ablegen), die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
-    save: saveSevdeskToken,
-    remove: removeSevdeskToken,
-    cancel: cancelSevdeskImport,
-  },
-  fastbill: {
-    product: "FastBill",
-    keyLabel: "API-Schlüssel",
-    keyHelp:
-      "Den API-Schlüssel findest du in FastBill in den Einstellungen deines Kontos. Dazu die E-Mail, mit der du dich bei FastBill anmeldest, und dein Tarif: Er bestimmt, wie viele Anfragen FastBill je Stunde erlaubt. Haben liest nur, es ändert nichts in FastBill.",
-    removeLabel: "Zugang entfernen",
-    importHelp:
-      "Holt alle Kunden, Ausgangsrechnungen, Gutschriften, Stornos und Ausgaben mit ihren PDFs. FastBill erlaubt je nach Tarif nur 50 bis 1000 Anfragen pro Stunde; an der Grenze wartet der Abruf und macht danach weiter, bei vielen Belegen dauert das Stunden. Du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt alles, was schon da ist.",
-    exportsHelp:
-      "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) aus FastBill hoch, dazu die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
-    save: saveFastbillLogin,
-    remove: removeFastbillLogin,
-    cancel: cancelFastbillImport,
-  },
-  accountable: {
-    product: "Accountable",
-    keyLabel: "API-Zugang",
-    keyHelp: "Accountable bietet keinen API-Zugang an. Kennst du eine Schnittstelle, melde sie bitte als Fehler im Projekt.",
-    removeLabel: "Zugang entfernen",
-    importHelp:
-      "Accountable bietet keinen API-Zugang, deshalb liest Haben den Export. Lade je Geschäftsjahr den DATEV-Export hoch: in Accountable unter Datenexport „DATEV“ wählen, Kontenrahmen wie hier eingestellt (meist SKR03), „Originaldokumente beifügen“ einschalten, ganzes Geschäftsjahr. Er enthält den DATEV-Buchungsstapel, die Belege und die Verknüpfung von Buchung zu Belegdatei. Den IDEA-Export und die Steuererklärungen liefert Accountable nicht mit; lade sie in Schritt 4 getrennt hoch.",
-    exportsHelp:
-      "Die Exportdatei von Accountable bringt Buchungen und Belege schon mit. Zusätzlich brauchst du den IDEA-Export (Betriebsprüfung, GoBD) und je Geschäftsjahr die Steuererklärungen (Einkommensteuer- bzw. Körperschaftsteuer- und Gewerbesteuerbescheid, Umsatzsteuer-Jahresbescheid) sowie die übermittelten Voranmeldungen und die Kontoauszüge der Bank als PDF.",
-    save: null,
-    remove: null,
-    cancel: null,
-  },
-} as const;
+/** Die zuletzt genutzte Quelle, sonst Lexware Office */
+function startSource(data: MigrationData): Source {
+  if (data.connection || data.lastImport) return "lexoffice";
+  if (data.sevdeskConnection || data.sevdeskImport || data.sevdeskExportImport) return "sevdesk";
+  if (data.fastbillConnection || data.fastbillImport) return "fastbill";
+  if (data.accountableImport) return "accountable";
+  if (data.bbImport) return "buchhaltungsbutler";
+  if (data.wisoImport) return "wiso";
+  return "lexoffice";
+}
 
-const BB_CONFIG = {
-  product: "BuchhaltungsButler",
-  importHelp: "Liest Buchungen, Belege und PDFs aus den Exportdateien von BuchhaltungsButler ein.",
-  exportsHelp:
-    "Der BB-Import legt die Originalexporte bereits an. Ergänze je Geschäftsjahr noch den Datenexport für die Betriebsprüfung, ELSTER-Protokolle und Kontoauszüge.",
-} as const;
-const WISO_CONFIG = {
-  product: "WISO",
-  importHelp: "Liest den CSV-Export der Buchungen aus WISO Steuer (Modul EÜR) oder WISO EÜR & Kasse ins Archiv ein.",
-  exportsHelp: "Der WISO-Import legt die Original-CSV bereits ab. Ergänze je Geschäftsjahr noch GoBD-Export, ELSTER-Protokolle und Kontoauszüge.",
-} as const;
-const ALL_SOURCES = { ...SOURCES, buchhaltungsbutler: BB_CONFIG, wiso: WISO_CONFIG } as const;
+function lastImportOf(data: MigrationData, source: Source) {
+  const imports = {
+    buchhaltungsbutler: data.bbImport,
+    wiso: data.wisoImport,
+    sevdesk: data.sevdeskImport,
+    fastbill: data.fastbillImport,
+    accountable: data.accountableImport,
+    lexoffice: data.lastImport,
+  } satisfies Record<Source, unknown>;
+  return imports[source];
+}
+
+/** Verbindung zur API der gewählten Quelle */
+function SourceConnection({ data, source }: { data: MigrationData; source: ConnectedSource }) {
+  return (
+    <>
+      {source === "sevdesk" ? (
+        <Connection key="sevdesk" source="sevdesk" connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null} />
+      ) : source === "fastbill" ? (
+        <Connection
+          key="fastbill"
+          source="fastbill"
+          plans={data.fastbillPlans}
+          connected={
+            data.fastbillConnection
+              ? {
+                  name: data.fastbillConnection.email,
+                  since: data.fastbillConnection.createdAt,
+                  detail: `Tarif ${data.fastbillPlans.find((p) => p.callsPerHour === data.fastbillConnection?.callsPerHour)?.label ?? ""}, ${data.fastbillConnection.callsPerHour} Anfragen pro Stunde.`,
+                }
+              : null
+          }
+        />
+      ) : (
+        <Connection
+          key="lexoffice"
+          source="lexoffice"
+          connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
+        />
+      )}
+    </>
+  );
+}
 
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
-  const [source, setSource] = useState<Source>(() => {
-    if (data.connection || data.lastImport) return "lexoffice";
-    if (data.sevdeskConnection || data.sevdeskImport || data.sevdeskExportImport) return "sevdesk";
-    if (data.fastbillConnection || data.fastbillImport) return "fastbill";
-    if (data.accountableImport) return "accountable";
-    if (data.bbImport) return "buchhaltungsbutler";
-    if (data.wisoImport) return "wiso";
-    return "lexoffice";
-  });
+  const [source, setSource] = useState<Source>(() => startSource(data));
   const config = ALL_SOURCES[source];
   // Das Anlagenverzeichnis liefert nur die API von sevDesk
   const assets = source === "sevdesk" && Boolean(data.sevdeskConnection);
-  const lastImport =
-    source === "buchhaltungsbutler"
-      ? data.bbImport
-      : source === "wiso"
-        ? data.wisoImport
-        : source === "sevdesk"
-          ? data.sevdeskImport
-          : source === "fastbill"
-            ? data.fastbillImport
-            : source === "accountable"
-              ? data.accountableImport
-              : data.lastImport;
+  const lastImport = lastImportOf(data, source);
   return (
     <div className="stack">
       {data.externalImports.length > 0 && (
@@ -180,34 +120,7 @@ export function Migration({ data }: { data: MigrationData }) {
         <ImportCard key={`accountable-${lastImport?.id ?? "neu"}`} source="accountable" connected initial={lastImport} />
       ) : (
         <>
-          {source === "sevdesk" ? (
-            <Connection
-              key="sevdesk"
-              source="sevdesk"
-              connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null}
-            />
-          ) : source === "fastbill" ? (
-            <Connection
-              key="fastbill"
-              source="fastbill"
-              plans={data.fastbillPlans}
-              connected={
-                data.fastbillConnection
-                  ? {
-                      name: data.fastbillConnection.email,
-                      since: data.fastbillConnection.createdAt,
-                      detail: `Tarif ${data.fastbillPlans.find((p) => p.callsPerHour === data.fastbillConnection?.callsPerHour)?.label ?? ""}, ${data.fastbillConnection.callsPerHour} Anfragen pro Stunde.`,
-                    }
-                  : null
-              }
-            />
-          ) : (
-            <Connection
-              key="lexoffice"
-              source="lexoffice"
-              connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
-            />
-          )}
+          <SourceConnection data={data} source={source} />
           {source === "lexoffice" && !data.connection && <WebBackup />}
           <ImportCard
             key={`${source}-${lastImport?.id ?? "neu"}`}
@@ -395,422 +308,6 @@ function Connection({
             </button>
           </div>
         </form>
-      )}
-    </section>
-  );
-}
-
-const PHASES = { kontakte: "Kontakte", liste: "Belegliste", belege: "Belege und Dateien", fertig: "Fertig" } as const;
-
-function ImportCard({ source, connected, initial }: { source: ConnectedSource | "accountable"; connected: boolean; initial: ImportRow | null }) {
-  const router = useRouter();
-  const config = SOURCES[source];
-  const startLexoffice = useServerFn(startLexofficeImport);
-  const startSevdesk = useServerFn(startSevdeskImport);
-  const startFastbill = useServerFn(startFastbillImport);
-  const uploadAccountable = useServerFn(uploadAccountableExport);
-  const startAccountable = useServerFn(startAccountableImport);
-  const cancelAccountable = useServerFn(cancelAccountableImport);
-  const pollStatus = useServerFn(getImportStatus);
-  const pollAccountable = useServerFn(getAccountableStatus);
-  const [run, setRun] = useState<ImportRow | null>(initial);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const action = useAction();
-  const running = run?.status === "laeuft";
-  // Die Frage gehört zu genau diesem Lauf: Endet er, darf sie beim nächsten nicht von selbst wiederkommen
-  const [cancellingRun, setCancellingRun] = useState<string | null>(null);
-
-  /** Der laufende Abruf je Quelle; Accountable hat eine eigene Statusabfrage (jeder Upload ist ein eigener Lauf) */
-  const poll = (id = run?.id) => (source === "accountable" ? pollAccountable({ data: id ? { id } : {} }) : pollStatus({ data: { source } }));
-
-  useEffect(() => {
-    if (!running) return;
-    let stopped = false;
-    const timer = setInterval(async () => {
-      const next = await (source === "accountable" ? pollAccountable({ data: { id: run?.id } }) : pollStatus({ data: { source } })).catch(() => null);
-      if (stopped || !next) return;
-      setRun(next);
-      if (next.status !== "laeuft") void router.invalidate();
-    }, 2000);
-    return () => {
-      stopped = true;
-      clearInterval(timer);
-    };
-  }, [running, pollAccountable, pollStatus, router, source, run?.id]);
-
-  const onStart = () =>
-    action.run(async () => {
-      const started =
-        source === "sevdesk"
-          ? await startSevdesk()
-          : source === "fastbill"
-            ? await startFastbill()
-            : source === "accountable"
-              ? await startAccountable()
-              : await startLexoffice();
-      setRun(await poll(started.id));
-    });
-
-  /** Accountable hat keine API: Der Export wird hier hochgeladen, danach läuft der Abruf wie bei den anderen */
-  const onUpload = (event: FormEvent) => {
-    event.preventDefault();
-    const chosen = [...(fileInput.current?.files ?? [])].sort((a, b) => a.name.localeCompare(b.name));
-    if (chosen.length === 0) return;
-    void action.run(async () => {
-      for (const [index, file] of chosen.entries()) {
-        if (chosen.length > 1) action.setNotice({ tone: "info", text: `Datei ${index + 1} von ${chosen.length}: ${file.name}` });
-        const form = new FormData();
-        form.append("files", file);
-        await uploadAccountable({ data: form });
-        const { id } = await startAccountable();
-        const next = await poll(id);
-        setRun(next);
-        if (next && next.status !== "laeuft") await router.invalidate();
-      }
-      if (fileInput.current) fileInput.current.value = "";
-    });
-  };
-
-  const progress = run?.progress;
-  const done = run?.status === "fertig" && (progress?.failed.length ?? 0) === 0;
-  const accountable = source === "accountable";
-  return (
-    <section className={`card stack${done ? " step-done" : ""}`} aria-labelledby="import-heading">
-      <div className="step-head">
-        <span className="step-num">{done ? <Icon name="check" /> : "2"}</span>
-        <h2 id="import-heading" style={{ margin: 0 }}>
-          {accountable ? "Accountable-Export übernehmen" : "Kontakte, Rechnungen und Belege abrufen"}
-        </h2>
-      </div>
-      <p className="small muted" style={{ margin: 0 }}>
-        {config.importHelp}
-      </p>
-      {accountable && !running && (
-        <form className="stack" onSubmit={onUpload} style={{ gap: 12 }}>
-          <Field label="Exportdatei (ZIP)">{(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" />}</Field>
-          <div className="actions">
-            <button type="submit" className="btn btn-primary" disabled={action.busy}>
-              {action.busy ? "Übernehme …" : "Hochladen und übernehmen"}
-            </button>
-          </div>
-        </form>
-      )}
-      {progress && run && (
-        <div className="stack" style={{ gap: 12 }} aria-live="polite">
-          <div className="small">
-            {run.status === "laeuft" ? `Läuft: ${PHASES[progress.phase]}` : null}
-            {run.status === "fertig" ? `Fertig am ${formatDateTime(run.finishedAt ?? run.updatedAt)}` : null}
-            {run.status === "fehler" ? "Abgebrochen mit Fehler" : null}
-            {run.status === "abgebrochen" ? "Abgebrochen" : null}
-          </div>
-          <div className="progress-facts">
-            {!accountable && (
-              <>
-                <div>
-                  <span className="small muted">Kontakte neu</span>
-                  <strong>{progress.contacts}</strong>
-                </div>
-                <div>
-                  <span className="small muted">verknüpft</span>
-                  <strong>{progress.contactsLinked}</strong>
-                </div>
-              </>
-            )}
-            <div>
-              <span className="small muted">{source === "sevdesk" ? "Dokumente gefunden" : "Belege gefunden"}</span>
-              <strong>{progress.listed}</strong>
-            </div>
-            <div>
-              <span className="small muted">übernommen</span>
-              <strong>
-                {progress.imported + progress.skipped}
-                {progress.listed ? ` / ${progress.listed}` : ""}
-              </strong>
-            </div>
-            <div>
-              <span className="small muted">Dateien</span>
-              <strong>{progress.files}</strong>
-            </div>
-            {source === "sevdesk" && progress.sevdeskFiles && <SevdeskFileFacts files={progress.sevdeskFiles} />}
-            {(progress.recurring ?? 0) > 0 && (
-              <div>
-                <span className="small muted">Dauerbelege angehalten</span>
-                <strong>{progress.recurring}</strong>
-              </div>
-            )}
-          </div>
-          {running && <ImportWaitNotice waitingUntil={progress.waitingUntil} fastbill={source === "fastbill"} updatedAt={run.updatedAt} />}
-          {source === "sevdesk" && (
-            <div className="banner">
-              <p style={{ margin: 0 }}>
-                <strong>Kontaktrollen prüfen:</strong> Neue Partner, Interessenten und Kontakte ohne eindeutige sevDesk-Kategorie werden zunächst als Kunden
-                angelegt. Bestehende Kontakte erhalten nur zusätzliche eindeutige Rollen; ein früher fälschlich als Kunde importierter Lieferant bleibt deshalb
-                auch Kunde. Entferne diese Rolle bei Bedarf unter Kontakte. Vorhandene Nummern bleiben unverändert.
-              </p>
-            </div>
-          )}
-          {source === "sevdesk" && progress.sevdeskRecurring && progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known > 0 && (
-            <p className="small" style={{ margin: 0 }}>
-              {progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known} Vorlagen für{" "}
-              <Link to="/rechnungen/wiederkehrend">wiederkehrende Rechnungen</Link> pausiert übernommen; prüfe und aktiviere sie dort.
-              {progress.sevdeskRecurring.placeholders.length > 0 && (
-                <>
-                  {" "}
-                  Platzhalter von sevDesk stehen als Text darin: <span className="mono">{progress.sevdeskRecurring.placeholders.join(" ")}</span>
-                </>
-              )}
-            </p>
-          )}
-          {source === "sevdesk" && (progress.vatReports ?? 0) > 0 && (
-            <p className="small" style={{ margin: 0 }}>
-              {progress.vatReports} übermittelte Voranmeldungen archiviert, zu finden unter{" "}
-              <Link to="/archiv" search={{ ansicht: "voranmeldungen" }}>
-                Voranmeldungen
-              </Link>
-              .
-            </p>
-          )}
-          {run.error && (
-            <div className="banner banner-danger" role="alert">
-              {run.error}
-            </div>
-          )}
-          {progress.failed.length > 0 && (
-            <details>
-              <summary className="small">{progress.failed.length} offene Punkte beim Abruf</summary>
-              <ul className="small" style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-                {progress.failed.slice(0, 50).map((f) => (
-                  <li key={f.lexofficeId}>
-                    {f.number || f.lexofficeId}: {f.message}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </div>
-      )}
-      <NoticeBanner notice={action.notice} />
-      <ConfirmDialog
-        open={running && cancellingRun === run?.id}
-        title="Abruf abbrechen?"
-        confirmLabel="Abruf abbrechen"
-        danger
-        onConfirm={() => run && void action.run(() => (source === "accountable" ? cancelAccountable : SOURCES[source].cancel)({ data: { id: run.id } }))}
-        onClose={() => setCancellingRun(null)}
-      >
-        <p>
-          {accountable
-            ? "Du kannst den Export jederzeit neu hochladen. Schon Übernommenes bleibt und wird übersprungen."
-            : "Du kannst den Abruf jederzeit neu starten. Schon Übernommenes bleibt und wird übersprungen; Kontakte und Belegliste liest Haben dabei noch einmal."}
-        </p>
-      </ConfirmDialog>
-      {running ? (
-        <div className="actions">
-          <button type="button" className="btn" disabled={action.busy} onClick={() => setCancellingRun(run?.id ?? null)}>
-            Abbrechen
-          </button>
-        </div>
-      ) : (
-        !accountable && (
-          <div className="actions">
-            <button type="button" className="btn btn-primary" onClick={onStart} disabled={!connected || action.busy}>
-              {run ? "Erneut abrufen" : "Alles abrufen"}
-            </button>
-          </div>
-        )
-      )}
-    </section>
-  );
-}
-
-type VatMonth = MigrationData["years"][number]["vat"][number];
-
-const SPECIAL_COLUMNS = [
-  { key: "kz21", label: "Kz 21", title: "Sonstige Leistungen ins EU-Ausland (Reverse Charge)" },
-  { key: "kz41", label: "Kz 41", title: "Innergemeinschaftliche Lieferungen" },
-  { key: "kz43", label: "Kz 43", title: "Steuerfreie Ausfuhrlieferungen" },
-  { key: "kz45", label: "Kz 45", title: "Nicht steuerbare Leistungen ins Drittland" },
-  { key: "kz60", label: "Kz 60", title: "Umsätze, für die der Empfänger die Steuer nach § 13b UStG schuldet" },
-  { key: "kz87", label: "Kz 87", title: "Umsätze zu 0 % nach § 12 Abs. 3 UStG (Photovoltaik)" },
-  { key: "steuerfrei", label: "Steuerfrei", title: "In der bisherigen Buchhaltung als steuerfrei markiert: Kz 48 oder Kleinunternehmer" },
-  { key: "oss", label: "OSS", title: "Fernverkäufe und elektronische Dienstleistungen über das OSS-Verfahren" },
-  { key: "kz46", label: "Kz 46", title: "Bezogene sonstige Leistungen nach § 13b Abs. 1 UStG (Bemessungsgrundlage)" },
-  { key: "kz47", label: "Kz 47", title: "Steuer zu Kz 46" },
-  { key: "kz84", label: "Kz 84", title: "Andere bezogene Leistungen nach § 13b UStG (Bemessungsgrundlage)" },
-  { key: "kz85", label: "Kz 85", title: "Steuer zu Kz 84" },
-  { key: "kz67", label: "Kz 67", title: "Vorsteuer aus Leistungen nach § 13b UStG" },
-  { key: "kz89", label: "Kz 89", title: "Innergemeinschaftliche Erwerbe zu 19 % (Bemessungsgrundlage)" },
-  { key: "kz93", label: "Kz 93", title: "Innergemeinschaftliche Erwerbe zu 7 % (Bemessungsgrundlage)" },
-  { key: "kz61", label: "Kz 61", title: "Vorsteuer aus innergemeinschaftlichem Erwerb" },
-  {
-    key: "otherPurchases",
-    label: "Andere Bezüge",
-    title: "Ausgaben mit eigener Steuerart aus sevDesk, deren Kennzahlen Haben nicht kennt oder nicht abgerufen hat",
-  },
-] as const;
-
-/** Spalten für Sonderfälle nur, wenn im Jahr etwas drinsteht */
-function specialColumns(months: VatMonth[]) {
-  return SPECIAL_COLUMNS.filter((c) => months.some((m) => m[c.key] !== 0));
-}
-
-/**
- * Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, bei GmbH und UG
- * Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen. Sichtbar, damit der Vergleich mit der alten Buchhaltung
- * aufgeht und nichts still fehlt.
- */
-function NeutralSums({ year, rows }: { year: number; rows: MigrationData["years"][number]["neutral"] }) {
-  return (
-    <ScrollBox label={`Weder Einnahme noch Ausgabe ${year}`}>
-      <table className="data-table" aria-label={`Weder Einnahme noch Ausgabe ${year}`}>
-        <caption className="small muted" style={{ textAlign: "left", captionSide: "top", paddingBottom: 4 }}>
-          Weder Einnahme noch Ausgabe, deshalb nicht in den Summen oben und nicht in der Umsatzsteuer
-        </caption>
-        <thead>
-          <tr>
-            <th>Art</th>
-            <th className="num">Anzahl</th>
-            <th className="num">Zufluss</th>
-            <th className="num">Abfluss</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.kind}>
-              <td>{row.label}</td>
-              <td className="num">{row.count}</td>
-              <td className="num">{formatEuro(row.zufluss)}</td>
-              <td className="num">{formatEuro(row.abfluss)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </ScrollBox>
-  );
-}
-
-function YearCheck({ year, versteuerung, product }: { year: MigrationData["years"][number]; versteuerung: "ist" | "soll"; product: string }) {
-  return (
-    <section className="card stack" aria-labelledby={`year-${year.year}`}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <h3 id={`year-${year.year}`} style={{ margin: 0 }}>
-          Geschäftsjahr {year.year}
-        </h3>
-        {year.ready ? (
-          <Status tone="ok" inline>
-            Vollständig
-          </Status>
-        ) : (
-          <Status tone="warn" emphasis="notice" inline>
-            Unvollständig
-          </Status>
-        )}
-      </div>
-      <div className="grid-main">
-        <ul className="checks">
-          {year.checks.map((check) => (
-            <li key={check.label}>
-              <span className={check.ok ? "ok" : "open"} aria-hidden="true">
-                <Icon name={check.ok ? "check" : "alert"} />
-              </span>
-              <span>
-                {check.label}
-                <span className="visually-hidden">{check.ok ? " – erfüllt" : " – offen"}</span>
-              </span>
-              <span className="small muted">{check.detail}</span>
-            </li>
-          ))}
-        </ul>
-        <dl className="facts">
-          <dt>Einnahmen netto</dt>
-          <dd className="amount">{formatEuro(year.einnahmen.net)}</dd>
-          <dt>Umsatzsteuer</dt>
-          <dd className="amount">{formatEuro(year.einnahmen.tax)}</dd>
-          <dt>Ausgaben netto</dt>
-          <dd className="amount">{formatEuro(year.ausgaben.net)}</dd>
-          <dt>Vorsteuer</dt>
-          <dd className="amount">{formatEuro(year.ausgaben.tax)}</dd>
-          <dt>Letzte Rechnungsnummer</dt>
-          <dd className="mono">{year.lastInvoiceNumber ?? "–"}</dd>
-        </dl>
-      </div>
-      <div className="small muted">
-        {year.sumsFrom === "datev"
-          ? `${product === BB_CONFIG.product || year.sevdeskExport ? "Die Belege liegen nur zum Nachschlagen im Archiv" : "Keine Belege per API"}: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
-          : year.sumsFrom === "gemischt"
-            ? `Summen nach Belegdatum, dazu der Teil aus BuchhaltungsButler aus dessen DATEV-Buchungsstapel (geschätzt nach Kontenklassen). Vergleiche sie mit den Auswertungen in ${product} und BuchhaltungsButler.`
-            : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
-        {year.bookings && year.bookings.unmatched > 0 && (
-          <Link to="/archiv" activeProps={{}} search={{ ansicht: "buchungen", jahr: year.year, ohneBeleg: true }}>
-            Buchungen ohne passenden Beleg ansehen
-          </Link>
-        )}{" "}
-        {(year.withoutFile > 0 || year.files.anhangFehlt > 0) && (
-          <Link to="/archiv" activeProps={{}} search={{ ansicht: "belege", jahr: year.year, ohneDatei: true }}>
-            Belege mit fehlender Datei ansehen
-          </Link>
-        )}
-      </div>
-      {year.neutral.length > 0 && <NeutralSums year={year.year} rows={year.neutral} />}
-      {year.vatIssue && (
-        <p className="banner banner-info" role="status">
-          {year.vatIssue}
-        </p>
-      )}
-      {year.vat.length > 0 && (
-        <details>
-          <summary>Umsatzsteuer je Monat zum Vergleich mit den übermittelten Voranmeldungen</summary>
-          <div className="table-scroll">
-            <table className="data-table" style={{ marginTop: 8 }}>
-              <thead>
-                <tr>
-                  <th>Monat</th>
-                  <th className="num">Kz 81</th>
-                  <th className="num">Kz 86</th>
-                  <th className="num">Kz 66</th>
-                  {specialColumns(year.vat).map((c) => (
-                    <th key={c.key} className="num" title={c.title}>
-                      {c.label}
-                    </th>
-                  ))}
-                  <th className="num">Andere Sätze</th>
-                </tr>
-              </thead>
-              <tbody>
-                {year.vat.map((m) => (
-                  <tr key={m.month}>
-                    <td>{MONTHS[Number(m.month.slice(5)) - 1]}</td>
-                    <td className="num">{formatEuro(m.kz81)}</td>
-                    <td className="num">{formatEuro(m.kz86)}</td>
-                    <td className="num">{formatEuro(m.kz66)}</td>
-                    {specialColumns(year.vat).map((c) => (
-                      <td key={c.key} className="num">
-                        {formatEuro(m[c.key])}
-                      </td>
-                    ))}
-                    <td className="num">{formatEuro(m.otherBase)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="small muted">
-            Aus den übernommenen Belegen berechnet:{" "}
-            {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"}, Ausgaben
-            (Vorsteuer, § 13b, innergemeinschaftlicher Erwerb) nach Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48,
-            wenn die Umsätze nach § 4 Nr. 8–28 UStG steuerfrei sind, und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine
-            Abweichungen entstehen, wenn in {product} nachträglich korrigiert wurde.
-          </p>
-        </details>
-      )}
-      {year.year === currentYear() && year.lastInvoiceNumber && (
-        <p className="small" style={{ margin: 0 }}>
-          Deine Rechnungsnummern sollen lückenlos weiterlaufen: Stelle die nächste Nummer in den{" "}
-          <Link to="/einstellungen" search={{ bereich: "rechnungen" }}>
-            Einstellungen
-          </Link>{" "}
-          auf die Nummer nach {year.lastInvoiceNumber}.
-        </p>
       )}
     </section>
   );

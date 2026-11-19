@@ -52,15 +52,20 @@ interface Ziel {
   zahlung?: Pick<typeof schema.allocations.$inferSelect, "amount" | "taxShares" | "taxSharesInvoiceId">;
 }
 
-/** Herkunft einer Buchung in der EÜR: Pauschale, Anlage, Zahlung auf ein Darlehen für Anlagevermögen oder sonst */
-const herkunftVon = (b: Buchung, ziel: Ziel | undefined, anlageDarlehen: ReadonlySet<string>): EuerHerkunft =>
+/**
+ * Herkunft einer Buchung in der EÜR: Pauschale, Anlage (auch ein Beleg der Kategorie Anlage ohne offenen Posten, etwa privat
+ * bezahlt; sein GWG-Konto ist Anlagevermögen, #1397), Zahlung auf ein Darlehen für Anlagevermögen oder sonst
+ */
+const herkunftVon = (b: Buchung, ziel: Ziel | undefined, anlageDarlehen: ReadonlySet<string>, anlagen: ReadonlySet<string>): EuerHerkunft =>
   b.sourceType === "pauschale"
     ? "pauschale"
     : b.sourceType === "asset"
       ? "asset"
-      : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
-        ? "darlehenAnlagevermoegen"
-        : "sonst";
+      : b.sourceType === "document" && anlagen.has(b.sourceId)
+        ? "anlage"
+        : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
+          ? "darlehenAnlagevermoegen"
+          : "sonst";
 
 /** Rechnung bzw. Beleg, den eine Zahlung, Ausbuchung oder Bareinnahme ausgleicht, je Herkunft der Buchung */
 async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
@@ -233,7 +238,8 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   const verrechnungenVon = await verrechnungenJeRechnung(q, rechnungIds);
   const nebenbuchVon = await belegNebenbuecher(q, belegIds);
   const anlagen = new Set<string>();
-  const anlageKandidaten = umsatzBis ? [...new Set([...belegIds, ...jahr.filter((b) => b.sourceType === "document").map((b) => b.sourceId)])] : belegIds;
+  // Belege der Kategorie Anlage: ausgeglichene und direkt gebuchte (privat oder bar bezahlt)
+  const anlageKandidaten = [...new Set([...belegIds, ...jahr.filter((b) => b.sourceType === "document").map((b) => b.sourceId)])];
   for (const block of bloecke(anlageKandidaten))
     for (const r of await q
       .select({ id: schema.documents.id })
@@ -321,7 +327,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     const kr = b.kontenrahmen;
     const kleinunternehmer = kuMonate[Number(b.date.slice(5, 7)) - 1];
     const ziel = zielVon.get(b.sourceId);
-    const herkunft = herkunftVon(b, ziel, anlageDarlehen);
+    const herkunft = herkunftVon(b, ziel, anlageDarlehen, anlagen);
     const ausgeglichen = offen(b);
     const hatOffenenPosten = b.zeilen.some((z) => offenerPosten(kr, z));
     const importAnteil = importiert.get(b.id);
@@ -335,8 +341,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
     const eigene = zwischenkontoAlsVorsteuer(kr, b.zeilen);
-    if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId))
-      erfasseUmsatz(kr, eigene, b.sourceType === "document" && anlagen.has(b.sourceId) ? "anlage" : herkunft);
+    if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId)) erfasseUmsatz(kr, eigene, herkunft);
     const umkehr = b.sourceType === "allocation" && b.reversesId !== null;
     // Rücknahme in derselben EÜR-Zeile: Eine aufgehobene Zahlung ist keine echte Finanzamtserstattung und umgekehrt.
     // Amtliche Anleitung EÜR 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025

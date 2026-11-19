@@ -94,6 +94,79 @@ function newOwnDocument(row: Row, listed: string | null | undefined): string | n
   return row.ownIds.includes(listed) ? null : listed;
 }
 
+/** Archivbelege aus früheren Abrufen von sevDesk mit ihren Dateien und dem letzten Dateistand */
+function earlierSevdeskVouchers(importId: string) {
+  return db.execute<Row>(sql`
+  select v.id, v.lexoffice_id as "lexofficeId", jsonb_build_object('document', v.raw->'document', 'origin', v.raw->'origin') as raw,
+    exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'pdf') as pdf,
+    exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'xml') as xml,
+    (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files,
+    array(select f.lexoffice_file_id from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'anhang' and f.lexoffice_file_id is not null
+      union select n.source_file_id from legacy_file_states n where n.voucher_id = v.id and n.state = 'nachgeladen' and n.role = 'anhang'
+        and n.source_file_id is not null) as "ownIds",
+    s.state as latest, s.role as "latestRole", s.source_file_id as "latestSourceFileId"
+  from lexoffice_vouchers v
+  left join lateral (select state, role, source_file_id from legacy_file_states s where s.voucher_id = v.id order by s.created_at desc, s.id desc limit 1) s on true
+  where v.source = 'sevdesk' and v.import_id <> ${importId}
+  order by v.lexoffice_id`);
+}
+
+/**
+ * Beleg (voucher): eine Datei, die sevDesk erst jetzt nennt, nachladen, oder einen gescheiterten Abruf einer Datei, die
+ * sevDesk nicht mehr nennt, abschließen. true, wenn damit für den Beleg nichts mehr zu tun ist.
+ */
+async function voucherFileChanged(
+  actor: string,
+  importId: string,
+  client: SevdeskClient,
+  progress: LexofficeImportProgress,
+  signal: AbortSignal,
+  row: Row,
+  id: string,
+  listedDocuments: ReadonlyMap<string, string | null>,
+): Promise<boolean> {
+  const own = newOwnDocument(row, listedDocuments.get(id));
+  if (own) {
+    const added = await loadOwnDocument(actor, importId, client, signal, row, own);
+    if (added !== null) progress.sevdeskFiles!.nachgeladen += 1;
+    if (added) progress.files += 1;
+    return true;
+  }
+  // Der Abruf einer später genannten Datei scheiterte, und sevDesk nennt sie nicht mehr (entfernt oder zurück zur
+  // archivierten Datei): Mit Datei am Beleg fehlt nichts mehr, ohne gilt wieder der Stand der Archivkopie
+  const archived = sevFileExpectation("voucher", row.raw);
+  const failed = row.latest === "abruf_fehlgeschlagen" && row.latestRole === "anhang" ? row.latestSourceFileId : null;
+  if (
+    listedDocuments.has(id) &&
+    failed &&
+    failed !== (listedDocuments.get(id) ?? null) &&
+    failed !== (archived.kind === "verweis" ? archived.documentId : null)
+  ) {
+    if (Number(row.files) > 0) {
+      await withActor(actor, (tx) =>
+        recordFileState(
+          tx,
+          row.id,
+          {
+            state: "kein_anhang",
+            role: "anhang",
+            sourceFileId: failed,
+            message: `sevDesk nennt die Datei ${failed} nicht mehr; die übrigen Dateien des Belegs bleiben.`,
+          },
+          { actor, importId },
+        ),
+      );
+      return true;
+    }
+    if (archived.kind === "keine") {
+      const finding = sevFileFinding(archived, { main: false });
+      if (finding) await withActor(actor, (tx) => recordFileState(tx, row.id, finding, { actor, importId }));
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Früher übernommene Belege aus sevDesk: fehlende Dateien erneut abrufen, Abrufe vor #345 nachträglich einordnen. Läuft
  * nach den Dateien der Vorlagen, damit ein Beleg aus einer Vorlage mit deren Datei nicht als ohne Datei zählt.
@@ -109,64 +182,12 @@ export async function checkSevdeskFiles(
 ) {
   const counts = { ohneDatei: 0, abrufFehlgeschlagen: 0, anhangFehlt: 0, nachgeladen: 0 };
   progress.sevdeskFiles = counts;
-  const rows = await db.execute<Row>(sql`
-    select v.id, v.lexoffice_id as "lexofficeId", jsonb_build_object('document', v.raw->'document', 'origin', v.raw->'origin') as raw,
-      exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'pdf') as pdf,
-      exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'xml') as xml,
-      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files,
-      array(select f.lexoffice_file_id from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'anhang' and f.lexoffice_file_id is not null
-        union select n.source_file_id from legacy_file_states n where n.voucher_id = v.id and n.state = 'nachgeladen' and n.role = 'anhang'
-          and n.source_file_id is not null) as "ownIds",
-      s.state as latest, s.role as "latestRole", s.source_file_id as "latestSourceFileId"
-    from lexoffice_vouchers v
-    left join lateral (select state, role, source_file_id from legacy_file_states s where s.voucher_id = v.id order by s.created_at desc, s.id desc limit 1) s on true
-    where v.source = 'sevdesk' and v.import_id <> ${importId}
-    order by v.lexoffice_id`);
+  const rows = await earlierSevdeskVouchers(importId);
   for (const row of rows) {
     const kind = row.lexofficeId.split("/")[0] as Kind;
     if (!["invoice", "creditnote", "voucher"].includes(kind)) continue;
     const id = row.lexofficeId.slice(kind.length + 1);
-    if (kind === "voucher") {
-      const own = newOwnDocument(row, listedDocuments.get(id));
-      if (own) {
-        const added = await loadOwnDocument(actor, importId, client, signal, row, own);
-        if (added !== null) counts.nachgeladen += 1;
-        if (added) progress.files += 1;
-        continue;
-      }
-      // Der Abruf einer später genannten Datei scheiterte, und sevDesk nennt sie nicht mehr (entfernt oder zurück zur
-      // archivierten Datei): Mit Datei am Beleg fehlt nichts mehr, ohne gilt wieder der Stand der Archivkopie
-      const archived = sevFileExpectation(kind, row.raw);
-      const failed = row.latest === "abruf_fehlgeschlagen" && row.latestRole === "anhang" ? row.latestSourceFileId : null;
-      if (
-        listedDocuments.has(id) &&
-        failed &&
-        failed !== (listedDocuments.get(id) ?? null) &&
-        failed !== (archived.kind === "verweis" ? archived.documentId : null)
-      ) {
-        if (Number(row.files) > 0) {
-          await withActor(actor, (tx) =>
-            recordFileState(
-              tx,
-              row.id,
-              {
-                state: "kein_anhang",
-                role: "anhang",
-                sourceFileId: failed,
-                message: `sevDesk nennt die Datei ${failed} nicht mehr; die übrigen Dateien des Belegs bleiben.`,
-              },
-              { actor, importId },
-            ),
-          );
-          continue;
-        }
-        if (archived.kind === "keine") {
-          const finding = sevFileFinding(archived, { main: false });
-          if (finding) await withActor(actor, (tx) => recordFileState(tx, row.id, finding, { actor, importId }));
-          continue;
-        }
-      }
-    }
+    if (kind === "voucher" && (await voucherFileChanged(actor, importId, client, progress, signal, row, id, listedDocuments))) continue;
     if (row.latest === "bestaetigt_ohne_datei") continue;
     const expectation = sevFileExpectation(kind, row.raw);
     let attempt: { role: "pdf" | "xml" | "anhang"; fileId: string | null; load: () => Promise<SevFile | null> } | null = null;

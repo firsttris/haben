@@ -39,7 +39,8 @@ describe("Gestaltung der Belege", () => {
   it("prüft Eingaben und lässt Teiländerungen zu", () => {
     expect(letterheadDesignInputSchema.safeParse({ foldMarks: false }).success).toBe(true);
     expect(letterheadDesignInputSchema.safeParse({ accent: "rot" }).success).toBe(false);
-    expect(letterheadDesignInputSchema.safeParse({ logoPosition: "mitte" }).success).toBe(false);
+    expect(letterheadDesignInputSchema.safeParse({ logoPosition: "mitte" }).success).toBe(true);
+    expect(letterheadDesignInputSchema.safeParse({ logoPosition: "oben" }).success).toBe(false);
   });
 });
 

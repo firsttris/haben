@@ -7,6 +7,7 @@ export * from "./period.ts";
 export * from "./voranmeldungszeitraum.ts";
 export * from "./dauerfrist.ts";
 export * from "./zm.ts";
+export * from "./evatr.ts";
 export * from "./steuernummer.ts";
 export * from "./ustva.ts";
 export * from "./invoice.ts";
@@ -32,6 +33,7 @@ export * from "./ustva-posten.ts";
 export * from "./ust-vorauszahlung-euer.ts";
 export * from "./euer.ts";
 export * from "./journal-kennzahlen.ts";
+export * from "./alte-belegbuchung.ts";
 export * from "./ust-verprobung.ts";
 export * from "./journal-euer.ts";
 export * from "./kontenrahmen-wechsel.ts";
@@ -98,7 +100,14 @@ export * from "./bareinnahme.ts";
 export * from "./kleinunternehmer-stand.ts";
 export * from "./kleinunternehmer-umsatz.ts";
 export * from "./leistung.ts";
-export { advanceVatPlan, advanceVatDifference, advanceUsesPayments, type AdvanceVatEvent, type AdvanceVatChange } from "./anzahlung-steuer.ts";
+export {
+  advanceVatPlan,
+  advanceVatSchedule,
+  advanceVatDifference,
+  advanceUsesPayments,
+  type AdvanceVatEvent,
+  type AdvanceVatChange,
+} from "./anzahlung-steuer.ts";
 export * from "./anzahlung-bilanz.ts";
 export * from "./advance-receivables.ts";
 export * from "./offene-posten-vorjahre.ts";

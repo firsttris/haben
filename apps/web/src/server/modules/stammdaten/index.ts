@@ -130,6 +130,14 @@ export {
   type MandateOption,
 } from "./sepa-mandate.ts";
 export {
+  bestaetigeUstId,
+  listUstIdBestaetigungen,
+  ustIdBestaetigungen,
+  type UstIdBestaetigung,
+  type UstIdBestaetigungsErgebnis,
+  type UstIdBestaetigungsZustand,
+} from "./ustid-bestaetigung.ts";
+export {
   ansprechpartnerSnapshot,
   ContactPersonError,
   contactPersonInputSchema,
@@ -152,3 +160,12 @@ export {
   type TextBlock,
   type TextBlockInput,
 } from "./text-blocks.ts";
+export {
+  artikelUebernehmen,
+  einheitenUebernehmen,
+  einrichtungUebernehmen,
+  firmaErgaenzen,
+  kontakteUebernehmen,
+  textbausteineUebernehmen,
+} from "./uebernahme.ts";
+export { gestaltungUebernehmen } from "./uebernahme-gestaltung.ts";

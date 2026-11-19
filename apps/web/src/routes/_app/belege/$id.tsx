@@ -23,28 +23,37 @@ import {
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { type DuplikatZiel, useBelegDuplizieren } from "../../../components/BelegDuplizieren.tsx";
+import { BelegUmsatzsteuer } from "../../../components/BelegUmsatzsteuer.tsx";
 import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
 import { EigenesKontoWahl, passendesKonto } from "../../../components/EigenesKontoWahl.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { CategoryCombobox } from "../../../components/CategoryCombobox.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "../../../components/ContactCombobox.tsx";
 import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
-import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
+import { fehlerFelder, formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { aendereBetragszeile, betragszeileAus, betragszeileGespeichert, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
-import { PRIVATANTEIL_FEHLER, parsePrivatanteil } from "../../../lib/anteil.ts";
+import { PRIVATANTEIL_FEHLER, parsePrivatanteil, privatanteilVorgabe } from "../../../lib/anteil.ts";
 import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
+import { KATEGORIE_BEISPIEL } from "../../../components/KategorieGruppen.ts";
+import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
+import { WeitereAngaben, inWeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
+import { readContinuePreference, subscribeContinuePreference, writeContinuePreference } from "./-beleg-weiter.ts";
+import { type Detail, Preview } from "./-beleg-vorschau.tsx";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
 function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
@@ -54,8 +63,8 @@ function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boo
 }
 
 export const Route = createFileRoute("/_app/belege/$id")({
-  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
-  validateSearch: z.object({ geprueft: z.optional(z.boolean()) }),
+  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“; dupliziert und vorhanden: nach „Beleg duplizieren“ */
+  validateSearch: z.object({ geprueft: z.optional(z.boolean()), dupliziert: z.optional(z.string()), vorhanden: z.optional(z.boolean()) }),
   loader: ({ params }) => getDocumentDetail({ data: params.id }),
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.document.supplierName || "Beleg"} · Haben` }],
@@ -63,7 +72,6 @@ export const Route = createFileRoute("/_app/belege/$id")({
   component: DocumentPage,
 });
 
-type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 type Rate = BetragsSatz;
 
 interface AmountState extends Betragszeile {
@@ -72,46 +80,14 @@ interface AmountState extends Betragszeile {
 
 let nextKey = 1;
 
-/** USt-IdNr. aus einem anderen EU-Land (ohne DE); Griechenland hat EL */
-const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z]{2,12}$/;
-
-const CONTINUE_KEY = "haben-belege-weiter";
 /** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
 const BUCHEN_KUERZEL: readonly Taste[] = ["mod", "Enter"];
-
-/** Voreinstellung „nach dem Buchen weiter“: an, solange nichts anderes gemerkt ist; ohne Speicher (privates Fenster) einfach an */
-function readContinuePreference(): boolean {
-  if (continueFallback !== null) return continueFallback;
-  try {
-    return window.localStorage.getItem(CONTINUE_KEY) !== "nein";
-  } catch {
-    return true;
-  }
-}
-
-const continueListeners = new Set<() => void>();
-/** Ohne Speicher (privates Fenster) gilt die Wahl, bis die Seite neu geladen wird */
-let continueFallback: boolean | null = null;
-
-function subscribeContinuePreference(listener: () => void) {
-  continueListeners.add(listener);
-  return () => continueListeners.delete(listener);
-}
-
-function writeContinuePreference(value: boolean) {
-  try {
-    window.localStorage.setItem(CONTINUE_KEY, value ? "ja" : "nein");
-  } catch {
-    continueFallback = value;
-  }
-  for (const listener of continueListeners) listener();
-}
 
 function DocumentPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const navigate = useNavigate();
-  const { geprueft } = Route.useSearch();
+  const { geprueft, ...duplikat } = Route.useSearch();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const { document: doc, navigation } = data;
   const running = doc.extractionStatus === "laeuft";
@@ -127,10 +103,8 @@ function DocumentPage() {
     return () => clearInterval(timer);
   }, [running, router]);
 
-  function leaveTo(id: string) {
-    if (id === "liste") void navigate({ to: "/belege" });
-    else void navigate({ to: "/belege/$id", params: { id } });
-  }
+  const leaveTo = (id: string, ziel?: DuplikatZiel) =>
+    void (id === "liste" ? navigate({ to: "/belege" }) : navigate({ to: "/belege/$id", params: { id }, search: ziel }));
 
   /** Zu einem anderen Beleg oder ("liste") zurück zur Liste; bei ungespeicherten Änderungen erst nachfragen */
   function go(id: string | null) {
@@ -138,6 +112,7 @@ function DocumentPage() {
     if (dirty) setPending({ from: doc.id, to: id });
     else leaveTo(id);
   }
+  const duplizieren = useBelegDuplizieren(data, duplikat, dirty, leaveTo);
 
   // J/K bzw. Pfeiltasten springen zum nächsten bzw. vorigen Beleg, wie im Bankabgleich
   useEffect(() => {
@@ -228,8 +203,10 @@ function DocumentPage() {
           <a className="btn" href={`/api/beleg/${doc.id}?download`}>
             Original herunterladen
           </a>
+          {inhaber && !running && duplizieren.knopf}
         </div>
       </div>
+      {duplizieren.hinweise}
       <ConfirmDialog
         open={pendingId !== null}
         title="Ohne Speichern wechseln?"
@@ -276,33 +253,6 @@ function DocumentPage() {
         </div>
       </div>
     </>
-  );
-}
-
-function Preview({ doc }: { doc: Detail["document"] }) {
-  const src = `/api/beleg/${doc.id}`;
-  if (doc.mimeType === "application/pdf") {
-    return (
-      <>
-        <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Beleg ${doc.filename}`} />
-        <a className="btn pdf-open" href={src} target="_blank" rel="noreferrer">
-          PDF öffnen
-        </a>
-      </>
-    );
-  }
-  if (doc.mimeType.startsWith("image/") && doc.mimeType !== "image/heic") {
-    return <img className="doc-image" src={src} alt={`Beleg ${doc.filename}`} />;
-  }
-  return (
-    <section className="card">
-      <p className="muted" style={{ margin: 0 }}>
-        Für {doc.mimeType === "application/xml" ? "XML-Rechnungen" : "dieses Format"} gibt es keine Vorschau.{" "}
-        <a href={src} target="_blank" rel="noreferrer">
-          Datei öffnen
-        </a>
-      </p>
-    </section>
   );
 }
 
@@ -353,6 +303,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [currency, setCurrency] = useState(doc.currency);
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
+  // „Weitere Angaben“ stehen offen, wo sie gebraucht werden: bei Fremdwährung (Kurs) und wenn ein Hinweis „Vor dem Buchen“ an
+  // einem Feld darin liegt, etwa an der USt-IdNr. beim Erwerb
+  const [weitereOffen, setWeitereOffen] = useState(() => doc.currency !== "EUR" || issues.some((issue) => inWeitereAngaben(issue.feld)));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null, vorsteuerAnteil: null }]).map((a) => {
@@ -406,7 +359,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     currencyValid &&
     parsedSplits !== null;
   const BETRAG_FEHLER = amountError("den Betrag", 12_050);
-  const { form, error, check } = useSubmitCheck({
+  // Felder in „Weitere Angaben“ heißen wie am Beleg, damit inWeitereAngaben sie erkennt
+  const fehler: Record<string, string | null> = {
+    currency: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
+    exchangeRate: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
+    serviceTo: leistungsendeFehler(serviceFrom, serviceTo),
     ...Object.fromEntries(
       rows.flatMap((r, i) => [
         [`satz-${r.key}`, rows.findIndex((x) => x.taxRate === r.taxRate) < i ? "Diesen Satz gibt es schon in einer Zeile darüber." : null],
@@ -425,11 +382,25 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         [`aufteilung-${r.key}`, parseEuro(r.net || "0") === null ? BETRAG_FEHLER : null],
       ]),
     ),
-    waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
-    kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
     privatanteil: privateShareValid ? null : PRIVATANTEIL_FEHLER,
     vorsteuer: vorsteuerAnteil.trim() === "" || parseVorsteuerAnteil(vorsteuerAnteil) !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
-  } as Record<string, string | null>);
+  };
+  const { form, error, check } = useSubmitCheck(fehler);
+  // Fehler in „Weitere Angaben“ klappen den Bereich auf, bevor der Fokus das Feld sucht: Im zugeklappten
+  // Bereich fände er es nicht, und die Meldung bliebe unsichtbar
+  const pruefen = () => {
+    if (Object.entries(fehler).some(([feld, text]) => text && inWeitereAngaben(feld))) flushSync(() => setWeitereOffen(true));
+    return check();
+  };
+  // Ebenso, wenn der Server beim Speichern oder Buchen einen Fehler an einem Feld darin meldet
+  const mitFeldfehlern = async (work: () => Promise<void>) => {
+    try {
+      await work();
+    } catch (error) {
+      if (fehlerFelder(error).some(inWeitereAngaben)) setWeitereOffen(true);
+      throw error;
+    }
+  };
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
   const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
@@ -445,11 +416,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       : null;
   const euroGross = euroRows ? euroRows.reduce((s, e) => s + e.net + (reverseCharge ? 0 : e.tax), 0) : null;
   // Lieferant mit USt-IdNr. aus einem anderen EU-Land und keine Steuer auf dem Beleg: vermutlich § 13b
-  const looksLikeReverseCharge =
-    !reverseCharge && EU_VAT_PREFIX.test(supplierUstId.replace(/\s/g, "").toUpperCase()) && parsed.every((p) => p.tax === 0) && parsed.some((p) => p.net);
+  const looksLikeReverseCharge = !reverseCharge && isEuVatId(supplierUstId) && parsed.every((p) => p.tax === 0) && parsed.some((p) => p.net);
 
   function chooseReverseCharge(value: SelfAssessedTax | null) {
     touch(setReverseCharge)(value);
+    // Der Erwerb braucht die USt-IdNr. des Lieferanten aus der EU: dann liegt das Feld offen
+    if (value === "ig_erwerb" && !isEuVatId(supplierUstId)) setWeitereOffen(true);
     // Die Steuer steht nicht auf der Rechnung; Haben rechnet sie aus dem Netto, 0 % gibt es bei § 13b und beim Erwerb nicht
     // Gezahlt wird das Netto; ein vorher eingegebenes Brutto ist keine Grundlage mehr
     if (value) {
@@ -549,17 +521,21 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
   const onSave = (event: FormEvent) => {
     event.preventDefault();
-    if (!check()) return;
-    void run(async () => {
-      await persist();
-      await router.invalidate({ sync: true });
-    });
+    if (!pruefen()) return;
+    void run(() =>
+      mitFeldfehlern(async () => {
+        await persist();
+        await router.invalidate({ sync: true });
+      }),
+    );
   };
 
   const bookNow = () => {
     void run(async () => {
-      if (dirty) await persist();
-      await book({ data: doc.id });
+      await mitFeldfehlern(async () => {
+        if (dirty) await persist();
+        await book({ data: doc.id });
+      });
       // Weiter zum nächsten Beleg „Zu prüfen“; der gebuchte rückt in der Liste zu den gebuchten nach hinten
       if (continueAfterBooking && navigation.nextOpenId) {
         await navigate({ to: "/belege/$id", params: { id: navigation.nextOpenId } });
@@ -587,7 +563,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       if (readOnly || isDialogOpen()) return;
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        if (!busy && !running && check()) setConfirming(true);
+        if (!busy && !running && pruefen()) setConfirming(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -638,14 +614,16 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend className="visually-hidden">Belegdaten</legend>
         <div className="form-grid">
-          <Field label="Lieferant">{(control) => <input {...control} value={supplierName} onChange={(e) => touch(typeSupplierName)(e.target.value)} />}</Field>
-          <Field label="Aus den Kontakten">
+          {/* Ein Feld für Name und Kontakt (#1253): Der Name darf frei stehen, eine Wahl aus den Kontakten verknüpft ihn */}
+          <Field label="Lieferant" hint={supplierContactId ? "Aus den Kontakten gewählt." : undefined}>
             {(control) => (
               <ContactCombobox
                 {...control}
                 rolle="lieferant"
                 contacts={data.suppliers}
                 contactId={supplierContactId ?? ""}
+                freitext={{ value: supplierName, onInput: touch(typeSupplierName) }}
+                placeholder="Name eintragen oder Kontakt suchen"
                 disabled={readOnly || running}
                 onChoose={(id) => touch(pickSupplier)(data.suppliers.find((s) => s.id === id) ?? null)}
                 onCreate={readOnly ? undefined : setNewSupplierName}
@@ -669,22 +647,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <Field label="Rechnungsnummer">
             {(control) => <input {...control} value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />}
           </Field>
-          <Field label="USt-IdNr. des Lieferanten">
-            {(control) => <input {...control} value={supplierUstId} onChange={(e) => touch(setSupplierUstId)(e.target.value)} />}
-          </Field>
           <Field label="Belegdatum">
             {(control) => <input {...control} type="date" value={documentDate} onChange={(e) => touch(setDocumentDate)(e.target.value)} />}
           </Field>
-          <Field label="Fällig am">{(control) => <input {...control} type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />}</Field>
-          <Field label="Leistung von" describedBy="leistung-hint">
-            {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
-          </Field>
-          <Field label="Leistung bis" describedBy="leistung-hint">
-            {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
-          </Field>
-          <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
-            Zeitraum, auf den sich die Leistung bezieht, wenn er vom Belegdatum abweicht. Bleibt er leer, gilt das Belegdatum.
-          </p>
           {splitting ? (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
               <strong>Kategorie:</strong> aufgeteilt auf {splitRows.length} Zeilen, siehe <a href="#aufteilung">Aufteilung auf Kategorien</a>.
@@ -693,7 +658,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             <Field
               label="Kategorie"
               hint={
-                data.categoryHint && (
+                data.categoryHint ? (
                   <>
                     Bisher{" "}
                     {data.categoryHint.count === data.categoryHint.total
@@ -710,8 +675,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                           onClick={() => {
                             const hint = data.categoryHint!.category;
                             touch(setCategory)(hint);
-                            const preset = data.privateShares[hint];
-                            setPrivateShare(preset ? String(preset) : "");
+                            setPrivateShare(privatanteilVorgabe(data.privateShares, hint));
                           }}
                         >
                           übernehmen
@@ -719,29 +683,24 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                       </>
                     )}
                   </>
-                )
+                ) : category === "" ? (
+                  KATEGORIE_BEISPIEL
+                ) : undefined
               }
               style={{ gridColumn: "1 / -1" }}
             >
               {(control) => (
-                <select
+                <CategoryCombobox
                   {...control}
+                  categories={categories}
                   value={category}
-                  onChange={(e) => {
-                    touch(setCategory)(e.target.value);
-                    setOwnAccountId(passendesKonto(ownAccounts, e.target.value, ownAccountId));
+                  onChoose={(next) => {
+                    touch(setCategory)(next);
+                    setOwnAccountId(passendesKonto(ownAccounts, next, ownAccountId));
                     // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
-                    const preset = data.privateShares[e.target.value];
-                    setPrivateShare(preset ? String(preset) : "");
+                    setPrivateShare(privatanteilVorgabe(data.privateShares, next));
                   }}
-                >
-                  <option value="">Bitte wählen</option>
-                  {categories.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                />
               )}
             </Field>
           )}
@@ -834,98 +793,91 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               </p>
             </>
           )}
+          <WeitereAngaben
+            kurz={weitereAngabenKurz({ currency, ustId: supplierUstId, dueDate, serviceFrom, serviceTo, note })}
+            offen={weitereOffen}
+            onOffen={setWeitereOffen}
+          >
+            <Field label="USt-IdNr. des Lieferanten">
+              {(control) => <input {...control} value={supplierUstId} onChange={(e) => touch(setSupplierUstId)(e.target.value)} />}
+            </Field>
+            <Field label="Fällig am">
+              {(control) => <input {...control} type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />}
+            </Field>
+            <Field label="Leistung von" describedBy="leistung-hint">
+              {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+            </Field>
+            <Field label="Leistung bis" describedBy="leistung-hint" error={error("serviceTo")}>
+              {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
+            </Field>
+            <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+              Zeitraum, auf den sich die Leistung bezieht, wenn er vom Belegdatum abweicht. Bleibt er leer, gilt das Belegdatum.
+            </p>
+            <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("currency")}>
+              {(control) => (
+                <>
+                  <input
+                    {...control}
+                    value={currency}
+                    onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
+                    list="currency-codes"
+                    maxLength={3}
+                  />
+                  <datalist id="currency-codes">
+                    {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </>
+              )}
+            </Field>
+            {foreign && (
+              <Field
+                label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>}
+                describedBy="currency-hint"
+                error={error("exchangeRate")}
+              >
+                {(control) => (
+                  <input
+                    {...control}
+                    className="mono"
+                    inputMode="decimal"
+                    value={exchangeRate}
+                    placeholder="z. B. 1,0812"
+                    onChange={(e) => touch(setExchangeRate)(e.target.value)}
+                  />
+                )}
+              </Field>
+            )}
+            {foreign && data.tageskurs && (
+              <Field label="Kursdatum">
+                {(control) => <input {...control} type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />}
+              </Field>
+            )}
+            {foreign && (
+              <span id="currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
+                {doc.exchangeRate && doc.currency === currencyCode && rate === parseExchangeRate(doc.exchangeRate) && (
+                  <>
+                    <strong>{describeExchangeRate(doc.currency, doc.exchangeRate, doc.exchangeRateSource, doc.exchangeRateDate)}</strong>.{" "}
+                  </>
+                )}
+                Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur Euro. Lässt du
+                den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG), sobald er veröffentlicht
+                ist
+                {data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b und beim innergemeinschaftlichen Erwerb wird
+                die Steuer aus dem umgerechneten Netto berechnet.
+              </span>
+            )}
+            <Field label="Notiz" style={{ gridColumn: "1 / -1" }}>
+              {(control) => <textarea {...control} value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />}
+            </Field>
+          </WeitereAngaben>
         </div>
       </fieldset>
 
       <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Beträge je Steuersatz</legend>
-        <Field
-          label="Umsatzsteuer auf dem Beleg"
-          hint={
-            reverseCharge === "ig_erwerb" ? (
-              <>
-                Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
-                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
-                zieht den abziehbaren Anteil als Vorsteuer ab (Kz 61). Nicht abziehbare Steuer wird Teil der Ausgabe. Bezahlt wird nur der Nettobetrag. Weist
-                der Händler deutsche Umsatzsteuer aus, bleibt es ein gewöhnlicher Beleg.
-              </>
-            ) : reverseCharge ? (
-              <>
-                Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
-                {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht den abziehbaren Anteil als Vorsteuer ab (Kz 67). Nicht abziehbare Steuer wird Teil der
-                Ausgabe. Bezahlt wird nur der Nettobetrag.
-              </>
-            ) : (
-              looksLikeReverseCharge && (
-                <>
-                  Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung? Bei einer Dienstleistung, etwa von Google, Microsoft oder AWS, ist es meist §
-                  13b, bei Ware ein innergemeinschaftlicher Erwerb.
-                </>
-              )
-            )
-          }
-        >
-          {(control) => (
-            <select {...control} value={reverseCharge ?? ""} onChange={(e) => chooseReverseCharge((e.target.value || null) as SelfAssessedTax | null)}>
-              <option value="">Mit deutscher Umsatzsteuer (Vorsteuer)</option>
-              <option value="eu">§ 13b: Leistung eines Unternehmers aus dem EU-Ausland</option>
-              <option value="drittland">§ 13b: Leistung eines Unternehmers aus dem Drittland</option>
-              <option value="ig_erwerb">Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware aus dem EU-Ausland</option>
-            </select>
-          )}
-        </Field>
-        <div className="form-grid">
-          <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("waehrung")}>
-            {(control) => (
-              <>
-                <input
-                  {...control}
-                  value={currency}
-                  onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
-                  list="currency-codes"
-                  maxLength={3}
-                />
-                <datalist id="currency-codes">
-                  {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
-                    <option key={c} value={c} />
-                  ))}
-                </datalist>
-              </>
-            )}
-          </Field>
-          {foreign && (
-            <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint" error={error("kurs")}>
-              {(control) => (
-                <input
-                  {...control}
-                  className="mono"
-                  inputMode="decimal"
-                  value={exchangeRate}
-                  placeholder="z. B. 1,0812"
-                  onChange={(e) => touch(setExchangeRate)(e.target.value)}
-                />
-              )}
-            </Field>
-          )}
-          {foreign && data.tageskurs && (
-            <Field label="Kursdatum">
-              {(control) => <input {...control} type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />}
-            </Field>
-          )}
-          {foreign && (
-            <span id="currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
-              {doc.exchangeRate && doc.currency === currencyCode && rate === parseExchangeRate(doc.exchangeRate) && (
-                <>
-                  <strong>{describeExchangeRate(doc.currency, doc.exchangeRate, doc.exchangeRateSource, doc.exchangeRateDate)}</strong>.{" "}
-                </>
-              )}
-              Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur Euro. Lässt du
-              den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG), sobald er veröffentlicht ist
-              {data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b und beim innergemeinschaftlichen Erwerb wird die
-              Steuer aus dem umgerechneten Netto berechnet.
-            </span>
-          )}
-        </div>
+        <BelegUmsatzsteuer value={reverseCharge} onChange={chooseReverseCharge} looksLikeReverseCharge={looksLikeReverseCharge} />
         {rows.map((row, index) => (
           <div className={reverseCharge ? "amount-row" : "amount-row with-gross"} key={row.key}>
             <Field label="Satz" error={error(`satz-${row.key}`)}>
@@ -1127,9 +1079,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Erstattet bereits Bezahltes (Guthaben aus einer Jahresabrechnung, Bonus)
             </label>
             <span className="small muted">
-              Dann mindert die Gutschrift die Vorsteuer erst, wenn das Geld zurückkommt oder verrechnet wird; bis dahin steht sie auf dem Zwischenkonto (SKR03
-              1548, SKR04 1434). Ohne Haken mindert sie die Vorsteuer im Belegmonat.
+              Dann mindert die Gutschrift die Vorsteuer erst, wenn das Geld zurückkommt oder verrechnet wird. Ohne Haken mindert sie die Vorsteuer im
+              Belegmonat.
             </span>
+            <details>
+              <summary className="small">Details zum Konto</summary>
+              <p className="small muted" style={{ margin: "8px 0 0" }}>
+                Bis das Geld zurückkommt, steht die Vorsteuer auf dem Zwischenkonto „Vorsteuer in Folgeperiode abziehbar“ (SKR03 1548, SKR04 1434).
+              </p>
+            </details>
           </div>
         )}
         {data.paymentHint && (
@@ -1149,13 +1107,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )}
           </span>
         )}
-        <Field label="Notiz">{(control) => <textarea {...control} value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />}</Field>
       </fieldset>
 
-      {!readOnly && issues.length > 0 && !dirty && (
+      {/* Bleibt auch bei Änderungen stehen; beim Speichern oder Buchen prüft der Server neu */}
+      {!readOnly && issues.length > 0 && (
         <div className="banner" role="status">
           <Icon name="alert" />
-          <span>Vor dem Buchen: {issues.join(", ")}.</span>
+          <span>
+            Vor dem Buchen: {issues.map((issue) => issue.text).join(", ")}.{dirty && " Stand der letzten Speicherung."}
+          </span>
         </div>
       )}
       <ConfirmDialog
@@ -1192,14 +1152,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <button type="submit" className="btn" disabled={busy || running || !dirty}>
             Speichern
           </button>
-          {aiAvailable && doc.mimeType !== "application/xml" && doc.mimeType !== "image/heic" && (
-            <button type="button" className="btn" onClick={onReextract} disabled={busy || running}>
-              Mit KI neu auslesen
-            </button>
-          )}
-          <button type="button" className="btn btn-primary" onClick={() => check() && setConfirming(true)} disabled={busy || running} title={buchenText}>
+          <button type="button" className="btn btn-primary" onClick={() => pruefen() && setConfirming(true)} disabled={busy || running} title={buchenText}>
             Bestätigen und buchen
           </button>
+          {aiAvailable && doc.mimeType !== "application/xml" && doc.mimeType !== "image/heic" && (
+            <MoreActionsMenu items={[{ key: "ki", label: "Mit KI neu auslesen", disabled: busy || running, onSelect: () => void onReextract() }]} />
+          )}
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
             <input type="checkbox" checked={continueAfterBooking} onChange={(e) => writeContinuePreference(e.target.checked)} />
             Nach dem Buchen zum nächsten offenen Beleg

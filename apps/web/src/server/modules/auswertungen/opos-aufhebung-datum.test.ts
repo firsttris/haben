@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 const FORDERUNGEN = "Bilanzierte Forderungen aus neuen Anzahlungs-/Schlussketten";
 const ANZAHLUNGEN = "Erhaltene Anzahlungen netto, neues Verfahren";
@@ -65,6 +66,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe bei Aufhebung in einem späte
           lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
   }
   async function bankPayment(invoiceId: string, date: string, amount: number) {

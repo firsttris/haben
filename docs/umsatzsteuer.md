@@ -158,12 +158,13 @@ Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchst
 | Eigene USt-IdNr. fehlt oder hat eine falsche Prüfziffer | Senden gesperrt; in den Firmendaten eintragen. Die ZM geht nur mit USt-IdNr., nicht mit der Steuernummer |
 | Anschrift unvollständig (Straße, fünfstellige PLZ, Ort) | Senden gesperrt |
 | USt-IdNr. eines Kunden fehlt, ist deutsch, britisch (seit dem Brexit; für Nordirland XI) oder hat kein Länderkennzeichen eines anderen Mitgliedstaats, oder nach dem Kennzeichen nicht 5 bis 12 Buchstaben, Ziffern, + oder * | Senden gesperrt, mit Rechnung und Kunde. Nordirische Nummern (XI) gelten nur für Lieferungen |
+| USt-IdNr. eines Kunden passt nicht zum Aufbau in ihrem Land, etwa `ATU` und acht Ziffern in Österreich ([Übersicht des BZSt](https://www.bzst.de/SharedDocs/Downloads/DE/Merkblaetter/ust_idnr_aufbau.html); wo sie die Art der Stellen offenlässt, wie hier nach dem `U`, die [FAQ der EU-Kommission zu VIES](https://ec.europa.eu/taxation_customs/vies/#/faq), Frage 11) | Warnung, mit Rechnung und Kunde. Senden geht trotzdem: Die Rechnung ist festgeschrieben, und eine schon gemeldete Nummer muss sich mit einer Berichtigung zurücknehmen lassen. Eine innergemeinschaftliche Lieferung mit einer solchen Nummer lässt sich gar nicht erst [festschreiben](rechnungen.md#umsatzsteuer-auf-der-rechnung) |
 | Voranmeldungen des Quartals noch nicht alle gesendet | Hinweis; der Abgleich mit Kz 21 folgt danach |
 | Summe der Meldung weicht von Kz 21 der gesendeten Voranmeldungen ab, bei Lieferungen von Kz 41 | Warnung. Bis zu einem Euro je Zeile und Voranmeldung ist Rundung. Eine größere Abweichung heißt: Die Voranmeldung oder die Meldung braucht eine Berichtigung |
 | Mehr als 50.000 € Lieferungen im Quartal | Senden gesperrt: Die Meldung ist dann monatlich abzugeben (§ 18a Abs. 1 Satz 2 UStG), das kann Haben nicht; gib sie im BZStOnline-Portal ab |
 | Lieferungen im Quartal | Hinweis: Lagen sie in einem der vier vorangegangenen Quartale über 50.000 €, ist ebenfalls monatlich zu melden; und für jede Lieferung gehört der Gelangensnachweis (§ 17a UStDV) zu den Unterlagen |
 
-Die Prüfungen sind die des ERiC-Plugins `checkZMDO`; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das klärst du vor der ersten Rechnung mit der Bestätigungsabfrage beim BZSt.
+Die Prüfungen sind die des ERiC-Plugins `checkZMDO`, dazu der Aufbau je Land; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das bestätigt das BZSt am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen), am besten vor der ersten Rechnung.
 
 ### Senden
 
@@ -197,7 +198,7 @@ Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 | Versteuerung | Maßgeblich | Quelle |
 | --- | --- | --- |
 | Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen wirken mit ihrer Gegenzeile am Tag der Aufhebung; ältere Zuordnungen ohne eigenes Datum am Buchungsdatum des Umsatzes (siehe [Zuordnung aufheben](bank.md#zuordnung-aufheben)). |
-| Soll (vereinbarte Entgelte) | [Leistungstag](#leistungstag-bei-soll-versteuerung), ohne Angabe das Rechnungsdatum; Ausnahme: [Anzahlungen](rechnungen.md#abschlags--und-schlussrechnung) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
+| Soll (vereinbarte Entgelte) | [Leistungstag](#leistungstag-bei-soll-versteuerung), ohne Angabe das Rechnungsdatum; Ausnahmen: [Anzahlungen](rechnungen.md#abschlags--und-schlussrechnung) und [Vorauszahlungen auf normale Rechnungen](rechnungen.md#vorauszahlung-auf-normale-rechnungen) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz; auf schon bezahltes Entgelt mindern Storno und Korrektur erst mit der [Rückzahlung](rechnungen.md#bereits-bezahlte-rechnung). |
 
 Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“. Eine [nicht steuerbare Einnahme](bank.md#auf-eine-kategorie-buchen) ist kein Umsatz: Sie zählt nicht und steht nicht in den Quellen.
 
@@ -339,7 +340,7 @@ Rechts steht der Bereich **An ELSTER übermitteln** mit dem hinterlegten Zertifi
 | Aktion | Braucht | Was passiert |
 | --- | --- | --- |
 | **Nur prüfen** | vollständige Firmendaten | ERiC prüft das XML gegen die Regeln, ohne zu senden. |
-| **Prüfen und testweise senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Prüfung und Übermittlung mit Testmerker `700000004` und deiner Hersteller-ID (ERiC 43 sperrt die frühere Test-ID `74931`). Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
+| **Prüfen und testweise senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Prüfung und Übermittlung mit Testmerker `700000004` und deiner Hersteller-ID (ERiC sperrt die frühere Test-ID `74931`). Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
 | **Prüfen und senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Echte Übermittlung nach der Rückfrage im Dialog („Verbindlich senden“). |
 
 Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. Mit echtem ERiC scheitern dann auch Prüfen und Test mit der Meldung, die eigene Hersteller-ID auch für Testfälle zu verwenden. Bis die Hersteller-ID da ist, gibst du in Mein ELSTER ab, am einfachsten über den XML-Import (siehe unten).

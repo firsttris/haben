@@ -1,5 +1,5 @@
 ---
-title: "Umzug aus FastBill ohne Datenverlust"
+title: "Umzug aus FastBill mit Abgleich je Jahr"
 description: >-
   Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API übernehmen,
   unveränderlich archivieren und kündigen.
@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus FastBill
 
-Haben übernimmt deinen Bestand aus FastBill, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus FastBill“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
+Haben übernimmt deinen Bestand aus FastBill, damit du das Abo kündigen kannst; der Abgleich je Jahr zeigt vorher, ob alles da ist. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus FastBill“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
@@ -90,6 +90,8 @@ Die Steuerart einer Rechnung liest Haben aus `VAT_CASE`. FastBill liefert dort e
 | `small_business_regulation` | Steuerfrei (Kleinunternehmer) |
 | `b2c_eu_goods` | Andere Sätze: ob der Fernverkauf über OSS lief, steht nicht in der Antwort |
 | 1 | Andere Sätze: innergemeinschaftlich, aber ob Lieferung (Kz 41) oder sonstige Leistung (Kz 21), sagt die Antwort nicht |
+
+Kz 21, 41 und 45 zählen bei Ist-Versteuerung wie in [Lexware Office](lexoffice.md#umsatzsteuer-je-monat) im Monat der Rechnung.
 
 Bei Ausgaben zählt im Abgleich nur die Vorsteuer (Kz 66), im Monat des Belegs; `VAT_CASE` spielt dort keine Rolle.
 

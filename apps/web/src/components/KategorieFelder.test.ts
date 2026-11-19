@@ -2,7 +2,7 @@ import { direktKategorienFuer } from "@haben/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { KategorieFelder, type KategorieWahl } from "./KategorieFelder.tsx";
+import { aufladungWahl, KategorieFelder, kategorieAngebot, type KategorieWahl } from "./KategorieFelder.tsx";
 
 /*
  * Kategorie und Steuersatz unter „Direkt buchen“ (#1131): Kleinunternehmer bekommen die nicht steuerbare Einnahme nicht
@@ -20,18 +20,40 @@ const render = (kleinunternehmer: boolean, value: KategorieWahl) =>
 describe("KategorieFelder", () => {
   it("bietet die nicht steuerbare Einnahme bei Regelbesteuerung an, ohne Feld für den Steuersatz", () => {
     const html = render(false, { kategorie: "nichtSteuerbar", steuersatz: 0 });
-    expect(html).toMatch(/<option value="nichtSteuerbar" selected="">Nicht steuerbare Einnahme \(z\. B\. Schadenersatz\)<\/option>/);
+    expect(html).toContain('value="Nicht steuerbare Einnahme (z. B. Schadenersatz)"');
     expect(html).not.toContain("Steuersatz");
     expect(html).toContain("Ob echter Schadenersatz vorliegt");
   });
 
   it("bietet sie Kleinunternehmern nicht an", () => {
-    expect(render(true, { kategorie: "erloese", steuersatz: 0 })).not.toContain('value="nichtSteuerbar"');
+    const optionen = { kategorien: direktKategorienFuer(), kleinunternehmer: true };
+    expect(kategorieAngebot(optionen, "erloese").map((e) => e.value)).not.toContain("nichtSteuerbar");
+    expect(kategorieAngebot({ ...optionen, kleinunternehmer: false }, "erloese").map((e) => e.value)).toContain("nichtSteuerbar");
   });
 
   it("zeigt eine schon gewählte nicht steuerbare Einnahme auch heute als Kleinunternehmer als gewählt", () => {
     const html = render(true, { kategorie: "nichtSteuerbar", steuersatz: 0 });
-    expect(html).toMatch(/<option value="nichtSteuerbar" selected="">/);
+    expect(html).toContain('value="Nicht steuerbare Einnahme (z. B. Schadenersatz)"');
+    expect(kategorieAngebot({ kategorien: direktKategorienFuer(), kleinunternehmer: true }, "nichtSteuerbar").map((e) => e.value)).toContain("nichtSteuerbar");
     expect(html).toContain("Ob echter Schadenersatz vorliegt");
+  });
+});
+
+/*
+ * Aufladung eines Guthabens (#1356): nur Ausgaben, immer ohne Steuersatz. Ein gelernter Vorschlag (#295) kann noch eine
+ * Einnahme oder einen Satz mitbringen; Anzeige und Buchung lesen beide aufladungWahl.
+ */
+describe("aufladungWahl", () => {
+  it("lässt eine Ausgabe stehen, mit 0 %", () => {
+    expect(aufladungWahl({ kategorie: "kfzBetrieb", steuersatz: 0 })).toEqual({ kategorie: "kfzBetrieb", steuersatz: 0 });
+  });
+
+  it("macht aus einer Einnahme „Sonstiger Aufwand“", () => {
+    expect(aufladungWahl({ kategorie: "erloese", steuersatz: 0 })).toEqual({ kategorie: "sonstiges", steuersatz: 0 });
+  });
+
+  it("setzt einen mitgebrachten Steuersatz auf 0", () => {
+    expect(aufladungWahl({ kategorie: "erloese", steuersatz: 1900 })).toEqual({ kategorie: "sonstiges", steuersatz: 0 });
+    expect(aufladungWahl({ kategorie: "kfzBetrieb", steuersatz: 1900 })).toEqual({ kategorie: "kfzBetrieb", steuersatz: 0 });
   });
 });

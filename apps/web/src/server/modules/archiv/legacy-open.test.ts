@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 import { addDays } from "@haben/core";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -204,6 +205,46 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
       ["RE1021", 116_000, "Steuersatz, den Haben nicht kennt"],
       ["B-77", 11_900, "keine Datei aus Lexoffice"],
     ]);
+  });
+
+  // #1317: Nach der Rücknahme einer Bestätigung „ohne Datei“ gilt der Beleg wieder als offen; der Grund beim Übernehmen
+  // kommt aus takeoverFileIssue und nennt den Weg über die Belegansicht. Eine stehende Bestätigung behält ihren eigenen
+  // Satz, ein Beleg ohne Stand bleibt bei „keine Datei aus …“.
+  it("nennt nach der Rücknahme einer Bestätigung wieder den Weg über die Belegansicht (#1317)", async () => {
+    const zurueckgenommen = await legacyVoucher({
+      source: "sevdesk",
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-80",
+      date: "2026-09-25",
+      net: 10_000,
+      tax: 1_900,
+    });
+    // Verlauf wie nach Bestätigung und Rücknahme: die ältere Zeile bestätigt, die jüngere nimmt zurück
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by, created_at)
+      values (${zurueckgenommen}, 'bestaetigt_ohne_datei', 'In sevDesk geprüft: keine Datei hinterlegt.', 'test-user', now() - interval '1 day')`;
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by)
+      values (${zurueckgenommen}, 'bestaetigung_zurueckgenommen', 'Bestätigung zurückgenommen: falscher Beleg geprüft', 'test-user')`;
+    // Gegenprobe: wo die Bestätigung steht, bleibt der bisherige Satz
+    const bestaetigt = await legacyVoucher({
+      source: "sevdesk",
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-81",
+      date: "2026-09-26",
+      net: 10_000,
+      tax: 1_900,
+    });
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by)
+      values (${bestaetigt}, 'bestaetigt_ohne_datei', 'In sevDesk geprüft: keine Datei hinterlegt.', 'test-user')`;
+
+    expect((await legacy.openLegacyItems()).map((i) => [i.number, i.blocker])).toEqual([
+      ["B-80", "ohne Datei, Bestätigung zurückgenommen – prüfen, dann erneut bestätigen und in Haben von Hand erfassen"],
+      ["B-81", "ohne Datei (bestätigt) – in Haben von Hand erfassen"],
+    ]);
+    // Ohne Datei gibt es nichts zu übernehmen; die Übernahme nennt denselben Grund
+    await expect(legacy.takeOverLegacyItem(actor, zurueckgenommen)).rejects.toThrow(/Bestätigung zurückgenommen/);
+    expect(await sql`select 1 from documents where lexoffice_voucher_id = ${zurueckgenommen}`).toHaveLength(0);
   });
 
   it("übernimmt eine offene Rechnung; Zahlung im Bankabgleich macht die Umsatzsteuer fällig (Ist)", async () => {
@@ -415,7 +456,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
             taxRate: l.taxRate,
           })),
         } as never);
-        await invoices.finalizeInvoice(actor, draft.id);
+        await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
         await invoices.cancelInvoice(actor, invoiceId, "2026-11-03");
         // Kein Erlöskonto: Korrektur, Storno und Storno der Korrektur gehen gegen den Saldenvortrag
         const erloese = await sql`select l.account, sum(l.credit) - sum(l.debit) as saldo from journal_lines l

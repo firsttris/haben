@@ -20,6 +20,7 @@ import {
   taxOf,
   VOLLER_ABZUG,
   normalizeUstId,
+  ustIdAufbauProblem,
   ustIdProblem,
   maxDegressiveRate,
   usesUsefulLife,
@@ -401,10 +402,11 @@ async function latestWithFile(sha256: string): Promise<string | null> {
   return row?.id ?? null;
 }
 
-/** Legt die Zeile an; null, wenn dieselbe Datei gleichzeitig angelegt wurde */
+/** Legt die Zeile an, mit `fields` gleich in derselben Transaktion ausgefüllt; null, wenn dieselbe Datei gleichzeitig angelegt wurde */
 async function insertDocument(
   actor: string,
   row: { sha256: string; filename: string; mimeType: string; size: number; note: string; reference: DocumentReference | null },
+  fields: DocumentInput | null,
 ): Promise<string | null> {
   const { reference, ...values } = row;
   return withActor(actor, async (tx) => {
@@ -417,6 +419,7 @@ async function insertDocument(
         where: sql`${schema.documents.replacesDocumentId} is null and ${schema.documents.recurringDocumentId} is null`,
       })
       .returning({ id: schema.documents.id });
+    if (created && fields) await updateDocumentIn(tx, created.id, fields);
     return created?.id ?? null;
   });
 }
@@ -424,12 +427,13 @@ async function insertDocument(
 /**
  * Legt einen Beleg ab. E-Rechnungen werden sofort gelesen; andere PDFs und Fotos
  * gehen an die KI-Auslesung im Hintergrund, falls eingerichtet. Mit externer Referenz (REST-API) liefert dieselbe
- * Referenz den vorhandenen Beleg, auch bei gleichzeitigen Anfragen.
+ * Referenz den vorhandenen Beleg, auch bei gleichzeitigen Anfragen. Mit `fields` (Duplikat, #1295) stehen diese Felder am
+ * Beleg, ausgelesen wird dann nichts.
  */
 export async function uploadDocument(
   actor: string,
   file: { bytes: Uint8Array; filename: string },
-  options: { background?: (work: Promise<void>) => void; reference?: DocumentReference; note?: string } = {},
+  options: { background?: (work: Promise<void>) => void; reference?: DocumentReference; note?: string; fields?: DocumentInput } = {},
 ): Promise<UploadResult> {
   const problem = documentFileProblem(file);
   if (problem) throw new DocumentError(problem.message);
@@ -446,7 +450,7 @@ export async function uploadDocument(
   const row = { sha256, filename: file.filename.slice(0, 200), mimeType: type.mimeType, size: file.bytes.byteLength, note: options.note ?? "", reference };
   let id: string | null;
   try {
-    id = await insertDocument(actor, row);
+    id = await insertDocument(actor, row, options.fields ?? null);
   } catch (error) {
     // Gleichzeitig mit derselben Referenz angelegt: der andere Beleg gilt. Die eigene Datei bleibt liegen, denn eine
     // dritte Anfrage mit derselben Datei könnte sie gerade nutzen; unter ihrem Hash schadet sie nicht.
@@ -457,6 +461,7 @@ export async function uploadDocument(
   if (!id) {
     return { id: (await latestWithFile(sha256))!, duplicate: true };
   }
+  if (options.fields) return { id, duplicate: false };
 
   if (type.kind === "pdf" || type.kind === "xml") {
     try {
@@ -508,54 +513,57 @@ async function lockOpen(tx: Tx, id: string): Promise<Document> {
 }
 
 export async function updateDocument(actor: string, id: string, input: DocumentInput): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const previous = await lockOpen(tx, id);
-    const parsed = documentInputSchema.parse(input);
-    // Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Lieferant mehr ist, bleibt am Beleg
-    if (parsed.supplierContactId && parsed.supplierContactId !== previous.supplierContactId) {
-      const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
-      if (problem) throw new DocumentError(problem);
+  await withActor(actor, (tx) => updateDocumentIn(tx, id, input));
+}
+
+/** Wie updateDocument, in einer laufenden Transaktion; etwa gleich nach dem Anlegen eines Duplikats */
+async function updateDocumentIn(tx: Tx, id: string, input: DocumentInput): Promise<void> {
+  const previous = await lockOpen(tx, id);
+  const parsed = documentInputSchema.parse(input);
+  // Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Lieferant mehr ist, bleibt am Beleg
+  if (parsed.supplierContactId && parsed.supplierContactId !== previous.supplierContactId) {
+    const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
+    if (problem) throw new DocumentError(problem);
+  }
+  // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
+  const beleg = parsed.splits.length > 0 ? { ownAccountId: null, category: null } : parsed;
+  const bisher = { beleg: previous.ownAccountId, zeilen: (await loadSplits(id, tx)).map((s) => s.ownAccountId) };
+  const [kontoProblem] = await documentOwnAccountProblems(tx, beleg, parsed.splits, bisher);
+  if (kontoProblem) throw new DocumentError(kontoProblem);
+  const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
+  const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
+  if (parsed.erstattetBezahltes) {
+    const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.payment, parsed.category);
+    if (problem) throw new DocumentError(problem);
+    // Dieselbe Sperre wie bei jeder Änderung am gebuchten Beleg: Ein gemeldeter Zeitraum bleibt unberührt (#786)
+    if (!previous.erstattetBezahltes && parsed.documentDate && (await periodReported(tx, parsed.documentDate))) {
+      throw new DocumentError(
+        "Der Belegmonat ist schon gemeldet; die Vorsteuerminderung ließe sich nach § 17 Abs. 1 Satz 2 UStG nicht mehr in ihm ziehen. Lass die Angabe weg oder nimm ein Belegdatum im laufenden Zeitraum.",
+      );
     }
-    // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
-    const beleg = parsed.splits.length > 0 ? { ownAccountId: null, category: null } : parsed;
-    const bisher = { beleg: previous.ownAccountId, zeilen: (await loadSplits(id, tx)).map((s) => s.ownAccountId) };
-    const [kontoProblem] = await documentOwnAccountProblems(tx, beleg, parsed.splits, bisher);
-    if (kontoProblem) throw new DocumentError(kontoProblem);
-    const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
-    const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
-    if (parsed.erstattetBezahltes) {
-      const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.payment, parsed.category);
-      if (problem) throw new DocumentError(problem);
-      // Dieselbe Sperre wie bei jeder Änderung am gebuchten Beleg: Ein gemeldeter Zeitraum bleibt unberührt (#786)
-      if (!previous.erstattetBezahltes && parsed.documentDate && (await periodReported(tx, parsed.documentDate))) {
-        throw new DocumentError(
-          "Der Belegmonat ist schon gemeldet; die Vorsteuerminderung ließe sich nach § 17 Abs. 1 Satz 2 UStG nicht mehr in ihm ziehen. Lass die Angabe weg oder nimm ein Belegdatum im laufenden Zeitraum.",
-        );
-      }
-    }
-    await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-    if (amounts.length > 0) {
-      await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
-    }
-    // Aufgeteilt: Kategorie und Anlage stehen in den Zeilen bzw. gibt es nicht (Anlagegüter lassen sich nicht aufteilen)
-    await replaceSplits(tx, id, parsed.splits, amounts);
-    const { amounts: _amounts, splits, asset, ...fields } = parsed;
-    const category = splits.length > 0 ? null : fields.category;
-    const ownAccountId = splits.length > 0 ? null : fields.ownAccountId;
-    await tx
-      .update(schema.documents)
-      .set({
-        ...fields,
-        ...rate,
-        category,
-        ownAccountId,
-        asset: category === "anlage" ? (asset ?? null) : null,
-        supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
-        ...totalsOf(amounts, fields.reverseCharge),
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.documents.id, id));
-  });
+  }
+  await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
+  if (amounts.length > 0) {
+    await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
+  }
+  // Aufgeteilt: Kategorie und Anlage stehen in den Zeilen bzw. gibt es nicht (Anlagegüter lassen sich nicht aufteilen)
+  await replaceSplits(tx, id, parsed.splits, amounts);
+  const { amounts: _amounts, splits, asset, ...fields } = parsed;
+  const category = splits.length > 0 ? null : fields.category;
+  const ownAccountId = splits.length > 0 ? null : fields.ownAccountId;
+  await tx
+    .update(schema.documents)
+    .set({
+      ...fields,
+      ...rate,
+      category,
+      ownAccountId,
+      asset: category === "anlage" ? (asset ?? null) : null,
+      supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
+      ...totalsOf(amounts, fields.reverseCharge),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.documents.id, id));
 }
 
 export async function getDocument(id: string) {
@@ -639,17 +647,18 @@ function missingRateIssue(doc: Document, todayDate: string): string {
  * keine deutsche Umsatzsteuer. Haben rechnet die Erwerbsteuer zu 19 oder 7 %; steuerfreie Erwerbe (§ 4b UStG, Kz 91)
  * und andere Sätze (Kz 95/98) unterstützt es nicht.
  */
-function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): string[] {
-  const issues: string[] = [];
-  if (amounts.some((a) => a.taxRate === 0)) issues.push("Beim innergemeinschaftlichen Erwerb steht jede Zeile auf 19 % oder 7 %");
-  // Geprüft wie die USt-IdNr. einer Lieferung in der Zusammenfassenden Meldung: Länderkennzeichen eines anderen Mitgliedstaats
+function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): BookingIssue[] {
+  const issues: BookingIssue[] = [];
+  if (amounts.some((a) => a.taxRate === 0)) issues.push({ text: "Beim innergemeinschaftlichen Erwerb steht jede Zeile auf 19 % oder 7 %" });
+  // Geprüft wie die USt-IdNr. einer Lieferung in der Zusammenfassenden Meldung, dazu der Aufbau je Mitgliedstaat (#1413)
   const ustId = normalizeUstId(doc.supplierUstId ?? "");
-  if (!ustId) issues.push("Beim innergemeinschaftlichen Erwerb fehlt die USt-IdNr. des Lieferanten");
+  const feld = "supplierUstId";
+  if (!ustId) issues.push({ text: "Beim innergemeinschaftlichen Erwerb fehlt die USt-IdNr. des Lieferanten", feld });
   else if (ustId.startsWith("DE"))
-    issues.push("Lieferant mit deutscher USt-IdNr.: kein innergemeinschaftlicher Erwerb, die Rechnung muss deutsche Umsatzsteuer ausweisen");
+    issues.push({ text: "Lieferant mit deutscher USt-IdNr.: kein innergemeinschaftlicher Erwerb, die Rechnung muss deutsche Umsatzsteuer ausweisen", feld });
   else {
-    const problem = ustIdProblem(ustId, "L");
-    if (problem) issues.push(`Lieferant ${problem}`);
+    const problem = ustIdProblem(ustId, "L") ?? ustIdAufbauProblem(ustId);
+    if (problem) issues.push({ text: `Lieferant ${problem}`, feld });
   }
   return issues;
 }
@@ -670,39 +679,52 @@ function igErwerbFirmaIssues(doc: Document, company: Company, vollerVorsteuerabz
   return [];
 }
 
+/** Was vor dem Buchen fehlt, als Satz; `feld` nennt das Feld am Beleg, an dem es liegt, benannt wie in `documentInputSchema` */
+export interface BookingIssue {
+  text: string;
+  feld?: keyof DocumentInput;
+}
+
 /** Was vor dem Buchen fehlt; leere Liste = bereit. Mit Aufteilung (splits) statt der Kategorie die Zeilen geprüft. */
 export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): string[] {
-  const issues: string[] = [];
-  if (!doc.supplierName) issues.push("Lieferant fehlt");
-  if (!doc.documentDate) issues.push("Belegdatum fehlt");
-  if (splits.length > 0) issues.push(...splitBookingIssues(doc, amounts, splits));
-  else if (!doc.category) issues.push("Kategorie fehlt");
+  return bookingIssueList(doc, amounts, todayDate, splits).map((issue) => issue.text);
+}
+
+/** Wie bookingIssues, je Hinweis mit dem Feld, an dem er liegt */
+export function bookingIssueList(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): BookingIssue[] {
+  const issues: BookingIssue[] = [];
+  const add = (...texts: string[]) => issues.push(...texts.map((text) => ({ text })));
+  if (!doc.supplierName) add("Lieferant fehlt");
+  if (!doc.documentDate) add("Belegdatum fehlt");
+  if (splits.length > 0) add(...splitBookingIssues(doc, amounts, splits));
+  else if (!doc.category) add("Kategorie fehlt");
   const foreign = doc.currency !== "EUR";
-  if (foreign && !doc.exchangeRate) issues.push(missingRateIssue(doc, todayDate));
-  if (foreign && amounts.some((a) => a.originalNet === null || a.originalTax === null)) issues.push(`Beträge in ${doc.currency} fehlen`);
+  if (foreign && !doc.exchangeRate) issues.push({ text: missingRateIssue(doc, todayDate), feld: "exchangeRate" });
+  if (foreign && amounts.some((a) => a.originalNet === null || a.originalTax === null)) add(`Beträge in ${doc.currency} fehlen`);
   // Bei Fremdwährung zählen die Beträge laut Beleg; ohne Kurs stehen die Euro-Beträge noch auf 0
   const values = foreign ? amounts.map((a) => ({ net: a.originalNet ?? 0, tax: a.originalTax ?? 0 })) : amounts;
-  if (values.length === 0 || values.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
+  if (values.length === 0 || values.every((a) => a.net === 0 && a.tax === 0)) add("Beträge fehlen");
   // Mit Kurs, aber umgerechnet 0,00 € (winzige Beträge oder ein falscher Kurs): eine Buchung ohne Zeilen ginge nicht
-  else if (foreign && doc.exchangeRate && amounts.every((a) => a.net === 0 && a.tax === 0)) issues.push("Umgerechnet 0,00 €, bitte den Kurs prüfen");
+  else if (foreign && doc.exchangeRate && amounts.every((a) => a.net === 0 && a.tax === 0))
+    issues.push({ text: "Umgerechnet 0,00 €, bitte den Kurs prüfen", feld: "exchangeRate" });
   // Vor #331 ließ sich die selbst geschuldete Steuer von Hand ändern; solche Entwürfe erst neu speichern
   if (doc.reverseCharge && !foreign && amounts.some((a) => a.tax !== taxOf(a.net, a.taxRate))) {
-    issues.push(`${doc.reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : "Steuer § 13b"} passt nicht zu Netto und Satz; öffne den Beleg und speichere ihn`);
+    add(`${doc.reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : "Steuer § 13b"} passt nicht zu Netto und Satz; öffne den Beleg und speichere ihn`);
   }
   if (doc.reverseCharge === "ig_erwerb") issues.push(...igErwerbIssues(doc, amounts));
   else if (doc.reverseCharge) {
-    if (amounts.some((a) => a.taxRate === 0)) issues.push("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
-    if (doc.category === "anlage") issues.push("§ 13b bei Anlagegütern wird nicht unterstützt");
+    if (amounts.some((a) => a.taxRate === 0)) add("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
+    if (doc.category === "anlage") add("§ 13b bei Anlagegütern wird nicht unterstützt");
     // § 13b Abs. 1 und Abs. 2 Nr. 1 UStG: nur sonstige Leistungen und Werklieferungen; Waren sind innergemeinschaftlicher Erwerb (§ 1a UStG) oder Einfuhr
-    if (doc.category === "wareneinkauf") issues.push("§ 13b gilt nicht für Wareneinkäufe");
+    if (doc.category === "wareneinkauf") add("§ 13b gilt nicht für Wareneinkäufe");
   }
   if (doc.category === "anlage") {
     const net = amounts.reduce((s, a) => s + a.net, 0);
-    if (!doc.asset) issues.push("Angaben zur Anlage fehlen");
-    else if (doc.privateShare > 0) issues.push("Ein Privatanteil bei Anlagegütern wird nicht unterstützt");
-    else if (net <= 0) issues.push("Gutschriften zu Anlagen werden nicht unterstützt");
+    if (!doc.asset) add("Angaben zur Anlage fehlen");
+    else if (doc.privateShare > 0) add("Ein Privatanteil bei Anlagegütern wird nicht unterstützt");
+    else if (net <= 0) add("Gutschriften zu Anlagen werden nicht unterstützt");
     else if (doc.documentDate) {
-      issues.push(...assetIssues(documentScheduleAsset(doc.asset, doc.documentDate, net)));
+      add(...assetIssues(documentScheduleAsset(doc.asset, doc.documentDate, net)));
     }
   }
   return issues;
@@ -740,7 +762,8 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   const vorsteuerAnteil = abziehbarerAnteil(company, doc.vorsteuerAnteil);
   const wirksameBetraege = amounts.map((a) => ({ ...a, vorsteuerAnteil: abziehbarerAnteil(company, a.vorsteuerAnteil ?? vorsteuerAnteil) }));
   const vorsteuerAbzug = wirksameBetraege.some((a) => a.vorsteuerAnteil > 0);
-  const issues = bookingIssues(doc, amounts, today(), splits);
+  const vorab = bookingIssueList(doc, amounts, today(), splits);
+  const issues = vorab.map((issue) => issue.text);
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
   if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
@@ -775,7 +798,9 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // Eigene Sachkonten (#270): Kontenrahmen oder Kategorie können sich seit dem Speichern geändert haben; das Konto selbst darf archiviert sein
   const gespeichert = { beleg: doc.ownAccountId, zeilen: splits.map((s) => s.ownAccountId) };
   issues.push(...(await documentOwnAccountProblems(tx, doc, splits, gespeichert)).map((p) => p.replace(/.$/, "")));
-  if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
+  // Mit den Feldern der Hinweise, damit die Seite sie zeigen kann
+  const felder = vorab.flatMap((issue) => (issue.feld ? [issue.feld] : []));
+  if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`, { felder });
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
   const totals = belegSummen(doc, amounts);

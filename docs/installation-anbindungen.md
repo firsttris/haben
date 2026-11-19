@@ -20,7 +20,7 @@ Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf
 
 ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann die neue Versionsnummer eintragen und erneut laden.
 
-Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [ELSTER einrichten](einrichtung-elster.md), dort auch, wer bei Haben als Hersteller gilt.
+Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [ELSTER einrichten](einrichtung-elster.md), dort auch, wer bei Haben als Hersteller gilt.
 
 Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins/` existieren (bei älteren ERiC-Versionen `lib/plugins2/`), und binde es ein. `ERIC_HOME` hat Vorrang vor dem heruntergeladenen ERiC.
 
@@ -34,7 +34,7 @@ ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet ein
 
 ### ELSTER auf arm64
 
-Die x86_64-Laufzeit lohnt sich erst mit eigener Hersteller-ID: ERiC verlangt sie seit Version 43 schon fürs Prüfen, zum Senden kommt die Zertifikatsdatei dazu ([ELSTER einrichten](einrichtung-elster.md#was-du-brauchst)). Ohne ERiC läuft Haben auch auf arm64 simuliert und sendet nichts ans Finanzamt.
+Die x86_64-Laufzeit lohnt sich erst mit eigener Hersteller-ID: ERiC verlangt sie schon fürs Prüfen, zum Senden kommt die Zertifikatsdatei dazu ([ELSTER einrichten](einrichtung-elster.md#was-du-brauchst)).
 
 ERiC gibt die Finanzverwaltung nur als fertige Bibliothek heraus, für Server nur für Linux x86_64; selbst übersetzen lässt sie sich nicht. Auf einem arm64-Server (Raspberry Pi, Ampere, Jetson) läuft Haben trotzdem nativ: Emuliert wird nur der kurzlebige Kindprozess, der für jede Prüfung und Übermittlung ERiC lädt. `ERIC_WORKER_COMMAND` startet ihn mit QEMU als x86_64-Prozess, mit Bun und den Bibliotheken aus dem amd64-Image derselben Haben-Version.
 
@@ -223,7 +223,3 @@ Ohne `FINTS_PRODUKT_ID` bleibt FinTS aus; Enable Banking und der Dateiimport lau
 Beim Verbinden fragt Haben nach Bankleitzahl, FinTS-Adresse, Anmeldename und PIN. Die Adresse nennt die Bank, meist auf ihren Seiten zu HBCI oder FinTS oder in der Anleitung für Banking-Programme; sie beginnt mit `https://`. Eine Liste der Adressen bringt Haben nicht mit.
 
 Was an die Bank geht: Produktnummer und Version von Haben, Anmeldename und PIN und danach Abrufe von Umsätzen der Konten, über TLS direkt zur Bank. Die PIN speichert Haben verschlüsselt in der Datenbank wie das SMTP-Passwort, damit der tägliche Abruf ohne dich läuft; im Audit-Log steht sie nicht. Eine TAN speichert Haben nie. Zahlungen auslösen kann Haben über FinTS nicht.
-
-## Lexware-Office-API
-
-Für den Umzug ruft Haben die Public API von Lexware Office ab, standardmäßig unter `https://api.lexware.io/v1`. `LEXOFFICE_API_URL` brauchst du nur zum Testen oder falls Lexware die Adresse ändert; laut Code funktioniert auch `https://api.lexoffice.io/v1`. Den API-Schlüssel trägst du in der Oberfläche ein, nicht in der Umgebung. Ablauf und Voraussetzungen stehen in [Umzug aus Lexoffice](lexoffice.md).

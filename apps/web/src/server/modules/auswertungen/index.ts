@@ -10,12 +10,21 @@ export { datevExport, DatevExportError, datevNumbers, datevNumbersSchema, gebuch
 export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefwert, type IntegrityReport } from "./integrity.ts";
 export { runDueFileCheck, runFileCheck, type FileCheck, type FileProblem } from "./file-integrity.ts";
 export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type ZehnTageKennzeichen } from "./euer-jahreswechsel.ts";
-export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, umsatzsteuerVorjahreUmJahreswechsel, type OpenPosition } from "./reports.ts";
+export {
+  euerForYear,
+  lohnZahlungenUmJahreswechsel,
+  openPositions,
+  reportYears,
+  umsatzImMonat,
+  umsatzsteuerVorjahreUmJahreswechsel,
+  type OpenPosition,
+} from "./reports.ts";
 export { gesamtumsatzForYear, type GesamtumsatzItem, type GesamtumsatzResult } from "./gesamtumsatz.ts";
 export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.ts";
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 export { runDuePruefwertMail } from "./pruefwert-mail.ts";
 export { saveCompany, settingsLocks, type SettingsLocks } from "./settings-guard.ts";
+export { firmendatenUebernehmen } from "./uebernahme.ts";
 export { einrichtungSchema, einrichtungSpeichern, einrichtungStand } from "./einrichtung.ts";
 export { effectivePayment, paymentHistoryIssue, settledOn, unclearFrom, visiblePayment } from "./payment-history.ts";
 export { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";

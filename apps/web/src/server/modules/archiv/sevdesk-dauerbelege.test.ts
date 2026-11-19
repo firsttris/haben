@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import vorlagen from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/beleg-wiederkehrend-rv.json";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * #472: Vorlagen wiederkehrender Belege (RV) aus sevDesk kommen als Dauerbelege an, angehalten bis zur Prüfung, mit
@@ -22,7 +23,6 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Vorlagen wiederkehrender Belege als 
   const calls: string[] = [];
   let rv: Vorlage[] = [];
 
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const dauerbelege = async () =>
     (await sql`select sevdesk_id as "sevdeskId", status, name, supplier_contact_id as "contactId", next_date as "nextDate", end_date as "endDate",
       interval_months as "intervalMonths", category, amounts, filename from recurring_documents order by sevdesk_id`) as unknown as Record<string, unknown>[];
@@ -41,15 +41,9 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Vorlagen wiederkehrender Belege als 
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL) => {
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
+          fetch: sevdeskFakeFetch(({ path, url, list }) => {
             calls.push(`${path}${url.searchParams.get("voucherType") ? `?${url.searchParams.get("voucherType")}` : ""}`);
-            const first = url.searchParams.get("offset") === "0";
-            const list = (objects: unknown[]) => json({ objects: first ? objects : [] });
             switch (path) {
-              case "/Tools/bookkeepingSystemVersion":
-                return json({ objects: { version: "1.0" } });
               case "/Voucher":
                 return list(url.searchParams.get("voucherType") === "RV" ? rv.map((r) => r.voucher) : []);
               case "/VoucherPos":
@@ -60,20 +54,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Vorlagen wiederkehrender Belege als 
                 });
               case "/Contact":
                 return list([{ id: "ID_9", objectName: "Contact", name: "Hausverwaltung Beispiel", category: { id: "2", objectName: "Category" } }]);
-              case "/ContactAddress":
-              case "/CommunicationWay":
-              case "/Invoice":
-              case "/CreditNote":
-              case "/Order":
-              case "/VatReport":
-              case "/Part":
-              case "/TaxSet":
-              case "/CheckAccount":
-              case "/CheckAccountTransactionLog":
-                return list([]);
             }
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
     await sevdesk.saveSevdeskKey("test-user", TOKEN);

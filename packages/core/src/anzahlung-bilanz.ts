@@ -3,10 +3,11 @@ import { totalsFromTaxes } from "./invoice.ts";
 import { ACCOUNTS, invoicePosting, invoiceWriteOffPosting, revenueTaxCode, side, type Kontenrahmen, type PostingLine, type TaxShare } from "./posting.ts";
 import type { TaxTreatment } from "./treatment.ts";
 import type { Cents } from "./money.ts";
+import type { Versteuerung } from "./posting.ts";
 
 /**
- * Neue Bilanz-Schlussketten unterstützen Zahlungen vor Leistung noch nicht (#853). Eine Anforderung ist dafür
- * der vorgesehene Weg; Altbelege behalten ihre Zahlungswege. § 13 Abs. 1 Nr. 1 a Satz 4 UStG und Entscheidung:
+ * Neue Bilanz-Schlussketten unterstützen Zahlungen vor Leistung noch nicht. Eine Anforderung ist dafür
+ * der vorgesehene Weg. § 13 Abs. 1 Nr. 1 a Satz 4 UStG und Entscheidung:
  * https://github.com/firsttris/haben/issues/750#issuecomment-6850907108
  */
 export function advancePaymentDateProblem(
@@ -17,10 +18,33 @@ export function advancePaymentDateProblem(
     issueDate: string;
     serviceFrom: string | null;
     serviceTo: string | null;
+    currency: string;
+    taxTreatment: TaxTreatment;
   },
   date: string,
   amount: Cents,
+  /** Verfahren der Rechnung (Versteuerung ihres Jahres) und Rechtsform der Firma */
+  procedure: { versteuerung: Versteuerung; kapitalgesellschaft: boolean },
 ): string | null {
+  // Neue Vorauszahlungen auf unmarkierte normale Altbelege brauchen eine datierte Bestandsklärung, keine
+  // automatische Differenzbuchung. Nur das dokumentierte Leistungsdatum zählt, nie ersatzweise das Rechnungsdatum.
+  // https://github.com/firsttris/haben/issues/853#issuecomment-6910075659
+  // Nur wo der alte Weg falsch würde: Soll (Steuer erst mit der Leistung) oder GmbH/UG (Anzahlung statt Forderung).
+  // Bei Ist ohne Bilanz stimmt er schon. Entscheidung: https://github.com/firsttris/haben/pull/1228#issuecomment-6925771896
+  const performance = invoice.serviceTo ?? invoice.serviceFrom;
+  if (
+    (procedure.versteuerung === "soll" || procedure.kapitalgesellschaft) &&
+    amount > 0 &&
+    invoice.kind === "rechnung" &&
+    invoice.variant === null &&
+    invoice.advanceAccounting === null &&
+    invoice.currency === "EUR" &&
+    invoice.taxTreatment === "regulaer" &&
+    performance &&
+    date < performance
+  ) {
+    return "Diese Alt-Rechnung wurde vor der Regel für Vorauszahlungen festgeschrieben; eine Zahlung vor ihrem Leistungsdatum lässt sich ihr nicht zuordnen. Storniere sie, stelle sie mit Leistungszeitraum neu aus und ordne die Zahlung der neuen Rechnung zu.";
+  }
   if (
     amount > 0 &&
     invoice.kind === "rechnung" &&

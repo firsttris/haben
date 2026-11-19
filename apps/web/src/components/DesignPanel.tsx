@@ -52,6 +52,7 @@ const LOGO_SIZE_OPTIONS: { value: LogoSize; label: string; name: string }[] = [
 
 const LOGO_POSITION_OPTIONS: { value: LogoPosition; label: string; name: string }[] = [
   { value: "links", label: "Links", name: "Links" },
+  { value: "mitte", label: "Mitte", name: "Mitte" },
   { value: "rechts", label: "Rechts", name: "Rechts" },
 ];
 
@@ -78,6 +79,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
   disabled,
+  disabledValues,
   describedBy,
 }: {
   label: string;
@@ -85,6 +87,8 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean | undefined;
+  /** Einzelne Werte aus, etwa „Mitte“, wenn kein Layout das Logo mittig setzt; ein gespeicherter Wert bleibt gedrückt */
+  disabledValues?: readonly T[] | undefined;
   describedBy?: string | undefined;
 }) {
   return (
@@ -96,7 +100,7 @@ export function Segmented<T extends string>({
           className="btn btn-sm"
           title={option.name}
           aria-pressed={value === option.value}
-          disabled={disabled}
+          disabled={disabled || disabledValues?.includes(option.value)}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -162,16 +166,20 @@ export function DesignOptionFields({
             describedBy={layoutHintId("logoSize", hint("logoSize"))}
           />
           <Segmented
-            label="Seite des Logos"
+            label="Stelle des Logos"
             options={LOGO_POSITION_OPTIONS}
             value={design.logoPosition}
             onChange={(logoPosition) => onChange({ logoPosition })}
             disabled={hint("logoPosition")?.aus}
-            describedBy={layoutHintId("logoPosition", hint("logoPosition"))}
+            disabledValues={hint("logoMitte")?.aus ? ["mitte"] : undefined}
+            describedBy={
+              [layoutHintId("logoPosition", hint("logoPosition")), layoutHintId("logoMitte", hint("logoMitte"))].filter(Boolean).join(" ") || undefined
+            }
           />
         </div>
         <LayoutHintText option="logoSize" hint={hint("logoSize")} />
         <LayoutHintText option="logoPosition" hint={hint("logoPosition")} />
+        <LayoutHintText option="logoMitte" hint={hint("logoMitte")} />
       </section>
       <section>
         <h3>Auf dem Blatt</h3>

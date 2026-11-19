@@ -69,12 +69,14 @@ export function BelegeLeer({ filter, inhaber, hatPostfach }: { filter: BelegFilt
         {leerSatz(filter, inhaber)}
       </p>
       {!filter && inhaber && !hatPostfach && (
-        <p style={{ margin: "12px 0 0" }}>
+        <div style={{ margin: "12px 0 0" }}>
           <Link to="/einstellungen" search={{ bereich: "email" }} className="btn">
             Postfach für Belege einrichten
-          </Link>{" "}
-          <span className="small muted">Dann holt Haben Rechnungen aus deinem E-Mail-Postfach selbst ab.</span>
-        </p>
+          </Link>
+          <p className="small muted" style={{ margin: "6px 0 0" }}>
+            Dann holt Haben Rechnungen aus deinem E-Mail-Postfach selbst ab.
+          </p>
+        </div>
       )}
     </>
   );

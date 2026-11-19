@@ -137,6 +137,34 @@ test("Buchung ohne Beleg-GUID lässt sich in der Belegansicht bestätigen", asyn
     .where(eq(schema.legacyFileStates.voucherId, ohneBeleg.id));
   expect(zeile?.state).toBe("bestaetigt_ohne_datei");
   expect(zeile?.message).toContain("Arbeitszimmeranteil");
+
+  // #1317: Die Bestätigung lässt sich mit Grund zurücknehmen; der Beleg steht danach wieder offen, der Knopf ist zurück
+  await karte.getByLabel("Grund der Rücknahme").fill("Falsche Zeile geprüft");
+  await karte.getByRole("button", { name: "Bestätigung zurücknehmen" }).click();
+  const ruecknahme = page.getByRole("dialog", { name: "Bestätigung zurücknehmen?" });
+  // #1317: Im Stapel gilt der Beleg danach nur wieder als offen; der Abgleich zählt ihn weiter nicht als fehlende Datei (#1235)
+  await expect(ruecknahme).toContainText("wie vor der Bestätigung");
+  await expect(ruecknahme).not.toContainText("Abgleich");
+  await ruecknahme.getByRole("button", { name: "Zurücknehmen" }).click();
+  await expect(karte).toContainText("Buchung ohne Beleg");
+  await expect(karte.getByRole("button", { name: "Buchung ohne Beleg bestätigen" })).toHaveCount(1);
+  await expect(karte).toContainText("Falsche Zeile geprüft");
+
+  // Zwei Zeilen (der Stapel legt vor der Bestätigung keine an): Bestätigung und Rücknahme bleiben mit Person stehen,
+  // gelöscht wird nichts
+  const verlauf = await db
+    .select({ state: schema.legacyFileStates.state, message: schema.legacyFileStates.message, createdBy: schema.legacyFileStates.createdBy })
+    .from(schema.legacyFileStates)
+    .where(eq(schema.legacyFileStates.voucherId, ohneBeleg.id))
+    .orderBy(schema.legacyFileStates.createdAt, schema.legacyFileStates.id);
+  expect(verlauf.map((z) => z.state)).toEqual(["bestaetigt_ohne_datei", "bestaetigung_zurueckgenommen"]);
+  expect(verlauf.at(-1)?.message).toBe("Bestätigung zurückgenommen: Falsche Zeile geprüft");
+
+  // Zurückgenommene Bestätigung heißt nicht gesperrt: Der Knopf bestätigt wieder, und der Beleg ist wieder bestätigt
+  await karte.getByLabel("Was du geprüft hast").fill("Zweite Prüfung, kein Einzelbeleg");
+  await karte.getByRole("button", { name: "Buchung ohne Beleg bestätigen" }).click();
+  await page.getByRole("dialog", { name: "Beleg ohne Datei bestätigen?" }).getByRole("button", { name: "Ohne Datei bestätigen" }).click();
+  await expect(karte).toContainText("ohne Datei, bestätigt");
 });
 
 test("Buchung mit Beleg-GUID bleibt ohne Bestätigung", async () => {

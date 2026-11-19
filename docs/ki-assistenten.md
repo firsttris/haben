@@ -114,7 +114,7 @@ Caddy signiert Zertifikate für lokale Namen wie `haben.lan` mit seiner eigenen 
 
 | Werkzeug | Liefert |
 | --- | --- |
-| `uebersicht` | aktuelle Voranmeldung mit Zahllast und Fälligkeit, offene und überfällige Rechnungen, Umsatz im Monat, Belege zu prüfen, Bankumsätze ohne Zuordnung, ausstehende AfA, Einspruchsfristen, ELSTER-Zertifikat, nächste Fristen |
+| `uebersicht` | aktuelle Voranmeldung mit Zahllast und Fälligkeit, offene und überfällige Rechnungen, Umsatz netto im Monat und im Vormonat (Erlöskonten nach Buchungsdatum wie die Übersicht), Belege zu prüfen, Bankumsätze ohne Zuordnung, ausstehende AfA, Einspruchsfristen, ELSTER-Zertifikat, nächste Fristen |
 | `fristen` | offene Steuerfristen, auf Wunsch auch Erledigtes der letzten 60 Tage |
 | `offene_posten` | offene Forderungen und Verbindlichkeiten mit Summen und Tagen über Fälligkeit |
 | `ueberfaellige_rechnungen` | überfällige Rechnungen mit letzter Mahnstufe |

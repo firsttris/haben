@@ -30,7 +30,9 @@ export const SCHICHTEN = [
   "verfahrensdoku",
   "archiv",
   "datenimport",
+  "instanzwechsel",
   "stores",
+  "etsy",
   "mcp",
   "api",
 ] as const;
@@ -40,11 +42,4 @@ export const SCHICHTEN = [
  * darf, mit Grund. Jede Ausnahme ist ein Ring, der noch aufzulösen ist; neue kommen nur mit Zustimmung des Maintainers
  * dazu.
  */
-export const AUSNAHMEN: readonly { datei: string; modul: string; grund: string }[] = [
-  {
-    datei: "rechnungen/umsatzgrenze.ts",
-    modul: "auswertungen",
-    grund:
-      "Festschreiben prüft die Kleinunternehmergrenze am vereinnahmten Umsatz aus der EÜR des Journals (#1049); die EÜR braucht selbst rechnungen. Auflösen: #1108.",
-  },
-];
+export const AUSNAHMEN: readonly { datei: string; modul: string; grund: string }[] = [];

@@ -1,24 +1,25 @@
-import { RECHTSFORMEN, formatDecimal, formatDeduction, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
+import { RECHTSFORMEN, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
-import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
-import { AbgabeVermerken } from "../../../components/jahreserklaerung/AbgabeVermerken.tsx";
 import { GewstSection, KapgAngaben, KapgGemeinsameHinweise, KstSection } from "../../../components/KapgErklaerungen.tsx";
-import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
-import { ELSTER_KIND_LABEL, abgabePille, elsterNotice } from "../../../lib/elster.ts";
-import { formatDate, formatDateTime } from "../../../lib/format.ts";
+import { KIRCHENSTEUER_HINWEIS } from "../../../lib/kirchensteuer.ts";
 import { useAction } from "../../../lib/use-action.ts";
-import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
+import { getAnnualReturns, saveIncomeTaxInputs } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../../components/ScrollTable.tsx";
 import { Field } from "../../../components/Field.tsx";
-import { Status, OutcomeStatus } from "../../../components/Status.tsx";
+import { Block } from "../../../components/jahreserklaerung/Block.tsx";
 import { ErklaerteZeilen } from "../../../components/jahreserklaerung/ErklaerteZeilen.tsx";
+import { Reihenfolge, SentPill } from "../../../components/jahreserklaerung/Reihenfolge.tsx";
+import { Row } from "../../../components/jahreserklaerung/Row.tsx";
+import type { Data } from "../../../components/jahreserklaerung/typen.ts";
+import { SubmitPanel } from "./-jahr-senden.tsx";
+import { EuerSection, History, Issues, UstSection } from "./-jahr-teile.tsx";
 
 export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
   loader: ({ params }) => {
@@ -29,24 +30,6 @@ export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
   head: ({ loaderData }) => ({ meta: [{ title: `Jahreserklärung ${loaderData?.year ?? ""} · Haben` }], links: [{ rel: "stylesheet", href: styles }] }),
   component: AnnualPage,
 });
-
-type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
-type Form = "ust" | "euer" | "est";
-type Issue = Data["ust"]["issues"][number];
-const FORM_LABEL = {
-  ust: "Umsatzsteuererklärung",
-  euer: "Anlage EÜR",
-  est: "Einkommensteuererklärung",
-  kst: "Körperschaftsteuererklärung",
-  gewst: "Gewerbesteuererklärung",
-} as const;
-const LINK_LABEL = {
-  "/einstellungen": "Zu den Einstellungen",
-  "/anlagen": "Zu den Anlagen",
-  "/umsatzsteuer": "Zur Umsatzsteuer",
-  "/bank": "Zur Bank",
-  "/pauschalen": "Zu den Pauschalen",
-} as const;
 
 function AnnualPage() {
   const data = Route.useLoaderData();
@@ -81,31 +64,24 @@ function AnnualPage() {
         </div>
       )}
 
-      {gesellschaft ? (
-        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-          Umsatzsteuer-, Körperschaftsteuer- und Gewerbesteuererklärung rechnet Haben aus den Buchungen und dem <Link to="/abschluss">Jahresabschluss</Link>.
-          Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht.
-        </p>
-      ) : (
-        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-          Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge,
-          Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
-        </p>
+      {gesellschaft && (
+        <>
+          <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+            Umsatzsteuer-, Körperschaftsteuer- und Gewerbesteuererklärung rechnet Haben aus den Buchungen und dem <Link to="/abschluss">Jahresabschluss</Link>.
+            Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht.
+          </p>
+          <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
+            <a href="#ust">Umsatzsteuer</a>
+            <a href="#kst">Körperschaftsteuer</a>
+            <a href="#gewst">Gewerbesteuer</a>
+            <a href="#kapg-angaben">Angaben</a>
+            <a href="#verlauf">Verlauf</a>
+          </nav>
+        </>
       )}
 
-      <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
-        <a href="#ust">Umsatzsteuer</a>
-        {!gesellschaft && <a href="#euer">Anlage EÜR</a>}
-        {!gesellschaft && <a href="#est">Einkommensteuer</a>}
-        {gesellschaft && <a href="#kst">Körperschaftsteuer</a>}
-        {gesellschaft && <a href="#gewst">Gewerbesteuer</a>}
-        {gesellschaft && <a href="#kapg-angaben">Angaben</a>}
-        {!gesellschaft && <a href="#vast">Belege von ELSTER</a>}
-        <a href="#verlauf">Verlauf</a>
-      </nav>
-
       <div className="stack" style={{ gap: 24 }}>
-        {!gesellschaft && <StatusUebersicht data={data} />}
+        {!gesellschaft && <Reihenfolge data={data} />}
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
@@ -122,310 +98,6 @@ function AnnualPage() {
         <History data={data} />
       </div>
     </>
-  );
-}
-
-function Issues({ issues }: { issues: Issue[] }) {
-  return (
-    <>
-      {issues.map((issue) => (
-        <div key={issue.text} className={`banner ${issue.tone === "hinweis" ? "banner-info" : ""}`} role="status">
-          <Icon name={issue.tone === "hinweis" ? "info" : "alert"} />
-          <span>
-            {issue.text} {/* Ein Zeitraum führt auf den betroffenen Zeitraum statt auf den laufenden (#869) */}
-            {issue.link &&
-              (issue.zeitraum ? (
-                <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: issue.zeitraum }}>
-                  {LINK_LABEL[issue.link]}
-                </Link>
-              ) : issue.link === "/einstellungen" ? (
-                <Link to="/einstellungen" search={issue.bereich ? { bereich: issue.bereich } : {}}>
-                  {LINK_LABEL[issue.link]}
-                </Link>
-              ) : (
-                <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>
-              ))}
-          </span>
-        </div>
-      ))}
-    </>
-  );
-}
-
-/**
- * Die zwei Schlusszeilen der Umsatzsteuererklärung. Mit Vermerk stehen dort die erklärten Beträge (#1076), weil
- * Habens eigene Rechnung die Veranlagung nicht kennt und in einem Jahr ohne Buchungen das Vorzeichen umkehrt.
- */
-function UstSummen({ anzeige }: { anzeige: { vorauszahlungen: number; abschluss: number; ausVermerk: { vorauszahlungen: boolean; abschluss: boolean } } }) {
-  const zusatz = (ausVermerk: boolean) => (ausVermerk ? " laut Vermerk" : "");
-  return (
-    <>
-      <Row
-        label={`Vorauszahlungssoll (gesendete Voranmeldungen)${zusatz(anzeige.ausVermerk.vorauszahlungen)}`}
-        extra=""
-        value={formatDeduction(anzeige.vorauszahlungen)}
-      />
-      <Row
-        label={`${anzeige.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"}${zusatz(anzeige.ausVermerk.abschluss)}`}
-        extra=""
-        value={formatEuro(anzeige.abschluss)}
-        total
-      />
-    </>
-  );
-}
-
-/**
- * Zeile einer Betragstabelle; kz = Feldkennung, extra = Zusatzspalte (Bemessungsgrundlage),
- * text = Wert ist Text statt Betrag. Die data-label beschriften die Werte, wenn die Tabelle auf dem Handy gestapelt ist.
- */
-function Row({ label, kz, value, extra, total, text }: { label: string; kz?: string; value: string; extra?: string; total?: boolean; text?: boolean }) {
-  return (
-    <tr style={total ? { fontWeight: 600 } : undefined}>
-      <th scope="row" style={total ? { fontWeight: 600 } : undefined}>
-        {label}
-        {kz && <span className="small muted mono"> {kz}</span>}
-      </th>
-      {extra !== undefined && (
-        <td className="num" data-label="Bemessung">
-          {extra}
-        </td>
-      )}
-      <td
-        className={text ? undefined : "num"}
-        style={text ? { textAlign: "right" } : undefined}
-        data-label={extra !== undefined ? "Steuer" : text ? undefined : "Betrag"}
-      >
-        {value}
-      </td>
-    </tr>
-  );
-}
-
-/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, deren Abgabe Haben ohne Vermerk nicht kennt (#869) */
-function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"]; verwaltet?: boolean }) {
-  const pille = abgabePille({ sent: sent?.createdAt ?? null, submitted, verwaltet });
-  return (
-    <Status tone={pille.ok ? "ok" : undefined} inline>
-      {pille.text}
-    </Status>
-  );
-}
-
-function StatusUebersicht({ data }: { data: Data }) {
-  const zeilen = [
-    { id: "ust", label: "Umsatzsteuer", teil: data.ust },
-    { id: "euer", label: "Anlage EÜR", teil: data.euer },
-    { id: "est", label: "Einkommensteuer", teil: data.est },
-  ];
-  return (
-    <section className="card" aria-label="Stand der Erklärungen">
-      <table className="report-table stack-table">
-        <thead>
-          <tr>
-            <th scope="col">Erklärung</th>
-            <th scope="col">Stand</th>
-            <th scope="col" className="num">
-              Betrag
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {zeilen.map((z) => (
-            <tr key={z.id}>
-              <th scope="row">
-                <a href={`#${z.id}`}>{z.label}</a>
-              </th>
-              <td>
-                <SentPill sent={z.teil.sent} submitted={z.teil.submitted} verwaltet={"verwaltet" in z.teil ? z.teil.verwaltet : false} />
-              </td>
-              <td className="num">{z.teil.submitted?.amount === null || z.teil.submitted?.amount === undefined ? "–" : formatEuro(z.teil.submitted.amount)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
-
-function UstSection({ data }: { data: Data }) {
-  const { ust } = data;
-  const f = ust.figures;
-  return (
-    <section className="grid-main jump-target" id="ust" aria-labelledby="ust-heading">
-      <div className="card" style={{ gap: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 id="ust-heading" style={{ margin: 0 }}>
-            Umsatzsteuererklärung
-          </h2>
-          <SentPill sent={ust.sent} submitted={ust.submitted} />
-        </div>
-        <Issues issues={ust.issues} />
-        <ErklaerteZeilen form="ust" year={data.year} zeilen={ust.erklaert} vermerkt={ust.submitted !== null} />
-        {/* Habens Rechnung bleibt stehen, auch wenn erklärte Zeilen vorliegen: was fehlt, kommt von hier (#869, #997) */}
-        <div>
-          {Object.keys(ust.erklaert).length > 0 && (
-            <div className="section-label">Habens Rechnung aus den Buchungen, zum Vergleich mit den erklärten Zeilen</div>
-          )}
-          <table className="report-table stack-table">
-            <thead>
-              <tr>
-                <th scope="col">Zeile</th>
-                <th scope="col" className="num">
-                  Bemessungsgrundlage
-                </th>
-                <th scope="col" className="num">
-                  Steuer
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <Row label="Umsätze zu 19 %" extra={formatEuro(f.base19)} value={formatEuro(f.tax19)} />
-              <Row label="Umsätze zu 7 %" extra={formatEuro(f.base7)} value={formatEuro(f.tax7)} />
-              {(f.kz41 ?? 0) !== 0 && <Row label="Steuerfreie innergemeinschaftliche Lieferungen" kz="41" extra={formatEuro(f.kz41!)} value="–" />}
-              {(f.kz43 ?? 0) !== 0 && <Row label="Steuerfreie Ausfuhrlieferungen" kz="43" extra={formatEuro(f.kz43!)} value="–" />}
-              {((f.kz89 ?? 0) !== 0 || (f.tax89 ?? 0) !== 0) && (
-                <Row label="Innergemeinschaftliche Erwerbe zu 19 %" kz="89" extra={formatEuro(f.kz89 ?? 0)} value={formatEuro(f.tax89 ?? 0)} />
-              )}
-              {((f.kz93 ?? 0) !== 0 || (f.tax93 ?? 0) !== 0) && (
-                <Row label="Innergemeinschaftliche Erwerbe zu 7 %" kz="93" extra={formatEuro(f.kz93 ?? 0)} value={formatEuro(f.tax93 ?? 0)} />
-              )}
-              {((f.kz46 ?? 0) !== 0 || (f.kz47 ?? 0) !== 0) && (
-                <Row label="§-13b-Leistungen aus dem EU-Ausland" kz="46/47" extra={formatEuro(f.kz46 ?? 0)} value={formatEuro(f.kz47 ?? 0)} />
-              )}
-              {((f.kz84 ?? 0) !== 0 || (f.kz85 ?? 0) !== 0) && (
-                <Row label="§-13b-Leistungen aus dem Drittland" kz="84/85" extra={formatEuro(f.kz84 ?? 0)} value={formatEuro(f.kz85 ?? 0)} />
-              )}
-              {(f.kz21 ?? 0) !== 0 && <Row label="Nicht steuerbare Leistungen, Ort im EU-Ausland" kz="21" extra={formatEuro(f.kz21!)} value="–" />}
-              {(f.kz45 ?? 0) !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" kz="45" extra={formatEuro(f.kz45!)} value="–" />}
-              {(f.kz48Zeile46 ?? 0) !== 0 && (
-                <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug (Vermietung, § 4 Nr. 12)" kz="46" extra={formatEuro(f.kz48Zeile46!)} value="–" />
-              )}
-              {(f.kz48Zeile47 ?? 0) !== 0 && (
-                <Row
-                  label={`Steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 Nr. ${f.kz48Zeile47Nummern ?? "?"})`}
-                  kz="48"
-                  extra={formatEuro(f.kz48Zeile47!)}
-                  value="–"
-                />
-              )}
-              {ust.kz48Gesperrt.length > 0 && (
-                <Row
-                  label="Steuerfreie Umsätze ohne Vorsteuerabzug, nicht zuordenbar"
-                  kz="48"
-                  extra={formatEuro(ust.kz48Gesperrt.reduce((s, e) => s + e.betrag, 0))}
-                  value="–"
-                />
-              )}
-              <Row label="Abziehbare Vorsteuer aus Rechnungen" kz="66" extra="" value={formatDeduction(f.vorsteuer)} />
-              {(f.kz61 ?? 0) !== 0 && <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" kz="61" extra="" value={formatDeduction(f.kz61!)} />}
-              {(f.kz62 ?? 0) !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer" kz="62" extra="" value={formatDeduction(f.kz62!)} />}
-              {(f.kz67 ?? 0) !== 0 && <Row label="Vorsteuer aus §-13b-Leistungen" kz="67" extra="" value={formatDeduction(f.kz67!)} />}
-              <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-              <UstSummen anzeige={ust.anzeige} />
-            </tbody>
-          </table>
-          <p className="small muted" style={{ margin: 0 }}>
-            Bemessungsgrundlagen in vollen Euro, die Steuer daraus wie in der Voranmeldung.{" "}
-            {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}.
-            {/* Privatnutzung als unentgeltliche Wertabgabe bucht Haben nur im Einzelunternehmen (docs/anlagen.md) */}
-            {!isKapitalgesellschaft(data.rechtsform) && " Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten."}
-          </p>
-        </div>
-      </div>
-      <SubmitPanel form="ust" data={data} blocked={ust.issues.some((i) => i.tone === "fehler")} sent={Boolean(ust.sent)} submitted={ust.submitted} />
-    </section>
-  );
-}
-
-function EuerSection({ data }: { data: Data }) {
-  const { euer, euerRows } = data;
-  return (
-    <section className="grid-main jump-target" id="euer" aria-labelledby="euer-heading">
-      <div className="card" style={{ gap: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 id="euer-heading" style={{ margin: 0 }}>
-            Anlage EÜR
-          </h2>
-          <SentPill sent={euer.sent} submitted={euer.submitted} />
-        </div>
-        <Issues issues={euer.issues} />
-        <ErklaerteZeilen form="euer" year={data.year} zeilen={euer.erklaert} vermerkt={euer.submitted !== null} />
-        {/* Habens Rechnung bleibt stehen, auch wenn erklärte Zeilen vorliegen: was fehlt, kommt von hier (#869, #997) */}
-        <div>
-          {Object.keys(euer.erklaert).length > 0 && (
-            <div className="section-label">Habens Rechnung aus den Buchungen, zum Vergleich mit den erklärten Zeilen</div>
-          )}
-          <ScrollTable className="report-table">
-            <thead>
-              <tr>
-                <th scope="col">Zeile und Feldkennung</th>
-                <th scope="col" className="num">
-                  Betrag
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {euerRows.einnahmen.map((r) => (
-                <Row key={r.key} label={r.label} kz={r.kz} value={formatEuro(r.amount)} />
-              ))}
-              <Row label="Summe Betriebseinnahmen" value={formatEuro(euer.einnahmen)} total />
-              {euerRows.ausgaben.map((r) => (
-                <Row key={r.key} label={r.label} kz={r.kz} value={formatEuro(r.amount)} />
-              ))}
-              <Row label="Summe Betriebsausgaben" value={formatEuro(euer.ausgaben)} total />
-              <Row label={euer.gewinn >= 0 ? "Gewinn" : "Verlust"} value={formatEuro(euer.gewinn)} total />
-              {euerRows.privat.map((r) => (
-                <Row key={r.key} label={r.label} kz={r.kz} value={formatEuro(r.amount)} />
-              ))}
-            </tbody>
-          </ScrollTable>
-        </div>
-        {euer.anlagen.length > 0 && (
-          <div className="stack" style={{ gap: 8 }}>
-            <div className="section-label">Anlagenverzeichnis (Anlage AVEÜR)</div>
-            <div style={{ overflowX: "auto" }}>
-              <ScrollTable className="report-table">
-                <thead>
-                  <tr>
-                    <th>Anlage</th>
-                    <th className="num">Gruppe</th>
-                    <th className="num">Buchwert Beginn</th>
-                    <th className="num">AfA</th>
-                    <th className="num">Abgang</th>
-                    <th className="num">Buchwert Ende</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {euer.anlagen.map((a) => (
-                    <tr key={`${a.bezeichnung}-${a.anschaffung}`}>
-                      <td>
-                        {a.bezeichnung}
-                        <div className="small muted">
-                          {formatDate(a.anschaffung)} · {formatEuro(a.anschaffungskosten)}
-                        </div>
-                      </td>
-                      <td className="num small muted">
-                        {a.gruppe === "kfz" ? "Kfz" : a.gruppe === "buero" ? "Büro" : a.gruppe === "sammelposten" ? "Sammelposten" : "Andere"}
-                      </td>
-                      <td className="num">{formatEuro(a.buchwertBeginn)}</td>
-                      <td className="num">{formatEuro(a.afa)}</td>
-                      <td className="num">{a.abgang ? formatEuro(a.abgang) : "–"}</td>
-                      <td className="num">{formatEuro(a.buchwertEnde)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </ScrollTable>
-            </div>
-            <p className="small muted" style={{ margin: 0 }}>
-              Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn. Geringwertige Wirtschaftsgüter gehören nicht ins
-              Verzeichnis.
-            </p>
-          </div>
-        )}
-      </div>
-      <SubmitPanel form="euer" data={data} blocked={euer.issues.some((i) => i.tone === "fehler")} sent={Boolean(euer.sent)} submitted={euer.submitted} />
-    </section>
   );
 }
 
@@ -454,21 +126,6 @@ function Amount({ name, label, value, hint }: { name: string; label: string; val
  */
 function aufklappenBisZumFeld(event: FormEvent<HTMLFormElement>) {
   for (let block = (event.target as HTMLElement).closest("details"); block; block = block.parentElement?.closest("details") ?? null) block.open = true;
-}
-
-/** Zuklappbarer Teil der Einkommensteuer-Angaben; im Titel steht, was gespeichert ist */
-function Block({ title, summary, open, children }: { title: string; summary: string; open: boolean; children: ReactNode }) {
-  return (
-    <details className="est-block" open={open}>
-      <summary>
-        <span className="est-block-title">{title}</span>
-        <span className="small muted">{summary}</span>
-      </summary>
-      <div className="stack" style={{ gap: 12, paddingTop: 12 }}>
-        {children}
-      </div>
-    </details>
-  );
 }
 
 const sumOf = (...values: (number | undefined)[]) => values.reduce<number>((s, v) => s + (v ?? 0), 0);
@@ -605,7 +262,7 @@ function EstSection({ data }: { data: Data }) {
       <form className="card" onSubmit={onSubmit} onInvalidCapture={aufklappenBisZumFeld} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
-          <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
+          <SentPill teil={est} />
         </div>
         <Issues issues={est.issues} />
         <ScrollTable className="report-table">
@@ -683,12 +340,7 @@ function EstSection({ data }: { data: Data }) {
             open={false}
           >
             <div className="form-grid">
-              <Amount
-                name="kistGezahlt"
-                label="Gezahlte Kirchensteuer"
-                value={a.sonderausgaben.kirchensteuerGezahlt}
-                hint="ohne Kirchensteuer auf Kapitalerträge"
-              />
+              <Amount name="kistGezahlt" label="Gezahlte Kirchensteuer" value={a.sonderausgaben.kirchensteuerGezahlt} hint={KIRCHENSTEUER_HINWEIS} />
               <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
               <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
               <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
@@ -854,95 +506,6 @@ function EstSection({ data }: { data: Data }) {
         </div>
       </form>
       <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} submitted={est.submitted} />
-    </section>
-  );
-}
-
-function SubmitPanel({
-  form,
-  data,
-  blocked,
-  sent,
-  submitted,
-}: {
-  form: Form;
-  data: Data;
-  blocked: boolean;
-  sent: boolean;
-  submitted: Data["ust"]["submitted"];
-}) {
-  const router = useRouter();
-  const submit = useServerFn(submitAnnualReturn);
-  const loadWerte = useServerFn(getMeinElsterWerte);
-  const { busy, notice, setNotice, run } = useAction();
-  const berechnet = form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : 0;
-
-  return (
-    <div className="stack sticky-panel">
-      {/* Mit Vermerk ist die Erklärung von außen abgegeben; ein ausgegrautes Übermittlungs-Panel sagt dazu nichts (#1080) */}
-      {!submitted && (
-        <ElsterSubmit
-          setup={data}
-          title={`${FORM_LABEL[form]} übermitteln`}
-          className="card"
-          ready={!blocked}
-          busy={busy}
-          notice={notice}
-          lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
-          confirmTitle={`${FORM_LABEL[form]} ${data.year} verbindlich senden?`}
-          confirmFacts={[
-            { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
-            { label: "Zeitraum", value: String(data.year) },
-          ]}
-          confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt.`}
-          footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
-          onSubmit={(kind, pin) =>
-            run(async () => {
-              const result = await submit({ data: { form, year: data.year, kind, pin } });
-              setNotice(elsterNotice(kind, result, "Übermittelt."));
-              await router.invalidate();
-            })
-          }
-        />
-      )}
-      <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />
-      {!data.herstellerIdConfigured && !sent && !submitted && (
-        <MeinElsterWerte load={() => loadWerte({ data: { form, year: data.year } })} label={`${FORM_LABEL[form]} ${data.year}`} blocked={blocked} />
-      )}
-    </div>
-  );
-}
-
-function History({ data }: { data: Data }) {
-  return (
-    <section className="card jump-target" id="verlauf" aria-labelledby="history-heading">
-      <h2 id="history-heading">Verlauf {data.year}</h2>
-      {data.history.length === 0 ? (
-        <p className="muted" style={{ margin: 0 }}>
-          Noch nichts geprüft oder gesendet.
-        </p>
-      ) : (
-        data.history.map((entry) => (
-          <div key={entry.id} className="history-row">
-            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-              <span style={{ fontWeight: 500 }}>
-                {FORM_LABEL[entry.form]} · {ELSTER_KIND_LABEL[entry.kind]}{" "}
-                <OutcomeStatus ok={entry.ok}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</OutcomeStatus>
-              </span>
-              <span className="small muted" style={{ overflowWrap: "anywhere" }}>
-                {formatDateTime(entry.createdAt)}
-                {entry.transferTicket ? ` · Ticket ${entry.transferTicket}` : ""}
-                {!entry.ok ? ` · ${entry.message}` : ""}
-              </span>
-            </div>
-            {entry.hasPdf && (
-              <a href={`/api/protokoll/${entry.id}`} target="_blank" rel="noreferrer" className="small">
-                Protokoll
-              </a>
-            )}
-          </div>
-        ))
-      )}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import { formatHundredths } from "@haben/core";
-import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
+import { kleinunternehmerStand, runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueArchiveDeliveries } from "./modules/ablage/index.ts";
 import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
 import { runDueBankSyncs, runDueFintsSyncs } from "./modules/bank/index.ts";
@@ -9,6 +9,7 @@ import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modu
 import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
 import { runDueFristenMails, runDuePostfachFetch } from "./modules/finanzamt/index.ts";
 import { applyPublishedRatesToDrafts, runDueBaseRate, runDueRecurring } from "./modules/rechnungen/index.ts";
+import { runDueEtsySyncs } from "./modules/etsy/index.ts";
 import { runDueStoreSyncs } from "./modules/stores/index.ts";
 import { today } from "./today.ts";
 
@@ -21,7 +22,7 @@ export async function runScheduledJobs(): Promise<void> {
   if (running) return;
   running = true;
   try {
-    const result = await runDueRecurring(today());
+    const result = await runDueRecurring(today(), kleinunternehmerStand);
     if (result.created > 0 || result.errors.length > 0) {
       console.log(`Wiederkehrende Rechnungen: ${result.created} angelegt, ${result.finalized} festgeschrieben, ${result.mailed} per E-Mail versandt`);
       for (const error of result.errors) console.warn(error);
@@ -64,6 +65,13 @@ export async function runScheduledJobs(): Promise<void> {
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Store-Finanzberichte", error);
+  }
+  try {
+    const result = await runDueEtsySyncs();
+    if (result.added > 0) console.log(`Etsy Payments: ${result.added} neue Umsätze aus dem Zahlungsverlauf`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("Etsy Payments", error);
   }
   try {
     if (elsterMode() === "eric") {

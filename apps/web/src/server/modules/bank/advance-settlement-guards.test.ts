@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #750: Keine Forderung vor Leistung und keine Vorauszahlung auf den Schlussrest neuer Bilanzketten.
@@ -78,7 +79,7 @@ describe.skipIf(!testDatabaseUrl)("Sperren vor der Schlussleistung (Postgres)", 
       advanceType: "anzahlung",
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    if (!legacy) return invoices.finalizeInvoice(actor, draft.id);
+    if (!legacy) return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     // Prä-0223-Altbestand wie in anzahlung-bilanz-transition.test.ts: Forderung und Erlös sind bereits gebucht.
     return withActor(actor, async (tx) => {
       await accounting.post(tx, await accounting.openBooks(tx), {
@@ -120,7 +121,7 @@ describe.skipIf(!testDatabaseUrl)("Sperren vor der Schlussleistung (Postgres)", 
     const request = await advance();
     expect(request).toMatchObject({ advanceAccounting: "deferred", gross: 35_700 });
     const draft = await finalDraft(request.id);
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(final).toMatchObject({ advanceAccounting: "deferred", gross: 83_300 });
     return { request, final };
   }
@@ -150,7 +151,7 @@ describe.skipIf(!testDatabaseUrl)("Sperren vor der Schlussleistung (Postgres)", 
     const draft = await finalDraft(request.id, 90_000, "2027-03-12");
     const before = await state();
 
-    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/Beträge.*Steuersatz/);
+    await expect(invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).rejects.toThrow(/Beträge.*Steuersatz/);
 
     expect(await state()).toEqual(before);
     expect((await invoices.getInvoice(draft.id))?.invoice.status).toBe("draft");
@@ -207,7 +208,7 @@ describe.skipIf(!testDatabaseUrl)("Sperren vor der Schlussleistung (Postgres)", 
     const { request, final } = await finalInvoice();
     await invoices.cancelInvoice(actor, final.id, "2027-02-12");
     const draft = await finalDraft(request.id, 100_000, "2027-03-12");
-    const replacement = await invoices.finalizeInvoice(actor, draft.id);
+    const replacement = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(replacement.replacesInvoiceId).toBe(final.id);
     const before = await state();
 
@@ -291,7 +292,7 @@ describe.skipIf(!testDatabaseUrl)("Sperren vor der Schlussleistung (Postgres)", 
       const request = await advance(legacy);
       expect(request.advanceAccounting).toBeNull();
       const draft = await finalDraft(request.id);
-      const final = await invoices.finalizeInvoice(actor, draft.id);
+      const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
       expect(final.advanceAccounting).toBeNull();
       const payment = await transaction("19.01.27", "Unmarkierter Schlussrest", "119,00");
 

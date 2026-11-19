@@ -1,4 +1,4 @@
-import { advanceReceivables, recordedTaxShares, type DeferredSettlement } from "@haben/core";
+import { advanceReceivables, isKapitalgesellschaft, recordedTaxShares, type DeferredSettlement } from "@haben/core";
 import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
@@ -35,6 +35,8 @@ async function settlementsAt(ids: string[], cutoff: string, q: Db | Tx): Promise
 
 /** Nur der additive Bilanzweg; Quelle für OPOS, Journalgegenprobe und Restlaufzeiten. */
 export async function advanceReceivablesAt(cutoff: string, q: Db | Tx = db) {
+  const [company] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).where(eq(schema.company.id, 1));
+  if (!company || !isKapitalgesellschaft(company.rechtsform)) return advanceReceivables([], [], [], cutoff);
   const i = schema.invoices;
   const invoices = await q
     .select({
@@ -50,6 +52,7 @@ export async function advanceReceivablesAt(cutoff: string, q: Db | Tx = db) {
       dueDate: i.dueDate,
       serviceFrom: i.serviceFrom,
       serviceTo: i.serviceTo,
+      serviceDate: i.serviceDate,
       gross: i.gross,
     })
     .from(i)
@@ -63,7 +66,10 @@ export async function advanceReceivablesAt(cutoff: string, q: Db | Tx = db) {
     .from(schema.invoiceLines)
     .where(and(inArray(schema.invoiceLines.invoiceId, ids), isNotNull(schema.invoiceLines.deductionOf)));
   return advanceReceivables(
-    invoices.map(({ serviceTo, serviceFrom, ...invoice }) => ({ ...invoice, performanceDate: serviceTo ?? serviceFrom ?? invoice.issueDate })),
+    invoices.map(({ serviceDate, serviceTo, serviceFrom, ...invoice }) => ({
+      ...invoice,
+      performanceDate: serviceDate ?? serviceTo ?? serviceFrom ?? invoice.issueDate,
+    })),
     await settlementsAt(ids, cutoff, q),
     deductions.map((d) => ({ ...d, advanceId: d.advanceId! })),
     cutoff,

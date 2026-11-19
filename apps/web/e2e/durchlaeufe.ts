@@ -40,6 +40,8 @@ export const DURCHLAEUFE = {
   "fremdrechnung-kleinunternehmer": 29,
   // Kontoabruf über FinTS (#654): nur dieser Server hat FINTS_PRODUKT_ID, die nachgebaute Bank liegt auf FINTS_BANK_PORT
   "fints-abruf": 30,
+  // Etsy Payments (#1133): nur dieser Server fragt die nachgebaute Etsy-API auf ETSY_PORT
+  "etsy-abruf": 32,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
@@ -48,6 +50,15 @@ export const ENABLE_BANKING_PORT = PORT + 9;
 
 /** Nachgebaute FinTS-Bank in fints-abruf.spec.ts (@haben/import/fints-testbank) */
 export const FINTS_BANK_PORT = PORT + 31;
+
+/** Nachgebaute Etsy-API mit Anmeldung in etsy-abruf.spec.ts (ETSY_API_URL, ETSY_TOKEN_URL, ETSY_AUTH_URL) */
+export const ETSY_PORT = PORT + 33;
+
+/**
+ * Nachgebauter Dienst des BZSt für die Bestätigung von USt-IdNrn. in belege-steuern.spec.ts (EVATR_API_URL, #1385); jeder
+ * Server zeigt dorthin, damit kein Test das echte BZSt fragt
+ */
+export const EVATR_PORT = PORT + 34;
 
 /** Platzhalter für FINTS_PRODUKT_ID im Durchlauf „fints-abruf“; eine echte Registrierungsnummer steht nie im Repository */
 export const FINTS_PRODUKT_E2E = "HABENE2ETESTPRODUKT";

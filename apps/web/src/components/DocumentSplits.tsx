@@ -1,4 +1,5 @@
 import { allocateSplitTax, formatDecimal, formatEuro, parseEuro, type ExpenseCategory } from "@haben/core";
+import { CategoryCombobox } from "./CategoryCombobox.tsx";
 import { EigenesKontoWahl, passendesKonto, type OwnAccountChoice } from "./EigenesKontoWahl.tsx";
 import { Field } from "./Field.tsx";
 
@@ -81,23 +82,17 @@ export function DocumentSplits({
         <div className="document-split-row" key={row.key}>
           <Field label="Kategorie" error={error("kategorie", row.key)}>
             {(control) => (
-              <select
+              <CategoryCombobox
                 {...control}
+                categories={options}
                 value={row.category}
-                onChange={(e) =>
+                onChoose={(next) =>
                   update(row.key, {
-                    category: e.target.value as ExpenseCategory | "",
-                    ownAccountId: passendesKonto(ownAccounts, e.target.value, row.ownAccountId),
+                    category: next as ExpenseCategory | "",
+                    ownAccountId: passendesKonto(ownAccounts, next, row.ownAccountId),
                   })
                 }
-              >
-                <option value="">Bitte wählen</option>
-                {options.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </Field>
           <Field label="Satz">

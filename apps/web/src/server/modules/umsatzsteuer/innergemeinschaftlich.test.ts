@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Innergemeinschaftlicher Erwerb (§ 1a UStG) am Eingangsbeleg, innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a
@@ -149,7 +150,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
       taxTreatment: options.treatment,
       lines: [{ description: "Hardware", quantity: 1000, unit: "Stk." as const, unitPrice: options.net, taxRate: 0 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function lines(sourceId: string) {
@@ -294,6 +295,9 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     await expect(documents.bookDocument(actor, ohne)).rejects.toThrow("USt-IdNr. des Lieferanten");
     const deutsch = await erwerb({ supplierUstId: "DE987654321", book: false });
     await expect(documents.bookDocument(actor, deutsch)).rejects.toThrow("deutscher USt-IdNr.");
+    // Aufbau je Mitgliedstaat (#1413): ATU und acht Ziffern
+    const kurz = await erwerb({ supplierUstId: "ATU1234", book: false });
+    await expect(documents.bookDocument(actor, kurz)).rejects.toThrow("Lieferant ATU1234: eine USt-IdNr. aus Österreich hat nach AT ein U und acht Ziffern");
 
     await reset("SKR03", "ist", true);
     const ku = await erwerb({ book: false });
@@ -320,6 +324,75 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     expect(sep).toMatchObject({ kz66: 9_500, kz89: 0, kz61: 0 });
     expect((await lines(id)).map((l) => l.account)).toEqual(["1576", "1600", "3200"]);
   }, 60_000);
+
+  // Festgeschriebene Rechnungen lassen sich nicht mehr ändern; eine Sperre ließe die Meldung des Quartals nicht mehr zu (#1413)
+  it("Vorprüfung: eine USt-IdNr. im falschen Aufbau ist eine Warnung, keine Sperre", () => {
+    const issues = zm.zmIssues({
+      company: { ustId: "DE136695976", name: "Testfirma", strasse: "Musterstraße 1", plz: "93047", ort: "Regensburg" },
+      quellen: [
+        { invoiceId: "r1", number: "RE-1", customer: "Wiener Werkstatt", date: "2026-08-03", type: "invoice", ustId: "ATU1234", art: "S", base: 100_000 },
+      ],
+      zeilen: [{ ustId: "ATU1234", art: "S", betrag: 100_000 }],
+      kz21: 100_000,
+      voranmeldungen: 1,
+    });
+    expect(issues).toContainEqual({
+      tone: "warn",
+      text: "Rechnung RE-1 an Wiener Werkstatt: ATU1234: eine USt-IdNr. aus Österreich hat nach AT ein U und acht Ziffern.",
+    });
+    expect(issues.filter((i) => i.tone === "error")).toEqual([]);
+  });
+
+  // Vor #1413 prüfte das Festschreiben nur das Länderkennzeichen. Storno und Korrektur übernehmen Kunde und USt-IdNr. der
+  // Rechnung (finalizeDraft: corrects.buyer), lassen sich an der Nummer also nicht berichtigen; sie müssen gehen, sonst
+  // bleibt die Lieferung in Kz 41 und in der ZM stehen
+  it.each(["Storno", "Korrektur"] as const)(
+    "%s einer innergemeinschaftlichen Lieferung, die vor der Prüfung des Aufbaus mit ATU1234 festgeschrieben wurde",
+    async (weg) => {
+      await reset("SKR03", "soll");
+      const kunde = {
+        kundennummer: "",
+        name: "Wiener Werkstatt GmbH",
+        strasse: "Ringstraße 1",
+        plz: "1010",
+        ort: "Wien",
+        land: "AT",
+        email: "einkauf@kunde.example",
+        ustId: "ATU12345678",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
+      };
+      const contact = await contacts.createContact(actor, kunde);
+      const draft = await invoices.createDraft(actor, {
+        contactId: contact.id,
+        issueDate: "2026-09-20",
+        serviceFrom: "2026-09-20",
+        serviceTo: null,
+        paymentTermDays: 14,
+        format: "zugferd",
+        note: "",
+        taxTreatment: "ig_lieferung",
+        lines: [{ description: "Hardware", quantity: 1000, unit: "Stk." as const, unitPrice: 100_000, taxRate: 0 }],
+      });
+      const rechnung = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
+      // Stand aus der Zeit vor dem Update: Kunde und festgeschriebene Rechnung mit ATU1234, das damals durchging
+      await contacts.updateContact(actor, contact.id, { ...kunde, ustId: "ATU1234" });
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update invoices set buyer = jsonb_set(buyer, '{ustId}', '"ATU1234"') where id = ${rechnung.id}`;
+      });
+      expect((await zm.zmOverview({ year: 2026, month: 43 })).zeilen).toEqual([{ ustId: "ATU1234", art: "L", betrag: 100_000 }]);
+
+      const gutschrift =
+        weg === "Storno"
+          ? await invoices.cancelInvoice(actor, rechnung.id, "2026-09-28")
+          : await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, rechnung.id, "2026-09-28")).id, kleinunternehmerStand);
+      expect(gutschrift.buyer?.ustId).toBe("ATU1234");
+      expect((await zm.zmOverview({ year: 2026, month: 43 })).zeilen).toEqual([]);
+    },
+    60_000,
+  );
 
   // § 18a Abs. 1 Satz 2 UStG: Maßgeblich ist die Summe der Bemessungsgrundlagen, nicht die je Zeile auf volle Euro
   // abgeschnittenen Beträge der Meldung; 50.001,20 € übersteigen 50.000 €

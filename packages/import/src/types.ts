@@ -25,6 +25,8 @@ export type StatementFormat =
   | "shopify-payments-csv"
   | "ebay-csv"
   | "etsy-csv"
+  /** Zahlungsverlauf von Etsy Payments über die Open API v3 (kein Dateiimport) */
+  | "etsy-ledger"
   | "googleplay-earnings"
   | "appstore-finance"
   | "store-payout";
@@ -36,6 +38,7 @@ export const PSP_FORMATS: StatementFormat[] = [
   "shopify-payments-csv",
   "ebay-csv",
   "etsy-csv",
+  "etsy-ledger",
   "googleplay-earnings",
   "appstore-finance",
   "store-payout",

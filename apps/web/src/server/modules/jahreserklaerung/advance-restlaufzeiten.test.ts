@@ -64,6 +64,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten neuer Anzahlungs- und Schlussk
           gross: input.gross,
           kind: input.cancels ? "storno" : "rechnung",
           correctsId: input.cancels ?? null,
+          // Kennzeichen beim Festschreiben ab #853 (Trigger invoices_reduction_rule)
+          reductionRule: input.cancels ? "rueckgewaehr" : null,
           variant: input.variant ?? null,
           advanceType: input.variant === "abschlag" ? "anzahlung" : null,
           advanceAccounting: input.marker ?? null,

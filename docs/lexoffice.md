@@ -1,5 +1,5 @@
 ---
-title: "Umzug aus Lexoffice / Lexware Office ohne Datenverlust"
+title: "Umzug aus Lexoffice / Lexware Office mit Abgleich je Jahr"
 description: >-
   Von Lexware Office (Lexoffice) zu Haben wechseln: Rechnungen, Belege, Kontakte und Buchungen
   übernehmen, unveränderlich archivieren und das Abo kündigen.
@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus FastBill](fastbill.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst; der Abgleich je Jahr zeigt vorher, ob alles da ist. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus FastBill](fastbill.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 
@@ -65,7 +65,7 @@ Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufend
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
-Dieselben Daten holst du über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
+Deine eigenen Daten holst du für den Umzug über die Web-Oberfläche: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
 
 ### Sicherung aus der Web-Oberfläche
 
@@ -82,13 +82,13 @@ Buchungen, Bankumsätze, Voranmeldungen und Anlagen holst du wie beim Abruf übe
 
 ### Darf ich das?
 
-Ja, nach unserer Einschätzung, ohne Gewähr und ohne Rechtsberatung: Du holst deine eigenen Daten mit deiner eigenen Anmeldung, das Skript umgeht keinen Schutz und ändert nichts. Dafür sprechen:
+Wir halten das für zulässig, können es aber nicht zusichern; das ist keine Rechtsberatung. Das Skript ist dafür gedacht, deine eigenen Daten zum Umzug mitzunehmen, nicht für den laufenden Betrieb. Du holst sie mit deiner eigenen Anmeldung, das Skript umgeht keinen Schutz und ändert nichts. Dafür sprechen:
 
 - **EU Data Act** ([Verordnung (EU) 2023/2854](https://eur-lex.europa.eu/eli/reg/2023/2854/oj), Art. 23 ff., seit 12. September 2025): Anbieter von Cloud- und Software-Diensten dürfen den Wechsel zu einem anderen Dienst und die Mitnahme deiner Daten nicht behindern.
 - **Datenübertragbarkeit** ([Art. 20 DSGVO](https://eur-lex.europa.eu/eli/reg/2016/679/oj)), soweit die Daten dich als Person betreffen, etwa als Einzelunternehmer.
 - **Aufbewahrungspflicht** ([§ 147 AO](https://www.gesetze-im-internet.de/ao_1977/__147.html)): Du musst Rechnungen, Belege und Buchungen zehn Jahre vorlegen können, auch nach der Kündigung.
 
-Lies trotzdem die AGB deines Anbieters; sie gelten zwischen dir und ihm. Haben gehört nicht zu Lexware oder FastBill und wird von ihnen weder unterstützt noch geprüft. Lexware, Lexoffice und FastBill sind Marken ihrer Inhaber.
+Lies trotzdem die AGB deines Anbieters; sie gelten zwischen dir und ihm. Haben gehört nicht zu den Anbietern, aus denen es Daten übernimmt, und wird von ihnen weder unterstützt noch geprüft; ihre Namen sind Marken ihrer Inhaber.
 
 ### Was die Web-Oberfläche anders liefert
 
@@ -126,9 +126,10 @@ In Lexware Office kannst du einen Bankumsatz direkt einer Kategorie zuordnen, oh
 Das Skript findet sie über die Bankumsätze: Hat ein Umsatz mehr Zuordnungen, als Belege aus der Belegliste auf ihn verweisen, fragt es die Zuordnungen ab und lädt jede Buchung ohne Beleg mit Kategorie, Steuersatz und Betrag. Haben übernimmt sie so:
 
 - Als Einnahme- bzw. Ausgabebeleg ohne Nummer und ohne Datei. Als Kontakt steht der Name aus dem Bankumsatz da, als Notiz „Buchung ohne Beleg“ und der Verwendungszweck.
+- In der Belegansicht bestätigst du eine solche Buchung über „Buchung ohne Beleg bestätigen“; danach steht sie auf „ohne Datei, bestätigt“, mit Zeitpunkt und Benutzer. Das gilt nur für Ausgaben, die die Sicherung als Buchung ohne Beleg führt: Eine Ausgabe, deren Datei nur im Export fehlt, bleibt gesperrt, ebenso Einnahmen ohne Beleg, Rechnungen und Gutschriften. Die Bestätigung ersetzt keinen Eigenbeleg; für den Vorsteuerabzug braucht es die Rechnung.
 - Die Steuer rechnet Haben aus Betrag und Satz wie bei den übrigen Belegen; Lexware Office rechnet die Vorsteuer aus dem Bruttobetrag heraus (250,00 € zu 19 % → 39,92 €).
 - Bezahlt ist die Buchung am Buchungstag des Bankumsatzes; bei Ist-Versteuerung zählen Einnahmen in diesem Monat.
-- Im Abgleich je Jahr zählt die Prüfung „Jeder Beleg hat eine Datei“ sie nicht mit, die erste Prüfung nennt ihre Zahl.
+- Im Abgleich je Jahr zählt die Prüfung „Jeder Beleg hat eine Datei“ sie nicht mit, die erste Prüfung nennt ihre Zahl. Nach einer Bestätigung steht bei ihnen „ohne Datei (bestätigt)“, wie bei den übrigen Quellen.
 - **Privat und Geldtransit:** Buchungen, deren Kategorien alle „privat“, „Geldtransit“, „Einkommensteuer“, „Kirchensteuer“ oder „Solidaritätszuschlag“ im Namen tragen, sind archiviert, zählen aber weder in den Einnahmen und Ausgaben noch in der Umsatzsteuer je Monat. Der Abgleich je Jahr weist sie getrennt aus. Lexware Office kennzeichnet private Kategorien nicht, Haben erkennt sie nur am Namen. Bei GmbH und UG ordnet Haben anders ein, siehe [Einordnung bei GmbH und UG](#einordnung-bei-gmbh-und-ug).
 
 Hast du per API umgezogen, fehlen diese Buchungen. Lass dann zusätzlich das Skript laufen und lade die Sicherung hoch; den Kasten dafür zeigt Haben erst, wenn kein API-Schlüssel mehr gespeichert ist, entferne ihn also vorher mit „Schlüssel entfernen“: Haben überspringt die Belege, die schon da sind, und übernimmt nur die Buchungen ohne Beleg.
@@ -287,7 +288,7 @@ Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewä
 
 Ein [KI-Assistent](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) liest die Salden je Konto und Monat und die einzelnen Buchungen über die Werkzeuge `lexoffice_konten` und `lexoffice_buchungen`.
 
-Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit dem Filter „Nur ohne passenden Beleg“, und darunter die Umsätze je Konto. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
+Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit zwei Filtern, „Nur ohne passenden Beleg“ und „Aufladung ohne Bezug“ (siehe [Bank](bank.md#aufladung-eines-guthabens)), und darunter die Umsätze je Konto. Eine Zeile, deren Buchungstext mit „Aufladung Guthaben“ beginnt und deren Belegfeld 1 leer ist, steht unter „Aufladung ohne Bezug“ und nicht unter „Nur ohne passenden Beleg“: Für die Aufladung gibt es keine Rechnung, und den Bezug zu der späteren Rechnung setzt Haben noch nicht. Trägt eine solche Zeile eine Belegnummer, ist sie ein offener Punkt wie jede andere und bleibt im Filter „Nur ohne passenden Beleg“, bis ein Beleg sie trägt; findet sie ihren Beleg, steht sie in keinem der beiden Filter. Enthält Belegfeld 1 keine einzige Ziffer (etwa den Namen eines Zahlungsdienstleisters in einer Zahlungszeile), trägt kein Beleg das Feld als Nummer und findet die Buchung auch sonst keinen Beleg, ist sie kein offener Punkt: Sie bleibt sichtbar, erscheint nicht im Filter „Nur ohne passenden Beleg“ und zählt im Abgleich unter „ohne Belegnummer“, wie ein leeres Feld, solange die Zeile einen Beleg braucht (nicht Privat, Geldtransit oder Vortrag). Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
 
 ### Abschluss aus dem DATEV-Stapel (GmbH und UG)
 
@@ -343,9 +344,9 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 | Prüfung | Erfüllt, wenn |
 | --- | --- |
 | Belege und Rechnungen per API abgerufen | mindestens ein Beleg mit Datum in diesem Jahr vorliegt; Buchungen ohne Beleg werden extra gezählt |
-| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg, bestätigt dateilose Belege aus sevDesk und aus dem Accountable-Stapel ([Dateistand](sevdesk.md#dateistand)) und Belege aus der Export-ZIP ohne Belegbild ausgenommen; „Belege mit fehlender Datei ansehen“ zeigt die Liste |
+| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg, bestätigt dateilose Belege aus sevDesk, aus dem Accountable-Stapel und aus der Lexoffice-Sicherung ([Dateistand](sevdesk.md#dateistand)) und Belege aus der Export-ZIP ohne Belegbild ausgenommen; „Belege mit fehlender Datei ansehen“ zeigt die Liste |
 | DATEV-Buchungsstapel übernommen | Buchungen mit Datum in diesem Jahr eingelesen sind |
-| Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Lexoffice-Beleg mit derselben Nummer existiert (Leerzeichen und Groß-/Kleinschreibung egal); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt; „Buchungen ohne passenden Beleg ansehen“ zeigt die übrigen |
+| Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Beleg mit derselben Nummer oder über die GUID im Beleglink existiert (Leerzeichen und Groß-/Kleinschreibung egal; bei Buchungen aus der Export-ZIP von sevDesk zählt nur die GUID); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt; ein Belegfeld ohne Ziffer ist keine Nummer ([DATEV-Buchungen](#datev-buchungsstapel)); „Buchungen ohne passenden Beleg ansehen“ zeigt die übrigen |
 | IDEA-Export archiviert | eine Datei der Art IDEA mit diesem Jahr vorliegt |
 | ELSTER-Protokolle archiviert | mindestens ein ELSTER-Protokoll mit diesem Jahr vorliegt |
 | Kontoauszüge archiviert | mindestens ein Kontoauszug mit diesem Jahr vorliegt |
@@ -399,7 +400,7 @@ Die Steuerart liest Haben aus der gespeicherten Antwort der API (`taxConditions.
 | Steuerfrei (`vatfree`) | Steuerfrei |
 | mit Unterart Fernverkauf oder elektronische Dienstleistung | OSS |
 
-Kz 21, 41 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die übrigen wie die regulären Umsätze. Die Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67) rechnet Haben nicht nach: Buchhaltungsbelege tragen in der API keine eigene Steuerart dafür.
+Kz 21, 41, 45 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die übrigen wie die regulären Umsätze. Kz 45 meldet Haben selbst [mit der Rechnung](umsatzsteuer.md#umsätze-ohne-steuer-kz-21-41-43-45-und-48); hat Lexware Office sie mit der Zahlung gemeldet, weicht Kz 45 im Abgleich zwischen dem Monat der Rechnung und dem der Zahlung ab. Die Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67) rechnet Haben nicht nach: Buchhaltungsbelege tragen in der API keine eigene Steuerart dafür.
 
 Bei Soll-Versteuerung zählen Einnahmen nach Belegdatum. Bei Ist-Versteuerung zählen sie anteilig nach Datum der einzelnen Zahlungen aus dem Zahlungsstatus; Skonto, Mahnkosten, Kursdifferenzen und Forderungsausfälle zählen dabei nicht. Gutschriften mindern die Umsätze.
 

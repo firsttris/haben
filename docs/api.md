@@ -1,7 +1,7 @@
 ---
-title: "REST-API für Kontakte, Artikel und Rechnungsentwürfe"
+title: "REST-API für Kontakte, Artikel, Rechnungsentwürfe und Angebote"
 description: >-
-  Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen über die REST-API in Haben pflegen.
+  Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen über die REST-API in Haben pflegen und Angebote lesen.
   Mit OpenAPI-Beschreibung.
 ---
 
@@ -17,6 +17,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | --- | --- |
 | Kontakte | auflisten und suchen, lesen, anlegen, ändern (nicht löschen: Kontakte sind versioniert) |
 | Rechnungen | alle lesen, auch festgeschriebene; Entwürfe anlegen, ändern und löschen, solange sie Entwurf sind |
+| Angebote | alle lesen, auch festgeschriebene, mit der Antwort des Kunden und der Rechnung daraus |
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
 | Artikel | Katalogartikel auflisten, suchen, lesen, anlegen und ändern |
 | Leistungen | Zeiteinträge je Kunde auflisten, lesen, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
@@ -37,6 +38,7 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `kontakte:schreiben` | dazu `POST /kontakte`, `PATCH /kontakte/{id}` |
 | `rechnungen:lesen` | `GET /rechnungen`, `GET /rechnungen/{id}` |
 | `rechnungen:entwuerfe` | dazu `POST /rechnungen`, `PATCH /rechnungen/{id}`, `DELETE /rechnungen/{id}` |
+| `angebote:lesen` | `GET /angebote`, `GET /angebote/{id}` |
 | `belege:lesen` | `GET /belege`, `GET /belege/{id}` |
 | `belege:anlegen` | dazu `POST /belege` |
 | `artikel:lesen` | `GET /artikel`, `GET /artikel/{id}` |
@@ -209,6 +211,14 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
 4. In Haben die Entwürfe prüfen und festschreiben, dann wie gewohnt versenden.
 
+## Angebote
+
+`GET /angebote` listet alle Angebote, Entwürfe zuerst, dann nach Nummer absteigend; `status` (`draft` oder `final`), `contactId` und `number` grenzen die Liste ein. Mit `number` prüft etwa eine Auftragsverwaltung die Angebotsnummer an einem Auftrag. `GET /angebote/{id}` liefert das Angebot mit Positionen.
+
+`listStatus` ist der Stand wie in der Angebotsliste: `entwurf`, `offen`, `abgelaufen` (nach `validUntil`), `angenommen`, `abgelehnt` oder `abgerechnet`, sobald es eine nicht stornierte Rechnung über das ganze Angebot gibt, also die Rechnung aus dem Angebot oder die Schlussrechnung (`invoiceId`, `invoiceNumber`, auch als Entwurf). Abschlagsrechnungen zählen dabei nicht: Nach einem Abschlag bleibt das Angebot `angenommen` und `invoiceId` leer. Optionale Positionen und Alternativen tragen `kind` (`optional` oder `alternative`) und zählen nicht zu `net`, `tax` und `gross`; welche davon der Kunde gewählt hat, steht in `choices` (Positionsnummern). Rabatte sind wie bei Rechnungen in den Beträgen enthalten, aber nicht einzeln ausgewiesen.
+
+Die Antwort des Kunden und die Rechnung aus dem Angebot bleiben ein Klick in [Angebote](angebote.md); `url` führt zur Seite des Angebots.
+
 ## Artikelkatalog
 
 `GET /artikel` listet aktive Artikel, sortiert nach Nummer und Bezeichnung. Mit `q` suchst du nach einem Teil der Nummer oder Bezeichnung. Mit `archived=true` enthält die Liste auch archivierte Artikel. `GET /artikel/{id}` liefert den Artikel zur ID.
@@ -219,7 +229,7 @@ Für `POST /artikel` brauchst du eine einzeilige Bezeichnung (`description`), Ei
 
 ## Leistungen und Zeiterfassung
 
-Ein Zeiterfassungsprogramm wie Kimai oder Toggl schickt seine Zeiteinträge mit `POST /leistungen` an Haben; sie stehen dort unter [Leistungen](leistungen.md). Der Eintrag gehört einem Kunden (`contactId`), hat einen Arbeitstag (`workedOn`), eine Dauer in ganzen Minuten (`minutes`, 1 bis 1440) und optional `description`, `hourlyRateCents`, `project` (freier Text), `billableMinutes` (abrechenbare Dauer, wenn sie von der erfassten abweicht) und `nonBillable` (`true`: erfasst, kommt aber nie in einen Rechnungsentwurf). Der Kontakt muss ein Kunde und darf nicht archiviert sein, sonst `422`. Ohne Stundensatz nimmt Haben den des Kunden; er bleibt als Kopie am Eintrag. Den Satz am Kunden setzt `PATCH /kontakte/{id}` mit `hourlyRateCents`.
+Ein Zeiterfassungsprogramm wie Kimai oder Toggl schickt seine Zeiteinträge mit `POST /leistungen` an Haben; sie stehen dort unter [Zeiteinträge](leistungen.md). Der Eintrag gehört einem Kunden (`contactId`), hat einen Arbeitstag (`workedOn`), eine Dauer in ganzen Minuten (`minutes`, 1 bis 1440) und optional `description`, `hourlyRateCents`, `project` (freier Text), `billableMinutes` (abrechenbare Dauer, wenn sie von der erfassten abweicht) und `nonBillable` (`true`: erfasst, kommt aber nie in einen Rechnungsentwurf). Der Kontakt muss ein Kunde und darf nicht archiviert sein, sonst `422`. Ohne Stundensatz nimmt Haben den des Kunden; er bleibt als Kopie am Eintrag. Den Satz am Kunden setzt `PATCH /kontakte/{id}` mit `hourlyRateCents`.
 
 Mit `source` und `externalId` ist der Aufruf wiederholbar: Die Kennung der Zeile in der Quelle steht in `externalId`, der Name der Quelle in `source`. Gibt es die Kennung schon, antwortet Haben mit `200` und dem aktualisierten Eintrag, sonst mit `201`. Fehlen Stundensatz, `project`, `billableMinutes` oder `nonBillable` im Aufruf, behält ein vorhandener Eintrag seine Werte; `billableMinutes: null` nimmt eine abrechenbare Dauer zurück. Den Stundensatz des Kunden liefert `GET /kontakte/{id}` als `hourlyRateCents`.
 
@@ -229,7 +239,7 @@ curl -X POST "$HABEN/leistungen" \
   -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
 ```
 
-Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from`, `to` und `status` (`offen`, `abgerechnet`, `nicht-abrechenbar`) listet. Jeder Eintrag trägt `invoiceId`, `invoiceNumber` und `invoiceStatus` (`draft` oder `final`) der Rechnung, auf der er steht; `null` heißt offen, auch nach dem Storno der Rechnung. Ein Eintrag auf einer Rechnung lässt sich nicht löschen (`422`), und ein erneutes `POST` mit seiner Kennung ändert ihn nicht. Einen anderen Kunden für einen Rechnungsentwurf mit Einträgen lehnt `PATCH /rechnungen/{id}` ab (`422`). Abgerechnet wird in Haben unter [Leistungen](leistungen.md#abrechnen).
+Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from`, `to` und `status` (`offen`, `abgerechnet`, `nicht-abrechenbar`) listet. Jeder Eintrag trägt `invoiceId`, `invoiceNumber` und `invoiceStatus` (`draft` oder `final`) der Rechnung, auf der er steht; `null` heißt offen, auch nach dem Storno der Rechnung. Ein Eintrag auf einer Rechnung lässt sich nicht löschen (`422`), und ein erneutes `POST` mit seiner Kennung ändert ihn nicht. Einen anderen Kunden für einen Rechnungsentwurf mit Einträgen lehnt `PATCH /rechnungen/{id}` ab (`422`). Abgerechnet wird in Haben unter [Zeiteinträge](leistungen.md#abrechnen).
 
 ### Zeitbuchungen aus Kimai holen
 

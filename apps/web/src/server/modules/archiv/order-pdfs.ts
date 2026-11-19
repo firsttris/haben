@@ -33,6 +33,11 @@ const changes = (a: SevOrder, b: SevOrder) => [
     (key) => !STATE_FIELDS.includes(key as (typeof STATE_FIELDS)[number]) && !isDeepStrictEqual(reference(a[key]), reference(b[key])),
   ),
 ];
+/**
+ * Buchhaltungsversionen, in denen GET /Order/{id}/getPdf?preventSendBy=true belegt nichts am Auftrag ändert: 1.0 und 2.0
+ * (#472, in 2.0 an einem Entwurf: Status, Version, Versanddatum und Änderungszeit gleich). Jede andere Antwort sperrt.
+ */
+const GEPRUEFTE_VERSIONEN = new Set(["1.0", "2.0"]);
 const message = (error: unknown) => (error instanceof Error ? error.message : "Unbekannter Fehler beim PDF-Abruf.");
 const authenticationFailure = (error: unknown) => error instanceof SevdeskApiError && (error.status === 401 || error.status === 403);
 
@@ -55,9 +60,10 @@ export function createOrderPdfImporter(actor: string, client: SevdeskClient, sig
       throw new OrderArchiveError(`${message(error)} Weitere automatische Auftrags-PDFs sind für diesen Abruf ausgesetzt.`);
     };
     let before: SevOrder;
+    let version: string;
     try {
-      const version = await client.bookkeepingSystemVersion();
-      if (version !== "1.0")
+      version = await client.bookkeepingSystemVersion();
+      if (!GEPRUEFTE_VERSIONEN.has(version))
         throw new OrderArchiveError(
           `Kein automatischer Auftrags-PDF-Abruf: Buchhaltungsversion ${version || "unbekannt"} ist nicht geprüft. Original-PDFs können manuell ergänzt werden.`,
         );
@@ -70,7 +76,7 @@ export function createOrderPdfImporter(actor: string, client: SevdeskClient, sig
     if (changes(document.raw.order as SevOrder, before).length)
       throw new OrderArchiveError("sevDesk-Dokument seit Archivierung verändert. PDF dem archivierten Stand nach Prüfung manuell zuordnen.");
     try {
-      return await retrievePdf(actor, client, document, before);
+      return await retrievePdf(actor, client, document, before, version);
     } catch (error) {
       return stop(error);
     }
@@ -82,6 +88,7 @@ async function retrievePdf(
   client: SevdeskClient,
   document: typeof schema.legacyOrderDocuments.$inferSelect,
   before: SevOrder,
+  version: string,
 ): Promise<boolean> {
   let after: SevOrder | null = null;
   let pdf: Awaited<ReturnType<SevdeskClient["orderPdf"]>> = null;
@@ -113,7 +120,7 @@ async function retrievePdf(
   const added = await withActor(actor, async (tx) => {
     await tx
       .insert(schema.legacyOrderPdfAttempts)
-      .values({ orderId: document.id, bookkeepingVersion: "1.0", before, after, error: failure ? message(failure) : null });
+      .values({ orderId: document.id, bookkeepingVersion: version, before, after, error: failure ? message(failure) : null });
     if (failure || !pdf) return false;
     const rows = await tx
       .insert(schema.legacyOrderFiles)

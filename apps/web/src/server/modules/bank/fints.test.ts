@@ -68,7 +68,15 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
   });
 
   beforeEach(() => {
-    Object.assign(bank.zustand, { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, mt940Unlesbar: false });
+    Object.assign(bank.zustand, {
+      scaBeiAnmeldung: false,
+      scaBeiUmsaetzen: false,
+      freigegeben: false,
+      appTanEintippen: false,
+      umsatzTanVerschwiegen: false,
+      nichtErreichbar: false,
+      mt940Unlesbar: false,
+    });
   });
 
   it("verbindet mit gewähltem TAN-Verfahren und TAN, legt die Konten an und holt die ersten Umsätze", async () => {
@@ -298,5 +306,23 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     await expect(fints.fintsVerbinden(ACTOR, { ...zugang(), url: "http://bank.example/fints" }, "2026-10-29")).rejects.toThrow(/https/);
     await expect(fints.fintsVerbinden(ACTOR, { ...zugang(), blz: "1203" }, "2026-10-29")).rejects.toThrow(/acht Ziffern/);
     await expect(fints.fintsVerbinden(ACTOR, { ...zugang(), fetchFrom: "2026-11-01" }, "2026-10-29")).rejects.toThrow(/Zukunft/);
+  });
+
+  it("ruft nach 9075 mit TAN-Schritt ab und speichert das mit der Verbindung (wie die Consorsbank)", async () => {
+    bank.zustand.umsatzTanVerschwiegen = true;
+    const wahl = await fints.fintsVerbinden(ACTOR, zugang(), "2026-10-29");
+    if (wahl.art !== "verfahren") throw new Error("Verfahren erwartet");
+    expect(await vorgang.vorgangFortsetzen(ACTOR, wahl.vorgang, { verfahren: 921 })).toMatchObject({ art: "fertig", ok: true });
+    const row = await verbindung();
+    expect(row).toMatchObject({ status: "aktiv", last_error: null });
+    const { bankdaten } = geheim.fintsGeheimnisLesen(row.ciphertext);
+    expect(bankdaten.bpd?.allowedTransactions.find((t) => t.transId === "HKKAZ")?.tanRequired).toBe(true);
+
+    // „Jetzt abrufen“ mit den gespeicherten Bankdaten: der TAN-Schritt geht gleich mit, keine zweite 9075
+    const vorher = bank.zustand.anfragen.length;
+    expect(await abruf.fintsAbrufen(ACTOR, row.id, "2026-10-30")).toMatchObject({ art: "fertig", ok: true });
+    const abrufe = bank.zustand.anfragen.slice(vorher).filter((a) => a.segmente.includes("HKKAZ"));
+    expect(abrufe.length).toBeGreaterThan(0);
+    expect(abrufe.every((a) => a.segmente.includes("HKTAN"))).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { einkommensteuer, kirchensteuerpflichtig, solidaritaetszuschlag, steuerPrognose, type PrognoseInput } from "./income-tax.ts";
+import { einkommensteuer, gewinnAusPrognose, kirchensteuerpflichtig, solidaritaetszuschlag, steuerPrognose, type PrognoseInput } from "./income-tax.ts";
 
 /** Referenzwerte aus dem BMF-Programmablaufplan (Paket lohnsteuer-bmf 2026.3): zvE, Grundtarif, Splitting, Soli einzeln, Soli zusammen */
 const REFERENZ: Record<number, [number, number, number, number, number][]> = {
@@ -360,5 +360,252 @@ describe("steuerPrognose", () => {
     const p = steuerPrognose({ ...base, angaben: { ...base.angaben, kinder: [{ kinderbetreuung: 50_00 }] } });
     expect(p.kinderbetreuung).toBe(40_00);
     expect(p.sonderausgaben + p.kinderbetreuung).toBe(72_00);
+  });
+
+  it("rechnet den Erstattungsüberhang dem Gesamtbetrag der Einkünfte zu (§ 10 Abs. 4b Satz 3 EStG)", () => {
+    // Basisbeiträge 2.500 €, Erstattung und Zuschuss 3.900 €: der Abzug ist 0, der Überhang von 1.400 € erhöht das Einkommen
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: { pkv: 2_000_00, ppv: 500_00, pkvErstattung: 3_000_00, agZuschussKv: 900_00 } },
+      },
+    });
+    expect(p.vorsorge).toBe(0);
+    expect(p.erstattungsueberhang).toBe(1_400_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_400_00);
+    expect(p.zvE).toBe(60_000_00 + 1_400_00 - 36_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+    // Die Vorauszahlungsseite bildet den Gewinn aus dem Gesamtbetrag; mit dem Überhang muss sie ihn abziehen
+    expect(gewinnAusPrognose(p)).toBe(60_000_00);
+  });
+
+  it("kennt keinen Überhang, wenn Beiträge und Erstattung gleich hoch sind", () => {
+    const gleich = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 2_000_00, ppv: 500_00, pkvErstattung: 2_500_00 } } },
+    });
+    const ohneVorsorge = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: {} } },
+    });
+    expect(gleich.vorsorge).toBe(0);
+    expect(gleich.erstattungsueberhang).toBe(0);
+    expect(gleich.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(gleich.zvE).toBe(ohneVorsorge.zvE);
+    expect(gleich.einkommensteuer).toBe(ohneVorsorge.einkommensteuer);
+  });
+
+  it("bleibt unter den Beiträgen beim Abzug, ohne Überhang", () => {
+    // 2.500 € Beiträge, 1.000 € Erstattung: 1.500 € bleiben abziehbar, hinzugerechnet wird nichts
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 2_000_00, ppv: 500_00, pkvErstattung: 1_000_00 } } },
+    });
+    expect(p.vorsorge).toBe(1_500_00);
+    expect(p.erstattungsueberhang).toBe(0);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(p.zvE).toBe(60_000_00 - 1_500_00 - 36_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+  });
+
+  it("rechnet bei Zusammenveranlagung den Überhang hinzu, der nach der Verrechnung mit dem anderen Ehegatten bleibt", () => {
+    // A: 1.000 € Beiträge und 5.000 € Erstattung, Überhang 4.000 €. B: 3.000 € Beiträge.
+    // Verrechnet bleibt ein Überhang von 1.000 € (§ 10 Abs. 4b Satz 2 und 3, § 26b EStG), der Abzug ist null.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: true,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 1_000_00, pkvErstattung: 5_000_00 }, b: { gkv: 3_000_00 } } },
+    });
+    expect(p.vorsorge).toBe(0);
+    expect(p.erstattungsueberhang).toBe(1_000_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 1_000_00);
+    expect(p.zvE).toBe(60_000_00 + 1_000_00 - 72_00);
+  });
+
+  it("rechnet einen Kirchensteuer-Überhang dem Gesamtbetrag der Einkünfte zu (§ 10 Abs. 4b Satz 3 EStG, Nr. 4)", () => {
+    // 1.000 € gezahlt, 3.000 € erstattet: der Abzug bleibt bei null, der Überhang von 2.000 € erhöht das Einkommen
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        sonderausgaben: { kirchensteuerGezahlt: 1_000_00, kirchensteuerErstattet: 3_000_00 },
+      },
+    });
+    expect(p.sonderausgaben).toBe(36_00);
+    expect(p.erstattungsueberhang).toBe(2_000_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + 2_000_00);
+    expect(p.zvE).toBe(60_000_00 + 2_000_00 - 36_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+    // Die Vorauszahlungsseite rechnet den Gewinn aus dem Gesamtbetrag zurück, der Überhang muss also wieder raus
+    expect(gewinnAusPrognose(p)).toBe(60_000_00);
+  });
+
+  it("bleibt bei der Kirchensteuer ohne Überhang, wenn die Erstattung unter der Zahlung bleibt", () => {
+    // 3.000 € gezahlt, 1.000 € erstattet: 2.000 € bleiben abziehbar, hinzugerechnet wird nichts
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        sonderausgaben: { kirchensteuerGezahlt: 3_000_00, kirchensteuerErstattet: 1_000_00 },
+      },
+    });
+    expect(p.sonderausgaben).toBe(2_000_00);
+    expect(p.erstattungsueberhang).toBe(0);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(p.zvE).toBe(60_000_00 - 2_000_00);
+    expect(p.einkommensteuer).toBe(einkommensteuer(p.zvE, 2025));
+    expect(gewinnAusPrognose(p)).toBe(60_000_00);
+  });
+
+  it("zählt die Lohnkirchensteuer der Bescheinigung nicht mit: der Überhang entsteht (Stand vor #1451)", () => {
+    // 200 € Vorauszahlung stehen im Feld, 300 € Kirchensteuer sind erstattet. Die einbehaltene Lohnkirchensteuer von
+    // 480 € (Nr. 6 der Bescheinigung) geht in den Steuerabzug, nicht in die Sonderausgaben. § 10 Abs. 1 Nr. 4 EStG
+    // meint die im Jahr gezahlte Kirchensteuer, also beides zusammen: Wer die Lohnkirchensteuer im Feld vergisst,
+    // bekommt einen Erstattungsüberhang von 100 €, den es nicht gibt. Der Test hält diesen Stand fest; der Hinweis am
+    // Feld sagt, was dazugehört (#1451).
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 60_000_00, kirchensteuer: 480_00 }], werbungskosten: {} } },
+        sonderausgaben: { kirchensteuerGezahlt: 200_00, kirchensteuerErstattet: 300_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(100_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + p.einkuenfteArbeit + 100_00);
+  });
+
+  it("bleibt ohne Überhang, wenn die Lohnkirchensteuer im Feld gezahlt steht", () => {
+    // Derselbe Fall mit 680 € (= 200 € Vorauszahlung + 480 € Lohnkirchensteuer) im Feld: Der Abzug bleibt positiv,
+    // hinzugerechnet wird nichts, obwohl die Bescheinigung dieselbe ist. Das ist der Beweis, den der Hinweis meint.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 60_000_00, kirchensteuer: 480_00 }], werbungskosten: {} } },
+        sonderausgaben: { kirchensteuerGezahlt: 680_00, kirchensteuerErstattet: 300_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(0);
+    expect(p.sonderausgaben).toBe(380_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00 + p.einkuenfteArbeit);
+  });
+
+  it("bleibt bei hoher Erstattung ein Überhang, ist er ohne die Lohnkirchensteuer nur zu hoch", () => {
+    // Derselbe Fall mit 900 € erstattet: Ohne die Lohnkirchensteuer im Feld rechnet Haben 700 € hinzu, mit ihr
+    // 220 €. Der Überhang verschwindet also nicht in jedem Fall, er ist dann nur zu hoch. Der Hinweis sagt beides.
+    const angaben = {
+      ...base.angaben,
+      vorsorge: { a: {} },
+      arbeitnehmer: { a: { bescheinigungen: [{ brutto: 60_000_00, kirchensteuer: 480_00 }], werbungskosten: {} } },
+      sonderausgaben: { kirchensteuerGezahlt: 200_00, kirchensteuerErstattet: 900_00 },
+    };
+    const ohne = steuerPrognose({ ...base, year: 2025, zusammen: false, gewinn: 60_000_00, angaben });
+    expect(ohne.erstattungsueberhang).toBe(700_00);
+    const mit = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...angaben, sonderausgaben: { kirchensteuerGezahlt: 680_00, kirchensteuerErstattet: 900_00 } },
+    });
+    expect(mit.erstattungsueberhang).toBe(220_00);
+    expect(mit.gesamtbetragEinkuenfte).toBe(ohne.gesamtbetragEinkuenfte - 480_00);
+  });
+
+  it("rechnet einen Überhang der übrigen Vorsorgeaufwendungen (Nr. 3a) nicht hinzu", () => {
+    // Nr. 3a verrechnet nur in sich: ein negativer Betrag dort kürzt den Abzug nicht unter die Basisbeiträge und
+    // erhöht den Gesamtbetrag der Einkünfte nicht, § 10 Abs. 4b Satz 3 EStG nennt nur Nr. 3 und Nr. 4.
+    const ohneUeberhang = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { gkv: 3_000_00 } } },
+    });
+    const mitUeberhang = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: { ...base.angaben, vorsorge: { a: { gkv: 3_000_00 }, sonstige: -2_000_00 } },
+    });
+    expect(mitUeberhang.vorsorge).toBe(3_000_00);
+    expect(mitUeberhang.erstattungsueberhang).toBe(0);
+    expect(mitUeberhang.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(mitUeberhang.zvE).toBe(ohneUeberhang.zvE);
+    expect(mitUeberhang.einkommensteuer).toBe(ohneUeberhang.einkommensteuer);
+  });
+
+  it("verrechnet bei Zusammenveranlagung den Überhang eines Ehegatten mit den Basisbeiträgen des anderen (§ 26b, § 10 Abs. 4b Satz 2 EStG)", () => {
+    // Zusammen veranlagte Ehegatten sind ein Steuerpflichtiger (§ 26b EStG); der Überhang wird zuerst innerhalb der Nr. 3
+    // verrechnet, nur der Rest wird hinzugerechnet. BMF vom 24.5.2017, Rz. 130: die Basisbeiträge zählen in der Summe.
+    // A: 1.000 € Beiträge, 2.000 € Erstattung. B: 3.000 € Beiträge. Übrige Vorsorge 3.000 €, Höchstbetrag 2 × 2.800 €.
+    // Nr. 3 gemeinsam 2.000 €, mit Nr. 3a 5.000 € unter dem Höchstbetrag: Abzug 5.000 €, nichts hinzuzurechnen.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: true,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: { pkv: 1_000_00, pkvErstattung: 2_000_00 }, b: { gkv: 3_000_00 }, sonstige: 3_000_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(0);
+    expect(p.gesamtbetragEinkuenfte).toBe(60_000_00);
+    expect(p.vorsorge).toBe(5_000_00);
+    expect(p.zvE).toBe(60_000_00 - 5_000_00 - 72_00);
+  });
+
+  it("rechnet das Beispiel aus dem BMF-Schreiben vom 24.5.2017, Rz. 204", () => {
+    // KV-Basis 1.200 €, Pflege 300 €, Erstattung KV-Basis 1.600 €: Überhang 400 €, mit der Pflege verrechnet 100 €.
+    // Kirchensteuer 200 € gezahlt, 1.500 € erstattet: Überhang 1.300 €. Hinzurechnung 100 € + 1.300 € = 1.400 €.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      zusammen: false,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: { pkv: 1_200_00, ppv: 300_00, pkvErstattung: 1_600_00 } },
+        sonderausgaben: { kirchensteuerGezahlt: 200_00, kirchensteuerErstattet: 1_500_00 },
+      },
+    });
+    expect(p.erstattungsueberhang).toBe(1_400_00);
+    expect(p.gesamtbetragEinkuenfte).toBe(61_400_00);
+    expect(p.vorsorge).toBe(0);
+    expect(p.zvE).toBe(61_400_00 - 36_00);
   });
 });

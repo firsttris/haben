@@ -21,11 +21,11 @@ export const ACCOUNTABLE_PRIVATE_ACCOUNTS: ReadonlySet<string> = new Set([
   "1360", // Umbuchungen zwischen Unterkonten des Kontos 1200
 ]);
 
-/** Der ganze Privatbereich im SKR03 (packages/core/src/posting.ts) und der Geldtransit 1360 */
+/** Der ganze Privatbereich im SKR03 (packages/core/src/kontenplan.ts) und der Geldtransit 1360 */
 const ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR03 = /^(18[0-9]{2}|1360)$/;
 
 /**
- * Dieselben Zeilen im SKR04 (packages/core/src/posting.ts): Privatentnahmen 2100–2199, Privateinlagen 2180, Geldtransit
+ * Dieselben Zeilen im SKR04 (packages/core/src/kontenplan.ts): Privatentnahmen 2100–2199, Privateinlagen 2180, Geldtransit
  * 1460. Dort ist 1800 die Bank und kein Privatkonto.
  */
 const ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR04 = /^(21[0-9]{2}|1460)$/;

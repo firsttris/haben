@@ -76,6 +76,23 @@ describe("learnedDirectBooking", () => {
     expect(learnedDirectBooking(tx, [k("erloese", 1900, 2), k("erloese", 700, 2)], 4, "iban")).toBeNull();
   });
 
+  it("lernt die Aufladung eines Guthabens mit ihrer Ausgabekategorie (#1356)", () => {
+    const aufladung = (kategorie: string, steuersatz: number, count: number, last = "2026-10-05") => ({
+      value: { kind: "aufladung", kategorie: { kategorie, steuersatz } } as LearnedBooking,
+      count,
+      last,
+    });
+    expect(learnedDirectBooking({ counterpartyName: "Funknetz Mobil" }, [aufladung("telefon", 0, 3, "2026-10-05")], 3, "name")).toEqual({
+      kind: "aufladung",
+      kategorie: { kategorie: "telefon", steuersatz: 0 },
+      reasons: ["3 von 3 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am 05.10.2026"],
+    });
+    // Ohne Kategorie ist sie nicht buchbar; eine Einnahme oder ein Steuersatz ebenso wenig
+    expect(learnedDirectBooking(tx, [h("aufladung", 3)], 3, "iban")).toBeNull();
+    expect(learnedDirectBooking(tx, [aufladung("erloese", 0, 3)], 3, "iban")).toBeNull();
+    expect(learnedDirectBooking(tx, [aufladung("sonstiges", 1900, 3)], 3, "iban")).toBeNull();
+  });
+
   it("keine Kategorie, die heute nicht mehr direkt buchbar wäre, etwa Erlöse mit Steuer nach dem Wechsel zum Kleinunternehmer", () => {
     expect(learnedDirectBooking(tx, [k("erloese", 1900, 3)], 3, "iban", true)).toBeNull();
     expect(learnedDirectBooking(tx, [k("erloese", 0, 3)], 3, "iban", true)?.kategorie).toEqual({ kategorie: "erloese", steuersatz: 0 });

@@ -125,9 +125,10 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
   return typeof raw.payDate === "string" ? raw.payDate : null;
 }
 
-async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
+/** Archivbelege, die offene Posten sein können */
+async function openItemVouchers() {
   // Alle Archivbelege mit korrelierten Unterabfragen: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
-  const vouchers = await ohneJit((tx) =>
+  return ohneJit((tx) =>
     tx
       .select({
         ...getTableColumns(schema.lexofficeVouchers),
@@ -148,6 +149,10 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       )
       .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number),
   );
+}
+
+/** Ob ein Archivbeleg schon als Rechnung oder Beleg übernommen ist */
+async function takenOverLookup() {
   const [invoices, documents] = await Promise.all([
     db
       .select({ id: schema.invoices.id, voucherId: schema.invoices.lexofficeVoucherId })
@@ -160,11 +165,15 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   ]);
   const invoiceBy = new Map(invoices.map((i) => [i.voucherId, i.id]));
   const documentBy = new Map(documents.map((d) => [d.voucherId, d.id]));
-  const takenOverOf = (id: string): OpenLegacyItem["takenOver"] => {
+  return (id: string): OpenLegacyItem["takenOver"] => {
     const invoiceId = invoiceBy.get(id);
     const documentId = documentBy.get(id);
     return invoiceId ? { kind: "invoice", id: invoiceId } : documentId ? { kind: "document", id: documentId } : null;
   };
+}
+
+async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
+  const [vouchers, takenOverOf] = await Promise.all([openItemVouchers(), takenOverLookup()]);
   const candidates = vouchers
     .map((v) => {
       const issue = paymentHistoryIssue(v);
@@ -363,11 +372,12 @@ async function takeOverInvoice(
   return withActor(actor, async (tx) => {
     const covering = await lockedCovering(tx, voucher, cutoff);
     const company = await openBooks(tx);
-    // Kz 45 meldet Haben auch bei Ist mit der Rechnung (NACH_RECHNUNGSDATUM), das Quellprogramm bei Ist mit der Zahlung
-    // (legacy-vat.ts). Eine am Stichtag offene Drittlandsleistung stünde so in keiner Voranmeldung.
+    // Kz 45 meldet Haben auch bei Ist mit der Rechnung (NACH_RECHNUNGSDATUM). Ob das Quellprogramm bei Ist ebenso oder mit
+    // der Zahlung gemeldet hat, ist nicht belegt (#1402); im zweiten Fall stünde eine am Stichtag offene Drittlandsleistung
+    // in keiner Voranmeldung.
     if (taxTreatment === "drittland" && company.versteuerung === "ist")
       throw new TakeoverError(
-        "Leistung ins Drittland bei Ist-Versteuerung: Kz 45 meldet das Quellprogramm mit der Zahlung, Haben mit der Rechnung. Den Posten von Hand erfassen.",
+        "Leistung ins Drittland bei Ist-Versteuerung: Haben meldet Kz 45 mit der Rechnung, das Quellprogramm womöglich erst mit der Zahlung. Den Posten von Hand erfassen.",
       );
     let [contact] = voucher.contactId ? await tx.select().from(schema.contacts).where(eq(schema.contacts.id, voucher.contactId)) : [];
     if (!contact) {

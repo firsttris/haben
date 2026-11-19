@@ -4,22 +4,20 @@ import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 import { accountHolder, collectedByDirectDebit, countryName, formatIban, paidInvoicePayment, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
+import { templateInputs } from "./vorlage-eingaben.ts";
+
+export { templateInputs };
 import { girocodeSvg } from "./qr.ts";
 import {
   needsSellerVatId,
   type TaxTreatment,
-  LETTERHEAD_FONTS,
-  accentPalette,
-  DEFAULT_ACCENT,
   customFooterRuns,
-  DEFAULT_OPTIONS,
   parseTextFormatting,
   footerValues,
   discountedLineAmount,
   documentAllowances,
   lineAmount,
   lineDiscountAmount,
-  LOGO_SIZES,
   distinctVatRates,
   showsVatColumn,
   type Discount,
@@ -156,7 +154,7 @@ export function pdfData(doc: InvoiceDocument) {
   const t = texts(doc.language, doc.currency);
   const title = doc.kind === "rechnung" && doc.variant ? t.variants[doc.variant] : t.titles[doc.kind];
 
-  const meta: { label: string; value: string }[] = [
+  const meta: ReturnType<typeof referenceMeta> = [
     { label: t.invoiceNumber, value: doc.number },
     { label: t.invoiceDate, value: t.date(doc.issueDate) },
   ];
@@ -169,7 +167,7 @@ export function pdfData(doc: InvoiceDocument) {
   if (showsCustomerNumber(doc)) meta.push({ label: t.customerNumber, value: buyer.kundennummer! });
   if (buyer.unsereLieferantennummer) meta.push({ label: t.supplierNumber, value: buyer.unsereLieferantennummer });
   meta.push(...referenceMeta(doc.references, t));
-  if (buyer.leitwegId) meta.push({ label: t.leitwegId, value: buyer.leitwegId });
+  if (buyer.leitwegId) meta.push({ label: t.leitwegId, value: buyer.leitwegId, group: "referenz" });
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });
 
@@ -338,28 +336,6 @@ export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.d
 /** Erkennt PNG und JPEG an den ersten Bytes (bildFormat in @haben/core); anderes lehnt Haben als Logo ab */
 export function logoFormat(data: Uint8Array): Logo["format"] | null {
   return bildFormat(data);
-}
-
-/** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */
-export function templateInputs(data: object, { logo, background, accent = DEFAULT_ACCENT, options = DEFAULT_OPTIONS }: Letterhead): object {
-  const size = LOGO_SIZES[options.logoSize];
-  const look = {
-    logoHeight: size.height,
-    logoWidth: size.width,
-    logoLeft: options.logoPosition === "links",
-    foldMarks: options.foldMarks,
-    backgroundPages: options.backgroundPages,
-  };
-  const { regular, medium, semibold } = LETTERHEAD_FONTS[options.font];
-  return {
-    ...data,
-    accent,
-    palette: accentPalette(accent),
-    look,
-    font: { regular, medium, semibold },
-    ...(logo ? { logo: `logo.${logo.format}` } : {}),
-    ...(background ? { background: `briefpapier.${background.format}` } : {}),
-  };
 }
 
 /** Kundennummer auf dem Blatt; das XML nennt sie unabhängig davon als Käuferkennung */
