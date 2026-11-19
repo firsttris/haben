@@ -238,6 +238,7 @@ function BankPage() {
                 darlehenOptionen={{ loans: data.loans, loanParts: data.loanParts }}
                 kategorieOptionen={{ kategorien: data.kategorien, kleinunternehmer: data.kleinunternehmer }}
                 nextOpenId={nextOpenAfter(sichtbar, data.detail.transaction.id)}
+                gebuehr={zeilen.find((z) => z.umsatz.id === selectedId)?.gebuehr ?? null}
               />
             ) : (
               <aside className="card" aria-label="Zuordnung">

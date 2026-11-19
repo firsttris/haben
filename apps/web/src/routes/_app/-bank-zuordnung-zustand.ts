@@ -8,6 +8,7 @@ import { BEZUGSJAHR_FEHLER, type SteuerOptionen, type SteuerWahl, steuerangabe, 
 import type { AufzuhebendeZuordnung } from "../../components/ZuordnungAufheben.tsx";
 import { useAction } from "../../lib/use-action.ts";
 import { useSubmitCheck } from "../../lib/use-submit-check.ts";
+import { gebuehrMoeglich, gebuehrPaar, useGebuehrWahl } from "../../components/BankGebuehr.tsx";
 import { type Data, type Detail, type DirectChoice, direktKategorie, itemTarget, type RestArt, restAngebot } from "./-bank-daten.ts";
 import { useZuordnungsAufrufe } from "./-bank-zuordnung-aufrufe.ts";
 
@@ -157,7 +158,10 @@ function restBuchungen(wahl: Wahl, tx: Detail["transaction"], aufrufe: Aufrufe, 
   return { target, angebot, bookRest, bookRestAsFee };
 }
 
-export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: string | undefined) {
+/** Gebühr derselben Bewegung, wenn der Umsatz eine Zahlung mit abgezogener Gebühr ist */
+export type Gebuehr = Data["transactions"][number] | null;
+
+export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: string | undefined, gebuehr: Gebuehr) {
   const tx = detail.transaction;
   const aufrufe = useZuordnungsAufrufe();
   const ausfuehren = useAusfuehren(nextOpenId);
@@ -174,6 +178,8 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
   const skontoRest = mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open ? best.skonto : 0;
   useEnterOrdnetZu(tx.open, primaryButton);
   const rest = restBuchungen(wahl, tx, aufrufe, ausfuehren.run);
+  // Zahlung mit der Gebühr ihrer Bewegung: ganze Zahlung auf eine Rechnung oder einen Beleg, die Gebühr gleich mit
+  const gebuehrWahl = useGebuehrWahl(gebuehrMoeglich({ gebuehr, tx, skontoRest, posten: rest.target?.type, signedAmount }));
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
   const [splitInitial, setSplitInitial] = useState<typeof rest.target>(undefined);
 
@@ -183,6 +189,8 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
       const work = () => aufrufe.restFn({ data: { transactionId: tx.id, target: { kind: "invoice", invoiceId: best.item.id }, rest: "skonto" } });
       return ausfuehren.runAndAdvance(work, true);
     }
+    const paar = gebuehrWahl.mitbuchen && rest.target ? gebuehrPaar(rest.target.type, rest.target.id, signedAmount, gebuehrWahl.beleg) : null;
+    if (paar) return ausfuehren.runAndAdvance(() => aufrufe.paymentFeeFn({ data: { transactionId: tx.id, ...paar } }), true);
     const work = zuordnung(wahl, tx, signedAmount, aufrufe);
     if (work) return ausfuehren.runAndAdvance(work, signedAmount === tx.open);
   }
@@ -202,6 +210,8 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
     panel,
     error,
     skontoRest,
+    gebuehr,
+    gebuehrWahl,
     rest,
     splitInitial,
     setSplitInitial,
