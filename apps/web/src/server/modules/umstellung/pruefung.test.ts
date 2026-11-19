@@ -305,17 +305,40 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         await pay(inv.id, "20.04.2026", "119,00");
         // Bei Ist meldet erst die Zahlung Kz 81, über die Bemessungsgrundlage an der Umsatzsteuerzeile; vor v0.7.0 trug sie
         // keine. Bucht sie einen Cent weniger Steuer, als Haben heute buchen würde, bleibt sie beim Lesen, wie gebucht: Dann
-        // vergleicht „Vorgang gegen Buchung“ die gemeldete Bemessungsgrundlage der erledigten Rechnung mit der Rechnung. Bei Soll
-        // meldet die Rechnung selbst, die Zahlung ändert nichts.
+        // melden die Verprobung die Steuer ohne Bemessungsgrundlage und „Vorgang gegen Buchung“ den Rest auf „nicht fällig“
+        // und die gemeldete Bemessungsgrundlage der erledigten Rechnung. Bei Soll meldet die Rechnung selbst; die Befunde
+        // dort gelten ihrer Buchung ohne Steuerschlüssel, keiner der Zahlung.
         await alteBuchung(kr, v, true);
         const ergebnis = await umstellung.umstellungPruefen(today);
         if (v === "soll") {
           expect(ergebnis.status).toBe("abweichung");
+          const befunde = (ergebnis as { befunde: { text: string }[] }).befunde;
+          expect(befunde.filter((b) => b.text.includes("Zahlung"))).toEqual([]);
           return;
         }
         expect(ergebnis).toEqual({
           status: "abweichung",
-          befunde: expect.arrayContaining([
+          befunde: [
+            {
+              jahr: 2026,
+              text: expect.stringMatching(
+                new RegExp(
+                  `^2026-04 Umsatzsteuer 19 % zur Bemessungsgrundlage ${formatEuro(0)}: Buchung „Zahlung ${inv.number} .*: im Journal ${formatEuro(18_99)}, aus der Bemessungsgrundlage ${formatEuro(0)}$`,
+                ),
+              ),
+              bereich: "ustva",
+              schluessel: expect.stringMatching(/^buchung:[0-9a-f-]+:umsatzsteuer:1900$/),
+              journal: 18_99,
+              quelle: 0,
+            },
+            {
+              jahr: 2026,
+              text: `2026-03 Rechnung ${inv.number} (Ist, ganz erledigt): Umsatzsteuer nicht fällig: im Journal ${formatEuro(-1)}, laut Vorgang ${formatEuro(0)}`,
+              bereich: "beleg",
+              schluessel: `rechnung:${inv.id}:nicht-faellig`,
+              journal: -1,
+              quelle: 0,
+            },
             {
               jahr: 2026,
               text: `2026-03 Rechnung ${inv.number} (Ist, ganz erledigt): gemeldete Bemessungsgrundlage: im Journal ${formatEuro(0)}, laut Vorgang ${formatEuro(100_00)}`,
@@ -324,14 +347,14 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
               journal: 0,
               quelle: 100_00,
             },
-          ]),
+          ],
         });
         expect((await stand())!.ergebnis).toBe("offen");
         // Übernommen: Die übernommenen Abweichungen meldet die Integritätsprüfung nicht jede Woche wieder
         expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
         const jahr = await abgleich.abgleichJahr(2026, today);
         expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
-        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal \d+ Abweichungen? übernommen worden/);
+        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal 3 Abweichungen übernommen worden/);
       }, 60_000);
 
       it(`übermittelte bzw. vermerkte Jahreserklärung: gleich besteht, abweichend nennt sie Erklärung und Feld (${kr}, ${v})`, async () => {

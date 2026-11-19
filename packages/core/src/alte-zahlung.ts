@@ -6,8 +6,9 @@ import { ACCOUNTS, type Kontenrahmen, type PostingLine } from "./posting.ts";
  * Zahlungen auf Ausgangsrechnungen bei Ist-Versteuerung aus Versionen vor #552 (bis v0.6) tragen keine
  * Bemessungsgrundlage (#1502): Die Umbuchung von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ steht da, `basis` an der
  * Umsatzsteuerzeile und der Steuerschlüssel des Anteils zu 0 % an der Forderung fehlen. Aus dem Journal meldete die
- * Voranmeldung dann die Steuer ohne ihre Bemessungsgrundlage (Kz 81, 86, 48 …). Bis 0.9 rechneten diese Jahre aus dem
- * Nebenbuch und meldeten richtig.
+ * Voranmeldung dann die Steuer ohne ihre Bemessungsgrundlage (Kz 81, 86, 48 …), obwohl bei Ist Steuer und Entgelt mit
+ * Ablauf des Voranmeldungszeitraums der Vereinnahmung entstehen (§ 13 Abs. 1 Nr. 1 Buchst. b, § 20 UStG). Bis 0.9
+ * rechneten diese Jahre aus dem Nebenbuch und meldeten richtig.
  *
  * Gebuchte Zeilen bleiben, wie sie sind (GoBD); beim Lesen bekommt die Zahlung Forderungs- und Steuerzeilen, wie Haben sie
  * heute aus Rechnung und Anteil bucht, wenn diese auf jedem dieser Konten denselben Saldo ergeben. Die Geldzeile bleibt die
