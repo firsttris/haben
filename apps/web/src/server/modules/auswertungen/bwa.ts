@@ -11,6 +11,7 @@ import {
   kumuliert,
   vergleichszeitraum,
   vorjahreszeitraum,
+  zerlegeAbweichung,
   type BasisPoints,
   type BwaEuerPosten,
   type Cents,
@@ -18,6 +19,8 @@ import {
   type Form43Summe,
   type Form43Zeile,
   type Vergleich,
+  type Warum,
+  type WarumPosten,
   type Zeitraum,
 } from "@haben/core";
 import { inArray, sql } from "drizzle-orm";
@@ -143,7 +146,7 @@ export interface BwaGruppe {
 /** Was in einer Zeile der Form 43 im Zeitraum steht: je Zeile der EÜR die Buchungen, mit Rechnung bzw. Beleg */
 export async function bwaZeileDetails(zeitraum: Zeitraum, zeile: Form43Zeile, q: Db | Tx = db): Promise<BwaGruppe[]> {
   const treffer = (await anteile([zeitraum], q)).filter((a) => a.zeile === zeile && imZeitraum(zeitraum, a.datum));
-  const texte = await vorgangTexte(treffer, q);
+  const angaben = await quellenAngaben(treffer, q);
   const gruppen = new Map<string, BwaGruppe>();
   for (const a of treffer) {
     const gruppe: BwaGruppe = gruppen.get(a.euerZeile) ?? {
@@ -162,7 +165,7 @@ export async function bwaZeileDetails(zeitraum: Zeitraum, zeile: Form43Zeile, q:
       sourceId,
       rechnungId,
       belegId,
-      text: (rechnungId && texte.get(rechnungId)) || (belegId && texte.get(belegId)) || "",
+      text: angabeZu(angaben, a.quelle)?.text ?? "",
     });
     gruppen.set(a.euerZeile, gruppe);
   }
@@ -171,23 +174,66 @@ export async function bwaZeileDetails(zeitraum: Zeitraum, zeile: Form43Zeile, q:
   return ergebnis;
 }
 
-/** Rechnungsnummer und Kunde bzw. Lieferant und Belegnummer je ID */
-async function vorgangTexte(treffer: readonly Form43Anteil[], q: Db | Tx): Promise<Map<string, string>> {
-  const texte = new Map<string, string>();
+/** Was Haben zu einer Rechnung bzw. einem Beleg anzeigt: der Text des Vorgangs und der Kontakt */
+interface QuellenAngabe {
+  /** Rechnungsnummer und Kunde bzw. Lieferant und Belegnummer */
+  text: string;
+  kontakt: WarumPosten["kontakt"];
+}
+
+/**
+ * Text und Kontakt je Rechnung bzw. Beleg, gesammelt in Blöcken geladen. Kunde einer Rechnung ist der Name auf der Rechnung,
+ * sonst der des Kontakts; Lieferant eines Belegs der verknüpfte Kontakt, sonst der Name am Beleg ohne Kontakt.
+ */
+async function quellenAngaben(treffer: readonly Form43Anteil[], q: Db | Tx): Promise<Map<string, QuellenAngabe>> {
+  const angaben = new Map<string, QuellenAngabe>();
   const rechnungen = [...new Set(treffer.flatMap((a) => (a.quelle.rechnungId ? [a.quelle.rechnungId] : [])))];
   const belege = [...new Set(treffer.flatMap((a) => (a.quelle.belegId ? [a.quelle.belegId] : [])))];
   const i = schema.invoices;
   const c = schema.contacts;
   for (const block of bloecke(rechnungen))
     for (const r of await q
-      .select({ id: i.id, nummer: i.number, kunde: sql<string | null>`coalesce(${i.buyer} ->> 'name', ${c.name})` })
+      .select({ id: i.id, nummer: i.number, kontaktId: i.contactId, kunde: sql<string | null>`coalesce(nullif(${i.buyer} ->> 'name', ''), ${c.name})` })
       .from(i)
       .leftJoin(c, sql`${c.id} = ${i.contactId}`)
       .where(inArray(i.id, block)))
-      texte.set(r.id, [r.nummer ?? "Entwurf", r.kunde].filter(Boolean).join(" · "));
+      angaben.set(r.id, {
+        text: [r.nummer ?? "Entwurf", r.kunde].filter(Boolean).join(" · "),
+        kontakt: { id: r.kontaktId, name: r.kunde ?? "" },
+      });
   const d = schema.documents;
   for (const block of bloecke(belege))
-    for (const r of await q.select({ id: d.id, lieferant: d.supplierName, nummer: d.invoiceNumber, datei: d.filename }).from(d).where(inArray(d.id, block)))
-      texte.set(r.id, [r.lieferant || r.datei, r.nummer].filter(Boolean).join(" · "));
-  return texte;
+    for (const r of await q
+      .select({ id: d.id, lieferant: d.supplierName, nummer: d.invoiceNumber, datei: d.filename, kontaktId: d.supplierContactId, kontaktName: c.name })
+      .from(d)
+      .leftJoin(c, sql`${c.id} = ${d.supplierContactId}`)
+      .where(inArray(d.id, block)))
+      angaben.set(r.id, {
+        text: [r.lieferant || r.datei, r.nummer].filter(Boolean).join(" · "),
+        kontakt: r.kontaktId ? { id: r.kontaktId, name: r.kontaktName || r.lieferant } : { id: null, name: r.lieferant },
+      });
+  return angaben;
+}
+
+const angabeZu = (angaben: ReadonlyMap<string, QuellenAngabe>, { rechnungId, belegId }: Form43Anteil["quelle"]) =>
+  (rechnungId ? angaben.get(rechnungId) : undefined) ?? (belegId ? angaben.get(belegId) : undefined);
+
+/**
+ * „Warum?“ (#1380): die Abweichung einer Zeile der Form 43 zum Vergleichszeitraum nach Kontakt, die fünf größten einzeln.
+ * Ein Vorgang ist eine Buchung; ihre Anteile aus mehreren Zeilen der EÜR (etwa zwei Steuersätze) zählen zusammen. Ohne
+ * Vergleich und für GmbH und UG (ihre BWA fehlt noch) null.
+ */
+export async function bwaWarum(zeitraum: Zeitraum, vergleich: Vergleich, zeile: Form43Zeile, q: Db | Tx = db): Promise<Warum | null> {
+  const vgl = vergleichszeitraum(zeitraum, vergleich);
+  if (!vgl || isKapitalgesellschaft((await loadCompany(q)).rechtsform)) return null;
+  const treffer = (await anteile([zeitraum, vgl], q)).filter((a) => a.zeile === zeile && (imZeitraum(zeitraum, a.datum) || imZeitraum(vgl, a.datum)));
+  const angaben = await quellenAngaben(treffer, q);
+  const jeBuchung = new Map<string, WarumPosten>();
+  for (const a of treffer) {
+    const schluessel = `${a.quelle.buchungId}|${a.quelle.rechnungId}|${a.quelle.belegId}`;
+    const p = jeBuchung.get(schluessel) ?? { datum: a.datum, betrag: 0, kontakt: angabeZu(angaben, a.quelle)?.kontakt ?? { id: null, name: "" } };
+    p.betrag += a.betrag;
+    jeBuchung.set(schluessel, p);
+  }
+  return zerlegeAbweichung([...jeBuchung.values()], zeitraum, vgl, { hoechstens: 5 });
 }

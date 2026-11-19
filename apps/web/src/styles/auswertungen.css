@@ -193,3 +193,4 @@
 
 /* BWA (#1380): je Zeile der EÜR eine Tabelle, ihr Titel linksbündig über der Tabelle */
 .bwa-details caption { caption-side: top; text-align: left; font-weight: 600; padding: 16px 0 4px; }
+.bwa-warum h3 { margin: 16px 0 4px; font-size: 14px; font-weight: 600; }

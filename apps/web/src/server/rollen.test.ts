@@ -16,6 +16,7 @@ const routesApi = fileURLToPath(new URL("../routes/api", import.meta.url));
 /** Lesende Server Functions, die auch die Steuerberatung aufrufen darf. Nur GET, nur Lesen, keine Geheimnisse. */
 const STEUERBERATUNG_LIEST = [
   "bwa.ts:getBwa",
+  "bwa.ts:getBwaWarum",
   "bwa.ts:getBwaZeile",
   "documents.ts:getDocumentDetail",
   "documents.ts:getDocuments",

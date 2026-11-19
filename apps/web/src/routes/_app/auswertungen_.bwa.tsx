@@ -1,12 +1,14 @@
 import { FORM43_ZEILEN, MONTHS, bwaZeitraum, currentYear, formatEuro, type Form43Zeile, type Vergleich, type Zeitraum } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { z } from "zod/mini";
+import { BwaWarum } from "../../components/BwaWarum.tsx";
 import { Field } from "../../components/Field.tsx";
 import { JOURNAL_SOURCE, ZEITRAEUME } from "../../components/Ledger.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { formatDate } from "../../lib/format.ts";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
-import { getBwa, getBwaZeile } from "../../server/functions/bwa.ts";
+import { getBwa, getBwaWarum, getBwaZeile } from "../../server/functions/bwa.ts";
 import type { BwaBericht, BwaGruppe, BwaZeileWerte } from "../../server/modules/auswertungen/index.ts";
 import styles from "../../styles/auswertungen.css?url";
 
@@ -43,11 +45,12 @@ export const Route = createFileRoute("/_app/auswertungen_/bwa")({
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const { zeitraum, vergleich } = auswahl(deps);
-    const [bericht, details] = await Promise.all([
+    const [bericht, details, warum] = await Promise.all([
       getBwa({ data: { zeitraum, vergleich } }),
       deps.zeile ? getBwaZeile({ data: { zeitraum, zeile: deps.zeile } }) : null,
+      deps.zeile && vergleich !== "keiner" ? getBwaWarum({ data: { zeitraum, vergleich, zeile: deps.zeile } }) : null,
     ]);
-    return { bericht, details };
+    return { bericht, details, warum };
   },
   head: () => ({ meta: [{ title: "BWA · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: BwaPage,
@@ -87,7 +90,7 @@ const prozent = (basispunkte: number) => `${prozentFormat.format(basispunkte / 1
 const leer = (z: BwaZeileWerte) => z.art === "zeile" && [z.betrag, z.kumuliert, z.vergleich ?? 0, z.vergleichKumuliert ?? 0].every((b) => b === 0);
 
 function BwaPage() {
-  const { bericht, details } = Route.useLoaderData();
+  const { bericht, details, warum } = Route.useLoaderData();
   const suche = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const { jahr, art, zeitraum, vergleich } = auswahl(suche);
@@ -130,7 +133,11 @@ function BwaPage() {
           )}
           <BwaTabelle bericht={bericht} zeitraum={zeitraum} offen={suche.zeile} />
           {offeneZeile && details && (
-            <ZeileDetails titel={`${offeneZeile.label} · ${zeitraumText(zeitraum)}`} jahr={Number(zeitraum.von.slice(0, 4))} gruppen={details} />
+            <ZeileDetails titel={`${offeneZeile.label} · ${zeitraumText(zeitraum)}`} jahr={Number(zeitraum.von.slice(0, 4))} gruppen={details}>
+              {warum && bericht.vergleich && (
+                <BwaWarum warum={warum} zeitraum={zeitraumText(zeitraum, true)} vergleich={zeitraumText(bericht.vergleich, true)} />
+              )}
+            </ZeileDetails>
           )}
         </>
       )}
@@ -321,10 +328,11 @@ function FreierZeitraum({ zeitraum, onChange }: { zeitraum: Zeitraum; onChange: 
   );
 }
 
-function ZeileDetails({ titel, jahr, gruppen }: { titel: string; jahr: number; gruppen: BwaGruppe[] }) {
+function ZeileDetails({ titel, jahr, gruppen, children }: { titel: string; jahr: number; gruppen: BwaGruppe[]; children?: ReactNode }) {
   return (
     <section className="card bwa-details" id="details" aria-labelledby="details-titel">
       <h2 id="details-titel">{titel}</h2>
+      {children}
       {gruppen.length === 0 && <p className="muted">Keine Beträge im Zeitraum.</p>}
       {gruppen.map((g) => (
         <ScrollTable key={g.euerZeile} className="report-table">
