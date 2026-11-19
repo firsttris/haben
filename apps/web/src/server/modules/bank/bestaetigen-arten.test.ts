@@ -243,4 +243,26 @@ describe.skipIf(!testDatabaseUrl)("Vorschläge bestätigen: Rechnung, Beleg, ein
     expect(await vorschlag(zweck)).toBeNull();
     await expect(bestaetigen.bestaetigeVorschlaege(actor, [await idVon(zweck)])).rejects.toThrow(/nichts gebucht/);
   });
+
+  it("eine Ausgabe mit Beleg auf dem Konto eines Zahlungsdienstleisters bleibt bestätigbar, nur der Eingang nicht", async () => {
+    await firma("SKR03", "soll");
+    folge++;
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, folge % 256, 37]);
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: `beleg-${folge}.jpg` });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Codewerk Lizenzen GmbH",
+      supplierUstId: "",
+      invoiceNumber: "L-2001",
+      documentDate: "2026-09-15",
+      dueDate: null,
+      category: "software",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+    });
+    await documents.bookDocument(actor, id);
+    await bank.importStatement(actor, dkbCsv([["20.09.26", "Codewerk Lizenzen GmbH", "L-2001", "-119,00"]]), null);
+    await sql`update bank_accounts set purpose = 'zahlungsdienstleister', provider = 'paypal', ledger_index = 1, iban = null`;
+    expect(await vorschlag("L-2001")).toMatchObject({ input: { kind: "document", documentId: id, amount: -119_00 } });
+  });
 });

@@ -83,8 +83,6 @@ export async function mitHinweisen(
     let direct = !match && row.open === row.amount && current ? suggestDirectBooking(row, current, own) : null;
     // Wie die Detailansicht: Lastschrift des Finanzamts über den Betrag einer Lohnsteuer-Anmeldung, vor dem Gelernten
     if (!match && !direct && row.open === row.amount) direct = suggestLohnsteuer(row, lohnsteuer);
-    // Was auf diesem Konto nicht buchbar ist, wird nicht vorgeschlagen (#873)
-    if (direct && !aufKontoAngeboten(direct.kind, purpose)) direct = null;
     // Gelernte Buchungsarten müssen auf diesem Konto zulässig sein (#873).
     const previous = learned.get(row.id);
     const hasSuggestion = !!match || (direct !== null && !direct.requiresCounterpart) || (previous !== undefined && aufKontoAngeboten(previous.kind, purpose));
