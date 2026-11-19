@@ -421,11 +421,11 @@ test("Belegliste: Lieferant sortiert nach dem angezeigten Text, ohne Lieferant n
   expect(aufsteigend(namen), namen.join(" | ")).toBe(true);
 });
 
-test("Belegliste: Kategorie sortiert nach dem angezeigten Text mit Kontonummer, nicht nach dem Schlüssel", async ({ browser }) => {
-  // Entwürfe, das Jahr ist weiter oben abgeschlossen. Schlüssel „beratung“ vor „literatur“, angezeigt
-  // „4940 · Fachliteratur“ vor „4950 · Rechts- und Beratungskosten“ (SKR04 6820 vor 6825)
+test("Belegliste: Kategorie sortiert nach dem angezeigten Text mit Kontonummer, nicht nach Schlüssel oder Name", async ({ browser }) => {
+  // Entwürfe, das Jahr ist weiter oben abgeschlossen. Schlüssel und Name stellen „beratung“ vor „telefon“, angezeigt
+  // „4920 · Telefon“ vor „4950 · Rechts- und Beratungskosten“ (SKR04 6805 vor 6825)
   await receipt(browser, "Kanzlei Klar", "K-1", currentDay(), false, "beratung");
-  await receipt(browser, "Fachverlag Fuchs", "K-2", currentDay(), false, "literatur");
+  await receipt(browser, "Telefonwerk Thal", "K-2", currentDay(), false, "telefon");
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/belege?sort=kategorie&dir=auf");
   await expect(page.locator("a.table-row.document-cols").filter({ hasText: "Rechts- und Beratungskosten" })).toHaveCount(1);
