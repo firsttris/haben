@@ -47,7 +47,7 @@ import {
   sevdeskConnectionStatus,
   startSevdeskImport as startSevdesk,
 } from "../modules/archiv/index.ts";
-import { FASTBILL_PLANS, fastbillConnectionStatus, fastbillReceiptsOverview, latestFastbillImport } from "../modules/archiv/index.ts";
+import { FASTBILL_PLANS, fastbillConnectionStatus, fastbillReceiptsOverview, fastbillUsage, latestFastbillImport } from "../modules/archiv/index.ts";
 import { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "../modules/archiv/index.ts";
 import { latestSevdeskExportImport } from "../modules/archiv/index.ts";
 import { latestWisoImport, MAX_WISO_CSV_SIZE, previewWisoCsv, startWisoImport, wisoSummary } from "../modules/archiv/index.ts";
@@ -76,6 +76,7 @@ export const getMigration = createServerFn({ method: "GET" })
       bbImport,
       wisoImport,
       fastbillConnection,
+      fastbillCallsUsed,
       fastbillImport,
       fastbillReceipts,
       sevdeskExportImport,
@@ -92,6 +93,7 @@ export const getMigration = createServerFn({ method: "GET" })
       latestBuchhaltungsbutlerImport(),
       latestWisoImport(),
       fastbillConnectionStatus(),
+      fastbillUsage(),
       latestFastbillImport(),
       fastbillReceiptsOverview(),
       latestSevdeskExportImport(),
@@ -102,6 +104,7 @@ export const getMigration = createServerFn({ method: "GET" })
       sevdeskImport,
       sevdeskExportImport,
       fastbillConnection,
+      fastbillUsage: fastbillCallsUsed,
       fastbillImport,
       fastbillPlans: FASTBILL_PLANS.map((p) => ({ ...p })),
       fastbillReceipts,
