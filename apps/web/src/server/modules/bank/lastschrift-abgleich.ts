@@ -6,7 +6,9 @@ import { bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { openBooks } from "../buchhaltung/index.ts";
 import { invoicePayments } from "../rechnungen/index.ts";
-import { allocateSplit, BankError, bookPart, lockTransaction } from "./bank.ts";
+import { allocateSplit, bookPart } from "./allocation.ts";
+import { BankError } from "./bank-error.ts";
+import { lockTransaction } from "./payment-booking.ts";
 
 /**
  * Lastschriften im Bankabgleich (#445): die Sammelgutschrift einer Lastschriftdatei auf ihre Rechnungen aufteilen und

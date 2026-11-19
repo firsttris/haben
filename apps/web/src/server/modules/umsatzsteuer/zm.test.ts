@@ -11,7 +11,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   let figures: typeof import("./vat-figures.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let fristen: typeof import("../finanzamt/fristen.ts");
   let crypto: typeof import("../../crypto.ts");
   let sql: postgres.Sql;
@@ -28,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
     figures = await import("./vat-figures.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     fristen = await import("../finanzamt/fristen.ts");
     crypto = await import("../../crypto.ts");
   }, 30_000);

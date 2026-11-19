@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Review: Erstattungen mit ausschließlich externer Bestellnummer (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
@@ -13,7 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Erstattungen mit ausschließlich exte
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);

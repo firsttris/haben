@@ -131,7 +131,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
 
   it("nimmt die Lieferung eines Umsatzes vom Jahresende auch ins Importprotokoll dieses Jahres", async () => {
     const { storeBatch } = await import("../bank/import-batch.ts");
-    const { storeStatement } = await import("../bank/bank.ts");
+    const { storeStatement } = await import("../bank/index.ts");
     const { db } = await import("../../db/index.ts");
     const iban = "DE12500105170648489890";
     const hash = "hash-jahresende";

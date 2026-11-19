@@ -31,7 +31,7 @@ const TODAY = "2026-10-02";
 describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   let annual: typeof import("./annual.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let cashInvoice: typeof import("../bank/cash-invoice.ts");
   let cashIncome: typeof import("../bank/cash-income.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     sql = await setupTestDb();
     annual = await import("./annual.ts");
     assets = await import("../buchhaltung/assets.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     cashInvoice = await import("../bank/cash-invoice.ts");
     cashIncome = await import("../bank/cash-income.ts");
     invoices = await import("../rechnungen/invoices.ts");

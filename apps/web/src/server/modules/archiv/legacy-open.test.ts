@@ -17,7 +17,7 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 8, 7]);
 describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () => {
   let legacy: typeof import("./legacy-open.ts");
   let cutoffReader: typeof import("../auswertungen/altbestand-stichtag.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
   let reports: typeof import("../auswertungen/reports.ts");
@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     sql = await setupTestDb();
     legacy = await import("./legacy-open.ts");
     cutoffReader = await import("../auswertungen/altbestand-stichtag.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     figures = await import("../umsatzsteuer/vat-figures.ts");
     reports = await import("../auswertungen/reports.ts");

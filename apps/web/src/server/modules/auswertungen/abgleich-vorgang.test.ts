@@ -9,7 +9,7 @@ import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
  */
 describe.skipIf(!testDatabaseUrl)("Vorgang gegen Buchung, Randfälle (Postgres)", () => {
   let vorgang: typeof import("./abgleich-vorgang.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
@@ -19,7 +19,7 @@ describe.skipIf(!testDatabaseUrl)("Vorgang gegen Buchung, Randfälle (Postgres)"
   beforeAll(async () => {
     sql = await setupTestDb();
     vorgang = await import("./abgleich-vorgang.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);

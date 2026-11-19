@@ -58,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
   let zm: typeof import("./zm.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let datev: typeof import("../auswertungen/datev-export.ts");
@@ -74,7 +74,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     zm = await import("./zm.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     datev = await import("../auswertungen/datev-export.ts");

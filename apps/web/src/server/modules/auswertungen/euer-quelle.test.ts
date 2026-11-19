@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal (Postgres)", () => {
   let reports: typeof import("./reports.ts");
   let pauschalen: typeof import("../buchhaltung/pauschalen.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -62,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal (Postgres)", () => {
     reports = await import("./reports.ts");
     pauschalen = await import("../buchhaltung/pauschalen.ts");
     assets = await import("../buchhaltung/assets.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");

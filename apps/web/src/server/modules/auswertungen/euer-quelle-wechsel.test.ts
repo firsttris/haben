@@ -59,7 +59,7 @@ function kurz(e: EuerResult) {
 describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Jahreswechsel und mit Anlagen (Postgres)", () => {
   let reports: typeof import("./reports.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -72,7 +72,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Jahresw
     sql = await setupTestDb();
     reports = await import("./reports.ts");
     assets = await import("../buchhaltung/assets.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");

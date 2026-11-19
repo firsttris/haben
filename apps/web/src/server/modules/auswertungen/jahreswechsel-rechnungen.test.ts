@@ -45,7 +45,7 @@ const JAN = { year: 2027, month: 1 };
 
 describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlungen, Stornos (Postgres)", () => {
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let abgleich: typeof import("./abgleich.ts");
@@ -57,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
   beforeAll(async () => {
     sql = await setupTestDb();
     figures = await import("../umsatzsteuer/vat-figures.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     abgleich = await import("./abgleich.ts");

@@ -34,14 +34,14 @@ const tx = (ref: string | null, booking_date: string, amount = "49.99", over: Pa
 
 describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
   let importBatch: typeof import("./import-batch.ts");
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let db: typeof import("../../db/index.ts");
   let sql: postgres.Sql;
 
   beforeAll(async () => {
     sql = await setupTestDb();
     importBatch = await import("./import-batch.ts");
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     db = await import("../../db/index.ts");
   }, 60_000);
 

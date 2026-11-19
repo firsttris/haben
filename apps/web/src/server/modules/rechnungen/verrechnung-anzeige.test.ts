@@ -15,7 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Anzeige nach einer Verrechnung (Postgres)", (
   let dunning: typeof import("./dunning.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
@@ -27,7 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Anzeige nach einer Verrechnung (Postgres)", (
     dunning = await import("./dunning.ts");
     reports = await import("../auswertungen/reports.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 60_000);
 
   afterAll(async () => {

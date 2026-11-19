@@ -18,7 +18,7 @@ function dkbCsv(rows: string[][]) {
 
 describe.skipIf(!testDatabaseUrl)("EÜR: GWG über einen Beleg der Kategorie Anlagegut (Postgres)", () => {
   let documents: typeof import("../belege/documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
   let reports: typeof import("./reports.ts");
   let abgleich: typeof import("./abgleich.ts");
@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR: GWG über einen Beleg der Kategorie Anl
   beforeAll(async () => {
     sql = await setupTestDb();
     documents = await import("../belege/documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     assets = await import("../buchhaltung/assets.ts");
     reports = await import("./reports.ts");
     abgleich = await import("./abgleich.ts");

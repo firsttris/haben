@@ -78,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
   }
 
   async function pay(invoiceId: string, amount: number, date: string) {
-    const bank = await import("../bank/bank.ts");
+    const bank = await import("../bank/index.ts");
     const label = `Zahlung ${invoiceId.slice(0, 8)} ${amount}`;
     const euros = (Math.abs(amount) / 100).toFixed(2).replace(".", ",");
     await bank.importStatement(
@@ -131,7 +131,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
   }, 60_000);
 
   it("Storno einer bezahlten, korrigierten Rechnung: zu erstatten ist, was gezahlt wurde, einmal", async () => {
-    const bank = await import("../bank/bank.ts");
+    const bank = await import("../bank/index.ts");
     const { original, correction } = await corrected();
     await pay(original.id, 119_000, "07.10.26");
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-10-08");

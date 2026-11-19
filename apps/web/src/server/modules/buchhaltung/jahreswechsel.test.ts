@@ -43,7 +43,7 @@ async function failure(work: Promise<unknown>): Promise<string> {
 
 describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jahreswechsel (Postgres)", () => {
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
@@ -52,7 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
   beforeAll(async () => {
     sql = await setupTestDb();
     figures = await import("../umsatzsteuer/vat-figures.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);

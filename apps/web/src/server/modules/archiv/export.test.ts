@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const invoices = await import("../rechnungen/invoices.ts");
     const contacts = await import("../stammdaten/contacts.ts");
     const documents = await import("../belege/documents.ts");
-    const bank = await import("../bank/bank.ts");
+    const bank = await import("../bank/index.ts");
     const cash = await import("../bank/cash.ts");
 
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)

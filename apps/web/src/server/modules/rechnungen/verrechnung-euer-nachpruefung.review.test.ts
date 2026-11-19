@@ -11,7 +11,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
   let invoices: typeof import("./invoices.ts");
   let verrechnung: typeof import("./verrechnung.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let sql: postgres.Sql;
@@ -23,7 +23,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     invoices = await import("./invoices.ts");
     verrechnung = await import("./verrechnung.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     figures = await import("../umsatzsteuer/vat-figures.ts");
     reports = await import("../auswertungen/reports.ts");
   }, 60_000);

@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let ledger: typeof import("../buchhaltung/ledger.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -31,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     ledger = await import("../buchhaltung/ledger.ts");
   }, 30_000);
 

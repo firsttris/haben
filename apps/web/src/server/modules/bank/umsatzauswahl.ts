@@ -1,5 +1,8 @@
 import { aufKontoAngeboten, type AccountPurpose, suggestDirectBooking, suggestMatches } from "@haben/core";
-import { learnedDirectSuggestions, listTransactions, openItems, ownAccounts, UMSATZ_LISTENLIMIT } from "./bank.ts";
+import { ownAccounts } from "./accounts.ts";
+import { learnedDirectSuggestions } from "./learned-suggestions.ts";
+import { openItems } from "./offene-posten.ts";
+import { listTransactions, UMSATZ_LISTENLIMIT } from "./transaction-list.ts";
 import { nachStatusSortieren, type UmsatzSortierung } from "./umsatzliste.ts";
 
 type Umsatz = Awaited<ReturnType<typeof listTransactions>>[number];

@@ -31,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldungszeitraum (Postgres)", () => {
   let zeitraum: typeof import("./zeitraum.ts");
   let fristen: typeof import("../finanzamt/fristen.ts");
   let annual: typeof import("../jahreserklaerung/annual.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldungszeitraum (Postgres)", () => {
     zeitraum = await import("./zeitraum.ts");
     fristen = await import("../finanzamt/fristen.ts");
     annual = await import("../jahreserklaerung/annual.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");

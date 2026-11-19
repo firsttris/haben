@@ -49,7 +49,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
   let vermerk: typeof import("../umsatzsteuer/vermerk.ts");
   let zeitraum: typeof import("../umsatzsteuer/zeitraum.ts");
   let dauerfrist: typeof import("../umsatzsteuer/dauerfrist.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
     vermerk = await import("../umsatzsteuer/vermerk.ts");
     zeitraum = await import("../umsatzsteuer/zeitraum.ts");
     dauerfrist = await import("../umsatzsteuer/dauerfrist.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");

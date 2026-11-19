@@ -34,7 +34,7 @@ const row = (date: string, party: string, purpose: string, amount: string) => [
 ];
 
 describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () => {
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -48,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
