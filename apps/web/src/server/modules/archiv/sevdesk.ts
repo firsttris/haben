@@ -1,18 +1,13 @@
 import { isUniqueViolation } from "../../errors.ts";
 import {
-  firstByContact,
   isSevCreditNoteImportable,
   isSevInvoiceImportable,
-  isSevMainContact,
   isSevVoucherImportable,
-  mapSevContact,
   mapSevCreditNote,
   mapSevInvoice,
   mapSevVoucher,
   SevdeskApiError,
   type SevdeskClient,
-  type SevCommunicationWay,
-  type SevContactAddress,
   type SevCreditNote,
   type SevFile,
   type SevInvoice,
@@ -20,7 +15,7 @@ import {
   type SevMappedVoucher,
   type SevVoucher,
 } from "@haben/import";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -31,6 +26,7 @@ import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from ".
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
 import { importSevdeskArticles } from "./sevdesk-artikel.ts";
+import { importSevdeskContacts } from "./sevdesk-kontakte.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
 import { importSevdeskArchiveOnly } from "./sevdesk-nur-archiv.ts";
 import { importSevdeskRecurringVouchers } from "./sevdesk-dauerbelege.ts";
@@ -153,74 +149,10 @@ type Listed =
   | { kind: "voucher"; id: string; number: string; raw: SevVoucher }
   | { kind: "order"; id: string; number: string; raw: SevOrder };
 
-async function runImport(actor: string, importId: string, client: SevdeskClient, progress: LexofficeImportProgress, signal: AbortSignal) {
-  let lastSave = 0;
-  const save = async (force = false) => {
-    if (!force && Date.now() - lastSave < 1000) return;
-    lastSave = Date.now();
-    await db.update(schema.lexofficeImports).set({ progress, updatedAt: new Date() }).where(eq(schema.lexofficeImports.id, importId));
-  };
+type Save = (force?: boolean) => Promise<void>;
 
-  // 1. Kontakte mit erster Adresse und Haupt-E-Mail; eindeutige Rollen auch im Bestand ergänzen
-  const addresses: SevContactAddress[] = [];
-  for await (const a of client.contactAddresses()) addresses.push(a);
-  const mails: SevCommunicationWay[] = [];
-  for await (const m of client.emailAddresses()) mails.push(m);
-  const addressBy = firstByContact(addresses);
-  const mailBy = firstByContact(mails);
-  for await (const raw of client.contacts()) {
-    if (!isSevMainContact(raw)) continue;
-    const contact = mapSevContact(raw, addressBy.get(String(raw.id)), mailBy.get(String(raw.id)));
-    const confirmedRole = contact.role === "supplier" ? { isSupplier: true } : contact.role === "customer" ? { isCustomer: true } : {};
-    await withActor(actor, async (tx) => {
-      const [known] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.sevdeskId, contact.sevdeskId));
-      if (known) {
-        // Ohne Herkunft je Rollenfeld lässt sich eine zweite Rolle nicht sicher als Importfehler erkennen.
-        if (contact.role) {
-          const roleColumn = contact.role === "supplier" ? schema.contacts.isSupplier : schema.contacts.isCustomer;
-          await tx
-            .update(schema.contacts)
-            .set(confirmedRole)
-            .where(and(eq(schema.contacts.id, known.id), eq(roleColumn, false)));
-        }
-        return;
-      }
-      const [sameName] = await tx
-        .select({ id: schema.contacts.id })
-        .from(schema.contacts)
-        .where(and(isNull(schema.contacts.sevdeskId), sql`lower(${schema.contacts.name}) = lower(${contact.name})`))
-        .limit(1);
-      if (sameName) {
-        await tx
-          .update(schema.contacts)
-          .set({ sevdeskId: contact.sevdeskId, ...confirmedRole })
-          .where(eq(schema.contacts.id, sameName.id));
-        progress.contactsLinked += 1;
-        return;
-      }
-      await tx.insert(schema.contacts).values({
-        sevdeskId: contact.sevdeskId,
-        // Haben braucht eine Rolle; unklare Kategorien erhalten nur bei Neuanlage die bisherige Kunden-Ausgangsrolle.
-        isCustomer: contact.role !== "supplier",
-        isSupplier: contact.role === "supplier",
-        kundennummer: contact.kundennummer,
-        name: contact.name,
-        strasse: contact.strasse,
-        plz: contact.plz,
-        ort: contact.ort,
-        land: contact.land,
-        email: contact.email,
-        ustId: contact.ustId,
-      });
-      progress.contacts += 1;
-    });
-    await save();
-  }
-
-  // 1b. Artikel (GET /Part) in den Artikelkatalog, verknüpft über die sevDesk-ID
-  await importSevdeskArticles(actor, client, progress, signal);
-
-  // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen und Voranmeldungen folgen nach 3, nur ins Archiv (#472)
+/** 2. Rechnungen, Gutschriften, Belege und Aufträge zum Übernehmen; dazu alle Rechnungen, auch Entwürfe */
+async function listSevdeskDocuments(client: SevdeskClient, progress: LexofficeImportProgress, save: Save, signal: AbortSignal) {
   progress.phase = "liste";
   await save(true);
   const listed: Listed[] = [];
@@ -250,13 +182,20 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     // Zusätzliche Auftragsdaten dürfen den bisherigen Rechnungs-/Belegimport nicht verhindern.
     progress.failed.push({ lexofficeId: "order", number: "Auftragsdokumente", message: progressMessage(error) });
   }
-  const done = new Set(
-    (await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.source, "sevdesk"))).map(
-      (r) => r.id,
-    ),
-  );
+  return { listed, invoices };
+}
 
-  // 3. Je Beleg Positionen und Dateien; Fehler einzelner Belege halten den Lauf nicht auf
+/** 3. Je Beleg Positionen und Dateien; Fehler einzelner Belege halten den Lauf nicht auf */
+async function importListed(
+  actor: string,
+  importId: string,
+  client: SevdeskClient,
+  listed: Listed[],
+  done: Set<string>,
+  progress: LexofficeImportProgress,
+  save: Save,
+  signal: AbortSignal,
+) {
   const importOrderPdf = createOrderPdfImporter(actor, client, signal);
   progress.phase = "belege";
   await save(true);
@@ -289,6 +228,31 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
+}
+
+async function runImport(actor: string, importId: string, client: SevdeskClient, progress: LexofficeImportProgress, signal: AbortSignal) {
+  let lastSave = 0;
+  const save = async (force = false) => {
+    if (!force && Date.now() - lastSave < 1000) return;
+    lastSave = Date.now();
+    await db.update(schema.lexofficeImports).set({ progress, updatedAt: new Date() }).where(eq(schema.lexofficeImports.id, importId));
+  };
+
+  await importSevdeskContacts(actor, client, progress, save);
+
+  // 1b. Artikel (GET /Part) in den Artikelkatalog, verknüpft über die sevDesk-ID
+  await importSevdeskArticles(actor, client, progress, signal);
+
+  // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen und Voranmeldungen folgen nach 3, nur ins Archiv (#472)
+  const { listed, invoices } = await listSevdeskDocuments(client, progress, save, signal);
+  const done = new Set(
+    (await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.source, "sevdesk"))).map(
+      (r) => r.id,
+    ),
+  );
+
+  // 3. Je Beleg Positionen und Dateien
+  await importListed(actor, importId, client, listed, done, progress, save, signal);
   await importSevdeskArchiveOnly(actor, importId, client, progress, signal);
   // Die Datei einer Vorlage brauchen Dauerbeleg und Belege aus der Vorlage; sevDesk liefert sie je Lauf nur einmal
   const templateFiles = new Map<string, Promise<SevFile | null>>();

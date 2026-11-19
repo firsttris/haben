@@ -10,8 +10,10 @@ import {
   DARLEHEN_TEILE,
   DARLEHEN_TEIL_KEYS,
   formatEuro,
+  kategorienMitKonto,
   STEUERARTEN,
   steuerartenFor,
+  vorauswahlUmsatz,
 } from "@haben/core";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { storePayoutView } from "../modules/stores/index.ts";
@@ -88,7 +90,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const allAccounts = data.konto === "alle" && accounts.length > 1;
     const shown = allAccounts ? accounts : [accounts.find((a) => a.id === data.konto) ?? accounts[0]].filter((a) => a !== undefined);
     const transactions = shown.length > 0 ? await umsatzauswahl(shown, data.filter, data.suche, { feld: data.sort, richtung: data.dir }) : [];
-    const selectedId = data.umsatz ?? transactions.find((t) => t.open !== 0)?.id ?? transactions[0]?.id;
+    const dienstleister = new Set(accounts.filter((a) => a.purpose === "zahlungsdienstleister").map((a) => a.id));
+    const selectedId = data.umsatz ?? vorauswahlUmsatz(transactions, dienstleister)?.id;
     const found = selectedId ? await transactionDetail(selectedId) : null;
     const detail = found && shown.some((a) => a.id === found.transaction.bankAccountId) ? found : null;
     // Das gewählte Konto; in „Alle Konten“ das des gewählten Umsatzes, nach dessen Zweck sich die Buchungsarten richten
@@ -107,7 +110,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
         ? {
             ...detail,
             neutralization: await neutralizationView(detail.transaction.id),
-            storePayout: await storePayoutView(detail.transaction.id),
+            storePayout: detail.duplicateReviews.every((review) => review.decision === "distinct") ? await storePayoutView(detail.transaction.id) : null,
             /** Bezug zu einem Umsatz aus der Klärung eines Konflikts im Abruf (#306) */
             klaerung: await klaerungView(detail.transaction.id),
           }
@@ -124,7 +127,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
-      kategorien: direktKategorienFuerKonto(account?.purpose ?? "geschaeft"),
+      kategorien: kategorienMitKonto(direktKategorienFuerKonto(account?.purpose ?? "geschaeft"), (await loadCompany()).kontenrahmen),
       kleinunternehmer: (await loadCompany()).kleinunternehmer,
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),

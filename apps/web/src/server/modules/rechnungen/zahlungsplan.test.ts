@@ -2,6 +2,7 @@ import type { PaymentPlanRow } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Angebot mit optionalen und alternativen Positionen, Rabatten und Zahlungsplan: Summe ohne die Wahlpositionen, Auswahl des
@@ -119,7 +120,7 @@ describe.skipIf(!testDatabaseUrl)("Angebot mit Wahlpositionen und Zahlungsplan (
         ["Druckwerke", 300_000, 700],
         ["Schulung", 50_000, 1900],
       ]);
-      await invoices.finalizeInvoice(actor, invoice.id);
+      await invoices.finalizeInvoice(actor, invoice.id, kleinunternehmerStand);
       // Mit festgeschriebener Rechnung ist die Auswahl fest, auch direkt in der Datenbank
       await expect(sql`delete from quote_choices where quote_id = ${quote.id}`).rejects.toThrow(/Auswahl ist fest/);
       await expect(sql`insert into quote_choices (quote_id, position) values (${quote.id}, 2)`).rejects.toThrow(/Auswahl ist fest/);
@@ -187,13 +188,13 @@ describe.skipIf(!testDatabaseUrl)("Angebot mit Wahlpositionen und Zahlungsplan (
           overview = await plan.quotePlanOverview(quote.id, "2026-10-10");
           expect(overview!.rows[0]!.status).toBe("entwurf");
 
-          await invoices.finalizeInvoice(actor, first.id);
+          await invoices.finalizeInvoice(actor, first.id, kleinunternehmerStand);
           const second = await plan.abschlagFromPlan(actor, quote.id, "2026-11-10", 1, null);
           expect(await invoiceLines(second.id)).toEqual([
             ["2. Abschlag gemäß Angebot AN-2026-001 vom 01.10.2026", 140_000, 1900],
             ["2. Abschlag gemäß Angebot AN-2026-001 vom 01.10.2026", 60_000, 700],
           ]);
-          await invoices.finalizeInvoice(actor, second.id);
+          await invoices.finalizeInvoice(actor, second.id, kleinunternehmerStand);
           overview = await plan.quotePlanOverview(quote.id, "2026-11-10");
           expect(overview!.rows.map((r) => r.status)).toEqual(["festgeschrieben", "festgeschrieben", "offen"]);
           expect(overview!.progress).toEqual({ billed: 577_000, total: 1_154_000, open: 577_000, percent: 5000 });
@@ -209,7 +210,7 @@ describe.skipIf(!testDatabaseUrl)("Angebot mit Wahlpositionen und Zahlungsplan (
 
           // Rest: die Schlussrechnung zieht die Abschläge dieses Angebots ab
           const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
-          const final = await invoices.finalizeInvoice(actor, schluss.id);
+          const final = await invoices.finalizeInvoice(actor, schluss.id, kleinunternehmerStand);
           expect(final).toMatchObject({ net: 500_000, gross: 577_000 });
           overview = await plan.quotePlanOverview(quote.id, "2026-12-01");
           expect(overview!.rows[2]!.status).toBe("festgeschrieben");

@@ -1,7 +1,7 @@
 import { suggestMatches, type MatchTransaction, type OpenItem, type Suggestion } from "@haben/core";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankDuplicateProposalEligibleSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 
 /**
  * Summe der noch offenen Gebühren- und Gutschriftzeilen eines Zahlungsdienstleisters in einem Monat. Der Dienstleister
@@ -18,6 +18,7 @@ async function offeneGebuehrenSumme(bankAccountId: string, monat: string): Promi
         sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${monat}`,
         sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
         sql`${bankOpenAmountSql} <> 0`,
+        bankDuplicateProposalEligibleSql,
       ),
     );
   return row?.total ?? 0;

@@ -12,6 +12,7 @@ import {
   formatDocumentNumber,
   numberFormatError,
   usesCustomerNumber,
+  voucherField,
 } from "./number-format.ts";
 
 describe("formatDocumentNumber", () => {
@@ -193,5 +194,27 @@ describe("issueDateBeforeLastFinalized", () => {
     const withRunning = { ...byCircle, 0: { number: "RE-0006", issueDate: "2027-02-01" } };
     expect(issueDateBeforeLastFinalized(withRunning, true, "2027-01-15")).toEqual(withRunning[0]);
     expect(issueDateBeforeLastFinalized(withRunning, true, "2027-02-01")).toBeNull();
+  });
+});
+
+describe("voucherField", () => {
+  it("lässt die erlaubten Zeichen stehen und macht den Punkt zum Bindestrich", () => {
+    expect(voucherField("RE-2026-034")).toBe("RE-2026-034");
+    expect(voucherField("RE.2026.001")).toBe("RE-2026-001");
+    expect(voucherField("A$&%*+-/9")).toBe("A$&%*+-/9");
+  });
+
+  it("streicht den Rest: Unterstrich, Leerzeichen, Umlaute, Komma und Doppelpunkt", () => {
+    expect(voucherField("RE-2026-A1_1")).toBe("RE-2026-A11");
+    expect(voucherField("Re_Ü 12,5: B")).toBe("Re125B");
+  });
+
+  it("kürzt auf die 36 Zeichen des Belegfelds 1", () => {
+    expect(voucherField("R".repeat(40))).toHaveLength(36);
+  });
+
+  it("bildet verschiedene Nummern auf dasselbe Belegfeld ab (#1426)", () => {
+    expect(voucherField("RE-2026-A1_1")).toBe(voucherField("RE-2026-A_11"));
+    expect(voucherField("RE-2026-A.1_1")).toBe(voucherField("RE-2026-A-1_1"));
   });
 });

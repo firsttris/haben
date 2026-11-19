@@ -2,6 +2,7 @@ import { INTERNAL_ERROR } from "../../errors.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => {
   let recurring: typeof import("./recurring.ts");
@@ -62,7 +63,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
 
   it("übernimmt die Einleitung mit Platzhaltern in die Rechnung", async () => {
     await recurring.createRecurring(actor, template({ intro: "Leistungen {zeitraum} gemäß Wartungsvertrag", nextDate: "2026-09-30", endDate: "2026-09-30" }));
-    await recurring.runDueRecurring("2026-10-02");
+    await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand);
     const rows = await sql`select intro, note from invoices`;
     expect(rows.map((r) => ({ ...r }))).toEqual([{ intro: "Leistungen September 2026 gemäß Wartungsvertrag", note: "Abrechnung September 2026" }]);
   });
@@ -71,10 +72,10 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     const input = template({ ...{ propertyRetention: true }, nextDate: "2026-09-30", endDate: "2026-10-30" });
     const created = await recurring.createRecurring(actor, input);
     expect(created).toMatchObject({ propertyRetention: true });
-    expect((await recurring.runDueRecurring("2026-09-30")).created).toBe(1);
+    expect((await recurring.runDueRecurring("2026-09-30", kleinunternehmerStand)).created).toBe(1);
     const disabled = { ...input, propertyRetention: false, nextDate: "2026-10-30" };
     await recurring.updateRecurring(actor, created.id, disabled);
-    expect((await recurring.runDueRecurring("2026-10-30")).created).toBe(1);
+    expect((await recurring.runDueRecurring("2026-10-30", kleinunternehmerStand)).created).toBe(1);
     const rows = await sql`select property_retention from invoices order by issue_date`;
     expect(rows.map((row) => row.property_retention)).toEqual([true, false]);
   });
@@ -82,7 +83,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
   it("übernimmt den Text zur Position mit Platzhaltern in die Rechnung", async () => {
     const lines = [{ ...template().lines[0]!, detail: "Leistungszeitraum {zeitraum}\nlaut Wartungsvertrag" }];
     await recurring.createRecurring(actor, template({ lines, nextDate: "2026-09-30", endDate: "2026-09-30" }));
-    await recurring.runDueRecurring("2026-10-02");
+    await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand);
     const rows = await sql`select description, detail from invoice_lines`;
     expect(rows.map((r) => ({ ...r }))).toEqual([{ description: "Wartung September 2026", detail: "Leistungszeitraum September 2026\nlaut Wartungsvertrag" }]);
   });
@@ -90,14 +91,14 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
   it("Vorlagen von vor dem Text zur Position erzeugen Positionen ohne Text", async () => {
     const created = await recurring.createRecurring(actor, template({ nextDate: "2026-09-30", endDate: "2026-09-30" }));
     await sql`update recurring_invoices set lines = jsonb_build_array((lines -> 0) - 'detail') where id = ${created.id}`;
-    await recurring.runDueRecurring("2026-10-02");
+    await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand);
     const [line] = await sql`select detail from invoice_lines`;
     expect(line?.detail).toBe("");
   });
 
   it("holt verpasste Termine als Entwürfe nach, mit Platzhaltern und Leistungszeitraum", async () => {
     const created = await recurring.createRecurring(actor, template());
-    expect(await recurring.runDueRecurring("2026-10-02")).toEqual({ created: 2, finalized: 0, mailed: 0, errors: [] });
+    expect(await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand)).toEqual({ created: 2, finalized: 0, mailed: 0, errors: [] });
     const rows = await sql`select i.issue_date::text, i.service_from::text, i.service_to::text, i.status, i.note, l.description
       from invoices i join invoice_lines l on l.invoice_id = i.id order by i.issue_date`;
     expect(rows.map((r) => ({ ...r }))).toEqual([
@@ -121,12 +122,12 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     const [after] = await sql`select next_date::text, active from recurring_invoices where id = ${created.id}`;
     expect(after).toEqual({ next_date: "2026-10-31", active: true });
     // Ein zweiter Lauf am selben Tag legt nichts doppelt an
-    expect((await recurring.runDueRecurring("2026-10-02")).created).toBe(0);
+    expect((await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand)).created).toBe(0);
   });
 
   it("schreibt fest und endet nach dem Enddatum", async () => {
     const created = await recurring.createRecurring(actor, template({ mode: "festschreiben", nextDate: "2026-09-01", endDate: "2026-10-15" }));
-    expect(await recurring.runDueRecurring("2026-12-01")).toEqual({ created: 2, finalized: 2, mailed: 0, errors: [] });
+    expect(await recurring.runDueRecurring("2026-12-01", kleinunternehmerStand)).toEqual({ created: 2, finalized: 2, mailed: 0, errors: [] });
     const numbers = await sql`select number from invoices where status = 'final' order by number`;
     expect(numbers.map((r) => r.number)).toEqual(["2026-001", "2026-002"]);
     const [after] = await sql`select active from recurring_invoices where id = ${created.id}`;
@@ -136,7 +137,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
   it("lässt den Entwurf stehen, wenn das Festschreiben scheitert", async () => {
     await sql`update company set iban = ''`;
     const created = await recurring.createRecurring(actor, template({ mode: "festschreiben", nextDate: "2026-10-01" }));
-    const result = await recurring.runDueRecurring("2026-10-02");
+    const result = await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand);
     expect(result).toMatchObject({ created: 1, finalized: 0 });
     expect(result.errors[0]).toContain("IBAN fehlt");
     const [row] = await sql`select status from invoices`;
@@ -151,7 +152,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     // Betrag jenseits von int4: das Anlegen scheitert in Postgres
     await sql`update recurring_invoices set lines = jsonb_set(lines, '{0,unitPrice}', '100000000000') where id = ${broken.id}`;
     await recurring.createRecurring(actor, template({ name: "Heil", nextDate: "2026-10-01" }));
-    const result = await recurring.runDueRecurring("2026-10-02");
+    const result = await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand);
     expect(result.created).toBe(1);
     expect(result.errors).toEqual([`Kaputt: ${INTERNAL_ERROR}`]);
     const [after] = await sql`select last_error, next_date::text from recurring_invoices where id = ${broken.id}`;
@@ -160,7 +161,10 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
 
   it("zwei gleichzeitige Läufe legen jeden Termin nur einmal an", async () => {
     await recurring.createRecurring(actor, template());
-    const [a, b] = await Promise.all([recurring.runDueRecurring("2026-10-02"), recurring.runDueRecurring("2026-10-02")]);
+    const [a, b] = await Promise.all([
+      recurring.runDueRecurring("2026-10-02", kleinunternehmerStand),
+      recurring.runDueRecurring("2026-10-02", kleinunternehmerStand),
+    ]);
     expect(a.errors.concat(b.errors)).toEqual([]);
     const [count] = await sql`select count(*)::int as n from invoices`;
     expect(count?.n).toBe(2);
@@ -168,7 +172,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
 
   it("Vorlage mit Rechnungen lässt sich nicht löschen", async () => {
     const created = await recurring.createRecurring(actor, template({ nextDate: "2026-10-01" }));
-    await recurring.runDueRecurring("2026-10-02");
+    await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand);
     await expect(recurring.deleteRecurring(actor, created.id)).rejects.toThrow("Deaktiviere");
     const unused = await recurring.createRecurring(actor, template({ nextDate: "2027-01-01" }));
     await recurring.deleteRecurring(actor, unused.id);

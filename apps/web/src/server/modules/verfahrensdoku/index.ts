@@ -5,6 +5,6 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
-export { loadProcedureDetails, procedureDetailsSchema, saveProcedureDetails, type ProcedureDetails } from "./angaben.ts";
+export { loadProcedureDetails, procedureDetailsSchema, putProcedureDetails, saveProcedureDetails, type ProcedureDetails } from "./angaben.ts";
 export { buildProcedureDocument, procedureDocument, procedureMarkdown } from "./dokument.ts";
 export { readInstanzStand, type InstanzStand } from "./stand.ts";

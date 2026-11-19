@@ -7,7 +7,16 @@ import { loadMailSettings } from "./settings.ts";
 import { transportFor } from "./transport.ts";
 
 export { MailError } from "./errors.ts";
-export { deleteMailSettings, loadMailSettings, mailSettingsSchema, mailSettingsSummary, saveMailSettings, SMTP_PRESETS } from "./settings.ts";
+export {
+  deleteMailSettings,
+  loadMailSettings,
+  mailCommonSchema,
+  mailSettingsSchema,
+  mailSettingsSummary,
+  putMailTemplates,
+  saveMailSettings,
+  SMTP_PRESETS,
+} from "./settings.ts";
 export type { MailSettingsInput } from "./settings.ts";
 export { setMailTransportForTests } from "./transport.ts";
 

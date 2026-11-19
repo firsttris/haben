@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit eigener Steuerbefreiung (Postgres)", () => {
   let sql: postgres.Sql;
@@ -105,7 +106,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit eigener Steuerbefreiung 
     await invoices.finalizeQuote(actor, quote.id);
     const fromQuote = await invoices.quoteToInvoice(actor, quote.id, "2026-10-03");
     expect(fromQuote.taxDetails).toEqual(taxDetails);
-    const final = await invoices.finalizeInvoice(actor, fromQuote.id);
+    const final = await invoices.finalizeInvoice(actor, fromQuote.id, kleinunternehmerStand);
     expect(final.exemptionReason).toBe("Steuerfreie Leistung nach § 4 Nr. 14 Buchst. a UStG.");
     expect(final.xml).toContain("Steuerfreie Leistung nach § 4 Nr. 14 Buchst. a UStG.");
     expect(final.pdf?.length).toBeGreaterThan(0);
@@ -124,7 +125,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit eigener Steuerbefreiung 
       mode: "festschreiben",
     });
     expect(recurring.invoiceForDate(series, "2026-11-01").taxDetails).toEqual(taxDetails);
-    expect((await recurring.runDueRecurring("2026-11-01")).created).toBe(1);
+    expect((await recurring.runDueRecurring("2026-11-01", kleinunternehmerStand)).created).toBe(1);
     const [row] = await sql`select status, tax_details, exemption_reason from invoices where recurring_id = ${series.id}`;
     expect(row?.status).toBe("final");
     expect(row?.tax_details).toEqual(taxDetails);

@@ -2,7 +2,7 @@ import { FILE_STATE_LABELS, FILE_STATUS_LABELS, fileStatesForYear, latestFileSta
 import { mitIndexXml } from "./beschreibung.ts";
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { bankAccountIncludedSql } from "../../db/bank-open.ts";
+import { bankAccountIncludedSql, bankDuplicateConfirmedSql, bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { effectivePayment } from "../auswertungen/index.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
@@ -287,6 +287,25 @@ export async function exportYears(now = new Date()): Promise<number[]> {
   const current = Number(today(now).slice(0, 4));
   const years = new Set([current, current - 1, ...rows.map((r) => Number(r.y))]);
   return [...years].sort((a, b) => b - a);
+}
+
+function bankTransactionsForYear(year: number) {
+  return db
+    .select({
+      ...getTableColumns(schema.bankTransactions),
+      open: bankOpenAmountSql.mapWith(Number),
+      neutralized: bankNeutralizedSql.mapWith(Boolean),
+      duplicate: bankDuplicateConfirmedSql.mapWith(Boolean),
+    })
+    .from(schema.bankTransactions)
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, yearStart(year)),
+        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    )
+    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
 }
 
 async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> {
@@ -819,18 +838,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   // Ein ausgeschlossenes Konto (#462) gehört nicht zu dieser Firma und fehlt im Archiv
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.iban));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
-  const transactions = await db
-    .select()
-    .from(schema.bankTransactions)
-    .where(
-      and(
-        gte(schema.bankTransactions.bookingDate, yearStart(year)),
-        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
-        bankAccountIncludedSql("bank_account_id"),
-      ),
-    )
-    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
-  const transactionById = new Map(transactions.map((t) => [t.id, t]));
+  const transactions = await bankTransactionsForYear(year);
+  const transactionById = new Map<string, typeof schema.bankTransactions.$inferSelect>(transactions.map((t) => [t.id, t]));
   const allocations = transactions.length
     ? await db
         .select()
@@ -864,11 +873,6 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
         .orderBy(asc(schema.bankNeutralizations.createdAt), asc(schema.bankNeutralizations.id))
     : [];
-  const reversedNeutralizations = new Set(neutralizations.flatMap((n) => (n.reversesId ? [n.reversesId] : [])));
-  const neutralized = new Set(
-    neutralizations.filter((n) => !n.reversesId && !reversedNeutralizations.has(n.id)).flatMap((n) => [n.transactionId, n.counterTransactionId]),
-  );
-
   const usedBankPaths = new Set<string>();
   for (const [accountId, rows] of groupBy(transactions, (t) => t.bankAccountId)) {
     const account = accountById.get(accountId);
@@ -890,6 +894,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           "Verrechnet",
           "Importdatei",
           "Umsatz-ID",
+          "Dublette",
         ],
         rows.map((t) => {
           const allocated = allocatedByTransaction.get(t.id) ?? 0;
@@ -904,10 +909,11 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
             t.type,
             t.bankReference,
             money(allocated),
-            money(neutralized.has(t.id) ? 0 : t.amount - allocated),
-            neutralized.has(t.id),
+            money(t.open),
+            t.neutralized,
             importById.get(t.importId)?.filename ?? t.importId,
             t.id,
+            t.duplicate,
           ];
         }),
       ),
@@ -1740,6 +1746,8 @@ kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufe
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
                          Bareinnahmen auf Rechnungen die Rechnungsnummer.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
+                         Bestätigte Dubletten behalten ihren Betrag und ihre Importdatei,
+                         stehen als Dublette in der Liste und haben einen offenen Betrag von 0.
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
 bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze
@@ -1754,8 +1762,10 @@ bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA
                          verbunden hat (etwa vom 30.12.), auch im Jahr dieses Umsatzes.
                          Die Auszugsdateien selbst speichert Haben nicht.
 bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
-                         Ereignis der Bank die Quelle mit Stichtag, der Abruf und der
-                         Umsatz, den Haben angelegt oder verbunden hat.
+                         Ereignis (Bankabruf oder Etsy) die Quelle mit Stichtag, der
+                         Abruf, der Umsatz, den Haben angelegt oder verbunden hat,
+                         und die gelieferten Referenzen (Anbieterreferenz,
+                         Ereigniscode, EndToEndId, Bezug, Auszahlung, Bestellung).
 bank/klaerungen.csv      Nur wenn vorhanden: geklärte Konflikte im Abruf: bisheriger und
                          gelieferter Umsatz, die Entscheidung und ein neu angelegter
                          Umsatz; der abgelehnte Abruf steht in bank/importe.csv.

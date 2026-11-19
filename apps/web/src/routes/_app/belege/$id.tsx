@@ -26,6 +26,7 @@ import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react
 import { flushSync } from "react-dom";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { type DuplikatZiel, useBelegDuplizieren } from "../../../components/BelegDuplizieren.tsx";
 import { BelegUmsatzsteuer } from "../../../components/BelegUmsatzsteuer.tsx";
 import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
@@ -51,6 +52,8 @@ import { KATEGORIE_BEISPIEL } from "../../../components/KategorieGruppen.ts";
 import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
 import { WeitereAngaben, inWeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
+import { readContinuePreference, subscribeContinuePreference, writeContinuePreference } from "./-beleg-weiter.ts";
+import { type Detail, Preview } from "./-beleg-vorschau.tsx";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
 function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
@@ -60,8 +63,8 @@ function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boo
 }
 
 export const Route = createFileRoute("/_app/belege/$id")({
-  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
-  validateSearch: z.object({ geprueft: z.optional(z.boolean()) }),
+  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“; dupliziert und vorhanden: nach „Beleg duplizieren“ */
+  validateSearch: z.object({ geprueft: z.optional(z.boolean()), dupliziert: z.optional(z.string()), vorhanden: z.optional(z.boolean()) }),
   loader: ({ params }) => getDocumentDetail({ data: params.id }),
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.document.supplierName || "Beleg"} · Haben` }],
@@ -69,7 +72,6 @@ export const Route = createFileRoute("/_app/belege/$id")({
   component: DocumentPage,
 });
 
-type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 type Rate = BetragsSatz;
 
 interface AmountState extends Betragszeile {
@@ -78,43 +80,14 @@ interface AmountState extends Betragszeile {
 
 let nextKey = 1;
 
-const CONTINUE_KEY = "haben-belege-weiter";
 /** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
 const BUCHEN_KUERZEL: readonly Taste[] = ["mod", "Enter"];
-
-/** Voreinstellung „nach dem Buchen weiter“: an, solange nichts anderes gemerkt ist; ohne Speicher (privates Fenster) einfach an */
-function readContinuePreference(): boolean {
-  if (continueFallback !== null) return continueFallback;
-  try {
-    return window.localStorage.getItem(CONTINUE_KEY) !== "nein";
-  } catch {
-    return true;
-  }
-}
-
-const continueListeners = new Set<() => void>();
-/** Ohne Speicher (privates Fenster) gilt die Wahl, bis die Seite neu geladen wird */
-let continueFallback: boolean | null = null;
-
-function subscribeContinuePreference(listener: () => void) {
-  continueListeners.add(listener);
-  return () => continueListeners.delete(listener);
-}
-
-function writeContinuePreference(value: boolean) {
-  try {
-    window.localStorage.setItem(CONTINUE_KEY, value ? "ja" : "nein");
-  } catch {
-    continueFallback = value;
-  }
-  for (const listener of continueListeners) listener();
-}
 
 function DocumentPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const navigate = useNavigate();
-  const { geprueft } = Route.useSearch();
+  const { geprueft, ...duplikat } = Route.useSearch();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const { document: doc, navigation } = data;
   const running = doc.extractionStatus === "laeuft";
@@ -130,10 +103,8 @@ function DocumentPage() {
     return () => clearInterval(timer);
   }, [running, router]);
 
-  function leaveTo(id: string) {
-    if (id === "liste") void navigate({ to: "/belege" });
-    else void navigate({ to: "/belege/$id", params: { id } });
-  }
+  const leaveTo = (id: string, ziel?: DuplikatZiel) =>
+    void (id === "liste" ? navigate({ to: "/belege" }) : navigate({ to: "/belege/$id", params: { id }, search: ziel }));
 
   /** Zu einem anderen Beleg oder ("liste") zurück zur Liste; bei ungespeicherten Änderungen erst nachfragen */
   function go(id: string | null) {
@@ -141,6 +112,7 @@ function DocumentPage() {
     if (dirty) setPending({ from: doc.id, to: id });
     else leaveTo(id);
   }
+  const duplizieren = useBelegDuplizieren(data, duplikat, dirty, leaveTo);
 
   // J/K bzw. Pfeiltasten springen zum nächsten bzw. vorigen Beleg, wie im Bankabgleich
   useEffect(() => {
@@ -231,8 +203,10 @@ function DocumentPage() {
           <a className="btn" href={`/api/beleg/${doc.id}?download`}>
             Original herunterladen
           </a>
+          {inhaber && !running && duplizieren.knopf}
         </div>
       </div>
+      {duplizieren.hinweise}
       <ConfirmDialog
         open={pendingId !== null}
         title="Ohne Speichern wechseln?"
@@ -279,33 +253,6 @@ function DocumentPage() {
         </div>
       </div>
     </>
-  );
-}
-
-function Preview({ doc }: { doc: Detail["document"] }) {
-  const src = `/api/beleg/${doc.id}`;
-  if (doc.mimeType === "application/pdf") {
-    return (
-      <>
-        <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Beleg ${doc.filename}`} />
-        <a className="btn pdf-open" href={src} target="_blank" rel="noreferrer">
-          PDF öffnen
-        </a>
-      </>
-    );
-  }
-  if (doc.mimeType.startsWith("image/") && doc.mimeType !== "image/heic") {
-    return <img className="doc-image" src={src} alt={`Beleg ${doc.filename}`} />;
-  }
-  return (
-    <section className="card">
-      <p className="muted" style={{ margin: 0 }}>
-        Für {doc.mimeType === "application/xml" ? "XML-Rechnungen" : "dieses Format"} gibt es keine Vorschau.{" "}
-        <a href={src} target="_blank" rel="noreferrer">
-          Datei öffnen
-        </a>
-      </p>
-    </section>
   );
 }
 

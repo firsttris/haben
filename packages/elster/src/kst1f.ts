@@ -64,6 +64,91 @@ export function einlagekontoRechnung(input: Kst1fInput): Einlagekontorechnung {
 
 const n = (value: number) => String(value);
 
+/** Leistungen aus dem Einlagekonto, einzeln und gesamt; null ohne Leistungen */
+function leistungenNode(input: Kst1fInput, r: Einlagekontorechnung, mitLeistungen: boolean): XmlNode | null {
+  return mitLeistungen
+    ? [
+        "Leistungen",
+        [
+          ...input.leistungen.map(
+            (l): XmlNode => [
+              "Einzel",
+              [
+                ["E8122020", "1"],
+                ["E8122021", germanDate(l.beschluss)],
+                ["E8122022", germanDate(l.abfluss)],
+                ["E8122023", n(euro(l.brutto))],
+                ["E8122024", n(euro(l.ausEinlagekonto))],
+              ],
+            ],
+          ),
+          [
+            "Gesamt",
+            [
+              ["E8121406", n(r.leistungen)],
+              ["E8200502", n(r.leistungen)],
+              ["E8122003", n(r.bescheinigt)],
+              ["E8122011", r.mehrere ? "1" : undefined],
+            ],
+          ],
+        ],
+      ]
+    : null;
+}
+
+/** Entwicklung des steuerlichen Einlagekontos */
+function einlagekontoNode(input: Kst1fInput, r: Einlagekontorechnung, mitLeistungen: boolean, zwischensumme: boolean): XmlNode {
+  return [
+    "ELK",
+    [
+      [
+        "Tabelle",
+        [
+          [
+            "Anfang",
+            // Im Gründungsjahr der Bestand beim Eintritt in die Steuerpflicht, sonst der zum Schluss des Vorjahres
+            input.gruendung
+              ? [
+                  ["E8240102", n(r.anfang)],
+                  ["E8240104", "0"],
+                ]
+              : [
+                  ["E8240103", n(r.anfang)],
+                  ["E8240201", "0"],
+                ],
+          ],
+          mitLeistungen
+            ? [
+                "Verrechnung",
+                [
+                  ["E8241717", zwischensumme ? n(r.anfang) : undefined],
+                  [
+                    "Kein_EeA",
+                    [
+                      ["E8240302", n(r.leistungen)],
+                      ["E8240401", n(r.ausschuettbarerGewinn ?? 0)],
+                      ["E8240501", n(r.summe)],
+                      // Zeile 50 nur bei Leistungen über dem ausschüttbaren Gewinn, Zeile 51 bei mehreren bescheinigten
+                      ["E8242201", !r.mehrere && r.summe > 0 ? n(r.abzug) : undefined],
+                      ["E8242202", r.mehrere && r.anfang > 0 ? n(r.abzug) : undefined],
+                    ],
+                  ],
+                ],
+              ]
+            : null,
+          [
+            "Ende",
+            [
+              ["E8245601", n(r.ende)],
+              ["E8245602", "0"],
+            ],
+          ],
+        ],
+      ],
+    ],
+  ];
+}
+
 export function kst1fNode(input: Kst1fInput): XmlNode {
   const r = einlagekontoRechnung(input);
   const von = germanDate(input.gruendung ?? `${input.year}-01-01`);
@@ -83,34 +168,7 @@ export function kst1fNode(input: Kst1fInput): XmlNode {
           ["E8200102", bis],
         ],
       ],
-      mitLeistungen
-        ? [
-            "Leistungen",
-            [
-              ...input.leistungen.map(
-                (l): XmlNode => [
-                  "Einzel",
-                  [
-                    ["E8122020", "1"],
-                    ["E8122021", germanDate(l.beschluss)],
-                    ["E8122022", germanDate(l.abfluss)],
-                    ["E8122023", n(euro(l.brutto))],
-                    ["E8122024", n(euro(l.ausEinlagekonto))],
-                  ],
-                ],
-              ),
-              [
-                "Gesamt",
-                [
-                  ["E8121406", n(r.leistungen)],
-                  ["E8200502", n(r.leistungen)],
-                  ["E8122003", n(r.bescheinigt)],
-                  ["E8122011", r.mehrere ? "1" : undefined],
-                ],
-              ],
-            ],
-          ]
-        : null,
+      leistungenNode(input, r, mitLeistungen),
       mitLeistungen
         ? [
             "Gewinn",
@@ -122,55 +180,7 @@ export function kst1fNode(input: Kst1fInput): XmlNode {
             ],
           ]
         : null,
-      [
-        "ELK",
-        [
-          [
-            "Tabelle",
-            [
-              [
-                "Anfang",
-                // Im Gründungsjahr der Bestand beim Eintritt in die Steuerpflicht, sonst der zum Schluss des Vorjahres
-                input.gruendung
-                  ? [
-                      ["E8240102", n(r.anfang)],
-                      ["E8240104", "0"],
-                    ]
-                  : [
-                      ["E8240103", n(r.anfang)],
-                      ["E8240201", "0"],
-                    ],
-              ],
-              mitLeistungen
-                ? [
-                    "Verrechnung",
-                    [
-                      ["E8241717", zwischensumme ? n(r.anfang) : undefined],
-                      [
-                        "Kein_EeA",
-                        [
-                          ["E8240302", n(r.leistungen)],
-                          ["E8240401", n(r.ausschuettbarerGewinn ?? 0)],
-                          ["E8240501", n(r.summe)],
-                          // Zeile 50 nur bei Leistungen über dem ausschüttbaren Gewinn, Zeile 51 bei mehreren bescheinigten
-                          ["E8242201", !r.mehrere && r.summe > 0 ? n(r.abzug) : undefined],
-                          ["E8242202", r.mehrere && r.anfang > 0 ? n(r.abzug) : undefined],
-                        ],
-                      ],
-                    ],
-                  ]
-                : null,
-              [
-                "Ende",
-                [
-                  ["E8245601", n(r.ende)],
-                  ["E8245602", "0"],
-                ],
-              ],
-            ],
-          ],
-        ],
-      ],
+      einlagekontoNode(input, r, mitLeistungen, zwischensumme),
     ],
   ];
 }

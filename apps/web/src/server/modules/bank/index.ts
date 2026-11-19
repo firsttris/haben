@@ -60,6 +60,7 @@ export {
   writeOffSchema,
 } from "./bank.ts";
 export { allocateFeesToDocument, feesSchema } from "./sammelzuordnung.ts";
+export { allocatePaymentWithFee, zahlungMitGebuehrSchema } from "./zahlung-gebuehr.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
 export { umsatzauswahl } from "./umsatzauswahl.ts";
 export {
@@ -72,6 +73,7 @@ export {
 export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
 export { hebePrivatAuf, markierePrivat } from "./privat.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
+export { decideDuplicate, duplicateDecisionSchema, type DuplicateDecisionInput } from "./duplicate-review.ts";
 export {
   createSepaTransfer,
   documentSepaTransfers,
@@ -154,3 +156,4 @@ export { bankCsvMappingSchema, csvZuordnungSchema, importCsvZuordnung, importSta
 export { klaerungView, openConflicts, recordRefusedBatch, resolveConflict, resolveConflictSchema } from "./import-konflikt.ts";
 export { cutoverDates } from "./andere-importe.ts";
 export { storeBatch, type BatchResult, type StoreBatchInput } from "./import-batch.ts";
+export { runExistingDuplicateCheck } from "./duplicate-scan.ts";

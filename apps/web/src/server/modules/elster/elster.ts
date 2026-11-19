@@ -46,7 +46,7 @@ export class ElsterDatenschutzError extends UserError {}
  */
 export async function requireElsterDatenschutz(): Promise<void> {
   if (!(await loadCompany()).elsterDatenschutzAt) {
-    throw new ElsterDatenschutzError("Bitte zuerst unter Einstellungen › ERiC die Datenschutzhinweise der Finanzverwaltung lesen und bestätigen.");
+    throw new ElsterDatenschutzError("Bitte zuerst unter Einstellungen › ELSTER › ERiC die Datenschutzhinweise der Finanzverwaltung lesen und bestätigen.");
   }
 }
 

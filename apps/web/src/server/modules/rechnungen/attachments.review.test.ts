@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** Kleinste Datei, die Haben am Inhalt als PDF erkennt; der Text macht jede Datei eindeutig */
 const pdf = (text: string) => new TextEncoder().encode(`%PDF-1.4\n% ${text}\n%%EOF\n`);
@@ -121,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Anhänge an Rechnungen (Postgres)", (
   it("die Integritätsprüfung meldet einen nachträglich geänderten Anhang einer festgeschriebenen Rechnung", async () => {
     const { id } = await draft();
     const { id: attachmentId } = await attachments.addInvoiceAttachment(actor, id, { bytes: pdf("Original"), filename: "original.pdf" });
-    await invoices.finalizeInvoice(actor, id);
+    await invoices.finalizeInvoice(actor, id, kleinunternehmerStand);
     await sql.begin(async (tx) => {
       await tx`alter table invoice_attachments disable trigger invoice_attachments_locked`;
       await tx`update invoice_attachments set sha256 = ${storage.sha256Of(pdf("Fälschung"))} where id = ${attachmentId}`;

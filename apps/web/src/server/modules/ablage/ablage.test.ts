@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { empfaengerStarten, type Empfaenger } from "./test-empfaenger.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * Ablage festgeschriebener Rechnungen im Archiv gegen zwei nachgebaute Empfänger mit verschiedenen Feldnamen und
@@ -56,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)("Ablage im Archiv (Postgres)", () => {
       note: "",
       lines: [{ description: "Beratung", quantity: 2000, unit: "Std." as const, unitPrice: 9500, taxRate: 1900 as const }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   };
 
   const zeile = async (invoiceId: string) => (await sql`select * from archive_deliveries where invoice_id = ${invoiceId}`)[0];
@@ -207,7 +208,7 @@ describe.skipIf(!testDatabaseUrl)("Ablage im Archiv (Postgres)", () => {
     await ablage.saveArchiveTarget(actor, zielMitId());
     const original = await festschreiben();
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-10-05");
-    const korrektur = await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, vorher.id, "2026-10-06")).id);
+    const korrektur = await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, vorher.id, "2026-10-06")).id, kleinunternehmerStand);
     expect(await ablage.deliverInvoices(actor)).toEqual({ uebertragen: 3, fehler: 0 });
     expect(mitId.received.map((r) => r.files.datei!.name)).toEqual([original, storno, korrektur].map((i) => `Rechnung-${i.number}.pdf`));
     expect(await ablage.deliveryForInvoice(vorher)).toBeNull();

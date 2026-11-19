@@ -3,7 +3,7 @@
 # Eingebaut sind die Versionen von UPGRADE_FROM an, wie im Datenbank-Image (deploy/db).
 # Compose betreibt ihn als Dienst mit täglichem Zeitplan, die Quadlets starten ihn über haben-backup.timer
 # einmal am Tag. Gebaut wird aus deploy/backup:  podman build -t haben-backup -f Containerfile deploy/backup
-FROM ghcr.io/restic/restic:0.19.1 AS restic
+FROM ghcr.io/restic/restic:0.20.0 AS restic
 FROM docker.io/rclone/rclone:1.76.0 AS rclone
 
 FROM docker.io/library/postgres:18

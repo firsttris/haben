@@ -35,22 +35,18 @@ import {
   advancePaymentDateProblem,
   recordedTaxShares,
   settlementTaxShares,
-  skontoZahlfristen,
   suggestMatches,
   type DirectBooking,
   type DirektKategorie,
-  kategorieText,
   type InvoiceTotals,
-  type OpenItem,
   type OwnAccount,
   type PostingLine,
   type Steuerart,
   type SteuerPosten,
-  steuerzahlungText,
   type DarlehenTeil,
-  darlehenText,
   type TaxShare,
   inCents,
+  gruppiereGebuehren,
 } from "@haben/core";
 import {
   checkBalanceContinuity,
@@ -66,10 +62,19 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
 import { importAccount } from "./import-konto.ts";
+import { recordDuplicateCandidates } from "./duplicate-scan.ts";
+import { duplicateReviewsForTransaction } from "./duplicate-review.ts";
+import { transactionAllocations } from "./transaction-allocations.ts";
+import { lockImportObservations, recordImportObservations } from "./import-observations.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { documentNotCancelled } from "../../db/document-cancelled.ts";
-import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import {
+  bankDuplicateConfirmedSql,
+  bankDuplicatePendingSql,
+  bankDuplicateProposalEligibleSql,
+  bankNeutralizedSql,
+  bankOpenAmountSql,
+} from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import {
   invoicePaymentPostingMode,
@@ -78,7 +83,6 @@ import {
   invoicePostingMode,
   lockInvoice,
   invoicePaymentGroup,
-  invoicePayments,
   paidByTarget,
   paperCancellationIds,
   paymentProcedure,
@@ -87,14 +91,14 @@ import {
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
 import { belegTotals, freigabeNachziehen } from "../umsatzsteuer/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
-import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
+import { assertUstvaOffen, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
-import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts";
-import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.ts";
+import { directDebitMatch } from "./lastschrift-abgleich.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { aufladungBuchung, kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { openItems } from "./offene-posten.ts";
 import { quellenHinweis } from "./quellen.ts";
 import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
@@ -103,7 +107,7 @@ import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from ".
 import { bankTransactionMatch } from "./search.ts";
 import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";
 
-export { BankError };
+export { BankError, openItems };
 
 /** Eine CSV, die keiner bekannten Bank gehört; die Seite bietet dann die Spaltenzuordnung an (#1275) */
 export class UnbekannteCsvError extends BankError {}
@@ -144,10 +148,23 @@ export async function listAccounts() {
         .where(and(eq(schema.bankImports.bankAccountId, account.id), echterImport))
         .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
         .limit(1);
-      const [open] = await db
-        .select({ n: sql<number>`count(*)::int` })
-        .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat()));
+      const offeneUmsaetze = and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat());
+      // Beim Dienstleister stehen Zahlung und Gebühr derselben Bewegung in der Liste in einer Zeile und zählen einmal
+      const openCount =
+        account.purpose === "zahlungsdienstleister"
+          ? gruppiereGebuehren(
+              await db
+                .select({
+                  id: schema.bankTransactions.id,
+                  bankAccountId: schema.bankTransactions.bankAccountId,
+                  bankReference: schema.bankTransactions.bankReference,
+                  amount: schema.bankTransactions.amount,
+                  open: openAmountSql.mapWith(Number),
+                })
+                .from(schema.bankTransactions)
+                .where(offeneUmsaetze),
+            ).length
+          : ((await db.select({ n: sql<number>`count(*)::int` }).from(schema.bankTransactions).where(offeneUmsaetze))[0]?.n ?? 0);
       // Umsätze, die auf einem privaten Konto nicht buchbar sind, zählen nicht als offen, sondern stehen daneben (#1088)
       const privateCount = await zaehlePrivat(account.id);
       // Zahlungsdienstleister nennen keinen Kontostand: Guthaben als Summe der importierten Umsätze
@@ -156,7 +173,7 @@ export async function listAccounts() {
           ? await db
               .select({ total: sql<string>`coalesce(sum(${schema.bankTransactions.amount}), 0)` })
               .from(schema.bankTransactions)
-              .where(eq(schema.bankTransactions.bankAccountId, account.id))
+              .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`not ${bankDuplicateConfirmedSql}`))
           : [];
       // Beim Dienstleister bleibt nach zwei Wochen nichts offen, was zugeordnet werden kann; sonst fehlt eine Zuordnung
       const [stale] =
@@ -175,7 +192,7 @@ export async function listAccounts() {
       return {
         ...account,
         lastImport: last ?? null,
-        openCount: open?.n ?? 0,
+        openCount,
         privateCount,
         providerBalance: sum ? Number(sum.total) : null,
         staleOpenCount: stale?.n ?? 0,
@@ -282,7 +299,15 @@ export async function storeStatement(
     transactions.map((t) => t.dedupHash),
   );
   const fresh = transactions.filter((t) => !known.has(t.dedupHash));
-  await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  const fromEnableBanking = statement.format === "enablebanking";
+  const scanDays = fromEnableBanking ? [...new Set(fresh.map((row) => row.bookingDate))] : [];
+  const observed = fromEnableBanking
+    ? await lockImportObservations(tx, account.id, scanDays, { hashes: transactions.filter((row) => known.has(row.dedupHash)) })
+    : [];
+  const { importId, transactionIds } = await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  await recordImportObservations(tx, importId, observed);
+  // Ohne Quellenbindung ist auch eine innerhalb des Abrufs eindeutige Referenz kein Beleg über mehrere Abrufe.
+  await recordDuplicateCandidates(tx, account.id, scanDays, new Set(transactionIds.values()), new Set());
   return statementResult(tx, account, statement, continuity, fresh.length, transactions);
 }
 
@@ -308,7 +333,12 @@ export async function prepareStatement(tx: Tx, statement: ParsedStatement, filen
   );
 
   // Konto sperren, damit parallele Importe dieselben Umsätze nicht doppelt anlegen
-  await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account.id)).for("update");
+  const [locked] = await tx
+    .select({ excludedAt: schema.bankAccounts.excludedAt })
+    .from(schema.bankAccounts)
+    .where(eq(schema.bankAccounts.id, account.id))
+    .for("update");
+  if (!locked || locked.excludedAt) throw new BankError("Das Konto ist ausgeschlossen oder nicht mehr vorhanden.");
   return { account, continuity };
 }
 
@@ -439,6 +469,8 @@ export async function listTransactions(
     .select({
       /** Auf einem privaten Konto als „kein Betriebsvorgang" gekennzeichnet und ganz offen (#1088) */
       privat: privat().mapWith(Boolean),
+      duplicatePending: bankDuplicatePendingSql.mapWith(Boolean),
+      duplicateConfirmed: bankDuplicateConfirmedSql.mapWith(Boolean),
       id: schema.bankTransactions.id,
       bankAccountId: schema.bankTransactions.bankAccountId,
       bookingDate: schema.bankTransactions.bookingDate,
@@ -502,150 +534,6 @@ export async function documentPayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("document_id", ids, q);
 }
 
-/** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
-function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }, externalId = inv.externalId) {
-  const refs = [...new Set([externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
-  return refs.length > 0 ? { orderReferences: refs } : {};
-}
-
-/** Offene Rechnungen und Belege für den Abgleich */
-export async function openItems(): Promise<OpenItem[]> {
-  const invoices = await db
-    .select({
-      id: schema.invoices.id,
-      kind: schema.invoices.kind,
-      correctsId: schema.invoices.correctsId,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      gross: schema.invoices.gross,
-      currency: schema.invoices.currency,
-      skonto: schema.invoices.skonto,
-      buyer: schema.invoices.buyer,
-      contactIban: schema.contacts.iban,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-    })
-    .from(schema.invoices)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(and(eq(schema.invoices.status, "final"), inArray(schema.invoices.kind, ["rechnung", "korrektur"])));
-  const stornos = await db
-    .select({
-      id: schema.invoices.id,
-      correctsId: schema.invoices.correctsId,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      buyer: schema.invoices.buyer,
-      contactIban: schema.contacts.iban,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-    })
-    .from(schema.invoices)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
-  const cancelled = new Set(stornos.map((r) => r.correctsId));
-  // Die eindeutige externe Referenz bleibt am Original. Für den Abgleich zählen Korrektur und Storno zur selben Bestellung.
-  const externalIds = new Map(invoices.map((inv) => [inv.id, inv.externalId]));
-  for (const inv of invoices) {
-    if (inv.correctsId && !inv.externalId) externalIds.set(inv.id, externalIds.get(inv.correctsId) ?? null);
-  }
-  const invoicePaid = await invoicePayments([...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
-  const paperStornos = await paperCancellationIds(stornos.map((st) => st.id));
-  // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
-  const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
-
-  const documents = await db
-    .select({
-      id: schema.documents.id,
-      invoiceNumber: schema.documents.invoiceNumber,
-      documentDate: schema.documents.documentDate,
-      uploadedAt: schema.documents.uploadedAt,
-      dueDate: schema.documents.dueDate,
-      gross: schema.documents.gross,
-      currency: schema.documents.currency,
-      supplierName: schema.documents.supplierName,
-    })
-    .from(schema.documents)
-    // Storniert: nichts mehr zu zahlen; stornieren lässt Haben nur ohne Zahlung (#237)
-    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
-  const documentPaid = await paidByTarget(
-    "document_id",
-    documents.map((d) => d.id),
-  );
-  // Konto des Lieferanten und Referenzen der SEPA-Überweisungen aus Haben: Die Abbuchung findet so ihren Beleg
-  const ids = documents.map((d) => d.id);
-  const [payees, decisions] = await Promise.all([documentPayees(ids), ibanDecisions(ids)]);
-  // Feiertage für das Ende der Skontofrist (§ 193 BGB) wie beim Zahlungsziel: die im Bundesland der Firma
-  const { bundesland } = await loadCompany();
-
-  const items: OpenItem[] = [];
-  for (const inv of invoices) {
-    const paid = invoicePaid.get(inv.id) ?? 0;
-    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid, cancelled: cancelled.has(inv.id) });
-    if (open === 0) continue;
-    // Skonto nur auf den ganzen Betrag: nach einer Teilzahlung oder Ausbuchung erkennt der Abgleich es nicht mehr
-    const skonto = inv.kind === "rechnung" && inv.currency === "EUR" && paid === 0 ? skontoZahlfristen(inv.skonto, inv.issueDate, inv.gross, bundesland) : [];
-    items.push({
-      type: "invoice",
-      id: inv.id,
-      number: inv.number!,
-      date: inv.issueDate,
-      dueDate: inv.dueDate,
-      open,
-      partyName: inv.buyer?.name ?? "",
-      partyIbans: inv.contactIban ? [inv.contactIban] : [],
-      ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
-      ...orderReferencesOf(inv, externalIds.get(inv.id)),
-      currency: inv.currency,
-      ...(skonto.length > 0 ? { skonto } : {}),
-    });
-  }
-  // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
-  for (const storno of stornos) {
-    if (paperStornos.has(storno.id)) continue;
-    const open = invoiceOpen({
-      status: "final",
-      kind: "storno",
-      gross: 0,
-      paid: invoicePaid.get(storno.id) ?? 0,
-      paidOnOriginal: invoicePaid.get(storno.correctsId!) ?? 0,
-      cancelled: false,
-    });
-    if (open === 0) continue;
-    items.push({
-      type: "invoice",
-      id: storno.id,
-      number: storno.number!,
-      date: storno.issueDate,
-      dueDate: storno.issueDate,
-      open,
-      partyName: storno.buyer?.name ?? "",
-      partyIbans: storno.contactIban ? [storno.contactIban] : [],
-      // Storno erbt die Bestellnummer der Rechnung (#389): die Erstattung beim Dienstleister findet es darüber
-      ...orderReferencesOf(storno, externalIds.get(storno.correctsId!)),
-    });
-  }
-  for (const doc of documents) {
-    const open = documentOpen(doc.gross, documentPaid.get(doc.id) ?? 0);
-    if (open === 0) continue;
-    items.push({
-      type: "document",
-      id: doc.id,
-      number: doc.invoiceNumber,
-      date: doc.documentDate ?? today(doc.uploadedAt),
-      dueDate: doc.dueDate,
-      open,
-      partyName: doc.supplierName,
-      partyIbans: payeeIbans(payees.get(doc.id), decisions.get(doc.id) ?? []),
-      references: payees.get(doc.id)?.references ?? [],
-      currency: doc.currency,
-    });
-  }
-  return items;
-}
-
 export async function transactionDetail(id: string) {
   const [tx] = await db
     .select({
@@ -666,59 +554,21 @@ export async function transactionDetail(id: string) {
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, id));
   if (!tx) return null;
-  const allocationRows = await db
-    .select({
-      id: schema.allocations.id,
-      kind: schema.allocations.kind,
-      amount: schema.allocations.amount,
-      reversesId: schema.allocations.reversesId,
-      splitId: schema.allocations.splitId,
-      createdAt: schema.allocations.createdAt,
-      invoiceId: schema.allocations.invoiceId,
-      invoiceNumber: schema.invoices.number,
-      documentId: schema.allocations.documentId,
-      documentSupplier: schema.documents.supplierName,
-      documentNumber: schema.documents.invoiceNumber,
-      vatReturnId: schema.allocations.vatReturnId,
-      taxType: schema.allocations.taxType,
-      taxYear: schema.allocations.taxYear,
-      taxItem: schema.allocations.taxItem,
-      loanName: schema.loans.name,
-      loanPart: schema.allocations.loanPart,
-      category: schema.allocations.category,
-      taxRate: schema.allocations.taxRate,
-    })
-    .from(schema.allocations)
-    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
-    .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
-    .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
-    .where(eq(schema.allocations.transactionId, id))
-    // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
-    .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
-  const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
-  const vatLabels = await ustvaLabels(allocationRows.flatMap((a) => (a.vatReturnId ? [a.vatReturnId] : [])));
-  const allocations = allocationRows
-    .filter((a) => !a.reversesId)
-    .map((a) => ({
-      ...a,
-      reversed: reversed.has(a.id),
-      vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
-      steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
-      darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
-      kategorieLabel: a.category && a.taxRate !== null ? kategorieText({ kategorie: a.category, steuersatz: a.taxRate }) : null,
-    }));
+  const allocations = await transactionAllocations(id);
 
+  const duplicateReviews = await duplicateReviewsForTransaction(tx.id);
+  const automatic = duplicateReviews.every((review) => review.decision === "distinct");
   // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
   const items = tx.open === 0 ? [] : [...(await openItems()), ...(await ustvaOpenItems())];
   // Vorschläge für den noch offenen Teil des Umsatzes
-  const suggestions = tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
+  const suggestions = !automatic || tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
   const candidates = items.filter((i) => Math.sign(i.open) === Math.sign(tx.amount));
   // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
   // Sammelrechnung des Monats an einer Gebührenzeile eines Zahlungsdienstleisters (#680)
-  const { sammelrechnung, sammelbeleg } = await sammelrechnungVorschlag(tx, account?.purpose, items);
-  let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
+  const { sammelrechnung, sammelbeleg } = automatic ? await sammelrechnungVorschlag(tx, account?.purpose, items) : { sammelrechnung: null, sammelbeleg: null };
+  let direct = automatic && account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
   let counterpart: TransferCounterpart | null = null;
   if (direct?.kind === "geldtransit" && account) {
     // Auszahlung vom Dienstleister: Gegenbuchung auf einem Bankkonto, dort mit dem Namen des Dienstleisters
@@ -752,16 +602,16 @@ export async function transactionDetail(id: string) {
   }
   if (direct?.requiresCounterpart && !counterpart) direct = null;
   // Lohnsteuer: Lastschrift des Finanzamts über den Gesamtbetrag einer übermittelten Lohnsteuer-Anmeldung
-  if (!direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
+  if (automatic && !direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
   // Sonst aus früheren Buchungen derselben Gegenpartei (Gebühren, Privat …), schwächer als die Regeln der Kontozwecke
-  if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
+  if (automatic && !direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
   // Was auf diesem Konto nicht buchbar ist, wird auch nicht vorgeschlagen, etwa gelernte Gebühren auf dem Privatkonto (#873)
   if (direct && !aufKontoAngeboten(direct.kind, account?.purpose ?? null)) direct = null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   // Belege aus Dauerbelegen, die noch zu prüfen sind: auf Klick buchen und zuordnen (bookAndAllocateDauerbeleg)
-  const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
+  const dauerbelege = !automatic || tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
   // Lastschriften aus Haben (#445): Sammelgutschrift aufteilen oder Rücklastschrift zuordnen
-  const lastschrift = await directDebitMatch(tx);
+  const lastschrift = automatic ? await directDebitMatch(tx) : null;
   // Der Sammelbeleg des Monats steht ganz oben, damit er in der Oberfläche als Treffer erscheint
   const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg.item.id)] : suggestions;
   // Für die Kennzeichnung „privat, kein Betriebsvorgang" (#1088): Zweck des Kontos und bestehende Markierung
@@ -769,6 +619,7 @@ export async function transactionDetail(id: string) {
   return {
     ...stand,
     lastschrift,
+    duplicateReviews,
     transaction: tx,
     allocations,
     suggestions: vorschlaege,
@@ -898,6 +749,7 @@ async function transferCounterpart(
         inArray(schema.bankTransactions.bankAccountId, accountIds),
         eq(schema.bankTransactions.amount, -tx.amount),
         sql`${schema.bankTransactions.bookingDate} between ${tx.bookingDate}::date - 5 and ${tx.bookingDate}::date + 5`,
+        bankDuplicateProposalEligibleSql,
       ),
     );
   const match = findTransferCounterpart(tx, sourceIban, rows, pattern);
@@ -915,7 +767,8 @@ async function payoutCandidates(accountIds: string[], bookingDate: string) {
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
       bankReference: schema.bankTransactions.bankReference,
-      open: openAmountSql.mapWith(Number),
+      // Die Zeile bleibt Teil der Gruppe. Mit einem Verdacht ist die ganze Auszahlung kein Vorschlag.
+      open: sql<number>`case when ${bankDuplicateProposalEligibleSql} then ${openAmountSql} else 0 end`.mapWith(Number),
     })
     .from(schema.bankTransactions)
     .where(

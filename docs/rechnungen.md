@@ -17,7 +17,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 
 - **Firmendaten** unter Einstellungen: Firmenname, Anschrift, E-Mail-Adresse, IBAN und Steuernummer oder USt-IdNr. Fehlt etwas, zeigt der Editor oben „Vor dem Festschreiben: …“ mit einem Link „Firmendaten ergänzen“. Siehe [einrichtung.md](einrichtung.md).
 - **Einen Kontakt** für den Kunden (siehe [Kontakte](kontakte.md)).
-- Für XRechnung zusätzlich eine **Telefonnummer** in den Firmendaten und beim Kunden eine **E-Mail-Adresse oder Leitweg-ID**.
+- Für XRechnung zusätzlich eine **Telefonnummer** in den Firmendaten und beim Kunden eine **E-Mail-Adresse** oder **Leitweg-ID**; die Leitweg-ID steht im Kontakt unter **Weitere Angaben**.
 
 ## So gehst du vor
 
@@ -209,11 +209,13 @@ Außer bei „Regulär“ gilt:
 
 Bei Reverse Charge erinnert der Editor daran, dass die Leistung zusätzlich in die Zusammenfassende Meldung (ZM) an das Bundeszentralamt für Steuern gehört. Die ZM sendet Haben über ERiC ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“ lässt Haben im XML die USt-IdNr. von dir und vom Kunden weg (BR-O-02); als Kennung des Verkäufers dient dann die Steuernummer bzw. USt-IdNr. (BT-29). Den Steuersatz lässt Haben in den Positionen des XML weg; in der Steueraufschlüsselung steht 0, weil XRechnung ihn dort verlangt (BR-DE-14).
 
+**Bestätigung beim BZSt.** Bei Reverse Charge und innergemeinschaftlicher Lieferung fragt Haben beim Öffnen der Rückfrage zum Festschreiben das [BZSt](kontakte.md#ust-idnr-beim-bzst-bestätigen), ob die USt-IdNr. des Kunden gültig ist, wenn ihre letzte Antwort nicht gültig oder älter als 30 Tage ist. Bei Reverse Charge muss außerdem die letzte qualifizierte Antwort aus dieser Frist stammen und bei Name und Ort nicht „Stimmt nicht“ melden; ohne Ort am Kontakt reicht die einfache. Meldet das BZSt die Nummer als ungültig, passen Name oder Ort nicht, bestätigt es Name und Anschrift nicht oder antwortet es nicht, steht das als Hinweis in der Rückfrage; festschreiben geht trotzdem. Serienrechnungen mit **Direkt festschreiben** fragen nicht. Eine feste Frist nennen weder [§ 18e UStG](https://www.gesetze-im-internet.de/ustg_1980/__18e.html) noch UStAE 18e.1; die 30 Tage hat Haben gewählt. Liegt die Leistung vor dem Festschreiben, kommt diese Abfrage zu spät für den Vertrauensschutz: Eine Bestätigung erst nach dem Umsatz genügt der Sorgfalt eines ordentlichen Kaufmanns nicht (UStAE 6a.8 Abs. 6). Neue Kunden bestätigst du deshalb vorher am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen).
+
 **Lieferung oder Leistung?** „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“ ist für Dienstleistungen und Nutzungsrechte, deren Leistungsort im Drittland liegt; sie sind in Deutschland nicht steuerbar (Kz 45). Verkaufst du Ware, die ins Drittland gelangt, ist es eine steuerbare, aber steuerfreie **Ausfuhrlieferung** (Kz 43); die Vorsteuer aus dem Einkauf bleibt abziehbar. Ebenso ist Ware an ein Unternehmen im EU-Ausland keine Reverse-Charge-Leistung, sondern eine **innergemeinschaftliche Lieferung** (Kz 41).
 
 Zur innergemeinschaftlichen Lieferung:
 
-- Auf der Rechnung stehen deine USt-IdNr. und die des Kunden und der Hinweis auf die Steuerfreiheit (§ 14a Abs. 3 UStG). Ohne beide Nummern, mit einer deutschen oder einer formal falschen USt-IdNr. des Kunden (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm), auch der Aufbau je Land) oder bei einem Kunden außerhalb der EU lässt sich die Rechnung nicht festschreiben. Ob die Nummer erteilt ist, lässt du vorher am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen) vom BZSt bestätigen.
+- Auf der Rechnung stehen deine USt-IdNr. und die des Kunden und der Hinweis auf die Steuerfreiheit (§ 14a Abs. 3 UStG). Ohne beide Nummern, mit einer deutschen oder einer formal falschen USt-IdNr. des Kunden (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm), auch der Aufbau je Land) oder bei einem Kunden außerhalb der EU lässt sich die Rechnung nicht festschreiben.
 - Im XML steht die Anschrift des Kunden als Lieferanschrift mit Lieferland (BT-80, Pflicht nach BR-IC-12).
 - Haben meldet die Lieferung in Kz 41 der Voranmeldung im Monat des Rechnungsdatums, auch bei Ist-Versteuerung, und in der [Zusammenfassenden Meldung](umsatzsteuer.md#zusammenfassende-meldung) mit Umsatzart L.
 - Steuerfrei ist sie nur mit Nachweis, dass die Ware ins andere EU-Land gelangt ist (§ 6a Abs. 3 UStG, § 17a UStDV), etwa mit der Gelangensbestätigung oder einem Versandbeleg. Den Nachweis bewahrst du selbst auf, zum Beispiel als [Anhang](#zusätzliche-anhänge) der Rechnung.
@@ -330,7 +332,7 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 | Kleinunternehmer: ohne Umsatzsteuer | 8192 | 4184 | `KU` (keine Kennzahl) |
 
 > [!IMPORTANT]
-> Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+> Die Kontenzuordnung stammt aus `packages/core/src/kontenplan.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
 
 ### Vorauszahlung auf normale Rechnungen
 

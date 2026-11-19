@@ -1,5 +1,5 @@
 /*
- * Rechnungsmodell nach EN 16931, wie toEInvoiceData (xml.ts) es baut und cii.ts und ubl.ts es schreiben: nur die
+ * Rechnungsmodell nach EN 16931, wie toEInvoiceData (daten.ts) es baut und cii.ts und ubl.ts es schreiben: nur die
  * Felder, die Haben füllt. Die Namen sind die der UBL-Elemente (EN 16931-3-2), Attribute stehen als „Element@Attribut“;
  * so lässt sich ubl.ts ohne Zuordnungstabelle schreiben. Beträge sind fertig formatierte Zahlen ("1234.56").
  */

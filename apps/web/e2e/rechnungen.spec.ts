@@ -24,6 +24,7 @@ import {
   rechnungFestschreiben,
   trefferliste,
   randImDialog,
+  weitereAngabenOeffnen,
 } from "./einrichtung.ts";
 import { receiptJpeg } from "./belegbild.ts";
 
@@ -169,6 +170,8 @@ test("DATEV-Personenkonten: Schalter mit Bestätigung, fehlender Debitor wird ve
   // Am Kontakt steht die Nummer und ist ab dem ersten Export fest
   await go("/kontakte");
   await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("DATEV-Debitor 10000");
+  await weitereAngabenOeffnen(page);
   await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10000");
   await page.getByLabel("DATEV-Debitor").fill("10002");
   await page.getByRole("button", { name: "Speichern" }).click();
@@ -179,6 +182,7 @@ test("DATEV-Personenkonten: die Steuerberatung liest auf ihrer Startseite, warum
   const jahr = Number(INVOICES[1]!.date.slice(0, 4));
   await go("/kontakte");
   await go((await page.getByRole("link", { name: "Alpenblick Media AG" }).first().getAttribute("href"))!);
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("DATEV-Debitor").fill("10002");
   await page.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
@@ -298,11 +302,14 @@ test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebe
   await page.getByLabel("Name oder Firma").fill("Musterpartner GmbH");
   await page.getByLabel("Lieferant", { exact: true }).check();
   await page.getByLabel("Kundennummer").fill("K-42");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("DATEV-Debitor").fill("10042");
   await page.getByLabel("DATEV-Kreditor").fill("70087");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
   await expect(page.getByLabel("Kundennummer")).toHaveValue("K-42");
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("DATEV-Debitor 10042 · DATEV-Kreditor 70087");
+  await weitereAngabenOeffnen(page);
   await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10042");
   await expect(page.getByLabel("DATEV-Kreditor")).toHaveValue("70087");
   // Archivieren: Die folgenden Tests rechnen nicht mit einem Lieferanten
@@ -311,12 +318,62 @@ test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebe
 
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Zweiter Partner");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("DATEV-Debitor").fill("70087");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByText("Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)")).toBeVisible();
   await page.getByLabel("DATEV-Debitor").fill("10042");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByText("Debitor 10042 hat schon „Musterpartner GmbH“.")).toBeVisible();
+});
+
+test("Kontakt: Weitere Angaben sind zu und zeigen Gesetztes, ein Fehler darin klappt sie auf, zugeklappt geht nichts verloren (#1253)", async () => {
+  await go("/kontakte/neu");
+  const bereich = page.locator("details.weitere-angaben");
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(bereich.locator("summary")).toContainText("DATEV-Konten, Skonto");
+  await page.getByLabel("Name oder Firma").fill("Landesamt Nord");
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Leitweg-ID").fill("991-01234-44");
+  await page.getByLabel("DATEV-Debitor").fill("123");
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(bereich.locator("summary")).toContainText("Leitweg-ID gesetzt");
+
+  // Der Fehler steht im zugeklappten Bereich: Er klappt auf
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)")).toBeVisible();
+  await expect(bereich).toHaveJSProperty("open", true);
+
+  // Zugeklappt gespeichert, sind die Werte da
+  await page.getByLabel("DATEV-Debitor").fill("");
+  await bereich.locator("summary").click();
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(bereich.locator("summary")).toContainText("Leitweg-ID gesetzt");
+  await weitereAngabenOeffnen(page);
+  await expect(page.getByLabel("Leitweg-ID")).toHaveValue("991-01234-44");
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
+test("Kontakt: Meldung des Servers zu Leitweg-ID und Stundensatz klappt Weitere Angaben auf und setzt den Fokus (#1253)", async () => {
+  for (const [feld, wert] of [
+    ["Leitweg-ID", "9".repeat(47)],
+    ["Stundensatz (€, optional)", "100000,01"],
+  ] as const) {
+    await go("/kontakte/neu");
+    const bereich = page.locator("details.weitere-angaben");
+    await page.getByLabel("Name oder Firma").fill("Review Amt");
+    await weitereAngabenOeffnen(page);
+    await page.getByLabel(feld).fill(wert);
+    await bereich.locator("summary").click();
+    await expect(bereich).toHaveJSProperty("open", false);
+    await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+    await expect(page.getByText(/höchstens/)).toBeVisible();
+    await expect(bereich, `${feld}: Bereich klappt bei Serverfehler auf`).toHaveJSProperty("open", true);
+    await expect(page.getByLabel(feld)).toBeFocused();
+  }
 });
 
 test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)", async () => {
@@ -343,6 +400,44 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
   await go("/kontakte");
   await page.getByRole("link", { name: /Dialogkunde GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
+test("Kontakt: Schnellanlage und Bearbeiten speichern auch zugeklappte Weitere Angaben, ungeänderte bleiben (#1253)", async () => {
+  await go("/rechnungen/neu");
+  const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await neuenKontaktOeffnen(page);
+  await dialog.getByLabel("Name oder Firma").fill("Dialog Amt");
+  await dialog.getByText("Weitere Angaben").click();
+  await dialog.getByLabel("DATEV-Debitor").fill("10077");
+  await dialog.getByLabel("Stundensatz (€, optional)").fill("95,50");
+  await dialog.getByLabel("Leitweg-ID").fill("991-01234-44");
+  await dialog.getByLabel("Standardformat für Rechnungen").selectOption("xrechnung-ubl");
+  await dialog.getByRole("combobox", { name: /^Skonto/ }).selectOption("eigen");
+  await dialog.getByRole("button", { name: "Skontostufe hinzufügen" }).click();
+  await dialog.getByLabel("Stufe 1: Skonto in %").fill("2,5");
+  await dialog.getByLabel("Stufe 1: Frist in Tagen").fill("10");
+  await dialog.getByText("Weitere Angaben").click();
+  await expect(dialog.locator("details.weitere-angaben")).toHaveJSProperty("open", false);
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Dialog Amt/ }).click();
+  const bereich = page.locator("details.weitere-angaben");
+  await expect(bereich.locator("summary")).toContainText("DATEV-Debitor 10077 · Stundensatz 95,50 € · Leitweg-ID gesetzt");
+  await expect(bereich.locator("summary")).toContainText("Skonto 2,50 % in 10 Tagen");
+  // Nur den Namen ändern, Bereich bleibt zu
+  await page.getByLabel("Name oder Firma").fill("Dialog Amt Nord");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+  await weitereAngabenOeffnen(page);
+  await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10077");
+  await expect(page.getByLabel("Stundensatz (€, optional)")).toHaveValue("95,50");
+  await expect(page.getByLabel("Leitweg-ID")).toHaveValue("991-01234-44");
+  await expect(page.getByLabel("Standardformat für Rechnungen")).toHaveValue("xrechnung-ubl");
+  await expect(page.getByLabel("Stufe 1: Skonto in %")).toHaveValue("2,50");
   await page.getByRole("button", { name: "Archivieren" }).click();
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });

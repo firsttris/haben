@@ -2,7 +2,7 @@ import { createServer, type Server } from "node:http";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { databaseUrlFuer, ETSY_PORT } from "./durchlaeufe.ts";
-import { durchlaufSeite, einrichten, gehe } from "./einrichtung.ts";
+import { axeVerstoesse, durchlaufSeite, einrichten, gehe } from "./einrichtung.ts";
 
 /**
  * Etsy Payments (#1133) in eigener, leerer Datenbank (Projekt „etsy-abruf“, e2e/durchlaeufe.ts): Zugang speichern,
@@ -21,6 +21,8 @@ let pageErrors: string[] = [];
 let etsy: Server;
 /** Was Haben an die nachgebaute API geschickt hat: Pfad mit Abfrage, beim Token auch der Rumpf */
 const anfragen: string[] = [];
+/** Betrag des Verkaufs im Verlauf; ein späterer Abruf liefert ihn geändert (Konflikt, #306) */
+let verkauf = 2495;
 
 function verlauf() {
   const jetzt = Math.floor(Date.now() / 1000) - 60;
@@ -29,9 +31,9 @@ function verlauf() {
       entry_id: 900,
       ledger_id: 1,
       sequence_number: 1,
-      amount: 2495,
+      amount: verkauf,
       currency: "EUR",
-      balance: 2495,
+      balance: verkauf,
       created_timestamp: jetzt,
       ledger_type: "PAYMENT_GROSS",
       reference_type: "shop_payment",
@@ -154,6 +156,33 @@ test("Jetzt abrufen: der Verkauf kommt mit dem Betrag ohne Sales Tax ins Konto d
 
     const umsaetze = await sql`select amount, purpose from bank_transactions order by amount`;
     expect(umsaetze).toEqual([{ amount: 2350, purpose: `Verkauf · Etsy Bestellung ${BESTELLUNG} · Sales Tax 1,45 € von Etsy abgeführt` }]);
+  } finally {
+    await sql.end();
+  }
+});
+
+test("Konflikt klären an der Karte: Etsy liefert den Verkauf anders, nach „Bisherigen behalten“ läuft der Abruf wieder (#306)", async () => {
+  verkauf = 2595;
+  await karte().getByRole("button", { name: "Jetzt abrufen" }).click();
+  await expect(karte().getByRole("status").filter({ hasText: "Konflikt mit schon übernommenen Umsätzen: 900/main" }).first()).toBeVisible();
+
+  await karte().getByRole("button", { name: "Konflikt klären" }).click();
+  const dialog = page.getByRole("dialog", { name: "Konflikt klären" });
+  await expect(dialog.getByText("Etsy liefert diesen Umsatz (900) jetzt anders als beim ersten Abruf.", { exact: false })).toBeVisible();
+  await expect(dialog.getByText("Jetzt von Etsy")).toBeVisible();
+  expect(await axeVerstoesse(page), "Dialog „Konflikt klären“ an der Etsy-Karte").toEqual([]);
+  await dialog.getByRole("button", { name: "Klären" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(karte().getByRole("status").filter({ hasText: "Geklärt; der nächste Abruf übernimmt das Konto wieder." })).toBeVisible();
+
+  await karte().getByRole("button", { name: "Jetzt abrufen" }).click();
+  await expect(karte().getByText("Abruf durchgelaufen.")).toBeVisible();
+  await expect(karte().getByRole("button", { name: /Konflikt/ })).toHaveCount(0);
+  await expect(karte().getByText("Geklärt; der nächste Abruf übernimmt das Konto wieder.")).toHaveCount(0);
+  const sql = postgres(databaseUrlFuer("etsy-abruf"), { max: 1, onnotice: () => {} });
+  try {
+    expect(await sql`select decision from import_resolutions`).toEqual([{ decision: "keep" }]);
+    expect(await sql`select count(*)::int as n from bank_transactions`).toEqual([{ n: 1 }]);
   } finally {
     await sql.end();
   }

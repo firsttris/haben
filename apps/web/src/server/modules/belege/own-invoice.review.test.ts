@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { ownSeller } from "./own-invoice-fixtures.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 // TDD-Review PR #362: Rechnung, die es in Haben gibt, in Fremdwährung
 
@@ -66,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Review: eigene Rechnung in Fremdwährung (Pos
       exchangeRate: "0,85",
       lines: [{ description: "Gestaltung Flyer", quantity: 1000, unit: "Psch.", unitPrice: 50_000, taxRate: 1900 }],
     });
-    const { number } = await rechnungen.finalizeInvoice(actor, draft.id);
+    const { number } = await rechnungen.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
 
     // Die KI liest die Beträge so, wie sie auf dem Beleg stehen: in GBP
     vi.mocked(extraction.extractDocument).mockResolvedValueOnce({

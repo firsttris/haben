@@ -1,6 +1,7 @@
 import { decodeText } from "./decode.ts";
 import type { BasisPoints, Cents } from "@haben/core";
 import { parseGermanAmount, parseGermanRate } from "./text.ts";
+import { compactDate, resolveDate, timestamp } from "./datev-datum.ts";
 
 /** Die Datei ist kein DATEV-Buchungsstapel oder ist beschädigt. */
 export class DatevParseError extends Error {
@@ -140,31 +141,6 @@ export function normalizeName(value: string): string {
     .replace(/[\s-]+/g, "");
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
-function isoDate(year: number, month: number, day: number): string | null {
-  const d = new Date(Date.UTC(year, month - 1, day));
-  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return null;
-  return `${year}-${pad(month)}-${pad(day)}`;
-}
-
-/** "YYYYMMDD" → "YYYY-MM-DD"; leer → null */
-function compactDate(value: string, label: string): string | null {
-  const v = value.trim();
-  if (v === "") return null;
-  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(v);
-  const date = m ? isoDate(Number(m[1]), Number(m[2]), Number(m[3])) : null;
-  if (!date) throw new DatevParseError(`Kopfzeile: ungültiges Datum „${v}“ (${label}).`);
-  return date;
-}
-
-/** "YYYYMMDDHHMMSSFFF" → "YYYY-MM-DDTHH:MM:SS.FFF"; leer oder unlesbar → null */
-function timestamp(value: string): string | null {
-  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{3})?$/.exec(value.trim());
-  if (!m || !isoDate(Number(m[1]), Number(m[2]), Number(m[3]))) return null;
-  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}.${m[7] ?? "000"}`;
-}
-
 function integer(value: string | undefined, label: string): number {
   const v = (value ?? "").trim();
   if (!/^\d+$/.test(v)) throw new DatevParseError(`Kopfzeile: ungültiger Wert „${v}“ (${label}).`);
@@ -230,42 +206,6 @@ function parseHeader(fields: string[]): DatevHeader {
   };
 }
 
-/**
- * Belegdatum "DDMM" (führende Null darf fehlen) oder "DDMMYYYY". Das Jahr ergibt sich aus dem
- * Wirtschaftsjahr: Monate vor dem Beginnmonat gehören ins folgende Kalenderjahr. Liegt das Datum
- * außerhalb von Datum vom/bis, gilt das andere Kalenderjahr des Zeitraums, sonst Warnung.
- */
-function resolveDate(value: string, header: DatevHeader, where: string, warnings: string[]): string {
-  const v = value.trim();
-  const full = /^(\d{2})(\d{2})(\d{4})$/.exec(v);
-  if (full) {
-    const date = isoDate(Number(full[3]), Number(full[2]), Number(full[1]));
-    if (!date) throw new DatevParseError(`${where}: ungültiges Belegdatum „${v}“.`);
-    return date;
-  }
-  if (!/^\d{3,4}$/.test(v)) throw new DatevParseError(`${where}: ungültiges Belegdatum „${v}“.`);
-  const ddmm = v.padStart(4, "0");
-  const day = Number(ddmm.slice(0, 2));
-  const month = Number(ddmm.slice(2));
-  const startYear = Number(header.fiscalYearStart.slice(0, 4));
-  const startMonth = Number(header.fiscalYearStart.slice(5, 7));
-  const year = month < startMonth ? startYear + 1 : startYear;
-  const date = isoDate(year, month, day);
-  // 29.02. nur im Schaltjahr; ein unmögliches Datum ist ein Fehler
-  if (!date && !isoDate(2024, month, day)) throw new DatevParseError(`${where}: ungültiges Belegdatum „${v}“.`);
-  const { dateFrom, dateTo } = header;
-  const inRange = (d: string) => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo);
-  if (date && inRange(date)) return date;
-  const years = [dateFrom, dateTo].filter((d) => d !== null).map((d) => Number(d.slice(0, 4)));
-  for (const y of [...new Set(years)]) {
-    const other = isoDate(y, month, day);
-    if (other && inRange(other)) return other;
-  }
-  if (!date) throw new DatevParseError(`${where}: ungültiges Belegdatum „${v}“.`);
-  warnings.push(`${where}: Belegdatum ${date} liegt außerhalb des Zeitraums ${dateFrom ?? "…"} bis ${dateTo ?? "…"}.`);
-  return date;
-}
-
 /** Spaltenzugriff über den Namen; Versionen unterscheiden sich in Reihenfolge und Umfang. */
 function columnIndex(names: string[], ...candidates: string[]): number {
   for (const candidate of candidates) {
@@ -283,6 +223,92 @@ const CONTRA_COLUMN = ["Gegenkonto (ohne BU-Schlüssel)", "Gegenkonto"];
 const REQUIRED = [AMOUNT_COLUMN, ["Soll/Haben-Kennzeichen"], ["Konto"], CONTRA_COLUMN, ["Belegdatum"]];
 
 /** Liest einen DATEV-Buchungsstapel (EXTF, Formatkategorie 21, Version 7xx), etwa aus Lexoffice. */
+/** Leser je Spalte des Buchungsstapels, nach den normalisierten Spaltenüberschriften */
+function columnReaders(names: string[]) {
+  const col = (...candidates: string[]) => {
+    const i = columnIndex(names, ...candidates);
+    return (fields: string[]) => (i < 0 ? "" : (fields[i] ?? "").trim());
+  };
+  const amountOf = col(...AMOUNT_COLUMN);
+  const sideOf = col("Soll/Haben-Kennzeichen");
+  const currencyOf = col("WKZ Umsatz");
+  const accountOf = col("Konto");
+  const contraOf = col(...CONTRA_COLUMN);
+  const buKeyOf = col("BU-Schlüssel");
+  const dateOf = col("Belegdatum");
+  const voucher1Of = col("Belegfeld 1");
+  const voucher2Of = col("Belegfeld 2");
+  const textOf = col("Buchungstext");
+  const linkOf = col("Beleglink");
+  const kost1Of = col("KOST1 - Kostenstelle");
+  const kost2Of = col("KOST2 - Kostenstelle");
+  const vatIdOf = col("EU-Land u. UStID", "EU-Mitgliedstaat u. UStID (Bestimmung)", "EU-Land u. UStID (Bestimmung)");
+  const taxRateOf = col("EU-Steuersatz", "EU-Steuersatz (Bestimmung)");
+  return { amountOf, sideOf, currencyOf, accountOf, contraOf, buKeyOf, dateOf, voucher1Of, voucher2Of, textOf, linkOf, kost1Of, kost2Of, vatIdOf, taxRateOf };
+}
+
+type ColumnReaders = ReturnType<typeof columnReaders>;
+
+/** Eine Buchungszeile; wirft bei Fehlern, sammelt Warnungen */
+function parseBooking(fields: string[], line: number, titles: string[], c: ColumnReaders, header: DatevHeader, warnings: string[]): DatevBooking {
+  const where = `Zeile ${line}`;
+  if (fields.length > titles.length) {
+    warnings.push(`${where}: ${fields.length} Felder, aber nur ${titles.length} Spaltenüberschriften.`);
+  }
+
+  const amountText = c.amountOf(fields);
+  const amount = parseGermanAmount(amountText);
+  if (amount === null) throw new DatevParseError(`${where}: ungültiger Umsatz „${amountText}“.`);
+  if (amount < 0 || /^-|-$/.test(amountText)) {
+    throw new DatevParseError(`${where}: negativer Umsatz „${amountText}“; DATEV erwartet positive Beträge.`);
+  }
+  if (amount === 0) warnings.push(`${where}: Umsatz ist 0,00.`);
+
+  const side = c.sideOf(fields).toUpperCase();
+  if (side !== "S" && side !== "H") {
+    throw new DatevParseError(`${where}: Soll/Haben-Kennzeichen „${c.sideOf(fields)}“ ist weder S noch H.`);
+  }
+  const account = c.accountOf(fields);
+  if (account === "") throw new DatevParseError(`${where}: Konto fehlt.`);
+  const contraAccount = c.contraOf(fields);
+  if (contraAccount === "") throw new DatevParseError(`${where}: Gegenkonto fehlt.`);
+
+  const taxRateText = c.taxRateOf(fields);
+  let euTaxRate: BasisPoints | null = null;
+  if (taxRateText !== "") {
+    euTaxRate = parseGermanRate(taxRateText);
+    if (euTaxRate === null || euTaxRate < 0) {
+      throw new DatevParseError(`${where}: ungültiger EU-Steuersatz „${taxRateText}“.`);
+    }
+  }
+
+  const raw: Record<string, string> = {};
+  titles.forEach((title, i) => {
+    const value = fields[i] ?? "";
+    if (value.trim() !== "" && title !== "" && !(title in raw)) raw[title] = value;
+  });
+
+  return {
+    row: line,
+    amount,
+    side,
+    currency: c.currencyOf(fields) || header.currency,
+    account,
+    contraAccount,
+    buKey: c.buKeyOf(fields),
+    date: resolveDate(c.dateOf(fields), header, where, warnings),
+    voucherField1: c.voucher1Of(fields),
+    voucherField2: c.voucher2Of(fields),
+    text: c.textOf(fields),
+    documentLink: c.linkOf(fields),
+    costCenter1: c.kost1Of(fields),
+    costCenter2: c.kost2Of(fields),
+    euVatId: c.vatIdOf(fields),
+    euTaxRate,
+    raw,
+  };
+}
+
 export function parseDatevBuchungsstapel(bytes: Uint8Array): DatevStack {
   const lines = splitLines(stripBom(decodeText(bytes)));
   const first = lines[0];
@@ -304,85 +330,12 @@ export function parseDatevBuchungsstapel(bytes: Uint8Array): DatevStack {
       throw new DatevParseError(`Zeile 2: Spalte „${required[0]}“ fehlt.`);
     }
   }
-  const col = (...candidates: string[]) => {
-    const i = columnIndex(names, ...candidates);
-    return (fields: string[]) => (i < 0 ? "" : (fields[i] ?? "").trim());
-  };
-  const amountOf = col(...AMOUNT_COLUMN);
-  const sideOf = col("Soll/Haben-Kennzeichen");
-  const currencyOf = col("WKZ Umsatz");
-  const accountOf = col("Konto");
-  const contraOf = col(...CONTRA_COLUMN);
-  const buKeyOf = col("BU-Schlüssel");
-  const dateOf = col("Belegdatum");
-  const voucher1Of = col("Belegfeld 1");
-  const voucher2Of = col("Belegfeld 2");
-  const textOf = col("Buchungstext");
-  const linkOf = col("Beleglink");
-  const kost1Of = col("KOST1 - Kostenstelle");
-  const kost2Of = col("KOST2 - Kostenstelle");
-  const vatIdOf = col("EU-Land u. UStID", "EU-Mitgliedstaat u. UStID (Bestimmung)", "EU-Land u. UStID (Bestimmung)");
-  const taxRateOf = col("EU-Steuersatz", "EU-Steuersatz (Bestimmung)");
+  const c = columnReaders(names);
 
   const bookings: DatevBooking[] = [];
   for (const { line, fields } of lines.slice(2)) {
     if (fields.every((f) => f.trim() === "")) continue;
-    const where = `Zeile ${line}`;
-    if (fields.length > titles.length) {
-      warnings.push(`${where}: ${fields.length} Felder, aber nur ${titles.length} Spaltenüberschriften.`);
-    }
-
-    const amountText = amountOf(fields);
-    const amount = parseGermanAmount(amountText);
-    if (amount === null) throw new DatevParseError(`${where}: ungültiger Umsatz „${amountText}“.`);
-    if (amount < 0 || /^-|-$/.test(amountText)) {
-      throw new DatevParseError(`${where}: negativer Umsatz „${amountText}“; DATEV erwartet positive Beträge.`);
-    }
-    if (amount === 0) warnings.push(`${where}: Umsatz ist 0,00.`);
-
-    const side = sideOf(fields).toUpperCase();
-    if (side !== "S" && side !== "H") {
-      throw new DatevParseError(`${where}: Soll/Haben-Kennzeichen „${sideOf(fields)}“ ist weder S noch H.`);
-    }
-    const account = accountOf(fields);
-    if (account === "") throw new DatevParseError(`${where}: Konto fehlt.`);
-    const contraAccount = contraOf(fields);
-    if (contraAccount === "") throw new DatevParseError(`${where}: Gegenkonto fehlt.`);
-
-    const taxRateText = taxRateOf(fields);
-    let euTaxRate: BasisPoints | null = null;
-    if (taxRateText !== "") {
-      euTaxRate = parseGermanRate(taxRateText);
-      if (euTaxRate === null || euTaxRate < 0) {
-        throw new DatevParseError(`${where}: ungültiger EU-Steuersatz „${taxRateText}“.`);
-      }
-    }
-
-    const raw: Record<string, string> = {};
-    titles.forEach((title, i) => {
-      const value = fields[i] ?? "";
-      if (value.trim() !== "" && title !== "" && !(title in raw)) raw[title] = value;
-    });
-
-    bookings.push({
-      row: line,
-      amount,
-      side,
-      currency: currencyOf(fields) || header.currency,
-      account,
-      contraAccount,
-      buKey: buKeyOf(fields),
-      date: resolveDate(dateOf(fields), header, where, warnings),
-      voucherField1: voucher1Of(fields),
-      voucherField2: voucher2Of(fields),
-      text: textOf(fields),
-      documentLink: linkOf(fields),
-      costCenter1: kost1Of(fields),
-      costCenter2: kost2Of(fields),
-      euVatId: vatIdOf(fields),
-      euTaxRate,
-      raw,
-    });
+    bookings.push(parseBooking(fields, line, titles, c, header, warnings));
   }
   return { header, bookings, warnings };
 }
@@ -410,83 +363,4 @@ export function datevAccountTotals(bookings: DatevBooking[]): { account: string;
   return [...totals.values()].sort((a, b) => a.account.localeCompare(b.account, "de", { numeric: true }));
 }
 
-export type Kontenrahmen = "SKR03" | "SKR04";
-
-/** Kontenbereiche der DATEV-Standardkontenrahmen für die Jahressummen; Grenzen jeweils einschließlich */
-export const RANGES: Record<Kontenrahmen, { erloese: [number, number][]; aufwand: [number, number][]; ust: [number, number][]; vst: [number, number][] }> = {
-  // SKR03: Klasse 8 Erlöse, Klassen 3 und 4 Wareneingang und betriebliche Aufwendungen
-  SKR03: { erloese: [[8000, 8999]], aufwand: [[3000, 4999]], ust: [[1770, 1779]], vst: [[1570, 1579]] },
-  // SKR04: Klasse 4 Erlöse, Klassen 5 und 6 Material und betriebliche Aufwendungen
-  SKR04: { erloese: [[4000, 4999]], aufwand: [[5000, 6999]], ust: [[3800, 3809]], vst: [[1400, 1409]] },
-};
-
-/** Konten mit Steuerautomatik (Beträge brutto), Steuersatz in Prozent */
-export const AUTOMATIC: Record<Kontenrahmen, Record<string, number>> = {
-  SKR03: { "8400": 19, "8300": 7, "3400": 19, "3300": 7 },
-  SKR04: { "4400": 19, "4300": 7, "5400": 19, "5300": 7 },
-};
-
-/** BU-Schlüssel mit Steuersatz in Prozent (2/3 Umsatzsteuer, 8/9 Vorsteuer) */
-export const BU_RATES: Record<string, number> = { "2": 7, "3": 19, "8": 7, "9": 19 };
-
-/** Sachkonten mit mehr als vier Stellen (z. B. 84000) auf die Kontonummer gekürzt */
-export const shortAccount = (account: string) => (account.length > 4 ? account.slice(0, 4) : account);
-
-/** Personenkonto: numerisch und länger als die Sachkontenlänge aus der Kopfzeile (Debitor oder Kreditor) */
-export const isPersonenkonto = (account: string, accountLength: number) => /^\d+$/.test(account) && account.length > accountLength;
-
-/** Erlös-, Aufwands-, Umsatzsteuer- oder Vorsteuerkonto nach den Kontenbereichen; Personenkonten und alles andere null */
-export function datevAccountKind(kontenrahmen: Kontenrahmen, account: string, accountLength: number): keyof (typeof RANGES)[Kontenrahmen] | null {
-  if (!/^\d+$/.test(account) || isPersonenkonto(account, accountLength)) return null;
-  const n = Number(shortAccount(account));
-  const ranges = RANGES[kontenrahmen];
-  for (const k of ["erloese", "aufwand", "ust", "vst"] as const) {
-    if (ranges[k].some(([from, to]) => n >= from && n <= to)) return k;
-  }
-  return null;
-}
-
-export interface DatevYearSums {
-  einnahmen: { net: Cents; tax: Cents };
-  ausgaben: { net: Cents; tax: Cents };
-}
-
-/**
- * Einnahmen, Ausgaben, Umsatz- und Vorsteuer aus einem Buchungsstapel, zum Abgleich, wenn keine Belege per API
- * vorliegen. Erlöse und Aufwand nach Kontenklasse; Steuer aus Automatikkonten und BU-Schlüssel 2, 3, 8, 9
- * (brutto gebucht) oder aus Buchungen auf den Steuerkonten. BU-Schlüssel 40 hebt die Automatik auf.
- * Eine Näherung: Sonderfälle wie § 13b oder innergemeinschaftliche Erwerbe stehen nur über die Steuerkonten drin.
- */
-export function datevYearSums(
-  /** accountLength: Sachkontenlänge aus der Kopfzeile des Stapels; fehlt sie oder ist 0, gilt 4 */
-  bookings: (Pick<DatevBooking, "amount" | "side" | "account" | "contraAccount" | "buKey"> & { accountLength?: number | null })[],
-  kontenrahmen: Kontenrahmen,
-): DatevYearSums {
-  const automatic = AUTOMATIC[kontenrahmen];
-  const kind = (account: string, accountLength: number) => datevAccountKind(kontenrahmen, account, accountLength);
-  const sums: DatevYearSums = { einnahmen: { net: 0, tax: 0 }, ausgaben: { net: 0, tax: 0 } };
-  for (const b of bookings) {
-    const [debit, credit] = b.side === "S" ? [b.account, b.contraAccount] : [b.contraAccount, b.account];
-    const buKey = b.buKey.trim().replace(/^0+/, "");
-    const accountLength = b.accountLength || 4;
-    for (const [account, onDebit] of [
-      [debit, true],
-      [credit, false],
-    ] as const) {
-      const k = kind(account, accountLength);
-      if (!k) continue;
-      if (k === "ust" || k === "vst") {
-        const sign = (k === "vst") === onDebit ? 1 : -1;
-        (k === "ust" ? sums.einnahmen : sums.ausgaben).tax += sign * b.amount;
-        continue;
-      }
-      const target = k === "erloese" ? sums.einnahmen : sums.ausgaben;
-      const sign = (k === "aufwand") === onDebit ? 1 : -1;
-      const rate = buKey === "40" ? 0 : (BU_RATES[buKey] ?? automatic[shortAccount(account)] ?? 0);
-      const tax = rate === 0 ? 0 : Math.round((b.amount * rate) / (100 + rate));
-      target.net += sign * (b.amount - tax);
-      target.tax += sign * tax;
-    }
-  }
-  return sums;
-}
+export * from "./datev-konten.ts";

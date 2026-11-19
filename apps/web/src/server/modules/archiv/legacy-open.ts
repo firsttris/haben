@@ -125,9 +125,10 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
   return typeof raw.payDate === "string" ? raw.payDate : null;
 }
 
-async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
+/** Archivbelege, die offene Posten sein können */
+async function openItemVouchers() {
   // Alle Archivbelege mit korrelierten Unterabfragen: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
-  const vouchers = await ohneJit((tx) =>
+  return ohneJit((tx) =>
     tx
       .select({
         ...getTableColumns(schema.lexofficeVouchers),
@@ -148,6 +149,10 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       )
       .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number),
   );
+}
+
+/** Ob ein Archivbeleg schon als Rechnung oder Beleg übernommen ist */
+async function takenOverLookup() {
   const [invoices, documents] = await Promise.all([
     db
       .select({ id: schema.invoices.id, voucherId: schema.invoices.lexofficeVoucherId })
@@ -160,11 +165,15 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   ]);
   const invoiceBy = new Map(invoices.map((i) => [i.voucherId, i.id]));
   const documentBy = new Map(documents.map((d) => [d.voucherId, d.id]));
-  const takenOverOf = (id: string): OpenLegacyItem["takenOver"] => {
+  return (id: string): OpenLegacyItem["takenOver"] => {
     const invoiceId = invoiceBy.get(id);
     const documentId = documentBy.get(id);
     return invoiceId ? { kind: "invoice", id: invoiceId } : documentId ? { kind: "document", id: documentId } : null;
   };
+}
+
+async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
+  const [vouchers, takenOverOf] = await Promise.all([openItemVouchers(), takenOverLookup()]);
   const candidates = vouchers
     .map((v) => {
       const issue = paymentHistoryIssue(v);
