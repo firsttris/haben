@@ -22,8 +22,20 @@ export class LayoutError extends UserError {}
  */
 export class LayoutPaketFehltError extends LayoutError {}
 
-/** So meldet Typst ein Paket, das es ohne Netz nicht laden kann (siehe typstMeldung) */
-const PAKET_FEHLT = /failed to download package/i;
+/**
+ * So meldet Typst ein Paket, das es ohne Netz nicht laden kann (siehe typstMeldung). Nur am Anfang einer Meldung von Typst:
+ * panic und assert stellen ihren eigenen Text dahinter („panicked with: …“), den das Layout frei wählt
+ */
+const PAKET_FEHLT = /^failed to download package/i;
+
+function paketFehlt(error: unknown): boolean {
+  try {
+    const meldungen = JSON.parse(error instanceof Error ? error.message : String(error)) as { message?: unknown }[];
+    return Array.isArray(meldungen) && meldungen.some((m) => typeof m.message === "string" && PAKET_FEHLT.test(m.message));
+  } catch {
+    return false;
+  }
+}
 
 export const MAX_LAYOUT_BYTES = 256 * 1024;
 
@@ -91,8 +103,7 @@ export async function checkLayout(layout: { id: string; source: string; art: "be
       pdf = await renderer.renderPdf(await customLayoutJob(layout, beispiel.data, probeLetterhead), "2026-10-02");
     } catch (error) {
       // Ohne das Paket scheitert jedes Beispiel gleich; der Aufrufer muss es unterscheiden können (insertImportedLayout)
-      if (PAKET_FEHLT.test(error instanceof Error ? error.message : String(error)))
-        throw new LayoutPaketFehltError(`Das Layout lässt sich so nicht verwenden. ${beispiel.name}: ${typstMeldung(error)}`);
+      if (paketFehlt(error)) throw new LayoutPaketFehltError(`Das Layout lässt sich so nicht verwenden. ${beispiel.name}: ${typstMeldung(error)}`);
       probleme.push(`${beispiel.name}: ${typstMeldung(error)}`);
       // Was schon am Setzen scheitert, scheitert meist an allen Beispielen gleich
       if (probleme.length >= 3) break;
