@@ -42,7 +42,10 @@ describe("statementFromBatch: Auszug aus einer Lieferung (REST-Import, #306)", (
     // Der Bezug der Erstattung steht im Verwendungszweck; die Bestellung steht schon im gelieferten Text
     expect(erstattung).toMatchObject({ purpose: "Erstattung zu SALE-0001 · Teilerstattung zu Bestellung 01-00000-00001", type: "Erstattung" });
     // Auszahlungen verbindet der Abgleich über „payout-…|“ mit dem Eingang auf der Bank (Geldtransit)
-    expect(auszahlung).toMatchObject({ purpose: "Auszahlung PAYOUT-0001 · Auszahlung auf das Geschäftskonto", bankReference: "payout-PAYOUT-0001|PAYOUT-0001" });
+    expect(auszahlung).toMatchObject({
+      purpose: "Auszahlung PAYOUT-0001 · Auszahlung auf das Geschäftskonto",
+      bankReference: "payout-PAYOUT-0001|PAYOUT-0001",
+    });
   });
 
   it("schreibt die Bestellung dazu, wenn der gelieferte Text sie nicht nennt", () => {

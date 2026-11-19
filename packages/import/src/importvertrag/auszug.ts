@@ -58,7 +58,10 @@ function transactionOf(m: ImportMovement, index: number): ParsedTransaction {
 }
 
 /** Auszug und Zuordnung Umsatz → Bewegung (`eventOf` für `storeBatch`), in der Reihenfolge der Lieferung */
-export function statementFromBatch(batch: ImportBatch, accountKind: AccountKind): { statement: ParsedStatement; eventOf: (t: ParsedTransaction) => string | undefined } {
+export function statementFromBatch(
+  batch: ImportBatch,
+  accountKind: AccountKind,
+): { statement: ParsedStatement; eventOf: (t: ParsedTransaction) => string | undefined } {
   const keys = batch.movements.map(eventKeyOf);
   const balance = batch.balances
     .filter((b) => b.currency === "EUR")
