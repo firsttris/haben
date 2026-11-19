@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import postgres from "postgres";
-import { currentDay } from "./daten.ts";
+import { currentDay, day } from "./daten.ts";
 import { databaseUrlFuer, portFuer } from "./durchlaeufe.ts";
 import { einrichten } from "./einrichtung.ts";
 
@@ -191,6 +191,40 @@ test("gebuchtes Anlagegut verspricht keinen Storno zum Aufteilen", async ({ brow
   await page.goto(`/belege/${id}`);
   await expect(page.getByText("Belege zu Anlagegütern lassen sich nicht stornieren.", { exact: false })).toBeVisible();
   await expect(page.getByText(/lässt sich stornieren/)).toHaveCount(0);
+});
+
+test("Beleg duplizieren: neue Datei mit den Feldern des Originals und Datum heute, dieselbe Datei kein zweites Mal (#1295)", async ({ browser }) => {
+  // Vor dem Abschluss des Jahres weiter unten, damit das Original gebucht ist
+  const original = await receipt(browser, "Papierhaus Petersen", "P-1101", day(-10));
+  const bild = await browser.newPage({ viewport: { width: 620, height: 400 } });
+  await bild.setContent(`<body style="font: 16px sans-serif; padding: 32px"><h2>Papierhaus Petersen</h2><p>Rechnung P-1102</p><p>Gesamt 119,00 €</p></body>`);
+  const datei = { name: "P-1102.jpg", mimeType: "image/jpeg", buffer: await bild.screenshot({ type: "jpeg", quality: 80 }) };
+  await bild.close();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/belege/${original}`);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Datei für das Duplikat").setInputFiles(datei);
+
+  await expect(page).toHaveURL(/dupliziert=/);
+  const kopie = new URL(page.url()).pathname.split("/").at(-1)!;
+  expect(kopie).not.toBe(original);
+  await expect(page.getByText(/^Dupliziert aus einem früheren Beleg/)).toBeVisible();
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Papierhaus Petersen");
+  await expect(page.getByLabel("Rechnungsnummer", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("Belegdatum", { exact: true })).toHaveValue(currentDay());
+  await expect(page.getByLabel("Kategorie", { exact: true })).toHaveValue("Software und Lizenzen");
+  const [neu] =
+    await sql`select filename, status, gross, sha256 = (select sha256 from documents where id = ${original}) as gleiche_datei from documents where id = ${kopie}`;
+  expect(neu).toEqual({ filename: "P-1102.jpg", status: "neu", gross: 11_900, gleiche_datei: false });
+
+  // Zurück zum Original und dieselbe Datei noch einmal: Haben zeigt den vorhandenen Entwurf statt eines zweiten
+  await page.getByRole("link", { name: "früheren Beleg", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/belege/${original}$`));
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Datei für das Duplikat").setInputFiles(datei);
+  await expect(page).toHaveURL(new RegExp(`/belege/${kopie}\\?vorhanden=true`));
+  await expect(page.getByText("Die gewählte Datei liegt schon in Haben; das ist ihr Beleg, dupliziert wurde nichts.")).toBeVisible();
+  expect((await sql`select count(*)::int as n from documents where supplier_name = 'Papierhaus Petersen'`)[0]!.n).toBe(2);
 });
 
 test("Belegliste: Status sortiert nach dem angezeigten Status, Storniert und Gebucht stehen je für sich", async ({ browser }) => {

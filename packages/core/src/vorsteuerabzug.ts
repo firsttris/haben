@@ -27,3 +27,21 @@ export function abziehbareSteuer(tax: Cents, anteil: BasisPoints): Cents {
 export function buchungsAnteil(abzug: boolean | BasisPoints, amSatz?: BasisPoints | null): BasisPoints {
   return gespeicherterAnteil({ vorsteuerAnteil: typeof abzug === "number" ? abzug : null, vorsteuerAbzug: abzug !== false }, amSatz);
 }
+
+/**
+ * Anteile, die ein neuer Entwurf von einem vorhandenen Beleg übernimmt (Beleg duplizieren, #1295); null erbt. Gebucht
+ * steht am Beleg der angewandte Anteil, auch wenn er nur aus den Firmendaten kam. Übernommen wird er deshalb nur, wo er
+ * von der heutigen `vorgabe` (abziehbarerAnteil ohne Angabe am Beleg) abweicht, etwa ein Teilabzug nach § 15 Abs. 4
+ * UStG; sonst folgt der Entwurf den Firmendaten. Ein Satz behält seinen Anteil nur, wo er von dem des Belegs abweicht.
+ */
+export function uebernommeneAnteile(
+  beleg: { gebucht: boolean; vorsteuerAnteil?: BasisPoints | null; vorsteuerAbzug?: boolean },
+  saetze: readonly (BasisPoints | null)[],
+  vorgabe: BasisPoints,
+): { beleg: BasisPoints | null; saetze: (BasisPoints | null)[] } {
+  const anteil = beleg.gebucht ? gespeicherterAnteil(beleg) : (beleg.vorsteuerAnteil ?? null);
+  return {
+    beleg: anteil === vorgabe ? null : anteil,
+    saetze: saetze.map((satz) => (satz === null || satz === anteil ? null : satz)),
+  };
+}

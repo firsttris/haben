@@ -1,6 +1,7 @@
-import { darlehenText, kategorieText, steuerzahlungText } from "@haben/core";
+import { darlehenText, kategorieAnzeige, steuerzahlungText } from "@haben/core";
 import { asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { ustvaLabels } from "../umsatzsteuer/index.ts";
 
 export async function transactionAllocations(id: string) {
@@ -33,6 +34,7 @@ export async function transactionAllocations(id: string) {
     .where(eq(schema.allocations.transactionId, id))
     // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
     .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
+  const { kontenrahmen } = await loadCompany();
   const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
   const vatLabels = await ustvaLabels(allocationRows.flatMap((a) => (a.vatReturnId ? [a.vatReturnId] : [])));
   return allocationRows
@@ -43,6 +45,6 @@ export async function transactionAllocations(id: string) {
       vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
       steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
       darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
-      kategorieLabel: a.category && a.taxRate !== null ? kategorieText({ kategorie: a.category, steuersatz: a.taxRate }) : null,
+      kategorieLabel: a.category && a.taxRate !== null ? kategorieAnzeige({ kategorie: a.category, steuersatz: a.taxRate }, kontenrahmen) : null,
     }));
 }
