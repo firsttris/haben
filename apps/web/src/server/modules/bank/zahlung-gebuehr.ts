@@ -1,7 +1,8 @@
 import { gebuehrReferenzen, inCents } from "@haben/core";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
+import { bankDuplicateConfirmedSql } from "../../db/bank-open.ts";
 import { schema } from "../../db/index.ts";
 import { allocateIn, BankError, lockTransaction } from "./bank.ts";
 
@@ -36,7 +37,14 @@ export async function allocatePaymentWithFee(actor: string, input: z.infer<typeo
       ? await tx
           .select({ id: schema.bankTransactions.id })
           .from(schema.bankTransactions)
-          .where(and(eq(schema.bankTransactions.bankAccountId, row.account), inArray(schema.bankTransactions.bankReference, references)))
+          // Eine bestätigte Dublette (#865) zählt wie in Liste und Zähler nicht mit
+          .where(
+            and(
+              eq(schema.bankTransactions.bankAccountId, row.account),
+              inArray(schema.bankTransactions.bankReference, references),
+              sql`not ${bankDuplicateConfirmedSql}`,
+            ),
+          )
       : [];
     if (fees.length !== 1) throw new BankError("Zu dieser Zahlung gibt es keine eindeutige Gebühr derselben Bewegung.");
     const payment = await lockTransaction(tx, input.transactionId);
