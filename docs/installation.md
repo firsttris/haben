@@ -7,7 +7,7 @@ description: >-
 
 # Installation
 
-Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md). Keinen eigenen Server oder keine eigene IT? Haben gibt es gehostet oder über einen IT-Dienstleister aus dem [Partnerprogramm](support.md).
+Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md). Keinen eigenen Server oder keine eigene IT? Haben gibt es auf Anfrage gehostet oder über einen IT-Dienstleister aus dem Partnerprogramm, siehe [Gehostet oder mit Partner](gehostet.md).
 
 ## Überblick
 

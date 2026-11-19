@@ -49,7 +49,7 @@ nav:
       - Single Sign-on: installation-sso.md
       - Backup und Updates: installation-backup.md
       - Häufige Probleme: installation-probleme.md
-      - Gehostet oder mit Partner: support.md
+      - Gehostet oder mit Partner: gehostet.md
   - Einrichten:
       - Erste Schritte: einrichtung.md
       - ELSTER einrichten: einrichtung-elster.md
