@@ -134,6 +134,9 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. vor dem Festschreiben bestätigen (
   it("Reverse Charge: scheitert die qualifizierte Abfrage, sagt der Hinweis das", async () => {
     const ergebnis = await modul.ustIdVorFestschreiben(actor, contactId, "reverse_charge", AM_TAG, dienst(ok("e"), fehler(403, "evatr-0008")).via);
     expect(ergebnis.hinweis).toMatch(/^ATU12345678 ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: .*Höchstzahl/);
+    // Ebenso, wenn der Dienst zwischen den beiden Abfragen ausfällt; die einfache Antwort von eben reicht bei Reverse Charge nicht
+    const ausfall = await modul.ustIdVorFestschreiben(actor, contactId, "reverse_charge", AM_TAG, dienst(ok("e"), fehler(503, "evatr-1001")).via);
+    expect(ausfall.hinweis).toMatch(/^ATU12345678 ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: .*evatr-1001/);
   });
 
   it("Reverse Charge: passt der Ort nicht, Hinweis; eine solche Antwort zählt beim nächsten Mal nicht als bestätigt", async () => {
