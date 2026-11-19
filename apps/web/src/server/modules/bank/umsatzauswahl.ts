@@ -20,8 +20,8 @@ type Umsatz = Awaited<ReturnType<typeof listTransactions>>[number];
 
 type Konto = { id: string; purpose: AccountPurpose };
 
-/** Buchungsarten, die sich ohne weitere Angaben bestätigen lassen; Geldtransit braucht die Gegenbuchung, Aufladung eine Kategorie */
-const EINFACHE_ARTEN = ["privat", "spende", "ustVorauszahlung", "sondervorauszahlung", "gebuehren", "mahnerloes", "lohnsteuer", "zinsertrag"] as const;
+/** Buchungsarten, die sich ohne weitere Angaben bestätigen lassen; Geldtransit braucht die Gegenbuchung, Aufladung eine Kategorie, Steuerzahlungen den Zeitraum der Anmeldung */
+const EINFACHE_ARTEN = ["privat", "spende", "gebuehren", "mahnerloes", "zinsertrag"] as const;
 
 /** Was „Bestätigen“ bucht (#1440): genau der Vorschlag, den die Liste zeigt; null, wenn er sich nicht ohne Rückfrage buchen lässt */
 export type Bestaetigung = { input: AllocationInput; text: string };
@@ -44,7 +44,8 @@ function bestaetigungFuer(
       return { input: { kind: "document", transactionId, documentId: match.item.id, amount }, text: `Beleg ${match.item.number}` };
     return null;
   }
-  const art = gelernt ?? direkt;
+  // Wie in der Detailansicht: eine Regel der Kontozwecke gilt vor dem Gelernten (transaction-detail.ts); ist sie nicht bestätigbar, bleibt es beim Einzelbuchen
+  const art = direkt ?? gelernt;
   if (!art || art.requiresCounterpart) return null;
   if (art.kind === "kategorie") {
     return art.kategorie ? { input: { kind: "kategorie", transactionId, amount, kategorie: art.kategorie }, text: kategorieText(art.kategorie) } : null;

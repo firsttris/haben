@@ -128,8 +128,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
       kategorien: kategorienMitKonto(direktKategorienFuerKonto(account?.purpose ?? "geschaeft"), (await loadCompany()).kontenrahmen),
-      kleinunternehmer: (await loadCompany()).kleinunternehmer,
-      kontenrahmen: (await loadCompany()).kontenrahmen,
+      ...(({ kleinunternehmer, kontenrahmen }) => ({ kleinunternehmer, kontenrahmen }))(await loadCompany()),
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
       loanParts: DARLEHEN_TEIL_KEYS.map((value) => ({ value, label: DARLEHEN_TEILE[value] })),

@@ -45,6 +45,8 @@ export const DURCHLAEUFE = {
   // Zahlung und Gebühr eines Zahlungsdienstleisters in einer Zeile und in einem Schritt zugeordnet (#1417)
   "zahlung-gebuehr": 36,
   "bank-dubletten": 35,
+  // Vorschläge der Bankliste markieren und gemeinsam bestätigen (#1440)
+  "bank-bestaetigen": 37,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
