@@ -185,6 +185,18 @@ function imZeitraum(year: number, umsatzBis: string | undefined, ohneManuelle: b
   );
 }
 
+/** Meldet die Wirkung einer Buchung dem Sammler der BWA (#1380), falls es einen gibt, mit ihrem Ausgleich; gibt sie unverändert zurück */
+function melden(beitraege: EuerBeitraege | undefined, b: Buchung, ziel: Ziel | undefined, beitrag: EuerAusJournal): EuerAusJournal {
+  beitraege?.({ ...b, invoiceId: ziel?.invoiceId ?? null, documentId: ziel?.documentId ?? null }, beitrag);
+  return beitrag;
+}
+
+/** Wie melden für eine Verrechnung (#274): Sie gleicht den Beleg aus; der Rahmen ist der der Firma */
+function meldenVerrechnung(beitraege: EuerBeitraege | undefined, v: Verrechnung, kontenrahmen: Kontenrahmen, beitrag: EuerAusJournal): EuerAusJournal {
+  beitraege?.({ ...v, kontenrahmen, sourceType: "verrechnung", sourceId: v.id, invoiceId: null, documentId: v.dokumentId }, beitrag);
+  return beitrag;
+}
+
 /**
  * Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind.
  * `ohneManuelle`: ohne manuelle Buchungen (GmbH und UG, dort Abschlussbuchungen, reports.ts); `beitraege` bekommt die Wirkung je Buchung.
@@ -283,16 +295,14 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
 
   const monate = Array.from({ length: 12 }, () => leereEuerAusJournal());
   for (const b of jahr) {
-    const beitrag = await wirkung(b);
-    beitraege?.({ ...b, invoiceId: null, documentId: null, ...zielVon.get(b.sourceId), id: b.id }, beitrag);
+    const beitrag = melden(beitraege, b, zielVon.get(b.sourceId), await wirkung(b));
     dazu(summe, beitrag);
     dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
   }
   // Verrechnungen (#274) wie eine Zahlung im Monat der Aufrechnung; der Rahmen dient nur einem Beleg ganz ohne Buchung
   const belegKontenrahmen = verrechnet.length > 0 ? await firmenKontenrahmen(q) : "SKR03";
   for (const v of verrechnet) {
-    const beitrag = await wirkungVerrechnung(v);
-    beitraege?.({ ...v, kontenrahmen: belegKontenrahmen, sourceType: "verrechnung", sourceId: v.id, invoiceId: null, documentId: v.dokumentId }, beitrag);
+    const beitrag = meldenVerrechnung(beitraege, v, belegKontenrahmen, await wirkungVerrechnung(v));
     dazu(summe, beitrag);
     dazu(monate[Number(v.date.slice(5, 7)) - 1]!, beitrag);
   }
