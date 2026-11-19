@@ -145,7 +145,7 @@ Ein Klick auf eine Zeile mit Beträgen zeigt darunter, was darin steht: je Zeile
 Mit einem Vergleich steht darüber „Warum?“: die Abweichung der Zeile nach Kontakt, die fünf größten einzeln, der Rest als „übrige“. Zusammen ergeben sie genau die Abweichung der Zeile.
 
 - **neu**: im Vergleich keine Zahlung mit dem Kontakt; **weggefallen**: jetzt keine; sonst **gestiegen** oder **gesunken**.
-- Anzahl und Betrag je Zahlung („3 × 240,00 € statt 1 × 90,00 €“) zeigen, ob es mehr Zahlungen waren oder höhere Beträge; drei Teilzahlungen auf eine Rechnung zählen dreimal.
+- Die Spalte „Vorgänge“ zeigt Anzahl und Betrag je Zahlung („3 × 240,00 € statt 1 × 90,00 €“), also ob es mehr Zahlungen waren oder höhere Beträge; drei Teilzahlungen auf eine Rechnung zählen dreimal.
 - Kontakt ist der Kunde der bezahlten Rechnung bzw. der Lieferant des Belegs. Ohne verknüpften Kontakt zählt der Name auf der Rechnung bzw. am Beleg; ohne Namen und bei Zahlungen ohne Rechnung und Beleg (Pauschalen, Lohn, Finanzamt) steht der Betrag unter „Ohne Kontakt“. Ein verknüpfter Kontakt ist verlinkt, für die Steuerberatung nicht, weil sie keine Kontakte öffnet.
 
 Grenzen:
