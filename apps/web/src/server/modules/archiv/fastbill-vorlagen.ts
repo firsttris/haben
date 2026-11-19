@@ -6,6 +6,7 @@ import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { UserError } from "../../errors.ts";
 import { importRecurringPaused } from "../rechnungen/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
+import { today } from "../../today.ts";
 import { progressMessage } from "./lexoffice.ts";
 
 /*
@@ -68,7 +69,7 @@ export async function importFastbillRecurring(
 }
 
 async function importOne(actor: string, importId: string, raw: FbRecurring, paymentTermDays: number, units: readonly string[]): Promise<boolean> {
-  const mapped = mapFbRecurring(raw, units);
+  const mapped = mapFbRecurring(raw, units, today());
   if (!mapped.ok) throw new TemplateError(mapped.reason);
   return withActor(actor, async (tx) => {
     const [contact] = mapped.customerId
