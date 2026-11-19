@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
-import { day, firstLink, USER, YEAR } from "./daten.ts";
+import { currentDay, day, firstLink, USER, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { HANDY, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
@@ -2897,7 +2897,8 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   const formular = karte.locator("form");
   await formular.getByLabel("Gegenbeleg").selectOption({ index: 1 });
   await expect(formular.getByLabel("Betrag")).toHaveValue("23,80");
-  await formular.getByLabel("Tag der Aufrechnung").fill(day(0));
+  // Der Tag der Korrektur kommt vom Server: currentDay() statt day(0), das beim Laden der Datei feststeht und nach Mitternacht hinter ihm läge
+  await formular.getByLabel("Tag der Aufrechnung").fill(currentDay());
   await formular.getByLabel("Grund").fill("Korrektur TE-1");
   await expect(await axeVerstoesse(page)).toEqual([]);
   await formular.getByRole("button", { name: "Verrechnen" }).click();
@@ -2928,7 +2929,7 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
 
   // Aufheben: der Rest ist wieder 119,00 EUR, die Zeile verschwindet
   await page.getByRole("region", { name: "Verrechnung" }).getByRole("button", { name: "aufheben" }).click();
-  await page.getByLabel("Tag der Aufhebung").fill(day(0));
+  await page.getByLabel("Tag der Aufhebung").fill(currentDay());
   await page.getByRole("button", { name: "Aufheben", exact: true }).click();
   await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*119,00\s*€/);
   await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);

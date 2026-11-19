@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abrufFaellig, AUSSTEHEND_TAGE, naechsterAbrufStart } from "./abruf-regeln.ts";
+import { abrufFaellig, abrufFenster, AUSSTEHEND_TAGE, naechsterAbrufStart } from "./abruf-regeln.ts";
 
 describe("naechsterAbrufStart", () => {
   const jetzt = new Date("2026-11-07T10:00:00Z");
@@ -33,5 +33,15 @@ describe("abrufFaellig", () => {
   it("versucht es nach einem Fehlschlag spätestens nach einem Tag erneut, auch wöchentlich", () => {
     expect(abrufFaellig("woechentlich", { zeit: vor(21), fehlgeschlagen: true }, jetzt)).toBe(true);
     expect(abrufFaellig("woechentlich", { zeit: vor(5), fehlgeschlagen: true }, jetzt)).toBe(false);
+  });
+});
+
+describe("abrufFenster", () => {
+  it("reicht vom Start bis zum Tag des Abrufs in UTC", () => {
+    expect(abrufFenster("2026-11-01", new Date("2026-11-07T10:00:00Z"))).toEqual({ dateFrom: "2026-11-01", dateTo: "2026-11-07" });
+  });
+  it("beginnt nach Mitternacht in Deutschland nicht nach seinem Ende: Der Start ist der deutsche Tag, das Ende noch der UTC-Vortag", () => {
+    // 0:30 Uhr in Berlin, in UTC noch der 19.: Der erste Start (today()) ist schon der 20.
+    expect(abrufFenster("2026-11-20", new Date("2026-11-19T23:30:00Z"))).toEqual({ dateFrom: "2026-11-19", dateTo: "2026-11-19" });
   });
 });
