@@ -326,4 +326,30 @@ describe.skipIf(!testDatabaseUrl)("Zahlung und Gebühr eines Zahlungsdienstleist
     ]);
     expect((await sql`select sum(debit - credit)::int as s from journal_lines`)[0]?.s).toBe(0);
   }, 30_000);
+  it("übersieht eine bestätigte Dublette der Gebühr mit derselben Referenz, wie Liste und Zähler (#865)", async () => {
+    const invoice = await finalInvoice(5_000);
+    const { stripe, id } = await stripeKonto([`txn_1,2026-10-01 10:00:00,2026-10-08 00:00:00,eur,59.50,1.50,58.00,charge,Rechnung`]);
+    const payment = await id(5_950);
+    const fee = await id(-150);
+    // Dieselbe Bewegung aus einem späteren Abruf mit anderem Text: neue Umsätze mit denselben Referenzen, als Dubletten bestätigt
+    const [later] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${stripe.id}, 'stripe-2.csv', 'zweiter-abruf', 'stripe', 2, 0) returning id`;
+    const { decideDuplicate } = await import("./duplicate-review.ts");
+    for (const original of [payment, fee]) {
+      const [copy] = await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, purpose, bank_reference, dedup_hash)
+        select bank_account_id, ${later!.id}, booking_date, amount, purpose || ' (erneut)', bank_reference, dedup_hash || '-2'
+        from bank_transactions where id = ${original} returning id`;
+      const [review] = await sql`insert into bank_duplicate_reviews (transaction_id, original_transaction_id) values (${copy!.id}, ${original}) returning id`;
+      await decideDuplicate(actor, { id: String(review!.id), decision: "duplicate", requestId: crypto.randomUUID() });
+    }
+    expect((await bank.listAccounts()).find((a) => a.id === stripe.id)).toMatchObject({ openCount: 1 });
+
+    await gebuehr.allocatePaymentWithFee(actor, { transactionId: payment, target: { kind: "invoice", invoiceId: invoice.id }, amount: 5_950 });
+
+    const rows = await sql`select transaction_id, kind from allocations order by amount desc`;
+    expect(rows.map((r) => [r.transaction_id, r.kind])).toEqual([
+      [payment, "invoice"],
+      [fee, "gebuehren"],
+    ]);
+  }, 30_000);
 });
