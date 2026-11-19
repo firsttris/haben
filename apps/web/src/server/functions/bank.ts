@@ -54,8 +54,6 @@ import {
   allocateWithRest,
   allocateFeesToDocument,
   feesSchema,
-  allocatePaymentWithFee,
-  zahlungMitGebuehrSchema,
   restSchema,
   reverseWriteOff,
   writeOff,
@@ -276,14 +274,6 @@ export const allocateProviderFees = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(feesSchema)
   .handler(async ({ data, context }) => ({ count: await allocateFeesToDocument(context.user.id, data) }));
-
-export const allocatePaymentAndFee = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator(zahlungMitGebuehrSchema)
-  .handler(async ({ data, context }) => {
-    await allocatePaymentWithFee(context.user.id, data);
-    return { ok: true };
-  });
 
 export const writeOffRest = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

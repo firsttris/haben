@@ -1,6 +1,5 @@
 import { formatEuro, gruppiereGebuehren } from "@haben/core";
 import { useMemo, useState } from "react";
-import { formatDate } from "../lib/format.ts";
 import { Field } from "./Field.tsx";
 
 /**

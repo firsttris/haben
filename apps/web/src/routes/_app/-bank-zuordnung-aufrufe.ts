@@ -2,7 +2,6 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   allocateDirectDebitBatchFn,
   allocateDirectDebitReturnFn,
-  allocatePaymentAndFee,
   allocateProviderFees,
   allocateTransaction,
   allocateTransactionWithRest,
@@ -14,6 +13,7 @@ import {
   transferBetweenAccounts,
   unmarkBankTransactionPrivate,
 } from "../../server/functions/bank.ts";
+import { allocatePaymentAndFee } from "../../server/functions/bank-gebuehr.ts";
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 
 /** Die Server-Aufrufe, mit denen die Zuordnung eines Bankumsatzes bucht */
