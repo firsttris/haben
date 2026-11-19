@@ -1,83 +1,48 @@
-import { germanDay } from "@haben/core";
+import { X509Certificate } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import {
+  TEST_CA_GUELTIG_BIS,
+  TEST_GUELTIG_BIS,
+  TEST_PIN,
+  testZertifikatPem,
+  testZertifikatsdatei,
+  type Testdatei,
+} from "../../../test-fixtures/elster-zertifikat.ts";
 import { earliestExpiry, readCertificateExpiry } from "./certificate-expiry.ts";
-import { makeTestPfx } from "./test-zertifikat.ts";
 
-// Selbstsigniert für diesen Test (openssl req -not_after), nur öffentliche Zertifikate ohne Schlüssel
-/** notAfter 2029-12-31 23:30:00 UTC, in Deutschland schon der 1. Januar 2030 */
-const SILVESTER = `-----BEGIN CERTIFICATE-----
-MIIBfzCCASWgAwIBAgIUB9pn/pa19pf7vzJ+weI+T60w8PQwCgYIKoZIzj0EAwIw
-FTETMBEGA1UEAwwKaGFiZW4tdGVzdDAeFw0yNjExMTgwMDAwMDBaFw0yOTEyMzEy
-MzMwMDBaMBUxEzARBgNVBAMMCmhhYmVuLXRlc3QwWTATBgcqhkjOPQIBBggqhkjO
-PQMBBwNCAATC82GOJSqb+PystQDGbaC7GdL/991l2AtweqYRx0fxg2/KUV2X+YF/
-0lgAnCPUwxzBmr7JPEsOduViAzmwNgmPo1MwUTAdBgNVHQ4EFgQUxRUKHgztG1YK
-YHWcbkNoE9AvpuIwHwYDVR0jBBgwFoAUxRUKHgztG1YKYHWcbkNoE9AvpuIwDwYD
-VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiAw/9kWJy4YRGjiP9zCOfRq
-QOU+cAGYAVS1wDMM8R3ipgIhANStUyV84NWECAqyRWO6JMEkt3adEXH8L8ocA/xI
-fyXD
------END CERTIFICATE-----`;
-/** notAfter 2030-06-15 12:00:00 UTC */
-const SOMMER = `-----BEGIN CERTIFICATE-----
-MIIBfjCCASWgAwIBAgIUSYIcBbS/sY05/xmcpjnniNDcaRIwCgYIKoZIzj0EAwIw
-FTETMBEGA1UEAwwKaGFiZW4tdGVzdDAeFw0yNjExMTgwMDAwMDBaFw0zMDA2MTUx
-MjAwMDBaMBUxEzARBgNVBAMMCmhhYmVuLXRlc3QwWTATBgcqhkjOPQIBBggqhkjO
-PQMBBwNCAAQmpmbYdtY5H5cC6fHFlFjOnd/VM9LtbE4CEMFD+G8tO7zj/QDn+Jyk
-YCY9cGpqvwudEFRFuYY1lszHv89r9kKKo1MwUTAdBgNVHQ4EFgQUWqKyX8ro117p
-EneWFZvBhcyZkkYwHwYDVR0jBBgwFoAUWqKyX8ro117pEneWFZvBhcyZkkYwDwYD
-VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNHADBEAiA8fg1RY7pCv6m6uUQOh7N7
-PjDdS189OkjYSxpTWm2FKgIgWmqt/08FVF6G9R7VFsip9HPOqAbuiU7QpWs0sBmM
-WF0=
------END CERTIFICATE-----`;
+const der = (name: "zertifikat" | "ca") => new Uint8Array(new X509Certificate(testZertifikatPem(name)).raw);
 
-describe("Frühestes Ablaufdatum aus der Ausgabe von openssl", () => {
+describe("Frühestes Ablaufdatum (#1366)", () => {
   it("nimmt das früheste Zertifikat, als Tag in Deutschland", () => {
-    // Zwischen den Blöcken stehen bei openssl die Bag Attributes
-    expect(earliestExpiry(`Bag Attributes\n    localKeyID: 01\n${SOMMER}\nBag Attributes\n${SILVESTER}\n`)).toBe("2030-01-01");
-    expect(earliestExpiry(SOMMER)).toBe("2030-06-15");
-  });
-
-  it("ohne Zertifikat kein Datum", () => {
-    expect(earliestExpiry("")).toBeNull();
+    expect(earliestExpiry([der("zertifikat")])).toBe(TEST_GUELTIG_BIS);
+    expect(earliestExpiry([der("zertifikat"), der("ca")])).toBe(TEST_CA_GUELTIG_BIS);
+    expect(earliestExpiry([])).toBeNull();
   });
 });
 
-const PIN = "123456";
-const pfx = makeTestPfx(PIN);
-
 describe("Ablaufdatum aus der ELSTER-Zertifikatsdatei (#1366)", () => {
-  it.skipIf(!pfx)("liest notAfter mit der PIN", async () => {
-    expect(await readCertificateExpiry(pfx!.pfx, PIN)).toBe(germanDay(pfx!.notAfter));
+  // Jede Datei enthält auch die Zertifizierungsstelle, die früher abläuft; es zählt nur das Zertifikat zum Schlüssel
+  it.each<Testdatei>(["rc2-40", "3des", "aes", "ohne-verschluesselung"])("liest %s mit der PIN", async (name) => {
+    expect(await readCertificateExpiry(testZertifikatsdatei(name), TEST_PIN)).toBe(TEST_GUELTIG_BIS);
   });
 
-  it.skipIf(!pfx)("mit falscher PIN oder kaputter Datei kein Datum und kein Fehler", async () => {
-    expect(await readCertificateExpiry(pfx!.pfx, "654321")).toBeNull();
-    expect(await readCertificateExpiry(new TextEncoder().encode("kein echtes Zertifikat"), PIN)).toBeNull();
+  it.each<Testdatei>(["rc2-40", "3des", "aes"])("%s mit falscher PIN ergibt kein Datum und keinen Fehler", async (name) => {
+    expect(await readCertificateExpiry(testZertifikatsdatei(name), "Erika 1366?")).toBeNull();
+    expect(await readCertificateExpiry(testZertifikatsdatei(name), "")).toBeNull();
   });
 
-  const sonderzeichen = 'Ä ö $HOME "x" `id`';
-  const mitSonderzeichen = makeTestPfx(sonderzeichen);
-  it.skipIf(!mitSonderzeichen)("gibt die PIN unverändert weiter, auch mit Leerzeichen und Zeichen der Shell", async () => {
-    expect(await readCertificateExpiry(mitSonderzeichen!.pfx, sonderzeichen)).toBe(germanDay(mitSonderzeichen!.notAfter));
+  it("unverschlüsselte Zertifikate brauchen die PIN nicht", async () => {
+    expect(await readCertificateExpiry(testZertifikatsdatei("ohne-verschluesselung"), "falsch")).toBe(TEST_GUELTIG_BIS);
   });
 
-  // Die Zertifizierungsstelle läuft hier vor dem eigenen Zertifikat ab; es zählt nur das zum Schlüssel
-  const mitCa = makeTestPfx(PIN, { days: 1095, caDays: 30 });
-  it.skipIf(!mitCa)("nimmt das Zertifikat zum Schlüssel, nicht das der Zertifizierungsstelle", async () => {
-    expect(await readCertificateExpiry(mitCa!.pfx, PIN)).toBe(germanDay(mitCa!.notAfter));
+  it("rechnet nicht mehr als MAX_ITERATIONS Iterationen", async () => {
+    expect(await readCertificateExpiry(testZertifikatsdatei("zu-viele-iterationen"), TEST_PIN)).toBeNull();
   });
 
-  const legacy = makeTestPfx(PIN, { legacy: true });
-  it.skipIf(!legacy)("liest auch Dateien mit 3DES und SHA-1 wie von älteren Werkzeugen", async () => {
-    expect(await readCertificateExpiry(legacy!.pfx, PIN)).toBe(germanDay(legacy!.notAfter));
-  });
-
-  it("ohne openssl kein Datum und kein Fehler", async () => {
-    const path = process.env.PATH;
-    process.env.PATH = "/nicht-vorhanden";
-    try {
-      expect(await readCertificateExpiry(new Uint8Array([1, 2, 3]), PIN)).toBeNull();
-    } finally {
-      process.env.PATH = path;
-    }
+  it("eine kaputte oder abgeschnittene Datei ergibt kein Datum", async () => {
+    const datei = testZertifikatsdatei("rc2-40");
+    expect(await readCertificateExpiry(new TextEncoder().encode("kein echtes Zertifikat"), TEST_PIN)).toBeNull();
+    expect(await readCertificateExpiry(datei.subarray(0, datei.length - 100), TEST_PIN)).toBeNull();
+    expect(await readCertificateExpiry(new Uint8Array(0), TEST_PIN)).toBeNull();
   });
 });

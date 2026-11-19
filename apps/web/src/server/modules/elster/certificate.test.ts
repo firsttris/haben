@@ -1,17 +1,13 @@
-import { germanDay } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { TEST_GUELTIG_BIS, TEST_PIN, testZertifikatsdatei } from "../../../test-fixtures/elster-zertifikat.ts";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
-import { makeTestPfx } from "./test-zertifikat.ts";
 
-const PIN = "4711-geheim";
-const pfx = makeTestPfx(PIN);
-
-describe.skipIf(!testDatabaseUrl || !pfx)("ELSTER-Zertifikat hochladen (Postgres, #1366)", () => {
+describe.skipIf(!testDatabaseUrl)("ELSTER-Zertifikat hochladen (Postgres, #1366)", () => {
   let sql: postgres.Sql;
   let certificate: typeof import("./certificate.ts");
   const upload = (pin: string, validUntil: string | null) =>
-    certificate.saveCertificate("test-user", { filename: "test.pfx", bytes: pfx!.pfx, validUntil, pin });
+    certificate.saveCertificate("test-user", { filename: "test.pfx", bytes: testZertifikatsdatei("rc2-40"), validUntil, pin });
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -27,14 +23,13 @@ describe.skipIf(!testDatabaseUrl || !pfx)("ELSTER-Zertifikat hochladen (Postgres
   });
 
   it("mit PIN gilt das Datum aus der Datei; die PIN steht weder in der Tabelle noch im Änderungsprotokoll", async () => {
-    const expected = germanDay(pfx!.notAfter);
-    expect(await upload(PIN, "2027-01-01")).toEqual({ validUntil: expected, readFromFile: true });
+    expect(await upload(TEST_PIN, "2027-01-01")).toEqual({ validUntil: TEST_GUELTIG_BIS, readFromFile: true });
     const [row] = await sql`select valid_until::text, pin_ciphertext from elster_certificates where active`;
-    expect(row).toEqual({ valid_until: expected, pin_ciphertext: null });
+    expect(row).toEqual({ valid_until: TEST_GUELTIG_BIS, pin_ciphertext: null });
     const audit =
       await sql`select coalesce(old_value::text, '') || coalesce(new_value::text, '') as data from audit_log where table_name = 'elster_certificates'`;
     expect(audit.length).toBeGreaterThan(0);
-    for (const { data } of audit) expect(data).not.toContain(PIN);
+    for (const { data } of audit) expect(data).not.toContain(TEST_PIN);
   });
 
   it("mit falscher PIN gilt der Eintrag, ohne ihn bleibt das Datum leer", async () => {

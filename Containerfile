@@ -34,11 +34,10 @@ COPY --from=docker.io/oven/bun:1.4.4-slim /usr/local/bin/bun /usr/local/bin/bun
 # poppler-utils: pdftotext und pdftoppm für hochgeladene PDFs (Textebene, Seitenbilder für einen eigenen KI-Dienst),
 # als eigener Prozess. font-liberation: ohne Schriften rendert pdftoppm nicht eingebettete Standardschriften wie
 # Helvetica gar nicht. libgcc: libgcc_s braucht ERiC neben glibc (steckt schon in wolfi-base, hier ausdrücklich).
-# openssl: liest beim Hochladen das Ablaufdatum aus der ELSTER-Zertifikatsdatei (certificate-expiry.ts).
 # Benutzer bun mit UID 1000 wie im Image von oven/bun, damit bestehende Volumes lesbar bleiben. Die Pakete kommen aus
 # dem freien Wolfi-Repository; wolfi-base nennt in /etc/apk/repositories das von Chainguard, das eine Anmeldung verlangt.
 RUN echo https://packages.wolfi.dev/os > /etc/apk/repositories \
- && apk add --no-cache poppler-utils font-liberation tzdata libgcc openssl \
+ && apk add --no-cache poppler-utils font-liberation tzdata libgcc \
  && addgroup -g 1000 bun \
  && adduser -D -u 1000 -G bun -h /home/bun -s /bin/sh bun
 ENV NODE_ENV=production \

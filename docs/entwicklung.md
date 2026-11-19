@@ -175,7 +175,6 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 | `AUTHELIA_TEST_ISSUER`, `AUTHELIA_TEST_USERS_FILE` | Reale Authelia-Referenztests ohne eigene Testinstanz übersprungen | nein | nein |
 | `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
 | `pdftotext`, `pdftoppm`, `pdffonts`, `pdfimages` (poppler-utils) | Textebene, Seitenbilder, eingebettete Schriften und Bilder von PDFs übersprungen | ja | ja |
-| `openssl` | Tests mit selbst erzeugten Zertifikaten übersprungen (Microsoft Graph, Ablaufdatum der ELSTER-Zertifikatsdatei); der E2E-Test in `belege-steuern.spec.ts` schlägt fehl | ja | ja |
 | `helm` | Tests des Helm-Charts in `scripts/deploy-vorlagen/helm.test.ts` übersprungen | nein | ja |
 | `zip`, `unzip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
 | `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
