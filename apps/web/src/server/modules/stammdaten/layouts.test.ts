@@ -266,6 +266,22 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
   }, 60_000);
 
+  it("Löschen und gleichzeitiges Speichern der Gestaltung verhaken sich nicht", async () => {
+    const { id } = await anlegen({ name: "Gleichzeitig", art: "beleg", source: eigene("beleg") });
+    await layouts.assignLayout(actor, "angebot", { kind: "eigen", id });
+    // Wie saveDesign: erst die Zeile des Profils, dann im Audit-Trigger die Sperre der Hash-Kette
+    let loeschen: Promise<void> | undefined;
+    await sql.begin(async (t) => {
+      await t`select 1 from letterhead_profiles where is_default for update`;
+      loeschen = layouts.deleteLayout(actor, id);
+      while ((await t`select 1 from pg_stat_activity where wait_event_type = 'Lock' and pid <> pg_backend_pid()`).length === 0)
+        await new Promise((r) => setTimeout(r, 20));
+      await t`update letterhead_profiles set updated_at = now() where is_default`;
+    });
+    await loeschen;
+    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
+  }, 60_000);
+
   it("fällt beim Setzen nicht still auf das eingebaute zurück", async () => {
     const { id } = await anlegen({ name: "Bricht", art: "beleg", source: eigene("beleg") });
     await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
