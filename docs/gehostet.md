@@ -7,8 +7,6 @@ description: >-
 
 # Gehostet oder mit Partner
 
-Diese Doku beschreibt, wie du Haben selbst betreibst.
-
 ## Gehostet
 
 Haben gibt es auf Anfrage an [info@teufel-it.de](mailto:info@teufel-it.de) als gehosteten Dienst, ohne eigenen Server.
