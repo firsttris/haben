@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../lib/format.ts";
 import type { Notice } from "../lib/use-action.ts";
+import { serviceEntrySource } from "../lib/zeiteintrag.ts";
 import { saveServiceEntry, type getServiceEntries } from "../server/functions/leistungen.ts";
 import { Field } from "./Field.tsx";
 
@@ -72,6 +73,11 @@ export function ServiceEntryForm({
   return (
     <form className="card stack" aria-label={entry ? "Eintrag ändern" : "Neuer Eintrag"} onSubmit={onSubmit}>
       <h2 style={{ margin: 0 }}>{entry ? "Eintrag ändern" : "Neuer Eintrag"}</h2>
+      {entry?.source && (
+        <p className="muted small" style={{ margin: 0 }}>
+          Übernommen aus {serviceEntrySource(entry.source)}.
+        </p>
+      )}
       <div className="form-row cols-2">
         <Field label="Kunde">
           {(control) => (
