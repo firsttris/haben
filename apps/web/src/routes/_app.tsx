@@ -26,6 +26,7 @@ export const Route = createFileRoute("/_app")({
       user: state.user,
       oidc: state.oidc,
       rechtsform: state.rechtsform ?? "einzelunternehmen",
+      kontenrahmen: state.kontenrahmen ?? "SKR03",
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
       ausgeblendet: state.ausgeblendet,

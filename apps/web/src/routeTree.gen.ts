@@ -85,6 +85,7 @@ import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiDatevJahrRouteImport } from './routes/api/datev/$jahr'
 import { Route as ApiDauerbelegIdRouteImport } from './routes/api/dauerbeleg/$id'
+import { Route as ApiEinstellungenExportRouteImport } from './routes/api/einstellungen/export'
 import { Route as ApiEtsyCallbackRouteImport } from './routes/api/etsy/callback'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kalender'
@@ -514,6 +515,11 @@ const ApiDauerbelegIdRoute = ApiDauerbelegIdRouteImport.update({
   path: '/api/dauerbeleg/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEinstellungenExportRoute = ApiEinstellungenExportRouteImport.update({
+  id: '/api/einstellungen/export',
+  path: '/api/einstellungen/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEtsyCallbackRoute = ApiEtsyCallbackRouteImport.update({
   id: '/api/etsy/callback',
   path: '/api/etsy/callback',
@@ -810,6 +816,7 @@ export interface FileRoutesByFullPath {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
+  '/api/einstellungen/export': typeof ApiEinstellungenExportRoute
   '/api/etsy/callback': typeof ApiEtsyCallbackRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
@@ -931,6 +938,7 @@ export interface FileRoutesByTo {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
+  '/api/einstellungen/export': typeof ApiEinstellungenExportRoute
   '/api/etsy/callback': typeof ApiEtsyCallbackRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
@@ -1054,6 +1062,7 @@ export interface FileRoutesById {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
+  '/api/einstellungen/export': typeof ApiEinstellungenExportRoute
   '/api/etsy/callback': typeof ApiEtsyCallbackRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
@@ -1177,6 +1186,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
+    | '/api/einstellungen/export'
     | '/api/etsy/callback'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
@@ -1298,6 +1308,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
+    | '/api/einstellungen/export'
     | '/api/etsy/callback'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
@@ -1420,6 +1431,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
+    | '/api/einstellungen/export'
     | '/api/etsy/callback'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
@@ -1506,6 +1518,7 @@ export interface RootRouteChildren {
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiDatevJahrRoute: typeof ApiDatevJahrRoute
   ApiDauerbelegIdRoute: typeof ApiDauerbelegIdRoute
+  ApiEinstellungenExportRoute: typeof ApiEinstellungenExportRoute
   ApiEtsyCallbackRoute: typeof ApiEtsyCallbackRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiFristenKalenderRoute: typeof ApiFristenKalenderRoute
@@ -2073,6 +2086,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDauerbelegIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/einstellungen/export': {
+      id: '/api/einstellungen/export'
+      path: '/api/einstellungen/export'
+      fullPath: '/api/einstellungen/export'
+      preLoaderRoute: typeof ApiEinstellungenExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/etsy/callback': {
       id: '/api/etsy/callback'
       path: '/api/etsy/callback'
@@ -2563,6 +2583,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiDatevJahrRoute: ApiDatevJahrRoute,
   ApiDauerbelegIdRoute: ApiDauerbelegIdRoute,
+  ApiEinstellungenExportRoute: ApiEinstellungenExportRoute,
   ApiEtsyCallbackRoute: ApiEtsyCallbackRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
   ApiFristenKalenderRoute: ApiFristenKalenderRoute,

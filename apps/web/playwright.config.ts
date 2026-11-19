@@ -136,6 +136,7 @@ export default defineConfig({
         "bestaetigung.spec.ts",
         "bwa.spec.ts",
         "datumsfelder.spec.ts",
+        "einstellungen-export.spec.ts",
         "kopfzeile.spec.ts",
         "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",

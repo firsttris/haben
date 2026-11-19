@@ -1,6 +1,8 @@
 import { AUFLADUNG, formatEuro, kategorieAnteil, kategorieArt, type DirektKategorie } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { Field } from "./Field.tsx";
+import { CategoryCombobox } from "./CategoryCombobox.tsx";
+import { gruppeVon, kategorieRang } from "./KategorieGruppen.ts";
 
 /** Kategorie und Steuersatz eines direkt gebuchten Bankumsatzes (packages/core/src/direkt-kategorie.ts) */
 export interface KategorieWahl {
@@ -22,6 +24,20 @@ export function kategorieWahlFuer(options: KategorieOptionen, amount: number): K
   const kategorie = amount > 0 ? "erloese" : "sonstiges";
   return { kategorie, steuersatz: steuersatzFuer(options, kategorie) };
 }
+
+/**
+ * Die Kategorien zur Auswahl: erst die Einnahmen, dann die Ausgaben in ihren Gruppen. Kleinunternehmer bekommen die nicht
+ * steuerbare Einnahme nicht angeboten; eine schon gewählte (gelernter Vorschlag) bleibt sichtbar, sonst zeigte das Feld
+ * „Erlöse“ (#1131). Den Stand am Tag der Zahlung prüft der Server.
+ */
+export function kategorieAngebot(options: KategorieOptionen, gewaehlt: DirektKategorie): { value: string; label: string }[] {
+  const angeboten = options.kategorien.filter((k) => !(options.kleinunternehmer && k.value === "nichtSteuerbar" && gewaehlt !== "nichtSteuerbar"));
+  const ausgaben = angeboten.filter((k) => k.art === "ausgabe").sort((a, b) => kategorieRang(a.value) - kategorieRang(b.value));
+  return [...angeboten.filter((k) => k.art === "einnahme"), ...ausgaben];
+}
+
+/** Gruppe in der Auswahl: die Einnahmen für sich, die Ausgaben in ihren Gruppen */
+const gruppeDirekt = (kategorie: string) => (kategorieArt(kategorie) === "einnahme" ? "Einnahmen" : gruppeVon(kategorie));
 
 export function KategorieFelder({
   options,
@@ -47,28 +63,20 @@ export function KategorieFelder({
       <div className="form-row cols-2">
         <Field label="Kategorie">
           {(control) => (
-            <select
+            <CategoryCombobox
               {...control}
+              categories={kategorieAngebot(options, value.kategorie)}
+              gruppe={gruppeDirekt}
+              sortieren={false}
               value={value.kategorie}
-              onChange={(e) => {
-                const kategorie = e.target.value as DirektKategorie;
+              onChoose={(wert) => {
+                // Ein geleertes Feld lässt die bisherige Kategorie stehen: gebucht wird immer auf eine
+                if (wert === "") return;
+                const kategorie = wert as DirektKategorie;
                 onChange({ kategorie, steuersatz: steuersatzFuer(options, kategorie) });
               }}
-            >
-              {(["einnahme", "ausgabe"] as const).map((art) => (
-                <optgroup key={art} label={art === "einnahme" ? "Einnahmen" : "Ausgaben"}>
-                  {options.kategorien
-                    // Kleinunternehmer bekommen die nicht steuerbare Einnahme nicht angeboten; eine schon gewählte (gelernter
-                    // Vorschlag) bleibt sichtbar, sonst zeigte das Feld „Erlöse“ (#1131). Den Stand am Tag der Zahlung prüft der Server
-                    .filter((k) => k.art === art && !(options.kleinunternehmer && k.value === "nichtSteuerbar" && !nichtSteuerbar))
-                    .map((k) => (
-                      <option key={k.value} value={k.value}>
-                        {k.label}
-                      </option>
-                    ))}
-                </optgroup>
-              ))}
-            </select>
+              required
+            />
           )}
         </Field>
         {mitAuswahl && (

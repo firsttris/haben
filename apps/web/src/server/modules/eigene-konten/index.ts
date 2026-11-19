@@ -6,6 +6,7 @@
  */
 export {
   createOwnAccount,
+  insertImportedOwnAccount,
   deleteOwnAccount,
   documentOwnAccountProblems,
   listOwnAccounts,

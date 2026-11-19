@@ -23,6 +23,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Erste Schritte](einrichtung.md) | Konto und Passkey, Fragen zur Einrichtung, Bereiche ausblenden, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, KI-Auslesung, Bankkonten |
 | [ELSTER einrichten](einrichtung-elster.md) | Zertifikatsdatei, eigene Hersteller-ID, ERiC-Version, Unterschied zu Lexoffice |
 | [E-Mail-Versand](einrichtung-email.md) | Versand über SMTP oder Microsoft 365 (Graph) |
+| [Von der Testinstanz in den Echtbetrieb](einrichtung-echtbetrieb.md) | Einstellungen und Stammdaten als Datei in eine neue Instanz übernehmen |
 | [Zugang für die Steuerberatung](steuerberatung.md) | Eigener Zugang per Einladungslink, nur lesen: Auswertungen, Journal, Konten, Belege, Rechnungen, DATEV und Jahresarchiv |
 | [Barrierefreiheit und Tastatur](barrierefreiheit.md) | Bedienung ohne Maus, Tastenkürzel, Kontraste in allen Themes, Prüfung mit axe-core nach WCAG 2.2 AA |
 
@@ -41,7 +42,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 | | |
 |---|---|
-| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
+| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Duplizieren, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
 | [Belege aus dem Ausland](belege-ausland.md) | Reverse Charge nach § 13b, innergemeinschaftlicher Erwerb, Einfuhrumsatzsteuer, Fremdwährung |
 | [Belege bezahlen](belege-bezahlen.md) | Bezahlung über Geschäftskonto, privat oder Kasse, Überweisen per SEPA-Datei mit Skonto, Verrechnen ohne Zahlung |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand, Wege zur Betriebsstätte (Entfernungspauschale); Buchung und Storno |
