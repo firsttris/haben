@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import type { useAction } from "../lib/use-action.ts";
-import { copyFinalInvoice } from "../server/functions/invoices.ts";
+import { copyInvoiceAsDraft } from "../server/functions/invoices.ts";
 
 type ActionState = Pick<ReturnType<typeof useAction>, "busy" | "run">;
 
@@ -10,7 +10,7 @@ type ActionState = Pick<ReturnType<typeof useAction>, "busy" | "run">;
  * Storno und Korrektur aus der Rechnung; dort gibt es den Knopf nicht. Fehler meldet die Seite über `action`.
  */
 export function InvoiceCopyButton({ invoice, action }: { invoice: { id: string; kind: string; variant: string | null }; action: ActionState }) {
-  const copy = useServerFn(copyFinalInvoice);
+  const copy = useServerFn(copyInvoiceAsDraft);
   const navigate = useNavigate();
   if (invoice.kind !== "rechnung" || invoice.variant !== null) return null;
   const onCopy = () =>
