@@ -1,5 +1,6 @@
 import { formatEuro, type Cents, type Warum, type WarumTeil } from "@haben/core";
 import { Link } from "@tanstack/react-router";
+import { siehtSeite } from "../lib/rollen.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 
 /*
@@ -20,11 +21,12 @@ function vorgangText(t: WarumTeil): string {
   return `${jetzt ?? "keine"} statt ${vorher}`;
 }
 
-function TeilZeile({ teil: t }: { teil: WarumTeil }) {
+// Ohne Zugriff auf die Kontaktseite (Steuerberatung) nur der Name: der Link führte auf die Startseite der Rolle
+function TeilZeile({ teil: t, rolle }: { teil: WarumTeil; rolle: string }) {
   return (
     <tr>
       <th scope="row">
-        {t.kontaktId ? (
+        {t.kontaktId && siehtSeite(rolle, `/kontakte/${t.kontaktId}`) ? (
           <Link to="/kontakte/$id" params={{ id: t.kontaktId }}>
             {t.name}
           </Link>
@@ -41,7 +43,7 @@ function TeilZeile({ teil: t }: { teil: WarumTeil }) {
   );
 }
 
-export function BwaWarum({ warum, zeitraum, vergleich }: { warum: Warum; zeitraum: string; vergleich: string }) {
+export function BwaWarum({ warum, zeitraum, vergleich, rolle }: { warum: Warum; zeitraum: string; vergleich: string; rolle: string }) {
   return (
     <section className="bwa-warum" aria-labelledby="warum-titel">
       <h3 id="warum-titel">Warum?</h3>
@@ -71,7 +73,7 @@ export function BwaWarum({ warum, zeitraum, vergleich }: { warum: Warum; zeitrau
           <tbody>
             {warum.teile.map((t) => (
               // Ohne Kontakt fasst der Rechenkern nach dem Namen zusammen; der Name ist dann eindeutig
-              <TeilZeile key={t.kontaktId ?? `name:${t.name}`} teil={t} />
+              <TeilZeile key={t.kontaktId ?? `name:${t.name}`} teil={t} rolle={rolle} />
             ))}
             {warum.uebrige && (
               <tr>

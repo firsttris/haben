@@ -91,6 +91,7 @@ const leer = (z: BwaZeileWerte) => z.art === "zeile" && [z.betrag, z.kumuliert, 
 
 function BwaPage() {
   const { bericht, details, warum } = Route.useLoaderData();
+  const { user } = Route.useRouteContext();
   const suche = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const { jahr, art, zeitraum, vergleich } = auswahl(suche);
@@ -135,7 +136,7 @@ function BwaPage() {
           {offeneZeile && details && (
             <ZeileDetails titel={`${offeneZeile.label} · ${zeitraumText(zeitraum)}`} jahr={Number(zeitraum.von.slice(0, 4))} gruppen={details}>
               {warum && bericht.vergleich && (
-                <BwaWarum warum={warum} zeitraum={zeitraumText(zeitraum, true)} vergleich={zeitraumText(bericht.vergleich, true)} />
+                <BwaWarum warum={warum} zeitraum={zeitraumText(zeitraum, true)} vergleich={zeitraumText(bericht.vergleich, true)} rolle={user.role} />
               )}
             </ZeileDetails>
           )}
