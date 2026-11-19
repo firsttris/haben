@@ -7,6 +7,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { periodKey, periodLabel } from "@haben/core";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
+import { TEST_PIN, testZertifikatsdatei } from "../src/test-fixtures/elster-zertifikat.ts";
 import { currentDay, currentYear, day, YEAR } from "./daten.ts";
 import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
@@ -324,13 +325,18 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await expect(taxpayer.getByRole("status")).toBeVisible();
   await go("/einstellungen?bereich=elster");
   const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
+  // Mit der PIN liest Haben das Ablaufdatum aus der Datei (#1366); die Testdatei ist aufgebaut wie eine aus Mein ELSTER
   await cert
     .getByLabel("Zertifikatsdatei")
-    .setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
+    .setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from(testZertifikatsdatei("rc2-40")) });
+  await cert.getByLabel("Zertifikats-PIN (optional)").fill(TEST_PIN);
   await cert.getByRole("button", { name: "Hochladen" }).click();
+  await expect(cert.getByRole("status")).toHaveText("Zertifikat verschlüsselt gespeichert, gültig bis 01.01.2030.");
   // Den Dateinamen zeigt schon die Dateiauswahl; „Entfernen“ gibt es erst, wenn das Zertifikat gespeichert ist
   await expect(cert.getByRole("button", { name: "Entfernen" })).toBeVisible();
   await expect(cert.getByText("test.pfx").first()).toBeVisible();
+  await expect(cert.getByText("gültig bis 01.01.2030", { exact: true })).toBeVisible();
+  await expect(cert.getByLabel("Zertifikats-PIN (optional)")).toHaveValue("");
   const formate = page.getByRole("group", { name: "Formate prüfen" });
   await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
   await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
