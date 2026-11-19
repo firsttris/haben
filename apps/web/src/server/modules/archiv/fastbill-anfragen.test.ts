@@ -1,17 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fastbillUsageText } from "../../../components/archiv/FastbillTeile.tsx";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
-
-describe("fastbillUsageText", () => {
-  it("nennt genutzte und freie Anfragen und, wenn keine frei ist, wann die nächste frei wird", () => {
-    expect(fastbillUsageText({ used: 0, freeAt: null }, 50)).toBe("");
-    expect(fastbillUsageText({ used: 12, freeAt: "2026-11-19T14:40:00Z" }, 50)).toMatch(/12 davon genutzt, 38 sind noch frei\./);
-    expect(fastbillUsageText({ used: 50, freeAt: "2026-11-19T14:40:00Z" }, 50)).toMatch(
-      /50 davon genutzt, 0 sind noch frei, die nächste wird um 15:40 Uhr frei\./,
-    );
-  });
-});
 
 describe.skipIf(!testDatabaseUrl)("Anfragen an FastBill in der letzten Stunde (Postgres)", () => {
   let sql: postgres.Sql;

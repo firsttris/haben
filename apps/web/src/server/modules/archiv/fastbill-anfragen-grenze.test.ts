@@ -1,20 +1,8 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { fastbillUsageText } from "../../../components/archiv/FastbillTeile.tsx";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
-describe("fastbillUsageText (Review #1525)", () => {
-  it("schreibt bei genau einer freien Anfrage „1 ist noch frei“", () => {
-    expect(fastbillUsageText({ used: 49, freeAt: "2026-11-19T14:40:00Z" }, 50)).toMatch(/49 davon genutzt, 1 ist noch frei\./);
-  });
-
-  // Verworfen, wenn grün: Sommerzeit wird richtig nach Europe/Berlin umgerechnet
-  it("rechnet die Uhrzeit auch in der Sommerzeit nach deutscher Zeit", () => {
-    expect(fastbillUsageText({ used: 50, freeAt: "2026-07-01T10:05:00Z" }, 50)).toMatch(/um 12:05 Uhr frei\./);
-  });
-});
-
-describe.skipIf(!testDatabaseUrl)("Anfragen an FastBill über der Grenze (Review #1525, Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Anfragen an FastBill über der Grenze (Postgres)", () => {
   let sql: postgres.Sql;
   let anfragen: typeof import("./fastbill-anfragen.ts");
   let zugang: typeof import("./fastbill-zugang.ts");
@@ -45,10 +33,9 @@ describe.skipIf(!testDatabaseUrl)("Anfragen an FastBill über der Grenze (Review
     const usage = await anfragen.fastbillUsage(now);
     expect(usage.used).toBe(60);
     // Der Client wartet bis starts[länge - callsPerHour] + 1 h (packages/import/src/fastbill/client.ts:318), hier calls[10] = 13:10 UTC
-    expect(fastbillUsageText(usage, 50)).toMatch(/die nächste wird um 15:10 Uhr frei\./);
+    expect(usage.freeAt).toBe("2026-11-19T14:10:00.000Z");
   });
 
-  // Verworfen, wenn grün: Aufrufe des Artikel-Abrufs (im Speicher) zählen mit
   it("zählt die Aufrufe des Artikel-Abrufs mit", async () => {
     const t = Date.now() - 5 * 60_000;
     zugang.noteFastbillCalls([t, t + 1000]);

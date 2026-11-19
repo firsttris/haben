@@ -100,5 +100,5 @@ export function fastbillUsageText(usage: { used: number; freeAt: string | null }
   if (!usage || usage.used === 0) return "";
   const free = Math.max(0, callsPerHour - usage.used);
   const next = usage.freeAt ? `, die nächste wird um ${formatTime(usage.freeAt)} Uhr frei` : "";
-  return ` In der letzten Stunde hat Haben ${usage.used} davon genutzt, ${free} sind noch frei${free === 0 ? next : ""}. Anfragen anderer Programme mit demselben Schlüssel zählt FastBill mit, Haben sieht sie nicht.`;
+  return ` In der letzten Stunde hat Haben ${usage.used} davon genutzt, ${free} ${free === 1 ? "ist" : "sind"} noch frei${free === 0 ? next : ""}. Anfragen anderer Programme mit demselben Schlüssel zählt FastBill mit, Haben sieht sie nicht.`;
 }
