@@ -103,8 +103,16 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
     const { transactionId } = await konflikt.resolveConflict("test", { conflictId: k!.id, decision: "add" });
     const [bisher, neu] = await umsaetze(iban);
     expect(neu).toEqual({ id: transactionId, amount: -9800 });
-    expect(await konflikt.klaerungView(bisher!.id)).toEqual({ added: [{ id: transactionId, bookingDate: "2026-11-18", amount: -9800 }], previous: null });
-    expect(await konflikt.klaerungView(transactionId!)).toEqual({ added: [], previous: { id: bisher!.id, bookingDate: "2026-11-18", amount: -8900 } });
+    expect(await konflikt.klaerungView(bisher!.id)).toEqual({
+      provider: "enablebanking",
+      added: [{ id: transactionId, bookingDate: "2026-11-18", amount: -9800 }],
+      previous: null,
+    });
+    expect(await konflikt.klaerungView(transactionId!)).toEqual({
+      provider: "enablebanking",
+      added: [],
+      previous: { id: bisher!.id, bookingDate: "2026-11-18", amount: -8900 },
+    });
     // Der Eintrag der Klärung im Importprotokoll setzt keinen Kontostand: es bleibt der des letzten Abrufs
     const { listAccounts } = await import("./bank.ts");
     const konto = (await listAccounts()).find((a) => a.iban === iban)!;

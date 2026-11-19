@@ -1,6 +1,7 @@
 import { formatDecimal, parseEuro } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { KIRCHENSTEUER_FORTSCHREIBUNG } from "../../lib/kirchensteuer.ts";
 import { Field } from "../../components/Field.tsx";
 import { type Basis, type Data, prepaymentLetter } from "./-finanzamt-daten.ts";
 import { MessageForm } from "./-finanzamt-nachrichten.tsx";
@@ -26,6 +27,14 @@ export function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis })
           dein Finanzamt.
         </p>
         <Schaetzung basis={b} />
+        {/* Die Prognose übernimmt die Angaben des Vorjahres; ohne den Hinweis bleibt eine fehlende
+            Lohnkirchensteuer dort unbemerkt (#1451). Lohnkirchensteuer gibt es nur mit Arbeitslohn,
+            für Freiberufler ohne Lohn wäre der Satz nur Rauschen */}
+        {p.einkuenfteArbeit !== 0 && b.angabenAus !== null && b.angabenAus < b.year && (
+          <p className="small muted" style={{ margin: 0 }}>
+            {KIRCHENSTEUER_FORTSCHREIBUNG}
+          </p>
+        )}
         <p className="small muted" style={{ margin: 0 }}>
           {b.angabenAus === null
             ? "Ohne gespeicherte Angaben zur Einkommensteuer (Vorsorge, Kinder …) rechnet Haben nur mit dem Sonderausgaben-Pauschbetrag. "

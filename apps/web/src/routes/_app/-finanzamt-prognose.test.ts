@@ -44,8 +44,11 @@ const prognose = {
   jeQuartal: 150_00,
 };
 
-/** `angabenAus` ist das Jahr der Angaben zur Einkommensteuer, auf denen die Prognose beruht; null = keine gespeichert. */
-function fixture(angabenAus: number | null) {
+/**
+ * `angabenAus` ist das Jahr der Angaben zur Einkommensteuer, auf denen die Prognose beruht; null = keine gespeichert.
+ * `aenderung` überschreibt einzelne Beträge der Prognose (etwa `einkuenfteArbeit: 0` für Freiberufler ohne Lohn).
+ */
+function fixture(angabenAus: number | null, aenderung: Partial<typeof prognose> = {}) {
   return {
     company: { name: "Beispielfirma", finanzamt: "Finanzamt Musterstadt", steuernummer: "000/000/00000", iban: "DE00 0000 0000 0000 0000 00" },
     taxAccount: null,
@@ -64,7 +67,7 @@ function fixture(angabenAus: number | null) {
       profitForecast: 6_000_00,
       profitLastYear: 5_000_00,
       einkunftsart: "selbstaendig" as const,
-      prognose,
+      prognose: { ...prognose, ...aenderung },
       angabenAus,
       priorBenefitsOmitted: false,
     },
@@ -79,6 +82,8 @@ function fixture(angabenAus: number | null) {
 const render = () => renderToStaticMarkup(createElement(Route.options.component as ComponentType));
 /** Wie oft der Zusatz „ (Angaben <jahr>)“ im gerenderten HTML steht */
 const zusatz = (html: string, jahr: number) => html.split(` (Angaben ${jahr})`).length - 1;
+const HINWEIS =
+  "Zur Kirchensteuer in deinen Angaben gehört auch die einbehaltene Lohnkirchensteuer (in der Lohnsteuerbescheinigung Nr. 6 und 7, bis 2024 bei sonstigen Bezügen auch Nr. 13 und 14)";
 
 describe("Finanzamt: Voraussichtliche Steuer nennt das Jahr der Angaben (#1449)", () => {
   beforeEach(() => {
@@ -124,5 +129,40 @@ describe("Finanzamt: Schätzrechnung zugeklappt (#1253)", () => {
     // Die Warnhinweise zur Schätzung und das Antragsformular bleiben vorn
     expect(html.indexOf("Eine Schätzung, keine")).toBeGreaterThan(html.indexOf("</details>"));
     expect(html).toContain("Gewünschte Vorauszahlung je Quartal (€)");
+  });
+});
+
+describe("Finanzamt: Hinweis zur Lohnkirchensteuer unter der Prognose (#1451)", () => {
+  beforeEach(() => {
+    state.data = fixture(JAHR - 1);
+  });
+
+  it("Angaben aus dem Vorjahr mit Arbeitslohn: der Hinweis nennt die Lohnkirchensteuer und den Überhang", () => {
+    state.data = fixture(JAHR - 1);
+    const html = render();
+    expect(html).toContain(HINWEIS);
+    expect(html).toContain("§ 10 Abs. 4b Satz 3 EStG");
+  });
+
+  it("Angaben aus dem Vorjahr ohne Arbeitslohn: kein Hinweis, Lohnkirchensteuer gibt es dort nicht", () => {
+    state.data = fixture(JAHR - 1, { einkuenfteArbeit: 0 });
+    const html = render();
+    expect(html).not.toContain("Lohnkirchensteuer");
+    // Die Prognose übernimmt die Angaben trotzdem; der Jahres-Zusatz bleibt an den übrigen Zeilen
+    expect(zusatz(html, JAHR - 1)).toBe(3);
+  });
+
+  it("Angaben aus dem laufenden Jahr: kein Hinweis, sie werden nicht übernommen", () => {
+    state.data = fixture(JAHR);
+    const html = render();
+    expect(html).not.toContain(HINWEIS);
+    expect(html).not.toContain("Lohnkirchensteuer");
+  });
+
+  it("keine Angaben gespeichert: kein Hinweis", () => {
+    state.data = fixture(null);
+    const html = render();
+    expect(html).not.toContain("Lohnkirchensteuer");
+    expect(html).toContain("Ohne gespeicherte Angaben zur Einkommensteuer (Vorsorge, Kinder …) rechnet Haben nur mit dem Sonderausgaben-Pauschbetrag.");
   });
 });

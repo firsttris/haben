@@ -64,38 +64,15 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
         Alle Buchungen eines Jahres oder Zeitraums als DATEV-Buchungsstapel ({kontenrahmen || "SKR03/SKR04"}) für die Steuerberatung. Die Kontensalden stimmen
         mit der Saldenliste in Haben überein; die Umsatzsteuer steht wie im Journal auf eigenen Steuerkonten.
       </p>
-      <div className="form-grid">
-        <Field label="Beraternummer">
-          {(control) => (
-            <input
-              {...control}
-              value={beraterNr}
-              onChange={(e) => {
-                setBeraterNr(e.target.value.replace(/\D/g, ""));
-                setSaved(false);
-              }}
-              inputMode="numeric"
-              maxLength={7}
-              required
-            />
-          )}
-        </Field>
-        <Field label="Mandantennummer">
-          {(control) => (
-            <input
-              {...control}
-              value={mandantNr}
-              onChange={(e) => {
-                setMandantNr(e.target.value.replace(/\D/g, ""));
-                setSaved(false);
-              }}
-              inputMode="numeric"
-              maxLength={5}
-              required
-            />
-          )}
-        </Field>
-      </div>
+      <DatevNummern
+        beraterNr={beraterNr}
+        mandantNr={mandantNr}
+        onChange={(patch) => {
+          if (patch.beraterNr !== undefined) setBeraterNr(patch.beraterNr);
+          if (patch.mandantNr !== undefined) setMandantNr(patch.mandantNr);
+          setSaved(false);
+        }}
+      />
       <p className="small muted" style={{ margin: 0 }}>
         Beide Nummern bekommst du von deiner Steuerberatung.
       </p>
@@ -184,5 +161,45 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
       </div>
       <NoticeBanner notice={notice} />
     </form>
+  );
+}
+
+/** Berater- und Mandantennummer; nur Ziffern */
+function DatevNummern({
+  beraterNr,
+  mandantNr,
+  onChange,
+}: {
+  beraterNr: string;
+  mandantNr: string;
+  onChange: (patch: { beraterNr?: string; mandantNr?: string }) => void;
+}) {
+  return (
+    <div className="form-grid">
+      <Field label="Beraternummer">
+        {(control) => (
+          <input
+            {...control}
+            value={beraterNr}
+            onChange={(e) => onChange({ beraterNr: e.target.value.replace(/\D/g, "") })}
+            inputMode="numeric"
+            maxLength={7}
+            required
+          />
+        )}
+      </Field>
+      <Field label="Mandantennummer">
+        {(control) => (
+          <input
+            {...control}
+            value={mandantNr}
+            onChange={(e) => onChange({ mandantNr: e.target.value.replace(/\D/g, "") })}
+            inputMode="numeric"
+            maxLength={5}
+            required
+          />
+        )}
+      </Field>
+    </div>
   );
 }

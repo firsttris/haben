@@ -13,7 +13,11 @@ repo_name: firsttris/haben
 edit_uri: edit/main/docs/
 copyright: >-
   Lizenz AGPL-3.0 · Keine Steuerberatung. ELSTER und ERiC sind Angebote der
-  Finanzverwaltung; dieses Projekt steht in keiner Verbindung zu ihr.
+  Finanzverwaltung; dieses Projekt steht in keiner Verbindung zu ihr. Lexware Office
+  (Lexoffice), sevDesk, FastBill, BuchhaltungsButler, Accountable, WISO und DATEV sind
+  Marken ihrer Inhaber; Haben steht mit diesen Unternehmen nicht in Verbindung und wird
+  von ihnen weder unterstützt noch geprüft.
+  · Einrichtung, Umzug, Support und Partnerschaften: <a href="https://teufel-it.de">teufel-it.de</a>
   · <a href="https://teufel-it.de/de/impressum/">Impressum</a>
   · <a href="https://speicherstadt.app/datenschutz/">Datenschutz</a>
 
@@ -49,6 +53,7 @@ nav:
       - Erste Schritte: einrichtung.md
       - ELSTER einrichten: einrichtung-elster.md
       - E-Mail-Versand: einrichtung-email.md
+      - Von der Testinstanz in den Echtbetrieb: einrichtung-echtbetrieb.md
       - Zugang für die Steuerberatung: steuerberatung.md
       - Barrierefreiheit und Tastatur: barrierefreiheit.md
   - Verkauf:
