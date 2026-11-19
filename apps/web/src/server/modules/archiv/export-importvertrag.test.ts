@@ -61,9 +61,17 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
       source: { filename: `Abruf ${fetchId}`, sha256: fetchId },
     });
     await db.transaction((t) => storeBatch(t, abruf([buchung("ER-1", "2025-12-30", "10.00")], "2025-12-01", "2025-12-31", "abruf-2025"), null));
-    await db.transaction((t) =>
-      storeBatch(t, abruf([buchung("ER-2", "2026-01-05", "20.00"), buchung("ER-3", "2026-01-07", "30.50")], "2026-01-01", "2026-01-10", "abruf-2026"), null),
-    );
+    const januar = abruf([buchung("ER-2", "2026-01-05", "20.00"), buchung("ER-3", "2026-01-07", "30.50")], "2026-01-01", "2026-01-10", "abruf-2026");
+    // Alle Referenzen des Vertrags an einer Bewegung, damit jede Spalte von bank/quellen.csv ihren Wert zeigt
+    januar.batch.movements[1]!.references = {
+      providerReference: "ER-3",
+      eventCode: "PMNT-ICDT-STDO",
+      endToEndId: "E2E-3",
+      relatedEventId: "ER-2",
+      payoutId: "PO-1",
+      orderId: "12-34567-89012",
+    };
+    await db.transaction((t) => storeBatch(t, januar, null));
     // Ein ausgeschlossenes Konto (#462) fehlt im Archiv, auch in bank/quellen.csv
     const fremd = await db.transaction((t) =>
       storeBatch(t, abruf([buchung("ER-9", "2026-01-06", "9.00")], "2026-01-01", "2026-01-10", "abruf-fremd", AUSGESCHLOSSEN, "hash-fremd"), null),
@@ -92,10 +100,10 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
       [IBAN, "enablebanking", "hash-archiv", "2025-12-01", "ER-3", "main", "payment", "2026-01-07", "-30,50", "EUR", lauf!.id],
     ]);
     expect(zeilen.map((z) => z.split(";")[12])).toEqual([id("ER-2"), id("ER-3")]);
-    // Referenzen der Lieferung (#306, Schritt 4): Enable Banking nennt hier nur die entry_reference
+    // Referenzen der Lieferung (#306, Schritt 4), in der Reihenfolge des Kopfs
     expect(zeilen.map((z) => z.split(";").slice(14))).toEqual([
       ["ER-2", "", "", "", "", ""],
-      ["ER-3", "", "", "", "", ""],
+      ["ER-3", "PMNT-ICDT-STDO", "E2E-3", "ER-2", "PO-1", "12-34567-89012"],
     ]);
   });
 
