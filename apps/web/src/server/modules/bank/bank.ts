@@ -46,6 +46,7 @@ import {
   type DarlehenTeil,
   type TaxShare,
   inCents,
+  gruppiereGebuehren,
 } from "@haben/core";
 import {
   checkBalanceContinuity,
@@ -147,10 +148,23 @@ export async function listAccounts() {
         .where(and(eq(schema.bankImports.bankAccountId, account.id), echterImport))
         .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
         .limit(1);
-      const [open] = await db
-        .select({ n: sql<number>`count(*)::int` })
-        .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat()));
+      const offeneUmsaetze = and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat());
+      // Beim Dienstleister stehen Zahlung und Gebühr derselben Bewegung in der Liste in einer Zeile und zählen einmal
+      const openCount =
+        account.purpose === "zahlungsdienstleister"
+          ? gruppiereGebuehren(
+              await db
+                .select({
+                  id: schema.bankTransactions.id,
+                  bankAccountId: schema.bankTransactions.bankAccountId,
+                  bankReference: schema.bankTransactions.bankReference,
+                  amount: schema.bankTransactions.amount,
+                  open: openAmountSql.mapWith(Number),
+                })
+                .from(schema.bankTransactions)
+                .where(offeneUmsaetze),
+            ).length
+          : ((await db.select({ n: sql<number>`count(*)::int` }).from(schema.bankTransactions).where(offeneUmsaetze))[0]?.n ?? 0);
       // Umsätze, die auf einem privaten Konto nicht buchbar sind, zählen nicht als offen, sondern stehen daneben (#1088)
       const privateCount = await zaehlePrivat(account.id);
       // Zahlungsdienstleister nennen keinen Kontostand: Guthaben als Summe der importierten Umsätze
@@ -178,7 +192,7 @@ export async function listAccounts() {
       return {
         ...account,
         lastImport: last ?? null,
-        openCount: open?.n ?? 0,
+        openCount,
         privateCount,
         providerBalance: sum ? Number(sum.total) : null,
         staleOpenCount: stale?.n ?? 0,
