@@ -218,11 +218,15 @@ export async function startRunning(tx: Tx, kind: NumberKind, contactId: string |
  * nächste Nummer eine vergebene (#1426). Wie startRunning rückt die Zeile nur vor: War der Kundenkreis aus einem
  * früheren Einschalten schon weiter, bleibt der höhere Stand.
  */
-export async function seedCustomerCircles(tx: Tx, kind: NumberKind): Promise<void> {
+export async function seedCustomerCircles(tx: Tx, kind: NumberKind, running: boolean): Promise<void> {
   const numbered = NUMBERED[kind];
   const counter = COUNTERS[kind];
+  // Durchlaufende Altbelege tragen Kreis 0. Für einen Jahreskreis zählt ihr Belegjahr.
+  const year = running
+    ? numbered.numberYear
+    : sql<number>`case when ${numbered.numberYear} = 0 then extract(year from ${numbered.issueDate})::smallint else ${numbered.numberYear} end`;
   const rows = await tx
-    .select({ year: numbered.numberYear, contactId: numbered.contactId, last: sql<number>`max(${numbered.numberCounter})` })
+    .select({ year, contactId: numbered.contactId, last: sql<number>`max(${numbered.numberCounter})` })
     .from(numbered)
     .where(
       and(
@@ -233,8 +237,8 @@ export async function seedCustomerCircles(tx: Tx, kind: NumberKind): Promise<voi
         isNotNull(numbered.contactId),
       ),
     )
-    .groupBy(numbered.numberYear, numbered.contactId)
-    .orderBy(asc(numbered.numberYear), asc(numbered.contactId));
+    .groupBy(year, numbered.contactId)
+    .orderBy(asc(year), asc(numbered.contactId));
   // Je Kreis unter seiner Sperre, damit zwei Umschaltungen nicht aneinander vorbei schreiben
   for (const row of rows) {
     await lockNumbering(tx, kind, row.year!, row.contactId!);

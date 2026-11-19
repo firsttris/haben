@@ -60,8 +60,10 @@ export async function putNumberFormats(
   // Wird der Zähler je Kunde neu eingeschaltet und trug das bisherige Format schon {KUNDENNR}, beginnt jeder Kunde
   // hinter seiner höchsten Nummer des gemeinsamen Kreises — sonst ergäbe die erste Nummer eine schon vergebene
   // (#1426). Vor startCircles, damit ein neu durchlaufender Kundenkreis den Stand gleich mitbekommt.
-  if (invoicePerCustomer && !current.invoiceCounterPerCustomer && usesCustomerNumber(current.invoiceNumberFormat)) await seedCustomerCircles(tx, "rechnung");
-  if (quotePerCustomer && !current.quoteCounterPerCustomer && usesCustomerNumber(current.quoteNumberFormat)) await seedCustomerCircles(tx, "angebot");
+  if (invoicePerCustomer && !current.invoiceCounterPerCustomer && usesCustomerNumber(current.invoiceNumberFormat))
+    await seedCustomerCircles(tx, "rechnung", invoiceRunning);
+  if (quotePerCustomer && !current.quoteCounterPerCustomer && usesCustomerNumber(current.quoteNumberFormat))
+    await seedCustomerCircles(tx, "angebot", quoteRunning);
   // Läuft der Zähler durch, bekommt jeder Kreis eine Zeile für den Kreis 0: neu eingeschaltet oder der Kundenkreis
   // neu dazu, je hinter der letzten Nummer des jüngsten Jahres desselben Kreises (startRunning, #1426). Kontakte
   // ohne Zählerzeile haben noch keine Nummer verbraucht und beginnen einfach bei 1 — es sei denn, sie sind oben
