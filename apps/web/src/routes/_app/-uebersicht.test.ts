@@ -245,6 +245,22 @@ describe("Übersicht: Aufbau", () => {
     expect(html).not.toContain("Erste Rechnung schreiben");
   });
 
+  // Jede Zahl allein reicht für die Kennzahlenreihe; sonst verschwänden Karten mit Zahlen (`ohneKennzahlen`)
+  const konto = { id: "k1", name: "Girokonto", purpose: "geschaeft", balance: 0, balanceDate: null, openCount: 0, staleOpenCount: 0 };
+  it.each<[string, Record<string, unknown>, Record<string, unknown>]>([
+    ["festgeschriebene Rechnung", { recent: [{ id: "r1", number: "2026-001", customer: "Nordwerk", gross: 11900, listStatus: "bezahlt" }] }, {}],
+    ["offene Forderung", { openCount: 1 }, {}],
+    ["offene Verbindlichkeit", { payables: { total: 0, count: 1, overdueCount: 0, nextDue: null } }, {}],
+    ["Umsatz im Vormonat", { revenuePreviousMonth: -5000 }, {}],
+    ["Zahllast", {}, { computedKz83: -1900 }],
+    ["Voranmeldung des Zeitraums", {}, { current: { status: "draft", kz83: 0, sentAt: null } }],
+    ["Kontostand 0,00 €", { bank: [konto] }, {}],
+  ])("Kennzahlen erscheinen schon mit %s allein", (_name, rechnungen, uebersicht) => {
+    Object.assign(state.data, uebersicht);
+    Object.assign(state.data.invoices as object, rechnungen);
+    expect(render()).toContain("Umsatz Oktober (netto)");
+  });
+
   // Nahe Fristen (Voranmeldung, Bescheid, Zertifikat; bis 14 Tage) gehen vor, nach Fälligkeit; sonst verschwänden sie hinter drei Warnungen
   // Kalendertage, nicht n * 24 Stunden: Sonst kippt es in den zwei Wochen vor der Zeitumstellung zwischen 23 und 1 Uhr
   const inTagen = (n: number) => {
