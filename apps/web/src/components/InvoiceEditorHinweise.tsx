@@ -38,7 +38,7 @@ export function serviceHintState(editor: {
 }
 
 const ZEITRAUM = "Leistungszeitraum, wenn er vom Rechnungsdatum abweicht. Beide leer: gilt das Rechnungsdatum.";
-const NORMAL = `Tag oder Zeitraum der Leistung, wenn er vom Rechnungsdatum abweicht. Beide leer: Auf der Rechnung steht das Rechnungsdatum. Wirkung auf die Umsatzsteuer bei Zahlung vor der Leistung: siehe Vorauszahlungen.`;
+const NORMAL = `Tag oder Zeitraum der Leistung, wenn er vom Rechnungsdatum abweicht. Beide leer: Auf der Rechnung steht das Rechnungsdatum. Wirkung auf die Umsatzsteuer bei Zahlung vor der Leistung:`;
 const ANGEBOT = "Geplanter Leistungszeitraum. Leer: steht nicht im Angebot.";
 
 /** Text je Feld und Zustand: Nur bei erbrachter Teilleistung unterscheiden sich die Felder, dort ist allein „Leistung von“ Pflicht */
@@ -69,7 +69,7 @@ export function ServiceHint({ state }: { state: ServiceHintState }) {
           <>
             {" "}
             <a href={ADVANCE_DOCS} target="_blank" rel="noreferrer">
-              Vorauszahlungen
+              Vorauszahlung auf normale Rechnungen
             </a>
           </>
         )}
@@ -85,16 +85,15 @@ export function ServiceHint({ state }: { state: ServiceHintState }) {
 
 export const FOREIGN_CURRENCY_DOCS = "https://haben.app/rechnungen.html#rechnungen-in-fremdwährung";
 
-/** Hinweis bei einer Fremdwährung: gleiche Aussagen wie vorher, in drei Sätzen; `id` verbindet ihn mit Währung und Kurs */
+/** Hinweis bei einer Fremdwährung, drei kurze Sätze; Einzelheiten stehen in der Doku, `id` verbindet ihn mit Währung und Kurs */
 export function ForeignCurrencyHint({ currencyCode, rateInfo }: { currencyCode: string; rateInfo: string | null }) {
   return (
     <span id="invoice-currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
       {rateInfo && <strong>{rateInfo}. </strong>}
-      Preise und Summen stehen in {currencyCode || "der Fremdwährung"}, die Umsatzsteuer zusätzlich in Euro (§ 14 Abs. 4 Nr. 8 UStG); gebucht wird in Euro. Ohne
-      eigenen Kurs gilt der Umsatzsteuer-Umrechnungskurs des Leistungsmonats, sobald das BMF ihn veröffentlicht hat. Kein GiroCode, keine Abschlags- oder
-      Schlussrechnung, keine Mahnung aus Haben.{" "}
+      Beträge in {currencyCode || "der Fremdwährung"}, die Umsatzsteuer zusätzlich in Euro. Gebucht wird in Euro; leerer Kurs = Umsatzsteuer-Umrechnungskurs des
+      Leistungsmonats, sobald veröffentlicht. Kein GiroCode, keine Abschlags- oder Schlussrechnung, keine Mahnung aus Haben.{" "}
       <a href={FOREIGN_CURRENCY_DOCS} target="_blank" rel="noreferrer">
-        Mehr zur Fremdwährung
+        Rechnungen in Fremdwährung
       </a>
     </span>
   );

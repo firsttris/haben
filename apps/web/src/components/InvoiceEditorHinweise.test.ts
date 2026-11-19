@@ -26,24 +26,24 @@ describe("Hinweise im Rechnungseditor (#1253)", () => {
     expect(renderToStaticMarkup(createElement(ServiceHint, { state: "angebot" }))).not.toContain("Rechnungsdatum");
   });
 
-  it("Fremdwährung: drei Sätze mit allen Folgen, Währung und Kurs und ein Link in die Doku", () => {
+  it("Fremdwährung: kurz, drei Sätze, Währung und Kurs, die Folgen und ein Link in die Doku", () => {
     const html = renderToStaticMarkup(createElement(ForeignCurrencyHint, { currencyCode: "USD", rateInfo: "Kurs 1,0812 (09/2026)" }));
     expect(html).toContain('id="invoice-currency-hint"');
     expect(html).toContain("<strong>Kurs 1,0812 (09/2026). </strong>");
-    expect(html).toContain("Preise und Summen stehen in USD");
-    for (const folge of [
-      "§ 14 Abs. 4 Nr. 8 UStG",
-      "gebucht wird in Euro",
-      "Umsatzsteuer-Umrechnungskurs des Leistungsmonats",
-      "BMF",
-      "Kein GiroCode",
-      "Schlussrechnung",
-      "Mahnung",
-    ]) {
-      expect(html).toContain(folge);
-    }
+    expect(html).toContain("Beträge in USD, die Umsatzsteuer zusätzlich in Euro.");
+    // Server (`resolveExchangeRate` in exchange-rates.ts): Ein leerer Kurs ist der Umsatzsteuer-Umrechnungskurs des Leistungsmonats nur, sobald er
+    // veröffentlicht ist; sonst bleibt der Entwurf ohne Kurs und lässt sich nicht festschreiben
+    expect(html).toContain("Gebucht wird in Euro; leerer Kurs = Umsatzsteuer-Umrechnungskurs des Leistungsmonats, sobald veröffentlicht.");
+    expect(html).toContain("Kein GiroCode, keine Abschlags- oder Schlussrechnung, keine Mahnung aus Haben.");
     expect(html).toContain(`href="${FOREIGN_CURRENCY_DOCS}"`);
-    expect(renderToStaticMarkup(createElement(ForeignCurrencyHint, { currencyCode: "", rateInfo: null }))).toContain("in der Fremdwährung");
+    expect(html).toContain(">Rechnungen in Fremdwährung</a>");
+    // Ohne den Link und die Kursangabe höchstens drei Viertel des früheren Texts (334 Zeichen); Einzelheiten stehen in der Doku
+    const nurText = renderToStaticMarkup(createElement(ForeignCurrencyHint, { currencyCode: "USD", rateInfo: null }))
+      .replace(/<a .*<\/a>/, "")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+    expect(nurText.length).toBeLessThanOrEqual(250);
+    expect(renderToStaticMarkup(createElement(ForeignCurrencyHint, { currencyCode: "", rateInfo: null }))).toContain("Beträge in der Fremdwährung");
   });
 
   it("Format und Festschreiben: Entscheidungshilfe und Folge am Knopf", () => {
@@ -108,9 +108,9 @@ describe("Hinweis zu „Leistung von“ und „Leistung bis“ in jedem Zustand 
     const aufRechnung = zustand === "rechnung" || zustand === "normal";
     expect(von.includes("Rechnungsdatum")).toBe(aufRechnung);
     expect(bis.includes("Rechnungsdatum")).toBe(aufRechnung);
-    // Die Vorauszahlung steht nur dort, wo ein eingetragener Tag das Vorauszahlungsverfahren auslöst, und der Hinweis sagt nicht, leer und eingetragen seien gleich
-    expect(von.includes("Vorauszahlung")).toBe(zustand === "normal");
-    expect(bis.includes("Vorauszahlung")).toBe(zustand === "normal");
+    // Der Verweis auf die Zahlung vor der Leistung steht nur dort, wo ein eingetragener Tag das Vorauszahlungsverfahren auslöst
+    expect(von.includes("Zahlung vor der Leistung")).toBe(zustand === "normal");
+    expect(bis.includes("Zahlung vor der Leistung")).toBe(zustand === "normal");
     // Die Steuerfolge der Vorauszahlung steht nur in der Doku, nicht im Hinweis
     expect(`${von} ${bis}`).not.toMatch(/Zahlungsmonat|Soll|Ist-|entsteht/);
     // Ein eigener Hinweis je Feld nur, wenn die Texte sich unterscheiden
@@ -119,31 +119,13 @@ describe("Hinweis zu „Leistung von“ und „Leistung bis“ in jedem Zustand 
   });
 });
 
-/**
- * Was das Festschreiben tut, je Rechtsform und Art der Rechnung. `gebucht` ist gegen `advanceInvoicePosting` (`advance-invoice.ts`) gelesen:
- * Eine Anzahlungsanforderung bucht bei GmbH und UG nichts (Anspruch noch nicht bilanziert, #750), sonst bucht das Festschreiben. Nummer, PDF
- * und XML entstehen in jedem Fall. Der Satz der Rückfrage darf deshalb nur sagen, was in allen Zeilen gilt.
- */
-const FESTSCHREIBEN = [
-  { name: "Rechnung, Einzelunternehmen", gebucht: true },
-  { name: "Rechnung, GmbH", gebucht: true },
-  { name: "Rechnung, UG", gebucht: true },
-  { name: "Abschlag als Anzahlung, Einzelunternehmen", gebucht: true },
-  { name: "Abschlag als Anzahlung, GmbH", gebucht: false },
-  { name: "Abschlag als Anzahlung, UG", gebucht: false },
-  { name: "Abschlag mit erbrachter Teilleistung, GmbH", gebucht: true },
-  { name: "Schlussrechnung, GmbH", gebucht: true },
-] as const;
-
 describe("Rückfrage beim Festschreiben einer Rechnung (#1253)", () => {
-  it.each(FESTSCHREIBEN)("$name", () => {
-    // Der Satz behauptet keine Buchung; mit „gebucht“ stimmte er in den Zeilen mit gebucht: false nicht
+  it("Der Satz sagt nur, was in jedem Fall gilt: Nummer, PDF und XML, aber keine Buchung", () => {
+    // Eine Anzahlungsanforderung bucht bei GmbH und UG nichts (`advanceInvoicePosting` in `advance-invoice.ts`, #750); sonst bucht das Festschreiben.
+    // Nummer, PDF und XML entstehen immer. Mit „gebucht“ stimmte der Satz also nicht für die Anzahlung bei GmbH und UG.
     expect(FINALIZE_DIALOG_TEXT).not.toMatch(/buch/i);
     expect(FINALIZE_DIALOG_TEXT).toContain("Nummer");
     expect(FINALIZE_DIALOG_TEXT).toContain("PDF und XML");
-  });
-  it("Die Tabelle enthält Zeilen mit und ohne Buchung, sonst prüfte der Satz nichts", () => {
-    expect(new Set(FESTSCHREIBEN.map((z) => z.gebucht))).toEqual(new Set([true, false]));
   });
 });
 
