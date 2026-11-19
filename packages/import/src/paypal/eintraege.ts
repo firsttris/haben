@@ -10,10 +10,14 @@ import type { PayPalTransaction } from "./client.ts";
  * nimmt die Kennung allein. Kommt sie dennoch mit zwei Ereigniscodes, behält der erste (nach Code sortiert) die Kennung und jeder
  * weitere bekommt `<Kennung>/<Code>`, damit kein Betrag fehlt und der Vertrag die Lieferung annimmt.
  *
- * Betrag (`transaction_amount`) und Gebühr (`fee_amount`) sind zwei Komponenten desselben Ereignisses. Die Gebühr steht in
- * der API mit Vorzeichen wie in der Spalte „Gebühr“ des CSV-Exports; Haben bucht sie so. Eine Zahlung mit positiver Gebühr
- * wäre das Gegenteil von dem, was die Doku und der Export sagen: Haben übernimmt sie nicht, sondern meldet sie, statt eine
- * Gebühr mit falschem Vorzeichen zu buchen.
+ * Betrag (`transaction_amount`) und Gebühr (`fee_amount`) sind zwei Komponenten desselben Ereignisses. Haben bucht die Gebühr
+ * mit dem Vorzeichen, das die API liefert, und nimmt an, dass es bei einer Zahlung negativ ist. Die OpenAPI-Spezifikation von
+ * PayPal (`reporting_transactions_v1.json`) sagt dazu nichts („The PayPal fee amount“, ohne Vorzeichen oder Beispiel). Belege
+ * für die Annahme sind nur die Spalte „Gebühr“ des Aktivitätenexports (bei Zahlungen negativ) und zwei Integrationen, die die
+ * Transaction Search im Echtbetrieb nutzen und die Gebühr ebenso lesen: pgeu-system
+ * (`postgresqleu/paypal/management/commands/paypal_fetch.py`) und OCA `account_statement_import_online_paypal`. Eine
+ * echte Antwort der API steht aus (#1512). Stimmt die Annahme nicht, bucht Haben nichts Falsches: Eine Zahlung mit positiver
+ * Gebühr übernimmt es nicht, sondern meldet sie.
  */
 
 /** Teil des Grunds für ein Ereignis, das Haben nicht einordnet */
