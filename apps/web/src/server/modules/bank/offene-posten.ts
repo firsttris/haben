@@ -76,6 +76,21 @@ function bookedBankDocuments() {
   );
 }
 
+/**
+ * Offene Korrekturen an ihrer Rechnung (openCorrections): Der Abgleich bietet für „Rechnung minus Korrektur“ dann die
+ * Aufteilung an statt Skonto oder Forderungsausfall (#1398)
+ */
+function attachOpenCorrections(items: OpenItem[], invoices: { id: string; kind: string; correctsId: string | null }[]): void {
+  // Eine Korrektur korrigiert immer eine Rechnung, nie eine andere Korrektur (correction-checks.ts)
+  const byId = new Map(items.map((item) => [item.id, item]));
+  for (const inv of invoices) {
+    const original = inv.kind === "korrektur" && inv.correctsId ? byId.get(inv.correctsId) : undefined;
+    const correction = byId.get(inv.id);
+    if (!original || !correction) continue;
+    original.openCorrections = [...(original.openCorrections ?? []), { id: correction.id, number: correction.number, open: correction.open }];
+  }
+}
+
 /** Offene Rechnungen und Belege für den Abgleich */
 export async function openItems(): Promise<OpenItem[]> {
   const { invoices, stornos } = await finalInvoiceRows();
@@ -123,6 +138,7 @@ export async function openItems(): Promise<OpenItem[]> {
       ...(skonto.length > 0 ? { skonto } : {}),
     });
   }
+  attachOpenCorrections(items, invoices);
   // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
   for (const storno of stornos) {
     if (paperStornos.has(storno.id)) continue;
