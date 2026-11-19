@@ -1,6 +1,5 @@
 import type { Cents } from "@haben/core";
-import { lexToCents } from "../lexoffice/map.ts";
-import { fbNumber } from "./map.ts";
+import { fbCents, fbNumber } from "./map.ts";
 import type { FbProject, FbTime } from "./types.ts";
 
 /*
@@ -27,6 +26,12 @@ export interface FbMappedTime {
 export type FbTimeMapped = { ok: true; time: FbMappedTime } | { ok: false; timeId: string; customerId: string | null; reason: string };
 
 const text = (value: unknown) => (value == null ? "" : String(value).trim());
+/** Ein Tag, den es gibt (wie isRealDate bei den Zeiteinträgen): sonst lehnte Haben die Zeit erst beim Anlegen ab */
+const isRealDate = (v: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v && d.getUTCFullYear() >= 1900;
+};
 const idOrNull = (value: unknown) => (text(value) && text(value) !== "0" ? text(value) : null);
 
 /** Abgerechnet, wenn FastBill eine Rechnung nennt; bei offenen Zeiten fehlt INVOICE_ID */
@@ -38,12 +43,13 @@ export function mapFbTime(t: FbTime, projects: ReadonlyMap<string, FbProject>): 
   const customerId = idOrNull(t.CUSTOMER_ID) ?? idOrNull(project?.CUSTOMER_ID);
   const fail = (reason: string): FbTimeMapped => ({ ok: false, timeId, customerId, reason });
   const workedOn = text(t.DATE).slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(workedOn) || workedOn.startsWith("0000")) return fail("Kein Datum.");
+  if (!isRealDate(workedOn)) return fail("Kein Datum.");
   const minutes = Math.round(fbNumber(t.MINUTES));
   if (minutes < 1) return fail("Keine Dauer.");
   if (minutes > 24 * 60) return fail(`Dauer ${minutes} Minuten, Haben nimmt höchstens 24 Stunden je Eintrag.`);
   const billable = t.BILLABLE_MINUTES == null || text(t.BILLABLE_MINUTES) === "" ? minutes : Math.round(fbNumber(t.BILLABLE_MINUTES));
   if (billable > 24 * 60) return fail(`Abrechenbare Dauer ${billable} Minuten, Haben nimmt höchstens 24 Stunden je Eintrag.`);
+  if (billable < 0) return fail("Abrechenbare Dauer negativ.");
   const currency = text(project?.CURRENCY_CODE).toUpperCase() || "EUR";
   if (currency !== "EUR") return fail(`Projekt in ${currency}: Haben rechnet Zeiten nur in Euro ab.`);
   const rate = fbNumber(project?.HOUR_PRICE);
@@ -59,7 +65,7 @@ export function mapFbTime(t: FbTime, projects: ReadonlyMap<string, FbProject>): 
       nonBillable: billable === 0,
       description: text(t.COMMENT).slice(0, 2000),
       project: text(project?.PROJECT_NAME).slice(0, 200),
-      hourlyRateCents: rate > 0 ? lexToCents(rate) : undefined,
+      hourlyRateCents: rate > 0 ? fbCents(project?.HOUR_PRICE) : undefined,
     },
   };
 }

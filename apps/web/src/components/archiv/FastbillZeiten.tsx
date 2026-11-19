@@ -1,4 +1,5 @@
-import { formatEuro } from "@haben/core";
+import { formatDuration, formatEuro } from "@haben/core";
+import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { useAction } from "../../lib/use-action.ts";
@@ -10,19 +11,24 @@ import { ScrollTable } from "../ScrollTable.tsx";
 
 type Plan = Awaited<ReturnType<typeof previewFastbillTimesFn>>;
 
-const hours = (minutes: number) => `${(minutes / 60).toLocaleString("de-DE", { maximumFractionDigits: 2 })} Std.`;
-
 export function FastbillZeiten() {
   const previewFn = useServerFn(previewFastbillTimesFn);
   const importFn = useServerFn(importFastbillTimesFn);
   const action = useAction();
+  // Danach neu laden: Die Verbindung zeigt die genutzten Anfragen der Stunde
+  const router = useRouter();
   const [plan, setPlan] = useState<Plan | null>(null);
 
-  const preview = () => action.run(async () => setPlan(await previewFn()));
+  const preview = () =>
+    action.run(async () => {
+      setPlan(await previewFn());
+      await router.invalidate();
+    });
   const take = () =>
     action.run(async () => {
       const result = await importFn();
       setPlan(null);
+      await router.invalidate();
       const failed = result.failed.length ? `, ${result.failed.length} nicht übernommen` : "";
       action.setNotice({ tone: "ok", text: `${result.created} Zeiteinträge angelegt, ${result.updated} aktualisiert${failed}.` });
     });
@@ -56,7 +62,8 @@ function TimesPlan({ plan }: { plan: Plan }) {
   return (
     <>
       <p className="small" role="status" style={{ margin: 0 }}>
-        {plan.ready} offen und übernehmbar, {plan.problems.length} mit Fehlern, {plan.billed} schon abgerechnet und nicht übernommen.
+        {plan.ready} offen und übernehmbar, {plan.problems.length} mit Fehlern, {plan.billed} in FastBill abgerechnet und {plan.billedInHaben} in Haben
+        abgerechnet, beide nicht übernommen.
       </p>
       {plan.customers.length > 0 && (
         <ScrollTable className="report-table">
@@ -79,7 +86,7 @@ function TimesPlan({ plan }: { plan: Plan }) {
               <tr key={c.name}>
                 <td>{c.name}</td>
                 <td className="num">{c.entries}</td>
-                <td className="num">{hours(c.minutes)}</td>
+                <td className="num">{formatDuration(c.minutes)} Std.</td>
                 <td className="num">{formatEuro(c.amountCents)}</td>
               </tr>
             ))}
