@@ -14,7 +14,8 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { sha256Of } from "../../storage.ts";
-import { BankError, importStatement, type ImportResult, storeStatement, UnbekannteCsvError } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
+import { importStatement, type ImportResult, storeStatement, UnbekannteCsvError } from "./statement-import.ts";
 
 /*
  * Bank-CSV, die Haben nicht kennt, über eine Spaltenzuordnung von Hand importieren (#1275). Die Zuordnung hängt am

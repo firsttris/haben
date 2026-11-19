@@ -17,7 +17,7 @@ import { db, schema, type Tx } from "../../db/index.ts";
 import { loadCompany, sellerIssues, type Company, type Contact } from "../stammdaten/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { sha256 } from "./invoices.ts";
+import { sha256 } from "./invoice-finalize.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 import { invoicePostingMode, invoiceVatDate } from "./invoice-tax.ts";
 import { InvoiceError } from "./invoice-error.ts";

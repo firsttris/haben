@@ -3,6 +3,25 @@
 # des Containers und die Tabelle backup_status. Gleiche Regeln wie ohneZugangsdaten in
 # apps/web/src/server/modules/betrieb/restic-ziel.ts; restic-ziel.test.ts prüft beide an denselben Meldungen.
 
+# Läuft das Ziel über rclone, und welchen Abschnitt nennt die Adresse? Diese Datei ist die einzige, die
+# RESTIC_REPOSITORY liest (restic-ziel.test.ts, #1349); rclone-ziel.sh fragt hier.
+ziel_ist_rclone() {
+  case "${RESTIC_REPOSITORY:-}" in
+    rclone:*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Abschnitt aus rclone:<abschnitt>:<pfad>. Die Form rclone::<typ>,<parameter>:<pfad> bringt alles selbst mit und
+# braucht keine Datei; dann bleibt der Name leer. Parameter hinter dem Abschnitt (rclone:<abschnitt>,pass=…:<pfad>,
+# rclone-Doku „Connection strings“) gehören nicht zum Namen und nicht ins Log.
+rclone_ziel_abschnitt() {
+  case "${RESTIC_REPOSITORY:-}" in
+    rclone::*) printf '' ;;
+    rclone:*) printf '%s' "${RESTIC_REPOSITORY#rclone:}" | cut -d: -f1 | cut -d, -f1 ;;
+  esac
+}
+
 # RESTIC_REPOSITORY ohne Zugangsdaten: Nutzer und Passwort einer Adresse (credentials_from_address), den Nutzer von
 # sftp:nutzer@host und die Parameter einer rclone-Verbindungszeichenkette (rclone::sftp,pass=…:pfad). Anders als in
 # einer Meldung beenden Leerraum und " die Zugangsdaten hier nicht, sie gehören zum Passwort.

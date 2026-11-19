@@ -12,7 +12,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 describe.skipIf(!testDatabaseUrl)("Schlussrechnung mit Gesamtrabatt (Postgres)", () => {
   let quotes: typeof import("./quotes.ts");
   let plan: typeof import("./quote-plan.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Schlussrechnung mit Gesamtrabatt (Postgres)",
     sql = await setupTestDb();
     quotes = await import("./quotes.ts");
     plan = await import("./quote-plan.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);
 

@@ -8,7 +8,7 @@ import { today } from "../../today.ts";
 import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts";
 import { directDebitReferences } from "./lastschrift-abgleich.ts";
 
-/* Offene Rechnungen und Belege für den Abgleich der Bankumsätze (bank.ts) */
+/* Offene Rechnungen und Belege für den Abgleich der Bankumsätze (transaction-detail.ts) */
 
 /** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
 function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }, externalId = inv.externalId) {

@@ -2,7 +2,9 @@ import { withActor } from "../../db/actor.ts";
 import { contactPersonProblem } from "../stammdaten/index.ts";
 import { draftInputOf } from "./external-reference.ts";
 import { InvoiceError } from "./invoice-error.ts";
-import { assertCustomer, draftSchema, getInvoice, insertDraft, type Invoice } from "./invoices.ts";
+import { draftSchema } from "./draft-schema.ts";
+import { assertCustomer, insertDraft } from "./invoice-drafts.ts";
+import { getInvoice, type Invoice } from "./invoices.ts";
 
 /** Warum sich eine Rechnung nicht kopieren lässt; null = sie lässt sich kopieren */
 function copyProblem(invoice: Pick<Invoice, "kind" | "variant" | "status">): string | null {

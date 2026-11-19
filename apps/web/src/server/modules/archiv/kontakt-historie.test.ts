@@ -14,7 +14,7 @@ const TODAY = "2026-11-11";
 describe.skipIf(!testDatabaseUrl)("Rechnungen und Belege am Kontakt (Postgres)", () => {
   let history: typeof import("./kontakt-historie.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let documents: typeof import("../belege/documents.ts");
   let cancellation: typeof import("../belege/cancellation.ts");
   let legacy: typeof import("./legacy-open.ts");
@@ -31,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Belege am Kontakt (Postgres)",
     sql = await setupTestDb();
     history = await import("./kontakt-historie.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     documents = await import("../belege/documents.ts");
     cancellation = await import("../belege/cancellation.ts");
     legacy = await import("./legacy-open.ts");

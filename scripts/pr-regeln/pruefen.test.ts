@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ const datei = (pfad: string, inhalt: string) => {
 const pruefen = (...args: string[]) => {
   const env = { ...process.env, GITHUB_EVENT_PATH: "", PR_REGELN_ERGEBNIS: "" };
   const lauf = spawnSync("bun", [SKRIPT, ...args], { cwd: repo, encoding: "utf8", env });
-  return { code: lauf.status, ausgabe: lauf.stdout };
+  return { code: lauf.status, ausgabe: lauf.stdout, fehler: lauf.stderr };
 };
 
 beforeAll(() => {
@@ -25,7 +25,7 @@ beforeAll(() => {
   git("init", "-q", "-b", "main");
   git("config", "user.email", "test@example.invalid");
   git("config", "user.name", "Test");
-  datei("scripts/dateigroesse/altdateien.json", "[]\n");
+  datei(".checks/large-files.txt", "");
   git("add", ".");
   git("commit", "-qm", "Basis");
   git("checkout", "-qb", "thema");
@@ -137,5 +137,20 @@ describe("pruefen.ts: lange Funktionen", () => {
     expect(code).toBe(0);
     expect(ausgabe).toMatch(/^Hinweis: scripts\/x\/neu\.ts: Funktion „neu“ ist neu mit 90 Zeilen/m);
     expect(ausgabe).not.toContain("umbenannt.ts");
+  });
+});
+
+describe("pruefen.ts ohne Liste der alten großen Dateien", () => {
+  it("bricht ab wie früher ohne altdateien.json, statt keine gewachsene Datei zu melden", () => {
+    const liste = join(repo, ".checks/large-files.txt");
+    renameSync(liste, `${liste}.weg`);
+    try {
+      const { code, ausgabe, fehler } = pruefen("--basis", "main");
+      expect(code).toBe(1);
+      expect(fehler).toContain(".checks/large-files.txt not found");
+      expect(ausgabe).not.toContain("PR-Regeln: alles in Ordnung");
+    } finally {
+      renameSync(`${liste}.weg`, liste);
+    }
   });
 });

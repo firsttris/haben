@@ -1,24 +1,76 @@
-import { aufKontoAngeboten, type AccountPurpose, suggestDirectBooking, suggestMatches } from "@haben/core";
-import { learnedDirectSuggestions, listTransactions, openItems, ownAccounts, UMSATZ_LISTENLIMIT } from "./bank.ts";
+import {
+  aufKontoAngeboten,
+  directBookingLabel,
+  kategorieText,
+  type AccountPurpose,
+  type DirectSuggestion,
+  type Suggestion,
+  suggestDirectBooking,
+  suggestMatches,
+} from "@haben/core";
+import { loadCompany } from "../stammdaten/index.ts";
+import { ownAccounts } from "./accounts.ts";
+import type { AllocationInput } from "./allocation.ts";
+import { learnedDirectSuggestions } from "./learned-suggestions.ts";
+import { openItems } from "./offene-posten.ts";
+import { listTransactions, UMSATZ_LISTENLIMIT } from "./transaction-list.ts";
 import { nachStatusSortieren, type UmsatzSortierung } from "./umsatzliste.ts";
 
 type Umsatz = Awaited<ReturnType<typeof listTransactions>>[number];
 
 type Konto = { id: string; purpose: AccountPurpose };
 
+/** Buchungsarten, die sich ohne weitere Angaben bestätigen lassen; Geldtransit braucht die Gegenbuchung, Aufladung eine Kategorie, Steuerzahlungen den Zeitraum der Anmeldung */
+const EINFACHE_ARTEN = ["privat", "spende", "gebuehren", "mahnerloes", "zinsertrag"] as const;
+
+/** Was „Bestätigen“ bucht (#1440): genau der Vorschlag, den die Liste zeigt; null, wenn er sich nicht ohne Rückfrage buchen lässt */
+export type Bestaetigung = { input: AllocationInput; text: string };
+
+function bestaetigungFuer(
+  row: { id: string; open: number },
+  match: Suggestion | undefined,
+  direkt: DirectSuggestion | null,
+  gelernt: DirectSuggestion | undefined,
+  rechtsform: Parameters<typeof directBookingLabel>[1],
+): Bestaetigung | null {
+  const transactionId = row.id;
+  const amount = row.open;
+  if (match) {
+    // Nur der volle Betrag ohne Skonto, Kursdifferenz oder Gebühr; alles andere entscheidet der Mensch in der Detailansicht
+    if (match.amount !== amount || match.skonto || match.exchangeDifference) return null;
+    if (match.item.type === "invoice")
+      return { input: { kind: "invoice", transactionId, invoiceId: match.item.id, amount }, text: `Rechnung ${match.item.number}` };
+    if (match.item.type === "document")
+      return { input: { kind: "document", transactionId, documentId: match.item.id, amount }, text: `Beleg ${match.item.number}` };
+    return null;
+  }
+  // Wie in der Detailansicht: eine Regel der Kontozwecke gilt vor dem Gelernten (transaction-detail.ts); ist sie nicht bestätigbar, bleibt es beim Einzelbuchen
+  const art = direkt ?? gelernt;
+  if (!art || art.requiresCounterpart) return null;
+  if (art.kind === "kategorie") {
+    return art.kategorie ? { input: { kind: "kategorie", transactionId, amount, kategorie: art.kategorie }, text: kategorieText(art.kategorie) } : null;
+  }
+  const kind = EINFACHE_ARTEN.find((k) => k === art.kind);
+  if (!kind) return null;
+  return { input: { kind, transactionId, amount }, text: directBookingLabel(kind, rechtsform) };
+}
+
 /** Hinweis je Umsatz; Vorschläge für direkte Buchungen hängen am Konto des Umsatzes, auch in „Alle Konten“ */
-async function mitHinweisen(
+export async function mitHinweisen(
   umsatze: Umsatz[],
   items: Awaited<ReturnType<typeof openItems>>,
   own: Awaited<ReturnType<typeof ownAccounts>>,
   konten: readonly Konto[],
 ) {
-  const learned = await learnedDirectSuggestions(umsatze.filter((row) => row.open !== 0 && row.open === row.amount));
+  const learned = await learnedDirectSuggestions(umsatze.filter((row) => !row.duplicatePending && row.open !== 0 && row.open === row.amount));
+  const { rechtsform } = await loadCompany();
   return umsatze.map((row) => {
-    if (row.neutralized) return { ...row, suggestion: null, hint: "verrechnet" as const };
+    if (row.duplicateConfirmed) return { ...row, suggestion: null, bestaetigung: null, hint: "bestaetigteDublette" as const };
+    if (row.duplicatePending) return { ...row, suggestion: null, bestaetigung: null, hint: "dublette" as const };
+    if (row.neutralized) return { ...row, suggestion: null, bestaetigung: null, hint: "verrechnet" as const };
     // Gekennzeichnete Umsätze auf privaten Konten sind erledigt, ohne gebucht zu sein (#1088): nicht „Offen"
-    if (row.privat) return { ...row, suggestion: null, hint: "privat" as const };
-    if (row.open === 0) return { ...row, suggestion: null, hint: "zugeordnet" as const };
+    if (row.privat) return { ...row, suggestion: null, bestaetigung: null, hint: "privat" as const };
+    if (row.open === 0) return { ...row, suggestion: null, bestaetigung: null, hint: "zugeordnet" as const };
     const current = own.find((account) => account.id === row.bankAccountId);
     const purpose = konten.find((konto) => konto.id === row.bankAccountId)?.purpose ?? "geschaeft";
     const [match] = suggestMatches({ ...row, amount: row.open }, items, 1);
@@ -27,8 +79,11 @@ async function mitHinweisen(
     // Gelernte Buchungsarten müssen auf diesem Konto zulässig sein (#873).
     const previous = learned.get(row.id);
     const hasSuggestion = !!match || (direct !== null && !direct.requiresCounterpart) || (previous !== undefined && aufKontoAngeboten(previous.kind, purpose));
+    const gelerntErlaubt = previous !== undefined && aufKontoAngeboten(previous.kind, purpose) ? previous : undefined;
+    const bestaetigung = hasSuggestion ? bestaetigungFuer(row, match, direct, gelerntErlaubt, rechtsform) : null;
     return {
       ...row,
+      bestaetigung,
       suggestion: match ? { type: match.item.type, number: match.item.number, partyName: match.item.partyName } : null,
       hint: hasSuggestion
         ? ("vorschlag" as const)

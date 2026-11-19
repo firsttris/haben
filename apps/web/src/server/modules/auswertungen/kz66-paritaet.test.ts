@@ -16,7 +16,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Kz 66 je Monat aus dem Journal (Postgres, #786)", () => {
   let abgleich: typeof import("./abgleich.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let verrechnung: typeof import("../bank/verrechnung.ts");
   let documents: typeof import("../belege/documents.ts");
   let sql: postgres.Sql;
@@ -27,7 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Kz 66 je Monat aus dem Journal (Postgres, #78
     sql = await setupTestDb();
     abgleich = await import("./abgleich.ts");
     vat = await import("../umsatzsteuer/index.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     verrechnung = await import("../bank/verrechnung.ts");
     documents = await import("../belege/documents.ts");
   }, 60_000);

@@ -13,7 +13,7 @@ const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0
 
 describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres)", () => {
   let attachments: typeof import("./attachments.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let invoiceMail: typeof import("./invoice-mail.ts");
   let mail: typeof import("../mail/mail.ts");
   let storage: typeof import("../../storage.ts");
@@ -26,7 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres
   beforeAll(async () => {
     sql = await setupTestDb();
     attachments = await import("./attachments.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     invoiceMail = await import("./invoice-mail.ts");
     mail = await import("../mail/mail.ts");
     storage = await import("../../storage.ts");

@@ -41,7 +41,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let datev: typeof import("../auswertungen/datev-export.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let sammel: typeof import("../bank/sammelzuordnung.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -55,7 +55,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     datev = await import("../auswertungen/datev-export.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     sammel = await import("../bank/sammelzuordnung.ts");
   }, 30_000);
 

@@ -14,7 +14,7 @@ import {
   runDueRecurring,
   updateRecurring,
 } from "../modules/rechnungen/index.ts";
-import { sevdeskRecurringOrigin } from "../modules/archiv/index.ts";
+import { fastbillRecurringOrigin, sevdeskRecurringOrigin } from "../modules/archiv/index.ts";
 import { kleinunternehmerStand } from "../modules/auswertungen/index.ts";
 import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
@@ -60,6 +60,7 @@ export const getRecurringDetail = createServerFn({ method: "GET" })
       ...result,
       preview: invoiceForDate(result.recurring, result.recurring.nextDate),
       sevdesk: await sevdeskRecurringOrigin(result.recurring.id),
+      fastbill: await fastbillRecurringOrigin(result.recurring.id),
       ...(await formContext()),
     };
   });

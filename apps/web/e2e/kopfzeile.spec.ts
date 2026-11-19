@@ -256,6 +256,8 @@ for (const [geraet, viewport] of [
     expect(await groesse(titel)).toBeGreaterThan(await groesse(dialog.getByRole("heading", { name: "Allgemein" })));
     expect(await groesse(titel)).toBeGreaterThanOrEqual(20);
 
+    // Das Letzte im Formular steckt in „Weitere Angaben“ (#1253); aufgeklappt wie vor dem Einklappen
+    await dialog.getByText("Weitere Angaben").click();
     const unten = dialog.locator(".form-section select").last();
     await unten.focus();
     await sichtbar(titel);

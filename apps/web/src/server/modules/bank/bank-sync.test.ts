@@ -92,7 +92,7 @@ function fakeApi() {
               tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"),
               tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1"),
               ...(state.aktuell ? [tx("a4", today(), state.aktuell === "anders" ? "6.00" : "5.00", "DBIT", "Gebühr aktuell")] : []),
-              // Dieselbe entry_reference zweimal mit anderem Betrag: Der Vertrag lehnt die Lieferung ab
+              // Dieselbe entry_reference zweimal mit anderem Betrag: beide Umsätze am Inhalt erkennen
               ...(state.doppelt ? [tx("a5", today(), "1.00", "DBIT", "Doppelt"), tx("a5", today(), "2.00", "DBIT", "Doppelt")] : []),
               ...(state.ohneReferenz
                 ? [{ ...tx("", today(), "5.00", "DBIT", "Kontoführung ohne Referenz"), entry_reference: null, transaction_id: "T-1" }]
@@ -108,7 +108,7 @@ function fakeApi() {
 
 describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
   let sync: typeof import("./bank-sync.ts");
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let db: typeof import("../../db/index.ts");
   let sql: postgres.Sql;
   const api = fakeApi();
@@ -123,7 +123,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     });
     Object.assign(process.env, { ENABLE_BANKING_APP_ID: "app-1", ENABLE_BANKING_KEY: privateKey.replace(/\n/g, "\\n") });
     sync = await import("./bank-sync.ts");
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     db = await import("../../db/index.ts");
     const { EnableBankingClient } = await import("@haben/import");
     sync.setEnableBankingClientFactory((o) => new EnableBankingClient({ ...o, fetch: api.fetchFn }));
@@ -458,15 +458,16 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect([gebuehr!.n, gebuehr!.amount]).toEqual([1, -500]);
   });
 
-  it("lehnt eine Lieferung nach dem Vertrag ab, meldet sie an der Verbindung und ruft die anderen Konten weiter ab (#306)", async () => {
+  it("übernimmt einen Abruf mit mehrfach vergebener Referenz und meldet die Inhaltsprüfung (#865)", async () => {
     const [connection] = await sync.listConnections();
     api.state.doppelt = true;
     const result = await sync.syncConnection(actor, connection!.id);
     api.state.doppelt = false;
-    expect(result.error).toContain("Abruf nach dem Importvertrag abgelehnt: a5/main steht zweimal in der Lieferung.");
-    expect(result.accounts.map((a) => a.iban)).toEqual([IBAN_B, IBAN_C]);
+    expect(result.error).toBeFalsy();
+    expect(result.accounts.map((a) => a.iban)).toEqual([IBAN_A, IBAN_B, IBAN_C]);
+    expect(result.accounts[0]!.vertragHinweise).toContain("2 Umsätze mit mehrfach vergebener Bankreferenz: am Inhalt erkannt.");
     const [doppelt] = await sql`select count(*)::int as n from bank_transactions where purpose = 'Doppelt'`;
-    expect(doppelt!.n).toBe(0);
+    expect(doppelt!.n).toBe(2);
   });
 
   it("fällt bei einem gebundenen Konto nicht auf den Weg ohne Vertrag zurück, auch wenn die Bank keine Kennung nennt (#306)", async () => {
@@ -484,8 +485,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(await sync.listConnections()).toEqual([]);
     const [count] = await sql`select count(*)::int as n from bank_transactions`;
     // vier abgerufene bzw. per CSV importierte, der Umsatz aus der Datei für Konto B, der ohne entry_reference und die
-    // Gebühr aus dem Konflikttest (#306)
-    expect(count!.n).toBe(7);
+    // Gebühr aus dem Konflikttest (#306) sowie zwei Umsätze mit mehrfach vergebener Referenz (#865)
+    expect(count!.n).toBe(9);
     const audit = await sql`select action, new_value from audit_log where table_name = 'bank_connections' and action = 'INSERT' limit 1`;
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
   });

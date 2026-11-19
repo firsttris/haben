@@ -8,11 +8,11 @@ import { turnoverFixtures } from "../../../test-fixtures/gesamtumsatz.ts";
 describe.skipIf(!testDatabaseUrl)("Unabhängige KU-EÜR-Gegenprobe: betriebliche Guthabenzinsen", () => {
   let sql: postgres.Sql;
   let annual: typeof import("../jahreserklaerung/annual.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   beforeAll(async () => {
     sql = await setupTestDb();
     annual = await import("../jahreserklaerung/annual.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 30_000);
   afterAll(async () => {
     await sql?.end();

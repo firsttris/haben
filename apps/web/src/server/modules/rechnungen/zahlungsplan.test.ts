@@ -13,7 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Angebot mit Wahlpositionen und Zahlungsplan (
   let quotes: typeof import("./quotes.ts");
   let plan: typeof import("./quote-plan.ts");
   let orders: typeof import("./order-documents.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -59,7 +59,7 @@ describe.skipIf(!testDatabaseUrl)("Angebot mit Wahlpositionen und Zahlungsplan (
     quotes = await import("./quotes.ts");
     plan = await import("./quote-plan.ts");
     orders = await import("./order-documents.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);
 

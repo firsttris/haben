@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { type EbAccount, EnableBankingApiError } from "@haben/import";
 import { db, schema } from "../../db/index.ts";
 import type { BankConnectionAccount } from "../../db/schema.ts";
-import { BankError } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 
 /**
  * Kontokennung für die Quellenbindung: gespeichert, sonst aus einer schon bestehenden Bindung des Kontos, sonst aus den

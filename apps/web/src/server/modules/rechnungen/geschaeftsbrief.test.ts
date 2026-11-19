@@ -28,7 +28,7 @@ const PFLICHTANGABEN = "Sitz der Gesellschaft: Regensburg · Registergericht: Am
 /** Pflichtangaben einer GmbH oder UG auf Rechnung, Mahnung und E-Mail (§ 35a Abs. 1 GmbHG) */
 describe.skipIf(!testDatabaseUrl)("Geschäftsbriefe nach § 35a GmbHG (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let invoiceMail: typeof import("./invoice-mail.ts");
   let dunning: typeof import("./dunning.ts");
   let mail: typeof import("../mail/mail.ts");
@@ -40,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)("Geschäftsbriefe nach § 35a GmbHG (Postgres)
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     invoiceMail = await import("./invoice-mail.ts");
     dunning = await import("./dunning.ts");
     mail = await import("../mail/mail.ts");

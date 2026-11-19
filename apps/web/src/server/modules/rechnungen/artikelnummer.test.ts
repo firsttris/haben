@@ -22,7 +22,7 @@ function pdfText(pdf: Uint8Array): string | null {
 
 /** Artikelnummer in der Position von Rechnung, Angebot und wiederkehrender Rechnung (#388, BT-155) */
 describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let recurring: typeof import("./recurring.ts");
   let orderDocuments: typeof import("./order-documents.ts");
@@ -64,7 +64,7 @@ describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () =
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     recurring = await import("./recurring.ts");
     orderDocuments = await import("./order-documents.ts");

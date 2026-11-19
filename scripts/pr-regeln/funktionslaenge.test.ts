@@ -1,5 +1,9 @@
+import { functionLengths as countFunctions } from "@firsttris/checks/checks/function-length.ts";
 import { describe, expect, it } from "vitest";
-import { checksFunctions, functionLengthHints, functionLengths } from "./funktionslaenge.ts";
+import { ANONYMOUS, checksFunctions, functionLengthHints } from "./funktionslaenge.ts";
+
+/** Gezählt wird im Paket; die Fälle bleiben hier, damit sich zeigt, dass es so zählt wie zuvor das eigene Skript */
+const functionLengths = (file: string, code: string) => countFunctions(file, code, ANONYMOUS);
 
 /** Funktion mit `lines` Zeilen nach Biome: so viele Anweisungen im Rumpf, dazwischen Leerzeilen, die nicht zählen */
 const fn = (name: string, lines: number) => `export function ${name}() {\n${Array.from({ length: lines }, (_, i) => `  const v${i} = ${i};\n`).join("\n")}}\n`;

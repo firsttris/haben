@@ -5,6 +5,8 @@ import { authMiddleware } from "../middleware.ts";
 import {
   cancelFastbillImport as cancelFastbill,
   fastbillArticlesCsv,
+  importFastbillTimes,
+  previewFastbillTimes,
   fastbillReceiptScriptList,
   markFastbillWithoutReceipt,
   MAX_ARCHIVE_SIZE,
@@ -80,3 +82,13 @@ export const markFastbillReceiptsMissing = createServerFn({ method: "POST" })
 export const getFastbillArticlesCsv = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async () => fastbillArticlesCsv());
+
+/** Offene Zeiten aus FastBill: Vorschau ohne Speichern (#1522) */
+export const previewFastbillTimesFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async () => previewFastbillTimes());
+
+/** Offene Zeiten aus FastBill als Zeiteinträge anlegen oder aktualisieren */
+export const importFastbillTimesFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => importFastbillTimes(context.user.id));
