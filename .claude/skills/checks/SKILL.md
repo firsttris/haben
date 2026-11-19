@@ -30,7 +30,7 @@ Ports vorher prüfen (`lsof -i :5632` oder `docker ps`). Am Ende `docker compose
 - Einzelne Tests: `bun --bun vitest run <pfad>`.
 - E2E braucht die Browser von Playwright, die der Container nicht hat: dann nur in der CI. Port 3100 ist der E2E-Server.
 - Doku ohne Zensical: der Einzeiler aus „Prüfungen ohne Bun“, er läuft auch im Worktree.
-- Vor dem Push: Nennt `bun run lint` einen Hinweis mit `--aufraeumen`, den genannten Befehl ausführen und die geänderte `altdateien.json` oder `altstellen.json` mitcommitten.
+- Vor dem Push: Nennt `bun run lint` einen Hinweis mit `checks file-size --clean` oder `--aufraeumen`, den Befehl ausführen (`bunx checks file-size --clean`) und die geänderte `.checks/large-files.txt` oder `altstellen.json` mitcommitten.
 
 ## 4. Übersprungenes melden
 

@@ -73,8 +73,8 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Ein Modul importiert nur Module, die in `scripts/modulgrenzen/schichten.ts` vor ihm stehen, außer den Ausnahmen dort | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Pakete importieren nichts aus `apps/`, der GoBD-Kern keine Pakete von Haben | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
-| Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
-| Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts`, außer den Ausnahmen in `.checks/pages.txt` | `checks pages` in `bun run lint` | Fehler |
+| Höchstens 400 Zeilen je Datei, außer den alten in `.checks/large-files.txt` | `checks file-size` in `bun run lint` | Fehler |
 | `padding*`, `margin*`, `gap`, `row-gap` und `column-gap` in `apps/web/src/**/*.css` auf dem 4px-Raster ([DESIGN.md](https://github.com/firsttris/haben/blob/main/DESIGN.md#schrift-und-abstände)), außer den alten Stellen in `altstellen.json` | `scripts/raster/` in `bun run lint` | Fehler |
 | Höchstens 80 Zeilen je Funktion ohne Leerzeilen, außer in Tests | Biome-Regel `noExcessiveLinesPerFunction` im Editor und in `bun run lint` | Hinweis |
 | Formularfelder über `Field`, kein eigenes Element mit der Klasse `field` (außer `<fieldset className="field">` für eine Gruppe) | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
@@ -96,7 +96,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Jede Seite in `docs/` mit `description:` im Front Matter | Workflow „Docs“ (`docs.yml`) | Fehler |
 | Jede versiegelte, nur anhängbare oder gegen Löschen gesperrte Tabelle und jede, deren Löschen das Audit-Log aufzeichnet, hat einen Trigger vor `TRUNCATE` | `apps/web/src/server/db/truncate.test.ts` in `bun run test` (mit Postgres) | Fehler |
 
-Meldet `bun run lint` bei `altdateien.json` oder `altstellen.json` „kann mit … `--aufraeumen` …“, läuft der Befehl im selben Pull Request, und die geänderte Liste wird mitcommittet.
+`checks` ist das gemeinsame Paket [`@firsttris/checks`](https://github.com/firsttris/workflows#checks), eingestellt in `checks.json`. Nennt `bun run lint` eine Datei aus `.checks/large-files.txt` mit `checks file-size --clean` oder eine aus `altstellen.json` mit `--aufraeumen`, läuft `bunx checks file-size --clean` beziehungsweise der genannte Befehl im selben Pull Request, und die geänderte Liste wird mitcommittet.
 
 Was „PR-Regeln“ meldet, steht auch als ein Kommentar im Pull Request, bei jedem Push aktualisiert (Workflow „PR-Regeln Kommentar“; er startet aus der Fassung auf `main`, eine Änderung an ihm wirkt also erst nach dem Merge).
 
@@ -107,12 +107,12 @@ Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibu
 Titel, Issue-Verweise, Dateigröße, 4px-Raster und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
 
 - **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; steht das andere Modul höher, gehört der Code meist woanders hin ([Module im Server](architektur.md#module-im-server)); was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
-- **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
+- **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `.checks/pages.txt`; dort stehen nur Seiten mit Grund (`<spec> <seite> <grund>`), etwa reine Weiterleitungen. Wer eine mit `open` markierte Seite in die Spec aufnimmt, streicht ihre Zeile.
 - **Funktionslänge:** eine neue oder über 80 Zeilen gewachsene Funktion vor dem Merge teilen, indem ein Teil in eine eigene Funktion mit Namen kommt; wächst eine schon lange, kommt das Neue in eine eigene. Ein Grund in der Beschreibung reicht hier nicht. Ältere lange Funktionen, die der Pull Request nicht verlängert, werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
 - **Alte große Datei wächst, Doku-Seite zu lang, Code ohne Doku, Fix ohne Test:** beheben, oder der Grund steht in der Beschreibung (bleibt in der Datei, weil …; Refactor ohne neues Verhalten; Fix an nichts Testbarem wie der CI).
 
-Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in den Kommentaren der Skripte.
+Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in den Kommentaren der Skripte und des Pakets.
 
 ## Issues schreiben
 

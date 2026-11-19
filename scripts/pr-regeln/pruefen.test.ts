@@ -25,7 +25,7 @@ beforeAll(() => {
   git("init", "-q", "-b", "main");
   git("config", "user.email", "test@example.invalid");
   git("config", "user.name", "Test");
-  datei("scripts/dateigroesse/altdateien.json", "[]\n");
+  datei(".checks/large-files.txt", "");
   git("add", ".");
   git("commit", "-qm", "Basis");
   git("checkout", "-qb", "thema");
