@@ -294,6 +294,17 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(await sql`select 1 from beleg_layouts`).toEqual([]);
   });
 
+  it("gibt ein Layout nicht frei, das nur die Meldung eines fehlenden Pakets nachahmt", async () => {
+    await testinstanz();
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    // Kein #import: Typst lädt nichts, die Meldung kommt aus dem Layout selbst
+    const source = `// @preview/cetz:0.3.4\n#panic("failed to download package")\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow();
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
   it("speichert ein Layout, das ohne seine Pakete setzt, wie eines ohne Pakete: geprüft und ohne Freigabe", async () => {
     await testinstanz();
     const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
