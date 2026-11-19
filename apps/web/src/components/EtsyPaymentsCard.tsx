@@ -77,7 +77,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
         </div>
       )}
 
-      <form onSubmit={onSubmit}>
+      <form className="stack" onSubmit={onSubmit}>
         <Field label="App-Schlüssel (keystring)" hint="Steht in der Etsy-App unter „Keystring“">
           {(control) => <input {...control} name="keystring" value={keystring} onChange={(event) => setKeystring(event.target.value)} autoComplete="off" />}
         </Field>
@@ -100,9 +100,9 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
           Die Gebührenrechnung (bei Etsy „USt.-Abrechnung“) frühestens am 5. des Folgemonats herunterladen und hochladen: Etsy korrigiert Gebühren im Übergang
           des Monats manchmal nach. Ab dem 5. stimmt sie auf den Cent mit den Sammelzeilen.
         </div>
-        <div className="row" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? "Speichere …" : "Speichern"}
+        <div className="actions">
+          <button type="button" className="btn btn-danger" disabled={busy || !data.configured} onClick={() => setConfirmingRemove(true)}>
+            Zugang entfernen
           </button>
           <button
             type="button"
@@ -146,8 +146,8 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
           >
             Trennen
           </button>
-          <button type="button" className="btn btn-danger" disabled={busy || !data.configured} onClick={() => setConfirmingRemove(true)}>
-            Zugang entfernen
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? "Speichere …" : "Speichern"}
           </button>
         </div>
         <NoticeBanner notice={notice} />
