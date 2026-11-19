@@ -10,4 +10,5 @@ export {
   type KnownMovement,
   type MovementOutcome,
 } from "./abgleich.ts";
+export { eventKeyOf, IMPORT_CONTRACT_FORMATS, statementFromBatch } from "./auszug.ts";
 export { advanceCheckpoint, type Checkpoint, type PartResult } from "./fortschritt.ts";

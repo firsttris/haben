@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { type ImportMovement, knownMovement, type ParsedStatement, type ParsedTransaction, type StatementFormat, withDedupHashes } from "@haben/import";
+import { eventKeyOf, type ImportMovement, knownMovement, type ParsedStatement, type ParsedTransaction, type StatementFormat, withDedupHashes } from "@haben/import";
 import { withActor } from "../../db/actor.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
@@ -19,7 +19,7 @@ import { freeHash, MovementConflictError, type StoreBatchInput } from "./import-
 
 /** Umsatz zu einer Bewegung: der des Auszugs zum Ereignis, sonst aus der Bewegung selbst (etwa eine Gebühr als Komponente) */
 function transactionOf(input: StoreBatchInput, movement: ImportMovement): ParsedTransaction {
-  const row = input.statement.transactions.find((t) => input.eventOf(t) === movement.sourceEventId);
+  const row = input.statement.transactions.find((t) => input.eventOf(t) === eventKeyOf(movement));
   if (row && movement.component === "main") return row;
   return {
     bookingDate: movement.bookingDate,

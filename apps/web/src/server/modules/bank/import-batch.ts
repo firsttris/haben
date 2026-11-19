@@ -4,6 +4,7 @@ import {
   batchFingerprint,
   classifyBatch,
   classifyMovements,
+  eventKeyOf,
   type ImportBatch,
   type ImportMovement,
   type KnownMovement,
@@ -41,7 +42,10 @@ export interface StoreBatchInput {
   binding: Omit<SourceBinding, "cutoverDate">;
   /** Derselbe Abruf als Kontoauszug: Zeitraum, Salden und Warnungen fürs Importprotokoll, Umsätze in Lieferreihenfolge */
   statement: ParsedStatement;
-  /** Ereignis zu einem Umsatz des Auszugs; ohne stabile Kennung undefined, dann erkennt Haben ihn wie bisher am Inhalt */
+  /**
+   * Ereignis zu einem Umsatz des Auszugs (`eventKeyOf`: bei einer anderen Komponente als `main` mit ihr dahinter); ohne stabile
+   * Kennung undefined, dann erkennt Haben ihn wie bisher am Inhalt
+   */
   eventOf: (t: ParsedTransaction) => string | undefined;
   /** Prüfkennungen mehrdeutiger Enable-Banking-Zeilen; nie als Quellenidentität speichern. */
   fallbackEvents?: ReadonlySet<string>;
@@ -309,7 +313,8 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
       `Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`,
       results.filter((r) => r.outcome === "conflict").map((r) => ({ movementId: movementIds.get(r.key)!, movement: r.movement })),
     );
-  const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [r.movement.sourceEventId, r.movement]));
+  // Schlüssel wie `eventOf`: das Ereignis, bei der Gebühr mit Komponente, damit Zahlung und Gebühr eines Ereignisses zwei Umsätze werden
+  const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [eventKeyOf(r.movement), r.movement]));
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
   const rows = withDedupHashes(statement.transactions);

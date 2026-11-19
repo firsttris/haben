@@ -35,6 +35,8 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "googleplay-earnings": "Google Play",
   "appstore-finance": "App Store",
   "store-payout": "Store-Auszahlung",
+  importvertrag: "REST-Import",
+  "importvertrag-psp": "REST-Import",
 };
 
 /** Anbieter einer Quellenbindung (`import_sources.provider`, #306), wie die Meldung ihn nennt */
