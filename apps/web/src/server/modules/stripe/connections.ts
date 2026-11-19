@@ -4,6 +4,7 @@ import { z } from "zod";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
+import { env } from "../../env.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
 import { openConflicts } from "../bank/index.ts";
@@ -30,7 +31,7 @@ export function setStripeClientFactory(factory: (options: StripeClientOptions) =
 
 /** Client für einen Schlüssel */
 export function stripeClientFor(apiKey: string): StripeClient {
-  return clientFactory({ apiKey });
+  return clientFactory({ apiKey, baseUrl: env().STRIPE_API_URL });
 }
 
 async function loadRow() {
