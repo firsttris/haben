@@ -54,7 +54,6 @@ export const TEXTS = {
     validUntil: "Gültig bis",
     servicePeriod: "Leistungszeitraum",
     serviceDate: "Leistungsdatum",
-    serviceDateDefault: "entspricht Rechnungsdatum",
     customerNumber: "Kundennummer",
     supplierNumber: "Lieferantennummer",
     leitwegId: "Leitweg-ID",
@@ -116,6 +115,15 @@ export const TEXTS = {
     },
     page: (n: string, total: string) => `Seite ${n} von ${total}`,
     date: (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`,
+    /** Zeitraum kurz, damit er im Infoblock in eine Zeile passt: 01.–30.09.2026, 15.09.–14.10.2026, sonst beide Daten voll */
+    period: (from: string, to: string) => {
+      const tag = (iso: string) => `${iso.slice(8, 10)}.`;
+      const monat = (iso: string) => `${iso.slice(5, 7)}.`;
+      const ende = `${tag(to)}${monat(to)}${to.slice(0, 4)}`;
+      if (from.slice(0, 7) === to.slice(0, 7)) return `${tag(from)}–${ende}`;
+      if (from.slice(0, 4) === to.slice(0, 4)) return `${tag(from)}${monat(from)}–${ende}`;
+      return `${tag(from)}${monat(from)}${from.slice(0, 4)} – ${ende}`;
+    },
     money: (cents: Cents) => formatEuro(cents),
     rate: (rate: number) => formatRate(rate),
     quantity: (quantity: Millis, unit: string) => `${formatQuantity(quantity)} ${unit}`,
@@ -152,7 +160,6 @@ export const TEXTS = {
     validUntil: "Valid until",
     servicePeriod: "Service period",
     serviceDate: "Date of service",
-    serviceDateDefault: "same as invoice date",
     customerNumber: "Customer number",
     supplierNumber: "Supplier number",
     leitwegId: "Leitweg ID",
@@ -218,6 +225,15 @@ export const TEXTS = {
         .formatToParts(new Date(Date.UTC(y, m - 1, d)))
         .map((part) => (part.type === "month" && part.value === "Sep" ? "Sept" : part.value))
         .join("");
+    },
+    /** Period kept short to fit one line: 1–30 Sept 2026, 15 Sept – 14 Oct 2026, otherwise both dates in full */
+    period(from: string, to: string) {
+      const full = [this.date(from), this.date(to)];
+      const [d1, m1, y1] = full[0]!.split(" ");
+      const [, m2, y2] = full[1]!.split(" ");
+      if (y1 === y2 && m1 === m2) return `${d1}–${full[1]}`;
+      if (y1 === y2) return `${d1} ${m1} – ${full[1]}`;
+      return `${full[0]} – ${full[1]}`;
     },
     money: (cents: Cents) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(cents / 100),
     rate: (rate: number) => `${rate / 100} %`,

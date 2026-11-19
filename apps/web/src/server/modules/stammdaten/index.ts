@@ -99,6 +99,7 @@ export {
   assignLayout,
   createLayout,
   customLayoutFor,
+  mitEingebautemLayout,
   deleteLayout,
   LayoutError,
   LayoutRenderError,

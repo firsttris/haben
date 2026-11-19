@@ -151,27 +151,42 @@
   })
 }
 
-// Anschriftfeld: 20 mm von links, 45 mm von oben, 85 × 45 mm
-#place(top + left, dx: 20mm - 25mm, dy: 45mm - 20mm, box(width: 85mm, height: 45mm, {
+// Anschriftfeld 45 mm von oben, 85 × 45 mm ab 20 mm von links (DIN 5008 Form B); der Text steht wie Betreff und Tabelle
+// auf der Fluchtlinie 25 mm, im Fenster bleibt links 5 mm Luft
+#place(top + left, dx: 0mm, dy: 45mm - 20mm, box(width: 80mm, height: 45mm, {
   set block(spacing: 0pt)
   box(height: 17.7mm, align(bottom, pad(bottom: 2mm, text(size: 7pt, fill: muted, d.senderLine))))
   set par(leading: 0.5em)
   d.recipient.join(linebreak())
 }))
 
-// Informationsblock: ab 125 mm von links, 50 mm von oben
-#place(top + left, dx: 125mm - 25mm, dy: 50mm - 20mm, box(width: 75mm, {
-  set text(size: 8.5pt)
-  grid(
-    columns: (auto, 1fr),
-    column-gutter: 4mm,
-    row-gutter: 2.2mm,
-    ..d.meta.map(m => (text(fill: muted, m.label), align(right, m.value))).flatten()
-  )
-}))
+// Informationsblock: ab 125 mm von links, 58 mm von oben wie in den übrigen Layouts (DIN 5008 nennt 50 mm), rechtsbündig
+// mit Tabelle und Fuß (bis 190 mm). Passt er nicht bis vor den Betreff, stehen die Bezüge (Auftrag, Lieferschein,
+// Leitweg-ID …) zweispaltig vor dem Betreff
+#let info-grid(zeilen) = grid(
+  columns: (auto, 1fr),
+  column-gutter: 4mm,
+  row-gutter: 2.2mm,
+  ..zeilen.map(m => (text(fill: muted, m.label), align(right, m.value))).flatten()
+)
+#let ist-referenz(m) = m.at("group", default: none) == "referenz"
+#let info-passt() = measure(box(width: 65mm, { set text(size: 8.5pt); info-grid(d.meta) })).height <= 98.46mm - 58mm - 6mm
+#context {
+  let zeilen = if info-passt() { d.meta } else { d.meta.filter(m => not ist-referenz(m)) }
+  place(top + left, dx: 125mm - 25mm, dy: 58mm - 20mm, box(width: 65mm, { set text(size: 8.5pt); info-grid(zeilen) }))
+}
 
-// Betreffzeile bei 98,46 mm von oben
+// Betreffzeile bei 98,46 mm von oben; davor die Bezüge, wenn der Infoblock zu lang wäre
 #v(98.46mm - 20mm)
+#context if not info-passt() {
+  let rest = d.meta.filter(ist-referenz)
+  if rest.len() > 0 {
+    set text(size: 8.5pt)
+    let haelfte = calc.ceil(rest.len() / 2)
+    grid(columns: (1fr, 1fr), column-gutter: 10mm, info-grid(rest.slice(0, haelfte)), info-grid(rest.slice(haelfte)))
+    v(5mm)
+  }
+}
 
 #semibold(text(size: 16pt, d.title))
 #if d.reference != none {

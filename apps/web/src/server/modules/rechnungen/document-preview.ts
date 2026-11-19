@@ -40,6 +40,7 @@ import { UserError } from "../../errors.ts";
 import {
   type Company,
   customLayoutFor,
+  mitEingebautemLayout,
   customLayoutJob,
   dataForVersion,
   ansprechpartnerSnapshot,
@@ -281,7 +282,7 @@ export async function renderPreview(
   const layout = await customLayoutFor(type);
   const job = layout
     ? await customLayoutJob(layout, dataForVersion(layout.schemaVersion, templateInputs(sheet, letterhead)), letterhead)
-    : renderJob(template, sheet, letterhead);
+    : renderJob(template === "mahnung.typ" ? "mahnung" : "beleg", sheet, await mitEingebautemLayout(type, letterhead));
   try {
     const renderer = layout ? await rendererFor(layout) : layoutRenderer;
     return { ...(await renderer.render(job)), text: text() };

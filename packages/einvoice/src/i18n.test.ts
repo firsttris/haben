@@ -21,7 +21,7 @@ describe("Belege auf Englisch", () => {
       expect.arrayContaining([
         { label: "Invoice number", value: "2026-034" },
         { label: "Invoice date", value: "2 Oct 2026" },
-        { label: "Service period", value: "1 Sept 2026 – 30 Sept 2026" },
+        { label: "Service period", value: "1–30 Sept 2026" },
         { label: "Your VAT ID", value: "GB123456789" },
       ]),
     );
@@ -50,5 +50,16 @@ describe("Belege auf Englisch", () => {
     });
     expect(quotePdfData(quote).labels.columns.pos).toBe("Pos.");
     expect(pdfData(sampleDocument()).labels.page).toEqual(["Seite", "von", ""]);
+  });
+
+  it("kürzt den Leistungszeitraum, ohne ein Datum mehrdeutig zu machen", () => {
+    const de = texts("de");
+    expect(de.period("2026-09-01", "2026-09-30")).toBe("01.–30.09.2026");
+    expect(de.period("2026-09-15", "2026-10-14")).toBe("15.09.–14.10.2026");
+    expect(de.period("2026-12-15", "2027-01-14")).toBe("15.12.2026 – 14.01.2027");
+    const en = texts("en");
+    expect(en.period("2026-09-01", "2026-09-30")).toBe("1–30 Sept 2026");
+    expect(en.period("2026-09-15", "2026-10-14")).toBe("15 Sept – 14 Oct 2026");
+    expect(en.period("2026-12-15", "2027-01-14")).toBe("15 Dec 2026 – 14 Jan 2027");
   });
 });

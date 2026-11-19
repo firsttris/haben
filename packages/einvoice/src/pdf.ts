@@ -4,9 +4,9 @@ import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 import { accountHolder, collectedByDirectDebit, countryName, formatIban, paidInvoicePayment, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
-import { templateInputs } from "./vorlage-eingaben.ts";
+import { layoutTemplate, templateInputs } from "./vorlage-eingaben.ts";
 
-export { templateInputs };
+export { layoutTemplate, templateInputs };
 import { girocodeSvg } from "./qr.ts";
 import {
   needsSellerVatId,
@@ -160,10 +160,10 @@ export function pdfData(doc: InvoiceDocument) {
     { label: t.invoiceDate, value: t.date(doc.issueDate) },
   ];
   if (doc.serviceFrom && doc.serviceTo && doc.serviceFrom !== doc.serviceTo) {
-    meta.push({ label: t.servicePeriod, value: `${t.date(doc.serviceFrom)} – ${t.date(doc.serviceTo)}` });
+    meta.push({ label: t.servicePeriod, value: t.period(doc.serviceFrom, doc.serviceTo) });
   } else {
-    const date = doc.serviceFrom ?? doc.serviceTo;
-    meta.push({ label: t.serviceDate, value: date ? t.date(date) : t.serviceDateDefault });
+    // Ohne eigenes Leistungsdatum gilt das Rechnungsdatum, wie im XML; ausgeschrieben, damit es auf dem Blatt steht
+    meta.push({ label: t.serviceDate, value: t.date(doc.serviceFrom ?? doc.serviceTo ?? doc.issueDate) });
   }
   if (showsCustomerNumber(doc)) meta.push({ label: t.customerNumber, value: buyer.kundennummer! });
   if (buyer.unsereLieferantennummer) meta.push({ label: t.supplierNumber, value: buyer.unsereLieferantennummer });
@@ -349,7 +349,8 @@ export const showsCustomerNumber = (doc: Letterhead & { buyer: { kundennummer?: 
   Boolean(doc.buyer.kundennummer) && doc.options?.customerNumber !== false;
 
 /** Auftrag für den Render-Prozess: gleiche Vorlage und Daten wie beim PDF, Logo und Briefpapier als Dateien neben der Vorlage */
-export function renderJob(template: "rechnung.typ" | "mahnung.typ", data: object, letterhead: Letterhead): RenderJob {
+export function renderJob(art: "beleg" | "mahnung", data: object, letterhead: Letterhead): RenderJob {
+  const template = layoutTemplate(art, letterhead);
   const workspace = join(PACKAGE_DIR, "templates");
   const files = [
     ...(letterhead.logo ? [{ name: `logo.${letterhead.logo.format}`, base64: Buffer.from(letterhead.logo.data).toString("base64") }] : []),
@@ -365,6 +366,11 @@ function compilePdf(template: string, data: object, date: string, label: string,
     const pdf = letterhead.pdfFrom({ template: template === TEMPLATE ? "rechnung.typ" : "mahnung.typ", data: templateInputs(data, letterhead), date });
     if (pdf) return pdf;
   }
+  // Eingebautes Layout der Belegart statt der bisherigen Vorlage
+  const vorlage =
+    template === TEMPLATE || template === DUNNING_TEMPLATE
+      ? join(PACKAGE_DIR, "templates", layoutTemplate(template === TEMPLATE ? "beleg" : "mahnung", letterhead))
+      : template;
   const typst = getCompiler();
   // Logo und Briefpapier liegen nur für diesen Lauf als Dateien neben der Vorlage
   const shadows = [
@@ -373,7 +379,7 @@ function compilePdf(template: string, data: object, date: string, label: string,
   ].map(([file, bytes]) => [join(PACKAGE_DIR, "templates", file), bytes] as const);
   for (const [path, bytes] of shadows) typst.mapShadow(path, Buffer.from(bytes));
   try {
-    return compileWith(typst, template, templateInputs(data, letterhead), date, label);
+    return compileWith(typst, vorlage, templateInputs(data, letterhead), date, label);
   } finally {
     for (const [path] of shadows) typst.unmapShadow(path);
   }

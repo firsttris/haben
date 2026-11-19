@@ -326,12 +326,23 @@ export async function customLayoutFor(type: LayoutDocumentType) {
 }
 
 /**
+ * Briefkopf mit dem eingebauten Layout der Belegart und seinen Optionen (layout-katalog.ts in packages/core); bei einem
+ * eigenen Layout unverändert. Die Vorlage, Vorgaben für Schrift und Farbe und die Stelle des Logos folgen daraus.
+ */
+export async function mitEingebautemLayout(type: LayoutDocumentType, letterhead: Letterhead): Promise<Letterhead> {
+  const design = await loadDesign();
+  const ref = design.layouts[type];
+  if (ref.kind !== "eingebaut") return letterhead;
+  return { ...letterhead, layout: { id: ref.id, optionen: design.layoutOptions[ref.id] ?? {} } };
+}
+
+/**
  * Erzeugt ein PDF mit dem Layout der Belegart. build ist der Aufruf aus @haben/einvoice (etwa buildEInvoice); er läuft
  * bei einem eigenen Layout zweimal: erst fängt pdfFrom die fertigen Daten ab, dann liefert es das PDF aus dem Render-Prozess.
  */
 export async function withCustomLayout<T>(type: LayoutDocumentType, letterhead: Letterhead, build: (letterhead: Letterhead) => T): Promise<T> {
   const layout = await customLayoutFor(type);
-  if (!layout) return build(letterhead);
+  if (!layout) return build(await mitEingebautemLayout(type, letterhead));
   let request: PdfRequest | undefined;
   // Ganz durchlaufen lassen: buildEInvoice setzt das PDF erst nach einem await
   await build({

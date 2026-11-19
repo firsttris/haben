@@ -2,8 +2,9 @@ import { z } from "zod";
 import { ACCENT_PATTERN, DEFAULT_ACCENT } from "./accent.ts";
 import { footerIssues, MAX_FOOTER_COLUMNS, MAX_FOOTER_TEXT, MIN_FOOTER_COLUMNS } from "./footer-template.ts";
 import type { BasisPoints } from "./money.ts";
+import { EINGEBAUTE_LAYOUTS, STANDARD_LAYOUT_ID } from "./layout-katalog.ts";
 
-/** Layout eines Belegs: eingebaut („klassisch“) oder eigenes, hochgeladenes (#113, id aus beleg_layouts) */
+/** Layout eines Belegs: eingebaut (layout-katalog.ts) oder eigenes, hochgeladenes (#113, id aus beleg_layouts) */
 export interface LayoutRef {
   kind: "eingebaut" | "eigen";
   id: string;
@@ -15,9 +16,11 @@ export interface LayoutEntry extends LayoutRef {
   name: string;
 }
 
-export const BUILTIN_LAYOUTS: readonly LayoutEntry[] = [{ kind: "eingebaut", id: "klassisch", name: "Klassisch" }];
+/** Eingebaute Layouts in der Reihenfolge der Auswahl (layout-katalog.ts) */
+export const BUILTIN_LAYOUTS: readonly LayoutEntry[] = EINGEBAUTE_LAYOUTS.map(({ id, name }) => ({ kind: "eingebaut", id, name }));
 
-export const DEFAULT_LAYOUT: LayoutRef = { kind: "eingebaut", id: "klassisch" };
+/** Standard für neue Installationen; bestehende behalten per Migration ihr bisheriges Layout */
+export const DEFAULT_LAYOUT: LayoutRef = { kind: "eingebaut", id: STANDARD_LAYOUT_ID };
 
 /** Belegarten mit eigener Layoutwahl; Storno und Korrektur folgen der Rechnung, sie entstehen aus derselben Vorlage */
 export const LAYOUT_DOCUMENT_TYPES = ["rechnung", "angebot", "auftragsbestaetigung", "lieferschein", "mahnung"] as const;
@@ -77,7 +80,10 @@ export interface LetterheadOptions {
   vatColumn: boolean;
   /** Eigene Spalten der Fußzeile mit Platzhaltern; null = automatisch aus den Firmendaten */
   footerColumns: string[] | null;
-  font: LetterheadFont;
+  /** Schrift der Belege; „layout“ = die Vorgabe des jeweiligen Layouts */
+  font: LetterheadFont | "layout";
+  /** Akzentfarbe aus dem Layout statt der eigenen (accent); gilt, solange nichts eigenes gewählt ist */
+  accentFromLayout: boolean;
   backgroundPages: BackgroundPages;
   /** Das Briefpapier trägt selbst Fußzeile und Pflichtangaben; gilt nur, solange eines hinterlegt ist */
   footerHidden: boolean;
@@ -86,6 +92,8 @@ export interface LetterheadOptions {
 /** Gestaltung eines Briefkopf-Profils (#113). Neue Einstellungen brauchen eine Vorgabe in DEFAULT_DESIGN, ältere Zeilen kennen sie nicht */
 export interface LetterheadDesign extends LetterheadOptions {
   layouts: LayoutAssignment;
+  /** Gewählte Optionen je eingebautem Layout, etwa { premium: { fuss: "rechts" } }; aufgelöst mit layoutOptionen */
+  layoutOptions: Record<string, Record<string, string>>;
   /** #RRGGBB */
   accent: string;
 }
@@ -99,7 +107,8 @@ export const DEFAULT_OPTIONS: LetterheadOptions = {
   itemNumber: true,
   vatColumn: true,
   footerColumns: null,
-  font: "plex-sans",
+  font: "layout",
+  accentFromLayout: true,
   backgroundPages: "erste",
   footerHidden: false,
 };
@@ -107,6 +116,7 @@ export const DEFAULT_OPTIONS: LetterheadOptions = {
 export const DEFAULT_DESIGN: LetterheadDesign = {
   ...DEFAULT_OPTIONS,
   layouts: Object.fromEntries(LAYOUT_DOCUMENT_TYPES.map((type) => [type, DEFAULT_LAYOUT])) as LayoutAssignment,
+  layoutOptions: {},
   accent: DEFAULT_ACCENT,
 };
 
@@ -135,7 +145,9 @@ export const letterheadDesignInputSchema = z
     customerNumber: z.boolean(),
     itemNumber: z.boolean(),
     vatColumn: z.boolean(),
-    font: z.enum(Object.keys(LETTERHEAD_FONTS) as [LetterheadFont, ...LetterheadFont[]]),
+    font: z.enum(["layout", ...Object.keys(LETTERHEAD_FONTS)] as ["layout", ...LetterheadFont[]]),
+    accentFromLayout: z.boolean(),
+    layoutOptions: z.record(z.string().max(64), z.record(z.string().max(64), z.string().max(64))),
     backgroundPages: z.enum(["erste", "alle"]),
     footerHidden: z.boolean(),
     footerColumns: z

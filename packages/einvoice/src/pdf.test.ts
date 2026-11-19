@@ -108,7 +108,7 @@ describe("pdfData", () => {
     const data = pdfData(sampleDocument());
     expect(data.title).toBe("Rechnung");
     expect(data.meta).toContainEqual({ label: "Rechnungsnummer", value: "2026-034" });
-    expect(data.meta).toContainEqual({ label: "Leistungszeitraum", value: "01.09.2026 – 30.09.2026" });
+    expect(data.meta).toContainEqual({ label: "Leistungszeitraum", value: "01.–30.09.2026" });
     expect(data.meta).toContainEqual({ label: "Kundennummer", value: "K-1007" });
     expect(data.lines[0]).toMatchObject({ quantity: "152 Std.", unitPrice: "95,00\u00a0€", rate: "19 %", net: "14.440,00\u00a0€" });
     expect(data.totals.gross.value).toBe("17.409,58\u00a0€");
@@ -176,9 +176,11 @@ describe("pdfData", () => {
     expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
   });
 
-  it("nennt das Leistungsdatum, wenn kein Zeitraum vorliegt", () => {
-    const doc = { ...sampleDocument(), serviceFrom: undefined, serviceTo: undefined };
-    expect(pdfData(doc).meta).toContainEqual({ label: "Leistungsdatum", value: "entspricht Rechnungsdatum" });
+  // Ohne eigenes Leistungsdatum gilt das Rechnungsdatum (wie im XML); ausgeschrieben statt „entspricht Rechnungsdatum“
+  it("nennt ohne Leistungsdatum das Rechnungsdatum als Leistungsdatum", () => {
+    const doc = { ...sampleDocument(), issueDate: "2026-10-02", serviceFrom: undefined, serviceTo: undefined };
+    expect(pdfData(doc).meta).toContainEqual({ label: "Leistungsdatum", value: "02.10.2026" });
+    expect(pdfData({ ...doc, language: "en" }).meta).toContainEqual({ label: "Date of service", value: "2 Oct 2026" });
   });
 });
 

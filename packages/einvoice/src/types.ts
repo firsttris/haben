@@ -108,6 +108,11 @@ export interface Letterhead {
   /** Logo, Marken und Schalter aus dem Profil; fehlt = Vorgaben (DEFAULT_OPTIONS) */
   options?: LetterheadOptions;
   /**
+   * Eingebautes Layout der Belegart (layout-katalog.ts in packages/core) mit den gewählten Optionen; fehlt = Klar in der Fassung „Klassisch“, das bisherige Layout.
+   * Es bestimmt Vorlage, Vorgaben für Schrift und Akzentfarbe und die erlaubten Stellen für das Logo.
+   */
+  layout?: { id: string; optionen?: Record<string, string> };
+  /**
    * Eigenes Layout: bekommt die fertigen Daten der Vorlage und liefert das PDF, das statt der eingebauten Vorlage gilt.
    * undefined = eingebaute Vorlage. Der Server nutzt das zweimal: einmal, um die Daten abzufangen, einmal mit dem PDF
    * aus dem Render-Prozess (withCustomLayout in apps/web).

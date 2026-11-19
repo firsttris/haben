@@ -317,8 +317,8 @@ test("Die Einstellungen nennen je Belegart das eingebaute Layout", async ({ brow
   await expect(karte.getByRole("row")).toHaveCount(6);
   // Ohne eigene Zuordnung steht je Belegart das eingebaute Layout in der Auswahl
   const mahnung = karte.getByLabel("Layout für Mahnung");
-  await expect(mahnung).toHaveValue("eingebaut:klassisch");
-  await expect(mahnung.locator("option:checked")).toHaveText("Klassisch (eingebaut)");
+  await expect(mahnung).toHaveValue("eingebaut:klar");
+  await expect(mahnung.locator("option:checked")).toHaveText("Klar (eingebaut)");
   await page.context().close();
 });
 

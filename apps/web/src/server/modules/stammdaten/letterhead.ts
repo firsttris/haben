@@ -1,4 +1,4 @@
-import { designWithDefaults, letterheadDesignInputSchema, type LetterheadDesign, type LetterheadDesignInput } from "@haben/core";
+import { bekannteLayoutOptionen, designWithDefaults, letterheadDesignInputSchema, type LetterheadDesign, type LetterheadDesignInput } from "@haben/core";
 import type { Letterhead } from "@haben/einvoice";
 import { eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
@@ -21,7 +21,7 @@ export async function loadDesign(q: Db | Tx = db): Promise<LetterheadDesign> {
 /** Heutige Gestaltung für jedes neu erzeugte PDF, auch für Mahnung und Lieferschein zu älteren Belegen; schon festgeschriebene PDFs bleiben */
 export async function loadLetterhead(): Promise<Letterhead> {
   const [logo, background, design] = await Promise.all([loadLogo(), loadBackground(), loadDesign()]);
-  const { accent, layouts: _layouts, ...options } = design;
+  const { accent, layouts: _layouts, layoutOptions: _layoutOptions, ...options } = design;
   return { accent, options, ...(logo ? { logo } : {}), ...(background ? { background } : {}) };
 }
 
@@ -30,7 +30,11 @@ export async function saveDesign(actor: string, input: LetterheadDesignInput): P
   const parsed = letterheadDesignInputSchema.safeParse(input);
   if (!parsed.success) throw new AccentColorError("Die Gestaltung ist ungültig. Die Akzentfarbe hat die Form #RRGGBB, z. B. #1F6F5C.");
   return withActor(actor, async (tx) => {
-    const changes = parsed.data.accent ? { ...parsed.data, accent: parsed.data.accent.toUpperCase() } : parsed.data;
+    const { layoutOptions, ...rest } = parsed.data;
+    // Eine eigene Farbe gilt ab jetzt statt der des Layouts; „Wie im Layout“ schaltet sie erst ausdrücklich wieder ab
+    const changes: LetterheadDesignInput = rest.accent ? { accentFromLayout: false, ...rest, accent: rest.accent.toUpperCase() } : rest;
+    const optionen = layoutOptions ? bekannteLayoutOptionen(layoutOptions) : undefined;
+    if (optionen) changes.layoutOptions = optionen;
     const profiles = schema.letterheadProfiles;
     // In der Datenbank zusammenführen: Lesen und danach Schreiben ließe zwei gleichzeitige Änderungen sich überschreiben
     const [row] = await tx
@@ -39,7 +43,13 @@ export async function saveDesign(actor: string, input: LetterheadDesignInput): P
       .onConflictDoUpdate({
         target: profiles.isDefault,
         targetWhere: sql`${profiles.isDefault}`,
-        set: { settings: sql`letterhead_profiles.settings || ${JSON.stringify(changes)}::jsonb`, updatedAt: new Date() },
+        // Optionen je Layout zusammenführen: Die Wahl für Premium überschreibt nicht die für Elegant
+        set: {
+          settings: optionen
+            ? sql`letterhead_profiles.settings || ${JSON.stringify(changes)}::jsonb || jsonb_build_object('layoutOptions', coalesce(letterhead_profiles.settings -> 'layoutOptions', '{}'::jsonb) || ${JSON.stringify(optionen)}::jsonb)`
+            : sql`letterhead_profiles.settings || ${JSON.stringify(changes)}::jsonb`,
+          updatedAt: new Date(),
+        },
       })
       .returning({ settings: profiles.settings });
     return designWithDefaults(row?.settings);

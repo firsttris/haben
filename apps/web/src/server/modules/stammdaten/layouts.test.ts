@@ -246,7 +246,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const { id } = await anlegen({ name: "Rechnungslayout", art: "beleg", source: eigene("beleg") });
     await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
     expect((await letterhead.loadDesign()).layouts.rechnung).toEqual({ kind: "eigen", id });
-    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
+    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klar" });
     const { pdf, xml } = await layouts.withCustomLayout("rechnung", {}, (lh) => buildEInvoice({ ...sampleDocument(), ...lh }));
     expect(pdfText(pdf)).toContain("EIGENES LAYOUT");
     // Das XML hängt Haben weiter an, auch an ein eigenes Layout
@@ -263,7 +263,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const { id } = await anlegen({ name: "Weg", art: "beleg", source: eigene("beleg") });
     await layouts.assignLayout(actor, "angebot", { kind: "eigen", id });
     await layouts.deleteLayout(actor, id);
-    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
+    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klar" });
   }, 60_000);
 
   it("Löschen und gleichzeitiges Speichern der Gestaltung verhaken sich nicht", async () => {

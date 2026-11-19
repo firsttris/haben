@@ -111,7 +111,7 @@ test("Hochladen, dem Angebot zuordnen, in der Vorschau sehen und löschen", asyn
       .click();
     await expect(karte(page).getByText("Rotes Angebot", { exact: true })).toHaveCount(0);
   }
-  await expect(karte(page).getByLabel("Layout für Angebot")).toHaveValue("eingebaut:klassisch");
+  await expect(karte(page).getByLabel("Layout für Angebot")).toHaveValue("eingebaut:klar");
   await page.context().close();
 });
 
