@@ -144,7 +144,18 @@ export const GROWTH_THRESHOLD = 20;
 /** Dateien, die wachsen müssen: Jede neue Tabelle oder Spalte gehört nach schema.ts (docs/entwicklung.md, Migrationen) */
 export const MAY_GROW = ["apps/web/src/server/db/schema.ts"];
 
-/** Hinweis auf alte große Dateien, die im Pull Request deutlich gewachsen sind (scripts/dateigroesse) */
+/** Alte große Dateien (.checks/large-files.txt), die im Pull Request gewachsen sind, mit Zeilen vorher und nachher */
+export function grownOldFiles(
+  before: Record<string, number>,
+  after: Record<string, number>,
+  oldFiles: string[],
+): { file: string; before: number; after: number }[] {
+  return oldFiles
+    .filter((file) => file in before && file in after && after[file] > before[file])
+    .map((file) => ({ file, before: before[file], after: after[file] }));
+}
+
+/** Hinweis auf alte große Dateien, die im Pull Request deutlich gewachsen sind (checks file-size) */
 export function growthHints(grown: { file: string; before: number; after: number }[]): Report[] {
   return grown
     .filter(({ file, before, after }) => after - before >= GROWTH_THRESHOLD && !MAY_GROW.includes(file))

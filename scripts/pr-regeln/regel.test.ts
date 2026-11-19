@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkBody, checkTitle, checkTitleIssues, countWords, docPageHints, growthHints, hints, isBot, reviewHint } from "./regel.ts";
+import { checkBody, checkTitle, checkTitleIssues, countWords, docPageHints, grownOldFiles, growthHints, hints, isBot, reviewHint } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -50,6 +50,18 @@ describe("hints", () => {
     const reports = hints(["docs/bank.md"], ["fix(bank): Datum"]);
     expect(reports.map((r) => r.message)).toEqual([expect.stringContaining("Bugfix beginnt mit einem Test")]);
     expect(hints(["apps/web/e2e/bank.spec.ts", "docs/bank.md"], ["fix(bank): Datum"])).toEqual([]);
+  });
+});
+
+describe("grownOldFiles", () => {
+  it("nennt nur alte Dateien, die gewachsen sind", () => {
+    const before = { "alt.ts": 900, "andere.ts": 500, "neu-klein.ts": 10 };
+    const after = { "alt.ts": 901, "andere.ts": 480, "neu-klein.ts": 20 };
+    expect(grownOldFiles(before, after, ["alt.ts", "andere.ts"])).toEqual([{ file: "alt.ts", before: 900, after: 901 }]);
+  });
+
+  it("übergeht alte Dateien, die vorher oder nachher fehlen", () => {
+    expect(grownOldFiles({}, { "alt.ts": 900 }, ["alt.ts"])).toEqual([]);
   });
 });
 

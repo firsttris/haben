@@ -1,0 +1,28 @@
+# Pages a spec file does not open, one per line: <spec> <page> <reason> (checks pages,
+# firsttris/workflows). The reason "open" marks a gap from before the check; open the page in the
+# spec and delete the line. A new page goes into the spec, not here.
+apps/web/e2e/seiten.spec.ts /abschluss leitet auf /abschluss/$jahr weiter
+apps/web/e2e/seiten.spec.ts /jahreserklaerung leitet auf /jahreserklaerung/$jahr weiter
+apps/web/e2e/seiten.spec.ts /lohn/anmeldung leitet auf /lohn/anmeldung/$zeitraum weiter
+apps/web/e2e/seiten.spec.ts /angebote/$id open
+apps/web/e2e/seiten.spec.ts /angebote/neu open
+apps/web/e2e/seiten.spec.ts /anlagen/$id open
+apps/web/e2e/seiten.spec.ts /kontakte/neu open
+apps/web/e2e/seiten.spec.ts /umsatzsteuer/$zeitraum open
+apps/web/e2e/seiten.spec.ts /archiv/beleg/$id open
+apps/web/e2e/seiten.spec.ts /rechnungen/wiederkehrend/$id open
+apps/web/e2e/seiten.spec.ts /rechnungen/wiederkehrend/neu open
+apps/web/e2e/seiten.spec.ts /rechnungen/mahnwesen/$id nur ein 404-Test ruft sie auf, nicht die Seite selbst
+apps/web/e2e/seiten.spec.ts /oauth/autorisieren nur mit eingeschaltetem Zugang; Laden, axe und 404 prüft rechnungen.spec.ts im Test „Connector per OAuth“
+apps/web/e2e/barrierefreiheit.spec.ts /abschluss leitet auf /abschluss/$jahr weiter
+apps/web/e2e/barrierefreiheit.spec.ts /jahreserklaerung leitet auf /jahreserklaerung/$jahr weiter
+apps/web/e2e/barrierefreiheit.spec.ts /lohn/anmeldung leitet auf /lohn/anmeldung/$zeitraum weiter
+apps/web/e2e/barrierefreiheit.spec.ts /belege/$id axe prüft gmbh.spec.ts am stornierten Beleg
+apps/web/e2e/barrierefreiheit.spec.ts /oauth/autorisieren nur mit eingeschaltetem Zugang; Laden, axe und 404 prüft rechnungen.spec.ts im Test „Connector per OAuth“
+apps/web/e2e/barrierefreiheit.spec.ts /angebote/$id open
+apps/web/e2e/barrierefreiheit.spec.ts /anlagen/$id open
+apps/web/e2e/barrierefreiheit.spec.ts /archiv/beleg/$id open
+apps/web/e2e/barrierefreiheit.spec.ts /kontakte/$id open
+apps/web/e2e/barrierefreiheit.spec.ts /rechnungen/$id open
+apps/web/e2e/barrierefreiheit.spec.ts /rechnungen/mahnwesen/$id open
+apps/web/e2e/barrierefreiheit.spec.ts /rechnungen/wiederkehrend/$id open

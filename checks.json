@@ -1,0 +1,15 @@
+{
+  "language": "de",
+  "fileSize": {
+    "include": ["apps/*/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
+    "exclude": ["**/*.{test,spec}.{ts,tsx}", "**/routeTree.gen.ts"],
+    "files": "disk",
+    "requireList": true
+  },
+  "pages": {
+    "routeTree": "apps/web/src/routeTree.gen.ts",
+    "specs": ["apps/web/e2e/seiten.spec.ts", "apps/web/e2e/barrierefreiheit.spec.ts"],
+    "ignore": ["^/api/", "^/\\.well-known/", "^/login$", "^/setup$", "^/einladung/"],
+    "requireList": true
+  }
+}
