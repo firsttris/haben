@@ -45,6 +45,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Mahngebühren und Verzugszinsen“ oder „Zinserträge“ | Buchungstag | Betriebseinnahmen; zur steuerlichen Zuordnung siehe [Bruttomethode](#bruttomethode) |
 | Bankumsatz „Steuerzahlung oder Erstattung“ | Buchungstag | je nach Steuerart und Teil: Umsatzsteuer früherer Jahre als gezahlte bzw. erstattete Umsatzsteuer, Zinsen und Zuschläge als „Zinsen und Zuschläge zu betrieblichen Steuern“, Erstattungszinsen als Einnahme; Gewerbesteuer nur nachrichtlich, private Steuern gar nicht ([Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen)) |
 | Bankumsatz „Einnahme oder Ausgabe (Kategorie, Steuersatz)“ | Buchungstag | Einnahme netto (als Kleinunternehmer ohne Steuer) und vereinnahmte Umsatzsteuer; nicht steuerbare Einnahme unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“; Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen)) |
+| Bankumsatz „Aufladung Guthaben“ | Buchungstag | Ausgabe brutto in der Kategorie, ohne Vorsteuer ([Aufladung eines Guthabens](bank.md#aufladung-eines-guthabens)) |
 | Bankumsatz „Darlehen“ | Buchungstag | Zinsen und Gebühren als „Schuldzinsen zur Finanzierung von Anlagevermögen“ bzw. „Übrige Schuldzinsen“; Auszahlung und Tilgung zählen nicht ([Darlehen](bank-steuern-darlehen.md#darlehen)) |
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
@@ -111,6 +112,8 @@ Ab 2025 zeigt eine eigene Karte die gemeinsame Zählgrundlage nach [§ 19 Abs. 2
 Die eigene Steuerbefreiung ist ausdrücklich zugeordnet. § 4 Nr. 8 Buchst. i, Nr. 9 Buchst. b und Nr. 11 bis 29 werden abgezogen; Nr. 8 Buchst. a bis h, Nr. 9 Buchst. a und Nr. 10 nur als Hilfsumsätze. Umsätze mit Anlagevermögen und bestätigte nicht im Inland steuerbare Leistungen bleiben außer Ansatz. Die Auswahl beweist nicht die gesetzlichen Voraussetzungen der Befreiung.
 
 Unter **Berechnungsgrundlage und ungeklärte Zuordnungen** siehst du die Quellen, den Zahlungstag, das Nettoentgelt und den Grund der Einordnung. Alte freie Befreiungstexte sowie nicht belegte Zahlungsdaten werden nicht erraten. Solange solche Fälle offen sind, heißt die Summe **Bekannter Teilbetrag**; ungeklärte Werte sind darin nicht enthalten. Ein Bezahlt-Status allein belegt weder Betrag noch Zahlungsdatum.
+
+Ein auf einem [privaten Konto](bank.md#privates-konto-umsätze-ohne-buchungsart) als „Privat, kein Betriebsvorgang“ gekennzeichneter, ganz offener Umsatz erscheint hier nicht, weder als Betrag noch als ungeklärte Zuordnung: Er ist kein Betriebsvorgang.
 
 Bankumsätze der Kategorie [Zinserträge](bank.md#auf-eine-kategorie-buchen) bleiben ungeklärt: Ihre Einordnung als Hilfsumsatz nach § 4 Nr. 8 Buchst. a UStG lässt sich nicht hinterlegen.
 
@@ -231,11 +234,12 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `bank/zuordnungen.csv` | Zuordnungen zu Rechnungen, Belegen und Buchungen ohne Beleg; aufgehobene als Gegenzeile |
 | `bank/verrechnungen.csv` | Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze mit Notiz, ohne Buchung ([Bank](bank.md#gegenläufige-umsätze-verrechnen)); aufgehobene als Gegenzeile |
 | `bank/ausbuchungen.csv` | Nur wenn vorhanden: ausgebuchte Reste (Skonto gewährt und erhalten, Forderungsausfall); aufgehobene als Gegenzeile; bei Skonto zu einer Bareinnahme die Nummer im Kassenbuch |
-| `bank/importe.csv` | Importierte Auszugsdateien und Kontoabrufe mit SHA-256, Zeitraum, Salden und Hinweisen (die Dateien selbst speichert der Bankimport nicht); abgelehnte Abrufe ohne Zeitraum nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres verbunden hat (etwa vom 30.12. vor seinem Januar-Fenster), auch im Jahr dieses Umsatzes |
+| `bank/importe.csv` | Importierte Auszugsdateien und Kontoabrufe mit SHA-256, Zeitraum, Salden und Hinweisen (die Dateien selbst speichert der Bankimport nicht); abgelehnte Abrufe ohne Zeitraum nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres verbunden hat (etwa vom 30.12. vor seinem Januar-Fenster), auch im Jahr dieses Umsatzes; ein abgelehnter Abruf mit geklärtem Konflikt auch im Jahr des bisherigen und des neuen Umsatzes |
 | `bank/quellen.csv` | Nur wenn vorhanden: Herkunft der abgerufenen Umsätze, je Ereignis der Bank die Quelle mit [Stichtag](bank.md#welche-umsätze-abgerufen-werden), der Abruf und der Umsatz, den Haben angelegt oder verbunden hat |
+| `bank/klaerungen.csv` | Nur wenn vorhanden: je [geklärtem Konflikt](bank.md#welche-umsätze-abgerufen-werden) im Abruf der bisherige und der gelieferte Umsatz, die Entscheidung, ein neu angelegter Umsatz und wer wann geklärt hat; der abgelehnte Abruf steht in `bank/importe.csv`; im Jahr des bisherigen Umsatzes und, wenn ein neuer angelegt wurde, auch in dessen Jahr |
 | `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML; bei einer [Abgabe außerhalb von Haben](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken) das Übermittlungsprotokoll des Vermerks (PDF) |
 | `lexoffice/` | Nur bei übernommenem Altbestand aus Lexware Office, sevDesk, FastBill und den anderen Umzugsquellen, siehe unten |
-| `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json` |
+| `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json`; nur wenn vorhanden `ustid-bestaetigungen.csv` mit den [Bestätigungen beim BZSt](kontakte.md#ust-idnr-beim-bzst-bestätigen) des Jahres: gesendete Angaben, Status mit Meldung, Vergleich von Name und Anschrift und die Antwort des BZSt unverändert als Nachweis |
 | `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
 | `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |
 | `protokoll/versionen.csv` | Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt, Bestands-Hinweis (sofern vorhanden) und Link auf die Versionshinweise, einschließlich eines noch aus dem Vorjahr laufenden Stands |
@@ -244,7 +248,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `index.xml` | Beschreibung aller CSV-Dateien für die Prüfsoftware, siehe [index.xml für die Prüfsoftware](#indexxml-für-die-prüfsoftware) |
 | `pruefsummen.sha256` | SHA-256 jeder anderen Datei im Archiv |
 
-Die Stammdaten sind nicht nach Jahr gefiltert, sondern der Stand beim Export.
+Die Stammdaten sind nicht nach Jahr gefiltert, sondern der Stand beim Export; nur die Bestätigungen beim BZSt zählen nach dem Zeitpunkt der Anfrage.
 
 Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [Umzug aus Lexoffice](lexoffice.md)):
 

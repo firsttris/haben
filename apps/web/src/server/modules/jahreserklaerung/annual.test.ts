@@ -2,6 +2,7 @@ import { EricGeprueftClient } from "../../test-eric.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 31.12.2025:";"10.000,00 €"\n""\n`;
@@ -154,7 +155,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       note: "",
       lines: [{ description: "Leistungen August", quantity: 1000, unit: "Psch.", unitPrice: 400_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const telekom = await bookedDocument(1, { supplierName: "Telekom", documentDate: "2025-09-27", category: "telefon", payment: "bank", net: 3857, tax: 733 });
     await bookedDocument(2, { supplierName: "Bürohaus", documentDate: "2025-08-15", category: "buero", payment: "privat", net: 1_000, tax: 190 });
     await bank.importStatement(
@@ -424,7 +425,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
           exemptionReason: grund,
           lines: [{ description: "Leistung", quantity: 1000, unit: "Stk.", unitPrice: net, taxRate: 0 }],
         });
-        const inv = await invoices.finalizeInvoice(actor, draft.id);
+        const inv = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
         // Bei Ist-Versteuerung zählt der Umsatz erst mit der Zahlung
         if (versteuerung === "ist") {
           await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: `2025-${String(monat).padStart(2, "0")}-10`, amount: net }, "2025-12-31");

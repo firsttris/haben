@@ -81,7 +81,7 @@ test("eingeklappt öffnen Lupe und Strg+K die Befehlspalette, ein offenes Flyout
   await page.goto("/", { waitUntil: "networkidle" });
   await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
 
-  const suche = nav(page).getByRole("button", { name: "Schnellsuche" });
+  const suche = nav(page).getByRole("button", { name: "Suche", exact: true });
   await expect(suche).toBeVisible();
   const passt = await suche.evaluate((knopf) => {
     const leiste = knopf.closest("nav")!.getBoundingClientRect();
@@ -205,7 +205,7 @@ test("eingeklappt liegen Hinweis und Flyout über dem stehenden Seitenkopf", asy
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/leistungen", { waitUntil: "networkidle" });
   await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
-  const suche = nav(page).getByRole("button", { name: "Schnellsuche" });
+  const suche = nav(page).getByRole("button", { name: "Suche", exact: true });
   await suche.hover();
   const hinweis = suche.locator(".nav-tip");
   await expect(hinweis).toBeVisible();
@@ -411,7 +411,7 @@ test("eingeklappt: Marke und Lupe gehören zum Kreis der Symbole für ↑/↓", 
   await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
 
   const marke = nav(page).locator(".brand");
-  const lupe = nav(page).getByRole("button", { name: "Schnellsuche" });
+  const lupe = nav(page).getByRole("button", { name: "Suche", exact: true });
   const ausklappen = nav(page).getByRole("button", { name: "Seitenleiste ausklappen" });
   await marke.focus();
   await page.keyboard.press("ArrowDown");

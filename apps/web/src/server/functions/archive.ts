@@ -336,6 +336,8 @@ export const getDatevBookings = createServerFn({ method: "GET" })
       year: yearSchema,
       search: z.string().max(100).default(""),
       unmatched: z.boolean().default(false),
+      /** Eigene Gruppe „Aufladung ohne Bezug“ (#1356) */
+      aufladung: z.boolean().default(false),
       page: z.number().int().min(0).default(0),
     }),
   )

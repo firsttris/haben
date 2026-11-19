@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Eine Anmeldung, die nach dem Festschreiben gesendet oder vermerkt wurde, enthält die Rechnung nur, wenn
@@ -63,7 +64,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungsmonat-Hinweis gegen den Inhalt der M
       note: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: net, taxRate: 1900 as const }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   const liveClient = (): ElsterClient => {

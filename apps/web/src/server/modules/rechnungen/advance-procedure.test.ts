@@ -77,7 +77,13 @@ describe.skipIf(!testDatabaseUrl)("Bilanzverfahren und eindeutiger Schlussrechnu
     if (!final) return row!;
     const [locked] = await tx
       .update(s.invoices)
-      .set({ status: "final", number: `TEST-${++number}`, lockedAt: new Date() })
+      // Storno und Korrektur tragen ab #853 beim Festschreiben das Kennzeichen (Trigger invoices_reduction_rule)
+      .set({
+        status: "final",
+        number: `TEST-${++number}`,
+        lockedAt: new Date(),
+        ...(row!.kind === "rechnung" ? {} : { reductionRule: "rueckgewaehr" as const }),
+      })
       .where(eq(s.invoices.id, row!.id))
       .returning();
     return locked!;

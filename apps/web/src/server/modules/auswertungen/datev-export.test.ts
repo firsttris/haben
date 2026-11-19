@@ -2,6 +2,7 @@ import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
   let datev: typeof import("./datev-export.ts");
@@ -60,7 +61,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
         { description: "Fachbuch", quantity: 1000, unit: "Stk." as const, unitPrice: 5_000, taxRate: 700 as const },
       ],
     };
-    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id, kleinunternehmerStand);
 
     const { bytes, filename, bookings } = await datev.datevExport(2026, new Date(2026, 9, 4, 8, 0, 0));
     expect(filename).toBe("EXTF_Buchungsstapel_2026.csv");
@@ -91,7 +92,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     });
     expect(parseDatevBuchungsstapel((await datev.datevExport(2026)).bytes).header.kontenrahmen).toBe("SKR03");
     // Haben bucht in das Jahr nichts mehr im neuen Rahmen (ledger.post)
-    await expect(invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id)).rejects.toThrow(
+    await expect(invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id, kleinunternehmerStand)).rejects.toThrow(
       /Das Jahr 2026 ist im Kontenrahmen SKR03 gebucht/,
     );
     // Gemischte Rahmen in einem Jahr aus Daten von vorher: klare Meldung statt eines falschen Stapels
@@ -99,7 +100,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
       await tx`set local session_replication_role = replica`;
       await tx`update company set kontenrahmen = 'SKR03'`;
     });
-    await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id, kleinunternehmerStand);
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
       await tx`update journal_entries set kontenrahmen = 'SKR04' where id = (select id from journal_entries order by created_at desc limit 1)`;
@@ -138,6 +139,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
             lines: [{ description: `Leistung ${issueDate}`, quantity: 1000, unit: "Stk." as const, unitPrice, taxRate: 1900 as const }],
           })
         ).id,
+        kleinunternehmerStand,
       );
 
     const jan = await buche("2026-01-15", 10_000);

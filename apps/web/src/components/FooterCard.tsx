@@ -45,10 +45,6 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
     setTexts(columns ?? [...DEFAULT_FOOTER_COLUMNS]);
     setCount((columns ?? DEFAULT_FOOTER_COLUMNS).length);
   }
-  const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
-  const caret = useRef<number | null>(null);
-  // Je Feld, nicht je Spalte: Ein neu eingeblendetes Feld steht mit der Schreibmarke wieder auf 0
-  const touched = useRef(new WeakSet<HTMLTextAreaElement>());
 
   // Weniger Spalten behalten den Text der übrigen: Wer zurückschaltet, verliert nichts
   const shown = Array.from({ length: count }, (_, i) => texts[i] ?? "");
@@ -61,26 +57,7 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
   const edit = (index: number, text: string) =>
     setTexts(Array.from({ length: Math.max(texts.length, index + 1) }, (_, i) => (i === index ? text : (texts[i] ?? ""))));
 
-  const insert = (placeholder: FooterPlaceholder) => {
-    const field = fields.current[active];
-    const text = shown[active] ?? "";
-    // Noch nie im Feld gewesen: Die Schreibmarke steht auf 0, der Platzhalter gehört aber hinter den vorhandenen Text
-    const used = field && touched.current.has(field);
-    const at = used ? field.selectionStart : text.length;
-    const end = used ? field.selectionEnd : at;
-    const tag = `{${placeholder}}`;
-    edit(active, `${text.slice(0, at)}${tag}${text.slice(end)}`);
-    if (field) touched.current.add(field);
-    caret.current = at + tag.length;
-    field?.focus();
-  };
-
-  // React setzt die Schreibmarke beim neuen Wert ans Ende; der nächste Platzhalter gehört aber hinter den vorigen
-  useLayoutEffect(() => {
-    if (caret.current === null) return;
-    fields.current[active]?.setSelectionRange(caret.current, caret.current);
-    caret.current = null;
-  });
+  const { fields, touched, insert } = usePlaceholderInsert(shown, active, edit);
 
   const onSave = () =>
     run(async () => {
@@ -185,4 +162,37 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
       <NoticeBanner notice={notice} />
     </section>
   );
+}
+
+/**
+ * Platzhalter an der Schreibmarke der aktiven Spalte einfügen. React setzt die Schreibmarke beim neuen Wert ans Ende;
+ * der nächste Platzhalter gehört aber hinter den vorigen, darum setzt sie der Effekt danach zurück.
+ */
+function usePlaceholderInsert(shown: string[], active: number, edit: (index: number, text: string) => void) {
+  const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
+  const caret = useRef<number | null>(null);
+  // Je Feld, nicht je Spalte: Ein neu eingeblendetes Feld steht mit der Schreibmarke wieder auf 0
+  const touched = useRef(new WeakSet<HTMLTextAreaElement>());
+
+  const insert = (placeholder: FooterPlaceholder) => {
+    const field = fields.current[active];
+    const text = shown[active] ?? "";
+    // Noch nie im Feld gewesen: Die Schreibmarke steht auf 0, der Platzhalter gehört aber hinter den vorhandenen Text
+    const used = field && touched.current.has(field);
+    const at = used ? field.selectionStart : text.length;
+    const end = used ? field.selectionEnd : at;
+    const tag = `{${placeholder}}`;
+    edit(active, `${text.slice(0, at)}${tag}${text.slice(end)}`);
+    if (field) touched.current.add(field);
+    caret.current = at + tag.length;
+    field?.focus();
+  };
+
+  useLayoutEffect(() => {
+    if (caret.current === null) return;
+    fields.current[active]?.setSelectionRange(caret.current, caret.current);
+    caret.current = null;
+  });
+
+  return { fields, touched, insert };
 }

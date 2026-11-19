@@ -23,6 +23,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Erste Schritte](einrichtung.md) | Konto und Passkey, Fragen zur Einrichtung, Bereiche ausblenden, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, KI-Auslesung, Bankkonten |
 | [ELSTER einrichten](einrichtung-elster.md) | Zertifikatsdatei, eigene Hersteller-ID, ERiC-Version, Unterschied zu Lexoffice |
 | [E-Mail-Versand](einrichtung-email.md) | Versand über SMTP oder Microsoft 365 (Graph) |
+| [Von der Testinstanz in den Echtbetrieb](einrichtung-echtbetrieb.md) | Einstellungen und Stammdaten als Datei in eine neue Instanz übernehmen |
 | [Zugang für die Steuerberatung](steuerberatung.md) | Eigener Zugang per Einladungslink, nur lesen: Auswertungen, Journal, Konten, Belege, Rechnungen, DATEV und Jahresarchiv |
 | [Barrierefreiheit und Tastatur](barrierefreiheit.md) | Bedienung ohne Maus, Tastenkürzel, Kontraste in allen Themes, Prüfung mit axe-core nach WCAG 2.2 AA |
 
@@ -33,7 +34,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Rechnungen und E-Rechnung](rechnungen.md) | Editor, Artikelkatalog, Textbausteine, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Abschläge, wiederkehrende Rechnungen, Versand, Storno und Korrektur |
 | [Zahlung und Mahnung](rechnungen-zahlung.md) | Fälligkeit, Skonto, GiroCode, SEPA-Lastschrift mit Sammeldatei, Mahnwesen |
 | [Angebote](angebote.md) | Eigener Nummernkreis, PDF, optionale und alternative Positionen, Zahlungsplan mit Abschlägen, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot, Auftragsbestätigung und Lieferschein |
-| [Kontakte](kontakte.md) | Ein Verzeichnis für Kunden und Lieferanten, Ansprechpartner, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate |
+| [Kontakte](kontakte.md) | Ein Verzeichnis für Kunden und Lieferanten, Ansprechpartner, USt-IdNr. beim BZSt bestätigen, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate |
 | [Zeiteinträge](leistungen.md) | Zeiteinträge je Kunde mit Stundensatz, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API, als Grundlage für die Rechnung |
 | [Eigene Belegvorlagen](belegvorlagen.md) | Eigene Layouts in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung: Felder, Schriften, Prüfung beim Hochladen, Anleitung für KI-Agenten |
 
@@ -41,7 +42,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 | | |
 |---|---|
-| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
+| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Duplizieren, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
 | [Belege aus dem Ausland](belege-ausland.md) | Reverse Charge nach § 13b, innergemeinschaftlicher Erwerb, Einfuhrumsatzsteuer, Fremdwährung |
 | [Belege bezahlen](belege-bezahlen.md) | Bezahlung über Geschäftskonto, privat oder Kasse, Überweisen per SEPA-Datei mit Skonto, Verrechnen ohne Zahlung |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand, Wege zur Betriebsstätte (Entfernungspauschale); Buchung und Storno |
@@ -92,7 +93,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [KI-Assistenten (MCP)](ki-assistenten.md) | Haben im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen, API-Tokens, Datenschutz |
-| [REST-API](api.md) | Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen. Eine externe Referenz aus Plattform und Bestellnummer verhindert doppelte Entwürfe. Belege aus Dokumentenarchiven und Skripten. OpenAPI, Rechte je Token und Beispiele mit curl |
+| [REST-API](api.md) | Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen, dazu Angebote lesen. Eine externe Referenz aus Plattform und Bestellnummer verhindert doppelte Entwürfe. Belege aus Dokumentenarchiven und Skripten. OpenAPI, Rechte je Token und Beispiele mit curl |
 | [Dokumentenarchiv](dokumentenarchiv.md) | Festgeschriebene Rechnungen als Kopie an ein Archiv wie Paperless-ngx oder Belegt, Status an der Rechnung; Belege aus dem Archiv über die REST-API |
 | [Eigene Seiten](eigene-seiten.md) | Eigene Werkzeuge wie eine Bestellübersicht aus n8n als Menüeintrag, im Rahmen angezeigt |
 

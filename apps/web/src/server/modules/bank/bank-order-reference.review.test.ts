@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Review: Erstattungen mit ausschließlich externer Bestellnummer (Postgres)", () => {
   let bank: typeof import("./bank.ts");
@@ -58,7 +59,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Erstattungen mit ausschließlich exte
       },
       { externalSource: "etsy", externalId },
     );
-    return invoices.finalizeInvoice(actor, invoice.id);
+    return invoices.finalizeInvoice(actor, invoice.id, kleinunternehmerStand);
   }
 
   function statement() {
@@ -87,7 +88,9 @@ describe.skipIf(!testDatabaseUrl)("Review: Erstattungen mit ausschließlich exte
         await bank.allocate(actor, { kind: "invoice", transactionId: payment!.id, invoiceId: invoice.id, amount: 11_900 });
       }
       const refundOf = async (id: string, date: string) =>
-        kind === "storno" ? invoices.cancelInvoice(actor, id, date) : invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, id, date)).id);
+        kind === "storno"
+          ? invoices.cancelInvoice(actor, id, date)
+          : invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, id, date)).id, kleinunternehmerStand);
       await refundOf(older.id, "2026-09-10");
       const correctRefund = await refundOf(wanted.id, "2026-09-11");
       const [refund] = await sql`select id from bank_transactions where amount = -11900`;

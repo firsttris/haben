@@ -9,7 +9,7 @@
 
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
-direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
+direkt an ELSTER. Für die GoBD gebaut, auf deinem Server; Daten gehen nur an Dienste, die du selbst einschaltest.
 
 ![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
@@ -20,13 +20,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 [![Discussions](https://img.shields.io/badge/GitHub-Discussions-24292f?logo=github&logoColor=white)](https://github.com/firsttris/haben/discussions)
 [![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://haben.app/rechnungen.html)
 [![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://haben.app/umsatzsteuer.html)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154)](https://tanstack.com/start)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
-[![Image Size](https://img.shields.io/docker/image-size/tristanteu/haben/latest?logo=docker&logoColor=white&label=image)](https://hub.docker.com/r/tristanteu/haben)
-[![Plattformen](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/haben/tags)
-[![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](https://haben.app/installation.html)
 
 [Warum?](#warum-haben) •
 [Funktionen](#funktionen) •
@@ -50,12 +44,12 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation-backup.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
-## Haben ist, was dir gehört.
+## Warum Haben?
 
-**Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
+**Haben ist, was dir gehört. Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
 
 Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
-Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht. Haben ist die
+Lexware Office (früher lexoffice) oder sevDesk, und deine Rechnungen liegen nicht auf fremden Servern. Haben ist die
 Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
 auf deinem eigenen Server betreibst.
 
@@ -65,7 +59,7 @@ auf deinem eigenen Server betreibst.
   Zahlungen dahinter, siehe [Woher weiß ich, dass die Zahlen stimmen?](#faq)
 - **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
-- **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
+- **Umzug mit Abgleich**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren und vor der Kündigung je Jahr prüfen, ob alles da ist
 - **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
   Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
 
@@ -75,7 +69,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 
 | Bereich | Was Haben kann |
 |---|---|
-| 🧾 [Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), [eigene Layouts](https://haben.app/belegvorlagen.html) in Typst, Storno, Abschlags- und wiederkehrende Rechnungen, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
+| 🧾 [Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (mit dem KoSIT-Validator geprüft), [eigene Layouts](https://haben.app/belegvorlagen.html) in Typst, Storno, Abschlags- und wiederkehrende Rechnungen, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
 | 📝 [Angebote](https://haben.app/angebote.html) | Optionale und alternative Positionen, Zahlungsplan mit Abschlagsrechnungen, mit einem Klick zur Rechnung |
 | 📎 [Belege](https://haben.app/belege.html) | Hochladen per Drag-and-drop, Kamera oder E-Mail; E-Rechnungen direkt gelesen, sonst optional per KI (Claude, Ollama, OpenRouter …); Dauerbelege, SEPA-Überweisung |
 | 🏦 [Bankabgleich](https://haben.app/bank.html) | Automatischer Abruf über Enable Banking oder FinTS oder Import (DKB, N26, CAMT.053, PayPal, Stripe …), Vorschläge mit Begründung, Steuerzahlungen und Darlehen |
@@ -110,6 +104,19 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
     <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-auswertungen-dunkel.png"><img src="docs/screenshot-auswertungen.png" alt="Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm"></picture><br><sub><b>Auswertungen</b>: EÜR nach Zufluss und Abfluss</sub></td>
   </tr>
 </table>
+
+## Haben und die Alternativen
+
+Haben läuft auf deinem eigenen Server, ohne Abo. Beim Umzug rechnet es jedes Jahr nach, damit du vor der Kündigung
+siehst, dass alles da ist.
+
+| | Was es ist | Umzug nach Haben |
+|---|---|---|
+| Lexware Office (früher lexoffice) | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Über die Public API, eine Sicherung aus der Web-Oberfläche oder den DATEV-Export ([Umzug](https://haben.app/lexoffice.html)) |
+| sevDesk | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Mit API-Token oder über die Exporte, samt Anlagen ([Umzug](https://haben.app/sevdesk.html)) |
+| FastBill | Rechnungen und Buchhaltung online im Abo | Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API ([Umzug](https://haben.app/fastbill.html)) |
+| BuchhaltungsButler · Accountable | Online-Buchhaltung im Abo | Aus den Exportdateien (DATEV-Buchungsstapel und Belege) ([BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html), [Accountable](https://haben.app/accountable.html)) |
+| DATEV | Software und Datenformat der Steuerberatung | Kein Umzug nötig: Du buchst in Haben, die Steuerberatung bekommt einen [Lesezugang](https://haben.app/steuerberatung.html) oder den DATEV-Buchungsstapel |
 
 ## Schnellstart
 
@@ -164,9 +171,8 @@ Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS 
 <details>
 <summary><b>Ist Haben eine Alternative zu Lexware Office (lexoffice) und sevDesk?</b></summary>
 
-Ja, ohne Abo und auf deinem eigenen Server. Rechnungen, Belege und Kontakte übernimmst du per API oder, bei
-Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, siehe
-[Umzug aus Lexoffice](https://haben.app/lexoffice.html) und [Umzug aus sevDesk](https://haben.app/sevdesk.html).
+Ja, ohne Abo und auf deinem eigenen Server, siehe [Haben und die Alternativen](#haben-und-die-alternativen). Den Umzug
+beschreiben [Umzug aus Lexoffice](https://haben.app/lexoffice.html) und [Umzug aus sevDesk](https://haben.app/sevdesk.html).
 </details>
 
 <details>
@@ -293,6 +299,13 @@ Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt 
 
 ## Entwicklung
 
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Bun](https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white)](https://bun.sh)
+[![TanStack](https://img.shields.io/badge/TanStack-Start%20%7C%20Router-ff4154?logo=reactquery&logoColor=white)](https://tanstack.com/start)
+[![React](https://img.shields.io/badge/React-149eca?logo=react&logoColor=white)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white)](https://vite.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Drizzle-4169e1?logo=postgresql&logoColor=white)](https://orm.drizzle.team)
+
 Voraussetzungen: Bun in der Version aus `packageManager` in `package.json`, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
 
 ```sh
@@ -320,8 +333,7 @@ Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.h
 
 ## Mehr von uns
 
-- Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
-- Word, Excel und PowerPoint ohne Microsoft 365? **[Schreibzeug](https://github.com/firsttris/schreibzeug)** bearbeitet sie im Browser und speichert sie als .docx, .xlsx und .pptx.
+Weitere Open-Source-Apps für deinen eigenen Server, etwa für Mail, Office-Dokumente, ein Dokumentenarchiv und mehr: **[speicherstadt.app](https://speicherstadt.app)**
 
 ## Mitwirken
 
@@ -341,12 +353,13 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 
 <div align="center">
 
-⭐ Gefällt dir Haben? Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.<br>
-🐛 [Fehler melden](https://github.com/firsttris/haben/issues/new) · 💡 [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) · ❓ [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) · 💬 [Discord](https://discord.gg/CT2GQytSYH)
+⭐ **Gefällt dir Haben?** Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.
+
+[Fehler melden](https://github.com/firsttris/haben/issues/new) &nbsp;·&nbsp; [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) &nbsp;·&nbsp; [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) &nbsp;·&nbsp; [Discord](https://discord.gg/CT2GQytSYH)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
-Wer Haben für andere betreibt, muss ihnen den Quellcode anbieten; der Link steht in der Navigation. Eine kommerzielle Lizenz ohne diese Pflichten gibt es über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
+Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation. Für IT-Dienstleister und Steuerberatungen: Partnerschaft mit direktem Draht zur Entwicklung, dazu Einrichtung, Umzug und Support über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
 Haben ist keine Steuerberatung. Konten, Kategorien und Aufbewahrung vor dem Echtbetrieb mit deiner Steuerberatung abgleichen.<br>
-ELSTER ist eine Marke der Finanzverwaltung. Haben steht in keiner Verbindung zu Lexware, DATEV oder der Finanzverwaltung.</sub>
+ELSTER ist eine Marke der Finanzverwaltung; Lexware Office (lexoffice), sevDesk, FastBill, BuchhaltungsButler, Accountable und DATEV sind Marken ihrer Inhaber. Haben steht weder mit der Finanzverwaltung noch mit diesen Unternehmen in Verbindung.</sub>
 
 </div>

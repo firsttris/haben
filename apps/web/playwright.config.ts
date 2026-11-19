@@ -7,6 +7,7 @@ import {
   type Durchlauf,
   ENABLE_BANKING_PORT,
   ETSY_PORT,
+  EVATR_PORT,
   FINTS_PRODUKT_E2E,
   habenFirmen,
   LAYOUT_PAKETE_PORT,
@@ -65,6 +66,10 @@ function webServer(durchlauf?: Durchlauf) {
       ENABLE_BANKING_KEY_FILE: "",
       // Nachgebaute sevDesk-API in sevdesk-anlagen.spec.ts; ohne gespeicherten Token fragt kein Server dort an
       SEVDESK_API_URL: `http://127.0.0.1:${SEVDESK_PORT}/api/v1`,
+      // Bestätigung von USt-IdNrn. beim BZSt (#1385) nur im Durchlauf „belege-steuern“ gegen den nachgebauten Dienst; die
+      // anderen Server schalten sie ab, und keiner fragt das echte BZSt
+      EVATR_API_URL: `http://127.0.0.1:${EVATR_PORT}/app/v1/abfrage`,
+      HABEN_EVATR: durchlauf === "belege-steuern" ? "" : "off",
       // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
       LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
       // Kontoabruf über FinTS (#654) nur im Durchlauf „fints-abruf“; sonst bleibt FinTS aus wie ohne Registrierungsnummer
@@ -130,6 +135,7 @@ export default defineConfig({
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "datumsfelder.spec.ts",
+        "einstellungen-export.spec.ts",
         "kopfzeile.spec.ts",
         "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",

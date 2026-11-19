@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Steuerpfad der Verrechnung (#877, Etappe 4). Die Aufrechnung selbst ist umsatzsteuerlich neutral: Die Minderung hängt
@@ -44,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und Steueranteile der Zahlungen (
       },
       {},
     );
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   /** Korrektur über 20,00 EUR netto plus 19 % = 23,80 EUR */
@@ -63,7 +64,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und Steueranteile der Zahlungen (
       },
       { kind: "korrektur", correctsId },
     );
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   /** Zahlungseingang über die Bank, wie aus dem Kontoauszug */

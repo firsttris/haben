@@ -5,13 +5,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { invoicePaymentList, listAccounts, listWriteOffs } from "../modules/bank/index.ts";
-import { openPositions, umsatzImMonat } from "../modules/auswertungen/index.ts";
+import { kleinunternehmerStand, openPositions, umsatzImMonat } from "../modules/auswertungen/index.ts";
 import { deliverSoon, deliveryForInvoice } from "../modules/ablage/index.ts";
 import { serviceEntriesOfInvoice } from "../modules/leistungen/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import {
   cancelInvoice,
+  copyInvoice,
   createCorrection,
   createDraft,
   deleteDraft,
@@ -244,7 +245,7 @@ export const finalizeInvoiceDraft = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     try {
-      const invoice = await finalizeInvoice(context.user.id, data.id, data.bestaetigt);
+      const invoice = await finalizeInvoice(context.user.id, data.id, kleinunternehmerStand, data.bestaetigt);
       deliverSoon();
       return { status: "final" as const, id: invoice.id };
     } catch (error) {
@@ -274,6 +275,14 @@ export const correctFinalInvoice = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     const draft = await createCorrection(context.user.id, data, today());
+    return { id: draft.id };
+  });
+
+export const copyFinalInvoice = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    const draft = await copyInvoice(context.user.id, data, today());
     return { id: draft.id };
   });
 

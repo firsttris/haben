@@ -122,13 +122,13 @@ function claimAt(
 ): AdvanceReceivablePosition | null {
   // Bei einer Anforderung bilden ihre Korrektur-/Stornozeilen den angeforderten Betrag. Ein Schluss-Papierstorno
   // hebt dagegen weder die bereits erbrachte Leistung noch eine vorherige echte Entgeltkorrektur auf.
-  const corrections = members.filter((i) => i.id !== original.id && i.issueDate <= cutoff && (original.variant === "abschlag" || i.kind === "korrektur"));
+  const corrections = members.filter((i) => i.id !== original.id && i.issueDate <= cutoff && (original.variant !== "schluss" || i.kind === "korrektur"));
   const gross = performed ? original.gross + corrections.reduce((sum, i) => sum + i.gross, 0) : 0;
   const open = gross - settled;
   if (!open) return null;
   const paper = paperAt(members, cutoff, byId);
   const cancelled = paper && members.some((i) => i.kind === "storno" && i.correctsId === paper.id && i.issueDate <= cutoff);
-  const kind = performed && (!paper || cancelled) ? "unbilled" : "receivable";
+  const kind = original.variant === null && open < 0 ? "refund" : performed && (!paper || cancelled) ? "unbilled" : "receivable";
   return position(original, paper, kind, gross, open);
 }
 
@@ -161,13 +161,14 @@ export function advanceReceivables(
             !byId.get(d.invoiceId)!.replacesInvoiceId &&
             byId.get(d.invoiceId)!.performanceDate <= cutoff,
         )
-      : original.performanceDate <= cutoff;
-    if (isAdvance && !performed) result.netAdvances += paid.filter((s) => s.kind === "payment").reduce((sum, s) => sum + s.net, 0);
-    const row = isAdvance && !performed ? requestAt(original, members, settled, cutoff) : claimAt(original, members, settled, performed, cutoff, byId);
+      : original.performanceDate <= cutoff &&
+        !(original.variant === null && members.some((i) => i.kind === "storno" && i.correctsId === original.id && i.issueDate <= original.performanceDate));
+    if (!performed) result.netAdvances += paid.filter((s) => s.kind === "payment").reduce((sum, s) => sum + s.net, 0);
+    const row = !performed ? requestAt(original, members, settled, cutoff) : claimAt(original, members, settled, performed, cutoff, byId);
     if (!row) continue;
     result.positions.push(row);
     if (row.kind === "request") result.requests += row.open;
-    if (row.kind === "receivable" || row.kind === "unbilled") result.receivables += row.open;
+    if (row.kind === "receivable" || row.kind === "unbilled" || (row.kind === "refund" && performed)) result.receivables += row.open;
     if (row.kind === "unbilled") result.unbilled += row.open;
   }
   result.positions.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number) || a.id.localeCompare(b.id));

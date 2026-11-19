@@ -1,4 +1,11 @@
-import { DEFAULT_INVOICE_NUMBER_FORMAT, DEFAULT_QUOTE_NUMBER_FORMAT, formatDocumentNumber, MAX_NUMBER_FORMAT_LENGTH, numberFormatError } from "@haben/core";
+import {
+  DEFAULT_CUSTOMER_NUMBER_FORMAT,
+  DEFAULT_INVOICE_NUMBER_FORMAT,
+  DEFAULT_QUOTE_NUMBER_FORMAT,
+  formatDocumentNumber,
+  MAX_NUMBER_FORMAT_LENGTH,
+  numberFormatError,
+} from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -12,17 +19,18 @@ interface Circle {
   running: boolean;
 }
 
-/** Zwei Beispiele, beim durchlaufenden Zähler über den Jahreswechsel, sonst aus diesem Monat */
+/** Zwei Beispiele, beim durchlaufenden Zähler über den Jahreswechsel, sonst aus diesem Monat; {KUNDENNR} wird zur Beispiel-Kundennummer */
 function examples(format: string, running: boolean, date: string): [string, string] {
-  if (!running) return [formatDocumentNumber(format, date, 1), formatDocumentNumber(format, date, 2)];
+  const kdnr = formatDocumentNumber(DEFAULT_CUSTOMER_NUMBER_FORMAT, date, 1);
+  if (!running) return [formatDocumentNumber(format, date, 1, kdnr), formatDocumentNumber(format, date, 2, kdnr)];
   const year = Number(date.slice(0, 4));
-  return [formatDocumentNumber(format, `${year}-12-31`, 412), formatDocumentNumber(format, `${year + 1}-01-02`, 413)];
+  return [formatDocumentNumber(format, `${year}-12-31`, 412, kdnr), formatDocumentNumber(format, `${year + 1}-01-02`, 413, kdnr)];
 }
 
 /** Format und Zähler eines Nummernkreises, mit Beispiel oder Fehler darunter */
 function CircleFields({ label, name, value, onChange, date }: { label: string; name: string; value: Circle; onChange: (value: Circle) => void; date: string }) {
   const format = value.format.trim();
-  const problem = numberFormatError(format, { requireYear: !value.running });
+  const problem = numberFormatError(format, { requireYear: !value.running, allowCustomer: true });
   const [first, second] = problem ? ["", ""] : examples(format, value.running, date);
   return (
     <fieldset className="field-group" style={{ border: 0, padding: 0, margin: 0 }}>
@@ -86,7 +94,7 @@ export function NumberFormatCard({
   const { busy, notice, run } = useAction();
   const [invoiceCircle, setInvoiceCircle] = useState<Circle>({ format: invoice, running: invoiceRunning });
   const [quoteCircle, setQuoteCircle] = useState<Circle>({ format: quote, running: quoteRunning });
-  const valid = [invoiceCircle, quoteCircle].every((c) => !numberFormatError(c.format.trim(), { requireYear: !c.running }));
+  const valid = [invoiceCircle, quoteCircle].every((c) => !numberFormatError(c.format.trim(), { requireYear: !c.running, allowCustomer: true }));
   const isDefault = invoice === DEFAULT_INVOICE_NUMBER_FORMAT && quote === DEFAULT_QUOTE_NUMBER_FORMAT && !invoiceRunning && !quoteRunning;
 
   const store = (next: { invoice: Circle; quote: Circle }) =>
@@ -110,8 +118,9 @@ export function NumberFormatCard({
       <p className="small muted" style={{ margin: 0 }}>
         Platzhalter: <span className="mono">{"{JJJJ}"}</span> Jahr, <span className="mono">{"{JJ}"}</span> Jahr zweistellig,{" "}
         <span className="mono">{"{MM}"}</span> Monat, beides aus dem Rechnungs- bzw. Angebotsdatum, <span className="mono">{"{NNN}"}</span> laufende Nummer mit
-        so vielen Stellen (ein bis sechs N). Beginnt der Zähler jedes Jahr neu, gehört das Jahr dazu; läuft er weiter, ist es frei. Außerdem Buchstaben,
-        Ziffern, Bindestrich, Unterstrich und Punkt, z. B.{" "}
+        so vielen Stellen (ein bis sechs N), <span className="mono">{"{KUNDENNR}"}</span> Kundennummer des Kunden, nie direkt neben der laufenden Nummer.
+        Beginnt der Zähler jedes Jahr neu, gehört das Jahr dazu; läuft er weiter, ist es frei. Außerdem Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt,
+        z. B.{" "}
         <span className="mono">
           RE-{"{JJJJ}"}-{"{MM}"}-{"{NNNN}"}
         </span>

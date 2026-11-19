@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -86,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
       note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Std." as const, unitPrice: net, taxRate: 1900 as const }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function pay(invoiceId: string, amount: number, date: string) {
@@ -112,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
     const stornoLeer = await invoices.cancelInvoice(actor, storniert.id, "2026-06-11");
     // Korrektur: Gutschrift offen
     const korrigiert = await invoice(80_00);
-    const korrektur = await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, korrigiert.id, "2026-06-12")).id);
+    const korrektur = await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, korrigiert.id, "2026-06-12")).id, kleinunternehmerStand);
 
     // 1. Rechnungsliste
     const list = await invoices.listInvoices(today);

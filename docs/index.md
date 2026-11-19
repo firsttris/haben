@@ -125,7 +125,7 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 <div markdown>
 <span class="showcase-kicker">Umzug</span>
 
-## Umziehen, ohne etwas zu verlieren
+## Umziehen und prüfen, dass alles da ist
 
 Aus Lexware Office, sevDesk und FastBill kommen Rechnungen, Belege und Kontakte mit, aus Lexware Office und sevDesk
 auch Buchungen, aus
@@ -170,7 +170,7 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 <div markdown>
 **🏠 Deine Daten bleiben bei dir**
 
-Auf deinem Server, Schlüssel verschlüsselt. Kein Dienst liest deine Rechnungen mit.
+Auf deinem Server, Schlüssel verschlüsselt. Kein Dienst liest deine Rechnungen mit, solange du keinen einschaltest.
 </div>
 <div markdown>
 **💶 Kein Abo**
@@ -216,7 +216,7 @@ Abrechnung nach dem Programmablaufplan des BMF, Lohnsteuer-Anmeldung über ELSTE
 Belege auslesen lassen oder Claude fragen, welche Rechnungen offen sind – nur lesend.
 </div>
 <div markdown>
-**♿ Für alle bedienbar**
+**♿ Per Tastatur bedienbar**
 
 Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 </div>

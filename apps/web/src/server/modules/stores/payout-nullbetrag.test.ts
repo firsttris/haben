@@ -1,8 +1,8 @@
-import { gzipSync, strToU8 } from "fflate";
 import { generateKeyPairSync } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AppStoreClient } from "@haben/import";
+import { APPLE_TEST_PERIOD, appleFinanceReport } from "../../../test-fixtures/apple-finanzbericht.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -14,18 +14,13 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 const p8 = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ type: "pkcs8", format: "pem" }).toString();
 const IBAN = "DE12500105170648489890";
 
-const report = gzipSync(
-  strToU8(
-    [
-      "Vendor Name\tStart Date\tEnd Date\tExtended Partner Share\tPartner Share Currency\tSale or Return",
-      "Muster\t09/28/2026\t11/01/2026\t7.00\tEUR\tS",
-      "Muster\t09/28/2026\t11/01/2026\t10.81\tUSD\tS",
-      "Muster\t09/28/2026\t11/01/2026\t35.00\tTWD\tS",
-      "Muster\t09/28/2026\t11/01/2026\t-35.00\tTWD\tR",
-    ].join("\n"),
-  ),
-);
-const appleClient: AppStoreClient = { financeDetail: async (month) => (month === "2026-10" ? report : null) };
+const report = appleFinanceReport([
+  ["7.00", "EUR"],
+  ["10.81", "USD"],
+  ["35.00", "TWD"],
+  ["-35.00", "TWD", "R"],
+]);
+const appleClient: AppStoreClient = { financeDetail: async (period) => (period === APPLE_TEST_PERIOD ? report : null) };
 
 describe.skipIf(!testDatabaseUrl)("Auszahlung von Apple mit einer Währung ohne Kurs und ohne Erlös (Postgres)", () => {
   let stores: typeof import("./index.ts");

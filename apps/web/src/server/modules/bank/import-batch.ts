@@ -18,7 +18,8 @@ import {
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
 import { connectedRanges, cutoverFor, otherImports, otherRanges } from "./andere-importe.ts";
-import { BankError, type ImportResult, insertStatement, knownHashes, prepareStatement, statementResult } from "./bank.ts";
+import { type ImportResult, insertStatement, knownHashes, prepareStatement, statementResult } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 
 /*
  * Schritt 3 aus #306: Eine Lieferung des Importvertrags speichern. Bewegungen erkennt Haben an ihrer Quellenidentität
@@ -55,6 +56,19 @@ export interface BatchResult extends ImportResult {
 type Row = ParsedTransaction & { dedupHash: string };
 
 /**
+ * Konflikt mit schon übernommenen Bewegungen (#306, 3b). Trägt sie samt der zuerst übernommenen Bewegung, damit
+ * `recordRefusedBatch` genau diese festhält; bei jedem anderen Grund der Ablehnung gibt es keinen Konflikt.
+ */
+export class MovementConflictError extends BankError {
+  readonly conflicts: { movementId: string; movement: ImportMovement }[];
+
+  constructor(message: string, conflicts: { movementId: string; movement: ImportMovement }[]) {
+    super(message);
+    this.conflicts = conflicts;
+  }
+}
+
+/**
  * Quellenbindung zur Kennung; fehlt sie, wird sie für dieses Konto mit ihrem Stichtag angelegt. Gehört sie zu einem anderen
  * Konto, Fehler.
  */
@@ -81,26 +95,42 @@ async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId:
   return created!;
 }
 
-/** Schon übernommene Bewegungen der Lieferung, je `movementKey` */
-async function knownMovements(tx: Tx, source: { id: string }, binding: StoreBatchInput["binding"], movements: ImportMovement[]) {
+/**
+ * Schon übernommene Bewegungen der Lieferung, je `movementKey`: zuerst der übernommene Kern, danach die nach einem Konflikt
+ * geklärten (`import_resolutions`, #306 3b); dazu die Kennung der übernommenen Bewegung, auf die sich ein Konflikt bezieht.
+ */
+export async function knownMovements(tx: Tx, source: { id: string }, binding: StoreBatchInput["binding"], movements: ImportMovement[]) {
   const ids = [...new Set(movements.map((m) => m.sourceEventId))];
-  const rows =
+  const where = and(eq(schema.importMovements.sourceId, source.id), inArray(schema.importMovements.sourceEventId, ids));
+  const rows = ids.length === 0 ? [] : await tx.select().from(schema.importMovements).where(where);
+  const resolved =
     ids.length === 0
       ? []
       : await tx
-          .select()
-          .from(schema.importMovements)
-          .where(and(eq(schema.importMovements.sourceId, source.id), inArray(schema.importMovements.sourceEventId, ids)));
-  return new Map<string, KnownMovement>(
-    rows.map((r) => [
-      movementKey(binding, { sourceEventId: r.sourceEventId, component: r.component }),
-      { core: { amount: r.amount, currency: r.currency, bookingDate: r.bookingDate, kind: r.kind as ImportMovement["kind"] }, details: r.details },
-    ]),
-  );
+          .select({ movementId: schema.importConflicts.movementId, conflict: schema.importConflicts })
+          .from(schema.importConflicts)
+          .innerJoin(schema.importResolutions, eq(schema.importResolutions.conflictId, schema.importConflicts.id))
+          .innerJoin(schema.importMovements, eq(schema.importMovements.id, schema.importConflicts.movementId))
+          .where(where)
+          .orderBy(schema.importResolutions.createdAt);
+  const core = (r: { amount: number; currency: string; bookingDate: string; kind: string; details: string }): KnownMovement => ({
+    core: { amount: r.amount as ImportMovement["amount"], currency: r.currency, bookingDate: r.bookingDate, kind: r.kind as ImportMovement["kind"] },
+    details: r.details,
+  });
+  const known = new Map<string, KnownMovement[]>();
+  const movementIds = new Map<string, string>();
+  for (const r of rows) {
+    const key = movementKey(binding, { sourceEventId: r.sourceEventId, component: r.component });
+    known.set(key, [core(r)]);
+    movementIds.set(key, r.id);
+  }
+  const keyOf = new Map(rows.map((r) => [r.id, movementKey(binding, { sourceEventId: r.sourceEventId, component: r.component })]));
+  for (const r of resolved) known.get(keyOf.get(r.movementId)!)?.push(core(r.conflict));
+  return { known, movementIds };
 }
 
 /** Erstes freies Vorkommen des Dubletten-Hashes, damit ein neuer gleichartiger Umsatz den Index nicht verletzt */
-async function freeHash(tx: Tx, accountId: string, row: Row, taken: Set<string>): Promise<string> {
+export async function freeHash(tx: Tx, accountId: string, row: Row, taken: Set<string>): Promise<string> {
   for (let start = 0; ; start += 20) {
     const candidates = Array.from({ length: 20 }, (_, i) => transactionHash(row, start + i));
     const known = await knownHashes(tx, accountId, candidates);
@@ -318,8 +348,13 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
   if (repeated.outcome === "replay") return replayResult(tx, account, previous!);
   if (repeated.outcome === "conflict") throw new BankError(repeated.message);
 
-  const { results, conflicts } = classifyMovements(await knownMovements(tx, source, binding, validation.accepted), binding, validation.accepted);
-  if (conflicts.length > 0) throw new BankError(`Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`);
+  const { known, movementIds } = await knownMovements(tx, source, binding, validation.accepted);
+  const { results, conflicts } = classifyMovements(known, binding, validation.accepted);
+  if (conflicts.length > 0)
+    throw new MovementConflictError(
+      `Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`,
+      results.filter((r) => r.outcome === "conflict").map((r) => ({ movementId: movementIds.get(r.key)!, movement: r.movement })),
+    );
   const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [r.movement.sourceEventId, r.movement]));
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
@@ -339,14 +374,4 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
     ...(progress.reason ? { reason: progress.reason } : {}),
     replay: false,
   };
-}
-
-/**
- * Ein Abruf, den `storeBatch` abgelehnt hat (Konflikt, ungültige Lieferung), im Importprotokoll des Kontos: ohne Umsätze,
- * ohne Zeitraum und Salden, damit er weder eine Lücke schließt noch einen Kontostand setzt; nur die Meldung.
- */
-export async function recordRefusedBatch(tx: Tx, accountId: string, input: Pick<StoreBatchInput, "statement" | "source">, message: string) {
-  const { format, currency, accountIban, accountName } = input.statement;
-  const empty: ParsedStatement = { format, currency, accountIban, accountName, transactions: [], warnings: [message] };
-  await insertStatement(tx, accountId, empty, input.source, [], 0);
 }

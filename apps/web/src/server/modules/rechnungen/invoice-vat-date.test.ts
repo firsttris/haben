@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfahrenswechsel (Postgres)", () => {
   let sql: postgres.Sql;
@@ -81,7 +82,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
       taxTreatment: "reverse_charge",
       lines: [{ description: "Erbrachte Teilleistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 0 }],
     });
-    await invoices.finalizeInvoice(actor, draft.id);
+    await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(await vat.computeVatFigures({ year: 2026, month: 11 })).toMatchObject({ kz21: 30_000 });
     expect(await vat.computeVatFigures({ year: 2026, month: 12 })).toMatchObject({ kz21: 0 });
     for (const month of [11, 12]) expect((await reports.vatAbgleich({ year: 2026, month })).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
@@ -113,7 +114,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
       taxTreatment: "reverse_charge",
       lines: [{ description: "Erbrachte Teilleistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 0 }],
     });
-    await invoices.finalizeInvoice(actor, draft.id);
+    await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(await vat.computeVatFigures({ year: 2026, month: 41 })).toMatchObject({ kz21: 30_000 });
     expect(await vat.zmQuartale()).toEqual([{ year: 2026, month: 41, sent: false }]);
   });
@@ -132,10 +133,15 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
           lines: [{ description: "Frühere Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     await bank.createCashInvoiceEntry(actor, { invoiceId: old.id, date: "2025-11-05", amount: 11_900 }, "2025-11-05");
     await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
-    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, { ...input(), serviceFrom: "2025-11-20" })).id);
+    const invoice = await invoices.finalizeInvoice(
+      actor,
+      (await invoices.createDraft(actor, { ...input(), serviceFrom: "2025-11-20" })).id,
+      kleinunternehmerStand,
+    );
     expect(await vat.computeVatFigures({ year: 2025, month: 11 })).toMatchObject({ kz81: 10_000, tax81: 1_900 });
     expect(await vat.computeVatFigures({ year: 2026, month: 12 })).toMatchObject({ kz81: 0, tax81: 0 });
     await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
@@ -157,6 +163,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
             serviceFrom: null,
           })
         ).id,
+        kleinunternehmerStand,
       );
       const payment = await bank.createCashInvoiceEntry(actor, { invoiceId: advance.id, date: "2025-12-12", amount: 35_700 }, "2025-12-12");
       // Erst vollständig bezahlt umstellen, wie es die echte Einstellungssperre verlangt. Die spätere Gegenzeile ist
@@ -176,6 +183,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
             lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
           })
         ).id,
+        kleinunternehmerStand,
       );
       expect(await vat.computeVatFigures({ year: 2025, month: 12 })).toMatchObject({ kz81: 30_000, tax81: 5_700 });
       expect(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject(
@@ -196,6 +204,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
             serviceFrom: null,
           })
         ).id,
+        kleinunternehmerStand,
       );
       await bank.createCashInvoiceEntry(actor, { invoiceId: advance.id, date: "2025-12-12", amount: 35_700 }, "2025-12-12");
       await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: next }, "2026-01-01");
@@ -212,6 +221,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
             lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
           })
         ).id,
+        kleinunternehmerStand,
       );
       expect(await vat.computeVatFigures({ year: 2025, month: 12 })).toMatchObject(
         previous === "soll" ? { kz81: 100_000, tax81: 19_000 } : { kz81: 30_000, tax81: 5_700 },

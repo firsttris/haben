@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 type Sent = { to: string; bcc?: string; subject: string; text: string; html: string; attachments?: { filename: string; contentType: string }[] };
 
@@ -66,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
       note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   beforeEach(async () => {
@@ -282,7 +283,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
 
     const draft = await quotes.quoteToInvoice(actor, quote.id, "2026-09-10");
     expect(draft).toMatchObject({ language: "en", note: "As per our quote AN-2026-001 of 1 Sept 2026." });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const invoiceDraft = await invoiceMail.invoiceMailDraft(invoice.id);
     // Die deutsche Vorlage gilt nicht für englische Rechnungen; ohne englische Rechnungsvorlage der Standardtext
     expect(invoiceDraft.subject).toBe("Invoice 2026-002 from Testfirma");
@@ -325,7 +326,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
       variant: "abschlag",
       lines: [{ description: "1. Abschlag", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    const final = await invoices.finalizeInvoice(actor, abschlag.id);
+    const final = await invoices.finalizeInvoice(actor, abschlag.id, kleinunternehmerStand);
     // Betreff aus der Abschlagsvorlage, Text aus der allgemeinen Rechnungsvorlage
     expect(await invoiceMail.invoiceMailDraft(final.id)).toMatchObject({ subject: `Abschlag ${final.number}`, body: "Allgemein Abschlagsrechnung" });
     expect((await invoiceMail.invoiceMailDraft(invoiceId)).subject).toBe("Rechnung 2026-001");
@@ -383,12 +384,12 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     };
     const vorlage = await recurring.createRecurring(actor, base);
     // Ohne E-Mail-Zugang: festgeschrieben, aber Fehler vermerkt
-    let run = await recurring.runDueRecurring("2026-10-01");
+    let run = await recurring.runDueRecurring("2026-10-01", kleinunternehmerStand);
     expect(run).toMatchObject({ created: 1, finalized: 1, mailed: 0 });
     expect(run.errors[0]).toMatch(/festgeschrieben, E-Mail nicht gesendet: Es ist kein E-Mail-Zugang/);
 
     await mail.saveMailSettings(actor, settings);
-    run = await recurring.runDueRecurring("2026-11-01");
+    run = await recurring.runDueRecurring("2026-11-01", kleinunternehmerStand);
     expect(run).toMatchObject({ created: 1, finalized: 1, mailed: 1, errors: [] });
     expect(sent[0]).toMatchObject({ to: "buchhaltung@nordwerk.example", subject: "Rechnung 2026-003 von Testfirma" });
     const [row] = await sql`select last_error from recurring_invoices where id = ${vorlage.id}`;

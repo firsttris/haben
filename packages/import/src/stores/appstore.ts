@@ -1,10 +1,11 @@
 import { createPrivateKey } from "node:crypto";
-import { resolveRuntime, signJwt, statusPrefix, StoreApiError, storeRequest, type StoreRuntime } from "./http.ts";
+import { addReportMonths, resolveRuntime, signJwt, statusPrefix, StoreApiError, storeRequest, type StoreRuntime } from "./http.ts";
 
 /*
  * Finanzberichte aus App Store Connect (GET /v1/financeReports). Für die Buchhaltung gilt der Bericht FINANCE_DETAIL
  * der Region Z1 (alle Länder, mit Transaktions- und Abrechnungsdatum), nicht die geschätzten Sales-and-Trends-Berichte.
- * Der Monat ist Apples Fiskalmonat (YYYY-MM); der Bericht kommt als gzip-TSV und wird unverändert archiviert.
+ * filter[reportDate] ist Apples Fiskaljahr mit Periode (YYYY-MM), nicht der Kalendermonat, siehe appleFiscalPeriod; der
+ * Bericht kommt als gzip-TSV und wird unverändert archiviert.
  *
  * Anmeldung mit einem Team-Schlüssel (Rolle Finance oder Admin; persönliche Schlüssel sehen keine Finanzberichte):
  * JWT ES256 mit kid = Key ID, iss = Issuer ID, aud = appstoreconnect-v1, höchstens 20 Minuten gültig.
@@ -18,6 +19,19 @@ export const APP_STORE_CONNECT_URL = "https://api.appstoreconnect.apple.com";
 const LABEL = "App Store Connect";
 /** Apple erlaubt höchstens 20 Minuten; etwas weniger, damit Uhrabweichungen nicht stören */
 const TOKEN_SECONDS = 15 * 60;
+
+/**
+ * Apples Fiskalperiode (YYYY-MM) zu einem Kalendermonat. Apples Geschäftsbericht (Form 10-K 2024, Item 1,
+ * https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm): „The Company’s fiscal year
+ * is the 52- or 53-week period that ends on the last Saturday of September.“ Periode 01 ist damit der Oktober des
+ * Vorjahres, auch in Jahren mit 53 Wochen: 2026-01 liefert den Bericht vom 28.09. bis 01.11.2025. Bestätigt an 19
+ * Berichten in Folge (Perioden 2025-04 bis 2026-10, #1424); der Fiskalkalender selbst steht nur hinter der Anmeldung von
+ * App Store Connect.
+ */
+export const appleFiscalPeriod = (month: string): string => addReportMonths(month, 3);
+
+/** Kalendermonat zu Apples Fiskalperiode, die Umkehrung von appleFiscalPeriod */
+export const appleReportMonth = (period: string): string => addReportMonths(period, -3);
 
 export interface AppStoreCredentials {
   issuerId: string;
@@ -52,8 +66,8 @@ export interface AppStoreClientOptions extends StoreRuntime {
 }
 
 export interface AppStoreClient {
-  /** Bericht FINANCE_DETAIL (Z1) eines Fiskalmonats als gzip; null, wenn es für den Monat (noch) keinen gibt */
-  financeDetail(fiscalMonth: string): Promise<Uint8Array | null>;
+  /** Bericht FINANCE_DETAIL (Z1) einer Fiskalperiode (appleFiscalPeriod) als gzip; null, wenn es (noch) keinen gibt */
+  financeDetail(period: string): Promise<Uint8Array | null>;
 }
 
 export function createAppStoreClient(options: AppStoreClientOptions): AppStoreClient {
@@ -71,13 +85,13 @@ export function createAppStoreClient(options: AppStoreClientOptions): AppStoreCl
   }
 
   return {
-    async financeDetail(fiscalMonth) {
-      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(fiscalMonth)) throw new StoreApiError(`Ungültiger Monat ${fiscalMonth}`, 0, "/v1/financeReports");
+    async financeDetail(period) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) throw new StoreApiError(`Ungültige Periode ${period}`, 0, "/v1/financeReports");
       const query = new URLSearchParams({
         "filter[vendorNumber]": vendorNumber,
         "filter[regionCode]": "Z1",
         "filter[reportType]": "FINANCE_DETAIL",
-        "filter[reportDate]": fiscalMonth,
+        "filter[reportDate]": period,
       });
       const response = await storeRequest(
         rt,
