@@ -20,6 +20,11 @@ export const ORDER_STATUSES: Record<string, string> = {
   accepted: "Angenommen",
   partlyInvoiced: "Teilweise berechnet",
   invoiced: "Vollständig berechnet",
+  // FastBill (estimate.get)
+  created: "Erstellt",
+  sent: "Versendet",
+  negotiation: "In Verhandlung",
+  rejected: "Abgelehnt",
 };
 export class OrderArchiveError extends UserError {}
 

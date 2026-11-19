@@ -90,7 +90,7 @@ export async function storeLegacyOrder(
     await storeFile(file.bytes);
     await tx.insert(schema.legacyOrderFiles).values({
       orderId: row.id,
-      origin: document.source === "import" ? "import" : "sevdesk",
+      origin: document.source === "import" ? "import" : document.source === "fastbill" ? "fastbill" : "sevdesk",
       filename: file.filename.slice(0, 200),
       mimeType: file.mimeType,
       sha256,
