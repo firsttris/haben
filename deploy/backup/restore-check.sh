@@ -11,6 +11,10 @@
 #
 # Platzbedarf: kurzzeitig eine zweite Kopie der Datenbank auf dem Datenbankserver und der gepackte Dump hier.
 set -euo pipefail
+# Auch ohne Einstiegspunkt (etwa docker compose exec backup backup.sh) muss die rclone-Konfiguration
+# gesetzt und geprüft sein, bevor restic startet
+. "${BASH_SOURCE[0]%/*}/rclone-ziel.sh"
+configure_rclone
 . "${BASH_SOURCE[0]%/*}/backup-status.sh"
 snapshot="${1:-latest}"
 subset="${RESTORE_CHECK_SUBSET:-5%}"

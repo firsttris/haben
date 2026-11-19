@@ -26,6 +26,8 @@ x-backup: &backup
     # Zugangsdaten für ein Repository auf S3, sonst leer
     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+    # Pfad der rclone-Konfiguration im Container, nur für ein rclone:Ziel (docs/installation-backup.md)
+    - RCLONE_CONFIG=${RCLONE_CONFIG:-/var/lib/haben-backup/rclone.conf}
 
 services:
   db:

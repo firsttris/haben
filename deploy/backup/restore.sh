@@ -12,6 +12,10 @@
 # Die App muss mit demselben HABEN_ENCRYPTION_KEY laufen wie beim Backup, sonst lassen sich
 # ELSTER-Zertifikat, Mail-, Bank- und Lexoffice-Zugänge aus dem Dump nicht mehr entschlüsseln.
 set -euo pipefail
+# Auch ohne Einstiegspunkt (etwa docker compose exec backup backup.sh) muss die rclone-Konfiguration
+# gesetzt und geprüft sein, bevor restic startet
+. "${BASH_SOURCE[0]%/*}/rclone-ziel.sh"
+configure_rclone
 snapshot="${1:-}"
 if [ -z "$snapshot" ]; then
   restic snapshots --tag haben

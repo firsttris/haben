@@ -110,6 +110,12 @@
         "resources": {
           "type": "object",
           "additionalProperties": true
+        },
+        "extraVolumeMounts": {
+          "type": "array"
+        },
+        "extraVolumes": {
+          "type": "array"
         }
       }
     },
