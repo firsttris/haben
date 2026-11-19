@@ -74,6 +74,8 @@ function OverviewPage() {
     todos.push({
       title: `Steuerkonto ${taxAccount.name} deckt die Zahllast nicht`,
       detail: `Es fehlen ${formatEuro(taxShortfall)} für ${periodLabel(data.period)}, fällig ${formatLongDate(data.dueDate)}`,
+      // Platzt die Lastschrift, gilt die Steuer nicht als am Fälligkeitstag entrichtet (§ 224 Abs. 2 Nr. 3 AO): Säumniszuschläge (§ 240 AO)
+      frist: data.dueDate,
       action: "Zur Bank",
       tone: "warn",
       to: "/bank",

@@ -62,7 +62,7 @@ Die Menüpunkte eines Bereichs, den du mit „Nein“ beantwortest, verschwinden
 
 ## Die Übersicht
 
-**Zu erledigen** steht oben auf der Übersicht und zeigt die drei dringendsten Aufgaben: erst Fristen der nächsten zwei Wochen wie Voranmeldung, Einspruch oder Zertifikat (auch überfällige), die nächste zuerst, dann Warnungen vor Hinweisen vor Anstehendem. Die übrigen stehen unter **Weitere (n)**. Steht die Voranmeldung nicht unter den drei, führt im Seitenkopf ein Link zum Zeitraum; bei Kleinunternehmern und Befreiten nur, wenn es dazu eine Voranmeldung oder Zahlen gibt. Die Kennzahlen darunter erscheinen, sobald es Rechnungen, offene Posten, Umsatz im Vormonat, eine Zahllast oder Voranmeldung oder einen Kontostand gibt. Solange keine Rechnung festgeschrieben ist, führt **Erste Rechnung schreiben** unter **Letzte Rechnungen** zur ersten Rechnung.
+**Zu erledigen** steht oben auf der Übersicht und zeigt die drei dringendsten Aufgaben: erst Fristen der nächsten zwei Wochen wie Voranmeldung, Zahllast ohne Deckung auf dem Steuerkonto, Einspruch oder Zertifikat (auch überfällige), die nächste zuerst, dann Warnungen vor Hinweisen vor Anstehendem. Die übrigen stehen unter **Weitere (n)**. Steht die Voranmeldung nicht unter den drei, führt im Seitenkopf ein Link zum Zeitraum; bei Kleinunternehmern und Befreiten nur, wenn es dazu eine Voranmeldung oder Zahlen gibt. Die Kennzahlen darunter erscheinen, sobald es Rechnungen, offene Posten, Umsatz im Vormonat, eine Zahllast oder Voranmeldung oder einen Kontostand gibt. Solange keine Rechnung festgeschrieben ist, führt **Erste Rechnung schreiben** unter **Letzte Rechnungen** zur ersten Rechnung.
 
 ## Zugang für die Steuerberatung
 
