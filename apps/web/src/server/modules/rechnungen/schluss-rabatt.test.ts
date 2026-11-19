@@ -2,6 +2,7 @@ import type { PaymentPlanRow } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Schlussrechnung mit Gesamtrabatt: Die Abzüge der Abschlagsrechnungen zählen nicht zur Grundlage des Gesamtrabatts
@@ -77,8 +78,8 @@ describe.skipIf(!testDatabaseUrl)("Schlussrechnung mit Gesamtrabatt (Postgres)",
         })
       ).id,
     );
-    await invoices.finalizeInvoice(actor, (await plan.abschlagFromPlan(actor, quote.id, "2026-10-10", 0, null)).id);
-    const schluss = await invoices.finalizeInvoice(actor, (await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss")).id);
+    await invoices.finalizeInvoice(actor, (await plan.abschlagFromPlan(actor, quote.id, "2026-10-10", 0, null)).id, kleinunternehmerStand);
+    const schluss = await invoices.finalizeInvoice(actor, (await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss")).id, kleinunternehmerStand);
     // 9.000 € nach 10 % Rabatt, davon 2.700 € als Anzahlung abgezogen: 6.300 € netto bleiben
     expect(schluss).toMatchObject({ net: 630_000, discountPercent: 1000 });
     return schluss;
@@ -127,7 +128,7 @@ describe.skipIf(!testDatabaseUrl)("Schlussrechnung mit Gesamtrabatt (Postgres)",
         lines: lines.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit, unitPrice: l.unit_price, taxRate: l.tax_rate })),
       });
       expect(saved).toMatchObject({ net: -schluss.net, gross: -schluss.gross });
-      const final = await invoices.finalizeInvoice(actor, correction.id);
+      const final = await invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand);
       expect(final).toMatchObject({ status: "final", net: -schluss.net });
       // Die Anzahlung bleibt in der Schlussrechnung abgezogen
       expect(await invoices.openAbschlaege()).toEqual([]);

@@ -80,7 +80,7 @@ describe("classifyBatch", () => {
 });
 
 describe("classifyMovements", () => {
-  const known = new Map([[movementKey(binding, movement()), knownMovement(movement())]]);
+  const known = new Map([[movementKey(binding, movement()), [knownMovement(movement())]]]);
 
   it("legt unbekannte Bewegungen neu an, auch gleichartige mit anderer Kennung", () => {
     const result = classifyMovements(known, binding, [movement({ sourceEventId: "T-2" })]);
@@ -107,6 +107,17 @@ describe("classifyMovements", () => {
   it("meldet eine geänderte Art als Konflikt", () => {
     const result = classifyMovements(known, binding, [movement({ kind: "payout" })]);
     expect(result.conflicts).toEqual(["T-1/main: Art payment → payout; nichts überschrieben."]);
+  });
+
+  it("erkennt einen geklärten Kern als bekannt, einen weiteren wieder als Konflikt (#306, 3b)", () => {
+    // Die Bank lieferte 99,00 € statt 100,00 €; der Nutzer hat den Konflikt geklärt, beide Kerne gelten als bekannt
+    const geklaert = new Map([[movementKey(binding, movement()), [knownMovement(movement()), knownMovement(movement({ amount: 9900 }))]]]);
+    expect(classifyMovements(geklaert, binding, [movement({ amount: 9900 })]).results.map((r) => r.outcome)).toEqual(["known"]);
+    expect(classifyMovements(geklaert, binding, [movement()]).results.map((r) => r.outcome)).toEqual(["known"]);
+    const dritter = classifyMovements(geklaert, binding, [movement({ amount: 9800 })]);
+    expect(dritter.results.map((r) => r.outcome)).toEqual(["conflict"]);
+    // Die Meldung nennt den zuerst übernommenen Kern
+    expect(dritter.conflicts).toEqual(["T-1/main: Betrag 100,00 € → 98,00 €; nichts überschrieben."]);
   });
 
   it("erkennt Hauptbetrag und Gebühr getrennt", () => {

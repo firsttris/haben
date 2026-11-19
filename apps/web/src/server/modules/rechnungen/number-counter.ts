@@ -1,4 +1,11 @@
-import { counterCircle, formatDocumentNumber, type FinalizedCircleRef } from "@haben/core";
+import {
+  counterCircle,
+  customerNumberProblem,
+  documentNumberLengthProblem,
+  formatDocumentNumber,
+  usesCustomerNumber,
+  type FinalizedCircleRef,
+} from "@haben/core";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -31,6 +38,12 @@ const NUMBERED = {
 
 export class NumberTakenError extends UserError {}
 
+/** {KUNDENNR} im Format, aber der Beleg hat keine verwendbare Kundennummer */
+export class NumberCustomerError extends UserError {}
+
+/** Nummer länger, als DATEV sie als Belegnummer übernimmt (#1426) */
+export class NumberLengthError extends UserError {}
+
 /** Ob der Zähler des Kreises durchläuft; nur gelesen, ohne die Firmenzeile anzulegen (loadCompany schriebe Audit) */
 export async function countsRunning(tx: Tx, kind: NumberKind): Promise<boolean> {
   const column = kind === "rechnung" ? schema.company.invoiceCounterRunning : schema.company.quoteCounterRunning;
@@ -48,8 +61,19 @@ export async function circleFor(tx: Tx, kind: NumberKind, date: string): Promise
  * Wechsel des Formats kann sie aber mit einer früher vergebenen übereinstimmen; dann lieber eine klare Meldung als die
  * Verletzung des Unique-Index.
  */
-export async function documentNumber(tx: Tx, kind: NumberKind, format: string, date: string, counter: number): Promise<string> {
-  const number = formatDocumentNumber(format, date, counter);
+export async function documentNumber(tx: Tx, kind: NumberKind, format: string, date: string, counter: number, customerNumber?: string): Promise<string> {
+  // Vor allem Schreiben: ohne verwendbare Kundennummer darf {KUNDENNR} nicht zur Nummer werden
+  if (usesCustomerNumber(format)) {
+    const problem = customerNumberProblem(customerNumber);
+    if (problem) throw new NumberCustomerError(problem);
+  }
+  const number = formatDocumentNumber(format, date, counter, customerNumber);
+  // DATEV liest im Belegfeld 1 nur 36 Zeichen: eine längere Nummer könnte dort mit einer anderen zusammenfallen;
+  // Angebote exportiert DATEV nicht
+  if (kind === "rechnung") {
+    const problem = documentNumberLengthProblem(number);
+    if (problem) throw new NumberLengthError(problem);
+  }
   const table = NUMBERED[kind];
   const [taken] = await tx.select({ id: table.id }).from(table).where(eq(table.number, number)).limit(1);
   if (taken) {

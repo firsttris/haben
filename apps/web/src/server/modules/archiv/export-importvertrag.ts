@@ -1,13 +1,16 @@
 import { and, asc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { bankAccountIncludedSql } from "../../db/bank-open.ts";
 import { db, schema } from "../../db/index.ts";
+import { iso, money } from "./csv.ts";
+import { yearEnd, yearStart } from "./jahr.ts";
 
 /*
  * Herkunft der abgerufenen Umsätze im Jahresarchiv (#306, 3b): je Bewegung des Importvertrags die Quelle (Anbieter,
- * Kontokennung, Stichtag), das Ereignis der Bank und der Umsatz, den Haben daraus angelegt oder per Alias verbunden hat.
- * Der Inhalt der drei Tabellen steht schon in `protokoll/audit.csv`; ohne diese Datei ließe sich aber nicht ohne Weiteres
- * nachvollziehen, warum ein Umsatz kein zweites Mal angelegt wurde. Die Lieferungen selbst stehen in `bank/importe.csv`; die
- * Spalte „Import-ID“ verweist auf ihre Zeile dort.
+ * Kontokennung, Stichtag), das Ereignis der Bank und der Umsatz, den Haben daraus angelegt oder per Alias verbunden hat;
+ * dazu je geklärtem Konflikt die Entscheidung. Der Inhalt der Tabellen steht schon in `protokoll/audit.csv`; ohne diese
+ * Dateien ließe sich aber nicht ohne Weiteres nachvollziehen, warum ein Umsatz kein zweites Mal angelegt wurde. Die
+ * Lieferungen selbst stehen in `bank/importe.csv`; die Spalte „Import-ID“ verweist auf ihre Zeile dort.
  */
 
 export const QUELLEN_HEADER = [
@@ -27,20 +30,11 @@ export const QUELLEN_HEADER = [
   "Bewegungs-ID",
 ];
 
-/** Was die Datei aus dem Archiv-Umfeld braucht; als Parameter, damit dieses Modul nichts aus export.ts importiert */
-export interface QuellenUmgebung {
-  /** Erstes und letztes Datum des Archivjahrs */
-  von: string;
-  bis: string;
-  money: (cents: number | null | undefined) => string;
-  iso: (value: Date | null | undefined) => string;
-}
-
 /**
  * Zeilen für `bank/quellen.csv` eines Jahres, sortiert nach Konto, Buchungstag und Ereignis; `null`, wenn kein Umsatz des
  * Jahres aus dem Importvertrag kommt. Das Jahr zählt nach dem Buchungstag des Umsatzes, wie in `umsaetze.csv`.
  */
-export async function quellenFuerArchiv(umgebung: QuellenUmgebung): Promise<(string | number | null)[][] | null> {
+export async function quellenFuerArchiv(year: number): Promise<(string | number | null)[][] | null> {
   const rows = await db
     .select({
       account: sql<string>`coalesce(${schema.bankAccounts.iban}, ${schema.bankAccounts.name})`,
@@ -57,7 +51,7 @@ export async function quellenFuerArchiv(umgebung: QuellenUmgebung): Promise<(str
     .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
     .where(
       and(
-        sql`${schema.bankTransactions.bookingDate} between ${umgebung.von}::date and ${umgebung.bis}::date`,
+        sql`${schema.bankTransactions.bookingDate} between ${yearStart(year)}::date and ${yearEnd(year)}::date`,
         bankAccountIncludedSql("bank_transactions.bank_account_id"),
       ),
     )
@@ -77,11 +71,87 @@ export async function quellenFuerArchiv(umgebung: QuellenUmgebung): Promise<(str
     r.movement.component,
     r.movement.kind,
     r.movement.bookingDate,
-    umgebung.money(r.movement.amount),
+    money(r.movement.amount),
     r.movement.currency,
     r.importId,
-    umgebung.iso(r.movement.createdAt),
+    iso(r.movement.createdAt),
     r.movement.transactionId,
     r.movement.id,
+  ]);
+}
+
+export const KLAERUNGEN_HEADER = [
+  "Konto",
+  "Ereignis",
+  "Komponente",
+  "Buchungstag bisher",
+  "Betrag bisher",
+  "Art bisher",
+  "Buchungstag geliefert",
+  "Betrag geliefert",
+  "Art geliefert",
+  "Währung",
+  "Konflikt seit",
+  "Import-ID",
+  "Entscheidung",
+  "Umsatz-ID bisher",
+  "Umsatz-ID neu",
+  "Geklärt von",
+  "Geklärt am",
+  "Klärungs-ID",
+];
+
+const ENTSCHEIDUNG = { keep: "Bisherigen behalten", add: "Als weiteren Umsatz übernommen" } as const;
+
+/**
+ * Zeilen für `bank/klaerungen.csv`: je geklärtem Konflikt der bisherige und der gelieferte Kern, die Entscheidung und der
+ * neue Umsatz; `null` ohne Klärung im Jahr. Die Zeile steht im Jahr des bisherigen und, über den Jahreswechsel, auch in dem des
+ * neuen Umsatzes, damit jedes Archiv den Umsatz aus der Klärung erklärt. „Import-ID“ ist
+ * der abgelehnte Abruf, der den Konflikt gemeldet hat.
+ */
+export async function klaerungenFuerArchiv(year: number): Promise<(string | number | null)[][] | null> {
+  const bisher = alias(schema.bankTransactions, "bisher");
+  const neu = alias(schema.bankTransactions, "neu");
+  const rows = await db
+    .select({
+      account: sql<string>`coalesce(${schema.bankAccounts.iban}, ${schema.bankAccounts.name})`,
+      movement: schema.importMovements,
+      conflict: schema.importConflicts,
+      resolution: schema.importResolutions,
+    })
+    .from(schema.importResolutions)
+    .innerJoin(schema.importConflicts, eq(schema.importConflicts.id, schema.importResolutions.conflictId))
+    .innerJoin(schema.importMovements, eq(schema.importMovements.id, schema.importConflicts.movementId))
+    .innerJoin(bisher, eq(bisher.id, schema.importMovements.transactionId))
+    .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, bisher.bankAccountId))
+    .leftJoin(neu, eq(neu.id, schema.importResolutions.transactionId))
+    .where(
+      and(
+        sql`(${bisher.bookingDate} between ${yearStart(year)}::date and ${yearEnd(year)}::date
+          or ${neu.bookingDate} between ${yearStart(year)}::date and ${yearEnd(year)}::date)`,
+        bankAccountIncludedSql("bisher.bank_account_id"),
+      ),
+    )
+    .orderBy(asc(schema.bankAccounts.iban), asc(bisher.bookingDate), asc(schema.importResolutions.createdAt));
+  if (rows.length === 0) return null;
+  return rows.map((r) => [
+    r.account,
+    r.movement.sourceEventId,
+    r.movement.component,
+    r.movement.bookingDate,
+    money(r.movement.amount),
+    r.movement.kind,
+    r.conflict.bookingDate,
+    money(r.conflict.amount),
+    r.conflict.kind,
+    r.conflict.currency,
+    iso(r.conflict.createdAt),
+    r.conflict.bankImportId,
+    ENTSCHEIDUNG[r.resolution.decision],
+    r.movement.transactionId,
+    r.resolution.transactionId,
+    r.resolution.createdBy,
+    iso(r.resolution.createdAt),
+    r.resolution.id,
   ]);
 }

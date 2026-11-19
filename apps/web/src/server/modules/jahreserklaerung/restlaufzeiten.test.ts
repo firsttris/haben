@@ -180,8 +180,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
       ]);
       const [rechnung] = await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross)
         values ('rechnung', 'final', 'RLZ-1', now(), '2025-11-01', '2027-06-30', 500000, 0, 500000) returning id`;
-      await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross, corrects_id)
-        values ('korrektur', 'final', 'RLZ-2', now(), '2025-12-01', '2027-06-30', -200000, 0, -200000, ${rechnung!.id})`;
+      await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross, corrects_id, reduction_rule)
+        values ('korrektur', 'final', 'RLZ-2', now(), '2025-12-01', '2027-06-30', -200000, 0, -200000, ${rechnung!.id}, 'rueckgewaehr')`;
       // Eine kurzfristige Rechnung über 1.000 €, damit die Obergrenze (Saldo des Kontos) nicht greift
       await book("2025-12-01", [
         [k.ford, 100_000, 0],

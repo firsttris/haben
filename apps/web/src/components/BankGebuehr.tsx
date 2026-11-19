@@ -136,54 +136,6 @@ export function zuordnenText(p: { direkt: boolean; skontoRest: number; gebuehrMi
   return p.gebuehrMitbuchen ? "Zuordnen und Gebühr buchen" : "Zuordnen";
 }
 
-/** Auszahlung unter dem Betrag der Rechnung: der Rest wird als einbehaltene Gebühr gebucht */
-export function RestAlsGebuehr({ rest, busy, onClick }: { rest: number; busy: boolean; onClick: () => void }) {
-  return (
-    <div className="stack" style={{ gap: 8 }}>
-      <button type="button" className="btn" onClick={onClick} disabled={busy}>
-        Voll zuordnen, Rest {formatEuro(Math.abs(rest))} als Gebühr
-      </button>
-      <span className="small muted">
-        Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird Aufwand (Nebenkosten des
-        Geldverkehrs).
-      </span>
-    </div>
-  );
-}
-
-/**
- * Knopf für die monatliche Sammelrechnung des Dienstleisters: Er ordnet alle offenen Gebühren des Monats dem Beleg zu, die
- * Gutschriften nur, wenn alles zusammen genau den Beleg ergibt. Ihn gibt es bei jedem gewählten Beleg und beim besten
- * Vorschlag, wenn dieser der Sammelbeleg des Monats ist.
- */
-export function SammelrechnungKnopf(p: {
-  tx: { amount: number; purpose: string; bookingDate: string };
-  target: { type: string; id: string; open: number } | undefined;
-  andereWahl: boolean;
-  sammelrechnung: { documentId: string | null; summe: number } | null | undefined;
-  busy: boolean;
-  onClick: (documentId: string) => void;
-}) {
-  const { tx, target, sammelrechnung } = p;
-  if (target?.type !== "document" || tx.amount >= 0 || !tx.purpose.startsWith("Gebühr")) return null;
-  if (!p.andereWahl && target.id !== sammelrechnung?.documentId) return null;
-  const monat = formatDate(tx.bookingDate).slice(3);
-  return (
-    <div className="stack" style={{ gap: 8 }}>
-      <button type="button" className="btn" disabled={p.busy} onClick={() => p.onClick(target.id)}>
-        Alle offenen Gebühren aus {monat} diesem Beleg zuordnen
-      </button>
-      <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
-      {sammelrechnung && target.id !== sammelrechnung.documentId && (
-        <span className="small muted">
-          Die offenen Gebühren und Gutschriften von {monat} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der Beleg steht mit{" "}
-          {formatEuro(Math.abs(target.open))} offen.
-        </span>
-      )}
-    </div>
-  );
-}
-
 /** Eingabe von `allocatePaymentAndFee` für den gewählten Posten, `null` bei einem anderen Ziel als Rechnung oder Beleg */
 export function gebuehrPaar(type: string | undefined, id: string, amount: number, gebuehrBelegId: string) {
   if (type !== "invoice" && type !== "document") return null;

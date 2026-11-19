@@ -2,6 +2,7 @@ import { parseDatevBuchungsstapel, datevAccountTotals } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** #623: Eine bereits versteuerte Rechnung behält ihre Versteuerung nach dem Jahreswechsel (§ 20 UStG, UStAE 13.6 Abs. 3). */
 describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechsel (Postgres)", () => {
@@ -46,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
   }
 
   async function setup(profile: Profile, foreign = false) {
-    await leeren(sql)`truncate annual_submissions, vat_return_filings, vat_return_submissions, vat_returns, vat_frequencies,
+    await leeren(sql)`truncate seals, audit_log, annual_submissions, vat_return_filings, vat_return_submissions, vat_returns, vat_frequencies,
       cash_entries, sepa_direct_debit_items, sepa_direct_debits, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
       sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
@@ -95,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
       ...(foreign ? { currency: "USD", exchangeRate: "1" } : {}),
       lines: [{ description: "Leistung Dezember", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     if (!foreign) await bank.createDirectDebitFile(actor, { bankAccountId: account.id, invoiceIds: [invoice.id] }, new Date(`${previousYear}-12-02T08:00:00Z`));
     await bank.allocate(actor, {
       kind: "invoice",
@@ -111,6 +112,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
     const oldReturn = await vat.saveDraft(actor, { year: previousYear, month: 12 }, { mode: "berechnet" });
     await sql`update vat_returns set status = 'sent', sent_at = now(), locked_at = now() where id = ${oldReturn.id}`;
     const originalReturn = await sql`select * from vat_returns where id = ${oldReturn.id}`;
+    const originalSeals = await sql`select * from seals order by id`;
     await guard.saveCompany(
       actor,
       {
@@ -120,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
       `${year}-01-01`,
     );
     expect(await stammdaten.versteuerungForYear(previousYear)).toBe(profile.versteuerung);
-    return { invoice, originalInvoice, originalEntries, originalLines, oldReturn, originalReturn };
+    return { invoice, originalInvoice, originalEntries, originalLines, oldReturn, originalReturn, originalSeals };
   }
 
   async function taxInMonth(month: number, profile: Profile) {
@@ -132,6 +134,11 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
       and e.date >= ${`${year}-${String(month).padStart(2, "0")}-01`} and e.date < ${`${year}-${String(month + 1).padStart(2, "0")}-01`}`
       )[0]!.tax,
     );
+  }
+
+  async function totalTax(profile: Profile) {
+    const account = profile.kontenrahmen === "SKR03" ? "1776" : "3806";
+    return Number((await sql`select coalesce(sum(credit-debit),0)::int as tax from journal_lines where account=${account}`)[0]!.tax);
   }
 
   async function returnedInvoice(profile: Profile, foreign = false) {
@@ -186,16 +193,38 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
         for (const kind of ["storno", "korrektur"] as const)
           it(`${kind} mit späterer Erstattung behält das ursprüngliche Verfahren (${kontenrahmen}, ${versteuerung}, ${gmbh ? "GmbH" : "Einzelunternehmen"})`, async () => {
             const original = await setup(profile);
+            expect(original.invoice.advanceAccounting).toBe("deferred");
+            expect(await totalTax(profile)).toBe(19_000);
+            expect(await vat.computeVatFigures({ year: previousYear, month: 12 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
             const credit =
               kind === "storno"
                 ? await invoices.cancelInvoice(actor, original.invoice.id, `${year}-02-08`)
-                : await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, original.invoice.id, `${year}-02-08`)).id);
-            const expected = versteuerung === "ist" ? { kz81: 0, tax81: 0 } : { kz81: -100_000, tax81: -19_000 };
-            expect.soft(await vat.computeVatFigures({ year, month: 2 })).toMatchObject(expected);
+                : await invoices.finalizeInvoice(
+                    actor,
+                    (await invoices.createCorrection(actor, original.invoice.id, `${year}-02-08`)).id,
+                    kleinunternehmerStand,
+                  );
+            // Vollständig bezahltes neues Original: Die vollständige Rückabwicklung mindert die Steuer erst mit
+            // tatsächlicher Rückgewähr, auch bei Soll und nach dem Wechsel (UStAE 17.1 Abs. 8 Satz 5, § 17 UStG).
+            // Amtlicher UStAE, Stand 19.10.2026, Abschnitt 17.1 Abs. 8 Satz 5 (BFH 02.09.2010, V R 34/09).
+            const expected = { kz81: 0, tax81: 0 };
+            const february = await vat.computeVatFigures({ year, month: 2 });
+            expect.soft(february).toMatchObject(expected);
+            expect(await totalTax(profile)).toBe(19_000);
+            expect(await vat.computeVatFigures({ year, month: 1 })).toMatchObject(expected);
+            if (!gmbh) expect((await auswertungen.euerForYear(year)).einnahmen.reduce((sum, line) => sum + line.amount, 0)).toBe(0);
             const refund = await transaction(`08.03.${String(year).slice(-2)}`, `Erstattung ${credit.number}`, "-1.190,00");
             await bank.allocate(actor, { kind: "invoice", transactionId: refund, invoiceId: credit.id, amount: -119_000 });
-            const paid = versteuerung === "ist" ? { kz81: -100_000, tax81: -19_000 } : { kz81: 0, tax81: 0 };
-            expect.soft(await vat.computeVatFigures({ year, month: 3 })).toMatchObject(paid);
+            const march = await vat.computeVatFigures({ year, month: 3 });
+            const paid = { kz81: -100_000, tax81: -19_000 };
+            expect.soft(march).toMatchObject(paid);
+            expect(await totalTax(profile)).toBe(0);
+            expect(await vat.computeVatFigures({ year, month: 2 })).toMatchObject(expected);
+            expect(await vat.computeVatFigures({ year: previousYear, month: 12 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
+            if (!gmbh) {
+              expect((await auswertungen.euerForYear(year)).einnahmen.reduce((sum, line) => sum + line.amount, 0)).toBe(-119_000);
+              expect((await auswertungen.euerAbgleich(year)).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
+            }
             expect.soft(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month: 3 })).zeilen)).toEqual([]);
             await expectDatevMatchesJournal();
             expect(await sql`select * from invoices where id = ${original.invoice.id}`).toEqual(original.originalInvoice);
@@ -204,6 +233,32 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
               await sql`select l.* from journal_lines l join journal_entries e on e.id = l.entry_id where e.date < ${`${year}-01-01`} order by l.id`,
             ).toEqual(original.originalLines);
             expect(await sql`select * from vat_returns where id = ${original.oldReturn.id}`).toEqual(original.originalReturn);
+            expect(await sql`select * from seals where id in ${sql(original.originalSeals.map((seal) => seal.id))} order by id`).toEqual(
+              original.originalSeals,
+            );
+            expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
           });
       }
+  it("Vollständige Rückabwicklung des Soll-Originals nach Wechsel: Erstattung in Raten mindert jeweils nur den zurückgezahlten Anteil", async () => {
+    // Vollständige Rückabwicklung, keine bloße teilweise Preisänderung (UStAE 17.1 Abs. 8 Satz 5).
+    const profile = { kontenrahmen: "SKR03", versteuerung: "soll", gmbh: false } as const;
+    const original = await setup(profile);
+    const credit = await invoices.cancelInvoice(actor, original.invoice.id, `${year}-02-08`);
+    expect(await vat.computeVatFigures({ year, month: 2 })).toMatchObject({ kz81: 0, tax81: 0 });
+    const part = await transaction(`08.03.${String(year).slice(-2)}`, "Teilrückgewähr", "-119,00");
+    await bank.allocate(actor, { kind: "invoice", transactionId: part, invoiceId: credit.id, amount: -11_900 });
+    expect(await vat.computeVatFigures({ year, month: 3 })).toMatchObject({ kz81: -10_000, tax81: -1900 });
+    expect(await totalTax(profile)).toBe(17_100);
+    const rest = await transaction(`08.04.${String(year).slice(-2)}`, "Restliche Rückgewähr", "-1.071,00");
+    await bank.allocate(actor, { kind: "invoice", transactionId: rest, invoiceId: credit.id, amount: -107_100 });
+    expect(await vat.computeVatFigures({ year, month: 4 })).toMatchObject({ kz81: -90_000, tax81: -17_100 });
+    expect(await totalTax(profile)).toBe(0);
+    expect(await vat.computeVatFigures({ year, month: 3 })).toMatchObject({ kz81: -10_000, tax81: -1900 });
+    expect(await sql`select * from invoices where id=${original.invoice.id}`).toEqual(original.originalInvoice);
+    expect(await sql`select * from journal_entries where date < ${`${year}-01-01`} order by id`).toEqual(original.originalEntries);
+    expect(await sql`select * from vat_returns where id=${original.oldReturn.id}`).toEqual(original.originalReturn);
+    for (const month of [2, 3, 4]) expect(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month })).zeilen)).toEqual([]);
+    await expectDatevMatchesJournal();
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
 });

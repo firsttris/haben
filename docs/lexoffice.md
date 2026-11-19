@@ -1,5 +1,5 @@
 ---
-title: "Umzug aus Lexoffice / Lexware Office ohne Datenverlust"
+title: "Umzug aus Lexoffice / Lexware Office mit Abgleich je Jahr"
 description: >-
   Von Lexware Office (Lexoffice) zu Haben wechseln: Rechnungen, Belege, Kontakte und Buchungen
   übernehmen, unveränderlich archivieren und das Abo kündigen.
@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus FastBill](fastbill.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst; der Abgleich je Jahr zeigt vorher, ob alles da ist. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus FastBill](fastbill.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 
@@ -65,7 +65,7 @@ Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufend
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
-Dieselben Daten holst du über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
+Deine eigenen Daten holst du für den Umzug über die Web-Oberfläche: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
 
 ### Sicherung aus der Web-Oberfläche
 
@@ -82,13 +82,13 @@ Buchungen, Bankumsätze, Voranmeldungen und Anlagen holst du wie beim Abruf übe
 
 ### Darf ich das?
 
-Ja, nach unserer Einschätzung, ohne Gewähr und ohne Rechtsberatung: Du holst deine eigenen Daten mit deiner eigenen Anmeldung, das Skript umgeht keinen Schutz und ändert nichts. Dafür sprechen:
+Wir halten das für zulässig, können es aber nicht zusichern; das ist keine Rechtsberatung. Das Skript ist dafür gedacht, deine eigenen Daten zum Umzug mitzunehmen, nicht für den laufenden Betrieb. Du holst sie mit deiner eigenen Anmeldung, das Skript umgeht keinen Schutz und ändert nichts. Dafür sprechen:
 
 - **EU Data Act** ([Verordnung (EU) 2023/2854](https://eur-lex.europa.eu/eli/reg/2023/2854/oj), Art. 23 ff., seit 12. September 2025): Anbieter von Cloud- und Software-Diensten dürfen den Wechsel zu einem anderen Dienst und die Mitnahme deiner Daten nicht behindern.
 - **Datenübertragbarkeit** ([Art. 20 DSGVO](https://eur-lex.europa.eu/eli/reg/2016/679/oj)), soweit die Daten dich als Person betreffen, etwa als Einzelunternehmer.
 - **Aufbewahrungspflicht** ([§ 147 AO](https://www.gesetze-im-internet.de/ao_1977/__147.html)): Du musst Rechnungen, Belege und Buchungen zehn Jahre vorlegen können, auch nach der Kündigung.
 
-Lies trotzdem die AGB deines Anbieters; sie gelten zwischen dir und ihm. Haben gehört nicht zu Lexware oder FastBill und wird von ihnen weder unterstützt noch geprüft. Lexware, Lexoffice und FastBill sind Marken ihrer Inhaber.
+Lies trotzdem die AGB deines Anbieters; sie gelten zwischen dir und ihm. Haben gehört nicht zu den Anbietern, aus denen es Daten übernimmt, und wird von ihnen weder unterstützt noch geprüft; ihre Namen sind Marken ihrer Inhaber.
 
 ### Was die Web-Oberfläche anders liefert
 
@@ -288,7 +288,7 @@ Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewä
 
 Ein [KI-Assistent](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) liest die Salden je Konto und Monat und die einzelnen Buchungen über die Werkzeuge `lexoffice_konten` und `lexoffice_buchungen`.
 
-Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit dem Filter „Nur ohne passenden Beleg“, und darunter die Umsätze je Konto. Enthält Belegfeld 1 keine einzige Ziffer (etwa den Namen eines Zahlungsdienstleisters in einer Zahlungszeile), trägt kein Beleg das Feld als Nummer und findet die Buchung auch sonst keinen Beleg, ist sie kein offener Punkt: Sie bleibt sichtbar, erscheint nicht im Filter „Nur ohne passenden Beleg“ und zählt im Abgleich unter „ohne Belegnummer“, wie ein leeres Feld, solange die Zeile einen Beleg braucht (nicht Privat, Geldtransit oder Vortrag). Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
+Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit zwei Filtern, „Nur ohne passenden Beleg“ und „Aufladung ohne Bezug“ (siehe [Bank](bank.md#aufladung-eines-guthabens)), und darunter die Umsätze je Konto. Eine Zeile, deren Buchungstext mit „Aufladung Guthaben“ beginnt und deren Belegfeld 1 leer ist, steht unter „Aufladung ohne Bezug“ und nicht unter „Nur ohne passenden Beleg“: Für die Aufladung gibt es keine Rechnung, und den Bezug zu der späteren Rechnung setzt Haben noch nicht. Trägt eine solche Zeile eine Belegnummer, ist sie ein offener Punkt wie jede andere und bleibt im Filter „Nur ohne passenden Beleg“, bis ein Beleg sie trägt; findet sie ihren Beleg, steht sie in keinem der beiden Filter. Enthält Belegfeld 1 keine einzige Ziffer (etwa den Namen eines Zahlungsdienstleisters in einer Zahlungszeile), trägt kein Beleg das Feld als Nummer und findet die Buchung auch sonst keinen Beleg, ist sie kein offener Punkt: Sie bleibt sichtbar, erscheint nicht im Filter „Nur ohne passenden Beleg“ und zählt im Abgleich unter „ohne Belegnummer“, wie ein leeres Feld, solange die Zeile einen Beleg braucht (nicht Privat, Geldtransit oder Vortrag). Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
 
 ### Abschluss aus dem DATEV-Stapel (GmbH und UG)
 

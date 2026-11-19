@@ -2,6 +2,7 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -97,7 +98,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal: Zeiträume, Sto
       note: "",
       lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function bookedDocument(date: string, net: number, tax: number) {
@@ -306,10 +307,11 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal: Zeiträume, Sto
         const draft = await invoices.createCorrection(actor, inv.id, "2026-10-05");
         const lines = await sql`select id from invoice_lines where invoice_id = ${draft.id} order by position`;
         expect(lines.length).toBe(2);
-        await invoices.finalizeInvoice(actor, draft.id);
+        await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
         const rechnung = { kz81: 10_000, tax81: 1_900, kz86: 5_000, tax86: 350 };
-        // Bei Ist wirkt die Gutschrift erst mit der Erstattung, die hier noch fehlt
-        await gleich({ 9: rechnung, 10: versteuerung === "ist" ? {} : { kz81: -10_000, tax81: -1_900, kz86: -5_000, tax86: -350 } });
+        // Die Rechnung ist bezahlt: Die Gutschrift wirkt bei Ist wie bei Soll erst mit der Erstattung, die hier noch fehlt
+        // (#853, UStAE 17.1 Abs. 2 Satz 3; rechnungen/rueckgewaehr.test.ts)
+        await gleich({ 9: rechnung, 10: {} });
       }, 60_000);
     }
   }

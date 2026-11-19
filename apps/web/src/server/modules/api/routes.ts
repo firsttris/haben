@@ -8,6 +8,8 @@ import { createDocumentHandler, getDocumentHandler, listDocumentsHandler } from 
 import { createInvoiceHandler, deleteInvoiceHandler, getInvoiceHandler, listInvoicesHandler, updateInvoiceHandler } from "./invoices.ts";
 import { createServiceEntryHandler, deleteServiceEntryHandler, getServiceEntryHandler, listServiceEntriesHandler } from "./leistungen.ts";
 import { serviceEntryQuerySchema } from "./leistungen-schemas.ts";
+import { getQuoteHandler, listQuotesHandler } from "./quotes.ts";
+import { quoteQuerySchema } from "./quotes-schemas.ts";
 import { contactQuerySchema, documentQuerySchema, invoiceQuerySchema } from "./schemas.ts";
 
 /*
@@ -24,7 +26,7 @@ export interface ApiRoute {
   scope: TokenScope;
   summary: string;
   description?: string;
-  tag: "Kontakte" | "Rechnungen" | "Belege" | "Artikel" | "Leistungen";
+  tag: "Kontakte" | "Rechnungen" | "Angebote" | "Belege" | "Artikel" | "Leistungen";
   query?: z.ZodObject;
   /** Name in requestSchemas */
   requestBody?: string;
@@ -139,6 +141,27 @@ export const API_ROUTES: ApiRoute[] = [
     responses: { 204: { schema: null, description: "Gelöscht" } },
     errors: { 409: "Die Rechnung ist festgeschrieben" },
     handler: deleteInvoiceHandler,
+  },
+  {
+    method: "GET",
+    path: "/angebote",
+    scope: "angebote:lesen",
+    tag: "Angebote",
+    summary: "Angebote auflisten",
+    description: "Entwürfe zuerst, dann nach Nummer absteigend. Mit number das Angebot zu einer Nummer finden, etwa um sie an einem Auftrag zu prüfen.",
+    query: quoteQuerySchema,
+    responses: { 200: { schema: "QuoteList", description: "Eine Seite Angebote" } },
+    handler: listQuotesHandler,
+  },
+  {
+    method: "GET",
+    path: "/angebote/{id}",
+    scope: "angebote:lesen",
+    tag: "Angebote",
+    summary: "Angebot lesen",
+    description: "Entwürfe und festgeschriebene Angebote, mit Positionen, der Antwort des Kunden und der Rechnung, die daraus entstanden ist.",
+    responses: { 200: { schema: "Quote", description: "Das Angebot" } },
+    handler: getQuoteHandler,
   },
   {
     method: "GET",

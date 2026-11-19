@@ -186,4 +186,27 @@ describe.skipIf(!testDatabaseUrl)("Gesamtumsatz nach vereinnahmten Nettoentgelte
     expect((await read.gesamtumsatzForYear(2025)).included).toBe(3_334);
     expect((await read.gesamtumsatzForYear(2026)).included).toBe(6_666);
   });
+  it("lässt einen als privat gekennzeichneten, ganz offenen Umsatz nicht als ungeklärt", async () => {
+    const bank = await import("../bank/index.ts");
+    const transaction = await f.transaction(10_740);
+    await bank.markierePrivat("umsatztest", transaction);
+    const result = await read.gesamtumsatzForYear(2026);
+    expect(result).toMatchObject({ included: 0, complete: true });
+    expect(result.items.filter((item) => item.decision === "unknown")).toHaveLength(0);
+  });
+  it("meldet denselben Umsatz ohne Kennzeichnung weiterhin als ungeklärt", async () => {
+    await f.transaction(10_740);
+    const result = await read.gesamtumsatzForYear(2026);
+    expect(result).toMatchObject({ included: 0, complete: false });
+    expect(result.items.filter((item) => item.decision === "unknown")).toHaveLength(1);
+  });
+  it("achtet die Kennzeichnung auf einem Geschäftskonto nicht", async () => {
+    const bank = await import("../bank/index.ts");
+    const transaction = await f.transaction(10_740);
+    await bank.markierePrivat("umsatztest", transaction);
+    await sql`update bank_accounts set purpose = 'geschaeft' where id = ${f.accountId}`;
+    const result = await read.gesamtumsatzForYear(2026);
+    expect(result).toMatchObject({ included: 0, complete: false });
+    expect(result.items.filter((item) => item.decision === "unknown")).toHaveLength(1);
+  });
 });

@@ -2,6 +2,7 @@ import { ACCOUNTS } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #750: Vor der Leistung kein Erlös (§ 252 Abs. 1 Nr. 4 und 5 HGB), unabhängig vom Umsatzsteuerverfahren.
@@ -62,7 +63,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
       advanceType: "anzahlung",
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function finalInvoice(advanceId: string, issueDate = "2027-01-20") {
@@ -78,7 +79,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
       deducts: [advanceId],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function revenue(year: number, account: string) {

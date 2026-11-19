@@ -1,3 +1,4 @@
+import { AUFLADUNG } from "@haben/core";
 import { sql, type SQL } from "drizzle-orm";
 
 /** Belegfeld 1 fasst 36 Zeichen; sevDesk schreibt von längeren Nummern die letzten 36 hinein (#472). */
@@ -76,7 +77,7 @@ export function datevBookingFound(fields: { number: string; link: string; file: 
 
 /**
  * Buchungen, die nie einen Eingangsbeleg haben: Privat, Geldtransit und Vortragskonten (Klasse 9), je nach Kontenrahmen
- * (packages/core/src/posting.ts: SKR03 Privat 1800–1899 und Geldtransit 1360, SKR04 Privat 2100–2199 und Geldtransit
+ * (packages/core/src/kontenplan.ts: SKR03 Privat 1800–1899 und Geldtransit 1360, SKR04 Privat 2100–2199 und Geldtransit
  * 1460; in SKR04 ist 1800 die Bank). Dazu die Erlöse, aber nur in einem Stapel aus dem Accountable-Umzug: Accountable
  * exportiert keine Ausgangsrechnungen, aus Lexoffice und sevDesk fehlt eine Rechnung zur Erlösbuchung dagegen wirklich. Das
  * gilt auch für die Export-ZIP von sevDesk: Sie enthält die Ausgangsrechnungen (#1106).
@@ -98,6 +99,17 @@ export function datevWithoutReceipt(kontenrahmen: "SKR03" | "SKR04", contraField
 export function datevInternalId(field: string): SQL<boolean> {
   const uuid = sql.raw(`${field} ~* '${UUID_PATTERN}' and exists (select 1 from lexoffice_vouchers s where s.source = 'sevdesk')`);
   return sql<boolean>`(${uuid} and not ${datevVoucherFound(field)})`;
+}
+
+/**
+ * Zeile einer Aufladung eines Guthabens (#1356) im DATEV-Stapel: Für die Aufladung selbst gibt es keine Rechnung, Haben
+ * stellt deshalb „Aufladung Guthaben“ an den Anfang ihres Buchungstexts (die Stelle, die auch ein gekürzter Text behält).
+ * Sie ist keine Ausnahme ohne Beleg wie Privat und Geldtransit, sondern eine Ausnahme mit eigenem Grund: Mit der späteren
+ * Rechnung bekommt sie ihren Bezug. Bis dahin zählt sie weder als offener Punkt noch als erledigt.
+ */
+export function datevAufladung(textField: string): SQL<boolean> {
+  const text = sql.raw(textField);
+  return sql<boolean>`coalesce(${text} like ${`${AUFLADUNG.text}%`}, false)`;
 }
 
 /**

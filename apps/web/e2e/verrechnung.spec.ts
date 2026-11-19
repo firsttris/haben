@@ -1,12 +1,16 @@
+import { waehleKategorie } from "./kategorie.ts";
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import postgres from "postgres";
 import { currentDay, day } from "./daten.ts";
+import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { axeVerstoesse, bestaetigen, durchlaufSeite, einrichten, gehe, ohneAxeVerstoesse } from "./einrichtung.ts";
 
 /**
  * Verrechnung zweier Eingangsbelege ohne Zahlung (#274), eigener Durchlauf mit leerer Datenbank (e2e/durchlaeufe.ts,
  * Projekt „verrechnung“): Rechnung und Gutschrift desselben Lieferanten entstehen über die Oberfläche, verrechnet und
  * wieder aufgehoben wird in der Karte der Beleg-Detailseite. axe prüft die Seite mit der Karte (WCAG 2.2 AA, Desktop
- * und Handy), damit die Karte nicht nur im Code, sondern auch im Browser ohne Verstoß bleibt.
+ * und Handy), damit die Karte nicht nur im Code, sondern auch im Browser ohne Verstoß bleibt. Dazu „Konflikt klären“ im Abruf
+ * (#306): Dialog und Hinweis an beiden Umsätzen.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -62,7 +66,7 @@ async function belegAnlegen(browser: Browser, beleg: { nummer: string; datum: st
   await page.getByLabel("Lieferant", { exact: true }).fill(LIEFERANT);
   await page.getByLabel("Rechnungsnummer").fill(beleg.nummer);
   await page.getByLabel("Belegdatum").fill(beleg.datum);
-  await page.getByLabel("Kategorie").selectOption("telefon");
+  await waehleKategorie(page.getByLabel("Kategorie"), "telefon");
   await page.getByLabel("Netto", { exact: true }).fill(beleg.netto);
   await page.locator(".doc-actions").getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");
@@ -150,6 +154,70 @@ test("Aufheben: der offene Rest ist wieder der volle Betrag", async () => {
   await expect(offen()).toHaveText(RECHNUNG.betrag);
   await gehe(page, `/belege/${gutschrift}`);
   await expect(offen()).toHaveText(GUTSCHRIFT.betrag);
+});
+
+/** Tag wie auf der Seite: 15.11.2026 */
+const deutsch = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+
+/**
+ * Konflikt im Abruf (#306, 3b): Die Bank liefert einen schon übernommenen Umsatz mit anderem Betrag. Der Abruf selbst
+ * braucht Enable Banking; den Stand danach (Bindung, Bewegung, abgelehnter Abruf, Konflikt) stellt der Test direkt in der
+ * Datenbank des Durchlaufs nach und klärt ihn über die Oberfläche.
+ */
+test("Konflikt im Abruf klären: als weiteren Umsatz übernehmen, mit Hinweis an beiden Umsätzen (#306)", async () => {
+  const iban = "DE02120300000000202051";
+  const sql = postgres(databaseUrlFuer("verrechnung"), { max: 1, onnotice: () => {} });
+  let bisher: string;
+  try {
+    const [konto] = await sql<{ id: string }[]>`insert into bank_accounts (name, iban) values ('Geschäftskonto', ${iban}) returning id`;
+    const [abruf] = await sql<{ id: string }[]>`insert into bank_imports (bank_account_id, filename, sha256, format, period_from, period_to, added, skipped)
+      values (${konto!.id}, 'Abruf Testbank', ${"a".repeat(64)}, 'enablebanking', ${day(-10)}, ${day(-1)}, 1, 0) returning id`;
+    const [umsatz] = await sql<
+      { id: string }[]
+    >`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+      values (${konto!.id}, ${abruf!.id}, ${day(-3)}, -8900, 'Hosting Nord GmbH', 'Kundennummer 4711', 'e2e-hosting') returning id`;
+    bisher = umsatz!.id;
+    const [quelle] = await sql<{ id: string }[]>`insert into import_sources (bank_account_id, provider, external_account_id, account_kind, cutover_date)
+      values (${konto!.id}, 'enablebanking', 'hash-e2e', 'bank', ${day(-10)}) returning id`;
+    const [lieferung] = await sql<{ id: string }[]>`insert into import_batches (source_id, idempotency_key, fetch_id, part_index, part_last, coverage_from,
+      coverage_to, blocking, fingerprint, bank_import_id, checkpoint, complete)
+      values (${quelle!.id}, 'k1', 'f1', 0, true, ${day(-10)}, ${day(-1)}, 0, 'f1', ${abruf!.id}, ${day(-1)}, true) returning id`;
+    const [bewegung] = await sql<{ id: string }[]>`insert into import_movements (source_id, batch_id, source_event_id, component, kind, booking_date, amount,
+      currency, details, transaction_id)
+      values (${quelle!.id}, ${lieferung!.id}, 'ER-1003', 'main', 'payment', ${day(-3)}, -8900, 'EUR', 'd1', ${bisher}) returning id`;
+    const meldung = "Konflikt mit schon übernommenen Umsätzen: ER-1003/main: Betrag -89,00 € → -98,00 €; nichts überschrieben.";
+    const [abgelehnt] = await sql<{ id: string }[]>`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped, warnings)
+      values (${konto!.id}, 'Abruf Testbank', ${"b".repeat(64)}, 'enablebanking', 0, 0, ${sql.json([meldung])}) returning id`;
+    const geliefert = { bookingDate: day(-3), amount: -9800, currency: "EUR", counterpartyName: "Hosting Nord GmbH", purpose: "Kundennummer 4711", index: 0 };
+    await sql`insert into import_conflicts (movement_id, kind, booking_date, amount, currency, details, transaction, bank_import_id)
+      values (${bewegung!.id}, 'payment', ${day(-3)}, -9800, 'EUR', 'd2', ${sql.json(geliefert)}, ${abgelehnt!.id})`;
+    const konten = [{ uid: "u-e2e", iban, name: "Geschäftskonto", bankAccountId: konto!.id, identificationHash: "hash-e2e" }];
+    await sql`insert into bank_connections (aspsp_name, aspsp_country, psu_type, status, accounts, last_error)
+      values ('Testbank', 'DE', 'business', 'aktiv', ${sql.json(konten)}, ${`Geschäftskonto …2051: ${meldung}`})`;
+  } finally {
+    await sql.end();
+  }
+
+  await gehe(page, "/bank");
+  const abruf = page.getByRole("region", { name: "Automatischer Abruf" });
+  await expect(abruf).toContainText(`Bankabruf seit ${deutsch(day(-10))}`);
+  await abruf.getByRole("button", { name: "Konflikt klären" }).click();
+  const dialog = page.getByRole("dialog", { name: "Konflikt klären" });
+  await expect(dialog).toContainText("−89,00 €");
+  await expect(dialog).toContainText("−98,00 €");
+  await expect(dialog).toContainText("Noch nicht zugeordnet");
+  expect(await axeVerstoesse(page), "Dialog „Konflikt klären“").toEqual([]);
+  await dialog.getByLabel("Als weiteren Umsatz übernehmen").check();
+  await dialog.getByRole("button", { name: "Klären" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(abruf.getByRole("button", { name: /Konflikt/ })).toHaveCount(0);
+
+  // Am bisherigen Umsatz der Verweis auf den neuen, dort zurück auf den bisherigen
+  await gehe(page, `/bank?umsatz=${bisher!}`);
+  const hinweis = page.getByRole("note").filter({ hasText: "zusätzlich als eigener Umsatz" });
+  await expect(hinweis).toContainText(`${deutsch(day(-3))}, −98,00 €`);
+  await hinweis.getByRole("link").click();
+  await expect(page.getByRole("note").filter({ hasText: "Bisheriger Umsatz" })).toContainText(`${deutsch(day(-3))}, −89,00 €`);
 });
 
 test("Keine Fehler im Browser", () => {

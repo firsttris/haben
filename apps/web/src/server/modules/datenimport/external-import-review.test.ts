@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const renderer = vi.hoisted(() => ({ pause: null as (() => Promise<void>) | null }));
 vi.mock("@haben/einvoice", async (original) => ({
@@ -117,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: Regressionen aus der ersten Revi
       reached();
       await proceed;
     };
-    const finalizing = invoices.finalizeInvoice("review-user", draft.id);
+    const finalizing = invoices.finalizeInvoice("review-user", draft.id, kleinunternehmerStand);
     const observed = finalizing.then(
       () => null,
       (error: unknown) => error,

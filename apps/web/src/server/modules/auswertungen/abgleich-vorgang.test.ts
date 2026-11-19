@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
  * Vorgang gegen Buchung (#1116), Randfälle: Jede Buchung trägt den Kontenrahmen, mit dem sie entstand; eine Zahlung im
@@ -59,7 +60,7 @@ describe.skipIf(!testDatabaseUrl)("Vorgang gegen Buchung, Randfälle (Postgres)"
       note: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   /** Zahlungseingang über einen echten Bankumsatz, zugeordnet zur Rechnung */

@@ -4,6 +4,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Voranmeldung als offener Posten (Roadmap Platz 5): Abgabe außerhalb von Haben vermerken, Zahllast bzw. Erstattung
@@ -106,7 +107,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als offener Posten (Postgres)", 
       note: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: net, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function beleg(date: string, net: number, tax: number) {

@@ -103,6 +103,29 @@ describe("DATEV-Buchungsstapel", () => {
   });
 });
 
+describe("Buchungstext im Stapel (#1356)", () => {
+  it("kürzt einen längeren Text auf 60 Zeichen und behält den Anfang, etwa „Aufladung Guthaben“", () => {
+    const text60 = "Aufladung Guthaben: Sonstiger Aufwand · Beispiel Mobilfunk Nordlicht mit sehr langem Zusatz";
+    expect(text60.length).toBeGreaterThan(60);
+    const aufladung: DatevExportEntry = {
+      date: "2026-10-07",
+      description: text60,
+      voucher: "",
+      locked: false,
+      lines: [
+        { account: "1200", debit: 0, credit: 9_000 },
+        { account: "4900", debit: 9_000, credit: 0 },
+      ],
+    };
+    const stack = parseDatevBuchungsstapel(buildDatevBuchungsstapel(header, [aufladung]).bytes);
+    const [zeile] = stack.bookings;
+    expect(zeile!.text).toHaveLength(60);
+    expect(zeile!.text).toBe(text60.slice(0, 60));
+    // Der Anfang mit dem Merkmal bleibt stehen: Daran erkennt der Abgleich die Zeile wieder
+    expect(zeile!.text.startsWith("Aufladung Guthaben")).toBe(true);
+  });
+});
+
 describe("Kopfzeile: Erzeugt am", () => {
   it("steht in deutscher Zeit, unabhängig von der Zeitzone des Prozesses", () => {
     const createdAt = new Date("2026-10-31T23:30:15.042Z");

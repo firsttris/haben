@@ -66,7 +66,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Bereiche** ([Menüpunkte ein- und ausblenden](#bereiche-ausblenden)), **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Bereiche** ([Menüpunkte ein- und ausblenden](#bereiche-ausblenden)), **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, [Einstellungen für eine neue Instanz](einrichtung-echtbetrieb.md), DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
 
 Ebenfalls unten links wählst du **Farbe** und **Modus**: Wald (Grün, Standard), Ozean, Pflaume oder Graphit, jeweils hell, dunkel oder **System**, das der Einstellung deines Geräts folgt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jeder Farbe gleich.
 
@@ -276,7 +276,7 @@ Einige Beispiele:
 | Verbindlichkeiten | 1600 | 3300 |
 | Bank (alle Bankkonten) | 1200 | 1800 |
 
-Die vollständige Zuordnung, auch die Aufwandskonten der Belegkategorien, steht in `packages/core/src/posting.ts` und ist in [Buchhaltung](buchhaltung.md) beschrieben.
+Die vollständige Zuordnung, auch die Aufwandskonten der Belegkategorien, steht in `packages/core/src/kontenplan.ts` und ist in [Buchhaltung](buchhaltung.md) beschrieben.
 
 > [!NOTE]
 > Der Code selbst merkt an, dass die Kontenzuordnung vor dem Echtbetrieb mit der Steuerberatung abgeglichen werden sollte. Das gilt besonders für die Aufwandskonten der Belegkategorien.
@@ -400,11 +400,13 @@ Unter **Einstellungen › Rechnungen › Nummernformat** legst du fest, wie Rech
 | `{JJ}` | dasselbe zweistellig, z. B. `26` |
 | `{MM}` | Monat des Rechnungs- bzw. Angebotsdatums zweistellig, z. B. `10` |
 | `{N}` bis `{NNNNNN}` | laufende Nummer mit mindestens so vielen Stellen, vorne mit Nullen aufgefüllt; mehr Stellen werden nie abgeschnitten |
+| `{KUNDENNR}` | Kundennummer des Kunden, z. B. `K-0001`; nie direkt neben der laufenden Nummer |
 
-Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034`, `RE-{JJJJ}-{MM}-{NNNN}` ergibt `RE-2026-10-0034`.
+Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034`, `RE-{JJJJ}-{MM}-{NNNN}` ergibt `RE-2026-10-0034`, `RE-{KUNDENNR}-{NNN}` ergibt `RE-K-0001-034`.
 
 - Jahr und Monat kommen aus dem Rechnungs- bzw. Angebotsdatum, nicht aus dem Tag des Festschreibens: Eine Rechnung vom 31. Oktober, die du am 2. November festschreibst, heißt `RE-2026-10-…`. Die Überschrift im Editor zeigt die voraussichtliche Nummer schon so.
 - Die laufende Nummer muss genau einmal vorkommen. Beginnt der Zähler jedes Jahr neu, gehört auch das Jahr dazu, erst damit bleibt jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG); der Monat allein reicht nicht.
+- Mit `{KUNDENNR}` braucht der Kunde eine Kundennummer aus Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt; fehlt sie oder enthält sie andere Zeichen, schreibt Haben den Beleg nicht fest und sagt es. Storno und Rechnungskorrektur tragen die Kundennummer der ursprünglichen Rechnung; ist dort keine verwendbare eingefroren, gilt die heutige des Kontakts. Der Zähler bleibt für alle Kunden gemeinsam. Die fertige Nummer darf höchstens 36 Zeichen lang werden, weil DATEV im Belegfeld 1 nur 36 Zeichen übernimmt — eine zu lange Kundennummer hält das Festschreiben auf.
 - Außerhalb der Platzhalter gehen Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt, insgesamt höchstens 30 Zeichen. Leerzeichen und Schrägstrich gehen nicht, weil die Nummer auch im Dateinamen und im Verwendungszweck steht.
 - Unter dem Feld steht ein Beispiel oder, was am Format nicht passt.
 
@@ -446,7 +448,7 @@ Unter **Einstellungen › Rechnungen › Standardanhänge für Angebote** hinter
 
 Unter **Einstellungen › Rechnungen › Kundennummern** legst du ein Format fest, mit dem Haben beim Anlegen eines Kunden ohne eigene Nummer die nächste Kundennummer vergibt (reine Lieferanten bekommen keine), etwa `K-{NNNN}` → `K-0001`.
 
-- Platzhalter wie beim [Nummernformat](#nummernformat); das Jahr ist hier nicht nötig.
+- Platzhalter wie beim [Nummernformat](#nummernformat); das Jahr ist hier nicht nötig, `{KUNDENNR}` gibt es nicht.
 - **Nächste laufende Nummer** setzt den Zähler (mindestens 1). Nummern, die ein Kontakt schon trägt (von Hand oder aus einem Import), überspringt Haben; lückenlos müssen Kundennummern nicht sein.
 - Bleibt das Format leer, trägst du Kundennummern von Hand ein.
 - Das gilt auch für Kontakte, die über die [REST-API](api.md) angelegt werden.

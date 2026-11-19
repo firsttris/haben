@@ -1,0 +1,2 @@
+ALTER TABLE "invoices" ADD COLUMN "reduction_rule" text;--> statement-breakpoint
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_reduction_rule" CHECK ("invoices"."reduction_rule" is null or ("invoices"."reduction_rule" = 'rueckgewaehr' and "invoices"."kind" <> 'rechnung'));

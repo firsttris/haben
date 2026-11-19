@@ -8,6 +8,7 @@ import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { listInvoices } from "./invoices.ts";
+import { withAdvanceVatChange } from "./advance-vat.ts";
 
 /*
  * Verrechnung einer Ausgangsrechnung mit ihrer Kundenkorrektur ohne Zahlung (#877, zweite Stufe aus #274).
@@ -146,13 +147,16 @@ export async function settleInvoices(actor: string, input: InvoiceSettlementInpu
     const settlementId = randomUUID();
     // Betrag mit dem Vorzeichen einer Zahlung: positiv bei der Rechnung, deren offener Rest sinkt, negativ bei der
     // Korrektur, deren Guthaben sich abbaut. Aus den offenen Resten gebildet, nicht aus der Rolle des geöffneten Belegs.
-    const rows = await tx
-      .insert(schema.invoiceSettlements)
-      .values([
-        { invoiceId: ziel.id, counterInvoiceId: korrektur.id, settlementId, date: parsed.date, amount: parsed.amount, note: parsed.note, createdBy: actor },
-        { invoiceId: korrektur.id, counterInvoiceId: ziel.id, settlementId, date: parsed.date, amount: -parsed.amount, note: parsed.note, createdBy: actor },
-      ])
-      .returning({ id: schema.invoiceSettlements.id });
+    // Tilgt die Verrechnung den Anspruch einer Korrektur ohne Kennzeichen, ändert sich die bis zur Rückzahlung gehaltene Steuer
+    const rows = await withAdvanceVatChange(tx, korrektur.id, () =>
+      tx
+        .insert(schema.invoiceSettlements)
+        .values([
+          { invoiceId: ziel.id, counterInvoiceId: korrektur.id, settlementId, date: parsed.date, amount: parsed.amount, note: parsed.note, createdBy: actor },
+          { invoiceId: korrektur.id, counterInvoiceId: ziel.id, settlementId, date: parsed.date, amount: -parsed.amount, note: parsed.note, createdBy: actor },
+        ])
+        .returning({ id: schema.invoiceSettlements.id }),
+    );
     const company = await openBooks(tx);
     const beschreibung = `Verrechnung · Rechnung ${ziel.number} mit Korrektur ${korrektur.number}`;
     for (const [seite, betrag] of [
@@ -241,31 +245,33 @@ export async function reverseInvoiceSettlement(actor: string, id: string, date: 
     if (parsed.date > today()) throw new InvoiceSettlementError("Das Datum der Aufhebung liegt in der Zukunft.");
     const aufhebung = (alt: string) => (parsed.note ? `Aufhebung: ${alt} (${parsed.note})` : `Aufhebung: ${alt}`);
     const settlementId = randomUUID();
-    const gegen = await tx
-      .insert(schema.invoiceSettlements)
-      .values([
-        {
-          invoiceId: row.invoiceId,
-          counterInvoiceId: row.counterInvoiceId,
-          settlementId,
-          date: parsed.date,
-          amount: -row.amount,
-          note: aufhebung(row.note),
-          reversesId: row.id,
-          createdBy: actor,
-        },
-        {
-          invoiceId: partner.invoiceId,
-          counterInvoiceId: partner.counterInvoiceId,
-          settlementId,
-          date: parsed.date,
-          amount: -partner.amount,
-          note: aufhebung(partner.note),
-          reversesId: partner.id,
-          createdBy: actor,
-        },
-      ])
-      .returning({ id: schema.invoiceSettlements.id });
+    const gegen = await withAdvanceVatChange(tx, row.invoiceId, () =>
+      tx
+        .insert(schema.invoiceSettlements)
+        .values([
+          {
+            invoiceId: row.invoiceId,
+            counterInvoiceId: row.counterInvoiceId,
+            settlementId,
+            date: parsed.date,
+            amount: -row.amount,
+            note: aufhebung(row.note),
+            reversesId: row.id,
+            createdBy: actor,
+          },
+          {
+            invoiceId: partner.invoiceId,
+            counterInvoiceId: partner.counterInvoiceId,
+            settlementId,
+            date: parsed.date,
+            amount: -partner.amount,
+            note: aufhebung(partner.note),
+            reversesId: partner.id,
+            createdBy: actor,
+          },
+        ])
+        .returning({ id: schema.invoiceSettlements.id }),
+    );
     const company = await openBooks(tx);
     for (const [i, verrechnung] of [row, partner].entries()) {
       await storniereVerrechnung(tx, company, verrechnung.id, gegen[i]!.id, parsed.date);

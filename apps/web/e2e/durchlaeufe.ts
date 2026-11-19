@@ -56,6 +56,12 @@ export const FINTS_BANK_PORT = PORT + 31;
 /** Nachgebaute Etsy-API mit Anmeldung in etsy-abruf.spec.ts (ETSY_API_URL, ETSY_TOKEN_URL, ETSY_AUTH_URL) */
 export const ETSY_PORT = PORT + 33;
 
+/**
+ * Nachgebauter Dienst des BZSt für die Bestätigung von USt-IdNrn. in belege-steuern.spec.ts (EVATR_API_URL, #1385); jeder
+ * Server zeigt dorthin, damit kein Test das echte BZSt fragt
+ */
+export const EVATR_PORT = PORT + 34;
+
 /** Platzhalter für FINTS_PRODUKT_ID im Durchlauf „fints-abruf“; eine echte Registrierungsnummer steht nie im Repository */
 export const FINTS_PRODUKT_E2E = "HABENE2ETESTPRODUKT";
 

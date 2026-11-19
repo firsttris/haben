@@ -23,7 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import type { BankCsvMapping } from "@haben/import";
+import type { BankCsvMapping, ParsedTransaction } from "@haben/import";
 import type { LetterheadDesign, OutgoingTaxDetails } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
@@ -858,6 +858,12 @@ export const inboxSettings = pgTable(
     outboundFolder: text("outbound_folder"),
     /** Freigegebene Absender (Adresse oder Domain); leer: jeder Absender */
     allowedSenders: text("allowed_senders").array().notNull().default(sql`'{}'::text[]`),
+    /** Was mit einer abgelegten Mail im Postfach geschieht: gelesen markieren, in archive_folder verschieben oder löschen */
+    afterFetch: text("after_fetch", { enum: ["seen", "move", "delete"] })
+      .notNull()
+      .default("seen"),
+    /** Zielordner bei after_fetch = move */
+    archiveFolder: text("archive_folder"),
     enabled: boolean("enabled").notNull().default(true),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     /** Mails nicht freigegebener Absender beim letzten Abruf (nur die Zahl, ohne Absender und Betreff) */
@@ -865,7 +871,7 @@ export const inboxSettings = pgTable(
     lastError: text("last_error"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("inbox_settings_single_row", sql`${t.id} = 1`)],
+  (t) => [check("inbox_settings_single_row", sql`${t.id} = 1`), check("inbox_settings_after_fetch", sql`${t.afterFetch} in ('seen', 'move', 'delete')`)],
 );
 
 /** Abgerufene Mails mit den daraus angelegten Belegen; je Message-ID genau einmal */
@@ -1309,6 +1315,55 @@ export const sepaMandateRevocations = pgTable(
   (t) => [uniqueIndex("sepa_mandate_revocations_mandate").on(t.mandateId)],
 );
 
+/**
+ * Bestätigungen ausländischer USt-IdNrn. beim BZSt (§ 18e UStG, #1385), nur anhängen: je Antwort des BZSt, die etwas über
+ * die Nummer sagt, eine Zeile mit den gesendeten Angaben und dem empfangenen Datensatz unverändert als Nachweis
+ * der qualifizierten Abfrage (UStAE 18e.1 Abs. 2 Sätze 3 bis 5, FAQ des BZSt). Fehler des Dienstes stehen nicht hier.
+ */
+export const ustidBestaetigungen = pgTable(
+  "ustid_bestaetigungen",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    art: text("art", { enum: ["einfach", "qualifiziert"] }).notNull(),
+    /** Gesendet: eigene und angefragte USt-IdNr., bei qualifizierter Abfrage Name und Anschrift (Straße und PLZ optional) */
+    anfragendeUstid: text("anfragende_ustid").notNull(),
+    angefragteUstid: text("angefragte_ustid").notNull(),
+    firmenname: text("firmenname"),
+    strasse: text("strasse"),
+    plz: text("plz"),
+    ort: text("ort"),
+    /** Empfangen: Status (evatr-…), Zeitpunkt der Anfrage beim BZSt, Gültigkeit und Vergleich A bis D je Angabe */
+    status: text("status").notNull(),
+    anfrageZeitpunkt: timestamp("anfrage_zeitpunkt", { withTimezone: true }).notNull(),
+    gueltigAb: text("gueltig_ab"),
+    gueltigBis: text("gueltig_bis"),
+    ergFirmenname: text("erg_firmenname"),
+    ergStrasse: text("erg_strasse"),
+    ergPlz: text("erg_plz"),
+    ergOrt: text("erg_ort"),
+    /** Technische ID der Antwort */
+    bzstId: text("bzst_id"),
+    /** Der empfangene Datensatz, wie er kam */
+    antwort: text("antwort").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ustid_bestaetigungen_contact").on(t.contactId, t.createdAt),
+    check("ustid_bestaetigungen_art", sql`${t.art} in ('einfach', 'qualifiziert')`),
+    check("ustid_bestaetigungen_status", sql`${t.status} ~ '^evatr-[0-9]{4}$'`),
+    check(
+      "ustid_bestaetigungen_vergleich",
+      sql`coalesce(${t.ergFirmenname}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergStrasse}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergPlz}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergOrt}, 'A') in ('A', 'B', 'C', 'D')`,
+    ),
+    // Qualifiziert heißt: mit Name und Ort (OpenAPI-Beschreibung der eVatR-API)
+    check("ustid_bestaetigungen_qualifiziert", sql`${t.art} = 'einfach' or (${t.firmenname} is not null and ${t.ort} is not null)`),
+  ],
+);
+
 export const invoiceKindEnum = pgEnum("invoice_kind", ["rechnung", "storno", "korrektur"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "final"]);
 
@@ -1381,6 +1436,12 @@ export const invoices = pgTable(
     advanceAccounting: text("advance_accounting", { enum: ["deferred"] }),
     /** Ersatz einer stornierten Schlussrechnung; deren bereits realisierte Leistung bleibt bestehen (#750). */
     replacesInvoiceId: uuid("replaces_invoice_id"),
+    /**
+     * Storno und Korrektur: „rueckgewaehr“ heißt, bereits vereinnahmte Umsatzsteuer mindert sich erst mit der Rückzahlung
+     * an den Kunden (§ 17 UStG, UStAE 17.1 Abs. 2 Satz 3, BFH V R 34/09). Gesetzt beim Festschreiben (Trigger
+     * invoices_reduction_rule); leer heißt bisheriges Verfahren, das vor #853 festgeschriebene Korrekturen behalten.
+     */
+    reductionRule: text("reduction_rule", { enum: ["rueckgewaehr"] }),
     /** Angebot, aus dem bzw. zu dem die Rechnung entstanden ist; die Schlussrechnung zieht dessen Abschläge ab */
     quoteId: uuid("quote_id").references((): AnyPgColumn => quotes.id),
     /** Abschlagsrechnung zu einer Zeile des Zahlungsplans im Angebot (Index ab 0) */
@@ -1441,6 +1502,7 @@ export const invoices = pgTable(
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     check("invoices_advance_type", sql`${t.advanceType} is null or (${t.variant} = 'abschlag' and ${t.advanceType} in ('anzahlung', 'teilleistung'))`),
     check("invoices_advance_accounting", sql`${t.advanceAccounting} is null or ${t.advanceAccounting} = 'deferred'`),
+    check("invoices_reduction_rule", sql`${t.reductionRule} is null or (${t.reductionRule} = 'rueckgewaehr' and ${t.kind} <> 'rechnung')`),
     check(
       "invoices_replaces_schluss",
       sql`${t.replacesInvoiceId} is null or (${t.replacesInvoiceId} <> ${t.id} and ${t.kind} = 'rechnung' and ${t.variant} is not distinct from 'schluss' and ${t.advanceAccounting} is not distinct from 'deferred' and ${t.correctsId} is null)`,
@@ -2477,6 +2539,61 @@ export const importMovements = pgTable(
 );
 
 /**
+ * Konflikt des Importvertrags (#306, 3b): Die Bank liefert eine schon übernommene Bewegung mit anderem Kern (Betrag,
+ * Währung, Buchungstag oder Art). Haben hält den gelieferten Kern und den Umsatz fest, den der Abruf daraus angelegt
+ * hätte, bis der Nutzer ihn klärt (`import_resolutions`). Je Bewegung und geliefertem Kern ein Eintrag; nur anhängen.
+ */
+export const importConflicts = pgTable(
+  "import_conflicts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Die zuerst übernommene Bewegung; sie nennt Quelle, Ereignis, Komponente und den bisherigen Umsatz */
+    movementId: uuid("movement_id")
+      .notNull()
+      .references(() => importMovements.id),
+    kind: text("kind").notNull(),
+    bookingDate: date("booking_date", { mode: "string" }).notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
+    currency: text("currency").notNull(),
+    /** Prüfwert aller gelieferten Angaben (`knownMovement`) */
+    details: text("details").notNull(),
+    /** Der Umsatz, wie ihn der Abruf angelegt hätte; „Als weiteren Umsatz übernehmen“ legt genau diesen an */
+    transaction: jsonb("transaction").$type<ParsedTransaction>().notNull(),
+    /** Der abgelehnte Abruf im Importprotokoll, der den Konflikt zuerst gemeldet hat */
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("import_conflicts_core").on(t.movementId, t.kind, t.bookingDate, t.amount, t.currency)],
+);
+
+/**
+ * Entscheidung zu einem Konflikt (#306, 3b), genau eine je Konflikt; nur anhängen. „keep“: Der gelieferte Kern gilt
+ * künftig als bekannt, der bisherige Umsatz bleibt allein. „add“: Haben hat den gelieferten Umsatz zusätzlich angelegt
+ * (`transaction_id`); der bisherige bleibt mit seinen Zuordnungen stehen und zeigt einen Hinweis auf den neuen.
+ */
+export const importResolutions = pgTable(
+  "import_resolutions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conflictId: uuid("conflict_id")
+      .notNull()
+      .references(() => importConflicts.id),
+    decision: text("decision", { enum: ["keep", "add"] }).notNull(),
+    transactionId: uuid("transaction_id").references(() => bankTransactions.id),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("import_resolutions_conflict").on(t.conflictId),
+    uniqueIndex("import_resolutions_transaction").on(t.transactionId),
+    check("import_resolutions_decision", sql`${t.decision} in ('keep', 'add')`),
+    check("import_resolutions_transaction", sql`(${t.decision} = 'add') = (${t.transactionId} is not null)`),
+  ],
+);
+
+/**
  * Ein Umsatz auf einem privaten Konto, für den es dort keine Buchungsart gibt (#1088): Er bleibt ungebucht, zählt nicht
  * als offener Posten und steht als „privat, kein Betriebsvorgang" in der Liste. Die Markierung steht neben dem Umsatz,
  * weil `bank_transactions` anhängend ist; eine Buchung entsteht dabei nicht.
@@ -2640,6 +2757,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "kategorie",
   // Private Spende vom Geschäftskonto auf das Privatkonto „Zuwendungen, Spenden“ (Einzelunternehmen)
   "spende",
+  // Aufladung eines Guthabens: Ausgabe ohne Vorsteuer auf eine Pflicht-Kostenkategorie (#1356)
+  "aufladung",
 ]);
 
 /**
@@ -2734,9 +2853,10 @@ export const allocations = pgTable(
       sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
     ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    // Eine Aufladung trägt wie die Direktbuchung auf eine Kategorie ihre Pflicht-Kostenkategorie (#1356)
     check(
       "allocations_kategorie",
-      sql`case when ${t.kind}::text = 'kategorie' then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
+      sql`case when ${t.kind}::text in ('kategorie', 'aufladung') then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
     ),
     check(
       "allocations_loan",
@@ -3061,7 +3181,7 @@ export const storeReports = pgTable(
      * Berichtsregion (Z1)
      */
     part: text("part").notNull(),
-    /** Berichtsmonat YYYY-MM; bei Apple der Fiskalmonat */
+    /** Berichtsmonat YYYY-MM; bei Apple die Fiskalperiode (Fiskaljahr-Periode, 2026-01 ist der Oktober 2025) */
     period: text("period").notNull(),
     sha256: text("sha256").notNull(),
     archiveFileId: uuid("archive_file_id")

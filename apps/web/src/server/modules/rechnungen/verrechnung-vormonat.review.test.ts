@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Review zu #919: Ist mit zwei Steuersätzen, ein Teil ist schon vor der Korrektur bezahlt. Rechnung 100,00 € zu 19 % und
@@ -51,7 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teil
       },
       art === "korrektur" ? { kind: "korrektur", correctsId: correctsFor! } : {},
     );
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   async function zahle(invoiceId: string, betrag: number, datum: string): Promise<void> {

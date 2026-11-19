@@ -1,3 +1,4 @@
+import { waehleKategorie } from "./kategorie.ts";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { currentDay } from "./daten.ts";
@@ -114,7 +115,7 @@ function einfuhrumsatzsteuerPruefen(getPage: () => Page) {
     const page = getPage();
     const route = await belegAnlegen(page, browser);
     try {
-      await page.getByLabel("Kategorie").selectOption("einfuhrumsatzsteuer");
+      await waehleKategorie(page.getByLabel("Kategorie"), "einfuhrumsatzsteuer");
       await page.getByLabel("Satz", { exact: true }).selectOption("0");
       await page.getByLabel("Netto", { exact: true }).fill("380,00");
       const share = page.getByLabel("Abziehbare Vorsteuer in %", { exact: true });
@@ -171,7 +172,7 @@ async function belegAnlegen(page: Page, browser: Browser): Promise<string> {
   await page.getByLabel("Lieferant", { exact: true }).fill("Musterbedarf GmbH");
   await page.getByLabel("Rechnungsnummer").fill("TEST-433");
   await page.getByLabel("Belegdatum").fill(currentDay());
-  await page.getByLabel("Kategorie").selectOption("software");
+  await waehleKategorie(page.getByLabel("Kategorie"), "software");
   await page.getByLabel("Netto", { exact: true }).fill("100,00");
   return new URL(page.url()).pathname;
 }

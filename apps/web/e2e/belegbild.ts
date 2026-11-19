@@ -44,7 +44,7 @@ function html(title: string): string {
     body { width: 794px; height: 1123px; padding: 48px 64px 0 76px; font: 400 12.5px/1.45 Beleg, sans-serif; color: #1d2433; background: #fff; position: relative; }
     .kopf { display: flex; justify-content: space-between; align-items: flex-start; }
     .marke { display: flex; align-items: center; gap: 12px; }
-    .logo { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #e2007a, #7a1fa2); position: relative; }
+    .logo { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #0f8b8d, #1f5fa8); position: relative; }
     .logo::before, .logo::after { content: ""; position: absolute; border: 3px solid #fff; border-color: #fff transparent transparent transparent; border-radius: 50%; left: 50%; transform: translateX(-50%); }
     .logo::before { width: 26px; height: 26px; top: 12px; }
     .logo::after { width: 14px; height: 14px; top: 19px; }
@@ -69,7 +69,7 @@ function html(title: string): string {
     .summe td { padding: 4px 0; }
     .summe td:last-child { text-align: right; }
     .summe tr.gesamt td { font-weight: 600; font-size: 14px; border-top: 1.5px solid #1d2433; padding-top: 8px; }
-    .zahlung { margin-top: 34px; padding: 12px 16px; background: #f5f6f9; border-left: 3px solid #b3127f; color: #353d4d; }
+    .zahlung { margin-top: 34px; padding: 12px 16px; background: #f5f6f9; border-left: 3px solid #0f8b8d; color: #353d4d; }
     .gruss { margin-top: 26px; color: #353d4d; }
     footer { position: absolute; left: 76px; right: 64px; bottom: 40px; display: flex; justify-content: space-between; gap: 24px; padding-top: 10px; border-top: 1px solid #d6dae2; font-size: 9.5px; line-height: 1.5; color: #6b7385; }
   </style></head><body>
