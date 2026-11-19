@@ -4,7 +4,7 @@
  */
 
 /**
- * Überlappung in Tagen: Jeder Abruf beginnt so viele Tage vor heute. Eine Balance Transaction trägt ihren Zeitpunkt
+ * Überlappung in Tagen: Der nächste Abruf beginnt so viele Tage vor dem Tag des letzten erfolgreichen. Eine Balance Transaction trägt ihren Zeitpunkt
  * (`created`) und ändert ihn nicht, kann aber kurz nach dem Abruf sichtbar werden; Haben erkennt schon übernommene an
  * ihrer Kennung und legt sie nicht noch einmal an.
  */

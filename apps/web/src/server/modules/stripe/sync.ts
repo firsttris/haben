@@ -9,7 +9,7 @@ import { importStripe } from "./import.ts";
  * Abruf der Balance Transactions von Stripe: holt sie seit dem letzten Anlauf und übernimmt sie ins Konto des
  * Zahlungsdienstleisters (import.ts).
  *
- * - Jeder Abruf beginnt drei Tage vor heute, höchstens aber am gewählten Starttag (abruf-regeln.ts); schon übernommene
+ * - Der erste Abruf beginnt am gewählten Starttag, jeder weitere drei Tage vor dem Tag des letzten erfolgreichen Abrufs, nie davor (abruf-regeln.ts); schon übernommene
  *   Bewegungen erkennt Haben an ihrer Kennung.
  * - Ein Fehler landet am Zugang (lastError) und im Ergebnis; der nächste Lauf versucht es erneut.
  * - Ohne Konto des Dienstleisters ist nichts gespeichert: Der Startpunkt bleibt, sonst holte kein späterer Abruf diese Umsätze mehr.

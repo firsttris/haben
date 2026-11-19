@@ -4648,7 +4648,7 @@ export const etsyConnections = pgTable(
  * Zugang zu den Balance Transactions von Stripe über die API (Einstellungen › Bank, #1280). Genau eine Zeile, weil Haben
  * ein Stripe-Konto je Installation anbindet. Der Schlüssel (`rk_…` mit Lesezugriff oder `sk_…`) liegt verschlüsselt in
  * ciphertext; die Kennung des Kontos (`acct_…`) ist nicht geheim und ermittelt Haben beim Speichern über die API. Sie
- * ist die Kennung der Quellenbindung. Der Abrufstand bleibt stehen, wenn der Zugang getrennt wird.
+ * ist die Kennung der Quellenbindung. Wird der Zugang entfernt, verschwindet die Zeile mit dem Abrufstand; der nächste Abruf beginnt am gewählten Tag.
  */
 export const stripeConnections = pgTable(
   "stripe_connections",
