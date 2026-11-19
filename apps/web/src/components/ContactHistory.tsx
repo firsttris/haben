@@ -1,10 +1,11 @@
-import { formatEuro, kategorieMitKonto, type ContactYearTotal, type Kontenrahmen } from "@haben/core";
+import { formatEuro, type ContactYearTotal, type Kontenrahmen } from "@haben/core";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { legacySource } from "../lib/altbestand.ts";
 import { formatDate } from "../lib/format.ts";
 import { invoiceTitle } from "../lib/invoice.ts";
 import type { ContactHistoryRow, ContactHistorySection } from "../server/modules/archiv/index.ts";
+import { belegArt } from "./ContactHistoryArt.ts";
 import { LEGACY_TYPES } from "./archiv/LegacyVouchers.tsx";
 import { DocumentStatus } from "./DocumentStatus.tsx";
 import { InvoiceStatus } from "./InvoiceStatus.tsx";
@@ -219,8 +220,7 @@ function entryNumber(row: ContactHistoryRow): string {
 function entryKind(row: ContactHistoryRow, kontenrahmen: Kontenrahmen): string {
   if (row.kind === "rechnung") return invoiceTitle(row.invoiceKind, row.variant);
   if (row.kind === "archiv") return LEGACY_TYPES[row.type] ?? row.type;
-  if (row.category) return kategorieMitKonto(kontenrahmen, row.category);
-  return row.splitCount > 0 ? `Aufgeteilt auf ${row.splitCount} Zeilen` : "–";
+  return belegArt(row, kontenrahmen);
 }
 
 function EntryStatus({ row }: { row: ContactHistoryRow }) {
