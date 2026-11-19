@@ -73,13 +73,20 @@ describe.skipIf(!testDatabaseUrl)("Stripe-Abruf (Postgres)", () => {
       configured: true,
       accountId: "acct_beispiel",
       keyHint: "mnop",
-      testmodus: false,
       fetchFrom: "2019-01-01",
       rhythmus: "taeglich",
     });
     expect(JSON.stringify(stand)).not.toContain("abcdefgh");
     const [row] = await sql`select ciphertext::text as c from stripe_connections`;
     expect(row!.c).not.toContain("abcdefgh");
+  });
+
+  it("lehnt Schlüssel des Testmodus ab und speichert nichts, damit keine Testdaten ins Konto kommen", async () => {
+    const vorher = await sql`select account_id, key_hint from stripe_connections`;
+    for (const key of ["rk_test_abcdefghijkl", "sk_test_abcdefghijkl"]) {
+      await expect(stripe.saveStripeConnection(actor, { apiKey: key, fetchFrom: "2019-01-01" })).rejects.toThrow("nur Live-Umsätze");
+    }
+    expect(await sql`select account_id, key_hint from stripe_connections`).toEqual(vorher);
   });
 
   it("lehnt den öffentlichen Schlüssel, unbekannte Werte und einen Start in der Zukunft ab", async () => {
@@ -215,12 +222,12 @@ describe.skipIf(!testDatabaseUrl)("Stripe-Abruf (Postgres)", () => {
   it("beginnt bei einem Schlüssel eines anderen Kontos wieder am gewählten Tag", async () => {
     stripe.setStripeClientFactory(() => fake("acct_anderes"));
     try {
-      await stripe.saveStripeConnection(actor, { apiKey: "rk_test_qrstuvwxyz1234", fetchFrom: "2019-01-01" });
+      await stripe.saveStripeConnection(actor, { apiKey: "rk_live_qrstuvwxyz1234", fetchFrom: "2019-01-01" });
     } finally {
       stripe.setStripeClientFactory(() => fake());
     }
     const stand = await stripe.stripeSummary();
-    expect(stand).toMatchObject({ accountId: "acct_anderes", testmodus: true, naechsterAbrufAb: "2019-01-01" });
+    expect(stand).toMatchObject({ accountId: "acct_anderes", naechsterAbrufAb: "2019-01-01" });
   });
 
   it("entfernt den Zugang, übernommene Umsätze bleiben stehen", async () => {

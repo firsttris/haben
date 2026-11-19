@@ -1,5 +1,5 @@
 {
-  "id": "97103617-7723-4e80-8585-d5cf1545efb3",
+  "id": "ef92745b-c3f3-4cf8-a02b-c68ef5dc3cbf",
   "prevId": "ef5c31cd-1797-483f-8df5-d02fafa5f0e3",
   "version": "7",
   "dialect": "postgresql",
@@ -18029,13 +18029,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "testmodus": {
-          "name": "testmodus",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "ciphertext": {
           "name": "ciphertext",

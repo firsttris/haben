@@ -49,7 +49,7 @@ export async function loadStripeConnection(): Promise<StripeConnection | null> {
   return { row, apiKey: decrypt(row.ciphertext).toString("utf8") };
 }
 
-const KEY = /^(rk|sk)_(test|live)_[A-Za-z0-9]{8,}$/;
+const KEY = /^(rk|sk)_live_[A-Za-z0-9]{8,}$/;
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tag als JJJJ-MM-TT");
 
 export const stripeSettingsSchema = z.object({
@@ -80,10 +80,12 @@ export async function saveStripeConnection(actor: string, input: z.input<typeof 
   let accountId = existing?.row.accountId ?? "";
   let apiKey = existing?.apiKey ?? "";
   if (newKey) {
+    // Testdaten kämen sonst ins Konto des Zahlungsdienstleisters und in den Bankabgleich (Entscheidung des Maintainers in #1237)
+    if (/^(rk|sk)_test_/.test(newKey)) {
+      throw new StripeError("Haben ruft nur Live-Umsätze ab; bitte einen Live-Schlüssel mit Leserechten eintragen.");
+    }
     if (!KEY.test(newKey)) {
-      throw new StripeError(
-        "Das ist kein API-Schlüssel von Stripe (er beginnt mit rk_ oder sk_, dann test_ oder live_). Der öffentliche Schlüssel pk_ reicht nicht.",
-      );
+      throw new StripeError("Das ist kein API-Schlüssel von Stripe (er beginnt mit rk_live_ oder sk_live_). Der öffentliche Schlüssel pk_ reicht nicht.");
     }
     try {
       accountId = await stripeClientFor(newKey).accountId();
@@ -97,7 +99,6 @@ export async function saveStripeConnection(actor: string, input: z.input<typeof 
   const values = {
     accountId,
     keyHint: apiKey.slice(-4),
-    testmodus: apiKey.includes("_test_"),
     ciphertext: encrypt(new TextEncoder().encode(apiKey)),
     abrufStart: data.fetchFrom,
     rhythmus: data.rhythmus,
@@ -126,7 +127,6 @@ export async function stripeSummary() {
     configured: row !== null,
     accountId: row?.accountId ?? "",
     keyHint: row?.keyHint ?? "",
-    testmodus: row?.testmodus ?? false,
     // Die Wahl aus den Einstellungen, nicht der vorrückende Stand des Abrufs (der steht in naechsterAbrufAb)
     fetchFrom: row?.abrufStart ?? today(),
     naechsterAbrufAb: row?.fetchFrom ?? null,

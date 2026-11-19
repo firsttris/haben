@@ -2,7 +2,6 @@ CREATE TABLE "stripe_connections" (
 	"id" text PRIMARY KEY DEFAULT 'stripe' NOT NULL,
 	"account_id" text NOT NULL,
 	"key_hint" text DEFAULT '' NOT NULL,
-	"testmodus" boolean DEFAULT false NOT NULL,
 	"ciphertext" "bytea" NOT NULL,
 	"fetch_from" date NOT NULL,
 	"abruf_start" date NOT NULL,

@@ -4659,8 +4659,6 @@ export const stripeConnections = pgTable(
     accountId: text("account_id").notNull(),
     /** Letzte Zeichen des Schlüssels für die Anzeige, ohne ihn zu verraten */
     keyHint: text("key_hint").notNull().default(""),
-    /** Schlüssel des Testmodus (`_test_`) liefern Testdaten, keine echten Umsätze */
-    testmodus: boolean("testmodus").notNull().default(false),
     /** Der Schlüssel: AES-256-GCM */
     ciphertext: bytea("ciphertext").notNull(),
     /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */

@@ -61,11 +61,6 @@ export function StripePaymentsCard({ data }: { data: Data }) {
 
       <StripeStatus data={data} />
 
-      {data.testmodus && (
-        <div className="banner banner-warn" role="note">
-          Der Schlüssel gehört zum Testmodus von Stripe: Haben holt Testdaten, keine echten Umsätze.
-        </div>
-      )}
       {data.lastError && (
         <div className="banner banner-danger" role="status">
           {data.lastError}
@@ -80,7 +75,7 @@ export function StripePaymentsCard({ data }: { data: Data }) {
       <form onSubmit={onSubmit}>
         <Field
           label={data.configured ? "API-Schlüssel (leer lassen zum Behalten)" : "API-Schlüssel"}
-          hint="Beginnt mit rk_ oder sk_; er liegt verschlüsselt in der Datenbank. Der öffentliche Schlüssel pk_ reicht nicht."
+          hint="Beginnt mit rk_live_ oder sk_live_; er liegt verschlüsselt in der Datenbank. Der öffentliche Schlüssel pk_ reicht nicht."
         >
           {(control) => <input {...control} name="apiKey" type="password" autoComplete="off" />}
         </Field>
