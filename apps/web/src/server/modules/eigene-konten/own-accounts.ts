@@ -113,6 +113,27 @@ export async function createOwnAccount(actor: string, input: OwnAccountInput): P
   return id;
 }
 
+/**
+ * Eigenes Konto aus der Einstellungsdatei einer anderen Instanz (#488) in der Transaktion des Aufrufers, auch archiviert.
+ * Die Instanz hat noch keine Buchung (modules/instanzwechsel); der Aufrufer frischt danach refreshOwnAccountNames auf.
+ */
+export async function insertImportedOwnAccount(
+  tx: Tx,
+  actor: string,
+  input: OwnAccountInput & { kontenrahmen: Kontenrahmen; archived: boolean },
+): Promise<void> {
+  const { kontenrahmen, account, parentCategory } = input;
+  const name = input.name.trim();
+  const problem = ownAccountProblem({ kontenrahmen, account, name, parentCategory });
+  if (problem) throw new OwnAccountError(problem);
+  const [vorhanden] = await tx
+    .select({ id: schema.ownAccounts.id })
+    .from(schema.ownAccounts)
+    .where(and(eq(schema.ownAccounts.kontenrahmen, kontenrahmen), eq(schema.ownAccounts.account, account)));
+  if (vorhanden) throw new OwnAccountError(`Das Konto ${account} gibt es schon.`);
+  await tx.insert(schema.ownAccounts).values({ kontenrahmen, account, name, parentCategory, createdBy: actor, archivedAt: input.archived ? new Date() : null });
+}
+
 export async function renameOwnAccount(actor: string, id: string, name: string): Promise<void> {
   const clean = name.trim();
   if (clean === "" || Array.from(clean).length > OWN_ACCOUNT_NAME_MAX)
