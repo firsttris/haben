@@ -88,12 +88,13 @@ export function editorNumber(state: InvoiceEditorState, contact: InvoiceEditorPr
   // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
-  // Der Kreis der Vorschau: Storno und Korrektur folgen dem Kreis des Originals, sonst beim Zähler je Kunde der
-  // Kreis des gewählten Kunden (#1426)
-  const circleContactId = corrects ? (corrects.numberContactId ?? null) : numberPerCustomer && contactId ? contactId : null;
-  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circleKey(circle, circleContactId)] ?? 0) + 1, contact, corrects);
+  // Der Kreis der Vorschau wie beim Festschreiben: beim Zähler je Kunde der Kreis des gewählten Kunden — auch für
+  // Storno und Korrektur, die wie eine neue Rechnung im Kreis nach heutiger Einstellung nummerieren (#1426)
+  const kundenkreis = Boolean(numberPerCustomer && contactId);
+  const circleContactId = kundenkreis ? contactId! : null;
+  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circleKey(circle, circleContactId)] ?? 0) + 1, contact, corrects, kundenkreis);
   // Dasselbe Problem wie in buyerIssues, aber live aus dem Formular: Bei einem neuen oder geänderten Entwurf steht sonst nichts da
-  const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects)) : null;
+  const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects, kundenkreis)) : null;
   // Zu lang für DATEV (Belegfeld 1, 36 Zeichen): dasselbe hält das Festschreiben auf, Angebote exportiert DATEV nicht
   const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate, circleContactId) : null;

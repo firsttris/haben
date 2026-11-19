@@ -159,13 +159,13 @@ export function invoiceDiscountOf(invoice: { discountPercent: number | null; dis
 
 /**
  * Probleme beim Käufer vor dem Festschreiben: fehlt er, fehlt seine Kundennummer für {KUNDENNR} oder taugt sie nicht
- * als Teil der Nummer. Storno und Korrektur nehmen die Kundennummer des Originals, solange sie taugt, sonst die
- * heutige des Kontakts (#1426).
+ * als Teil der Nummer. Storno und Korrektur nehmen im gemeinsamen Kreis die Kundennummer des Originals, solange sie
+ * taugt, sonst die heutige des Kontakts; im Kundenkreis immer die des Kontakts, sie gehört zum Kreis (#1426).
  */
-export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null): string[] {
+export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null, kundenkreis = false): string[] {
   const issues = contact ? [] : ["Kunde fehlt"];
   if (usesCustomerNumber(format) && (contact || corrects)) {
-    const problem = customerNumberProblem(effectiveCustomerNumber(corrects?.buyer, contact));
+    const problem = customerNumberProblem(kundenkreis ? contact?.kundennummer : effectiveCustomerNumber(corrects?.buyer, contact));
     // ganze Sätze ohne Schlusspunkt in die Liste, „Noch nicht bereit: …“ setzt ihn selbst
     if (problem) issues.push(problem.replace(/\.$/, ""));
   }
@@ -173,11 +173,16 @@ export function buyerIssues(format: string, contact: Contact | null, corrects: {
 }
 
 /**
- * Käufer für das Festschreiben: bei Storno und Korrektur der festgeschriebene des Originals. Trug der noch keine
- * verwendbare Kundennummer für {KUNDENNR}, steht hier die heutige des Kontakts, mit der nummeriert wird (#1426).
+ * Käufer für das Festschreiben: bei Storno und Korrektur der festgeschriebene des Originals. {KUNDENNR} im gemeinsamen
+ * Kreis nimmt die Kundennummer des Originals, solange sie taugt, sonst die heutige des Kontakts; im Kundenkreis gehört
+ * die Nummer zum Kreis und trägt immer die heutige des Kontakts (#1426).
  */
-export function numberedBuyer(original: Buyer | null, contact: Contact, ansprechpartner: Buyer["ansprechpartner"], format: string): Buyer {
+export function numberedBuyer(original: Buyer | null, contact: Contact, ansprechpartner: Buyer["ansprechpartner"], format: string, kundenkreis = false): Buyer {
   const buyer = original ?? buyerFrom(contact, ansprechpartner);
-  const kundennummer = usesCustomerNumber(format) ? effectiveCustomerNumber(original, contact) : buyer.kundennummer;
+  const kundennummer = usesCustomerNumber(format)
+    ? kundenkreis
+      ? (contact.kundennummer ?? undefined)
+      : effectiveCustomerNumber(original, contact)
+    : buyer.kundennummer;
   return kundennummer && kundennummer !== buyer.kundennummer ? { ...buyer, kundennummer } : buyer;
 }

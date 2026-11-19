@@ -97,9 +97,9 @@ export function voucherField(value: string): string {
 }
 
 /**
- * Kundennummer, mit der Storno und Rechnungskorrektur bei {KUNDENNR} nummeriert werden: die festgeschriebene
- * des Originals, solange sie taugt, sonst die heutige des Kontakts (#1426). Was übrig bleibt, meldet
- * customerNumberProblem.
+ * Kundennummer, mit der Storno und Rechnungskorrektur im gemeinsamen Kreis bei {KUNDENNR} nummeriert werden: die
+ * festgeschriebene des Originals, solange sie taugt, sonst die heutige des Kontakts (#1426). Im Kundenkreis gehört
+ * die Nummer zum Kreis und nimmt immer die des Kontakts. Was übrig bleibt, meldet customerNumberProblem.
  */
 export function effectiveCustomerNumber(
   buyer: { kundennummer?: string | null } | null | undefined,

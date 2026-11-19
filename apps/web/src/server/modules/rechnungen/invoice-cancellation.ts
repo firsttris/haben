@@ -9,7 +9,7 @@ import { createDraft, insertDraft, lineInputOf } from "./invoice-drafts.ts";
 import { InvoiceError } from "./invoice-error.ts";
 import { finalizeDraft } from "./invoice-finalize.ts";
 import { getInvoice, type Invoice, type InvoiceLine } from "./invoices.ts";
-import { circleFor, lockNumbering } from "./number-counter.ts";
+import { circleContact, circleFor, countsPerCustomer, lockNumbering } from "./number-counter.ts";
 import { referenceColumns } from "./order-references.ts";
 import { lockQuotes, quotesTouching } from "./quote-billing.ts";
 import { OHNE_UMSATZSTAND } from "./umsatzgrenze.ts";
@@ -56,10 +56,6 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     // auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
     await lockInvoice(tx, id);
     const { invoice, lines } = await finalOriginal(id, tx);
-    // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts): der Kreis des Originals, beim
-    // Kundenkreis also der seines Kunden (#1426). Das PDF entsteht hier nach dem Entwurf, also mit gesperrter Kette;
-    // ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
-    await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today), invoice.numberContactId);
     // Festgeschriebene Korrekturen haben die Rechnung schon gemindert: jede bekommt ihr eigenes Storno. Je Beleg genau
     // negiert hebt sich auch die Steuer auf den Cent auf, die jeder Beleg für sich rundet. Neue Korrekturen warten auf die
     // Sperre des Originals oben.
@@ -68,6 +64,15 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
       .from(schema.invoices)
       .where(and(eq(schema.invoices.correctsId, id), eq(schema.invoices.kind, "korrektur"), eq(schema.invoices.status, "final")))
       .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.number));
+    // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts): derselbe, den das Festschreiben
+    // des Entwurfs nimmt — der Kreis nach heutiger Einstellung, beim Zähler je Kunde der des Kunden jedes stornierten
+    // Belegs (#1426). Das PDF entsteht hier nach dem Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine
+    // Entwurf in derselben Transaktion ist wichtiger.
+    const circle = await circleFor(tx, "rechnung", today);
+    const jeKunde = await countsPerCustomer(tx, "rechnung");
+    for (const contactId of new Set([invoice, ...corrections].map((beleg) => beleg.contactId!))) {
+      await lockNumbering(tx, "rechnung", circle, circleContact(jeKunde, contactId));
+    }
     // Ein Storno nimmt die ganze Rechnung samt Umsatzsteuer zurück; eine Ausbuchung hat einen Teil davon schon gemindert
     // (doppelt bei Soll) und wäre im Storno als Erstattung offen, obwohl kein Geld geflossen ist
     if ((await invoiceWrittenOff([id, ...corrections.map((c) => c.id)], tx)).size > 0) {

@@ -97,7 +97,7 @@ export type InvoiceEditorProps = {
   numberPerCustomer?: boolean;
   /** Zuletzt festgeschriebene Rechnung je Kreis (#713), Schlüssel wie bei numberCounters */
   lastFinalized?: Record<string, FinalizedCircleRef>;
-  corrects: { number: string | null; issueDate: string; numberContactId?: string | null; buyer?: { kundennummer?: string } | null } | null;
+  corrects: { number: string | null; issueDate: string; buyer?: { kundennummer?: string } | null } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
   kleinunternehmer: boolean;

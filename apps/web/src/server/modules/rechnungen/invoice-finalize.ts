@@ -45,7 +45,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
   issues.push(...(await versteuerungIssues(company, invoice.issueDate, q)));
-  issues.push(...buyerIssues(company.invoiceNumberFormat, contact, data.corrects));
+  issues.push(...buyerIssues(company.invoiceNumberFormat, contact, data.corrects, company.invoiceCounterPerCustomer));
   if (invoice.advanceType === "teilleistung") {
     if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
     if ((invoice.serviceTo ?? invoice.serviceFrom ?? "") > invoice.issueDate) issues.push("Die Teilleistung ist am Rechnungsdatum noch nicht erbracht");
@@ -212,17 +212,23 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
   }
 
-  // Storno/Korrektur: Anschrift des Originals, {KUNDENNR} daraus oder vom Kontakt (#1426); nur gelesen, daher vor der Sperre
-  const seller = sellerFrom(company);
-  const buyer = numberedBuyer(corrects?.buyer ?? null, contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId), company.invoiceNumberFormat);
-
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts).
-  // Der Kreis ist der des Kunden, wenn der Zähler je Kunde kreist; Storno und Korrektur folgen dem Kreis des Originals,
-  // unabhängig von der heutigen Einstellung (#1426).
+  // Der Kreis ist der des Kunden, wenn der Zähler je Kunde kreist; Storno und Korrektur nummerieren wie eine neue
+  // Rechnung im Kreis, den die Einstellung beim Festschreiben ergibt — nicht im Kreis des Originals (#1426).
   const circle = await circleFor(tx, "rechnung", invoice.issueDate);
-  const numberContactId = corrects ? corrects.numberContactId : circleContact(company.invoiceCounterPerCustomer, invoice.contactId!);
-  // Storno und Korrektur bleiben immer möglich (GoBD): ihre Nummer trägt ohnehin die Kundennummer des Originals;
+  const numberContactId = circleContact(company.invoiceCounterPerCustomer, invoice.contactId!);
+  // Storno/Korrektur: Anschrift des Originals. {KUNDENNR} ist im gemeinsamen Kreis die Nummer des Originals, solange
+  // sie taugt, sonst die heutige; im Kundenkreis muss sie zum Kreis gehören und ist die des Kontakts (#1426).
+  const seller = sellerFrom(company);
+  const buyer = numberedBuyer(
+    corrects?.buyer ?? null,
+    contact!,
+    await ansprechpartnerSnapshot(tx, invoice.contactPersonId),
+    company.invoiceNumberFormat,
+    numberContactId !== null,
+  );
+  // Storno und Korrektur bleiben immer möglich (GoBD), auch wenn die Kundennummer inzwischen zweimal vorkommt;
   // die Eindeutigkeit zählt nur für neue Belege im Kundenkreis (#1426)
   if (!corrects && numberContactId !== null) {
     const conflict = await customerNumberConflict(tx, contact!);

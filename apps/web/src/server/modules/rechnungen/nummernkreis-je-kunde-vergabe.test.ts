@@ -5,9 +5,10 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Zähler je Kunde, Vergabe (#1426): Steht der Schalter, gehen Rechnung und Angebot beim Festschreiben in den Kreis des
- * Kunden (number_contact_id), sonst in den gemeinsamen Kreis. Storno und Korrektur folgen dem Kreis des Originals,
- * unabhängig vom Schalter. Dieselbe Kundennummer bei zwei Kontakten blockiert das Festschreiben im Kundenkreis, und
- * wer festgeschriebene Belege im eigenen Kundenkreis trägt, kann seine Kundennummer nicht mehr ändern.
+ * Kunden (number_contact_id), sonst in den gemeinsamen Kreis. Storno und Korrektur nummerieren wie neue Rechnungen im
+ * Kreis, den der Schalter beim Festschreiben ergibt. Dieselbe Kundennummer bei zwei Kontakten blockiert das
+ * Festschreiben im Kundenkreis, und wer festgeschriebene Belege im eigenen Kundenkreis trägt, kann seine Kundennummer
+ * nicht mehr ändern.
  */
 describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #1426)", () => {
   let sql: postgres.Sql;
@@ -98,30 +99,48 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #14
     expect(Object.fromEntries(rows.map((r) => [r.contact_id, r.last]))).toEqual({ [contactA]: 2, [contactB]: 1 });
   });
 
-  it("stellt Storno und Korrektur in den Kreis des Originals, auch wenn der Schalter inzwischen aus ist", async () => {
+  it("stellt Storno und Korrektur wie neue Belege in den gemeinsamen Kreis, wenn der Schalter inzwischen aus ist", async () => {
     await formats.saveNumberFormats(actor, JE_KUNDE);
     const a1 = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
     const a2 = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    const b1 = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand);
     await formats.saveNumberFormats(actor, GEMEINSAM);
     const korrektur = await invoices.createCorrection(actor, a1.id, "2026-12-16");
     const korrigiert = await invoices.finalizeInvoice(actor, korrektur.id, kleinunternehmerStand);
     const storno = await invoices.cancelInvoice(actor, a2.id, "2026-12-17");
-    expect([korrigiert.number, storno.number]).toEqual(["RE-2026-003", "RE-2026-004"]);
-    const belege = await sql`select id, number_contact_id from invoices where id in (${korrigiert.id}, ${storno.id}) order by number`;
-    expect(belege.map((r) => r.number_contact_id)).toEqual([contactA, contactA]);
-    const [kreis] = await sql`select last from invoice_number_counters where year = 2026 and contact_id = ${contactA}`;
-    expect(kreis!.last).toBe(4);
+    // Zwei Rechnungen aus zwei Kundenkreisen stornieren im gemeinsamen Kreis ohne Kollision hintereinander weg
+    const stornoB = await invoices.cancelInvoice(actor, b1.id, "2026-12-18");
+    expect([korrigiert.number, storno.number, stornoB.number]).toEqual(["RE-2026-001", "RE-2026-002", "RE-2026-003"]);
+    const belege = await sql`select id, number_contact_id from invoices where id in (${korrigiert.id}, ${storno.id}, ${stornoB.id}) order by number`;
+    expect(belege.map((r) => r.number_contact_id)).toEqual([null, null, null]);
+    const [kreis] = await sql`select last from invoice_number_counters where year = 2026 and contact_id is null`;
+    expect(kreis!.last).toBe(3);
   });
 
-  it("lässt das Storno eines Belegs im gemeinsamen Kreis dort, auch wenn der Schalter inzwischen an ist (SKR04)", async () => {
+  it("stellt das Storno eines Belegs aus dem gemeinsamen Kreis in den Kundenkreis, wenn der Schalter inzwischen an ist (SKR04)", async () => {
     await sql`update company set kontenrahmen = 'SKR04'`;
     await formats.saveNumberFormats(actor, GEMEINSAM);
     const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    // Der Beleg im gemeinsamen Kreis sperrt die Kundennummer nicht; der Kontakt trägt inzwischen eine neue
+    await contacts.updateContact(actor, contactA, contactInput("NEU-7", "ACME GmbH"));
     await formats.saveNumberFormats(actor, JE_KUNDE);
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-12-15");
-    expect(storno.number).toBe("RE-2026-ACME-002");
+    // {KUNDENNR} im Kundenkreis ist die heutige Nummer des Kontakts, nicht der Snapshot des Originals
+    expect(storno.number).toBe("RE-2026-NEU-7-001");
     const [beleg] = await sql`select number_year, number_contact_id from invoices where id = ${storno.id}`;
-    expect(beleg).toMatchObject({ number_year: 2026, number_contact_id: null });
+    expect(beleg).toMatchObject({ number_year: 2026, number_contact_id: contactA });
+    const [festgeschrieben] = await sql`select buyer from invoices where id = ${original.id}`;
+    expect(festgeschrieben!.buyer.kundennummer).toBe("ACME");
+  });
+
+  it("nummeriert ein Storno im Folgejahr im Kreis seines Datums, nicht im Kreis des Originals", async () => {
+    await formats.saveNumberFormats(actor, JE_KUNDE);
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA, "2026-12-30")).id, kleinunternehmerStand);
+    const storno = await invoices.cancelInvoice(actor, original.id, "2027-01-05");
+    // Der Kundenkreis des Folgejahres beginnt neu: Jahr aus dem Stornodatum, Kunde aus dem Kreis
+    expect(storno.number).toBe("RE-2027-ACME-001");
+    const [beleg] = await sql`select number_year, number_contact_id from invoices where id = ${storno.id}`;
+    expect(beleg).toMatchObject({ number_year: 2027, number_contact_id: contactA });
   });
 
   it("kreist auch Angebote je Kunde", async () => {
@@ -162,7 +181,7 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #14
     const zweites = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
     // Die Kundennummer darf doppelt angelegt werden; erst das Festschreiben im Kundenkreis verlangt Eindeutigkeit
     const nachzuegler = (await createContact("ACME", "Nachzügler AG")).id;
-    // GoBD: Storno und Korrektur folgen dem Original und dürfen nie an der Eindeutigkeit scheitern
+    // GoBD: Storno und Korrektur dürfen nie an der Eindeutigkeit der Kundennummer scheitern
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-12-15");
     expect(storno.number).toBe("RE-2026-ACME-003");
     const [beleg] = await sql`select number_contact_id from invoices where id = ${storno.id}`;

@@ -58,6 +58,13 @@ export async function countsRunning(tx: Tx, kind: NumberKind): Promise<boolean> 
   return row?.running ?? false;
 }
 
+/** Ob der Zähler dieser Art je Kunde kreist; nur gelesen, ohne die Firmenzeile anzulegen (loadCompany schriebe Audit) */
+export async function countsPerCustomer(tx: Tx, kind: NumberKind): Promise<boolean> {
+  const column = kind === "rechnung" ? schema.company.invoiceCounterPerCustomer : schema.company.quoteCounterPerCustomer;
+  const [row] = await tx.select({ perCustomer: column }).from(schema.company).where(eq(schema.company.id, 1));
+  return row?.perCustomer ?? false;
+}
+
 /** Kontakt des Kreises beim Festschreiben: beim Zähler je Kunde der Kunde, sonst der gemeinsame Kreis (NULL, #1426) */
 export function circleContact(perCustomer: boolean, contactId: string): string | null {
   return perCustomer ? contactId : null;
