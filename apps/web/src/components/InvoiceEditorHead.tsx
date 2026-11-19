@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Icon } from "./Icon.tsx";
+import { InvoiceCopyButton } from "./InvoiceCopyButton.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { PreviewButton, type DocumentPreview } from "./DocumentPreview.tsx";
 import type { InvoiceEditorModel } from "./use-invoice-editor.ts";
@@ -10,6 +11,7 @@ export function InvoiceEditorHead({ editor, preview }: { editor: InvoiceEditorMo
   const {
     alreadyPaid,
     busy,
+    copySource,
     customerNumberIssue,
     dirty,
     issues,
@@ -20,7 +22,9 @@ export function InvoiceEditorHead({ editor, preview }: { editor: InvoiceEditorMo
     numberLengthIssue,
     onDraftPdf,
     onFinalize,
+    prepareCopy,
     quote,
+    run,
     sellerIssues,
     title,
   } = editor;
@@ -56,6 +60,7 @@ export function InvoiceEditorHead({ editor, preview }: { editor: InvoiceEditorMo
           <button type="submit" form="invoice-form" className="btn" disabled={busy || !dirty}>
             Entwurf speichern
           </button>
+          <InvoiceCopyButton invoice={copySource} action={{ busy, run }} prepare={prepareCopy} />
           <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
             Festschreiben
           </button>

@@ -7,6 +7,7 @@ import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoiceEditorPreview } from "./InvoiceEditorPreview.tsx";
+import { useInvoiceCopy } from "./InvoiceCopyButton.tsx";
 import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
 import { PaymentPlanFields } from "./PaymentPlanFields.tsx";
 import { InvoiceEditorDetails } from "./InvoiceEditorDetails.tsx";
@@ -26,6 +27,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     attachments,
     busy,
     contactId,
+    copySource,
     contactPersonId,
     corrects,
     currencyCode,
@@ -60,9 +62,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     planIssue,
     planRows,
     planTemplates,
+    prepareCopy,
     propertyRetention,
     quote,
     references,
+    run,
     schluss,
     seller,
     serviceFrom,
@@ -83,6 +87,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     variant,
   } = editor;
   const barPreviewBtn = useRef<HTMLButtonElement>(null);
+  const onCopy = useInvoiceCopy(copySource, { busy, run }, prepareCopy);
   const preview = useDocumentPreview();
   const designDraft = useDesignDraft(seller.design);
   const [logo, setLogo] = useLoadedState(seller.logo ?? null);
@@ -226,6 +231,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               disabled: busy,
               onSelect: onDraftPdf,
             },
+            // Am Handy ist die Leiste mit Vorschau, Speichern und Festschreiben voll; im Seitenkopf steht der Knopf
+            ...(onCopy ? [{ key: "kopieren", label: "Kopieren", icon: "plus" as const, disabled: busy, onSelect: onCopy }] : []),
           ]}
         />
         {/* triggerRef bleibt der Knopf im Kopf: Anheften, Ausblenden und Schließen geben den Fokus dorthin zurück, und

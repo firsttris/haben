@@ -278,7 +278,7 @@ export const correctFinalInvoice = createServerFn({ method: "POST" })
     return { id: draft.id };
   });
 
-export const copyFinalInvoice = createServerFn({ method: "POST" })
+export const copyInvoiceAsDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
