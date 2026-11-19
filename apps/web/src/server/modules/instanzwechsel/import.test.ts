@@ -316,6 +316,31 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(await sql`select 1 from beleg_layouts`).toEqual([]);
   });
 
+  it("gibt ein Layout nicht frei, wenn nur die Paketliste das zusammengesetzt geladene Paket nennt", async () => {
+    await testinstanz();
+    // „Pakete neu laden“ lädt die Pakete aus dem Quelltext, nicht die Liste der Datei
+    const liste = [
+      { name: "@preview/cetz", version: "0.3.4" },
+      { name: "@preview/tablex", version: "0.0.8" },
+    ];
+    const source = `// @preview/cetz:0.3.4\n#import "@preview/" + "tablex:0.0.8": tablex\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(liste)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow("@preview/tablex:0.0.8");
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
+  it("gibt ein Layout nicht frei, das ohne seine Pakete auch an etwas anderem scheitert", async () => {
+    await testinstanz();
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    // In #context meldet Typst beide Fehler, nicht nur das fehlende Paket
+    const source = `#context { import "@preview/cetz:0.3.4": canvas }\n#context panic("kaputt")\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow();
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
   it("speichert ein Layout, das ohne seine Pakete setzt, wie eines ohne Pakete: geprüft und ohne Freigabe", async () => {
     await testinstanz();
     const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];

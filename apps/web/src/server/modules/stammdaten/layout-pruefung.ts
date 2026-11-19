@@ -17,8 +17,9 @@ const run = promisify(execFile);
 export class LayoutError extends UserError {}
 
 /**
- * Das Layout lädt ein Paket, das nicht im Cache des Render-Prozesses liegt. Typst entscheidet das selbst beim Setzen,
- * anders als packagesIn, das jede Nennung im Quelltext zählt, auch in Kommentaren (#488). pakete nennt, welche
+ * Das Layout scheitert nur an Paketen, die nicht im Cache des Render-Prozesses liegen (pakete, aus der Adresse des
+ * Downloads). Typst entscheidet das selbst beim Setzen, anders als packagesIn, das jede Nennung im Quelltext zählt, auch
+ * in Kommentaren (#488)
  */
 export class LayoutPaketFehltError extends LayoutError {
   readonly pakete: { name: string; version: string }[];
@@ -38,7 +39,7 @@ const PAKET_FEHLT = /^failed to download package/i;
 /** Typst nennt das Paket nur in der Adresse des Downloads: …packages.typst.org/preview/cetz-0.3.4.tar.gz */
 const PAKET_ADRESSE = /packages\.typst\.org\/([a-z0-9_-]+)\/([a-z0-9_-]+)-(\d+\.\d+\.\d+)\.tar\.gz/i;
 
-/** Pakete, die Typst nicht laden konnte; leer, wenn keine Meldung so lautet oder eine kein Paket nennt */
+/** Pakete, die Typst nicht laden konnte; leer, wenn eine Meldung etwas anderes sagt oder kein Paket nennt */
 function fehlendePakete(error: unknown): { name: string; version: string }[] {
   let meldungen: unknown;
   try {
@@ -47,8 +48,8 @@ function fehlendePakete(error: unknown): { name: string; version: string }[] {
     return [];
   }
   if (!Array.isArray(meldungen)) return [];
-  const adressen = meldungen.flatMap((m: { message?: unknown } | null) =>
-    typeof m?.message === "string" && PAKET_FEHLT.test(m.message) ? [PAKET_ADRESSE.exec(m.message)] : [],
+  const adressen = meldungen.map((m: { message?: unknown } | null) =>
+    typeof m?.message === "string" && PAKET_FEHLT.test(m.message) ? PAKET_ADRESSE.exec(m.message) : null,
   );
   if (adressen.some((adresse) => !adresse)) return [];
   return adressen.map((adresse) => ({ name: `@${adresse![1]}/${adresse![2]}`, version: adresse![3]! }));

@@ -31,7 +31,7 @@ export async function insertImportedLayout(
     );
   const [vorhanden] = await tx.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts).where(eq(schema.belegLayouts.name, name));
   if (vorhanden) throw new LayoutError(`Es gibt schon ein Layout „${name}“.`);
-  const packages = (await brauchtPakete(input)) ? input.packages.map(({ name, version }) => ({ name, version })) : [];
+  const packages = (await brauchtPakete(input, roots)) ? input.packages.map(({ name, version }) => ({ name, version })) : [];
   const sha256 = createHash("sha256").update(input.source).digest("hex");
   await tx.insert(schema.belegLayouts).values({
     id: input.id,
@@ -47,18 +47,18 @@ export async function insertImportedLayout(
 
 /**
  * Setzt das Layout ohne Paket-Cache zur Probe (#488). Gelingt das, braucht es keine Pakete, auch wenn der Quelltext eines
- * nennt, etwa in einem Kommentar; dann gilt der Probesatz wie bei einem Layout ohne Pakete. Scheitert es nur an einem
- * fehlenden Paket aus der Datei, setzt es erst „Pakete neu laden“ zur Probe. Jeder andere Fehler lehnt das Layout ab, auch
- * ein Paket, das die Datei nicht nennt (zusammengesetzter Name): Das lädt „Pakete neu laden“ nie. Typst meldet nur das
+ * nennt, etwa in einem Kommentar; dann gilt der Probesatz wie bei einem Layout ohne Pakete. Scheitert es nur an Paketen,
+ * die der Quelltext ausschreibt (roots), setzt es erst „Pakete neu laden“ zur Probe, das diese samt Abhängigkeiten lädt. Jeder andere
+ * Fehler lehnt das Layout ab, auch ein Paket, dessen Namen das Layout zusammensetzt. Auf oberster Ebene meldet Typst nur das
  * erste fehlende Paket; ein weiteres fällt erst bei „Pakete neu laden“ auf.
  */
-async function brauchtPakete(layout: { id: string; source: string; art: LayoutArt; packages: readonly LayoutPackage[] }): Promise<boolean> {
+async function brauchtPakete(layout: { id: string; source: string; art: LayoutArt }, roots: readonly LayoutPackage[]): Promise<boolean> {
   try {
     await checkLayout({ id: layout.id, source: layout.source, art: layout.art });
     return false;
   } catch (error) {
-    const genannt = new Set(layout.packages.map(packageSpec));
-    if (error instanceof LayoutPaketFehltError && error.pakete.length > 0 && error.pakete.every((pkg) => genannt.has(packageSpec(pkg)))) return true;
+    const imQuelltext = new Set(roots.map(packageSpec));
+    if (error instanceof LayoutPaketFehltError && error.pakete.length > 0 && error.pakete.every((pkg) => imQuelltext.has(packageSpec(pkg)))) return true;
     throw error;
   }
 }
