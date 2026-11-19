@@ -2073,6 +2073,13 @@
       "when": 1795031061130,
       "tag": "0295_rueckgewaehr_kennzeichen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 296,
+      "version": "7",
+      "when": 1795072013883,
+      "tag": "0296_importvertrag_referenzen",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,13 @@ export const QUELLEN_HEADER = [
   "Übernommen",
   "Umsatz-ID",
   "Bewegungs-ID",
+  // Referenzen der Lieferung (`import_movements.refs`); leer bei Bewegungen, die vor dieser Spalte übernommen wurden
+  "Anbieterreferenz",
+  "Ereigniscode",
+  "EndToEndId",
+  "Bezug",
+  "Auszahlung",
+  "Bestellung",
 ];
 
 /**
@@ -77,6 +84,12 @@ export async function quellenFuerArchiv(year: number): Promise<(string | number 
     iso(r.movement.createdAt),
     r.movement.transactionId,
     r.movement.id,
+    r.movement.refs?.providerReference ?? null,
+    r.movement.refs?.eventCode ?? null,
+    r.movement.refs?.endToEndId ?? null,
+    r.movement.refs?.relatedEventId ?? null,
+    r.movement.refs?.payoutId ?? null,
+    r.movement.refs?.orderId ?? null,
   ]);
 }
 

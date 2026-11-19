@@ -319,6 +319,7 @@ async function recordBatch(
         amount: movement.amount,
         currency: movement.currency,
         details: knownMovement(movement).details,
+        refs: movement.references,
         transactionId: transactionId ?? transactionIds.get(hash!)!,
       })),
     );

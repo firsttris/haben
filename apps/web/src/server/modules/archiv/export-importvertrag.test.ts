@@ -79,7 +79,10 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
 
   it("schreibt je Ereignis des Jahres eine Zeile mit Quelle, Stichtag, Abruf und Umsatz", async () => {
     const [kopf, ...zeilen] = text(files["bank/quellen.csv"]).trim().split(/\r?\n/);
-    expect(kopf).toBe("Konto;Anbieter;Kontokennung;Stichtag;Ereignis;Komponente;Art;Buchungstag;Betrag;Währung;Import-ID;Übernommen;Umsatz-ID;Bewegungs-ID");
+    expect(kopf).toBe(
+      "Konto;Anbieter;Kontokennung;Stichtag;Ereignis;Komponente;Art;Buchungstag;Betrag;Währung;Import-ID;Übernommen;Umsatz-ID;Bewegungs-ID;" +
+        "Anbieterreferenz;Ereigniscode;EndToEndId;Bezug;Auszahlung;Bestellung",
+    );
     const umsaetze = await sql<{ id: string; ref: string }[]>`select id, bank_reference as ref from bank_transactions order by booking_date`;
     const id = (ref: string) => umsaetze.find((u) => u.ref === ref)!.id;
     // Der Stichtag ist der Beginn des ersten Abrufs (Dezember 2025); ER-1 gehört ins Vorjahr
@@ -89,6 +92,11 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Herkunft der abgerufenen Umsät
       [IBAN, "enablebanking", "hash-archiv", "2025-12-01", "ER-3", "main", "payment", "2026-01-07", "-30,50", "EUR", lauf!.id],
     ]);
     expect(zeilen.map((z) => z.split(";")[12])).toEqual([id("ER-2"), id("ER-3")]);
+    // Referenzen der Lieferung (#306, Schritt 4): Enable Banking nennt hier nur die entry_reference
+    expect(zeilen.map((z) => z.split(";").slice(14))).toEqual([
+      ["ER-2", "", "", "", "", ""],
+      ["ER-3", "", "", "", "", ""],
+    ]);
   });
 
   it("verweist in „Abruf“ auf eine Lieferung, die bank/importe.csv desselben Archivs nennt", async () => {

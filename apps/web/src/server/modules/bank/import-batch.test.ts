@@ -107,6 +107,20 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     expect(bewegungen.map((b) => b.source_event_id)).toEqual(["ER-1", "ER-2"]);
   });
 
+  it("speichert die Referenzen jeder Bewegung, auch Bezug, Auszahlung und Bestellung", async () => {
+    const konto = neuesKonto();
+    const input = abruf(konto, [tx("ER-1", "2026-10-05"), tx("ER-2", "2026-10-06", "10.00")]);
+    const [zahlung, zweite] = input.batch.movements;
+    zahlung!.references = { ...zahlung!.references, relatedEventId: "ER-0", payoutId: "PO-7", orderId: "12-34567-89012", endToEndId: "E2E-1" };
+    await speichere(input);
+    const refs = await sql<{ id: string; refs: unknown }[]>`select m.source_event_id as id, m.refs from import_movements m
+      join import_sources s on s.id = m.source_id where s.external_account_id = ${konto.hash} order by 1`;
+    expect(refs).toEqual([
+      { id: "ER-1", refs: { providerReference: "ER-1", relatedEventId: "ER-0", payoutId: "PO-7", orderId: "12-34567-89012", endToEndId: "E2E-1" } },
+      { id: "ER-2", refs: zweite!.references },
+    ]);
+  });
+
   it("gibt dieselbe Lieferung noch einmal ohne neue Umsätze zurück", async () => {
     const konto = neuesKonto();
     const input = abruf(konto, [tx("ER-1", "2026-10-05")], { fetchId: "gleich" });
