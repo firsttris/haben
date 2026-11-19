@@ -5,6 +5,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { TYPISIERTE_SPALTEN } from "./beschreibung.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
+import { csv, csvField, money } from "./csv.ts";
+import { safeName } from "./export-paths.ts";
+import { zipArchive } from "./export-zip.ts";
 
 // Keine KI-Auslesung im Test
 vi.mock("../belege/extraction.ts", async (importOriginal) => ({
@@ -173,22 +176,22 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
   });
 
   it("quotet nach RFC 4180 und formatiert Beträge mit Komma", () => {
-    expect(exporter.csvField('Müller; "Büro"')).toBe('"Müller; ""Büro"""');
-    expect(exporter.csvField("a\nb")).toBe('"a\nb"');
-    expect(exporter.csvField("schlicht")).toBe("schlicht");
-    expect(exporter.csvField(true)).toBe("ja");
-    expect(exporter.csvField(null)).toBe("");
-    expect(exporter.money(123456)).toBe("1234,56");
-    expect(exporter.money(-5)).toBe("-0,05");
-    expect(exporter.money(0)).toBe("0,00");
-    expect(text(exporter.csv(["A", "B"], [["1", null]]))).toBe("﻿A;B\r\n1;\r\n");
+    expect(csvField('Müller; "Büro"')).toBe('"Müller; ""Büro"""');
+    expect(csvField("a\nb")).toBe('"a\nb"');
+    expect(csvField("schlicht")).toBe("schlicht");
+    expect(csvField(true)).toBe("ja");
+    expect(csvField(null)).toBe("");
+    expect(money(123456)).toBe("1234,56");
+    expect(money(-5)).toBe("-0,05");
+    expect(money(0)).toBe("0,00");
+    expect(text(csv(["A", "B"], [["1", null]]))).toBe("﻿A;B\r\n1;\r\n");
   });
 
   it("macht Dateinamen sicher", () => {
-    expect(exporter.safeName('Müller; "Büro" GmbH/Filiale')).toBe("Mueller-Buero-GmbH-Filiale");
-    expect(exporter.safeName("../../etc/passwd")).toBe("etc-passwd");
-    expect(exporter.safeName("")).toBe("unbekannt");
-    expect(exporter.safeName("x".repeat(100)).length).toBe(40);
+    expect(safeName('Müller; "Büro" GmbH/Filiale')).toBe("Mueller-Buero-GmbH-Filiale");
+    expect(safeName("../../etc/passwd")).toBe("etc-passwd");
+    expect(safeName("")).toBe("unbekannt");
+    expect(safeName("x".repeat(100)).length).toBe(40);
   });
 
   it("enthält die erwartete Dateistruktur", () => {
@@ -426,7 +429,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
       for (let i = 0; i <= 0xffff; i++) yield { path: `${i}.txt`, content: new Uint8Array(0), compress: false };
     }
     const run = async () => {
-      for await (const chunk of exporter.zipArchive(many(), new Date())) void chunk;
+      for await (const chunk of zipArchive(many(), new Date())) void chunk;
     };
     await expect(run()).rejects.toThrow(/65\.535 Dateien/);
   });
