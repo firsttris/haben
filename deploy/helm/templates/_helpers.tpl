@@ -121,7 +121,7 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | 
   mountPath: /backups
 {{- end }}
 {{- with .Values.backup.extraVolumeMounts }}
-{{- toYaml . }}
+{{ toYaml . }}
 {{- end }}
 {{- end -}}
 
@@ -138,7 +138,7 @@ restore.sh und restore-check.sh auspacken, auf der Platte des Knotens statt im S
     claimName: {{ include "haben.fullname" . }}-backups
 {{- end }}
 {{- with .Values.backup.extraVolumes }}
-{{- toYaml . }}
+{{ toYaml . }}
 {{- end }}
 {{- end -}}
 
