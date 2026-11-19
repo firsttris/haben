@@ -25,10 +25,13 @@ import { freeHash, MovementConflictError, type StoreBatchInput } from "./import-
  * Abruf des Kontos wieder.
  */
 
-/** Umsatz zu einer Bewegung: der des Auszugs zum Ereignis, sonst aus der Bewegung selbst (etwa eine Gebühr als Komponente) */
+/**
+ * Umsatz zu einer Bewegung: der des Auszugs zu Ereignis und Komponente (`eventKeyOf`, beim REST-Import auch die Gebühr mit
+ * „Gebühr“ vorn), sonst aus der Bewegung selbst
+ */
 function transactionOf(input: StoreBatchInput, movement: ImportMovement): ParsedTransaction {
   const row = input.statement.transactions.find((t) => input.eventOf(t) === eventKeyOf(movement));
-  if (row && movement.component === "main") return row;
+  if (row) return row;
   return {
     bookingDate: movement.bookingDate,
     ...(movement.valueDate ? { valueDate: movement.valueDate } : {}),
