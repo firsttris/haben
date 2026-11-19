@@ -127,13 +127,13 @@ Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlung
 
 ## BWA
 
-„BWA“ im Kopf der Auswertungen öffnet die betriebswirtschaftliche Auswertung: wie der Betrieb in einem Monat, einem Quartal, einem Jahr oder einem freien Zeitraum (von–bis) dasteht. Sie rechnet aus denselben Zahlungen wie die EÜR und bucht nichts; über ein ganzes Jahr ist ihre Zeile „Gewinn laut EÜR“ der Gewinn der EÜR (siehe Grenzen). Zeitraum, Vergleich und eine aufgeklappte Zeile stehen in der Adresse, ein Link zeigt also dieselbe Auswertung.
+„BWA“ im Kopf der Auswertungen öffnet die betriebswirtschaftliche Auswertung: wie der Betrieb in einem Monat, einem Quartal, einem Jahr oder einem freien Zeitraum (von–bis) dasteht. Sie bucht nichts. Im Einzelunternehmen rechnet sie aus denselben Zahlungen wie die EÜR; über ein ganzes Jahr ist ihre Zeile „Gewinn laut EÜR“ der Gewinn der EÜR (siehe Grenzen). GmbH und UG bekommen die [Kurzfristige Erfolgsrechnung](#bwa-für-gmbh-und-ug) periodengerecht wie die GuV. Zeitraum, Vergleich und eine aufgeklappte Zeile stehen in der Adresse, ein Link zeigt also dieselbe Auswertung.
 
-Es ist eine eigene Auswertung von Haben, keine Auswertung von DATEV; gegliedert ist sie wie die Einnahmen-Ausgaben-BWA von DATEV (BWA-Form 43, Zeilen nach der DATEV-Musterauswertung BWA, 2016): Erlöse und sonstige Erlöse, Umsatzsteuer und Erstattung, Kosten nach Kostenart (Material, Fremdleistungen, Personal, Raum, Steuern/Versicherungen/Beiträge, Fahrzeug, Werbe- und Reisekosten, Warenabgabe, Instandhaltung, Abschreibungen, verschiedene Kosten), Buchwert der Anlagenabgänge, Zinsen und sonstige Aufwendungen, Vorsteuer und Umsatzsteuer-Zahlungen, darunter das vorläufige Ergebnis. Welche Kostenart ein Konto hat, folgt den Kontengruppen des DATEV-Kontenrahmens 2026 ([SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf), [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf)), soweit beide Rahmen sie gleich gliedern, sonst dem Posten der GuV; ein [eigenes Konto](buchhaltung.md#eigene-konten) zählt wie seine Kategorie.
+Es ist eine eigene Auswertung von Haben, keine Auswertung von DATEV; im Einzelunternehmen gegliedert wie die Einnahmen-Ausgaben-BWA von DATEV (BWA-Form 43, Zeilen nach der DATEV-Musterauswertung BWA, 2016): Erlöse und sonstige Erlöse, Umsatzsteuer und Erstattung, Kosten nach Kostenart (Material, Fremdleistungen, Personal, Raum, Steuern/Versicherungen/Beiträge, Fahrzeug, Werbe- und Reisekosten, Warenabgabe, Instandhaltung, Abschreibungen, verschiedene Kosten), Buchwert der Anlagenabgänge, Zinsen und sonstige Aufwendungen, Vorsteuer und Umsatzsteuer-Zahlungen, darunter das vorläufige Ergebnis. Welche Kostenart ein Konto hat, folgt den Kontengruppen des DATEV-Kontenrahmens 2026 ([SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf), [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf)), soweit beide Rahmen sie gleich gliedern, sonst dem Posten der GuV; ein [eigenes Konto](buchhaltung.md#eigene-konten) zählt wie seine Kategorie.
 
 | Spalte | Bedeutung |
 | --- | --- |
-| Zeitraum | Zahlungen im gewählten Zeitraum, beide Tage eingeschlossen; von–bis über höchstens drei Kalenderjahre |
+| Zeitraum | Zahlungen (GmbH und UG: Buchungen) im gewählten Zeitraum, beide Tage eingeschlossen; von–bis über höchstens drei Kalenderjahre |
 | Vergleich | **Vorjahreszeitraum**: dieselben Kalendertage ein Jahr früher, ganze Monate als ganze Monate (Februar mit Februar, auch im Schaltjahr); **Vorperiode**: gleich viele ganze Monate direkt davor (der Monat, das Quartal, das Jahr davor); bei einem freien Zeitraum, der nicht aus ganzen Monaten besteht, gleich viele Tage direkt davor |
 | Abweichung, in % | Zeitraum minus Vergleich, in Prozent des Vergleichs; ohne Prozent, wenn der Vergleich 0 ist |
 | Kumuliert | Vom 1. Januar bis zum Ende des Zeitraums; beim Vorjahresvergleich daneben dasselbe im Vorjahr |
@@ -152,7 +152,17 @@ Grenzen:
 
 - Abschreibungen, Restbuchwerte und die Privatnutzung von Fahrzeugen zeigt die BWA erst, wenn das Jahr im [Anlagenverzeichnis](anlagen.md) gebucht ist. Die EÜR rechnet sie vorher schon aus dem Anlagenverzeichnis; bis dahin weicht der Gewinn ab, und die BWA weist darauf hin.
 - Zinserträge und andere steuerfreie Einnahmen stehen bei den Erlösen, weil die EÜR sie in einer Zeile mit den steuerfreien Umsätzen führt.
-- GmbH und UG bilanzieren; ihre BWA nach der Kurzfristigen Erfolgsrechnung (DATEV BWA-Form 01) fehlt noch.
+- „Warum?“ gibt es nur nach Zufluss und Abfluss, nicht in der Kurzfristigen Erfolgsrechnung.
+
+### BWA für GmbH und UG
+
+GmbH und UG bilanzieren; ihre BWA ist gegliedert wie die Kurzfristige Erfolgsrechnung von DATEV (BWA-Form 01, Musterauswertung BWA, 2016): Umsatzerlöse, Bestandsveränderungen und aktivierte Eigenleistungen bis zur Gesamtleistung, Material- und Wareneinkauf (mit Fremdleistungen) bis zum Rohertrag, sonstige betriebliche Erlöse, die Kostenarten bis zum Betriebsergebnis, dann neutraler Aufwand (Zinsen, sonstiger neutraler Aufwand) und neutraler Ertrag (Zinserträge, sonstiger neutraler Ertrag, verrechnete kalkulatorische Kosten), das Ergebnis vor Steuern, die Steuern vom Einkommen und Ertrag (mit der Gewerbesteuer) und das vorläufige Ergebnis. Spalten und Vergleich wie oben.
+
+Sie rechnet aus den Salden der Erfolgskonten im Journal nach Buchungsdatum, mit manuellen Buchungen, ohne Eröffnungsbuchungen. Welche Zeile ein Konto hat, folgt den Kontengruppen des DATEV-Kontenrahmens 2026 wie oben. **Neutral** sind im SKR03 die Abgrenzungskonten der Klasse 2, etwa Forderungsverluste (2400), nicht abziehbare Vorsteuer (2170 bis 2176), Kursdifferenzen (2150, 2660; [§ 277 Abs. 5 HGB](https://www.gesetze-im-internet.de/hgb/__277.html) verlangt die Währungsumrechnung gesondert), Anlagenabgänge, Spenden und periodenfremde Posten; im SKR04 die gleich benannten Konten (6930, 6860 bis 6871, 6880, 4840 …). Ein Erfolgskonto, das im Kontenrahmen in einer Lücke liegt oder nach dem Jahresergebnis steht (Einstellungen in Rücklagen), steht unter „Kontenklasse unbesetzt“.
+
+Über ein ganzes Jahr ist das vorläufige Ergebnis der Jahresüberschuss bzw. Jahresfehlbetrag der [GuV im Jahresabschluss](gmbh-abschluss.md), solange nichts unter „Kontenklasse unbesetzt“ steht (die GuV führt solche Konten als nicht zugeordnet). Vorläufig ist es, weil Abschlussbuchungen (Rückstellungen, Abgrenzungen, AfA) erst gebucht zählen; was davon noch fehlt, fehlt auch hier.
+
+Ein Klick auf eine Zeile zeigt ihre Konten mit Betrag; die Kontonummer öffnet das Kontenblatt für genau den Zeitraum der BWA. Reicht der Zeitraum über den Jahreswechsel, zeigt das Kontenblatt das letzte Jahr darin ab dem 1. Januar.
 
 ## Offene Posten
 

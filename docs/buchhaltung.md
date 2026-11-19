@@ -378,7 +378,7 @@ Ein Klick auf ein Konto öffnet das **Kontenblatt**. Es zeigt:
 - Den Saldoverlauf als Diagramm. Beim Darüberfahren erscheinen Datum, Saldo und Buchung.
 - Jede Buchung mit Datum, Text, Gegenkonten, Herkunft, Soll, Haben und laufendem Saldo.
 
-Über ein Quartal oder Jahr kommt eine Zwischensumme je Monat dazu. Gegenkonten und Herkunft sind verlinkt.
+Über ein Quartal oder Jahr kommt eine Zwischensumme je Monat dazu. Gegenkonten und Herkunft sind verlinkt. Aus der [BWA](auswertungen.md#bwa-für-gmbh-und-ug) öffnet das Kontenblatt einen Zeitraum von–bis innerhalb eines Jahres (`?von=…&bis=…`); die Eröffnung zählt dann bis zum Tag davor.
 
 Am Handy werden die Tabellen zu Karten. Das Diagramm lässt sich dort waagrecht verschieben.
 
