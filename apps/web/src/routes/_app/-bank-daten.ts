@@ -1,4 +1,4 @@
-import { AUFLADUNG, type DirectBooking } from "@haben/core";
+import { AUFLADUNG, type DirectBooking, type OpenItem } from "@haben/core";
 import { aufladungWahl, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import type { getBankOverview } from "../../server/functions/bank.ts";
 import { today as todayInGermany } from "../../server/today.ts";
@@ -113,14 +113,26 @@ export type Posten = Detail["suggestions"][number]["item"] | Detail["candidates"
 
 export type RestArt = "skonto" | "forderungsausfall" | "skontoErhalten";
 
+/** Offene Korrektur einer Rechnung, wie der Abgleich sie mitliefert */
+export type Korrektur = NonNullable<OpenItem["openCorrections"]>[number];
+
+/** Offene Korrektur zur Rechnung, die den Rest einer Zahlung genau ausgleicht: Der Kunde hat „Rechnung minus Korrektur“ gezahlt */
+export function passendeKorrektur(target: Posten | undefined, tx: Detail["transaction"]) {
+  if (target?.type !== "invoice" || tx.amount <= 0 || !("openCorrections" in target) || !target.openCorrections) return undefined;
+  const rest = target.open - tx.open;
+  return rest > 0 ? target.openCorrections.find((k) => k.open === -rest) : undefined;
+}
+
 /** Was nach der Zuordnung an einen Posten übrig bliebe und wie es sich ausbuchen lässt */
 export function restAngebot(target: Posten | undefined, tx: Detail["transaction"]) {
+  // Gleicht eine offene Korrektur den Rest aus, ist er weder Gebühr noch Skonto noch Forderungsausfall (#1398)
+  const korrektur = passendeKorrektur(target, tx);
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
-  const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
+  const feeRest = target && !korrektur && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Zahlung unter dem offenen Betrag: Rest ausbuchen (Skonto, Forderungsausfall) statt als Teilzahlung stehen lassen
   const rest = target && Math.sign(target.open) === Math.sign(tx.open) && Math.abs(target.open) > Math.abs(tx.open) ? target.open - tx.open : 0;
   const restKinds: RestArt[] =
-    rest === 0
+    rest === 0 || korrektur
       ? []
       : target?.type === "invoice" && tx.amount > 0
         ? ["skonto", "forderungsausfall"]
@@ -130,5 +142,5 @@ export function restAngebot(target: Posten | undefined, tx: Detail["transaction"
   // Rechnung oder Beleg in Fremdwährung: Abweichung der Zahlung vom umgerechneten Betrag als Kursdifferenz (Zahlung − offen)
   const exchangeDifference =
     target?.currency && target.currency !== "EUR" && Math.sign(target.open) === Math.sign(tx.open) && target.open !== tx.open ? tx.open - target.open : 0;
-  return { feeRest, rest, restKinds, exchangeDifference };
+  return { feeRest, rest, restKinds, exchangeDifference, korrektur };
 }

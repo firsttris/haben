@@ -37,6 +37,11 @@ export interface OpenItem {
    * Plattform wie Etsy, Bestellnummer des Kunden, eigene Auftragsnummer)
    */
   orderReferences?: string[];
+  /**
+   * Nur bei Rechnungen: festgeschriebene Rechnungskorrekturen zu dieser Rechnung, die selbst noch offen sind (open mit
+   * dem Vorzeichen der Erstattung). Zahlt der Kunde „Rechnung minus Korrektur“, gehört der Rest dorthin (#1398).
+   */
+  openCorrections?: { id: string; number: string; open: Cents }[];
   /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */
   skonto?: SkontoZahlfrist[];
   /** Nur bei Voranmeldungen: der Zeitraum, den die Finanzkasse im Verwendungszweck nennt */
