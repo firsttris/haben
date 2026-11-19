@@ -76,7 +76,10 @@ export function CertificateForm() {
       <Field label="Zertifikats-PIN (optional)" hint="Haben liest damit nur das Ablaufdatum aus der Datei und speichert sie nicht.">
         {(control) => <input {...control} name="pin" type="password" autoComplete="off" />}
       </Field>
-      <Field label="Gültig bis (für die Erinnerung 30 Tage vorher)" hint="Nur ohne PIN nötig; mit PIN gilt das Datum aus der Datei.">
+      <Field
+        label="Gültig bis (für die Erinnerung 30 Tage vorher)"
+        hint="Nur nötig ohne PIN oder wenn Haben die Datei damit nicht lesen kann; sonst gilt das Datum aus der Datei."
+      >
         {(control) => <input {...control} name="validUntil" type="date" />}
       </Field>
       <div className="actions">
