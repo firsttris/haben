@@ -60,6 +60,8 @@ kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufe
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
                          Bareinnahmen auf Rechnungen die Rechnungsnummer.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
+                         Bestätigte Dubletten behalten ihren Betrag und ihre Importdatei,
+                         stehen als Dublette in der Liste und haben einen offenen Betrag von 0.
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
 bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze
@@ -74,8 +76,10 @@ bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA
                          verbunden hat (etwa vom 30.12.), auch im Jahr dieses Umsatzes.
                          Die Auszugsdateien selbst speichert Haben nicht.
 bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
-                         Ereignis der Bank die Quelle mit Stichtag, der Abruf und der
-                         Umsatz, den Haben angelegt oder verbunden hat.
+                         Ereignis (Bankabruf oder Etsy) die Quelle mit Stichtag, der
+                         Abruf, der Umsatz, den Haben angelegt oder verbunden hat,
+                         und die gelieferten Referenzen (Anbieterreferenz,
+                         Ereigniscode, EndToEndId, Bezug, Auszahlung, Bestellung).
 bank/klaerungen.csv      Nur wenn vorhanden: geklärte Konflikte im Abruf: bisheriger und
                          gelieferter Umsatz, die Entscheidung und ein neu angelegter
                          Umsatz; der abgelehnte Abruf steht in bank/importe.csv.

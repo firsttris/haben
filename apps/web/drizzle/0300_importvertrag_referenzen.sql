@@ -1,0 +1,1 @@
+ALTER TABLE "import_movements" ADD COLUMN "refs" jsonb;

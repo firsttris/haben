@@ -2,7 +2,7 @@
 
 import { and, asc, inArray, or, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { bankNeutralizedSql, bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
+import { bankDuplicateConfirmedSql, bankDuplicatePendingSql, bankNeutralizedSql, bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 import { bankTransactionMatch } from "./search.ts";
 import { nichtPrivat, privat } from "./privat-kennzeichnung.ts";
@@ -36,6 +36,8 @@ export async function listTransactions(
     .select({
       /** Auf einem privaten Konto als „kein Betriebsvorgang" gekennzeichnet und ganz offen (#1088) */
       privat: privat().mapWith(Boolean),
+      duplicatePending: bankDuplicatePendingSql.mapWith(Boolean),
+      duplicateConfirmed: bankDuplicateConfirmedSql.mapWith(Boolean),
       id: schema.bankTransactions.id,
       bankAccountId: schema.bankTransactions.bankAccountId,
       bookingDate: schema.bankTransactions.bookingDate,

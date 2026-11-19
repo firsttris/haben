@@ -14,6 +14,7 @@ import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
+import { EricHinweis } from "../../../components/EricHinweis.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "../../../lib/elster.ts";
@@ -60,12 +61,7 @@ function LstaPage() {
         </Field>
       </div>
 
-      {data.mode === "simuliert" && (
-        <div className="banner banner-info" role="status">
-          <Icon name="info" />
-          <span>ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.</span>
-        </div>
-      )}
+      {data.mode === "simuliert" && <EricHinweis />}
       {data.issues.map((issue) => (
         <div key={issue.text} className={`banner ${issue.tone === "info" ? "banner-info" : ""}`} role="status">
           <Icon name={issue.tone === "info" ? "info" : "alert"} />

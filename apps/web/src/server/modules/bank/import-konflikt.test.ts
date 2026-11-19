@@ -103,8 +103,16 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
     const { transactionId } = await konflikt.resolveConflict("test", { conflictId: k!.id, decision: "add" });
     const [bisher, neu] = await umsaetze(iban);
     expect(neu).toEqual({ id: transactionId, amount: -9800 });
-    expect(await konflikt.klaerungView(bisher!.id)).toEqual({ added: [{ id: transactionId, bookingDate: "2026-11-18", amount: -9800 }], previous: null });
-    expect(await konflikt.klaerungView(transactionId!)).toEqual({ added: [], previous: { id: bisher!.id, bookingDate: "2026-11-18", amount: -8900 } });
+    expect(await konflikt.klaerungView(bisher!.id)).toEqual({
+      provider: "enablebanking",
+      added: [{ id: transactionId, bookingDate: "2026-11-18", amount: -9800 }],
+      previous: null,
+    });
+    expect(await konflikt.klaerungView(transactionId!)).toEqual({
+      provider: "enablebanking",
+      added: [],
+      previous: { id: bisher!.id, bookingDate: "2026-11-18", amount: -8900 },
+    });
     // Der Eintrag der Klärung im Importprotokoll setzt keinen Kontostand: es bleibt der des letzten Abrufs
     const { listAccounts } = await import("./index.ts");
     const konto = (await listAccounts()).find((a) => a.iban === iban)!;
@@ -122,6 +130,21 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
     const r = await abruf(anderes, "hash-5", [buchung("ER-6", "2026-11-15", "21.00")]);
     expect(r).toMatchObject({ ok: false, message: expect.stringContaining("anderen Konto") });
     expect((await konflikt.openConflicts()).filter((k) => k.sourceEventId === "ER-6")).toEqual([]);
+  });
+
+  it("behandelt eine ausdrücklich als weiterer Umsatz geklärte Quellenreferenz bei der Bestandsprüfung als bekannt", async () => {
+    const iban = "DE02100500000054540447";
+    const normal = buchung("ER-BESTAND", "2026-11-15", "89.00");
+    const anderer = { ...buchung("ER-ANDERS", "2026-11-15", "98.00"), remittance_information: ["Kundennummer 4711 ER-BESTAND X"] };
+    expect((await abruf(iban, "hash-bestand", [normal, anderer])).ok).toBe(true);
+    expect((await abruf(iban, "hash-bestand", [{ ...normal, transaction_amount: { amount: "98.00", currency: "EUR" } }])).ok).toBe(false);
+    const [k] = (await konflikt.openConflicts()).filter((c) => c.sourceEventId === "ER-BESTAND");
+    const { transactionId } = await konflikt.resolveConflict("test", { conflictId: k!.id, decision: "add" });
+    expect(transactionId).not.toBeNull();
+    const { runExistingDuplicateCheck } = await import("./duplicate-scan.ts");
+    expect(await runExistingDuplicateCheck()).not.toBeNull();
+    const reviews = await sql`select id from bank_duplicate_reviews where transaction_id = ${transactionId}`;
+    expect(reviews).toEqual([]);
   });
 
   it("nimmt den Umsatz aus der Bewegung, wenn der Auszug keinen zum Ereignis hat (etwa eine Gebühr als Komponente)", async () => {

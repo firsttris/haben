@@ -1,5 +1,5 @@
 import { desc, eq, or, sql } from "drizzle-orm";
-import { simpleParser, type Attachment } from "mailparser";
+import { simpleParser } from "mailparser";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { decrypt, encrypt } from "../../crypto.ts";
@@ -8,12 +8,13 @@ import { db, schema } from "../../db/index.ts";
 import { DocumentError, uploadDocument } from "./documents.ts";
 import { normalizeSenders, senderAllowed } from "./inbox-absender.ts";
 import { MAX_MAIL_SIZE } from "../../grenzen.ts";
+import { clean, errorText, isBeleg, settle } from "./inbox-danach.ts";
 import { type Connector, imapConnect, InboxError } from "./inbox-imap.ts";
 
 /**
  * Belege per E-Mail: Haben ruft ein Postfach über IMAP ab, legt die Anhänge ungelesener Mails als
  * Belege ab (E-Rechnungen gelesen, sonst KI-Auslesung wie beim Hochladen) und markiert die Mail
- * danach als gelesen. Jede Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll.
+ * danach als gelesen, verschiebt sie in einen Ordner oder löscht sie, je nach Einstellung. Jede Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll.
  */
 
 export { InboxError };
@@ -59,8 +60,28 @@ export const inboxSettingsSchema = z
       .default([])
       .transform(normalizeSenders)
       .refine((list) => list.every((entry) => /^[^\s,;<>]+$/.test(entry)), "Je Eintrag eine Adresse oder Domain ohne Leerzeichen"),
+    /** Was nach dem Ablegen mit der Mail im Postfach geschieht */
+    afterFetch: z.enum(["seen", "move", "delete"]).default("seen"),
+    /** Zielordner bei „move“ */
+    archiveFolder: z
+      .string()
+      .trim()
+      .max(200)
+      .nullish()
+      .transform((value) => value || null),
     enabled: z.boolean().default(true),
   })
+  .refine((s) => s.afterFetch !== "move" || !!s.archiveFolder, {
+    path: ["archiveFolder"],
+    message: "Zielordner fehlt",
+  })
+  .refine(
+    (s) => s.afterFetch !== "move" || !s.archiveFolder || ![s.folder, s.outboundFolder].some((f) => f?.toLowerCase() === s.archiveFolder?.toLowerCase()),
+    {
+      path: ["archiveFolder"],
+      message: "Der Zielordner muss ein anderer sein als Eingangs- und Ausgangsordner",
+    },
+  )
   .refine((s) => !s.outboundFolder || s.outboundFolder.toLowerCase() !== s.folder.toLowerCase(), {
     path: ["outboundFolder"],
     message: "Ausgangsordner und Eingangsordner müssen verschieden sein",
@@ -94,6 +115,8 @@ export async function inboxSummary() {
           folder: settings.folder,
           outboundFolder: settings.outboundFolder,
           allowedSenders: settings.allowedSenders,
+          afterFetch: settings.afterFetch,
+          archiveFolder: settings.archiveFolder,
           enabled: settings.enabled,
           lastRunAt: settings.lastRunAt,
           lastRejected: settings.lastRejected,
@@ -106,7 +129,8 @@ export async function inboxSummary() {
 }
 
 export async function saveInboxSettings(actor: string, input: InboxSettingsInput): Promise<void> {
-  const { password, ...rest } = inboxSettingsSchema.parse(input);
+  const { password, ...parsed } = inboxSettingsSchema.parse(input);
+  const rest = { ...parsed, archiveFolder: parsed.afterFetch === "move" ? parsed.archiveFolder : null };
   const existing = await loadInboxSettings();
   if (!password && !existing) throw new InboxError("Passwort fehlt.");
   const values = {
@@ -124,13 +148,6 @@ export async function saveInboxSettings(actor: string, input: InboxSettingsInput
 
 export async function deleteInboxSettings(actor: string): Promise<void> {
   await withActor(actor, (tx) => tx.delete(schema.inboxSettings).where(eq(schema.inboxSettings.id, 1)));
-}
-
-/** Signaturbilder und eingebettete Logos sind keine Belege */
-function isBeleg(attachment: Attachment): boolean {
-  if (attachment.related) return false;
-  if (attachment.contentDisposition === "inline" && attachment.contentType.startsWith("image/")) return false;
-  return true;
 }
 
 export interface InboxRunResult {
@@ -155,14 +172,22 @@ const retryKey = (messageId: string, n: number) => `${messageId.slice(0, 970)}${
  * abgelegt ist. Verarbeitung und Fehlerprotokoll nehmen denselben Schlüssel, sonst verschluckt
  * `onConflictDoNothing` den Eintrag eines Fehlschlags nach einem Nachholen.
  */
-async function freeKey(base: string): Promise<string | null> {
+async function earlierRows(base: string) {
   const prefix = retryKey(base, 1).slice(0, -1);
   const rows = await db
-    .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
+    .select({
+      messageId: schema.inboxMessages.messageId,
+      skipped: schema.inboxMessages.skipped,
+      documentIds: schema.inboxMessages.documentIds,
+    })
     .from(schema.inboxMessages)
     .where(or(eq(schema.inboxMessages.messageId, base), sql`starts_with(${schema.inboxMessages.messageId}, ${prefix})`));
   // Nur Schlüssel aus retryKey; eine andere Mail kann eine Message-ID haben, die genauso beginnt
-  const earlier = rows.filter((row) => row.messageId === base || /^(?:\)| [1-9]\d*\))$/.test(row.messageId.slice(prefix.length)));
+  return rows.filter((row) => row.messageId === base || /^(?:\)| [1-9]\d*\))$/.test(row.messageId.slice(prefix.length)));
+}
+
+async function freeKey(base: string): Promise<string | null> {
+  const earlier = await earlierRows(base);
   // inbox_messages ist nur zu ergänzen: der Eintrag eines Fehlschlags bleibt stehen,
   // und wer die Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
   if (earlier.some((row) => !isRetryable(row))) return null;
@@ -172,13 +197,6 @@ async function freeKey(base: string): Promise<string | null> {
   while (taken.has(retryKey(base, n))) n++;
   return retryKey(base, n);
 }
-
-/** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
-const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, "");
-
-/** Die Ursache statt der Drizzle-Hülle mit der ganzen Abfrage */
-const errorText = (e: unknown) => clean(e instanceof Error ? (e.cause instanceof Error ? e.cause.message : e.message) : String(e));
 
 async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
   const mail = await simpleParser(source.bytes);
@@ -265,10 +283,17 @@ async function recordFailure(actor: string, bytes: Buffer, error: unknown) {
 }
 
 /**
- * Freigegebene Mails verarbeiten und als gelesen markieren. Mails anderer Absender bleiben ungelesen; von ihnen
+ * Freigegebene Mails verarbeiten und danach gelesen markieren, verschieben oder löschen. Mails anderer Absender bleiben ungelesen; von ihnen
  * wird nur die Absenderadresse aus dem Umschlag gelesen und die Anzahl gezählt, nichts gespeichert.
  */
-async function fetchFolder(settings: InboxSettings, password: string, actor: string, background: (work: Promise<void>) => void, result: InboxRunResult) {
+async function fetchFolder(
+  settings: InboxSettings,
+  password: string,
+  actor: string,
+  background: (work: Promise<void>) => void,
+  result: InboxRunResult,
+  problems: string[],
+) {
   const connection = await connector(settings, password, settings.folder);
   try {
     let handled = 0;
@@ -281,15 +306,18 @@ async function fetchFolder(settings: InboxSettings, password: string, actor: str
       handled++;
       const source = await connection.source(uid);
       let done: Awaited<ReturnType<typeof processMessage>>;
+      let ok = true;
       try {
         done = await processMessage(actor, source, background);
       } catch (failure) {
         // Lässt sich nicht einmal der Fehler speichern (Datenbank weg), bricht der Lauf ab und die Mail bleibt ungelesen
         await recordFailure(actor, source.bytes, failure);
         done = { documents: 0, duplicates: 0, skipped: 1 };
+        ok = false;
       }
-      // Erst nach dem Ablegen oder Protokollieren als gelesen markieren
-      await connection.markSeen(uid);
+      // Erst nach dem Ablegen oder Protokollieren
+      const problem = await settle(connection, settings, uid, source, ok);
+      if (problem) problems.push(problem);
       if (!done) continue;
       result.messages++;
       result.documents += done.documents;
@@ -307,13 +335,19 @@ export async function fetchInbox(actor: string, background: (work: Promise<void>
   if (!settings) throw new InboxError("Es ist kein Postfach für Belege eingerichtet.");
   const result: InboxRunResult = { messages: 0, documents: 0, duplicates: 0, skipped: 0, rejected: 0 };
   let error: string | null = null;
+  const problems: string[] = [];
   try {
     const password = new TextDecoder().decode(decrypt(settings.ciphertext));
-    await fetchFolder(settings, password, actor, background, result);
+    await fetchFolder(settings, password, actor, background, result, problems);
   } catch (e) {
     error = errorText(e);
   }
-  await db.update(schema.inboxSettings).set({ lastRunAt: new Date(), lastRejected: result.rejected, lastError: error }).where(eq(schema.inboxSettings.id, 1));
+  // Ein Mail, die sich nicht verschieben oder löschen ließ, hält den Abruf nicht an; der Fehler steht danach in lastError
+  const settleError = problems[0] ? `${problems[0]}${problems.length > 1 ? ` (und ${problems.length - 1} weitere)` : ""}` : null;
+  await db
+    .update(schema.inboxSettings)
+    .set({ lastRunAt: new Date(), lastRejected: result.rejected, lastError: error ?? settleError })
+    .where(eq(schema.inboxSettings.id, 1));
   if (error) throw new InboxError(`Abruf fehlgeschlagen: ${error}`);
   return result;
 }

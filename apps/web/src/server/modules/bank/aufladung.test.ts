@@ -1,3 +1,4 @@
+import { kategorieMitKonto } from "@haben/core";
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -122,7 +123,7 @@ describe.skipIf(!testDatabaseUrl)("Aufladung eines Guthabens (Postgres)", () => 
     expect(entry!.description).toBe("Aufladung Guthaben: Sonstiger Aufwand · Funknetz Mobil");
     expect((await bank.transactionDetail(transactionId))?.allocations[0]).toMatchObject({
       kind: "aufladung",
-      kategorieLabel: "Sonstiger Aufwand",
+      kategorieLabel: kategorieMitKonto(kr, "sonstiges"),
     });
 
     // Keine Umsatzsteuer: Kz 81 und Kz 66 bleiben leer

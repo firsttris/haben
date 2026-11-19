@@ -3,6 +3,7 @@ import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-r
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { type DuplikatZiel, useBelegDuplizieren } from "../../../components/BelegDuplizieren.tsx";
 import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentStatus } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
@@ -14,8 +15,8 @@ import { DocumentForm } from "./-beleg-formular.tsx";
 import { Preview } from "./-beleg-vorschau.tsx";
 
 export const Route = createFileRoute("/_app/belege/$id")({
-  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
-  validateSearch: z.object({ geprueft: z.optional(z.boolean()) }),
+  /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“; dupliziert und vorhanden: nach „Beleg duplizieren“ */
+  validateSearch: z.object({ geprueft: z.optional(z.boolean()), dupliziert: z.optional(z.string()), vorhanden: z.optional(z.boolean()) }),
   loader: ({ params }) => getDocumentDetail({ data: params.id }),
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.document.supplierName || "Beleg"} · Haben` }],
@@ -27,7 +28,7 @@ function DocumentPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const navigate = useNavigate();
-  const { geprueft } = Route.useSearch();
+  const { geprueft, ...duplikat } = Route.useSearch();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const { document: doc, navigation } = data;
   const running = doc.extractionStatus === "laeuft";
@@ -43,10 +44,8 @@ function DocumentPage() {
     return () => clearInterval(timer);
   }, [running, router]);
 
-  function leaveTo(id: string) {
-    if (id === "liste") void navigate({ to: "/belege" });
-    else void navigate({ to: "/belege/$id", params: { id } });
-  }
+  const leaveTo = (id: string, ziel?: DuplikatZiel) =>
+    void (id === "liste" ? navigate({ to: "/belege" }) : navigate({ to: "/belege/$id", params: { id }, search: ziel }));
 
   /** Zu einem anderen Beleg oder ("liste") zurück zur Liste; bei ungespeicherten Änderungen erst nachfragen */
   function go(id: string | null) {
@@ -54,6 +53,7 @@ function DocumentPage() {
     if (dirty) setPending({ from: doc.id, to: id });
     else leaveTo(id);
   }
+  const duplizieren = useBelegDuplizieren(data, duplikat, dirty, leaveTo);
 
   // J/K bzw. Pfeiltasten springen zum nächsten bzw. vorigen Beleg, wie im Bankabgleich
   useEffect(() => {
@@ -144,8 +144,10 @@ function DocumentPage() {
           <a className="btn" href={`/api/beleg/${doc.id}?download`}>
             Original herunterladen
           </a>
+          {inhaber && !running && duplizieren.knopf}
         </div>
       </div>
+      {duplizieren.hinweise}
       <ConfirmDialog
         open={pendingId !== null}
         title="Ohne Speichern wechseln?"

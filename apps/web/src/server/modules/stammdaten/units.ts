@@ -21,18 +21,21 @@ export async function loadUnitCodes(q: Db | Tx = db): Promise<Record<string, str
 }
 
 export async function createUnit(actor: string, input: { label: string; code: string }): Promise<Unit> {
+  return withActor(actor, (tx) => insertUnit(tx, input));
+}
+
+/** createUnit in der Transaktion des Aufrufers */
+export async function insertUnit(tx: Tx, input: { label: string; code: string }): Promise<Unit> {
   const label = input.label.trim();
   const code = input.code.trim().toUpperCase();
-  return withActor(actor, async (tx) => {
-    const issues = unitLabelIssues(
-      label,
-      (await listUnits(tx)).map((unit) => unit.label),
-    );
-    if (issues.length > 0) throw new UnitError(issues.join(" · "));
-    if (!EINHEITENCODES.has(code)) throw new UnitError(`Der Code „${code}“ steht nicht in UN/ECE Recommendation 20/21; ohne passenden Code geht C62 (Stück).`);
-    const [created] = await tx.insert(schema.units).values({ label, code }).returning();
-    return created!;
-  });
+  const issues = unitLabelIssues(
+    label,
+    (await listUnits(tx)).map((unit) => unit.label),
+  );
+  if (issues.length > 0) throw new UnitError(issues.join(" · "));
+  if (!EINHEITENCODES.has(code)) throw new UnitError(`Der Code „${code}“ steht nicht in UN/ECE Recommendation 20/21; ohne passenden Code geht C62 (Stück).`);
+  const [created] = await tx.insert(schema.units).values({ label, code }).returning();
+  return created!;
 }
 
 export async function setUnitArchived(actor: string, id: string, archived: boolean): Promise<void> {

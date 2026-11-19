@@ -23,7 +23,7 @@ import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
 import { getInvoice, type Invoice, type InvoiceLine } from "./invoices.ts";
 import { directDebitFor, directDebitIssues } from "./lastschrift.ts";
 import { serviceEntryCustomerIssues } from "./leistungen-kunde.ts";
-import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
+import { circleFor, documentNumber, peekNumber, takeInvoiceNumber } from "./number-counter.ts";
 import { assertQuotesLocked, billsWholeQuote, lockQuotes, quotesTouching, syncQuoteBilling } from "./quote-billing.ts";
 import { pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
@@ -239,7 +239,7 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
-  await takeNumber(tx, "rechnung", circle, counter);
+  await takeInvoiceNumber(tx, circle, counter, number);
   const [finalized] = await withAdvanceVatChange(tx, id, () =>
     tx
       .update(schema.invoices)

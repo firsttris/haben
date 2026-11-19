@@ -1,12 +1,12 @@
 // Bankkonten und Konten der Zahlungsdienstleister: anlegen, ändern, auflisten
 
 import { BankError } from "./bank-error.ts";
-import type { OwnAccount } from "@haben/core";
+import { gruppiereGebuehren, type OwnAccount } from "@haben/core";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
+import { bankDuplicateConfirmedSql, bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
 import { today } from "../../today.ts";
 import { nichtPrivat, zaehlePrivat } from "./privat-kennzeichnung.ts";
 
@@ -46,10 +46,23 @@ export async function listAccounts() {
         .where(and(eq(schema.bankImports.bankAccountId, account.id), echterImport))
         .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
         .limit(1);
-      const [open] = await db
-        .select({ n: sql<number>`count(*)::int` })
-        .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat()));
+      const offeneUmsaetze = and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat());
+      // Beim Dienstleister stehen Zahlung und Gebühr derselben Bewegung in der Liste in einer Zeile und zählen einmal
+      const openCount =
+        account.purpose === "zahlungsdienstleister"
+          ? gruppiereGebuehren(
+              await db
+                .select({
+                  id: schema.bankTransactions.id,
+                  bankAccountId: schema.bankTransactions.bankAccountId,
+                  bankReference: schema.bankTransactions.bankReference,
+                  amount: schema.bankTransactions.amount,
+                  open: openAmountSql.mapWith(Number),
+                })
+                .from(schema.bankTransactions)
+                .where(offeneUmsaetze),
+            ).length
+          : ((await db.select({ n: sql<number>`count(*)::int` }).from(schema.bankTransactions).where(offeneUmsaetze))[0]?.n ?? 0);
       // Umsätze, die auf einem privaten Konto nicht buchbar sind, zählen nicht als offen, sondern stehen daneben (#1088)
       const privateCount = await zaehlePrivat(account.id);
       // Zahlungsdienstleister nennen keinen Kontostand: Guthaben als Summe der importierten Umsätze
@@ -58,7 +71,7 @@ export async function listAccounts() {
           ? await db
               .select({ total: sql<string>`coalesce(sum(${schema.bankTransactions.amount}), 0)` })
               .from(schema.bankTransactions)
-              .where(eq(schema.bankTransactions.bankAccountId, account.id))
+              .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`not ${bankDuplicateConfirmedSql}`))
           : [];
       // Beim Dienstleister bleibt nach zwei Wochen nichts offen, was zugeordnet werden kann; sonst fehlt eine Zuordnung
       const [stale] =
@@ -77,7 +90,7 @@ export async function listAccounts() {
       return {
         ...account,
         lastImport: last ?? null,
-        openCount: open?.n ?? 0,
+        openCount,
         privateCount,
         providerBalance: sum ? Number(sum.total) : null,
         staleOpenCount: stale?.n ?? 0,

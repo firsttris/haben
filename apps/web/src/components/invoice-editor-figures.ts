@@ -67,6 +67,7 @@ export function editorLines(state: InvoiceEditorState) {
 /** Zahlungsziel, Fälligkeit, nächste Nummer und was an Datum und Nummer nicht stimmt */
 export function editorNumber(state: InvoiceEditorState, contact: InvoiceEditorProps["contacts"][number] | null) {
   const { bundesland, corrects, initial, issueDate, lastFinalized, numberCounters, numberFormat, numberRunning, paymentTermDays, quote, validUntil } = state;
+  const { contactId, kind, taxTreatment } = state;
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
@@ -79,8 +80,11 @@ export function editorNumber(state: InvoiceEditorState, contact: InvoiceEditorPr
   // Zu lang für DATEV (Belegfeld 1, 36 Zeichen): dasselbe hält das Festschreiben auf, Angebote exportiert DATEV nicht
   const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
+  // Vor dem Festschreiben die USt-IdNr. beim BZSt bestätigen (#1385)
+  const ustIdPruefen =
+    kind === "rechnung" && (taxTreatment === "reverse_charge" || taxTreatment === "ig_lieferung") ? { contactId, behandlung: taxTreatment } : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
-  return { term, termValid, dueDate, numberDate, nextNumber, customerNumberIssue, numberLengthIssue, earlierThanLast, validUntilOk };
+  return { term, termValid, dueDate, numberDate, nextNumber, customerNumberIssue, numberLengthIssue, earlierThanLast, ustIdPruefen, validUntilOk };
 }
 
 /** Zahlungsweg, Skonto, Rabatt, Summen, Zahlungsplan und Steuerhinweis */

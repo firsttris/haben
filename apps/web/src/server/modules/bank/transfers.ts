@@ -7,7 +7,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
+import { bankDuplicateProposalEligibleSql, bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
 import { onLedger, PRIVAT_NICHT_BUCHBAR } from "./allocation.ts";
 
 /**
@@ -36,6 +36,7 @@ export async function transferCounterpart(
         inArray(schema.bankTransactions.bankAccountId, accountIds),
         eq(schema.bankTransactions.amount, -tx.amount),
         sql`${schema.bankTransactions.bookingDate} between ${tx.bookingDate}::date - 5 and ${tx.bookingDate}::date + 5`,
+        bankDuplicateProposalEligibleSql,
       ),
     );
   const match = findTransferCounterpart(tx, sourceIban, rows, pattern);
@@ -53,7 +54,8 @@ export async function payoutCandidates(accountIds: string[], bookingDate: string
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
       bankReference: schema.bankTransactions.bankReference,
-      open: openAmountSql.mapWith(Number),
+      // Die Zeile bleibt Teil der Gruppe. Mit einem Verdacht ist die ganze Auszahlung kein Vorschlag.
+      open: sql<number>`case when ${bankDuplicateProposalEligibleSql} then ${openAmountSql} else 0 end`.mapWith(Number),
     })
     .from(schema.bankTransactions)
     .where(

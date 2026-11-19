@@ -4,9 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { GewstSection, KapgAngaben, KapgGemeinsameHinweise, KstSection } from "../../../components/KapgErklaerungen.tsx";
-import { Icon } from "../../../components/Icon.tsx";
+import { EricHinweis } from "../../../components/EricHinweis.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
+import { KIRCHENSTEUER_HINWEIS } from "../../../lib/kirchensteuer.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, saveIncomeTaxInputs } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
@@ -56,12 +57,7 @@ function AnnualPage() {
         </Field>
       </div>
 
-      {data.mode === "simuliert" && (
-        <div className="banner banner-info" role="status">
-          <Icon name="info" />
-          <span>ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.</span>
-        </div>
-      )}
+      {data.mode === "simuliert" && <EricHinweis />}
 
       {gesellschaft && (
         <>
@@ -339,12 +335,7 @@ function EstSection({ data }: { data: Data }) {
             open={false}
           >
             <div className="form-grid">
-              <Amount
-                name="kistGezahlt"
-                label="Gezahlte Kirchensteuer"
-                value={a.sonderausgaben.kirchensteuerGezahlt}
-                hint="ohne Kirchensteuer auf Kapitalerträge"
-              />
+              <Amount name="kistGezahlt" label="Gezahlte Kirchensteuer" value={a.sonderausgaben.kirchensteuerGezahlt} hint={KIRCHENSTEUER_HINWEIS} />
               <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
               <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
               <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />

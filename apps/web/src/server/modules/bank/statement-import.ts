@@ -13,6 +13,8 @@ import {
 import { and, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { importAccount } from "./import-konto.ts";
+import { recordDuplicateCandidates } from "./duplicate-scan.ts";
+import { lockImportObservations, recordImportObservations } from "./import-observations.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { quellenHinweis } from "./quellen.ts";
@@ -65,7 +67,15 @@ export async function storeStatement(
     transactions.map((t) => t.dedupHash),
   );
   const fresh = transactions.filter((t) => !known.has(t.dedupHash));
-  await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  const fromEnableBanking = statement.format === "enablebanking";
+  const scanDays = fromEnableBanking ? [...new Set(fresh.map((row) => row.bookingDate))] : [];
+  const observed = fromEnableBanking
+    ? await lockImportObservations(tx, account.id, scanDays, { hashes: transactions.filter((row) => known.has(row.dedupHash)) })
+    : [];
+  const { importId, transactionIds } = await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  await recordImportObservations(tx, importId, observed);
+  // Ohne Quellenbindung ist auch eine innerhalb des Abrufs eindeutige Referenz kein Beleg über mehrere Abrufe.
+  await recordDuplicateCandidates(tx, account.id, scanDays, new Set(transactionIds.values()), new Set());
   return statementResult(tx, account, statement, continuity, fresh.length, transactions);
 }
 
@@ -91,7 +101,12 @@ export async function prepareStatement(tx: Tx, statement: ParsedStatement, filen
   );
 
   // Konto sperren, damit parallele Importe dieselben Umsätze nicht doppelt anlegen
-  await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account.id)).for("update");
+  const [locked] = await tx
+    .select({ excludedAt: schema.bankAccounts.excludedAt })
+    .from(schema.bankAccounts)
+    .where(eq(schema.bankAccounts.id, account.id))
+    .for("update");
+  if (!locked || locked.excludedAt) throw new BankError("Das Konto ist ausgeschlossen oder nicht mehr vorhanden.");
   return { account, continuity };
 }
 

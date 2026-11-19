@@ -1,13 +1,13 @@
 ---
 title: "Auswertungen: EÜR, offene Posten und Jahresexport"
 description: >-
-  Einnahmen-Überschuss-Rechnung, Einnahmen und Ausgaben je Monat, offene Posten und das
-  Jahresarchiv als ZIP mit DATEV-Export für die Steuerberatung.
+  Einnahmen-Überschuss-Rechnung, BWA mit Vorjahresvergleich, Einnahmen und Ausgaben je Monat,
+  offene Posten und das Jahresarchiv als ZIP mit DATEV-Export.
 ---
 
 # Auswertungen und Jahresexport
 
-Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
+Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten; unter „BWA“ die betriebswirtschaftliche Auswertung für einen Monat, ein Quartal oder einen freien Zeitraum mit Vergleich. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
 
 Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR. Bei ihr zeigt die Seite Einnahmen und Ausgaben je Monat nach Zahlung, den Überschuss nach Zahlung und die offenen Posten, aber keine EÜR-Tabelle und kein „EÜR als CSV“; den Gewinn zeigt der [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug).
 
@@ -125,6 +125,29 @@ Diese Grundlage ist weder der EÜR-Gewinn noch die Summe ausgestellter Rechnunge
 
 Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlungsdatum, also ohne Umsatzsteuer, Vorsteuer, Umsatzsteuerzahlungen an oder vom Finanzamt und nicht abziehbare Steuern. Bankgebühren zählen zu den Ausgaben. Fährst du mit der Maus über einen Monat oder springst per Tab-Taste hinein, siehst du die Werte. Unter „Als Tabelle anzeigen“ stehen dieselben Zahlen mit Überschuss je Monat und Jahressumme.
 
+## BWA
+
+„BWA“ im Kopf der Auswertungen öffnet die betriebswirtschaftliche Auswertung: wie der Betrieb in einem Monat, einem Quartal, einem Jahr oder einem freien Zeitraum (von–bis) dasteht. Sie rechnet aus denselben Zahlungen wie die EÜR und bucht nichts; über ein ganzes Jahr ist ihre Zeile „Gewinn laut EÜR“ der Gewinn der EÜR (siehe Grenzen). Zeitraum, Vergleich und eine aufgeklappte Zeile stehen in der Adresse, ein Link zeigt also dieselbe Auswertung.
+
+Es ist eine eigene Auswertung von Haben, keine Auswertung von DATEV; gegliedert ist sie wie die Einnahmen-Ausgaben-BWA von DATEV (BWA-Form 43, Zeilen nach der DATEV-Musterauswertung BWA, 2016): Erlöse und sonstige Erlöse, Umsatzsteuer und Erstattung, Kosten nach Kostenart (Material, Fremdleistungen, Personal, Raum, Steuern/Versicherungen/Beiträge, Fahrzeug, Werbe- und Reisekosten, Warenabgabe, Instandhaltung, Abschreibungen, verschiedene Kosten), Buchwert der Anlagenabgänge, Zinsen und sonstige Aufwendungen, Vorsteuer und Umsatzsteuer-Zahlungen, darunter das vorläufige Ergebnis. Welche Kostenart ein Konto hat, folgt den Kontengruppen des DATEV-Kontenrahmens 2026 ([SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf), [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf)), soweit beide Rahmen sie gleich gliedern, sonst dem Posten der GuV; ein [eigenes Konto](buchhaltung.md#eigene-konten) zählt wie seine Kategorie.
+
+| Spalte | Bedeutung |
+| --- | --- |
+| Zeitraum | Zahlungen im gewählten Zeitraum, beide Tage eingeschlossen; von–bis über höchstens drei Kalenderjahre |
+| Vergleich | **Vorjahreszeitraum**: dieselben Kalendertage ein Jahr früher, ganze Monate als ganze Monate (Februar mit Februar, auch im Schaltjahr); **Vorperiode**: gleich viele ganze Monate direkt davor (der Monat, das Quartal, das Jahr davor); bei einem freien Zeitraum, der nicht aus ganzen Monaten besteht, gleich viele Tage direkt davor |
+| Abweichung, in % | Zeitraum minus Vergleich, in Prozent des Vergleichs; ohne Prozent, wenn der Vergleich 0 ist |
+| Kumuliert | Vom 1. Januar bis zum Ende des Zeitraums; beim Vorjahresvergleich daneben dasselbe im Vorjahr |
+
+Anders als die EÜR zählt die BWA nicht abziehbare Ausgaben (30 % der Bewirtung, Gewerbesteuer, nicht abziehbare Nebenleistungen) als Kosten, denn bezahlt sind sie trotzdem. Die Zeile „nicht abziehbare Ausgaben“ darunter führt zum Gewinn laut EÜR. Eine Umsatzsteuer-Vorauszahlung, die die EÜR dem Vorjahr zurechnet ([Vorauszahlung um den Jahreswechsel](#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)), steht in der BWA am 31. Dezember des Vorjahres.
+
+Ein Klick auf eine Zeile mit Beträgen zeigt darunter, was darin steht: je Zeile der EÜR die Zahlungen mit Datum, Betrag und Link zur Rechnung oder zum Beleg. Die Kontonummer führt zum Kontenblatt; das zeigt die Buchungen nach Buchungsdatum, nicht nach Zahlung.
+
+Grenzen:
+
+- Abschreibungen, Restbuchwerte und die Privatnutzung von Fahrzeugen zeigt die BWA erst, wenn das Jahr im [Anlagenverzeichnis](anlagen.md) gebucht ist. Die EÜR rechnet sie vorher schon aus dem Anlagenverzeichnis; bis dahin weicht der Gewinn ab, und die BWA weist darauf hin.
+- Zinserträge und andere steuerfreie Einnahmen stehen bei den Erlösen, weil die EÜR sie in einer Zeile mit den steuerfreien Umsätzen führt.
+- GmbH und UG bilanzieren; ihre BWA nach der Kurzfristigen Erfolgsrechnung (DATEV BWA-Form 01) fehlt noch.
+
 ## Offene Posten
 
 Die drei Tabellen am Ende zeigen den Stand von heute oder, für ein vergangenes Jahr über den Schalter in der Jahresleiste, den zum 31.12. Sortiert wird nach Fälligkeit.
@@ -189,7 +212,7 @@ Unter **Einstellungen › Export › DATEV-Export** lädst du die Buchungen eine
 
 Haben bucht offene Posten im Journal auf die Sammelkonten „Forderungen aus Lieferungen und Leistungen“ (SKR03 1400, SKR04 1200) und „Verbindlichkeiten aus Lieferungen und Leistungen“ (SKR03 1600, SKR04 3300). Viele Kanzleien führen dagegen je Kunde einen Debitor und je Lieferant einen Kreditor. Mit **DATEV-Personenkonten** unter **Einstellungen › Export › DATEV-Export** setzt der Export diese Nummern ein; das Journal, die Saldenliste und alle Auswertungen in Haben bleiben bei den Sammelkonten.
 
-- **Nummern:** am Kontakt, Felder **DATEV-Debitor** und **DATEV-Kreditor** ([Kontakte](kontakte.md)), oder aus dem [CSV-Import](csv-import.md#kontakte).
+- **Nummern:** am Kontakt unter **Weitere Angaben**, Felder **DATEV-Debitor** und **DATEV-Kreditor** ([Kontakte](kontakte.md)), oder aus dem [CSV-Import](csv-import.md#kontakte).
 - **Welches Konto:** Entscheidend ist die Herkunft, nicht das Vorzeichen. Eine Rechnung und alles dazu (Zahlung, Teilzahlung, Rückzahlung, Skonto, Forderungsausfall, Storno, Korrektur, Bareinnahme) geht auf den Debitor des Kunden der Rechnung; ein Beleg und seine Zahlungen, Erstattungen und Skonti auf den Kreditor des Lieferanten, den der Beleg aus den Kontakten trägt. Eine Zeile wird ersetzt, nicht ergänzt: Die Summe der Debitoren ist der Saldo von 1400 bzw. 1200 in der Saldenliste, die der Kreditoren der von 1600 bzw. 3300. Eine Verrechnung zweier Belege steht mit beiden Seiten beim Kreditor des Lieferanten: die Rechnung mit ihrer Belegnummer im Soll, die Gutschrift mit ihrer im Haben, dazu an jedem Beleg, dessen Vorsteuer auf dem Zwischenkonto steht, die Umbuchung der Vorsteuer ([Verrechnen ohne Zahlung](belege.md#verrechnen-ohne-zahlung)).
 - **Ab einem Jahr:** Der Schalter gilt ab dem Beginn des gewählten Jahres; davor bleibt der Stapel bei den Sammelkonten. Hat ein betroffenes Jahr bis heute schon Buchungen, speichert Haben die Änderung (auch das Abschalten) nur mit einem Häkchen: Ein Stapel, den die Kanzlei schon hat, sähe danach anders aus. Die Änderung steht im Änderungsprotokoll.
 - **Fehlende Nummern vergibt Haben:** Braucht ein Kontakt für den Stapel einen Debitor bzw. Kreditor und hat keinen, vergibt der Export die nächste Nummer nach der höchsten bisher vergebenen (am Ende des Bereichs die erste nie vergebene) und trägt sie am Kontakt ein, mit Eintrag im Änderungsprotokoll. Nummern, die schon einmal an einem Kontakt standen, auch an einem archivierten oder später geänderten, vergibt Haben nicht noch einmal. Gleichzeitige Exporte warten aufeinander, so bekommt keine Nummer zwei Kontakte. Kontakte ohne offenen Posten im Jahr bekommen keine Nummer.
@@ -230,12 +253,12 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `pauschalen/pauschalen.csv` | Nur wenn vorhanden: Pauschalen ohne Beleg mit ihren Angaben als Eigenbeleg; Stornos als Gegenzeile |
 | `kasse/kassenbuch.csv` | Nur wenn vorhanden: Kassenbuch mit fortlaufender Nummer, Anfangsbestand und Bestand nach jeder Zeile, bei Bareinnahmen die Rechnungsnummer |
 | `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben, Steuerschlüssel und, bei Ist-Versteuerung an der Zahlung, der Bemessungsgrundlage; Gegenbuchungen verweisen auf die Ursprungsbuchung |
-| `bank/<IBAN>/umsaetze.csv` | Importierte Umsätze je Konto mit zugeordnetem und offenem Betrag und ob der Umsatz verrechnet ist |
+| `bank/<IBAN>/umsaetze.csv` | Importierte Umsätze je Konto mit Originalbetrag, zugeordnetem und offenem Betrag sowie den Kennzeichnungen `Verrechnet` und `Dublette`. Bestätigte Dubletten haben einen offenen Betrag von 0 € |
 | `bank/zuordnungen.csv` | Zuordnungen zu Rechnungen, Belegen und Buchungen ohne Beleg; aufgehobene als Gegenzeile |
 | `bank/verrechnungen.csv` | Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze mit Notiz, ohne Buchung ([Bank](bank.md#gegenläufige-umsätze-verrechnen)); aufgehobene als Gegenzeile |
 | `bank/ausbuchungen.csv` | Nur wenn vorhanden: ausgebuchte Reste (Skonto gewährt und erhalten, Forderungsausfall); aufgehobene als Gegenzeile; bei Skonto zu einer Bareinnahme die Nummer im Kassenbuch |
 | `bank/importe.csv` | Importierte Auszugsdateien und Kontoabrufe mit SHA-256, Zeitraum, Salden und Hinweisen (die Dateien selbst speichert der Bankimport nicht); abgelehnte Abrufe ohne Zeitraum nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres verbunden hat (etwa vom 30.12. vor seinem Januar-Fenster), auch im Jahr dieses Umsatzes; ein abgelehnter Abruf mit geklärtem Konflikt auch im Jahr des bisherigen und des neuen Umsatzes |
-| `bank/quellen.csv` | Nur wenn vorhanden: Herkunft der abgerufenen Umsätze, je Ereignis der Bank die Quelle mit [Stichtag](bank.md#welche-umsätze-abgerufen-werden), der Abruf und der Umsatz, den Haben angelegt oder verbunden hat |
+| `bank/quellen.csv` | Nur wenn vorhanden: Herkunft der abgerufenen Umsätze, je abgerufenem Ereignis (Bankabruf oder Etsy) die Quelle mit [Stichtag](bank.md#welche-umsätze-abgerufen-werden), der Abruf, der Umsatz, den Haben angelegt oder verbunden hat, und die gelieferten Referenzen: Anbieterreferenz, Ereigniscode, EndToEndId, bei Erstattung und Rückbelastung das ursprüngliche Ereignis, Auszahlung und Bestellung |
 | `bank/klaerungen.csv` | Nur wenn vorhanden: je [geklärtem Konflikt](bank.md#welche-umsätze-abgerufen-werden) im Abruf der bisherige und der gelieferte Umsatz, die Entscheidung, ein neu angelegter Umsatz und wer wann geklärt hat; der abgelehnte Abruf steht in `bank/importe.csv`; im Jahr des bisherigen Umsatzes und, wenn ein neuer angelegt wurde, auch in dessen Jahr |
 | `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML; bei einer [Abgabe außerhalb von Haben](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken) das Übermittlungsprotokoll des Vermerks (PDF) |
 | `lexoffice/` | Nur bei übernommenem Altbestand aus Lexware Office, sevDesk, FastBill und den anderen Umzugsquellen, siehe unten |

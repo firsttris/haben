@@ -1,7 +1,7 @@
 import { formatDecimal, formatEuro } from "@haben/core";
-import { formatDate } from "../lib/format.ts";
 import { ArticleDialog } from "./ArticleDialog.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { FestschreibenHinweise } from "./FestschreibenHinweise.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import { UmsatzgrenzeDialog } from "./UmsatzgrenzeDialog.tsx";
 import type { InvoiceEditorModel } from "./use-invoice-editor.ts";
@@ -34,6 +34,7 @@ export function InvoiceEditorDialogs({ editor }: { editor: InvoiceEditorModel })
     setUmsatzwarnung,
     umsatzwarnung,
     units,
+    ustIdPruefen,
   } = editor;
   return (
     <>
@@ -56,12 +57,7 @@ export function InvoiceEditorDialogs({ editor }: { editor: InvoiceEditorModel })
           </>
         ) : (
           <>
-            {earlierThanLast && (
-              <div className="banner banner-warn" role="status">
-                Das Rechnungsdatum ({formatDate(numberDate)}) liegt vor der zuletzt festgeschriebenen Rechnung {earlierThanLast.number} vom{" "}
-                {formatDate(earlierThanLast.issueDate)}.
-              </div>
-            )}
+            <FestschreibenHinweise open={confirming} earlierThanLast={earlierThanLast} numberDate={numberDate} ustId={ustIdPruefen} />
             <p>PDF und XML werden erzeugt und gebucht.</p>
             <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>

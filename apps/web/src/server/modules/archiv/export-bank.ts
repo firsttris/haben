@@ -1,6 +1,6 @@
 import { AUFLADUNG, WRITE_OFF_KINDS } from "@haben/core";
-import { and, asc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { bankAccountIncludedSql } from "../../db/bank-open.ts";
+import { and, asc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { bankAccountIncludedSql, bankDuplicateConfirmedSql, bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema } from "../../db/index.ts";
 import { csv, iso, money } from "./csv.ts";
 import { bankImportFiles, importsOfYear } from "./export-bankimporte.ts";
@@ -36,6 +36,26 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
 type Account = typeof schema.bankAccounts.$inferSelect;
 type Transaction = typeof schema.bankTransactions.$inferSelect;
 type Neutralization = typeof schema.bankNeutralizations.$inferSelect;
+type YearTransaction = Awaited<ReturnType<typeof bankTransactionsForYear>>[number];
+
+function bankTransactionsForYear(year: number) {
+  return db
+    .select({
+      ...getTableColumns(schema.bankTransactions),
+      open: bankOpenAmountSql.mapWith(Number),
+      neutralized: bankNeutralizedSql.mapWith(Boolean),
+      duplicate: bankDuplicateConfirmedSql.mapWith(Boolean),
+    })
+    .from(schema.bankTransactions)
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, yearStart(year)),
+        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    )
+    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
+}
 
 /**
  * Bankdateien des Jahres. Ergänzt invoiceNumbers um zugeordnete Rechnungen anderer Jahre und gibt die Bankkonten zurück,
@@ -49,18 +69,8 @@ export async function* bankFiles(
   // Ein ausgeschlossenes Konto (#462) gehört nicht zu dieser Firma und fehlt im Archiv
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.iban));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
-  const transactions = await db
-    .select()
-    .from(schema.bankTransactions)
-    .where(
-      and(
-        gte(schema.bankTransactions.bookingDate, yearStart(year)),
-        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
-        bankAccountIncludedSql("bank_account_id"),
-      ),
-    )
-    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
-  const transactionById = new Map(transactions.map((t) => [t.id, t]));
+  const transactions = await bankTransactionsForYear(year);
+  const transactionById = new Map<string, Transaction>(transactions.map((t) => [t.id, t]));
   const allocations = transactions.length
     ? await db
         .select()
@@ -79,15 +89,11 @@ export async function* bankFiles(
   const allocatedByTransaction = new Map<string, number>();
   for (const a of allocations) allocatedByTransaction.set(a.transactionId, (allocatedByTransaction.get(a.transactionId) ?? 0) + a.amount);
   const neutralizations = transactions.length ? await neutralizationsOfYear(year) : [];
-  const reversedNeutralizations = new Set(neutralizations.flatMap((n) => (n.reversesId ? [n.reversesId] : [])));
-  const neutralized = new Set(
-    neutralizations.filter((n) => !n.reversesId && !reversedNeutralizations.has(n.id)).flatMap((n) => [n.transactionId, n.counterTransactionId]),
-  );
 
-  yield* transactionFiles(transactions, accountById, (t) => {
-    const allocated = allocatedByTransaction.get(t.id) ?? 0;
-    return { allocated, neutralized: neutralized.has(t.id), importFile: importById.get(t.importId)?.filename ?? t.importId };
-  });
+  yield* transactionFiles(transactions, accountById, (t) => ({
+    allocated: allocatedByTransaction.get(t.id) ?? 0,
+    importFile: importById.get(t.importId)?.filename ?? t.importId,
+  }));
   yield await allocationsFile(allocations, transactionById, accountById, invoiceNumbers, documentPaths);
   if (neutralizations.length > 0) yield await neutralizationsFile(neutralizations, transactionById, accountById);
   const writeOffs = await writeOffsFile(year, invoiceNumbers, documentPaths);
@@ -117,9 +123,9 @@ async function neutralizationsOfYear(year: number): Promise<Neutralization[]> {
 
 /** Je Konto die umsaetze.csv mit zugeordnetem, offenem und verrechnetem Betrag */
 function* transactionFiles(
-  transactions: Transaction[],
+  transactions: YearTransaction[],
   accountById: Map<string, Account>,
-  stateOf: (t: Transaction) => { allocated: number; neutralized: boolean; importFile: string },
+  stateOf: (t: YearTransaction) => { allocated: number; importFile: string },
 ): Generator<ArchiveFile> {
   const usedBankPaths = new Set<string>();
   for (const [accountId, rows] of groupBy(transactions, (t) => t.bankAccountId)) {
@@ -142,9 +148,10 @@ function* transactionFiles(
           "Verrechnet",
           "Importdatei",
           "Umsatz-ID",
+          "Dublette",
         ],
         rows.map((t) => {
-          const { allocated, neutralized, importFile } = stateOf(t);
+          const { allocated, importFile } = stateOf(t);
           return [
             t.bookingDate,
             t.valueDate,
@@ -156,10 +163,11 @@ function* transactionFiles(
             t.type,
             t.bankReference,
             money(allocated),
-            money(neutralized ? 0 : t.amount - allocated),
-            neutralized,
+            money(t.open),
+            t.neutralized,
             importFile,
             t.id,
+            t.duplicate,
           ];
         }),
       ),
