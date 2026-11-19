@@ -238,6 +238,16 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(status("pauschale-p1")).toMatchObject({ status: { kind: "pauschale", storniert: true } });
   });
 
+  it("nennt Zeiteinträge in der Gruppe der Artikel und Textbausteine beim Namen der Seite", () => {
+    const eintrag = { id: "s1", workedOn: "2026-10-05", minutes: 90, description: "Konzept", project: "", customer: "Bergblick Software GmbH" };
+    const sections = buildRemoteSections({ ...sampleResult, serviceEntries: { hits: [eintrag], more: false } }, true);
+    const katalog = sections.find((s) => s.id === "katalog");
+    expect(katalog?.label).toBe("Artikel, Textbausteine & Zeiteinträge");
+    expect(katalog?.items[0]).toMatchObject({ title: "Konzept", icon: "clock", to: "/leistungen" });
+    const ohneText = buildRemoteSections({ ...sampleResult, serviceEntries: { hits: [{ ...eintrag, description: "" }], more: false } }, true);
+    expect(ohneText.find((s) => s.id === "katalog")?.items[0]).toMatchObject({ title: "Zeiteintrag" });
+  });
+
   it("formuliert die Statusmeldung für Screenreader im Singular und Plural", () => {
     expect(statusMessage(true, 3, 0)).toBe("Suche läuft …");
     expect(statusMessage(false, 2, 0)).toBe("Keine Treffer gefunden.");

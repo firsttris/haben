@@ -77,15 +77,7 @@ export function AbgabeVermerken({
     event.preventDefault();
     if (!check() || (mitBetrag && cents === null)) return;
     await run(async () => {
-      const data = new FormData();
-      data.append("form", art);
-      data.append("year", String(year));
-      data.append("filedOn", filedOn);
-      data.append("transferTicket", ticket.trim());
-      if (mitBetrag) data.append("amount", String(cents));
-      data.append("note", begruendung.trim());
-      if (bestaetigt) data.append("abweichungBestaetigt", "1");
-      if (file) data.append("protokoll", file);
+      const data = vermerkDaten({ art, year, filedOn, ticket, betrag: mitBetrag ? cents : null, begruendung, bestaetigt, file });
       const result = await vermerken({ data });
       if (!result.ok) throw new Error(result.message);
       setAbweichung(result.hinweis);
@@ -94,68 +86,7 @@ export function AbgabeVermerken({
     });
   }
 
-  if (vermerkt) {
-    // Der Kopf trägt, was man beim Nachschauen braucht; Begründung und Protokoll klappen darunter auf
-    const kopf = [vermerkt.filedOn ? `Abgegeben am ${formatDate(vermerkt.filedOn)}` : "Tag der Abgabe nicht vermerkt"];
-    kopf.push(vermerkt.amount === null ? "Betrag nicht vermerkt" : formatEuro(vermerkt.amount));
-    return (
-      <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
-            <p className="small muted" style={{ margin: "2px 0 0" }}>
-              {kopf.join(" · ")}
-              {vermerkt.transferTicket && (
-                <>
-                  {" "}
-                  · Ticket <span className="mono">{vermerkt.transferTicket}</span>
-                </>
-              )}
-            </p>
-          </div>
-          <Status tone="ok" inline>
-            Abgegeben
-          </Status>
-        </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          Ein zweiter Vermerk ist nicht möglich.
-        </p>
-        {abweichung && (
-          <p className="banner banner-info" role="status">
-            {abweichung}
-          </p>
-        )}
-        <details className="est-block">
-          <summary>
-            <span className="est-block-title">Begründung und Protokoll</span>
-            <span className="small muted">aufklappen</span>
-          </summary>
-          <div className="stack" style={{ gap: 12, paddingTop: 12 }}>
-            {/* Tabelle wie in #876: Die Begründung ist ein Satz, kein Wert, und bricht hier in ihrer
-                Spalte um. Tag, Ticket und Betrag stehen schon im Kopf, deshalb nur die zwei Zeilen. */}
-            <table className="report-table stack-table">
-              <tbody>
-                <tr>
-                  <th scope="row">Begründung</th>
-                  <td>{vermerkt.note ?? "–"}</td>
-                </tr>
-                {vermerkt.hasPdf && (
-                  <tr>
-                    <th scope="row">Protokoll</th>
-                    <td>
-                      <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer">
-                        Übermittlungsprotokoll (PDF)
-                      </a>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </section>
-    );
-  }
+  if (vermerkt) return <VermerktKarte art={art} year={year} vermerkt={vermerkt} abweichung={abweichung} />;
 
   return (
     <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
@@ -259,4 +190,101 @@ export function AbgabeVermerken({
       </FormDialog>
     </section>
   );
+}
+
+/** Schon vermerkte Abgabe: Tag, Betrag und Ticket im Kopf, Begründung und Protokoll zum Aufklappen */
+function VermerktKarte({
+  art,
+  year,
+  vermerkt,
+  abweichung,
+}: {
+  art: "ust" | "euer" | "est";
+  year: number;
+  vermerkt: JahresvermerkStand;
+  abweichung: string | null;
+}) {
+  // Der Kopf trägt, was man beim Nachschauen braucht; Begründung und Protokoll klappen darunter auf
+  const kopf = [vermerkt.filedOn ? `Abgegeben am ${formatDate(vermerkt.filedOn)}` : "Tag der Abgabe nicht vermerkt"];
+  kopf.push(vermerkt.amount === null ? "Betrag nicht vermerkt" : formatEuro(vermerkt.amount));
+  return (
+    <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
+          <p className="small muted" style={{ margin: "2px 0 0" }}>
+            {kopf.join(" · ")}
+            {vermerkt.transferTicket && (
+              <>
+                {" "}
+                · Ticket <span className="mono">{vermerkt.transferTicket}</span>
+              </>
+            )}
+          </p>
+        </div>
+        <Status tone="ok" inline>
+          Abgegeben
+        </Status>
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>
+        Ein zweiter Vermerk ist nicht möglich.
+      </p>
+      {abweichung && (
+        <p className="banner banner-info" role="status">
+          {abweichung}
+        </p>
+      )}
+      <details className="est-block">
+        <summary>
+          <span className="est-block-title">Begründung und Protokoll</span>
+          <span className="small muted">aufklappen</span>
+        </summary>
+        <div className="stack" style={{ gap: 12, paddingTop: 12 }}>
+          {/* Tabelle wie in #876: Die Begründung ist ein Satz, kein Wert, und bricht hier in ihrer
+              Spalte um. Tag, Ticket und Betrag stehen schon im Kopf, deshalb nur die zwei Zeilen. */}
+          <table className="report-table stack-table">
+            <tbody>
+              <tr>
+                <th scope="row">Begründung</th>
+                <td>{vermerkt.note ?? "–"}</td>
+              </tr>
+              {vermerkt.hasPdf && (
+                <tr>
+                  <th scope="row">Protokoll</th>
+                  <td>
+                    <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer">
+                      Übermittlungsprotokoll (PDF)
+                    </a>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+  );
+}
+
+/** Formulardaten für den Vermerk; ohne Betrag (Einkommensteuer) fehlt das Feld */
+function vermerkDaten(v: {
+  art: "ust" | "euer" | "est";
+  year: number;
+  filedOn: string;
+  ticket: string;
+  betrag: number | null;
+  begruendung: string;
+  bestaetigt: boolean;
+  file: File | null;
+}): FormData {
+  const data = new FormData();
+  data.append("form", v.art);
+  data.append("year", String(v.year));
+  data.append("filedOn", v.filedOn);
+  data.append("transferTicket", v.ticket.trim());
+  if (v.betrag !== null) data.append("amount", String(v.betrag));
+  data.append("note", v.begruendung.trim());
+  if (v.bestaetigt) data.append("abweichungBestaetigt", "1");
+  if (v.file) data.append("protokoll", v.file);
+  return data;
 }

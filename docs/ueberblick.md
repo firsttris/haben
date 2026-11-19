@@ -34,8 +34,8 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Rechnungen und E-Rechnung](rechnungen.md) | Editor, Artikelkatalog, Textbausteine, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Abschläge, wiederkehrende Rechnungen, Versand, Storno und Korrektur |
 | [Zahlung und Mahnung](rechnungen-zahlung.md) | Fälligkeit, Skonto, GiroCode, SEPA-Lastschrift mit Sammeldatei, Mahnwesen |
 | [Angebote](angebote.md) | Eigener Nummernkreis, PDF, optionale und alternative Positionen, Zahlungsplan mit Abschlägen, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot, Auftragsbestätigung und Lieferschein |
-| [Kontakte](kontakte.md) | Ein Verzeichnis für Kunden und Lieferanten, Ansprechpartner, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate |
-| [Leistungen und Zeiteinträge](leistungen.md) | Zeiteinträge je Kunde mit Stundensatz, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API, als Grundlage für die Rechnung |
+| [Kontakte](kontakte.md) | Ein Verzeichnis für Kunden und Lieferanten, Ansprechpartner, USt-IdNr. beim BZSt bestätigen, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate |
+| [Zeiteinträge](leistungen.md) | Zeiteinträge je Kunde mit Stundensatz, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API, als Grundlage für die Rechnung |
 | [Eigene Belegvorlagen](belegvorlagen.md) | Eigene Layouts in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung: Felder, Schriften, Prüfung beim Hochladen, Anleitung für KI-Agenten |
 
 ## Ausgaben und Bank
@@ -93,7 +93,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [KI-Assistenten (MCP)](ki-assistenten.md) | Haben im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen, API-Tokens, Datenschutz |
-| [REST-API](api.md) | Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen. Eine externe Referenz aus Plattform und Bestellnummer verhindert doppelte Entwürfe. Belege aus Dokumentenarchiven und Skripten. OpenAPI, Rechte je Token und Beispiele mit curl |
+| [REST-API](api.md) | Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen, dazu Angebote lesen. Eine externe Referenz aus Plattform und Bestellnummer verhindert doppelte Entwürfe. Belege aus Dokumentenarchiven und Skripten. OpenAPI, Rechte je Token und Beispiele mit curl |
 | [Dokumentenarchiv](dokumentenarchiv.md) | Festgeschriebene Rechnungen als Kopie an ein Archiv wie Paperless-ngx oder Belegt, Status an der Rechnung; Belege aus dem Archiv über die REST-API |
 | [Eigene Seiten](eigene-seiten.md) | Eigene Werkzeuge wie eine Bestellübersicht aus n8n als Menüeintrag, im Rahmen angezeigt |
 

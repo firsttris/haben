@@ -4,6 +4,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { TYPISIERTE_SPALTEN } from "./beschreibung.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 // Keine KI-Auslesung im Test
 vi.mock("../belege/extraction.ts", async (importOriginal) => ({
@@ -74,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         note: "",
         lines: [{ description, quantity: 1000, unit: "Psch.", unitPrice: 400_000, taxRate: 1900 }],
       });
-      return invoices.finalizeInvoice(actor, draft.id);
+      return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     };
     invoice = await finalize("2026-09-05", "Leistungen August");
     await finalize("2025-12-15", "Leistungen Dezember");

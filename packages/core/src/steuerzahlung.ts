@@ -323,20 +323,19 @@ export function steuerKontierung(
 /**
  * Buchung einer Steuerzahlung, amount wie auf dem Konto (Ausgang negativ): Steuerkonto an Bank bzw. Bank an Steuerkonto.
  * ausRueckstellung (positiv) ist der Teil einer Nachzahlung, der die Steuerrückstellung verbraucht; der Rest geht auf das
- * Konto für Vorjahre.
+ * Konto für Vorjahre. Läuft die Zahlung über ein privates Konto, stellt bookPart die Bankzeile auf Entnahme bzw. Einlage um
+ * (privatKontoPosting, #873).
  */
 export function steuerzahlungPosting(
   kontierung: { konto: string; rueckstellung: string | null },
   amount: Cents,
   ausRueckstellung: Cents,
   kontenrahmen: Kontenrahmen,
-  /** Konto, über das die Zahlung läuft; auf einem privaten Konto die Privatentnahme bzw. -einlage statt der Bank (#866) */
-  zahlungskonto: string = ACCOUNTS[kontenrahmen].bank,
 ): PostingLine[] {
   if (ausRueckstellung < 0 || (ausRueckstellung > 0 && (!kontierung.rueckstellung || ausRueckstellung > -amount))) {
     throw new RangeError("Der Teil aus der Rückstellung passt nicht zur Zahlung");
   }
-  const lines = [side(zahlungskonto, amount, true, null)];
+  const lines = [side(ACCOUNTS[kontenrahmen].bank, amount, true, null)];
   if (ausRueckstellung > 0) lines.push(side(kontierung.rueckstellung!, -ausRueckstellung, false, null));
   lines.push(side(kontierung.konto, amount + ausRueckstellung, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);

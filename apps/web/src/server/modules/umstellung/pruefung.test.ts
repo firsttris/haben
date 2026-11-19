@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Prüfung beim Update auf das Journal als einzige Quelle (#1116): In Jahren vor dem früheren Stichjahr muss das Journal zu
@@ -95,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
       lines: [{ description: "L", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: steuerfrei ? 0 : 1900 }],
       ...(steuerfrei ? { taxTreatment: "steuerfrei" as const, exemptionReason: "Steuerfrei nach § 4 Nr. 14 UStG" } : {}),
     });
-    return invoices.finalizeInvoice(actor, d.id);
+    return invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
   }
   async function pay(invoiceId: string, date: string, amount: string) {
     const purpose = crypto.randomUUID();

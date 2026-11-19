@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Unsere Lieferantennummer beim Kunden (#711): steht beim Festschreiben als Stand im Käufer der Rechnung und von dort
@@ -59,7 +60,7 @@ describe.skipIf(!testDatabaseUrl)("Unsere Lieferantennummer an der Rechnung (Pos
 
   it("steht nach dem Festschreiben im Käufer und als BT-29 beim Verkäufer, spätere Änderungen am Kontakt berühren sie nicht", async () => {
     const contact = await contacts.createContact(actor, kunde);
-    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput(contact.id, "zugferd"))).id);
+    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput(contact.id, "zugferd"))).id, kleinunternehmerStand);
     expect(invoice.buyer?.unsereLieferantennummer).toBe("70815");
     const seller = invoice.xml?.match(/<ram:SellerTradeParty>([\s\S]*?)<ram:Name>/)?.[1] ?? "";
     expect(seller).toContain("<ram:ID>70815</ram:ID>");
@@ -72,7 +73,11 @@ describe.skipIf(!testDatabaseUrl)("Unsere Lieferantennummer an der Rechnung (Pos
 
   it("ohne Nummer am Kontakt bleibt der Käufer wie bisher (XRechnung UBL)", async () => {
     const contact = await contacts.createContact(actor, { ...kunde, unsereLieferantennummer: "" });
-    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput(contact.id, "xrechnung-ubl"))).id);
+    const invoice = await invoices.finalizeInvoice(
+      actor,
+      (await invoices.createDraft(actor, draftInput(contact.id, "xrechnung-ubl"))).id,
+      kleinunternehmerStand,
+    );
     expect(invoice.buyer).not.toHaveProperty("unsereLieferantennummer");
     // Mit USt-IdNr. braucht der Verkäufer keine Verkäuferkennung (BR-CO-26)
     const seller = invoice.xml?.match(/<cac:AccountingSupplierParty>([\s\S]*?)<\/cac:AccountingSupplierParty>/)?.[1] ?? "";

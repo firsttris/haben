@@ -213,7 +213,7 @@ Bei Reverse Charge erinnert der Editor daran, dass die Leistung zusätzlich in d
 
 Zur innergemeinschaftlichen Lieferung:
 
-- Auf der Rechnung stehen deine USt-IdNr. und die des Kunden und der Hinweis auf die Steuerfreiheit (§ 14a Abs. 3 UStG). Ohne beide Nummern, mit einer deutschen oder einer formal falschen USt-IdNr. des Kunden oder bei einem Kunden außerhalb der EU lässt sich die Rechnung nicht festschreiben. Ob die Nummer erteilt ist, klärst du vorher mit der Bestätigungsabfrage beim BZSt.
+- Auf der Rechnung stehen deine USt-IdNr. und die des Kunden und der Hinweis auf die Steuerfreiheit (§ 14a Abs. 3 UStG). Ohne beide Nummern, mit einer deutschen oder einer formal falschen USt-IdNr. des Kunden (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm), auch der Aufbau je Land) oder bei einem Kunden außerhalb der EU lässt sich die Rechnung nicht festschreiben. Ob die Nummer erteilt ist, lässt du vorher am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen) vom BZSt bestätigen.
 - Im XML steht die Anschrift des Kunden als Lieferanschrift mit Lieferland (BT-80, Pflicht nach BR-IC-12).
 - Haben meldet die Lieferung in Kz 41 der Voranmeldung im Monat des Rechnungsdatums, auch bei Ist-Versteuerung, und in der [Zusammenfassenden Meldung](umsatzsteuer.md#zusammenfassende-meldung) mit Umsatzart L.
 - Steuerfrei ist sie nur mit Nachweis, dass die Ware ins andere EU-Land gelangt ist (§ 6a Abs. 3 UStG, § 17a UStDV), etwa mit der Gelangensbestätigung oder einem Versandbeleg. Den Nachweis bewahrst du selbst auf, zum Beispiel als [Anhang](#zusätzliche-anhänge) der Rechnung.
@@ -298,7 +298,7 @@ Haben nimmt die Angaben aus den [Firmendaten](einrichtung.md#firmendaten) und se
 
 ## Buchungen
 
-Beispiel: Rechnung über 1.000,00 € netto zu 19 %.
+Beispiel: bereits erbrachte Leistung, Rechnung über 1.000,00 € netto zu 19 %.
 
 **Soll-Versteuerung** (nach vereinbarten Entgelten):
 
@@ -330,7 +330,17 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 | Kleinunternehmer: ohne Umsatzsteuer | 8192 | 4184 | `KU` (keine Kennzahl) |
 
 > [!IMPORTANT]
-> Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+> Die Kontenzuordnung stammt aus `packages/core/src/kontenplan.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+
+### Vorauszahlung auf normale Rechnungen
+
+Bei neuen normalen Rechnungen in Euro mit regulärer deutscher Umsatzsteuer, auch an eine ausländische Kundenanschrift, zählt als Leistungstag **Leistung von**, bei einem Zeitraum **Leistung bis**; er wird beim Festschreiben gespeichert. Ordne eine frühere Bank- oder Barzahlung mit ihrem tatsächlichen Zahlungstag zu: Die Steuer auf diesen Betrag entsteht im Eingangsmonat, auch bei Soll ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). GmbH und UG führen den Nettobetrag bis zur Leistung als [erhaltene Anzahlung](buchhaltung.md#anzahlungen-vor-leistung). Die EÜR bleibt beim Zufluss ([§ 11 Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__11.html)).
+
+Beispiel: Leistung und Rechnung am 20. Januar über 700 € netto und 133 € Steuer, Zahlung schon am 13. Dezember des Vorjahres. Im Dezember stehen bei GmbH/UG 700 € Anzahlung und 133 € fällige Steuer; der Erlös entsteht im Januar. Bei nur 119 € Vorauszahlung sind es zunächst 100 € Anzahlung und 19 € Steuer. Die verbleibende Steuer wird bei Soll mit der Leistung, bei Ist mit der Restzahlung fällig; die Vorauszahlung wird nicht erneut besteuert.
+
+Rechnungen, die vor dieser Regel festgeschrieben wurden, nehmen bei Soll oder als GmbH/UG keine Zahlung vor ihrem Leistungstag an; bei Ist ohne Bilanz stimmt der bisherige Weg schon. Zahlungen ab dem Leistungstag bleiben auch vor dem Rechnungsdatum möglich. Storniere die Alt-Rechnung im Monat der Leistung, stelle sie mit Leistungszeitraum neu aus und ordne die Zahlung der neuen Rechnung zu. Ist der Eingangsmonat schon gemeldet, zeigt die [Umsatzsteuerseite](umsatzsteuer.md) die Abweichung zur Berichtigung.
+
+Beim Einzelunternehmen mit Soll stehen am Leistungstag zwei Journalbelege, Rechnung und Steuerumbuchung; Forderung und Erlös entstehen nur einmal.
 
 ## Zahlung und Mahnung
 
@@ -389,7 +399,7 @@ Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue A
 
 Abweichende Beträge oder Abzüge, eine mehrdeutige Vorgängerkette und bereits vorhandene Entgeltkorrekturen werden beim Ersatz abgelehnt. Eine echte Entgeltminderung braucht eine eigene datierte Korrektur im Zeitraum der Änderung; das Datum des Ersatzbelegs weist diesen Zeitpunkt nicht nach ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Für den Ausfall einer noch unbilanzierten Anforderung gilt die Grenze unter [Anzahlungen vor Leistung](buchhaltung.md#anzahlungen-vor-leistung).
 
-Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Der allgemeine Vorauszahlungsfall auf normalen Rechnungen ist als [#853](https://github.com/firsttris/haben/issues/853) abgegrenzt.
+Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Für normale Rechnungen gilt der [eigene Vorauszahlungsweg](#vorauszahlung-auf-normale-rechnungen).
 
 Regeln:
 
@@ -476,6 +486,7 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 - **PDF herunterladen** liefert `Rechnung-<Nummer>.pdf`.
 - **XML herunterladen** liefert `Rechnung-<Nummer>-cii.xml` bzw. `-ubl.xml`. Bei ZUGFeRD ist das dasselbe XML, das im PDF steckt.
 - **Lieferschein** erzeugt einen Lieferschein mit den Positionen und Mengen der Rechnung, ohne Preise (siehe [Angebote](angebote.md#auftragsbestätigung-und-lieferschein)).
+- **Kopieren** legt für die nächste ähnliche Rechnung einen neuen Entwurf an, mit Kunde, Ansprechpartner (solange aktiv), Einleitung, Positionen (samt Text, Artikelnummer und Rabatt), Hinweis samt [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen), Bestell-, Auftrags- und Lieferscheinnummer, Umsatzsteuer, Preismodus, Währung, Sprache, Format, Gesamtrabatt, Zahlungsziel, Skonto und Zahlungsart. Das Rechnungsdatum ist heute, Nummer, Leistungszeitraum und Kurs sind leer; aus „bereits bezahlt“ wird Überweisung. [Anhänge](#zusätzliche-anhänge) und der Bezug zu einem Angebot bleiben beim Original, das sich nicht ändert. Auch eine stornierte Rechnung lässt sich kopieren, Stornorechnungen, Korrekturen sowie Abschlags- und Schlussrechnungen nicht.
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
 
@@ -530,7 +541,7 @@ Gebucht wird je Seite eine Buchung zwischen Forderungen und Verrechnungskonto, z
 | Rechnung | 1590 Verrechnungskonto (SKR04 1370) | 1400 Forderungen (SKR04 1200) |
 | Korrektur | 1400 Forderungen (SKR04 1200) | 1590 Verrechnungskonto (SKR04 1370) |
 
-Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. Verrechnet ist kein Geld geflossen: Haben gibt die Forderung in dieser Höhe auf, statt sie zu kassieren. Bei Ist-Versteuerung entsteht darauf deshalb keine Umsatzsteuer, weder bei der Rechnung noch bei der Korrektur; die Steuer der Zahlungen bleibt die Steuer des tatsächlich vereinnahmten Entgelts. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat, die Aufrechnung ändert daran nichts. Bleibt der Rest offen, bleibt auch seine Steuer offen, wie bei jeder unbezahlten Rechnung. Hat die Rechnung zwei Steuersätze und nimmt die Korrektur nur einen davon zurück, trägt nach der Verrechnung nur noch der verbliebene Satz die Steuer: Die Verrechnung nimmt den Anteil der Gegenrechnung aus dem Mix, die Zahlungen verteilen sich über den Rest (Rechnung 100,00 € zu 19 % und 100,00 € zu 7 %, Korrektur über die 19-%-Position, verrechnet 119,00 €, Zahlung 107,00 € → Kz 81 bleibt bei null, Kz 86 trägt 100,00 € und 7,00 € Steuer). War vor der Verrechnung schon ein Teil bezahlt, bleibt dessen Steuer im Monat der Zahlung stehen; berichtigt wird mit der nächsten Zahlung ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). In der EÜR ist die Verrechnung kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
+Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. Verrechnet ist kein Geld geflossen: Haben gibt die Forderung in dieser Höhe auf, statt sie zu kassieren. Bei Ist-Versteuerung entsteht darauf deshalb keine Umsatzsteuer, weder bei der Rechnung noch bei der Korrektur; die Steuer der Zahlungen bleibt die Steuer des tatsächlich vereinnahmten Entgelts. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat, soweit das Entgelt nicht schon bezahlt war ([Bereits bezahlte Rechnung](#bereits-bezahlte-rechnung)); die Aufrechnung ist keine Rückzahlung und ändert daran nichts. Bleibt der Rest offen, bleibt auch seine Steuer offen, wie bei jeder unbezahlten Rechnung. Hat die Rechnung zwei Steuersätze und nimmt die Korrektur nur einen davon zurück, trägt nach der Verrechnung nur noch der verbliebene Satz die Steuer: Die Verrechnung nimmt den Anteil der Gegenrechnung aus dem Mix, die Zahlungen verteilen sich über den Rest (Rechnung 100,00 € zu 19 % und 100,00 € zu 7 %, Korrektur über die 19-%-Position, verrechnet 119,00 €, Zahlung 107,00 € → Kz 81 bleibt bei null, Kz 86 trägt 100,00 € und 7,00 € Steuer). War vor der Verrechnung schon ein Teil bezahlt, bleibt dessen Steuer im Monat der Zahlung stehen; berichtigt wird mit der nächsten Zahlung ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). In der EÜR ist die Verrechnung kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
 
 Aufgehoben wird im selben Abschnitt mit Datum und Grund; die Gegenbuchung steht am Tag der Aufhebung, nicht rückwirkend. Solange eine Verrechnung besteht, lässt sich die Rechnung nicht stornieren — hebe sie zuerst auf. Im Jahresarchiv stehen die Verrechnungen in `rechnungen/verrechnungen.csv`; im [Journal](buchhaltung.md#die-seite-buchungen) führt die Herkunft beider Buchungen auf ihre Rechnung.
 
@@ -594,18 +605,31 @@ Eine festgeschriebene Rechnung änderst du nicht, du stellst eine neue aus. Auf 
 Für beide gilt:
 
 - Sie bekommen eine eigene Nummer aus demselben Nummernkreis und das heutige Datum.
-- Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar.
+- Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar. Ebenso übernehmen sie seine USt-IdNr., auch wenn sie nicht zum [Aufbau in ihrem Land](umsatzsteuer.md#vorprüfung-der-zm) passt.
 - Sie übernehmen die Umsatzsteuer-Behandlung und den Hinweis der ursprünglichen Rechnung, dazu [Bestell-, Auftrags- und Lieferscheinnummer](#bestellnummer-auftrag-und-lieferschein).
 - PDF und XML verweisen auf die ursprüngliche Rechnung („zur Rechnung 2026-034 vom …“, im XML als BillingReference).
 - Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen.
 - Eine bereits stornierte Rechnung lässt sich nicht noch einmal stornieren oder korrigieren. Storno und Korrektur selbst lassen sich nicht weiter korrigieren.
-- War die Rechnung schon (teilweise) bezahlt, ist die Stornorechnung im Bankabgleich mit dem gezahlten Betrag offen. Die Rückzahlung an den Kunden ordnest du dort der Stornorechnung zu; bei Ist-Versteuerung mindert sie im Monat der Rückzahlung die Umsatzsteuer.
+- War die Rechnung schon (teilweise) bezahlt, ist die Stornorechnung im Bankabgleich mit dem gezahlten Betrag offen. Die Rückzahlung an den Kunden ordnest du dort der Stornorechnung zu; sie mindert im Monat der Rückzahlung die Umsatzsteuer ([Bereits bezahlte Rechnung](#bereits-bezahlte-rechnung)).
 
 Auf neuen Stornobelegen steht „Die ursprüngliche Rechnung wird storniert.“ Das gilt unabhängig von Zahlungen und Erstattungen, auch für das positive Storno einer Rechnungskorrektur. Der Hinweis nennt keinen Kundensaldo und sagt keine Auszahlung zu. Eine Rechnungskorrektur beschreibt die Minderung der ursprünglichen Rechnung. PDF und E-Rechnung verwenden denselben Inhalt, das englische PDF entsprechend übersetzt. Bereits gespeicherte Belege behalten ihren bisherigen Text.
 
 Die ursprüngliche Rechnung zeigt unter **Korrekturen** alle Stornos und Korrekturen, die sich auf sie beziehen, eine stornierte Rechnung zusätzlich einen roten Hinweis mit Link zur Stornorechnung.
 
 Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskorrektur erscheint dort als offener Posten mit negativem Betrag, dem du eine Rückzahlung zuordnen kannst.
+
+### Bereits bezahlte Rechnung
+
+Storno und Rechnungskorrektur mindern die Umsatzsteuer auf schon vereinnahmtes Entgelt erst mit der Rückzahlung an den Kunden, bei Soll wie bei Ist, mit und ohne Leistungstag, auch bei Abschlagsrechnungen über eine Teilleistung (Anzahlungsrechnungen laufen über den [Anzahlungsweg](#abschlags--und-schlussrechnung)). [UStAE 17.1 Abs. 2 Satz 3](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.pdf): „Vereinbaren der leistende Unternehmer und der Leistungsempfänger die vollständige oder teilweise Rückzahlung des entrichteten Entgelts, mindert sich die Bemessungsgrundlage nur, soweit das Entgelt tatsächlich zurückgezahlt wird, und zwar in dem Besteuerungszeitraum, in dem die Rückgewähr erfolgt“; für Storno nach Zahlung Abs. 8 Satz 5 mit BFH V R 34/09 ([§ 17 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)).
+
+- Zurückgehalten wird nur die Überzahlung, also was mehr bezahlt ist als das geminderte Entgelt. Den unbezahlten Teil mindert die Korrektur bei Soll in ihrem eigenen Monat.
+- Ordne die Rückzahlung im Bankabgleich dem Storno oder der Korrektur zu; bei Raten zählt jede im Monat ihrer Zahlung. Eine [Verrechnung](#verrechnen-ohne-zahlung) ist keine Rückzahlung.
+- Bei Soll bucht Haben am Tag der Korrektur die zurückgehaltene Steuer von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ zurück und mit der Rückzahlung wieder um („Umsatzsteuer bis zur Rückzahlung“). Bei Ist erledigt das schon die Rückzahlung.
+- Mehrere Steuersätze: Die Überzahlung verteilt sich im Verhältnis der Minderung je Satz; mindert die Korrektur nur den 19-%-Teil, bleibt sie ganz bei 19 %. Der Rundungsrest in Cent geht auf den größten Anteil.
+
+Beispiel (Soll): Rechnung 1.190 €, bezahlt 1.100 €, im Juni Korrektur über 119 €. Im Juni mindern sich 75,63 € netto und 14,37 € Steuer; die 29 € Überzahlung bleiben besteuert, bis du sie im Juli zurückzahlst (24,37 € und 4,63 €).
+
+Stornos und Korrekturen, die vor dieser Regel festgeschrieben wurden, tragen kein Kennzeichen und behalten das bisherige Verfahren (bei Soll Minderung im Monat der Korrektur), auch neben neuen Korrekturen derselben Rechnung. Gesendete Voranmeldungen ändern sich dadurch nicht.
 
 ## Kontakte
 
@@ -648,5 +672,7 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 - Ausfuhrlieferungen nur an Kunden mit Anschrift außerhalb der EU; den Ausfuhrnachweis führt Haben nicht.
 - Skonto nur vom ganzen Rechnungsbetrag (kein Basisbetrag nach BR-DE-18), höchstens drei Stufen, nur in Euro. Keine Zuschläge auf Belegebene; Abschläge auf Belegebene nur als [Gesamtrabatt](#rabatte).
 - Höchstens 200 Positionen je Rechnung.
+- Storno und neue Rechnung für dieselbe Leistung (Rechnungsaustausch) erkennt Haben noch nicht als Austausch: Hängt eine Zahlung an der stornierten Rechnung oder liegt das Storno in einem späteren Monat als die Leistung, steht die Umsatzsteuer bis dahin doppelt im Leistungsmonat und wird erst mit Rückzahlung, Aufhebung oder Storno gemindert. Ebenso übernimmt eine neue Zuordnung desselben Bankumsatzes nach einer [datierten Aufhebung](bank.md#zuordnung-aufheben) nicht den Tag der Aufhebung. Beides behandelt [#1454](https://github.com/firsttris/haben/issues/1454).
+- Ohne **Leistung von**/**bis** grenzt Haben eine frühere Zahlung nicht als Vorauszahlung ab, auch wenn bar bei der Leistung bezahlt und die Rechnung später ausgestellt wurde; das Rechnungsdatum ersetzt keinen Leistungsnachweis. Trag den Leistungstag vor dem Festschreiben ein.
 - Rechnungen gehen per E-Mail über deinen SMTP-Zugang oder über [Microsoft 365](einrichtung-email.md#e-mail-über-microsoft-365), nicht über Peppol oder die Portale öffentlicher Auftraggeber. Über Microsoft 365 gehen Anhänge nur bis 2,5 MB zusammen.
 - Zusätzliche Anhänge nur als PDF, bis 20 MB je Datei und zehn je Rechnung. Viele Mailserver nehmen Mails ab etwa 25 MB nicht mehr an; das Versandprotokoll zeigt dann die Meldung des Servers. Anhänge lassen sich nur in Haben hochladen, nicht über die [REST-API](api.md); [wiederkehrende Rechnungen](#wiederkehrende-rechnungen) haben keine Anhänge und versenden ohne sie. Mahnungen gehen ohne die Anhänge der Rechnung.

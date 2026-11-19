@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { kennzahlenAusJournal } from "@haben/core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
       note: "",
       lines: lines.map((l) => ({ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: l.net, taxRate: l.rate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function bookedDocument(date: string, net: number, tax: number) {
@@ -304,7 +305,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
       exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 21 UStG" : "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 500_000, taxRate: 0 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   it("Reverse Charge und Drittland im Rechnungsmonat (auch bei Ist), steuerfrei nach Zahlung", async () => {

@@ -1,0 +1,3 @@
+ALTER TYPE "public"."allocation_kind" ADD VALUE 'aufladung';--> statement-breakpoint
+ALTER TABLE "allocations" DROP CONSTRAINT "allocations_kategorie";--> statement-breakpoint
+ALTER TABLE "allocations" ADD CONSTRAINT "allocations_kategorie" CHECK (case when "allocations"."kind"::text in ('kategorie', 'aufladung') then "allocations"."category" is not null and "allocations"."tax_rate" is not null else "allocations"."category" is null and "allocations"."tax_rate" is null end);

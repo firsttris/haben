@@ -48,7 +48,7 @@ test("Inhaber klappt die Zeile auf und sieht nur die anderen Firmen", async () =
   expect(await links(knopf().locator(".firma-wechsler-text"))).toBe(await links(nav().getByRole("link", { name: "Übersicht" }).locator(".nav-collapse-label")));
   // Die Schnellsuche liegt vor dem rollenden Menü, „Firma wechseln“ ist dessen erster Tab-Stopp.
   for (let i = 0; i < 3; i++) await page.keyboard.press("Tab");
-  await expect(nav().getByRole("button", { name: "Schnellsuche" })).toBeFocused();
+  await expect(nav().getByRole("button", { name: "Suche", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(knopf()).toBeFocused();
 

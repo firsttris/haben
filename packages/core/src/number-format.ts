@@ -2,11 +2,14 @@
  * Nummernformate für Rechnungen und Angebote, z. B. "RE-{JJJJ}-{NNN}" → "RE-2026-034".
  *
  * Platzhalter: {JJJJ} vierstelliges Jahr, {JJ} zweistelliges Jahr, {MM} zweistelliger Monat, alle aus dem Belegdatum,
- * {N} bis {NNNNNN} die laufende Nummer mit so vielen Stellen mindestens. Je Nummernkreis beginnt der Zähler jedes Jahr
- * bei 1 oder läuft durch (counterCircle, number-counter.ts). Beginnt er jährlich neu, ist erst mit dem Jahr im Format
- * jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG); einmalig muss sie nur sein, jährlich neu oder durchlaufend ist beides
- * zulässig (UStAE 14.5 Abs. 10). Weil Jahr, Monat und Text feste Breite haben und nur die laufende Nummer wächst,
- * ergibt ein Format nie zweimal dieselbe Nummer.
+ * {N} bis {NNNNNN} die laufende Nummer mit so vielen Stellen mindestens und {KUNDENNR} die Kundennummer des Käufers.
+ * Je Nummernkreis beginnt der Zähler jedes Jahr bei 1 oder läuft durch (counterCircle, number-counter.ts). Beginnt er
+ * jährlich neu, ist erst mit dem Jahr im Format jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG); einmalig muss sie nur
+ * sein, jährlich neu oder durchlaufend ist beides zulässig (UStAE 14.5 Abs. 10). Weil Jahr, Monat und Text feste Breite
+ * haben und nur die laufende Nummer wächst, ergibt ein Format ohne {KUNDENNR} nie zweimal dieselbe Nummer. Die
+ * Kundennummer ist variabel breit, deshalb darf sie nicht direkt neben der laufenden Nummer stehen ({KUNDENNR}{NNN}
+ * ergäbe aus "1004" + 2001 und "10042" + 1 beides "10042001"); den Rest fängt die Prüfung auf schon vergebene Nummern
+ * beim Festschreiben (documentNumber in number-counter.ts).
  */
 
 export const DEFAULT_INVOICE_NUMBER_FORMAT = "{JJJJ}-{NNN}";
@@ -16,25 +19,79 @@ export const DEFAULT_CUSTOMER_NUMBER_FORMAT = "K-{NNNN}";
 
 export const MAX_NUMBER_FORMAT_LENGTH = 30;
 
+/**
+ * So lang darf eine Belegnummer höchstens sein: DATEV liest im Belegfeld 1 nur 36 Zeichen („ASCII-Import:
+ * Feldbeschreibungen für Standardformate“, Dok.-Nr. 1003221, Feld 11); der Export kürzt ohne Rückmeldung, deshalb hält
+ * das Festschreiben längere Nummern auf. Erst mit {KUNDENNR} kann eine Nummer das Format übersteigen (Kundennummern
+ * bis zu 40 Zeichen).
+ */
+export const MAX_DOCUMENT_NUMBER_LENGTH = 36;
+
 const PLACEHOLDER = /\{([^{}]*)\}/g;
 const COUNTER = /^N{1,6}$/;
 const YEAR = /^(JJJJ|JJ)$/;
 const MONTH = /^MM$/;
+const CUSTOMER = "KUNDENNR";
 // Die Nummer steht in Dateinamen und im Verwendungszweck: kein Leerzeichen, kein Schrägstrich
 const LITERAL = /^[A-Za-z0-9._-]*$/;
+// Kundennummer und laufende Nummer sind beide variabel breit: direkt nebeneinander wäre die Nummer nicht mehr eindeutig
+const CUSTOMER_NEXT_TO_COUNTER = /\{KUNDENNR\}\{N{1,6}\}|\{N{1,6}\}\{KUNDENNR\}/;
 
 /**
  * Nummer aus Format, Belegdatum (JJJJ-MM-TT) und laufender Nummer; das Format ist mit numberFormatError geprüft. Jahr
- * und Monat kommen aus dem Rechnungs- bzw. Angebotsdatum, nicht aus dem heutigen Tag (#328).
+ * und Monat kommen aus dem Rechnungs- bzw. Angebotsdatum, nicht aus dem heutigen Tag (#328). {KUNDENNR} wird zur
+ * Kundennummer des Käufers; ohne Angabe bleibt der Platzhalter stehen (Vorschauen ohne Kunden).
  */
-export function formatDocumentNumber(format: string, date: string, counter: number): string {
+export function formatDocumentNumber(format: string, date: string, counter: number, customerNumber?: string): string {
   const year = Number(date.slice(0, 4));
   return format.replace(PLACEHOLDER, (_, name: string) => {
     if (name === "JJJJ") return String(year);
     if (name === "JJ") return String(year % 100).padStart(2, "0");
     if (name === "MM") return date.slice(5, 7);
+    if (name === CUSTOMER) return customerNumber ?? `{${CUSTOMER}}`;
     return String(counter).padStart(name.length, "0");
   });
+}
+
+/** Ob das Format die Kundennummer des Käufers enthält */
+export function usesCustomerNumber(format: string): boolean {
+  return format.includes(`{${CUSTOMER}}`);
+}
+
+/**
+ * Warum eine Kundennummer für {KUNDENNR} nicht taugt, als Satz für die Oberfläche; null = in Ordnung. Sie steht in
+ * Dateinamen und im Verwendungszweck: dieselbe Zeichenregel wie für den Text im Format.
+ */
+export function customerNumberProblem(kundennummer: string | null | undefined): string | null {
+  if (!kundennummer?.trim()) {
+    return `Der Kunde braucht eine Kundennummer, weil das Nummernformat {${CUSTOMER}} enthält.`;
+  }
+  if (!LITERAL.test(kundennummer)) {
+    return "Die Kundennummer darf nur Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt enthalten, weil sie in der Belegnummer steht.";
+  }
+  return null;
+}
+
+/**
+ * Warum eine Belegnummer für DATEV zu lang ist, als Satz für die Oberfläche; null = in Ordnung. Zwei Nummern, die im
+ * Belegfeld 1 gleich aussehen, verwechseln dort die offenen Posten.
+ */
+export function documentNumberLengthProblem(number: string): string | null {
+  if (number.length <= MAX_DOCUMENT_NUMBER_LENGTH) return null;
+  return `Die Nummer ${number} ist länger als ${MAX_DOCUMENT_NUMBER_LENGTH} Zeichen; DATEV übernimmt nur ${MAX_DOCUMENT_NUMBER_LENGTH} Zeichen als Belegnummer. Bitte eine kürzere Kundennummer oder ein kürzeres Nummernformat wählen.`;
+}
+
+/**
+ * Kundennummer, mit der Storno und Rechnungskorrektur bei {KUNDENNR} nummeriert werden: die festgeschriebene
+ * des Originals, solange sie taugt, sonst die heutige des Kontakts (#1426). Was übrig bleibt, meldet
+ * customerNumberProblem.
+ */
+export function effectiveCustomerNumber(
+  buyer: { kundennummer?: string | null } | null | undefined,
+  contact: { kundennummer?: string | null } | null | undefined,
+): string | undefined {
+  const original = buyer?.kundennummer;
+  return original && !customerNumberProblem(original) ? original : (contact?.kundennummer ?? undefined);
 }
 
 /**
@@ -69,15 +126,24 @@ export function issueDateBeforeLastFinalized(byCircle: Record<number, FinalizedC
 /**
  * Warum ein Format nicht taugt, als Satz für die Oberfläche; null = in Ordnung. requireYear: false für Nummern, deren
  * Zähler nicht jährlich neu beginnt (Kundennummern, durchlaufende Nummernkreise); dort ist das Jahr erlaubt, aber nicht
- * nötig.
+ * nötig. allowCustomer erlaubt {KUNDENNR}: Rechnungen und Angebote tragen die Nummer ihres Käufers, für die Vergabe
+ * neuer Kundennummern ergäbe der Platzhalter keinen Sinn.
  */
-export function numberFormatError(format: string, { requireYear = true }: { requireYear?: boolean } = {}): string | null {
+export function numberFormatError(
+  format: string,
+  { requireYear = true, allowCustomer = false }: { requireYear?: boolean; allowCustomer?: boolean } = {},
+): string | null {
   if (format.length > MAX_NUMBER_FORMAT_LENGTH) return `Das Format darf höchstens ${MAX_NUMBER_FORMAT_LENGTH} Zeichen lang sein.`;
   const names = [...format.matchAll(PLACEHOLDER)].map((m) => m[1]!);
-  const unknown = names.find((name) => !COUNTER.test(name) && !YEAR.test(name) && !MONTH.test(name));
-  if (unknown !== undefined) return `Den Platzhalter {${unknown}} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM} und {N} bis {NNNNNN}.`;
+  const unknown = names.find((name) => !COUNTER.test(name) && !YEAR.test(name) && !MONTH.test(name) && !(allowCustomer && name === CUSTOMER));
+  if (unknown !== undefined)
+    return `Den Platzhalter {${unknown}} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM}${allowCustomer ? `, {${CUSTOMER}}` : ""} und {N} bis {NNNNNN}.`;
   if (!LITERAL.test(format.replace(PLACEHOLDER, ""))) {
     return "Außerhalb der Platzhalter gehen nur Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt.";
+  }
+  if (names.filter((name) => name === CUSTOMER).length > 1) return `Der Platzhalter {${CUSTOMER}} darf nur einmal vorkommen.`;
+  if (allowCustomer && CUSTOMER_NEXT_TO_COUNTER.test(format)) {
+    return `Der Platzhalter {${CUSTOMER}} darf nicht direkt neben der laufenden Nummer stehen, sonst wird die Nummer nicht mehr eindeutig.`;
   }
   const counters = names.filter((name) => COUNTER.test(name)).length;
   if (counters === 0) return "Das Format braucht die laufende Nummer, z. B. {NNN}.";

@@ -19,6 +19,8 @@ const searchSchema = z.object({
   suche: z.optional(z.string().check(z.maxLength(100))),
   ohneDatei: z.optional(z.boolean()),
   ohneBeleg: z.optional(z.boolean()),
+  /** Eigene Gruppe „Aufladung ohne Bezug“ neben den Buchungen ohne passenden Beleg (#1356) */
+  aufladung: z.optional(z.boolean()),
   seite: z.optional(z.int().check(z.minimum(0))),
   /** Stichtag der Übernahme offener Posten (letzter Tag der alten Buchhaltung) */
   stichtag: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
@@ -51,7 +53,7 @@ export const Route = createFileRoute("/_app/archiv/")({
     }
     if (view === "buchungen") {
       const bookings = await getDatevBookings({
-        data: { year, search: deps.suche ?? "", unmatched: deps.ohneBeleg ?? false, page: deps.seite ?? 0 },
+        data: { year, search: deps.suche ?? "", unmatched: deps.ohneBeleg ?? false, aufladung: deps.aufladung ?? false, page: deps.seite ?? 0 },
       });
       return { view, year, years, migration, bookings } as const;
     }

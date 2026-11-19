@@ -1,8 +1,8 @@
 ---
 title: "Kontakte: Kunden und Lieferanten"
 description: >-
-  Ein Verzeichnis für Kunden und Lieferanten in Haben: Felder, Ansprechpartner, Rechnungen und Belege
-  am Kontakt, SEPA-Lastschriftmandate.
+  Ein Verzeichnis für Kunden und Lieferanten in Haben: Felder, Ansprechpartner, USt-IdNr. beim BZSt
+  bestätigen, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate.
 ---
 
 # Kontakte
@@ -20,7 +20,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | Telefon | Frei, mit Ziffern, Leerzeichen und `+ ( ) / - .`, z. B. `+49 941 123456`. Steht in der Kontaktliste unter der E-Mail und lässt sich suchen, aber nicht auf Rechnungen; für eine Person bei der Firma gibt es die [Ansprechpartner](#ansprechpartner). |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
 | Land (z. B. DE) | Ländercode aus zwei Buchstaben (ISO 3166-1), Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
-| USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. Gibt es sie schon bei einem anderen Kontakt, auch einem archivierten, weist Haben nach dem Tippen darauf hin, mit Link auf den Kontakt, statt einen zweiten anzulegen; gespeichert wird trotzdem, zusammengeführt nichts. |
+| USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. Gibt es sie schon bei einem anderen Kontakt, auch einem archivierten, weist Haben nach dem Tippen darauf hin, mit Link auf den Kontakt, statt einen zweiten anzulegen; gespeichert wird trotzdem, zusammengeführt nichts. Die Nummer eines anderen EU-Mitgliedstaats oder Nordirlands (`XI`) [bestätigt das BZSt](#ust-idnr-beim-bzst-bestätigen). |
 | IBAN | Hilft beim Bankabgleich. Wird beim ersten zugeordneten Zahlungseingang automatisch gemerkt, wenn das Feld leer ist. |
 | Leitweg-ID (öffentliche Auftraggeber) | Steht auf der Rechnung und wird im XML als Käuferreferenz verwendet. |
 | Unsere Lieferantennummer bei diesem Kunden | Die Nummer, unter der dich der Kunde als Lieferanten führt; größere Kunden ordnen Rechnungen damit zu. Steht im Kopf der Rechnung als „Lieferantennummer“ (auf Englisch „Supplier number“) und im XML als Verkäuferkennung (BT-29), ohne Schema-ID, weil der Kunde sie selbst vergibt (EN 16931-1, BT-29-1). Die Rechnung behält die Nummer vom Festschreiben, auch ihr Storno. In der [REST-API](api.md) heißt das Feld `unsereLieferantennummer`. |
@@ -28,7 +28,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | Sprache von Rechnungen und Angeboten | Deutsch oder Englisch, siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch). |
 | Skonto | „wie in den Einstellungen“ oder „eigenes für diesen Kunden“ mit bis zu drei Stufen; ohne Stufe bekommt der Kunde kein Skonto (siehe [Skonto](rechnungen-zahlung.md#skonto)). |
 
-**Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Platzhalter wie beim [Nummernformat](einrichtung.md#nummernformat), das Jahr ist hier aber nicht nötig, weil der Zähler nicht jährlich neu beginnt. Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
+**Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Welche Platzhalter gehen, steht unter [Kundennummern](einrichtung.md#kundennummern). Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
 
 ## Die Liste sortieren
 
@@ -49,6 +49,17 @@ Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine ode
 **Aus einer Liste übernehmen.** **CSV importieren** über der Liste übernimmt Kunden und Lieferanten aus einer CSV-Datei, etwa dem Kontakt-Export von Lexware Office, mit Vorschau und ohne Dubletten ([CSV-Import](csv-import.md#kontakte)), auch Debitoren und Kreditoren aus einem DATEV-Export ([Kontakte aus DATEV](csv-import.md#kontakte-aus-datev)).
 
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
+
+## USt-IdNr. beim BZSt bestätigen
+
+Für innergemeinschaftliche Lieferungen muss die USt-IdNr. des Kunden gültig sein ([§ 6a Abs. 1 Satz 1 Nr. 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__6a.html)); bei Reverse Charge gilt der Kunde mit ihr als Unternehmer, wenn du sie samt Name und Anschrift hast bestätigen lassen (UStAE 3a.2 Abs. 9 Sätze 4 und 5). Das tut das Bundeszentralamt für Steuern (BZSt) im Bestätigungsverfahren ([§ 18e UStG](https://www.gesetze-im-internet.de/ustg_1980/__18e.html)); Haben fragt es über dessen [eVatR-Schnittstelle](https://api.evatr.vies.bzst.de/api-docs). Die Karte **Bestätigung beim BZSt** auf der Detailseite zeigt die letzte Antwort, bei gültiger Nummer mit dem Vergleich von Name, Straße, PLZ und Ort (**Stimmt**, **Stimmt nicht**, **Nicht angefragt** oder **Nicht mitgeteilt**, wenn der Mitgliedstaat die Angabe nicht mitteilt), und darunter alle Abfragen.
+
+- **Wann:** nach dem Anlegen und Speichern unter **Kontakte**, wenn die Nummer noch nie angefragt wurde oder sich Name oder Anschrift seit der letzten Bestätigung geändert haben, und jederzeit mit **Beim BZSt bestätigen**. War die Nummer zuletzt ungültig, fragt Haben beim Speichern nicht von selbst neu. Das Speichern wartet nicht auf das BZSt.
+- **Wie:** Erst einfach, ob die Nummer gültig ist, dann bei gültiger Nummer qualifiziert mit Name und Anschrift; so verlangen es die [FAQ des BZSt](https://www.bzst.de/DE/Unternehmen/Identifikationsnummern/Umsatzsteuer-Identifikationsnummer/FAQ/faq_ust_node.html). Ohne Ort fragt Haben nur einfach.
+- **Was ans BZSt geht:** deine USt-IdNr. aus den [Firmendaten](einrichtung.md#firmendaten), die USt-IdNr. des Kontakts und bei der qualifizierten Abfrage sein Name, seine Straße, PLZ und Ort. Das BZSt reicht die Anfrage an den Mitgliedstaat weiter, der die Nummer erteilt hat.
+- **Nachweis:** Jede Antwort zur Nummer (gültig, nicht vergeben, noch nicht oder nicht mehr gültig) speichert Haben mit Zeitpunkt, den gesendeten Angaben und dem empfangenen Datensatz unverändert; bei Abfragen über die Schnittstelle ist dieser Datensatz der Nachweis der qualifizierten Abfrage (UStAE 18e.1 Abs. 2 Sätze 3 bis 5, FAQ des BZSt). Eine schriftliche Bestätigung verschickt das BZSt nicht, und rückwirkend bestätigt es nichts. Die Antworten lassen sich nicht ändern oder löschen und stehen im Änderungsprotokoll und im [Jahresarchiv](auswertungen.md#jahresexport).
+- **Fehler:** Ist der Dienst nicht erreichbar oder meldet er einen Fehler, sagt Haben das und speichert nichts. Es wiederholt nicht von selbst; das BZSt bittet, es später noch einmal zu versuchen. Meldet das BZSt, die Höchstzahl qualifizierter Abfragen sei erreicht, bleibt es bei der einfachen Bestätigung, und das nächste Speichern fragt neu.
+- **Grenzen:** Deutsche Nummern bestätigt das BZSt nicht. Nummern, deren Aufbau nicht zum Land passt (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm)), fragt Haben nicht an. Ohne deine USt-IdNr. in den Firmendaten sagt die Karte, was fehlt; mit `HABEN_EVATR=off` ([Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen)) fragt Haben nie. Kontakte, die du anderswo anlegst oder änderst (Dialog in Rechnung, Beleg und Vorlagen, Import, REST-API), bestätigt Haben nicht von selbst; das geht auf ihrer Detailseite. Festschreiben und Zusammenfassende Meldung prüfen die Bestätigung nicht.
 
 ## Rechnungen und Belege am Kontakt
 

@@ -3,7 +3,7 @@ import { el, elIf, txt, type XmlElement, xmlDocument } from "./xml-baum.ts";
 
 /*
  * CII (UN/CEFACT Cross Industry Invoice D16B) für XRechnung CII und Factur-X EN 16931, aus dem Rechnungsmodell nach
- * EN 16931, das toEInvoiceData in xml.ts in UBL-Namen baut. Reihenfolge der Elemente nach dem Schema
+ * EN 16931, das toEInvoiceData in daten.ts in UBL-Namen baut. Reihenfolge der Elemente nach dem Schema
  * CrossIndustryInvoice_100pD16B.xsd (KoSIT, validator-configuration-xrechnung) bzw. FACTUR-X_EN16931.xsd; die
  * Zuordnung der Felder nach EN 16931-1 mit den Syntax-Bindings in EN 16931-3-3 (CII) und EN 16931-3-2 (UBL).
  */

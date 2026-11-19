@@ -1,7 +1,7 @@
 import { bareinnahmeAnteil, kategorieAnteil, outgoingTaxClassification, type InvoiceTotals } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
-import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankAccountIncludedSql, bankNotPrivateMarkedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { turnoverRange, unknownTurnover, type GesamtumsatzItem } from "./gesamtumsatz-quellen.ts";
 import { takenOverClassifications } from "./gesamtumsatz-altbestand.ts";
@@ -189,7 +189,15 @@ export async function nativeTurnoverItems(year: number, q: Db | Tx): Promise<Ges
     q
       .select({ id: t.id, date: t.bookingDate, amount: bankOpenAmountSql })
       .from(t)
-      .where(and(gte(t.bookingDate, start), lt(t.bookingDate, end), bankAccountIncludedSql("bank_transactions.bank_account_id"), ne(bankOpenAmountSql, 0))),
+      .where(
+        and(
+          gte(t.bookingDate, start),
+          lt(t.bookingDate, end),
+          bankAccountIncludedSql("bank_transactions.bank_account_id"),
+          bankNotPrivateMarkedSql,
+          ne(bankOpenAmountSql, 0),
+        ),
+      ),
   ]);
   const ids = [...new Set([...bank.map((row) => row.allocation.invoiceId), ...cash.map((row) => row.invoiceId)].filter((id): id is string => id !== null))];
   const invoices = await invoiceData(ids, q);

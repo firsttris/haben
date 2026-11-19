@@ -2,6 +2,7 @@ import type { EuerResult } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
  * Umsatzsteuer-Vorauszahlung für Dezember bzw. das vierte Quartal in den zehn Tagen nach dem Jahreswechsel 2026/2027 (#583).
@@ -125,7 +126,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
       exemptionReason: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 1900 }],
     } as never);
-    const inv = await invoices.finalizeInvoice(actor, d.id);
+    const inv = await invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
     const tx = await umsatzVom(payDate, "1.190,00");
     await bank.allocate(actor, { kind: "invoice", invoiceId: inv.id, transactionId: tx.id, amount: tx.amount } as never);
   }

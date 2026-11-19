@@ -2635,6 +2635,9 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
 
 test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde filtern und löschen (#417)", async () => {
   await go("/leistungen");
+  // Die Seite heißt Zeiteinträge, die Adresse bleibt /leistungen (#1253)
+  await expect(page.getByRole("heading", { level: 1, name: "Zeiteinträge" })).toBeVisible();
+  await expect(page).toHaveTitle("Zeiteinträge · Haben");
   await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
   await page.getByRole("button", { name: "Neuer Eintrag" }).click();
   const neu = page.getByRole("form", { name: "Neuer Eintrag" });
@@ -2970,6 +2973,25 @@ test("Artikel-API: Rechte, Anlegen, Suchen und Ändern im Katalog (#297)", async
   expect(await active.json()).toMatchObject({ data: [], total: 0 });
   const archived = await request.get(path, { headers: writer, params: { q: changes.description, archived: true } });
   expect(await archived.json()).toMatchObject({ data: [{ id: result.id, archived: true }], total: 1 });
+});
+
+test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: day(-4),
+    lines: [["Monatliche Betreuung Server", "3", "80,00"]],
+    gross: "285,60",
+  });
+  const originalUrl = page.url();
+  await page.getByRole("button", { name: "Kopieren", exact: true }).click();
+  await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== originalUrl);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Monatliche Betreuung Server");
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("80,00");
+  await expect(page.getByLabel("Rechnungsdatum")).not.toHaveValue(day(-4));
+
+  await page.goto(originalUrl);
+  await expect(page.getByRole("button", { name: "Kopieren", exact: true })).toBeVisible();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible();
 });
 
 test("Keine Fehler im Browser", async () => {

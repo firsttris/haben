@@ -144,7 +144,7 @@ Das heißt auch:
 
 Gespeicherte lokale Zugangsdaten bleiben beim Wechsel erhalten, alle Sitzungen der bisherigen Betriebsart werden ungültig. Haben führt Konten **nicht** anhand gleicher E-Mail-Adressen zusammen: Meldet sich jemand mit der E-Mail eines bestehenden, nicht zugeordneten Kontos an, lehnt Haben ab und verweist auf die Übernahme durch den Betreiber. Unverknüpfte lokale Konten erhalten im SSO-Modus keinen Zugang, verhindern aber den Start nicht.
 
-Damit das bestehende Konto (und damit seine Belege, sein Audit-Verlauf und seine Konto-ID) weiterverwendet wird, ordnet der Betreiber es **bei gestoppter Anwendung** ausdrücklich einer Identität zu. Das Subject (`sub`) anhand der Identitätsausgabe des Anbieters nachweisen, siehe unten. Die Konto-ID steht unter `id` in der Haben-Tabelle `"user"`.
+Damit das bestehende Konto (und damit seine Belege, sein Audit-Verlauf und seine Konto-ID) weiterverwendet wird, ordnet der Betreiber es **bei gestoppter Anwendung** ausdrücklich einer Identität zu. Die [Datenbanksperre der laufenden App](architektur-anmeldung.md#sperre-der-laufenden-app) schützt auch die Wiederherstellung des lokalen Inhabers. Das Subject (`sub`) anhand der Identitätsausgabe des Anbieters nachweisen, siehe unten. Die Konto-ID steht unter `id` in der Haben-Tabelle `"user"`.
 
 ```sh
 docker compose stop app

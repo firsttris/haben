@@ -2,6 +2,7 @@ import { ACCOUNTS, type Kontenrahmen } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 const FORDERUNGEN = "Bilanzierte Forderungen aus neuen Anzahlungs-/Schlussketten";
 const ANZAHLUNGEN = "Erhaltene Anzahlungen netto, neues Verfahren";
@@ -70,6 +71,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
           lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
   }
   async function finalInvoice(advanceId: string, issueDate = "2026-01-20") {
@@ -89,6 +91,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
           lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
   }
   async function bankPayment(invoiceId: string, date: string, amount: number) {
@@ -198,6 +201,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
           lines: [{ description: "Normale Kontrollrechnung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     expect(old.advanceAccounting).toBeNull();
     expect((await oposAbgleich("2025-12-31")).zeilen).toEqual(expected("2025-12-31", 0, 30_000));

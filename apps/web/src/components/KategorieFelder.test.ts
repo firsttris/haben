@@ -2,7 +2,7 @@ import { direktKategorienFuer } from "@haben/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { KategorieFelder, type KategorieWahl } from "./KategorieFelder.tsx";
+import { aufladungWahl, KategorieFelder, type KategorieWahl } from "./KategorieFelder.tsx";
 
 /*
  * Kategorie und Steuersatz unter „Direkt buchen“ (#1131): Kleinunternehmer bekommen die nicht steuerbare Einnahme nicht
@@ -33,5 +33,24 @@ describe("KategorieFelder", () => {
     const html = render(true, { kategorie: "nichtSteuerbar", steuersatz: 0 });
     expect(html).toMatch(/<option value="nichtSteuerbar" selected="">/);
     expect(html).toContain("Ob echter Schadenersatz vorliegt");
+  });
+});
+
+/*
+ * Aufladung eines Guthabens (#1356): nur Ausgaben, immer ohne Steuersatz. Ein gelernter Vorschlag (#295) kann noch eine
+ * Einnahme oder einen Satz mitbringen; Anzeige und Buchung lesen beide aufladungWahl.
+ */
+describe("aufladungWahl", () => {
+  it("lässt eine Ausgabe stehen, mit 0 %", () => {
+    expect(aufladungWahl({ kategorie: "kfzBetrieb", steuersatz: 0 })).toEqual({ kategorie: "kfzBetrieb", steuersatz: 0 });
+  });
+
+  it("macht aus einer Einnahme „Sonstiger Aufwand“", () => {
+    expect(aufladungWahl({ kategorie: "erloese", steuersatz: 0 })).toEqual({ kategorie: "sonstiges", steuersatz: 0 });
+  });
+
+  it("setzt einen mitgebrachten Steuersatz auf 0", () => {
+    expect(aufladungWahl({ kategorie: "erloese", steuersatz: 1900 })).toEqual({ kategorie: "sonstiges", steuersatz: 0 });
+    expect(aufladungWahl({ kategorie: "kfzBetrieb", steuersatz: 1900 })).toEqual({ kategorie: "kfzBetrieb", steuersatz: 0 });
   });
 });

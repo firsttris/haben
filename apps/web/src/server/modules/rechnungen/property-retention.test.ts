@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistungen (Postgres)", () => {
   let invoices: typeof import("./invoices.ts");
@@ -69,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistun
   });
 
   it("übernimmt die Auswahl unveränderlich in Korrektur und Storno und schützt den festgeschriebenen Stand", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft({ propertyRetention: true }))).id);
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft({ propertyRetention: true }))).id, kleinunternehmerStand);
     expect(original).toMatchObject({ propertyRetention: true });
     expect(original.xml).toContain("14b");
     const correction = await invoices.createCorrection(actor, original.id, "2026-11-03");
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistun
     const loaded = (await invoices.getInvoice(correction.id))!;
     const changed = { ...externalReference.draftInputOf(loaded.invoice, loaded.lines), propertyRetention: false };
     expect(await invoices.updateDraft(actor, correction.id, changed)).toMatchObject({ propertyRetention: true });
-    await invoices.finalizeInvoice(actor, correction.id);
+    await invoices.finalizeInvoice(actor, correction.id, kleinunternehmerStand);
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-11-04");
     expect(storno).toMatchObject({ propertyRetention: true });
     expect(storno.xml).toContain("14b");
@@ -94,11 +95,11 @@ describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistun
   it("lässt den Hinweis freiwillig auch bei Kleinunternehmern zu und fügt ihn älteren Belegen nicht nachträglich hinzu", async () => {
     await sql`update company set kleinunternehmer = true where id = 1`;
     const input = draft({ taxTreatment: "kleinunternehmer", lines: [{ ...draft().lines[0]!, taxRate: 0 }] });
-    const previous = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    const previous = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id, kleinunternehmerStand);
     expect(previous).toMatchObject({ propertyRetention: false });
     expect(previous.xml).not.toContain("14b");
     const selected = await invoices.createDraft(actor, { ...input, propertyRetention: true });
-    const final = await invoices.finalizeInvoice(actor, selected.id);
+    const final = await invoices.finalizeInvoice(actor, selected.id, kleinunternehmerStand);
     expect(final).toMatchObject({ propertyRetention: true });
     expect(final.xml).toContain("14b");
     const unchanged = (await invoices.getInvoice(previous.id))!.invoice;

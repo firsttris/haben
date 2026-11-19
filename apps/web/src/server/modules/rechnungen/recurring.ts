@@ -24,6 +24,7 @@ import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts"
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "../mail/index.ts";
 import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
+import type { UmsatzStand } from "./umsatzgrenze.ts";
 
 export type RecurringInvoice = typeof schema.recurringInvoices.$inferSelect;
 
@@ -260,7 +261,7 @@ function describe(error: unknown): string {
   return message ?? INTERNAL_ERROR;
 }
 
-async function runOne(recurring: RecurringInvoice, today: string, result: RunResult): Promise<void> {
+async function runOne(recurring: RecurringInvoice, today: string, umsatzStand: UmsatzStand, result: RunResult): Promise<void> {
   const interval = recurring.intervalMonths as RecurringInterval;
   const dates = dueDates(recurring.nextDate, interval, recurring.anchorDay, today, recurring.endDate);
   let lastError: string | null = null;
@@ -294,7 +295,7 @@ async function runOne(recurring: RecurringInvoice, today: string, result: RunRes
     }
     if (recurring.mode === "festschreiben") {
       try {
-        await finalizeInvoice(RECURRING_ACTOR, draftId);
+        await finalizeInvoice(RECURRING_ACTOR, draftId, umsatzStand);
         result.finalized++;
       } catch (error) {
         // Entwurf bleibt stehen, damit nichts verloren geht
@@ -329,8 +330,9 @@ async function runOne(recurring: RecurringInvoice, today: string, result: RunRes
 /**
  * Legt für alle fälligen Termine Rechnungen an, verpasste werden nachgeholt (je Termin mit seinem Datum).
  * Je Termin entsteht höchstens eine Rechnung (eindeutiger Index), auch wenn zwei Läufe gleichzeitig starten.
+ * `umsatzStand` braucht das Festschreiben für die Rückfrage zur Kleinunternehmergrenze (finalizeInvoice).
  */
-export async function runDueRecurring(today: string): Promise<RunResult> {
+export async function runDueRecurring(today: string, umsatzStand: UmsatzStand): Promise<RunResult> {
   const result: RunResult = { created: 0, finalized: 0, mailed: 0, errors: [] };
   const due = await db
     .select()
@@ -339,7 +341,7 @@ export async function runDueRecurring(today: string): Promise<RunResult> {
 
   for (const recurring of due) {
     try {
-      await runOne(recurring, today, result);
+      await runOne(recurring, today, umsatzStand, result);
     } catch (error) {
       // Der Lauf geht mit der nächsten Vorlage weiter; nextDate bleibt, schon angelegte Termine überspringt der nächste Lauf
       const lastError = describe(error);
