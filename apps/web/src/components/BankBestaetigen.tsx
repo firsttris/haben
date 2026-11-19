@@ -92,9 +92,9 @@ export function BestaetigenLeiste({ b }: { b: Bestaetigen }) {
 export function ZeilenMarkierung({ id, b, label }: { id: string; b: Bestaetigen; label: string }) {
   if (!b.markierbar.includes(id)) return null;
   return (
-    <span className="tx-check">
+    <label className="tx-check checkbox">
       <input type="checkbox" aria-label={`${label} markieren`} checked={b.marked.has(id)} onChange={() => b.toggle(id)} disabled={b.busy} />
-    </span>
+    </label>
   );
 }
 
