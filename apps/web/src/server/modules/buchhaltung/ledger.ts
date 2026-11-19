@@ -343,6 +343,19 @@ export const ledgerPeriodSchema = z
   .regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/)
   .default("jahr");
 
+/**
+ * Zeitraum von–bis, beide Tage eingeschlossen, innerhalb eines Jahres: das Kontenblatt für genau den Zeitraum einer Zeile
+ * der BWA (#1380). Die Eröffnung des Kontenblatts zählt ab Jahresbeginn, deshalb nicht über den Jahreswechsel.
+ */
+export const ledgerVonBisSchema = z
+  .object({ von: z.iso.date(), bis: z.iso.date() })
+  .refine((r) => r.von <= r.bis, "Der Zeitraum endet vor seinem Beginn")
+  .refine((r) => r.von.slice(0, 4) === r.bis.slice(0, 4), "Von und bis liegen im selben Jahr");
+
+export function ledgerRangeVonBis({ von, bis }: { von: string; bis: string }): LedgerRange {
+  return { from: von, to: new Date(Date.parse(`${bis}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10) };
+}
+
 /** Zeitraum aus Jahr und optional Monat oder Quartal */
 export function ledgerRange(year: number, period?: string): LedgerRange {
   const pad = (n: number) => String(n).padStart(2, "0");
