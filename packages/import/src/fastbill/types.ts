@@ -233,6 +233,33 @@ export const fbEstimateSchema = z.looseObject({
 });
 export type FbEstimate = z.infer<typeof fbEstimateSchema>;
 
+// ---------------------------------------------------------------- Zeiten und Projekte
+
+/** time.get (https://apidocs.fastbill.com/fastbill/de/time.html); Liste TIMES im echten Konto */
+export const fbTimeSchema = z.looseObject({
+  TIME_ID: id,
+  CUSTOMER_ID: id.nullish(),
+  PROJECT_ID: id.nullish(),
+  /** Fehlt bei einer Zeit, die noch nicht abgerechnet ist (echtes Konto, November 2026) */
+  INVOICE_ID: id.nullish(),
+  /** JJJJ-MM-TT hh:mm:ss */
+  DATE: str,
+  MINUTES: numeric,
+  BILLABLE_MINUTES: numeric,
+  COMMENT: str,
+});
+export type FbTime = z.infer<typeof fbTimeSchema>;
+
+/** project.get (https://apidocs.fastbill.com/fastbill/de/project.html); Liste PROJECTS im echten Konto */
+export const fbProjectSchema = z.looseObject({
+  PROJECT_ID: id,
+  PROJECT_NAME: str,
+  CUSTOMER_ID: id.nullish(),
+  HOUR_PRICE: numeric,
+  CURRENCY_CODE: str,
+});
+export type FbProject = z.infer<typeof fbProjectSchema>;
+
 // ---------------------------------------------------------------- Artikel
 
 /** article.get (https://apidocs.fastbill.com/fastbill/de/article.html) */
