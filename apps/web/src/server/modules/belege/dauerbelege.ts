@@ -6,7 +6,17 @@
  * (dauerbelege-lauf.ts).
  */
 import { mapSevRecurringVoucher, type SevDauerbeleg, type SevVoucher, type SevVoucherPos } from "@haben/import";
-import { dauerbelegProbleme, EXPENSE_CATEGORY_KEYS, terminAbStichtag, vorschauTermine, type DauerbelegStatus, type RecurringInterval } from "@haben/core";
+import {
+  dauerbelegProbleme,
+  EXPENSE_CATEGORY_KEYS,
+  terminAbStichtag,
+  vorschauTermine,
+  type DauerbelegStatus,
+  type RecurringInterval,
+  inCents,
+  inBasisPoints,
+  inProzent,
+} from "@haben/core";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -22,7 +32,7 @@ export type Dauerbeleg = typeof schema.recurringDocuments.$inferSelect;
 export class DauerbelegError extends UserError {}
 
 const isoDate = z.iso.date();
-const cents = z.number().int().min(0).max(100_000_000_00);
+const cents = inCents(z.number().int().min(0).max(100_000_000_00));
 
 export const dauerbelegInputSchema = z.object({
   name: z.string().trim().min(1, "Bezeichnung fehlt").max(200),
@@ -32,9 +42,9 @@ export const dauerbelegInputSchema = z.object({
   reference: z.string().trim().max(100).default(""),
   category: z.enum(EXPENSE_CATEGORY_KEYS),
   payment: z.enum(["bank", "privat", "kasse"]),
-  privateShare: z.number().int().min(0).max(100).default(0),
+  privateShare: inProzent(z.number().int().min(0).max(100)).default(0),
   amounts: z
-    .array(z.object({ taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]), net: cents, tax: cents }))
+    .array(z.object({ taxRate: inBasisPoints(z.union([z.literal(1900), z.literal(700), z.literal(0)])), net: cents, tax: cents }))
     .min(1, "Beträge fehlen")
     .max(3),
   taxShown: z.boolean(),

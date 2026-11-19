@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #750: Ein Papierstorno nimmt die erbrachte Schlussleistung nicht zurück. Zahlungen gehören weiter zu dieser
@@ -32,9 +33,9 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
 
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-      'BY', 'DE89370400440532013000', 'SKR03', 'soll', 2026)`;
+      'BY', 'DE89370400440532013000', 'SKR03', 'soll')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -68,7 +69,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
       advanceType: "anzahlung",
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(invoice).toMatchObject({ advanceAccounting: "deferred", gross: 35_700 });
     await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-12-12", amount: 35_700 }, "2026-12-12");
     return invoice;
@@ -87,7 +88,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
       deducts: [advanceId],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(invoice).toMatchObject({ advanceAccounting: "deferred", gross: 83_300 });
     return invoice;
   }

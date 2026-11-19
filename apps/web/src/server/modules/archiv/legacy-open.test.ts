@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 import { addDays } from "@haben/core";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -56,6 +57,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     mime?: string;
     contact?: string;
     category?: string;
+    /** Kennung im Quellprogramm; ohne Nummer bildet Haben daraus die Ersatznummer (SD-, FB-, LX-) */
+    lexofficeId?: string;
   }) {
     const rate = values.rate ?? 1900;
     const gross = values.net + values.tax;
@@ -68,7 +71,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     const [contact] = values.contact ? await sql`select id from contacts where name = ${values.contact}` : [];
     const [row] = await sql`insert into lexoffice_vouchers (source, lexoffice_id, import_id, type, direction, number, date, due_date, status, contact_id,
         contact_name, net, tax, gross, taxes, categories, payment, raw)
-      values (${values.source ?? "lexoffice"}, ${crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
+      values (${values.source ?? "lexoffice"}, ${values.lexofficeId ?? crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
         ${values.date}, ${values.date}, ${values.status ?? "open"}, ${contact?.id ?? null}, ${values.contact ?? "Bürobedarf Schmidt KG"},
         ${values.net}, ${values.tax}, ${gross}, ${JSON.stringify([{ rate, net: values.net, tax: values.tax }])}::jsonb,
         ${JSON.stringify(values.direction === "ausgabe" ? [{ categoryId: "x", name: values.category ?? "Bürobedarf", rate, net: values.net, tax: values.tax }] : [])}::jsonb,
@@ -118,6 +121,49 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     },
   );
 
+  it("lehnt eine Nummer ab, die es in Haben schon gibt: keine zweite Rechnung, kein neuer Kontakt", async () => {
+    const first = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 10_000, tax: 1_900, file: PDF });
+    await legacy.takeOverLegacyItem(actor, first);
+    const contacts = await sql`select count(*)::int as n from contacts`;
+    const second = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-21", net: 20_000, tax: 3_800, file: PDF });
+    const error = await legacy.takeOverLegacyItem(actor, second).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf((await import("../auswertungen/index.ts")).TakeoverError);
+    expect(error).toHaveProperty("message", "Die Rechnungsnummer RE1019 gibt es in Haben schon.");
+    expect(await sql`select number, gross from invoices`).toEqual([{ number: "RE1019", gross: 11_900 }]);
+    expect(await sql`select count(*)::int as n from contacts`).toEqual(contacts);
+  });
+
+  it.each([
+    ["sevdesk", "abc/77", "def/77", "SD-77"],
+    ["lexoffice", "a1b2c3d4-0001", "a1b2c3d4-0002", "LX-a1b2c3d4"],
+  ] as const)("meldet bei %s ohne Nummer eine schon vergebene Ersatznummer klar", async (source, a, b, number) => {
+    const first = await legacyVoucher({
+      source,
+      lexofficeId: a,
+      type: "invoice",
+      direction: "einnahme",
+      number: "",
+      date: "2026-09-20",
+      net: 10_000,
+      tax: 1_900,
+      file: PDF,
+    });
+    await legacy.takeOverLegacyItem(actor, first);
+    const second = await legacyVoucher({
+      source,
+      lexofficeId: b,
+      type: "invoice",
+      direction: "einnahme",
+      number: "",
+      date: "2026-09-21",
+      net: 10_000,
+      tax: 1_900,
+      file: PDF,
+    });
+    await expect(legacy.takeOverLegacyItem(actor, second)).rejects.toThrow(`Die Rechnungsnummer ${number} gibt es in Haben schon.`);
+    expect(await sql`select number from invoices`).toEqual([{ number }]);
+  });
+
   it("listet offene Posten mit Gründen, wenn etwas nicht geht", async () => {
     await legacyVoucher({
       type: "invoice",
@@ -159,6 +205,46 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
       ["RE1021", 116_000, "Steuersatz, den Haben nicht kennt"],
       ["B-77", 11_900, "keine Datei aus Lexoffice"],
     ]);
+  });
+
+  // #1317: Nach der Rücknahme einer Bestätigung „ohne Datei“ gilt der Beleg wieder als offen; der Grund beim Übernehmen
+  // kommt aus takeoverFileIssue und nennt den Weg über die Belegansicht. Eine stehende Bestätigung behält ihren eigenen
+  // Satz, ein Beleg ohne Stand bleibt bei „keine Datei aus …“.
+  it("nennt nach der Rücknahme einer Bestätigung wieder den Weg über die Belegansicht (#1317)", async () => {
+    const zurueckgenommen = await legacyVoucher({
+      source: "sevdesk",
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-80",
+      date: "2026-09-25",
+      net: 10_000,
+      tax: 1_900,
+    });
+    // Verlauf wie nach Bestätigung und Rücknahme: die ältere Zeile bestätigt, die jüngere nimmt zurück
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by, created_at)
+      values (${zurueckgenommen}, 'bestaetigt_ohne_datei', 'In sevDesk geprüft: keine Datei hinterlegt.', 'test-user', now() - interval '1 day')`;
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by)
+      values (${zurueckgenommen}, 'bestaetigung_zurueckgenommen', 'Bestätigung zurückgenommen: falscher Beleg geprüft', 'test-user')`;
+    // Gegenprobe: wo die Bestätigung steht, bleibt der bisherige Satz
+    const bestaetigt = await legacyVoucher({
+      source: "sevdesk",
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-81",
+      date: "2026-09-26",
+      net: 10_000,
+      tax: 1_900,
+    });
+    await sql`insert into legacy_file_states (voucher_id, state, message, created_by)
+      values (${bestaetigt}, 'bestaetigt_ohne_datei', 'In sevDesk geprüft: keine Datei hinterlegt.', 'test-user')`;
+
+    expect((await legacy.openLegacyItems()).map((i) => [i.number, i.blocker])).toEqual([
+      ["B-80", "ohne Datei, Bestätigung zurückgenommen – prüfen, dann erneut bestätigen und in Haben von Hand erfassen"],
+      ["B-81", "ohne Datei (bestätigt) – in Haben von Hand erfassen"],
+    ]);
+    // Ohne Datei gibt es nichts zu übernehmen; die Übernahme nennt denselben Grund
+    await expect(legacy.takeOverLegacyItem(actor, zurueckgenommen)).rejects.toThrow(/Bestätigung zurückgenommen/);
+    expect(await sql`select 1 from documents where lexoffice_voucher_id = ${zurueckgenommen}`).toHaveLength(0);
   });
 
   it("übernimmt eine offene Rechnung; Zahlung im Bankabgleich macht die Umsatzsteuer fällig (Ist)", async () => {
@@ -208,17 +294,15 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     const september = await figures.computeVatFigures({ year: 2026, month: 9 });
     expect(september.kz81).toBe(0);
     // EÜR aus dem Journal (#542): Die übernommene Rechnung steht gegen den Saldenvortrag ohne Erlöszeile; die Zahlung
-    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte, und wird je Zeile abgeglichen
+    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte. Der Gewinn nach der DATEV-Formel stimmt damit
+    const { euerForYear } = await import("../auswertungen/reports.ts");
+    const zeilen = await euerForYear(2026);
+    const zeile = (key: string) => [...zeilen.einnahmen, ...zeilen.ausgaben].find((l) => l.key === key)?.amount;
+    expect([zeile("einnahmenSteuerpflichtig"), zeile("vereinnahmteUst"), zeilen.gewinn]).toEqual([400_000, 76_000, 476_000]);
     const abgleich = await import("../auswertungen/abgleich.ts");
     const euer = await abgleich.euerAbgleich(2026);
     expect(euer.hinweise).toEqual([]);
-    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:")).map((z) => [z.posten, z.journal, z.quelle])).toEqual(
-      expect.arrayContaining([
-        ["EÜR: Umsatzsteuerpflichtige Betriebseinnahmen (netto)", 400_000, 400_000],
-        ["EÜR: Vereinnahmte Umsatzsteuer", 76_000, 76_000],
-        ["EÜR: Gewinn nach der DATEV-Formel", 476_000, 476_000],
-      ]),
-    );
+    expect(euer.zeilen.find((z) => z.posten === "EÜR: Gewinn nach der DATEV-Formel")).toMatchObject({ journal: 476_000, quelle: 476_000 });
     expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
   });
 
@@ -243,6 +327,28 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     ]);
     expect(await bank.openItems()).toEqual([]);
   });
+
+  // Gefunden im TDD-Review von #1144: Bei Ist steht das Netto des Stornos ohne Steuerschlüssel auf dem Saldenvortrag; der
+  // Abgleich Beleg gegen Buchung darf das nicht als abweichendes Netto der Rechnung melden
+  for (const versteuerung of ["ist", "soll"] as const)
+    it(`Storno einer übernommenen Rechnung: Abgleich Rechnung gegen Buchung ohne Abweichung (${versteuerung})`, async () => {
+      await sql`update company set versteuerung = ${versteuerung}`;
+      const id = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: `RE1040-${versteuerung}`,
+        date: "2026-09-20",
+        net: 400_000,
+        tax: 76_000,
+        file: PDF,
+        contact: "Nordwerk Software GmbH",
+      });
+      const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+      await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+      const abgleich = await import("../auswertungen/abgleich.ts");
+      const jahr = await abgleich.abgleichJahr(2026, "2026-11-15");
+      expect(abgleich.abweichungen(jahr.zeilen.filter((z) => z.bereich === "beleg"))).toEqual([]);
+    });
 
   it("übernimmt eine in Lexoffice brutto gerechnete Rechnung centgenau, das Storno hebt sie exakt auf", async () => {
     // 9,80 € brutto: 8,24 € netto, 1,56 € Steuer; netto nachgerechnet wären es 1,57 €
@@ -350,7 +456,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
             taxRate: l.taxRate,
           })),
         } as never);
-        await invoices.finalizeInvoice(actor, draft.id);
+        await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
         await invoices.cancelInvoice(actor, invoiceId, "2026-11-03");
         // Kein Erlöskonto: Korrektur, Storno und Storno der Korrektur gehen gegen den Saldenvortrag
         const erloese = await sql`select l.account, sum(l.credit) - sum(l.debit) as saldo from journal_lines l

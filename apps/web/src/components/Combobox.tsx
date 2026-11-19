@@ -45,6 +45,7 @@ export function Combobox<T>({
   "aria-invalid": invalid = false,
   className = "",
   onBlur,
+  onKeyDown: afterKey,
 }: {
   id?: string;
   /** Zugänglicher Name, wenn kein <label htmlFor> zum Feld gehört */
@@ -64,6 +65,8 @@ export function Combobox<T>({
   "aria-invalid"?: boolean | undefined;
   className?: string;
   onBlur?: () => void;
+  /** Taste, die die Liste nicht selbst verbraucht hat, etwa Enter bei geschlossener Liste, bevor es das Formular abschickt */
+  onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -125,6 +128,7 @@ export function Combobox<T>({
     } else if (event.key === "Tab" && open && commitOnTab && active >= 0 && active !== createIndex) {
       commit(active);
     }
+    if (!event.defaultPrevented) afterKey?.(event);
   }
 
   return (

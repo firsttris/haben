@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Review zu #919 (Verrechnung von Ausgangsrechnung und Kundenkorrektur, #877): Storno nach einer Verrechnung, Ist- und
@@ -46,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung von Rechnung und Korrektur, Revie
       },
       art === "korrektur" ? { kind: "korrektur", correctsId: correctsFor! } : {},
     );
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   async function zahle(invoiceId: string, betrag: number, datum: string): Promise<void> {
@@ -120,8 +121,6 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung von Rechnung und Korrektur, Revie
         expect([...zeilen].every((z) => z.saldo === 0 && (z as unknown as { steuer: number }).steuer === 0)).toBe(true);
         const [forderung] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = ${konten.forderungen}`;
         expect(forderung!.saldo).toBe(0);
-        const beide = await figures.kennzahlenBeiderQuellen({ year: 2026, month: 11 });
-        expect(beide.journal.kz81).toBe(beide.nebenbuecher.kz81);
         // Soll: 133,61 − 14,71 = 118,90 im November; Ist: vereinnahmt 141,50 € brutto, davon 22,60 € Steuer
         const nov = await figures.computeVatFigures({ year: 2026, month: 11 });
         expect({ kz81: nov.kz81, tax81: nov.tax81 }).toEqual({ kz81: 11_890, tax81: 2_260 });

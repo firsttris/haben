@@ -23,6 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
+import type { BankCsvMapping, ImportMovement, ParsedTransaction } from "@haben/import";
 import type { LetterheadDesign, OutgoingTaxDetails } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
@@ -63,7 +64,9 @@ import {
   type SvBeitraege,
   type BasisPoints,
   type Cents,
+  type KirchensteuerSatz,
   type Millis,
+  type Prozent,
 } from "@haben/core";
 import type { LstbWerte } from "@haben/core";
 
@@ -99,6 +102,8 @@ export interface TaxpayerData {
   veranlagung?: "einzel" | "zusammen";
   /** JJJJ-MM-TT */
   verheiratetSeit?: string;
+  /** Keine Einkommensteuer-Vorauszahlungen festgesetzt: dann keine Hinweise im Fristenkalender (#1240) */
+  keineVorauszahlungen?: boolean;
 }
 
 /** Firmendaten, genau eine Zeile (id = 1). */
@@ -169,14 +174,15 @@ export const company = pgTable(
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
     /**
-     * Voranmeldung und EÜR aus dem Journal ab diesem Jahr (#542, docs/adr/journal-als-quelle.md); null = ab dem Jahr der ersten
-     * Buchung. Davor rechnen sie aus den Nebenbüchern. Bestehende Instanzen beginnen mit dem Jahr nach dem Update (Migration).
+     * Früheres Stichjahr (#542). Haben liest es nicht mehr (#1116): Migration 0275 hat es nach journal_umstellung übernommen.
+     * Die Spalte bleibt, damit eine Instanz, die die Prüfung beim Update nicht besteht, auf derselben Datenbank mit der
+     * bisherigen Version weiterlaufen kann; sie entfällt mit modules/umstellung.
      */
     journalAb: integer("journal_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
-    privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
+    privateShares: jsonb("private_shares").$type<Record<string, Prozent>>().notNull().default({}),
     /**
      * Mahnwesen: Basiszinssatz (null = keine Verzugszinsen), Mahngebühr je Stufe,
      * Zahlungsfrist in Tagen. autoBaseRate: Basiszinssatz von der Bundesbank automatisch abrufen (ausdrücklich
@@ -222,6 +228,26 @@ export const company = pgTable(
     check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
     check("company_nav_color", sql`${t.navColor} ~ '^#[0-9A-F]{6}$'`),
   ],
+);
+
+/**
+ * Fragen zur Einrichtung und ausgeblendete Bereiche (#266), genau eine Zeile (id = 1), angelegt beim ersten Speichern.
+ * Eine eigene Tabelle statt Spalten in `company`: Die Firmendaten bleiben, wie sie sind, und eine Instanz von vor dem
+ * Update hat keine Zeile, zeigt also alle Bereiche.
+ */
+export const einrichtung = pgTable(
+  "einrichtung",
+  {
+    id: smallint("id").primaryKey().default(1),
+    /** Bereiche ohne Menüpunkt (lib/bereiche.ts); nur die Navigation, Daten und Links bleiben. Leer = alle sichtbar */
+    ausgeblendeteBereiche: jsonb("ausgeblendete_bereiche").$type<string[]>().notNull().default([]),
+    /** Fragen zuletzt durchgegangen; null = noch nie */
+    fragenAt: timestamp("fragen_at", { withTimezone: true }),
+    /** Mit „weiß ich nicht“ beantwortet; die Übersicht erinnert, bis die Firmendaten gespeichert werden */
+    offen: jsonb("offen").$type<("rechtsform" | "kleinunternehmer")[]>().notNull().default([]),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("einrichtung_single_row", sql`${t.id} = 1`)],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */
@@ -578,7 +604,7 @@ export interface AusschuettungEmpfaenger {
   soli: Cents;
   kist: Cents;
   netto: Cents;
-  kirchensteuer: 0 | 8 | 9;
+  kirchensteuer: KirchensteuerSatz;
   religionsschluessel: string | null;
 }
 
@@ -828,18 +854,34 @@ export const inboxSettings = pgTable(
     ciphertext: bytea("ciphertext").notNull(),
     /** Ordner, aus dem Haben ungelesene Mails holt */
     folder: text("folder").notNull().default("INBOX"),
+    /** Ordner für Ausgangsrechnungen aus Fremdsystemen; leer: aus */
+    outboundFolder: text("outbound_folder"),
+    /** Freigegebene Absender (Adresse oder Domain); leer: jeder Absender */
+    allowedSenders: text("allowed_senders").array().notNull().default(sql`'{}'::text[]`),
+    /** Was mit einer abgelegten Mail im Postfach geschieht: gelesen markieren, in archive_folder verschieben oder löschen */
+    afterFetch: text("after_fetch", { enum: ["seen", "move", "delete"] })
+      .notNull()
+      .default("seen"),
+    /** Zielordner bei after_fetch = move */
+    archiveFolder: text("archive_folder"),
     enabled: boolean("enabled").notNull().default(true),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    /** Mails nicht freigegebener Absender beim letzten Abruf (nur die Zahl, ohne Absender und Betreff) */
+    lastRejected: integer("last_rejected").notNull().default(0),
     lastError: text("last_error"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("inbox_settings_single_row", sql`${t.id} = 1`)],
+  (t) => [check("inbox_settings_single_row", sql`${t.id} = 1`), check("inbox_settings_after_fetch", sql`${t.afterFetch} in ('seen', 'move', 'delete')`)],
 );
 
 /** Abgerufene Mails mit den daraus angelegten Belegen; je Message-ID genau einmal */
 export const inboxMessages = pgTable("inbox_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
   messageId: text("message_id").notNull().unique(),
+  /** Aus welchem Ordner die Mail kam */
+  direction: text("direction", { enum: ["eingang", "ausgang"] })
+    .notNull()
+    .default("eingang"),
   sender: text("sender").notNull(),
   subject: text("subject").notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }),
@@ -1035,6 +1077,8 @@ export const contacts = pgTable(
     ustId: text("ust_id").notNull().default(""),
     iban: text("iban").notNull().default(""),
     leitwegId: text("leitweg_id").notNull().default(""),
+    /** Unsere Lieferantennummer bei diesem Kunden, vom Kunden vergeben (#711); steht auf der Rechnung, im XML als BT-29 */
+    unsereLieferantennummer: text("unsere_lieferantennummer").notNull().default(""),
     defaultFormat: invoiceFormatEnum("default_format"),
     /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
     skonto: jsonb("skonto").$type<SkontoStufe[]>(),
@@ -1271,6 +1315,55 @@ export const sepaMandateRevocations = pgTable(
   (t) => [uniqueIndex("sepa_mandate_revocations_mandate").on(t.mandateId)],
 );
 
+/**
+ * Bestätigungen ausländischer USt-IdNrn. beim BZSt (§ 18e UStG, #1385), nur anhängen: je Antwort des BZSt, die etwas über
+ * die Nummer sagt, eine Zeile mit den gesendeten Angaben und dem empfangenen Datensatz unverändert als Nachweis
+ * der qualifizierten Abfrage (UStAE 18e.1 Abs. 2 Sätze 3 bis 5, FAQ des BZSt). Fehler des Dienstes stehen nicht hier.
+ */
+export const ustidBestaetigungen = pgTable(
+  "ustid_bestaetigungen",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    art: text("art", { enum: ["einfach", "qualifiziert"] }).notNull(),
+    /** Gesendet: eigene und angefragte USt-IdNr., bei qualifizierter Abfrage Name und Anschrift (Straße und PLZ optional) */
+    anfragendeUstid: text("anfragende_ustid").notNull(),
+    angefragteUstid: text("angefragte_ustid").notNull(),
+    firmenname: text("firmenname"),
+    strasse: text("strasse"),
+    plz: text("plz"),
+    ort: text("ort"),
+    /** Empfangen: Status (evatr-…), Zeitpunkt der Anfrage beim BZSt, Gültigkeit und Vergleich A bis D je Angabe */
+    status: text("status").notNull(),
+    anfrageZeitpunkt: timestamp("anfrage_zeitpunkt", { withTimezone: true }).notNull(),
+    gueltigAb: text("gueltig_ab"),
+    gueltigBis: text("gueltig_bis"),
+    ergFirmenname: text("erg_firmenname"),
+    ergStrasse: text("erg_strasse"),
+    ergPlz: text("erg_plz"),
+    ergOrt: text("erg_ort"),
+    /** Technische ID der Antwort */
+    bzstId: text("bzst_id"),
+    /** Der empfangene Datensatz, wie er kam */
+    antwort: text("antwort").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ustid_bestaetigungen_contact").on(t.contactId, t.createdAt),
+    check("ustid_bestaetigungen_art", sql`${t.art} in ('einfach', 'qualifiziert')`),
+    check("ustid_bestaetigungen_status", sql`${t.status} ~ '^evatr-[0-9]{4}$'`),
+    check(
+      "ustid_bestaetigungen_vergleich",
+      sql`coalesce(${t.ergFirmenname}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergStrasse}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergPlz}, 'A') in ('A', 'B', 'C', 'D') and coalesce(${t.ergOrt}, 'A') in ('A', 'B', 'C', 'D')`,
+    ),
+    // Qualifiziert heißt: mit Name und Ort (OpenAPI-Beschreibung der eVatR-API)
+    check("ustid_bestaetigungen_qualifiziert", sql`${t.art} = 'einfach' or (${t.firmenname} is not null and ${t.ort} is not null)`),
+  ],
+);
+
 export const invoiceKindEnum = pgEnum("invoice_kind", ["rechnung", "storno", "korrektur"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "final"]);
 
@@ -1343,6 +1436,12 @@ export const invoices = pgTable(
     advanceAccounting: text("advance_accounting", { enum: ["deferred"] }),
     /** Ersatz einer stornierten Schlussrechnung; deren bereits realisierte Leistung bleibt bestehen (#750). */
     replacesInvoiceId: uuid("replaces_invoice_id"),
+    /**
+     * Storno und Korrektur: „rueckgewaehr“ heißt, bereits vereinnahmte Umsatzsteuer mindert sich erst mit der Rückzahlung
+     * an den Kunden (§ 17 UStG, UStAE 17.1 Abs. 2 Satz 3, BFH V R 34/09). Gesetzt beim Festschreiben (Trigger
+     * invoices_reduction_rule); leer heißt bisheriges Verfahren, das vor #853 festgeschriebene Korrekturen behalten.
+     */
+    reductionRule: text("reduction_rule", { enum: ["rueckgewaehr"] }),
     /** Angebot, aus dem bzw. zu dem die Rechnung entstanden ist; die Schlussrechnung zieht dessen Abschläge ab */
     quoteId: uuid("quote_id").references((): AnyPgColumn => quotes.id),
     /** Abschlagsrechnung zu einer Zeile des Zahlungsplans im Angebot (Index ab 0) */
@@ -1403,6 +1502,7 @@ export const invoices = pgTable(
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     check("invoices_advance_type", sql`${t.advanceType} is null or (${t.variant} = 'abschlag' and ${t.advanceType} in ('anzahlung', 'teilleistung'))`),
     check("invoices_advance_accounting", sql`${t.advanceAccounting} is null or ${t.advanceAccounting} = 'deferred'`),
+    check("invoices_reduction_rule", sql`${t.reductionRule} is null or (${t.reductionRule} = 'rueckgewaehr' and ${t.kind} <> 'rechnung')`),
     check(
       "invoices_replaces_schluss",
       sql`${t.replacesInvoiceId} is null or (${t.replacesInvoiceId} <> ${t.id} and ${t.kind} = 'rechnung' and ${t.variant} is not distinct from 'schluss' and ${t.advanceAccounting} is not distinct from 'deferred' and ${t.correctsId} is null)`,
@@ -1951,7 +2051,7 @@ export const recurringDocuments = pgTable(
     payment: text("payment", { enum: ["bank", "privat", "kasse"] })
       .notNull()
       .default("bank"),
-    privateShare: smallint("private_share").notNull().default(0),
+    privateShare: smallint("private_share").$type<Prozent>().notNull().default(0),
     amounts: jsonb("amounts").$type<{ taxRate: BasisPoints; net: Cents; tax: Cents }[]>().notNull(),
     /** Das Dokument weist die Umsatzsteuer gesondert aus (Dauerrechnung, Vertrag mit Steuerbetrag); sonst keine Vorsteuer */
     taxShown: boolean("tax_shown").notNull().default(false),
@@ -2059,7 +2159,7 @@ export const documents = pgTable(
      */
     vorsteuerAnteil: smallint("vorsteuer_anteil").$type<BasisPoints>(),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
-    privateShare: smallint("private_share").notNull().default(0),
+    privateShare: smallint("private_share").$type<Prozent>().notNull().default(0),
     /**
      * Gutschrift erstattet bereits Bezahltes (#786), etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
      * schon bezahlte Rechnung: Die Vorsteuerminderung wird nach § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld
@@ -2209,6 +2309,8 @@ export const bankAccounts = pgTable(
     ledgerIndex: smallint("ledger_index").unique(),
     /** Gehört nicht zu dieser Firma (#462): ausgeblendet, kein Abruf, kein Import; nur solange kein Umsatz zugeordnet oder verrechnet ist */
     excludedAt: timestamp("excluded_at", { withTimezone: true }),
+    /** Spaltenzuordnung für die CSV einer Bank, die Haben nicht kennt (#1275); gilt für Dateien mit genau dieser Kopfzeile */
+    csvMapping: jsonb("csv_mapping").$type<BankCsvMapping>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -2239,13 +2341,20 @@ export const bankImports = pgTable("bank_imports", {
   added: integer("added").notNull(),
   skipped: integer("skipped").notNull(),
   warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
+  /** Zuordnung, mit der eine unbekannte Bank-CSV gelesen wurde (Format csv-zuordnung) */
+  csvMapping: jsonb("csv_mapping").$type<BankCsvMapping>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type BankConnectionAccount = {
-  /** Kennung des Kontos bei Enable Banking, gilt für die Dauer der Zustimmung */
+  /** Kennung des Kontos bei Enable Banking, gilt für die Dauer der Zustimmung; bei FinTS die IBAN */
   uid: string;
   iban: string;
+  /**
+   * Kennung des Kontos bei Enable Banking über Zustimmungen hinweg (`identification_hash`), Quellenbindung des
+   * Importvertrags (#306); null, wenn die Bank keine nennt, fehlt, solange Haben noch nicht nachgefragt hat
+   */
+  identificationHash?: string | null;
   name: string;
   bankAccountId: string;
   /** Abgerufen bis einschließlich dieses Tages */
@@ -2271,6 +2380,36 @@ export const bankConnections = pgTable("bank_connections", {
   validUntil: timestamp("valid_until", { withTimezone: true }),
   /** Beim Verbinden gewählt: erster Abruf neuer Konten ab diesem Tag; geht beim Abschluss an die Konten */
   fetchFrom: date("fetch_from", { mode: "string" }),
+  accounts: jsonb("accounts").$type<BankConnectionAccount[]>().notNull().default([]),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Verbindungen für den Kontoabruf über FinTS (#654): Zugang zum Online-Banking einer Bank. `ciphertext` hält PIN und
+ * Bankdaten (BPD, UPD, Kundensystem-ID; modules/bank/fints-geheim.ts); ohne die gespeicherte Kundensystem-ID hielte die
+ * Bank jeden Abruf für ein neues Gerät. Status „tan“: Der Abruf im Hintergrund brauchte eine TAN; „fehler“: Die Bank
+ * hat abgelehnt (etwa eine falsche PIN), der Hintergrund versucht es nicht wieder, damit die Bank den Zugang nicht sperrt.
+ */
+export const fintsConnections = pgTable("fints_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bankName: text("bank_name").notNull(),
+  /** Bankleitzahl, acht Ziffern */
+  bankCode: text("bank_code").notNull(),
+  /** FinTS-Adresse, wie beim Verbinden eingetragen; danach gilt die aus den BPD */
+  url: text("url").notNull(),
+  /** Anmeldename (Benutzerkennung) im Online-Banking */
+  login: text("login").notNull(),
+  /** Kunden-ID, nur wenn die Bank sie getrennt vom Anmeldenamen nennt */
+  customerId: text("customer_id"),
+  /** PIN und Bankdaten (BPD, UPD, Kundensystem-ID) als JSON, AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
+  ciphertext: bytea("ciphertext").notNull(),
+  tanMethod: integer("tan_method"),
+  tanMedium: text("tan_medium"),
+  status: text("status", { enum: ["aktiv", "tan", "fehler"] })
+    .notNull()
+    .default("aktiv"),
   accounts: jsonb("accounts").$type<BankConnectionAccount[]>().notNull().default([]),
   lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
   lastError: text("last_error"),
@@ -2310,6 +2449,224 @@ export const bankTransactions = pgTable(
     index("bank_transactions_counterparty_iban_trgm_idx").using("gin", sql`haben_unaccent(${t.counterpartyIban}) gin_trgm_ops`),
     index("bank_transactions_amount_search_idx").on(t.amount),
     index("bank_transactions_booking_date_search_idx").on(t.bookingDate),
+  ],
+);
+
+/**
+ * Quellenbindung des Importvertrags (#306): Konto und Kennung beim Anbieter. Eine neue Verbindung oder erneute Zustimmung
+ * mit derselben Kennung findet dieselbe Bindung, es entsteht kein zweites logisches Konto. Nur anhängen.
+ */
+export const importSources = pgTable(
+  "import_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bankAccountId: uuid("bank_account_id")
+      .notNull()
+      .references(() => bankAccounts.id),
+    provider: text("provider").notNull(),
+    /** Enable Banking: `identification_hash` des Kontos */
+    externalAccountId: text("external_account_id").notNull(),
+    accountKind: text("account_kind", { enum: ["bank", "psp"] }).notNull(),
+    /** Erster Tag, den diese Quelle liefert; davor decken Dateien oder frühere Abrufe das Konto ab */
+    cutoverDate: date("cutover_date", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("import_sources_identity").on(t.provider, t.externalAccountId), check("import_sources_kind", sql`${t.accountKind} in ('bank', 'psp')`)],
+);
+
+/** Die in einem Abruf schon vorhandenen Umsätze; neue verbindet bereits bank_transactions.import_id. */
+export const bankImportTransactions = pgTable(
+  "bank_import_transactions",
+  {
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+  },
+  (t) => [primaryKey({ columns: [t.bankImportId, t.transactionId] }), index("bank_import_transactions_transaction").on(t.transactionId, t.bankImportId)],
+);
+
+/** Jede angenommene Lieferung des Importvertrags mit ihrem Prüfwert und dem Stand danach; nur anhängen */
+export const importBatches = pgTable(
+  "import_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => importSources.id),
+    idempotencyKey: text("idempotency_key").notNull(),
+    fetchId: text("fetch_id").notNull(),
+    partIndex: integer("part_index").notNull(),
+    partLast: boolean("part_last").notNull(),
+    coverageFrom: date("coverage_from", { mode: "string" }).notNull(),
+    coverageTo: date("coverage_to", { mode: "string" }).notNull(),
+    /** Nicht übernommene Ereignisse, die den Zeitraum offen lassen, und der früheste offene Tag */
+    blocking: integer("blocking").notNull(),
+    openFrom: date("open_from", { mode: "string" }),
+    /** `batchFingerprint`: Dieselbe Lieferung noch einmal liefert das bisherige Ergebnis, mit anderem Inhalt ist sie ein Konflikt */
+    fingerprint: text("fingerprint").notNull(),
+    /** Nachweis mehrfach vergebener Enable-Banking-Referenzen in dieser Lieferung. */
+    ambiguousEntryReferences: text("ambiguous_entry_references").array(),
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    /** Vollständig abgerufen bis einschließlich (`advanceCheckpoint`) nach dieser Lieferung */
+    checkpoint: date("checkpoint", { mode: "string" }),
+    complete: boolean("complete").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("import_batches_key").on(t.sourceId, t.idempotencyKey), index("import_batches_source_created").on(t.sourceId, t.createdAt)],
+);
+
+/** Verdacht zwischen zwei gespeicherten Umsätzen. Der Import legt nur offene Vermerke an. */
+export const bankDuplicateReviews = pgTable(
+  "bank_duplicate_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    originalTransactionId: uuid("original_transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    decision: text("decision", { enum: ["pending", "duplicate", "distinct"] })
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("bank_duplicate_reviews_pair").on(
+      sql`least(${t.transactionId}, ${t.originalTransactionId})`,
+      sql`greatest(${t.transactionId}, ${t.originalTransactionId})`,
+    ),
+    index("bank_duplicate_reviews_transaction").on(t.transactionId),
+    check("bank_duplicate_reviews_distinct_rows", sql`${t.transactionId} <> ${t.originalTransactionId}`),
+    check("bank_duplicate_reviews_decision", sql`${t.decision} in ('pending', 'duplicate', 'distinct')`),
+  ],
+);
+
+/** Entscheidung oder Gegenzeile zu einem Verdacht. Die Umsätze bleiben gesperrt. */
+export const bankDuplicateDecisions = pgTable(
+  "bank_duplicate_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => bankDuplicateReviews.id),
+    decision: text("decision", { enum: ["pending", "duplicate", "distinct"] }).notNull(),
+    reversesId: uuid("reverses_id").references((): AnyPgColumn => bankDuplicateDecisions.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("bank_duplicate_decisions_review").on(t.reviewId),
+    uniqueIndex("bank_duplicate_decisions_reversal").on(t.reversesId),
+    check(
+      "bank_duplicate_decisions_kind",
+      sql`(${t.decision} in ('duplicate', 'distinct') and ${t.reversesId} is null) or (${t.decision} = 'pending' and ${t.reversesId} is not null)`,
+    ),
+  ],
+);
+
+/** Abschluss der einmaligen Bestandsprüfung, auch wenn kein Verdacht gefunden wurde. */
+export const bankDuplicateCheck = pgTable(
+  "bank_duplicate_check",
+  { id: integer("id").primaryKey(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow() },
+  (t) => [check("bank_duplicate_check_single", sql`${t.id} = 1`)],
+);
+
+/**
+ * Quellenidentität: Jede übernommene Bewegung mit ihrem buchungsrelevanten Kern und dem Umsatz, den sie in Haben ergibt.
+ * Daran erkennt Haben sie in späteren Lieferungen wieder; ein anderer Kern ist ein Konflikt. Nur anhängen.
+ */
+export const importMovements = pgTable(
+  "import_movements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => importSources.id),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => importBatches.id),
+    sourceEventId: text("source_event_id").notNull(),
+    component: text("component", { enum: ["main", "fee"] }).notNull(),
+    kind: text("kind").notNull(),
+    bookingDate: date("booking_date", { mode: "string" }).notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
+    currency: text("currency").notNull(),
+    /** Prüfwert aller Angaben der ersten Lieferung (`knownMovement`) */
+    details: text("details").notNull(),
+    /**
+     * Referenzen der ersten Lieferung (Anbieterreferenz, Ereigniscode, EndToEndId, Bezug bei Erstattung und Rückbelastung,
+     * Auszahlung, Bestellung), wie geliefert (#306). Leer bei Bewegungen, die vor dieser Spalte übernommen wurden.
+     */
+    refs: jsonb("refs").$type<ImportMovement["references"]>(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("import_movements_identity").on(t.sourceId, t.sourceEventId, t.component),
+    uniqueIndex("import_movements_transaction").on(t.transactionId),
+    check("import_movements_component", sql`${t.component} in ('main', 'fee')`),
+  ],
+);
+
+/**
+ * Konflikt des Importvertrags (#306, 3b): Die Bank liefert eine schon übernommene Bewegung mit anderem Kern (Betrag,
+ * Währung, Buchungstag oder Art). Haben hält den gelieferten Kern und den Umsatz fest, den der Abruf daraus angelegt
+ * hätte, bis der Nutzer ihn klärt (`import_resolutions`). Je Bewegung und geliefertem Kern ein Eintrag; nur anhängen.
+ */
+export const importConflicts = pgTable(
+  "import_conflicts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Die zuerst übernommene Bewegung; sie nennt Quelle, Ereignis, Komponente und den bisherigen Umsatz */
+    movementId: uuid("movement_id")
+      .notNull()
+      .references(() => importMovements.id),
+    kind: text("kind").notNull(),
+    bookingDate: date("booking_date", { mode: "string" }).notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
+    currency: text("currency").notNull(),
+    /** Prüfwert aller gelieferten Angaben (`knownMovement`) */
+    details: text("details").notNull(),
+    /** Der Umsatz, wie ihn der Abruf angelegt hätte; „Als weiteren Umsatz übernehmen“ legt genau diesen an */
+    transaction: jsonb("transaction").$type<ParsedTransaction>().notNull(),
+    /** Der abgelehnte Abruf im Importprotokoll, der den Konflikt zuerst gemeldet hat */
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("import_conflicts_core").on(t.movementId, t.kind, t.bookingDate, t.amount, t.currency)],
+);
+
+/**
+ * Entscheidung zu einem Konflikt (#306, 3b), genau eine je Konflikt; nur anhängen. „keep“: Der gelieferte Kern gilt
+ * künftig als bekannt, der bisherige Umsatz bleibt allein. „add“: Haben hat den gelieferten Umsatz zusätzlich angelegt
+ * (`transaction_id`); der bisherige bleibt mit seinen Zuordnungen stehen und zeigt einen Hinweis auf den neuen.
+ */
+export const importResolutions = pgTable(
+  "import_resolutions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conflictId: uuid("conflict_id")
+      .notNull()
+      .references(() => importConflicts.id),
+    decision: text("decision", { enum: ["keep", "add"] }).notNull(),
+    transactionId: uuid("transaction_id").references(() => bankTransactions.id),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("import_resolutions_conflict").on(t.conflictId),
+    uniqueIndex("import_resolutions_transaction").on(t.transactionId),
+    check("import_resolutions_decision", sql`${t.decision} in ('keep', 'add')`),
+    check("import_resolutions_transaction", sql`(${t.decision} = 'add') = (${t.transactionId} is not null)`),
   ],
 );
 
@@ -2477,6 +2834,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "kategorie",
   // Private Spende vom Geschäftskonto auf das Privatkonto „Zuwendungen, Spenden“ (Einzelunternehmen)
   "spende",
+  // Aufladung eines Guthabens: Ausgabe ohne Vorsteuer auf eine Pflicht-Kostenkategorie (#1356)
+  "aufladung",
 ]);
 
 /**
@@ -2571,9 +2930,10 @@ export const allocations = pgTable(
       sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
     ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    // Eine Aufladung trägt wie die Direktbuchung auf eine Kategorie ihre Pflicht-Kostenkategorie (#1356)
     check(
       "allocations_kategorie",
-      sql`case when ${t.kind}::text = 'kategorie' then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
+      sql`case when ${t.kind}::text in ('kategorie', 'aufladung') then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
     ),
     check(
       "allocations_loan",
@@ -2898,7 +3258,7 @@ export const storeReports = pgTable(
      * Berichtsregion (Z1)
      */
     part: text("part").notNull(),
-    /** Berichtsmonat YYYY-MM; bei Apple der Fiskalmonat */
+    /** Berichtsmonat YYYY-MM; bei Apple die Fiskalperiode (Fiskaljahr-Periode, 2026-01 ist der Oktober 2025) */
     period: text("period").notNull(),
     sha256: text("sha256").notNull(),
     archiveFileId: uuid("archive_file_id")
@@ -3455,7 +3815,15 @@ export const lexofficeVoucherFiles = pgTable(
 );
 
 /** Dateistand eines archivierten Belegs, soweit er von „alle Dateien da“ abweicht (#345) */
-export const LEGACY_FILE_STATES = ["ohne_datei", "abruf_fehlgeschlagen", "anhang_fehlt", "bestaetigt_ohne_datei", "nachgeladen", "kein_anhang"] as const;
+export const LEGACY_FILE_STATES = [
+  "ohne_datei",
+  "abruf_fehlgeschlagen",
+  "anhang_fehlt",
+  "bestaetigt_ohne_datei",
+  "bestaetigung_zurueckgenommen",
+  "nachgeladen",
+  "kein_anhang",
+] as const;
 export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
 
 /**
@@ -3463,7 +3831,11 @@ export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
  * - ohne_datei: sevDesk nennt keine Datei (`document` leer). Das beweist nicht, dass es nie eine gab; offen, bis jemand bestätigt.
  * - abruf_fehlgeschlagen: sevDesk nennt eine Datei (oder bei Rechnung und Gutschrift ist das PDF Pflicht), der Abruf scheiterte.
  * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
- * - bestaetigt_ohne_datei: eine Person hat in sevDesk geprüft, dass der Beleg keine Datei hat (created_by, Zeitpunkt).
+ * - bestaetigt_ohne_datei: eine Person hat geprüft, dass der Beleg keine Datei hat (bei sevDesk der Abruf, beim
+ *   Accountable-Stapel der fehlende Einzelbeleg, bei der Lexoffice-Sicherung die Buchung ohne Beleg), festgehalten mit
+ *   created_by und Zeitpunkt.
+ * - bestaetigung_zurueckgenommen: eine Person hat eine solche Bestätigung mit Grund zurückgenommen (#1317). Die
+ *   Bestätigung bleibt als frühere Zeile stehen, der Beleg gilt wieder als offen.
  * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
  * - kein_anhang: ein späterer Abruf sagt ohne Fehler, dass es den fehlenden Anhang nicht gibt (keine E-Rechnung).
  */
@@ -3703,7 +4075,7 @@ export const backupStatus = pgTable(
     bytes: bigint("bytes", { mode: "number" }),
     /** Zusammenfassung oder Fehlermeldung */
     message: text("message").notNull().default(""),
-    /** Ziel der Sicherung (RESTIC_REPOSITORY ohne Zugangsdaten), für die Verfahrensdokumentation; null bei älteren Images */
+    /** Ziel der Sicherung (RESTIC_REPOSITORY ohne Zugangsdaten), für Einstellungen → Export und die Verfahrensdokumentation; null bei älteren Images */
     target: text("target"),
   },
   (t) => [check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`), index("backup_status_kind_at").on(t.kind, t.at)],
@@ -4207,6 +4579,70 @@ export const appVersions = pgTable("app_versions", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   note: text("note"),
 });
+
+/** Befund der Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahr und was abweicht */
+export interface JournalUmstellungBefund {
+  jahr: number;
+  /** Anzeigetext wie im Abgleich; bei Befunden ohne `schluessel` (vor #1229 gespeichert) auch das Merkmal zum Wiedererkennen */
+  text: string;
+  /** Seit #1229: Bereich, stabiler Schlüssel und beide Beträge des Postens (AbgleichZeile), unabhängig vom Anzeigetext */
+  bereich?: string;
+  schluessel?: string;
+  journal?: number;
+  quelle?: number;
+}
+
+/**
+ * Umstellung von Voranmeldung und EÜR auf das Journal als einzige Quelle (#1116, docs/adr/journal-als-quelle.md): je
+ * Prüfung beim Start eine Zeile, nur anhängen und im Änderungsprotokoll. Die letzte Zeile gilt: „offen“ nach der Migration,
+ * solange Jahre vor dem früheren Stichjahr (`stichjahr_vorher`, bis dahin company.journal_ab) ungeprüft sind; „bestanden“,
+ * wenn sie aus dem Journal so herauskommen wie vorher; „uebernommen“, wenn die Abweichungen ausdrücklich übernommen sind
+ * (HABEN_ABWEICHUNG_UEBERNEHMEN), mit den Befunden.
+ */
+export const journalUmstellung = pgTable("journal_umstellung", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  stichjahrVorher: integer("stichjahr_vorher"),
+  ergebnis: text("ergebnis", { enum: ["offen", "bestanden", "uebernommen"] }).notNull(),
+  befunde: jsonb("befunde").$type<JournalUmstellungBefund[]>().notNull().default([]),
+  version: text("version"),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Zugang zum Zahlungsverlauf von Etsy Payments über die Open API v3 (Einstellungen › Bank). Genau eine Zeile, weil
+ * Haben einen Shop je Installation anbindet. Das gemeinsame Geheimnis der Etsy-App und die Zugangs- und
+ * Erneuerungstoken liegen verschlüsselt in ciphertext; der App-Schlüssel (keystring) ist nicht geheim. Wird die
+ * Verbindung getrennt, bleiben Schlüssel und Geheimnis stehen, damit sie ohne neue Eingabe wieder aufgenommen werden kann.
+ */
+export const etsyConnections = pgTable(
+  "etsy_connections",
+  {
+    /** Es gibt genau eine Verbindung; der feste Wert hält es dabei */
+    id: text("id").primaryKey().default("etsy"),
+    /** App-Schlüssel der Etsy-App (keystring) */
+    keystring: text("keystring").notNull(),
+    /** Kennung und Name des Shops, beim Verbinden von Etsy ermittelt */
+    shopId: text("shop_id").notNull().default(""),
+    shopName: text("shop_name").notNull().default(""),
+    /** Gemeinsames Geheimnis, Token und die offene Anmeldung (state, PKCE-Verifier): AES-256-GCM */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */
+    fetchFrom: date("fetch_from").notNull(),
+    /** Der in den Einstellungen gewählte erste Monat (1. des Monats) */
+    abrufStart: date("abruf_start").notNull(),
+    /** Gebühren und Werbung je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
+    sammelzeilen: boolean("sammelzeilen").notNull().default(true),
+    /** Wie oft der Zeitplan abruft: stuendlich, taeglich, woechentlich oder monatlich (ab dem 5.) */
+    rhythmus: text("rhythmus").notNull().default("taeglich"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("etsy_connections_id", sql`${t.id} = 'etsy'`),
+    check("etsy_connections_rhythmus", sql`${t.rhythmus} in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich')`),
+  ],
+);
 
 /**
  * Angaben zum Betrieb für die Verfahrensdokumentation (#860), genau eine Zeile (id = 1): was Haben nicht wissen kann.

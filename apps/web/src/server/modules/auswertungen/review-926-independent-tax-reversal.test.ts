@@ -33,16 +33,13 @@ describe.skipIf(!testDatabaseUrl)("Unabhängige Nachprüfung 926: Steuererstattu
     const [original] = await sql`select id, to_jsonb(a)::text as value from allocations a where transaction_id=${transactionId}`;
     const originalSeal = await sql`select to_jsonb(s)::text as value from seals s where table_name='allocations' and row_id=${original!.id}`;
     expect(originalSeal).toHaveLength(1);
-    const previous = await reports.euerAusNebenbuechern(2025);
+    const previous = await reports.euerForYear(2025);
     await bank.reverseAllocation("review-926-tax-reversal", original!.id, "2026-01-16");
-    expect(await reports.euerAusNebenbuechern(2025)).toEqual(previous);
+    expect(await reports.euerForYear(2025)).toEqual(previous);
     expect(await sql`select to_jsonb(a)::text as value from allocations a where id=${original!.id}`).toEqual([{ value: original!.value }]);
     expect(await sql`select to_jsonb(s)::text as value from seals s where table_name='allocations' and row_id=${original!.id}`).toEqual(originalSeal);
     const lines = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) =>
       Object.fromEntries([...euer.einnahmen, ...euer.ausgaben].filter((line) => line.amount !== 0).map((line) => [line.key, line.amount]));
-    expect({
-      nebenbuch: lines(await reports.euerAusNebenbuechern(2026)),
-      journal: lines(await reports.euerForYear(2026)),
-    }).toEqual({ nebenbuch: { [key]: -500 }, journal: { [key]: -500 } });
+    expect({ journal: lines(await reports.euerForYear(2026)) }).toEqual({ journal: { [key]: -500 } });
   });
 });

@@ -167,23 +167,8 @@ function positiv(einkuenfte: number, vortrag: number, abzug: KstBerechnung["verl
   ];
 }
 
-export function buildKstXml(input: KstXmlInput): string {
-  const envelopeInput: Envelope = { ...input, datenArt: "KSt" };
-  checkEnvelope(envelopeInput);
-  if (!(KST_JAHRE as readonly number[]).includes(input.year)) {
-    throw new ElsterEingabeError(`Die Körperschaftsteuererklärung sendet Haben für ${KST_JAHRE.join(", ")}, nicht für ${input.year}.`);
-  }
-  if (input.anteilseigner.length === 0) throw new ElsterEingabeError("Die Anteilseigner fehlen.");
-  if (!input.sitz.trim()) throw new ElsterEingabeError("Der Ort des Sitzes fehlt.");
-  const y = input.year;
-  if (input.gruendung && !input.gruendung.startsWith(`${y}-`)) throw new ElsterEingabeError(`Das Gründungsdatum liegt nicht in ${y}.`);
-  // Im Gründungsjahr beginnt das erste Wirtschaftsjahr mit der Gründung
-  const von = germanDate(input.gruendung ?? `${y}-01-01`);
-  const bis = germanDate(`${y}-12-31`);
-  const b = kstBerechnung(input);
-  const h = input.hinzurechnungen;
-  const ort = input.sitz.trim().slice(0, 24);
-
+/** Hauptvordruck KSt 1 mit Steuerpflicht und Wirtschaftsjahr */
+function hauptvordruckKst1(input: KstXmlInput, von: string, bis: string, ort: string): XmlNode {
   const kst1: XmlNode = [
     "KSt1",
     [
@@ -211,7 +196,11 @@ export function buildKstXml(input: KstXmlInput): string {
       anteilseigner(input),
     ],
   ];
+  return kst1;
+}
 
+/** Gewinnermittlung (Anlage GK) */
+function gewinnermittlungGk(input: KstXmlInput, von: string, bis: string, b: KstBerechnung, h: KstXmlInput["hinzurechnungen"]): XmlNode {
   const gk: XmlNode = [
     "GK",
     [
@@ -242,7 +231,11 @@ export function buildKstXml(input: KstXmlInput): string {
       ["Einkunfte", [["E8109901", String(b.einkuenfte)]]],
     ],
   ];
+  return gk;
+}
 
+/** Summe der Einkünfte, zu versteuerndes Einkommen und Steuerberechnung */
+function einkommenZve(b: KstBerechnung): XmlNode {
   const abzug = b.verlustabzug.sockel + b.verlustabzug.quote;
   const zve: XmlNode = [
     "ZVE",
@@ -278,7 +271,11 @@ export function buildKstXml(input: KstXmlInput): string {
       ],
     ],
   ];
+  return zve;
+}
 
+/** Verluste (Anlage Verluste); null ohne Verlust */
+function verlusteAnlage(b: KstBerechnung): XmlNode | null {
   const v = b.verlust;
   const verluste: XmlNode | null = v && [
     "Verluste",
@@ -297,7 +294,11 @@ export function buildKstXml(input: KstXmlInput): string {
       ["Ende", [["E8009201", String(v.ende)]]],
     ],
   ];
+  return verluste;
+}
 
+/** Anteilseigner (Anlage WA) */
+function anteilseignerWa(input: KstXmlInput): XmlNode {
   const wa: XmlNode = [
     "WA",
     [
@@ -322,7 +323,31 @@ export function buildKstXml(input: KstXmlInput): string {
       ],
     ],
   ];
+  return wa;
+}
 
+export function buildKstXml(input: KstXmlInput): string {
+  const envelopeInput: Envelope = { ...input, datenArt: "KSt" };
+  checkEnvelope(envelopeInput);
+  if (!(KST_JAHRE as readonly number[]).includes(input.year)) {
+    throw new ElsterEingabeError(`Die Körperschaftsteuererklärung sendet Haben für ${KST_JAHRE.join(", ")}, nicht für ${input.year}.`);
+  }
+  if (input.anteilseigner.length === 0) throw new ElsterEingabeError("Die Anteilseigner fehlen.");
+  if (!input.sitz.trim()) throw new ElsterEingabeError("Der Ort des Sitzes fehlt.");
+  const y = input.year;
+  if (input.gruendung && !input.gruendung.startsWith(`${y}-`)) throw new ElsterEingabeError(`Das Gründungsdatum liegt nicht in ${y}.`);
+  // Im Gründungsjahr beginnt das erste Wirtschaftsjahr mit der Gründung
+  const von = germanDate(input.gruendung ?? `${y}-01-01`);
+  const bis = germanDate(`${y}-12-31`);
+  const b = kstBerechnung(input);
+  const h = input.hinzurechnungen;
+  const ort = input.sitz.trim().slice(0, 24);
+
+  const kst1 = hauptvordruckKst1(input, von, bis, ort);
+  const gk = gewinnermittlungGk(input, von, bis, b, h);
+  const zve = einkommenZve(b);
+  const verluste = verlusteAnlage(b);
+  const wa = anteilseignerWa(input);
   const kst1f = kst1fNode(input);
 
   const e30 = [

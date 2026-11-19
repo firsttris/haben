@@ -14,15 +14,16 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 | | |
 |---|---|
-| [Installation](installation.md) | Docker Compose, Podman Quadlets, Caddy, Secrets, eigener Reverse Proxy; Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md), Anleitung für [Plesk](plesk.md), Helm-Chart für [Kubernetes](kubernetes.md); dazu [Konfiguration](installation-konfiguration.md) (Datenbankrollen, Umgebungsvariablen), [Backup und Updates](installation-backup.md), [Anbindungen](installation-anbindungen.md) (ERiC, KI, Kontoabruf), [Single Sign-on](installation-sso.md) und [Häufige Probleme](installation-probleme.md) |
+| [Installation](installation.md) | Docker Compose mit [Compose-Generator](compose-generator.md) für `.env` und Override, Podman Quadlets, Caddy, Secrets, eigener Reverse Proxy; Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md), Anleitung für [Plesk](plesk.md), Helm-Chart für [Kubernetes](kubernetes.md); dazu [Konfiguration](installation-konfiguration.md) (Datenbankrollen, Umgebungsvariablen), [Backup und Updates](installation-backup.md), [Anbindungen](installation-anbindungen.md) (ERiC, KI, Kontoabruf), [Single Sign-on](installation-sso.md) und [Häufige Probleme](installation-probleme.md) |
 
 ## Einrichten
 
 | | |
 |---|---|
-| [Erste Schritte](einrichtung.md) | Konto und Passkey, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, KI-Auslesung, Bankkonten |
+| [Erste Schritte](einrichtung.md) | Konto und Passkey, Fragen zur Einrichtung, Bereiche ausblenden, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, KI-Auslesung, Bankkonten |
 | [ELSTER einrichten](einrichtung-elster.md) | Zertifikatsdatei, eigene Hersteller-ID, ERiC-Version, Unterschied zu Lexoffice |
 | [E-Mail-Versand](einrichtung-email.md) | Versand über SMTP oder Microsoft 365 (Graph) |
+| [Von der Testinstanz in den Echtbetrieb](einrichtung-echtbetrieb.md) | Einstellungen und Stammdaten als Datei in eine neue Instanz übernehmen |
 | [Zugang für die Steuerberatung](steuerberatung.md) | Eigener Zugang per Einladungslink, nur lesen: Auswertungen, Journal, Konten, Belege, Rechnungen, DATEV und Jahresarchiv |
 | [Barrierefreiheit und Tastatur](barrierefreiheit.md) | Bedienung ohne Maus, Tastenkürzel, Kontraste in allen Themes, Prüfung mit axe-core nach WCAG 2.2 AA |
 
@@ -33,21 +34,23 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Rechnungen und E-Rechnung](rechnungen.md) | Editor, Artikelkatalog, Textbausteine, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Abschläge, wiederkehrende Rechnungen, Versand, Storno und Korrektur |
 | [Zahlung und Mahnung](rechnungen-zahlung.md) | Fälligkeit, Skonto, GiroCode, SEPA-Lastschrift mit Sammeldatei, Mahnwesen |
 | [Angebote](angebote.md) | Eigener Nummernkreis, PDF, optionale und alternative Positionen, Zahlungsplan mit Abschlägen, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot, Auftragsbestätigung und Lieferschein |
-| [Kontakte](kontakte.md) | Ein Verzeichnis für Kunden und Lieferanten, Ansprechpartner, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate |
-| [Leistungen und Zeiteinträge](leistungen.md) | Zeiteinträge je Kunde mit Stundensatz, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API, als Grundlage für die Rechnung |
+| [Kontakte](kontakte.md) | Ein Verzeichnis für Kunden und Lieferanten, Ansprechpartner, USt-IdNr. beim BZSt bestätigen, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate |
+| [Zeiteinträge](leistungen.md) | Zeiteinträge je Kunde mit Stundensatz, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API, als Grundlage für die Rechnung |
 | [Eigene Belegvorlagen](belegvorlagen.md) | Eigene Layouts in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung: Felder, Schriften, Prüfung beim Hochladen, Anleitung für KI-Agenten |
 
 ## Ausgaben und Bank
 
 | | |
 |---|---|
-| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
+| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Duplizieren, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
 | [Belege aus dem Ausland](belege-ausland.md) | Reverse Charge nach § 13b, innergemeinschaftlicher Erwerb, Einfuhrumsatzsteuer, Fremdwährung |
 | [Belege bezahlen](belege-bezahlen.md) | Bezahlung über Geschäftskonto, privat oder Kasse, Überweisen per SEPA-Datei mit Skonto, Verrechnen ohne Zahlung |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand, Wege zur Betriebsstätte (Entfernungspauschale); Buchung und Storno |
 | [Kassenbuch](kasse.md) | Barkasse: Einlage, Entnahme, Geldtransit, bar bezahlte Belege und Rechnungen; nie negativer Bestand, Storno |
 | [Anlagen und AfA](anlagen.md) | Anlagenverzeichnis, lineare und degressive AfA, Anschaffung per Beleg, Übernahme aus Lexoffice und sevDesk, AfA buchen, Abgang |
-| [Bankimport und Abgleich](bank.md) | Automatischer Abruf per PSD2 (Enable Banking), DKB, Commerzbank, C24, N26, Swan, CAMT.053, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg |
+| [Bankimport und Abgleich](bank.md) | Automatischer Abruf per PSD2 (Enable Banking) oder FinTS, DKB, Commerzbank, ING, C24, N26, Swan, CAMT.053, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg |
+| [Andere Banken](bank-spaltenzuordnung.md) | CSV einer Bank ohne eigenes Format: Spalten einmal zuordnen, gespeichert je Konto |
+| [Abruf über FinTS](bank-fints.md) | Bankkonten direkt bei der Bank abrufen, mit PIN, TAN-Verfahren und pushTAN, ohne Enable Banking |
 | [Zahlungsdienstleister](bank-zahlungsdienstleister.md) | PayPal, Stripe, Shopify Payments, eBay, Etsy, SumUp, Google Play und App Store mit Gebühren und Auszahlungen |
 | [Steuerzahlungen und Darlehen](bank-steuern-darlehen.md) | Zahlungen an Finanzamt und Gemeinde, Erstattungen, Darlehen mit Tilgung und Zinsen |
 
@@ -57,7 +60,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 |---|---|
 | [Umsatzsteuer-Voranmeldung](umsatzsteuer.md) | Kennzahlen aus den Buchungen, Vorprüfung, Prüfen, Test- und Echtübermittlung, XML-Import in Mein ELSTER, Berichtigung, Zahlung an das Finanzamt, Dauerfristverlängerung, Zusammenfassende Meldung |
 | [Jahreserklärungen](jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung, für GmbH und UG Körperschaft- und Gewerbesteuererklärung, Prüfen, Test- und Echtübermittlung, Belege von ELSTER |
-| [Auswertungen und Jahresexport](auswertungen.md) | EÜR, offene Posten, Monatsverlauf, CSV, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
+| [Auswertungen und Jahresexport](auswertungen.md) | EÜR, BWA, offene Posten, Monatsverlauf, CSV, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
 | [Fristen](fristen.md) | Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen; Kalender-Abo und Erinnerungen per E-Mail |
 | [Finanzamt](finanzamt.md) | Bescheide aus dem ELSTER-Postfach, Einspruchsfrist, Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen, Bankverbindung |
 | [Lohn](lohn.md) | Mitarbeiter, Abrechnung je Monat (Geschäftsführer, Minijob, Angestellte als Entwurf), festschreiben und stornieren, Entgeltabrechnung als PDF, Lohnkonto, Lohnsteuer-Anmeldung, Ausfüllliste für das SV-Meldeportal, Lohnsteuerbescheinigung |
@@ -90,7 +93,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [KI-Assistenten (MCP)](ki-assistenten.md) | Haben im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen, API-Tokens, Datenschutz |
-| [REST-API](api.md) | Kontakte und Rechnungsentwürfe aus eigenen Werkzeugen, mit Bestellnummer ohne Duplikate; Belege aus Dokumentenarchiven und Skripten; OpenAPI, Rechte je Token, Beispiele mit curl |
+| [REST-API](api.md) | Kontakte, Katalogartikel und Rechnungsentwürfe aus eigenen Werkzeugen, dazu Angebote lesen. Eine externe Referenz aus Plattform und Bestellnummer verhindert doppelte Entwürfe. Belege aus Dokumentenarchiven und Skripten. OpenAPI, Rechte je Token und Beispiele mit curl |
 | [Dokumentenarchiv](dokumentenarchiv.md) | Festgeschriebene Rechnungen als Kopie an ein Archiv wie Paperless-ngx oder Belegt, Status an der Rechnung; Belege aus dem Archiv über die REST-API |
 | [Eigene Seiten](eigene-seiten.md) | Eigene Werkzeuge wie eine Bestellübersicht aus n8n als Menüeintrag, im Rahmen angezeigt |
 

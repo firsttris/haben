@@ -662,6 +662,9 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .banner-ok { background: var(--accent-soft); color: var(--accent-ink); }
 .banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
 .banner a { color: inherit; font-weight: 500; }
+/* Aufeinanderfolgende Hinweise unter der Seitenüberschrift rücken auf 12px zusammen (die Seite hat 24px Abstand); der Link bricht nicht mitten im Namen um */
+.main > .banner + .banner { margin-top: -12px; }
+.eric-hinweis a { white-space: nowrap; }
 .banner-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 16px; }
 .error-banner details { margin-top: 4px; font-size: 13px; }
 .error-banner summary { cursor: pointer; }
@@ -681,6 +684,15 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .kz-row.total { border-top: 2px solid var(--ink); font-weight: 600; }
 .kz-num { font-family: var(--mono); font-size: 13px; color: var(--muted); }
 .kz-amount { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* Berichtigung in einem übernommenen Jahr: gesendet, Journal und Differenz je Kennzahl (JournalVergleich, #1200) */
+.journal-vergleich { flex-direction: column; }
+@media (max-width: 720px) { .journal-vergleich { padding: 12px; } .vergleich-table { font-size: 13px; } }
+.vergleich-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.vergleich-table th, .vergleich-table td { padding: 6px 0 6px 8px; border-top: 1px solid var(--line-soft); text-align: left; font-weight: 400; }
+.vergleich-table th:first-child { padding-left: 0; }
+.vergleich-table thead th { border-top: 0; font-size: 13px; }
+.vergleich-table .num { text-align: right; }
+.vergleich-table td.num { white-space: nowrap; }
 .kz-row input { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-family: var(--mono); font-size: 14px; text-align: right; color: var(--ink); background-color: var(--surface); }
 .kz-row input:read-only { border-color: transparent; background: transparent; }
 .kz-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
@@ -898,6 +910,9 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
   .doc-editor .icon-btn { width: 36px; height: 36px; }
   .doc-editor textarea { min-height: 56px; }
   .doc-editor .doc-actions { position: sticky; bottom: 0; z-index: 1; margin-top: auto; padding: 12px 0 2px; background: var(--ground); border-top: 1px solid var(--line); }
+  /* Das Menü ⋯ klappt nur nach oben auf, wo die Knopfzeile am unteren Rand klebt; schmal steht sie im Fluss, und nach unten
+     bleiben „Löschen“ und „Speichern“ unverdeckt */
+  .doc-editor .doc-actions .more-actions-menu .split-menu { top: auto; bottom: calc(100% + 4px); }
 }
 /* Position: Art.-Nr. und Bezeichnung, darunter der Text, dann die Zahlen in festen Spalten unter der Kopfzeile.
    Die Spalte der Knöpfe hat eine feste Breite, damit Kopfzeile (ohne Knöpfe) und Positionen dieselben Spalten haben. */
@@ -973,6 +988,10 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .dropzone { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 16px; border: 2px dashed var(--line-strong); border-radius: 12px; color: var(--ink-2); background: var(--ground); }
 .dropzone.dragging { border-color: var(--accent); background: var(--accent-tint); }
 .upload-messages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Vorschau der Spaltenzuordnung (BankCsvZuordnung): Liste statt Tabelle, damit sie am Handy nicht seitlich scrollt */
+.csv-vorschau { list-style: none; margin: 0; padding: 0; }
+.csv-vorschau > li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--line-soft); overflow-wrap: anywhere; }
+.csv-vorschau-kopf { display: flex; justify-content: space-between; gap: 12px; }
 .document-cols { grid-template-columns: 96px minmax(0, 1fr) 160px 120px 170px; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .camera-only { display: none; }
@@ -1202,6 +1221,13 @@ summary { cursor: pointer; min-height: 24px; }
 /* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
 .choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+/* Fragen zur Einrichtung (#266): die Frage in Textfarbe, mehr Abstand zwischen den Fragen als zwischen den Antworten */
+.einrichtung-fragen { gap: 28px; }
+.frage { gap: 0; }
+.frage > legend:not(.visually-hidden) { font-size: 14px; font-weight: 500; color: var(--ink); }
+.frage > .field-hint { margin-bottom: 4px; }
+/* Einstellungen › Bereiche */
+.bereiche-liste { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 720px) {
   .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .plan-amount { grid-column: 1 / -1; }
@@ -1264,13 +1290,17 @@ summary { cursor: pointer; min-height: 24px; }
 .design-sheet { display: contents; }
 .design-panel { flex: 0 0 340px; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--surface); }
 .design-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+/* Abschnitte der Spalte Gestaltung mit Haarlinie getrennt, wie die Abschnitte eines Formulars */
+.design-panel-body > section + section { padding-top: 20px; border-top: 1px solid var(--line); }
 .design-panel h3, .design-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
 .design-panel p.small, .design-card p.small { margin: 8px 0 0; }
 .design-panel-foot { flex-shrink: 0; padding: 12px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
 .design-panel-foot p { margin: 0; }
 .design-panel-foot .actions { justify-content: flex-end; flex-wrap: wrap; }
 .design-panel-foot .actions .btn { padding-inline: 12px; }
-.design-logo-row { display: flex; flex-wrap: wrap; gap: 12px; }
+/* Größe und Stelle des Logos nebeneinander, auch am Handy (S M L und Links Mitte Rechts in 301px) */
+.design-logo-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.design-logo-row .segmented .btn { padding-inline: 8px; }
 .segmented { display: inline-flex; }
 .segmented .btn { min-width: 44px; min-height: 44px; border-radius: 0; margin-left: -1px; }
 .segmented .btn:first-child { margin-left: 0; border-radius: 8px 0 0 8px; }

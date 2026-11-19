@@ -1,0 +1,9 @@
+Umsätze Geschäftskonto;;;;;;;;;;;;;;;;;
+Zeitraum: 01.10.2026 - 31.10.2026;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;
+Buchungstag;Wert;Umsatzart;Begünstigter / Auftraggeber;Verwendungszweck;IBAN;BIC;Kundenreferenz;Mandatsreferenz ;Gläubiger ID;Fremde Gebühren;Betrag;Abweichender Empfänger;Anzahl der Aufträge;Anzahl der Schecks;Soll;Haben;Währung
+01.10.2026;01.10.2026;SEPA-Gutschrift;Nordwerk Software GmbH;Rechnung 2026-031;DE02120300000000202051;BYLADEM1001;;;;;;;;;;10.852,80;EUR
+05.10.2026;05.10.2026;SEPA-Überweisung an;Hafen Immobilien GmbH;Miete Büro Oktober;DE02500105170137075030;INGDDEFFXXX;;;;;;;;;-1.190,00;;EUR
+12.10.2026;12.10.2026;SEPA-Lastschrift;Telefonanbieter AG;Kundennummer 4711 Rechnung Oktober;DE02100500000054540402;BELADEBEXXX;;MD-0815;DE98ZZZ09999999999;;;;;;-39,99;;EUR
+31.10.2026;31.10.2026;Entgelt;;Kontoführung Oktober;;;;;;;;;;;-9,90;;EUR
+Kontostand;31.10.2026;;;12.345,67;EUR;;;;;;;;;;;;

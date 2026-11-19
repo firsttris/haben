@@ -48,8 +48,8 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       const xmlHash = createHash("sha256").update(xml).digest("hex");
       const { invoiceId, entryId } = await sql.begin(async (tx) => {
         await tx`select set_config('haben.actor','upgrade:altbestand',true)`;
-        await tx`insert into company(id,name,rechtsform,kontenrahmen,versteuerung,journal_ab)
-          values(1,'Alte Anzahlungs-GmbH','gmbh','SKR03','soll',2026)`;
+        await tx`insert into company(id,name,rechtsform,kontenrahmen,versteuerung)
+          values(1,'Alte Anzahlungs-GmbH','gmbh','SKR03','soll')`;
         const [invoice] = await tx`insert into invoices(issue_date,due_date,variant,advance_type,net,tax,gross,pdf,pdf_sha256,xml,xml_sha256)
           values('2026-12-01','2026-12-15','abschlag','anzahlung',30000,5700,35700,${pdf},${pdfHash},${xml},${xmlHash}) returning id`;
         const invoiceId = invoice!.id as string;
@@ -69,13 +69,13 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       const snapshot = async () => ({
         company: await sql`select (to_jsonb(c)-'ohne_vorsteuerabzug'-'archive_search'-'founded_on')::text as bytes from company c order by id`,
         invoice:
-          await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on')::text as bytes from invoices i order by id`,
+          await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on'-'reduction_rule')::text as bytes from invoices i order by id`,
         invoiceLines: await sql`select to_jsonb(l)::text as bytes from invoice_lines l order by id`,
         invoiceTaxes: await sql`select to_jsonb(t)::text as bytes from invoice_taxes t order by invoice_id,rate`,
         entries: await sql`select to_jsonb(e)::text as bytes from journal_entries e order by id`,
         lines: await sql`select to_jsonb(l)::text as bytes from journal_lines l order by id`,
         seals: await sql`select to_jsonb(s)::text as bytes from seals s order by id`,
-        audit: await sql`select to_jsonb(a)::text as bytes from audit_log a order by seq`,
+        audit: await sql`select to_jsonb(a)::text as bytes from audit_log a where table_name <> 'journal_umstellung' order by seq`,
       });
       const old = await snapshot();
       expect(old.entries).toHaveLength(1);
@@ -91,6 +91,11 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       expect(await sql`select ohne_vorsteuerabzug from company where id=1`).toEqual([{ ohne_vorsteuerabzug: false }]);
       expect(await sql`select tax_details from invoices where id=${invoiceId}`).toEqual([{ tax_details: null }]);
       expect(await sql`select paid_via, paid_on from invoices where id=${invoiceId}`).toEqual([{ paid_via: null, paid_on: null }]);
+      expect(await sql`select reduction_rule from invoices where id=${invoiceId}`).toEqual([{ reduction_rule: null }]);
+      // Neu im Audit-Log ist nur die Zeile der Prüfung beim Update (Migration 0275, #1116)
+      expect(await sql`select table_name, action from audit_log where seq > ${auditHead!.seq}`).toEqual([
+        { table_name: "journal_umstellung", action: "INSERT" },
+      ]);
       expect(await sql`select status,advance_type,advance_accounting,replaces_invoice_id from invoices where id=${invoiceId}`).toEqual([
         { status: "final", advance_type: "anzahlung", advance_accounting: null, replaces_invoice_id: null },
       ]);
@@ -124,7 +129,7 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
         { advance_accounting: null, replaces_invoice_id: null },
       ]);
       expect(
-        await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on')::text as bytes from invoices i order by id`,
+        await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on'-'reduction_rule')::text as bytes from invoices i order by id`,
       ).toEqual(old.invoice);
       expect(await sql`select to_jsonb(l)::text as bytes from invoice_lines l order by id`).toEqual(old.invoiceLines);
       expect(await sql`select to_jsonb(t)::text as bytes from invoice_taxes t order by invoice_id,rate`).toEqual(old.invoiceTaxes);

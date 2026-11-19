@@ -1,27 +1,23 @@
 import { legacyTakeoverCutoff, TakeoverError } from "../auswertungen/index.ts";
 import {
   addDays,
-  computeInvoice,
   isLegacyVatPayment,
   legacyOpenAt,
   openingDocumentPosting,
   openingInvoicePosting,
   type ExpenseCategory,
   type LegacyOpenAt,
-  type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
 import { and, eq, getTableColumns, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
-import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { ohneJit } from "../../db/ohne-jit.ts";
 import { loadSevdeskAccountCategories, sevdeskExpenseCategory, sevdeskPositionAccountsOf } from "./sevdesk-kategorie.ts";
 import { openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { storeInvoiceTaxes } from "../rechnungen/index.ts";
+import { createTakenOverInvoice, rebuildInvoiceLines } from "../rechnungen/index.ts";
 import type { LegacyCategoryRow, LegacyFileState } from "../../db/schema.ts";
 import { latestFileStates, takeoverFileIssue } from "./dateistand.ts";
-import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { effectivePayment, paymentHistoryIssue, settledOn } from "../auswertungen/index.ts";
 import { importedTaxTreatment } from "./legacy-import-tax.ts";
@@ -129,9 +125,10 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
   return typeof raw.payDate === "string" ? raw.payDate : null;
 }
 
-async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
+/** Archivbelege, die offene Posten sein können */
+async function openItemVouchers() {
   // Alle Archivbelege mit korrelierten Unterabfragen: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
-  const vouchers = await ohneJit((tx) =>
+  return ohneJit((tx) =>
     tx
       .select({
         ...getTableColumns(schema.lexofficeVouchers),
@@ -152,6 +149,10 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       )
       .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number),
   );
+}
+
+/** Ob ein Archivbeleg schon als Rechnung oder Beleg übernommen ist */
+async function takenOverLookup() {
   const [invoices, documents] = await Promise.all([
     db
       .select({ id: schema.invoices.id, voucherId: schema.invoices.lexofficeVoucherId })
@@ -164,11 +165,15 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   ]);
   const invoiceBy = new Map(invoices.map((i) => [i.voucherId, i.id]));
   const documentBy = new Map(documents.map((d) => [d.voucherId, d.id]));
-  const takenOverOf = (id: string): OpenLegacyItem["takenOver"] => {
+  return (id: string): OpenLegacyItem["takenOver"] => {
     const invoiceId = invoiceBy.get(id);
     const documentId = documentBy.get(id);
     return invoiceId ? { kind: "invoice", id: invoiceId } : documentId ? { kind: "document", id: documentId } : null;
   };
+}
+
+async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
+  const [vouchers, takenOverOf] = await Promise.all([openItemVouchers(), takenOverLookup()]);
   const candidates = vouchers
     .map((v) => {
       const issue = paymentHistoryIssue(v);
@@ -350,43 +355,30 @@ async function takeOverInvoice(
   if ("problem" in tax) throw new TakeoverError(tax.problem);
   const taxTreatment = tax.treatment;
 
-  // Eine Position je Steuersatz. Die Summen müssen exakt zu Lexoffice passen, sonst stimmt die Steuer nicht,
-  // auch nicht bei einem späteren Storno: erst netto nachbilden, sonst brutto (in Lexoffice mit Endpreisen gerechnet)
+  // Eine Position je Steuersatz; die Summen müssen exakt zur Quelle passen, sonst stimmt die Steuer auch bei einem späteren Storno nicht
   const taxes = voucher.taxes.filter((t) => t.net !== 0);
-  const rebuild = (priceMode: PriceMode) => {
-    const lines = taxes.map((t, i) => ({
-      position: i + 1,
-      description: `Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]}${taxes.length > 1 ? ` (${t.rate / 100} %)` : ""}`,
-      quantity: 1000,
-      unit: "Psch.",
-      unitPrice: priceMode === "brutto" ? t.net + t.tax : t.net,
-      taxRate: t.rate as 1900 | 700 | 0,
-    }));
-    const { totals, lineNets } = computeInvoice(lines, priceMode);
-    return { priceMode, totals, lines: lines.map((l, i) => ({ ...l, net: lineNets[i]! })) };
-  };
-  const matches = (r: ReturnType<typeof rebuild>) => r.totals.gross === voucher.gross && r.totals.tax === voucher.tax;
-  const netto = rebuild("netto");
-  const { priceMode, totals, lines } = matches(netto) ? netto : rebuild("brutto");
-  if (totals.gross !== voucher.gross || totals.tax !== voucher.tax) {
+  const rebuilt = rebuildInvoiceLines(
+    taxes,
+    (rate, mehrere) => `Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]}${mehrere ? ` (${rate / 100} %)` : ""}`,
+    (totals) => totals.gross === voucher.gross && totals.tax === voucher.tax,
+  );
+  if (!rebuilt.ok) {
     throw new TakeoverError(
-      `Die Steuer lässt sich nicht centgenau nachbilden (${SOURCE_LABEL[voucher.source]} ${voucher.tax / 100} €, Haben ${netto.totals.tax / 100} €).`,
+      `Die Steuer lässt sich nicht centgenau nachbilden (${SOURCE_LABEL[voucher.source]} ${voucher.tax / 100} €, Haben ${rebuilt.netTax / 100} €).`,
     );
   }
+  const { priceMode, totals, lines } = rebuilt;
 
   return withActor(actor, async (tx) => {
     const covering = await lockedCovering(tx, voucher, cutoff);
     const company = await openBooks(tx);
-    // Kz 45 meldet Haben auch bei Ist mit der Rechnung (NACH_RECHNUNGSDATUM), das Quellprogramm bei Ist mit der Zahlung
-    // (legacy-vat.ts). Eine am Stichtag offene Drittlandsleistung stünde so in keiner Voranmeldung.
+    // Kz 45 meldet Haben auch bei Ist mit der Rechnung (NACH_RECHNUNGSDATUM). Ob das Quellprogramm bei Ist ebenso oder mit
+    // der Zahlung gemeldet hat, ist nicht belegt (#1402); im zweiten Fall stünde eine am Stichtag offene Drittlandsleistung
+    // in keiner Voranmeldung.
     if (taxTreatment === "drittland" && company.versteuerung === "ist")
       throw new TakeoverError(
-        "Leistung ins Drittland bei Ist-Versteuerung: Kz 45 meldet das Quellprogramm mit der Zahlung, Haben mit der Rechnung. Den Posten von Hand erfassen.",
+        "Leistung ins Drittland bei Ist-Versteuerung: Haben meldet Kz 45 mit der Rechnung, das Quellprogramm womöglich erst mit der Zahlung. Den Posten von Hand erfassen.",
       );
-    if (voucher.number) {
-      const [clash] = await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.number, voucher.number));
-      if (clash) throw new TakeoverError(`Die Rechnungsnummer ${voucher.number} gibt es in Haben schon.`);
-    }
     let [contact] = voucher.contactId ? await tx.select().from(schema.contacts).where(eq(schema.contacts.id, voucher.contactId)) : [];
     if (!contact) {
       const raw = voucher.raw as { address?: { name?: string; street?: string; zip?: string; city?: string; countryCode?: string } };
@@ -403,51 +395,37 @@ async function takeOverInvoice(
     }
     const dueDate = voucher.dueDate ?? addDays(voucher.date, 14);
     const term = Math.max(0, Math.min(365, Math.round((Date.parse(dueDate) - Date.parse(voucher.date)) / 86_400_000)));
-    const [invoice] = await tx
-      .insert(schema.invoices)
-      .values({
-        kind: "rechnung",
-        contactId: contact!.id,
+    const number =
+      voucher.number ||
+      (voucher.source === "sevdesk"
+        ? `SD-${voucher.lexofficeId.split("/").pop()}`
+        : voucher.source === "fastbill"
+          ? `FB-${voucher.lexofficeId.split("/").pop()}`
+          : `LX-${voucher.lexofficeId.slice(0, 8)}`);
+    const invoice = await createTakenOverInvoice(
+      tx,
+      {
+        company,
+        contact: contact!,
+        number,
         issueDate: voucher.date,
+        dueDate,
+        paymentTermDays: term,
         serviceFrom: voucher.serviceFrom,
         serviceTo: voucher.serviceTo,
-        paymentTermDays: term,
-        dueDate,
+        taxTreatment,
         note: `Aus ${SOURCE_LABEL[voucher.source]} übernommen; das PDF ist das Original.`,
         priceMode,
-        taxTreatment,
-        net: totals.net,
-        tax: totals.tax,
-        gross: totals.gross,
-      })
-      .returning({ id: schema.invoices.id });
-    const id = invoice!.id;
-    await tx.insert(schema.invoiceLines).values(lines.map((l) => ({ ...l, invoiceId: id })));
-    await storeInvoiceTaxes(tx, id, totals.taxes);
-    const now = new Date();
-    await tx
-      .update(schema.invoices)
-      .set({
-        status: "final",
-        number:
-          voucher.number ||
-          (voucher.source === "sevdesk"
-            ? `SD-${voucher.lexofficeId.split("/").pop()}`
-            : voucher.source === "fastbill"
-              ? `FB-${voucher.lexofficeId.split("/").pop()}`
-              : `LX-${voucher.lexofficeId.slice(0, 8)}`),
-        contactVersion: contact!.version,
-        seller: sellerFrom(company),
-        buyer: buyerFrom(contact!),
-        pdf: Buffer.from(pdf),
+        totals,
+        lines,
+        pdf,
         pdfSha256: pdfFile.sha256,
         xml,
-        xmlSha256: xml ? createHash("sha256").update(xml).digest("hex") : null,
-        lexofficeVoucherId: voucher.id,
-        lockedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(schema.invoices.id, id));
+        origin: { lexofficeVoucherId: voucher.id },
+      },
+      (taken) => new TakeoverError(`Die Rechnungsnummer ${taken} gibt es in Haben schon.`),
+    );
+    const id = invoice.id;
     if (!covering)
       await post(tx, company, {
         date: cutoff.bookingDate,

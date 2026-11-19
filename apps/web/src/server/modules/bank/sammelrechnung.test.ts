@@ -85,6 +85,29 @@ describe.skipIf(!testDatabaseUrl)("Sammelrechnung an einer Gebührenzeile (Postg
     expect(detail?.sammelrechnung).toEqual({ summe: -11_657, documentId: null });
   }, 30_000);
 
+  it("lässt einen offenen Dublettenverdacht in Vorschlag und Sammelzuordnung außen vor", async () => {
+    await firma("SKR03");
+    await etsyOktober();
+    const originalId = await ersteGebuehr();
+    const etsy = (await bank.listAccounts()).find((konto) => konto.provider === "etsy")!;
+    const zweiteDatei = ETSY_OKTOBER.split("\n").slice(0, 2).join("\n").replace("Einstellgebühr", "EinstellgebührX");
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(zweiteDatei), filename: "etsy-nachtrag.csv" }, etsy.id);
+    const [verdacht] = await sql<{ id: string }[]>`select id from bank_transactions where amount = -744 and id <> ${originalId}`;
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', ${actor}, true)`;
+      await tx`insert into bank_duplicate_reviews (transaction_id, original_transaction_id) values (${verdacht!.id}, ${originalId})`;
+    });
+    const docId = await beleg(24, "Etsy Ireland UC", "2026-10-31", 11_657);
+
+    expect((await bank.transactionDetail(originalId))?.sammelrechnung).toEqual({ summe: -11_657, documentId: docId });
+    await expect(bank.allocateFeesToDocument(actor, { transactionId: verdacht!.id, documentId: docId })).rejects.toThrow(/Dublettenverdacht/);
+    expect(await bank.allocateFeesToDocument(actor, { transactionId: originalId, documentId: docId })).toBe(4);
+    const [zugeordnet] = await sql<{ summe: number; verdacht: boolean }[]>`select
+      coalesce(sum(amount), 0)::int as summe, bool_or(transaction_id = ${verdacht!.id}) as verdacht
+      from allocations where document_id = ${docId}`;
+    expect(zugeordnet).toEqual({ summe: -11_657, verdacht: false });
+  }, 30_000);
+
   // Gutschriften (#680) machen die Rechnung kleiner als die Summe der Gebührenzeilen. Die Sammelzuordnung bricht dann
   // nicht ab, sondern ordnet wie bisher zu, bis der Beleg aufgebraucht ist.
   it("weicht die Monatssumme vom gewählten Beleg ab, ordnet die Sammelzuordnung bis zum Betrag des Belegs zu (SKR04)", async () => {

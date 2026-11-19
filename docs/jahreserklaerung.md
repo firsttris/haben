@@ -9,11 +9,20 @@ description: >-
 
 Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **Umsatzsteuererklärung** und die **Anlage EÜR** mit dem Anlagenverzeichnis (**Anlage AVEÜR**) und übermittelt beide über ERiC an das Finanzamt, wie die [Voranmeldung](umsatzsteuer.md). Dazu kommt die **Einkommensteuererklärung** mit den Anlagen, die ein Selbständiger typischerweise braucht: Der Gewinn kommt aus der EÜR; Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
 
-Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
+Die Seite zeigt je Erklärung Hinweise, die Summen und einen eigenen Bereich zum Übermitteln. Bei der Umsatzsteuererklärung sind das die Umsatzsteuer, das Vorauszahlungssoll und die Abschlusszahlung bzw. Erstattung, bei der Anlage EÜR die Summe der Betriebseinnahmen und -ausgaben und der Gewinn. Die einzelnen Zeilen mit Kennzahl bzw. Feldkennung stehen eingeklappt hinter **Zeilen anzeigen**. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
-Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Bei der Einkommensteuererklärung steht ohne Übermittlung und ohne Vermerk „Nicht aus Haben übermittelt“; senden lässt sie sich trotzdem über den Kasten **Einkommensteuererklärung übermitteln**.
+Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“, bei der Umsatzsteuererklärung eines Kleinunternehmers ab 2024 „Keine Erklärung nötig“. Bei der Einkommensteuererklärung steht ohne Übermittlung und ohne Vermerk „Nicht aus Haben übermittelt“; senden lässt sie sich trotzdem über den Kasten **Einkommensteuererklärung übermitteln**.
 
-Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt. Bei einer GmbH oder UG entfällt sie.
+Oben auf der Seite stehen die Erklärungen in der Reihenfolge, in der sie anstehen: Umsatzsteuer, Anlage EÜR, Einkommensteuer. Zu jeder gehört eine kurze Angabe, woher sie ihre Zahlen hat, der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt.
+
+Darunter steht **Nächster Schritt:** mit der ersten Erklärung, die weder übermittelt noch als abgegeben vermerkt ist:
+
+- „… prüfen und übermitteln“, oder „Hinweise zur … klären“, wenn ihre Hinweise einen Fehler nennen.
+- Die Einkommensteuer nennt der Schritt nie: Haben weiß nicht, ob sie außerhalb abgegeben wurde.
+- Die Umsatzsteuererklärung nennt er nicht für Jahre ab 2024, in denen du am 31.12. Kleinunternehmer bist; du gibst sie dann nicht mehr ab (§ 18 Abs. 3 UStG, wie in den [Fristen](fristen.md)).
+- Sind alle geschuldeten Erklärungen übermittelt oder vermerkt, steht dort, dass alle abgegeben sind; sonst, dass Haben keinen Schritt kennt.
+
+Eine Zeile mit Links zu **Belege von ELSTER** und **Verlauf** schließt den Kasten ab. Bei einer GmbH oder UG gibt es stattdessen eine Sprungleiste zu Umsatz-, Körperschaft- und Gewerbesteuer, den Angaben und dem Verlauf.
 
 Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
@@ -23,7 +32,7 @@ Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körpers
 2. **Einstellungen:** Für die Anlage EÜR braucht Haben die **Einkunftsart** (selbständige Arbeit oder Gewerbebetrieb) und die **Art des Betriebs** (z. B. „Softwareentwicklung“).
 3. **Nur prüfen:** ERiC prüft das XML gegen das Schema und die Plausibilitätsregeln des Jahres. Erst hier zeigt sich, ob die Feldkennungen für das Jahr passen.
 4. **Testübermittlung** mit Zertifikat und PIN: geht an den ELSTER-Server, aber nicht ans Finanzamt (Testmerker). Das Protokoll-PDF liegt im Verlauf.
-5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und im Dialog **Verbindlich senden** bestätigen. Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
+5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und im Dialog **Verbindlich senden** bestätigen. Der Dialog nennt Erklärung, Jahr und das Ergebnis: die Abschlusszahlung bzw. Erstattung, bei der Anlage EÜR den Gewinn bzw. Verlust, bei der Einkommensteuer den Gewinn laut EÜR (bei 0 € entfällt die Zeile; ein Verlust steht als „Verlust laut EÜR“ im Dialog). Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
 
 Jede Prüfung und Übermittlung speichert Haben mit XML, Antwort, Protokoll und den gesendeten Werten; ändern oder löschen lässt sich das nicht. Je Erklärung und Jahr ist nur eine Echtübermittlung möglich. Eine berichtigte Erklärung gibst du über das ELSTER-Portal ab.
 
@@ -46,7 +55,7 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 - Der Kasten zum Übermitteln verschwindet; eine Übermittlung aus Haben ist nicht mehr vorgesehen.
 - Meldungen, die Haben aus seinen eigenen Daten ableitet, treten zurück, weil sie dem Vermerk sonst widersprächen: die Nullerklärung, „Keine Betriebseinnahmen und -ausgaben im Jahr“ und der Hinweis auf fehlende Voranmeldungen.
 
-Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
+Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Ausnahme: Anlage EÜR und Einkommensteuererklärung desselben Jahres, die zusammen übermittelt wurden, tragen beide das eine Ticket aus dem Protokoll. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
 
 ### Zeilenwerte aus dem Übermittlungsprotokoll
 
@@ -116,14 +125,14 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Miete für Geschäftsräume | Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke (Zeile 39, Kz 150) |
 | Reparatur und Instandhaltung (Ausstattung, ohne EDV und Kfz) | Erhaltungsaufwendungen, ohne solche für Gebäude und Kfz (Zeile 48, Kz 225) |
 | Beiträge zur Berufsgenossenschaft, Versorgungskassen | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge für Arbeitnehmer) |
-| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer) bzw. die Zeile der Kategorie wie bei einem Beleg |
+| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer; nicht steuerbare Einnahme: Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen) bzw. die Zeile der Kategorie wie bei einem Beleg |
 | AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
 | [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
 | [Pauschale](pauschalen.md#wege-zwischen-wohnung-und-betriebsstätte): Wege zwischen Wohnung und Betriebsstätte | Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten (Zeile 73 der Anlage EÜR 2025, Entfernungspauschale) |
 | Private Kfz-Nutzung | Private Kfz-Nutzung (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
-| [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung, ab dem Stichjahr) | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
+| [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung) | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | Einfuhrumsatzsteuer ([Beleg](belege-ausland.md#einfuhrumsatzsteuer)), bei Zahlung | Gezahlte Vorsteuerbeträge |
 | Umsatzsteuer an das Finanzamt, einer [Voranmeldung zugeordnet](bank.md#voranmeldung-zahllast-und-erstattung) | An das Finanzamt gezahlte bzw. vom Finanzamt erstattete Umsatzsteuer, im Jahr der Zahlung. Die Vorauszahlung für Dezember bzw. das vierte Quartal, ohne Dauerfristverlängerung am 10. Januar fällig und bis dahin gezahlt, im Vorjahr (§ 11 Abs. 2 Satz 2 EStG, [Vorauszahlung um den Jahreswechsel](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)); eine Erstattung im Jahr des Eingangs |
 | [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen): Umsatzsteuer früherer Jahre | An das Finanzamt gezahlte bzw. vom Finanzamt erstattete Umsatzsteuer, im Jahr der Zahlung (§ 11 EStG). Zahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis: Ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, ordne sie der Voranmeldung zu, dann zählt Haben sie im Vorjahr |
@@ -169,7 +178,7 @@ Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe
 | N | Je Person mit Arbeitslohn: die Lohnsteuerbescheinigungen (Steuerklasse, Bruttoarbeitslohn, Lohnsteuer, Soli, Kirchensteuer) und Werbungskosten, siehe [Arbeitslohn](#arbeitslohn-anlage-n) |
 | Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, zertifizierte Basisrente (Rürup), gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen und Wahlleistungen, steuerfreie Arbeitgeberzuschüsse zur Kranken- und Pflegeversicherung (Nr. 24 a bis c); weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
 | Einkommensersatzleistungen | Je Person Art und Betrag, siehe [Einkommensersatzleistungen](#einkommensersatzleistungen) |
-| Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland; vom Geschäftskonto gezahlte Spenden stehen im Kontenblatt 1840 bzw. 2250 „Zuwendungen, Spenden“ ([Bank](bank.md#direkt-buchen)) |
+| Sonderausgaben | Gezahlte und erstattete Kirchensteuer samt der einbehaltenen Lohnkirchensteuer laut Lohnsteuerbescheinigung (siehe [Kirchensteuer](#kirchensteuer)), Spenden an steuerbegünstigte Empfänger im Inland; vom Geschäftskonto gezahlte Spenden stehen im Kontenblatt 1840 bzw. 2250 „Zuwendungen, Spenden“ ([Bank](bank.md#direkt-buchen)) |
 | Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
 | Haushaltsnahe Aufwendungen (§ 35a EStG) | Minijobs im Haushalt, haushaltsnahe Dienstleistungen, Handwerkerleistungen (nur Arbeits-, Maschinen- und Fahrtkosten) |
 | Kind | Je Kind Vorname, Geburtsdatum, Steuer-ID, Familienkasse und Kinderbetreuungskosten; leibliches Kind beider Ehegatten bzw. der steuerpflichtigen Person, Wohnsitz im Inland im ganzen Jahr bzw. ab Geburt |
@@ -186,6 +195,14 @@ Wahlleistungen einer privaten Krankenversicherung, also was über die Basisabsic
 Die steuerfreien Arbeitgeberzuschüsse stehen getrennt in der Lohnsteuerbescheinigung: Nr. 24 a zur gesetzlichen Krankenversicherung (freiwillig gesetzlich Versicherte), Nr. 24 b zur privaten Krankenversicherung und Nr. 24 c zur Pflegeversicherung. Alle drei mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist, und zwar immer mit Nr. 24 c: ERiC nimmt den Zuschuss zur Krankenversicherung (Nr. 24 a oder 24 b) nur zusammen mit dem zur Pflegeversicherung an (Regel 100240078). Nr. 24 a nimmt ERiC außerdem nur an, wenn bei derselben Person Beiträge zur gesetzlichen Krankenversicherung stehen (Regel 100240075): laut Lohnsteuerbescheinigung Nr. 25 oder, als Selbstzahler, unter **Gesetzliche Krankenversicherung**.
 
 Der Zuschuss mindert in voller Höhe den Beitrag zur Basisabsicherung, auch wenn er rechnerisch zum Teil auf den Krankengeldanteil oder auf Wahlleistungen entfällt; eine Aufteilung ist nicht zulässig ([§ 10 Abs. 2 Satz 1 Nr. 1 Halbsatz 2 EStG](https://www.gesetze-im-internet.de/estg/__10.html), BFH 2.9.2014, IX R 43/13). Die pauschale Kürzung um 4 % trifft nur die Beiträge, nicht den Zuschuss ([§ 10 Abs. 1 Nr. 3 Buchst. a EStG](https://www.gesetze-im-internet.de/estg/__10.html)): Haben rechnet die Beiträge laut Nr. 25 der Bescheinigung zu 96 % zur Basisabsicherung und die restlichen 4 % zur übrigen Vorsorge, den Zuschuss aber vollständig von der Basisabsicherung.
+
+Übersteigen Erstattungen und Arbeitgeberzuschüsse die Beiträge zur Basisabsicherung, bleibt der Abzug dieser Beiträge bei null; der Überhang wird nach [§ 10 Abs. 4b Satz 3 EStG](https://www.gesetze-im-internet.de/estg/__10.html) dem Gesamtbetrag der Einkünfte hinzugerechnet, in der Prognose ebenso. Bei Zusammenveranlagung wird der Überhang eines Ehegatten zuerst mit den Beiträgen des anderen verrechnet, hinzugerechnet wird nur der Rest (§ 26b EStG, BMF-Schreiben vom 24.5.2017, Rz. 130 und 203). Dasselbe gilt für die Kirchensteuer nach Nr. 4 der Vorschrift: Übersteigt die erstattete die gezahlte, bleibt der Abzug bei null und der Überhang erhöht den Gesamtbetrag der Einkünfte. Die Kirchensteuer steht in der Erklärung als ein Betrag für die Veranlagung, deshalb rechnet Haben sie nicht je Person. Ein Überhang bei den übrigen Vorsorgeaufwendungen (Nr. 3a) wird dagegen nur innerhalb der Nr. 3a verrechnet und nicht hinzugerechnet.
+
+### Kirchensteuer
+
+In **Gezahlte Kirchensteuer** gehören die Vorauszahlungen und Nachzahlungen des Jahres, ein gezahltes Kirchgeld und die Lohnkirchensteuer, die der Arbeitgeber einbehalten hat: Abziehbar ist die im Jahr gezahlte Kirchensteuer ([§ 10 Abs. 1 Nr. 4 EStG](https://www.gesetze-im-internet.de/estg/__10.html)). Die Bescheinigung weist sie an zwei Stellen aus: Nr. 6 und 7 für den laufenden Arbeitslohn und, bei Bescheinigungen bis 2024, Nr. 13 und 14 für ermäßigt besteuerte sonstige Bezüge; seit 2025 gibt es die Fünftelregelung im Lohnsteuerabzug nicht mehr, im Muster für 2026 sind die Felder Nr. 13 und 14 unbesetzt. Nr. 7 ist der Anteil aus dem eigenen Lohn für die Kirche des Ehegatten: Bei Konfessionsverschiedenheit behält der Arbeitgeber auch die Kirchensteuer des Ehegatten vom eigenen Arbeitslohn ein, in Nr. 6 steht sie deshalb nicht. Unter [Arbeitslohn](#arbeitslohn-anlage-n) erfasst Haben nur Nr. 6 und 7; was eine Bescheinigung bis 2024 in Nr. 13 und 14 ausweist, gehört deshalb zusätzlich hierher. Nicht hierher gehört die Kirchensteuer zur Abgeltungsteuer, also der Zuschlag zur Kapitalertragsteuer und zur Steuer nach dem gesonderten Tarif des § 32d Abs. 1.
+
+Fehlt die Lohnkirchensteuer, sind die gezahlten Beträge zu niedrig: Die Prognose kann einen Erstattungsüberhang ausweisen oder einen bestehenden zu hoch ansetzen ([Was die Vorsorgezeilen bedeuten](#was-die-vorsorgezeilen-bedeuten)); das zu versteuernde Einkommen liegt zu hoch. Stammen die Abzüge der [Steuerprognose](finanzamt.md#steuerprognose) aus dem Vorjahr und fällt Arbeitslohn an, steht derselbe Hinweis unter der Tabelle.
 
 ### Einkommensersatzleistungen
 
@@ -228,7 +245,7 @@ Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kind
 
 Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](gmbh-abschluss.md#körperschaft--und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
 
-- **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil; die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
+- **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil in Prozent mit höchstens zwei Nachkommastellen (etwa 33,33); die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
 - Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern, dazu der Name der kirchensteuererhebenden Religionsgemeinschaft (etwa „römisch-katholisch“): Den Schlüssel braucht die Kapitalertragsteuer-Anmeldung, den Namen die [Steuerbescheinigung](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) nach Muster II. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.
 - **Verträge mit Anteilseignern** und nahestehenden Personen (Geschäftsführer-, Miet-, Darlehensvertrag) mit Datum und Vergütung im Jahr (Anlage WA).
 - Im Gründungsjahr das **Gründungsdatum**: Damit beginnen Steuerpflicht und erstes Wirtschaftsjahr.
@@ -239,7 +256,7 @@ Ohne Angaben für das Jahr übernimmt die Seite Anteilseigner und Verträge aus 
 | Erklärung | Was Haben sendet |
 | --- | --- |
 | Körperschaftsteuer (KSt 1 mit Anlagen GK, ZVE, WA, KSt 1 F, Verluste) | Jahresüberschuss, nicht abziehbare Steuern und Betriebsausgaben (Anlage GK Zeilen 81 bis 90), Einkünfte aus Gewerbebetrieb, Verlustabzug mit Mindestbesteuerung, zu versteuerndes Einkommen und 15 % Körperschaftsteuer; Anteilseigner, Verträge, kein schädlicher Beteiligungserwerb nach § 8c KStG, Einlagekonto (Anlage KSt 1 F) mit den [Ausschüttungen](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) des Jahres, dem ausschüttbaren Gewinn und dem Teil aus dem Einlagekonto |
-| Gewerbesteuer (GewSt 1 A) | Rechtsform, Gegenstand (Einstellungen › Art des Betriebs), einzige Betriebsstätte am Sitz, Gewinn aus Gewerbebetrieb, Zinsen, Mieten, Leasing und Lizenzen in voller Höhe (§ 8 Nr. 1 GewStG; den Hinzurechnungsbetrag ermittelt das Finanzamt) und den Gewerbeverlust des Vorjahres |
+| Gewerbesteuer (GewSt 1 A) | Rechtsform, Gegenstand (Einstellungen › Art des Betriebs), einzige Betriebsstätte am Sitz, Gewinn aus Gewerbebetrieb, Zinsen, Renten und dauernde Lasten, Mieten, Leasing und Lizenzen in voller Höhe (§ 8 Nr. 1 GewStG; den Hinzurechnungsbetrag ermittelt das Finanzamt), das Leasing für Elektrofahrzeuge und Fahrräder getrennt in Zeile 54, und den Gewerbeverlust des Vorjahres |
 
 Alle Beträge in vollen Euro; die Summen rechnet Haben aus den Einzelbeträgen, wie die Plausibilitätsregeln es verlangen. **Nur prüfen** und die **Testübermittlung** gehen jederzeit; **echt senden** erst, wenn das Jahr [abgeschlossen](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug) ist, und je Erklärung nur einmal. Die Körperschaftsteuererklärung kennt Haben für 2025, die Gewerbesteuererklärung für 2024 und 2025; für spätere Jahre kommt das Formular mit dem nächsten ERiC.
 
@@ -263,7 +280,7 @@ Gut zu wissen:
 - Die meisten Meldungen liegen ab Ende Februar des Folgejahres vor; die Belege lassen sich beliebig oft abrufen, eine Bestätigung wie beim Postfach gibt es nicht.
 - Mit dem eigenen Zertifikat, das mit deiner Steuer-ID registriert ist, holst du deine eigenen Belege. Für die Belege des Ehegatten braucht dein Zertifikat eine Berechtigung, siehe unten. Alternativ ruft der Ehegatte mit dem eigenen Zertifikat ab.
 - Der Testabruf trägt den Testmerker der Datenabholung (`370000001`). Ohne ERiC liefert er zwei erfundene Beispielbelege.
-- Haben übernimmt die Werte noch nicht von selbst in die Erklärung. Die Belege dienen zum Abgleich mit den Angaben oben; das Finanzamt hat sie ohnehin und gleicht selbst ab. Für eine sichere Zuordnung zu den Feldern fehlen die Schemas der einzelnen Belegarten ([Roadmap](roadmap.md#blockiert)).
+- Haben übernimmt die Werte noch nicht von selbst in die Erklärung. Die Belege dienen zum Abgleich mit den Angaben oben; das Finanzamt hat sie ohnehin und gleicht selbst ab.
 
 ### Berechtigung für den Ehegatten
 
@@ -277,7 +294,7 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im Dokumentationspaket von ERiC (`ERiC-<Version>-Dokumentation.zip` auf download.elster.de). Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
 

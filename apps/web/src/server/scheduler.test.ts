@@ -5,11 +5,17 @@ const jobs = vi.hoisted(() => ({
   runDueFileCheck: vi.fn(),
   runDuePruefwertMail: vi.fn(),
   runDueBankSyncs: vi.fn(),
+  runExistingDuplicateCheck: vi.fn(),
+  runDueFintsSyncs: vi.fn(),
   runDueInboxFetch: vi.fn(),
 }));
 
 vi.mock("./modules/auswertungen/index.ts", () => ({ runDueFileCheck: jobs.runDueFileCheck, runDuePruefwertMail: jobs.runDuePruefwertMail }));
-vi.mock("./modules/bank/index.ts", () => ({ runDueBankSyncs: jobs.runDueBankSyncs }));
+vi.mock("./modules/bank/index.ts", () => ({
+  runDueBankSyncs: jobs.runDueBankSyncs,
+  runDueFintsSyncs: jobs.runDueFintsSyncs,
+  runExistingDuplicateCheck: jobs.runExistingDuplicateCheck,
+}));
 vi.mock("./modules/elster/index.ts", () => ({ elsterClient: vi.fn(), elsterMode: () => "simuliert" }));
 vi.mock("./env.ts", () => ({ env: () => ({}) }));
 vi.mock("./modules/belege/index.ts", () => ({
@@ -25,6 +31,8 @@ vi.mock("./modules/rechnungen/index.ts", () => ({
   runDueRecurring: vi.fn(async () => ({ created: 0, finalized: 0, mailed: 0, errors: [] })),
 }));
 vi.mock("./modules/stores/index.ts", () => ({ runDueStoreSyncs: vi.fn(async () => ({ synced: 0, added: 0, errors: [] })) }));
+vi.mock("./modules/ablage/index.ts", () => ({ runDueArchiveDeliveries: vi.fn(async () => null) }));
+vi.mock("./modules/etsy/index.ts", () => ({ runDueEtsySyncs: vi.fn(async () => ({ added: 0, errors: [] })) }));
 
 /** Eine Vollprüfung, die erst endet, wenn der Test es sagt; so lange wie bei einem großen Bestand auf einem NAS */
 function langeVollpruefung() {
@@ -46,8 +54,19 @@ describe("Scheduler", () => {
     vi.clearAllMocks();
     jobs.runDuePruefwertMail.mockResolvedValue(null);
     jobs.runDueBankSyncs.mockResolvedValue({ synced: 0, added: 0, errors: [] });
+    jobs.runExistingDuplicateCheck.mockResolvedValue(null);
+    jobs.runDueFintsSyncs.mockResolvedValue({ synced: 0, added: 0, errors: [] });
     jobs.runDueInboxFetch.mockResolvedValue(null);
     scheduler = await import("./scheduler.ts");
+  });
+
+  it("versucht die Bestandsprüfung vor dem Kontoabruf und fährt auch nach einem Fehler fort", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    jobs.runExistingDuplicateCheck.mockRejectedValueOnce(new Error("Testfehler"));
+    await scheduler.runScheduledJobs();
+    expect(jobs.runExistingDuplicateCheck).toHaveBeenCalledBefore(jobs.runDueBankSyncs);
+    expect(error).toHaveBeenCalledWith("Bankdublettenprüfung", expect.any(Error));
+    error.mockRestore();
   });
 
   it("hält Kontoabruf und Postfach des nächsten Laufs nicht auf, solange die Vollprüfung der Dateien läuft", async () => {
@@ -58,6 +77,7 @@ describe("Scheduler", () => {
     // Eine Stunde später, die Vollprüfung liest noch
     await scheduler.runScheduledJobs();
     expect(jobs.runDueBankSyncs).toHaveBeenCalledTimes(2);
+    expect(jobs.runDueFintsSyncs).toHaveBeenCalledTimes(2);
     expect(jobs.runDueInboxFetch).toHaveBeenCalledTimes(2);
     beenden();
   });

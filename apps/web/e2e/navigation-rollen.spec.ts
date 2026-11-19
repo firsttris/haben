@@ -15,7 +15,7 @@ async function navigationLaden(page: Page, theme = "wald", mode = "light", einge
   await page.setContent(
     `<html data-theme="${theme}" data-mode="${mode}"${eingeklappt ? ' data-nav="collapsed"' : ""}><style>${css}</style><body><div class="shell"><nav class="nav">
       <a class="brand" href="#"><span class="brand-text">Haben<span class="brand-firma">Muster GmbH</span></span></a>
-      <button type="button" class="btn btn-icon nav-search-btn"><span class="nav-search-label">Schnellsuche</span><span class="kuerzel nav-kbd"><kbd>Strg</kbd><kbd>K</kbd></span></button>
+      <button type="button" class="btn btn-icon nav-search-btn"><span class="nav-search-label">Suche</span><span class="kuerzel nav-kbd"><kbd>Strg</kbd><kbd>K</kbd></span></button>
       <div class="nav-body">${links}<div class="nav-spacer"></div><div class="nav-foot${eingeklappt ? " nav-foot-rail" : ""}"><a class="nav-link" href="#">Abmelden</a></div></div>
     </nav><main class="main"></main></div></body></html>`,
   );

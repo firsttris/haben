@@ -56,8 +56,11 @@ export {
   findInvoiceByReference,
   type ExternalReference,
 } from "./external-reference.ts";
+export { rebuildInvoiceLines, type RebuiltInvoice } from "./positionen-nachbilden.ts";
+export { createTakenOverInvoice, type TakenOverInvoice } from "./rechnung-uebernehmen.ts";
+export { copyInvoice } from "./rechnung-kopieren.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
-export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode, paymentProcedure } from "./invoice-tax.ts";
 export { gemeldeterZeitraum, leistungsmonatHinweis, zeitraumLabel } from "./leistungsmonat.ts";
 export { leistungsmonatHinweisFuer } from "./leistungsmonat-hinweis.ts";
 export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
@@ -68,7 +71,7 @@ export { advanceReceivablesAt } from "./advance-receivables.ts";
 export { unbilledAdvanceRequest } from "./advance-invoice.ts";
 export { defaultSkonto } from "./skonto.ts";
 export { InvoiceError } from "./invoice-error.ts";
-export { UmsatzgrenzeError } from "./umsatzgrenze.ts";
+export { UmsatzgrenzeError, type UmsatzStand } from "./umsatzgrenze.ts";
 export {
   abschlagLinks,
   assertCustomer,
@@ -148,3 +151,12 @@ export { mixeNachVerrechnungen, mixNachVerrechnungen } from "./verrechnung-steue
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 
 export { invoicePaymentList, type InvoicePayment } from "./invoice-payment-history.ts";
+export {
+  adoptForeignInvoice,
+  adoptForeignInvoiceFile,
+  foreignInvoiceProposal,
+  foreignInvoiceSchema,
+  type ForeignInvoiceInput,
+  type ForeignInvoiceProposal,
+} from "./fremdrechnung.ts";
+export { nummernformateUebernehmen, standardanhaengeUebernehmen } from "./uebernahme.ts";

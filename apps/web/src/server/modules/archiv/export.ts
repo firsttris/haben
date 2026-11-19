@@ -2,15 +2,15 @@ import { FILE_STATE_LABELS, FILE_STATUS_LABELS, fileStatesForYear, latestFileSta
 import { mitIndexXml } from "./beschreibung.ts";
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { bankAccountIncludedSql } from "../../db/bank-open.ts";
+import { bankAccountIncludedSql, bankDuplicateConfirmedSql, bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { effectivePayment } from "../auswertungen/index.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
   ASSET_KINDS,
+  AUFLADUNG,
   ASSET_METHODS,
-  csvDecimal,
   formatDegressiveRate,
   formatExchangeRate,
   isKapitalgesellschaft,
@@ -31,6 +31,12 @@ import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
+import { bankImportFiles, importsOfYear } from "./export-bankimporte.ts";
+import { BOM, csv, csvLine, type CsvValue, iso, json, money } from "./csv.ts";
+import { kontaktFiles } from "./export-kontakte.ts";
+import { berlinStart, yearEnd, yearStart } from "./jahr.ts";
+
+export { csv, csvField, csvLine, type CsvValue, money } from "./csv.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 import { procedureMarkdown } from "../verfahrensdoku/index.ts";
@@ -46,35 +52,9 @@ import { procedureMarkdown } from "../verfahrensdoku/index.ts";
 
 export const HABEN_VERSION: string = pkg.version;
 
-// ---------------------------------------------------------------------------
-// CSV: UTF-8 mit BOM, Semikolon, Dezimalkomma, ISO-Daten, Quoting nach RFC 4180
-
-export type CsvValue = string | number | boolean | null | undefined;
-
-export function csvField(value: CsvValue): string {
-  if (value === null || value === undefined) return "";
-  const raw = typeof value === "boolean" ? (value ? "ja" : "nein") : String(value);
-  // Text, den Tabellenprogramme als Formel lesen würden, entschärfen; negative Beträge bleiben Zahlen
-  const text = typeof value === "string" && /^[=+@\t\r]|^-(?!\d+(,\d+)?$)/.test(raw) ? `'${raw}` : raw;
-  return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-export function csvLine(values: CsvValue[]): string {
-  return `${values.map(csvField).join(";")}\r\n`;
-}
+// CSV und Jahresgrenzen stehen in csv.ts und jahr.ts, damit Teile des Archivs sie ohne export.ts nutzen
 
 const encoder = new TextEncoder();
-const BOM = "﻿";
-
-export function csv(header: string[], rows: CsvValue[][]): Uint8Array {
-  return encoder.encode(BOM + csvLine(header) + rows.map(csvLine).join(""));
-}
-
-/** Cent als Dezimalzahl mit Komma, ohne Tausenderpunkt: 123456 → "1234,56" */
-export function money(cents: number | null | undefined): string {
-  if (cents === null || cents === undefined) return "";
-  return csvDecimal(cents);
-}
 
 function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
   const groups = new Map<K, T[]>();
@@ -86,9 +66,6 @@ function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
   }
   return groups;
 }
-
-const iso = (value: Date | null | undefined) => (value ? value.toISOString() : "");
-const json = (value: unknown) => (value === null || value === undefined ? "" : JSON.stringify(value));
 
 // ---------------------------------------------------------------------------
 // Dateinamen
@@ -215,11 +192,6 @@ export function toReadableStream(chunks: AsyncGenerator<Uint8Array>): ReadableSt
 // ---------------------------------------------------------------------------
 // Inhalte eines Jahres
 
-const yearStart = (year: number) => `${year}-01-01`;
-const yearEnd = (year: number) => `${year}-12-31`;
-/** Beginn eines Jahres in deutscher Zeit, für Zeitstempel-Spalten */
-const berlinStart = (year: number) => sql`(${`${year}-01-01 00:00:00`}::timestamp at time zone 'Europe/Berlin')`;
-
 const KIND_LABELS: Record<string, string> = {
   rechnung: "Rechnung",
   storno: "Stornorechnung",
@@ -271,6 +243,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
   kategorie: "Direkt auf Kategorie",
+  aufladung: AUFLADUNG.label,
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",
@@ -314,6 +287,25 @@ export async function exportYears(now = new Date()): Promise<number[]> {
   const current = Number(today(now).slice(0, 4));
   const years = new Set([current, current - 1, ...rows.map((r) => Number(r.y))]);
   return [...years].sort((a, b) => b - a);
+}
+
+function bankTransactionsForYear(year: number) {
+  return db
+    .select({
+      ...getTableColumns(schema.bankTransactions),
+      open: bankOpenAmountSql.mapWith(Number),
+      neutralized: bankNeutralizedSql.mapWith(Boolean),
+      duplicate: bankDuplicateConfirmedSql.mapWith(Boolean),
+    })
+    .from(schema.bankTransactions)
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, yearStart(year)),
+        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    )
+    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
 }
 
 async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> {
@@ -846,18 +838,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   // Ein ausgeschlossenes Konto (#462) gehört nicht zu dieser Firma und fehlt im Archiv
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.iban));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
-  const transactions = await db
-    .select()
-    .from(schema.bankTransactions)
-    .where(
-      and(
-        gte(schema.bankTransactions.bookingDate, yearStart(year)),
-        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
-        bankAccountIncludedSql("bank_account_id"),
-      ),
-    )
-    .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
-  const transactionById = new Map(transactions.map((t) => [t.id, t]));
+  const transactions = await bankTransactionsForYear(year);
+  const transactionById = new Map<string, typeof schema.bankTransactions.$inferSelect>(transactions.map((t) => [t.id, t]));
   const allocations = transactions.length
     ? await db
         .select()
@@ -870,18 +852,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
         .orderBy(asc(schema.allocations.createdAt), asc(schema.allocations.id))
     : [];
-  const imports = await db
-    .select()
-    .from(schema.bankImports)
-    .where(
-      and(
-        sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
-            and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
-          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date))`,
-        bankAccountIncludedSql("bank_account_id"),
-      ),
-    )
-    .orderBy(asc(schema.bankImports.createdAt));
+  const imports = await importsOfYear(year);
   const importById = new Map(imports.map((i) => [i.id, i]));
 
   const allocatedByTransaction = new Map<string, number>();
@@ -902,11 +873,6 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
         .orderBy(asc(schema.bankNeutralizations.createdAt), asc(schema.bankNeutralizations.id))
     : [];
-  const reversedNeutralizations = new Set(neutralizations.flatMap((n) => (n.reversesId ? [n.reversesId] : [])));
-  const neutralized = new Set(
-    neutralizations.filter((n) => !n.reversesId && !reversedNeutralizations.has(n.id)).flatMap((n) => [n.transactionId, n.counterTransactionId]),
-  );
-
   const usedBankPaths = new Set<string>();
   for (const [accountId, rows] of groupBy(transactions, (t) => t.bankAccountId)) {
     const account = accountById.get(accountId);
@@ -928,6 +894,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           "Verrechnet",
           "Importdatei",
           "Umsatz-ID",
+          "Dublette",
         ],
         rows.map((t) => {
           const allocated = allocatedByTransaction.get(t.id) ?? 0;
@@ -942,10 +909,11 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
             t.type,
             t.bankReference,
             money(allocated),
-            money(neutralized.has(t.id) ? 0 : t.amount - allocated),
-            neutralized.has(t.id),
+            money(t.open),
+            t.neutralized,
             importById.get(t.importId)?.filename ?? t.importId,
             t.id,
+            t.duplicate,
           ];
         }),
       ),
@@ -1068,42 +1036,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       compress: true,
     };
   }
-  yield {
-    path: "bank/importe.csv",
-    content: csv(
-      [
-        "Konto",
-        "Datei",
-        "SHA-256",
-        "Format",
-        "Zeitraum von",
-        "Zeitraum bis",
-        "Anfangssaldo",
-        "Endsaldo",
-        "Neu",
-        "Übersprungen",
-        "Hinweise",
-        "Importiert",
-        "Import-ID",
-      ],
-      imports.map((i) => [
-        accountById.get(i.bankAccountId)?.iban ?? accountById.get(i.bankAccountId)?.name,
-        i.filename,
-        i.sha256,
-        i.format,
-        i.periodFrom,
-        i.periodTo,
-        money(i.openingBalance),
-        money(i.closingBalance),
-        i.added,
-        i.skipped,
-        i.warnings.join(" | "),
-        iso(i.createdAt),
-        i.id,
-      ]),
-    ),
-    compress: true,
-  };
+  yield* bankImportFiles(year, imports, accountById);
 
   // Umsatzsteuer ----------------------------------------------------------
   const vatReturns = await db
@@ -1279,15 +1212,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
-  const versions = await db.select().from(schema.contactVersions).orderBy(asc(schema.contactVersions.contactId), asc(schema.contactVersions.version));
-  yield {
-    path: "stammdaten/kontakt-versionen.csv",
-    content: csv(
-      ["Kontakt-ID", "Version", "Name", "Angelegt", "Daten (JSON)"],
-      versions.map((v) => [v.contactId, v.version, String(v.data.name ?? ""), iso(v.createdAt), json(v.data)]),
-    ),
-    compress: true,
-  };
+  yield* kontaktFiles(year);
   yield {
     path: "stammdaten/bankkonten.csv",
     content: csv(
@@ -1821,6 +1746,8 @@ kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufe
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
                          Bareinnahmen auf Rechnungen die Rechnungsnummer.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
+                         Bestätigte Dubletten behalten ihren Betrag und ihre Importdatei,
+                         stehen als Dublette in der Liste und haben einen offenen Betrag von 0.
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
 bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze
@@ -1829,8 +1756,19 @@ bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufi
 bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen und Belegen
                          (Skonto, Forderungsausfall); aufgehobene als Gegenzeile; bei
                          Skonto zu einer Bareinnahme die Nummer im Kassenbuch.
-bank/importe.csv         Importierte Kontoauszugsdateien mit SHA-256, Zeitraum und Salden.
+bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA-256,
+                         Zeitraum, Salden und Hinweisen; abgelehnte Abrufe ohne Zeitraum
+                         nach dem Tag des Abrufs; ein Abruf, der einen Umsatz des Jahres
+                         verbunden hat (etwa vom 30.12.), auch im Jahr dieses Umsatzes.
                          Die Auszugsdateien selbst speichert Haben nicht.
+bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
+                         Ereignis (Bankabruf oder Etsy) die Quelle mit Stichtag, der
+                         Abruf, der Umsatz, den Haben angelegt oder verbunden hat,
+                         und die gelieferten Referenzen (Anbieterreferenz,
+                         Ereigniscode, EndToEndId, Bezug, Auszahlung, Bestellung).
+bank/klaerungen.csv      Nur wenn vorhanden: geklärte Konflikte im Abruf: bisheriger und
+                         gelieferter Umsatz, die Entscheidung und ein neu angelegter
+                         Umsatz; der abgelehnte Abruf steht in bank/importe.csv.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),
                          jede Prüfung und Übermittlung (übermittlungen.csv) mit
                          ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML;
@@ -1838,6 +1776,8 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
                          Übermittlungsprotokoll aus Mein ELSTER (PDF).
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
+                         Nur wenn vorhanden: Bestätigungen von USt-IdNrn. beim BZSt im
+                         Jahr (ustid-bestaetigungen.csv) mit der Antwort als Nachweis.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
                          Lexware Office, sevDesk, FastBill oder BuchhaltungsButler (Spalte
                          Quelle; in Lexoffice-ID steht bei sevDesk Art und ID, z. B. invoice/123,

@@ -23,3 +23,8 @@
 .year-bars .year.selected .hit { fill: var(--accent-tint); }
 .year-bars .year.active .hit { fill: var(--ground); }
 .year-bars .year:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }
+/* Bestätigung beim BZSt (#1385): Vergleich von Name und Anschrift, Angabe links, Ergebnis rechts */
+.ustid-vergleich { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 4px 0 0; }
+.ustid-vergleich > div { display: contents; }
+.ustid-vergleich dt { color: var(--muted); }
+.ustid-vergleich dd { margin: 0; }

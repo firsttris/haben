@@ -56,6 +56,8 @@
 .open-table td.ellipsis { max-width: 260px; }
 /* Zeile über den offenen Posten: was aus früheren Jahren stammt (#1110) */
 .vorjahres-hinweis { color: var(--info-ink); }
+/* Stand zum Stichtag (#1110): der Schalter steht in der Jahresleiste, dieser Hinweis unter der Kopfzeile */
+.stand-hinweis { margin: 0 0 12px; }
 /* Spalte „Jahr“: das gewählte Jahr leise, ein Vorjahr deutlich */
 .open-table td.jahr { white-space: nowrap; color: var(--muted); }
 .open-table td.jahr.vorjahr { color: var(--ink); font-weight: 600; }
@@ -166,6 +168,12 @@
 .jump-nav { position: sticky; top: var(--below-head); z-index: 5; display: flex; gap: 4px; flex-wrap: wrap; padding: 8px 0; background: var(--ground); border-bottom: 1px solid var(--line); }
 .jump-nav a { padding: 6px 12px; border-radius: 16px; color: var(--ink-2); text-decoration: none; font-size: 13px; font-weight: 500; }
 .jump-nav a:hover { background: var(--accent-tint); color: var(--ink); }
+/* Jahreserklärung: die drei Erklärungen in der Reihenfolge, in der sie anstehen */
+.reihenfolge { display: grid; gap: 12px; margin: 0; padding-left: 24px; }
+.reihenfolge li::marker { color: var(--muted); font-weight: 600; }
+.reihenfolge-zeile { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.reihenfolge-text { display: flex; flex: 1 1 320px; flex-direction: column; gap: 2px; }
+.reihenfolge-text > a { font-weight: 600; }
 /* Zusätzlich zu scroll-padding-top (styles.css): Platz für die Sprungleiste unter dem Kopf */
 .jump-target { scroll-margin-top: 56px; }
 .est-block { border: 1px solid var(--line); border-radius: 10px; padding: 0 16px; }
@@ -175,5 +183,16 @@
 .est-block > summary::before { content: "›"; display: inline-block; width: 12px; color: var(--muted); transition: transform 0.15s; }
 .est-block[open] > summary::before { transform: rotate(90deg); }
 .est-block-title { flex: 1; font-weight: 600; }
+/* Schätzrechnung (Finanzamt): Titel, darunter der Kurzwert auf der Textkante des Titels (Pfeil 12px + Abstand 12px) */
+.est-block-schaetzung > summary { flex-wrap: wrap; justify-content: flex-start; gap: 0 12px; padding-block: 8px; }
+.est-block-schaetzung > summary::before { flex: none; font-size: 18px; line-height: 1; text-align: center; }
+.est-block-schaetzung .est-block-title { flex: 1 1 0; min-width: 0; }
+.est-block-schaetzung .est-block-wert { flex: 0 0 100%; padding-left: 24px; }
 .est-sub { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); }
 .form-sticky-footer { position: sticky; bottom: 0; z-index: 4; display: flex; flex-direction: column; gap: 8px; margin: 0 -20px -20px; padding: 12px 20px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; }
+
+/* BWA (#1380): je Zeile der EÜR eine Tabelle, ihr Titel linksbündig über der Tabelle */
+.bwa-details caption { caption-side: top; text-align: left; font-weight: 600; padding: 16px 0 4px; }
+.bwa-warum h3 { margin: 16px 0 4px; font-size: 14px; font-weight: 600; }
+/* Kontakt und „3 × 240,00 € statt 1 × 90,00 €“ je in einer Zeile; am Handy scrollt die Tabelle statt hoher Zeilen */
+.bwa-warum table { white-space: nowrap; }

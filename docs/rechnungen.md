@@ -17,7 +17,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 
 - **Firmendaten** unter Einstellungen: Firmenname, Anschrift, E-Mail-Adresse, IBAN und Steuernummer oder USt-IdNr. Fehlt etwas, zeigt der Editor oben „Vor dem Festschreiben: …“ mit einem Link „Firmendaten ergänzen“. Siehe [einrichtung.md](einrichtung.md).
 - **Einen Kontakt** für den Kunden (siehe [Kontakte](kontakte.md)).
-- Für XRechnung zusätzlich eine **Telefonnummer** in den Firmendaten und beim Kunden eine **E-Mail-Adresse oder Leitweg-ID**.
+- Für XRechnung zusätzlich eine **Telefonnummer** in den Firmendaten und beim Kunden eine **E-Mail-Adresse** oder **Leitweg-ID**; die Leitweg-ID steht im Kontakt unter **Weitere Angaben**.
 
 ## So gehst du vor
 
@@ -52,7 +52,7 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 
 Haben merkt sich die Wahl in diesem Browser, für Rechnungen, Angebote und Mahnungen gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist. Auf dem Laptop reicht oft schon das Einklappen der Seitenleiste (`Strg+B`, am Mac `⌘+B`).
 
-**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer, Artikelnummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein. Ein eigenes Layout zeigt nur die Einstellungen, deren Felder es verwendet ([Eigene Belegvorlagen](belegvorlagen.md#einstellungen-der-gestaltung)).
+**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Stelle, Falz- und Lochmarken, GiroCode, Kundennummer, Artikelnummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein. Ein eigenes Layout zeigt nur die Einstellungen, deren Felder es verwendet ([Eigene Belegvorlagen](belegvorlagen.md#einstellungen-der-gestaltung)).
 
 ### Entwurf als PDF
 
@@ -77,7 +77,7 @@ Viele Auftraggeber verlangen ihre Bestellnummer auf jeder Rechnung und weisen Re
 | Lieferscheinnummer | Lieferschein | BT-16 Lieferavisreferenz | `cac:DespatchDocumentReference/cbc:ID` | `ram:DespatchAdviceReferencedDocument` |
 
 - Trag die Nummern hier ein und nicht mehr in die Einleitung: Der Kopftext landet im XML nur als Freitext (BT-22), den keine Software auswertet.
-- Im PDF stehen die Nummern im Kopfblock unter der Kundennummer; auf Englisch „Your order“, „Our order“, „Delivery note“.
+- Im PDF stehen die Nummern im Kopfblock unter Kunden- und [Lieferantennummer](kontakte.md); auf Englisch „Your order“, „Our order“, „Delivery note“.
 - Die Leitweg-ID bzw. Kundennummer in der Käuferreferenz (BT-10) bleibt, wie sie ist.
 - UBL verlangt in `cac:OrderReference` immer eine Bestellnummer. Gibt es nur die Auftragsnummer, steht dort `NA`, wie PEPPOL es vorsieht; im CII entfällt die Bestellnummer dann.
 - ZUGFeRD (Profil EN 16931) erlaubt alle drei Felder, ebenso XRechnung in CII und UBL.
@@ -188,41 +188,43 @@ Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußt
 
 ### Umsatzsteuer auf der Rechnung
 
-Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt wird. Gespeichert wird die Auswahl an der Rechnung; sie bestimmt Erlöskonto, Kennzahl der [Voranmeldung](umsatzsteuer.md), Steuerkategorie im XML und den Pflichthinweis.
+Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt wird. Gespeichert wird die Auswahl an der Rechnung; sie bestimmt Erlöskonto, Kennzahl der [Voranmeldung](umsatzsteuer.md), Steuerkategorie im XML und den Pflichthinweis. Unter der Auswahl steht ein Hinweis mit der Vorschrift, etwa § 4 Nr. 1 Buchst. b UStG.
 
 | Auswahl | Wann | Hinweis auf der Rechnung (Standard) | Steuerkategorie im XML |
 | --- | --- | --- | --- |
 | Regulär (19 %, 7 % oder 0 %) | Normalfall | – | S, bei 0 % Z |
-| Reverse Charge: Leistung an Unternehmen im EU-Ausland | Sonstige Leistung an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
-| Leistung ins Nicht-EU-Ausland | Sonstige Leistung (Dienstleistung) mit Leistungsort im Drittland, im Inland nicht steuerbar | Im Inland nicht steuerbare Leistung (Leistungsort im Drittland). | O, Grund `VATEX-EU-O` |
-| Sonstige Leistung im EU-Ausland | Tatsächlicher Leistungsort und ausländische Behandlung sind geprüft; keine ausländische Umsatzsteuer auszuweisen | Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland). | O, Grund `VATEX-EU-O` |
-| Innergemeinschaftliche Lieferung | Ware, die zu einem Unternehmen mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
-| Ausfuhrlieferung ins Drittland | Ware, die ins Drittland gelangt, etwa in die Schweiz oder die USA (§ 4 Nr. 1 Buchst. a, § 6 UStG) | Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG). | G, Grund `VATEX-EU-G` |
-| Steuerfrei nach § 4 UStG | Steuerfreie Leistung, etwa nach § 4 Nr. 14 UStG | die Befreiungsvorschrift, die du einträgst | E |
-| Kleinunternehmer nach § 19 UStG | Nur wählbar, wenn du in den Einstellungen als Kleinunternehmer eingetragen bist | Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. | E |
+| EU, Reverse Charge: Dienstleistung oder Nutzungsrecht | Dienstleistung oder Nutzungsrecht (sonstige Leistung, § 3 Abs. 9 UStG) an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land (§ 3a Abs. 2 UStG) | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
+| Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht | Sonstige Leistung (§ 3 Abs. 9 UStG) mit Leistungsort im Drittland (§ 3a UStG), im Inland nicht steuerbar | Im Inland nicht steuerbare Leistung (Leistungsort im Drittland). | O, Grund `VATEX-EU-O` |
+| Leistungsort EU: Dienstleistung oder Nutzungsrecht | Ohne Reverse Charge: tatsächlicher Leistungsort und ausländische Behandlung sind geprüft; keine ausländische Umsatzsteuer auszuweisen | Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland). | O, Grund `VATEX-EU-O` |
+| Warenlieferung in die EU (innergemeinschaftliche Lieferung) | Steuerfrei: Ware, die zu einem Kunden mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
+| Warenlieferung ins Nicht-EU-Ausland (Ausfuhrlieferung) | Steuerfrei: Ware, die ins Drittland gelangt, etwa in die Schweiz oder die USA (§ 4 Nr. 1 Buchst. a, § 6 UStG) | Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG). | G, Grund `VATEX-EU-G` |
+| Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht | Steuerbefreiung nach § 4 UStG, etwa nach Nr. 14 | die Befreiungsvorschrift, die du einträgst | E |
+| Kleinunternehmer: ohne Umsatzsteuer | Kleinunternehmerregelung (§ 19 UStG); nur wählbar, wenn du in den Einstellungen als Kleinunternehmer eingetragen bist | Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. | E |
 
 Außer bei „Regulär“ gilt:
 
 - Alle Positionen stehen auf 0 %, der Steuersatz lässt sich nicht ändern. In der Vorschau und im PDF steht in der Spalte für den Steuersatz „–“, und die Zeile „Umsatzsteuer 0 %“ entfällt.
-- Der Hinweis steht fett über dem Satz zur Zahlung. Im Feld **Hinweis zur Umsatzsteuer** kannst du einen eigenen Text eintragen, der den Standardtext ersetzt. Bei „Steuerfrei nach § 4 UStG“ ordnest du **§ 4 Nr. 14 Buchst. a** (Heilbehandlung) oder **Nr. 21** (Unterricht und Bildung) ausdrücklich zu; daraus entsteht der gespeicherte Hinweis. Ohne Kleinunternehmerregelung bleibt für andere Befreiungsvorschriften ein freier Hinweis möglich. Die Auswahl setzt voraus, dass die Leistung die gesetzlichen Voraussetzungen erfüllt.
+- Der Hinweis steht fett über dem Satz zur Zahlung. Im Feld **Hinweis zur Umsatzsteuer** kannst du einen eigenen Text eintragen, der den Standardtext ersetzt. Bei „Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht“ ordnest du **§ 4 Nr. 14 Buchst. a** (Heilbehandlung) oder **Nr. 21** (Unterricht und Bildung) ausdrücklich zu; daraus entsteht der gespeicherte Hinweis. Ohne Kleinunternehmerregelung bleibt für andere Befreiungsvorschriften ein freier Hinweis möglich. Die Auswahl setzt voraus, dass die Leistung die gesetzlichen Voraussetzungen erfüllt.
 - Im XML steht der Hinweis als Befreiungsgrund in der Steueraufschlüsselung.
 
-Bei Reverse Charge erinnert der Editor daran, dass die Leistung zusätzlich in die Zusammenfassende Meldung (ZM) an das Bundeszentralamt für Steuern gehört. Die ZM sendet Haben über ERiC ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Leistung ins Nicht-EU-Ausland“ lässt Haben im XML die USt-IdNr. von dir und vom Kunden weg (BR-O-02); als Kennung des Verkäufers dient dann die Steuernummer bzw. USt-IdNr. (BT-29). Den Steuersatz lässt Haben in den Positionen des XML weg; in der Steueraufschlüsselung steht 0, weil XRechnung ihn dort verlangt (BR-DE-14).
+Bei Reverse Charge erinnert der Editor daran, dass die Leistung zusätzlich in die Zusammenfassende Meldung (ZM) an das Bundeszentralamt für Steuern gehört. Die ZM sendet Haben über ERiC ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“ lässt Haben im XML die USt-IdNr. von dir und vom Kunden weg (BR-O-02); als Kennung des Verkäufers dient dann die Steuernummer bzw. USt-IdNr. (BT-29). Den Steuersatz lässt Haben in den Positionen des XML weg; in der Steueraufschlüsselung steht 0, weil XRechnung ihn dort verlangt (BR-DE-14).
 
-**Lieferung oder Leistung?** „Leistung ins Nicht-EU-Ausland“ ist für Dienstleistungen, deren Leistungsort im Drittland liegt; sie sind in Deutschland nicht steuerbar (Kz 45). Verkaufst du Ware, die ins Drittland gelangt, ist es eine steuerbare, aber steuerfreie **Ausfuhrlieferung** (Kz 43); die Vorsteuer aus dem Einkauf bleibt abziehbar. Ebenso ist Ware an ein Unternehmen im EU-Ausland keine Reverse-Charge-Leistung, sondern eine **innergemeinschaftliche Lieferung** (Kz 41).
+**Bestätigung beim BZSt.** Bei Reverse Charge und innergemeinschaftlicher Lieferung fragt Haben beim Öffnen der Rückfrage zum Festschreiben das [BZSt](kontakte.md#ust-idnr-beim-bzst-bestätigen), ob die USt-IdNr. des Kunden gültig ist, wenn ihre letzte Antwort nicht gültig oder älter als 30 Tage ist. Bei Reverse Charge muss außerdem die letzte qualifizierte Antwort aus dieser Frist stammen und bei Name und Ort nicht „Stimmt nicht“ melden; ohne Ort am Kontakt reicht die einfache. Meldet das BZSt die Nummer als ungültig, passen Name oder Ort nicht, bestätigt es Name und Anschrift nicht oder antwortet es nicht, steht das als Hinweis in der Rückfrage; festschreiben geht trotzdem. Serienrechnungen mit **Direkt festschreiben** fragen nicht. Eine feste Frist nennen weder [§ 18e UStG](https://www.gesetze-im-internet.de/ustg_1980/__18e.html) noch UStAE 18e.1; die 30 Tage hat Haben gewählt. Liegt die Leistung vor dem Festschreiben, kommt diese Abfrage zu spät für den Vertrauensschutz: Eine Bestätigung erst nach dem Umsatz genügt der Sorgfalt eines ordentlichen Kaufmanns nicht (UStAE 6a.8 Abs. 6). Neue Kunden bestätigst du deshalb vorher am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen).
+
+**Lieferung oder Leistung?** „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“ ist für Dienstleistungen und Nutzungsrechte, deren Leistungsort im Drittland liegt; sie sind in Deutschland nicht steuerbar (Kz 45). Verkaufst du Ware, die ins Drittland gelangt, ist es eine steuerbare, aber steuerfreie **Ausfuhrlieferung** (Kz 43); die Vorsteuer aus dem Einkauf bleibt abziehbar. Ebenso ist Ware an ein Unternehmen im EU-Ausland keine Reverse-Charge-Leistung, sondern eine **innergemeinschaftliche Lieferung** (Kz 41).
 
 Zur innergemeinschaftlichen Lieferung:
 
-- Auf der Rechnung stehen deine USt-IdNr. und die des Kunden und der Hinweis auf die Steuerfreiheit (§ 14a Abs. 3 UStG). Ohne beide Nummern, mit einer deutschen oder einer formal falschen USt-IdNr. des Kunden oder bei einem Kunden außerhalb der EU lässt sich die Rechnung nicht festschreiben. Ob die Nummer erteilt ist, klärst du vorher mit der Bestätigungsabfrage beim BZSt.
+- Auf der Rechnung stehen deine USt-IdNr. und die des Kunden und der Hinweis auf die Steuerfreiheit (§ 14a Abs. 3 UStG). Ohne beide Nummern, mit einer deutschen oder einer formal falschen USt-IdNr. des Kunden (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm), auch der Aufbau je Land) oder bei einem Kunden außerhalb der EU lässt sich die Rechnung nicht festschreiben.
 - Im XML steht die Anschrift des Kunden als Lieferanschrift mit Lieferland (BT-80, Pflicht nach BR-IC-12).
 - Haben meldet die Lieferung in Kz 41 der Voranmeldung im Monat des Rechnungsdatums, auch bei Ist-Versteuerung, und in der [Zusammenfassenden Meldung](umsatzsteuer.md#zusammenfassende-meldung) mit Umsatzart L.
 - Steuerfrei ist sie nur mit Nachweis, dass die Ware ins andere EU-Land gelangt ist (§ 6a Abs. 3 UStG, § 17a UStDV), etwa mit der Gelangensbestätigung oder einem Versandbeleg. Den Nachweis bewahrst du selbst auf, zum Beispiel als [Anhang](#zusätzliche-anhänge) der Rechnung.
 
 Zur Ausfuhrlieferung: Der Kunde sitzt außerhalb der EU, und die Rechnung braucht deine USt-IdNr. (EN 16931 BR-G-02). Steuerfrei ist sie nur mit Ausfuhrnachweis (§ 6 Abs. 4 UStG, §§ 8 bis 11 UStDV), in der Regel dem Ausgangsvermerk aus dem ATLAS-Verfahren des Zolls. Bei Ist-Versteuerung zählt sie wie Kz 81 mit dem Zahlungseingang.
 
-Bist du in den Einstellungen als Kleinunternehmer eingetragen, bekommen neue Rechnungen automatisch „Kleinunternehmer nach § 19 UStG“. Du kannst stattdessen die eigene Befreiung nach § 4 Nr. 14 Buchst. a oder Nr. 21 wählen oder einen geklärten ausländischen Leistungsort angeben. Die innergemeinschaftliche Lieferung wird damit nicht freigegeben ([§ 19 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)). Alle Positionen bleiben ohne deutschen Steuerausweis. Angebote, Serienvorlagen und die API verwenden dieselben Regeln.
+Bist du in den Einstellungen als Kleinunternehmer eingetragen, bekommen neue Rechnungen automatisch „Kleinunternehmer: ohne Umsatzsteuer“. Du kannst stattdessen die eigene Befreiung nach § 4 Nr. 14 Buchst. a oder Nr. 21 wählen oder einen geklärten ausländischen Leistungsort angeben. Die innergemeinschaftliche Lieferung wird damit nicht freigegeben ([§ 19 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)). Alle Positionen bleiben ohne deutschen Steuerausweis. Angebote, Serienvorlagen und die API verwenden dieselben Regeln.
 
-Für die sonstige EU-Leistung bestätigst du das Land des tatsächlichen Leistungsorts und dass keine ausländische Umsatzsteuer auszuweisen ist. Die Kundenanschrift allein bestimmt den Leistungsort nicht ([§ 3a UStG](https://www.gesetze-im-internet.de/ustg_1980/__3a.html)); eine Privatperson im EU-Ausland wird dadurch kein Reverse-Charge-Kunde. Ausländische Steuersätze, OSS und das besondere EU-Kleinunternehmerverfahren nach § 19a werden hier nicht abgewickelt.
+Für „Leistungsort EU: Dienstleistung oder Nutzungsrecht“ bestätigst du das Land des tatsächlichen Leistungsorts und dass keine ausländische Umsatzsteuer auszuweisen ist. Die Kundenanschrift allein bestimmt den Leistungsort nicht ([§ 3a UStG](https://www.gesetze-im-internet.de/ustg_1980/__3a.html)); eine Privatperson im EU-Ausland wird dadurch kein Reverse-Charge-Kunde. Ausländische Steuersätze, OSS und das besondere EU-Kleinunternehmerverfahren nach § 19a werden hier nicht abgewickelt.
 
 Alte Befreiungstexte werden nicht automatisch einer Vorschrift zugeordnet. Ihr gespeicherter Belegstand bleibt erhalten; die Einordnung für den [Gesamtumsatz](auswertungen.md#gesamtumsatz-nach--19-ustg) ist bis zur Klärung als ungeklärt sichtbar. Ein Verkauf von Anlagevermögen und ein Hilfsumsatz werden ausdrücklich gekennzeichnet. Den Anlagenabgang erfasst du weiterhin in der Anlagenverwaltung.
 
@@ -242,7 +244,7 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 
 - Firmendaten: Name, Anschrift, E-Mail-Adresse, IBAN, Steuernummer oder USt-IdNr.
 - Kunde gewählt, mindestens eine Position, keine Position mit Betrag 0.
-- Umsatzsteuer: Außer bei „Regulär“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Monaco zählt dabei zu Frankreich ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Leistung ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfrei nach § 4 UStG“ braucht die Befreiungsvorschrift.
+- Umsatzsteuer: Außer bei „Regulär“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Monaco zählt dabei zu Frankreich ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“ darf der Kunde nicht in Deutschland sitzen. „Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht“ braucht die Befreiungsvorschrift.
 - Kleinunternehmer: Die gewählte Umsatzsteuer-Behandlung muss zum Firmenstatus passen, siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung).
 - Bei Kleinunternehmer-Rechnungen mit Rechnungsdatum bis Ende des laufenden Jahres fragt Haben vor dem Festschreiben nach, wenn die vollständige Zahlung im laufenden Jahr die Jahresgrenze überschreiten könnte oder der erfasste Vorjahresumsatz über 25.000 € liegt. Bei Abbruch bleibt der Entwurf gespeichert. Die automatische Festschreibung einer wiederkehrenden Rechnung braucht dann eine manuelle Bestätigung am Entwurf. Mehr zur Berechnung unter [Kleinunternehmer](einrichtung.md#kleinunternehmer).
 - Eine Rechnung muss einen positiven Gesamtbetrag haben, eine Rechnungskorrektur einen negativen.
@@ -298,7 +300,7 @@ Haben nimmt die Angaben aus den [Firmendaten](einrichtung.md#firmendaten) und se
 
 ## Buchungen
 
-Beispiel: Rechnung über 1.000,00 € netto zu 19 %.
+Beispiel: bereits erbrachte Leistung, Rechnung über 1.000,00 € netto zu 19 %.
 
 **Soll-Versteuerung** (nach vereinbarten Entgelten):
 
@@ -322,15 +324,25 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 
 | Umsatzsteuer | Konto SKR03 | Konto SKR04 | Steuerschlüssel |
 | --- | --- | --- | --- |
-| Reverse Charge | 8336 | 4336 | `RC` (Kz 21) |
-| Leistung ins Nicht-EU-Ausland | 8338 | 4338 | `Drittland` (Kz 45) |
-| Innergemeinschaftliche Lieferung | 8125 | 4125 | `IGL` (Kz 41) |
-| Ausfuhrlieferung ins Drittland | 8120 | 4120 | `Ausfuhr` (Kz 43) |
-| Steuerfrei nach § 4 UStG | 8100 | 4100 | `Steuerfrei` (Kz 48) |
-| Kleinunternehmer nach § 19 UStG | 8192 | 4184 | `KU` (keine Kennzahl) |
+| EU, Reverse Charge: Dienstleistung oder Nutzungsrecht | 8336 | 4336 | `RC` (Kz 21) |
+| Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht | 8338 | 4338 | `Drittland` (Kz 45) |
+| Warenlieferung in die EU (innergemeinschaftliche Lieferung) | 8125 | 4125 | `IGL` (Kz 41) |
+| Warenlieferung ins Nicht-EU-Ausland (Ausfuhrlieferung) | 8120 | 4120 | `Ausfuhr` (Kz 43) |
+| Steuerfreie Leistung, z. B. Heilbehandlung oder Unterricht | 8100 | 4100 | `Steuerfrei` (Kz 48) |
+| Kleinunternehmer: ohne Umsatzsteuer | 8192 | 4184 | `KU` (keine Kennzahl) |
 
 > [!IMPORTANT]
-> Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+> Die Kontenzuordnung stammt aus `packages/core/src/kontenplan.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+
+### Vorauszahlung auf normale Rechnungen
+
+Bei neuen normalen Rechnungen in Euro mit regulärer deutscher Umsatzsteuer, auch an eine ausländische Kundenanschrift, zählt als Leistungstag **Leistung von**, bei einem Zeitraum **Leistung bis**; er wird beim Festschreiben gespeichert. Ordne eine frühere Bank- oder Barzahlung mit ihrem tatsächlichen Zahlungstag zu: Die Steuer auf diesen Betrag entsteht im Eingangsmonat, auch bei Soll ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). GmbH und UG führen den Nettobetrag bis zur Leistung als [erhaltene Anzahlung](buchhaltung.md#anzahlungen-vor-leistung). Die EÜR bleibt beim Zufluss ([§ 11 Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__11.html)).
+
+Beispiel: Leistung und Rechnung am 20. Januar über 700 € netto und 133 € Steuer, Zahlung schon am 13. Dezember des Vorjahres. Im Dezember stehen bei GmbH/UG 700 € Anzahlung und 133 € fällige Steuer; der Erlös entsteht im Januar. Bei nur 119 € Vorauszahlung sind es zunächst 100 € Anzahlung und 19 € Steuer. Die verbleibende Steuer wird bei Soll mit der Leistung, bei Ist mit der Restzahlung fällig; die Vorauszahlung wird nicht erneut besteuert.
+
+Rechnungen, die vor dieser Regel festgeschrieben wurden, nehmen bei Soll oder als GmbH/UG keine Zahlung vor ihrem Leistungstag an; bei Ist ohne Bilanz stimmt der bisherige Weg schon. Zahlungen ab dem Leistungstag bleiben auch vor dem Rechnungsdatum möglich. Storniere die Alt-Rechnung im Monat der Leistung, stelle sie mit Leistungszeitraum neu aus und ordne die Zahlung der neuen Rechnung zu. Ist der Eingangsmonat schon gemeldet, zeigt die [Umsatzsteuerseite](umsatzsteuer.md) die Abweichung zur Berichtigung.
+
+Beim Einzelunternehmen mit Soll stehen am Leistungstag zwei Journalbelege, Rechnung und Steuerumbuchung; Forderung und Erlös entstehen nur einmal.
 
 ## Zahlung und Mahnung
 
@@ -389,7 +401,7 @@ Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue A
 
 Abweichende Beträge oder Abzüge, eine mehrdeutige Vorgängerkette und bereits vorhandene Entgeltkorrekturen werden beim Ersatz abgelehnt. Eine echte Entgeltminderung braucht eine eigene datierte Korrektur im Zeitraum der Änderung; das Datum des Ersatzbelegs weist diesen Zeitpunkt nicht nach ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Für den Ausfall einer noch unbilanzierten Anforderung gilt die Grenze unter [Anzahlungen vor Leistung](buchhaltung.md#anzahlungen-vor-leistung).
 
-Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Der allgemeine Vorauszahlungsfall auf normalen Rechnungen ist als [#853](https://github.com/firsttris/haben/issues/853) abgegrenzt.
+Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Für normale Rechnungen gilt der [eigene Vorauszahlungsweg](#vorauszahlung-auf-normale-rechnungen).
 
 Regeln:
 
@@ -476,6 +488,7 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 - **PDF herunterladen** liefert `Rechnung-<Nummer>.pdf`.
 - **XML herunterladen** liefert `Rechnung-<Nummer>-cii.xml` bzw. `-ubl.xml`. Bei ZUGFeRD ist das dasselbe XML, das im PDF steckt.
 - **Lieferschein** erzeugt einen Lieferschein mit den Positionen und Mengen der Rechnung, ohne Preise (siehe [Angebote](angebote.md#auftragsbestätigung-und-lieferschein)).
+- **Kopieren** legt für die nächste ähnliche Rechnung einen neuen Entwurf an, mit Kunde, Ansprechpartner (solange aktiv), Einleitung, Positionen (samt Text, Artikelnummer und Rabatt), Hinweis samt [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen), Bestell-, Auftrags- und Lieferscheinnummer, Umsatzsteuer, Preismodus, Währung, Sprache, Format, Gesamtrabatt, Zahlungsziel, Skonto und Zahlungsart. Das Rechnungsdatum ist heute, Nummer, Leistungszeitraum und Kurs sind leer; aus „bereits bezahlt“ wird Überweisung. [Anhänge](#zusätzliche-anhänge) und der Bezug zu einem Angebot bleiben beim Original, das sich nicht ändert. Auch eine stornierte Rechnung lässt sich kopieren, Stornorechnungen, Korrekturen sowie Abschlags- und Schlussrechnungen nicht.
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
 
@@ -530,7 +543,7 @@ Gebucht wird je Seite eine Buchung zwischen Forderungen und Verrechnungskonto, z
 | Rechnung | 1590 Verrechnungskonto (SKR04 1370) | 1400 Forderungen (SKR04 1200) |
 | Korrektur | 1400 Forderungen (SKR04 1200) | 1590 Verrechnungskonto (SKR04 1370) |
 
-Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. Verrechnet ist kein Geld geflossen: Haben gibt die Forderung in dieser Höhe auf, statt sie zu kassieren. Bei Ist-Versteuerung entsteht darauf deshalb keine Umsatzsteuer, weder bei der Rechnung noch bei der Korrektur; die Steuer der Zahlungen bleibt die Steuer des tatsächlich vereinnahmten Entgelts. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat, die Aufrechnung ändert daran nichts. Bleibt der Rest offen, bleibt auch seine Steuer offen, wie bei jeder unbezahlten Rechnung. Hat die Rechnung zwei Steuersätze und nimmt die Korrektur nur einen davon zurück, trägt nach der Verrechnung nur noch der verbliebene Satz die Steuer: Die Verrechnung nimmt den Anteil der Gegenrechnung aus dem Mix, die Zahlungen verteilen sich über den Rest (Rechnung 100,00 € zu 19 % und 100,00 € zu 7 %, Korrektur über die 19-%-Position, verrechnet 119,00 €, Zahlung 107,00 € → Kz 81 bleibt bei null, Kz 86 trägt 100,00 € und 7,00 € Steuer). War vor der Verrechnung schon ein Teil bezahlt, bleibt dessen Steuer im Monat der Zahlung stehen; berichtigt wird mit der nächsten Zahlung ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). In der EÜR ist die Verrechnung kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
+Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. Verrechnet ist kein Geld geflossen: Haben gibt die Forderung in dieser Höhe auf, statt sie zu kassieren. Bei Ist-Versteuerung entsteht darauf deshalb keine Umsatzsteuer, weder bei der Rechnung noch bei der Korrektur; die Steuer der Zahlungen bleibt die Steuer des tatsächlich vereinnahmten Entgelts. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat, soweit das Entgelt nicht schon bezahlt war ([Bereits bezahlte Rechnung](#bereits-bezahlte-rechnung)); die Aufrechnung ist keine Rückzahlung und ändert daran nichts. Bleibt der Rest offen, bleibt auch seine Steuer offen, wie bei jeder unbezahlten Rechnung. Hat die Rechnung zwei Steuersätze und nimmt die Korrektur nur einen davon zurück, trägt nach der Verrechnung nur noch der verbliebene Satz die Steuer: Die Verrechnung nimmt den Anteil der Gegenrechnung aus dem Mix, die Zahlungen verteilen sich über den Rest (Rechnung 100,00 € zu 19 % und 100,00 € zu 7 %, Korrektur über die 19-%-Position, verrechnet 119,00 €, Zahlung 107,00 € → Kz 81 bleibt bei null, Kz 86 trägt 100,00 € und 7,00 € Steuer). War vor der Verrechnung schon ein Teil bezahlt, bleibt dessen Steuer im Monat der Zahlung stehen; berichtigt wird mit der nächsten Zahlung ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). In der EÜR ist die Verrechnung kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
 
 Aufgehoben wird im selben Abschnitt mit Datum und Grund; die Gegenbuchung steht am Tag der Aufhebung, nicht rückwirkend. Solange eine Verrechnung besteht, lässt sich die Rechnung nicht stornieren — hebe sie zuerst auf. Im Jahresarchiv stehen die Verrechnungen in `rechnungen/verrechnungen.csv`; im [Journal](buchhaltung.md#die-seite-buchungen) führt die Herkunft beider Buchungen auf ihre Rechnung.
 
@@ -594,18 +607,31 @@ Eine festgeschriebene Rechnung änderst du nicht, du stellst eine neue aus. Auf 
 Für beide gilt:
 
 - Sie bekommen eine eigene Nummer aus demselben Nummernkreis und das heutige Datum.
-- Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar.
+- Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar. Ebenso übernehmen sie seine USt-IdNr., auch wenn sie nicht zum [Aufbau in ihrem Land](umsatzsteuer.md#vorprüfung-der-zm) passt.
 - Sie übernehmen die Umsatzsteuer-Behandlung und den Hinweis der ursprünglichen Rechnung, dazu [Bestell-, Auftrags- und Lieferscheinnummer](#bestellnummer-auftrag-und-lieferschein).
 - PDF und XML verweisen auf die ursprüngliche Rechnung („zur Rechnung 2026-034 vom …“, im XML als BillingReference).
 - Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen.
 - Eine bereits stornierte Rechnung lässt sich nicht noch einmal stornieren oder korrigieren. Storno und Korrektur selbst lassen sich nicht weiter korrigieren.
-- War die Rechnung schon (teilweise) bezahlt, ist die Stornorechnung im Bankabgleich mit dem gezahlten Betrag offen. Die Rückzahlung an den Kunden ordnest du dort der Stornorechnung zu; bei Ist-Versteuerung mindert sie im Monat der Rückzahlung die Umsatzsteuer.
+- War die Rechnung schon (teilweise) bezahlt, ist die Stornorechnung im Bankabgleich mit dem gezahlten Betrag offen. Die Rückzahlung an den Kunden ordnest du dort der Stornorechnung zu; sie mindert im Monat der Rückzahlung die Umsatzsteuer ([Bereits bezahlte Rechnung](#bereits-bezahlte-rechnung)).
 
 Auf neuen Stornobelegen steht „Die ursprüngliche Rechnung wird storniert.“ Das gilt unabhängig von Zahlungen und Erstattungen, auch für das positive Storno einer Rechnungskorrektur. Der Hinweis nennt keinen Kundensaldo und sagt keine Auszahlung zu. Eine Rechnungskorrektur beschreibt die Minderung der ursprünglichen Rechnung. PDF und E-Rechnung verwenden denselben Inhalt, das englische PDF entsprechend übersetzt. Bereits gespeicherte Belege behalten ihren bisherigen Text.
 
 Die ursprüngliche Rechnung zeigt unter **Korrekturen** alle Stornos und Korrekturen, die sich auf sie beziehen, eine stornierte Rechnung zusätzlich einen roten Hinweis mit Link zur Stornorechnung.
 
 Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskorrektur erscheint dort als offener Posten mit negativem Betrag, dem du eine Rückzahlung zuordnen kannst.
+
+### Bereits bezahlte Rechnung
+
+Storno und Rechnungskorrektur mindern die Umsatzsteuer auf schon vereinnahmtes Entgelt erst mit der Rückzahlung an den Kunden, bei Soll wie bei Ist, mit und ohne Leistungstag, auch bei Abschlagsrechnungen über eine Teilleistung (Anzahlungsrechnungen laufen über den [Anzahlungsweg](#abschlags--und-schlussrechnung)). [UStAE 17.1 Abs. 2 Satz 3](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.pdf): „Vereinbaren der leistende Unternehmer und der Leistungsempfänger die vollständige oder teilweise Rückzahlung des entrichteten Entgelts, mindert sich die Bemessungsgrundlage nur, soweit das Entgelt tatsächlich zurückgezahlt wird, und zwar in dem Besteuerungszeitraum, in dem die Rückgewähr erfolgt“; für Storno nach Zahlung Abs. 8 Satz 5 mit BFH V R 34/09 ([§ 17 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)).
+
+- Zurückgehalten wird nur die Überzahlung, also was mehr bezahlt ist als das geminderte Entgelt. Den unbezahlten Teil mindert die Korrektur bei Soll in ihrem eigenen Monat.
+- Ordne die Rückzahlung im Bankabgleich dem Storno oder der Korrektur zu; bei Raten zählt jede im Monat ihrer Zahlung. Eine [Verrechnung](#verrechnen-ohne-zahlung) ist keine Rückzahlung.
+- Bei Soll bucht Haben am Tag der Korrektur die zurückgehaltene Steuer von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ zurück und mit der Rückzahlung wieder um („Umsatzsteuer bis zur Rückzahlung“). Bei Ist erledigt das schon die Rückzahlung.
+- Mehrere Steuersätze: Die Überzahlung verteilt sich im Verhältnis der Minderung je Satz; mindert die Korrektur nur den 19-%-Teil, bleibt sie ganz bei 19 %. Der Rundungsrest in Cent geht auf den größten Anteil.
+
+Beispiel (Soll): Rechnung 1.190 €, bezahlt 1.100 €, im Juni Korrektur über 119 €. Im Juni mindern sich 75,63 € netto und 14,37 € Steuer; die 29 € Überzahlung bleiben besteuert, bis du sie im Juli zurückzahlst (24,37 € und 4,63 €).
+
+Stornos und Korrekturen, die vor dieser Regel festgeschrieben wurden, tragen kein Kennzeichen und behalten das bisherige Verfahren (bei Soll Minderung im Monat der Korrektur), auch neben neuen Korrekturen derselben Rechnung. Gesendete Voranmeldungen ändern sich dadurch nicht.
 
 ## Kontakte
 
@@ -615,6 +641,22 @@ Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskor
 
 Eigene Werkzeuge, etwa für Bestellungen aus Etsy oder eBay, legen über die [REST-API](api.md) Kontakte und Rechnungsentwürfe an. Diese Entwürfe stehen in der Rechnungsliste wie jeder andere; du prüfst sie im Editor und schreibst sie fest, die API selbst schreibt nichts fest und bucht nichts. Ein Entwurf kann die Plattform und die Bestellnummer tragen (externe Referenz): Kommt dieselbe Bestellung noch einmal, entsteht kein zweiter Entwurf. Die Referenz wird mit der Rechnung festgeschrieben.
 
+## Rechnungen aus einem Fremdsystem
+
+Schreibt ein anderes Programm deine Rechnungen, etwa ein Kundenportal oder eine Praxissoftware, übernimmst du sie laufend nach Haben: Auf der Seite **Rechnungen** wählst du oben **Ausgangsrechnung hochladen** (nur der Inhaber sieht den Knopf) und dann das PDF der Rechnung. Ist es eine E-Rechnung (ZUGFeRD), liest Haben Nummer, Datum, Fälligkeit, Leistungszeitraum und Steuer je Satz aus der Datei und schlägt sie vor, ebenso den Kunden, wenn die USt-IdNr. der Rechnung (steht keine darauf, der Name) zu genau einem deiner Kontakte passt; fehlt die Fälligkeit, schlägt Haben das Rechnungsdatum plus 14 Tage vor. Ohne E-Rechnung trägst du die Angaben von Hand ein. Prüfe Kunde und Steuerbehandlung, bei steuerfreien Umsätzen auch die Befreiungsvorschrift, und übernimm. Bei einer Leistung ins Ausland (Reverse Charge, Nicht-EU-Ausland, Leistungsort EU) gibst du wie im Editor das Land des tatsächlichen Leistungsorts an; bei „Leistungsort EU“ und als Kleinunternehmer ist es Pflicht, ebenso die Bestätigung, dass keine ausländische Umsatzsteuer auszuweisen ist. Erst mit dem Land zählt der [Gesamtumsatz nach § 19](auswertungen.md#gesamtumsatz-nach--19-ustg) den Umsatz als ausgenommen, sonst bleibt er ungeklärt.
+
+Die Rechnung steht danach festgeschrieben in der Liste, mit Nummer und PDF aus dem Fremdsystem; beides bleibt unverändert, dein Nummernkreis bleibt unberührt. Eine eingebettete E-Rechnung wird mit abgelegt und muss zu deinen Angaben passen (Nummer, Datum, Netto und Steuer je Satz, Steuerkategorie zur Steuerbehandlung; für § 19 UStG gilt E oder O), sonst lehnt Haben ab. Gebucht wird wie beim Festschreiben einer eigenen Rechnung (siehe [Buchungen](#buchungen)). Bei Soll-Versteuerung zählt der Monat der Leistung: Trage deshalb **Leistung von** und **Leistung bis** ein, wenn die Leistung in einem anderen Monat liegt als das Rechnungsdatum. Zahlung, Bankabgleich, Mahnung und Storno laufen danach wie bei jeder anderen Rechnung.
+
+Anders als bei [übernommenen Rechnungen](#übernommene-rechnungen) aus dem Umzug gibt es keinen Stichtag: Der Erlös steht in Haben, nicht in alten Büchern. Übernimm eine Rechnung deshalb nur, wenn sie in keinem anderen Programm mehr verbucht wird. Es gelten dieselben Prüfungen wie beim Festschreiben: vollständige Firmendaten, die Versteuerungsart des Jahres und bei Kleinunternehmern die Umsatzgrenze. Könnte sie überschritten werden oder lag der Vorjahresumsatz schon über der Grenze, fragt Haben nach und übernimmt die Rechnung erst nach deiner Bestätigung.
+
+- Nur Rechnungen in Euro über mehr als 0 €, mit 19 %, 7 % oder 0 %. Eine E-Rechnung als Gutschrift, als Anzahlungsrechnung oder in Fremdwährung warnt Haben beim Einlesen und lehnt sie beim Übernehmen ab. Ohne E-Rechnung erkennt Haben eine Anzahlungsrechnung nicht: Übernimm hier nur Rechnungen über erbrachte Leistungen.
+- Das Zahlungsziel beträgt höchstens 365 Tage, die Fälligkeit liegt nicht vor dem Rechnungsdatum, die Datei ist höchstens 20 MB groß.
+- Netto und Steuer je Satz trägst du wie auf der Rechnung ein, jeden Satz einmal (nennt eine E-Rechnung denselben Satz in mehreren Zeilen, rechnet Haben sie im Vorschlag zusammen); lässt sich die Steuer nicht centgenau nachbilden, lehnt Haben ab. Das gilt auch, wenn das Fremdsystem die Steuer je Position rundet.
+- Eine Rechnungsnummer, die es in Haben schon gibt, lässt sich nicht übernehmen; ein Schrägstrich, ein Rückstrich oder ein Sonderzeichen wie ein Zeilenumbruch in der Nummer lehnt Haben ab. Gleicht die fremde Nummer dem Muster deiner eigenen, meldet Haben später beim Festschreiben, dass die Nummer vergeben ist; wähle dann ein anderes Nummernformat.
+- Margenbesteuerung (§ 25 UStG), Dreiecksgeschäfte, inländische Leistungen mit Steuerschuld des Leistungsempfängers (§ 13b UStG) und Rechnungen mit steuerpflichtigen und steuerfreien Positionen zugleich (etwa Gutachten zu 19 % und Heilbehandlung nach § 4 Nr. 14 UStG) bildet das Formular nicht ab; solche Rechnungen erfasst du von Hand. Als Kleinunternehmer übernimmst du hier Rechnungen nach § 19 UStG und Leistungen ins Ausland; eine eigene Befreiung (§ 4 Nr. 14 Buchst. a oder Nr. 21 UStG, siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)) erfasst du im Editor.
+
+Rechtsgrundlagen: Entstehung der Steuer nach [§ 13 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html), Aufbewahrung der Rechnung in der ausgestellten Form nach [§ 14b UStG](https://www.gesetze-im-internet.de/ustg_1980/__14b.html) und § 147 AO.
+
 ## Übernommene Rechnungen
 
 Offene Rechnungen, die du beim Umzug aus Lexware Office, sevDesk, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md) als offene Posten übernimmst ([Schritt 3](lexoffice.md#schritt-3-offene-posten-übernehmen)), erscheinen als festgeschriebene Rechnungen mit ihrer bisherigen Nummer. Unter **Format** steht die gespeicherte Herkunft, etwa „Original aus sevDesk“. Beim JSON-Eingang steht dort das im Paket genannte Quellprogramm, ohne dessen Namen „JSON-Import“. Die Rechnungsnummer entscheidet nicht über die Herkunft. Das PDF ist das Original aus dem alten Programm, ein XML gibt es nur, wenn das Programm eines geliefert hat. Haben bildet je Steuersatz eine Pauschalposition nach, damit Zahlungen im Bankabgleich zugeordnet werden können.
@@ -623,14 +665,16 @@ Gebucht werden diese Rechnungen nicht als Erlös, sondern gegen den Saldenvortra
 
 ## Prüfung gegen den KoSIT-Validator
 
-Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator und der XRechnung-Konfiguration; welche Versionen, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG` (Renovate hebt sie). Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz, je eine Rechnung mit Reverse Charge, ins Drittland, als innergemeinschaftliche Lieferung (mit Leistungszeitraum und mit Lieferdatum, dazu ein Storno), als Ausfuhrlieferung, steuerfrei nach § 4 UStG und als Kleinunternehmer sowie Rechnungen mit Bruttopreisen (gemischte Sätze, Storno, 9,80 € zu 19 %, Schlussrechnung, große Mengen), Rechnungen mit Skonto (zwei Stufen, mit Leitweg-ID), Abschlags- und Schlussrechnung, Rechnungen in Fremdwährung (USD, CHF), ein Absender als GmbH mit Registerangaben, Rechnungen mit Positions- und Gesamtrabatt Rechnungen mit Bestell-, Auftrags- und Lieferscheinnummer (mit Lieferdatum, ohne Bestellnummer und als Storno) und Rechnungen mit Artikelnummer (BT-155), auch als Storno. Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
+Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator und der XRechnung-Konfiguration; welche Versionen, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG` (Renovate hebt sie). Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz, je eine Rechnung mit Reverse Charge, ins Drittland, als innergemeinschaftliche Lieferung (mit Leistungszeitraum und mit Lieferdatum, dazu ein Storno), als Ausfuhrlieferung, steuerfrei nach § 4 UStG und als Kleinunternehmer sowie Rechnungen mit Bruttopreisen (gemischte Sätze, Storno, 9,80 € zu 19 %, Schlussrechnung, große Mengen), Rechnungen mit Skonto (zwei Stufen, mit Leitweg-ID), Abschlags- und Schlussrechnung, Rechnungen in Fremdwährung (USD, CHF), ein Absender als GmbH mit Registerangaben, Rechnungen mit Positions- und Gesamtrabatt Rechnungen mit Bestell-, Auftrags- und Lieferscheinnummer (mit Lieferdatum, ohne Bestellnummer und als Storno) und Rechnungen mit Artikelnummer (BT-155), auch als Storno, sowie Rechnungen mit der Lieferantennummer beim Kunden (BT-29), auch neben der Steuernummer. Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
 
 ## Grenzen
 
 - Nur die Steuersätze 19 %, 7 % und 0 %. Fremdwährung mit den Einschränkungen unter [Rechnungen in Fremdwährung](#rechnungen-in-fremdwährung); Angebote nur in Euro.
-- Innergemeinschaftliche Lieferungen nur an Unternehmer mit USt-IdNr. Nicht unterstützt: Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), Dreiecksgeschäfte (§ 25b UStG), Lieferungen in ein Konsignationslager (§ 6b UStG), das innergemeinschaftliche Verbringen eigener Ware und Versandhandel an Privatkunden im EU-Ausland (One-Stop-Shop).
+- Innergemeinschaftliche Lieferungen nur an Kunden mit USt-IdNr. Nicht unterstützt: Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), Dreiecksgeschäfte (§ 25b UStG), Lieferungen in ein Konsignationslager (§ 6b UStG), das innergemeinschaftliche Verbringen eigener Ware und Versandhandel an Privatkunden im EU-Ausland (One-Stop-Shop).
 - Ausfuhrlieferungen nur an Kunden mit Anschrift außerhalb der EU; den Ausfuhrnachweis führt Haben nicht.
 - Skonto nur vom ganzen Rechnungsbetrag (kein Basisbetrag nach BR-DE-18), höchstens drei Stufen, nur in Euro. Keine Zuschläge auf Belegebene; Abschläge auf Belegebene nur als [Gesamtrabatt](#rabatte).
 - Höchstens 200 Positionen je Rechnung.
+- Storno und neue Rechnung für dieselbe Leistung (Rechnungsaustausch) erkennt Haben noch nicht als Austausch: Hängt eine Zahlung an der stornierten Rechnung oder liegt das Storno in einem späteren Monat als die Leistung, steht die Umsatzsteuer bis dahin doppelt im Leistungsmonat und wird erst mit Rückzahlung, Aufhebung oder Storno gemindert. Ebenso übernimmt eine neue Zuordnung desselben Bankumsatzes nach einer [datierten Aufhebung](bank.md#zuordnung-aufheben) nicht den Tag der Aufhebung. Beides behandelt [#1454](https://github.com/firsttris/haben/issues/1454).
+- Ohne **Leistung von**/**bis** grenzt Haben eine frühere Zahlung nicht als Vorauszahlung ab, auch wenn bar bei der Leistung bezahlt und die Rechnung später ausgestellt wurde; das Rechnungsdatum ersetzt keinen Leistungsnachweis. Trag den Leistungstag vor dem Festschreiben ein.
 - Rechnungen gehen per E-Mail über deinen SMTP-Zugang oder über [Microsoft 365](einrichtung-email.md#e-mail-über-microsoft-365), nicht über Peppol oder die Portale öffentlicher Auftraggeber. Über Microsoft 365 gehen Anhänge nur bis 2,5 MB zusammen.
 - Zusätzliche Anhänge nur als PDF, bis 20 MB je Datei und zehn je Rechnung. Viele Mailserver nehmen Mails ab etwa 25 MB nicht mehr an; das Versandprotokoll zeigt dann die Meldung des Servers. Anhänge lassen sich nur in Haben hochladen, nicht über die [REST-API](api.md); [wiederkehrende Rechnungen](#wiederkehrende-rechnungen) haben keine Anhänge und versenden ohne sie. Mahnungen gehen ohne die Anhänge der Rechnung.

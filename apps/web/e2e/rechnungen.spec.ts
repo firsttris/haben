@@ -24,6 +24,7 @@ import {
   rechnungFestschreiben,
   trefferliste,
   randImDialog,
+  weitereAngabenOeffnen,
 } from "./einrichtung.ts";
 import { receiptJpeg } from "./belegbild.ts";
 
@@ -169,6 +170,8 @@ test("DATEV-Personenkonten: Schalter mit Bestätigung, fehlender Debitor wird ve
   // Am Kontakt steht die Nummer und ist ab dem ersten Export fest
   await go("/kontakte");
   await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("DATEV-Debitor 10000");
+  await weitereAngabenOeffnen(page);
   await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10000");
   await page.getByLabel("DATEV-Debitor").fill("10002");
   await page.getByRole("button", { name: "Speichern" }).click();
@@ -179,6 +182,7 @@ test("DATEV-Personenkonten: die Steuerberatung liest auf ihrer Startseite, warum
   const jahr = Number(INVOICES[1]!.date.slice(0, 4));
   await go("/kontakte");
   await go((await page.getByRole("link", { name: "Alpenblick Media AG" }).first().getAttribute("href"))!);
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("DATEV-Debitor").fill("10002");
   await page.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
@@ -250,6 +254,27 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await expect(page.getByLabel("Vorschau der Rechnung")).toContainText("Invoice");
 });
 
+test("Unsere Lieferantennummer beim Kunden steht im Kopf der Rechnung (#711)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Wohnbau Nord eG");
+  await page.getByLabel("Ort").fill("Lübeck");
+  await page.getByLabel("Unsere Lieferantennummer bei diesem Kunden").fill("70815");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(page.getByLabel("Unsere Lieferantennummer bei diesem Kunden")).toHaveValue("70815");
+  // Die eigene Lieferantennummer (Gegenrichtung) bleibt leer
+  await expect(page.getByLabel("Lieferantennummer", { exact: true })).toHaveValue("");
+  const kontakt = page.url();
+
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Wohnbau Nord eG · Lübeck");
+  await expect(page.getByLabel("Vorschau der Rechnung")).toContainText("Lieferantennummer: 70815");
+  // Archivieren: Die folgenden Tests rechnen nicht mit diesem Kunden
+  await go(kontakt);
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
 test("Kontakt bearbeiten: Die Meldung „Gespeichert.“ bleibt nach dem Speichern stehen", async () => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Speicher Testkunde GmbH");
@@ -277,11 +302,14 @@ test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebe
   await page.getByLabel("Name oder Firma").fill("Musterpartner GmbH");
   await page.getByLabel("Lieferant", { exact: true }).check();
   await page.getByLabel("Kundennummer").fill("K-42");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("DATEV-Debitor").fill("10042");
   await page.getByLabel("DATEV-Kreditor").fill("70087");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
   await expect(page.getByLabel("Kundennummer")).toHaveValue("K-42");
+  await expect(page.locator("details.weitere-angaben > summary")).toContainText("DATEV-Debitor 10042 · DATEV-Kreditor 70087");
+  await weitereAngabenOeffnen(page);
   await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10042");
   await expect(page.getByLabel("DATEV-Kreditor")).toHaveValue("70087");
   // Archivieren: Die folgenden Tests rechnen nicht mit einem Lieferanten
@@ -290,12 +318,62 @@ test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebe
 
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Zweiter Partner");
+  await weitereAngabenOeffnen(page);
   await page.getByLabel("DATEV-Debitor").fill("70087");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByText("Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)")).toBeVisible();
   await page.getByLabel("DATEV-Debitor").fill("10042");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByText("Debitor 10042 hat schon „Musterpartner GmbH“.")).toBeVisible();
+});
+
+test("Kontakt: Weitere Angaben sind zu und zeigen Gesetztes, ein Fehler darin klappt sie auf, zugeklappt geht nichts verloren (#1253)", async () => {
+  await go("/kontakte/neu");
+  const bereich = page.locator("details.weitere-angaben");
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(bereich.locator("summary")).toContainText("DATEV-Konten, Skonto");
+  await page.getByLabel("Name oder Firma").fill("Landesamt Nord");
+  await weitereAngabenOeffnen(page);
+  await page.getByLabel("Leitweg-ID").fill("991-01234-44");
+  await page.getByLabel("DATEV-Debitor").fill("123");
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", false);
+  await expect(bereich.locator("summary")).toContainText("Leitweg-ID gesetzt");
+
+  // Der Fehler steht im zugeklappten Bereich: Er klappt auf
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)")).toBeVisible();
+  await expect(bereich).toHaveJSProperty("open", true);
+
+  // Zugeklappt gespeichert, sind die Werte da
+  await page.getByLabel("DATEV-Debitor").fill("");
+  await bereich.locator("summary").click();
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(bereich.locator("summary")).toContainText("Leitweg-ID gesetzt");
+  await weitereAngabenOeffnen(page);
+  await expect(page.getByLabel("Leitweg-ID")).toHaveValue("991-01234-44");
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
+test("Kontakt: Meldung des Servers zu Leitweg-ID und Stundensatz klappt Weitere Angaben auf und setzt den Fokus (#1253)", async () => {
+  for (const [feld, wert] of [
+    ["Leitweg-ID", "9".repeat(47)],
+    ["Stundensatz (€, optional)", "100000,01"],
+  ] as const) {
+    await go("/kontakte/neu");
+    const bereich = page.locator("details.weitere-angaben");
+    await page.getByLabel("Name oder Firma").fill("Review Amt");
+    await weitereAngabenOeffnen(page);
+    await page.getByLabel(feld).fill(wert);
+    await bereich.locator("summary").click();
+    await expect(bereich).toHaveJSProperty("open", false);
+    await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+    await expect(page.getByText(/höchstens/)).toBeVisible();
+    await expect(bereich, `${feld}: Bereich klappt bei Serverfehler auf`).toHaveJSProperty("open", true);
+    await expect(page.getByLabel(feld)).toBeFocused();
+  }
 });
 
 test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)", async () => {
@@ -322,6 +400,44 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
   await go("/kontakte");
   await page.getByRole("link", { name: /Dialogkunde GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
+test("Kontakt: Schnellanlage und Bearbeiten speichern auch zugeklappte Weitere Angaben, ungeänderte bleiben (#1253)", async () => {
+  await go("/rechnungen/neu");
+  const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await neuenKontaktOeffnen(page);
+  await dialog.getByLabel("Name oder Firma").fill("Dialog Amt");
+  await dialog.getByText("Weitere Angaben").click();
+  await dialog.getByLabel("DATEV-Debitor").fill("10077");
+  await dialog.getByLabel("Stundensatz (€, optional)").fill("95,50");
+  await dialog.getByLabel("Leitweg-ID").fill("991-01234-44");
+  await dialog.getByLabel("Standardformat für Rechnungen").selectOption("xrechnung-ubl");
+  await dialog.getByRole("combobox", { name: /^Skonto/ }).selectOption("eigen");
+  await dialog.getByRole("button", { name: "Skontostufe hinzufügen" }).click();
+  await dialog.getByLabel("Stufe 1: Skonto in %").fill("2,5");
+  await dialog.getByLabel("Stufe 1: Frist in Tagen").fill("10");
+  await dialog.getByText("Weitere Angaben").click();
+  await expect(dialog.locator("details.weitere-angaben")).toHaveJSProperty("open", false);
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Dialog Amt/ }).click();
+  const bereich = page.locator("details.weitere-angaben");
+  await expect(bereich.locator("summary")).toContainText("DATEV-Debitor 10077 · Stundensatz 95,50 € · Leitweg-ID gesetzt");
+  await expect(bereich.locator("summary")).toContainText("Skonto 2,50 % in 10 Tagen");
+  // Nur den Namen ändern, Bereich bleibt zu
+  await page.getByLabel("Name oder Firma").fill("Dialog Amt Nord");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+  await weitereAngabenOeffnen(page);
+  await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10077");
+  await expect(page.getByLabel("Stundensatz (€, optional)")).toHaveValue("95,50");
+  await expect(page.getByLabel("Leitweg-ID")).toHaveValue("991-01234-44");
+  await expect(page.getByLabel("Standardformat für Rechnungen")).toHaveValue("xrechnung-ubl");
+  await expect(page.getByLabel("Stufe 1: Skonto in %")).toHaveValue("2,50");
   await page.getByRole("button", { name: "Archivieren" }).click();
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
@@ -2332,12 +2448,19 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
   await go("/kontakte");
-  await go(
-    (await page
-      .getByRole("link", { name: /Alpenblick Media AG/ })
-      .first()
-      .getAttribute("href"))!,
-  );
+  const kontaktPfad = (await page
+    .getByRole("link", { name: /Alpenblick Media AG/ })
+    .first()
+    .getAttribute("href"))!;
+  // Ohne Mandat erklärt der Editor das Mandat und verlinkt auf die Stelle beim Kontakt, an der es angelegt wird
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Alpenblick Media AG · München");
+  await page.getByLabel("Zahlungsart").selectOption("lastschrift");
+  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toBeVisible();
+  const mandatLink = page.getByRole("link", { name: "SEPA-Lastschriftmandate (öffnet in neuem Tab)" });
+  await expect(mandatLink).toHaveAttribute("href", `${kontaktPfad}#mandate-heading`);
+  await expect(mandatLink).toHaveAttribute("target", "_blank");
+  await go(kontaktPfad);
   const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
   await karte.getByRole("button", { name: "Mandat anlegen" }).click();
   const mandat = karte.getByRole("form", { name: "Neues Mandat" });
@@ -2358,6 +2481,9 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   const mandatFeld = page.getByRole("combobox", { name: "Mandat", exact: true });
   await expect(mandatFeld).toHaveValue(/.+/);
   await expect(mandatFeld.locator("option:checked")).toHaveText("AB-2026-01 · CORE");
+  // Mit gewähltem Mandat entfällt die Erklärung, der Hinweis zur Ankündigung bleibt
+  await expect(page.getByText("Das Mandat ist die Einzugsermächtigung deines Kunden")).toHaveCount(0);
+  await expect(page.getByText("14 Kalendertage vorher beim Kunden sein")).toBeVisible();
   await expect(page.getByRole("button", { name: "Skontostufe hinzufügen" })).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
   await page.getByLabel("Menge Position 1").fill("1");
@@ -2391,6 +2517,9 @@ test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danac
 
   await go("/lastschriften");
   const form = page.getByRole("form", { name: "SEPA-Lastschrift erzeugen" });
+  // Einleitung in drei Schritten statt Dateiformat und Fachwort
+  await expect(page.getByRole("list").filter({ hasText: "Online-Banking hochladen" }).getByRole("listitem")).toHaveCount(3);
+  await expect(form.getByLabel("Konto, auf das das Geld kommt")).toContainText("Girokonto · DE89 3704 0044 0532 0130 00");
   const zeile = form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ });
   await expect(form).toContainText("AB-2026-01");
   await expect(form).toContainText("CORE · Erstlastschrift");
@@ -2601,6 +2730,9 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
 
 test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde filtern und löschen (#417)", async () => {
   await go("/leistungen");
+  // Die Seite heißt Zeiteinträge, die Adresse bleibt /leistungen (#1253)
+  await expect(page.getByRole("heading", { level: 1, name: "Zeiteinträge" })).toBeVisible();
+  await expect(page).toHaveTitle("Zeiteinträge · Haben");
   await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
   await page.getByRole("button", { name: "Neuer Eintrag" }).click();
   const neu = page.getByRole("form", { name: "Neuer Eintrag" });
@@ -2863,6 +2995,98 @@ test("Festschreiben direkt nach „Entwurf speichern“: erst nach dem Neuladen,
   await page.getByRole("button", { name: "Entwurf löschen", exact: true }).click();
   await bestaetigen(page, "Entwurf löschen");
   await expect(page).toHaveURL(/\/rechnungen(?:\?.*)?$/);
+});
+
+test("Artikel-API: Rechte, Anlegen, Suchen und Ändern im Katalog (#297)", async ({ request }) => {
+  await go("/einstellungen?bereich=ki");
+  const access = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
+  if (!(await access.isChecked())) {
+    await access.click();
+    await expect(access).toBeChecked();
+  }
+  const tokens = page.getByRole("region", { name: "API-Tokens" });
+  const form = tokens.getByRole("form", { name: "Neues Token" });
+  const scopes = form.getByRole("group", { name: "Rechte" });
+  async function tokenHeaders(name: string, scope: "artikel:lesen" | "artikel:schreiben") {
+    await form.getByLabel("Name").fill(name);
+    await scopes.getByRole("checkbox", { name: /haben:lesen/ }).uncheck();
+    await scopes.getByRole("checkbox", { name: new RegExp(`${scope}$`) }).check();
+    await form.getByRole("button", { name: "Token anlegen" }).click();
+    const token = await tokens.getByLabel(new RegExp(`Token für „${name}“`)).inputValue();
+    expect(token).toMatch(/^hb_/);
+    // Beim Neuladen der Tokenliste wird das Formular ersetzt.
+    await expect(tokens.locator(".history-row", { hasText: name })).toBeVisible();
+    return { Authorization: `Bearer ${token}` };
+  }
+  const reader = await tokenHeaders("Artikel lesen E2E", "artikel:lesen");
+  const writer = await tokenHeaders("Artikel schreiben E2E", "artikel:schreiben");
+
+  const path = "/api/v1/artikel";
+  const article = {
+    number: "KAT-E2E-297",
+    description: "Netzwerksprechstunde",
+    detail: "Fernwartung nach Termin",
+    unit: "Std.",
+    unitPrice: 6500,
+    taxRate: 1900,
+    priceIncludesTax: true,
+    note: "Preis je Stunde",
+  };
+  expect((await page.request.get(path)).status()).toBe(401);
+  expect((await request.post(path, { headers: reader, data: article })).status()).toBe(403);
+  expect((await request.post(path, { headers: writer, data: { ...article, unitPrice: 65.5 } })).status()).toBe(400);
+  const created = await request.post(path, { headers: writer, data: article });
+  expect(created.status()).toBe(201);
+  const result = (await created.json()) as { id: string };
+  expect(result).toMatchObject({ ...article, id: expect.any(String), archived: false });
+  const resource = `${path}/${result.id}`;
+  expect(created.headers().location).toBe(resource);
+
+  const byNumber = await request.get(path, { headers: reader, params: { q: article.number.toLowerCase(), limit: 1 } });
+  expect(byNumber.status()).toBe(200);
+  expect(await byNumber.json()).toMatchObject({ data: [result], total: 1, limit: 1, offset: 0 });
+  const secondPage = await request.get(path, { headers: reader, params: { q: article.number, limit: 1, offset: 1 } });
+  expect(await secondPage.json()).toMatchObject({ data: [], total: 1, offset: 1 });
+  const single = await request.get(resource, { headers: reader });
+  expect(single.status()).toBe(200);
+  expect(await single.json()).toEqual(result);
+  expect((await request.get(`${path}/00000000-0000-4000-8000-000000000000`, { headers: reader })).status()).toBe(404);
+
+  const changes = { unitPrice: 7550, description: "Netzwerksprechstunde am Nachmittag" };
+  expect((await request.patch(resource, { headers: reader, data: changes })).status()).toBe(403);
+  const updated = await request.patch(resource, { headers: writer, data: changes });
+  expect(updated.status()).toBe(200);
+  expect(await updated.json()).toMatchObject({ ...article, ...changes, id: result.id, archived: false });
+
+  await go("/artikel");
+  const list = page.getByRole("region", { name: "Artikelliste" });
+  const row = list.locator(".article-cols").filter({ hasText: changes.description });
+  await expect(row).toContainText("75,50\u00a0€ brutto je Std.");
+  await row.getByRole("button", { name: "Archivieren", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Artikel archiviert." })).toBeVisible();
+  const active = await request.get(path, { headers: writer, params: { q: changes.description } });
+  expect(await active.json()).toMatchObject({ data: [], total: 0 });
+  const archived = await request.get(path, { headers: writer, params: { q: changes.description, archived: true } });
+  expect(await archived.json()).toMatchObject({ data: [{ id: result.id, archived: true }], total: 1 });
+});
+
+test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: day(-4),
+    lines: [["Monatliche Betreuung Server", "3", "80,00"]],
+    gross: "285,60",
+  });
+  const originalUrl = page.url();
+  await page.getByRole("button", { name: "Kopieren", exact: true }).click();
+  await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== originalUrl);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Monatliche Betreuung Server");
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("80,00");
+  await expect(page.getByLabel("Rechnungsdatum")).not.toHaveValue(day(-4));
+
+  await page.goto(originalUrl);
+  await expect(page.getByRole("button", { name: "Kopieren", exact: true })).toBeVisible();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible();
 });
 
 test("Keine Fehler im Browser", async () => {

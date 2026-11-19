@@ -3,6 +3,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import type { LegacyFileState } from "../../db/schema.ts";
 import { UserError } from "../../errors.ts";
+import { ohneDateiBestaetigbar } from "./ohne-datei.ts";
 
 /*
  * Dateistand archivierter Belege (#345), gemeinsam für Importfortschritt, Belegansicht, Abgleich und Export. Die Zeilen in
@@ -22,7 +23,7 @@ export type LegacyFileStatus =
   | "ohne_datei"
   /** sevDesk nennt keine Datei, noch niemand hat das geprüft */
   | "ohne_datei_offen"
-  /** in sevDesk geprüft: keine Datei */
+  /** von Hand geprüft: keine Datei (sevDesk-Abruf oder Accountable ohne Einzelbeleg) */
   | "ohne_datei_bestaetigt"
   | "abruf_fehlgeschlagen"
   | "anhang_fehlt";
@@ -32,7 +33,7 @@ export const FILE_STATUS_LABELS: Record<LegacyFileStatus, string> = {
   ohne_beleg: "Buchung ohne Beleg",
   ohne_datei: "ohne Datei",
   ohne_datei_offen: "laut sevDesk ohne Datei, nicht bestätigt",
-  ohne_datei_bestaetigt: "in sevDesk ohne Datei, bestätigt",
+  ohne_datei_bestaetigt: "ohne Datei, bestätigt",
   abruf_fehlgeschlagen: "Datei erwartet, Abruf fehlgeschlagen",
   anhang_fehlt: "Anhang fehlt",
 };
@@ -43,6 +44,7 @@ export const FILE_STATE_LABELS: Record<LegacyFileState, string> = {
   abruf_fehlgeschlagen: "Datei erwartet, Abruf fehlgeschlagen",
   anhang_fehlt: "Anhang fehlt",
   bestaetigt_ohne_datei: "ohne Datei bestätigt",
+  bestaetigung_zurueckgenommen: "Bestätigung zurückgenommen",
   nachgeladen: "Datei nachgeladen",
   kein_anhang: "Anhang entfällt, sevDesk führt keinen",
 };
@@ -51,16 +53,19 @@ export const FILE_STATE_LABELS: Record<LegacyFileState, string> = {
 export const OPEN_FILE_STATUSES: ReadonlySet<LegacyFileStatus> = new Set(["ohne_datei", "ohne_datei_offen", "abruf_fehlgeschlagen", "anhang_fehlt"]);
 
 export function legacyFileStatus(latest: LegacyFileState | null, files: number, ohneBeleg: boolean): LegacyFileStatus {
+  // Eine Bestätigung steht über dem Merkmal aus dem Import, sonst bliebe sie unsichtbar; ohne Bestätigung bleibt es beim Merkmal
+  if (latest === "bestaetigt_ohne_datei") return "ohne_datei_bestaetigt";
   if (ohneBeleg) return "ohne_beleg";
   switch (latest) {
-    case "bestaetigt_ohne_datei":
-      return "ohne_datei_bestaetigt";
     case "abruf_fehlgeschlagen":
       return "abruf_fehlgeschlagen";
     case "anhang_fehlt":
       return "anhang_fehlt";
     // Die Datei der Vorlage (#1128) kann nach der Feststellung ankommen
     case "ohne_datei":
+    // Nach einer Rücknahme (#1317) gilt der Beleg wieder als offen: Mit Datei vollständig, sonst derselbe Stand wie vor
+    // der Bestätigung. Nicht „ohne_datei“: der lädt nicht zum erneuten Bestätigen ein (canConfirmWithoutFile).
+    case "bestaetigung_zurueckgenommen":
       return files > 0 ? "vollstaendig" : "ohne_datei_offen";
     default:
       return files > 0 ? "vollstaendig" : "ohne_datei";
@@ -93,7 +98,7 @@ export function fileCheck(statuses: readonly LegacyFileStatus[]): { ok: boolean;
     c.ohneDatei > 0 ? `${c.ohneDatei} ohne Datei` : "",
     c.anhangFehlt > 0 ? `${c.anhangFehlt} mit fehlendem Anhang` : "",
   ].filter(Boolean);
-  const confirmed = c.ohneDateiBestaetigt > 0 ? `${c.ohneDateiBestaetigt} in sevDesk ohne Datei (bestätigt)` : "";
+  const confirmed = c.ohneDateiBestaetigt > 0 ? `${c.ohneDateiBestaetigt} ohne Datei (bestätigt)` : "";
   return {
     ok: open.length === 0,
     label: "Jeder Beleg hat eine Datei",
@@ -116,7 +121,9 @@ export async function latestFileStates(voucherIds: string[]): Promise<Map<string
 export function takeoverFileIssue(state: LegacyFileState | null): string | null {
   if (state === "abruf_fehlgeschlagen") return "Datei erwartet, Abruf aus sevDesk fehlgeschlagen – „Erneut abrufen“ versucht es noch einmal";
   if (state === "ohne_datei") return "laut sevDesk ohne Datei – in sevDesk prüfen, dann in der Belegansicht bestätigen und in Haben von Hand erfassen";
-  if (state === "bestaetigt_ohne_datei") return "in sevDesk ohne Datei (bestätigt) – in Haben von Hand erfassen";
+  if (state === "bestaetigt_ohne_datei") return "ohne Datei (bestätigt) – in Haben von Hand erfassen";
+  // Nach einer Rücknahme gilt wieder der offene Stand, sonst fiele der Hinweis still weg (#1317)
+  if (state === "bestaetigung_zurueckgenommen") return "ohne Datei, Bestätigung zurückgenommen – prüfen, dann erneut bestätigen und in Haben von Hand erfassen";
   return null;
 }
 
@@ -136,21 +143,43 @@ export async function recordFileState(tx: Tx, voucherId: string, finding: Findin
 }
 
 /**
- * Eine Person hat in sevDesk geprüft, dass der Beleg keine Datei hat. Nur für Belege (nicht Rechnung oder Gutschrift: deren
- * Original-PDF ist Pflicht) mit dem offenen Stand „ohne Datei“; ein fehlgeschlagener Abruf lässt sich nicht wegbestätigen.
+ * Eine Person hat geprüft, dass der Beleg keine Datei hat. Erlaubt sind Belege aus sevDesk, aus dem Accountable-Stapel und
+ * Buchungen ohne Beleg aus der Lexoffice-Sicherung (ohneDateiBestaetigbar), nie Rechnung oder Gutschrift: deren
+ * Original-PDF ist Pflicht. Verlangt ist der offene Stand „ohne Datei“; ein fehlgeschlagener Abruf und ein schon
+ * bestätigter Beleg lassen sich nicht wegbestätigen.
  */
 export async function confirmWithoutFile(actor: string, voucherId: string, note: string): Promise<void> {
   await withActor(actor, async (tx) => {
     // Sperrt den Beleg gegen eine gleichzeitige Bestätigung
     const [voucher] = await tx
-      .select({ source: schema.lexofficeVouchers.source, lexofficeId: schema.lexofficeVouchers.lexofficeId })
+      .select({
+        source: schema.lexofficeVouchers.source,
+        lexofficeId: schema.lexofficeVouchers.lexofficeId,
+        type: schema.lexofficeVouchers.type,
+        ohneBeleg: sql<boolean>`coalesce((${schema.lexofficeVouchers.raw}->>'ohneBeleg')::boolean, false)`,
+        guid: sql<string | null>`${schema.lexofficeVouchers.raw}->>'guid'`,
+        documentPresent: sql<boolean | null>`(${schema.lexofficeVouchers.raw}->>'documentPresent')::boolean`,
+      })
       .from(schema.lexofficeVouchers)
       .where(eq(schema.lexofficeVouchers.id, voucherId))
       .for("update");
     if (!voucher) throw new FileStateError("Beleg nicht gefunden.");
-    if (voucher.source !== "sevdesk") throw new FileStateError("Nur Belege aus sevDesk lassen sich als ohne Datei bestätigen.");
-    if (!voucher.lexofficeId.startsWith("voucher/"))
+    if (voucher.source === "sevdesk" && !voucher.lexofficeId.startsWith("voucher/"))
       throw new FileStateError("Rechnungen und Gutschriften brauchen ihr Original-PDF; ein fehlendes PDF lässt sich nicht als „ohne Datei“ bestätigen.");
+    if (voucher.source === "accountable" && voucher.type !== "purchaseinvoice")
+      throw new FileStateError("Rechnungen und Gutschriften brauchen ihr Original-PDF; ein fehlendes PDF lässt sich nicht als „ohne Datei“ bestätigen.");
+    if (voucher.source === "accountable" && voucher.guid)
+      throw new FileStateError(
+        "Diese Buchung hat eine Beleg-GUID; die Datei fehlt nur im Export. Ein einzelner Beleg kann also existieren, das Bestätigen ohne Datei ist hier nicht vorgesehen.",
+      );
+    if (voucher.source === "accountable" && voucher.documentPresent === true)
+      throw new FileStateError("Accountable meldet zu dieser Buchung „Dokument vorhanden“; ein Einzelbeleg existiert, er hängt nur nicht an dieser Buchung.");
+    if (voucher.source === "lexoffice" && voucher.type !== "purchaseinvoice")
+      throw new FileStateError("Rechnungen und Gutschriften brauchen ihr Original-PDF; ein fehlendes PDF lässt sich nicht als „ohne Datei“ bestätigen.");
+    // Nur eine Buchung ohne Beleg hatte in der Quelle nie ein Belegbild; fehlt die Datei nur im Export, ist das keine Aussage
+    if (voucher.source === "lexoffice" && !voucher.ohneBeleg)
+      throw new FileStateError("Diese Buchung führt die Sicherung als Buchung mit Beleg; die Datei fehlt nur im Export, das lässt sich hier nicht bestätigen.");
+    if (!ohneDateiBestaetigbar(voucher)) throw new FileStateError(`Aus der Quelle ${voucher.source} lassen sich keine Belege ohne Datei bestätigen.`);
     const [{ files } = { files: 0 }] = await tx
       .select({ files: sql<number>`count(*)::int` })
       .from(schema.lexofficeVoucherFiles)
@@ -163,18 +192,66 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
       .limit(1);
     if (Number(files) > 0) throw new FileStateError("Der Beleg hat eine Datei.");
     if (latest?.state === "bestaetigt_ohne_datei") throw new FileStateError("Schon bestätigt.");
-    if (latest?.state !== "ohne_datei")
+    // Aus dem Accountable-Stapel und der Lexoffice-Sicherung kommt kein Abruf, dort gibt es keinen Stand: das Merkmal ohneBeleg genügt.
+    // Nach einer Rücknahme ist der Beleg wieder offen; ohne diesen Fall wäre der Knopf da, der Klick aber abgewiesen (#1317)
+    const standOffen =
+      latest?.state === "ohne_datei" ||
+      latest?.state === "bestaetigung_zurueckgenommen" ||
+      (latest?.state == null && (voucher.source === "accountable" || voucher.source === "lexoffice") && voucher.ohneBeleg);
+    if (!standOffen)
       throw new FileStateError(
         latest?.state === "abruf_fehlgeschlagen"
           ? "sevDesk nennt zu diesem Beleg eine Datei. Einen neuen Abruf starten, statt ohne Datei zu bestätigen."
           : "Erst ein Abruf aus sevDesk stellt fest, ob der Beleg eine Datei nennt.",
       );
     const text = note.trim();
+    const herkunft = voucher.source === "accountable" ? "Accountable-Stapel" : voucher.source === "lexoffice" ? "Lexoffice-Sicherung" : "In sevDesk geprüft";
     await tx.insert(schema.legacyFileStates).values({
       voucherId,
       importId: null,
       state: "bestaetigt_ohne_datei",
-      message: text ? `In sevDesk geprüft: ${text}` : "In sevDesk geprüft: keine Datei hinterlegt.",
+      message: text
+        ? `${herkunft}: ${text}`
+        : voucher.source === "accountable"
+          ? "Accountable-Stapel: keine Beleg-GUID, kein Belegbild vorhanden."
+          : voucher.source === "lexoffice"
+            ? "Lexoffice-Sicherung: Buchung ohne Beleg, kein Belegbild in der Quelle."
+            : "In sevDesk geprüft: keine Datei hinterlegt.",
+      createdBy: actor,
+    });
+  });
+}
+
+/**
+ * Nimmt eine Bestätigung „ohne Datei“ mit Grund zurück (#1317). Wie beim Bestätigen entsteht eine neue Zeile; die
+ * Bestätigung selbst bleibt stehen, legacy_file_states wird nie geändert. Erlaubt ist das nur, solange sie die jüngste
+ * Zeile ist: eine Rechnung oder Gutschrift war nie bestätigbar und lässt sich deshalb auch nicht zurücknehmen.
+ */
+export async function revokeFileConfirmation(actor: string, voucherId: string, reason: string): Promise<void> {
+  const text = reason.trim();
+  if (!text) throw new FileStateError("Die Rücknahme braucht einen Grund.");
+  if (text.length > 500) throw new FileStateError("Der Grund der Rücknahme ist zu lang (höchstens 500 Zeichen).");
+  await withActor(actor, async (tx) => {
+    // Sperrt den Beleg gegen eine gleichzeitige Bestätigung oder Rücknahme
+    const [voucher] = await tx
+      .select({ id: schema.lexofficeVouchers.id })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.id, voucherId))
+      .for("update");
+    if (!voucher) throw new FileStateError("Beleg nicht gefunden.");
+    const [latest] = await tx
+      .select({ state: schema.legacyFileStates.state })
+      .from(schema.legacyFileStates)
+      .where(eq(schema.legacyFileStates.voucherId, voucherId))
+      .orderBy(desc(schema.legacyFileStates.createdAt), desc(schema.legacyFileStates.id))
+      .limit(1);
+    if (latest?.state !== "bestaetigt_ohne_datei")
+      throw new FileStateError("Nur eine Bestätigung „ohne Datei“ lässt sich zurücknehmen; dieser Beleg ist nicht bestätigt.");
+    await tx.insert(schema.legacyFileStates).values({
+      voucherId,
+      importId: null,
+      state: "bestaetigung_zurueckgenommen",
+      message: `Bestätigung zurückgenommen: ${text}`,
       createdBy: actor,
     });
   });

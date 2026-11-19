@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 const FORDERUNGEN = "Bilanzierte Forderungen aus neuen Anzahlungs-/Schlussketten";
 const ANZAHLUNGEN = "Erhaltene Anzahlungen netto, neues Verfahren";
@@ -27,9 +28,9 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe bei Aufhebung in einem späte
   });
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform,journal_ab)
+    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform)
       values (1,'Muster GmbH','Musterstraße 1','93047','Regensburg','rechnung@example.com','0941 1','198/113/10010','BY',
-        'DE89370400440532013000','SKR03','soll','gmbh',2025)`;
+        'DE89370400440532013000','SKR03','soll','gmbh')`;
     const contacts = await import("../stammdaten/index.ts");
     contactId = (
       await contacts.createContact(actor, {
@@ -65,6 +66,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe bei Aufhebung in einem späte
           lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
   }
   async function bankPayment(invoiceId: string, date: string, amount: number) {
@@ -95,8 +97,8 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe bei Aufhebung in einem späte
   }
   function expected(cutoff: string, receivables: number, advances: number) {
     return [
-      { bereich: "opos", zeitraum: cutoff, posten: FORDERUNGEN, journal: receivables, quelle: receivables },
-      { bereich: "opos", zeitraum: cutoff, posten: ANZAHLUNGEN, journal: advances, quelle: advances },
+      { bereich: "opos", zeitraum: cutoff, posten: FORDERUNGEN, journal: receivables, quelle: receivables, gegen: "laut offenen Posten" },
+      { bereich: "opos", zeitraum: cutoff, posten: ANZAHLUNGEN, journal: advances, quelle: advances, gegen: "laut offenen Posten" },
     ];
   }
 

@@ -2,14 +2,14 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
- * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, docs/adr/journal-als-quelle.md), bestehende Installation
- * mit Stichjahr 2027: Umsätze ohne Steuer, Abschlags- und Schlussrechnung, vierteljährliche Abgabe, Dauerfristverlängerung
+ * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, #1116, docs/adr/journal-als-quelle.md): Umsätze ohne Steuer, Abschlags- und Schlussrechnung, vierteljährliche Abgabe, Dauerfristverlängerung
  * und die berichtigte Voranmeldung für Dezember 2026, erstellt im Januar 2027. Erwartet nach dem Gesetz, von Hand gerechnet:
  * - Kz 21 (§ 13b Abs. 1, 5 UStG, § 18b Satz 1 Nr. 2 UStG), Kz 41 (§ 18b Satz 1 Nr. 1, Satz 2 UStG) und Kz 45 nach
  *   Rechnungsdatum auch bei Ist (DATEV-Dok. 1080673, docs/umsatzsteuer.md „Umsätze ohne Steuer“); Kz 43 und 48 wie Kz 81.
- * - Ein Quartal umfasst seine drei Monate (§ 18 Abs. 2 Satz 1 UStG); Q4 2026 aus den Nebenbüchern, Q1 2027 aus dem Journal.
+ * - Ein Quartal umfasst seine drei Monate (§ 18 Abs. 2 Satz 1 UStG).
  * - Kz 39 nur in der letzten Voranmeldung des Jahres (§ 48 Abs. 4 UStDV); die Sondervorauszahlung ist in der EÜR gezahlte
  *   Umsatzsteuer im Jahr der Zahlung (§ 11 Abs. 2 EStG), ebenso die Zahllast für Dezember, gezahlt im Januar.
  * - Eine berichtigte Voranmeldung rechnet den Zeitraum neu, in dem der Umsatz liegt (§ 18 Abs. 1 UStG, § 153 AO); im
@@ -81,9 +81,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
     await leeren(sql)`truncate vat_return_filings, vat_return_submissions, vat_returns, vat_frequencies, vat_extension_submissions, vat_extensions, write_offs,
       allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents, invoice_lines,
       invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, 2027)`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
   }
 
   type Behandlung = "regulaer" | "reverse_charge" | "ig_lieferung" | "drittland" | "ausfuhr" | "steuerfrei";
@@ -125,7 +125,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: net, taxRate: behandlung === "regulaer" ? 1900 : 0 }],
       ...extra,
     } as never);
-    return invoices.finalizeInvoice(actor, d.id);
+    return invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
   }
   async function beleg(date: string, net: number, tax: number) {
     seq++;
@@ -166,7 +166,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
     const f = await figures.computeVatFigures(period);
     const werte: Kennzahlen = {};
     for (const k of JOURNAL_KENNZAHLEN) if (f[k] !== 0) werte[k] = f[k];
-    return { quelle: f.quelle, ...werte };
+    return werte;
   }
   async function euer(year: number) {
     const e = await reports.euerForYear(year);
@@ -203,8 +203,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
         }
         const nachRechnung: Kennzahlen = { kz21: 50_000, kz41: 50_000, kz45: 50_000 };
         const wieKz81: Kennzahlen = { kz43: 50_000, kz48: 50_000 };
-        expect(await va(DEZ)).toEqual({ quelle: "nebenbuecher", ...nachRechnung, ...(versteuerung === "soll" ? wieKz81 : {}) });
-        expect(await va(JAN)).toEqual({ quelle: "journal", ...(versteuerung === "ist" ? wieKz81 : {}) });
+        expect(await va(DEZ)).toEqual({ ...nachRechnung, ...(versteuerung === "soll" ? wieKz81 : {}) });
+        expect(await va(JAN)).toEqual({ ...(versteuerung === "ist" ? wieKz81 : {}) });
         expect(await euer(2026)).toEqual({ gewinn: 0 });
         expect(await euer(2027)).toEqual({ einnahmenSteuerfrei: 250_000, gewinn: 250_000 });
         await abgleichSauber([DEZ, JAN]);
@@ -218,15 +218,15 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
         // 1.000,00 € Leistung, 300,00 € Abschlag abgezogen: 700,00 € netto, 133,00 € Steuer, 833,00 € offen
         expect(schluss).toMatchObject({ net: 70_000, tax: 13_300, gross: 83_300 });
         await zahlung({ invoiceId: schluss.id }, "05.02.27", "833,00");
-        expect(await va(DEZ)).toEqual({ quelle: "nebenbuecher", kz81: 30_000, tax81: 5_700 });
-        expect(await va(JAN)).toEqual({ quelle: "journal", ...(versteuerung === "soll" ? { kz81: 70_000, tax81: 13_300 } : {}) });
-        expect(await va(FEB)).toEqual({ quelle: "journal", ...(versteuerung === "ist" ? { kz81: 70_000, tax81: 13_300 } : {}) });
+        expect(await va(DEZ)).toEqual({ kz81: 30_000, tax81: 5_700 });
+        expect(await va(JAN)).toEqual({ ...(versteuerung === "soll" ? { kz81: 70_000, tax81: 13_300 } : {}) });
+        expect(await va(FEB)).toEqual({ ...(versteuerung === "ist" ? { kz81: 70_000, tax81: 13_300 } : {}) });
         expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 30_000, vereinnahmteUst: 5_700, gewinn: 35_700 });
         expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 70_000, vereinnahmteUst: 13_300, gewinn: 83_300 });
         await abgleichSauber([DEZ, JAN, FEB]);
       }, 60_000);
 
-      it(`vierteljährlich: Q4 2026 aus den Nebenbüchern, Q1 2027 aus dem Journal (${fall})`, async () => {
+      it(`vierteljährlich: Q4 2026 und Q1 2027 (${fall})`, async () => {
         await reset(versteuerung, kontenrahmen);
         await zeitraum.saveFrequency(actor, { year: 2026, fromMonth: 1, frequency: "vierteljaehrlich" });
         await zeitraum.saveFrequency(actor, { year: 2027, fromMonth: 1, frequency: "vierteljaehrlich" });
@@ -236,8 +236,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
         await zahlung({ invoiceId: inv.id }, "03.02.27", "1.190,00");
         const Q4 = { year: 2026, month: 44 };
         const Q1 = { year: 2027, month: 41 };
-        expect(await va(Q4)).toEqual({ quelle: "nebenbuecher", kz66: 1_900, ...(versteuerung === "soll" ? { kz81: 100_000, tax81: 19_000 } : {}) });
-        expect(await va(Q1)).toEqual({ quelle: "journal", ...(versteuerung === "ist" ? { kz81: 100_000, tax81: 19_000 } : {}) });
+        expect(await va(Q4)).toEqual({ kz66: 1_900, ...(versteuerung === "soll" ? { kz81: 100_000, tax81: 19_000 } : {}) });
+        expect(await va(Q1)).toEqual({ ...(versteuerung === "ist" ? { kz81: 100_000, tax81: 19_000 } : {}) });
         const q4 = await vat.computedValues(Q4);
         const q1 = await vat.computedValues(Q1);
         expect([q4.kz83, q1.kz83]).toEqual(versteuerung === "soll" ? [17_100, 0] : [-1_900, 19_000]);
@@ -265,7 +265,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
         const svz = await umsatzVom("10.02.27", "-600,00");
         await bank.allocate(actor, { kind: "sondervorauszahlung", transactionId: svz.id, amount: svz.amount });
         // Weder Zahllast noch Sondervorauszahlung ändern eine Kennzahl; Kz 39 nur in der letzten Voranmeldung des Jahres
-        expect(await va(FEB)).toEqual({ quelle: "journal" });
+        expect(await va(FEB)).toEqual({});
         expect((await vat.computedValues(FEB)).kz39).toBe(0);
         expect(await vat.computedValues({ year: 2027, month: 12 })).toMatchObject({ kz39: 60_000, kz83: -60_000 });
         expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 1_000_000, vereinnahmteUst: 190_000, gewinn: 1_190_000 });
@@ -291,7 +291,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsätze ohne Steuer
           kz66: 1_900,
           kz83: 17_100,
         });
-        expect(await va(JAN)).toEqual({ quelle: "journal" });
+        expect(await va(JAN)).toEqual({});
         expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 100_000, vereinnahmteUst: 19_000, gewinn: 119_000 });
         await abgleichSauber([DEZ, JAN]);
       }, 60_000);

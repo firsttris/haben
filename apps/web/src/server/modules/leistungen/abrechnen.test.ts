@@ -1,12 +1,13 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Abrechenbare Leistungen (#417), zweiter Teil: aus den offenen Einträgen eines Kunden und Zeitraums wird ein Rechnungsentwurf.
  * Eine Position je Stundensatz, der Zeitraum aus dem ersten und letzten Arbeitstag. Ein Eintrag lässt sich nicht zweimal
  * abrechnen, ist mit der festgeschriebenen Rechnung gesperrt und nach deren Storno wieder frei; eine Korrektur gibt ihn nicht frei.
- * Alle Daten sind erfunden.
+ * Der Entwurf behält den Kunden der Einträge. Alle Daten sind erfunden.
  */
 
 describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () => {
@@ -171,7 +172,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     it("sperrt den Eintrag: Dienst und Datenbank lehnen Ändern und Löschen ab", async () => {
       const id = await eintrag();
       const { invoiceId } = await abrechnen_();
-      const final = await invoices.finalizeInvoice(actor, invoiceId);
+      const final = await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand);
       expect(await entries.getServiceEntry(id)).toMatchObject({ invoiceId, invoiceNumber: final.number, invoiceStatus: "final" });
 
       await expect(entries.updateServiceEntry(actor, id, { contactId: kunde, workedOn: "2026-03-02", minutes: 30, description: "x" })).rejects.toThrow(
@@ -191,7 +192,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     it("nach dem Storno ist der Eintrag wieder offen, änderbar und lässt sich neu abrechnen", async () => {
       const id = await eintrag();
       const { invoiceId } = await abrechnen_();
-      await invoices.finalizeInvoice(actor, invoiceId);
+      await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand);
       await invoices.cancelInvoice(actor, invoiceId, heute);
 
       expect(await entries.getServiceEntry(id)).toMatchObject({ invoiceId: null, invoiceNumber: null, invoiceStatus: null });
@@ -206,10 +207,58 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     it("eine Korrektur gibt den Eintrag nicht frei", async () => {
       const id = await eintrag();
       const { invoiceId } = await abrechnen_();
-      await invoices.finalizeInvoice(actor, invoiceId);
+      await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand);
       await invoices.createCorrection(actor, invoiceId, heute);
       expect((await entries.getServiceEntry(id))!.invoiceId).toBe(invoiceId);
       await expect(abrechnen_()).rejects.toThrow(/keine offenen/);
+    });
+  });
+
+  describe("Kundenwechsel im Entwurf", () => {
+    // Die Einträge gehören dem Kunden, für den abgerechnet wurde. Ginge der Entwurf an einen anderen Kunden, wären sie
+    // nach dem Festschreiben dort abgerechnet und gesperrt.
+    const entwurf = async (contactId: string | null, note = "") => ({
+      ...(await invoices.newDraftDefaults(heute)),
+      contactId,
+      note,
+      serviceFrom: "2026-03-02",
+      serviceTo: "2026-03-02",
+      lines: [{ description: "Leistungen", quantity: 1500, unit: "Std." as const, unitPrice: 9500, taxRate: 1900 as const }],
+    });
+
+    it("lehnt einen anderen Kunden ab, solange Leistungen verknüpft sind; ohne Wechsel lässt sich speichern", async () => {
+      const id = await eintrag();
+      const { invoiceId } = await abrechnen_();
+      const anderer = await neuerKunde("Rheinpixel GmbH", 8000);
+
+      await expect(invoices.updateDraft(actor, invoiceId, await entwurf(anderer))).rejects.toThrow(
+        "Der Entwurf enthält Leistungen von Nordwerk Software GmbH; für einen anderen Kunden den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen.",
+      );
+      // auch kein Entwurf ohne Kunden, der danach einen anderen bekäme
+      await expect(invoices.updateDraft(actor, invoiceId, await entwurf(null))).rejects.toThrow(/enthält Leistungen von Nordwerk Software GmbH/);
+      expect((await sql`select contact_id from invoices where id = ${invoiceId}`)[0]!.contact_id).toBe(kunde);
+
+      await invoices.updateDraft(actor, invoiceId, await entwurf(kunde, "geändert"));
+      expect((await sql`select note from invoices where id = ${invoiceId}`)[0]!.note).toBe("geändert");
+      expect((await entries.getServiceEntry(id))!.invoiceId).toBe(invoiceId);
+    });
+
+    it("Festschreiben meldet Leistungen eines anderen Kunden, auch in einem früher umgestellten Entwurf", async () => {
+      await eintrag();
+      const { invoiceId } = await abrechnen_();
+      const anderer = await neuerKunde("Rheinpixel GmbH", 8000);
+      // So stehen Entwürfe da, deren Kunde vor der Sperre gewechselt wurde
+      await sql`update invoices set contact_id = ${anderer} where id = ${invoiceId}`;
+
+      const meldung =
+        "Der Entwurf enthält Leistungen von Nordwerk Software GmbH; diesen Kunden wählen oder den Entwurf löschen, an den Einträgen den Kunden ändern und neu abrechnen";
+      expect(await invoices.finalizeIssues(invoiceId)).toContain(meldung);
+      await expect(invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand)).rejects.toThrow(meldung);
+      expect((await sql`select status from invoices where id = ${invoiceId}`)[0]!.status).toBe("draft");
+
+      // zurück zum Kunden der Leistungen geht, dann lässt sich festschreiben
+      await invoices.updateDraft(actor, invoiceId, await entwurf(kunde));
+      expect((await invoices.finalizeInvoice(actor, invoiceId, kleinunternehmerStand)).status).toBe("final");
     });
   });
 

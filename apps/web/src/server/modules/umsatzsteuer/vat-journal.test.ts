@@ -2,11 +2,12 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
- * Voranmeldung ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md): Die Kennzahlen kommen aus Konto und
- * Steuerschlüssel der Buchungen, die Privatnutzung von Fahrzeugen aus dem Anlagenverzeichnis; die Nebenbücher sind die
- * Gegenprobe im Abgleich. Vor dem Stichjahr bleibt es bei den Nebenbüchern.
+ * Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): Die Kennzahlen kommen aus Konto und
+ * Steuerschlüssel der Buchungen, die Privatnutzung von Fahrzeugen aus dem Anlagenverzeichnis. Die erwarteten Werte sind die,
+ * die bis #1116 auch die Rechnung aus den Nebenbüchern ergab.
  */
 
 function dkbCsv(rows: string[][]) {
@@ -29,7 +30,7 @@ const incoming = (date: string, purpose: string, amount: string) => [
   "",
 ];
 
-describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal (Postgres)", () => {
   let figures: typeof import("./vat-figures.ts");
   let bank: typeof import("../bank/bank.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
@@ -55,13 +56,13 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr
     await sql?.end();
   });
 
-  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04", journalAb: number | null = null) {
+  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04") {
     await leeren(sql)`truncate asset_depreciations, assets, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
   }
 
   async function invoice(issueDate: string, lines: { unitPrice: number; taxRate: 1900 | 700 | 0 }[]) {
@@ -88,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr
       note: "",
       lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function bookedDocument(date: string, net: number, tax: number) {
@@ -119,11 +120,18 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr
     }
   }
 
-  const kennzahlen = (f: Awaited<ReturnType<typeof figures.computeVatFigures>>) => Object.fromEntries(JOURNAL_KENNZAHLEN.map((k) => [k, f[k]]));
+  /** Die Kennzahlen ungleich null */
+  const kennzahlen = (f: Awaited<ReturnType<typeof figures.computeVatFigures>>) =>
+    Object.fromEntries(JOURNAL_KENNZAHLEN.filter((k) => f[k] !== 0).map((k) => [k, f[k]]));
+  const ERWARTET = {
+    // Ist: zwei von drei Raten zu 117,10 € im Oktober; Soll: die ganze Rechnung im September
+    ist: { 9: {}, 10: { kz81: 9_999, tax81: 1_900, kz86: 2_667, tax86: 187, kz66: 1_900, steuerfrei: 8_667 } },
+    soll: { 9: { kz81: 15_000, tax81: 2_850, kz86: 4_000, tax86: 280, steuerfrei: 13_000 }, 10: { kz66: 1_900 } },
+  } as const;
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {
-      it(`ab dem Stichjahr aus dem Journal, gleich wie die Nebenbücher (${kontenrahmen}, ${versteuerung})`, async () => {
+      it(`aus dem Journal: Raten, Beleg, gemischte Sätze (${kontenrahmen}, ${versteuerung})`, async () => {
         await reset(versteuerung, kontenrahmen);
         const inv = await invoice("2026-09-20", [
           { unitPrice: 15_000, taxRate: 1900 },
@@ -137,8 +145,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr
         await bookedDocument("2026-10-05", 10_000, 1_900);
         for (const month of [9, 10]) {
           const f = await figures.computeVatFigures({ year: 2026, month });
-          expect(f.quelle, String(month)).toBe("journal");
-          expect(kennzahlen(f), String(month)).toEqual(f.nebenbuecher);
+          expect(kennzahlen(f), String(month)).toEqual(ERWARTET[versteuerung][month as 9 | 10]);
           expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month })).zeilen), String(month)).toEqual([]);
         }
         // Es wurde wirklich etwas gemeldet: Vorsteuer im Oktober, Umsatzsteuer bei Soll im September, bei Ist mit den Raten
@@ -149,16 +156,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr
       }, 60_000);
     }
 
-    it(`vor dem Stichjahr aus den Nebenbüchern (${kontenrahmen})`, async () => {
-      await reset("soll", kontenrahmen, 2027);
-      await invoice("2026-09-20", [{ unitPrice: 10_000, taxRate: 1900 }]);
-      const f = await figures.computeVatFigures({ year: 2026, month: 9 });
-      expect(f.quelle).toBe("nebenbuecher");
-      expect(f.nebenbuecher).toBeUndefined();
-      expect({ kz81: f.kz81, tax81: f.tax81 }).toEqual({ kz81: 10_000, tax81: 1_900 });
-    }, 60_000);
-
-    it(`ab dem Stichjahr meldet die Voranmeldung, was im Journal steht; der Abgleich zeigt die Nebenbücher dagegen (${kontenrahmen})`, async () => {
+    it(`die Voranmeldung meldet, was im Journal steht; die Verprobung zeigt die Abweichung (${kontenrahmen})`, async () => {
       await reset("soll", kontenrahmen);
       await invoice("2026-09-20", [{ unitPrice: 10_000, taxRate: 1900 }]);
       // An Haben vorbei: die Umsatzsteuer im Journal um 1 € gemindert
@@ -168,10 +166,10 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr
         await tx`update journal_lines set credit = credit - 100 where account = ${ust}`;
       });
       const f = await figures.computeVatFigures({ year: 2026, month: 9 });
-      expect(f.tax81).toBe(1_800);
-      expect(f.nebenbuecher!.tax81).toBe(1_900);
+      expect({ kz81: f.kz81, tax81: f.tax81 }).toEqual({ kz81: 10_000, tax81: 1_800 });
+      // Die Verprobung zeigt, dass die Steuer nicht zur Bemessungsgrundlage passt
       expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 9 })).zeilen)).toEqual([
-        expect.objectContaining({ posten: "Umsatzsteuer 19 % (Kz 81)", journal: 1_800, quelle: 1_900 }),
+        expect.objectContaining({ posten: expect.stringMatching(/^Umsatzsteuer 19 % zur Bemessungsgrundlage/), journal: 1_800, quelle: 1_900 }),
       ]);
     }, 60_000);
 
@@ -194,8 +192,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal ab dem Stichjahr
       }
       await invoice("2025-06-01", [{ unitPrice: 10_000, taxRate: 1900 }]);
       const vorher = await figures.computeVatFigures({ year: 2025, month: 6 });
-      expect(vorher.quelle).toBe("journal");
-      expect(kennzahlen(vorher)).toEqual(vorher.nebenbuecher);
+      // 100 € Rechnung, dazu die Privatnutzung beider Fahrzeuge aus dem Anlagenverzeichnis (zusammen 800 €)
+      expect(kennzahlen(vorher)).toEqual({ kz81: 90_000, tax81: 17_100 });
       expect(vorher.kz81).toBeGreaterThan(10_000);
       await assets.bookDepreciation(actor, 2025, "2025-12-15");
       // Nach dem Buchen steht die Privatnutzung im Journal; die Voranmeldung bleibt dieselbe, auch beim Elektroauto

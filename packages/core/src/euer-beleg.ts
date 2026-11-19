@@ -1,6 +1,6 @@
 import type { EuerPayment } from "./euer.ts";
 import { allocateSplitTax } from "./document-split.ts";
-import { roundHalfAwayFromZero, splitPrivateShare, type Cents } from "./money.ts";
+import { roundHalfAwayFromZero, splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
 import { paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
 import { abziehbareSteuer, gespeicherterAnteil } from "./vorsteuerabzug.ts";
 
@@ -39,7 +39,7 @@ export function addDocumentEffects(a: DocumentEuerEffect, b: DocumentEuerEffect,
  * https://www.gesetze-im-internet.de/ustg_1980/__15.html; https://www.gesetze-im-internet.de/estg/__9b.html
  */
 function documentShares(p: DocumentPayment, paid: Cents): Share[] {
-  const anteil = (rate: number) => gespeicherterAnteil(p, p.totals.taxes.find((t) => t.rate === rate)?.vorsteuerAnteil);
+  const anteil = (rate: BasisPoints) => gespeicherterAnteil(p, p.totals.taxes.find((t) => t.rate === rate)?.vorsteuerAnteil);
   if (!p.splits?.length) {
     return paidTaxShares(p.totals, paid).map((share) => ({
       category: p.category,

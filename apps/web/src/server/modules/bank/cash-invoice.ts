@@ -1,11 +1,11 @@
 import { insertCashEntry } from "./settlement-store.ts";
-import { advancePaymentDateProblem, formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist } from "@haben/core";
+import { advancePaymentDateProblem, formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist, inCents } from "@haben/core";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
+import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice, paymentProcedure } from "../rechnungen/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
 import { bareinnahmeSteuerSchema, bookCashIncome } from "./cash-income.ts";
@@ -20,7 +20,7 @@ export const cashInvoiceInputSchema = z.object({
   invoiceId: z.uuid(),
   date: z.iso.date(),
   /** Cent, immer positiv: Geld kommt in die Kasse */
-  amount: z.number().int().min(1, "Betrag fehlt").max(100_000_000),
+  amount: inCents(z.number().int().min(1, "Betrag fehlt").max(100_000_000)),
   text: z.string().trim().max(300).default(""),
   /** Rest der Rechnung als gewährtes Skonto ausbuchen, mit Datum der Bareinnahme (wie „Rest als Skonto“ im Bankabgleich) */
   skonto: z.boolean().default(false),
@@ -30,7 +30,7 @@ export const cashInvoiceInputSchema = z.object({
    */
   extra: z
     .object({
-      amount: z.number().int().min(1, "Betrag der weiteren Einnahme fehlt").max(100_000_000),
+      amount: inCents(z.number().int().min(1, "Betrag der weiteren Einnahme fehlt").max(100_000_000)),
       steuer: bareinnahmeSteuerSchema,
       text: z.string().trim().max(250).default(""),
     })
@@ -52,9 +52,9 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
 
     if (invoice.kind === "storno") throw new CashError("Eine Stornorechnung lässt sich nicht bar kassieren.");
     if (invoice.currency !== "EUR") throw new CashError("Bar kassieren geht nur bei Rechnungen in Euro.");
-    const dateProblem = advancePaymentDateProblem(invoice, parsed.date, parsed.amount);
+    const dateProblem = advancePaymentDateProblem(invoice, parsed.date, parsed.amount, await paymentProcedure(invoice, tx));
     if (dateProblem) throw new CashError(dateProblem);
-    // Außerhalb neuer Bilanz-Schlussketten bleibt das frühere Zahlungsdatum erlaubt (#455), wie im Bankabgleich:
+    // Eine Zahlung nach belegter Leistung bleibt auch vor dem Rechnungsdatum erlaubt (#455), wie im Bankabgleich:
     // Der Kunde hat bar bezahlt, die Rechnung kam später. Die EÜR zählt den tatsächlichen Zufluss (§ 11 Abs. 1 EStG).
     const [storno] = await tx
       .select({ id: schema.invoices.id })

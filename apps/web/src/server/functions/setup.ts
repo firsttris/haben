@@ -5,7 +5,8 @@ import { db, schema } from "../db/index.ts";
 import { listCustomPages } from "../modules/eigene-seiten/index.ts";
 import { firmaInNavigation, navMark } from "../../lib/navigation.ts";
 import { hasEmployees } from "../modules/lohn/index.ts";
-import { loadCompany, logoInfo } from "../modules/stammdaten/index.ts";
+import { type Company, loadCompany, loadEinrichtung, logoInfo } from "../modules/stammdaten/index.ts";
+import { fragenFehlen, type OffeneFrage } from "../../lib/einrichtung.ts";
 import { env } from "../env.ts";
 import { andereFirmen } from "../../lib/firmen.ts";
 import { oidcPublicConfig } from "../oidc.ts";
@@ -20,6 +21,19 @@ async function initialized(): Promise<boolean> {
   return (row?.n ?? 0) > 0;
 }
 
+async function einrichtungFuerNavigation(
+  company: Company | null,
+): Promise<{ ausgeblendet: string[]; einrichtung: { fehlt: boolean; offen: OffeneFrage[] } | null }> {
+  if (!company) return { ausgeblendet: [], einrichtung: null };
+  const einrichtung = await loadEinrichtung();
+  const fehlt = fragenFehlen({
+    eingerichtet: einrichtung?.fragenAt != null,
+    firmendatenGespeichert: company.companySavedAt !== null,
+    firmenname: company.name,
+  });
+  return { ausgeblendet: einrichtung?.ausgeblendeteBereiche ?? [], einrichtung: { fehlt, offen: einrichtung?.offen ?? [] } };
+}
+
 /** Öffentlich: Betriebsart, ob Haben schon eingerichtet ist und ob jemand angemeldet ist. */
 export const getAuthState = createServerFn({ method: "GET" }).handler(async () => {
   const user = await sessionUser(getRequestHeaders());
@@ -30,6 +44,8 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     user: user ? { name: user.name, email: user.email, role: user.role } : null,
     // Für die Navigation: eine GmbH oder UG hat keine Pauschalen; erst nach der Anmeldung
     rechtsform: company?.rechtsform ?? null,
+    // Nummern der Konten vor den Kategorien (#1438)
+    kontenrahmen: company?.kontenrahmen ?? null,
     // Mehrere Firmen (#504): in welcher Instanz man gerade arbeitet, für alle Rollen dieser Instanz
     firma: company ? firmaInNavigation(company.name) : null,
     // Zeichen der Firma (#504), getrennt von der Beleggestaltung; das Logo nur auf ausdrückliche Wahl
@@ -38,6 +54,8 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name, url, openInNewTab }) => ({ id, name, url, openInNewTab })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
+    // Bereiche ohne Menüpunkt und Erinnerung an die Fragen zur Einrichtung (#266); die Steuerberatung hat ihre eigene Navigation
+    ...(await einrichtungFuerNavigation(user?.role === "inhaber" ? company : null)),
     // Firma wechseln (#504): die Instanzen der anderen Firmen, nur für den Inhaber
     firmen: user ? andereFirmen(env().HABEN_FIRMEN, env().BETTER_AUTH_URL, user.role) : [],
     // Mit Firmenportal (#504, Stufe 2) führt „Zum Firmenportal“ dorthin, ebenfalls nur für den Inhaber

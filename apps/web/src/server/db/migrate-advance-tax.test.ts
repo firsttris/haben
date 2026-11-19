@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Anzahlungsart: vorhandene Absch
       const oldAudit = await sql`select * from audit_log order by seq`;
       await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
       expect(
-        await sql`select to_jsonb(i)-'advance_type'-'property_retention'-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on'
+        await sql`select to_jsonb(i)-'advance_type'-'property_retention'-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on'-'reduction_rule'
           as value from invoices i where id=${id}`,
       ).toEqual(oldInvoice);
       expect(await sql`select tax_details from invoices where id=${id}`).toEqual([{ tax_details: null }]);
@@ -61,10 +61,14 @@ describe.skipIf(!testDatabaseUrl)("Migration der Anzahlungsart: vorhandene Absch
       ]);
       expect((await sql`select property_retention from invoices where id=${id}`)[0]!.property_retention).toBe(false);
       expect(await sql`select paid_via, paid_on from invoices where id=${id}`).toEqual([{ paid_via: null, paid_on: null }]);
+      expect(await sql`select reduction_rule from invoices where id=${id}`).toEqual([{ reduction_rule: null }]);
       expect(await sql`select * from journal_entries order by id`).toEqual(oldEntries);
       expect(await sql`select * from journal_lines order by id`).toEqual(oldLines);
       expect(await sql`select * from seals order by id`).toEqual(oldSeals);
-      expect(await sql`select * from audit_log order by seq`).toEqual(oldAudit);
+      // Bisherige Einträge unverändert; neu ist nur die Zeile der Prüfung beim Update (Migration 0275, #1116)
+      const audit = await sql`select * from audit_log order by seq`;
+      expect(audit.slice(0, oldAudit.length)).toEqual(oldAudit);
+      expect(audit.slice(oldAudit.length).map((a) => [a.table_name, a.action])).toEqual([["journal_umstellung", "INSERT"]]);
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
     } finally {
       await sql.end();

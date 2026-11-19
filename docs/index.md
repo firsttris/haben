@@ -75,7 +75,7 @@ Du prüfst, wählst die Kategorie und buchst.
 
 ## Enter, und die Zahlung ist zugeordnet
 
-Die Umsätze kommen per PSD2 von selbst oder als Datei von DKB, Commerzbank, C24, N26, Swan, PayPal, Stripe und anderen.
+Die Umsätze kommen per PSD2 oder FinTS von selbst oder als Datei von DKB, Commerzbank, ING, C24, N26, Swan, PayPal, Stripe und anderen.
 Zu jedem Umsatz schlägt Haben die passende Rechnung oder den Beleg vor und sagt, warum: Betrag,
 Rechnungsnummer, IBAN, Name.
 
@@ -125,7 +125,7 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 <div markdown>
 <span class="showcase-kicker">Umzug</span>
 
-## Umziehen, ohne etwas zu verlieren
+## Umziehen und prüfen, dass alles da ist
 
 Aus Lexware Office, sevDesk und FastBill kommen Rechnungen, Belege und Kontakte mit, aus Lexware Office und sevDesk
 auch Buchungen, aus
@@ -170,7 +170,7 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 <div markdown>
 **🏠 Deine Daten bleiben bei dir**
 
-Auf deinem Server, Schlüssel verschlüsselt. Kein Dienst liest deine Rechnungen mit.
+Auf deinem Server, Schlüssel verschlüsselt. Kein Dienst liest deine Rechnungen mit, solange du keinen einschaltest.
 </div>
 <div markdown>
 **💶 Kein Abo**
@@ -190,8 +190,8 @@ Voranmeldung, Zusammenfassende Meldung und Jahreserklärungen über ELSTER.
 <div markdown>
 **🧮 Zahlen zum Nachrechnen**
 
-Unter jeder Kennzahl die Belege dahinter, Voranmeldung und EÜR
-[doppelt gerechnet](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür), vor dem Umzug
+Unter jeder Kennzahl die Belege dahinter, das Journal
+[gegen Belege, Anmeldungen und Kontoauszüge geprüft](buchhaltung.md#abgleich-im-journal), vor dem Umzug
 [deine alten Jahre zum Vergleich](lexoffice.md#schritt-5-abgleich-je-jahr).
 </div>
 <div markdown>
@@ -216,7 +216,7 @@ Abrechnung nach dem Programmablaufplan des BMF, Lohnsteuer-Anmeldung über ELSTE
 Belege auslesen lassen oder Claude fragen, welche Rechnungen offen sind – nur lesend.
 </div>
 <div markdown>
-**♿ Für alle bedienbar**
+**♿ Per Tastatur bedienbar**
 
 Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 </div>

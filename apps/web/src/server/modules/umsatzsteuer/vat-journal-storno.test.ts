@@ -2,26 +2,16 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
- * Voranmeldung ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md): Die Kennzahlen kommen aus Konto und
- * Steuerschlüssel der Buchungen, die Privatnutzung von Fahrzeugen aus dem Anlagenverzeichnis; die Nebenbücher sind die
- * Gegenprobe im Abgleich. Vor dem Stichjahr bleibt es bei den Nebenbüchern.
+ * Stornos im Folgejahr von Buchungen, die noch im Format vor #551 bzw. #552 gebucht sind (Fälle aus Runde 3 des TDD-Reviews
+ * von Pull Request #575): § 13b ohne Vorsteuerabzug und aufgeteilt, bar bezahlt mit Privatanteil, Bareinnahmen mit Skonto
+ * und gemischten Sätzen, Ausbuchung aufheben, Kontenrahmenwechsel, Kleinunternehmer. Der Storno bucht im heutigen Format,
+ * wenn es auf jedem Konto dasselbe ergibt (zeilenWieHeute); die Voranmeldung aus dem Journal kommt zu denselben Kennzahlen,
+ * die bis #1116 auch die Rechnung aus den Nebenbüchern ergab.
  */
-
-/*
- * Voranmeldung aus dem Journal gleich den Nebenbüchern (Fälle aus Runde 2 des TDD-Reviews von Pull Request #575): Quartal
- * und Jahr, Bareinnahmen, Rechnung vor und Zahlung im Stichjahr, Stornos nach gesendeter Voranmeldung, Belege mit
- * Privatanteil und Skonto, Rechnungskorrektur; und Stornos im Stichjahr von Buchungen aus der Zeit davor, deren Zeilen
- * noch ohne Bemessungsgrundlage (#552) bzw. ohne Steuerschlüssel am privaten Teil (#551) gebucht sind.
- */
-
-/*
- * Stornos im Stichjahr von Buchungen aus der Zeit davor (Fälle aus Runde 3 des TDD-Reviews von Pull Request #575): § 13b
- * ohne Vorsteuerabzug und aufgeteilt, bar bezahlt mit Privatanteil, Bareinnahmen mit Skonto und gemischten Sätzen,
- * Ausbuchung aufheben, Kontenrahmenwechsel, Kleinunternehmer. Voranmeldung und EÜR aus dem Journal gleich den Nebenbüchern.
- */
-describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Zeit davor (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Stornos im Folgejahr von Buchungen im alten Format (Postgres)", () => {
   let figures: typeof import("./vat-figures.ts");
   let vat: typeof import("./vat.ts");
   let bank: typeof import("../bank/bank.ts");
@@ -55,15 +45,15 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
     await sql?.end();
   });
 
-  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04", journalAb: number | null = null) {
+  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04") {
     await leeren(sql)`truncate asset_depreciations, assets, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, cash_entries, document_cancellations, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices,
       invoice_number_counters, contact_versions, contacts, company, seals, audit_log, audit_chain cascade`;
     // Jeder Fall beginnt mit seinem eigenen Steuerverlauf, nicht mit den Audit-Werten des vorigen Falls.
     await sql`insert into audit_chain (id, seq, hash) values (1, 0, haben_audit_genesis())`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
   }
 
   async function invoice(issueDate: string, lines: { unitPrice: number; taxRate: 1900 | 700 | 0 }[], extra: Record<string, unknown> = {}) {
@@ -91,17 +81,19 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
       lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
       ...extra,
     } as never);
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
-  const kennzahlen = (f: Awaited<ReturnType<typeof figures.computeVatFigures>>) => Object.fromEntries(JOURNAL_KENNZAHLEN.map((k) => [k, f[k]]));
-  async function gleich(periods: { year: number; month: number }[]) {
-    for (const p of periods) {
-      const f = await figures.computeVatFigures(p);
-      expect(f.quelle, JSON.stringify(p)).toBe("journal");
-      const abw = abgleich.abweichungen((await abgleich.vatAbgleich(p)).zeilen);
-      expect({ p, va: kennzahlen(f), abw }).toEqual({ p, va: f.nebenbuecher, abw: [] });
-    }
+  type Figures = Awaited<ReturnType<typeof figures.computeVatFigures>>;
+  type Kennzahlen = Partial<Record<(typeof JOURNAL_KENNZAHLEN)[number], number>>;
+  /** Kennzahlen ungleich null, wie bis #1116 auch die Rechnung aus den Nebenbüchern; der Abgleich ohne Abweichung */
+  async function erwarte(f: Figures, p: { year: number; month: number }, va: Kennzahlen) {
+    const kennzahlen = Object.fromEntries(JOURNAL_KENNZAHLEN.filter((k) => f[k] !== 0).map((k) => [k, f[k]]));
+    const abw = abgleich.abweichungen((await abgleich.vatAbgleich(p)).zeilen);
+    expect({ p, va: kennzahlen, abw }).toEqual({ p, va, abw: [] });
+  }
+  async function gleich(p: { year: number; month: number }, va: Kennzahlen) {
+    await erwarte(await figures.computeVatFigures(p), p, va);
   }
 
   async function rcDoc(
@@ -150,21 +142,19 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
   }
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
-    it(`Kleinunternehmer: Storno im Stichjahr eines § 13b-Belegs ohne Vorsteuerabzug (Buchung vor #551) (${kontenrahmen})`, async () => {
-      await reset("soll", kontenrahmen, 2026);
+    it(`Kleinunternehmer: Storno im Folgejahr eines § 13b-Belegs ohne Vorsteuerabzug (Buchung vor #551) (${kontenrahmen})`, async () => {
+      await reset("soll", kontenrahmen);
       await sql`update company set kleinunternehmer = true`;
       const id = await rcDoc("2025-12-05", {});
       await vor551(id);
       await sendVa(12);
       await cancellation.cancelDocument(actor, id, { reason: "x" } as never, "2026-01-15");
       const jan = await figures.computeVatFigures({ year: 2026, month: 1 });
-      expect(jan.quelle).toBe("journal");
-      expect(jan.kz46).toBe(-100_000);
-      expect(kennzahlen(jan)).toEqual(jan.nebenbuecher);
+      await erwarte(jan, { year: 2026, month: 1 }, { kz46: -100_000, kz47: -19_000 });
     }, 60_000);
 
-    it(`EÜR im Stichjahr: Storno eines § 13b-Belegs ohne Vorsteuerabzug (Buchung vor #551) (${kontenrahmen})`, async () => {
-      await reset("soll", kontenrahmen, 2026);
+    it(`EÜR im Folgejahr: Storno eines § 13b-Belegs ohne Vorsteuerabzug (Buchung vor #551) (${kontenrahmen})`, async () => {
+      await reset("soll", kontenrahmen);
       await sql`update company set kleinunternehmer = true`;
       const id = await rcDoc("2025-12-05", {});
       await vor551(id);
@@ -173,8 +163,8 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
       expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
     }, 60_000);
 
-    it(`Kleinunternehmer: aufgeteilter § 13b-Beleg (Drittland) aus dem Vorjahr (Buchung vor #551), Storno im Stichjahr (${kontenrahmen})`, async () => {
-      await reset("soll", kontenrahmen, 2026);
+    it(`Kleinunternehmer: aufgeteilter § 13b-Beleg (Drittland) aus dem Vorjahr (Buchung vor #551), Storno im Folgejahr (${kontenrahmen})`, async () => {
+      await reset("soll", kontenrahmen);
       await sql`update company set kleinunternehmer = true`;
       docSeq++;
       const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, docSeq % 256, Math.floor(docSeq / 256), 31]);
@@ -203,13 +193,12 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
       await sendVa(12);
       await cancellation.cancelDocument(actor, id, { reason: "x" } as never, "2026-01-15");
       const jan = await figures.computeVatFigures({ year: 2026, month: 1 });
-      expect(jan.kz84).toBe(-net);
-      expect(kennzahlen(jan)).toEqual(jan.nebenbuecher);
+      await erwarte(jan, { year: 2026, month: 1 }, { kz84: -net, kz85: -4_750 });
       expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
     }, 60_000);
 
-    it(`Bar bezahlter § 13b-Beleg mit Privatanteil (Buchung vor #551), Storno im Stichjahr (${kontenrahmen})`, async () => {
-      await reset("soll", kontenrahmen, 2026);
+    it(`Bar bezahlter § 13b-Beleg mit Privatanteil (Buchung vor #551), Storno im Folgejahr (${kontenrahmen})`, async () => {
+      await reset("soll", kontenrahmen);
       await cash.createCashIncome(
         actor,
         { date: "2025-11-01", amount: 300_000, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
@@ -224,12 +213,12 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
       });
       await cancellation.cancelDocument(actor, id, { reason: "x" } as never, "2026-01-15");
       const jan = await figures.computeVatFigures({ year: 2026, month: 1 });
-      expect(jan.kz46).toBe(-100_000);
-      expect(kennzahlen(jan)).toEqual(jan.nebenbuecher);
+      // Bemessungsgrundlage voll, Vorsteuer nur zu 70 %
+      await erwarte(jan, { year: 2026, month: 1 }, { kz46: -100_000, kz47: -19_000, kz67: -13_300 });
     }, 60_000);
 
-    it(`Ist: Storno im Stichjahr einer Bareinnahme mit Skonto aus dem Vorjahr (ohne Bemessungsgrundlage) (${kontenrahmen})`, async () => {
-      await reset("ist", kontenrahmen, 2026);
+    it(`Ist: Storno im Folgejahr einer Bareinnahme mit Skonto aus dem Vorjahr (ohne Bemessungsgrundlage) (${kontenrahmen})`, async () => {
+      await reset("ist", kontenrahmen);
       const inv = await invoice("2025-12-10", [
         { unitPrice: 10_000, taxRate: 1900 },
         { unitPrice: 5_000, taxRate: 700 },
@@ -244,11 +233,11 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
         await tx`update journal_lines set basis = null where entry_id = ${entry.journalEntryId}`;
       });
       await cashBook.reverseCashEntry(actor, entry.id, "2026-01-10");
-      await gleich([{ year: 2026, month: 1 }]);
+      await gleich({ year: 2026, month: 1 }, { kz81: -9_275, tax81: -1_762, kz86: -4_638, tax86: -325 });
     }, 60_000);
 
-    it(`Ist: Storno im Stichjahr einer Bareinnahme 19/0 % aus dem Vorjahr (ohne Bemessungsgrundlage, Forderung ohne Schlüssel) (${kontenrahmen})`, async () => {
-      await reset("ist", kontenrahmen, 2026);
+    it(`Ist: Storno im Folgejahr einer Bareinnahme 19/0 % aus dem Vorjahr (ohne Bemessungsgrundlage, Forderung ohne Schlüssel) (${kontenrahmen})`, async () => {
+      await reset("ist", kontenrahmen);
       const inv = await invoice("2025-12-10", [
         { unitPrice: 10_000, taxRate: 1900 },
         { unitPrice: 5_000, taxRate: 0 },
@@ -260,29 +249,29 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
         await tx`delete from journal_lines where entry_id = ${entry.journalEntryId} and debit = 0 and credit = 0`;
       });
       await cashBook.reverseCashEntry(actor, entry.id, "2026-01-10");
-      await gleich([{ year: 2026, month: 1 }]);
+      await gleich({ year: 2026, month: 1 }, { kz81: -10_000, tax81: -1_900, steuerfrei: -5_000 });
     }, 60_000);
 
-    it(`Soll: Ausbuchung (Forderungsausfall) aus dem Vorjahr im Stichjahr aufheben (${kontenrahmen})`, async () => {
-      await reset("soll", kontenrahmen, 2026);
+    it(`Soll: Ausbuchung (Forderungsausfall) aus dem Vorjahr im Folgejahr aufheben (${kontenrahmen})`, async () => {
+      await reset("soll", kontenrahmen);
       const inv = await invoice("2025-11-10", [{ unitPrice: 10_000, taxRate: 1900 }]);
       await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: inv.id, date: "2025-12-20" } as never);
       await bank.reverseWriteOff(actor, (await sql`select id from write_offs`)[0]!.id, "2026-02-10");
-      await gleich([{ year: 2026, month: 2 }]);
-      expect((await figures.computeVatFigures({ year: 2026, month: 2 })).kz81).toBe(10_000);
+      await gleich({ year: 2026, month: 2 }, { kz81: 10_000, tax81: 1_900 });
     }, 60_000);
 
-    it(`Ist: Ausbuchung (Forderungsausfall) aus dem Vorjahr im Stichjahr aufheben (${kontenrahmen})`, async () => {
-      await reset("ist", kontenrahmen, 2026);
+    it(`Ist: Ausbuchung (Forderungsausfall) aus dem Vorjahr im Folgejahr aufheben (${kontenrahmen})`, async () => {
+      await reset("ist", kontenrahmen);
       const inv = await invoice("2025-11-10", [{ unitPrice: 10_000, taxRate: 1900 }]);
       await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: inv.id, date: "2025-12-20" } as never);
       await bank.reverseWriteOff(actor, (await sql`select id from write_offs`)[0]!.id, "2026-02-10");
-      await gleich([{ year: 2026, month: 2 }]);
+      // Bei Ist zählt der Forderungsausfall nicht (nichts bezahlt), seine Aufhebung ebenso
+      await gleich({ year: 2026, month: 2 }, {});
     }, 60_000);
   }
 
-  it("Kontenrahmenwechsel zum Stichjahr: Storno einer Bareinnahme (Ist, ohne Bemessungsgrundlage) aus dem Vorjahr", async () => {
-    await reset("ist", "SKR03", 2026);
+  it("Kontenrahmenwechsel zum Jahreswechsel: Storno einer Bareinnahme (Ist, ohne Bemessungsgrundlage) aus dem Vorjahr", async () => {
+    await reset("ist", "SKR03");
     const inv = await invoice("2025-12-10", [{ unitPrice: 10_000, taxRate: 1900 }]);
     const entry = await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: "2025-12-20", amount: 119_00 } as never, "2026-11-10");
     await sql.begin(async (tx) => {
@@ -292,20 +281,19 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
     await sql`update company set kontenrahmen = 'SKR04'`;
     await cashBook.reverseCashEntry(actor, entry.id, "2026-01-10");
     const jan = await figures.computeVatFigures({ year: 2026, month: 1 });
-    expect({ kz81: jan.kz81, tax81: jan.tax81 }).toEqual({ kz81: -10_000, tax81: -1_900 });
-    expect(kennzahlen(jan)).toEqual(jan.nebenbuecher);
+    await erwarte(jan, { year: 2026, month: 1 }, { kz81: -10_000, tax81: -1_900 });
   }, 60_000);
 
-  it("Kleinunternehmer-Rechnung bar kassiert im Vorjahr, Storno im Stichjahr (Ist)", async () => {
-    await reset("ist", "SKR03", 2026);
+  it("Kleinunternehmer-Rechnung bar kassiert im Vorjahr, Storno im Folgejahr (Ist)", async () => {
+    await reset("ist", "SKR03");
     await sql`update company set kleinunternehmer = true`;
     const inv = await invoice("2025-12-10", [{ unitPrice: 10_000, taxRate: 0 }], { taxTreatment: "kleinunternehmer" });
     const entry = await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: "2025-12-20", amount: inv.gross } as never, "2026-11-10");
     await cashBook.reverseCashEntry(actor, entry.id, "2026-01-10");
-    await gleich([{ year: 2026, month: 1 }]);
+    await gleich({ year: 2026, month: 1 }, {});
   }, 60_000);
   it("Nimmt die heutige Buchungslogik einen alten Beleg nicht mehr an, storniert Haben die gebuchten Zeilen", async () => {
-    await reset("soll", "SKR03", 2026);
+    await reset("soll", "SKR03");
     const id = await rcDoc("2025-12-05", { reverseCharge: "eu" });
     // Eine Angabe, mit der die heutige Buchung nicht mehr rechnen kann (hier: eine Kategorie, die es nicht mehr gibt)
     await sql.begin(async (tx) => {

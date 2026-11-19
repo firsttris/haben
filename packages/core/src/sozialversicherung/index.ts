@@ -1,5 +1,5 @@
 import { fehlendeJahre } from "../jahressperre.ts";
-import { formatEuro } from "../money.ts";
+import { formatEuro, type Cents } from "../money.ts";
 import { imUebergangsbereich, regulaer, uebergang } from "./beschaeftigt.ts";
 import { minijob } from "./minijob.ts";
 import { KEINE, mitSummen, type NichtUnterstuetzteMerkmale, type SvBeitraege, type SvEingabe, type SvErgebnis } from "./typen.ts";
@@ -104,7 +104,7 @@ function nichtUnterstuetztImUebergang(e: SvEingabe, w: SvJahreswerte): string[] 
 }
 
 /** Bereich eines Monatsentgelts: bis zur Geringfügigkeitsgrenze, im Übergangsbereich oder darüber */
-function bereich(entgelt: number, w: SvJahreswerte): "geringfuegig" | "uebergang" | "darueber" {
+function bereich(entgelt: Cents, w: SvJahreswerte): "geringfuegig" | "uebergang" | "darueber" {
   if (entgelt <= w.geringfuegigkeitsgrenze) return "geringfuegig";
   return imUebergangsbereich(entgelt, w) ? "uebergang" : "darueber";
 }

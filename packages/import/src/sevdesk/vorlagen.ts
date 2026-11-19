@@ -82,7 +82,8 @@ export function sevIntervalMonths(value: string | null | undefined): number | nu
 /**
  * Nachfällig oder vorschüssig, abgelesen an den Rechnungen, die per origin.id auf die Vorlage zeigen: Rechnungsdatum
  * gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Ohne erzeugte Rechnung oder wenn sie
- * sich widersprechen, bleibt es unklar. Belegt nur für das Monatsintervall in Buchhaltungsversion 1.0.
+ * sich widersprechen, bleibt es unklar. Belegt für das Monatsintervall in Buchhaltungsversion 1.0 und für vorschüssige
+ * Vorlagen mit Monats- und Quartalsintervall in 2.0 (#472).
  */
 export function sevBilling(templateId: string, invoices: Iterable<SevInvoice>): { billing: SevBilling; evidence: number } {
   let after = 0;
@@ -162,6 +163,35 @@ const clip = (text: string, max: number, hints: string[], what: string) => {
   return text.slice(0, max);
 };
 
+/** Positionen der Vorlage; ein Text nennt den Grund, warum eine Position nicht übernehmbar ist */
+function vorlagenPositionen(positions: SevDocumentPos[], priceMode: "brutto" | "netto", hints: string[]): SevRecurringLine[] | string {
+  const lines: SevRecurringLine[] = [];
+  for (const [i, p] of positions.entries()) {
+    const taxRate = lexToBasisPoints(sevNumber(p.taxRate));
+    if (!(TAX_RATES as readonly number[]).includes(taxRate)) return `Position ${i + 1}: Steuersatz ${sevNumber(p.taxRate)} % gibt es in Haben nicht.`;
+    if (sevNumber(p.discount) !== 0) return `Position ${i + 1}: Rabatt, wiederkehrende Rechnungen in Haben kennen keine Rabatte.`;
+    const quantity = Math.round(sevNumber(p.quantity) * 1000);
+    if (quantity < 1) return `Position ${i + 1}: Menge ${sevNumber(p.quantity)} ist nicht übernehmbar.`;
+    const price = priceMode === "brutto" ? (p.priceGross ?? p.price) : (p.priceNet ?? p.price);
+    let description = sevPlainText(p.name);
+    if (!description) {
+      description = "Position";
+      hints.push(`Position ${i + 1} hat in sevDesk keine Bezeichnung.`);
+    }
+    lines.push({
+      description: clip(description, 500, hints, `Bezeichnung der Position ${i + 1}`),
+      detail: clip(sevPlainText(p.text), 2000, hints, `Text der Position ${i + 1}`),
+      itemNumber: "",
+      quantity,
+      // sevDesk nennt die Einheit nur als ID (Unity); die Bezeichnung ist nicht abgerufen
+      unit: "Stk.",
+      unitPrice: lexToCents(sevNumber(price)),
+      taxRate: taxRate as (typeof TAX_RATES)[number],
+    });
+  }
+  return lines;
+}
+
 /**
  * Vorlage von sevDesk → Felder einer wiederkehrenden Rechnung von Haben. invoices sind alle Rechnungen aus GET /Invoice;
  * daraus stammt, ob nachfällig abgerechnet wird. ok: false nennt den Grund, warum Haben die Vorlage nicht abbilden kann.
@@ -199,42 +229,8 @@ export function mapSevRecurringInvoice(raw: SevInvoice, positions: SevDocumentPo
   const priceMode = sevNumber(raw.showNet) === 0 && raw.showNet != null ? "brutto" : "netto";
   if (positions.length === 0) return { ok: false, reason: "Die Vorlage hat keine Positionen." };
 
-  const lines: SevRecurringLine[] = [];
-  for (const [i, p] of positions.entries()) {
-    const taxRate = lexToBasisPoints(sevNumber(p.taxRate));
-    if (!(TAX_RATES as readonly number[]).includes(taxRate))
-      return {
-        ok: false,
-        reason: `Position ${i + 1}: Steuersatz ${sevNumber(p.taxRate)} % gibt es in Haben nicht.`,
-      };
-    if (sevNumber(p.discount) !== 0)
-      return {
-        ok: false,
-        reason: `Position ${i + 1}: Rabatt, wiederkehrende Rechnungen in Haben kennen keine Rabatte.`,
-      };
-    const quantity = Math.round(sevNumber(p.quantity) * 1000);
-    if (quantity < 1)
-      return {
-        ok: false,
-        reason: `Position ${i + 1}: Menge ${sevNumber(p.quantity)} ist nicht übernehmbar.`,
-      };
-    const price = priceMode === "brutto" ? (p.priceGross ?? p.price) : (p.priceNet ?? p.price);
-    let description = sevPlainText(p.name);
-    if (!description) {
-      description = "Position";
-      hints.push(`Position ${i + 1} hat in sevDesk keine Bezeichnung.`);
-    }
-    lines.push({
-      description: clip(description, 500, hints, `Bezeichnung der Position ${i + 1}`),
-      detail: clip(sevPlainText(p.text), 2000, hints, `Text der Position ${i + 1}`),
-      itemNumber: "",
-      quantity,
-      // sevDesk nennt die Einheit nur als ID (Unity); die Bezeichnung ist nicht abgerufen
-      unit: "Stk.",
-      unitPrice: lexToCents(sevNumber(price)),
-      taxRate: taxRate as (typeof TAX_RATES)[number],
-    });
-  }
+  const lines = vorlagenPositionen(positions, priceMode, hints);
+  if (typeof lines === "string") return { ok: false, reason: lines };
   hints.push("Einheiten sind als „Stk.“ übernommen; sevDesk nennt sie nur als Kennung.");
 
   const { billing, evidence } = sevBilling(String(raw.id), invoices);

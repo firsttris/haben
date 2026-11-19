@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import type { AdvanceReceivables } from "@haben/core";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const summary = ({ receivables, requests, unbilled, netAdvances }: AdvanceReceivables) => ({ receivables, requests, unbilled, netAdvances });
 
@@ -24,9 +25,9 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
   });
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform,journal_ab)
+    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform)
       values (1,'Muster GmbH','Musterstraße 1','93047','Regensburg','rechnung@example.com','0941 1','198/113/10010','BY',
-        'DE89370400440532013000','SKR03','soll','gmbh',2025)`;
+        'DE89370400440532013000','SKR03','soll','gmbh')`;
     const contacts = await import("../stammdaten/index.ts");
     contactId = (
       await contacts.createContact(actor, {
@@ -58,7 +59,7 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
       advanceType: "anzahlung",
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
   async function finalInvoice(advanceId: string, issueDate: string) {
     const draft = await invoices.createDraft(actor, {
@@ -73,7 +74,7 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
       deducts: [advanceId],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   it("führt eine neue unbezahlte Anforderung auch ohne irgendeine Journalbuchung im eigenen Umfang", async () => {
@@ -149,7 +150,7 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
         taxTreatment: "kleinunternehmer",
         lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 300_000, taxRate: 0 }],
       });
-      const a = await invoices.finalizeInvoice(actor, draft.id);
+      const a = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
       const { vereinnahmterUmsatz } = await import("../auswertungen/kleinunternehmer.ts");
       expect(await vereinnahmterUmsatz("2025-12-11")).toMatchObject({ netto: 0 });
       await bank.createCashInvoiceEntry(actor, { invoiceId: a.id, date: "2025-12-12", amount: 100_000 }, "2026-04-20");
@@ -168,7 +169,7 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
         deducts: [a.id],
         lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 500_000, taxRate: 0 }],
       });
-      const final = await invoices.finalizeInvoice(actor, schluss.id);
+      const final = await invoices.finalizeInvoice(actor, schluss.id, kleinunternehmerStand);
       const nachSchluss = await vereinnahmterUmsatz("2025-12-31");
       const folgejahr = await vereinnahmterUmsatz("2026-01-31");
       expect([nachZahlung.netto, nachSchluss.netto, folgejahr.netto]).toEqual([100_000, 100_000, 0]);

@@ -1,6 +1,8 @@
+import type { EuerLine, EuerResult } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -38,10 +40,23 @@ const ausgang = (date: string, name: string, amount: string) => [
 ];
 
 /*
- * EÜR ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md, Entscheidung 3): euerForYear rechnet aus dem
- * Journal (euer-quelle.ts), die Nebenbücher sind die Gegenprobe im Abgleich. Gleiche Zeilen, gleicher Gewinn, gleiche Monate.
+ * EÜR aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): euerForYear rechnet aus dem Journal (euer-quelle.ts).
+ * Zeilen, Gewinn und Monate gegen feste Werte (ERWARTET), die bis #1116 die Nebenbücher als Gegenprobe lieferten.
  */
-describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern: Kleinunternehmer, Bewirtung, Privatanteil, Anlagen (Postgres)", () => {
+/** Was euerForYear liefert, kurz: Zeilen mit Betrag (und Notiz), Gewinn, nachrichtliche Beträge, Monate */
+function kurz(e: EuerResult) {
+  const zeilen = (l: EuerLine[]) => l.map((z) => (z.note ? [z.key, z.amount, z.note] : [z.key, z.amount]));
+  return {
+    einnahmen: zeilen(e.einnahmen),
+    ausgaben: zeilen(e.ausgaben),
+    gewinn: e.gewinn,
+    bewirtung: e.bewirtungNichtAbziehbar,
+    gewerbesteuer: e.gewerbesteuerNichtAbziehbar,
+    monate: e.monthly,
+  };
+}
+
+describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: Kleinunternehmer, Bewirtung, Privatanteil, Anlagen (Postgres)", () => {
   let reports: typeof import("./reports.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
   let bank: typeof import("../bank/bank.ts");
@@ -67,19 +82,28 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
     await sql?.end();
   });
 
+  /** EÜR des Jahres gegen die festen Werte (ERWARTET), je Test und Jahr; ein zweiter Aufruf im selben Test hat „|2“ */
+  const aufrufe = new Map<string, number>();
+  async function wieErwartet(year: number) {
+    const test = `${expect.getState().currentTestName!.split(" > ").at(-1)}|${year}`;
+    const n = (aufrufe.get(test) ?? 0) + 1;
+    aufrufe.set(test, n);
+    const key = n === 1 ? test : `${test}|${n}`;
+    expect(kurz(await reports.euerForYear(year)), key).toEqual(ERWARTET[key]);
+  }
+
   async function reset(
     versteuerung: "ist" | "soll",
     kontenrahmen: "SKR03" | "SKR04" = "SKR03",
     kleinunternehmer = false,
     rechtsform: "einzelunternehmen" | "gmbh" = "einzelunternehmen",
-    journalAb: number | null = null,
   ) {
     await leeren(sql)`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, write_offs, year_closings, loans, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -108,7 +132,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
       note: "",
       lines: lines.map((l) => ({ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: l.net, taxRate: l.rate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function bookedDocument(
@@ -158,11 +182,11 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
   /** Alles, was euerForYear liefert: Zeilen mit Bezeichnung und Notiz, Summen, Gewinn, Monate, nachrichtliche Beträge */
   const gleich = async (...years: number[]) => {
     for (const year of years) {
-      expect(await reports.euerForYear(year), String(year)).toEqual(await reports.euerAusNebenbuechern(year));
+      await wieErwartet(year);
     }
   };
 
-  it("GmbH: eine manuelle Buchung auf ein Aufwandskonto ändert den Überschuss nach Zahlung nicht (ADR Entscheidung 3: nur im Einzelunternehmen)", async () => {
+  it("GmbH: eine manuelle Buchung auf ein Aufwandskonto ändert den Überschuss nach Zahlung nicht (Abschlussbuchung, keine Zahlung)", async () => {
     await reset("soll", "SKR03", false, "gmbh");
     await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { payment: "bank" });
     // Jahresabschluss: Rückstellung für Abschlusskosten, ohne Zahlung
@@ -195,7 +219,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
         taxTreatment: "kleinunternehmer",
         lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 100_001, taxRate: 0 }],
       } as never);
-      const a = await invoices.finalizeInvoice(actor, draft.id);
+      const a = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
       const bew = await bookedDocument(
         "2026-03-05",
         [
@@ -291,7 +315,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
       taxTreatment: "kleinunternehmer",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 0 }],
     } as never);
-    const a = await invoices.finalizeInvoice(actor, draft.id);
+    const a = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const txs = await transactions([eingang("01.03.26", `RE ${a.number}`, "1000,00")]);
     await bank.allocate(actor, { kind: "invoice", transactionId: txs[0]!.id, invoiceId: a.id, amount: 100_000 });
     const [alloc] = await sql<{ id: string }[]>`select id from allocations where invoice_id = ${a.id}`;
@@ -300,3 +324,198 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
     await gleich(2026);
   }, 60_000);
 });
+
+/**
+ * Feste Werte der EÜR je Test und Jahr. Bis #1116 verglich der Test die EÜR aus dem Journal mit der aus den Nebenbüchern;
+ * die Werte sind die der Nebenbücher, wie sie die Rechnung aus dem Journal seither ergeben muss.
+ */
+const ERWARTET: Record<string, ReturnType<typeof kurz>> = {
+  "GmbH: eine manuelle Buchung auf ein Aufwandskonto ändert den Überschuss nach Zahlung nicht (Abschlussbuchung, keine Zahlung)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer: Teilzahlungen mit krummen Beträgen, Bewirtung zu 7 % und 19 %, Geschenke (SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenKleinunternehmer", 33333],
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 3422, "Abziehbarer Teil (70 %)"],
+      ["ausgabe:geschenke", 2381],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 27530,
+    bewirtung: 1466,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 33333, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 2333, 3470, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Regelbesteuert: Bewirtung zu 7 % und 19 % mit Teilzahlungen, Privatanteil, Aufteilung, § 13b (SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:software", 312],
+      ["ausgabe:edv", 3333],
+      ["ausgabe:telefon", 1000],
+      ["ausgabe:buero", 622],
+      ["ausgabe:bewirtung", 3111, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 811],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -9189,
+    bewirtung: 1333,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 7388, 0, 990, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen gemischt: AfA gebucht, danach eine weitere Anlage übernommen (SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 0],
+      ["ustEntnahmen", 72960],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 600000],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -47040,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen gemischt: AfA gebucht, danach eine weitere Anlage übernommen (SKR03)|2026|2": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 0],
+      ["ustEntnahmen", 72960],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1200000],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -647040,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer: Teilzahlungen mit krummen Beträgen, Bewirtung zu 7 % und 19 %, Geschenke (SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenKleinunternehmer", 33333],
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 3422, "Abziehbarer Teil (70 %)"],
+      ["ausgabe:geschenke", 2381],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 27530,
+    bewirtung: 1466,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 33333, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 2333, 3470, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Regelbesteuert: Bewirtung zu 7 % und 19 % mit Teilzahlungen, Privatanteil, Aufteilung, § 13b (SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:software", 312],
+      ["ausgabe:edv", 3333],
+      ["ausgabe:telefon", 1000],
+      ["ausgabe:buero", 622],
+      ["ausgabe:bewirtung", 3111, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 811],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -9189,
+    bewirtung: 1333,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 7388, 0, 990, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen gemischt: AfA gebucht, danach eine weitere Anlage übernommen (SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 0],
+      ["ustEntnahmen", 72960],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 600000],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -47040,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen gemischt: AfA gebucht, danach eine weitere Anlage übernommen (SKR04)|2026|2": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 0],
+      ["ustEntnahmen", 72960],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1200000],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -647040,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer: aufgehobene Zuordnung der einzigen Zahlung, keine leere Zeile „Betriebseinnahmen als Kleinunternehmer“|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+};

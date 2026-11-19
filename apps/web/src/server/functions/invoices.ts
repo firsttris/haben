@@ -1,16 +1,18 @@
+import { inCents, previousMonthKey } from "@haben/core";
 import { notFound } from "@tanstack/react-router";
 import { invoicesSentByMail, leistungsmonatHinweisFuer, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { invoicePaymentList, listAccounts, listWriteOffs } from "../modules/bank/index.ts";
-import { openPositions } from "../modules/auswertungen/index.ts";
+import { kleinunternehmerStand, openPositions, umsatzImMonat } from "../modules/auswertungen/index.ts";
 import { deliverSoon, deliveryForInvoice } from "../modules/ablage/index.ts";
 import { serviceEntriesOfInvoice } from "../modules/leistungen/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import {
   cancelInvoice,
+  copyInvoice,
   createCorrection,
   createDraft,
   deleteDraft,
@@ -65,9 +67,16 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const now = today();
-    const [accounts, open] = await Promise.all([listAccounts(), openPositions(now)]);
+    const [accounts, open, summary, revenuePreviousMonth] = await Promise.all([
+      listAccounts(),
+      openPositions(now),
+      invoiceSummary(now),
+      // Umsatzerlöse des Vormonats aus dem Journal, auch aus Buchungen ohne Rechnung in Haben, etwa aus dem Datenimport
+      umsatzImMonat(previousMonthKey(now)),
+    ]);
     return {
-      ...(await invoiceSummary(now)),
+      ...summary,
+      revenuePreviousMonth,
       // Offene Verbindlichkeiten wie in den Auswertungen: gebuchte, über die Bank zu zahlende Belege
       payables: {
         total: open.payablesTotal,
@@ -227,11 +236,16 @@ export const removeInvoiceDraft = createServerFn({ method: "POST" })
 export const finalizeInvoiceDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    z.object({ id: z.uuid(), bestaetigt: z.object({ umsatz: z.int(), rechnung: z.int(), grenze: z.int(), vorjahresumsatz: z.int().optional() }).optional() }),
+    z.object({
+      id: z.uuid(),
+      bestaetigt: z
+        .object({ umsatz: inCents(z.int()), rechnung: inCents(z.int()), grenze: inCents(z.int()), vorjahresumsatz: inCents(z.int()).optional() })
+        .optional(),
+    }),
   )
   .handler(async ({ data, context }) => {
     try {
-      const invoice = await finalizeInvoice(context.user.id, data.id, data.bestaetigt);
+      const invoice = await finalizeInvoice(context.user.id, data.id, kleinunternehmerStand, data.bestaetigt);
       deliverSoon();
       return { status: "final" as const, id: invoice.id };
     } catch (error) {
@@ -261,6 +275,14 @@ export const correctFinalInvoice = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     const draft = await createCorrection(context.user.id, data, today());
+    return { id: draft.id };
+  });
+
+export const copyFinalInvoice = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    const draft = await copyInvoice(context.user.id, data, today());
     return { id: draft.id };
   });
 

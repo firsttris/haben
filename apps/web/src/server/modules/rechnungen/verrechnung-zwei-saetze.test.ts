@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Befund 2 aus dem Review zu #919: Bei Ist-Versteuerung mit zwei Steuersätzen nimmt die Verrechnung den Anteil aus dem
@@ -48,7 +49,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist (Post
       },
       art === "korrektur" ? { kind: "korrektur", correctsId: correctsFor! } : {},
     );
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   async function zahle(invoiceId: string, betrag: number, datum: string): Promise<void> {
@@ -113,7 +114,5 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist (Post
       kz86: 10_000,
       tax86: 700,
     });
-    const beide = await figures.kennzahlenBeiderQuellen({ year: 2026, month: 11 });
-    expect({ kz81: beide.journal.kz81, kz86: beide.journal.kz86 }).toEqual({ kz81: beide.nebenbuecher.kz81, kz86: beide.nebenbuecher.kz86 });
   }, 60_000);
 });

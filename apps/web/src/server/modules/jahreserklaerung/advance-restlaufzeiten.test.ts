@@ -35,9 +35,9 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten neuer Anzahlungs- und Schlussk
     frame = "SKR03";
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts,
       cash_entries, residual_terms cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform,journal_ab)
+    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform)
       values (1,'Muster GmbH','Musterstraße 1','93047','Regensburg','rechnung@example.com','198/113/10010','BY',
-        'DE89370400440532013000','SKR03','soll','gmbh',2025)`;
+        'DE89370400440532013000','SKR03','soll','gmbh')`;
   });
 
   async function invoice(input: {
@@ -64,6 +64,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten neuer Anzahlungs- und Schlussk
           gross: input.gross,
           kind: input.cancels ? "storno" : "rechnung",
           correctsId: input.cancels ?? null,
+          // Kennzeichen beim Festschreiben ab #853 (Trigger invoices_reduction_rule)
+          reductionRule: input.cancels ? "rueckgewaehr" : null,
           variant: input.variant ?? null,
           advanceType: input.variant === "abschlag" ? "anzahlung" : null,
           advanceAccounting: input.marker ?? null,

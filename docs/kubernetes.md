@@ -11,17 +11,24 @@ Das Helm-Chart [`deploy/helm`](https://github.com/firsttris/haben/tree/main/depl
 [Docker Compose](installation.md#docker-compose): die App, daneben im selben Pod das tägliche Backup, und auf Wunsch
 PostgreSQL als StatefulSet. Haben läuft immer mit genau einem Pod; ein Update beendet ihn, bevor der neue startet, weil
 die Migrationen beim Start nur vorwärts gehen. Jede Einstellung ist in
-[`values.yaml`](https://github.com/firsttris/haben/blob/main/deploy/helm/values.yaml) erklärt.
+[`values.yaml`](https://github.com/firsttris/haben/blob/main/deploy/helm/values.yaml) erklärt, für deine Version im Klon
+unter `haben/deploy/helm/values.yaml`.
 
 ## Installieren
 
-1. Das Chart holen: `git clone --depth 1 https://github.com/firsttris/haben.git`
+1. Das Chart in der Version holen, die du installierst
+   ([aktuelle Version](https://github.com/firsttris/haben/releases/latest)), damit Chart und Image zusammenpassen:
+
+    ```sh
+    git clone --depth 1 --branch v0.10.0 https://github.com/firsttris/haben.git
+    ```
+
 2. Eine Datei `werte.yaml` anlegen und mit `chmod 600 werte.yaml` nur für dich lesbar machen:
 
     ```yaml
     domain: haben.example.de        # Passkeys hängen daran, später nicht mehr ändern
     image:
-      tag: "0.9.0"                  # aktuelle Version unter github.com/firsttris/haben/releases
+      tag: "0.10.0"                 # dieselbe Version wie beim Klonen
     app:
       secretEnv:
         BETTER_AUTH_SECRET: …       # openssl rand -base64 32
@@ -48,12 +55,22 @@ die Migrationen beim Start nur vorwärts gehen. Jede Einstellung ist in
 Mit dem Code legst du dein Konto an, siehe [Erste Schritte](einrichtung.md). Weitere Variablen aus
 [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen) trägst du unter `app.env` ein, geheime wie
 `ANTHROPIC_API_KEY` oder `OIDC_CLIENT_SECRET` unter `app.secretEnv`. Jeden Wert schreibst du in Anführungszeichen, sonst
-liest YAML etwa `off` als `false`; das Chart bricht dann mit einer Meldung ab.
+liest YAML etwa `off` als `false`; das Chart bricht dann mit einer Meldung ab. Ebenso bei einem Schlüssel, den das
+Chart nicht kennt, etwa nach einem Tippfehler oder aus einer neueren Fassung dieser Seite; das Chart aus v0.10.0
+übergeht ihn noch ohne Meldung. Die Namen der Variablen unter `env` und `secretEnv` prüft es nicht. `/tmp` der App liegt
+im Arbeitsspeicher und zählt gegen ein Memory-Limit unter `app.resources`; `app.tmpSizeLimit` begrenzt es, etwa auf
+`"256Mi"`.
 
 Die mitgelieferte Datenbank legt beim ersten Start die App-Rolle `haben_app` an
 ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)). Ein späteres neues Passwort in
 `werte.yaml` ändert die Rolle nicht; das geht nur in der Datenbank selbst. Belege, Datenbank und Backup-Volume bleiben
 bei `helm uninstall` erhalten; eine neue Installation mit demselben Namen nimmt sie wieder, mit den bisherigen Passwörtern.
+
+Die Datenbank startet als root, um einen älteren Bestand auf eine neue PostgreSQL-Version anzuheben, und wechselt dann
+zum Nutzer `postgres`. Der Namespace braucht deshalb mindestens die Stufe `baseline` der
+[Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/); alle anderen Pods
+erfüllen `restricted`, mit [eigener Datenbank](#eigene-datenbank) also alle Pods des Charts. Ein `hostPath` unter
+`extraVolumes`, etwa für [ELSTER](#elster) auf arm64, verlangt `privileged`.
 
 ### Secrets aus einer anderen Quelle
 
@@ -65,6 +82,80 @@ Schlüssel heißen wie die Variablen:
 | `app.existingSecret` | `BETTER_AUTH_SECRET`, `HABEN_ENCRYPTION_KEY`, `DATABASE_URL`, `MIGRATION_DATABASE_URL` und weitere geheime Variablen |
 | `postgresql.existingSecret` | `POSTGRES_PASSWORD` (Eigentümer `haben`), `APP_PASSWORD` (`haben_app`); dann auch `app.existingSecret` |
 | `backup.existingSecret` | `RESTIC_PASSWORD`, für S3 `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY`, mit eigener Datenbank `PGPASSWORD` |
+
+Mit der mitgelieferten Datenbank stehen in `app.existingSecret` dieselben Passwörter wie in
+`postgresql.existingSecret`, als Verbindungs-URLs:
+
+```
+DATABASE_URL=postgres://haben_app:<APP_PASSWORD>@<Release>-db:5432/haben
+MIGRATION_DATABASE_URL=postgres://haben:<POSTGRES_PASSWORD>@<Release>-db:5432/haben
+```
+
+`<Release>-db` ist der Service der Datenbank, mit dem Release `haben` also `haben-db`; ohne „haben“ im Release-Namen
+heißt er `<Release>-haben-db`. Die Passwörter bestehen wie im Chart nur aus Buchstaben und Ziffern
+(`openssl rand -hex 24`), weil sie in der URL stehen. Mit `app.existingSecret` prüft das Chart die Schlüssel nicht; ein
+fehlender fällt erst beim Start der App auf.
+
+## Mit Flux
+
+Mit [Flux](https://fluxcd.io/) baut der Cluster das Chart selbst vom Release-Tag, ab v0.11.0. Die Werte aus
+`werte.yaml` stehen dann in der `HelmRelease`, die geheimen in Secrets wie unter
+[Secrets aus einer anderen Quelle](#secrets-aus-einer-anderen-quelle), nicht im Klartext im Git-Repository:
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: haben
+  namespace: haben
+spec:
+  interval: 1h
+  url: https://github.com/firsttris/haben
+  ref:
+    tag: v0.11.0
+  ignore: |                         # nur das Chart, nicht das ganze Repository
+    /*
+    !/deploy/helm/
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: haben
+  namespace: haben
+spec:
+  interval: 30m
+  timeout: 45m                      # Datenbank bis 30 min (etwa Upgrade von PostgreSQL), danach App bis 15 min
+  chart:
+    spec:
+      chart: ./deploy/helm
+      reconcileStrategy: Revision   # Chart.yaml bleibt bei 0.1.0, ohne bliebe das Chart beim ersten Tag stehen
+      sourceRef:
+        kind: GitRepository
+        name: haben
+  upgrade:
+    remediation:
+      retries: 0                    # kein Rollback durch Flux, die Migrationen gehen nur vorwärts
+  values:
+    domain: haben.example.de
+    image:
+      tag: "0.11.0"                 # dieselbe Version wie ref.tag
+    app:
+      existingSecret: haben-app
+    postgresql:
+      existingSecret: haben-db
+    backup:
+      existingSecret: haben-backup
+    # übrige Werte wie in werte.yaml, etwa ingress
+```
+
+Ein Update geht wie unter [Updates](#updates), statt der Befehle im Klon mit einem Commit, der `ref.tag` und
+`image.tag` anhebt. Zum Zurücknehmen stehen `ref.tag` und `image.tag` auf der vorigen Version und `postgresql.tag` auf
+der neuen (Schritt 2 unter [Updates](#updates)) im selben Commit wie `restore.enabled: true`, sonst startet die alte
+Version mit der schon migrierten Datenbank; nach `restore.sh` folgt ein Commit mit `restore.enabled: false`.
+
+Flux wendet einen solchen Commit meist zweimal an: zuerst die Werte mit dem bisherigen Chart, dann das Chart des Tags.
+`restore.sh` startest du deshalb erst, wenn `flux get helmrelease -n haben` als Revision `0.1.0+` mit dem Commit des
+vorigen Tags zeigt.
 
 ## Eigene Datenbank
 
@@ -99,7 +190,9 @@ spec:
 ```
 
 In `werte.yaml` unter `ingress.annotations` dann
-`traefik.ingress.kubernetes.io/router.middlewares: haben-haben-header@kubernetescrd`. Traefik bricht außerdem eine
+`traefik.ingress.kubernetes.io/router.middlewares: haben-haben-header@kubernetescrd`, mit `safeNaming` im
+[Kubernetes-CRD-Provider](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-crd/)
+`haben_haben-header@kubernetescrd`. Traefik bricht außerdem eine
 Anfrage nach 60 Sekunden Lesezeit ab, ein großer Upload über eine langsame Leitung endet dann mit Fehler 502. In k3s
 hebt das eine `HelmChartConfig` an, für Ingress wie für Gateway API:
 
@@ -185,10 +278,31 @@ installierst du gleich mit `--set restore.enabled=true` und demselben `HABEN_ENC
 
 ## Updates
 
-Vor einem Update ein Backup von Hand wie oben, dann `image.tag` in `werte.yaml` anheben, `git pull` im Klon und
-`helm upgrade haben ./haben/deploy/helm -n haben -f werte.yaml`. Migrationen laufen beim Start der App, siehe
-[Updates](installation-backup.md#updates).
+Vor einem Update ein Backup von Hand wie oben. Kommst du von v0.10.0, übergib das Repository im Volume `haben-backups`
+direkt vor dem `helm upgrade` dem Nutzer 1000, als der das Backup ab der nächsten Version läuft; sonst scheitert jedes
+weitere Backup mit „permission denied“:
 
-Zum [Zurücknehmen](installation-backup.md#update-zurücknehmen) setzt du `image.tag` auf die vorige Version und
-`postgresql.tag` auf die neue, für Datenbank und Backup: Die Datenbank kann eine Anhebung auf eine neue
-PostgreSQL-Version nicht rückgängig machen, und das Backup braucht deren `pg_dump`.
+```sh
+kubectl -n haben exec deploy/haben -c backup -- chown -R 1000:1000 /backups
+```
+
+Lief das Update schon, kann der Container `backup` das nicht mehr; dann geht es nur aus einem eigenen Pod als root, der
+das Volume einhängt.
+
+Dann im Klon die neue Version holen, `image.tag` in `werte.yaml` auf dieselbe anheben und das Chart anwenden:
+
+```sh
+git -C haben fetch --depth 1 origin tag v0.10.1
+git -C haben checkout v0.10.1
+helm upgrade haben ./haben/deploy/helm -n haben -f werte.yaml
+```
+
+Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
+
+Zum [Zurücknehmen](installation-backup.md#update-zurücknehmen):
+
+1. Im Klon die vorige Version auf demselben Weg holen (`fetch` und `checkout` mit `v0.10.0`).
+2. In `werte.yaml` `image.tag` auf die vorige Version setzen und `postgresql.tag` auf die neue, für Datenbank und
+   Backup: Die Datenbank kann eine Anhebung auf eine neue PostgreSQL-Version nicht rückgängig machen, und das Backup
+   braucht deren `pg_dump`.
+3. Den Stand von vor dem Update einspielen wie unter [Wiederherstellen](#wiederherstellen).

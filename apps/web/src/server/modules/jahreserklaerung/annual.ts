@@ -1,5 +1,6 @@
 import { kleinunternehmerAbzuege } from "./euer-ku.ts";
 import { fehlendeMonate } from "./fehlende-voranmeldungen.ts";
+import { vorauszahlungssoll, zuletztGesendet } from "./vorauszahlungen.ts";
 import {
   ACCOUNTS,
   arbeitszimmerPauschale,
@@ -17,7 +18,6 @@ import {
   isKapitalgesellschaft,
   monthsOfPeriod,
   periodKey,
-  sondervorauszahlungFor,
   STEUER_KONTEN,
   type Kontenrahmen,
   type VatFrequencySetting,
@@ -57,7 +57,7 @@ import {
   zehnTageKennzeichen,
   type ZehnTageKennzeichen,
 } from "../auswertungen/index.ts";
-import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
+import { computeVatFigures, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { kz48Einordnen, type Kz48Gesperrt } from "./kz48.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
@@ -126,13 +126,7 @@ export async function ustYear(year: number): Promise<UstYear> {
   const kz48 = kz48Einordnen(months, year);
 
   // Je Monat zählt die zuletzt gesendete Anmeldung (bei Berichtigungen die berichtigte)
-  const sent = await db
-    .select({ month: schema.vatReturns.month, kz83: schema.vatReturns.kz83, sentAt: schema.vatReturns.sentAt })
-    .from(schema.vatReturns)
-    .where(and(eq(schema.vatReturns.year, year), eq(schema.vatReturns.status, "sent")))
-    .orderBy(desc(schema.vatReturns.sentAt));
-  const latest = new Map<number, Cents>();
-  for (const row of sent) if (!latest.has(row.month)) latest.set(row.month, row.kz83);
+  const latest = await zuletztGesendet(year);
   // Ein gesendetes Quartal deckt seine drei Monate; befreite Monate fehlen nicht
   const covered = new Set([...latest.keys()].flatMap((month) => monthsOfPeriod({ year, month }).map((m) => m.month)));
   const frequencies = await loadFrequencies();
@@ -143,8 +137,7 @@ export async function ustYear(year: number): Promise<UstYear> {
     base7,
     tax7: taxOf(base7, 700),
     vorsteuer: total("kz66"),
-    // Vorauszahlungssoll einschließlich der Sondervorauszahlung: Um sie ist die Voranmeldung für Dezember gemindert (Kz 39)
-    vorauszahlungen: [...latest.values()].reduce((s, v) => s + v, 0) + sondervorauszahlungFor(await loadDauerfrist(), year),
+    vorauszahlungen: await vorauszahlungssoll(year, latest),
     // Auch hier Bemessungsgrundlagen in vollen Euro; die Steuerbeträge bleiben centgenau
     kz21: toWholeEuros(total("kz21")),
     kz45: toWholeEuros(total("kz45")),
@@ -731,6 +724,7 @@ export async function annualOverview(year: number, today: string) {
     erklaerteZeilen(euerVermerk?.id ?? null),
     erklaerteZeilen(estVermerk?.id ?? null),
   ]);
+  const kleinunternehmer = await kleinunternehmerForYear(year);
   /*
    * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
    * Veranlagung nicht, und in einem Jahr ohne Buchungen kehrt sie sogar das Vorzeichen um (0,00 - erklärtes Soll).
@@ -745,11 +739,9 @@ export async function annualOverview(year: number, today: string) {
     year,
     ust: {
       ...ust,
-      issues: [
-        ...base,
-        ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null }),
-        ...abweichungHinweis("ust", ustZeilen, ustVermerk),
-      ],
+      issues: [...base, ...ustIssues(kleinunternehmer, ust, year, { vermerkt: ustVermerk !== null }), ...abweichungHinweis("ust", ustZeilen, ustVermerk)],
+      // Kleinunternehmer geben ab 2024 keine Umsatzsteuererklärung mehr ab (§ 18 Abs. 3 UStG), wie in den Fristen
+      geschuldet: !kleinunternehmer || year < 2024,
       sent: sent("ust"),
       submitted: ustVermerk,
       erklaert: ustZeilen,

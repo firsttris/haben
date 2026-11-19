@@ -2,6 +2,7 @@ import { ACCOUNTS, type Kontenrahmen } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 const FORDERUNGEN = "Bilanzierte Forderungen aus neuen Anzahlungs-/Schlussketten";
 const ANZAHLUNGEN = "Erhaltene Anzahlungen netto, neues Verfahren";
@@ -32,9 +33,9 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
   });
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform,journal_ab)
+    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,kontenrahmen,versteuerung,rechtsform)
       values (1,'Muster GmbH','Musterstraße 1','93047','Regensburg','rechnung@example.com','0941 1','198/113/10010','BY',
-        'DE89370400440532013000','SKR03','soll','gmbh',2025)`;
+        'DE89370400440532013000','SKR03','soll','gmbh')`;
     const contacts = await import("../stammdaten/index.ts");
     contactId = (
       await contacts.createContact(actor, {
@@ -70,6 +71,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
           lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
   }
   async function finalInvoice(advanceId: string, issueDate = "2026-01-20") {
@@ -89,6 +91,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
           lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
   }
   async function bankPayment(invoiceId: string, date: string, amount: number) {
@@ -119,8 +122,8 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
   }
   function expected(cutoff: string, receivables: number, advances: number) {
     return [
-      { bereich: "opos", zeitraum: cutoff, posten: FORDERUNGEN, journal: receivables, quelle: receivables },
-      { bereich: "opos", zeitraum: cutoff, posten: ANZAHLUNGEN, journal: advances, quelle: advances },
+      { bereich: "opos", zeitraum: cutoff, posten: FORDERUNGEN, journal: receivables, quelle: receivables, gegen: "laut offenen Posten" },
+      { bereich: "opos", zeitraum: cutoff, posten: ANZAHLUNGEN, journal: advances, quelle: advances, gegen: "laut offenen Posten" },
     ];
   }
   async function extraJournal(frame: Kontenrahmen, invoiceId: string | null, date: string, amount: number) {
@@ -198,6 +201,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
           lines: [{ description: "Normale Kontrollrechnung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
         })
       ).id,
+      kleinunternehmerStand,
     );
     expect(old.advanceAccounting).toBeNull();
     expect((await oposAbgleich("2025-12-31")).zeilen).toEqual(expected("2025-12-31", 0, 30_000));
@@ -206,7 +210,7 @@ describe.skipIf(!testDatabaseUrl)("OPOS-Gegenprobe des neuen Anzahlungsverfahren
     // Eine eigene zusätzliche Buchung im verglichenen Umfang ist ein echter Widerspruch, ohne Siegel abzuschalten.
     await extraJournal("SKR03", f.id, "2026-03-20", 1);
     expect(abgleich.abweichungen((await oposAbgleich("2026-03-31")).zeilen)).toEqual([
-      { bereich: "opos", zeitraum: "2026-03-31", posten: FORDERUNGEN, journal: 73_301, quelle: 73_300 },
+      { bereich: "opos", zeitraum: "2026-03-31", posten: FORDERUNGEN, journal: 73_301, quelle: 73_300, gegen: "laut offenen Posten" },
     ]);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });

@@ -9,7 +9,18 @@
 export { insertImportedArticles, insertImportedContacts, planArticleImport, planContactImport } from "./csv-import.ts";
 export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
 export { assertKnownUnit, createUnit, listUnits, loadUnitCodes, setUnitArchived, UnitError, type Unit } from "./units.ts";
-export { articleInputSchema, createArticle, insertArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
+export {
+  articleInputSchema,
+  articlePatchSchema,
+  createArticle,
+  getArticle,
+  insertArticle,
+  listArticles,
+  patchArticle,
+  setArticleArchived,
+  updateArticle,
+  type Article,
+} from "./articles.ts";
 export { searchStammdaten, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
 export {
   companyIssues,
@@ -21,11 +32,14 @@ export {
   lastDayOfMonth,
   letterIssues,
   loadCompany,
+  loadEinrichtung,
+  offeneFragenErledigt,
+  saveBereiche,
+  setEinrichtung,
+  type Einrichtung,
   sellerIssues,
   setArchiveSearch,
   versteuerungForYear,
-  journalAbJahr,
-  setJournalAb,
   type Company,
   type CompanyInput,
 } from "./company.ts";
@@ -116,6 +130,19 @@ export {
   type MandateOption,
 } from "./sepa-mandate.ts";
 export {
+  bestaetigeNummer,
+  bestaetigeUstId,
+  evatrMoeglich,
+  letzteBestaetigungen,
+  listUstIdBestaetigungen,
+  ustIdBestaetigungen,
+  ustIdVorFestschreiben,
+  type EvatrVerbindung,
+  type UstIdBestaetigung,
+  type UstIdBestaetigungsErgebnis,
+  type UstIdBestaetigungsZustand,
+} from "./ustid-bestaetigung.ts";
+export {
   ansprechpartnerSnapshot,
   ContactPersonError,
   contactPersonInputSchema,
@@ -138,3 +165,12 @@ export {
   type TextBlock,
   type TextBlockInput,
 } from "./text-blocks.ts";
+export {
+  artikelUebernehmen,
+  einheitenUebernehmen,
+  einrichtungUebernehmen,
+  firmaErgaenzen,
+  kontakteUebernehmen,
+  textbausteineUebernehmen,
+} from "./uebernahme.ts";
+export { gestaltungUebernehmen } from "./uebernahme-gestaltung.ts";

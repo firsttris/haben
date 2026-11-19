@@ -30,6 +30,14 @@ test("Einzelunternehmen: was nur ein Einzelunternehmen hat, bleibt sichtbar", as
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("button", { name: "Vorauszahlungen herabsetzen" })).toBeVisible();
   await expect(page.getByRole("heading", { name: `Einkommensteuer-Vorauszahlungen ${currentYear()}` })).toBeVisible();
+  // Die Schätzrechnung steht zugeklappt, öffnet sich per Klick und per Sprung auf #schaetzung (#1253)
+  const schaetzung = page.locator("details#schaetzung");
+  await expect(schaetzung).not.toHaveAttribute("open");
+  await schaetzung.locator("summary").click();
+  await expect(schaetzung.getByText("Hochgerechnet auf")).toBeVisible();
+  await page.goto("/");
+  await page.goto("/finanzamt#schaetzung");
+  await expect(page.locator("details#schaetzung")).toHaveAttribute("open");
 
   await page.goto(`/jahreserklaerung/${YEAR}`);
   await page.waitForLoadState("networkidle");
@@ -39,6 +47,8 @@ test("Einzelunternehmen: was nur ein Einzelunternehmen hat, bleibt sichtbar", as
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("link", { name: "EÜR als CSV" })).toBeVisible();
   await expect(page.getByRole("heading", { name: `Einnahmen-Überschuss-Rechnung ${YEAR}` })).toBeVisible();
+  // Der Gewinn ist nicht netto minus netto: Die Karte sagt, dass die Umsatzsteuer darin steckt (in der GmbH steht dort etwas anderes, gmbh.spec.ts)
+  await expect(page.getByText("Einnahmen minus Ausgaben mit Umsatzsteuer (EÜR)", { exact: true })).toBeVisible();
 
   await page.goto("/dauerbelege/neu");
   await page.waitForLoadState("networkidle");

@@ -1,13 +1,15 @@
 import { formatHundredths } from "@haben/core";
-import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
+import { kleinunternehmerStand, runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueArchiveDeliveries } from "./modules/ablage/index.ts";
-import { runDueBankSyncs } from "./modules/bank/index.ts";
+import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
+import { runDueBankSyncs, runDueFintsSyncs, runExistingDuplicateCheck } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
 import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modules/belege/index.ts";
 import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
 import { runDueFristenMails, runDuePostfachFetch } from "./modules/finanzamt/index.ts";
 import { applyPublishedRatesToDrafts, runDueBaseRate, runDueRecurring } from "./modules/rechnungen/index.ts";
+import { runDueEtsySyncs } from "./modules/etsy/index.ts";
 import { runDueStoreSyncs } from "./modules/stores/index.ts";
 import { today } from "./today.ts";
 
@@ -16,11 +18,21 @@ const HOUR = 60 * 60 * 1000;
 /** Ein Lauf auf einmal; Fehler landen im Log, der nächste Lauf versucht es erneut */
 let running = false;
 
+async function runDueBankJobs() {
+  try {
+    const result = await runExistingDuplicateCheck();
+    if (result) console.log(`Bankdubletten: Bestand geprüft, ${result.added} Verdachtspaare`);
+  } catch (error) {
+    console.error("Bankdublettenprüfung", error);
+  }
+  return runDueBankSyncs();
+}
+
 export async function runScheduledJobs(): Promise<void> {
   if (running) return;
   running = true;
   try {
-    const result = await runDueRecurring(today());
+    const result = await runDueRecurring(today(), kleinunternehmerStand);
     if (result.created > 0 || result.errors.length > 0) {
       console.log(`Wiederkehrende Rechnungen: ${result.created} angelegt, ${result.finalized} festgeschrieben, ${result.mailed} per E-Mail versandt`);
       for (const error of result.errors) console.warn(error);
@@ -44,11 +56,18 @@ export async function runScheduledJobs(): Promise<void> {
     console.error("Dauerbelege", error);
   }
   try {
-    const result = await runDueBankSyncs();
+    const result = await runDueBankJobs();
     if (result.synced > 0) console.log(`Kontoabruf: ${result.synced} Verbindungen, ${result.added} neue Umsätze`);
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Kontoabruf", error);
+  }
+  try {
+    const result = await runDueFintsSyncs();
+    if (result.synced > 0) console.log(`FinTS-Abruf: ${result.synced} Verbindungen, ${result.added} neue Umsätze`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("FinTS-Abruf", error);
   }
   try {
     const result = await runDueStoreSyncs();
@@ -56,6 +75,13 @@ export async function runScheduledJobs(): Promise<void> {
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Store-Finanzberichte", error);
+  }
+  try {
+    const result = await runDueEtsySyncs();
+    if (result.added > 0) console.log(`Etsy Payments: ${result.added} neue Umsätze aus dem Zahlungsverlauf`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("Etsy Payments", error);
   }
   try {
     if (elsterMode() === "eric") {
@@ -123,7 +149,8 @@ async function runFileCheckAndPruefwertMail(): Promise<void> {
       console.error("Vollprüfung der Dateien", error);
     }
     try {
-      const result = await runDuePruefwertMail();
+      // Übermittelte Jahreserklärungen gegen das Journal: jahreserklaerung steht über auswertungen (erklaert-pruefen.ts)
+      const result = await runDuePruefwertMail(undefined, erklaerteAbweichungsZeilen);
       if (result)
         console.log(
           `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.fileProblems ? `, ${result.fileProblems} Dateien fehlen oder sind verändert` : ""}${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,

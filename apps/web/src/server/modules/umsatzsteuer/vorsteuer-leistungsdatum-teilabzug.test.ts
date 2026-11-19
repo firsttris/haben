@@ -97,14 +97,14 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum mit Teilabzug (
   /** August bis Dezember 2026 */
   const MONATE = [8, 9, 10, 11, 12].map((month) => ({ year: 2026, month }));
 
-  /** Kz 66 je Monat aus Journal und Nebenbüchern, Saldo des Zwischenkontos, Aufwand der Belegbuchung */
+  /** Kz 66 je Monat aus dem Journal und aus der Vorsteuer-Erläuterung, Saldo des Zwischenkontos, Aufwand der Belegbuchung */
   async function stand(documentId: string) {
     const journal: number[] = [];
     const nebenbuecher: (number | undefined)[] = [];
     for (const m of MONATE) {
       const f = await figures.computeVatFigures(m);
       journal.push(f.kz66);
-      nebenbuecher.push(f.nebenbuecher?.kz66);
+      nebenbuecher.push(f.inputTax.reduce((s, a) => s + a.tax, 0));
     }
     const [z] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account in ('1548', '1434')`;
     const [a] = await sql`select coalesce(sum(l.debit - l.credit), 0)::int as aufwand from journal_lines l join journal_entries e on e.id = l.entry_id
@@ -112,7 +112,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum mit Teilabzug (
     return { journal, nebenbuecher, zw: z!.saldo as number, aufwand: a!.aufwand as number };
   }
 
-  /** Erwartung: dieselben Kz 66 in beiden Quellen, Zwischenkonto 0, Aufwand = Netto + nicht abziehbare Steuer */
+  /** Erwartung: dieselbe Kz 66 im Journal und in der Erläuterung, Zwischenkonto 0, Aufwand = Netto + nicht abziehbare Steuer */
   const erwartet = (kz66: number[], aufwand = 10_950) => ({ journal: kz66, nebenbuecher: kz66, zw: 0, aufwand });
 
   for (const p of [

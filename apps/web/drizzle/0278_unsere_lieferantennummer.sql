@@ -1,0 +1,1 @@
+ALTER TABLE "contacts" ADD COLUMN "unsere_lieferantennummer" text DEFAULT '' NOT NULL;

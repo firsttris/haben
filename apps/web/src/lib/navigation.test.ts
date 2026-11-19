@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { NAV_BACKGROUNDS } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import type { IconName } from "../components/Icon.tsx";
+import { BEREICHE } from "./bereiche.ts";
 import { firmaInNavigation, NAV_GROUPS, type NavBedingung, navLinkSichtbar, navMark, STEUERBERATUNG_NAV, sichtbareNavSeiten } from "./navigation.ts";
 
 /** Lohn ohne Bedingung */
@@ -24,6 +25,35 @@ describe("navLinkSichtbar", () => {
     expect(navLinkSichtbar(pauschalen, { gesellschaft: true, hatMitarbeiter: false })).toBe(false);
     expect(navLinkSichtbar(ausschuettungen, { gesellschaft: false, hatMitarbeiter: false })).toBe(false);
     expect(navLinkSichtbar(ausschuettungen, { gesellschaft: true, hatMitarbeiter: false })).toBe(true);
+  });
+});
+
+// Ausgeblendete Bereiche (#266): nur der Menüpunkt verschwindet, auch wenn die Rechtsform oder Mitarbeiter ihn sonst zeigten
+describe("navLinkSichtbar mit ausgeblendeten Bereichen", () => {
+  it("blendet alle Menüpunkte eines ausgeblendeten Bereichs aus, die übrigen bleiben", () => {
+    const kontext = { gesellschaft: false, hatMitarbeiter: true, ausgeblendet: ["personal", "kasse"] };
+    expect(navLinkSichtbar({ to: "/lohn" }, kontext)).toBe(false);
+    expect(navLinkSichtbar(svMeldeportal, kontext)).toBe(false);
+    expect(navLinkSichtbar({ to: "/kasse" }, kontext)).toBe(false);
+    expect(navLinkSichtbar({ to: "/angebote" }, kontext)).toBe(true);
+    expect(navLinkSichtbar({ to: "/darlehen" }, kontext)).toBe(true);
+  });
+
+  it("ignoriert Unbekanntes aus älteren Ständen", () => {
+    expect(navLinkSichtbar({ to: "/rechnungen" }, { gesellschaft: false, hatMitarbeiter: false, ausgeblendet: ["rechnungen"] })).toBe(true);
+  });
+});
+
+describe("BEREICHE", () => {
+  const ziele = NAV_GROUPS.flatMap((g) => g.links.map((l) => l.to));
+
+  it("nennt nur Menüpunkte, die es in der Navigation gibt", () => {
+    for (const seite of BEREICHE.flatMap((b) => b.seiten)) expect(ziele).toContain(seite);
+  });
+
+  it("lässt Rechnungen, Belege, Bank, Umsatzsteuer und Jahreserklärung nie ausblenden", () => {
+    const ausblendbar = BEREICHE.flatMap((b) => b.seiten as readonly string[]);
+    for (const seite of ["/rechnungen", "/belege", "/bank", "/umsatzsteuer", "/jahreserklaerung"]) expect(ausblendbar).not.toContain(seite);
   });
 });
 
@@ -103,6 +133,15 @@ describe("sichtbareNavSeiten", () => {
     expect(gmbhMitMa).toContain("/sv-meldeportal");
   });
 
+  it("lässt ausgeblendete Bereiche aus der Schnellsuche weg, wie aus der Navigation", () => {
+    const pfade = sichtbareNavSeiten({ inhaber: true, gesellschaft: false, hatMitarbeiter: true, ausgeblendet: ["anlagen"], eigeneSeiten: [] }).map(
+      (s) => s.to,
+    );
+    expect(pfade).not.toContain("/anlagen");
+    expect(pfade).not.toContain("/darlehen");
+    expect(pfade).toContain("/lohn");
+  });
+
   it("begrenzt die Navigation für die Steuerberatung auf Lesepfade ohne Einstellungen und eigene Seiten", () => {
     const stb = sichtbareNavSeiten({
       inhaber: false,
@@ -120,8 +159,6 @@ const GETEILTE_SYMBOLE: Partial<Record<IconName, readonly string[]>> = {
   mail: ["/finanzamt", "/sv-meldeportal"],
   // Abschluss des Jahres, als Steuererklärung oder als Bilanz der Gesellschaft
   annual: ["/abschluss", "/jahreserklaerung"],
-  // Noch ohne eigenes Symbol
-  calendar: ["/dauerbelege", "/fristen", "/leistungen"],
   // Bargeld, in der Kasse und als Ausschüttung an die Gesellschafter
   cash: ["/ausschuettungen", "/kasse"],
 };

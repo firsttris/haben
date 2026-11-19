@@ -2,11 +2,13 @@ import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { daysUntil, formatDate, formatDateTime, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
+import { EricHinweis } from "../../components/EricHinweis.tsx";
 import { KleinunternehmerHinweise } from "../../components/KleinunternehmerHinweise.tsx";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
 import type { SettingsArea } from "../../lib/settings-areas.ts";
+import { einrichtungsAufgaben } from "../../lib/einrichtung.ts";
 
 export const Route = createFileRoute("/_app/")({
   loader: async () => {
@@ -24,7 +26,7 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/einrichtung" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
   /** Bereich der Einstellungen, wenn to „/einstellungen“ ist */
   bereich?: SettingsArea;
 }
@@ -48,7 +50,7 @@ function OverviewPage() {
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
   const vatRequired = !data.kleinunternehmer && !data.exempt;
 
-  const todos: Todo[] = [];
+  const todos: Todo[] = einrichtungsAufgaben(Route.useRouteContext().einrichtung);
   if (!sent && vatRequired) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,
@@ -91,7 +93,7 @@ function OverviewPage() {
   if (data.transit !== 0) {
     todos.push({
       title: "Geldtransit nicht ausgeglichen",
-      detail: `${formatEuro(Math.abs(data.transit))} ${data.transit > 0 ? "abgegangen, aber auf keinem eigenen Konto angekommen" : "angekommen ohne Abgang"}: zu einem Übertrag fehlt die Gegenseite`,
+      detail: `${formatEuro(Math.abs(data.transit))} ${data.transit > 0 ? "abgegangen, aber auf keinem deiner Konten angekommen" : "angekommen, ohne dass es woanders abgegangen ist"}: Beim Geldtransit, dem Geld zwischen deinen eigenen Konten, fehlt die Gegenbuchung`,
       action: "Zur Bank",
       tone: "warn",
       to: "/bank",
@@ -143,8 +145,8 @@ function OverviewPage() {
   for (const afa of data.afaPending) {
     todos.push({
       id: `afa-${afa.year}`,
-      title: `AfA ${afa.year} buchen`,
-      detail: `${afa.count} ${afa.count === 1 ? "Anlage" : "Anlagen"} im Anlagenverzeichnis`,
+      title: `Abschreibung (AfA) ${afa.year} buchen`,
+      detail: `Für ${afa.count} ${afa.count === 1 ? "Anlage" : "Anlagen"} im Anlagenverzeichnis ist sie noch nicht gebucht`,
       action: "Öffnen",
       tone: "info",
       to: "/anlagen",
@@ -234,11 +236,7 @@ function OverviewPage() {
         </div>
       </div>
 
-      {data.mode === "simuliert" && vatRequired && (
-        <div className="banner banner-info" role="status">
-          ERiC ist nicht eingerichtet (Einstellungen › ERiC). Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
-        </div>
-      )}
+      {data.mode === "simuliert" && vatRequired && <EricHinweis />}
 
       {data.kleinunternehmerStand && <KleinunternehmerHinweise stand={data.kleinunternehmerStand} />}
 
@@ -265,8 +263,8 @@ function OverviewPage() {
         </Link>
         <div className="card">
           <div className="kpi-label">Umsatz {periodLabel(data.previousMonth).split(" ")[0]} (netto)</div>
-          <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth.net)}</div>
-          <div className="small muted">nach Rechnungsdatum</div>
+          <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth)}</div>
+          <div className="small muted">Erlöse nach Buchungsdatum</div>
         </div>
         {showVatPeriod && (
           <div className="card">

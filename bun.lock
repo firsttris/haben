@@ -6,6 +6,7 @@
       "name": "haben",
       "devDependencies": {
         "@biomejs/biome": "2.6.4",
+        "@firsttris/checks": "github:firsttris/workflows#v1",
         "@tanstack/redact": "0.3.1",
         "@types/node": "^26.0.0",
         "oxc-parser": "^0.156.0",
@@ -136,6 +137,7 @@
         "@haben/core": "workspace:*",
         "fast-xml-parser": "^5.11.2",
         "fflate": "^0.8.3",
+        "lib-fints": "1.5.3",
         "zod": "^4.6.5",
       },
       "devDependencies": {
@@ -297,6 +299,8 @@
     "@esbuild/win32-ia32": ["@esbuild/win32-ia32@0.25.12", "", { "os": "win32", "cpu": "ia32" }, "sha512-HkqnmmBoCbCwxUKKNPBixiWDGCpQGVsrQfJoVGYLPT41XWF8lHuE5N6WhVia2n4o5QK5M4tYr21827fNhi4byQ=="],
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
+
+    "@firsttris/checks": ["@firsttris/checks@github:firsttris/workflows#c45f6a8", { "dependencies": { "oxc-parser": "^0.156.0" }, "bin": { "checks": "checks/cli.ts" } }, "firsttris-workflows-c45f6a8", "sha512-4ANBCavyTl07BQZTRKmi1Ay6vwE0wSpr3PFu64WCjBKfOS1uenafAu8aYf+3F8QnCh+juCyMIfgN5I7GhLzNFw=="],
 
     "@firsttris/gobd-kern": ["@firsttris/gobd-kern@workspace:packages/gobd-kern"],
 
@@ -929,6 +933,8 @@
     "kysely": ["kysely@0.29.8", "", {}, "sha512-ixHU1H4R+LeC5Y0nAhYgiGRFpFRHm2DXKEmJSs/vbes9sKXyssyzxzE/NYiOJX5fY0BL28biCre3GqlCqUwyXQ=="],
 
     "leac": ["leac@0.7.0", "", {}, "sha512-qMrZeyEekgdRQ9o6a4NAB2EQZrv827GJdn1vnapwSJ90hWRB4TzUSunvacPkxQ2TnNqHNI1/zSt0hlo0crG8Jw=="],
+
+    "lib-fints": ["lib-fints@1.5.3", "", { "dependencies": { "fast-xml-parser": "^5.8.0" } }, "sha512-KokpujO3nhnWFSvIyqUFs3DGadHfvEUEAwUkEXXlSmjZCqqB2e262KofKQWc3NlJIguAPyfht8g7iDt2simcgg=="],
 
     "libbase64": ["libbase64@1.4.1", "", {}, "sha512-Nyh3H90B3gRtrcxIe56Ayy7635J0jmh6AbxbQgQae8wrSPQMH5wFqJChiMTB13yKG512L3YspbA5DzumhFTITA=="],
 

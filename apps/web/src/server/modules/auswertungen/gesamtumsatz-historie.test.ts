@@ -63,6 +63,28 @@ describe.skipIf(!testDatabaseUrl)("Gesamtumsatz: historische Zahlungsquellen (Po
     });
     expect(await read.gesamtumsatzForYear(2026)).toMatchObject({ included: 0, complete: true, items: [] });
   });
+  it("ordnet sevDesk-Steuerregeln nach § 19 Abs. 2 UStG ein: 5 im Inland, 17, 21 und noteu im Ausland, OSS ungeklärt", async () => {
+    const { takenOverClassifications } = await import("./gesamtumsatz-altbestand.ts");
+    const { db } = await import("../../db/index.ts");
+    const raws = {
+      r5: { taxRule: { id: "5" } },
+      r17: { taxRule: { id: "17" } },
+      r21: { taxRule: { id: "21" } },
+      noteu: { taxType: "noteu" },
+      oss: { taxRule: { id: "18" } },
+    };
+    const ids: Record<string, string> = {};
+    for (const [key, raw] of Object.entries(raws))
+      ids[key] = (await f.legacy("open", null, { source: "sevdesk", lexoffice_id: `invoice/${key}`, raw: JSON.stringify(raw) })).id;
+    const result = await takenOverClassifications(Object.values(ids), db);
+    expect(Object.fromEntries(Object.entries(ids).map(([key, id]) => [key, result.get(id)]))).toEqual({
+      r5: { kind: "domestic" },
+      r17: { kind: "foreign", confirmed: false },
+      r21: { kind: "foreign", confirmed: false },
+      noteu: { kind: "foreign", confirmed: false },
+      oss: null,
+    });
+  });
   it("addiert zu einer Archivzahlung keinen zweiten Zufluss aus dem unverbundenen DATEV-Originalstapel", async () => {
     await knownLegacy();
     const [file] = await sql`insert into archive_files (kind, year, filename, sha256, mime_type, size)

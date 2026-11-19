@@ -13,6 +13,8 @@ import {
   documentPaymentPosting,
   documentPosting,
   einfuhrumsatzsteuerIssues,
+  EXPENSE_CATEGORY_KEYS,
+  kategorieMitKonto,
   invoiceCashPaymentPosting,
   invoicePaymentPosting,
   invoicePosting,
@@ -601,5 +603,27 @@ describe("Einfuhrumsatzsteuer (Bescheid des Zolls, Kz 62)", () => {
     expect(einfuhrumsatzsteuerIssues(bescheid, false, 0, null)[0]).toMatch(/Ohne Vorsteuerabzug/);
     expect(einfuhrumsatzsteuerIssues(bescheid, true, 20, "eu")).toHaveLength(2);
     expect(() => documentPosting(bescheid, "einfuhrumsatzsteuer", "SKR03", "einzelunternehmen", "bank", false)).toThrow(RangeError);
+  });
+});
+
+describe("kategorieMitKonto (#1438)", () => {
+  it("setzt die Nummer des Kontenrahmens vor die Bezeichnung", () => {
+    expect(kategorieMitKonto("SKR04", "telefon")).toBe("6805 · Telefon");
+    expect(kategorieMitKonto("SKR03", "telefon")).toBe("4920 · Telefon");
+  });
+
+  it("zeigt das Anlagegut ohne Nummer, denn gebucht wird auf das Anlagekonto der Art", () => {
+    expect(kategorieMitKonto("SKR03", "anlage")).toBe("Anlagegut (wird abgeschrieben)");
+    expect(kategorieMitKonto("SKR04", "anlage")).toBe("Anlagegut (wird abgeschrieben)");
+  });
+
+  it("lässt unbekannte Werte unverändert", () => {
+    expect(kategorieMitKonto("SKR03", "gibtEsNicht")).toBe("gibtEsNicht");
+  });
+
+  it("hat für jede Kategorie außer dem Anlagegut in beiden Kontenrahmen eine Nummer", () => {
+    for (const kr of ["SKR03", "SKR04"] as const) {
+      for (const key of EXPENSE_CATEGORY_KEYS.filter((k) => k !== "anlage")) expect(kategorieMitKonto(kr, key)).toMatch(/^\d{4} · .+/);
+    }
   });
 });

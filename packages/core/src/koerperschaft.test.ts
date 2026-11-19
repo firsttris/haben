@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { postenOf } from "./hgb.ts";
-import { KAPG_STEUER_KONTEN, kapgSteuern } from "./koerperschaft.ts";
+import { GEWST_HINZURECHNUNG_KONTEN, KAPG_STEUER_KONTEN, kapgSteuern, mindestHebesatz } from "./koerperschaft.ts";
 
 const ohneVortrag = { hebesatz: 400, verlustvortragKst: 0, verlustvortragGewst: 0 };
 
@@ -72,6 +72,15 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     expect(s.verlustvortragKst).toBe(500_000_000 - kst);
   });
 
+  it.each([
+    // § 16 Abs. 4 Satz 2 GewStG, 280 % erstmals für den Erhebungszeitraum 2027 (§ 36 Abs. 5b GewStG)
+    [2026, 200],
+    [2027, 280],
+    [2028, 280],
+  ])("Mindesthebesatz %i: %i", (year, prozent) => {
+    expect(mindestHebesatz(year)).toBe(prozent);
+  });
+
   it("Verlust: keine Steuer, Vortrag wächst; Erstattung der Vorauszahlungen als negative Rückstellung", () => {
     const s = kapgSteuern("SKR03", 2026, [{ account: "2200", saldo: 100_000 }], -2_100_000, {
       hebesatz: 400,
@@ -134,6 +143,156 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     );
     expect(gross.hinzurechnungGewst).toBe(1_250_000);
     expect(gross.gewerbeertrag).toBe(2_250_000);
+  });
+
+  it.each([
+    ["SKR03", "4575", "4570"],
+    ["SKR04", "6565", "6560"],
+  ] as const)(
+    "%s: Leasing für Elektrofahrzeuge und Fahrräder bis 2030 zur Hälfte von einem Fünftel, ab 2031 wie übriges Leasing",
+    (kontenrahmen, elektro, leasing) => {
+      // § 8 Nr. 1 Buchst. d Satz 2 GewStG, letztmals für den Erhebungszeitraum 2030 (§ 36 Abs. 4 Satz 3 GewStG)
+      const gruppen = (year: number) =>
+        kapgSteuern(
+          kontenrahmen,
+          year,
+          [
+            { account: elektro, saldo: 960_000 },
+            { account: leasing, saldo: 1_200_000 },
+          ],
+          1_000_000,
+          ohneVortrag,
+        ).gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag]);
+      expect(gruppen(2030)).toEqual([
+        ["beweglich", 1_200_000, 240_000],
+        ["elektro", 960_000, 96_000],
+      ]);
+      expect(gruppen(2031)).toEqual([["beweglich", 2_160_000, 432_000]]);
+    },
+  );
+
+  it.each([
+    ["SKR03", "4575", "4570"],
+    ["SKR04", "6565", "6560"],
+  ] as const)("%s: Leasing für Elektrofahrzeuge und Fahrräder vor 2020 wie übriges Leasing, ab 2020 zur Hälfte", (kontenrahmen, elektro, leasing) => {
+    // § 36 Abs. 4 Satz 1 GewStG: nur Verträge, die nach dem 31.12.2019 abgeschlossen worden sind; im Erhebungszeitraum 2019 gibt es keine
+    const gruppen = (year: number) =>
+      kapgSteuern(
+        kontenrahmen,
+        year,
+        [
+          { account: elektro, saldo: 960_000 },
+          { account: leasing, saldo: 1_200_000 },
+        ],
+        1_000_000,
+        ohneVortrag,
+      ).gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag]);
+    expect(gruppen(2019)).toEqual([["beweglich", 2_160_000, 432_000]]);
+    expect(gruppen(2020)).toEqual([
+      ["beweglich", 1_200_000, 240_000],
+      ["elektro", 960_000, 96_000],
+    ]);
+  });
+
+  it("Der Freibetrag gilt für die Summe aller Gruppen, auch mit Elektrofahrzeugen und Fahrrädern", () => {
+    // Zinsen 195.000 € voll, Leasing für Elektrofahrzeuge 100.000 € zu 10 %: 205.000 € − 200.000 € Freibetrag, davon ein Viertel
+    const s = kapgSteuern(
+      "SKR04",
+      2026,
+      [
+        { account: "7300", saldo: 19_500_000 },
+        { account: "6565", saldo: 10_000_000 },
+      ],
+      1_000_000,
+      ohneVortrag,
+    );
+    expect(s.hinzurechnungGewst).toBe(125_000);
+  });
+
+  /*
+   * Weitere Konten mit Kennzeichen G im DATEV-Kontenrahmen 2026 (#1265): Zinsen an verbundene Unternehmen, auf
+   * Kontokorrentkonten und für Gebäude (§ 8 Nr. 1 a), Mietleasing für technische Anlagen und Maschinen und für
+   * Betriebs- und Geschäftsausstattung (d), Garagenmiete (e)
+   */
+  it.each([
+    ["SKR03", ["2109", "2118", "2119", "2125", "2129"], ["4810", "4965"], ["4550"]],
+    ["SKR04", ["7309", "7318", "7319", "7325", "7329"], ["6498", "6840"], ["6550"]],
+  ] as const)("%s: Zinsen, bewegliche und unbewegliche Wirtschaftsgüter aus allen Konten mit Kennzeichen G", (kontenrahmen, zinsen, beweglich, unbeweglich) => {
+    const brutto = (account: string, art: string) =>
+      kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag).gewstHinzurechnungen.find((z) => z.art === art)?.brutto;
+    for (const account of zinsen) expect(brutto(account, "zinsen"), account).toBe(100_000);
+    for (const account of beweglich) expect(brutto(account, "beweglich"), account).toBe(100_000);
+    for (const account of unbeweglich) expect(brutto(account, "unbeweglich"), account).toBe(100_000);
+  });
+
+  it.each([
+    ["SKR03", "2118", "2127"],
+    ["SKR04", "7318", "7327"],
+  ] as const)("%s: Renten und dauernde Lasten voll vor dem Freibetrag (§ 8 Nr. 1 b GewStG)", (kontenrahmen, kontokorrent, renten) => {
+    // Kontokorrentzinsen 150.000 € und Renten 100.000 € voll: 250.000 € − 200.000 € Freibetrag, davon ein Viertel
+    const s = kapgSteuern(
+      kontenrahmen,
+      2026,
+      [
+        { account: kontokorrent, saldo: 15_000_000 },
+        { account: renten, saldo: 10_000_000 },
+      ],
+      1_000_000,
+      ohneVortrag,
+    );
+    expect(s.gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag])).toEqual([
+      ["zinsen", 15_000_000, 15_000_000],
+      ["renten", 10_000_000, 10_000_000],
+    ]);
+    expect(s.hinzurechnungGewst).toBe(1_250_000);
+  });
+
+  it.each([
+    ["SKR03", ["2115", "2116"]],
+    ["SKR04", ["7350", "7351"]],
+  ] as const)("%s: Zinsen nach §§ 3 Nr. 40, 3c EStG bzw. § 8b KStG gehören nicht zur Hinzurechnung", (kontenrahmen, konten) => {
+    // DATEV-Kontenrahmen 2026, Fußnote 9: die Schnittstelle zur Gewerbesteuer behandelt diese Aufwendungen gesondert
+    for (const account of konten) {
+      const s = kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag);
+      expect(s.gewstHinzurechnungen, account).toEqual([]);
+    }
+  });
+
+  /*
+   * Miete, Pacht und Lizenzen als Fremdleistungen tragen im DATEV-Kontenrahmen 2026 ebenfalls „G K“ (SKR03 S. 20,
+   * SKR04 S. 21): Miet- und Pachtzinsen für bewegliche (§ 8 Nr. 1 d) und unbewegliche Wirtschaftsgüter (e), Entgelte für
+   * Rechte und Lizenzen (f)
+   */
+  it.each([
+    ["SKR03", "3170", "3175", "3180"],
+    ["SKR04", "5970", "5975", "5980"],
+  ] as const)("%s: Miete, Pacht und Lizenzen als Fremdleistungen zählen zur Hinzurechnung", (kontenrahmen, beweglich, unbeweglich, rechte) => {
+    const brutto = (account: string, art: string) =>
+      kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag).gewstHinzurechnungen.find((z) => z.art === art)?.brutto;
+    expect(brutto(beweglich, "beweglich"), beweglich).toBe(100_000);
+    expect(brutto(unbeweglich, "unbeweglich"), unbeweglich).toBe(100_000);
+    expect(brutto(rechte, "rechte"), rechte).toBe(100_000);
+  });
+
+  /*
+   * Zinsen und Miete an Gesellschafter tragen im DATEV-Kontenrahmen 2026 nur das Kennzeichen K, nicht G (#1346). § 8 Nr. 1
+   * a, d und e GewStG fragt nicht, wer Gläubiger oder Vermieter ist; die Ausnahme für Mitunternehmer gibt es bei der GmbH nicht.
+   */
+  it.each([
+    ["SKR03", ["2114", "2117"], "4222", "4958"],
+    ["SKR04", ["7316", "7317"], "6313", "6833"],
+  ] as const)("%s: Zinsen und Miete an Gesellschafter zählen zur Hinzurechnung (Kennzeichen K)", (kontenrahmen, zinsen, unbeweglich, beweglich) => {
+    const gruppe = (account: string) =>
+      kapgSteuern(kontenrahmen, 2026, [{ account, saldo: 100_000 }], 1_000_000, ohneVortrag).gewstHinzurechnungen.map((z) => [z.art, z.brutto, z.betrag]);
+    for (const account of zinsen) expect(gruppe(account), account).toEqual([["zinsen", 100_000, 100_000]]);
+    expect(gruppe(unbeweglich), unbeweglich).toEqual([["unbeweglich", 100_000, 50_000]]);
+    expect(gruppe(beweglich), beweglich).toEqual([["beweglich", 100_000, 20_000]]);
+  });
+
+  it("Jede Gruppe der Hinzurechnung hat in SKR03 und SKR04 gleich viele Konten", () => {
+    const anzahl = (kontenrahmen: "SKR03" | "SKR04") =>
+      Object.fromEntries(Object.entries(GEWST_HINZURECHNUNG_KONTEN[kontenrahmen]).map(([art, konten]) => [art, konten.length]));
+    expect(anzahl("SKR04")).toEqual(anzahl("SKR03"));
   });
 
   it.each(["SKR03", "SKR04"] as const)("%s: die Konten stehen im DATEV-Kontenrahmen, wo die Berechnung sie erwartet", (kontenrahmen) => {

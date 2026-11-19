@@ -2,11 +2,12 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
  * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, docs/adr/journal-als-quelle.md) für Eingangsbelege, die
- * Kasse und aus Lexoffice übernommene offene Posten; bestehende Installation (Stichjahr 2027) und neue. Erwartet nach
- * dem Gesetz, von Hand gerechnet:
+ * Kasse und aus Lexoffice übernommene offene Posten, beide Jahre aus dem Journal (#1116). Erwartet nach dem Gesetz, von
+ * Hand gerechnet:
  * - Vorsteuer nach Belegdatum (§ 15 Abs. 1 Satz 1 Nr. 1 UStG: Leistung erhalten und Rechnung liegt vor), unabhängig von der
  *   Zahlung; § 13b-Steuer und ihre Vorsteuer im Monat der Rechnung (§ 13b Abs. 2 UStG, § 15 Abs. 1 Satz 1 Nr. 4 UStG),
  *   beim Privatanteil nur der betriebliche Teil abziehbar (§ 15 Abs. 1 Satz 2 UStG).
@@ -80,14 +81,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
     await sql?.end();
   });
 
-  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04", journalAb: 2027 | null) {
+  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04") {
     await leeren(sql)`truncate vat_return_filings, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports,
       bank_accounts, cash_entries, document_cancellations, journal_lines, journal_entries, document_splits, document_amounts, documents,
       invoice_lines, invoices, invoice_number_counters, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contact_versions, contacts,
       company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
   }
 
   async function beleg(
@@ -150,14 +151,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
       note: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: net, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, d.id);
+    return invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
   }
 
   async function va(period: { year: number; month: number }) {
     const f = await figures.computeVatFigures(period);
     const werte: Kennzahlen = {};
     for (const k of JOURNAL_KENNZAHLEN) if (f[k] !== 0) werte[k] = f[k];
-    return { quelle: f.quelle, ...werte };
+    return werte;
   }
   async function euer(year: number) {
     const e = await reports.euerForYear(year);
@@ -180,110 +181,99 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
       heute,
     );
   }
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      const fall = `${versteuerung}, ${kontenrahmen}`;
 
-  for (const journalAb of [2027, null] as const) {
-    const inst = journalAb ? "bestehende Installation, Stichjahr 2027" : "neue Installation";
-    const quelleDez = journalAb ? "nebenbuecher" : "journal";
-    for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
-      for (const versteuerung of ["ist", "soll"] as const) {
-        const fall = `${versteuerung}, ${kontenrahmen}, ${inst}`;
+      it(`Beleg im Dezember, Zahlung im Januar: 19 % und 7 % (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const id = await beleg("2026-12-15", [
+          { taxRate: 1900, net: 100_000, tax: 19_000 },
+          { taxRate: 700, net: 20_000, tax: 1_400 },
+        ]);
+        await belegZahlung(id, "05.01.27", "-1.404,00");
+        expect(await va(DEZ)).toEqual({ kz66: 20_400 });
+        expect(await va(JAN)).toEqual({});
+        expect(await euer(2026)).toEqual({ gewinn: 0 });
+        expect(await euer(2027)).toEqual({ "ausgabe:edv": 120_000, vorsteuer: 20_400, gewinn: -140_400 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Beleg im Dezember, Zahlung im Januar: 19 % und 7 % (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const id = await beleg("2026-12-15", [
-            { taxRate: 1900, net: 100_000, tax: 19_000 },
-            { taxRate: 700, net: 20_000, tax: 1_400 },
-          ]);
-          await belegZahlung(id, "05.01.27", "-1.404,00");
-          expect(await va(DEZ)).toEqual({ quelle: quelleDez, kz66: 20_400 });
-          expect(await va(JAN)).toEqual({ quelle: "journal" });
-          expect(await euer(2026)).toEqual({ gewinn: 0 });
-          expect(await euer(2027)).toEqual({ "ausgabe:edv": 120_000, vorsteuer: 20_400, gewinn: -140_400 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Beleg mit 30 % Privatanteil im Dezember, Zahlung im Januar (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const id = await beleg("2026-12-15", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { category: "telefon", privateShare: 30 });
+        await belegZahlung(id, "05.01.27", "-119,00");
+        // Vorsteuer 70 % von 19,00 € = 13,30 €; Ausgabe 70 % von 100,00 € = 70,00 €; 35,70 € privat
+        expect(await va(DEZ)).toEqual({ kz66: 1_330 });
+        expect(await va(JAN)).toEqual({});
+        expect(await euer(2026)).toEqual({ gewinn: 0 });
+        expect(await euer(2027)).toEqual({ "ausgabe:telefon": 7_000, vorsteuer: 1_330, gewinn: -8_330 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Beleg mit 30 % Privatanteil im Dezember, Zahlung im Januar (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const id = await beleg("2026-12-15", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { category: "telefon", privateShare: 30 });
-          await belegZahlung(id, "05.01.27", "-119,00");
-          // Vorsteuer 70 % von 19,00 € = 13,30 €; Ausgabe 70 % von 100,00 € = 70,00 €; 35,70 € privat
-          expect(await va(DEZ)).toEqual({ quelle: quelleDez, kz66: 1_330 });
-          expect(await va(JAN)).toEqual({ quelle: "journal" });
-          expect(await euer(2026)).toEqual({ gewinn: 0 });
-          expect(await euer(2027)).toEqual({ "ausgabe:telefon": 7_000, vorsteuer: 1_330, gewinn: -8_330 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`§ 13b aus dem EU-Ausland im Dezember, Zahlung (netto) im Januar (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const id = await beleg("2026-12-15", [{ taxRate: 1900, net: 100_000, tax: 19_000 }], { reverseCharge: "eu" });
+        await belegZahlung(id, "05.01.27", "-1.000,00");
+        expect(await va(DEZ)).toEqual({ kz46: 100_000, kz47: 19_000, kz67: 19_000 });
+        expect(await va(JAN)).toEqual({});
+        expect(await euer(2026)).toEqual({ gewinn: 0 });
+        expect(await euer(2027)).toEqual({ "ausgabe:edv": 100_000, gewinn: -100_000 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`§ 13b aus dem EU-Ausland im Dezember, Zahlung (netto) im Januar (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const id = await beleg("2026-12-15", [{ taxRate: 1900, net: 100_000, tax: 19_000 }], { reverseCharge: "eu" });
-          await belegZahlung(id, "05.01.27", "-1.000,00");
-          expect(await va(DEZ)).toEqual({ quelle: quelleDez, kz46: 100_000, kz47: 19_000, kz67: 19_000 });
-          expect(await va(JAN)).toEqual({ quelle: "journal" });
-          expect(await euer(2026)).toEqual({ gewinn: 0 });
-          expect(await euer(2027)).toEqual({ "ausgabe:edv": 100_000, gewinn: -100_000 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`§ 13b mit 30 % Privatanteil im Dezember, Zahlung im Januar (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const id = await beleg("2026-12-15", [{ taxRate: 1900, net: 100_000, tax: 19_000 }], { reverseCharge: "eu", privateShare: 30 });
+        await belegZahlung(id, "05.01.27", "-1.000,00");
+        // Geschuldet die volle Steuer (Kz 47), abziehbar 70 % (Kz 67)
+        expect(await va(DEZ)).toEqual({ kz46: 100_000, kz47: 19_000, kz67: 13_300 });
+        expect(await va(JAN)).toEqual({});
+        expect(await euer(2026)).toEqual({ gewinn: 0 });
+        // Der private Teil der geschuldeten Steuer (57,00 €) geht mit der Voranmeldung ans Finanzamt, ist aber keine
+        // Vorsteuer: Die EÜR zählt ihn als Umsatzsteuer auf die Entnahme (euer-selbst-geschuldet-privat.test.ts)
+        expect(await euer(2027)).toEqual({ "ausgabe:edv": 70_000, vereinnahmteUst: 5_700, gewinn: -64_300 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`§ 13b mit 30 % Privatanteil im Dezember, Zahlung im Januar (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const id = await beleg("2026-12-15", [{ taxRate: 1900, net: 100_000, tax: 19_000 }], { reverseCharge: "eu", privateShare: 30 });
-          await belegZahlung(id, "05.01.27", "-1.000,00");
-          // Geschuldet die volle Steuer (Kz 47), abziehbar 70 % (Kz 67)
-          expect(await va(DEZ)).toEqual({ quelle: quelleDez, kz46: 100_000, kz47: 19_000, kz67: 13_300 });
-          expect(await va(JAN)).toEqual({ quelle: "journal" });
-          expect(await euer(2026)).toEqual({ gewinn: 0 });
-          // Der private Teil der geschuldeten Steuer (57,00 €) geht mit der Voranmeldung ans Finanzamt, ist aber keine
-          // Vorsteuer: Die EÜR zählt ihn als Umsatzsteuer auf die Entnahme (euer-selbst-geschuldet-privat.test.ts)
-          expect(await euer(2027)).toEqual({ "ausgabe:edv": 70_000, vereinnahmteUst: 5_700, gewinn: -64_300 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Kasse: Bareinnahmen am 31.12. und 1.1., Bareinnahme auf eine Dezember-Rechnung am 2.1., Barbeleg am 31.12. (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        await cash.createCashIncome(
+          actor,
+          { date: "2026-12-31", amount: 119_00, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
+          "2027-01-10",
+        );
+        await cash.createCashIncome(
+          actor,
+          { date: "2027-01-01", amount: 107_00, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 700 } },
+          "2027-01-10",
+        );
+        await beleg("2026-12-31", [{ taxRate: 1900, net: 5_000, tax: 950 }], { payment: "kasse" });
+        const inv = await rechnung("2026-12-20", 20_000);
+        await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: "2027-01-02", amount: 238_00 } as never, "2027-01-10");
+        const rechnungSteuer = { kz81: 20_000, tax81: 3_800 };
+        expect(await va(DEZ)).toEqual(versteuerung === "soll" ? { kz81: 30_000, tax81: 5_700, kz66: 950 } : { kz81: 10_000, tax81: 1_900, kz66: 950 });
+        expect(await va(JAN)).toEqual(versteuerung === "ist" ? { ...rechnungSteuer, kz86: 10_000, tax86: 700 } : { kz86: 10_000, tax86: 700 });
+        expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 1_900, "ausgabe:edv": 5_000, vorsteuer: 950, gewinn: 5_950 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 30_000, vereinnahmteUst: 4_500, gewinn: 34_500 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Kasse: Bareinnahmen am 31.12. und 1.1., Bareinnahme auf eine Dezember-Rechnung am 2.1., Barbeleg am 31.12. (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          await cash.createCashIncome(
-            actor,
-            { date: "2026-12-31", amount: 119_00, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
-            "2027-01-10",
-          );
-          await cash.createCashIncome(
-            actor,
-            { date: "2027-01-01", amount: 107_00, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 700 } },
-            "2027-01-10",
-          );
-          await beleg("2026-12-31", [{ taxRate: 1900, net: 5_000, tax: 950 }], { payment: "kasse" });
-          const inv = await rechnung("2026-12-20", 20_000);
-          await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: "2027-01-02", amount: 238_00 } as never, "2027-01-10");
-          const rechnungSteuer = { kz81: 20_000, tax81: 3_800 };
-          expect(await va(DEZ)).toEqual(
-            versteuerung === "soll"
-              ? { quelle: quelleDez, kz81: 30_000, tax81: 5_700, kz66: 950 }
-              : { quelle: quelleDez, kz81: 10_000, tax81: 1_900, kz66: 950 },
-          );
-          expect(await va(JAN)).toEqual(
-            versteuerung === "ist" ? { quelle: "journal", ...rechnungSteuer, kz86: 10_000, tax86: 700 } : { quelle: "journal", kz86: 10_000, tax86: 700 },
-          );
-          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 1_900, "ausgabe:edv": 5_000, vorsteuer: 950, gewinn: 5_950 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 30_000, vereinnahmteUst: 4_500, gewinn: 34_500 });
-          await abgleichSauber();
-        }, 60_000);
-
-        it(`Kasse: Bareinnahme vom 31.12. nach gesendeter Voranmeldung im Januar storniert (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const entry = await cash.createCashIncome(
-            actor,
-            { date: "2026-12-31", amount: 119_00, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
-            "2027-01-03",
-          );
-          await gesendet(DEZ, "2027-01-04");
-          await cashBook.reverseCashEntry(actor, entry.id, "2027-01-05");
-          expect(await va(DEZ)).toEqual({ quelle: quelleDez, kz81: 10_000, tax81: 1_900 });
-          expect(await va(JAN)).toEqual({ quelle: "journal", kz81: -10_000, tax81: -1_900 });
-          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 1_900, gewinn: 11_900 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: -10_000, vereinnahmteUst: -1_900, gewinn: -11_900 });
-          await abgleichSauber();
-        }, 60_000);
-      }
+      it(`Kasse: Bareinnahme vom 31.12. nach gesendeter Voranmeldung im Januar storniert (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const entry = await cash.createCashIncome(
+          actor,
+          { date: "2026-12-31", amount: 119_00, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
+          "2027-01-03",
+        );
+        await gesendet(DEZ, "2027-01-04");
+        await cashBook.reverseCashEntry(actor, entry.id, "2027-01-05");
+        expect(await va(DEZ)).toEqual({ kz81: 10_000, tax81: 1_900 });
+        expect(await va(JAN)).toEqual({ kz81: -10_000, tax81: -1_900 });
+        expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 1_900, gewinn: 11_900 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: -10_000, vereinnahmteUst: -1_900, gewinn: -11_900 });
+        await abgleichSauber();
+      }, 60_000);
     }
   }
 
@@ -309,8 +299,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {
-      it(`Lexoffice: offene Rechnung und offener Beleg aus 2026 übernommen, im Januar 2027 bezahlt (${versteuerung}, ${kontenrahmen}, Stichjahr 2027)`, async () => {
-        await reset(versteuerung, kontenrahmen, 2027);
+      it(`Lexoffice: offene Rechnung und offener Beleg aus 2026 übernommen, im Januar 2027 bezahlt (${versteuerung}, ${kontenrahmen})`, async () => {
+        await reset(versteuerung, kontenrahmen);
         await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb)`;
         const re = await lexofficeBeleg({ type: "invoice", number: "RE1019", date: "2026-10-20", net: 100_000, tax: 19_000 });
         const be = await lexofficeBeleg({ type: "purchaseinvoice", number: "B-77", date: "2026-10-25", net: 10_000, tax: 1_900 });
@@ -319,9 +309,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
         const tx = await umsatzVom("15.01.27", "1.190,00");
         await bank.allocate(actor, { kind: "invoice", transactionId: tx.id, invoiceId: rechnungId, amount: tx.amount });
         await belegZahlung(belegId, "16.01.27", "-119,00");
-        for (const month of [11, 12]) expect(await va({ year: 2026, month })).toEqual({ quelle: "nebenbuecher" });
+        for (const month of [11, 12]) expect(await va({ year: 2026, month })).toEqual({});
         // Bei Ist war die Umsatzsteuer der offenen Rechnung in Lexoffice noch nicht fällig; die Vorsteuer ist dort gemeldet
-        expect(await va(JAN)).toEqual(versteuerung === "ist" ? { quelle: "journal", kz81: 100_000, tax81: 19_000 } : { quelle: "journal" });
+        expect(await va(JAN)).toEqual(versteuerung === "ist" ? { kz81: 100_000, tax81: 19_000 } : {});
         expect(await euer(2026)).toEqual({ gewinn: 0 });
         const e2027 = await euer(2027);
         const ausgabe = Object.entries(e2027).filter(([k]) => k.startsWith("ausgabe:"));

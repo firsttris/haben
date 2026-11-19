@@ -1,14 +1,15 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { toCsv, type Cents } from "./money.ts";
-import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
-import { addDocumentEffects, documentEuer, type DocumentEuerEffect } from "./euer-beleg.ts";
+import { toCsv, type BasisPoints, type Cents, type Prozent } from "./money.ts";
+import { EXPENSE_CATEGORIES, type ExpenseCategory, type TaxShare } from "./posting.ts";
+import type { DocumentEuerEffect } from "./euer-beleg.ts";
 export { documentEuerEffects, type DocumentEuerEffect, type DocumentEuerEvent } from "./euer-beleg.ts";
+export { computeEuer } from "./euer-zahlungen.ts";
 import type { AllocatedSplitLine } from "./document-split.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
-import { steuerEuerWirkung, type Steuerart, type SteuerPosten } from "./steuerzahlung.ts";
-import { darlehenEuerZeile, type DarlehenTeil, type DarlehenZweck } from "./darlehen.ts";
+import type { Steuerart, SteuerPosten } from "./steuerzahlung.ts";
+import type { DarlehenTeil, DarlehenZweck } from "./darlehen.ts";
 import type { TaxTreatment } from "./treatment.ts";
-import { kategorieAnteil, kategorieArt, type DirektKategorie } from "./direkt-kategorie.ts";
+import type { DirektKategorie } from "./direkt-kategorie.ts";
 
 /**
  * Einnahmen-Überschuss-Rechnung (§ 4 Abs. 3 EStG) nach Zufluss und Abfluss, Bruttomethode
@@ -42,13 +43,13 @@ export type EuerPayment =
       /** false bei Kleinunternehmern: die Steuer auf dem Beleg ist Teil der Ausgabe */
       vorsteuerAbzug?: boolean;
       /** Gespeicherter Abzugsanteil in Basispunkten; null fällt bei Altbelegen auf vorsteuerAbzug zurück */
-      vorsteuerAnteil?: number | null;
+      vorsteuerAnteil?: BasisPoints | null;
       /** Bisheriger Zahlbetrag: neue Teilabzüge runden kumuliert, auch bei Zahlungen über den Jahreswechsel */
       paidBefore?: Cents;
       /** Aus vorhandenen Zahlungen berechnete Wirkung; Rücknahmen behalten den gerundeten Anteil ihres Ursprungs */
       effect?: DocumentEuerEffect;
       /** Privatanteil in Prozent: nur der betriebliche Teil ist Ausgabe bzw. Vorsteuer */
-      privateShare?: number;
+      privateShare?: Prozent;
       /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
       splits?: AllocatedSplitLine[];
       /** § 13b und Erwerb: selbst geschuldete Steuer des ganzen Belegs je Steuersatz (totals tragen dann keine Steuer) */
@@ -114,7 +115,7 @@ export type EuerPayment =
       date: string;
       amount: Cents;
       kategorie: DirektKategorie;
-      steuersatz: number;
+      steuersatz: BasisPoints;
       group?: string;
     };
 
@@ -191,44 +192,6 @@ export const EUER_LABELS = {
   gezahlteUst: "An das Finanzamt gezahlte Umsatzsteuer",
 } as const;
 
-const yearOf = (date: string) => Number(date.slice(0, 4));
-const monthIndex = (date: string) => Number(date.slice(5, 7)) - 1;
-
-type Netted = EuerPayment & { sum: Cents };
-
-/** Gruppe zum Verrechnen: Zahlung und Gegenzeile derselben Art, bei Steuerzahlungen auch derselben Steuerart und desselben Teils */
-const groupKey = (p: EuerPayment) =>
-  p.kind === "steuer"
-    ? `steuer|${p.art}|${p.posten}`
-    : p.kind === "darlehen"
-      ? `darlehen|${p.zweck}|${p.teil}`
-      : p.kind === "kategorie"
-        ? `kategorie|${p.kategorie}|${p.steuersatz}`
-        : p.kind;
-
-/** Addiert Zahlungen derselben Gruppe; ohne Gruppe bleibt jede Zahlung für sich. */
-function netGroups(payments: EuerPayment[]): Netted[] {
-  const groups = new Map<string, Netted>();
-  const result: Netted[] = [];
-  payments.forEach((p, i) => {
-    const amount = p.kind === "invoice" || p.kind === "document" ? p.paid : p.amount;
-    const key = p.group === undefined ? `#${i}` : `${groupKey(p)}|${p.group}|${p.date}`;
-    const existing = groups.get(key);
-    if (existing) {
-      existing.sum += amount;
-      // Gespeicherte Anteile nur, wenn alle Zahlungen der Gruppe welche haben; sonst aus der Summe gerechnet
-      if (existing.kind === "invoice" && p.kind === "invoice") existing.shares = existing.shares && p.shares ? [...existing.shares, ...p.shares] : undefined;
-      if (existing.kind === "document" && p.kind === "document")
-        existing.effect = existing.effect && p.effect ? addDocumentEffects(existing.effect, p.effect) : undefined;
-    } else {
-      const entry = { ...p, sum: amount };
-      groups.set(key, entry);
-      result.push(entry);
-    }
-  });
-  return result.filter((p) => p.sum !== 0);
-}
-
 /** Abschreibungen eines Jahres aus dem Anlagenverzeichnis */
 export interface EuerDepreciation {
   afa: Cents;
@@ -241,147 +204,6 @@ export interface EuerDepreciation {
 export interface EuerWithdrawals {
   privateKfz: Cents;
   ustEntnahmen: Cents;
-}
-
-export function computeEuer(
-  year: number,
-  payments: EuerPayment[],
-  depreciation?: EuerDepreciation,
-  withdrawals?: EuerWithdrawals,
-  /** KU-Status je Zahlungsmonat (Index 0 = Januar), unabhängig von der eigenen Befreiung der Rechnung. */
-  kleinunternehmerMonate: readonly boolean[] = [],
-): EuerResult {
-  const sums = new Map<EuerLineKey, Cents>();
-  const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
-  const monthlyIn: Cents[] = Array.from({ length: 12 }, () => 0);
-  const monthlyOut: Cents[] = Array.from({ length: 12 }, () => 0);
-  let bewirtungNichtAbziehbar = 0;
-  let gewerbesteuerNichtAbziehbar = 0;
-
-  for (const p of netGroups(payments.filter((p) => yearOf(p.date) === year))) {
-    const month = monthIndex(p.date);
-    const steuerfrei = kleinunternehmerMonate[month] ? "einnahmenKleinunternehmer" : "einnahmenSteuerfrei";
-    switch (p.kind) {
-      case "invoice":
-        for (const { rate, base, tax } of p.shares ?? paidTaxShares(p.totals, p.sum)) {
-          // Anleitung EÜR 2025, Zeile 12: vollständige KU-Einnahmen, auch bei eigener Befreiung oder ausländischem Leistungsort.
-          // Vor dem KU-Wechsel regelbesteuerte Leistungen behalten dagegen Zeilen 15/17.
-          // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
-          add(p.treatment === "kleinunternehmer" ? "einnahmenKleinunternehmer" : rate === 0 ? steuerfrei : "einnahmenSteuerpflichtig", base);
-          add("vereinnahmteUst", tax);
-          monthlyIn[month]! += base;
-        }
-        break;
-      case "document": {
-        const beleg = documentEuer(p, p.sum);
-        for (const { category, amount } of beleg.expenses) {
-          add(`ausgabe:${category}`, amount);
-          monthlyOut[month]! += amount;
-        }
-        add("vorsteuer", beleg.vorsteuer);
-        add("vereinnahmteUst", beleg.privateUst);
-        bewirtungNichtAbziehbar += beleg.bewirtungNichtAbziehbar;
-        break;
-      }
-      case "ustVorauszahlung":
-      // Die Sondervorauszahlung ist Umsatzsteuer an das Finanzamt wie jede Vorauszahlung, abziehbar, wenn sie gezahlt ist
-      case "sondervorauszahlung":
-        // Eine Rücknahme mindert dieselbe Zeile, statt eine echte Erstattung bzw. Zahlung vorzutäuschen (#651).
-        // EÜR-Anleitung 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
-        if (p.ustAbfluss ?? p.sum < 0) add("gezahlteUst", -p.sum);
-        else add("erstatteteUst", p.sum);
-        break;
-      case "mahnerloes":
-      // Zinsen sind umsatzsteuerfrei (§ 4 Nr. 8 Buchst. a UStG), Verzugszinsen und Mahngebühren nicht steuerbar
-      case "zinsertrag":
-        // EÜR-Anleitung 2025, Zeilen 12/16: auch Guthabenzinsen und nicht steuerbare Mahnerlöse sind vollständige KU-Einnahmen.
-        // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
-        add(steuerfrei, p.sum);
-        monthlyIn[month]! += p.sum;
-        break;
-      case "steuer": {
-        const erstattung = p.steuerErstattung ?? p.sum > 0;
-        switch (steuerEuerWirkung(p.art, p.posten, erstattung ? 1 : -1)) {
-          case "umsatzsteuer":
-            // Umsatzsteuer früherer Jahre: im Jahr der Zahlung gezahlte bzw. erstattete Umsatzsteuer (§ 11 EStG)
-            if (erstattung) add("erstatteteUst", p.sum);
-            else add("gezahlteUst", -p.sum);
-            break;
-          case "einnahme":
-            // Zeile 18 der EÜR-Anleitung: erstattete Nebenleistungen bei KU in Zeile 12; die USt-Erstattung selbst bleibt oben getrennt.
-            add(steuerfrei, p.sum);
-            monthlyIn[month]! += p.sum;
-            break;
-          case "nebenleistung":
-            add("steuerNebenleistungen", -p.sum);
-            monthlyOut[month]! -= p.sum;
-            break;
-          case "nichtAbziehbar":
-            gewerbesteuerNichtAbziehbar -= p.sum;
-            break;
-          // Private Steuern sind Entnahmen bzw. Einlagen; die zählt die Anlage EÜR aus den Privatkonten
-          case "privat":
-            break;
-        }
-        break;
-      }
-      case "kursdifferenz":
-        // Fremdwährung: Unterschied zwischen umgerechnetem Rechnungsbetrag und Zahlung, ohne Umsatzsteuer
-        if (p.sum > 0) {
-          add("kursgewinne", p.sum);
-          monthlyIn[month]! += p.sum;
-        } else {
-          add("kursverluste", -p.sum);
-          monthlyOut[month]! -= p.sum;
-        }
-        break;
-      case "darlehen": {
-        // Auszahlung und Tilgung sind erfolgsneutral; Zinsen und Gebühren Schuldzinsen, wenn sie abfließen (§ 11 Abs. 2 EStG)
-        const zeile = darlehenEuerZeile(p.zweck, p.teil);
-        if (zeile) {
-          add(zeile, -p.sum);
-          monthlyOut[month]! -= p.sum;
-        }
-        break;
-      }
-      case "kategorie": {
-        // Zufluss bzw. Abfluss am Tag der Zahlung (§ 11 EStG); die Gegenrichtung (Erstattung) mindert die Zeile
-        const { base, tax } = kategorieAnteil({ kategorie: p.kategorie, steuersatz: p.steuersatz }, p.sum);
-        if (kategorieArt(p.kategorie) === "einnahme") {
-          add(p.steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig", base);
-          add("vereinnahmteUst", tax);
-          monthlyIn[month]! += base;
-        } else if (kategorieArt(p.kategorie) === "ausgabe") {
-          add(`ausgabe:${p.kategorie as ExpenseCategory}`, -p.sum);
-          monthlyOut[month]! -= p.sum;
-        }
-        break;
-      }
-      case "lohn":
-        // Ausgaben für eigenes Personal (Anlage EÜR, Personal): Lohn, einbehaltene Lohnsteuer und alle Beiträge
-        add("personal", -p.sum);
-        monthlyOut[month]! -= p.sum;
-        break;
-      case "gebuehren":
-        add("ausgabe:geldverkehr", -p.sum);
-        monthlyOut[month]! -= p.sum;
-        break;
-      case "pauschale":
-        add(`pauschale:${p.art}`, p.sum);
-        monthlyOut[month]! += p.sum;
-        break;
-    }
-  }
-
-  return euerErgebnis(
-    year,
-    sums,
-    { einnahmen: monthlyIn, ausgaben: monthlyOut },
-    bewirtungNichtAbziehbar,
-    gewerbesteuerNichtAbziehbar,
-    depreciation,
-    withdrawals,
-  );
 }
 
 /**

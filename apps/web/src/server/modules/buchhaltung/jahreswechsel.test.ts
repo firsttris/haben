@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Buchungen ins Vorjahr nach einem Wechsel von Kontenrahmen oder Versteuerung zum Jahreswechsel.
@@ -96,7 +97,7 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
 
   /** Rechnung über 1.000 € + 19 %, festgeschrieben und am `paid` (TT.MM.JJ) voll bezahlt */
   async function paidInvoice(issueDate: string, paid: string) {
-    const invoice = await invoices.finalizeInvoice(actor, (await draft(issueDate)).id);
+    const invoice = await invoices.finalizeInvoice(actor, (await draft(issueDate)).id, kleinunternehmerStand);
     await bank.importStatement(actor, { bytes: dkbCsv([row(paid, `RE ${invoice.number}`, "1.190,00")]), filename: `${invoice.number}.csv` }, null);
     const [tx] = await sql`select id from bank_transactions order by created_at desc limit 1`;
     await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: invoice.id, amount: 119_000 });
@@ -117,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
         "Das Jahr 2025 ist nach Soll-Versteuerung gebucht, eingestellt ist jetzt Ist-Versteuerung; bitte ein Rechnungsdatum im laufenden Jahr wählen",
       );
       const before = await entryCount();
-      await expect(invoices.finalizeInvoice(actor, late.id)).rejects.toThrow(/Das Jahr 2025 ist nach Soll-Versteuerung gebucht/);
+      await expect(invoices.finalizeInvoice(actor, late.id, kleinunternehmerStand)).rejects.toThrow(/Das Jahr 2025 ist nach Soll-Versteuerung gebucht/);
       expect(await entryCount()).toBe(before);
       // Keine Nummer verbraucht, der Entwurf bleibt Entwurf
       const [stored] = await sql`select status, number from invoices where id = ${late.id}`;
@@ -126,7 +127,7 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
       expect(await figures.computeVatFigures({ year: 2025, month: 12 })).toMatchObject({ versteuerung: "soll", tax81: 0 });
 
       // Mit Datum im neuen Jahr geht es, gebucht nach Ist
-      const now = await invoices.finalizeInvoice(actor, (await draft("2026-01-05")).id);
+      const now = await invoices.finalizeInvoice(actor, (await draft("2026-01-05")).id, kleinunternehmerStand);
       expect(now.status).toBe("final");
       expect(await figures.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ versteuerung: "ist", tax81: 0 });
     }, 30_000);
@@ -136,7 +137,7 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
       await paidInvoice("2025-11-10", "05.12.25");
       const late = await draft("2025-12-30");
       await sql`update company set versteuerung = 'soll'`;
-      await expect(invoices.finalizeInvoice(actor, late.id)).rejects.toThrow(
+      await expect(invoices.finalizeInvoice(actor, late.id, kleinunternehmerStand)).rejects.toThrow(
         /Das Jahr 2025 ist nach Ist-Versteuerung gebucht, eingestellt ist jetzt Soll-Versteuerung/,
       );
     }, 30_000);
@@ -185,11 +186,11 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
       await paidInvoice("2025-11-02", "15.12.25");
       const late = await draft("2025-12-30");
       await sql`update company set kontenrahmen = 'SKR04'`;
-      expect(await failure(invoices.finalizeInvoice(actor, late.id))).toMatch(/Das Jahr 2025 ist im Kontenrahmen SKR03 gebucht/);
+      expect(await failure(invoices.finalizeInvoice(actor, late.id, kleinunternehmerStand))).toMatch(/Das Jahr 2025 ist im Kontenrahmen SKR03 gebucht/);
       const [stored] = await sql`select status, number from invoices where id = ${late.id}`;
       expect(stored).toMatchObject({ status: "draft", number: null });
 
-      await invoices.finalizeInvoice(actor, (await draft("2026-01-05")).id);
+      await invoices.finalizeInvoice(actor, (await draft("2026-01-05")).id, kleinunternehmerStand);
       const years = await sql`select extract(year from date)::int as year, kontenrahmen from journal_entries group by 1, 2 order by 1`;
       expect(years.map((r) => `${r.year} ${r.kontenrahmen}`)).toEqual(["2025 SKR03", "2026 SKR04"]);
     }, 30_000);

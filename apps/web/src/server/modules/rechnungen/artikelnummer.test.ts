@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** Text eines PDFs mit pdftotext -layout (poppler-utils); ohne das Werkzeug null */
 function pdfText(pdf: Uint8Array): string | null {
@@ -100,7 +101,7 @@ describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () =
   it("speichert die Artikelnummer der Position und schreibt sie in XML und PDF", async () => {
     const draft = await invoices.createDraft(actor, invoiceDraft({ lines: [{ ...lines[0]!, itemNumber: " ET-1042 " }, lines[1]!] }));
     expect(await storedNumbers(draft.id)).toEqual(["ET-1042", ""]);
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(final.xml).toMatch(/<cac:SellersItemIdentification>\s*<cbc:ID>ET-1042<\/cbc:ID>/);
     expect(final.xml!.match(/<cac:SellersItemIdentification>/g)).toHaveLength(1);
     const text = pdfText(final.pdf!);
@@ -113,7 +114,7 @@ describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () =
   it("lässt eine festgeschriebene Rechnung unverändert, wenn sich die Nummer im Artikelstamm ändert", async () => {
     const [article] = await sql`insert into articles (number, description, unit, unit_price, tax_rate)
       values ('ET-1042', 'Dichtungssatz', 'Stk.', 1250, 1900) returning id`;
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
     await sql`update articles set number = 'ET-2000' where id = ${article!.id}`;
     expect(await storedNumbers(final.id)).toEqual(["ET-1042", ""]);
     // Die Position selbst ist mit der Rechnung gesperrt
@@ -121,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () =
   });
 
   it("übernimmt die Artikelnummer in Storno und Rechnungskorrektur", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
     const correction = await invoices.createCorrection(actor, final.id, "2026-10-05");
     expect(await storedNumbers(correction.id)).toEqual(["ET-1042", ""]);
     await invoices.deleteDraft(actor, correction.id);
@@ -143,7 +144,7 @@ describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () =
   });
 
   it("zeigt die Artikelnummer im Lieferschein zur Rechnung", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id);
+    const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, invoiceDraft())).id, kleinunternehmerStand);
     const note = pdfText((await orderDocuments.deliveryNotePdf("rechnung", final.id)).pdf);
     if (note !== null) expect(note).toMatch(/1\s+ET-1042\s+Dichtungssatz/);
   });
@@ -165,7 +166,7 @@ describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () =
       servicePeriod: "laufend",
       mode: "entwurf",
     });
-    await recurring.runDueRecurring("2026-10-02");
+    await recurring.runDueRecurring("2026-10-02", kleinunternehmerStand);
     const [invoice] = await sql`select id from invoices`;
     expect(await storedNumbers(invoice!.id)).toEqual(["ET-1042", ""]);
   });

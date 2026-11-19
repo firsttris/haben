@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import { purposeContainsNumber } from "./matching.ts";
 import {
   counterCircle,
+  customerNumberProblem,
+  documentNumberLengthProblem,
+  effectiveCustomerNumber,
   issueDateBeforeLastFinalized,
   DEFAULT_CUSTOMER_NUMBER_FORMAT,
   DEFAULT_INVOICE_NUMBER_FORMAT,
   DEFAULT_QUOTE_NUMBER_FORMAT,
   formatDocumentNumber,
   numberFormatError,
+  usesCustomerNumber,
+  voucherField,
 } from "./number-format.ts";
 
 describe("formatDocumentNumber", () => {
@@ -83,6 +88,82 @@ describe("numberFormatError", () => {
   });
 });
 
+describe("Platzhalter {KUNDENNR} (#1426)", () => {
+  const allowCustomer = { requireYear: false, allowCustomer: true } as const;
+
+  it("setzt die Kundennummer des Käufers ein, auch eine reine Ziffernnummer", () => {
+    expect(formatDocumentNumber("RE-{KUNDENNR}-{NNN}", "2026-01-15", 1, "ACME")).toBe("RE-ACME-001");
+    expect(formatDocumentNumber("RE-{KUNDENNR}-{NNN}", "2026-01-15", 7, "10042")).toBe("RE-10042-007");
+    expect(formatDocumentNumber("AN-{JJJJ}-{KUNDENNR}-{NN}", "2026-01-15", 34, "K-0001")).toBe("AN-2026-K-0001-34");
+  });
+
+  it("lässt {KUNDENNR} ohne Kundennummer als Text stehen (Vorschau ohne Kunden)", () => {
+    expect(formatDocumentNumber("RE-{KUNDENNR}-{NNN}", "2026-01-15", 1)).toBe("RE-{KUNDENNR}-001");
+  });
+
+  it("erlaubt {KUNDENNR} nur mit allowCustomer", () => {
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", { requireYear: false })).toMatch(/gibt es nicht/);
+    expect(numberFormatError("K-{KUNDENNR}-{NNN}", { requireYear: false })).toBe(
+      "Den Platzhalter {KUNDENNR} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM} und {N} bis {NNNNNN}.",
+    );
+    // Bei Rechnungen und Angeboten nennt die Meldung den Platzhalter als Möglichkeit
+    expect(numberFormatError("RE-{FIRMA}-{NNN}", allowCustomer)).toContain("{KUNDENNR}");
+  });
+
+  it("verlangt {KUNDENNR} höchstens einmal und nie direkt neben der laufenden Nummer", () => {
+    expect(numberFormatError("{KUNDENNR}-{KUNDENNR}-{NNN}", allowCustomer)).toMatch(/nur einmal/);
+    // "1004" + 2001 und "10042" + 1 ergäben beides 10042001
+    expect(numberFormatError("{KUNDENNR}{NNN}", allowCustomer)).toMatch(/direkt neben der laufenden Nummer/);
+    expect(numberFormatError("{NNN}{KUNDENNR}", allowCustomer)).toMatch(/direkt neben der laufenden Nummer/);
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
+    // Neben Jahr und Monat ist sie erlaubt: die haben feste Breite
+    expect(numberFormatError("{JJJJ}{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
+  });
+});
+
+describe("documentNumberLengthProblem (#1426)", () => {
+  it("lässt Nummern bis 36 Zeichen zu und meldet längere", () => {
+    expect(documentNumberLengthProblem("RE-2026-ACME-001")).toBeNull();
+    expect(documentNumberLengthProblem("X".repeat(36))).toBeNull();
+    expect(documentNumberLengthProblem("X".repeat(37))).toMatch(/36 Zeichen.*DATEV/);
+  });
+});
+
+describe("usesCustomerNumber und customerNumberProblem (#1426)", () => {
+  it("erkennt {KUNDENNR} im Format", () => {
+    expect(usesCustomerNumber("RE-{KUNDENNR}-{NNN}")).toBe(true);
+    expect(usesCustomerNumber("RE-{JJJJ}-{NNN}")).toBe(false);
+  });
+
+  it("meldet fehlende und ungeeignete Kundennummern", () => {
+    expect(customerNumberProblem(undefined)).toMatch(/braucht eine Kundennummer.*\{KUNDENNR\}/);
+    expect(customerNumberProblem(null)).toMatch(/braucht eine Kundennummer/);
+    expect(customerNumberProblem("")).toMatch(/braucht eine Kundennummer/);
+    expect(customerNumberProblem("   ")).toMatch(/braucht eine Kundennummer/);
+    expect(customerNumberProblem("A/B")).toMatch(/Buchstaben, Ziffern/);
+    expect(customerNumberProblem("Müller")).toMatch(/Buchstaben, Ziffern/);
+    expect(customerNumberProblem("ACME")).toBeNull();
+    expect(customerNumberProblem("K-0001.A_B")).toBeNull();
+  });
+});
+
+describe("effectiveCustomerNumber (#1426)", () => {
+  it("nimmt die Kundennummer des Originals, solange sie taugt", () => {
+    expect(effectiveCustomerNumber({ kundennummer: "ACME" }, { kundennummer: "NEUE-9" })).toBe("ACME");
+    expect(effectiveCustomerNumber(null, { kundennummer: "ACME" })).toBe("ACME");
+  });
+
+  it("fällt auf die heutige des Kontakts zurück, wenn die des Originals fehlt oder ungültig ist", () => {
+    expect(effectiveCustomerNumber({}, { kundennummer: "ACME" })).toBe("ACME");
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, { kundennummer: "ACME" })).toBe("ACME");
+    // Taugt auch die des Kontakts nicht, bleibt sie die zu meldende Nummer
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, { kundennummer: "K 1" })).toBe("K 1");
+    expect(effectiveCustomerNumber({ kundennummer: "10/2024" }, {})).toBeUndefined();
+    expect(effectiveCustomerNumber(null, null)).toBeUndefined();
+  });
+});
+
 describe("counterCircle", () => {
   it("zählt je Jahr des Belegdatums oder in einem durchlaufenden Kreis (#328)", () => {
     expect(counterCircle(false, "2026-12-31")).toBe(2026);
@@ -113,5 +194,27 @@ describe("issueDateBeforeLastFinalized", () => {
     const withRunning = { ...byCircle, 0: { number: "RE-0006", issueDate: "2027-02-01" } };
     expect(issueDateBeforeLastFinalized(withRunning, true, "2027-01-15")).toEqual(withRunning[0]);
     expect(issueDateBeforeLastFinalized(withRunning, true, "2027-02-01")).toBeNull();
+  });
+});
+
+describe("voucherField", () => {
+  it("lässt die erlaubten Zeichen stehen und macht den Punkt zum Bindestrich", () => {
+    expect(voucherField("RE-2026-034")).toBe("RE-2026-034");
+    expect(voucherField("RE.2026.001")).toBe("RE-2026-001");
+    expect(voucherField("A$&%*+-/9")).toBe("A$&%*+-/9");
+  });
+
+  it("streicht den Rest: Unterstrich, Leerzeichen, Umlaute, Komma und Doppelpunkt", () => {
+    expect(voucherField("RE-2026-A1_1")).toBe("RE-2026-A11");
+    expect(voucherField("Re_Ü 12,5: B")).toBe("Re125B");
+  });
+
+  it("kürzt auf die 36 Zeichen des Belegfelds 1", () => {
+    expect(voucherField("R".repeat(40))).toHaveLength(36);
+  });
+
+  it("bildet verschiedene Nummern auf dasselbe Belegfeld ab (#1426)", () => {
+    expect(voucherField("RE-2026-A1_1")).toBe(voucherField("RE-2026-A_11"));
+    expect(voucherField("RE-2026-A.1_1")).toBe(voucherField("RE-2026-A-1_1"));
   });
 });

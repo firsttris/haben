@@ -17,10 +17,12 @@ const zurArt = (art: "beleg" | "mahnung", type: LayoutDocumentType) => (art === 
 
 /** Einstellungen, die auf diese Art wirken, deren Felder der Quelltext aber nirgends nennt */
 export function ungenutzteGestaltung(source: string, art: "beleg" | "mahnung"): LayoutGestaltung[] {
-  return OPTIONEN.filter((option) => {
+  const ungenutzt = OPTIONEN.filter((option) => {
     const { felder, belege } = LAYOUT_GESTALTUNG[option];
     return (belege as readonly LayoutDocumentType[]).some((type) => zurArt(art, type)) && !nennt(source, felder);
   });
+  // Liest das Layout die Stelle des Logos gar nicht, genügt der Hinweis dazu; der zur Mitte käme doppelt
+  return ungenutzt.includes("logoPosition") ? ungenutzt.filter((option) => option !== "logoMitte") : ungenutzt;
 }
 
 /** Eigenes Layout einer Belegart mit dem, was es nicht verwendet; null = eingebautes Layout */
@@ -61,8 +63,16 @@ export function gestaltungsHinweise(layouts: LayoutJeBeleg): Partial<Record<Layo
     if (ohne.length === 0) continue;
     const namen = [...new Set(ohne.map((type) => layouts[type]!.name))];
     const satz = `${namen.length === 1 ? "Das Layout" : "Die Layouts"} ${aufzaehlung(namen.map((n) => `„${n}“`))} ${verwendet(felder, namen.length > 1)}.`;
-    const aus = ohne.length === belege.length && !AUCH_EINGEBAUT.has(option);
-    hinweise[option] = { aus, text: aus ? satz : `Wirkt nicht auf ${aufzaehlung(ohne.map((type) => MEHRZAHL[type]))}: ${satz}` };
+    const ueberall = ohne.length === belege.length;
+    const text = ueberall ? satz : `Wirkt nicht auf ${aufzaehlung(ohne.map((type) => MEHRZAHL[type]))}: ${satz}`;
+    if (option !== "logoMitte") {
+      hinweise[option] = { aus: ueberall && !AUCH_EINGEBAUT.has(option), text };
+      continue;
+    }
+    // Nur „Mitte“ wirkt dort nicht, die Stelle sonst schon; aus heißt hier: der Knopf „Mitte“ ist aus. Mittig setzt auch
+    // kein Layout, das die Stelle gar nicht liest (Hinweis bei logoPosition)
+    const aus = belege.every((type) => layouts[type]?.ungenutzt.some((o) => o === "logoMitte" || o === "logoPosition"));
+    hinweise[option] = { aus, text: `${text} „Mitte“ steht dort rechts.` };
   }
   return hinweise;
 }

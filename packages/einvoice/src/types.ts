@@ -51,6 +51,8 @@ export interface Buyer extends Address {
   /** Leitweg-ID öffentlicher Auftraggeber (BT-10) */
   leitwegId?: string;
   kundennummer?: string;
+  /** Unsere Lieferantennummer bei diesem Kunden, vom Kunden vergeben (#711): im PDF im Kopf, im XML als Verkäuferkennung (BT-29) */
+  unsereLieferantennummer?: string;
 }
 
 /**

@@ -86,6 +86,20 @@ const KINDS: [RegExp, string][] = [
 const labelOf = (kind: string) => KINDS.find(([pattern]) => pattern.test(kind))?.[1];
 const isPayout = (kind: string) => /^(deposit|überweisung|ueberweisung|auszahlung|payout)$/i.test(kind);
 
+/**
+ * Die Art „Zahlung“ sind zwei Vorgänge, die der Etsy-Zahlungsverlauf getrennt führt (#1313): „Kartenzahlung“ ist der
+ * Einzug von der hinterlegten Karte (billing_payment), „Gebühr für Rückerstattung …“ der Ausgleich des negativen
+ * Guthabens nach einer Erstattung (RECOUP). Beides bringt Geld von außen ins Guthaben und ist keine Gebühr. „Ausgleich“
+ * statt „Verrechnung“, weil Verrechnung in Haben den Ausgleich offener Posten ohne Zahlung meint. Andere Titel, auch
+ * die englischen, bleiben eine unbekannte Art mit Hinweis.
+ */
+function paymentKind(kind: string, title: string): "Karteneinzug" | "Ausgleich" | undefined {
+  if (!/^(zahlung|payment)$/i.test(kind)) return undefined;
+  if (/^gebühr für rückerstattung\b/i.test(title)) return "Ausgleich";
+  if (/^kartenzahlung$/i.test(title)) return "Karteneinzug";
+  return undefined;
+}
+
 /** Betrag der Auszahlung aus dem Titel, etwa „€1,225.76 sent to your bank account“, als negativer Umsatz */
 const PAYOUT_AMOUNT = /€\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/;
 
@@ -116,7 +130,7 @@ const ORDER_TYPES = new Set(["Verkauf", "Erstattung", "Umsatzsteuer"]);
  * jedem Import mit demselben Betrag ankommt: Eine spätere Teilerstattung derselben Bestellung (anderer Tag) ändert die
  * Verrechnung der früheren nicht, und Haben legt sie beim zweiten Import nicht ein weiteres Mal an (Review #506, Runde 2).
  */
-const settlementKey = (order: string, day: string) => `${day} ${order}`;
+export const settlementKey = (order: string, day: string) => `${day} ${order}`;
 
 /**
  * Verrechnet die Steuer des Käufers, die Etsy abführt, mit dem Verkauf derselben Bestellung (negative Steuer) bzw. mit der
@@ -125,7 +139,7 @@ const settlementKey = (order: string, day: string) => `${day} ${order}`;
  * Tag oder bei mehreren Erstattungen am selben Tag), bleibt die Zeile einzeln, damit nichts geraten wird; die Anzahl dieser
  * Zeilen steht in `unsettled`.
  */
-function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled: number } {
+export function settleTax(list: Tx[], orders: Map<Tx, string>, describe?: (tx: Tx, tax: number) => string): { list: Tx[]; unsettled: number } {
   const adjustment = new Map<Tx, Cents>();
   const settled = new Set<Tx>();
   const taxes = list.filter((t) => t.type === "Umsatzsteuer");
@@ -137,11 +151,14 @@ function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled
     adjustment.set(targets[0]!, (adjustment.get(targets[0]!) ?? 0) + tax.amount);
     settled.add(tax);
   }
-  const result = list.filter((t) => !settled.has(t)).map((t) => (adjustment.has(t) ? { ...t, amount: t.amount + adjustment.get(t)! } : t));
+  // describe (nur der Abruf über die API) nennt die verrechnete Steuer im Zweck; der CSV-Import lässt ihn wie bisher
+  const result = list
+    .filter((t) => !settled.has(t))
+    .map((t) => (adjustment.has(t) ? { ...t, amount: t.amount + adjustment.get(t)!, purpose: describe ? describe(t, adjustment.get(t)!) : t.purpose } : t));
   return { list: result, unsettled: taxes.length - settled.size };
 }
 
-function unsettledTaxWarning(count: number): string[] {
+export function unsettledTaxWarning(count: number): string[] {
   if (count === 0) return [];
   return [
     `${count} ${count === 1 ? "Steuerzeile" : "Steuerzeilen"} ohne Verkauf oder Erstattung derselben Bestellung am selben Tag mit dem Nettobetrag übernommen.`,
@@ -196,6 +213,14 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
       // Haben erkennt eine Auszahlung im Konto des Dienstleisters am Wort „Auszahlung“ im Zweck (PAYOUT_PURPOSE in
       // @haben/core); Etsy nennt sie je nach Sprache „Überweisung“, „Deposit“ oder anders
       list.push({ ...base, amount: payoutAmount(title(row), where), purpose: describe("Auszahlung"), type: "Auszahlung" });
+      return;
+    }
+    const zahlung = paymentKind(kind, normalizeText(title(row)));
+    if (zahlung) {
+      // Der Zweck bleibt „Zahlung · …“ wie vor #1313: Der Dedup-Hash rechnet mit ihm (dedup.ts), ein neuer Zweck legte
+      // einen schon importierten Monat beim erneuten Import doppelt an. Nur die Art ist neu.
+      if (net(row)) list.push({ ...base, amount: cents(net(row)), purpose, type: zahlung });
+      else empty++;
       return;
     }
     const label = labelOf(kind);

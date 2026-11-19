@@ -7,9 +7,9 @@ description: >-
 
 # Entscheidung: Voranmeldung und EÜR aus dem Journal
 
-**Status:** umgesetzt in den Schritten unten (siehe „Entschieden und offen“). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
+**Status:** umgesetzt in den Schritten unten (siehe „Entschieden und offen“); Stichjahr und Gegenprobe aus den Nebenbüchern überholt durch [Entscheidung: nur noch das Journal](journal-einzige-quelle.md) (#1116). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
 **Bezug:** [#542](https://github.com/firsttris/haben/issues/542), [#502](https://github.com/firsttris/haben/issues/502),
-[Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
+[Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-im-journal).
 DATEV-Hilfe-Center: [1080673](https://help-center.apps.datev.de/documents/1080673) (Ist-Versteuerung),
 [1049448](https://help-center.apps.datev.de/documents/1049448) (Steuerschlüssel bei Zahlung),
 [1036819](https://help-center.apps.datev.de/documents/1036819), [1029628](https://help-center.apps.datev.de/documents/1029628),
@@ -48,6 +48,8 @@ Messung über die ganze Postgres-Suite (bei jedem Aufruf der heutigen Rechnung d
 
 ### 1. Stichjahr statt Umbau der Vergangenheit
 
+> Überholt durch [#1116](journal-einzige-quelle.md): kein Stichjahr mehr, alle Jahre aus dem Journal.
+
 Ab einem **Stichjahr** sind Voranmeldung und EÜR aus dem Journal; davor bleibt alles, wie es ist.
 
 - Gesendete Voranmeldungen ändern sich nie: Gesendet ist gesendet, die Werte stehen in `vat_returns`.
@@ -79,7 +81,7 @@ Ab einem **Stichjahr** sind Voranmeldung und EÜR aus dem Journal; davor bleibt 
   den Nebenbüchern; es sind Erläuterungen, keine Kennzahlen. Die Zusammenfassende Meldung (§ 18a UStG) rechnet weiter aus
   den Rechnungen, sie braucht die USt-IdNr. des Empfängers.
 - Die **Umsatzsteuererklärung** summiert die Monate über dieselbe Rechnung (`annual.ts`) und folgt damit von selbst.
-- Der **Abgleich** bleibt derselbe, die Rollen tauschen: Quelle ist das Journal, Gegenprobe die Nebenbücher. Eine
+- Der **Abgleich** (überholt durch [#1116](journal-einzige-quelle.md)) bleibt derselbe, die Rollen tauschen: Quelle ist das Journal, Gegenprobe die Nebenbücher. Eine
   Abweichung heißt wie bisher, dass eine Seite falsch ist oder Daten an Haben vorbei geändert wurden; die Vorprüfung warnt
   vor dem Senden.
 
@@ -133,7 +135,7 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Liegt dazwischen ein Wechsel des Kontenrahmens, überträgt sie die Konten wie #570 (`kontoImKontenrahmen`); die Konten der
   festen Liste haben alle eine Entsprechung, sonst lehnt Haben ab.
 - Unbekannte Kombinationen lehnt Haben vor dem Buchen ab; Buchungen sind sofort festgeschrieben.
-- Freie Buchungen mit Steuerschlüssel gibt es nur ab dem Stichjahr, in jeder Rechtsform; davor sähe die Voranmeldung aus
+- (Überholt durch [#1116](journal-einzige-quelle.md): freie Buchungen gibt es immer.) Freie Buchungen mit Steuerschlüssel gibt es nur ab dem Stichjahr, in jeder Rechtsform; davor sähe die Voranmeldung aus
   den Nebenbüchern sie nicht. Im Einzelunternehmen wirken sie ab dem Stichjahr auch in der EÜR.
 
 ## Umsetzung

@@ -54,8 +54,8 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
   });
   async function reset(kr: Kontenrahmen, mode: Versteuerung) {
     await leeren(sql)`truncate company, journal_entries, external_imports, lexoffice_imports, vat_returns, vat_frequencies, cash_entries cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,iban,versteuerung,kontenrahmen,journal_ab)
-      values (1,'Erfundener Testbetrieb','Musterweg 1','93047','Regensburg','test@example.com','198/113/10010','BY','DE89370400440532013000',${mode},${kr},2026)`;
+    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,iban,versteuerung,kontenrahmen)
+      values (1,'Erfundener Testbetrieb','Musterweg 1','93047','Regensburg','test@example.com','198/113/10010','BY','DE89370400440532013000',${mode},${kr})`;
   }
   const income = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) => euer.einnahmen.find((l) => l.key === "einnahmenSteuerpflichtig")?.amount ?? 0;
   const expense = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) => euer.ausgaben.find((l) => l.key === "ausgabe:edv")?.amount ?? 0;
@@ -90,10 +90,12 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
           kr,
         );
         expect(income(await reports.euerForYear(2025))).toBe(0);
-        expect((await vat.computeVatFigures({ year: 2025, month: 12 })).kz81).toBe(0);
+        // Voranmeldung und Erklärung rechnen aus dem Journal (#1116), auch für das Jahr vor dem Umzug: wie DATEV bei Soll die
+        // Rechnung, bei Ist erst die Zahlung; die Vorsteuer nach Belegdatum. Gemeldet ist 2025 in der bisherigen Software.
+        expect((await vat.computeVatFigures({ year: 2025, month: 12 })).kz81).toBe(mode === "soll" ? 100000 : 0);
         const previousYear = await annual.annualOverview(2025, "2027-03-01");
-        expect(previousYear.ust.figures.base19).toBe(0);
-        expect(previousYear.ust.figures.vorsteuer).toBe(0);
+        expect(previousYear.ust.figures.base19).toBe(mode === "soll" ? 100000 : 0);
+        expect(previousYear.ust.figures.vorsteuer).toBe(19000);
         // Eigene Quellidentitäten statt Belegnummer, auch bei einer späteren Importdatei.
         const payments = [
           entry("alt-AR-teil", "2026-01-15", invoicePaymentPosting(totals, 59500, kr, mode), "alt-AR"),

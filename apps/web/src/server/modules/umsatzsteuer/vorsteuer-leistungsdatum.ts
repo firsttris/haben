@@ -9,6 +9,7 @@ import {
   type InvoiceTotals,
   type TaxShare,
   type VatPeriod,
+  type Prozent,
 } from "@haben/core";
 import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -302,7 +303,7 @@ function zahlungenBisZurAusfuehrung(gezahlt: Zahlung[], erlass: Skonto[], ausgef
  * gerundet, wie im Journal (vorsteuer-anteile.ts): Je Teilbetrag gerundet ergäben die Zeilen zusammen nicht genau die
  * abziehbare Vorsteuer des Belegs.
  */
-function anteilJeSatz(totals: InvoiceTotals, privateShare: number, vorher: Cents, nachher: Cents): TaxShare[] {
+function anteilJeSatz(totals: InvoiceTotals, privateShare: Prozent, vorher: Cents, nachher: Cents): TaxShare[] {
   const bis = paidTaxShares(totals, nachher);
   const von = paidTaxShares(totals, vorher);
   return totals.taxes.map(({ rate }) => {

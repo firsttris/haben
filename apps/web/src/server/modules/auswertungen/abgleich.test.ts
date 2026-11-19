@@ -1,6 +1,8 @@
+import { formatEuro } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -37,7 +39,11 @@ const ausgang = (date: string, name: string, amount: string) => [
   "",
 ];
 
-describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (Postgres)", () => {
+/*
+ * Abgleich im Journal (#1116): Verprobung der Umsatzsteuer, gesendete Voranmeldungen, Beleg gegen Buchung, Bank, EÜR. Je
+ * Prüfung ein Fall ohne Fehlalarm und einer, der eine Abweichung findet.
+ */
+describe.skipIf(!testDatabaseUrl)("Abgleich im Journal (Postgres)", () => {
   let abgleich: typeof import("./abgleich.ts");
   let bank: typeof import("../bank/bank.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
@@ -70,7 +76,9 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
   });
 
   async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04" = "SKR03") {
-    await leeren(sql)`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(
+      sql,
+    )`truncate journal_umstellung, vat_return_submissions, vat_returns, asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
@@ -104,7 +112,7 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       note: "",
       lines: lines.map((l) => ({ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: l.net, taxRate: l.rate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function bookedDocument(
@@ -196,141 +204,216 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     return { a, b };
   }
 
-  const months = [1, 2, 3] as const;
+  /** Ändert mit abgeschalteten Triggern, wie jemand mit vollem Datenbankzugriff */
+  async function bypass(change: (tx: postgres.TransactionSql) => Promise<unknown>) {
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await change(tx);
+    });
+  }
+  const gefunden = async () => abgleich.abweichungen((await abgleich.abgleichAll("2026-03-31")).zeilen);
 
-  for (const versteuerung of ["ist", "soll"] as const) {
-    it(`${versteuerung === "ist" ? "Ist" : "Soll"}: Journal, Voranmeldung und EÜR stimmen überein`, async () => {
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const)
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`ein Geschäftsjahr ohne Fehlalarm (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        await geschaeftsjahr();
+        for (const month of [1, 2, 3, 41]) {
+          const result = await abgleich.vatAbgleich({ year: 2026, month });
+          expect(result.hinweise).toEqual([]);
+          expect(abgleich.abweichungen(result.zeilen), `2026-${month}`).toEqual([]);
+        }
+        const euer = await abgleich.euerAbgleich(2026);
+        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+        const all = await abgleich.abgleichAll("2026-03-31");
+        expect(abgleich.abweichungen(all.zeilen)).toEqual([]);
+        expect(all.hinweise).toEqual([]);
+      }, 60_000);
+    }
+
+  it("Verprobung: findet eine Steuer, die nicht zur Bemessungsgrundlage passt (Ist: Zahlung, Soll: Rechnung)", async () => {
+    for (const versteuerung of ["ist", "soll"] as const) {
       await reset(versteuerung);
       await geschaeftsjahr();
-      for (const month of months) {
-        const result = await abgleich.vatAbgleich({ year: 2026, month });
-        expect(result.hinweise).toEqual([]);
-        expect(abgleich.abweichungen(result.zeilen), `2026-${month}`).toEqual([]);
-      }
-      // Der Abgleich hat wirklich etwas verglichen
-      const feb = await abgleich.vatAbgleich({ year: 2026, month: 2 });
-      expect(feb.zeilen.find((z) => z.posten.startsWith("Vorsteuer (Kz 66)"))!.quelle).toBe(1_900 + 140 + 665);
-      // Bemessungsgrundlagen aus Konto und Steuerschlüssel (#542): bei Soll verglichen, bei Ist erst mit der
-      // Bemessungsgrundlage an der Zahlung
-      const jan = await abgleich.vatAbgleich({ year: 2026, month: 1 });
-      const kz81 = jan.zeilen.find((z) => z.posten === "Bemessungsgrundlage 19 % (Kz 81)");
-      if (versteuerung === "soll") expect(kz81).toMatchObject({ journal: 400_000, quelle: 400_000 });
-      else expect(kz81).toBeUndefined();
-      // Bei Ist mit den Zahlungen im Februar, seit die Zahlungsbuchung die Bemessungsgrundlage trägt (#542 Schritt 4)
-      if (versteuerung === "ist") {
-        const febKz81 = feb.zeilen.find((z) => z.posten === "Bemessungsgrundlage 19 % (Kz 81)");
-        expect(febKz81!.journal).toBeGreaterThan(0);
-        expect(febKz81!.journal).toBe(febKz81!.quelle);
-      }
-      const march = await abgleich.vatAbgleich({ year: 2026, month: 3 });
-      // § 13b mit Privatanteil: das Journal trennt den privaten Teil nicht, deshalb benannte Ausnahme
-      expect(march.zeilen.find((z) => z.posten.includes("(Kz 46)"))).toBeUndefined();
-      expect(march.zeilen.find((z) => z.posten.startsWith("Umsatzsteuer § 13b"))!.journal).toBe(3_800);
-      expect(march.zeilen.find((z) => z.posten.startsWith("Vorsteuer § 13b"))!.journal).toBe(2_850);
+      const quelle =
+        versteuerung === "ist" ? sql`e.source_type = 'allocation' and e.date = '2026-02-01'` : sql`e.source_type = 'invoice' and e.date = '2026-01-15'`;
+      const [line] = await sql`select l.id from journal_lines l join journal_entries e on e.id = l.entry_id where ${quelle} and l.account = '1776' limit 1`;
+      await bypass((tx) => tx`update journal_lines set credit = credit - 100 where id = ${line!.id}`);
+      const found = await gefunden();
+      const zeitraum = versteuerung === "ist" ? "2026-02" : "2026-01";
+      expect(
+        found.filter((z) => z.bereich === "ustva"),
+        versteuerung,
+      ).toEqual([
+        expect.objectContaining({
+          zeitraum,
+          posten: expect.stringMatching(/^Umsatzsteuer 19 % zur Bemessungsgrundlage .*: Buchung „.*“ vom /),
+          gegen: "aus der Bemessungsgrundlage",
+        }),
+      ]);
+      const [z] = found.filter((x) => x.bereich === "ustva");
+      expect(z!.quelle - z!.journal).toBe(100);
+      // Auch die Vorprüfung der Voranmeldung sieht es
+      expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: Number(zeitraum.slice(5)) })).zeilen)).toHaveLength(1);
+    }
+  }, 120_000);
 
-      const euer = await abgleich.euerAbgleich(2026);
-      expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
-      expect(euer.zeilen.find((z) => z.posten.startsWith("Umsatzsteuer an das Finanzamt"))).toMatchObject({ journal: 123_456, quelle: 123_456 });
-      expect(euer.zeilen.filter((z) => z.posten.startsWith("Pauschale")).every((z) => z.journal > 0)).toBe(true);
-      expect(euer.zeilen.find((z) => z.posten === "Pauschale: Wege zwischen Wohnung und Betriebsstätte")).toMatchObject({ journal: 6_840, quelle: 6_840 });
-
-      const all = await abgleich.abgleichAll("2026-03-31");
-      expect(abgleich.abweichungen(all.zeilen)).toEqual([]);
-      expect(all.zeilen.filter((z) => z.bereich === "ustva").map((z) => z.zeitraum)).toEqual(expect.arrayContaining(["2026-01", "2026-02", "2026-03"]));
-    }, 60_000);
-  }
-
-  it("findet Abweichungen, wenn Journal oder Nebenbuch an Haben vorbei geändert werden", async () => {
-    await reset("ist");
+  it("Beleg gegen Buchung: findet geänderte Steuer einer Rechnung und Vorsteuer eines Belegs", async () => {
+    await reset("soll");
     const { a } = await geschaeftsjahr();
-
-    /** Ändert mit abgeschalteten Triggern, wie jemand mit vollem Datenbankzugriff, und gleicht danach ab */
-    async function manipulated(change: (tx: postgres.TransactionSql) => Promise<unknown>) {
-      await bypass(change);
-      return abgleich.abweichungen((await abgleich.abgleichAll("2026-03-31")).zeilen);
-    }
-    async function bypass(change: (tx: postgres.TransactionSql) => Promise<unknown>) {
-      await sql.begin(async (tx) => {
-        await tx`set local session_replication_role = replica`;
-        await change(tx);
-      });
-    }
-
-    // Umsatzsteuer im Journal: Zahlung im Februar mit zu wenig Steuer
-    const [line] = await sql`select l.id, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
-      where e.source_type = 'allocation' and e.date = '2026-02-01' and l.account = '1776' limit 1`;
-    const found = await manipulated((tx) => tx`update journal_lines set credit = credit - 100 where id = ${line!.id}`);
-    expect(found).toEqual([
-      expect.objectContaining({ bereich: "ustva", zeitraum: "2026-02", posten: "Umsatzsteuer 19 % (Kz 81)" }),
-      // Die EÜR aus dem Journal sieht es ebenfalls: Die Umbuchung der Steuer hebt sich nicht mehr auf (#542), auch im
-      // Gewinn nach der DATEV-Formel
-      expect.objectContaining({ bereich: "euer", zeitraum: "2026", posten: "EÜR: Vereinnahmte Umsatzsteuer" }),
-      expect.objectContaining({ bereich: "euer", zeitraum: "2026", posten: "EÜR: Gewinn nach der DATEV-Formel" }),
-    ]);
-    expect(found.map((z) => z.quelle - z.journal)).toEqual([100, 100, 100]);
-    await bypass((tx) => tx`update journal_lines set credit = credit + 100 where id = ${line!.id}`);
-
-    // Nebenbuch: Steuer eines gebuchten Belegs geändert
+    await bypass((tx) => tx`update invoice_taxes set tax = tax + 100 where invoice_id = ${a.id} and rate = 1900`);
     const [amount] = await sql`select a.id, a.tax from document_amounts a join documents d on d.id = a.document_id where d.document_date = '2026-01-20'`;
-    const docFound = await manipulated((tx) => tx`update document_amounts set tax = 600 where id = ${amount!.id}`);
-    expect(docFound).toEqual([expect.objectContaining({ zeitraum: "2026-01", posten: "Vorsteuer (Kz 66)", journal: 616, quelle: 600 })]);
-    await bypass((tx) => tx`update document_amounts set tax = ${amount!.tax} where id = ${amount!.id}`);
-
-    // Zuordnung auf eine andere Rechnung umgehängt: Steuer laut Zahlungen anders als gebucht
-    const [b] = await sql`select id from invoices where number <> ${a.number} and kind = 'rechnung' order by issue_date limit 1`;
-    const [allocation] = await sql`select id from allocations where invoice_id = ${a.id} and amount = 100000`;
-    const moved = await manipulated((tx) => tx`update allocations set invoice_id = ${b!.id} where id = ${allocation!.id}`);
-    expect(moved.map((z) => `${z.bereich} ${z.zeitraum} ${z.posten}`)).toEqual([
-      "ustva 2026-02 Umsatzsteuer 19 % (Kz 81)",
-      "ustva 2026-02 Umsatzsteuer 7 % (Kz 86)",
-      // Seit die Zahlung ihre Bemessungsgrundlage trägt, fallen auch die Bemessungsgrundlagen bei Ist auf (#542)
-      "ustva 2026-02 Bemessungsgrundlage 19 % (Kz 81)",
-      "ustva 2026-02 Bemessungsgrundlage 7 % (Kz 86)",
+    await bypass((tx) => tx`update document_amounts set tax = 600 where id = ${amount!.id}`);
+    expect((await gefunden()).filter((z) => z.bereich === "beleg")).toEqual([
+      expect.objectContaining({
+        zeitraum: "2026-01",
+        posten: `Rechnung ${a.number}: Umsatzsteuer`,
+        journal: 76_000 + 7_000,
+        quelle: 76_000 + 7_000 + 100,
+        gegen: "laut Rechnung",
+      }),
+      // Je Konto: Vorsteuer und Verbindlichkeit der Buchung gegen die Zeilen aus den Beträgen des Belegs
+      expect.objectContaining({
+        zeitraum: "2026-01",
+        posten: expect.stringMatching(/^Beleg R\d+ \(Lieferant\): Konto 1576$/),
+        journal: 616,
+        quelle: 600,
+        gegen: "laut Vorgang",
+      }),
+      expect.objectContaining({
+        zeitraum: "2026-01",
+        posten: expect.stringMatching(/^Beleg R\d+ \(Lieferant\): Konto 1600$/),
+        journal: -3_856,
+        quelle: -3_840,
+        gegen: "laut Vorgang",
+      }),
     ]);
-
-    // Die Integritätsprüfung meldet es; Kette und Siegel sehen die Zuordnung ebenfalls (seit 0064 versiegelt)
-    const report = await integrity.checkIntegrity("2026-03-31");
-    expect(report.abgleich.abweichungen).toHaveLength(4);
-    // (Siegel früherer Tests in dieser Datenbank melden gelöschte Datensätze; hier zählt nur die Zuordnung)
-    expect(report.problems).toContainEqual(expect.objectContaining({ tabelle: "allocations", zeile: allocation!.id, befund: "Inhalt passt nicht zum Siegel" }));
   }, 60_000);
 
-  it("Ist: ältere Zahlung ohne Bemessungsgrundlage im Journal, Kz 81 und 86 nicht verglichen, kein Fehlalarm (#542)", async () => {
+  it("Vorgang gegen Buchung: Zuordnung, Kassenbuch und Pauschale gegen ihre Buchung", async () => {
     await reset("ist");
     await geschaeftsjahr();
-    // Wie eine Zahlung, die vor #542 Schritt 4 gebucht wurde: die Umbuchung der Umsatzsteuer ohne Bemessungsgrundlage
-    await sql.begin(async (tx) => {
-      await tx`set local session_replication_role = replica`;
-      await tx`update journal_lines set basis = null where entry_id in (
-        select e.id from journal_entries e where e.source_type = 'allocation' and e.date = '2026-02-01')`;
-    });
-    const feb = await abgleich.vatAbgleich({ year: 2026, month: 2 });
-    expect(abgleich.abweichungen(feb.zeilen)).toEqual([]);
-    expect(feb.zeilen.find((z) => z.posten.startsWith("Bemessungsgrundlage"))).toBeUndefined();
-    // Die Steuer wird weiter verglichen
-    expect(feb.zeilen.find((z) => z.posten === "Umsatzsteuer 19 % (Kz 81)")!.journal).toBeGreaterThan(0);
+    const cash = await import("../bank/cash-income.ts");
+    await leeren(sql)`truncate cash_entries cascade`;
+    await cash.createCashIncome(
+      actor,
+      { date: "2026-02-11", amount: 11_900, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
+      "2026-12-31",
+    );
+    expect((await gefunden()).filter((z) => z.bereich === "beleg")).toEqual([]);
+    // An Haben vorbei: Betrag einer Zuordnung, einer Kassenzeile und einer Pauschale geändert
+    const [zuordnung] = await sql`select id, amount from allocations where kind = 'ustVorauszahlung'`;
+    await bypass((tx) => tx`update allocations set amount = amount - 100 where id = ${zuordnung!.id}`);
+    await bypass((tx) => tx`update cash_entries set amount = amount + 100`);
+    const [pauschale] = await sql`select id from pauschalen where art = 'homeoffice'`;
+    await bypass((tx) => tx`update pauschalen set amount = amount + 100 where id = ${pauschale!.id}`);
+    const found = (await gefunden()).filter((z) => z.bereich === "beleg");
+    expect(found.map((z) => [z.zeitraum, z.posten.replace(/ \(.*\)/, ""), z.journal - z.quelle])).toEqual([
+      ["2026-02", "Zuordnung vom 2026-02-10: Konto 1200", 100],
+      ["2026-02", "Kassenbuch Nr. 1: Konto 1000", -100],
+      ["2026-01", "Pauschale vom 2026-01-31: Aufwand", -100],
+    ]);
   }, 60_000);
 
-  it("findet eine falsche Bemessungsgrundlage über den Steuerschlüssel im Journal (Soll, #542)", async () => {
+  it("Ist: Nach der letzten Zahlung bleibt keine Umsatzsteuer „nicht fällig“, auch nicht ein Cent", async () => {
+    await reset("ist");
+    const { b } = await geschaeftsjahr();
+    expect((await gefunden()).filter((z) => z.bereich === "beleg")).toEqual([]);
+    // An Haben vorbei: Die Umbuchung der Zahlung auf Rechnung b um einen Cent zu klein (die Verprobung lässt einen Cent zu)
+    const [zeile] = await sql`select l.id from journal_lines l join journal_entries e on e.id = l.entry_id join allocations a on a.id = e.source_id
+      where e.source_type = 'allocation' and a.invoice_id = ${b.id} and l.account = '1766' limit 1`;
+    await bypass((tx) => tx`update journal_lines set debit = debit - 1 where id = ${zeile!.id}`);
+    await bypass(
+      (tx) =>
+        tx`update journal_lines set credit = credit - 1 where entry_id = (select entry_id from journal_lines where id = ${zeile!.id}) and account = '1776'`,
+    );
+    const found = (await gefunden()).filter((z) => z.bereich === "beleg");
+    expect(found).toEqual([
+      expect.objectContaining({ posten: `Rechnung ${b.number} (Ist, ganz erledigt): Umsatzsteuer nicht fällig`, journal: -1, quelle: 0 }),
+    ]);
+    // Die Verprobung je Buchung sieht den einen Cent nicht
+    expect((await gefunden()).filter((z) => z.bereich === "ustva")).toEqual([]);
+  }, 60_000);
+
+  it("gesendete Voranmeldung: findet eine Abweichung zur Rechnung aus dem Journal, mit Abweichung in der Integritätsprüfung", async () => {
     await reset("soll");
     await geschaeftsjahr();
+    const vat = await import("../umsatzsteuer/index.ts");
+    const werte = await vat.computedValues({ year: 2026, month: 1 });
+    const sent = { year: 2026, month: 1, ...werte, status: "sent", source: "berechnet", sent_at: new Date().toISOString() };
+    await sql`insert into vat_returns ${sql(sent as never)}`;
+    expect((await gefunden()).filter((z) => z.bereich === "ustva")).toEqual([]);
+    // Danach an Haben vorbei eine Buchung im gemeldeten Monat geändert: Steuerschlüssel 19 % → 7 % an der Erlöszeile
     const [line] = await sql`select l.id from journal_lines l join journal_entries e on e.id = l.entry_id
       where e.source_type = 'invoice' and e.date = '2026-01-15' and l.account = '8400' limit 1`;
-    await sql.begin(async (tx) => {
-      await tx`set local session_replication_role = replica`;
-      await tx`update journal_lines set tax_code = 'USt7' where id = ${line!.id}`;
-    });
-    const found = abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 1 })).zeilen);
+    await bypass((tx) => tx`update journal_lines set tax_code = 'USt7' where id = ${line!.id}`);
+    const found = (await gefunden()).filter((z) => z.posten.startsWith("Gesendete Voranmeldung"));
     expect(found).toEqual([
-      expect.objectContaining({ posten: "Bemessungsgrundlage 19 % (Kz 81)", journal: 0, quelle: 400_000 }),
-      expect.objectContaining({ posten: "Bemessungsgrundlage 7 % (Kz 86)", journal: 500_000, quelle: 100_000 }),
+      expect.objectContaining({ zeitraum: "2026-01", posten: "Gesendete Voranmeldung, Kz 81", journal: 0, quelle: 4_000_00, gegen: "gesendet" }),
+      expect.objectContaining({ zeitraum: "2026-01", posten: "Gesendete Voranmeldung, Kz 86", journal: 5_000_00, quelle: 1_000_00, gegen: "gesendet" }),
+      // Die Zahllast folgt: 400 € weniger zu 19 %, 400 € mehr zu 7 %
+      expect.objectContaining({ zeitraum: "2026-01", posten: "Gesendete Voranmeldung, Kz 83", journal: 34_384, quelle: 82_384, gegen: "gesendet" }),
+    ]);
+    const report = await integrity.checkIntegrity("2026-03-31");
+    expect(report.abgleich.abweichungen).toEqual(expect.arrayContaining(found));
+  }, 60_000);
+
+  it("Bank: Endsaldo des Kontoauszugs gegen gebuchte Zahlungen und offene Umsätze", async () => {
+    await reset("ist");
+    await geschaeftsjahr();
+    const [konto] = await sql`select id from bank_accounts limit 1`;
+    const [summe] = await sql`select sum(amount)::int as s from bank_transactions where bank_account_id = ${konto!.id}`;
+    // Auszug mit Salden über den ganzen Zeitraum; ein offener Umsatz bleibt offen
+    await transactions([eingang("20.03.26", "ohne Zuordnung", "50,00")]);
+    const auszug = (closing: number) =>
+      sql`insert into bank_imports (bank_account_id, filename, sha256, format, period_from, period_to, opening_balance, closing_balance, added, skipped)
+        values (${konto!.id}, 'auszug.xml', ${crypto.randomUUID()}, 'camt', '2026-01-01', '2026-03-31', 1000, ${closing}, 0, 0)`;
+    await auszug(1000 + Number(summe!.s) + 5_000);
+    expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([]);
+    // Ein späterer Import ohne Salden mit einem Umsatz im Zeitraum des Auszugs (etwa eine einzelne Zahlung als CSV): Er
+    // steckt nicht im Endsaldo des früheren Auszugs und zählt deshalb nicht mit, auch zugeordnet nicht (E2E app.spec.ts)
+    await transactions([ausgang("15.03.26", "Hafen Immobilien", "-595,00")]);
+    const [miete] = await sql`select id from bank_transactions where amount = -59500`;
+    await bank.allocate(actor, { kind: "privat", transactionId: miete!.id, amount: -59_500 });
+    expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([]);
+    // Ein neuer Auszug mit anderem Endsaldo (jetzt mit der Miete): Es fehlt ein Umsatz, oder eine Buchung passt nicht
+    await auszug(1000 + Number(summe!.s) + 5_000 - 59_500 + 100);
+    expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([
+      expect.objectContaining({
+        zeitraum: "2026-03-31",
+        journal: 1000 + Number(summe!.s) + 5_000 - 59_500,
+        quelle: 1000 + Number(summe!.s) + 5_000 - 59_500 + 100,
+        gegen: "laut Kontoauszug",
+      }),
     ]);
   }, 60_000);
 
-  // Wege zur Betriebsstätte (#895): das Aufwandskonto je Kontenrahmen (4678, 6688) muss Journal und EÜR gleich füllen
+  it("Bank: Umsätze aus demselben Import wie der Auszug zählen mit (Zeitstempel in Mikrosekunden)", async () => {
+    await reset("ist");
+    // Auszug und Umsätze in einer Transaktion: gleicher Zeitstempel bis auf die Mikrosekunde, wie beim echten Import
+    await sql.begin(async (tx) => {
+      const [konto] = await tx`insert into bank_accounts (name, iban) values ('Zweitkonto', 'DE02120300000000202051') returning id`;
+      const [auszug] =
+        await tx`insert into bank_imports (bank_account_id, filename, sha256, format, period_from, period_to, opening_balance, closing_balance, added, skipped)
+        values (${konto!.id}, 'auszug.csv', ${crypto.randomUUID()}, 'dkb-csv', '2026-02-01', '2026-02-28', 10000, 22345, 1, 0) returning id`;
+      await tx`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, dedup_hash)
+        values (${konto!.id}, ${auszug!.id}, '2026-02-10', 12345, ${crypto.randomUUID()})`;
+    });
+    expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([]);
+  }, 60_000);
+
+  it("EÜR: Gewinn nach der DATEV-Formel gegen den Gewinn der Zeilen", async () => {
+    await reset("ist");
+    await geschaeftsjahr();
+    const euer = await abgleich.euerAbgleich(2026);
+    expect(euer.zeilen.find((z) => z.posten === "EÜR: Gewinn nach der DATEV-Formel")).toMatchObject({ gegen: "aus den Zeilen der EÜR" });
+    expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+  }, 60_000);
+
+  // Wege zur Betriebsstätte (#895): das Aufwandskonto je Kontenrahmen (4678, 6688) füllt die EÜR
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {
-      it(`Wege zur Betriebsstätte stimmen in Journal und EÜR überein (${kontenrahmen}, ${versteuerung})`, async () => {
+      it(`Wege zur Betriebsstätte in der EÜR aus dem Journal (${kontenrahmen}, ${versteuerung})`, async () => {
         await reset(versteuerung, kontenrahmen);
         await pauschalen.createPauschale(actor, { art: "entfernung", month: "2026-02", tage: 15, km: 12, betriebsstaette: "Praxisraum" }, "2026-03-31");
         const storniert = await pauschalen.createPauschale(
@@ -339,10 +422,10 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
           "2026-03-31",
         );
         await pauschalen.reversePauschale(actor, storniert.id);
-
-        const euer = await abgleich.euerAbgleich(2026);
-        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
-        expect(euer.zeilen.find((z) => z.posten === "Pauschale: Wege zwischen Wohnung und Betriebsstätte")).toMatchObject({ journal: 6_840, quelle: 6_840 });
+        const { euerForYear } = await import("./reports.ts");
+        const euer = await euerForYear(2026);
+        expect(euer.ausgaben.find((l) => l.key === "pauschale:entfernung")?.amount).toBe(6_840);
+        expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
       });
     }
   }
@@ -385,7 +468,7 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
             exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 21 UStG" : "",
             lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 500_000, taxRate: 0 }],
           });
-          return invoices.finalizeInvoice(actor, draft.id);
+          return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
         }
         const rc = await special("reverse_charge", "AT", "ATU12345678", "2026-01-10");
         const ch = await special("drittland", "CH", "", "2026-01-12");
@@ -413,8 +496,7 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
           const result = await abgleich.vatAbgleich({ year: 2026, month });
           expect(abgleich.abweichungen(result.zeilen), `2026-${month}`).toEqual([]);
         }
-        const jan = await abgleich.vatAbgleich({ year: 2026, month: 1 });
-        expect(jan.zeilen.find((z) => z.posten.includes("(Kz 21)"))).toMatchObject({ journal: 500_000 });
+        expect(abgleich.abweichungen((await abgleich.abgleichAll("2026-03-31")).zeilen)).toEqual([]);
       }, 60_000);
     }
   }
@@ -502,10 +584,32 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     }
   }, 120_000);
 
-  // #274: Eine Verrechnung zweier Belege steht nur in `document_settlements`; das Journal bucht sie nicht (Verbindlichkeiten
-  // an Verbindlichkeiten). Der EÜR-Abgleich muss sie trotzdem als Ausgleich kennen, sonst meldet er die betroffenen Zeilen
-  // als Abweichung: Software 30,00 laut Journal, 0,00 laut Nebenbüchern und umgekehrt bei der Gutschrift.
-  it("Verrechnung zweier Belege gleicht im EÜR-Abgleich aus, ohne Abweichung", async () => {
+  // Lieferant rundet die Steuer je Position (30 × 0,85 € mit je 0,16 € = 4,80 € statt 4,85 €; Beispiel von
+  // thomas-baumeister in #1144): Haben bucht die Vorsteuer wie auf dem Beleg, „Vorgang gegen Buchung“ prüft das. Die
+  // Verprobung prüft hier die Rechnung des Lieferanten; abziehbar ist nur die gesetzlich geschuldete Steuer (UStAE 15.2
+  // Abs. 1). Deshalb ein Hinweis zum Prüfen, keine Abweichung: keine Warnung vor dem Senden, kein Halt beim Update.
+  for (const kr of ["SKR03", "SKR04"] as const)
+    for (const v of ["ist", "soll"] as const)
+      it(`Beleg mit Vorsteuer abweichend von Netto mal Satz: Hinweis, keine Abweichung (${kr}, ${v})`, async () => {
+        await reset(v, kr);
+        await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 25_50, tax: 4_80 }]);
+        const jahr = await abgleich.abgleichJahr(2026, "2026-03-31");
+        expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
+        const hinweis = expect.stringMatching(
+          new RegExp(
+            `^Bitte prüfen: Vorsteuer 19 % zur Bemessungsgrundlage ${formatEuro(25_50)}: Buchung .* vom 10\\.02\\.2026 trägt ${formatEuro(4_80)}, Netto mal Satz wären ${formatEuro(4_85)}\\.`,
+          ),
+        );
+        expect(jahr.hinweise).toContainEqual(hinweis);
+        // Weniger ausgewiesen als Netto mal Satz: kein Mehrbetrag nach § 14c, abziehbar ist der ausgewiesene Betrag
+        expect(jahr.hinweise.join()).toMatch(/§ 15 Abs\. 1 Satz 1 Nr\. 1 UStG/);
+        expect(jahr.hinweise.join()).not.toMatch(/§ 14c/);
+        const februar = await abgleich.vatAbgleich({ year: 2026, month: 2 });
+        expect(abgleich.abgleichIssues(februar)).toEqual([{ tone: "info", text: hinweis, link: "/konten" }]);
+      }, 60_000);
+
+  // #274: Eine Verrechnung zweier Belege wirkt in der EÜR wie eine Zahlung; der Gewinn nach der DATEV-Formel sieht dasselbe
+  it("Verrechnung zweier Belege ohne Abweichung", async () => {
     await reset("ist");
     const software = await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { category: "software" });
     const hardware = await bookedDocument("2026-02-16", [{ taxRate: 1900, net: -3_000, tax: -570 }], { category: "hardware" });
@@ -516,27 +620,35 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       date: "2026-02-20",
       note: "Gutschrift verrechnet",
     });
-
-    const euer = await abgleich.euerAbgleich(2026);
-    expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
-    // Beide Seiten kennen die Verrechnung: 30,00 Aufwand Software, 30,00 Ertrag aus der Hardware-Gutschrift
-    expect(euer.zeilen.find((z) => z.posten === "EÜR: Software und Lizenzen")).toMatchObject({ journal: 3_000, quelle: 3_000 });
-    expect(euer.zeilen.find((z) => z.posten.startsWith("EÜR: Hardware"))).toMatchObject({ journal: -3_000, quelle: -3_000 });
+    expect(abgleich.abweichungen((await abgleich.abgleichAll("2026-03-31")).zeilen)).toEqual([]);
+    const { euerForYear } = await import("./reports.ts");
+    const euer = await euerForYear(2026);
+    // 30,00 Aufwand Software, 30,00 Ertrag aus der Hardware-Gutschrift
+    expect(euer.ausgaben.find((l) => l.key === "ausgabe:software")?.amount).toBe(3_000);
+    expect(euer.ausgaben.find((l) => l.key === "ausgabe:hardware")?.amount).toBe(-3_000);
   }, 60_000);
 
   it("Vorprüfung der Voranmeldung meldet Abweichungen mit Beträgen", () => {
     expect(
       abgleich.abgleichIssues({
         zeilen: [
-          { bereich: "ustva", zeitraum: "2026-02", posten: "Vorsteuer (Kz 66)", journal: 616, quelle: 600 },
-          { bereich: "ustva", zeitraum: "2026-02", posten: "Umsatzsteuer 7 % (Kz 86)", journal: 0, quelle: 0 },
+          {
+            bereich: "ustva",
+            zeitraum: "2026-02",
+            posten: "Vorsteuer 19 % zur Bemessungsgrundlage 32,40 €",
+            journal: 600,
+            quelle: 616,
+            gegen: "aus der Bemessungsgrundlage",
+          },
+          { bereich: "ustva", zeitraum: "2026-02", posten: "Umsatzsteuer 7 %", journal: 0, quelle: 0, gegen: "aus der Bemessungsgrundlage" },
+          { bereich: "beleg", zeitraum: "2026-02", posten: "Beleg R1: Vorsteuer", journal: 616, quelle: 600, gegen: "laut Beleg" },
         ],
         hinweise: ["Hinweis"],
       }),
     ).toEqual([
       {
         tone: "warn",
-        text: "Buchungen und Voranmeldung weichen ab: Vorsteuer (Kz 66) laut Journal 6,16 €, laut Rechnungen, Belegen und Zahlungen 6,00 €. Bitte vor dem Senden klären.",
+        text: `Im Journal passt etwas nicht: Vorsteuer 19 % zur Bemessungsgrundlage 32,40 €, gebucht ${formatEuro(600)}, aus der Bemessungsgrundlage ${formatEuro(616)}. Bitte vor dem Senden klären.`,
         link: "/konten",
       },
       { tone: "info", text: "Hinweis", link: "/konten" },

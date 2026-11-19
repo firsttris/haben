@@ -9,6 +9,8 @@ import {
   firstEmail,
   DEFAULT_INVOICE_NUMBER_FORMAT,
   DEFAULT_QUOTE_NUMBER_FORMAT,
+  customerNumberProblem,
+  effectiveCustomerNumber,
   formatDocumentNumber,
   invoiceDueDate,
   invoicePosting,
@@ -32,6 +34,7 @@ import {
   leistungsdatum,
   skontoProblem,
   sortSkonto,
+  usesCustomerNumber,
   discountColumns,
   discountFromColumns,
   discountSchema,
@@ -42,10 +45,10 @@ import {
   outgoingTaxDetailConflict,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
+import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, type Company, type RateFields } from "../stammdaten/index.ts";
 import {
   ansprechpartnerSnapshot,
   type Contact,
@@ -58,11 +61,13 @@ import {
 import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "./zahlungsstand.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paidPaymentOf, paymentColumns } from "./lastschrift.ts";
+import { customerChangeProblem, serviceEntryCustomerIssues } from "./leistungen-kunde.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
@@ -74,7 +79,7 @@ import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts"
 import { today } from "../../today.ts";
 import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 import { InvoiceError } from "./invoice-error.ts";
-import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
+import { OHNE_UMSATZSTAND, pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import {
   circleFor,
   countsRunning,
@@ -83,7 +88,7 @@ import {
   lockNumbering,
   peekNumber,
   setNextNumber as setNextCounter,
-  takeNumber,
+  takeInvoiceNumber,
   type NumberKind,
 } from "./number-counter.ts";
 
@@ -272,6 +277,13 @@ export function invoiceTitle(invoice: Pick<Invoice, "kind" | "variant">): string
 
 /** Festgeschriebene Rechnungen, die eine Stornorechnung aufhebt */
 const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null`;
+
+/**
+ * Dieselbe Menge im Abschlussstand (#1110): nur Stornos, die es am Stichtag schon gab. Ein Storno im Folgejahr
+ * nimmt die Forderung zum 31.12. nicht weg — sie war an diesem Tag offen.
+ */
+const cancelledIdsUpTo = (bis: string) => sql`select corrects_id from invoices
+  where kind = 'storno' and status = 'final' and corrects_id is not null and issue_date <= ${bis}`;
 
 /**
  * Schlussrechnungen, die eine Abschlagsrechnung schon abziehen (festgeschrieben, nicht storniert),
@@ -655,7 +667,11 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     const draft = await lockDraft(tx, id);
     for (const reference of [...new Set(input.deducts ?? [])].sort()) await lockInvoice(tx, reference);
     // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
-    if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
+    if (input.contactId !== draft.contactId) {
+      const entriesProblem = await customerChangeProblem(tx, id, input.contactId);
+      if (entriesProblem) throw new InvoiceError(entriesProblem);
+      await assertCustomer(tx, input.contactId);
+    }
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
     const { bundesland } = await loadCompany(tx);
     if (draft.kind === "rechnung") await checkQuote(tx, input.quoteId);
@@ -748,7 +764,8 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     : [];
   const [corrects] = invoice.correctsId
     ? await q
-        .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
+        // buyer: {KUNDENNR} von Storno und Korrektur nimmt die Kundennummer des Originals, solange sie taugt (#1426)
+        .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate, buyer: schema.invoices.buyer })
         .from(schema.invoices)
         .where(eq(schema.invoices.id, invoice.correctsId))
     : [];
@@ -767,8 +784,8 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+export function listInvoices(today: string, id?: string, q: Db | Tx = db, bis?: string) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q, bis);
 }
 
 /** Spalten der Rechnungsliste; die Schnellsuche liest dieselben (search.ts) */
@@ -815,20 +832,25 @@ export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL |
     .$dynamic();
 }
 
-async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db) {
-  return withListStatus(await invoiceListQuery(invoiceListFields, filter, q), today, q);
+async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, bis?: string) {
+  // Abschlussstand (#1110): Rechnungen, die es am Stichtag noch nicht gab, stehen dort nicht, und eine erst danach
+  // ausgestellte Stornorechnung hebt die Forderung nicht rückwirkend auf
+  const fields = bis ? { ...invoiceListFields, cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIdsUpTo(bis)})` } : invoiceListFields;
+  return withListStatus(await invoiceListQuery(fields, bis ? and(filter, lte(schema.invoices.issueDate, bis)) : filter, q), today, q, bis);
 }
 
 /** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */
-export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db) {
+export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db, bis?: string) {
   if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
+    bis,
   );
   const losses = await invoiceLosses(
     rows.filter((r) => r.status === "final").map((r) => r.id),
     q,
+    bis,
   );
   const paperStornos = await paperCancellationIds(
     rows.filter((r) => r.kind === "storno").map((r) => r.id),
@@ -906,6 +928,7 @@ export function buyerFrom(contact: Contact, ansprechpartner?: Buyer["ansprechpar
     ...(contact.ustId ? { ustId: contact.ustId } : {}),
     ...(contact.leitwegId ? { leitwegId: contact.leitwegId } : {}),
     ...(contact.kundennummer ? { kundennummer: contact.kundennummer } : {}),
+    ...(contact.unsereLieferantennummer ? { unsereLieferantennummer: contact.unsereLieferantennummer } : {}),
     ...(ansprechpartner ? { ansprechpartner } : {}),
   };
 }
@@ -1006,11 +1029,34 @@ export async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
   return ids.map((id) => rows.find((r) => r.id === id)!).map((r) => ({ number: r.number ?? "", issueDate: r.issueDate }));
 }
 
-const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
+export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
+
+/**
+ * Probleme beim Käufer vor dem Festschreiben: fehlt er, fehlt seine Kundennummer für {KUNDENNR} oder taugt sie nicht
+ * als Teil der Nummer. Storno und Korrektur nehmen die Kundennummer des Originals, solange sie taugt, sonst die
+ * heutige des Kontakts (#1426).
+ */
+export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null): string[] {
+  const issues = contact ? [] : ["Kunde fehlt"];
+  if (usesCustomerNumber(format) && (contact || corrects)) {
+    const problem = customerNumberProblem(effectiveCustomerNumber(corrects?.buyer, contact));
+    // ganze Sätze ohne Schlusspunkt in die Liste, „Noch nicht bereit: …“ setzt ihn selbst
+    if (problem) issues.push(problem.replace(/\.$/, ""));
+  }
+  return issues;
+}
+
+/**
+ * Käufer für das Festschreiben: bei Storno und Korrektur der festgeschriebene des Originals. Trug der noch keine
+ * verwendbare Kundennummer für {KUNDENNR}, steht hier die heutige des Kontakts, mit der nummeriert wird (#1426).
+ */
+function numberedBuyer(original: Buyer | null, contact: Contact, ansprechpartner: Buyer["ansprechpartner"], format: string): Buyer {
+  const buyer = original ?? buyerFrom(contact, ansprechpartner);
+  const kundennummer = usesCustomerNumber(format) ? effectiveCustomerNumber(original, contact) : buyer.kundennummer;
+  return kundennummer && kundennummer !== buyer.kundennummer ? { ...buyer, kundennummer } : buyer;
+}
 
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
-const VERSTEUERUNG = { soll: "Soll-Versteuerung", ist: "Ist-Versteuerung" } as const;
-
 export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<string[]> {
   const data = await getInvoice(id, q);
   if (!data) return ["Rechnung nicht gefunden"];
@@ -1019,19 +1065,8 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   const issues = sellerIssues(company, invoice.kind === "rechnung" && invoice.paymentMethod !== "bereits_bezahlt").map((issue) => `Firmendaten: ${issue}`);
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
-  // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
-  // (versteuerungForYear). Nach einem Wechsel zum Jahreswechsel stünde die Steuer einer Rechnung im Vorjahr sonst
-  // zweimal in der Anmeldung (Soll → Ist) oder gar nicht (Ist → Soll).
-  if (!company.kleinunternehmer) {
-    const year = Number(invoice.issueDate.slice(0, 4));
-    const versteuerung = await versteuerungForYear(year, q);
-    if (versteuerung !== company.versteuerung) {
-      issues.push(
-        `Das Jahr ${year} ist nach ${VERSTEUERUNG[versteuerung]} gebucht, eingestellt ist jetzt ${VERSTEUERUNG[company.versteuerung]}; bitte ein Rechnungsdatum im laufenden Jahr wählen`,
-      );
-    }
-  }
-  if (!contact) issues.push("Kunde fehlt");
+  issues.push(...(await versteuerungIssues(company, invoice.issueDate, q)));
+  issues.push(...buyerIssues(company.invoiceNumberFormat, contact, data.corrects));
   if (invoice.advanceType === "teilleistung") {
     if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
     if ((invoice.serviceTo ?? invoice.serviceFrom ?? "") > invoice.issueDate) issues.push("Die Teilleistung ist am Rechnungsdatum noch nicht erbracht");
@@ -1117,7 +1152,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       );
     }
   }
-  issues.push(...(await directDebitIssues(invoice, company, q)));
+  issues.push(...(await directDebitIssues(invoice, company, q)), ...(await serviceEntryCustomerIssues(q, id, invoice.contactId)));
   if (contact && issues.length === 0) {
     const preview = documentFor(
       invoice,
@@ -1140,13 +1175,27 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
 /**
  * Festschreiben: Nummer ziehen, PDF und XML erzeugen, sperren und buchen – alles in einer
  * Transaktion. Schlägt etwas fehl, bleibt der Entwurf ohne Nummer und es entsteht keine Lücke.
+ * `umsatzStand` ist der vereinnahmte Umsatz für die Rückfrage zur Kleinunternehmergrenze (`kleinunternehmerStand`).
  */
-export async function finalizeInvoice(actor: string, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
-  return withActor(actor, (tx) => finalizeDraft(tx, id, bestaetigt));
+export async function finalizeInvoice(actor: string, id: string, umsatzStand: UmsatzStand, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+  return withActor(actor, (tx) => finalizeDraft(tx, id, umsatzStand, bestaetigt));
+}
+
+/**
+ * Verfahrensspalten beim Festschreiben. Ab #853 mindern Storno und Korrektur bereits Vereinnahmtes erst mit der
+ * Rückzahlung; der Trigger invoices_reduction_rule verlangt das Kennzeichen.
+ */
+function procedureColumns(invoice: Invoice) {
+  return {
+    advanceType: invoice.advanceType,
+    advanceAccounting: invoice.advanceAccounting,
+    replacesInvoiceId: invoice.replacesInvoiceId,
+    reductionRule: invoice.kind === "rechnung" ? null : ("rueckgewaehr" as const),
+  };
 }
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
-async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
   const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
   const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
@@ -1200,17 +1249,17 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
   }
 
+  // Storno/Korrektur: Anschrift des Originals, {KUNDENNR} daraus oder vom Kontakt (#1426); nur gelesen, daher vor der Sperre
+  const seller = sellerFrom(company);
+  const buyer = numberedBuyer(corrects?.buyer ?? null, contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId), company.invoiceNumberFormat);
+
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
   const circle = await circleFor(tx, "rechnung", invoice.issueDate);
   const counter = await peekNumber(tx, "rechnung", circle);
-  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter);
-
-  // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
-  const seller = sellerFrom(company);
-  const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
+  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
-  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
+  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, umsatzStand, bestaetigt);
   const doc = documentFor(
     invoice,
     lines,
@@ -1227,15 +1276,13 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
-  await takeNumber(tx, "rechnung", circle, counter);
+  await takeInvoiceNumber(tx, circle, counter, number);
   const [finalized] = await withAdvanceVatChange(tx, id, () =>
     tx
       .update(schema.invoices)
       .set({
         status: "final",
-        advanceType: invoice.advanceType,
-        advanceAccounting: invoice.advanceAccounting,
-        replacesInvoiceId: invoice.replacesInvoiceId,
+        ...procedureColumns(invoice),
         number,
         numberYear: circle,
         numberCounter: counter,
@@ -1424,7 +1471,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
         },
         { kind: "storno", correctsId: target.id },
       );
-      return finalizeDraft(tx, draft.id);
+      return finalizeDraft(tx, draft.id, OHNE_UMSATZSTAND);
     };
     const storno = await stornoOf(invoice, lines);
     for (const correction of corrections) {
@@ -1498,21 +1545,12 @@ export async function setNextNumber(actor: string, date: string, next: number, k
 export async function invoiceSummary(today: string) {
   const list = await listInvoices(today);
   const open = list.filter((i) => i.kind === "rechnung" && i.open !== 0);
-  const month = today.slice(0, 7);
-  const previousMonth = (() => {
-    const [y, m] = month.split("-").map(Number) as [number, number];
-    return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
-  })();
-  const finals = list.filter((i) => i.status === "final" && i.listStatus !== "storniert" && i.kind !== "storno");
-  const revenue = (prefix: string) => finals.filter((i) => i.issueDate.startsWith(prefix)).reduce((sum, i) => sum + i.net, 0);
   return {
     // Wie die offenen Forderungen in den Auswertungen (openPositions): alles Festgeschriebene mit offenem Betrag,
     // also auch Korrekturen und Erstattungen aus Stornos bezahlter Rechnungen
     openTotal: list.filter((i) => i.status === "final" && i.open !== 0).reduce((sum, i) => sum + i.open, 0),
     openCount: open.length,
     overdueCount: open.filter((i) => i.listStatus === "ueberfaellig").length,
-    revenueMonth: { key: month, net: revenue(month) },
-    revenuePreviousMonth: { key: previousMonth, net: revenue(previousMonth) },
     recent: list.filter((i) => i.status === "final").slice(0, 5),
     drafts: list.filter((i) => i.status === "draft").length,
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysOverdue, dunningAmounts, dunningFeeError, lateInterest } from "./dunning.ts";
+import { baseRateError, daysOverdue, dunningAmounts, dunningFeeError, lateInterest, parseBaseRate } from "./dunning.ts";
 import { computeEuer } from "./euer.ts";
 import { directPosting } from "./posting.ts";
 
@@ -51,5 +51,32 @@ describe("Mahngebühr prüfen", () => {
     expect(dunningFeeError("fünf")).toContain("etwa 5,00");
     expect(dunningFeeError("-5,00")).toContain("etwa 5,00");
     expect(dunningFeeError("1.000,01")).toMatch(/höchstens 1\.000,00\s€/);
+  });
+
+  it("nimmt „5€00“ nicht als 500,00 € (#1242)", () => {
+    expect(dunningFeeError("5€00")).toBe("Trag die Mahngebühr ein, etwa 5,00, oder lass das Feld leer.");
+  });
+});
+
+describe("Basiszinssatz prüfen (#1143)", () => {
+  it("liest Prozent mit höchstens zwei Nachkommastellen in Basispunkten, auch negativ und mit Prozentzeichen", () => {
+    expect(parseBaseRate("1,27")).toBe(127);
+    expect(parseBaseRate("1,27 %")).toBe(127);
+    expect(parseBaseRate("1,27%")).toBe(127);
+    // Ein Punkt gilt wie bei allen Prozentfeldern, wenn er eindeutig ein Dezimaltrenner ist (#1222)
+    expect(parseBaseRate("1.27")).toBe(127);
+    expect(parseBaseRate("-0,88")).toBe(-88);
+    expect(parseBaseRate("−0,88 %")).toBe(-88);
+    expect(parseBaseRate("2")).toBe(200);
+    for (const text of ["1.275", "1,275", "abc", "%"]) expect(parseBaseRate(text), text).toBeNull();
+  });
+
+  it("lässt leer und Sätze von −10 % bis 20 % durch", () => {
+    for (const text of ["", "  ", "1,27", "1,27 %", "-0,88", "-10", "20", "20,00 %"]) expect(baseRateError(text), text).toBeNull();
+  });
+
+  it("meldet Unlesbares und Sätze außerhalb von −10 % bis 20 %", () => {
+    for (const text of ["1.275", "1,275", "abc"]) expect(baseRateError(text), text).toContain("etwa 1,27");
+    for (const text of ["-10,01", "20,01", "25 %"]) expect(baseRateError(text), text).toMatch(/von -10\s% bis 20\s%/);
   });
 });

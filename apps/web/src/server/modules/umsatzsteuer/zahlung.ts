@@ -1,8 +1,10 @@
 import {
+  addDays,
   dauerfristActive,
   dueDate,
   formatEuro,
   ohneAltbestand,
+  periodRange,
   schonfristEnde,
   type Cents,
   type OpenItem,
@@ -31,8 +33,19 @@ export interface UstvaPostenUebersicht {
   ohneBezug: VatPayment[];
 }
 
-/** Abgegebene Voranmeldungen mit dem Tag der Abgabe: vermerkt der eingetragene, über ERiC der Tag der Übermittlung */
-async function filedReturns(q: Db | Tx) {
+/** Letzter Tag des Voranmeldungszeitraums: `periodRange` endet am Tag danach, Quartale über ihre drei Monate. */
+function zeitraumEnde(period: { year: number; month: number }): string {
+  return addDays(periodRange(period).end, -1);
+}
+
+/**
+ * Abgegebene Voranmeldungen mit dem Tag der Abgabe: vermerkt der eingetragene, über ERiC der Tag der Übermittlung.
+ * Mit `bis` nur, was diesem Tag dem Zeitraum nach gehörte: Eine Voranmeldung steht im Abschlussstand, sobald ihr
+ * Voranmeldungszeitraum geendet hat, nicht erst mit dem Tag der Abgabe. Eine Q4- bzw. Dezember-Anmeldung, die erst im
+ * Januar abgegeben wird, ist zum 31.12. eine offene Verbindlichkeit (§ 13 Abs. 1 Nr. 1 Buchst. a und b UStG, § 252 Abs. 1 Nr. 4 HGB);
+ * die Fälligkeit bleibt trotzdem nicht vor dem Eingang (§ 240 Abs. 1 Satz 3 AO, `vatPostenFaelligkeit`).
+ */
+async function filedReturns(q: Db | Tx, bis?: string) {
   const rows = await q
     .select({
       id: schema.vatReturns.id,
@@ -46,20 +59,33 @@ async function filedReturns(q: Db | Tx) {
     .from(schema.vatReturns)
     .leftJoin(schema.vatReturnFilings, eq(schema.vatReturnFilings.vatReturnId, schema.vatReturns.id))
     .where(eq(schema.vatReturns.status, "sent"));
-  return rows.map((r) => ({ ...r, abgabeTag: r.filedOn ?? today(r.sentAt!) }));
+  return rows.map((r) => ({ ...r, abgabeTag: r.filedOn ?? today(r.sentAt!) })).filter((r) => !bis || zeitraumEnde(r) <= bis);
 }
 
 /**
  * Wirksame Zahlungen „Umsatzsteuer an das Finanzamt“: aufgehobene Zuordnungen und ihre Gegenzeilen fallen weg, so
- * gleicht eine aufgehobene Lastschrift keinen Posten aus.
+ * gleicht eine aufgehobene Lastschrift keinen Posten aus. `auchNachStichtag` nimmt Zuordnungen nach `bis` dazu;
+ * Aufhebungen zählen weiter nur bis `bis`.
  */
-async function vatPayments(q: Db | Tx): Promise<VatPayment[]> {
+async function vatPayments(q: Db | Tx, bis?: string, { auchNachStichtag = false } = {}): Promise<VatPayment[]> {
   const a = schema.allocations;
   const rows = await q
     .select({ id: a.id, vatReturnId: a.vatReturnId, amount: a.amount, bookingDate: schema.bankTransactions.bookingDate })
     .from(a)
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, a.transactionId))
-    .where(and(eq(a.kind, "ustVorauszahlung"), isNull(a.reversesId), sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`));
+    .where(
+      and(
+        eq(a.kind, "ustVorauszahlung"),
+        isNull(a.reversesId),
+        // Im Abschlussstand (#1110) hebt nur eine Aufhebung auf, die es bis zum Stichtag schon gab
+        bis
+          ? sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id}
+              and coalesce(r.date, (select b.booking_date from bank_transactions b where b.id = r.transaction_id)) <= ${bis})`
+          : sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`,
+        // Abschlussstand (#1110): der Tag der Zuordnung, sonst der Buchungstag des Umsatzes (#782), bis einschließlich
+        bis && !auchNachStichtag ? sql`coalesce(${a.date}, ${schema.bankTransactions.bookingDate}) <= ${bis}` : undefined,
+      ),
+    );
   return rows;
 }
 
@@ -77,14 +103,21 @@ async function altbestand(q: Db | Tx, returns: { id: string; sentAt: Date | null
  * Stand aller Posten: Betrag, Fälligkeit, Zahlungen und was offen ist. Altbestand ohne Zahlung mit Bezug fehlt
  * (ohneAltbestand); `mitAltbestand` nimmt ihn für eine ausdrückliche Zuordnung mit Bezug dazu.
  */
-export async function ustvaPosten(q: Db | Tx = db, { mitAltbestand = false } = {}): Promise<UstvaPostenUebersicht> {
+export async function ustvaPosten(
+  q: Db | Tx = db,
+  { mitAltbestand = false, bis }: { mitAltbestand?: boolean; bis?: string } = {},
+): Promise<UstvaPostenUebersicht> {
   // Nacheinander: in einer Transaktion teilen sich die Abfragen eine Verbindung
-  const returns = await filedReturns(q);
-  const payments = await vatPayments(q);
+  const returns = await filedReturns(q, bis);
+  const payments = await vatPayments(q, bis);
   const company = await loadCompany(q);
   const dauerfrist = await loadDauerfrist(q);
   const alle = vatPosten(returns, (period) => dueDate(period, company.bundesland, dauerfristActive(dauerfrist, period.year)));
-  const posten = mitAltbestand ? alle : ohneAltbestand(alle, await altbestand(q, returns), payments);
+  // Ob ein Altbestand Posten ist, hängt an der Zahlung mit Bezug, gleich wann sie kam: Im Abschlussstand (#1110)
+  // zählt sie nicht als bezahlt, macht die Voranmeldung aber zum Posten. Eine Aufhebung erst nach dem Stichtag nimmt
+  // ihr den Bezug nicht (#1323)
+  const mitBezug = bis ? await vatPayments(q, bis, { auchNachStichtag: true }) : payments;
+  const posten = mitAltbestand ? alle : ohneAltbestand(alle, await altbestand(q, returns), mitBezug);
   return vatPostenStand(posten, payments);
 }
 

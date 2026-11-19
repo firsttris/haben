@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import antworten from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/beleg-aus-vorlage.json";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { json, sevdeskFakeFetch } from "./test-sevdesk-api.ts";
 
 /*
  * #472: Belege aus einer Vorlage wiederkehrender Belege (RV) tragen in der API keine Datei, nur `origin` auf die Vorlage;
@@ -32,7 +33,6 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
   const calls: { method: string; path: string }[] = [];
   const answers = new Map<string, () => Response | Promise<Response>>();
 
-  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const download = (content: string, filename: string | null) =>
     json({ objects: { base64Encoded: true, content: Buffer.from(content).toString("base64"), filename, mimetype: "application/pdf" } });
   const templateCalls = () => calls.filter((c) => /^\/(Voucher\/|Document\/)/.test(c.path)).map((c) => c.path);
@@ -68,21 +68,14 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
           minIntervalMs: 0,
           maxRetries: 0,
           sleep: async () => {},
-          fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
-            const url = new URL(String(input));
-            const path = url.pathname.replace(/^\/api\/v1/, "");
-            calls.push({ method: init?.method ?? "GET", path });
-            const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
+          fetch: sevdeskFakeFetch(({ path, method, list }) => {
+            calls.push({ method: method, path });
             const answer = answers.get(path);
             if (answer) return answer();
             switch (path) {
-              case "/Tools/bookkeepingSystemVersion":
-                return json({ objects: { version: "1.0" } });
               case "/Voucher":
                 // die Vorlage selbst steht in der Liste, wird aber kein Beleg; dazu ein neuer Beleg aus ihr und einer mit eigener Datei
                 return list([vorlage, ohneDatei("ID_12", "ID_1"), { ...ohneDatei("ID_13", "ID_1"), document: { id: "ID_99", objectName: "Document" } }]);
-              case "/VoucherPos":
-                return list([]);
               case "/Voucher/ID_1":
                 return json({ objects: [vorlage] });
               case "/Voucher/ID_2":
@@ -93,21 +86,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
                 return download(PDF, "vertrag.pdf");
               case "/Document/ID_99/download":
                 return download("%PDF-1.4\n% eigene Datei\n", "eigen.pdf");
-              case "/Contact":
-              case "/ContactAddress":
-              case "/CommunicationWay":
-              case "/Invoice":
-              case "/CreditNote":
-              case "/Order":
-              case "/VatReport":
-              case "/Part":
-              case "/TaxSet":
-              case "/CheckAccount":
-              case "/CheckAccountTransactionLog":
-                return list([]);
             }
-            return json({ error: { message: `unbekannt ${path}` } }, 404);
-          }) as typeof fetch,
+          }),
         }),
     );
     await sevdesk.saveSevdeskKey("test-user", TOKEN);

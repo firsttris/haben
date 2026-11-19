@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { kennzahlenAusJournal } from "@haben/core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
       note: "",
       lines: lines.map((l) => ({ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: l.net, taxRate: l.rate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function bookedDocument(date: string, net: number, tax: number) {
@@ -304,7 +305,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
       exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 21 UStG" : "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 500_000, taxRate: 0 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   it("Reverse Charge und Drittland im Rechnungsmonat (auch bei Ist), steuerfrei nach Zahlung", async () => {
@@ -428,8 +429,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
 
     // EÜR: Ausgabe ist der gezahlte Nettobetrag, keine Vorsteuer aus § 13b
     const reports = await import("../auswertungen/reports.ts");
-    const payments = (await reports.euerPayments(2026)).filter((p) => p.kind === "document");
-    expect(payments).toEqual([expect.objectContaining({ paid: 5_000, totals: expect.objectContaining({ tax: 0, gross: 5_000 }) })]);
+    const euer = await reports.euerForYear(2026);
+    expect(euer.ausgaben.filter((l) => l.amount !== 0).map((l) => [l.key, l.amount])).toEqual([["ausgabe:software", 5_000]]);
+    expect(euer.monthly.ausgaben[9]).toBe(5_000);
     // Die Jahreserklärung summiert § 13b über die Monate und übermittelt ihn
     const annual = await import("../jahreserklaerung/annual.ts");
     expect((await annual.ustYear(2026)).figures).toMatchObject({ kz46: 10_000, kz47: 1_900, kz84: 5_000, kz85: 950, kz67: 2_850 });

@@ -71,6 +71,17 @@ export async function gehe(page: Page, path: string): Promise<void> {
   await page.waitForLoadState("networkidle");
 }
 
+/**
+ * Nach dem Konto die Fragen zur Einrichtung (#266) mit „Später“ überspringen und zu den Firmendaten wie vorher; die
+ * Fragen selbst prüft einrichtung.spec.ts
+ */
+export async function fragenUeberspringen(page: Page): Promise<void> {
+  await page.waitForURL("**/einrichtung");
+  await page.getByRole("link", { name: "Später" }).click();
+  await page.waitForURL((url) => url.pathname === "/");
+  await gehe(page, "/einstellungen");
+}
+
 /** Konto anlegen und die Firmendaten speichern; danach steht der Durchlauf in den Einstellungen */
 export async function einrichten(page: Page, kleinunternehmer = false): Promise<void> {
   await gehe(page, "/");
@@ -81,8 +92,7 @@ export async function einrichten(page: Page, kleinunternehmer = false): Promise<
   await page.getByLabel(/Passwort/).fill(USER.password);
   await page.getByRole("button", { name: "Konto anlegen" }).click();
   await page.getByRole("button", { name: "Später" }).click();
-  await page.waitForURL("**/einstellungen");
-  await page.waitForLoadState("networkidle");
+  await fragenUeberspringen(page);
 
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await firma.getByLabel("Name", { exact: true }).fill("Mustermann IT · Max Mustermann");
@@ -132,23 +142,37 @@ export async function neuenKontaktOeffnen(page: Page): Promise<void> {
   await trefferliste(page).getByRole("option", { name: "Neuen Kontakt anlegen" }).click();
 }
 
-/** Lieferanten am Beleg oder im Dauerbeleg über die Suche „Aus den Kontakten“ wählen; name wie in der Liste, auch „Name · USt-IdNr.“ */
+/** Das Feld für den Lieferanten: am Beleg das eine Feld „Lieferant“, im Dauerbeleg die Suche „Aus den Kontakten“ */
+const lieferantFeld = (page: Page) => page.getByRole("combobox", { name: /^(Lieferant|Aus den Kontakten)$/ });
+
+/** Lieferanten am Beleg oder im Dauerbeleg über die Suche wählen; name wie in der Liste, auch „Name · USt-IdNr.“ */
 export async function lieferantWaehlen(page: Page, name: string): Promise<void> {
-  const feld = page.getByRole("combobox", { name: "Aus den Kontakten" });
+  const feld = lieferantFeld(page);
   const gesucht = name.split(" · ")[0]!;
   await feld.fill(gesucht);
   await trefferliste(page).getByRole("option").filter({ hasText: gesucht }).first().click();
   await expect(feld).toHaveValue(new RegExp(`^${gesucht.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 }
 
-/** Dialog für einen neuen Lieferanten über den letzten Eintrag der Trefferliste öffnen; mit text als getipptem Namen */
+/**
+ * Dialog für einen neuen Lieferanten über den letzten Eintrag der Trefferliste öffnen; mit text als getipptem Namen. Ohne
+ * text bleibt stehen, was im Feld steht: am Beleg der Name („„Name“ als neuen Lieferanten anlegen“), sonst „Neuen Lieferanten anlegen“.
+ */
 export async function neuenLieferantenOeffnen(page: Page, text?: string): Promise<void> {
-  const feld = page.getByRole("combobox", { name: "Aus den Kontakten" });
+  const feld = lieferantFeld(page);
   if (text === undefined) await feld.click();
   else await feld.fill(text);
   await trefferliste(page)
-    .getByRole("option", { name: text === undefined ? "Neuen Lieferanten anlegen" : `„${text}“ als neuen Lieferanten anlegen` })
+    .getByRole("option", { name: text === undefined ? /neuen Lieferanten anlegen/i : `„${text}“ als neuen Lieferanten anlegen` })
     .click();
+}
+
+/** Klappt „Weitere Angaben“ am Beleg (USt-IdNr., Fällig am, Leistung, Währung, Notiz) oder am Kontakt (DATEV-Konten, Skonto, …) auf, wenn sie zu sind */
+export async function weitereAngabenOeffnen(page: Page): Promise<void> {
+  const bereich = page.locator("details.weitere-angaben");
+  if (await bereich.evaluate((el) => (el as HTMLDetailsElement).open)) return;
+  await bereich.locator("summary").click();
+  await expect(bereich).toHaveJSProperty("open", true);
 }
 
 /** Artikel aus der Trefferliste einer Position übernehmen */

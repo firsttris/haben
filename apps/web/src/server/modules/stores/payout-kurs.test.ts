@@ -1,8 +1,8 @@
-import { gzipSync, strToU8 } from "fflate";
 import { generateKeyPairSync } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AppStoreClient } from "@haben/import";
+import { APPLE_TEST_PERIOD, appleFinanceReport } from "../../../test-fixtures/apple-finanzbericht.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -14,17 +14,12 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 const p8 = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ type: "pkcs8", format: "pem" }).toString();
 const IBAN = "DE12500105170648489890";
 
-const report = gzipSync(
-  strToU8(
-    [
-      "Vendor Name\tStart Date\tEnd Date\tExtended Partner Share\tPartner Share Currency\tSale or Return",
-      "Muster\t09/28/2026\t11/01/2026\t7.00\tEUR\tS",
-      "Muster\t09/28/2026\t11/01/2026\t10.81\tUSD\tS",
-      "Muster\t09/28/2026\t11/01/2026\t35.00\tTWD\tS",
-    ].join("\n"),
-  ),
-);
-const appleClient: AppStoreClient = { financeDetail: async (month) => (month === "2026-10" ? report : null) };
+const report = appleFinanceReport([
+  ["7.00", "EUR"],
+  ["10.81", "USD"],
+  ["35.00", "TWD"],
+]);
+const appleClient: AppStoreClient = { financeDetail: async (period) => (period === APPLE_TEST_PERIOD ? report : null) };
 
 describe.skipIf(!testDatabaseUrl)("Auszahlung von Apple mit einer Währung ohne Kurs (Postgres)", () => {
   let stores: typeof import("./index.ts");
@@ -95,6 +90,37 @@ describe.skipIf(!testDatabaseUrl)("Auszahlung von Apple mit einer Währung ohne 
     expect(count!.n).toBe(0);
   });
 
+  it("schlägt einen Fiskalmonat mit Erlösanteil unter Dublettenverdacht nicht teilweise vor (#865)", async () => {
+    const [deposit] = await sql`select id from bank_transactions where bank_reference = 'bank-apple'`;
+    const [usd] = await sql`
+      select id, bank_account_id, booking_date, amount from bank_transactions where bank_reference = 'appstore-finance-2026-10-USD'
+    `;
+    const [source] = await sql`
+      insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${usd!.bank_account_id}, 'frueherer-import.csv', 'frueherer-import', 'dkb-csv', 1, 0) returning id
+    `;
+    const [original] = await sql`
+      insert into bank_transactions (bank_account_id, import_id, booking_date, amount, purpose, dedup_hash)
+      values (${usd!.bank_account_id}, ${source!.id}, ${usd!.booking_date}, ${usd!.amount}, 'Früherer Umsatz', 'frueherer-umsatz') returning id
+    `;
+    const [review] = await sql`
+      insert into bank_duplicate_reviews (transaction_id, original_transaction_id) values (${usd!.id}, ${original!.id}) returning id
+    `;
+    const view = await stores.storePayoutView(deposit!.id);
+    expect(view!.months).toMatchObject([{ amount: 700, suggested: false }]);
+    await expect(stores.takeOverStorePayout(actor, { transactionId: deposit!.id, monthIds: [usd!.id] })).rejects.toThrow(/Dublettenvermerk/);
+    await expect(stores.takeOverStorePayout(actor, { transactionId: deposit!.id, monthIds: view!.months.map((m) => m.id) })).rejects.toThrow(
+      /Dublettenvermerk.*USD/,
+    );
+
+    const { decideDuplicate } = await import("../bank/duplicate-review.ts");
+    await decideDuplicate(actor, { id: review!.id, decision: "duplicate", requestId: crypto.randomUUID() });
+    expect((await stores.storePayoutView(deposit!.id))!.months).toMatchObject([{ amount: 700, suggested: false }]);
+    const [decision] = await sql`select id from bank_duplicate_decisions where review_id = ${review!.id}`;
+    await decideDuplicate(actor, { id: review!.id, decision: "pending", decisionId: decision!.id });
+    await decideDuplicate(actor, { id: review!.id, decision: "distinct", requestId: crypto.randomUUID() });
+  });
+
   it("nimmt die Auszahlung an, sobald der Kurs eingetragen und die Währung übernommen ist", async () => {
     await sql`insert into exchange_rates (currency, month, rate, source) values ('TWD', '2026-10', 35.0, 'manuell')`;
     expect((await stores.syncStore(actor, "appstore", NOW)).imported.added).toBe(1);
@@ -102,5 +128,18 @@ describe.skipIf(!testDatabaseUrl)("Auszahlung von Apple mit einer Währung ohne 
     const view = await stores.storePayoutView(deposit!.id);
     expect(view!.months.map((m) => m.amount)).toEqual([700, 100, 1000]);
     expect(await stores.takeOverStorePayout(actor, { transactionId: deposit!.id, monthIds: view!.months.map((m) => m.id) })).toEqual({ difference: 0 });
+  });
+
+  it("lässt einen bereits ausgezahlten Erlösanteil im Konto des Stores", async () => {
+    const [review] = await sql<{ id: string; decision_id: string }[]>`
+      select r.id, haben_active_bank_duplicate_decision(r.id) as decision_id
+      from bank_duplicate_reviews r join bank_transactions t on t.id = r.transaction_id
+      where t.bank_reference = 'appstore-finance-2026-10-USD'
+    `;
+    const { decideDuplicate } = await import("../bank/duplicate-review.ts");
+    const { userMessage } = await import("../../errors.ts");
+    await decideDuplicate(actor, { id: review!.id, decision: "pending", decisionId: review!.decision_id });
+    const result = await decideDuplicate(actor, { id: review!.id, decision: "duplicate", requestId: crypto.randomUUID() }).catch(userMessage);
+    expect(result).toBe("Der Umsatz gehört zu einer bereits übernommenen Store-Auszahlung");
   });
 });

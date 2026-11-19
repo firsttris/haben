@@ -8,10 +8,16 @@ export type StatementFormat =
   | "swan-csv"
   /** Umsätze aus dem Online-Banking der Commerzbank (Semikolon-CSV ohne Kontostand) */
   | "commerzbank-csv"
+  /** Umsatzanzeige der ING (Semikolon-CSV mit Kopfblock, Saldo je Zeile; auch als gefilterter Export) */
+  | "ing-csv"
   /** Umsätze eines Kontos oder einer Pocket bei C24 (Komma-CSV ohne IBAN und Kontostand) */
   | "c24-csv"
+  /** Unbekannte Bank-CSV, Spalten von Hand zugeordnet (#1275) */
+  | "csv-zuordnung"
   | "camt053"
   | "enablebanking"
+  /** Abruf über FinTS (HKKAZ mit MT940 oder HKCAZ mit CAMT.052), #654 */
+  | "fints"
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
   | "accountable-xlsx"
   | "paypal-csv"
@@ -19,6 +25,8 @@ export type StatementFormat =
   | "shopify-payments-csv"
   | "ebay-csv"
   | "etsy-csv"
+  /** Zahlungsverlauf von Etsy Payments über die Open API v3 (kein Dateiimport) */
+  | "etsy-ledger"
   | "googleplay-earnings"
   | "appstore-finance"
   | "store-payout";
@@ -30,6 +38,7 @@ export const PSP_FORMATS: StatementFormat[] = [
   "shopify-payments-csv",
   "ebay-csv",
   "etsy-csv",
+  "etsy-ledger",
   "googleplay-earnings",
   "appstore-finance",
   "store-payout",
@@ -49,6 +58,12 @@ export interface ParsedTransaction {
   type?: string;
   /** Referenz der Bank, falls vorhanden (CAMT AcctSvcrRef, EndToEndId) */
   bankReference?: string;
+  /** Originale Enable-Banking-entry_reference, getrennt von der bisherigen bankReference. */
+  entryReference?: string;
+  /** Veränderliche transaction_id von Enable Banking; keine stabile Umsatzkennung. */
+  providerTransactionId?: string;
+  /** Position im Enable-Banking-Abruf vor der Sortierung des Auszugs. */
+  providerRowIndex?: number;
   /** Kennung des Auftraggebers (CAMT Refs/EndToEndId), auch wenn bankReference die Referenz der Bank trägt */
   endToEndId?: string;
   /** SEPA-Lastschrift: Gläubiger-ID und Mandatsreferenz, falls die Datei sie nennt */

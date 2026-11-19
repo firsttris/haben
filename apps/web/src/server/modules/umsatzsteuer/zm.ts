@@ -5,6 +5,7 @@ import {
   monthsOfPeriod,
   normalizeUstId,
   periodKey,
+  ustIdAufbauProblem,
   ustIdProblem,
   zmBerichtigung,
   zmEuro,
@@ -23,6 +24,7 @@ import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/ind
 import { loadCompany } from "../stammdaten/index.ts";
 import { vatFiguresContext, computeVatFigures } from "./vat-figures.ts";
 import { VatError } from "./vat.ts";
+import { zmBestaetigung, zuBestaetigendeNummern } from "./zm-bestaetigung.ts";
 
 /*
  * Zusammenfassende Meldung (§ 18a UStG) an das BZSt. Haben meldet die sonstigen Leistungen an Unternehmer im übrigen
@@ -79,7 +81,7 @@ export interface ZmIssue {
 }
 
 /** Echt übermittelte Meldungen eines Zeitraums in der Reihenfolge des Sendens */
-async function sentMeldungen(period: VatPeriod, q: Db | Tx) {
+export async function sentMeldungen(period: VatPeriod, q: Db | Tx) {
   return q
     .select({ berichtigt: schema.zmSubmissions.berichtigt, zeilen: schema.zmSubmissions.zeilen })
     .from(schema.zmSubmissions)
@@ -112,7 +114,7 @@ async function kennzahlGesendet(period: VatPeriod, kz: "kz21" | "kz41", q: Db | 
 }
 
 /**
- * Vorprüfung: eigene USt-IdNr. und Anschrift, die USt-IdNr. jedes Kunden wie ERiC sie prüft, und der Abgleich mit Kz 21
+ * Vorprüfung: eigene USt-IdNr. und Anschrift, die USt-IdNr. jedes Kunden wie ERiC sie prüft und nach dem Aufbau je Land, und der Abgleich mit Kz 21
  * (sonstige Leistungen) und Kz 41 (Lieferungen) der gesendeten Voranmeldungen. Die Kennzahlen werden je Voranmeldung auf
  * volle Euro abgeschnitten, die Meldung je Zeile; bis zu einem Euro je Zeile und Voranmeldung ist deshalb Rundung.
  */
@@ -137,10 +139,12 @@ export function zmIssues(input: {
   const gemeldeteIds = new Set(input.zeilen.map((z) => z.ustId));
   const seen = new Set<string>();
   for (const quelle of input.quellen.filter((q) => gemeldeteIds.has(q.ustId))) {
-    const problem = ustIdProblem(quelle.ustId, quelle.art);
+    // Was ERiC abweist, sperrt; ein falscher Aufbau je Land (#1413) nur als Warnung, die Rechnung ist festgeschrieben
+    const fehler = ustIdProblem(quelle.ustId, quelle.art);
+    const problem = fehler ?? ustIdAufbauProblem(quelle.ustId);
     if (!problem || seen.has(`${quelle.invoiceId} ${problem}`)) continue;
     seen.add(`${quelle.invoiceId} ${problem}`);
-    issues.push({ tone: "error", text: `Rechnung ${quelle.number} an ${quelle.customer}: ${problem}.` });
+    issues.push({ tone: fehler ? "error" : "warn", text: `Rechnung ${quelle.number} an ${quelle.customer}: ${problem}.` });
   }
   const gemeldet = input.zeilen.filter((z) => z.art === "S").reduce((s, z) => s + zmEuro(z.betrag), 0);
   if (input.kz21 === null) {
@@ -215,9 +219,14 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
     kennzahlGesendet(period, "kz21", q),
   ]);
   const zeilen = zmZeilen(quellen);
-  const kz41 = await kennzahlGesendet(period, "kz41", q);
   const sent = meldungen.length > 0;
   const gemeldet = gemeldeterStand(meldungen);
+  const naechsteZeilen = sent ? zmBerichtigung(gemeldet, zeilen) : zeilen;
+  // Nur was als Nächstes gesendet würde: eine Bestätigung von heute belegt ein schon gemeldetes Quartal nicht (FAQ des BZSt)
+  const [kz41, bestaetigung] = await Promise.all([
+    kennzahlGesendet(period, "kz41", q),
+    naechsteZeilen.length ? zmBestaetigung([...zuBestaetigendeNummern(naechsteZeilen)]) : { moeglich: false, offen: 0, issues: [] },
+  ]);
   const voranmeldungen = monthsOfPeriod(period).length;
   return {
     period,
@@ -229,10 +238,12 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
     /** Stand beim BZSt nach allen echt übermittelten Meldungen */
     gemeldet,
     /** Was als Nächstes gesendet würde: die Erstmeldung oder die geänderten Zeilen als Berichtigung */
-    naechste: { berichtigt: sent, zeilen: sent ? zmBerichtigung(gemeldet, zeilen) : zeilen },
+    naechste: { berichtigt: sent, zeilen: naechsteZeilen },
     kz21,
     kz41,
-    issues: zmIssues({ company, quellen, zeilen, kz21, kz41, voranmeldungen }),
+    /** Bestätigung der gemeldeten USt-IdNrn. beim BZSt (#1385) */
+    bestaetigung: { moeglich: bestaetigung.moeglich, offen: bestaetigung.offen },
+    issues: [...zmIssues({ company, quellen, zeilen, kz21, kz41, voranmeldungen }), ...bestaetigung.issues],
   };
 }
 

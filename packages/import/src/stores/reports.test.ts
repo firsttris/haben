@@ -1,12 +1,13 @@
 import { gzipSync, strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { StatementParseError } from "../errors.ts";
-import { microsToCents, parseAppStoreFinanceDetail, parseGooglePlayEarnings, parseMicros } from "./reports.ts";
+import { parseAppStoreFinanceDetail } from "./appstore-report.ts";
+import { microsToCents, parseGooglePlayEarnings, parseMicros } from "./reports.ts";
 
 /*
- * Nachgebaute Berichte nach den Spaltenbeschreibungen der Stores (echte Dateien lagen nicht vor):
- * Google https://support.google.com/googleplay/android-developer/answer/6135870 („Earnings“),
- * Apple https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-fields/ („Detailed“).
+ * Nachgebaute Berichte. Google nach der Spaltenbeschreibung (echte Dateien lagen nicht vor):
+ * https://support.google.com/googleplay/android-developer/answer/6135870 („Earnings“). Apple nach echten Berichten, siehe
+ * unten; Felder: https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-fields/ („Detailed“).
  */
 
 const GOOGLE_HEADER = [
@@ -135,10 +136,12 @@ describe("Google Play: Einnahmenbericht", () => {
   });
 });
 
+/*
+ * Aufbau wie in echten FINANCE_DETAIL-Berichten der Region Z1 (19 Berichte aus 2025 und 2026, #1424), Inhalt erfunden:
+ * drei Zeilen Vorspann (Vendor Name, Start Date, End Date), Kopfzeile ab „Transaction Date“, Datenzeilen mit leerem Feld
+ * am Ende, danach ohne Leerzeile der Summenblock je Land und Währung.
+ */
 const APPLE_HEADER = [
-  "Vendor Name",
-  "Start Date",
-  "End Date",
   "Transaction Date",
   "Settlement Date",
   "Apple Identifier",
@@ -159,49 +162,77 @@ const APPLE_HEADER = [
   "Region",
 ];
 
-function appleRow(country: string, quantity: string, share: string, extended: string, currency: string, saleOrReturn = "S") {
-  const row: Record<string, string> = Object.fromEntries(APPLE_HEADER.map((h) => [h, ""]));
-  Object.assign(row, {
-    "Vendor Name": "Muster Apps",
-    "Start Date": "09/28/2026",
-    "End Date": "11/01/2026",
-    "Transaction Date": "10/05/2026",
-    "Settlement Date": "10/06/2026",
-    "Apple Identifier": "1234567890",
-    SKU: "pro",
-    Title: "Pro-Version",
-    "Developer Name": "Muster Apps",
-    "Product Type Identifier": "IA1",
-    "Country of Sale": country,
-    Quantity: quantity,
-    "Partner Share": share,
-    "Extended Partner Share": extended,
-    "Partner Share Currency": currency,
-    "Customer Price": "4.99",
-    "Customer Currency": currency,
-    "Sale or Return": saleOrReturn,
-  });
-  return APPLE_HEADER.map((h) => row[h]).join("\t");
+type AppleRow = [country: string, quantity: string, share: string, extended: string, currency: string, saleOrReturn?: string];
+
+const appleLine = ([country, quantity, share, extended, currency, saleOrReturn = "S"]: AppleRow) =>
+  [
+    "10/05/2026",
+    "10/06/2026",
+    "1234567890",
+    "pro",
+    "Pro-Version",
+    "Muster Apps",
+    "1F",
+    country,
+    quantity,
+    share,
+    extended,
+    currency,
+    "4.990",
+    currency,
+    saleOrReturn,
+    "",
+    "",
+    "",
+    "",
+  ].join("\t");
+
+/** "10.47" oder "-3.49" in Cent, ohne Gleitkomma */
+const toCents = (amount: string) => Number(amount.replace(".", ""));
+const fromCents = (cents: number) => `${cents < 0 ? "-" : ""}${Math.trunc(Math.abs(cents) / 100)}.${String(Math.abs(cents) % 100).padStart(2, "0")}`;
+
+/** Summenblock wie von Apple: je Land und Währung Menge und Summe der Extended Partner Share */
+function appleSummary(rows: AppleRow[]): string[] {
+  const sums = new Map<string, { quantity: number; cents: number }>();
+  for (const [country, quantity, , extended, currency] of rows) {
+    const sum = sums.get(`${country}\t${currency}`) ?? { quantity: 0, cents: 0 };
+    sum.quantity += Number(quantity);
+    sum.cents += toCents(extended);
+    sums.set(`${country}\t${currency}`, sum);
+  }
+  return [
+    "Country Of Sale\tPartner Share Currency\tQuantity\tExtended Partner Share",
+    ...[...sums].map(([key, s]) => `${key}\t${s.quantity}\t${fromCents(s.cents)}`),
+  ];
 }
 
-const appleReport = (rows: string[], footer: string[] = []) => gzipSync(strToU8([APPLE_HEADER.join("\t"), ...rows, ...footer].join("\n")));
+const appleText = (rows: AppleRow[], options: { start?: string; end?: string; summary?: string[] } = {}) =>
+  [
+    "Vendor Name\tMuster Apps",
+    `Start Date\t${options.start ?? "09/28/2026"}`,
+    `End Date\t${options.end ?? "11/01/2026"}`,
+    APPLE_HEADER.join("\t"),
+    ...rows.map(appleLine),
+    ...(options.summary ?? appleSummary(rows)),
+    "",
+  ].join("\n");
+
+const appleReport = (...args: Parameters<typeof appleText>) => gzipSync(strToU8(appleText(...args)));
 
 describe("App Store: Finanzbericht Detailed (Z1)", () => {
-  const rows = [
-    appleRow("DE", "3", "3.49", "10.47", "EUR"),
-    appleRow("FR", "-1", "3.49", "-3.49", "EUR", "R"),
-    appleRow("US", "5", "3.50", "17.50", "USD"),
-    appleRow("JP", "1", "490", "490.00", "JPY"),
+  const rows: AppleRow[] = [
+    ["DE", "3", "3.49", "10.47", "EUR"],
+    ["FR", "-1", "3.49", "-3.49", "EUR", "R"],
+    ["US", "5", "3.50", "17.50", "USD"],
+    ["JP", "1", "490", "490.00", "JPY"],
   ];
   const rates = (currency: string, month: string) =>
     (({ "USD 2026-10": "1.0812", "JPY 2026-10": "161.5" }) as Record<string, string>)[`${currency} ${month}`] ?? null;
 
   it("legt je Währung einen Umsatz in Euro an, Fremdwährung zum Umrechnungskurs des Monats", () => {
-    const { statement, settlements } = parseAppStoreFinanceDetail(appleReport(rows, ["", "Total_Rows\t4", "Total_Amount\t514.48"]), {
-      period: "2026-10",
-      rateFor: rates,
-    });
+    const { statement, settlements } = parseAppStoreFinanceDetail(appleReport(rows), { rateFor: rates });
     expect(statement.format).toBe("appstore-finance");
+    expect([statement.periodFrom, statement.periodTo]).toEqual(["2026-09-28", "2026-11-01"]);
     expect(statement.transactions.map((t) => [t.bookingDate, t.amount, t.bankReference])).toEqual([
       ["2026-11-01", 698, "appstore-finance-2026-10-EUR"],
       // 490 JPY / 161,5 = 3,034 €; 17,50 USD / 1,0812 = 16,185 €
@@ -210,28 +241,67 @@ describe("App Store: Finanzbericht Detailed (Z1)", () => {
     ]);
     expect(statement.transactions[0]!.purpose).toBe("App Store Erlösanteil Fiskalmonat 10/2026 (2026-09-28 bis 2026-11-01) in EUR; 1 Verkäufe, 1 Rückgaben");
     expect(statement.transactions[2]!.purpose).toContain("in USD = 17,50 USD zum Kurs 1,0812 (10/2026)");
-    expect(statement.warnings).toEqual(["2 Zeilen ohne gültiges Start- und Enddatum (Summen- oder Fußzeilen) übersprungen."]);
-    expect(settlements.map((s) => [s.currency, s.net, s.euro, s.rate])).toEqual([
-      ["EUR", 698, 698, null],
-      ["JPY", 49000, 303, "161.5"],
-      ["USD", 1750, 1619, "1.0812"],
+    // Vorspann und Summenblock sind kein Anlass für einen Hinweis
+    expect(statement.warnings).toEqual([]);
+    expect(settlements.map((s) => [s.period, s.currency, s.net, s.euro, s.rate, s.lines])).toEqual([
+      ["2026-10", "EUR", 698, 698, null, 2],
+      ["2026-10", "JPY", 49000, 303, "161.5", 1],
+      ["2026-10", "USD", 1750, 1619, "1.0812", 1],
     ]);
   });
 
+  it("nimmt als Monat den Kalendermonat, den Apples Fiskalperiode überwiegend abdeckt", () => {
+    // Zeiträume aus echten Berichten: Perioden mit fünf Wochen beginnen im Vormonat oder enden im Folgemonat
+    for (const [start, end, month] of [
+      ["12/29/2024", "02/01/2025", "2025-01"],
+      ["08/31/2025", "09/27/2025", "2025-09"],
+      ["09/28/2025", "11/01/2025", "2025-10"],
+      ["11/30/2025", "12/27/2025", "2025-12"],
+    ] as const) {
+      const { settlements, statement } = parseAppStoreFinanceDetail(appleReport([rows[0]!], { start, end }));
+      expect(settlements[0]!.period).toBe(month);
+      expect(statement.transactions[0]!.bankReference).toBe(`appstore-finance-${month}-EUR`);
+    }
+  });
+
   it("lässt eine Währung ohne Kurs aus dem Konto und sagt es", () => {
-    const { statement, settlements } = parseAppStoreFinanceDetail(appleReport(rows), { period: "2026-10" });
+    const { statement, settlements } = parseAppStoreFinanceDetail(appleReport(rows));
     expect(statement.transactions.map((t) => t.bankReference)).toEqual(["appstore-finance-2026-10-EUR"]);
     expect(statement.warnings).toHaveLength(2);
     expect(statement.warnings[0]).toContain("Für JPY fehlt der Umsatzsteuer-Umrechnungskurs 10/2026");
     expect(settlements.find((s) => s.currency === "USD")!.euro).toBeNull();
   });
 
-  it("liest auch die ungepackte Datei und bricht bei fremder Datei oder kaputtem Betrag ab", () => {
-    const plain = strToU8([APPLE_HEADER.join("\t"), rows[0]].join("\r\n"));
-    expect(parseAppStoreFinanceDetail(plain).statement.transactions[0]).toMatchObject({ amount: 1047 });
+  it("liest auch die ungepackte Datei mit CRLF", () => {
+    const plain = strToU8(appleText([rows[0]!]).replaceAll("\n", "\r\n"));
+    expect(parseAppStoreFinanceDetail(plain).statement.transactions[0]).toMatchObject({ amount: 1047, bookingDate: "2026-11-01" });
+  });
+
+  it("zählt einen Vorgang ohne Transaction Date mit", () => {
+    // Apple: „The transaction date is only populated if it occurred within 30 days of the settlement date. Otherwise the
+    // field is blank.“ (Financial report fields, Detailed)
+    const text = appleText(rows).replace("10/05/2026\t10/06/2026", "\t10/06/2026");
+    const { settlements } = parseAppStoreFinanceDetail(strToU8(text));
+    expect(settlements.map((s) => [s.currency, s.net, s.lines])).toEqual([
+      ["EUR", 698, 2],
+      ["JPY", 49000, 1],
+      ["USD", 1750, 1],
+    ]);
+  });
+
+  it("bricht ab, wenn die Datei kein Finanzbericht ist oder etwas nicht passt", () => {
     expect(() => parseAppStoreFinanceDetail(strToU8("Provider\tSKU\tUnits\n"))).toThrow(/kein Finanzbericht/);
-    expect(() => parseAppStoreFinanceDetail(appleReport([appleRow("DE", "1", "1", "1,00", "EUR")]))).toThrow(/Ungültiger Betrag/);
-    expect(() => parseAppStoreFinanceDetail(appleReport([], ["Total_Rows\t0"]))).toThrow(/keine Vorgänge/);
+    expect(() => parseAppStoreFinanceDetail(appleReport([["DE", "1", "1", "1,00", "EUR"]], { summary: [] }))).toThrow(/Ungültiger Betrag/);
+    expect(() => parseAppStoreFinanceDetail(appleReport([]))).toThrow(/keine Vorgänge/);
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { start: "" }))).toThrow(/Zeitraum/);
+    // Ohne Summenblock fehlt die Gegenprobe; eine fremde Zeile nach den Vorgängen ist kein Summenblock
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: [] }))).toThrow(/fehlt der Summenblock/);
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: ["Total_Rows\t4"] }))).toThrow(/Ungültiger Betrag „“ \(Zeile 9\)/);
+    // Die Summen im Bericht sind die Gegenprobe: fehlt eine Zeile, passt der Summenblock nicht mehr
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows.slice(0, 3), { summary: appleSummary(rows) }))).toThrow(/JPY.*Summenblock/);
+    expect(() => parseAppStoreFinanceDetail(appleReport(rows, { summary: appleSummary([["DE", "3", "3.49", "10.48", "EUR"], ...rows.slice(1)]) }))).toThrow(
+      /EUR.*Summenblock/,
+    );
   });
 });
 

@@ -17,9 +17,9 @@ const REF = (id: string) => `#/components/schemas/${id}`;
 const MAX_DOCUMENT_MB = MAX_DOCUMENT_SIZE / 1024 / 1024;
 
 const DESCRIPTION = [
-  "Allgemeine Schnittstelle von Haben für eigene Werkzeuge und Automationen. Sie liest und schreibt Kontakte und",
-  "Rechnungsentwürfe und nimmt Eingangsbelege an, die in Haben als „Zu prüfen“ landen. Sie bucht nichts, schreibt nichts",
-  "fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
+  "Allgemeine Schnittstelle von Haben für eigene Werkzeuge und Automationen. Sie liest und schreibt Kontakte,",
+  "Rechnungsentwürfe und Katalogartikel und liest Angebote. Eingangsbelege landen in Haben als „Zu prüfen“. Sie bucht",
+  "nichts, schreibt nichts fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
   "",
   "Anmeldung mit einem API-Token aus Einstellungen → KI-Assistenten und API als `Authorization: Bearer hb_…`. Jeder",
   "Endpunkt verlangt ein Recht (scope); schreiben schließt lesen ein.",
@@ -65,11 +65,11 @@ function errorResponses(route: ApiRoute): Record<string, unknown> {
     401: errorResponse("Kein gültiges Token, oder der Zugang ist in Haben ausgeschaltet"),
     403: errorResponse(`Dem Token fehlt das Recht ${route.scope}`),
     ...(route.path.includes("{id}") ? { 404: errorResponse("Nicht gefunden") } : {}),
-    ...Object.fromEntries(Object.entries(route.errors ?? {}).map(([status, description]) => [status, errorResponse(description)])),
     ...(withBody ? bodyErrors : {}),
     ...(route.method !== "GET" ? { 422: errorResponse("Fachlich abgelehnt, z. B. unbekannter Kontakt") } : {}),
     429: errorResponse("Mehr als 120 Anfragen je Minute und Token"),
     500: errorResponse("Interner Fehler, Details im Server-Log"),
+    ...Object.fromEntries(Object.entries(route.errors ?? {}).map(([status, description]) => [status, errorResponse(description)])),
   };
 }
 
@@ -121,7 +121,9 @@ function buildDocument() {
     tags: [
       { name: "Kontakte", description: "Kunden; versioniert, nicht löschbar" },
       { name: "Rechnungen", description: "Alle Rechnungen lesen, Entwürfe anlegen, ändern und löschen" },
+      { name: "Angebote", description: "Alle Angebote lesen; festgeschrieben, versendet und abgerechnet wird in Haben" },
       { name: "Belege", description: "Eingangsbelege hochladen und ihren Stand lesen; geprüft und gebucht wird in Haben" },
+      { name: "Artikel", description: "Katalogartikel lesen, anlegen und ändern" },
       { name: "Leistungen", description: "Zeiteinträge je Kunde, auch aus Zeiterfassungsprogrammen wie Kimai; abgerechnet wird in Haben" },
     ],
     paths,

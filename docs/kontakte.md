@@ -1,8 +1,8 @@
 ---
 title: "Kontakte: Kunden und Lieferanten"
 description: >-
-  Ein Verzeichnis für Kunden und Lieferanten in Haben: Felder, Ansprechpartner, Rechnungen und Belege
-  am Kontakt, SEPA-Lastschriftmandate.
+  Ein Verzeichnis für Kunden und Lieferanten in Haben: Felder, Ansprechpartner, USt-IdNr. beim BZSt
+  bestätigen, Rechnungen und Belege am Kontakt, SEPA-Lastschriftmandate.
 ---
 
 # Kontakte
@@ -13,21 +13,24 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | --- | --- |
 | Name oder Firma | Pflicht |
 | Rolle | **Kunde**, **Lieferant** oder beides; mindestens eine. Kunden stehen bei Rechnungen, Angeboten, Serienrechnungen und Textbausteinen zur Auswahl, Lieferanten bei den [Belegen](belege.md) und Dauerbelegen. Das prüft auch der Server, etwa bei einem Aufruf über die API: Ein Kontakt ohne die passende Rolle lässt sich dort nicht zuordnen, die Meldung nennt die Rolle. Geprüft wird beim Zuordnen und beim Wechsel des Kontakts; ein bestehender Verweis auf einen Kontakt, der die Rolle inzwischen nicht mehr hat, bleibt beim Speichern anderer Felder stehen. |
-| Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. |
+| Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. Die Nummer, unter der ein Kunde dich führt, gehört in **Unsere Lieferantennummer bei diesem Kunden**. |
 | Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. Mit einem Format unter **Einstellungen › Rechnungen › Kundennummern** vergibt Haben sie beim Anlegen selbst, wenn du das Feld leer lässt (siehe unten). |
 | DATEV-Debitor, DATEV-Kreditor | Personenkonten für die Steuerberatung, getrennt von Kunden- und Lieferantennummer; ein Kontakt mit beiden Rollen kann beide tragen. Fünfstellig wie bei DATEV mit vierstelligen Sachkonten: Debitoren 10000 bis 69999, Kreditoren 70000 bis 99999 ([DATEV-Kontenrahmen SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf) und [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf) 2026, jeweils S. 36). Andere Längen lehnt Haben ab, statt sie zu kürzen. Jede Nummer gehört genau einem Kontakt; ist sie schon vergeben, nennt das Formular den Kontakt. Mit [Personenkonten im DATEV-Export](auswertungen.md#personenkonten) steht sie im Buchungsstapel und ist ab dem ersten Export fest; leer vergibt sie der Export, wenn der Kontakt eine braucht. |
 | E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
 | Telefon | Frei, mit Ziffern, Leerzeichen und `+ ( ) / - .`, z. B. `+49 941 123456`. Steht in der Kontaktliste unter der E-Mail und lässt sich suchen, aber nicht auf Rechnungen; für eine Person bei der Firma gibt es die [Ansprechpartner](#ansprechpartner). |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
-| Land (ISO-Code) | Zwei Buchstaben, Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
-| USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. Gibt es sie schon bei einem anderen Kontakt, auch einem archivierten, weist Haben nach dem Tippen darauf hin, mit Link auf den Kontakt, statt einen zweiten anzulegen; gespeichert wird trotzdem, zusammengeführt nichts. |
+| Land (z. B. DE) | Ländercode aus zwei Buchstaben (ISO 3166-1), Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
+| USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. Gibt es sie schon bei einem anderen Kontakt, auch einem archivierten, weist Haben nach dem Tippen darauf hin, mit Link auf den Kontakt, statt einen zweiten anzulegen; gespeichert wird trotzdem, zusammengeführt nichts. Die Nummer eines anderen EU-Mitgliedstaats oder Nordirlands (`XI`) [bestätigt das BZSt](#ust-idnr-beim-bzst-bestätigen). |
 | IBAN | Hilft beim Bankabgleich. Wird beim ersten zugeordneten Zahlungseingang automatisch gemerkt, wenn das Feld leer ist. |
 | Leitweg-ID (öffentliche Auftraggeber) | Steht auf der Rechnung und wird im XML als Käuferreferenz verwendet. |
+| Unsere Lieferantennummer bei diesem Kunden | Die Nummer, unter der dich der Kunde als Lieferanten führt; größere Kunden ordnen Rechnungen damit zu. Steht im Kopf der Rechnung als „Lieferantennummer“ (auf Englisch „Supplier number“) und im XML als Verkäuferkennung (BT-29), ohne Schema-ID, weil der Kunde sie selbst vergibt (EN 16931-1, BT-29-1). Die Rechnung behält die Nummer vom Festschreiben, auch ihr Storno. In der [REST-API](api.md) heißt das Feld `unsereLieferantennummer`. |
 | Standardformat für Rechnungen | ZUGFeRD, XRechnung (CII), XRechnung (UBL) oder „wie in den Einstellungen“. |
 | Sprache von Rechnungen und Angeboten | Deutsch oder Englisch, siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch). |
 | Skonto | „wie in den Einstellungen“ oder „eigenes für diesen Kunden“ mit bis zu drei Stufen; ohne Stufe bekommt der Kunde kein Skonto (siehe [Skonto](rechnungen-zahlung.md#skonto)). |
 
-**Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Platzhalter wie beim [Nummernformat](einrichtung.md#nummernformat), das Jahr ist hier aber nicht nötig, weil der Zähler nicht jährlich neu beginnt. Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
+**Weitere Angaben.** Das Seltene steht im Formular eingeklappt unter **Weitere Angaben**: DATEV-Debitor und -Kreditor, Stundensatz, Leitweg-ID, Standardformat und Skonto. Die Überschrift nennt, was dort gesetzt ist („Leitweg-ID gesetzt · Skonto 2 % in 10 Tagen“); ein Fehler in einem dieser Felder klappt den Bereich auf. Auch zugeklappt gehen alle Werte mit dem Speichern.
+
+**Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Welche Platzhalter gehen, steht unter [Kundennummern](einrichtung.md#kundennummern). Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
 
 ## Die Liste sortieren
 
@@ -49,12 +52,23 @@ Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine ode
 
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
 
+## USt-IdNr. beim BZSt bestätigen
+
+Für innergemeinschaftliche Lieferungen muss die USt-IdNr. des Kunden gültig sein ([§ 6a Abs. 1 Satz 1 Nr. 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__6a.html)); bei Reverse Charge gilt der Kunde mit ihr als Unternehmer, wenn du sie samt Name und Anschrift hast bestätigen lassen (UStAE 3a.2 Abs. 9 Sätze 4 und 5). Das tut das Bundeszentralamt für Steuern (BZSt) im Bestätigungsverfahren ([§ 18e UStG](https://www.gesetze-im-internet.de/ustg_1980/__18e.html)); Haben fragt es über dessen [eVatR-Schnittstelle](https://api.evatr.vies.bzst.de/api-docs). Die Karte **Bestätigung beim BZSt** auf der Detailseite zeigt die letzte Antwort, bei gültiger Nummer mit dem Vergleich von Name, Straße, PLZ und Ort (**Stimmt**, **Stimmt nicht**, **Nicht angefragt** oder **Nicht mitgeteilt**, wenn der Mitgliedstaat die Angabe nicht mitteilt), und darunter alle Abfragen.
+
+- **Wann:** nach dem Anlegen und Speichern unter **Kontakte**, wenn die Nummer noch nie angefragt wurde oder sich Name oder Anschrift seit der letzten Bestätigung geändert haben, jederzeit mit **Beim BZSt bestätigen**, [vor dem Festschreiben](rechnungen.md#umsatzsteuer-auf-der-rechnung) einer Rechnung mit Reverse Charge oder innergemeinschaftlicher Lieferung und mit **Beim BZSt bestätigen** in der [Zusammenfassenden Meldung](umsatzsteuer.md#vorprüfung-der-zm). War die Nummer zuletzt ungültig, fragt Haben beim Speichern nicht von selbst neu. Das Speichern wartet nicht auf das BZSt.
+- **Wie:** Erst einfach, ob die Nummer gültig ist, dann bei gültiger Nummer qualifiziert mit Name und Anschrift; so verlangen es die [FAQ des BZSt](https://www.bzst.de/DE/Unternehmen/Identifikationsnummern/Umsatzsteuer-Identifikationsnummer/FAQ/faq_ust_node.html). Ohne Ort fragt Haben nur einfach, in der Zusammenfassenden Meldung immer nur einfach.
+- **Was ans BZSt geht:** deine USt-IdNr. aus den [Firmendaten](einrichtung.md#firmendaten), die USt-IdNr. des Kontakts und bei der qualifizierten Abfrage sein Name, seine Straße, PLZ und Ort. Das BZSt reicht die Anfrage an den Mitgliedstaat weiter, der die Nummer erteilt hat.
+- **Nachweis:** Jede Antwort zur Nummer (gültig, nicht vergeben, noch nicht oder nicht mehr gültig) speichert Haben mit Zeitpunkt, den gesendeten Angaben und dem empfangenen Datensatz unverändert; bei Abfragen über die Schnittstelle ist dieser Datensatz der Nachweis der qualifizierten Abfrage (UStAE 18e.1 Abs. 2 Sätze 3 bis 5, FAQ des BZSt). Eine schriftliche Bestätigung verschickt das BZSt nicht, und rückwirkend bestätigt es nichts. Die Antworten lassen sich nicht ändern oder löschen und stehen im Änderungsprotokoll und im [Jahresarchiv](auswertungen.md#jahresexport).
+- **Fehler:** Ist der Dienst nicht erreichbar oder meldet er einen Fehler, sagt Haben das und speichert nichts. Es wiederholt nicht von selbst; das BZSt bittet, es später noch einmal zu versuchen. Meldet das BZSt, die Höchstzahl qualifizierter Abfragen sei erreicht, bleibt es bei der einfachen Bestätigung, und das nächste Speichern fragt neu.
+- **Grenzen:** Deutsche Nummern bestätigt das BZSt nicht. Nummern, deren Aufbau nicht zum Land passt (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm)), fragt Haben nicht an. Ohne deine USt-IdNr. in den Firmendaten sagt die Karte, was fehlt; mit `HABEN_EVATR=off` ([Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen)) fragt Haben nie. Kontakte, die du anderswo anlegst oder änderst (Dialog in Rechnung, Beleg und Vorlagen, Import, REST-API), bestätigt Haben beim Speichern nicht. Vor dem Festschreiben prüft es die Nummer, bei Reverse Charge auch Name und Ort der letzten qualifizierten Antwort, aber nicht, ob sich Name oder Anschrift seitdem geändert haben; das bestätigst du auf der Detailseite des Kontakts.
+
 ## Rechnungen und Belege am Kontakt
 
 Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/firsttris/haben/issues/587)):
 
 - **Umsatz und Rechnungen** (Kunde): festgeschriebene Rechnungen aus Haben und die Einnahmen aus dem Archiv des Umzugs. Entwürfe zählen nicht. Stornorechnung, Rechnungskorrektur und Gutschrift mindern mit ihrem negativen Betrag, und zwar im Jahr ihres eigenen Datums: Ein Storno im Januar zu einer Rechnung vom Dezember mindert das neue Jahr.
-- **Ausgaben und Belege** (Lieferant): gebuchte [Belege](belege.md) und die Ausgaben aus dem Archiv. Ein stornierter Beleg steht in der Liste, zählt aber nicht; ungebuchte Belege fehlen.
+- **Ausgaben und Belege** (Lieferant): gebuchte [Belege](belege.md), in der Spalte „Art“ mit der Kategorie und der Nummer ihres Standardkontos (beim Anlagegut ohne Nummer), und die Ausgaben aus dem Archiv. Ein stornierter Beleg steht in der Liste, zählt aber nicht; ungebuchte Belege fehlen.
 
 Oben stehen die Summen je Jahr, netto und brutto, mit dem Anteil aus dem Altbestand und bei mehreren Jahren einer Zeile **Gesamt**. Ab zwei Jahren zeigt ein Säulendiagramm darüber die Nettosummen, in den Farben der Einnahmen bzw. Ausgaben wie unter [Auswertungen](auswertungen.md#einnahmen-und-ausgaben-je-monat); Zeigen oder Fokus nennt netto, brutto und den Anteil aus dem Altbestand. Ein Klick auf ein Jahr in der Tabelle oder auf seine Säule (per Tastatur mit Enter) zeigt seine Einträge darunter; ohne Wahl ist es das neueste Jahr mit Einträgen. Jede Zeile führt zur Rechnung, zum Beleg oder zum archivierten Beleg.
 
@@ -65,7 +79,7 @@ Oben stehen die Summen je Jahr, netto und brutto, mit dem Anteil aus dem Altbest
 
 ## SEPA-Lastschriftmandate
 
-Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
+Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden, seine Einzugsermächtigung, auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
 
 | Feld | Hinweis |
 | --- | --- |

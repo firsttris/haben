@@ -1,6 +1,6 @@
 import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
-import { UserError } from "../../errors.ts";
+import { BankError } from "./bank-error.ts";
 import {
   ACCOUNTS,
   paymentProviderAccount,
@@ -11,7 +11,7 @@ import {
   type LohnZahlung,
   lohnZahlungKonto,
   directPosting,
-  ustPrivatPosting,
+  privatKontoPosting,
   documentOpen,
   exchangeDifferenceBankPosting,
   exchangeDifferencePosting,
@@ -23,6 +23,7 @@ import {
   findTransferCounterpart,
   payoutKey,
   aufKontoAngeboten,
+  aufRechtsformAngeboten,
   learnedDirectBooking,
   type DirectSuggestion,
   type LearnedBooking,
@@ -34,31 +35,46 @@ import {
   advancePaymentDateProblem,
   recordedTaxShares,
   settlementTaxShares,
-  skontoZahlfristen,
   suggestMatches,
   type DirectBooking,
   type DirektKategorie,
-  kategorieText,
   type InvoiceTotals,
-  type OpenItem,
   type OwnAccount,
   type PostingLine,
   type Steuerart,
   type SteuerPosten,
-  steuerzahlungText,
   type DarlehenTeil,
-  darlehenText,
   type TaxShare,
+  inCents,
+  gruppiereGebuehren,
 } from "@haben/core";
-import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
+import {
+  checkBalanceContinuity,
+  parseStatement,
+  StatementParseError,
+  withDedupHashes,
+  type BankCsvMapping,
+  type ParsedStatement,
+  type ParsedTransaction,
+} from "@haben/import";
 import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
+import { importAccount } from "./import-konto.ts";
+import { recordDuplicateCandidates } from "./duplicate-scan.ts";
+import { duplicateReviewsForTransaction } from "./duplicate-review.ts";
+import { transactionAllocations } from "./transaction-allocations.ts";
+import { lockImportObservations, recordImportObservations } from "./import-observations.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { documentNotCancelled } from "../../db/document-cancelled.ts";
-import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import {
+  bankDuplicateConfirmedSql,
+  bankDuplicatePendingSql,
+  bankDuplicateProposalEligibleSql,
+  bankNeutralizedSql,
+  bankOpenAmountSql,
+} from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import {
   invoicePaymentPostingMode,
@@ -67,22 +83,22 @@ import {
   invoicePostingMode,
   lockInvoice,
   invoicePaymentGroup,
-  invoicePayments,
   paidByTarget,
   paperCancellationIds,
+  paymentProcedure,
   unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
 import { belegTotals, freigabeNachziehen } from "../umsatzsteuer/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
-import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
+import { assertUstvaOffen, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
-import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts";
-import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.ts";
+import { directDebitMatch } from "./lastschrift-abgleich.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
-import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { aufladungBuchung, kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { openItems } from "./offene-posten.ts";
 import { quellenHinweis } from "./quellen.ts";
 import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
@@ -91,9 +107,12 @@ import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from ".
 import { bankTransactionMatch } from "./search.ts";
 import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";
 
-export class BankError extends UserError {}
+export { BankError, openItems };
 
-const normalizeIban = (iban: string) => iban.replace(/\s/g, "").toUpperCase();
+/** Eine CSV, die keiner bekannten Bank gehört; die Seite bietet dann die Spaltenzuordnung an (#1275) */
+export class UnbekannteCsvError extends BankError {}
+
+export const normalizeIban = (iban: string) => iban.replace(/\s/g, "").toUpperCase();
 
 const purposeSchema = z.enum(["geschaeft", "steuer", "ruecklage", "privat"]);
 
@@ -105,6 +124,14 @@ export const accountSchema = z.object({
     .transform(normalizeIban)
     .pipe(z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ungültig")),
 });
+
+/**
+ * Ein Import mit Inhalt: Der Eintrag eines abgelehnten Abrufs (`recordRefusedBatch`) hat weder Zeitraum noch Umsätze und
+ * zählt nicht als letzter Import (Kontostand, Saldenfolge). Ohne diese Bedingung käme er bei `desc(periodTo)` zuerst. Ebenso
+ * der Eintrag zu einem Umsatz, den Haben nach einem Konflikt übernommen hat (`resolveConflict`): ohne Zeitraum und Salden.
+ */
+const echterImport = sql`not (${schema.bankImports.periodTo} is null and ${schema.bankImports.added} = 0 and ${schema.bankImports.skipped} = 0)
+  and not exists (select 1 from import_resolutions r join bank_transactions t on t.id = r.transaction_id where t.import_id = ${schema.bankImports.id})`;
 
 export async function listAccounts() {
   const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
@@ -118,13 +145,26 @@ export async function listAccounts() {
           format: schema.bankImports.format,
         })
         .from(schema.bankImports)
-        .where(eq(schema.bankImports.bankAccountId, account.id))
+        .where(and(eq(schema.bankImports.bankAccountId, account.id), echterImport))
         .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
         .limit(1);
-      const [open] = await db
-        .select({ n: sql<number>`count(*)::int` })
-        .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat()));
+      const offeneUmsaetze = and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, nichtPrivat());
+      // Beim Dienstleister stehen Zahlung und Gebühr derselben Bewegung in der Liste in einer Zeile und zählen einmal
+      const openCount =
+        account.purpose === "zahlungsdienstleister"
+          ? gruppiereGebuehren(
+              await db
+                .select({
+                  id: schema.bankTransactions.id,
+                  bankAccountId: schema.bankTransactions.bankAccountId,
+                  bankReference: schema.bankTransactions.bankReference,
+                  amount: schema.bankTransactions.amount,
+                  open: openAmountSql.mapWith(Number),
+                })
+                .from(schema.bankTransactions)
+                .where(offeneUmsaetze),
+            ).length
+          : ((await db.select({ n: sql<number>`count(*)::int` }).from(schema.bankTransactions).where(offeneUmsaetze))[0]?.n ?? 0);
       // Umsätze, die auf einem privaten Konto nicht buchbar sind, zählen nicht als offen, sondern stehen daneben (#1088)
       const privateCount = await zaehlePrivat(account.id);
       // Zahlungsdienstleister nennen keinen Kontostand: Guthaben als Summe der importierten Umsätze
@@ -133,7 +173,7 @@ export async function listAccounts() {
           ? await db
               .select({ total: sql<string>`coalesce(sum(${schema.bankTransactions.amount}), 0)` })
               .from(schema.bankTransactions)
-              .where(eq(schema.bankTransactions.bankAccountId, account.id))
+              .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`not ${bankDuplicateConfirmedSql}`))
           : [];
       // Beim Dienstleister bleibt nach zwei Wochen nichts offen, was zugeordnet werden kann; sonst fehlt eine Zuordnung
       const [stale] =
@@ -152,7 +192,7 @@ export async function listAccounts() {
       return {
         ...account,
         lastImport: last ?? null,
-        openCount: open?.n ?? 0,
+        openCount,
         privateCount,
         providerBalance: sum ? Number(sum.total) : null,
         staleOpenCount: stale?.n ?? 0,
@@ -248,42 +288,43 @@ export async function importStatement(actor: string, file: { bytes: Uint8Array; 
 export async function storeStatement(
   tx: Tx,
   statement: ParsedStatement,
-  source: { filename: string; sha256: string },
+  source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
   accountId: string | null,
 ): Promise<ImportResult> {
-  let account: typeof schema.bankAccounts.$inferSelect | undefined;
-  const fileIban = statement.accountIban ? normalizeIban(statement.accountIban) : null;
-  if (accountId) {
-    [account] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, accountId));
-    if (!account) throw new BankError("Konto nicht gefunden.");
-    if (fileIban && fileIban !== account.iban) {
-      throw new BankError(`Die Datei gehört zum Konto ${fileIban}, nicht zu ${account.name}.`);
-    }
-    // Export eines Zahlungsdienstleisters nur in dessen Konto, ein Kontoauszug nie dorthin
-    const providerFile = PSP_FORMATS.includes(statement.format);
-    if (providerFile !== (account.purpose === "zahlungsdienstleister")) {
-      throw new BankError(
-        providerFile
-          ? `${source.filename}: Das ist der Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`
-          : `${source.filename}: ${account.name} ist ein Zahlungsdienstleister; dorthin gehört nur dessen Export.`,
-      );
-    }
-  } else if (fileIban) {
-    account = await accountForIban(tx, fileIban, statement.accountName);
-  } else if (PSP_FORMATS.includes(statement.format)) {
-    throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
-  } else {
-    throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
-  }
-  // Ein Konto, das nicht zu dieser Firma gehört (#462), nimmt nichts mehr an: weder eine Datei noch der Abruf
-  if (account.excludedAt) {
-    throw new BankError(`${source.filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
-  }
+  const { account, continuity } = await prepareStatement(tx, statement, source.filename, accountId);
+  const transactions = withDedupHashes(statement.transactions);
+  const known = await knownHashes(
+    tx,
+    account.id,
+    transactions.map((t) => t.dedupHash),
+  );
+  const fresh = transactions.filter((t) => !known.has(t.dedupHash));
+  const fromEnableBanking = statement.format === "enablebanking";
+  const scanDays = fromEnableBanking ? [...new Set(fresh.map((row) => row.bookingDate))] : [];
+  const observed = fromEnableBanking
+    ? await lockImportObservations(tx, account.id, scanDays, { hashes: transactions.filter((row) => known.has(row.dedupHash)) })
+    : [];
+  const { importId, transactionIds } = await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  await recordImportObservations(tx, importId, observed);
+  // Ohne Quellenbindung ist auch eine innerhalb des Abrufs eindeutige Referenz kein Beleg über mehrere Abrufe.
+  await recordDuplicateCandidates(tx, account.id, scanDays, new Set(transactionIds.values()), new Set());
+  return statementResult(tx, account, statement, continuity, fresh.length, transactions);
+}
+
+/** Konto finden, Saldenfolge zum vorigen Import prüfen und das Konto sperren, damit parallele Importe nichts doppelt anlegen */
+export async function prepareStatement(tx: Tx, statement: ParsedStatement, filename: string, accountId: string | null) {
+  const account = await importAccount(tx, statement, filename, accountId);
 
   const [previous] = await tx
     .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })
     .from(schema.bankImports)
-    .where(and(eq(schema.bankImports.bankAccountId, account.id), statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`))
+    .where(
+      and(
+        eq(schema.bankImports.bankAccountId, account.id),
+        echterImport,
+        statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`,
+      ),
+    )
     .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
     .limit(1);
   const continuity = checkBalanceContinuity(
@@ -292,32 +333,38 @@ export async function storeStatement(
   );
 
   // Konto sperren, damit parallele Importe dieselben Umsätze nicht doppelt anlegen
-  await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account.id)).for("update");
-  const transactions = withDedupHashes(statement.transactions);
-  const known = new Set(
-    transactions.length === 0
-      ? []
-      : (
-          await tx
-            .select({ hash: schema.bankTransactions.dedupHash })
-            .from(schema.bankTransactions)
-            .where(
-              and(
-                eq(schema.bankTransactions.bankAccountId, account.id),
-                inArray(
-                  schema.bankTransactions.dedupHash,
-                  transactions.map((t) => t.dedupHash),
-                ),
-              ),
-            )
-        ).map((r) => r.hash),
-  );
-  const fresh = transactions.filter((t) => !known.has(t.dedupHash));
-  const added = fresh.length;
+  const [locked] = await tx
+    .select({ excludedAt: schema.bankAccounts.excludedAt })
+    .from(schema.bankAccounts)
+    .where(eq(schema.bankAccounts.id, account.id))
+    .for("update");
+  if (!locked || locked.excludedAt) throw new BankError("Das Konto ist ausgeschlossen oder nicht mehr vorhanden.");
+  return { account, continuity };
+}
+
+/** Dubletten-Hashes, die das Konto schon hat */
+export async function knownHashes(tx: Tx, accountId: string, hashes: string[]): Promise<Set<string>> {
+  if (hashes.length === 0) return new Set();
+  const rows = await tx
+    .select({ hash: schema.bankTransactions.dedupHash })
+    .from(schema.bankTransactions)
+    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), inArray(schema.bankTransactions.dedupHash, hashes)));
+  return new Set(rows.map((r) => r.hash));
+}
+
+/** Importprotokoll und neue Umsätze schreiben; liefert die Kennung des Imports und je Dubletten-Hash den neuen Umsatz */
+export async function insertStatement(
+  tx: Tx,
+  accountId: string,
+  statement: ParsedStatement,
+  source: { filename: string; sha256: string; csvMapping?: BankCsvMapping },
+  fresh: (ParsedTransaction & { dedupHash: string })[],
+  skipped: number,
+): Promise<{ importId: string; transactionIds: Map<string, string> }> {
   const [imported] = await tx
     .insert(schema.bankImports)
     .values({
-      bankAccountId: account.id,
+      bankAccountId: accountId,
       filename: source.filename.slice(0, 200),
       sha256: source.sha256,
       format: statement.format,
@@ -325,31 +372,48 @@ export async function storeStatement(
       periodTo: statement.periodTo ?? null,
       openingBalance: statement.openingBalance ?? null,
       closingBalance: statement.closingBalance ?? null,
-      added,
-      skipped: transactions.length - added,
+      added: fresh.length,
+      skipped,
       warnings: statement.warnings,
+      csvMapping: source.csvMapping ?? null,
     })
     .returning();
+  const transactionIds = new Map<string, string>();
   if (fresh.length > 0) {
-    await tx.insert(schema.bankTransactions).values(
-      fresh.map((t) => ({
-        bankAccountId: account.id,
-        importId: imported!.id,
-        bookingDate: t.bookingDate,
-        valueDate: t.valueDate ?? null,
-        amount: t.amount,
-        currency: t.currency,
-        counterpartyName: t.counterpartyName,
-        counterpartyIban: t.counterpartyIban ? normalizeIban(t.counterpartyIban) : null,
-        purpose: t.purpose,
-        type: t.type ?? null,
-        bankReference: t.bankReference ?? null,
-        endToEndId: t.endToEndId ?? null,
-        dedupHash: t.dedupHash,
-      })),
-    );
+    const rows = await tx
+      .insert(schema.bankTransactions)
+      .values(
+        fresh.map((t) => ({
+          bankAccountId: accountId,
+          importId: imported!.id,
+          bookingDate: t.bookingDate,
+          valueDate: t.valueDate ?? null,
+          amount: t.amount,
+          currency: t.currency,
+          counterpartyName: t.counterpartyName,
+          counterpartyIban: t.counterpartyIban ? normalizeIban(t.counterpartyIban) : null,
+          purpose: t.purpose,
+          type: t.type ?? null,
+          bankReference: t.bankReference ?? null,
+          endToEndId: t.endToEndId ?? null,
+          dedupHash: t.dedupHash,
+        })),
+      )
+      .returning({ id: schema.bankTransactions.id, hash: schema.bankTransactions.dedupHash });
+    for (const r of rows) transactionIds.set(r.hash, r.id);
   }
+  return { importId: imported!.id, transactionIds };
+}
 
+/** Ergebnis eines gespeicherten Auszugs für die Oberfläche */
+export async function statementResult(
+  tx: Tx,
+  account: { id: string; name: string },
+  statement: ParsedStatement,
+  continuity: { ok: boolean; message?: string },
+  added: number,
+  transactions: (ParsedTransaction & { dedupHash: string })[],
+): Promise<ImportResult> {
   return {
     accountId: account.id,
     accountName: account.name,
@@ -405,6 +469,8 @@ export async function listTransactions(
     .select({
       /** Auf einem privaten Konto als „kein Betriebsvorgang" gekennzeichnet und ganz offen (#1088) */
       privat: privat().mapWith(Boolean),
+      duplicatePending: bankDuplicatePendingSql.mapWith(Boolean),
+      duplicateConfirmed: bankDuplicateConfirmedSql.mapWith(Boolean),
       id: schema.bankTransactions.id,
       bankAccountId: schema.bankTransactions.bankAccountId,
       bookingDate: schema.bankTransactions.bookingDate,
@@ -468,150 +534,6 @@ export async function documentPayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("document_id", ids, q);
 }
 
-/** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
-function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }, externalId = inv.externalId) {
-  const refs = [...new Set([externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
-  return refs.length > 0 ? { orderReferences: refs } : {};
-}
-
-/** Offene Rechnungen und Belege für den Abgleich */
-export async function openItems(): Promise<OpenItem[]> {
-  const invoices = await db
-    .select({
-      id: schema.invoices.id,
-      kind: schema.invoices.kind,
-      correctsId: schema.invoices.correctsId,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      gross: schema.invoices.gross,
-      currency: schema.invoices.currency,
-      skonto: schema.invoices.skonto,
-      buyer: schema.invoices.buyer,
-      contactIban: schema.contacts.iban,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-    })
-    .from(schema.invoices)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(and(eq(schema.invoices.status, "final"), inArray(schema.invoices.kind, ["rechnung", "korrektur"])));
-  const stornos = await db
-    .select({
-      id: schema.invoices.id,
-      correctsId: schema.invoices.correctsId,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      buyer: schema.invoices.buyer,
-      contactIban: schema.contacts.iban,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-    })
-    .from(schema.invoices)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
-  const cancelled = new Set(stornos.map((r) => r.correctsId));
-  // Die eindeutige externe Referenz bleibt am Original. Für den Abgleich zählen Korrektur und Storno zur selben Bestellung.
-  const externalIds = new Map(invoices.map((inv) => [inv.id, inv.externalId]));
-  for (const inv of invoices) {
-    if (inv.correctsId && !inv.externalId) externalIds.set(inv.id, externalIds.get(inv.correctsId) ?? null);
-  }
-  const invoicePaid = await invoicePayments([...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
-  const paperStornos = await paperCancellationIds(stornos.map((st) => st.id));
-  // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
-  const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
-
-  const documents = await db
-    .select({
-      id: schema.documents.id,
-      invoiceNumber: schema.documents.invoiceNumber,
-      documentDate: schema.documents.documentDate,
-      uploadedAt: schema.documents.uploadedAt,
-      dueDate: schema.documents.dueDate,
-      gross: schema.documents.gross,
-      currency: schema.documents.currency,
-      supplierName: schema.documents.supplierName,
-    })
-    .from(schema.documents)
-    // Storniert: nichts mehr zu zahlen; stornieren lässt Haben nur ohne Zahlung (#237)
-    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
-  const documentPaid = await paidByTarget(
-    "document_id",
-    documents.map((d) => d.id),
-  );
-  // Konto des Lieferanten und Referenzen der SEPA-Überweisungen aus Haben: Die Abbuchung findet so ihren Beleg
-  const ids = documents.map((d) => d.id);
-  const [payees, decisions] = await Promise.all([documentPayees(ids), ibanDecisions(ids)]);
-  // Feiertage für das Ende der Skontofrist (§ 193 BGB) wie beim Zahlungsziel: die im Bundesland der Firma
-  const { bundesland } = await loadCompany();
-
-  const items: OpenItem[] = [];
-  for (const inv of invoices) {
-    const paid = invoicePaid.get(inv.id) ?? 0;
-    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid, cancelled: cancelled.has(inv.id) });
-    if (open === 0) continue;
-    // Skonto nur auf den ganzen Betrag: nach einer Teilzahlung oder Ausbuchung erkennt der Abgleich es nicht mehr
-    const skonto = inv.kind === "rechnung" && inv.currency === "EUR" && paid === 0 ? skontoZahlfristen(inv.skonto, inv.issueDate, inv.gross, bundesland) : [];
-    items.push({
-      type: "invoice",
-      id: inv.id,
-      number: inv.number!,
-      date: inv.issueDate,
-      dueDate: inv.dueDate,
-      open,
-      partyName: inv.buyer?.name ?? "",
-      partyIbans: inv.contactIban ? [inv.contactIban] : [],
-      ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
-      ...orderReferencesOf(inv, externalIds.get(inv.id)),
-      currency: inv.currency,
-      ...(skonto.length > 0 ? { skonto } : {}),
-    });
-  }
-  // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
-  for (const storno of stornos) {
-    if (paperStornos.has(storno.id)) continue;
-    const open = invoiceOpen({
-      status: "final",
-      kind: "storno",
-      gross: 0,
-      paid: invoicePaid.get(storno.id) ?? 0,
-      paidOnOriginal: invoicePaid.get(storno.correctsId!) ?? 0,
-      cancelled: false,
-    });
-    if (open === 0) continue;
-    items.push({
-      type: "invoice",
-      id: storno.id,
-      number: storno.number!,
-      date: storno.issueDate,
-      dueDate: storno.issueDate,
-      open,
-      partyName: storno.buyer?.name ?? "",
-      partyIbans: storno.contactIban ? [storno.contactIban] : [],
-      // Storno erbt die Bestellnummer der Rechnung (#389): die Erstattung beim Dienstleister findet es darüber
-      ...orderReferencesOf(storno, externalIds.get(storno.correctsId!)),
-    });
-  }
-  for (const doc of documents) {
-    const open = documentOpen(doc.gross, documentPaid.get(doc.id) ?? 0);
-    if (open === 0) continue;
-    items.push({
-      type: "document",
-      id: doc.id,
-      number: doc.invoiceNumber,
-      date: doc.documentDate ?? today(doc.uploadedAt),
-      dueDate: doc.dueDate,
-      open,
-      partyName: doc.supplierName,
-      partyIbans: payeeIbans(payees.get(doc.id), decisions.get(doc.id) ?? []),
-      references: payees.get(doc.id)?.references ?? [],
-      currency: doc.currency,
-    });
-  }
-  return items;
-}
-
 export async function transactionDetail(id: string) {
   const [tx] = await db
     .select({
@@ -632,59 +554,21 @@ export async function transactionDetail(id: string) {
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, id));
   if (!tx) return null;
-  const allocationRows = await db
-    .select({
-      id: schema.allocations.id,
-      kind: schema.allocations.kind,
-      amount: schema.allocations.amount,
-      reversesId: schema.allocations.reversesId,
-      splitId: schema.allocations.splitId,
-      createdAt: schema.allocations.createdAt,
-      invoiceId: schema.allocations.invoiceId,
-      invoiceNumber: schema.invoices.number,
-      documentId: schema.allocations.documentId,
-      documentSupplier: schema.documents.supplierName,
-      documentNumber: schema.documents.invoiceNumber,
-      vatReturnId: schema.allocations.vatReturnId,
-      taxType: schema.allocations.taxType,
-      taxYear: schema.allocations.taxYear,
-      taxItem: schema.allocations.taxItem,
-      loanName: schema.loans.name,
-      loanPart: schema.allocations.loanPart,
-      category: schema.allocations.category,
-      taxRate: schema.allocations.taxRate,
-    })
-    .from(schema.allocations)
-    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
-    .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
-    .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
-    .where(eq(schema.allocations.transactionId, id))
-    // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
-    .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
-  const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
-  const vatLabels = await ustvaLabels(allocationRows.flatMap((a) => (a.vatReturnId ? [a.vatReturnId] : [])));
-  const allocations = allocationRows
-    .filter((a) => !a.reversesId)
-    .map((a) => ({
-      ...a,
-      reversed: reversed.has(a.id),
-      vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
-      steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
-      darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
-      kategorieLabel: a.category && a.taxRate !== null ? kategorieText({ kategorie: a.category, steuersatz: a.taxRate }) : null,
-    }));
+  const allocations = await transactionAllocations(id);
 
+  const duplicateReviews = await duplicateReviewsForTransaction(tx.id);
+  const automatic = duplicateReviews.every((review) => review.decision === "distinct");
   // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
   const items = tx.open === 0 ? [] : [...(await openItems()), ...(await ustvaOpenItems())];
   // Vorschläge für den noch offenen Teil des Umsatzes
-  const suggestions = tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
+  const suggestions = !automatic || tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
   const candidates = items.filter((i) => Math.sign(i.open) === Math.sign(tx.amount));
   // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
   // Sammelrechnung des Monats an einer Gebührenzeile eines Zahlungsdienstleisters (#680)
-  const { sammelrechnung, sammelbeleg } = await sammelrechnungVorschlag(tx, account?.purpose, items);
-  let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
+  const { sammelrechnung, sammelbeleg } = automatic ? await sammelrechnungVorschlag(tx, account?.purpose, items) : { sammelrechnung: null, sammelbeleg: null };
+  let direct = automatic && account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
   let counterpart: TransferCounterpart | null = null;
   if (direct?.kind === "geldtransit" && account) {
     // Auszahlung vom Dienstleister: Gegenbuchung auf einem Bankkonto, dort mit dem Namen des Dienstleisters
@@ -718,16 +602,16 @@ export async function transactionDetail(id: string) {
   }
   if (direct?.requiresCounterpart && !counterpart) direct = null;
   // Lohnsteuer: Lastschrift des Finanzamts über den Gesamtbetrag einer übermittelten Lohnsteuer-Anmeldung
-  if (!direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
+  if (automatic && !direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
   // Sonst aus früheren Buchungen derselben Gegenpartei (Gebühren, Privat …), schwächer als die Regeln der Kontozwecke
-  if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
+  if (automatic && !direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
   // Was auf diesem Konto nicht buchbar ist, wird auch nicht vorgeschlagen, etwa gelernte Gebühren auf dem Privatkonto (#873)
   if (direct && !aufKontoAngeboten(direct.kind, account?.purpose ?? null)) direct = null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   // Belege aus Dauerbelegen, die noch zu prüfen sind: auf Klick buchen und zuordnen (bookAndAllocateDauerbeleg)
-  const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
+  const dauerbelege = !automatic || tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
   // Lastschriften aus Haben (#445): Sammelgutschrift aufteilen oder Rücklastschrift zuordnen
-  const lastschrift = await directDebitMatch(tx);
+  const lastschrift = automatic ? await directDebitMatch(tx) : null;
   // Der Sammelbeleg des Monats steht ganz oben, damit er in der Oberfläche als Treffer erscheint
   const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg.item.id)] : suggestions;
   // Für die Kennzeichnung „privat, kein Betriebsvorgang" (#1088): Zweck des Kontos und bestehende Markierung
@@ -735,6 +619,7 @@ export async function transactionDetail(id: string) {
   return {
     ...stand,
     lastschrift,
+    duplicateReviews,
     transaction: tx,
     allocations,
     suggestions: vorschlaege,
@@ -808,6 +693,8 @@ export async function learnedDirectSuggestions(
   const result = new Map<string, DirectSuggestion>();
   if (txs.length === 0) return result;
   const kleinunternehmerAm = await kleinunternehmerHistory();
+  // Eine Aufladung gibt es nur im Einzelunternehmen (#1356): ein Vorschlag aus früheren Buchungen entfällt dort
+  const { rechtsform } = await loadCompany();
   const byIban = await allocationHistory("iban", [...new Set(txs.flatMap((t) => ibanKey(t.counterpartyIban) ?? []))]);
   const rest = txs.filter((t) => !byIban.has(historyKey(ibanKey(t.counterpartyIban), t.amount)));
   const byName = await allocationHistory("name", [...new Set(rest.flatMap((t) => nameKey(t.counterpartyName) ?? []))]);
@@ -817,7 +704,7 @@ export async function learnedDirectSuggestions(
     const history = iban ? { ...iban, basis: "iban" as const } : name ? { ...name, basis: "name" as const } : null;
     const kleinunternehmer = kleinunternehmerAm(lastDayOfMonth(Number(t.bookingDate.slice(0, 4)), Number(t.bookingDate.slice(5, 7))));
     const suggestion = history ? learnedDirectBooking(t, history.kinds, history.total, history.basis, kleinunternehmer) : null;
-    if (suggestion) result.set(t.id, suggestion);
+    if (suggestion && aufRechtsformAngeboten(suggestion.kind, rechtsform)) result.set(t.id, suggestion);
   }
   return result;
 }
@@ -862,6 +749,7 @@ async function transferCounterpart(
         inArray(schema.bankTransactions.bankAccountId, accountIds),
         eq(schema.bankTransactions.amount, -tx.amount),
         sql`${schema.bankTransactions.bookingDate} between ${tx.bookingDate}::date - 5 and ${tx.bookingDate}::date + 5`,
+        bankDuplicateProposalEligibleSql,
       ),
     );
   const match = findTransferCounterpart(tx, sourceIban, rows, pattern);
@@ -879,7 +767,8 @@ async function payoutCandidates(accountIds: string[], bookingDate: string) {
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
       bankReference: schema.bankTransactions.bankReference,
-      open: openAmountSql.mapWith(Number),
+      // Die Zeile bleibt Teil der Gruppe. Mit einem Verdacht ist die ganze Auszahlung kein Vorschlag.
+      open: sql<number>`case when ${bankDuplicateProposalEligibleSql} then ${openAmountSql} else 0 end`.mapWith(Number),
     })
     .from(schema.bankTransactions)
     .where(
@@ -1016,6 +905,15 @@ const DIRECT_KINDS = [
 ] as const;
 
 /**
+ * Aufladung eines Guthabens (#1356): eine direkte Zuordnungsart wie „kategorie“, aber mit Pflicht-Kostenkategorie und
+ * ohne Steuersatz: Die Aufladung selbst trägt keine Umsatzsteuer (§ 3 Abs. 15 UStG), und Vorsteuer entsteht erst mit der
+ * Rechnung über die Leistung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Sie steht neben
+ * den zwölf in DIRECT_KINDS und nicht darin: Die Zuordnungs-Schemata sind eine `discriminatedUnion`, und dort darf jeder
+ * Wert nur einmal vorkommen — die Aufladung trägt zusätzlich die Kategorie.
+ */
+const AUFLADUNG_KIND = "aufladung" as const;
+
+/**
  * Eine Lohnzahlung tilgt nur, was die Lohnabrechnung als Verbindlichkeit gebucht hat, wie eine Zahlung den offenen Betrag
  * eines Belegs: ein Ausgang höchstens die offene Verbindlichkeit, ein Eingang höchstens eine Überzahlung. Im
  * Einzelunternehmen zählte ein Betrag darüber hinaus in der EÜR als Personalausgabe, etwa eine Entnahme des Inhabers.
@@ -1047,34 +945,36 @@ async function assertNotCancelled(tx: Tx, documentId: string): Promise<void> {
 }
 
 export const allocationSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: z.number().int() }),
-  z.object({ kind: z.literal("document"), transactionId: z.uuid(), documentId: z.uuid(), amount: z.number().int() }),
+  z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: inCents(z.number().int()) }),
+  z.object({ kind: z.literal("document"), transactionId: z.uuid(), documentId: z.uuid(), amount: inCents(z.number().int()) }),
   // Zahllast oder Erstattung einer abgegebenen Voranmeldung: gebucht wie „Umsatzsteuer an das Finanzamt“, mit Bezug
-  z.object({ kind: z.literal("ustva"), transactionId: z.uuid(), vatReturnId: z.uuid(), amount: z.number().int() }),
+  z.object({ kind: z.literal("ustva"), transactionId: z.uuid(), vatReturnId: z.uuid(), amount: inCents(z.number().int()) }),
   z.object({
     kind: z.enum(DIRECT_KINDS),
     transactionId: z.uuid(),
-    amount: z.number().int(),
+    amount: inCents(z.number().int()),
   }),
   // Steuerzahlung oder Erstattung mit Steuerart, Bezugsjahr und Teil (Steuer oder Nebenleistung)
-  z.object({ kind: z.literal("steuer"), transactionId: z.uuid(), amount: z.number().int(), steuer: steuerangabeSchema }),
+  z.object({ kind: z.literal("steuer"), transactionId: z.uuid(), amount: inCents(z.number().int()), steuer: steuerangabeSchema }),
   // Auszahlung, Tilgung, Zinsen oder Gebühren eines Darlehens
-  z.object({ kind: z.literal("darlehen"), transactionId: z.uuid(), amount: z.number().int(), darlehen: loanPartSchema }),
+  z.object({ kind: z.literal("darlehen"), transactionId: z.uuid(), amount: inCents(z.number().int()), darlehen: loanPartSchema }),
   // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz
-  z.object({ kind: z.literal("kategorie"), transactionId: z.uuid(), amount: z.number().int(), kategorie: kategorieAngabeSchema }),
+  z.object({ kind: z.literal("kategorie"), transactionId: z.uuid(), amount: inCents(z.number().int()), kategorie: kategorieAngabeSchema }),
+  // Aufladung eines Guthabens: Ausgabe ohne Vorsteuer, Pflicht-Kostenkategorie, ohne Steuersatz (#1356)
+  z.object({ kind: z.literal(AUFLADUNG_KIND), transactionId: z.uuid(), amount: inCents(z.number().int()), kategorie: kategorieAngabeSchema }),
 ]);
 
 export type AllocationInput = z.infer<typeof allocationSchema>;
 
 /** Ein Teil einer Aufteilung: Ziel und Betrag, Vorzeichen wie auf dem Konto (Gebühr in einer Auszahlung also negativ) */
 const splitPartSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("invoice"), invoiceId: z.uuid(), amount: z.number().int() }),
-  z.object({ kind: z.literal("document"), documentId: z.uuid(), amount: z.number().int() }),
-  z.object({ kind: z.literal("ustva"), vatReturnId: z.uuid(), amount: z.number().int() }),
-  z.object({ kind: z.enum(DIRECT_KINDS), amount: z.number().int() }),
-  z.object({ kind: z.literal("steuer"), amount: z.number().int(), steuer: steuerangabeSchema }),
-  z.object({ kind: z.literal("darlehen"), amount: z.number().int(), darlehen: loanPartSchema }),
-  z.object({ kind: z.literal("kategorie"), amount: z.number().int(), kategorie: kategorieAngabeSchema }),
+  z.object({ kind: z.literal("invoice"), invoiceId: z.uuid(), amount: inCents(z.number().int()) }),
+  z.object({ kind: z.literal("document"), documentId: z.uuid(), amount: inCents(z.number().int()) }),
+  z.object({ kind: z.literal("ustva"), vatReturnId: z.uuid(), amount: inCents(z.number().int()) }),
+  z.object({ kind: z.enum(DIRECT_KINDS), amount: inCents(z.number().int()) }),
+  z.object({ kind: z.literal("steuer"), amount: inCents(z.number().int()), steuer: steuerangabeSchema }),
+  z.object({ kind: z.literal("darlehen"), amount: inCents(z.number().int()), darlehen: loanPartSchema }),
+  z.object({ kind: z.literal("kategorie"), amount: inCents(z.number().int()), kategorie: kategorieAngabeSchema }),
 ]);
 
 export const splitSchema = z.object({ transactionId: z.uuid(), parts: z.array(splitPartSchema).min(2).max(20) });
@@ -1083,12 +983,20 @@ export type SplitInput = z.infer<typeof splitSchema>;
 /** Dazu intern: der Teil einer Zahlung über dem offenen Betrag einer Fremdwährungsrechnung (allocateWithRest) */
 type Part =
   | z.infer<typeof splitPartSchema>
+  // Aufladung eines Guthabens (#1356): mit Pflicht-Kostenkategorie und ohne Steuersatz; kein Teil einer Aufteilung
+  | { kind: "aufladung"; kategorie: z.infer<typeof kategorieAngabeSchema>; amount: number }
   | { kind: "kursdifferenz"; amount: number }
   // Rücklastschrift (#445): negative Zahlung auf die Rechnung mit Bezug auf die zurückgegebene Lastschrift
-  | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number };
+  | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number }
+  // Eine Zeile der Sammelzuordnung mit Gutschriften (allocateFeesToDocument): Die Summe aller Zeilen ist dort geprüft
+  | { kind: "document"; documentId: string; amount: number; sammel: true };
 
 const PRIVAT_NICHT_BUCHBAR =
   "Auf einem privaten Konto ergeben Kontoführung, Zinserträge, Privat und Geldtransit keinen Geschäftsvorfall; diese Buchung ist dort nicht möglich.";
+
+/** Eine Aufladung gibt es nur im Einzelunternehmen (#1356); in GmbH und UG ist die Zahlung eine Forderung, kein Aufwand */
+const AUFLADUNG_NICHT_BUCHBAR =
+  "In GmbH und UG ist eine Aufladung kein Aufwand, sondern eine Forderung an den Anbieter; die Zuordnungsart ist dort nicht möglich.";
 
 /** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
 export async function lockTransaction(tx: Tx, id: string) {
@@ -1164,7 +1072,7 @@ async function invoiceBooking(
 ): Promise<{ lines: PostingLine[]; description: string; target: Zuordnungsziel }> {
   const invoice = await lockInvoice(tx, part.invoiceId);
   if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
-  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount);
+  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount, await paymentProcedure(invoice, tx));
   if (dateProblem) throw new BankError(dateProblem);
 
   const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
@@ -1208,7 +1116,7 @@ async function documentBooking(
   tx: Tx,
   company: Awaited<ReturnType<typeof openBooks>>,
   bank: LockedTransaction,
-  part: { documentId: string; amount: number },
+  part: { documentId: string; amount: number; sammel?: true },
 ): Promise<{ lines: PostingLine[]; description: string; target: Zuordnungsziel }> {
   // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
   const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
@@ -1216,7 +1124,7 @@ async function documentBooking(
   if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
   await assertNotCancelled(tx, doc.id);
   const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
-  if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
+  if (!part.sammel && (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open))) {
     throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
   }
   const lines = documentPaymentPosting(part.amount, company.kontenrahmen);
@@ -1234,6 +1142,9 @@ async function documentBooking(
 export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
   // Gebühren, Zinserträge, Privat und Geldtransit ergeben auf einem privaten Konto keinen Geschäftsvorfall (#873)
   if (!aufKontoAngeboten(part.kind, bank.purpose)) throw new BankError(PRIVAT_NICHT_BUCHBAR);
+  // Eine Aufladung gibt es nur im Einzelunternehmen (#1356): Eine Gesellschaft mit Bilanz weist den Betrag bis zur
+  // Rechnung als Forderung aus (§ 246 Abs. 1 HGB), nicht als Aufwand; die Auswahl bietet sie dort auch nicht an
+  if (!aufRechtsformAngeboten(part.kind, company.rechtsform)) throw new BankError(AUFLADUNG_NICHT_BUCHBAR);
   let lines: PostingLine[];
   let description: string;
   let target: Zuordnungsziel = {};
@@ -1247,10 +1158,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   } else if (part.kind === "ustva") {
     // Buchung wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820); neu ist nur der Bezug auf die Voranmeldung
     const label = await assertUstvaOffen(tx, part.vatReturnId, part.amount);
-    lines =
-      bank.purpose === "privat"
-        ? ustPrivatPosting(part.amount, company.kontenrahmen, company.rechtsform)
-        : directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
+    lines = directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
     description = `${label} · ${bank.counterpartyName || "Finanzamt"}`;
     target = { vatReturnId: part.vatReturnId };
   } else if (part.kind === "darlehen") {
@@ -1259,19 +1167,24 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     ({ lines, description, target } = await steuerbuchung(tx, company, bank, part.steuer, part.amount));
   } else if (part.kind === "kategorie") {
     ({ lines, description, target } = await kategoriebuchung(tx, company.kontenrahmen, bank, part.kategorie, part.amount));
+  } else if (part.kind === "aufladung") {
+    ({ lines, description, target } = aufladungBuchung(bank, part.kategorie, part.amount, company.kontenrahmen));
   } else if (part.kind === "kursdifferenz") {
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
   } else {
     if (isLohnZahlung(part.kind)) await assertLohnOffen(tx, part.kind, part.amount, company.kontenrahmen);
-    lines =
-      part.kind === "ustVorauszahlung" && bank.purpose === "privat"
-        ? ustPrivatPosting(part.amount, company.kontenrahmen, company.rechtsform)
-        : directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
+    lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
     // In GmbH und UG ist „privat“ das Gesellschafter-Verrechnungskonto; so steht es auch im Buchungstext
     const label = part.kind === "privat" && isKapitalgesellschaft(company.rechtsform) ? "gesellschafter" : part.kind;
     description = `${bank.counterpartyName || "Bankumsatz"} · ${label}`;
   }
+  // Privates Konto (#873): Die Richtung des Zahlungskontos gilt für jede Buchungsart — ein Eingang ist eine
+  // Privatentnahme, ein Ausgang eine Privateinlage, in GmbH und UG das Gesellschafter-Verrechnungskonto. Die
+  // Entscheidung fällt hier einmal für alle Zweige (privatKontoPosting). Nicht hierher gehören Kontoführung,
+  // Bankgebühren und Zinsen: Die sind auf einem privaten Konto privat, kein Betriebsvorfall (§ 12 Nr. 1 EStG,
+  // § 20 EStG); der Abgleich bietet sie dort nicht an und lehnt sie oben ab (konto-angebot.ts).
+  if (bank.purpose === "privat") lines = privatKontoPosting(lines, part.amount, company.kontenrahmen, company.rechtsform);
 
   const kind = part.kind === "ustva" ? "ustVorauszahlung" : part.kind === "ruecklastschrift" ? "invoice" : part.kind;
   const [allocation] = await insertAllocation(tx, { transactionId: bank.id, kind, amount: part.amount, splitId, ...target });
@@ -1489,58 +1402,11 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
   }
 }
 
-export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid() });
-
-/**
- * Gebühren eines Zahlungsdienstleisters gegen seine Sammelrechnung: ordnet alle noch offenen Gebühren (Umsätze „Gebühr …“)
- * desselben Kontos aus dem Monat des gewählten Umsatzes dem Beleg zu, wie Teilzahlungen, bis der Beleg erledigt ist.
- * Vorsteuer bzw. § 13b laufen dann einmal über den Beleg. Gibt die Zahl der zugeordneten Gebühren zurück.
- */
-export async function allocateFeesToDocument(actor: string, input: z.infer<typeof feesSchema>): Promise<number> {
-  return withActor(actor, async (tx) => {
-    const company = await openBooks(tx);
-    const [chosen] = await tx
-      .select({ bankAccountId: schema.bankTransactions.bankAccountId, bookingDate: schema.bankTransactions.bookingDate, purpose: schema.bankAccounts.purpose })
-      .from(schema.bankTransactions)
-      .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
-      .where(eq(schema.bankTransactions.id, input.transactionId));
-    if (!chosen) throw new BankError("Umsatz nicht gefunden.");
-    if (chosen.purpose !== "zahlungsdienstleister") throw new BankError("Sammelrechnungen gibt es nur für Gebühren eines Zahlungsdienstleisters.");
-    const month = chosen.bookingDate.slice(0, 7);
-    const fees = await tx
-      .select({ id: schema.bankTransactions.id })
-      .from(schema.bankTransactions)
-      .where(
-        and(
-          eq(schema.bankTransactions.bankAccountId, chosen.bankAccountId),
-          sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${month}`,
-          sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
-          sql`${schema.bankTransactions.amount} < 0`,
-          sql`${openAmountSql} <> 0`,
-        ),
-      )
-      .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
-    let count = 0;
-    for (const fee of fees) {
-      const bank = await lockTransaction(tx, fee.id);
-      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
-      if (!doc) throw new BankError("Beleg nicht gefunden.");
-      const open = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
-      if (open === 0 || Math.sign(open) !== Math.sign(bank.open)) break;
-      const amount = Math.abs(bank.open) <= Math.abs(open) ? bank.open : open;
-      await bookPart(tx, company, bank, { kind: "document", documentId: input.documentId, amount }, null);
-      count++;
-    }
-    if (count === 0) throw new BankError("Keine offene Gebühr in diesem Monat, oder der Beleg ist schon erledigt.");
-    return count;
-  });
-}
-
 // Ausbuchungen ----------------------------------------------------------------------------------------------
 
 export const writeOffSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.enum(["skonto", "forderungsausfall"]), invoiceId: z.uuid(), date: z.iso.date(), amount: z.number().int().optional() }),
-  z.object({ kind: z.literal("skontoErhalten"), documentId: z.uuid(), date: z.iso.date(), amount: z.number().int().optional() }),
+  z.object({ kind: z.enum(["skonto", "forderungsausfall"]), invoiceId: z.uuid(), date: z.iso.date(), amount: inCents(z.number().int()).optional() }),
+  z.object({ kind: z.literal("skontoErhalten"), documentId: z.uuid(), date: z.iso.date(), amount: inCents(z.number().int()).optional() }),
 ]);
 
 export type WriteOffInput = z.infer<typeof writeOffSchema>;

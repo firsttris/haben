@@ -2,12 +2,7 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
-
-/*
- * Voranmeldung ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md): Die Kennzahlen kommen aus Konto und
- * Steuerschlüssel der Buchungen, die Privatnutzung von Fahrzeugen aus dem Anlagenverzeichnis; die Nebenbücher sind die
- * Gegenprobe im Abgleich. Vor dem Stichjahr bleibt es bei den Nebenbüchern.
- */
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -30,7 +25,8 @@ const incoming = (date: string, purpose: string, amount: string) => [
 ];
 
 /*
- * Voranmeldung aus dem Journal gleich den Nebenbüchern in Sonderfällen (Fälle aus dem TDD-Review von Pull Request #575):
+ * Voranmeldung aus dem Journal in Sonderfällen (Fälle aus dem TDD-Review von Pull Request #575, Werte wie bis #1116 aus den
+ * Nebenbüchern):
  * Ausfuhr und steuerfrei bei Ist, § 13b und Erwerb mit Privatanteil, ohne Vorsteuerabzug, Bewirtung, Kleinunternehmer,
  * Skonto und Forderungsausfall nach Teilzahlung, aufgehobene Zahlung.
  */
@@ -58,13 +54,13 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
     await sql?.end();
   });
 
-  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04", journalAb: number | null = null) {
+  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04") {
     await leeren(sql)`truncate asset_depreciations, assets, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
   }
 
   async function invoice(issueDate: string, lines: { unitPrice: number; taxRate: 1900 | 700 | 0 }[], taxTreatment: string = "regulaer") {
@@ -93,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
       exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 14 UStG" : "",
       lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function rcDocument(date: string, net: number, tax: number, reverseCharge: "eu" | "drittland" | "ig_erwerb", privateShare: number, category?: string) {
@@ -124,15 +120,23 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
     }
   }
 
-  const kennzahlen = (f: Awaited<ReturnType<typeof figures.computeVatFigures>>) => Object.fromEntries(JOURNAL_KENNZAHLEN.map((k) => [k, f[k]]));
-  async function gleich(months: number[]) {
-    for (const month of months) {
-      const f = await figures.computeVatFigures({ year: 2026, month });
-      expect(f.quelle, String(month)).toBe("journal");
-      const abw = abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month })).zeilen);
-      expect({ month, va: kennzahlen(f), abw }).toEqual({ month, va: f.nebenbuecher, abw: [] });
+  type Kennzahlen = Partial<Record<(typeof JOURNAL_KENNZAHLEN)[number], number>>;
+  /** Kennzahlen ungleich null je Monat, wie bis #1116 auch die Rechnung aus den Nebenbüchern; der Abgleich ohne Abweichung */
+  async function gleich(erwartet: Record<number, Kennzahlen>) {
+    for (const [month, va] of Object.entries(erwartet)) {
+      const f = await figures.computeVatFigures({ year: 2026, month: Number(month) });
+      const abw = abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: Number(month) })).zeilen);
+      const kennzahlen = Object.fromEntries(JOURNAL_KENNZAHLEN.filter((k) => f[k] !== 0).map((k) => [k, f[k]]));
+      expect({ month, va: kennzahlen, abw }).toEqual({ month, va, abw: [] });
     }
   }
+  /** § 13b bzw. Erwerb zu 19 %: Bemessungsgrundlage, Steuer und abziehbare Vorsteuer */
+  const selbst = (rc: "eu" | "drittland" | "ig_erwerb", base: number, tax: number, vorsteuer: number): Kennzahlen =>
+    rc === "eu"
+      ? { kz46: base, kz47: tax, ...(vorsteuer ? { kz67: vorsteuer } : {}) }
+      : rc === "drittland"
+        ? { kz84: base, kz85: tax, ...(vorsteuer ? { kz67: vorsteuer } : {}) }
+        : { kz89: base, tax89: tax, ...(vorsteuer ? { kz61: vorsteuer } : {}) };
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const [treatment, kz] of [
@@ -143,8 +147,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
         await reset("ist", kontenrahmen);
         const inv = await invoice("2026-09-20", [{ unitPrice: 50_000, taxRate: 0 }], treatment);
         await pay(inv.id, [["05.10.26", `Zahlung ${treatment}`, "500,00"]]);
-        await gleich([9, 10]);
-        expect((await figures.computeVatFigures({ year: 2026, month: 10 }))[kz]).toBe(50_000);
+        await gleich({ 9: {}, 10: { [kz]: 50_000 } });
       }, 60_000);
     }
 
@@ -153,7 +156,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
         it(`${rc} mit Privatanteil 30 % (${kontenrahmen}, ${versteuerung})`, async () => {
           await reset(versteuerung, kontenrahmen);
           await rcDocument("2026-10-05", 100_000, 19_000, rc, 30);
-          await gleich([10]);
+          // Bemessungsgrundlage und Steuer voll, Vorsteuer nur zu 70 %
+          await gleich({ 10: selbst(rc, 100_000, 19_000, 13_300) });
         }, 60_000);
       }
 
@@ -161,7 +165,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
         await reset(versteuerung, kontenrahmen);
         await sql`update company set kleinunternehmer = true`;
         await rcDocument("2026-10-05", 100_000, 19_000, "eu", 0);
-        await gleich([10]);
+        await gleich({ 10: selbst("eu", 100_000, 19_000, 0) });
       }, 60_000);
 
       it(`Skonto und Forderungsausfall (${kontenrahmen}, ${versteuerung})`, async () => {
@@ -176,7 +180,15 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
         const b = await invoice("2026-09-21", [{ unitPrice: 30_000, taxRate: 1900 }]);
         await pay(b.id, [["06.10.26", "Teil B", "119,00"]]);
         await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: b.id, date: "2026-11-10" });
-        await gleich([9, 10, 11]);
+        await gleich(
+          versteuerung === "ist"
+            ? { 9: {}, 10: { kz81: 19_734, tax81: 3_750, kz86: 9_735, tax86: 681 }, 11: {} }
+            : {
+                9: { kz81: 40_000, tax81: 7_600, kz86: 10_000, tax86: 700 },
+                10: { kz81: -266, tax81: -50, kz86: -265, tax86: -19 },
+                11: { kz81: -20_000, tax81: -3_800 },
+              },
+        );
       }, 60_000);
     }
   }
@@ -187,7 +199,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
           await reset(versteuerung, kontenrahmen);
           await rcDocument("2026-10-05", 10_000, 1_900, rc, 0, "geschenke");
           await rcDocument("2026-10-06", 10_000, 1_900, rc, 20, "bewirtung");
-          await gleich([10]);
+          // Geschenk voll, Bewirtung mit 20 % Privatanteil: Vorsteuer 19,00 € + 15,20 €
+          await gleich({ 10: selbst(rc, 20_000, 3_800, 3_420) });
         }, 60_000);
         // Innergemeinschaftlicher Erwerb als Kleinunternehmer lehnt Haben ab (§ 1a Abs. 3 UStG)
         if (rc !== "ig_erwerb")
@@ -195,7 +208,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
             await reset(versteuerung, kontenrahmen);
             await sql`update company set kleinunternehmer = true`;
             await rcDocument("2026-10-05", 10_000, 1_900, rc, 25);
-            await gleich([10]);
+            await gleich({ 10: selbst(rc, 10_000, 1_900, 0) });
           }, 60_000);
       }
     }
@@ -205,7 +218,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
       await pay(inv.id, [["05.10.26", "Zahlung frei", "500,00"]]);
       const [al] = await sql`select id from allocations where invoice_id = ${inv.id}`;
       await bank.reverseAllocation(actor, al!.id);
-      await gleich([9, 10]);
+      // Die Gegenzeile steht am Tag der Aufhebung, nicht im Oktober
+      await gleich({ 9: {}, 10: { kz48: 50_000 } });
     }, 60_000);
   }
 });

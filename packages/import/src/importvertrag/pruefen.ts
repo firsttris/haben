@@ -21,6 +21,8 @@ export type BatchValidation =
       balances: ImportBatch["balances"];
       /** Abgelehnte und vom Connector nicht eingeordnete Ereignisse, die die Vollständigkeit blockieren */
       blocking: number;
+      /** Frühester Tag, ab dem der Zeitraum offen bleibt; ohne Tag des Ereignisses der Anfang des Fensters */
+      openFrom: string | undefined;
       hints: string[];
     };
 
@@ -42,8 +44,9 @@ function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
   const problems: string[] = [];
   const seen = new Set<string>();
   for (const m of batch.movements) {
-    if (m.bookingDate < from || m.bookingDate > to) {
-      problems.push(`${label(m)}: Buchungstag ${m.bookingDate} liegt außerhalb des Fensters ${from} bis ${to}.`);
+    // Vor dem Fenster darf eine Bewegung verspätet kommen (etwa bei Banken, die nach Valuta filtern); sie deckt keinen Tag ab
+    if (m.bookingDate > to) {
+      problems.push(`${label(m)}: Buchungstag ${m.bookingDate} liegt nach dem Fenster ${from} bis ${to}.`);
     }
     if (seen.has(label(m))) problems.push(`${label(m)} steht zweimal in der Lieferung.`);
     seen.add(label(m));
@@ -53,9 +56,9 @@ function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
 
 /** Grund, eine sonst gültige Bewegung nicht zu übernehmen, oder null */
 function rejection(m: ImportMovement, binding: SourceBinding): Omit<RejectedMovement, "sourceEventId" | "component"> | null {
-  // Vor dem Stichtag zuerst: Diese Zeit decken Dateiimporte ab, auch für Bewegungen in fremder Währung
+  // Vor dem Stichtag zuerst: Diese Zeit decken Dateien oder frühere Abrufe ab, auch für Bewegungen in fremder Währung
   if (binding.cutoverDate && m.bookingDate < binding.cutoverDate) {
-    return { reason: `Vor dem Stichtag ${binding.cutoverDate} der Quelle; diese Zeit decken Dateiimporte ab.`, blocking: false };
+    return { reason: `Vor dem Stichtag ${binding.cutoverDate} der Quelle; diese Zeit decken Dateien oder frühere Abrufe ab.`, blocking: false };
   }
   // Zunächst nur Euro; alles andere sichtbar ablehnen (#306)
   if (m.currency !== "EUR") return { reason: `Währung ${m.currency}: Haben übernimmt nur Euro.`, blocking: true };
@@ -84,11 +87,17 @@ export function validateBatch(input: unknown, binding: SourceBinding): BatchVali
 
   const accepted: ImportMovement[] = [];
   const rejected: RejectedMovement[] = [];
+  const openDays: string[] = [];
   for (const m of batch.movements) {
     const r = rejection(m, binding);
     if (r) rejected.push({ sourceEventId: m.sourceEventId, component: m.component, ...r });
     else accepted.push(m);
+    if (r?.blocking) openDays.push(m.bookingDate);
   }
+  // Ein Tag außerhalb des Fensters oder vor dem Stichtag gehört nicht zu dem Zeitraum, den diese Lieferung abschließen soll
+  const outside = (day: string) => day < batch.coverage.from || day > batch.coverage.to || (binding.cutoverDate !== undefined && day < binding.cutoverDate);
+  const openUnsupported = batch.unsupported.filter((u) => !u.final && !(u.bookingDate && outside(u.bookingDate)));
+  openDays.push(...openUnsupported.map((u) => u.bookingDate ?? batch.coverage.from));
   const hints = accepted
     .filter((m) => (m.kind === "refund" || m.kind === "chargeback") && m.component === "main" && !m.references.relatedEventId)
     .map((m) => `${m.sourceEventId}: ${m.kind === "refund" ? "Erstattung" : "Rückbelastung"} ohne Bezug zur ursprünglichen Zahlung.`);
@@ -100,7 +109,8 @@ export function validateBatch(input: unknown, binding: SourceBinding): BatchVali
     accepted,
     rejected,
     balances: batch.balances.filter((b) => b.currency === "EUR"),
-    blocking: rejected.filter((r) => r.blocking).length + batch.unsupported.length,
+    blocking: rejected.filter((r) => r.blocking).length + openUnsupported.length,
+    openFrom: openDays.sort()[0],
     hints,
   };
 }

@@ -1,3 +1,4 @@
+import { waehleKategorie } from "./kategorie.ts";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { zipSync } from "fflate";
@@ -428,6 +429,18 @@ test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in F
   await expect(blatt.locator('[data-teil="summen"]')).not.toContainText("Mahngebühr");
 });
 
+test("Mahnung: „5€00“ als Gebühr steht am Feld, statt still 500,00 € zu werden (#1242)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Mahngebühr (€)").fill("5€00");
+  await page.getByRole("button", { name: "Zahlungserinnerung erstellen" }).click();
+  await expect(page.getByLabel("Mahngebühr (€)")).toBeFocused();
+  await expect(page.getByLabel("Mahngebühr (€)")).toHaveAccessibleDescription("Trag die Mahngebühr ein, etwa 5,00, oder lass das Feld leer.");
+  await expect(page.getByRole("region", { name: "Forderung" }).getByText("Mahngebühr", { exact: true })).toHaveCount(0);
+});
+
 test("Mahnung: Das Zahnrad zeigt nur Schalter, die auf das Blatt wirken", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
@@ -512,7 +525,7 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Funknetz Mobil GmbH");
   await page.getByLabel("Rechnungsnummer").fill("MF-0815");
   await page.getByLabel("Belegdatum").fill(day(-9));
-  await page.getByLabel("Kategorie").selectOption("telefon");
+  await waehleKategorie(page.getByLabel("Kategorie"), "telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
   await faktenZeigen(page, "Betrag");
@@ -543,7 +556,9 @@ test("Überweisung als SEPA-Datei: offenen Beleg wählen, Datei herunterladen, V
 
   await go("/ueberweisungen");
   const form = page.getByRole("form", { name: "SEPA-Überweisung erzeugen" });
-  await expect(form.getByLabel("Auftraggeberkonto")).toContainText("Girokonto · DE45 1203 0000 1234 5678 90");
+  // Einleitung in drei Schritten statt Dateiformat und Fachwort
+  await expect(page.getByRole("list").filter({ hasText: "Online-Banking hochladen" }).getByRole("listitem")).toHaveCount(3);
+  await expect(form.getByLabel("Konto, von dem das Geld abgeht")).toContainText("Girokonto · DE45 1203 0000 1234 5678 90");
   await expect(form).toContainText("DE02 1001 0010 0006 8201 01");
   // Später ist der Beleg bezahlt: Die Liste mit Auswahl prüft axe deshalb hier, am Desktop und am Handy (WCAG 2.2 AA wie
   // barrierefreiheit.spec.ts). AxeBuilder braucht einen eigenen Kontext, mit derselben Sitzung
@@ -634,6 +649,20 @@ test("Kontoauszug importieren und zuordnen", async () => {
     await expect(page.getByRole("complementary", { name: "Zuordnung" }).getByRole("heading", { name: party })).toBeHidden();
     await page.waitForLoadState("networkidle");
   }
+});
+
+test("Zuordnen-Panel: der Satz zur Rechnung nennt die Bedingung für „bezahlt“", async () => {
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .first()
+    .click();
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await expect(panel.getByRole("heading", { name: "Rheinpixel GmbH" })).toBeVisible();
+  await expect(panel.getByText("Bester Treffer")).toBeVisible();
+  // Ein Teilbetrag im Feld: Der Satz verspricht „bezahlt“ nur, wenn die Zahlung den offenen Betrag deckt
+  await panel.getByLabel("Betrag").fill("500,00");
+  await expect(panel).toContainText("Deckt die Zahlung den offenen Betrag, gilt die Rechnung als bezahlt (Bank an Forderungen)");
 });
 
 test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {
@@ -1040,8 +1069,9 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(form.getByLabel("Adresse")).toHaveValue("");
   await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
   await expect(paperless).toHaveAccessibleName("Paperless (öffnet in neuem Tab)");
-  // Die eingeklappte Leiste steht verborgen daneben im DOM, mit demselben Hinweis
-  await expect(page.getByText("Öffnet in neuem Tab").filter({ visible: true })).toBeVisible();
+  // Der Hinweis in der Liste der Einstellungen; der Menülink trägt „ (öffnet in neuem Tab)“ nur für Screenreader (1 × 1 px,
+  // für Playwright sichtbar), exact schließt ihn aus
+  await expect(page.getByText("Öffnet in neuem Tab", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Paperless bearbeiten" }).click();
   await expect(page.getByRole("form", { name: "Paperless bearbeiten" }).getByLabel("Öffnen")).toHaveValue("tab");
   await page.getByRole("button", { name: "Paperless entfernen" }).click();
@@ -1112,7 +1142,7 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await page.getByLabel("Lieferant", { exact: true }).fill("Hafen Immobilien GmbH");
   await page.getByLabel("Vertrags- oder Kundennummer (optional)").fill("MV-2026-17");
   // Eigene Kategorie für Miete (#312): DATEV 4210 bzw. 6310
-  await page.getByLabel("Kategorie").selectOption({ label: "Miete für Geschäftsräume" });
+  await waehleKategorie(page.getByLabel("Kategorie"), "miete");
   await page.getByLabel("Erster Beleg am").fill(termin);
   await page.getByLabel("Fällig Tage nach dem Termin").fill("3");
   await page

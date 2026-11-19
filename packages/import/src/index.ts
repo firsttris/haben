@@ -4,6 +4,7 @@ export { parseGermanAmount, parseDotAmount, parseDate } from "./text.ts";
 export { decodeText } from "./decode.ts";
 export { parseStatement, detectStatementFormat } from "./parse.ts";
 export { transactionHash, withDedupHashes } from "./dedup.ts";
+export { findDuplicateCandidates } from "./duplicate-candidates.ts";
 export { checkBalanceContinuity } from "./continuity.ts";
 export {
   parseDatevBuchungsstapel,
@@ -26,8 +27,13 @@ export * from "./accountable/index.ts";
 export * from "./fastbill/index.ts";
 export * from "./enablebanking/index.ts";
 export * from "./stripe/index.ts";
+export * from "./fints/index.ts";
 export * from "./importvertrag/index.ts";
 export * from "./stores/index.ts";
 export * from "./csv-import/index.ts";
+export * from "./etsy-ledger.ts";
+export * from "./etsy-batch.ts";
+export * from "./etsy-api.ts";
+export * from "./bank-zuordnung/index.ts";
 export * from "./buchhaltungsbutler/index.ts";
 export * from "./wiso/index.ts";

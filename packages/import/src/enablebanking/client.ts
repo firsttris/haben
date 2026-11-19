@@ -46,6 +46,8 @@ const authSchema = z.looseObject({ url: z.string(), authorization_id: z.string()
 const accountSchema = z.looseObject({
   uid: z.string(),
   account_id: z.looseObject({ iban: z.string().nullish() }).nullish(),
+  /** Kennung des Kontos über Sitzungen hinweg; `entry_reference` ist je Hash eindeutig (API-Referenz, AccountResource) */
+  identification_hash: z.string().nullish(),
   name: z.string().nullish(),
   details: z.string().nullish(),
   product: z.string().nullish(),
@@ -200,6 +202,11 @@ export class EnableBankingClient {
       if (!continuationKey) return all;
     }
     throw new EnableBankingApiError("Zu viele Seiten beim Abruf der Umsätze", 0, `/accounts/${accountUid}/transactions`);
+  }
+
+  /** Angaben zum Konto, darunter `identification_hash` für Verbindungen, die ihn noch nicht gespeichert haben */
+  async accountDetails(accountUid: string): Promise<EbAccount> {
+    return this.#json("GET", `/accounts/${encodeURIComponent(accountUid)}/details`, accountSchema);
   }
 
   async balances(accountUid: string): Promise<EbBalance[]> {

@@ -2,13 +2,15 @@ import { formatEuro } from "@haben/core";
 import { daysUntil, formatDate, formatDayMonth, relativeDays } from "../lib/format.ts";
 import { Status, type StatusLook } from "./Status.tsx";
 
-type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "privat" | "verrechnet";
+type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "privat" | "verrechnet" | "dublette" | "bestaetigteDublette";
 
 const HINT: Record<Hint, StatusLook> = {
   // Ein Klick erledigt den Umsatz: hebt die Zeilen hervor, die ohne Suchen gehen
   vorschlag: { text: "Vorschlag", tone: "info", emphasis: "notice" },
   // Eine Arbeitsliste: viele Zeilen sind offen, deshalb „notice“ und nicht „urgent“ (DESIGN.md › Status)
   belegFehlt: { text: "Beleg fehlt", tone: "warn", emphasis: "notice" },
+  dublette: { text: "Mögliche Dublette", tone: "warn", emphasis: "notice" },
+  bestaetigteDublette: { text: "Dublette" },
   offen: { text: "Offen" },
   teilweise: { text: "Teilweise", tone: "info" },
   zugeordnet: { text: "Zugeordnet", tone: "ok" },
@@ -56,6 +58,23 @@ const CONNECTION_STATUS: Record<"aktiv" | "abgelaufen" | "fehler" | "widerrufen"
   widerrufen: { text: "Getrennt", tone: "neutral" },
   wartet: { text: "Wartet auf Bank", tone: "info" },
 };
+
+const FINTS_STATUS: Record<"aktiv" | "tan" | "fehler", StatusLook> = {
+  aktiv: { text: "Aktiv", tone: "ok" },
+  // Der Abruf im Hintergrund wartet, bis jemand mit TAN abruft
+  tan: { text: "TAN nötig", tone: "warn", emphasis: "urgent" },
+  fehler: { text: "Fehler", tone: "danger", emphasis: "urgent" },
+};
+
+/** Zustand einer Verbindung zum Abruf über FinTS (#654) */
+export function FintsStatus({ status }: { status: keyof typeof FINTS_STATUS }) {
+  const { text, ...look } = FINTS_STATUS[status];
+  return (
+    <Status {...look} inline>
+      {text}
+    </Status>
+  );
+}
 
 /** Zustand einer Verbindung zum automatischen Abruf; läuft die Zustimmung bald ab, ist das dringend */
 export function ConnectionStatus({ connection: c }: { connection: { status: keyof typeof CONNECTION_STATUS; renewSoon: boolean; validUntil: string | null } }) {

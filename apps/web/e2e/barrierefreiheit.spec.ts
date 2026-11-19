@@ -51,6 +51,7 @@ const PAGES = [
   "/finanzamt",
   "/fristen",
   "/auswertungen",
+  "/auswertungen/bwa?zeitraum=jahr&zeile=erloese",
   "/buchungen",
   "/buchungen/neu",
   `/abschluss/${YEAR - 1}`,
@@ -71,6 +72,8 @@ const PAGES = [
   "/archiv?ansicht=belege&richtung=ausgabe&ohneDatei=true",
   "/textbausteine",
   "/einstellungen",
+  "/einstellungen?bereich=bereiche",
+  "/einrichtung",
   "/einstellungen?bereich=rechnungen",
   "/einstellungen?bereich=gestaltung",
   "/einstellungen?bereich=elster",
@@ -98,6 +101,7 @@ const THEME_PAGES = [
   `/konten/1200?jahr=${YEAR}`,
   "/fristen",
   "/auswertungen",
+  "/auswertungen/bwa?zeitraum=jahr",
   `/jahreserklaerung/${YEAR}`,
   "/archiv",
   "/einstellungen?bereich=elster",
@@ -793,4 +797,29 @@ test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in alle
   await expect(alle).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   expect(await axe(page), "Befehlspalette am Handy").toEqual([]);
+});
+
+/* Review #1470: Die Aufklappköpfe (`.est-block > summary`) der Jahreserklärung am Handy: Titel und Kurztext überlappen nicht und ragen nicht aus ihrer Box */
+test("Jahreserklärung am Handy: Titel und Kurztext im Aufklappkopf überlappen nicht", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`/jahreserklaerung/${YEAR}`);
+  await page.waitForLoadState("networkidle");
+  const fehler = await page.evaluate(() =>
+    [...document.querySelectorAll(".est-block > summary")].flatMap((summary) => {
+      const kinder = [...summary.children] as HTMLElement[];
+      const probleme: string[] = [];
+      for (const kind of kinder)
+        if (kind.scrollWidth > kind.clientWidth + 1) probleme.push(`${kind.textContent}: Text ragt aus der Box (${kind.scrollWidth} > ${kind.clientWidth})`);
+      const boxen = kinder.map((k) => k.getBoundingClientRect());
+      for (let i = 0; i < boxen.length; i++)
+        for (let j = i + 1; j < boxen.length; j++) {
+          const a = boxen[i];
+          const b = boxen[j];
+          if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1)
+            probleme.push(`${kinder[i].textContent} überlappt ${kinder[j].textContent}`);
+        }
+      return probleme;
+    }),
+  );
+  expect(fehler).toEqual([]);
 });

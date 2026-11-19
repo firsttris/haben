@@ -166,10 +166,18 @@ describe.each(KONTENRAHMEN)("EÜR-Zeilen aus dem Journal wie computeEuer (%s)", 
       ["erloese", 0, 5_000],
       ["software", 0, -11_900],
       ["telefon", 0, -2_000],
+      ["nichtSteuerbar", 0, 1_250],
+      ["nichtSteuerbar", 0, -420],
     ] as const)("Direktbuchung %s %i (%i)", (kategorie, steuersatz, amount) => {
       expect(ausJournal(kr, kategoriePosting({ kategorie, steuersatz }, amount, kr))).toEqual(
         erwartet([{ kind: "kategorie", date: DATUM, amount, kategorie, steuersatz }]),
       );
+    });
+
+    it("Konto der nicht steuerbaren Einnahme (#1131): Zeile 16, bei KU Zeile 12; SKR03-4970 bleibt Bankgebühr", () => {
+      expect(euerZuordnung(kr, ACCOUNTS[kr].schadenersatz)).toBe("einnahmenSteuerfrei");
+      expect(euerZuordnung(kr, ACCOUNTS[kr].schadenersatz, "sonst", true)).toBe("einnahmenKleinunternehmer");
+      if (kr === "SKR03") expect(euerZuordnung(kr, "4970")).toBe("ausgabe:geldverkehr");
     });
 
     it.each([

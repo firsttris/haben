@@ -19,6 +19,10 @@ export {
   startConnection,
   syncConnection,
 } from "./bank-sync.ts";
+export { fintsVerbinden, fintsVerbindenSchema, listFintsConnections, removeFintsConnection } from "./fints.ts";
+export { fintsAbrufen, runDueFintsSyncs } from "./fints-abruf.ts";
+export { fintsConfigured } from "./fints-produkt.ts";
+export { type FintsSchritt, vorgangFortsetzen as fintsFortsetzen, vorgangVerwerfen as fintsVerwerfen } from "./fints-vorgang.ts";
 export {
   accountSchema,
   allocate,
@@ -29,6 +33,7 @@ export {
   allocateSplit,
   allocationSchema,
   BankError,
+  UnbekannteCsvError,
   createAccount,
   createProviderAccount,
   providerAccountSchema,
@@ -48,14 +53,13 @@ export {
   transactionDetail,
   transferSchema,
   allocateWithRest,
-  allocateFeesToDocument,
-  feesSchema,
   listWriteOffs,
   restSchema,
   reverseWriteOff,
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
+export { allocateFeesToDocument, feesSchema } from "./sammelzuordnung.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
 export { umsatzauswahl } from "./umsatzauswahl.ts";
 export {
@@ -68,6 +72,7 @@ export {
 export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
 export { hebePrivatAuf, markierePrivat } from "./privat.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
+export { decideDuplicate, duplicateDecisionSchema, type DuplicateDecisionInput } from "./duplicate-review.ts";
 export {
   createSepaTransfer,
   documentSepaTransfers,
@@ -146,3 +151,8 @@ export {
   type SettlementInput,
 } from "./verrechnung.ts";
 export { gemeldeteVoranmeldungen } from "./bank.ts";
+export { bankCsvMappingSchema, csvZuordnungSchema, importCsvZuordnung, importStatementFile, type CsvImportResult } from "./csv-zuordnung.ts";
+export { klaerungView, openConflicts, recordRefusedBatch, resolveConflict, resolveConflictSchema } from "./import-konflikt.ts";
+export { cutoverDates } from "./andere-importe.ts";
+export { storeBatch, type BatchResult, type StoreBatchInput } from "./import-batch.ts";
+export { runExistingDuplicateCheck } from "./duplicate-scan.ts";

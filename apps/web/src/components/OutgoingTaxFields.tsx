@@ -1,7 +1,7 @@
 import { outgoingTaxIssues, section4Note, TAX_TREATMENTS, type OutgoingTaxDetails, type TaxTreatment } from "@haben/core";
 import { Field } from "./Field.tsx";
 
-const EMPTY_DETAILS: OutgoingTaxDetails = { exemption: null, ancillary: null, foreignPlace: null, assetDisposal: false };
+export const EMPTY_DETAILS: OutgoingTaxDetails = { exemption: null, ancillary: null, foreignPlace: null, assetDisposal: false };
 const KU_TREATMENTS: TaxTreatment[] = ["kleinunternehmer", "steuerfrei", "reverse_charge", "drittland", "eu_sonstige"];
 
 interface TaxFieldsProps {
@@ -148,7 +148,14 @@ function ExemptionFields({
   );
 }
 
-function ForeignTaxFields({ values, disabled, update, treatment, kleinunternehmer }: DetailsProps & Pick<TaxFieldsProps, "treatment" | "kleinunternehmer">) {
+/** Tatsächlicher Leistungsort einer Auslandsleistung; auch die Übernahme einer Fremdrechnung fragt ihn so ab (#1392) */
+export function ForeignTaxFields({
+  values,
+  disabled,
+  update,
+  treatment,
+  kleinunternehmer,
+}: DetailsProps & Pick<TaxFieldsProps, "treatment" | "kleinunternehmer">) {
   const required = kleinunternehmer || treatment === "eu_sonstige";
   return (
     <>
@@ -237,19 +244,26 @@ function TurnoverFields({ values, disabled, update, treatment }: DetailsProps & 
   );
 }
 
-function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): string | undefined {
+const KU_HINT = "Die Kleinunternehmerregelung lässt eine eigene Befreiung oder einen geklärten ausländischen Leistungsort zu.";
+
+/** Hinweis mit Vorschrift und Kennzahl unter der Auswahl der Behandlung; auch die Übernahme einer Fremdrechnung zeigt ihn */
+export function treatmentHint(treatment: TaxTreatment, kleinunternehmer: boolean): string | undefined {
   switch (treatment) {
     case "kleinunternehmer":
-      return "In den Einstellungen als Kleinunternehmer eingetragen. Eigene Befreiungen und geklärte Auslandsleistungen wählst du je Beleg.";
+      return "Kleinunternehmerregelung nach § 19 UStG, in den Einstellungen eingetragen. Eigene Befreiungen und geklärte Auslandsleistungen wählst du je Beleg.";
     case "reverse_charge":
-      return "Nur für Leistungen an Unternehmen im EU-Ausland mit USt-IdNr.; zusätzlich in der Zusammenfassenden Meldung angeben. Nicht für Privatkunden.";
+      return "Nur für Dienstleistungen und Nutzungsrechte (sonstige Leistungen, § 3 Abs. 9 UStG) an Unternehmen im EU-Ausland mit USt-IdNr.; der Leistungsort liegt beim Kunden (§ 3a Abs. 2 UStG). Zusätzlich in der Zusammenfassenden Meldung angeben. Nicht für Privatkunden.";
+    case "drittland":
+      return "Dienstleistung oder Nutzungsrecht (sonstige Leistung, § 3 Abs. 9 UStG) mit Leistungsort im Nicht-EU-Ausland (§ 3a UStG): in Deutschland nicht steuerbar, Kz 45.";
     case "eu_sonstige":
-      return "Für geklärte sonstige Leistungen im EU-Ausland, auch an Privatkunden, ohne auszuweisende ausländische Umsatzsteuer. Kein B2B-Reverse-Charge.";
+      return "Ohne Reverse Charge: für geklärte Dienstleistungen und Nutzungsrechte mit Leistungsort im EU-Ausland (§ 3a UStG), auch an Privatkunden, ohne auszuweisende ausländische Umsatzsteuer. In Deutschland nicht steuerbar. Kein B2B-Reverse-Charge.";
     case "ig_lieferung":
-      return "Nur für Ware an ein Unternehmen in einem anderen EU-Land mit dessen USt-IdNr. Den Gelangensnachweis (§ 17a UStDV) zur Rechnung aufbewahren; Haben meldet Kz 41 und die Zusammenfassende Meldung.";
+      return "Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG): nur für Ware an einen Kunden mit USt-IdNr. in einem anderen EU-Land. Den Gelangensnachweis (§ 17a UStDV) zur Rechnung aufbewahren; Haben meldet Kz 41 und die Zusammenfassende Meldung.";
     case "ausfuhr":
-      return "Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§§ 8–11 UStDV). Dienstleistungen ins Drittland sind „Leistung ins Nicht-EU-Ausland“.";
+      return "Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG): nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§§ 8–11 UStDV). Dienstleistungen ins Drittland sind „Nicht-EU-Ausland: Dienstleistung oder Nutzungsrecht“.";
+    case "steuerfrei":
+      return `Steuerbefreiung nach § 4 UStG; die Vorschrift gibst du darunter an.${kleinunternehmer ? ` ${KU_HINT}` : ""}`;
     default:
-      return kleinunternehmer ? "Die Kleinunternehmerregelung lässt eine eigene Befreiung oder einen geklärten ausländischen Leistungsort zu." : undefined;
+      return kleinunternehmer ? KU_HINT : undefined;
   }
 }

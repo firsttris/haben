@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** Zusammenfassende Meldung (§ 18a UStG): Zeilen aus den Rechnungen, Vorprüfung, Übermittlung, Berichtigung, Sperre, Fristen */
 describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
@@ -18,9 +19,14 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   const q3 = { year: 2026, month: 43 };
   const q4 = { year: 2026, month: 44 };
 
+  let abgleich: typeof import("../auswertungen/abgleich.ts");
+
   beforeAll(async () => {
+    // Abgeschaltet ist die Vorprüfung wie vor der Bestätigung beim BZSt (#1385); die prüft zm-bestaetigung.test.ts
+    process.env.HABEN_EVATR = "off";
     sql = await setupTestDb();
     zm = await import("./zm.ts");
+    abgleich = await import("../auswertungen/abgleich.ts");
     figures = await import("./vat-figures.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
@@ -30,6 +36,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   }, 30_000);
 
   afterAll(async () => {
+    delete process.env.HABEN_EVATR;
     await sql?.end();
   });
 
@@ -67,7 +74,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   async function rechnung(
     issueDate: string,
     net: number,
-    options: { name?: string; land?: string; ustId?: string; treatment?: "reverse_charge" | "regulaer" } = {},
+    options: { name?: string; land?: string; ustId?: string; treatment?: "reverse_charge" | "regulaer" | "ig_lieferung" } = {},
   ) {
     const { name = "Alpenblick GmbH", land = "AT", ustId = "ATU12345678", treatment = "reverse_charge" } = options;
     const draft = await invoices.createDraft(actor, {
@@ -82,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
       exemptionReason: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: net, taxRate: treatment === "regulaer" ? 1900 : 0 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   /** Wie ERiC: kein simulierter Client, damit die Echtübermittlung durchgeht; jedes XML geht durch das echte Plugin, wenn da */
@@ -146,7 +153,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
     const b = await rechnung("2026-09-11", 100_000, { name: "Lumière SARL", land: "FR", ustId: "FR12345678901" });
     await invoices.cancelInvoice(actor, a.id, "2026-10-05");
     const korrektur = await invoices.createCorrection(actor, b.id, "2026-10-06");
-    await invoices.finalizeInvoice(actor, korrektur.id);
+    await invoices.finalizeInvoice(actor, korrektur.id, kleinunternehmerStand);
     await rechnung("2026-11-02", 500_000, { name: "Nordlicht AB", land: "SE", ustId: "SE123456789001" });
     const c = await rechnung("2026-10-20", 100_000, { name: "Nordlicht AB", land: "SE", ustId: "SE123456789001" });
     await bank.writeOff(actor, { kind: "skonto", invoiceId: c.id, date: "2026-11-03", amount: 2_000 });
@@ -278,4 +285,43 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
     const ids = (await fristen.listFristen("2026-07-01")).filter((f) => f.art === "zm").map((f) => f.id);
     expect(ids).toEqual(["zm-2026-Q3"]);
   }, 60_000);
+
+  // Die ZM rechnet aus den Rechnungen, Kz 21 und 41 aus dem Journal. Ohne Gegenprobe aus den Nebenbüchern prüft der Abgleich
+  // die gesendete ZM gegen Kz 21 bzw. 41 des Quartals (Vorschlag von Dudeplayz in #1144): Eine falsche ZM macht eine
+  // innergemeinschaftliche Lieferung steuerpflichtig (§ 18a, § 18b UStG; Anleitung zur Voranmeldung 2026, Zeile 19). Kz 41
+  // und 21 melden auch bei Ist nach Rechnung (§ 18b Satz 1 und 2 UStG), die Rechnungen bleiben hier unbezahlt.
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const)
+    for (const versteuerung of ["ist", "soll"] as const)
+      it(`gesendete ZM gegen Kz 21 und 41 aus dem Journal (${kontenrahmen}, ${versteuerung})`, async () => {
+        await setCompany(kontenrahmen, versteuerung);
+        kunden.clear();
+        await rechnung("2026-07-10", 300_000);
+        await rechnung("2026-08-12", 500_000, { name: "Lumière SARL", land: "FR", ustId: "FR12345678901", treatment: "ig_lieferung" });
+        const zeilen = (await zm.zmOverview(q3)).zeilen;
+        const melden = async (berichtigt: boolean, z: unknown) =>
+          sql`insert into zm_submissions (year, month, berichtigt, zeilen, kind, ok, code, message, request_xml, response_xml, server_response_xml)
+            values (2026, 43, ${berichtigt}, ${JSON.stringify(z)}::jsonb, 'send', true, 0, 'ok', '', '', '')`;
+        await melden(false, zeilen);
+        const zmZeilen = async () => (await abgleich.abgleichJahr(2026, "2026-12-31")).zeilen.filter((z) => z.posten.startsWith("Gesendete ZM"));
+        expect(await zmZeilen()).toEqual([]);
+        // Berichtigung, die eine Lieferung mit 200 € weniger meldet
+        await melden(true, [{ ustId: "FR12345678901", art: "L", betrag: 300_000 }]);
+        expect(await zmZeilen()).toEqual([
+          {
+            bereich: "ustva",
+            zeitraum: "2026-Q3",
+            posten: "Gesendete ZM, innergemeinschaftliche Lieferungen gegen Kz 41",
+            journal: 500_000,
+            quelle: 300_000,
+            gegen: "laut ZM",
+            // Stabiler Schlüssel des Postens (#1229): Quartal und Art
+            schluessel: "zm:2026-Q3:L",
+          },
+        ]);
+        // Vor dem Senden der Voranmeldung für September (das Quartal ist dann vollständig) warnt die Vorprüfung
+        const issues = abgleich.abgleichIssues(await abgleich.vatAbgleich({ year: 2026, month: 9 }));
+        expect(issues).toContainEqual(
+          expect.objectContaining({ tone: "warn", text: expect.stringContaining("Gesendete ZM, innergemeinschaftliche Lieferungen gegen Kz 41") }),
+        );
+      }, 60_000);
 });

@@ -18,19 +18,27 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "n26-csv": "N26",
   "swan-csv": "Swan",
   "commerzbank-csv": "Commerzbank",
+  "ing-csv": "ING",
   "c24-csv": "C24",
+  "csv-zuordnung": "CSV mit eigener Zuordnung",
   camt053: "CAMT.053",
   enablebanking: "Bankabruf",
+  fints: "FinTS-Abruf",
   "accountable-xlsx": "Accountable",
   "paypal-csv": "PayPal",
   "stripe-csv": "Stripe",
   "shopify-payments-csv": "Shopify",
   "ebay-csv": "eBay",
   "etsy-csv": "Etsy",
+  // Bewusst ein anderer Name als beim CSV-Import: Wer von der CSV auf den Abruf wechselt, wechselt die Quelle
+  "etsy-ledger": "Etsy Payments (Abruf)",
   "googleplay-earnings": "Google Play",
   "appstore-finance": "App Store",
   "store-payout": "Store-Auszahlung",
 };
+
+/** Anbieter einer Quellenbindung (`import_sources.provider`, #306), wie die Meldung ihn nennt */
+const ABRUF_NAMEN: Record<string, string> = { enablebanking: "der Bankabruf", etsy: "der Etsy-Abruf" };
 
 /**
  * Meldet, wenn im Zeitraum des neuen Auszugs schon Umsätze aus einem anderen Dateiformat liegen und
@@ -70,5 +78,13 @@ export async function quellenHinweis(
   if (fremd.length === 0) return null;
   const aus = fremd.map((f) => `${FORMAT_NAMEN[f.format as StatementFormat] ?? f.format} (${f.filename})`).join(", ");
   const neu = FORMAT_NAMEN[format];
-  return `Für dieses Konto liegen im Zeitraum ${von} bis ${bis} schon Umsätze aus ${aus}. Der Auszug (${neu}) hat ${added} Umsätze neu angelegt; prüfe, ob sie doppelt sind. Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz.`;
+  // Mit Stichtag (#306) ist die Quelle schon gewechselt: ab ihm kommen die Umsätze aus dem Abruf
+  const [bindung] = await tx
+    .select({ cutoverDate: schema.importSources.cutoverDate, provider: schema.importSources.provider })
+    .from(schema.importSources)
+    .where(and(eq(schema.importSources.bankAccountId, bankAccountId), lte(schema.importSources.cutoverDate, bis)));
+  const weiter = bindung?.cutoverDate
+    ? `Seit dem Stichtag ${bindung.cutoverDate} holt ${ABRUF_NAMEN[bindung.provider] ?? "der Abruf"} die Umsätze dieses Kontos; eine Datei braucht es danach nur für eine Lücke im Abruf.`
+    : "Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz.";
+  return `Für dieses Konto liegen im Zeitraum ${von} bis ${bis} schon Umsätze aus ${aus}. Der Auszug (${neu}) hat ${added} Umsätze neu angelegt; prüfe, ob sie doppelt sind. ${weiter}`;
 }

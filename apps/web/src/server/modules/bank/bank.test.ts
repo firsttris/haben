@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 const IBAN = "DE12120300001234567890";
 
@@ -42,6 +43,7 @@ const outgoing = (date: string, to: string, iban: string, purpose: string, amoun
 
 describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   let bank: typeof import("./bank.ts");
+  let sammel: typeof import("./sammelzuordnung.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -51,6 +53,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     bank = await import("./bank.ts");
+    sammel = await import("./sammelzuordnung.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
@@ -93,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       ...refs,
       lines: [{ description: "Leistungen August", quantity: 1000, unit: "Psch.", unitPrice: net, taxRate: 1900 }],
     });
-    return { invoice: await invoices.finalizeInvoice(actor, draft.id), contact };
+    return { invoice: await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand), contact };
   }
 
   it("legt das Konto aus der IBAN an, überspringt Dubletten und erkennt Lücken", async () => {
@@ -757,7 +760,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       exemptionReason: "Nicht im Inland steuerbare Leistung",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 119_000, taxRate: 0 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     // 1.190,00 USD / 1,0812 = 1.100,63 €
     expect(invoice.gross).toBe(110_063);
     await bank.importStatement(
@@ -1040,12 +1043,12 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     });
     await documents.bookDocument(actor, docId);
     const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
-    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
+    expect(await sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
     // Oktober erledigt, November bleibt offen
     const open = await sql`select amount from bank_transactions t where amount < 0
       and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
     expect(open.map((r) => r.amount)).toEqual([-100]);
-    await expect(bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).rejects.toThrow(/Keine offene Gebühr/);
+    await expect(sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).rejects.toThrow(/Keine offene Gebühr/);
   }, 30_000);
 
   // Etsy-Gebührenzeilen haben keinen Betrag, nur „Gebühren & Steuern“; auch sie brauchen „Gebühr“ im Zweck (#296, Review zu #506)
@@ -1073,7 +1076,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     });
     await documents.bookDocument(actor, docId);
     const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
-    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
+    expect(await sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
     // Oktober erledigt, November bleibt offen
     const open = await sql`select amount from bank_transactions t where amount < 0
       and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
@@ -1107,7 +1110,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     });
     await documents.bookDocument(actor, docId);
     const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
-    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(4);
+    expect(await sammel.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(4);
     // Oktober erledigt, die Werbung vom November bleibt offen
     const open = await sql`select amount from bank_transactions t where amount < 0
       and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;

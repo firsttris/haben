@@ -31,7 +31,7 @@ Die PIN liegt wie das Zertifikat mit AES-256-GCM verschlüsselt in der Datenbank
 
 ### Einspruchsfrist
 
-Zu jedem Bescheid zeigt Haben, bis wann ein Einspruch möglich ist (§ 355 AO): ein Monat ab Bekanntgabe. Die Bekanntgabe gilt am vierten Tag nach dem Bescheiddatum, für Bescheide bis 2024 am dritten. Fällt die Bekanntgabe oder das Fristende auf ein Wochenende oder einen Feiertag im Bundesland, gilt der nächste Werktag. Solange die Frist läuft, steht der Bescheid in der Übersicht unter den Aufgaben, in der letzten Woche hervorgehoben. Mitteilungen haben keine Frist.
+Zu jedem Bescheid zeigt Haben unter „Einspruch bis“, bis wann du Einspruch einlegen kannst (§ 355 AO): ein Monat ab Bekanntgabe. Die Bekanntgabe gilt am vierten Tag nach dem Bescheiddatum, für Bescheide bis 2024 am dritten. Fällt die Bekanntgabe oder das Fristende auf ein Wochenende oder einen Feiertag im Bundesland, gilt der nächste Werktag. Solange die Frist läuft, steht der Bescheid in der Übersicht unter den Aufgaben, in der letzten Woche hervorgehoben. Mitteilungen haben keine Frist.
 
 Bei Bescheiden, die nur im Postfach zum Abruf bereitgestellt werden, gilt der Bescheid am vierten Tag nach der Bereitstellung als bekannt gegeben ([§ 122a Abs. 4 Satz 1 AO](https://www.gesetze-im-internet.de/ao_1977/__122a.html)). Haben rechnet mit dem Bescheiddatum statt dem Tag der Bereitstellung; meist ist es derselbe Tag. Im Zweifel muss das Finanzamt den Zeitpunkt der Bereitstellung nachweisen (Satz 2).
 
@@ -54,19 +54,25 @@ Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die S
 | Gewünschte Vorauszahlung je Quartal | vorbelegt mit einem Viertel der voraussichtlichen Steuer, änderbar |
 | Bisherige Vorauszahlung je Quartal | trägst du ein |
 
+Gewinn bis heute, Hochrechnung, Vorjahr und die Rechnung zur voraussichtlichen Steuer stehen zugeklappt unter **Schätzrechnung**; der Kopf nennt darunter die Vorauszahlung je Termin. Die Adresse `/finanzamt#schaetzung` öffnet sie.
+
 ### Steuerprognose
 
 Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte für 2024 bis 2026 sind gegen den Programmablaufplan des BMF abgeglichen, die für 2023 folgen dem Gesetzestext. Vom hochgerechneten Gewinn zieht Haben ab:
 
 - Arbeitslohn: Einkünfte nach Werbungskosten bzw. Arbeitnehmer-Pauschbetrag kommen zum Gewinn hinzu,
-- Vorsorgeaufwand: Rentenversicherung voll (bei Arbeitnehmern abzüglich des Arbeitgeberanteils), Basis-Kranken- und Pflegeversicherung voll, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person, 1.900 € bei Arbeitnehmern,
-- Sonderausgaben: Kirchensteuer und Spenden (bis 20 % des Gesamtbetrags der Einkünfte, also Gewinn und Arbeitslohn), mindestens den Pauschbetrag von 36 € bzw. 72 €,
+- Vorsorgeaufwand: Rentenversicherung voll (bei Arbeitnehmern abzüglich des Arbeitgeberanteils), Basis-Kranken- und Pflegeversicherung voll, bei einem Erstattungsüberhang dieser Beiträge höchstens bis null, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person, 1.900 € bei Arbeitnehmern,
+- Sonderausgaben: Kirchensteuer und Spenden (bis 20 % des Gesamtbetrags der Einkünfte, also Gewinn, Arbeitslohn und ein Erstattungsüberhang), mindestens den Pauschbetrag von 36 € bzw. 72 €,
 - Kinderbetreuungskosten (bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind),
 - Krankheitskosten über der zumutbaren Belastung.
 
+Zum Gewinn kommt dagegen ein Erstattungsüberhang bei den Basisbeiträgen der Kranken- und Pflegeversicherung hinzu: Übersteigen Erstattungen und Arbeitgeberzuschüsse die Beiträge, bei Zusammenveranlagung die beider Ehegatten, bleibt der Abzug bei null, und der Überhang erhöht den Gesamtbetrag der Einkünfte ([§ 10 Abs. 4b Satz 3 EStG](https://www.gesetze-im-internet.de/estg/__10.html)). Ebenso steht die Kirchensteuer: Übersteigt die erstattete die gezahlte, bleibt der Abzug bei null, und der Überhang erhöht den Gesamtbetrag der Einkünfte; die Seite weist ihn in einer eigenen Zeile aus.
+
 Bei Zusammenveranlagung gilt der Splittingtarif. Für Kinder vergleicht Haben Kindergeld und Kinderfreibeträge (Günstigerprüfung), haushaltsnahe Aufwendungen mindern die Steuer nach § 35a EStG. Solidaritätszuschlag mit Freigrenze und Milderungszone; Kirchensteuer mit 8 % in Baden-Württemberg und Bayern, sonst 9 %, bei nur einem kirchensteuerpflichtigen Ehegatten vereinfacht zur Hälfte.
 
-Die Abzüge stammen aus den [Angaben zur Einkommensteuererklärung](jahreserklaerung.md#einkommensteuererklärung) des laufenden Jahres, sonst aus denen des Vorjahres. Gibt es keine, rechnet Haben nur mit dem Pauschbetrag. Einbehaltene Lohnsteuer samt Soli und Kirchensteuer wird angerechnet; die Vorauszahlungen beziehen sich nur auf den Rest. Vermietung, Renten und Kapitalerträge fehlen; die Prognose ist eine Schätzung, keine Steuerberechnung des Finanzamts. Die Nennung im Antrag lässt sich abschalten.
+Arbeitslohn, Abzüge, Lohnsteuer und ein Erstattungsüberhang stammen aus den [Angaben zur Einkommensteuererklärung](jahreserklaerung.md#einkommensteuererklärung) des laufenden Jahres, sonst aus denen des Vorjahres; geschätzt ist nur der Gewinn für das laufende Jahr. Bei Angaben aus dem Vorjahr nennen die übernommenen Zeilen dessen Jahr (etwa „(Angaben 2025)“). Gibt es keine, rechnet Haben nur mit dem Pauschbetrag. Stammen sie aus dem Vorjahr und fällt Arbeitslohn an, sagt ein Hinweis unter der Schätzrechnung, dass zur Kirchensteuer darin auch die einbehaltene Lohnkirchensteuer gehört ([Kirchensteuer](jahreserklaerung.md#kirchensteuer)); ohne Arbeitslohn erscheint er nicht, denn Lohnkirchensteuer gibt es dort nicht. Einbehaltene Lohnsteuer samt Soli und Kirchensteuer wird angerechnet; die Vorauszahlungen beziehen sich nur auf den Rest. Vermietung, Renten und Kapitalerträge fehlen; die Prognose ist eine Schätzung, keine Steuerberechnung des Finanzamts. Die Nennung im Antrag lässt sich abschalten.
+
+Einkommensersatzleistungen wie Eltern- oder Krankengeld aus den Angaben des laufenden Jahres berücksichtigt Haben beim Progressionsvorbehalt ([§ 32b EStG](https://www.gesetze-im-internet.de/estg/__32b.html)). Bei übernommenen Vorjahresangaben lässt Haben diese Leistungen für beide Personen weg und nennt bei positiven Beträgen das Herkunftsjahr im Hinweis. In der Jahreserklärung ihres Bezugsjahres bleiben sie berücksichtigt. Erwartest du im laufenden Jahr ebenfalls Leistungen, trage sie in dessen Angaben zur Einkommensteuer ein.
 
 Die Herabsetzung wirkt ab dem nächsten Fälligkeitstermin. Die Antwort kommt als geänderter Vorauszahlungsbescheid, per Brief oder in dein ELSTER-Postfach.
 

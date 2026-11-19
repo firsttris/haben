@@ -5,9 +5,9 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 
 /*
- * Freie Buchungen mit Steuerschlüssel (#502; docs/adr/journal-als-quelle.md, Entscheidung 4): manuelle Buchungen ab dem
- * Stichjahr, im Einzelunternehmen und mit USt19, USt7 oder frei auf dem Erlöskonto des Schlüssels. Haben teilt brutto in
- * Netto und Steuer; Voranmeldung und EÜR zählen sie aus dem Journal, die Gegenprobe im Abgleich auch.
+ * Freie Buchungen mit Steuerschlüssel (#502; docs/adr/journal-als-quelle.md, Entscheidung 4): manuelle Buchungen im
+ * Einzelunternehmen und mit USt19, USt7 oder frei auf dem Erlöskonto des Schlüssels. Haben teilt brutto in Netto und
+ * Steuer; Voranmeldung und EÜR zählen sie aus dem Journal (#1116).
  */
 
 const KONTEN = {
@@ -39,14 +39,12 @@ describe.skipIf(!testDatabaseUrl)("Freie Buchungen mit Steuerschlüssel (Postgre
     rechtsform?: "einzelunternehmen" | "gmbh";
     kontenrahmen: "SKR03" | "SKR04";
     versteuerung?: "ist" | "soll";
-    journalAb?: number;
     kleinunternehmer?: boolean;
   }) {
     await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY',
-              ${opts.kontenrahmen}, ${opts.versteuerung ?? "ist"}, ${opts.rechtsform ?? "einzelunternehmen"}, ${opts.kleinunternehmer ?? false},
-              ${opts.journalAb ?? 2026})`;
+              ${opts.kontenrahmen}, ${opts.versteuerung ?? "ist"}, ${opts.rechtsform ?? "einzelunternehmen"}, ${opts.kleinunternehmer ?? false})`;
   }
 
   const linesOf = async (entryId: string) =>
@@ -167,7 +165,7 @@ describe.skipIf(!testDatabaseUrl)("Freie Buchungen mit Steuerschlüssel (Postgre
 
     it(`Storno nach einem Wechsel des Kontenrahmens mit den Konten derselben Rolle (${kontenrahmen})`, async () => {
       const anderer = kontenrahmen === "SKR03" ? "SKR04" : "SKR03";
-      await setup({ kontenrahmen, journalAb: 2025 });
+      await setup({ kontenrahmen });
       const id = await manual.createManualEntry(actor, entnahme(kontenrahmen, "2025-12-10"), today);
       await sql`update company set kontenrahmen = ${anderer}`;
       const storno = await manual.reverseManualEntry(actor, id, undefined, "2026-01-20");
@@ -184,11 +182,9 @@ describe.skipIf(!testDatabaseUrl)("Freie Buchungen mit Steuerschlüssel (Postgre
       expect(kennzahlen(await figures.computeVatFigures({ year: 2026, month: 1 }))).toEqual({ kz81: -10_000, tax81: -1_900 });
     }, 60_000);
 
-    it(`lehnt ab: vor dem Stichjahr, Kleinunternehmer, gemeldeter Zeitraum, falsches Konto oder Gegenkonto (${kontenrahmen})`, async () => {
-      await setup({ kontenrahmen, journalAb: 2027 });
-      await expect(manual.createManualEntry(actor, entnahme(kontenrahmen, "2026-09-10"), today)).rejects.toThrow("erst ab dem Stichjahr");
+    it(`lehnt ab: Kleinunternehmer, gemeldeter Zeitraum, falsches Konto oder Gegenkonto (${kontenrahmen})`, async () => {
       // Der Stand als Kleinunternehmer gilt ab dem Tag der Änderung im Protokoll, hier dem Anlegen der Firma heute
-      await setup({ kontenrahmen, kleinunternehmer: true, journalAb: 2000 });
+      await setup({ kontenrahmen, kleinunternehmer: true });
       await expect(manual.createManualEntry(actor, entnahme(kontenrahmen, heute()), heute())).rejects.toThrow("Kleinunternehmer");
       await setup({ kontenrahmen });
       await sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 9, 'sent', 0, 0, 0, 0, now())`;
@@ -211,9 +207,7 @@ describe.skipIf(!testDatabaseUrl)("Freie Buchungen mit Steuerschlüssel (Postgre
       await manual.createManualEntry(actor, gesellschafter, today);
       expect(kennzahlen(await figures.computeVatFigures({ year: 2026, month: 9 }))).toEqual({ kz81: 10_000, tax81: 1_900 });
       expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 9 })).zeilen)).toEqual([]);
-      // Vor dem Stichjahr bleibt die Umbuchung ohne Schlüssel erlaubt, mit Schlüssel nicht
-      await sql`update company set journal_ab = 2027`;
-      await expect(manual.createManualEntry(actor, gesellschafter, today)).rejects.toThrow("erst ab dem Stichjahr");
+      // Die Umbuchung ohne Schlüssel bleibt erlaubt
       await manual.createManualEntry(
         actor,
         {

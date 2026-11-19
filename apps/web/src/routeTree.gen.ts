@@ -20,6 +20,7 @@ import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppCsvImportRouteImport } from './routes/_app/csv-import'
 import { Route as AppDarlehenRouteImport } from './routes/_app/darlehen'
+import { Route as AppEinrichtungRouteImport } from './routes/_app/einrichtung'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
@@ -49,6 +50,7 @@ import { Route as AppAnlagenIdRouteImport } from './routes/_app/anlagen/$id'
 import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
 import { Route as AppArchivIndexRouteImport } from './routes/_app/archiv/index'
 import { Route as AppArtikelIndexRouteImport } from './routes/_app/artikel/index'
+import { Route as AppAuswertungenBwaRouteImport } from './routes/_app/auswertungen_.bwa'
 import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
 import { Route as AppBuchungenIndexRouteImport } from './routes/_app/buchungen/index'
@@ -83,6 +85,8 @@ import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiDatevJahrRouteImport } from './routes/api/datev/$jahr'
 import { Route as ApiDauerbelegIdRouteImport } from './routes/api/dauerbeleg/$id'
+import { Route as ApiEinstellungenExportRouteImport } from './routes/api/einstellungen/export'
+import { Route as ApiEtsyCallbackRouteImport } from './routes/api/etsy/callback'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kalender'
 import { Route as ApiHinterlegungJahrRouteImport } from './routes/api/hinterlegung/$jahr'
@@ -181,6 +185,11 @@ const AppCsvImportRoute = AppCsvImportRouteImport.update({
 const AppDarlehenRoute = AppDarlehenRouteImport.update({
   id: '/darlehen',
   path: '/darlehen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEinrichtungRoute = AppEinrichtungRouteImport.update({
+  id: '/einrichtung',
+  path: '/einrichtung',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
@@ -327,6 +336,11 @@ const AppArchivIndexRoute = AppArchivIndexRouteImport.update({
 const AppArtikelIndexRoute = AppArtikelIndexRouteImport.update({
   id: '/artikel/',
   path: '/artikel/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuswertungenBwaRoute = AppAuswertungenBwaRouteImport.update({
+  id: '/auswertungen_/bwa',
+  path: '/auswertungen/bwa',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBelegeIndexRoute = AppBelegeIndexRouteImport.update({
@@ -499,6 +513,16 @@ const ApiDatevJahrRoute = ApiDatevJahrRouteImport.update({
 const ApiDauerbelegIdRoute = ApiDauerbelegIdRouteImport.update({
   id: '/api/dauerbeleg/$id',
   path: '/api/dauerbeleg/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEinstellungenExportRoute = ApiEinstellungenExportRouteImport.update({
+  id: '/api/einstellungen/export',
+  path: '/api/einstellungen/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEtsyCallbackRoute = ApiEtsyCallbackRouteImport.update({
+  id: '/api/etsy/callback',
+  path: '/api/etsy/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
@@ -742,6 +766,7 @@ export interface FileRoutesByFullPath {
   '/bank': typeof AppBankRoute
   '/csv-import': typeof AppCsvImportRoute
   '/darlehen': typeof AppDarlehenRoute
+  '/einrichtung': typeof AppEinrichtungRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -766,6 +791,7 @@ export interface FileRoutesByFullPath {
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
+  '/auswertungen/bwa': typeof AppAuswertungenBwaRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
@@ -790,6 +816,8 @@ export interface FileRoutesByFullPath {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
+  '/api/einstellungen/export': typeof ApiEinstellungenExportRoute
+  '/api/etsy/callback': typeof ApiEtsyCallbackRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -859,6 +887,7 @@ export interface FileRoutesByTo {
   '/bank': typeof AppBankRoute
   '/csv-import': typeof AppCsvImportRoute
   '/darlehen': typeof AppDarlehenRoute
+  '/einrichtung': typeof AppEinrichtungRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -884,6 +913,7 @@ export interface FileRoutesByTo {
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
+  '/auswertungen/bwa': typeof AppAuswertungenBwaRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
@@ -908,6 +938,8 @@ export interface FileRoutesByTo {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
+  '/api/einstellungen/export': typeof ApiEinstellungenExportRoute
+  '/api/etsy/callback': typeof ApiEtsyCallbackRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -979,6 +1011,7 @@ export interface FileRoutesById {
   '/_app/bank': typeof AppBankRoute
   '/_app/csv-import': typeof AppCsvImportRoute
   '/_app/darlehen': typeof AppDarlehenRoute
+  '/_app/einrichtung': typeof AppEinrichtungRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/fristen': typeof AppFristenRoute
@@ -1004,6 +1037,7 @@ export interface FileRoutesById {
   '/_app/angebote/neu': typeof AppAngeboteNeuRoute
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
+  '/_app/auswertungen_/bwa': typeof AppAuswertungenBwaRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
   '/_app/buchungen/neu': typeof AppBuchungenNeuRoute
   '/_app/dauerbelege/$id': typeof AppDauerbelegeIdRoute
@@ -1028,6 +1062,8 @@ export interface FileRoutesById {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
+  '/api/einstellungen/export': typeof ApiEinstellungenExportRoute
+  '/api/etsy/callback': typeof ApiEtsyCallbackRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -1100,6 +1136,7 @@ export interface FileRouteTypes {
     | '/bank'
     | '/csv-import'
     | '/darlehen'
+    | '/einrichtung'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -1124,6 +1161,7 @@ export interface FileRouteTypes {
     | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
+    | '/auswertungen/bwa'
     | '/belege/$id'
     | '/buchungen/neu'
     | '/dauerbelege/$id'
@@ -1148,6 +1186,8 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
+    | '/api/einstellungen/export'
+    | '/api/etsy/callback'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -1217,6 +1257,7 @@ export interface FileRouteTypes {
     | '/bank'
     | '/csv-import'
     | '/darlehen'
+    | '/einrichtung'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -1242,6 +1283,7 @@ export interface FileRouteTypes {
     | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
+    | '/auswertungen/bwa'
     | '/belege/$id'
     | '/buchungen/neu'
     | '/dauerbelege/$id'
@@ -1266,6 +1308,8 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
+    | '/api/einstellungen/export'
+    | '/api/etsy/callback'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -1336,6 +1380,7 @@ export interface FileRouteTypes {
     | '/_app/bank'
     | '/_app/csv-import'
     | '/_app/darlehen'
+    | '/_app/einrichtung'
     | '/_app/einstellungen'
     | '/_app/finanzamt'
     | '/_app/fristen'
@@ -1361,6 +1406,7 @@ export interface FileRouteTypes {
     | '/_app/angebote/neu'
     | '/_app/anlagen/$id'
     | '/_app/anlagen/neu'
+    | '/_app/auswertungen_/bwa'
     | '/_app/belege/$id'
     | '/_app/buchungen/neu'
     | '/_app/dauerbelege/$id'
@@ -1385,6 +1431,8 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
+    | '/api/einstellungen/export'
+    | '/api/etsy/callback'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -1470,6 +1518,8 @@ export interface RootRouteChildren {
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiDatevJahrRoute: typeof ApiDatevJahrRoute
   ApiDauerbelegIdRoute: typeof ApiDauerbelegIdRoute
+  ApiEinstellungenExportRoute: typeof ApiEinstellungenExportRoute
+  ApiEtsyCallbackRoute: typeof ApiEtsyCallbackRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiFristenKalenderRoute: typeof ApiFristenKalenderRoute
   ApiHinterlegungJahrRoute: typeof ApiHinterlegungJahrRoute
@@ -1579,6 +1629,13 @@ declare module '@tanstack/react-router' {
       path: '/darlehen'
       fullPath: '/darlehen'
       preLoaderRoute: typeof AppDarlehenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/einrichtung': {
+      id: '/_app/einrichtung'
+      path: '/einrichtung'
+      fullPath: '/einrichtung'
+      preLoaderRoute: typeof AppEinrichtungRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/einstellungen': {
@@ -1782,6 +1839,13 @@ declare module '@tanstack/react-router' {
       path: '/artikel'
       fullPath: '/artikel/'
       preLoaderRoute: typeof AppArtikelIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/auswertungen_/bwa': {
+      id: '/_app/auswertungen_/bwa'
+      path: '/auswertungen/bwa'
+      fullPath: '/auswertungen/bwa'
+      preLoaderRoute: typeof AppAuswertungenBwaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/belege/': {
@@ -2020,6 +2084,20 @@ declare module '@tanstack/react-router' {
       path: '/api/dauerbeleg/$id'
       fullPath: '/api/dauerbeleg/$id'
       preLoaderRoute: typeof ApiDauerbelegIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/einstellungen/export': {
+      id: '/api/einstellungen/export'
+      path: '/api/einstellungen/export'
+      fullPath: '/api/einstellungen/export'
+      preLoaderRoute: typeof ApiEinstellungenExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/etsy/callback': {
+      id: '/api/etsy/callback'
+      path: '/api/etsy/callback'
+      fullPath: '/api/etsy/callback'
+      preLoaderRoute: typeof ApiEtsyCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/export/$jahr': {
@@ -2332,6 +2410,7 @@ interface AppRouteChildren {
   AppBankRoute: typeof AppBankRoute
   AppCsvImportRoute: typeof AppCsvImportRoute
   AppDarlehenRoute: typeof AppDarlehenRoute
+  AppEinrichtungRoute: typeof AppEinrichtungRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppFinanzamtRoute: typeof AppFinanzamtRoute
   AppFristenRoute: typeof AppFristenRoute
@@ -2348,6 +2427,7 @@ interface AppRouteChildren {
   AppAngeboteNeuRoute: typeof AppAngeboteNeuRoute
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
+  AppAuswertungenBwaRoute: typeof AppAuswertungenBwaRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
   AppBuchungenNeuRoute: typeof AppBuchungenNeuRoute
   AppDauerbelegeIdRoute: typeof AppDauerbelegeIdRoute
@@ -2397,6 +2477,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBankRoute: AppBankRoute,
   AppCsvImportRoute: AppCsvImportRoute,
   AppDarlehenRoute: AppDarlehenRoute,
+  AppEinrichtungRoute: AppEinrichtungRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppFinanzamtRoute: AppFinanzamtRoute,
   AppFristenRoute: AppFristenRoute,
@@ -2413,6 +2494,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAngeboteNeuRoute: AppAngeboteNeuRoute,
   AppAnlagenIdRoute: AppAnlagenIdRoute,
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
+  AppAuswertungenBwaRoute: AppAuswertungenBwaRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
   AppBuchungenNeuRoute: AppBuchungenNeuRoute,
   AppDauerbelegeIdRoute: AppDauerbelegeIdRoute,
@@ -2501,6 +2583,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiDatevJahrRoute: ApiDatevJahrRoute,
   ApiDauerbelegIdRoute: ApiDauerbelegIdRoute,
+  ApiEinstellungenExportRoute: ApiEinstellungenExportRoute,
+  ApiEtsyCallbackRoute: ApiEtsyCallbackRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
   ApiFristenKalenderRoute: ApiFristenKalenderRoute,
   ApiHinterlegungJahrRoute: ApiHinterlegungJahrRoute,

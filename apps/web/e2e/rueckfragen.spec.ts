@@ -2,7 +2,7 @@ import { expect, type Locator, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { currentDay, day, USER } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { bestaetigen, dkb, durchlaufSeite, faktenZeigen, gehe, kontaktAnlegen, rechnungFestschreiben, SETUP_CODE } from "./einrichtung.ts";
+import { bestaetigen, fragenUeberspringen, dkb, durchlaufSeite, faktenZeigen, gehe, kontaktAnlegen, rechnungFestschreiben, SETUP_CODE } from "./einrichtung.ts";
 
 /**
  * Rückfragen vor Aktionen, die früher mit einem Klick auslösten (#404), in eigener, leerer Datenbank (Projekt
@@ -73,8 +73,7 @@ test("Einrichtung als GmbH, eine Rechnung im Vorjahr und zwei im laufenden", asy
   await page.getByLabel(/Passwort/).fill(USER.password);
   await page.getByRole("button", { name: "Konto anlegen" }).click();
   await page.getByRole("button", { name: "Später" }).click();
-  await page.waitForURL("**/einstellungen");
-  await page.waitForLoadState("networkidle");
+  await fragenUeberspringen(page);
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await firma.getByLabel("Name", { exact: true }).fill("Nordlicht Software GmbH");
   await firma.getByLabel("E-Mail", { exact: true }).fill("rechnung@nordlicht.example");
@@ -491,6 +490,28 @@ test("Belege per E-Mail: Tab aus dem letzten Feld und Enter entfernt das Postfac
   await tabUndEnterBehaeltZugang(page.getByRole("form", { name: "Belege per E-Mail" }), "Jetzt abrufen");
 });
 
+test("Belege per E-Mail: Umstellen auf „Löschen“ fragt vor dem Speichern nach (#1419)", async () => {
+  await go("/einstellungen?bereich=email");
+  const karte = page.getByRole("form", { name: "Belege per E-Mail" });
+  await karte.getByLabel("IMAP-Server").fill("127.0.0.1");
+  await karte.getByLabel("Benutzername", { exact: true }).fill("max");
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByLabel("Mail im Postfach").selectOption("delete");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(rueckfrage("Abgerufene Mails löschen?")).toContainText("Mailtext und Original sind danach weg");
+  await abbrechen("Abgerufene Mails löschen?");
+  await expect(karte.getByRole("status")).toHaveCount(0);
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await bestaetigen(page, "Löschen aktivieren");
+  await expect(karte.getByRole("status")).toHaveText("Postfach gespeichert.");
+  await go("/einstellungen?bereich=email");
+  await expect(karte.getByLabel("Mail im Postfach")).toHaveValue("delete");
+  // Schon auf „Löschen“ gestellt: weiteres Speichern fragt nicht erneut
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status")).toHaveText("Postfach gespeichert.");
+});
+
 test("E-Mail-Versand: Tab aus dem letzten Feld und Enter entfernt den Zugang nicht (#394)", async () => {
   await go("/einstellungen?bereich=email");
   const karte = page.getByRole("form", { name: "E-Mail-Versand" });
@@ -522,29 +543,6 @@ test("Postfach und E-Mail-Zugang entfernen fragen nach (#394, #404)", async () =
     await expect(karte.getByRole("status")).toHaveText(meldung);
     await expect(karte.getByRole("button", { name: knopf })).toHaveCount(0);
   }
-});
-
-test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem Journal", async () => {
-  const jahr = new Date().getFullYear();
-  // Wie eine bestehende Instanz nach Migration 0192: Stichjahr im nächsten Jahr
-  await sql`update company set journal_ab = ${jahr + 1}`;
-  await go("/einstellungen?bereich=firma");
-  const karte = page.getByRole("region", { name: "Voranmeldung und EÜR aus dem Journal" });
-  await expect(karte).toContainText(`Stichjahr ${jahr + 1}`);
-  await expect(karte).toContainText(`${jahr} rechnet noch aus den Nebenbüchern`);
-  const vorziehen = karte.getByRole("button", { name: `Ab ${jahr} aus dem Journal` });
-
-  await vorziehen.click();
-  await faktenZeigen(page, "Bisher", "Neu");
-  await abbrechen(`Stichjahr auf ${jahr} vorziehen?`);
-  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr + 1 }]);
-
-  await vorziehen.click();
-  await bestaetigen(page, "Vorziehen");
-  await expect(page.getByText(`Voranmeldung und EÜR rechnen jetzt ab ${jahr} aus dem Journal.`)).toBeVisible();
-  await expect(karte).toContainText(`Stichjahr ${jahr} · aus dem Journal`);
-  await expect(vorziehen).toHaveCount(0);
-  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr }]);
 });
 
 test("Logo und Briefpapier entfernen fragen nach", async () => {

@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -53,14 +54,13 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: nur im Einzelunternehme
     kontenrahmen: "SKR03" | "SKR04" = "SKR03",
     kleinunternehmer = false,
     rechtsform: "einzelunternehmen" | "gmbh" = "einzelunternehmen",
-    journalAb: number | null = null,
   ) {
     await leeren(sql)`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, write_offs, year_closings, loans, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -128,7 +128,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: nur im Einzelunternehme
       taxTreatment: "kleinunternehmer",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 0 }],
     } as never);
-    const a = await invoices.finalizeInvoice(actor, draft.id);
+    const a = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     const txs = await transactions([eingang("01.03.26", `RE ${a.number}`, "1000,00")]);
     await bank.allocate(actor, { kind: "invoice", transactionId: txs[0]!.id, invoiceId: a.id, amount: 100_000 });
     const [alloc] = await sql<{ id: string }[]>`select id from allocations where invoice_id = ${a.id}`;

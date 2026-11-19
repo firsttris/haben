@@ -117,6 +117,25 @@ describe.skipIf(!testDatabaseUrl)("Körperschaft- und Gewerbesteuer (Postgres)",
     );
   });
 
+  it("Mindesthebesatz je Erhebungszeitraum: 200 % bis 2026, 280 % ab 2027, auch im Vorschlag aus dem Vorjahr", async () => {
+    await setup("SKR04", "soll");
+    const ohneVortrag = { verlustvortragKst: 0, verlustvortragGewst: 0 };
+
+    await expect(kst.saveKapgAngaben(actor, 2026, { hebesatz: 199, ...ohneVortrag })).rejects.toThrow("Der Hebesatz beträgt 2026 mindestens 200 %.");
+    await kst.saveKapgAngaben(actor, 2026, { hebesatz: 200, ...ohneVortrag });
+    expect(await kst.kapgSteuernJahr(2026)).toMatchObject({ gespeichert: true, angaben: { hebesatz: 200 } });
+
+    // Eine Gemeinde mit 250 %: Hat sie für 2027 keinen höheren bestimmt, gilt der Mindesthebesatz (§ 16 Abs. 4 Satz 2 GewStG)
+    await kst.saveKapgAngaben(actor, 2026, { hebesatz: 250, ...ohneVortrag });
+    expect(await kst.kapgSteuernJahr(2027)).toMatchObject({ gespeichert: false, angaben: { hebesatz: 280 } });
+
+    const zuNiedrig = kst.saveKapgAngaben(actor, 2027, { hebesatz: 279, ...ohneVortrag });
+    await expect(zuNiedrig).rejects.toThrow("Der Hebesatz beträgt 2027 mindestens 280 %.");
+    await expect(zuNiedrig).rejects.toBeInstanceOf(kst.KoerperschaftError);
+    await kst.saveKapgAngaben(actor, 2027, { hebesatz: 280, ...ohneVortrag });
+    expect(await kst.kapgSteuernJahr(2027)).toMatchObject({ gespeichert: true, angaben: { hebesatz: 280 } });
+  });
+
   it("gleichzeitiges Speichern von Steuerangaben und Angaben zur Erklärung verliert keine", async () => {
     await setup("SKR04", "ist");
     const anteilseigner = { name: "Erika", strasse: "Weg 1", plzOrt: "93047 Regensburg", idnr: "86095742719", beteiligung: 2_500_000, anteil: 10_000 };

@@ -18,6 +18,9 @@ import {
   formatDecimal,
   formatEuro,
   counterCircle,
+  customerNumberProblem,
+  documentNumberLengthProblem,
+  effectiveCustomerNumber,
   formatDocumentNumber,
   issueDateBeforeLastFinalized,
   type FinalizedCircleRef,
@@ -30,7 +33,6 @@ import {
   skontoProblem,
   outgoingTaxIssues,
   section4Note,
-  VORJAHRESGRENZE,
   type Bundesland,
   type PriceMode,
   type SkontoStufe,
@@ -38,6 +40,7 @@ import {
   type OutgoingTaxDetails,
   type UnitLabel,
   distinctVatRates,
+  usesCustomerNumber,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -77,11 +80,13 @@ import { Field } from "./Field.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { UmsatzgrenzeDialog } from "./UmsatzgrenzeDialog.tsx";
 import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
 import { ActionBar } from "./ActionBar.tsx";
 import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
+import { FestschreibenHinweise } from "./FestschreibenHinweise.tsx";
 
 interface ContactOption {
   id: string;
@@ -133,6 +138,26 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlan?: PaymentPlanRow[];
   paymentPlanInConfirmation?: boolean;
 };
+
+function previewCustomerNumber(
+  contact: Pick<ContactOption, "kundennummer"> | null,
+  corrects: { buyer?: { kundennummer?: string } | null } | null,
+): string | undefined {
+  return corrects ? effectiveCustomerNumber(corrects.buyer, contact) : (contact?.kundennummer ?? undefined);
+}
+
+// {KUNDENNR} zeigt die Kundennummer des Käufers, beim Storno und der Korrektur die des Originals, solange sie taugt
+// (#1426); ohne verwendbare Nummer bleibt {KUNDENNR} stehen, das Problem dazu steht in der Liste über dem Formular
+export function previewNumber(
+  format: string,
+  date: string,
+  counter: number,
+  contact: Pick<ContactOption, "kundennummer"> | null,
+  corrects: { buyer?: { kundennummer?: string } | null } | null,
+): string {
+  const kundennummer = previewCustomerNumber(contact, corrects);
+  return formatDocumentNumber(format, date, counter, usesCustomerNumber(format) && customerNumberProblem(kundennummer) ? undefined : kundennummer);
+}
 
 export function InvoiceEditor({
   id: initialId,
@@ -186,7 +211,7 @@ export function InvoiceEditor({
   numberRunning?: boolean;
   /** Zuletzt festgeschriebene Rechnung je Kreis (#713) */
   lastFinalized?: Record<number, FinalizedCircleRef>;
-  corrects: { number: string | null; issueDate: string } | null;
+  corrects: { number: string | null; issueDate: string; buyer?: { kundennummer?: string } | null } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
   kleinunternehmer: boolean;
@@ -335,8 +360,15 @@ export function InvoiceEditor({
   // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
-  const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
+  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, contact, corrects);
+  // Dasselbe Problem wie in buyerIssues, aber live aus dem Formular: Bei einem neuen oder geänderten Entwurf steht sonst nichts da
+  const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects)) : null;
+  // Zu lang für DATEV (Belegfeld 1, 36 Zeichen): dasselbe hält das Festschreiben auf, Angebote exportiert DATEV nicht
+  const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
+  // Vor dem Festschreiben die USt-IdNr. beim BZSt bestätigen (#1385)
+  const ustIdPruefen =
+    kind === "rechnung" && (taxTreatment === "reverse_charge" || taxTreatment === "ig_lieferung") ? { contactId, behandlung: taxTreatment } : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
   const lastschrift = kind === "rechnung" && paymentMethod === "lastschrift";
@@ -657,7 +689,14 @@ export function InvoiceEditor({
   };
 
   const currentSellerIssues = alreadyPaid || (!quote && kind !== "rechnung") ? sellerIssues.filter((i) => i !== "IBAN fehlt") : sellerIssues;
-  const blocking = [...currentSellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
+  const blocking = [
+    ...new Set([
+      ...currentSellerIssues.map((i) => `Firmendaten: ${i}`),
+      ...(customerNumberIssue ? [customerNumberIssue.replace(/\.$/, "")] : []),
+      ...(numberLengthIssue ? [numberLengthIssue.replace(/\.$/, "")] : []),
+      ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten"))),
+    ]),
+  ];
 
   return (
     <>
@@ -680,51 +719,21 @@ export function InvoiceEditor({
           </>
         ) : (
           <>
-            {earlierThanLast && (
-              <div className="banner banner-warn" role="status">
-                Das Rechnungsdatum ({formatDate(numberDate)}) liegt vor der zuletzt festgeschriebenen Rechnung {earlierThanLast.number} vom{" "}
-                {formatDate(earlierThanLast.issueDate)}.
-              </div>
-            )}
+            <FestschreibenHinweise open={confirming} earlierThanLast={earlierThanLast} numberDate={numberDate} ustId={ustIdPruefen} />
             <p>PDF und XML werden erzeugt und gebucht.</p>
             <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>
         )}
       </ConfirmDialog>
       {umsatzwarnung && (
-        <ConfirmDialog
-          open
-          title={
-            umsatzwarnung.vorjahresumsatz === undefined
-              ? "Rechnung trotz möglicher Überschreitung der Umsatzgrenze festschreiben?"
-              : "Kleinunternehmerregelung wegen Vorjahresumsatz prüfen"
-          }
-          confirmLabel="Trotzdem festschreiben"
-          facts={[
-            ...(umsatzwarnung.vorjahresumsatz === undefined
-              ? [
-                  { label: "Dieses Jahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.umsatz) },
-                  { label: "Bei vollständiger Zahlung in diesem Jahr", value: formatEuro(umsatzwarnung.umsatz + umsatzwarnung.rechnung), strong: true },
-                ]
-              : [{ label: "Im Vorjahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.vorjahresumsatz), strong: true }]),
-          ]}
+        <UmsatzgrenzeDialog
+          warnung={umsatzwarnung}
+          action="festschreiben"
           onClose={() => setUmsatzwarnung(null)}
           onConfirm={() => void run(() => finalizeSaved(umsatzwarnung.id, umsatzwarnung))}
         >
-          {umsatzwarnung.umsatz + umsatzwarnung.rechnung > umsatzwarnung.grenze && (
-            <p>
-              Bei vollständiger Zahlung in diesem Jahr könnte die Grenze von {formatEuro(umsatzwarnung.grenze)} überschritten werden. Ab dem Umsatz, der die
-              Grenze überschreitet, entfällt die Befreiung.
-            </p>
-          )}
-          {umsatzwarnung.vorjahresumsatz !== undefined && (
-            <p>
-              Lag dein Gesamtumsatz im Vorjahr über {formatEuro(VORJAHRESGRENZE)}, entfällt die Kleinunternehmerregelung ab dem 1. Januar des laufenden Jahres.
-            </p>
-          )}
-          <p>Prüfe vor dem Festschreiben, ob du Umsatzsteuer ausweisen musst. Als normale Rechnung erfasste Anlagenverkäufe können im Betrag enthalten sein.</p>
           <p>Bei Abbruch bleibt die Rechnung als Entwurf gespeichert.</p>
-        </ConfirmDialog>
+        </UmsatzgrenzeDialog>
       )}
       <ConfirmDialog
         open={confirmingDelete}
@@ -783,9 +792,8 @@ export function InvoiceEditor({
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Festschreiben: {blocking.join(", ")}. {currentSellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
             Vor dem Festschreiben: {blocking.join(", ")}.{" "}
-            {sellerIssues.length > 0 && (
+            {currentSellerIssues.length > 0 && (
               <Link to="/einstellungen" search={{ bereich: "firma" }}>
                 Firmendaten ergänzen
               </Link>
@@ -972,7 +980,7 @@ export function InvoiceEditor({
                   method={paymentMethod}
                   mandateId={mandateId}
                   mandates={mandates.filter((m) => m.contactId === contactId || m.id === mandateId)}
-                  contactChosen={contactId !== ""}
+                  contactId={contactId}
                   paidVia={paidVia}
                   paidOn={paidOn}
                   paidViaError={error("paidVia") ?? null}

@@ -2,10 +2,10 @@ import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
- * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, docs/adr/journal-als-quelle.md), bestehende Installation
- * mit Stichjahr 2027: Umstellungen zum 1.1.2027 über die Firmendaten (saveCompany mit ihren Sperren) und die
+ * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, #1116, docs/adr/journal-als-quelle.md): Umstellungen zum 1.1.2027 über die Firmendaten (saveCompany mit ihren Sperren) und die
  * Rücklastschrift einer Lastschrift aus dem Dezember. Erwartet, von Hand gerechnet:
  * - Ein Jahr rechnet nach der Versteuerung, nach der es gebucht ist (versteuerungForYear, docs/buchhaltung.md „Ist- und
  *   Soll-Versteuerung“); mit offenen Rechnungen sperrt Haben den Wechsel, sonst würde ihre Steuer doppelt oder gar nicht
@@ -83,9 +83,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
       vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoice_taxes, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank, glaeubiger_id,
-        versteuerung, kontenrahmen, kleinunternehmer, journal_ab)
+        versteuerung, kontenrahmen, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010', 'DE123456789', 'BY',
-              ${ACCOUNT_IBAN}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, 2027)`;
+              ${ACCOUNT_IBAN}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -134,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
       lines: [{ description: "Leistung", quantity: 1000, unit: "Monat", unitPrice: net, taxRate: ku ? 0 : 1900 }],
       ...extra,
     } as never);
-    return invoices.finalizeInvoice(actor, d.id);
+    return invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
   }
   async function beleg(date: string, net: number, tax: number) {
     seq++;
@@ -174,7 +174,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
     const f = await figures.computeVatFigures(period);
     const werte: Kennzahlen = {};
     for (const k of JOURNAL_KENNZAHLEN) if (f[k] !== 0) werte[k] = f[k];
-    return { quelle: f.quelle, ...werte };
+    return werte;
   }
   async function euer(year: number) {
     const e = await reports.euerForYear(year);
@@ -206,9 +206,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
         const c = await rechnung("2027-01-10", 100_000);
         await zahlung({ invoiceId: c.id }, "05.02.27", "1.190,00");
         // Dezember rechnet weiter nach der Versteuerung von 2026; hier sind beide Rechnungen im Dezember bezahlt
-        expect(await va(DEZ)).toEqual({ quelle: "nebenbuecher", kz81: 200_000, tax81: 38_000 });
-        expect(await va(JAN)).toEqual({ quelle: "journal", ...(nachher === "soll" ? STEUER : {}) });
-        expect(await va(FEB)).toEqual({ quelle: "journal", ...(nachher === "ist" ? STEUER : {}) });
+        expect(await va(DEZ)).toEqual({ kz81: 200_000, tax81: 38_000 });
+        expect(await va(JAN)).toEqual({ ...(nachher === "soll" ? STEUER : {}) });
+        expect(await va(FEB)).toEqual({ ...(nachher === "ist" ? STEUER : {}) });
         expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 100_000, vereinnahmteUst: 19_000, gewinn: 119_000 });
         await abgleichSauber([DEZ, JAN, FEB]);
       }, 60_000);
@@ -221,8 +221,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
       await zahlung({ invoiceId: a.id }, "12.01.27", "1.000,00");
       const b = await rechnung("2027-01-15", 50_000);
       await zahlung({ invoiceId: b.id }, "20.01.27", "595,00");
-      expect(await va(DEZ)).toEqual({ quelle: "nebenbuecher" });
-      expect(await va(JAN)).toEqual({ quelle: "journal", kz81: 50_000, tax81: 9_500 });
+      expect(await va(DEZ)).toEqual({});
+      expect(await va(JAN)).toEqual({ kz81: 50_000, tax81: 9_500 });
       const e = await euer(2027);
       expect(e).toMatchObject({ einnahmenSteuerpflichtig: 50_000, vereinnahmteUst: 9_500, gewinn: 159_500 });
       await abgleichSauber([DEZ, JAN]);
@@ -233,8 +233,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
       const a = await rechnung("2026-12-10", 100_000);
       await umstellen({ kleinunternehmer: true });
       await zahlung({ invoiceId: a.id }, "12.01.27", "1.190,00");
-      expect(await va(DEZ)).toEqual({ quelle: "nebenbuecher" });
-      expect(await va(JAN)).toEqual({ quelle: "journal", ...STEUER });
+      expect(await va(DEZ)).toEqual({});
+      expect(await va(JAN)).toEqual({ ...STEUER });
       expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 100_000, vereinnahmteUst: 19_000, gewinn: 119_000 });
       await abgleichSauber([DEZ, JAN]);
     }, 60_000);
@@ -254,8 +254,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
         await zahlung({ documentId: doc }, "13.01.27", "-119,00");
         const [kr] = await sql`select distinct kontenrahmen from journal_entries where date >= '2027-01-01'`;
         expect(kr!.kontenrahmen).toBe(nachher);
-        expect(await va(DEZ)).toEqual({ quelle: "nebenbuecher", kz66: 1_900, ...(versteuerung === "soll" ? STEUER : {}) });
-        expect(await va(JAN)).toEqual({ quelle: "journal", ...(versteuerung === "ist" ? STEUER : {}) });
+        expect(await va(DEZ)).toEqual({ kz66: 1_900, ...(versteuerung === "soll" ? STEUER : {}) });
+        expect(await va(JAN)).toEqual({ ...(versteuerung === "ist" ? STEUER : {}) });
         expect(await euer(2027)).toEqual({
           einnahmenSteuerpflichtig: 100_000,
           vereinnahmteUst: 19_000,
@@ -295,9 +295,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
         const rueck = await umsatzVom("12.01.27", "-1.190,00", false, `RUECKLASTSCHRIFT AM04 KD-1042-01 Rechnung ${a.number}`);
         await bank.allocateDirectDebitReturn(actor, rueck.id);
         await zahlung({ invoiceId: a.id }, "08.02.27", "1.190,00");
-        expect(await va(DEZ)).toEqual({ quelle: "nebenbuecher", kz81: 150_000, tax81: 28_500 });
-        expect(await va(JAN)).toEqual({ quelle: "journal", ...(versteuerung === "ist" ? { kz81: -100_000, tax81: -19_000 } : {}) });
-        expect(await va(FEB)).toEqual({ quelle: "journal", ...(versteuerung === "ist" ? STEUER : {}) });
+        expect(await va(DEZ)).toEqual({ kz81: 150_000, tax81: 28_500 });
+        expect(await va(JAN)).toEqual({ ...(versteuerung === "ist" ? { kz81: -100_000, tax81: -19_000 } : {}) });
+        expect(await va(FEB)).toEqual({ ...(versteuerung === "ist" ? STEUER : {}) });
         expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 150_000, vereinnahmteUst: 28_500, gewinn: 178_500 });
         expect(await euer(2027)).toEqual({ gewinn: 0 });
         await abgleichSauber([DEZ, JAN, FEB]);

@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 type Scenario = "skonto" | "aufteilung";
 type Profile = { kr: "SKR03" | "SKR04"; taxation: "ist" | "soll"; legalForm: "einzelunternehmen" | "gmbh" };
@@ -30,9 +31,9 @@ describe.skipIf(!testDatabaseUrl)("Gemeinsamer Belegstorno entspricht der manuel
       bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts,
       documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts,
       year_closings, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, kontenrahmen, versteuerung, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Prüfbetrieb', 'Teststraße 1', '93047', 'Regensburg', 'test@example.com', '+49 941 1', '198/113/10010',
-        'DE123456789', 'BY', 'DE89370400440532013000', ${profile.kr}, ${profile.taxation}, ${profile.legalForm}, 2026)`;
+        'DE123456789', 'BY', 'DE89370400440532013000', ${profile.kr}, ${profile.taxation}, ${profile.legalForm})`;
   }
 
   async function receipt() {
@@ -79,7 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Gemeinsamer Belegstorno entspricht der manuel
       note: "",
       lines: [{ description: "Testleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   async function transaction(scenario: Scenario) {

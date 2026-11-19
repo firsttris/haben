@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorlage (Postgres, #445)", () => {
   let sql: postgres.Sql;
@@ -79,7 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
     const created = await draft();
     expect(created).toMatchObject({ paymentMethod: "lastschrift", sepaMandateId: mandateId });
     expect(await invoices.finalizeIssues(created.id)).toEqual([]);
-    const final = await invoices.finalizeInvoice(actor, created.id);
+    const final = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(final.xml).toMatch(/<ram:TypeCode>59<\/ram:TypeCode>/);
     expect(final.xml).toContain("<ram:DirectDebitMandateID>KD-1042-01</ram:DirectDebitMandateID>");
     expect(final.xml).toContain("<ram:CreditorReferenceID>DE98ZZZ09999999999</ram:CreditorReferenceID>");
@@ -92,7 +93,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
   it("ohne Zahlungsart bleibt es die Überweisung wie bisher", async () => {
     const created = await draft({ paymentMethod: undefined, sepaMandateId: undefined });
     expect(created).toMatchObject({ paymentMethod: "ueberweisung", sepaMandateId: null });
-    const final = await invoices.finalizeInvoice(actor, created.id);
+    const final = await invoices.finalizeInvoice(actor, created.id, kleinunternehmerStand);
     expect(final.xml).toMatch(/<ram:TypeCode>58<\/ram:TypeCode>/);
   });
 
@@ -145,7 +146,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
   });
 
   it("Storno einer Lastschrift-Rechnung wird nicht eingezogen", async () => {
-    const final = await invoices.finalizeInvoice(actor, (await draft()).id);
+    const final = await invoices.finalizeInvoice(actor, (await draft()).id, kleinunternehmerStand);
     const storno = await invoices.cancelInvoice(actor, final.id, "2026-11-03");
     expect(storno).toMatchObject({ paymentMethod: "ueberweisung", sepaMandateId: null });
     expect(storno.xml).not.toMatch(/<ram:TypeCode>59<\/ram:TypeCode>/);
@@ -173,7 +174,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
       paymentMethod: "lastschrift",
     });
     expect(template.paymentMethod).toBe("lastschrift");
-    await recurring.runDueRecurring("2026-11-02");
+    await recurring.runDueRecurring("2026-11-02", kleinunternehmerStand);
     const [invoice] = await sql`select payment_method, sepa_mandate_id, status, xml from invoices where recurring_id = ${template.id}`;
     expect(invoice).toMatchObject({ payment_method: "lastschrift", sepa_mandate_id: mandateId, status: "final" });
     expect(invoice!.xml).toContain("KD-1042-01");
@@ -201,7 +202,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
       sendByMail: false,
       paymentMethod: "lastschrift",
     });
-    await recurring.runDueRecurring("2026-11-02");
+    await recurring.runDueRecurring("2026-11-02", kleinunternehmerStand);
     const rows = await sql`select id from invoices where recurring_id = ${template.id}`;
     expect(rows).toHaveLength(0);
     const [t] = await sql`select last_error from recurring_invoices where id = ${template.id}`;
@@ -231,7 +232,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
       sendByMail: false,
       paymentMethod: "lastschrift",
     });
-    await recurring.runDueRecurring("2026-11-02");
+    await recurring.runDueRecurring("2026-11-02", kleinunternehmerStand);
     // Der Kunde unterschreibt am 20.11. ein neues Mandat; „der nächste Lauf holt den Termin nach, sobald ein Mandat da ist“
     // (docs/rechnungen-zahlung.md, Lastschrift)
     const neu = await mandates.createMandate(
@@ -247,7 +248,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
       },
       "2026-11-21",
     );
-    await recurring.runDueRecurring("2026-11-21");
+    await recurring.runDueRecurring("2026-11-21", kleinunternehmerStand);
     const rows = await sql`select sepa_mandate_id from invoices where recurring_id = ${template.id} and recurring_date = '2026-11-02'`;
     expect(rows).toEqual([{ sepa_mandate_id: neu }]);
     const [t] = await sql`select next_date::text from recurring_invoices where id = ${template.id}`;
@@ -272,7 +273,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
     // Rechnung vom 02.06.2025 per Lastschrift, eingezogen am 16.06.2025: das Mandat gilt dann bis 15.06.2028
     const frueher = await draft({ issueDate: "2025-06-02", sepaMandateId: alt });
     expect(await invoices.finalizeIssues(frueher.id)).toEqual([]);
-    await invoices.finalizeInvoice(actor, frueher.id);
+    await invoices.finalizeInvoice(actor, frueher.id, kleinunternehmerStand);
     const jetzt = await draft({ sepaMandateId: alt });
     expect(await invoices.finalizeIssues(jetzt.id)).toEqual([]);
   });

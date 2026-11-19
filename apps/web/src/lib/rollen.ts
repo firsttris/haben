@@ -26,6 +26,7 @@ const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const STEUERBERATUNG_SEITEN = [
   /^\/steuerberatung$/,
   /^\/auswertungen$/,
+  /^\/auswertungen\/bwa$/,
   /^\/buchungen$/,
   /^\/konten$/,
   /^\/konten\/\d{4,8}$/,
@@ -42,3 +43,6 @@ export function steuerberatungSieht(pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   return STEUERBERATUNG_SEITEN.some((pattern) => pattern.test(path));
 }
+
+/** Ob eine Rolle die Seite öffnen kann, statt auf ihre Startseite umgeleitet zu werden; für Links auf andere Seiten */
+export const siehtSeite = (role: string, pathname: string): boolean => role === "inhaber" || steuerberatungSieht(pathname);

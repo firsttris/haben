@@ -23,7 +23,10 @@ import {
   bloecke,
   type Buchung,
   buchungen,
+  type EuerBeitraege,
   buchungenJe,
+  melden,
+  meldenVerrechnung,
   offenerPosten,
   verrechnungenJeRechnung,
   type Zeile,
@@ -52,15 +55,20 @@ interface Ziel {
   zahlung?: Pick<typeof schema.allocations.$inferSelect, "amount" | "taxShares" | "taxSharesInvoiceId">;
 }
 
-/** Herkunft einer Buchung in der EÜR: Pauschale, Anlage, Zahlung auf ein Darlehen für Anlagevermögen oder sonst */
-const herkunftVon = (b: Buchung, ziel: Ziel | undefined, anlageDarlehen: ReadonlySet<string>): EuerHerkunft =>
+/**
+ * Herkunft einer Buchung in der EÜR: Pauschale, Anlage (auch ein Beleg der Kategorie Anlage ohne offenen Posten, etwa privat
+ * bezahlt; sein GWG-Konto ist Anlagevermögen, #1397), Zahlung auf ein Darlehen für Anlagevermögen oder sonst
+ */
+const herkunftVon = (b: Buchung, ziel: Ziel | undefined, anlageDarlehen: ReadonlySet<string>, anlagen: ReadonlySet<string>): EuerHerkunft =>
   b.sourceType === "pauschale"
     ? "pauschale"
     : b.sourceType === "asset"
       ? "asset"
-      : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
-        ? "darlehenAnlagevermoegen"
-        : "sonst";
+      : b.sourceType === "document" && anlagen.has(b.sourceId)
+        ? "anlage"
+        : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
+          ? "darlehenAnlagevermoegen"
+          : "sonst";
 
 /** Rechnung bzw. Beleg, den eine Zahlung, Ausbuchung oder Bareinnahme ausgleicht, je Herkunft der Buchung */
 async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
@@ -168,14 +176,24 @@ function zwischenkontoAlsVorsteuer(kr: Kontenrahmen, zeilen: readonly Zeile[]): 
   return zeilen.filter((z) => !offenerPosten(kr, z)).map((z) => (z.account === a.vorsteuerNochNichtAbziehbar ? { ...z, account: a.vorsteuer[1900] } : z));
 }
 
-/** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
-export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string): Promise<EuerJournal> {
+/** Buchungen des Jahres bzw. bis `umsatzBis`, ohne Eröffnungen und, wenn verlangt, ohne manuelle Buchungen */
+function imZeitraum(year: number, umsatzBis: string | undefined, ohneManuelle: boolean) {
   const e = schema.journalEntries;
-  const kuMonate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
-  const buchungenImJahr = await buchungen(
-    q,
-    and(gte(e.date, `${year}-01-01`), umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung")),
+  return and(
+    gte(e.date, `${year}-01-01`),
+    umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`),
+    ne(e.sourceType, "eroeffnung"),
+    ohneManuelle ? ne(e.sourceType, "manuell") : undefined,
   );
+}
+
+/**
+ * Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind.
+ * `ohneManuelle`: ohne manuelle Buchungen (GmbH und UG, dort Abschlussbuchungen, reports.ts); `beitraege` bekommt die Wirkung je Buchung.
+ */
+export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string, ohneManuelle = false, beitraege?: EuerBeitraege): Promise<EuerJournal> {
+  const kuMonate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
+  const buchungenImJahr = await buchungen(q, imZeitraum(year, umsatzBis, ohneManuelle));
   // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
   const jahr = umsatzBis ? buchungenImJahr : await imEuerJahr(year, buchungenImJahr, q);
   const importiert = await importAnteile(q, jahr);
@@ -223,7 +241,8 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   const verrechnungenVon = await verrechnungenJeRechnung(q, rechnungIds);
   const nebenbuchVon = await belegNebenbuecher(q, belegIds);
   const anlagen = new Set<string>();
-  const anlageKandidaten = umsatzBis ? [...new Set([...belegIds, ...jahr.filter((b) => b.sourceType === "document").map((b) => b.sourceId)])] : belegIds;
+  // Belege der Kategorie Anlage: ausgeglichene und direkt gebuchte (privat oder bar bezahlt)
+  const anlageKandidaten = [...new Set([...belegIds, ...jahr.filter((b) => b.sourceType === "document").map((b) => b.sourceId)])];
   for (const block of bloecke(anlageKandidaten))
     for (const r of await q
       .select({ id: schema.documents.id })
@@ -266,14 +285,14 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
 
   const monate = Array.from({ length: 12 }, () => leereEuerAusJournal());
   for (const b of jahr) {
-    const beitrag = await wirkung(b);
+    const beitrag = melden(beitraege, b, zielVon.get(b.sourceId), await wirkung(b));
     dazu(summe, beitrag);
     dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
   }
   // Verrechnungen (#274) wie eine Zahlung im Monat der Aufrechnung; der Rahmen dient nur einem Beleg ganz ohne Buchung
   const belegKontenrahmen = verrechnet.length > 0 ? await firmenKontenrahmen(q) : "SKR03";
   for (const v of verrechnet) {
-    const beitrag = await wirkungVerrechnung(v);
+    const beitrag = meldenVerrechnung(beitraege, v, belegKontenrahmen, await wirkungVerrechnung(v));
     dazu(summe, beitrag);
     dazu(monate[Number(v.date.slice(5, 7)) - 1]!, beitrag);
   }
@@ -311,7 +330,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     const kr = b.kontenrahmen;
     const kleinunternehmer = kuMonate[Number(b.date.slice(5, 7)) - 1];
     const ziel = zielVon.get(b.sourceId);
-    const herkunft = herkunftVon(b, ziel, anlageDarlehen);
+    const herkunft = herkunftVon(b, ziel, anlageDarlehen, anlagen);
     const ausgeglichen = offen(b);
     const hatOffenenPosten = b.zeilen.some((z) => offenerPosten(kr, z));
     const importAnteil = importiert.get(b.id);
@@ -325,8 +344,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
     const eigene = zwischenkontoAlsVorsteuer(kr, b.zeilen);
-    if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId))
-      erfasseUmsatz(kr, eigene, b.sourceType === "document" && anlagen.has(b.sourceId) ? "anlage" : herkunft);
+    if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId)) erfasseUmsatz(kr, eigene, herkunft);
     const umkehr = b.sourceType === "allocation" && b.reversesId !== null;
     // Rücknahme in derselben EÜR-Zeile: Eine aufgehobene Zahlung ist keine echte Finanzamtserstattung und umgekehrt.
     // Amtliche Anleitung EÜR 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025

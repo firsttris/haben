@@ -2,7 +2,7 @@ import { isKapitalgesellschaft } from "@haben/core";
 import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 import { listAssets } from "../buchhaltung/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
-import { loadCompany, type Company, type CompanyInput } from "../stammdaten/index.ts";
+import { loadCompany, offeneFragenErledigt, type Company, type CompanyInput } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -89,7 +89,11 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
 }
 
 /** Fehlermeldung, wenn die Eingabe eine gesperrte Einstellung ändert */
-export function lockedChange(current: Company, next: CompanyInput, locks: SettingsLocks): string | null {
+export function lockedChange(
+  current: Company,
+  next: Pick<CompanyInput, "kontenrahmen" | "versteuerung" | "kleinunternehmer" | "rechtsform">,
+  locks: SettingsLocks,
+): string | null {
   if (next.kontenrahmen !== current.kontenrahmen && locks.kontenrahmen) return `Kontenrahmen: ${locks.kontenrahmen}`;
   if (next.versteuerung !== current.versteuerung && locks.versteuerung) return `Versteuerung: ${locks.versteuerung}`;
   if (next.kleinunternehmer && !current.kleinunternehmer && locks.kleinunternehmer) return `Kleinunternehmer: ${locks.kleinunternehmer}`;
@@ -115,22 +119,31 @@ function keptBaseRateState(current: Company, input: CompanyInput): Company["dunn
 }
 
 export async function saveCompany(actor: string, input: CompanyInput, today: string): Promise<void> {
+  await withActor(actor, (tx) => saveCompanyIn(tx, input, today));
+}
+
+/**
+ * saveCompany in der Transaktion des Aufrufers, etwa für die Übernahme der Einstellungen aus einer anderen Instanz (#488).
+ * `bewusst: false` nur dort, wo die Firmendaten in der alten Instanz nie bewusst gespeichert waren: Dann bleiben
+ * Zeitpunkt und offene Fragen, wie sie sind, und Haben trägt keine Bestätigung ein, die niemand gegeben hat.
+ */
+export async function saveCompanyIn(tx: Tx, input: CompanyInput, today: string, { bewusst = true }: { bewusst?: boolean } = {}): Promise<void> {
   if (input.foundedOn && input.foundedOn > today) {
     throw new UserError("Das Gründungsdatum darf nicht in der Zukunft liegen.");
   }
-  await withActor(actor, async (tx) => {
-    await loadCompany(tx);
-    const [current] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
-    const locked = lockedChange(current!, input, await settingsLocks(today, tx));
-    if (locked) throw new UserError(locked);
-    await tx
-      .update(schema.company)
-      .set({
-        ...input,
-        dunning: keptBaseRateState(current!, input),
-        companySavedAt: sql`clock_timestamp()`,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.company.id, 1));
-  });
+  await loadCompany(tx);
+  const [current] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
+  const locked = lockedChange(current!, input, await settingsLocks(today, tx));
+  if (locked) throw new UserError(locked);
+  await tx
+    .update(schema.company)
+    .set({
+      ...input,
+      dunning: keptBaseRateState(current!, input),
+      ...(bewusst ? { companySavedAt: sql`clock_timestamp()` } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.company.id, 1));
+  // Wer die Firmendaten speichert, hat Rechtsform und Kleinunternehmer selbst entschieden: Die Übersicht erinnert nicht mehr (#266)
+  if (bewusst) await offeneFragenErledigt(tx);
 }

@@ -50,6 +50,7 @@ spec:
         app.kubernetes.io/component: db
     spec:
       enableServiceLinks: false
+      automountServiceAccountToken: false
       securityContext:
         seccompProfile:
           type: RuntimeDefault

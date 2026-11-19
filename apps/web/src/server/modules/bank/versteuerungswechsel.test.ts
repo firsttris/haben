@@ -2,6 +2,7 @@ import { parseDatevBuchungsstapel, datevAccountTotals } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /** #623: Eine bereits versteuerte Rechnung behält ihre Versteuerung nach dem Jahreswechsel (§ 20 UStG, UStAE 13.6 Abs. 3). */
 describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Versteuerungswechsel (Postgres)", () => {
@@ -51,9 +52,9 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
       bank_imports, bank_accounts, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
       sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic,
-      bank, glaeubiger_id, kontenrahmen, versteuerung, journal_ab)
+      bank, glaeubiger_id, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung}, ${previousYear})`;
+      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung})`;
     if (profile.gmbh) await sql`update company set rechtsform = 'gmbh', name = 'Test GmbH'`;
     const account = await bank.createAccount(actor, { name: "Geschäftskonto", iban });
     const contact = await stammdaten.createContact(actor, {
@@ -95,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
       ...(foreign ? { currency: "USD", exchangeRate: "1" } : {}),
       lines: [{ description: "Leistung Dezember", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     if (!foreign) await bank.createDirectDebitFile(actor, { bankAccountId: account.id, invoiceIds: [invoice.id] }, new Date(`${previousYear}-12-02T08:00:00Z`));
     await bank.allocate(actor, {
       kind: "invoice",

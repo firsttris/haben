@@ -85,7 +85,7 @@
       "norm": "§ 6 EStG",
       "url": "https://www.gesetze-im-internet.de/estg/__6.html",
       "zweck": "Geringwertige Wirtschaftsgüter (Abs. 2) und Sammelposten (Abs. 2a): Grenzen und Behandlung",
-      "stellen": ["packages/core/src/afa.ts", "packages/elster/src/erklaerung.ts"],
+      "stellen": ["packages/core/src/afa.ts", "packages/elster/src/aveuer.ts"],
       "sha256": "0f2f775eed620acbeb76eb555aa7d1d983d04c848a19a382f546b3cf312c07a9"
     },
     {
@@ -139,6 +139,30 @@
         "apps/web/src/server/modules/ausschuettung/index.ts"
       ],
       "sha256": "558fd8774dea1d95eb170620e5e60cc3806f5d385ee73e9d93b823eac3fa1d7a"
+    },
+    {
+      "id": "gewstg-8",
+      "norm": "§ 8 GewStG",
+      "url": "https://www.gesetze-im-internet.de/gewstg/__8.html",
+      "zweck": "Hinzurechnung nach § 8 Nr. 1 (Anteile je Gruppe, Freibetrag 200.000 €, halbe Hinzurechnung für Elektrofahrzeuge und Fahrräder): Gewerbesteuer einer GmbH oder UG und Gewerbesteuererklärung",
+      "stellen": ["packages/core/src/koerperschaft.ts", "packages/elster/src/gewst.ts", "docs/gmbh-abschluss.md"],
+      "sha256": "66ca8150ad9bcf47b3a4909dd1a8bf62867935f9f8571e0a4982e33ddc86d36d"
+    },
+    {
+      "id": "gewstg-16",
+      "norm": "§ 16 GewStG",
+      "url": "https://www.gesetze-im-internet.de/gewstg/__16.html",
+      "zweck": "Mindesthebesatz der Gewerbesteuer (200 % bis 2026, 280 % ab 2027): Prüfung und Vorschlag des Hebesatzes einer GmbH oder UG",
+      "stellen": ["packages/core/src/koerperschaft.ts", "apps/web/src/server/modules/koerperschaft/koerperschaft.ts", "docs/gmbh-abschluss.md"],
+      "sha256": "0417e1743f74ad9942502cf736959ee5fd56c037931c6fbfca31b5f6b49e52f9"
+    },
+    {
+      "id": "gewstg-36",
+      "norm": "§ 36 GewStG",
+      "url": "https://www.gesetze-im-internet.de/gewstg/__36.html",
+      "zweck": "Zeitliche Anwendung, darunter die halbe Hinzurechnung für Elektrofahrzeuge und Fahrräder letztmals für 2030 (Abs. 4) und der Mindesthebesatz ab 2027 (Abs. 5b)",
+      "stellen": ["packages/core/src/koerperschaft.ts", "docs/gmbh-abschluss.md"],
+      "sha256": "38499b26399d567a30b339a8fad2242dae9cfa4681008d0e6aabc9af39bc756d"
     },
     {
       "id": "ao-146a",

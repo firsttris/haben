@@ -26,7 +26,7 @@ Ein Lauf
 2. erzeugt mit `pg_dump` über das Netz einen SQL-Dump der Datenbank, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab,
 3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
 4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die längste Aufbewahrungsfrist ab, 10 Jahre für Bücher und Aufzeichnungen (§ 147 Abs. 3 AO),
-5. trägt das Ergebnis in die Datenbank ein, mit dem Repository ohne Nutzer und Passwort für die [Verfahrensdokumentation](verfahrensdokumentation.md); die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
+5. trägt das Ergebnis mit dem Repository ohne Nutzer und Passwort in die Datenbank ein; die App zeigt beides unter Einstellungen › Export, als Speicherort „Lokal“ (Verzeichnis im Backup-Container) oder „Extern“, nennt das Repository in der [Verfahrensdokumentation](verfahrensdokumentation.md) und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
 6. spielt alle `RESTORE_CHECK_DAYS` Tage (Standard 7) das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
 
 Die Volumes `caddy`, `eric` und `eric-log` und die Schlüssel sind nicht dabei. Mit Compose zeigt `docker compose ps` den Dienst `backup` als `unhealthy`, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief.
@@ -40,9 +40,11 @@ Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backup
 
 | Ziel | `RESTIC_REPOSITORY` | Dazu |
 | --- | --- | --- |
-| SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.yml` die Zeile `~/.ssh:/root/.ssh:ro` bei `backup` und `restore` einkommentieren bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
+| SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.override.yml` bei `backup` und `restore` `~/.ssh:/root/.ssh:ro` unter `volumes` eintragen ([SFTP Schritt für Schritt](#sftp-schritt-für-schritt)) bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
 | S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
-| restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | – |
+| restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | Im Passwort außer `A–Z`, `a–z`, `0–9` und `-._~!&'()*+,;=:@` jedes Zeichen prozentkodiert, etwa `/` als `%2F`, `#` als `%23`, `%` als `%25`, `$` als `%24` (Compose liest `$` in `.env` als Variable), Leerzeichen als `%20`, `ä` als `%C3%A4`; sonst liest restic die Adresse nicht oder falsch |
+
+Das Protokoll des Backup-Containers und Haben nennen Ziel und Fehlermeldungen ohne Nutzer und Passwort.
 
 Mit Compose trägst du die Werte in `.env` ein, mit den Quadlets in `~/.config/haben/backup.env`, zum Beispiel:
 
@@ -51,6 +53,28 @@ RESTIC_REPOSITORY=s3:https://fsn1.your-objectstorage.com/bucket/haben
 AWS_ACCESS_KEY_ID=…
 AWS_SECRET_ACCESS_KEY=…
 ```
+
+#### SFTP Schritt für Schritt
+
+Am Beispiel Docker Compose; die Befehle laufen als der Benutzer, der `docker compose` startet.
+
+1. **Schlüssel anlegen:** `ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519`. Den öffentlichen Teil (`~/.ssh/id_ed25519.pub`) beim Anbieter des Ziels für den SFTP- bzw. SSH-Zugang hinterlegen.
+2. **Host in `known_hosts` eintragen:** `ssh-keyscan -t ed25519 <host> >> ~/.ssh/known_hosts`, danach einmal `ssh <benutzer>@<host>`; das muss ohne Passwortabfrage klappen.
+3. **Einhängen:** in [`compose.override.yml`](installation.md#docker-compose) bei `backup` und `restore`:
+
+    ```yaml
+    services:
+      backup:
+        volumes:
+          - ~/.ssh:/root/.ssh:ro
+      restore:
+        volumes:
+          - ~/.ssh:/root/.ssh:ro
+    ```
+
+    Zeigt `~` auf dem Server nicht auf das richtige Verzeichnis, etwa auf einem NAS, den vollen Pfad nehmen, zum Beispiel `/share/homes/<benutzer>/.ssh:/root/.ssh:ro`.
+4. **In `.env`:** `RESTIC_REPOSITORY=sftp:<benutzer>@<host>:/pfad/zum/backup`. Heißt der Schlüssel nicht `id_ed25519` oder `id_rsa`, eine `~/.ssh/config` mit `Host <host>` und `IdentityFile ~/.ssh/<name>` anlegen.
+5. **Übernehmen und testen:** `docker compose up -d`, damit der Container mit Einhängung und neuer Variable startet, dann einmal `docker compose exec backup backup.sh`. Beim ersten Lauf legt es das Repository an.
 
 Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), schützt das Backup auch gegen jemanden, der den Server übernommen hat.
 
@@ -106,7 +130,7 @@ Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `
 ### Update zurücknehmen
 
 1. Vor dem Update ein Backup machen (`docker compose exec backup backup.sh` bzw. `systemctl --user start haben-backup`), wie unter [Updates](#updates).
-2. Geht nach dem Update etwas schief: die vorherige Version fest eintragen, in `compose.yml` etwa `image: tristanteu/haben:x.y.z`, im Quadlet `Image=docker.io/tristanteu/haben:x.y.z`.
+2. Geht nach dem Update etwas schief: die vorherige Version fest eintragen, in `compose.override.yml` beim Dienst `app` etwa `image: tristanteu/haben:x.y.z` (der [Compose-Generator](compose-generator.md) setzt den Tag für alle Dienste), im Quadlet `Image=docker.io/tristanteu/haben:x.y.z`.
 3. Den Stand von vor dem Update einspielen, wie oben unter [Wiederherstellen](#wiederherstellen). Die Snapshot-ID zeigt `restore.sh` ohne Argument; `latest` passt nur, wenn seit dem Update kein Backup mehr lief.
 4. Die App starten (`docker compose up -d` bzw. `systemctl --user daemon-reload && systemctl --user start haben-app`).
 
@@ -141,7 +165,7 @@ Die alten Stände zeigt `restore.sh` ohne Argument unter dem Hostnamen des Serve
 
 ## Updates
 
-Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
+Welche Version die neueste ist, zeigt **Einstellungen › Export › Version**. Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
 
 ```sh
 docker compose exec backup backup.sh   # Stand vor dem Update sichern
@@ -178,7 +202,7 @@ docker compose exec db rm -rf /var/lib/postgresql/data/16   # Compose
 podman exec haben-db rm -rf /var/lib/postgresql/data/16     # Quadlets
 ```
 
-Schlägt das Upgrade fehl, bricht der Container mit der Meldung von `pg_upgrade` ab und lässt alles, wie es war: Mit dem bisherigen Image (`image: postgres:16` in `compose.yml`, `Image=docker.io/library/postgres:16` im Quadlet) startet die alte Datenbank wieder.
+Schlägt das Upgrade fehl, bricht der Container mit der Meldung von `pg_upgrade` ab und lässt alles, wie es war: Mit dem bisherigen Image (`image: postgres:16` beim Dienst `db` in `compose.override.yml`, `Image=docker.io/library/postgres:16` im Quadlet) startet die alte Datenbank wieder.
 
 **Einmalig für Installationen mit Postgres 16.** Bis Haben 0.2 lief die Datenbank im offiziellen Image `docker.io/library/postgres:16`. Das steht in deiner `compose.yml` bzw. in `haben-db.container` und ändert sich durch ein Update der Images nicht: Die Datenbank bleibt auf 16, bis du die Datei einmal neu holst. Das muss nicht sofort sein, das Backup-Image kommt mit beiden Versionen zurecht. Für den Umstieg:
 
@@ -200,4 +224,4 @@ systemctl --user restart haben-db haben-app
 journalctl --user -u haben-db -n 20    # „Upgrade auf PostgreSQL 18 fertig“
 ```
 
-Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an; erst danach startet der Server. Schlägt eine Migration fehl, startet die App nicht, und der Fehler steht im Log.
+Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an, dann einmalig die Prüfung beim [Update auf das Journal](einrichtung.md#update-auf-das-journal); erst danach startet der Server. Schlägt eine Migration oder die Prüfung fehl, startet die App nicht, und der Grund steht im Log.

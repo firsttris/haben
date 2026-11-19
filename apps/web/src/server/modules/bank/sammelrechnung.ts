@@ -1,11 +1,12 @@
 import { suggestMatches, type MatchTransaction, type OpenItem, type Suggestion } from "@haben/core";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankDuplicateProposalEligibleSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 
 /**
- * Summe der noch offenen Gebührenzeilen eines Zahlungsdienstleisters in einem Monat. Der Dienstleister stellt seine
- * Gebühren als Sammelrechnung über alle Zeilen eines Monats; erst diese Summe passt zum offenen Betrag des Belegs.
+ * Summe der noch offenen Gebühren- und Gutschriftzeilen eines Zahlungsdienstleisters in einem Monat. Der Dienstleister
+ * stellt seine Gebühren als Sammelrechnung über alle Zeilen eines Monats und rechnet Gutschriften ein (Etsy: Gutschrift
+ * einer Gebühr bei Erstattung); erst diese Summe passt zum offenen Betrag des Belegs.
  */
 async function offeneGebuehrenSumme(bankAccountId: string, monat: string): Promise<number> {
   const [row] = await db
@@ -16,8 +17,8 @@ async function offeneGebuehrenSumme(bankAccountId: string, monat: string): Promi
         eq(schema.bankTransactions.bankAccountId, bankAccountId),
         sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${monat}`,
         sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
-        sql`${schema.bankTransactions.amount} < 0`,
         sql`${bankOpenAmountSql} <> 0`,
+        bankDuplicateProposalEligibleSql,
       ),
     );
   return row?.total ?? 0;

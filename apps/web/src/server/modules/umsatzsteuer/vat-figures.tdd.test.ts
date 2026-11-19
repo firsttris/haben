@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -75,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
       note: "",
       lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function pay(invoiceId: string, rows: [date: string, purpose: string, amount: string][]) {
@@ -117,9 +118,13 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
     await sql`alter table allocations disable trigger user`;
     await sql`update allocations set tax_shares = null`;
     await sql`alter table allocations enable trigger user`;
-    // Raten ohne gespeicherten Anteil gibt es nur aus der Zeit vor der Migration; solche Jahre liegen vor dem Stichjahr und
-    // rechnen die Voranmeldung weiter aus den Nebenbüchern (Migration 0192, docs/adr/journal-als-quelle.md)
-    await sql`update company set journal_ab = 2027`;
+    // Raten ohne gespeicherten Anteil gibt es nur aus der Zeit vor der Migration; damals buchte jede Zahlung ihren Anteil für
+    // sich (39,67 € → 6,33 € Steuer), nicht kumuliert gerundet wie heute (6,33/6,34). So stehen die Altzeilen im Journal.
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update journal_lines set credit = 633 where account = '1776' and credit = 634`;
+      await tx`update journal_lines set debit = 633 where account = '1766' and debit = 634`;
+    });
     await pay(inv.id, [["20.10.26", "Neu", "39,64"]]);
     const oct = await figures.computeVatFigures({ year: 2026, month: 10 });
     // Gespeichert und gebucht wurde für die neue Rate 57,00 − 8 × 6,33 = 6,36 € (Journal mit echten Altzeilen: 50,64 + 6,36 = 57,00 €)

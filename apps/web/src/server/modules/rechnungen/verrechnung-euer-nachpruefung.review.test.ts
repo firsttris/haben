@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Nachprüfung zu #919 (Befund 3): Die EÜR aus dem Journal und aus den Nebenbüchern teilt Zahlungen nach Verrechnungen wie
@@ -48,7 +49,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
       },
       art === "korrektur" ? { kind: "korrektur", correctsId: correctsFor! } : {},
     );
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   }
 
   async function zahle(invoiceId: string, betrag: number, datum: string): Promise<void> {
@@ -93,17 +94,23 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     Object.fromEntries([...r.einnahmen, ...r.ausgaben].filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]));
   const kz = (f: { kz81: number; tax81: number; kz86: number; tax86: number }) => ({ kz81: f.kz81, tax81: f.tax81, kz86: f.kz86, tax86: f.tax86 });
 
-  /** EÜR aus Journal und Nebenbüchern gleich, Zeilen 15/17 gleich der Voranmeldung des Jahres (Summe der Monate) */
-  async function pruefe(jahr: number, monate: number[]) {
+  type Kz = ReturnType<typeof kz>;
+  /** Einnahmen der EÜR je Monat aus [Monat, Betrag] */
+  const einnahmen = (werte: [number, number][]) => Array.from({ length: 12 }, (_, i) => werte.find(([m]) => m === i + 1)?.[1] ?? 0);
+
+  /**
+   * EÜR und Voranmeldung aus dem Journal wie erwartet (die Werte der früheren Gegenprobe aus den Nebenbüchern, #1116), Zeilen
+   * 15/17 der EÜR gleich der Voranmeldung des Jahres (Summe der Monate)
+   */
+  async function pruefe(jahr: number, erwartet: { netto: number; ust: number; einnahmen: number[]; monate: Record<number, Kz> }) {
     const journal = await reports.euerForYear(jahr);
-    const neben = await reports.euerAusNebenbuechern(jahr);
-    expect(zeilen(neben)).toEqual(zeilen(journal));
-    expect(neben.monthly.einnahmen).toEqual(journal.monthly.einnahmen);
+    expect(zeilen(journal)).toEqual({ einnahmenSteuerpflichtig: erwartet.netto, vereinnahmteUst: erwartet.ust });
+    expect(journal.monthly.einnahmen).toEqual(erwartet.einnahmen);
     const summe = { kz81: 0, tax81: 0, kz86: 0, tax86: 0 };
-    for (const month of monate) {
-      const beide = await figures.kennzahlenBeiderQuellen({ year: jahr, month } as never);
-      expect({ month, ...kz(beide.nebenbuecher) }).toEqual({ month, ...kz(beide.journal) });
-      for (const k of Object.keys(summe) as (keyof typeof summe)[]) summe[k] += kz(beide.journal)[k];
+    for (const [month, werte] of Object.entries(erwartet.monate)) {
+      const journalKz = kz(await figures.computeVatFigures({ year: jahr, month: Number(month) }));
+      expect({ month, ...journalKz }).toEqual({ month, ...werte });
+      for (const k of Object.keys(summe) as (keyof typeof summe)[]) summe[k] += journalKz[k];
     }
     const j = zeilen(journal);
     expect({ netto: j.einnahmenSteuerpflichtig ?? 0, ust: j.vereinnahmteUst ?? 0 }).toEqual({
@@ -132,7 +139,14 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     await zahle(rechnung, 2_000, "2026-11-09");
     await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: b, amount: 5_350, date: "2026-11-10", note: "b" });
     await zahle(rechnung, 22_600 - 5_950 - 5_350 - 5_000, "2026-11-11");
-    expect(await pruefe(2026, [11])).toEqual({ kz81: 5_000, tax81: 950, kz86: 5_000, tax86: 350 });
+    expect(
+      await pruefe(2026, {
+        netto: 10_000,
+        ust: 1_300,
+        einnahmen: einnahmen([[11, 10_000]]),
+        monate: { 11: { kz81: 5_000, tax81: 950, kz86: 5_000, tax86: 350 } },
+      }),
+    ).toEqual({ kz81: 5_000, tax81: 950, kz86: 5_000, tax86: 350 });
   }, 60_000);
 
   it("krumme Beträge, Korrektur mit zwei Sätzen, teilweise verrechnet", async () => {
@@ -156,7 +170,12 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     await zahle(rechnung, 12_345, "2026-11-06");
     await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: k, amount: 6_789, date: "2026-11-07", note: "teilweise" });
     await zahle(rechnung, 9_871, "2026-11-08");
-    await pruefe(2026, [11]);
+    await pruefe(2026, {
+      netto: 19_160,
+      ust: 3_056,
+      einnahmen: einnahmen([[11, 19_160]]),
+      monate: { 11: { kz81: 14_290, tax81: 2_715, kz86: 4_870, tax86: 341 } },
+    });
   }, 60_000);
 
   it("Aufhebung im Folgemonat ändert den gemeldeten Monat nicht", async () => {
@@ -166,13 +185,18 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     await zahle(rechnung, 10_700, "2026-10-07");
     const okt = { year: 2026, month: 10 } as const;
     const vorher = kz(await figures.computeVatFigures(okt));
-    const euerVorher = (await reports.euerAusNebenbuechern(2026)).monthly.einnahmen[9];
+    const euerVorher = (await reports.euerForYear(2026)).monthly.einnahmen[9];
     expect(vorher).toEqual({ kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 });
+    expect(euerVorher).toBe(10_000);
     await verrechnung.reverseInvoiceSettlement(actor, ids[0]!, "2026-11-08", "doch nicht");
     expect(kz(await figures.computeVatFigures(okt))).toEqual(vorher);
-    expect((await reports.euerAusNebenbuechern(2026)).monthly.einnahmen[9]).toBe(euerVorher);
     expect((await reports.euerForYear(2026)).monthly.einnahmen[9]).toBe(euerVorher);
-    await pruefe(2026, [10, 11]);
+    await pruefe(2026, {
+      netto: 10_000,
+      ust: 700,
+      einnahmen: einnahmen([[10, 10_000]]),
+      monate: { 10: { kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 }, 11: { kz81: 0, tax81: 0, kz86: 0, tax86: 0 } },
+    });
   }, 60_000);
 
   it("Aufhebung nach einer Zahlung, danach zahlt der Kunde den Rest der ganzen Rechnung", async () => {
@@ -182,7 +206,17 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     await zahle(rechnung, 10_700, "2026-10-07");
     await verrechnung.reverseInvoiceSettlement(actor, ids[0]!, "2026-11-08", "doch nicht");
     await zahle(rechnung, 11_900, "2026-11-09");
-    expect(await pruefe(2026, [10, 11])).toEqual({ kz81: 10_000, tax81: 1_900, kz86: 10_000, tax86: 700 });
+    expect(
+      await pruefe(2026, {
+        netto: 20_000,
+        ust: 2_600,
+        einnahmen: einnahmen([
+          [10, 10_000],
+          [11, 10_000],
+        ]),
+        monate: { 10: { kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 }, 11: { kz81: 10_000, tax81: 1_900, kz86: 0, tax86: 0 } },
+      }),
+    ).toEqual({ kz81: 10_000, tax81: 1_900, kz86: 10_000, tax86: 700 });
   }, 60_000);
 
   it("Aufhebung nach einer Zahlung", async () => {
@@ -191,7 +225,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     const { ids } = await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: k, amount: 11_900, date: "2026-11-06", note: "x" });
     await zahle(rechnung, 10_700, "2026-11-07");
     await verrechnung.reverseInvoiceSettlement(actor, ids[0]!, "2026-11-08", "doch nicht");
-    await pruefe(2026, [11]);
+    await pruefe(2026, { netto: 10_000, ust: 700, einnahmen: einnahmen([[11, 10_000]]), monate: { 11: { kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 } } });
   }, 60_000);
 
   for (const [versteuerung, kontenrahmen] of [
@@ -207,11 +241,20 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
       await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: k, amount: 11_900, date: "2026-11-12", note: "x" });
       await zahle(rechnung, 5_700, "2026-11-13");
       const journal = await reports.euerForYear(2026);
-      const neben = await reports.euerAusNebenbuechern(2026);
-      expect(neben.monthly.einnahmen).toEqual(journal.monthly.einnahmen);
-      expect(zeilen(neben)).toEqual(zeilen(journal));
-      expect(zeilen(journal)).toMatchObject({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
-      if (versteuerung === "ist") await pruefe(2026, [10, 11]);
+      expect(journal.monthly.einnahmen).toEqual(
+        einnahmen([
+          [10, 4_425],
+          [11, 5_575],
+        ]),
+      );
+      expect(zeilen(journal)).toEqual({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
+      if (versteuerung === "ist")
+        await pruefe(2026, {
+          netto: 10_000,
+          ust: 700,
+          einnahmen: journal.monthly.einnahmen,
+          monate: { 10: { kz81: 2_213, tax81: 420, kz86: 2_212, tax86: 155 }, 11: { kz81: -2_213, tax81: -420, kz86: 7_788, tax86: 545 } },
+        });
     }, 60_000);
   }
 
@@ -221,8 +264,18 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     const k = await beleg("korrektur", [{ netto: -10_000, satz: 1900 }], "2026-01-10", rechnung);
     await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: k, amount: 11_900, date: "2026-01-12", note: "x" });
     await zahle(rechnung, 5_700, "2026-01-13");
-    const v25 = await pruefe(2025, [12]);
-    const v26 = await pruefe(2026, [1]);
+    const v25 = await pruefe(2025, {
+      netto: 4_425,
+      ust: 575,
+      einnahmen: einnahmen([[12, 4_425]]),
+      monate: { 12: { kz81: 2_213, tax81: 420, kz86: 2_212, tax86: 155 } },
+    });
+    const v26 = await pruefe(2026, {
+      netto: 5_575,
+      ust: 125,
+      einnahmen: einnahmen([[1, 5_575]]),
+      monate: { 1: { kz81: -2_213, tax81: -420, kz86: 7_788, tax86: 545 } },
+    });
     expect({ kz81: v25.kz81 + v26.kz81, kz86: v25.kz86 + v26.kz86 }).toEqual({ kz81: 0, kz86: 10_000 });
   }, 60_000);
 
@@ -231,6 +284,8 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung und EÜR, Nachprüfung (Postgres)
     const k = await beleg("korrektur", [{ netto: -10_000, satz: 1900 }], "2026-11-05", rechnung);
     await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: k, amount: 11_900, date: "2026-11-14", note: "x" });
     await zahle(rechnung, 10_700, "2026-11-03");
-    expect(await pruefe(2026, [11])).toEqual({ kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 });
+    expect(
+      await pruefe(2026, { netto: 10_000, ust: 700, einnahmen: einnahmen([[11, 10_000]]), monate: { 11: { kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 } } }),
+    ).toEqual({ kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 });
   }, 60_000);
 });

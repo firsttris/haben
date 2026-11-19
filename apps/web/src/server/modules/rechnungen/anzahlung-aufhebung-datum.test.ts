@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Anzahlung: Die Aufhebung ihrer Bankzuordnung wirkt am Tag der Aufhebung (#782). Der Vorauszahlungsplan liest die
@@ -41,10 +42,9 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, document_settlements, document_cancellations, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, cash_entries, company, invoices, invoice_number_counters, contacts, journal_lines, journal_entries cascade`;
-    // journal_ab 2030: Beide Seiten kommen aus den Nebenbüchern, also aus dem Vorauszahlungsplan
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-              'BY', 'DE89370400440532013000', 'SKR03', 'soll', 2030)`;
+              'BY', 'DE89370400440532013000', 'SKR03', 'soll')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -76,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
       advanceType: "anzahlung",
       lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   /** Zahlungseingang am `day` (TT.MM.JJ), der Rechnung zugeordnet; gibt die Zuordnung zurück */
@@ -98,7 +98,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
   const kz81 = async (year: number, month: number) => (await vat.computeVatFigures({ year, month })).kz81;
 
   async function journalUndNebenbuch(year: number, month: number, base: number, tax: number) {
-    expect(await vat.computeVatFigures({ year, month })).toMatchObject({ quelle: "journal", kz81: base, tax81: tax });
+    expect(await vat.computeVatFigures({ year, month })).toMatchObject({ kz81: base, tax81: tax });
     expect((await reports.vatAbgleich({ year, month })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
   }
 
@@ -125,7 +125,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
   }, 30_000);
 
   it("SKR04 und Ist: Teilaufhebung im Folgejahr hält Journal und Nebenbuch in beiden Jahren zusammen", async () => {
-    await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'ist', rechtsform = 'gmbh', journal_ab = 2025`;
+    await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'ist', rechtsform = 'gmbh'`;
     const invoice = await anzahlung("2025-12-01");
     const { allocationId } = await zahlen(invoice.id, "20.12.25", 11_900);
     await journalUndNebenbuch(2025, 12, 10_000, 1_900);
@@ -137,7 +137,6 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
   }, 30_000);
 
   it("Soll: Bankaufhebung nach Schlussleistung verschiebt keine bereits fällige Steuer in alte Monate", async () => {
-    await sql`update company set journal_ab = 2026`;
     const invoice = await anzahlung("2026-03-05");
     const { allocationId } = await zahlen(invoice.id, "20.03.26", 11_900);
     const final = await invoices.createDraft(actor, {
@@ -152,7 +151,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
       deducts: [invoice.id],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
-    await invoices.finalizeInvoice(actor, final.id);
+    await invoices.finalizeInvoice(actor, final.id, kleinunternehmerStand);
     await journalUndNebenbuch(2026, 3, 10_000, 1_900);
     await journalUndNebenbuch(2026, 5, 90_000, 17_100);
 

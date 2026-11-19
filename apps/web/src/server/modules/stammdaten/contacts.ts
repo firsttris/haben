@@ -11,6 +11,7 @@ import {
   sortSkonto,
   splitEmails,
   telefonProblem,
+  inCents,
 } from "@haben/core";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -71,7 +72,9 @@ export const contactSchema = z.object({
       .trim()
       .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen"),
   ]),
-  leitwegId: z.string().trim().max(46),
+  leitwegId: z.string().trim().max(46, "Leitweg-ID: höchstens 46 Zeichen"),
+  /** Unsere Lieferantennummer beim Kunden (#711), im XML Verkäuferkennung BT-29; fehlt = leer */
+  unsereLieferantennummer: z.string().trim().max(40).default(""),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
   /**
    * Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto, fehlt = unverändert.
@@ -92,7 +95,9 @@ export const contactSchema = z.object({
   debitorNr: personenkonto("debitor"),
   kreditorNr: personenkonto("kreditor"),
   /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner, fehlt = unverändert */
-  hourlyRateCents: z.optional(z.nullable(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00))),
+  hourlyRateCents: z.optional(
+    z.nullable(inCents(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00, "Stundensatz: höchstens 100.000 €"))),
+  ),
 });
 
 export type ContactRole = "kunde" | "lieferant";
@@ -224,7 +229,7 @@ function clean(input: ContactInput) {
   for (const rolle of ["debitor", "kreditor"] as const) {
     const nr = input[`${rolle}Nr`];
     const problem = nr == null ? null : personenkontoProblem(rolle, nr);
-    if (problem) throw new ContactError(problem);
+    if (problem) throw new ContactError(problem, { felder: [`${rolle}Nr`] });
   }
   return {
     ...input,
@@ -245,16 +250,20 @@ export async function createContact(actor: string, input: ContactInput): Promise
 }
 
 /** Legt einen Kontakt in der laufenden Transaktion an; auch für den CSV-Import, der alle Zeilen in einer Transaktion anlegt */
-export async function insertContact(tx: Tx, input: ContactInput): Promise<Contact> {
+/**
+ * `id` und `vergeben: false` nur für die Übernahme aus einer anderen Instanz (#488): Ansprechpartner und Textbausteine
+ * behalten ihren Kontakt, und ein Kunde ohne Nummer bleibt ohne, wie er dort war.
+ */
+export async function insertContact(tx: Tx, input: ContactInput, { id, vergeben = true }: { id?: string; vergeben?: boolean } = {}): Promise<Contact> {
   const values = clean(input);
   // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht; nur an Kunden,
   // ein reiner Lieferant hat keine Kundennummer (#224)
   // Eine eigene Nummer geht immer über die Sperre der Firmenzeile, damit keine gleichzeitige Vergabe sie doppelt nimmt
-  const kundennummer = values.isCustomer || values.kundennummer ? await takeCustomerNumber(tx, values.kundennummer) : null;
+  const kundennummer = values.kundennummer || (vergeben && values.isCustomer) ? await takeCustomerNumber(tx, values.kundennummer) : null;
   const [created] = await samePersonenkonto(tx, () =>
     tx
       .insert(schema.contacts)
-      .values({ ...values, kundennummer })
+      .values({ ...values, kundennummer, ...(id ? { id } : {}) })
       .returning(),
   );
   return created!;
@@ -273,7 +282,7 @@ async function samePersonenkonto<T>(tx: Tx, write: () => Promise<T>): Promise<T>
       const nr = Number(/\((\d+)\)/.exec(String((error as { cause?: { detail?: string } }).cause?.detail))?.[1]);
       const column = rolle === "debitor" ? schema.contacts.debitorNr : schema.contacts.kreditorNr;
       const [owner] = Number.isFinite(nr) ? await tx.select({ name: schema.contacts.name }).from(schema.contacts).where(eq(column, nr)) : [];
-      throw new ContactError(`${PERSONENKONTO_LABEL[rolle]} ${nr} hat schon „${owner?.name ?? "einen anderen Kontakt"}“.`);
+      throw new ContactError(`${PERSONENKONTO_LABEL[rolle]} ${nr} hat schon „${owner?.name ?? "einen anderen Kontakt"}“.`, { felder: [`${rolle}Nr`] });
     }
     throw error;
   }

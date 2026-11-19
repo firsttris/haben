@@ -1,0 +1,263 @@
+[
+  {
+    "creditNote": {
+      "id": "ID_61",
+      "objectName": "CreditNote",
+      "additionalInformation": null,
+      "creditNoteNumber": "<anon>",
+      "contact": {
+        "id": "ID_62",
+        "objectName": "Contact"
+      },
+      "create": "2022-11-12T22:29:06+01:00",
+      "update": "2022-11-12T22:29:17+01:00",
+      "creditNoteDate": "2022-11-12T00:00:00+01:00",
+      "header": "<anon>",
+      "headText": null,
+      "footText": null,
+      "timeToPay": null,
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": "<anon>",
+      "addressStreet": "<anon>",
+      "addressZip": "<anon>",
+      "addressCity": "<anon>",
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "deliveryAddressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": null,
+      "createUser": {
+        "id": "ID_4",
+        "objectName": "SevUser"
+      },
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "deliveryDate": "2022-11-12T00:00:00+01:00",
+      "status": "200",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_4",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": null,
+      "addressParentName": null,
+      "taxType": null,
+      "paymentMethod": {
+        "id": "ID_5",
+        "objectName": "PaymentMethod"
+      },
+      "sendDate": "2022-11-12T22:29:13+01:00",
+      "origin": {
+        "id": "ID_63",
+        "objectName": "Invoice"
+      },
+      "creditNoteType": "CN",
+      "accountIntervall": null,
+      "accountLastCreditNote": null,
+      "accountNextCreditNote": null,
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": null,
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "100",
+      "sumTaxAccounting": "100.00",
+      "sumGrossAccounting": "100.00",
+      "customerInternalNote": null,
+      "taxNumber": null,
+      "vatNumber": null,
+      "showNet": "1",
+      "enshrined": "2022-11-12T22:29:17+01:00",
+      "sendType": "VPDF",
+      "bookingCategory": "UNDERACHIEVEMENT",
+      "deliveryDateUntil": null,
+      "refSrcInvoice": {
+        "id": "ID_63",
+        "objectName": "Invoice"
+      },
+      "isTransferred": "0",
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0",
+      "taxRule": {
+        "id": "1",
+        "objectName": "TaxRule"
+      }
+    },
+    "einzelabruf": {
+      "id": "ID_61",
+      "objectName": "CreditNote",
+      "additionalInformation": null,
+      "creditNoteNumber": "<anon>",
+      "contact": {
+        "id": "ID_62",
+        "objectName": "Contact"
+      },
+      "create": "2022-11-12T22:29:06+01:00",
+      "update": "2022-11-12T22:29:17+01:00",
+      "creditNoteDate": "2022-11-12T00:00:00+01:00",
+      "header": "<anon>",
+      "headText": null,
+      "footText": null,
+      "timeToPay": null,
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": "<anon>",
+      "addressStreet": "<anon>",
+      "addressZip": "<anon>",
+      "addressCity": "<anon>",
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "deliveryAddressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": null,
+      "createUser": {
+        "id": "ID_4",
+        "objectName": "SevUser"
+      },
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "deliveryDate": "2022-11-12T00:00:00+01:00",
+      "status": "200",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_4",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": null,
+      "addressParentName": null,
+      "taxType": null,
+      "paymentMethod": {
+        "id": "ID_5",
+        "objectName": "PaymentMethod"
+      },
+      "sendDate": "2022-11-12T22:29:13+01:00",
+      "origin": {
+        "id": "ID_63",
+        "objectName": "Invoice"
+      },
+      "creditNoteType": "CN",
+      "accountIntervall": null,
+      "accountLastCreditNote": null,
+      "accountNextCreditNote": null,
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": null,
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "100",
+      "sumTaxAccounting": "100.00",
+      "sumGrossAccounting": "100.00",
+      "customerInternalNote": null,
+      "taxNumber": null,
+      "vatNumber": null,
+      "showNet": "1",
+      "enshrined": "2022-11-12T22:29:17+01:00",
+      "sendType": "VPDF",
+      "bookingCategory": "UNDERACHIEVEMENT",
+      "deliveryDateUntil": null,
+      "refSrcInvoice": {
+        "id": "ID_63",
+        "objectName": "Invoice"
+      },
+      "isTransferred": "0",
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0",
+      "taxRule": {
+        "id": "1",
+        "objectName": "TaxRule"
+      }
+    },
+    "positions": [
+      {
+        "id": "ID_64",
+        "objectName": "CreditNotePos",
+        "additionalInformation": null,
+        "create": "2022-11-12T22:29:06+01:00",
+        "update": "2022-11-12T22:29:06+01:00",
+        "creditNote": {
+          "id": "ID_61",
+          "objectName": "CreditNote"
+        },
+        "quantity": "1",
+        "price": "100",
+        "name": "<anon>",
+        "priority": "100",
+        "unity": {
+          "id": "1",
+          "objectName": "Unity"
+        },
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "positionNumber": "0",
+        "text": null,
+        "discount": "0",
+        "isPercentage": "1",
+        "discountedValue": null,
+        "taxRate": "19",
+        "temporary": "0",
+        "sumNet": "100",
+        "sumGross": "100.00",
+        "sumDiscount": "0",
+        "sumTax": "100.00",
+        "sumNetAccounting": "100",
+        "sumTaxAccounting": "100.00",
+        "sumGrossAccounting": "100.00",
+        "priceNet": "100",
+        "priceGross": "100.00",
+        "priceTax": "100.00",
+        "sumNetForeignCurrency": "0",
+        "sumTaxForeignCurrency": "0",
+        "sumGrossForeignCurrency": "0",
+        "sumDiscountForeignCurrency": "0",
+        "createNextPart": null
+      }
+    ]
+  }
+]

@@ -33,7 +33,7 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz mit ERiC ohne Taxonomie 6.10 (Postgr
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht GmbH', 'Hafenallee 3', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kontenrahmen}, 'ist', 'gmbh')`;
     const hinweis =
-      "Für 2027 gilt die HGB-Taxonomie 6.10, die das installierte ERiC nicht prüfen kann. Unter Einstellungen › ERiC eine Version ab 45 installieren.";
+      "Für 2027 gilt die HGB-Taxonomie 6.10, die das installierte ERiC nicht prüfen kann. Unter Einstellungen › ELSTER › ERiC eine Version ab 45 installieren.";
     const overview = await ebilanz.ebilanzOverview(2027, today);
     expect(overview?.taxonomie).toBe("6.10");
     expect(overview?.issues).toContainEqual({ tone: "fehler", text: hinweis });

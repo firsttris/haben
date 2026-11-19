@@ -1,6 +1,6 @@
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, randomUUID } from "node:crypto";
 import type postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today } from "../../today.ts";
 
@@ -30,7 +30,17 @@ function tx(ref: string, date: string, amount: string, indicator: "CRDT" | "DBIT
 /** Nachgebaute Enable-Banking-API mit zwei Konten und einer Kreditkarte ohne IBAN; mit newAccount ein drittes Konto ohne Umsätze */
 function fakeApi() {
   const calls: { method: string; path: string; query: URLSearchParams; body: unknown }[] = [];
-  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false, newAccount: false, ohneReferenz: false };
+  const state = {
+    failUntilFallback: false,
+    expired: false,
+    sessions: 0,
+    onlyForeign: false,
+    newAccount: false,
+    ohneReferenz: false,
+    aktuell: "" as "" | "normal" | "anders",
+    detailsFehler: false,
+    doppelt: false,
+  };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -52,7 +62,8 @@ function fakeApi() {
         session_id: `sess-${state.sessions}`,
         access: { valid_until: "2026-12-31T00:00:00Z" },
         accounts: [
-          { uid: `uid-a-${state.sessions}`, account_id: { iban: IBAN_A }, name: "Geschäftskonto", currency: "EUR" },
+          // Konto A nennt den identification_hash in der Sitzung, Konto B nur in den Kontodetails, Konto C gar nicht
+          { uid: `uid-a-${state.sessions}`, account_id: { iban: IBAN_A }, identification_hash: "hash-a", name: "Geschäftskonto", currency: "EUR" },
           { uid: `uid-b-${state.sessions}`, account_id: { iban: IBAN_B }, name: "Tagesgeld", currency: "EUR" },
           { uid: "card", account_id: {}, name: "Kreditkarte", currency: "EUR" },
           // Unterkonto in Fremdwährung unter derselben IBAN (z. B. Finom)
@@ -62,7 +73,11 @@ function fakeApi() {
       });
     }
     if (url.pathname.startsWith("/sessions/") && method === "DELETE") return new Response(null, { status: 204 });
-    const match = /^\/accounts\/([^/]+)\/(transactions|balances)$/.exec(url.pathname);
+    const match = /^\/accounts\/([^/]+)\/(transactions|balances|details)$/.exec(url.pathname);
+    if (match?.[2] === "details") {
+      if (state.detailsFehler) return json({ message: "Bank nicht erreichbar" }, 503);
+      return match[1]!.startsWith("uid-b") ? json({ uid: match[1], identification_hash: "hash-b" }) : json({ message: "unbekannt" }, 404);
+    }
     if (match?.[2] === "balances")
       return json({ balances: [{ balance_amount: { currency: "EUR", amount: "1500.00" }, balance_type: "CLBD", reference_date: "2026-10-01" }] });
     if (match?.[2] === "transactions") {
@@ -76,6 +91,9 @@ function fakeApi() {
               tx("a1", "2026-09-05", "100.00", "CRDT", "Altbestand"),
               tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"),
               tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1"),
+              ...(state.aktuell ? [tx("a4", today(), state.aktuell === "anders" ? "6.00" : "5.00", "DBIT", "Gebühr aktuell")] : []),
+              // Dieselbe entry_reference zweimal mit anderem Betrag: beide Umsätze am Inhalt erkennen
+              ...(state.doppelt ? [tx("a5", today(), "1.00", "DBIT", "Doppelt"), tx("a5", today(), "2.00", "DBIT", "Doppelt")] : []),
               ...(state.ohneReferenz
                 ? [{ ...tx("", today(), "5.00", "DBIT", "Kontoführung ohne Referenz"), entry_reference: null, transaction_id: "T-1" }]
                 : []),
@@ -250,8 +268,10 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     api.calls.length = 0;
     expect(await sync.runDueBankSyncs(new Date())).toEqual({ synced: 0, added: 0, errors: [] });
     const later = new Date(Date.now() + 21 * 60 * 60 * 1000);
-    const result = await sync.runDueBankSyncs(later);
-    expect(result.synced).toBe(1);
+    // Die Uhr läuft mit: fetchedAt der Lieferung kommt aus new Date() und muss zum Tag des Abrufs passen, auch über Mitternacht
+    vi.useFakeTimers({ toFake: ["Date"], now: later });
+    const result = await sync.runDueBankSyncs(later).finally(() => vi.useRealTimers());
+    expect(result).toMatchObject({ synced: 1, errors: [] });
     expect(api.calls.filter((c) => c.path.endsWith("/transactions"))).toHaveLength(2);
   });
 
@@ -395,23 +415,78 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(result.error).toBeNull();
     const kontoA = result.accounts.find((a) => a.iban === IBAN_A)!;
     expect(kontoA.added).toBe(1);
-    expect(kontoA.vertragHinweise).toEqual([
-      "1 Umsatz ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
-    ]);
+    expect(kontoA.vertragHinweise).toEqual(["1 Umsatz ohne Referenz der Bank (entry_reference): wie bisher am Inhalt erkannt."]);
     expect(result.accounts.find((a) => a.iban === IBAN_B)!.vertragHinweise).toEqual([]);
-    // bank_imports nimmt nur Neues an und steht im Datenexport: Die Hinweise aus Schritt 2 gehören nicht hinein
-    const [protokoll] = await sql`select count(*)::int as n from bank_imports where warnings::text like '%Importvertrag%'`;
+    // Der Hinweis auf Umsätze ohne Referenz steht nur im Ergebnis; ins Importprotokoll kommen die Hinweise von storeBatch
+    // (verbunden, abgelehnt, Konflikt), nicht dieser
+    const [protokoll] = await sql`select count(*)::int as n from bank_imports where warnings::text like '%ohne Referenz der Bank%'`;
     expect(protokoll!.n).toBe(0);
     const [row] = await sql`select amount from bank_transactions where purpose = 'Kontoführung ohne Referenz'`;
     expect(row!.amount).toBe(-500);
+  });
+
+  it("bindet die Konten an ihren identification_hash, auch nach erneuerter Zustimmung nur einmal (#306)", async () => {
+    const [connection] = await sync.listConnections();
+    // Konto C nennt keinen Hash und bleibt beim bisherigen Weg
+    expect(connection!.accounts.map((a) => a.identificationHash)).toEqual(["hash-a", "hash-b", null]);
+    const result = await sync.syncConnection(actor, connection!.id);
+    expect(result.accounts.find((a) => a.iban === IBAN_C)!.vertragHinweise).toEqual([sync.OHNE_KONTOKENNUNG]);
+    const quellen = await sql`select s.external_account_id, a.iban from import_sources s join bank_accounts a on a.id = s.bank_account_id
+      where s.provider = 'enablebanking' order by 1`;
+    expect(quellen.map((q) => [q.external_account_id, q.iban])).toEqual([
+      ["hash-a", IBAN_A],
+      ["hash-b", IBAN_B],
+    ]);
+  });
+
+  it("hält bei einem Konflikt nur dieses Konto an und speichert von ihm nichts (#306)", async () => {
+    const [connection] = await sync.listConnections();
+    api.state.aktuell = "normal";
+    await sync.syncConnection(actor, connection!.id);
+    const [mitte] = await sync.listConnections();
+    const vorher = mitte!.accounts.map((a) => a.syncedTo);
+    api.state.aktuell = "anders";
+    const result = await sync.syncConnection(actor, connection!.id);
+    api.state.aktuell = "";
+    expect(result.error).toContain("a4/main: Betrag -5,00 € → -6,00 €; nichts überschrieben.");
+    expect(result.accounts.map((a) => a.iban)).toEqual([IBAN_B, IBAN_C]);
+    const [after] = await sync.listConnections();
+    expect(after!.accounts[0]!.syncedTo).toBe(vorher[0]);
+    expect(after!.accounts[1]!.syncedTo).toBe(today());
+    expect(after!.lastError).toContain("Konflikt mit schon übernommenen Umsätzen");
+    const [gebuehr] = await sql`select count(*)::int as n, min(amount) as amount from bank_transactions where purpose = 'Gebühr aktuell'`;
+    expect([gebuehr!.n, gebuehr!.amount]).toEqual([1, -500]);
+  });
+
+  it("übernimmt einen Abruf mit mehrfach vergebener Referenz und meldet die Inhaltsprüfung (#865)", async () => {
+    const [connection] = await sync.listConnections();
+    api.state.doppelt = true;
+    const result = await sync.syncConnection(actor, connection!.id);
+    api.state.doppelt = false;
+    expect(result.error).toBeFalsy();
+    expect(result.accounts.map((a) => a.iban)).toEqual([IBAN_A, IBAN_B, IBAN_C]);
+    expect(result.accounts[0]!.vertragHinweise).toContain("2 Umsätze mit mehrfach vergebener Bankreferenz: am Inhalt erkannt.");
+    const [doppelt] = await sql`select count(*)::int as n from bank_transactions where purpose = 'Doppelt'`;
+    expect(doppelt!.n).toBe(2);
+  });
+
+  it("fällt bei einem gebundenen Konto nicht auf den Weg ohne Vertrag zurück, auch wenn die Bank keine Kennung nennt (#306)", async () => {
+    // Neue Zustimmung: Konto B nennt den Hash nur in den Kontodetails, und die sind gerade nicht erreichbar
+    api.state.detailsFehler = true;
+    const result = await connect("code-3");
+    api.state.detailsFehler = false;
+    expect(result.ok).toBe(true);
+    const [connection] = await sync.listConnections();
+    expect(connection!.accounts.find((a) => a.iban === IBAN_B)!.identificationHash).toBe("hash-b");
   });
 
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {
     for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
     expect(await sync.listConnections()).toEqual([]);
     const [count] = await sql`select count(*)::int as n from bank_transactions`;
-    // vier abgerufene bzw. per CSV importierte, der Umsatz aus der Datei für Konto B und der ohne entry_reference (#306)
-    expect(count!.n).toBe(6);
+    // vier abgerufene bzw. per CSV importierte, der Umsatz aus der Datei für Konto B, der ohne entry_reference und die
+    // Gebühr aus dem Konflikttest (#306) sowie zwei Umsätze mit mehrfach vergebener Referenz (#865)
+    expect(count!.n).toBe(9);
     const audit = await sql`select action, new_value from audit_log where table_name = 'bank_connections' and action = 'INSERT' limit 1`;
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
   });
@@ -479,5 +554,17 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     const [count] = await sql`select count(*)::int as n from enable_banking_settings`;
     expect(count!.n).toBe(0);
     sync.setEnableBankingClientFactory((o) => new EnableBankingClient({ ...o, fetch: api.fetchFn }));
+  });
+
+  it("nimmt ein Konto aus einer FinTS-Verbindung, wenn Enable Banking es verbindet: ein Konto, ein Abruf (#654)", async () => {
+    Object.assign(api.state, { onlyForeign: false, expired: false, failUntilFallback: false, newAccount: false });
+    const [a] = await sql`select id from bank_accounts where iban = ${IBAN_A}`;
+    const anderes = randomUUID();
+    const konten = [a!.id, anderes].map((id) => ({ uid: `uid-${id}`, iban: "DE00", name: "x", bankAccountId: id, syncedTo: null }));
+    await sql`insert into fints_connections (bank_name, bank_code, url, login, ciphertext, accounts)
+      values ('FinTS-Bank', '12030000', 'https://fints.example.de', 'max', ${Buffer.from([0])}, ${JSON.stringify(konten)}::jsonb)`;
+    expect((await connect("code-fints")).ok).toBe(true);
+    const [fints] = await sql`select accounts from fints_connections`;
+    expect(fints!.accounts.map((k: { bankAccountId: string }) => k.bankAccountId)).toEqual([anderes]);
   });
 });
