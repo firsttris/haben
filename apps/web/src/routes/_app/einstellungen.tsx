@@ -253,6 +253,8 @@ function SettingsPage() {
                 quote={company.quoteNumberFormat}
                 invoiceRunning={company.invoiceCounterRunning}
                 quoteRunning={company.quoteCounterRunning}
+                invoicePerCustomer={company.invoiceCounterPerCustomer}
+                quotePerCustomer={company.quoteCounterPerCustomer}
                 date={numbering.invoice.date}
               />
               <UnitsCard units={units} />

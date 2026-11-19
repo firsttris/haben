@@ -197,6 +197,14 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #14
     await expect(invoices.setNextNumber(actor, "2026-11-07", 5, "angebot", contactA)).rejects.toThrow(/je Kunde/);
   });
 
+  it("liefert die Kreise eines Kunden nur für die Art mit Zähler je Kunde", async () => {
+    expect(await invoices.contactNumbering("2026-11-07", contactA)).toEqual({ invoice: null, quote: null });
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const kreise = await invoices.contactNumbering("2026-11-07", contactA);
+    expect(kreise.invoice).toMatchObject({ kind: "rechnung", year: 2026, last: 0, next: "RE-2026-ACME-001" });
+    expect(kreise.quote).toBeNull();
+  });
+
   it("startet den durchlaufenden Kundenkreis hinter seiner letzten Jahresnummer", async () => {
     await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
     await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA, "2026-12-30")).id, kleinunternehmerStand);

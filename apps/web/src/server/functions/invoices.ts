@@ -28,6 +28,7 @@ import {
   listInvoices,
   newDraftDefaults,
   numbering,
+  contactNumbering,
   abschlagLinks,
   openAbschlaege,
   invoiceSettlementReversalSchema,
@@ -286,16 +287,20 @@ export const copyFinalInvoice = createServerFn({ method: "POST" })
     return { id: draft.id };
   });
 
-/** Nummernkreise für Rechnungen und Angebote, heute: im Jahr oder durchlaufend, optional der Kreis eines Kunden (#1426) */
+/** Nummernkreise für Rechnungen und Angebote, heute: im Jahr oder durchlaufend */
 export const getNumbering = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ contactId: z.string().uuid().nullable().optional() }).optional())
-  .handler(async ({ data }) => {
+  .handler(async () => {
     const date = today();
-    const contactId = data?.contactId ?? null;
-    const [invoice, quote] = await Promise.all([numbering(date, "rechnung", contactId), numbering(date, "angebot", contactId)]);
+    const [invoice, quote] = await Promise.all([numbering(date, "rechnung"), numbering(date, "angebot")]);
     return { invoice, quote };
   });
+
+/** Die Nummernkreise eines Kunden (#1426): je Art nur, wenn deren Zähler je Kunde läuft, sonst null */
+export const getCustomerNumbering = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.object({ contactId: z.string().uuid() }))
+  .handler(async ({ data }) => contactNumbering(today(), data.contactId));
 
 export const saveNextNumber = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

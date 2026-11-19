@@ -1596,6 +1596,16 @@ export async function setNextNumber(actor: string, date: string, next: number, k
     throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(result.format, date, result.last, result.kundennummer)} sein.`);
 }
 
+/** Die Nummernkreise eines Kunden: je Art nur, wenn deren Zähler je Kunde läuft, sonst null statt Fehler (#1426) */
+export async function contactNumbering(date: string, contactId: string) {
+  const company = await loadCompany();
+  const [invoice, quote] = await Promise.all([
+    company.invoiceCounterPerCustomer ? numbering(date, "rechnung", contactId) : null,
+    company.quoteCounterPerCustomer ? numbering(date, "angebot", contactId) : null,
+  ]);
+  return { invoice, quote };
+}
+
 /** Kennzahlen für die Übersicht */
 export async function invoiceSummary(today: string) {
   const list = await listInvoices(today);

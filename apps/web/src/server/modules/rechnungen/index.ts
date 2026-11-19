@@ -90,6 +90,7 @@ export {
   listInvoices,
   newDraftDefaults,
   numbering,
+  contactNumbering,
   openAbschlaege,
   sellerFrom,
   setNextNumber,
