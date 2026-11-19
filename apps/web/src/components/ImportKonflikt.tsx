@@ -46,7 +46,11 @@ function Spalte({ titel, umsatz, zuordnung }: { titel: string; umsatz: Umsatz; z
 const QUELLEN = {
   bank: { wer: "Die Bank", von: "von der Bank", angaben: "der Bank", abruf: "aus dem Abruf dieses Kontos" },
   etsy: { wer: "Etsy", von: "von Etsy", angaben: "von Etsy", abruf: "aus dem Etsy-Abruf" },
+  paypal: { wer: "PayPal", von: "von PayPal", angaben: "von PayPal", abruf: "aus dem PayPal-Abruf" },
 } as const;
+
+/** Wer geliefert hat; andere Anbieter als Etsy und PayPal sind Bankabrufe */
+const quelleVon = (provider: string) => (provider === "etsy" ? QUELLEN.etsy : provider === "paypal" ? QUELLEN.paypal : QUELLEN.bank);
 
 const ENTSCHEIDUNGEN = [
   {
@@ -182,7 +186,7 @@ type Bezug = { id: string; bookingDate: string; amount: number };
 /** Hinweis in der Detailansicht: am bisherigen Umsatz die nach einem Konflikt übernommenen, am übernommenen der bisherige */
 export function KlaerungHinweis({ klaerung }: { klaerung: { provider: string; added: Bezug[]; previous: Bezug | null } | null }) {
   if (!klaerung) return null;
-  const { wer } = klaerung.provider === "etsy" ? QUELLEN.etsy : QUELLEN.bank;
+  const { wer } = quelleVon(klaerung.provider);
   const verweis = (u: Bezug) => (
     <Link from="/bank" to="/bank" search={(prev) => ({ ...prev, umsatz: u.id })}>
       {formatDate(u.bookingDate)}, {betrag(u.amount)}

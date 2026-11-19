@@ -11,6 +11,7 @@ import {
   FINTS_PRODUKT_E2E,
   habenFirmen,
   LAYOUT_PAKETE_PORT,
+  PAYPAL_PORT,
   portFuer,
   SEVDESK_PORT,
 } from "./e2e/durchlaeufe.ts";
@@ -83,6 +84,9 @@ function webServer(durchlauf?: Durchlauf) {
             ETSY_AUTH_URL: `http://127.0.0.1:${ETSY_PORT}/oauth/connect`,
           }
         : {}),
+      // PayPal (#1512) nur im Durchlauf „paypal-abruf“ gegen die nachgebaute API; sonst die echten Hosts, die ohne
+      // gespeicherten Zugang nie gefragt werden
+      ...(durchlauf === "paypal-abruf" ? { PAYPAL_API_URL: `http://127.0.0.1:${PAYPAL_PORT}` } : {}),
       // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
       HABEN_FIRMEN: durchlauf === "firmen" ? habenFirmen(serverURL) : "",
     },

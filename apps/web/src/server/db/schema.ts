@@ -4694,6 +4694,44 @@ export const etsyConnections = pgTable(
 );
 
 /**
+ * Zugang zur Transaction Search von PayPal über die API (Einstellungen › Bank, #1512). Genau eine Zeile, weil Haben ein
+ * PayPal-Konto je Installation anbindet. Client-ID und Secret der PayPal-App des Betreibers liegen zusammen verschlüsselt in
+ * ciphertext; die Kennung des Händlerkontos (`account_id`) ist nicht geheim und ermittelt Haben beim Speichern über die API.
+ * Sie ist die Kennung der Quellenbindung. Wird der Zugang entfernt, verschwindet die Zeile mit dem Abrufstand; der nächste
+ * Abruf beginnt am gewählten Tag.
+ */
+export const paypalConnections = pgTable(
+  "paypal_connections",
+  {
+    /** Es gibt genau eine Verbindung; der feste Wert hält es dabei */
+    id: text("id").primaryKey().default("paypal"),
+    /** Kennung des Händlerkontos, beim Speichern von PayPal ermittelt */
+    accountId: text("account_id").notNull(),
+    /** Letzte Zeichen der Client-ID für die Anzeige, ohne sie zu verraten */
+    keyHint: text("key_hint").notNull().default(""),
+    /** Zugang der Sandbox (api-m.sandbox.paypal.com): Testdaten, keine echten Umsätze */
+    sandbox: boolean("sandbox").notNull().default(false),
+    /** Client-ID und Secret als JSON: AES-256-GCM */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Zeitzone des PayPal-Kontos (IANA-Name): In ihr schreibt der Aktivitätenexport das Datum, nach ihr bildet Haben den Buchungstag */
+    zeitzone: text("zeitzone").notNull().default("Europe/Berlin"),
+    /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */
+    fetchFrom: date("fetch_from").notNull(),
+    /** Der in den Einstellungen gewählte erste Tag */
+    abrufStart: date("abruf_start").notNull(),
+    /** Wie oft der Zeitplan abruft: stuendlich, taeglich oder woechentlich */
+    rhythmus: text("rhythmus").notNull().default("taeglich"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("paypal_connections_id", sql`${t.id} = 'paypal'`),
+    check("paypal_connections_rhythmus", sql`${t.rhythmus} in ('stuendlich', 'taeglich', 'woechentlich')`),
+  ],
+);
+
+/**
  * Angaben zum Betrieb für die Verfahrensdokumentation (#860), genau eine Zeile (id = 1): was Haben nicht wissen kann.
  * Felder und Längen aus dem gemeinsamen Schema in @firsttris/gobd-kern/verfahrensdoku; Firma, Rechtsform und Anschrift
  * kommen aus den Firmendaten. Jede Änderung steht im Audit-Log (Rz. 154: nachvollziehbare Änderungshistorie).

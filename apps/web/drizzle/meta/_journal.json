@@ -2136,6 +2136,20 @@
       "when": 1795114391267,
       "tag": "0304_nummernkreis_kunde_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 305,
+      "version": "7",
+      "when": 1795126612893,
+      "tag": "0305_paypal_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 306,
+      "version": "7",
+      "when": 1795126616239,
+      "tag": "0306_paypal_zugang_trigger",
+      "breakpoints": true
     }
   ]
 }

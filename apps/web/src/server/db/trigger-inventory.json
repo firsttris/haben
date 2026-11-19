@@ -2101,6 +2101,20 @@
       "function": "public.haben_seal()"
     },
     {
+      "table": "public.paypal_connections",
+      "name": "paypal_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER paypal_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.paypal_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.paypal_connections",
+      "name": "paypal_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER paypal_connections_no_truncate BEFORE TRUNCATE ON public.paypal_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.payroll_runs",
       "name": "payroll_runs_audit",
       "enabled": "O",
