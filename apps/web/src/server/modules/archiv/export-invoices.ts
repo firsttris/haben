@@ -22,31 +22,7 @@ const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-c
 
 /** Festgeschriebene Rechnungen des Jahres; gibt die Rechnungsnummern je ID zurück, die spätere Teile des Archivs ergänzen */
 export async function* invoiceFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile, Map<string, string | null>> {
-  const invoices = await db
-    .select({
-      id: schema.invoices.id,
-      kind: schema.invoices.kind,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      serviceFrom: schema.invoices.serviceFrom,
-      serviceTo: schema.invoices.serviceTo,
-      buyer: schema.invoices.buyer,
-      net: schema.invoices.net,
-      tax: schema.invoices.tax,
-      gross: schema.invoices.gross,
-      currency: schema.invoices.currency,
-      exchangeRate: schema.invoices.exchangeRate,
-      format: schema.invoices.format,
-      lockedAt: schema.invoices.lockedAt,
-      pdfSha256: schema.invoices.pdfSha256,
-      xmlSha256: schema.invoices.xmlSha256,
-      correctsId: schema.invoices.correctsId,
-      variant: schema.invoices.variant,
-    })
-    .from(schema.invoices)
-    .where(and(eq(schema.invoices.status, "final"), gte(schema.invoices.issueDate, yearStart(year)), lte(schema.invoices.issueDate, yearEnd(year))))
-    .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.number));
+  const invoices = await invoicesOfYear(year);
 
   const referenced = [...new Set(invoices.map((i) => i.correctsId).filter((id): id is string => id !== null))];
   const invoiceNumbers = new Map<string, string | null>(invoices.map((i) => [i.id, i.number]));
@@ -74,28 +50,7 @@ export async function* invoiceFiles(year: number, problems: string[]): AsyncGene
       xmlPath = uniquePath(usedInvoicePaths, `${stem}.xml`);
       yield { path: xmlPath, content: encoder.encode(files.xml), compress: true };
     }
-    invoiceRows.push([
-      invoice.number,
-      KIND_LABELS[invoice.variant ?? invoice.kind] ?? invoice.kind,
-      invoice.issueDate,
-      invoice.dueDate,
-      invoice.serviceFrom,
-      invoice.serviceTo,
-      invoice.buyer?.name ?? "",
-      money(invoice.net),
-      money(invoice.tax),
-      money(invoice.gross),
-      invoice.currency,
-      invoice.exchangeRate ? formatExchangeRate(invoice.exchangeRate) : null,
-      FORMAT_LABELS[invoice.format] ?? invoice.format,
-      iso(invoice.lockedAt),
-      invoice.pdfSha256,
-      invoice.xmlSha256,
-      invoice.correctsId ? (invoiceNumbers.get(invoice.correctsId) ?? invoice.correctsId) : "",
-      pdfPath.replace(/^rechnungen\//, ""),
-      xmlPath.replace(/^rechnungen\//, ""),
-      invoice.id,
-    ]);
+    invoiceRows.push(invoiceRow(invoice, invoiceNumbers, pdfPath, xmlPath));
   }
   yield {
     path: "rechnungen/rechnungen.csv",
@@ -128,6 +83,65 @@ export async function* invoiceFiles(year: number, problems: string[]): AsyncGene
   };
   yield* attachmentArchive(INVOICE_ATTACHMENTS, await invoiceAttachmentRows(invoices), problems);
   return invoiceNumbers;
+}
+
+async function invoicesOfYear(year: number) {
+  return db
+    .select({
+      id: schema.invoices.id,
+      kind: schema.invoices.kind,
+      number: schema.invoices.number,
+      issueDate: schema.invoices.issueDate,
+      dueDate: schema.invoices.dueDate,
+      serviceFrom: schema.invoices.serviceFrom,
+      serviceTo: schema.invoices.serviceTo,
+      buyer: schema.invoices.buyer,
+      net: schema.invoices.net,
+      tax: schema.invoices.tax,
+      gross: schema.invoices.gross,
+      currency: schema.invoices.currency,
+      exchangeRate: schema.invoices.exchangeRate,
+      format: schema.invoices.format,
+      lockedAt: schema.invoices.lockedAt,
+      pdfSha256: schema.invoices.pdfSha256,
+      xmlSha256: schema.invoices.xmlSha256,
+      correctsId: schema.invoices.correctsId,
+      variant: schema.invoices.variant,
+    })
+    .from(schema.invoices)
+    .where(and(eq(schema.invoices.status, "final"), gte(schema.invoices.issueDate, yearStart(year)), lte(schema.invoices.issueDate, yearEnd(year))))
+    .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.number));
+}
+
+/** Zeile der rechnungen.csv */
+function invoiceRow(
+  invoice: Awaited<ReturnType<typeof invoicesOfYear>>[number],
+  invoiceNumbers: Map<string, string | null>,
+  pdfPath: string,
+  xmlPath: string,
+): CsvValue[] {
+  return [
+    invoice.number,
+    KIND_LABELS[invoice.variant ?? invoice.kind] ?? invoice.kind,
+    invoice.issueDate,
+    invoice.dueDate,
+    invoice.serviceFrom,
+    invoice.serviceTo,
+    invoice.buyer?.name ?? "",
+    money(invoice.net),
+    money(invoice.tax),
+    money(invoice.gross),
+    invoice.currency,
+    invoice.exchangeRate ? formatExchangeRate(invoice.exchangeRate) : null,
+    FORMAT_LABELS[invoice.format] ?? invoice.format,
+    iso(invoice.lockedAt),
+    invoice.pdfSha256,
+    invoice.xmlSha256,
+    invoice.correctsId ? (invoiceNumbers.get(invoice.correctsId) ?? invoice.correctsId) : "",
+    pdfPath.replace(/^rechnungen\//, ""),
+    xmlPath.replace(/^rechnungen\//, ""),
+    invoice.id,
+  ];
 }
 
 /** Angebote (Handelsbriefe, nur wenn vorhanden) */

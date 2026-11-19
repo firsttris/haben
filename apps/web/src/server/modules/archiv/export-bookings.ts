@@ -42,6 +42,18 @@ export function sourceLabel(sourceType: string): string {
 
 /** Buchungen, Anlagen, Pauschalen (Eigenbelege) und Kassenbuch des Jahres */
 export async function* bookingFiles(year: number): AsyncGenerator<ArchiveFile> {
+  yield await journalFile(year);
+  yield await assetsFile(year);
+  const pauschalen = await pauschalenFile(year);
+  if (pauschalen) yield pauschalen;
+  // Kassenbuch: mit Anfangsbestand und Bestand nach jeder Zeile; auch wenn nur die Eröffnung einen Bestand bringt
+  if ((await db.select({ id: schema.cashEntries.id }).from(schema.cashEntries).limit(1)).length > 0 || (await openingCash()).length > 0) {
+    yield { path: "kasse/kassenbuch.csv", content: encoder.encode(await cashBookCsv(year)), compress: true };
+  }
+}
+
+/** buchungen/journal.csv: je Zeile einer Buchung des Jahres eine Zeile */
+async function journalFile(year: number): Promise<ArchiveFile> {
   const entries = await db
     .select()
     .from(schema.journalEntries)
@@ -79,7 +91,7 @@ export async function* bookingFiles(year: number): AsyncGenerator<ArchiveFile> {
       iso(entry.createdAt),
     ]),
   );
-  yield {
+  return {
     path: "buchungen/journal.csv",
     content: csv(
       [
@@ -103,8 +115,10 @@ export async function* bookingFiles(year: number): AsyncGenerator<ArchiveFile> {
     ),
     compress: true,
   };
+}
 
-  // Anlagen --------------------------------------------------------------
+/** anlagen/anlagenverzeichnis.csv */
+async function assetsFile(year: number): Promise<ArchiveFile> {
   const assetRows: CsvValue[][] = (await listAssets(year))
     // auch voll abgeschriebene Fahrzeuge, die noch privat genutzt werden
     .filter((a) => a.year !== null || (a.privateUseYear?.months.length ?? 0) > 0)
@@ -136,7 +150,7 @@ export async function* bookingFiles(year: number): AsyncGenerator<ArchiveFile> {
       a.documentId,
       a.id,
     ]);
-  yield {
+  return {
     path: "anlagen/anlagenverzeichnis.csv",
     content: csv(
       [
@@ -170,36 +184,32 @@ export async function* bookingFiles(year: number): AsyncGenerator<ArchiveFile> {
     ),
     compress: true,
   };
+}
 
-  // Pauschalen (Eigenbelege) ---------------------------------------------
+/** pauschalen/pauschalen.csv; null ohne Pauschale im Jahr */
+async function pauschalenFile(year: number): Promise<ArchiveFile | null> {
   const pauschalen = await db
     .select()
     .from(schema.pauschalen)
     .where(between(schema.pauschalen.date, yearStart(year), yearEnd(year)))
     .orderBy(asc(schema.pauschalen.date), asc(schema.pauschalen.createdAt), asc(schema.pauschalen.id));
-  if (pauschalen.length > 0) {
-    yield {
-      path: "pauschalen/pauschalen.csv",
-      content: csv(
-        ["Datum", "Art", "Beschreibung", "Angaben", "Betrag", "Storno von", "Buchungs-ID", "Erfasst", "ID"],
-        pauschalen.map((p) => [
-          p.date,
-          PAUSCHALE_LABEL[p.art],
-          p.description,
-          JSON.stringify(p.details),
-          money(p.amount),
-          p.reversesId,
-          p.journalEntryId,
-          p.createdAt.toISOString(),
-          p.id,
-        ]),
-      ),
-      compress: true,
-    };
-  }
-
-  // Kassenbuch: mit Anfangsbestand und Bestand nach jeder Zeile; auch wenn nur die Eröffnung einen Bestand bringt
-  if ((await db.select({ id: schema.cashEntries.id }).from(schema.cashEntries).limit(1)).length > 0 || (await openingCash()).length > 0) {
-    yield { path: "kasse/kassenbuch.csv", content: encoder.encode(await cashBookCsv(year)), compress: true };
-  }
+  if (pauschalen.length === 0) return null;
+  return {
+    path: "pauschalen/pauschalen.csv",
+    content: csv(
+      ["Datum", "Art", "Beschreibung", "Angaben", "Betrag", "Storno von", "Buchungs-ID", "Erfasst", "ID"],
+      pauschalen.map((p) => [
+        p.date,
+        PAUSCHALE_LABEL[p.art],
+        p.description,
+        JSON.stringify(p.details),
+        money(p.amount),
+        p.reversesId,
+        p.journalEntryId,
+        p.createdAt.toISOString(),
+        p.id,
+      ]),
+    ),
+    compress: true,
+  };
 }

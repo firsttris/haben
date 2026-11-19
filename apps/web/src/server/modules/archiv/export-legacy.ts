@@ -99,8 +99,18 @@ export async function* orderFiles(year: number, problems: string[]): AsyncGenera
 
 /** Übernommene Belege aus Lexoffice, sevDesk und den anderen Quellen samt Dateistand, Zahlungen, DATEV-Stapel und Originalen */
 export async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
-  // Ausdrücke über alle Archivbelege: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
-  const vouchers = await ohneJit((tx) =>
+  const usedPaths = new Set<string>();
+  yield* voucherArchiveFiles(year, problems, usedPaths);
+  for (const file of [fileStatesFile, paymentsFile, datevBookingsFile]) {
+    const content = await file(year);
+    if (content) yield content;
+  }
+  yield* originalFiles(year, problems, usedPaths);
+}
+
+/** Ausdrücke über alle Archivbelege: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts) */
+async function vouchersOfYear(year: number) {
+  return ohneJit((tx) =>
     tx
       .select({
         ...getTableColumns(schema.lexofficeVouchers),
@@ -117,6 +127,11 @@ export async function* legacyFiles(year: number, problems: string[]): AsyncGener
       .where(between(schema.lexofficeVouchers.date, yearStart(year), yearEnd(year)))
       .orderBy(asc(schema.lexofficeVouchers.date), asc(schema.lexofficeVouchers.number), asc(schema.lexofficeVouchers.id)),
   );
+}
+
+/** Übernommene Belege des Jahres mit ihren Dateien und lexoffice/belege.csv */
+async function* voucherArchiveFiles(year: number, problems: string[], usedPaths: Set<string>): AsyncGenerator<ArchiveFile> {
+  const vouchers = await vouchersOfYear(year);
   const files = vouchers.length
     ? await db
         .select()
@@ -131,7 +146,6 @@ export async function* legacyFiles(year: number, problems: string[]): AsyncGener
     : [];
   const filesByVoucher = groupBy(files, (f) => f.voucherId);
   const fileStates = await latestFileStates(vouchers.map((v) => v.id));
-  const usedPaths = new Set<string>();
   const rows: CsvValue[][] = [];
   for (const voucher of vouchers) {
     const paths: string[] = [];
@@ -150,28 +164,7 @@ export async function* legacyFiles(year: number, problems: string[]): AsyncGener
         );
       }
     }
-    rows.push([
-      voucher.date,
-      LEGACY_TYPE_LABELS[voucher.type] ?? voucher.type,
-      voucher.direction === "einnahme" ? "Einnahme" : "Ausgabe",
-      voucher.number,
-      voucher.contactName,
-      money(voucher.net),
-      money(voucher.tax),
-      money(voucher.gross),
-      voucher.currency,
-      voucher.status,
-      voucher.dueDate,
-      voucher.payment?.paidDate ?? "",
-      json(voucher.taxes),
-      json(voucher.categories),
-      voucher.remark,
-      paths.join(" | "),
-      (filesByVoucher.get(voucher.id) ?? []).map((f) => f.sha256).join(" | "),
-      voucher.lexofficeId,
-      LEGACY_SOURCE_LABELS[voucher.source],
-      FILE_STATUS_LABELS[legacyFileStatus(fileStates.get(voucher.id) ?? null, filesByVoucher.get(voucher.id)?.length ?? 0, voucher.raw.ohneBeleg === true)],
-    ]);
+    rows.push(voucherRow(voucher, paths, filesByVoucher.get(voucher.id) ?? [], fileStates.get(voucher.id) ?? null));
   }
   if (vouchers.length > 0) {
     yield {
@@ -204,104 +197,142 @@ export async function* legacyFiles(year: number, problems: string[]): AsyncGener
       compress: true,
     };
   }
+}
 
-  // Verlauf des Dateistands (#345): was fehlte, warum, wer ohne Datei bestätigt hat und was nachgeladen wurde
+/** Zeile der lexoffice/belege.csv */
+function voucherRow(
+  voucher: Awaited<ReturnType<typeof vouchersOfYear>>[number],
+  paths: string[],
+  voucherFiles: (typeof schema.lexofficeVoucherFiles.$inferSelect)[],
+  fileState: Parameters<typeof legacyFileStatus>[0],
+): CsvValue[] {
+  return [
+    voucher.date,
+    LEGACY_TYPE_LABELS[voucher.type] ?? voucher.type,
+    voucher.direction === "einnahme" ? "Einnahme" : "Ausgabe",
+    voucher.number,
+    voucher.contactName,
+    money(voucher.net),
+    money(voucher.tax),
+    money(voucher.gross),
+    voucher.currency,
+    voucher.status,
+    voucher.dueDate,
+    voucher.payment?.paidDate ?? "",
+    json(voucher.taxes),
+    json(voucher.categories),
+    voucher.remark,
+    paths.join(" | "),
+    voucherFiles.map((f) => f.sha256).join(" | "),
+    voucher.lexofficeId,
+    LEGACY_SOURCE_LABELS[voucher.source],
+    FILE_STATUS_LABELS[legacyFileStatus(fileState, voucherFiles.length, voucher.raw.ohneBeleg === true)],
+  ];
+}
+
+/** Verlauf des Dateistands (#345): was fehlte, warum, wer ohne Datei bestätigt hat und was nachgeladen wurde */
+async function fileStatesFile(year: number): Promise<ArchiveFile | null> {
   const states = await fileStatesForYear(year);
-  if (states.length > 0) {
-    yield {
-      path: "lexoffice/dateistand.csv",
-      content: csv(
-        ["Zeitpunkt", "Belegnummer", "Beleg-ID der Quelle", "Stand", "Datei", "Datei-ID der Quelle", "Grund oder Herkunft", "Abruf", "Benutzer-ID"],
-        states.map((r) => [
-          r.createdAt.toISOString(),
-          r.number,
-          r.lexofficeId,
-          FILE_STATE_LABELS[r.state],
-          r.role ?? "",
-          r.sourceFileId ?? "",
-          r.message,
-          r.importId ?? "",
-          r.importId ? "" : r.createdBy,
-        ]),
-      ),
-      compress: true,
-    };
-  }
+  if (states.length === 0) return null;
+  return {
+    path: "lexoffice/dateistand.csv",
+    content: csv(
+      ["Zeitpunkt", "Belegnummer", "Beleg-ID der Quelle", "Stand", "Datei", "Datei-ID der Quelle", "Grund oder Herkunft", "Abruf", "Benutzer-ID"],
+      states.map((r) => [
+        r.createdAt.toISOString(),
+        r.number,
+        r.lexofficeId,
+        FILE_STATE_LABELS[r.state],
+        r.role ?? "",
+        r.sourceFileId ?? "",
+        r.message,
+        r.importId ?? "",
+        r.importId ? "" : r.createdBy,
+      ]),
+    ),
+    compress: true,
+  };
+}
 
-  // Einzelzahlungen nach Zahlungsdatum, also im Jahr des Geldflusses; der Beleg kann in einem anderen Jahr liegen
+/** Einzelzahlungen nach Zahlungsdatum, also im Jahr des Geldflusses; der Beleg kann in einem anderen Jahr liegen */
+async function paymentsFile(year: number): Promise<ArchiveFile | null> {
   const payments = await db
     .select({ payment: schema.legacyVoucherPayments, number: schema.lexofficeVouchers.number, voucher: schema.lexofficeVouchers.lexofficeId })
     .from(schema.legacyVoucherPayments)
     .innerJoin(schema.lexofficeVouchers, eq(schema.lexofficeVouchers.id, schema.legacyVoucherPayments.voucherId))
     .where(between(schema.legacyVoucherPayments.date, yearStart(year), yearEnd(year)))
     .orderBy(asc(schema.legacyVoucherPayments.date), asc(schema.lexofficeVouchers.number), asc(schema.legacyVoucherPayments.externalId));
-  if (payments.length > 0) {
-    yield {
-      path: "lexoffice/zahlungen.csv",
-      content: csv(
-        ["Datum", "Belegnummer", "Betrag", "Konto", "Konto-ID", "Umsatz-ID", "Zuordnungs-ID", "Beleg-ID der Quelle", "Quelle", "Abgerufen am"],
-        payments.map(({ payment: p, number, voucher }) => [
-          p.date,
-          number,
-          money(p.amount),
-          p.accountName ?? "",
-          p.accountId ?? "",
-          p.transactionId ?? "",
-          p.externalId,
-          voucher,
-          LEGACY_SOURCE_LABELS[p.source],
-          p.createdAt.toISOString(),
-        ]),
-      ),
-      compress: true,
-    };
-  }
+  if (payments.length === 0) return null;
+  return {
+    path: "lexoffice/zahlungen.csv",
+    content: csv(
+      ["Datum", "Belegnummer", "Betrag", "Konto", "Konto-ID", "Umsatz-ID", "Zuordnungs-ID", "Beleg-ID der Quelle", "Quelle", "Abgerufen am"],
+      payments.map(({ payment: p, number, voucher }) => [
+        p.date,
+        number,
+        money(p.amount),
+        p.accountName ?? "",
+        p.accountId ?? "",
+        p.transactionId ?? "",
+        p.externalId,
+        voucher,
+        LEGACY_SOURCE_LABELS[p.source],
+        p.createdAt.toISOString(),
+      ]),
+    ),
+    compress: true,
+  };
+}
 
+/** Übernommene DATEV-Buchungsstapel des Jahres */
+async function datevBookingsFile(year: number): Promise<ArchiveFile | null> {
   const bookings = await db
     .select({ booking: schema.datevBookings, filename: schema.archiveFiles.filename })
     .from(schema.datevBookings)
     .innerJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId))
     .where(between(schema.datevBookings.date, yearStart(year), yearEnd(year)))
     .orderBy(asc(schema.datevBookings.date), asc(schema.archiveFiles.filename), asc(schema.datevBookings.row));
-  if (bookings.length > 0) {
-    yield {
-      path: "lexoffice/datev-buchungen.csv",
-      content: csv(
-        [
-          "Datum",
-          "Umsatz",
-          "Soll/Haben",
-          "Währung",
-          "Konto",
-          "Gegenkonto",
-          "BU-Schlüssel",
-          "Belegfeld 1",
-          "Belegfeld 2",
-          "Buchungstext",
-          "Beleglink",
-          "Datei",
-          "Zeile",
-        ],
-        bookings.map(({ booking: b, filename }) => [
-          b.date,
-          money(b.amount),
-          b.side,
-          b.currency,
-          b.account,
-          b.contraAccount,
-          b.buKey,
-          b.voucherField1,
-          b.voucherField2,
-          b.text,
-          b.documentLink,
-          filename,
-          b.row,
-        ]),
-      ),
-      compress: true,
-    };
-  }
+  if (bookings.length === 0) return null;
+  return {
+    path: "lexoffice/datev-buchungen.csv",
+    content: csv(
+      [
+        "Datum",
+        "Umsatz",
+        "Soll/Haben",
+        "Währung",
+        "Konto",
+        "Gegenkonto",
+        "BU-Schlüssel",
+        "Belegfeld 1",
+        "Belegfeld 2",
+        "Buchungstext",
+        "Beleglink",
+        "Datei",
+        "Zeile",
+      ],
+      bookings.map(({ booking: b, filename }) => [
+        b.date,
+        money(b.amount),
+        b.side,
+        b.currency,
+        b.account,
+        b.contraAccount,
+        b.buKey,
+        b.voucherField1,
+        b.voucherField2,
+        b.text,
+        b.documentLink,
+        filename,
+        b.row,
+      ]),
+    ),
+    compress: true,
+  };
+}
 
+/** Originalexporte des Jahres aus den Quellen */
+async function* originalFiles(year: number, problems: string[], usedPaths: Set<string>): AsyncGenerator<ArchiveFile> {
   const originals = await db
     .select()
     .from(schema.archiveFiles)
