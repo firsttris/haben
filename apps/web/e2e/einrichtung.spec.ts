@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { strToU8, zipSync } from "fflate";
 import { USER } from "./daten.ts";
 import { durchlaufSeite, gehe, SETUP_CODE } from "./einrichtung.ts";
 
@@ -185,4 +187,83 @@ test("Am Handy ohne waagrechtes Scrollen, hell und dunkel", async () => {
       expect(overflow, `${pfad} (${modus})`).toBe(0);
     }
   }
+});
+
+/** Einstellungsdatei, wie „Einstellungen exportieren“ sie schreibt: ZIP mit einem Kontakt und passender Prüfsumme (#488) */
+function einstellungsdatei(): Buffer {
+  const kontakt = {
+    id: "0b6a1c1e-5d7e-4f0a-9a43-1f2d3c4b5a60",
+    kundennummer: "K-0041",
+    isCustomer: true,
+    isSupplier: false,
+    lieferantennummer: null,
+    name: "Nordwerk Übernahme GmbH",
+    strasse: "Hafenstraße 5",
+    plz: "20457",
+    ort: "Hamburg",
+    land: "DE",
+    email: "",
+    telefon: "",
+    ustId: "",
+    iban: "",
+    leitwegId: "",
+    unsereLieferantennummer: "",
+    defaultFormat: null,
+    skonto: null,
+    language: "de",
+    lexofficeId: null,
+    sevdeskId: null,
+    fastbillId: null,
+    debitorNr: null,
+    kreditorNr: null,
+    hourlyRateCents: null,
+    archivedAt: null,
+  };
+  const inhalt = {
+    format: "haben-einstellungen",
+    version: 1,
+    exportedAt: "2026-12-20T10:00:00.000Z",
+    appVersion: null,
+    company: null,
+    einrichtung: null,
+    letterheadProfiles: [],
+    logo: null,
+    background: null,
+    layouts: [],
+    units: [],
+    articles: [],
+    contacts: [kontakt],
+    contactPersons: [],
+    textBlocks: [],
+    ownAccounts: [],
+    mail: null,
+    quoteDefaultAttachments: [],
+    customPages: [],
+    procedureDetails: null,
+    vatFrequencies: [],
+  };
+  const sha256 = createHash("sha256").update(JSON.stringify(inhalt)).digest("hex");
+  return Buffer.from(zipSync({ "einstellungen.json": strToU8(JSON.stringify({ ...inhalt, sha256 }, null, 2)) }));
+}
+
+test("Neue Instanz übernimmt die Einstellungsdatei einer anderen, danach gibt es die Karte nicht mehr (#488)", async () => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await gehe(page, "/einstellungen?bereich=export");
+  const karte = page.getByRole("region", { name: "Einstellungen übernehmen" });
+  await expect(karte).toContainText("nur, solange hier noch keine Kontakte");
+  await karte
+    .getByLabel("Einstellungsdatei")
+    .setInputFiles({ name: "Haben-Einstellungen-2026-12-20.zip", mimeType: "application/zip", buffer: einstellungsdatei() });
+
+  const dialog = page.getByRole("dialog", { name: "Einstellungen übernehmen?" });
+  await expect(dialog).toContainText("Haben-Einstellungen-2026-12-20.zip");
+  await expect(dialog).toContainText("Kontakte");
+  await dialog.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(karte).toContainText("Einstellungen übernommen, dazu 1 Kontakt, 0 Artikel, 0 Textbausteine, 0 eigene Layouts.");
+  await expect(karte.getByRole("button", { name: "Datei übernehmen …" })).toHaveCount(0);
+
+  await gehe(page, "/kontakte");
+  await expect(page.getByRole("link", { name: /Nordwerk Übernahme GmbH/ })).toBeVisible();
+  await gehe(page, "/einstellungen?bereich=export");
+  await expect(page.getByRole("region", { name: "Einstellungen übernehmen" })).toHaveCount(0);
 });

@@ -53,6 +53,7 @@ nav:
       - Erste Schritte: einrichtung.md
       - ELSTER einrichten: einrichtung-elster.md
       - E-Mail-Versand: einrichtung-email.md
+      - Von der Testinstanz in den Echtbetrieb: einrichtung-echtbetrieb.md
       - Zugang für die Steuerberatung: steuerberatung.md
       - Barrierefreiheit und Tastatur: barrierefreiheit.md
   - Verkauf:

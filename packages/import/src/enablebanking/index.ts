@@ -10,4 +10,4 @@ export {
   type EbBalance,
 } from "./client.ts";
 export { enableBankingStatement } from "./map.ts";
-export { enableBankingBatch, entryReferenceOf, OHNE_ENTRY_REFERENCE, type EnableBankingBatchInput } from "./batch.ts";
+export { enableBankingBatch, enableBankingDelivery, entryReferenceOf, OHNE_ENTRY_REFERENCE, type EnableBankingBatchInput } from "./batch.ts";

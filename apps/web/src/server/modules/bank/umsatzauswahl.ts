@@ -13,8 +13,10 @@ async function mitHinweisen(
   own: Awaited<ReturnType<typeof ownAccounts>>,
   konten: readonly Konto[],
 ) {
-  const learned = await learnedDirectSuggestions(umsatze.filter((row) => row.open !== 0 && row.open === row.amount));
+  const learned = await learnedDirectSuggestions(umsatze.filter((row) => !row.duplicatePending && row.open !== 0 && row.open === row.amount));
   return umsatze.map((row) => {
+    if (row.duplicateConfirmed) return { ...row, suggestion: null, hint: "bestaetigteDublette" as const };
+    if (row.duplicatePending) return { ...row, suggestion: null, hint: "dublette" as const };
     if (row.neutralized) return { ...row, suggestion: null, hint: "verrechnet" as const };
     // Gekennzeichnete Umsätze auf privaten Konten sind erledigt, ohne gebucht zu sein (#1088): nicht „Offen"
     if (row.privat) return { ...row, suggestion: null, hint: "privat" as const };

@@ -58,6 +58,12 @@ export interface ParsedTransaction {
   type?: string;
   /** Referenz der Bank, falls vorhanden (CAMT AcctSvcrRef, EndToEndId) */
   bankReference?: string;
+  /** Originale Enable-Banking-entry_reference, getrennt von der bisherigen bankReference. */
+  entryReference?: string;
+  /** Veränderliche transaction_id von Enable Banking; keine stabile Umsatzkennung. */
+  providerTransactionId?: string;
+  /** Position im Enable-Banking-Abruf vor der Sortierung des Auszugs. */
+  providerRowIndex?: number;
   /** Kennung des Auftraggebers (CAMT Refs/EndToEndId), auch wenn bankReference die Referenz der Bank trägt */
   endToEndId?: string;
   /** SEPA-Lastschrift: Gläubiger-ID und Mandatsreferenz, falls die Datei sie nennt */

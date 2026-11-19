@@ -10,6 +10,7 @@ import {
   DARLEHEN_TEILE,
   DARLEHEN_TEIL_KEYS,
   formatEuro,
+  kategorienMitKonto,
   STEUERARTEN,
   steuerartenFor,
 } from "@haben/core";
@@ -107,7 +108,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
         ? {
             ...detail,
             neutralization: await neutralizationView(detail.transaction.id),
-            storePayout: await storePayoutView(detail.transaction.id),
+            storePayout: detail.duplicateReviews.every((review) => review.decision === "distinct") ? await storePayoutView(detail.transaction.id) : null,
             /** Bezug zu einem Umsatz aus der Klärung eines Konflikts im Abruf (#306) */
             klaerung: await klaerungView(detail.transaction.id),
           }
@@ -124,7 +125,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
-      kategorien: direktKategorienFuerKonto(account?.purpose ?? "geschaeft"),
+      kategorien: kategorienMitKonto(direktKategorienFuerKonto(account?.purpose ?? "geschaeft"), (await loadCompany()).kontenrahmen),
       kleinunternehmer: (await loadCompany()).kleinunternehmer,
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
