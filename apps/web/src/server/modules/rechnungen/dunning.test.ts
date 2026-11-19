@@ -103,23 +103,27 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     await expect(sql`delete from dunnings`).rejects.toThrow("darf nur ergänzt werden");
   });
 
-  it("Absender und Kunde stehen mit der heutigen Anschrift auf der Mahnung, die übrigen Angaben wie auf der Rechnung", async () => {
+  /** Kontakt und Firmendaten nach dem Festschreiben ändern: neuer Name, neue Anschrift, anderes Land, andere Kundennummer und Bank */
+  async function ändern() {
     const [row] = await sql<{ contact_id: string }[]>`select contact_id from invoices where id = ${invoiceId}`;
-    const contactId = row!.contact_id;
-    await contacts.updateContact(actor, contactId, {
-      kundennummer: "10001",
-      name: "Nordwerk Software GmbH",
+    await contacts.updateContact(actor, row!.contact_id, {
+      kundennummer: "20002",
+      name: "Nordwerk Software AG",
       strasse: "Speicherstraße 9",
       plz: "20457",
       ort: "Hamburg-Mitte",
-      land: "DE",
+      land: "AT",
       email: "rechnung@nordwerk.example",
       ustId: "",
       iban: "",
       leitwegId: "",
       defaultFormat: null,
     });
-    await sql`update company set strasse = 'Neuer Weg 2', plz = '93049', ort = 'Regensburg a. D.', bank = 'Sparkasse' where id = 1`;
+    await sql`update company set name = 'Testfirma Neu GmbH', strasse = 'Neuer Weg 2', plz = '93049', ort = 'Regensburg a. D.', bank = 'Sparkasse' where id = 1`;
+  }
+
+  it("Absender und Kunde stehen mit dem heutigen Namen und der heutigen Anschrift auf der Mahnung, die übrigen Angaben wie auf der Rechnung", async () => {
+    await ändern();
     const input = { invoiceId, level: 1 as const, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" };
     const before = seen.docs.length;
     await dunning.dunningDraftPdf(input, "2026-10-15");
@@ -127,13 +131,49 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     const docs = seen.docs.slice(before);
     expect(docs).toHaveLength(2);
     for (const doc of docs) {
-      expect(doc.buyer).toMatchObject({ name: "Nordwerk Software GmbH", strasse: "Speicherstraße 9", ort: "Hamburg-Mitte", kundennummer: "10001" });
-      expect(doc.seller).toMatchObject({ strasse: "Neuer Weg 2", plz: "93049", ort: "Regensburg a. D.", bank: "Commerzbank", iban: "DE89370400440532013000" });
+      expect(doc.buyer).toMatchObject({ name: "Nordwerk Software AG", strasse: "Speicherstraße 9", ort: "Hamburg-Mitte", land: "AT" });
+      expect(doc.seller).toMatchObject({ name: "Testfirma Neu GmbH", strasse: "Neuer Weg 2", plz: "93049", ort: "Regensburg a. D." });
+      // Kundennummer, Bank und Konto bleiben wie auf der Rechnung, auch der Kontoinhaber: das Konto lautete auf den damaligen Firmennamen
+      expect(doc.buyer.kundennummer).toBe("10001");
+      expect(doc.buyer.ansprechpartner).toBeUndefined();
+      expect(doc.seller).toMatchObject({ bank: "Commerzbank", iban: "DE89370400440532013000", kontoinhaber: "Testfirma" });
     }
     // Die festgeschriebene Rechnung bleibt, wie sie war
     const [invoice] = await sql`select buyer, seller from invoices where id = ${invoiceId}`;
-    expect(invoice!.buyer).toMatchObject({ strasse: "Hafenstraße 5", ort: "Hamburg" });
-    expect(invoice!.seller).toMatchObject({ strasse: "Musterstraße 1", ort: "Regensburg" });
+    expect(invoice!.buyer).toMatchObject({ name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", ort: "Hamburg", land: "DE" });
+    expect(invoice!.seller).toMatchObject({ name: "Testfirma", strasse: "Musterstraße 1", ort: "Regensburg" });
+  });
+
+  it("Ansprechpartner steht wie auf der Rechnung auf der Mahnung, auch wenn die Person später geändert oder deaktiviert wird", async () => {
+    const persons = await import("../stammdaten/contact-persons.ts");
+    const [row] = await sql<{ contact_id: string }[]>`select contact_id from invoices where id = ${invoiceId}`;
+    const contactId = row!.contact_id;
+    const personId = await persons.createContactPerson(actor, contactId, {
+      name: "Erika Muster",
+      email: "erika@nordwerk.example",
+      telefon: "",
+      funktion: "Einkauf",
+    });
+    const draft = await invoices.createDraft(actor, {
+      contactId,
+      contactPersonId: personId,
+      issueDate: "2026-09-01",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+    });
+    const withPerson = (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
+    await persons.updateContactPerson(actor, personId, { name: "Erika Beispiel", email: "erika@nordwerk.example", telefon: "", funktion: "Einkauf" });
+    await persons.setContactPersonActive(actor, personId, false);
+    await dunning.createDunning(
+      actor,
+      { invoiceId: withPerson, level: 1, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" },
+      "2026-10-15",
+    );
+    expect(seen.docs.at(-1)!.buyer.ansprechpartner).toMatchObject({ name: "Erika Muster", funktion: "Einkauf" });
   });
 
   it("keine zweite Mahnung derselben oder einer niedrigeren Stufe, auch nicht gleichzeitig", async () => {
@@ -222,6 +262,15 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
       expect(text(result.text)).toContain("bis zum 25.10.2026");
       expect(await sql`select id from dunnings`).toHaveLength(0);
       expect((await dunning.dunningDraft(invoiceId, "2026-10-15"))?.level).toBe(1);
+    }, 60_000);
+
+    it("zeigt die heutige Anschrift von Absender und Kunde", async () => {
+      await ändern();
+      const result = await dunning.dunningPreview(form(), "2026-10-15");
+      expect(text(result.text)).toContain("Speicherstraße 9");
+      expect(text(result.text)).toContain("Hamburg-Mitte");
+      expect(text(result.text)).toContain("Neuer Weg 2");
+      expect(text(result.text)).not.toContain("Hafenstraße 5");
     }, 60_000);
 
     it("zeigt auch ein unfertiges Formular: leere Einleitung, Frist leer oder vorbei", async () => {

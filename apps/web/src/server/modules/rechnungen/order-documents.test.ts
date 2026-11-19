@@ -113,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
     await expect(docs.deliveryNotePdf("rechnung", storno.id)).rejects.toThrow(/nur zu festgeschriebenen Rechnungen/);
   });
 
-  it("Absender und Kunde stehen mit der heutigen Anschrift auf den Dokumenten, die übrigen Angaben wie auf dem Beleg", async () => {
+  it("Absender und Kunde stehen mit dem heutigen Namen und der heutigen Anschrift auf den Dokumenten, die übrigen Angaben wie auf dem Beleg", async () => {
     const quote = await quotes.finalizeQuote(
       actor,
       (
@@ -147,18 +147,18 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
     );
     await contacts.updateContact(actor, contactId, {
       kundennummer: "",
-      name: "Nordwerk Software GmbH",
+      name: "Nordwerk Software AG",
       strasse: "Speicherstraße 9",
       plz: "20457",
       ort: "Hamburg-Mitte",
-      land: "DE",
+      land: "AT",
       email: "",
       ustId: "",
       iban: "",
       leitwegId: "",
       defaultFormat: null,
     });
-    await sql`update company set strasse = 'Neuer Weg 2', plz = '93049', ort = 'Regensburg a. D.', bank = 'Sparkasse' where id = 1`;
+    await sql`update company set name = 'Testfirma Neu GmbH', strasse = 'Neuer Weg 2', plz = '93049', ort = 'Regensburg a. D.', bank = 'Sparkasse' where id = 1`;
 
     const before = [seen.confirmations.length, seen.deliveryNotes.length] as const;
     await docs.confirmationPdf(quote.id);
@@ -168,8 +168,14 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
     const shown = [...seen.confirmations.slice(before[0]), ...seen.deliveryNotes.slice(before[1])] as (QuoteDocument | DeliveryNoteDocument)[];
     expect(shown).toHaveLength(3);
     for (const doc of shown) {
-      expect(doc.buyer).toMatchObject({ name: "Nordwerk Software GmbH", strasse: "Speicherstraße 9", ort: "Hamburg-Mitte" });
-      expect(doc.seller).toMatchObject({ strasse: "Neuer Weg 2", plz: "93049", ort: "Regensburg a. D.", bank: "Commerzbank" });
+      expect(doc.buyer).toMatchObject({ name: "Nordwerk Software AG", strasse: "Speicherstraße 9", ort: "Hamburg-Mitte", land: "AT" });
+      expect(doc.seller).toMatchObject({ name: "Testfirma Neu GmbH", strasse: "Neuer Weg 2", plz: "93049", ort: "Regensburg a. D.", bank: "Commerzbank" });
+    }
+    // Angebot und Rechnung bleiben, wie sie waren
+    for (const table of [sql`select buyer, seller from quotes`, sql`select buyer, seller from invoices`]) {
+      const [row] = await table;
+      expect(row!.buyer).toMatchObject({ name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", ort: "Hamburg", land: "DE" });
+      expect(row!.seller).toMatchObject({ name: "Testfirma", strasse: "Musterstraße 1", ort: "Regensburg" });
     }
   });
 });

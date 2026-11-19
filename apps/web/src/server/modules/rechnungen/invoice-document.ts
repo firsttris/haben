@@ -58,7 +58,9 @@ function sellerLegalInfo(company: Company): Pick<Seller, "legalInfo"> {
 export function withCurrentSeller(seller: Seller, company: Company): Seller {
   const { legalInfo: _snapshot, ...rest } = seller;
   const { name, strasse, plz, ort } = company;
-  return { ...rest, name, strasse, plz, ort, ...sellerLegalInfo(company) };
+  // Die Bankverbindung der Rechnung lautet auf den damaligen Kontoinhaber: ohne eigenen Eintrag auf den damaligen Firmennamen
+  const kontoinhaber = rest.iban ? { kontoinhaber: rest.kontoinhaber?.trim() || rest.name } : {};
+  return { ...rest, name, strasse, plz, ort, ...kontoinhaber, ...sellerLegalInfo(company) };
 }
 
 /**
