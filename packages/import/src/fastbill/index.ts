@@ -4,6 +4,7 @@ export {
   FB_PARTLY_CANCELED,
   type FbImportedContact,
   type FbMappedVoucher,
+  fbForArchive,
   fbNumber,
   isFbCancellation,
   isFbInvoiceImportable,

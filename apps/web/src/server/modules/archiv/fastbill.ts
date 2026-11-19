@@ -1,5 +1,6 @@
 import {
   FastbillApiError,
+  fbForArchive,
   type FastbillClient,
   type FbExpense,
   type FbFile,
@@ -289,15 +290,6 @@ async function importListed(
   }
 }
 
-/**
- * Antwort der API fürs Archiv ohne DOCUMENT_URL: Der Link trägt einen eigenen Schlüssel und öffnet die Datei ohne Anmeldung;
- * im unveränderlichen Archiv und im Jahresexport (quelle.json) bliebe er für immer stehen. Die Datei selbst liegt im Archiv.
- */
-function withoutDocumentUrl(raw: FbInvoice | FbExpense): Record<string, unknown> {
-  const { DOCUMENT_URL: _, ...rest } = raw as Record<string, unknown>;
-  return rest;
-}
-
 type VoucherFile = { role: "pdf" | "anhang"; fileId: string | null; file: FbFile };
 
 async function importVoucher(
@@ -375,7 +367,7 @@ async function storeVoucher(
         // FastBill nennt nur den Namen der Kategorie; er steht als ID und Name
         categories: voucher.categories.map((c) => ({ ...c, name: c.categoryId })),
         payment,
-        raw: withoutDocumentUrl(item.raw),
+        raw: fbForArchive(item.raw),
       },
       files.map((entry) => ({
         role: entry.role,
