@@ -31,6 +31,28 @@ export type EuerBeitraege = (
   beitrag: EuerAusJournal,
 ) => void;
 
+/** Meldet die Wirkung einer Buchung dem Sammler der BWA, falls es einen gibt, mit ihrem Ausgleich; gibt sie unverändert zurück */
+export function melden(
+  beitraege: EuerBeitraege | undefined,
+  b: Buchung,
+  ziel: { invoiceId: string | null; documentId: string | null } | undefined,
+  beitrag: EuerAusJournal,
+): EuerAusJournal {
+  beitraege?.({ ...b, invoiceId: ziel?.invoiceId ?? null, documentId: ziel?.documentId ?? null }, beitrag);
+  return beitrag;
+}
+
+/** Wie melden für eine Verrechnung (#274): Sie gleicht den Beleg aus; der Rahmen ist der der Firma */
+export function meldenVerrechnung(
+  beitraege: EuerBeitraege | undefined,
+  v: { id: string; date: string; dokumentId: string },
+  kontenrahmen: Kontenrahmen,
+  beitrag: EuerAusJournal,
+): EuerAusJournal {
+  beitraege?.({ id: v.id, date: v.date, kontenrahmen, sourceType: "verrechnung", sourceId: v.id, invoiceId: null, documentId: v.dokumentId }, beitrag);
+  return beitrag;
+}
+
 /** Höchstzahl der IDs je Abfrage mit inArray; PostgreSQL nimmt höchstens 65 535 Parameter je Abfrage */
 export const BLOCK = 5000;
 

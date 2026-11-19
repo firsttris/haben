@@ -25,6 +25,8 @@ import {
   buchungen,
   type EuerBeitraege,
   buchungenJe,
+  melden,
+  meldenVerrechnung,
   offenerPosten,
   verrechnungenJeRechnung,
   type Zeile,
@@ -183,18 +185,6 @@ function imZeitraum(year: number, umsatzBis: string | undefined, ohneManuelle: b
     ne(e.sourceType, "eroeffnung"),
     ohneManuelle ? ne(e.sourceType, "manuell") : undefined,
   );
-}
-
-/** Meldet die Wirkung einer Buchung dem Sammler der BWA (#1380), falls es einen gibt, mit ihrem Ausgleich; gibt sie unverändert zurück */
-function melden(beitraege: EuerBeitraege | undefined, b: Buchung, ziel: Ziel | undefined, beitrag: EuerAusJournal): EuerAusJournal {
-  beitraege?.({ ...b, invoiceId: ziel?.invoiceId ?? null, documentId: ziel?.documentId ?? null }, beitrag);
-  return beitrag;
-}
-
-/** Wie melden für eine Verrechnung (#274): Sie gleicht den Beleg aus; der Rahmen ist der der Firma */
-function meldenVerrechnung(beitraege: EuerBeitraege | undefined, v: Verrechnung, kontenrahmen: Kontenrahmen, beitrag: EuerAusJournal): EuerAusJournal {
-  beitraege?.({ ...v, kontenrahmen, sourceType: "verrechnung", sourceId: v.id, invoiceId: null, documentId: v.dokumentId }, beitrag);
-  return beitrag;
 }
 
 /**
