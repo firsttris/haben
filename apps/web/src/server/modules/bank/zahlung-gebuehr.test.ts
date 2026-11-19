@@ -8,6 +8,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlung und Gebühr eines Zahlungsdienstleist
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
+  let vat: typeof import("../umsatzsteuer/vat-figures.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
@@ -18,6 +19,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlung und Gebühr eines Zahlungsdienstleist
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
+    vat = await import("../umsatzsteuer/vat-figures.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -25,7 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlung und Gebühr eines Zahlungsdienstleist
   });
 
   beforeEach(async () => {
-    await leeren(sql)`truncate write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+    await leeren(sql)`truncate vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -250,5 +252,77 @@ describe.skipIf(!testDatabaseUrl)("Zahlung und Gebühr eines Zahlungsdienstleist
     await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-150), amount: -150 });
     await expect(gebuehr.allocatePaymentWithFee(actor, { transactionId: payment, target, amount: 5_950 })).rejects.toThrow(/Gebühr ist schon zugeordnet/);
     expect(await sql`select 1 from allocations`).toHaveLength(1);
+  }, 30_000);
+
+  /** Gebührenrechnung von Stripe Payments Europe, § 13b (Leistung aus dem EU-Ausland), 19 %: 1,50 € netto, 0,29 € Steuer */
+  async function gebuehrBeleg13b() {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 13, 1]), filename: "stripe-13b.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Stripe Payments Europe Ltd",
+      supplierUstId: "IE3206488LH",
+      invoiceNumber: "STR-13B",
+      documentDate: "2026-10-31",
+      dueDate: null,
+      category: "geldverkehr",
+      payment: "bank",
+      note: "",
+      reverseCharge: "eu",
+      amounts: [{ taxRate: 1900, net: 150, tax: 29 }],
+    });
+    await documents.bookDocument(actor, id);
+    return id;
+  }
+
+  for (const [kontenrahmen, versteuerung] of [
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const) {
+    it(`${kontenrahmen}, ${versteuerung}: die Gebühr an einem § 13b-Beleg bringt Kz 46, 47 und 67 genau einmal`, async () => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung} where id = 1`;
+      const invoice = await finalInvoice(5_000);
+      const { id } = await stripeKonto([`txn_1,2026-10-01 10:00:00,2026-10-08 00:00:00,eur,59.50,1.50,58.00,charge,Rechnung`]);
+      const belegId = await gebuehrBeleg13b();
+
+      await gebuehr.allocatePaymentWithFee(actor, {
+        transactionId: await id(5_950),
+        target: { kind: "invoice", invoiceId: invoice.id },
+        amount: 5_950,
+        gebuehrBelegId: belegId,
+      });
+
+      const oktober = await vat.computeVatFigures({ year: 2026, month: 10 });
+      expect([oktober.kz46, oktober.kz47, oktober.kz67]).toEqual([150, 29, 29]);
+      expect((await sql`select sum(debit - credit)::int as s from journal_lines`)[0]?.s).toBe(0);
+    }, 30_000);
+  }
+
+  it("ordnet die Zahlung auch einem Beleg zu, etwa einer Gutschrift des Lieferanten, und bucht die Gebühr mit", async () => {
+    const { id } = await stripeKonto([`txn_1,2026-10-01 10:00:00,2026-10-08 00:00:00,eur,59.50,1.50,58.00,charge,Gutschrift`]);
+    const gutschrift = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 14, 1]), filename: "gutschrift.jpg" });
+    await documents.updateDocument(actor, gutschrift.id, {
+      supplierName: "Lieferant GmbH",
+      supplierUstId: "",
+      invoiceNumber: "GS-1",
+      documentDate: "2026-10-01",
+      dueDate: null,
+      category: "sonstiges",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: -5_000, tax: -950 }],
+    });
+    await documents.bookDocument(actor, gutschrift.id);
+
+    await gebuehr.allocatePaymentWithFee(actor, {
+      transactionId: await id(5_950),
+      target: { kind: "document", documentId: gutschrift.id },
+      amount: 5_950,
+    });
+
+    const rows = await sql`select kind, amount from allocations order by amount desc`;
+    expect(rows.map((r) => [r.kind, r.amount])).toEqual([
+      ["document", 5_950],
+      ["gebuehren", -150],
+    ]);
+    expect((await sql`select sum(debit - credit)::int as s from journal_lines`)[0]?.s).toBe(0);
   }, 30_000);
 });

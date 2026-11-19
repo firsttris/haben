@@ -1,5 +1,6 @@
 import { formatEuro, gruppiereGebuehren } from "@haben/core";
 import { useMemo, useState } from "react";
+import { formatDate } from "../lib/format.ts";
 import { Field } from "./Field.tsx";
 
 /**
@@ -61,9 +62,13 @@ export function gebuehrMoeglich(p: {
   );
 }
 
-/** Wahl für die Gebühr: ob sie mitgebucht wird und mit welchem Beleg (leer: ohne Beleg, ohne Steuer) */
+/**
+ * Wahl für die Gebühr: ob sie mitgebucht wird und mit welchem Beleg (leer: ohne Beleg, ohne Steuer). Das Kästchen ist
+ * standardmäßig aus: Die Gebühren von Stripe und Shopify fallen meist unter § 13b, ihre Rechnung gibt es beim Zuordnen der
+ * Zahlung noch nicht, und ohne Beleg fehlte die Steuer in der Voranmeldung.
+ */
 export function useGebuehrWahl(moeglich: boolean) {
-  const [wahl, setWahl] = useState(true);
+  const [wahl, setWahl] = useState(false);
   const [beleg, setBeleg] = useState("");
   return { moeglich, mitbuchen: moeglich && wahl, wahl, setWahl, beleg, setBeleg };
 }
@@ -99,8 +104,8 @@ export function GebuehrWahl({ gebuehr, wahl, belege, busy }: { gebuehr: GebuehrB
         </label>
         <span id="gebuehr-mitbuchen-hinweis" className="field-hint">
           {wahl.mitbuchen && wahl.beleg
-            ? "Die Gebühr wird dem gewählten Beleg zugeordnet; Vorsteuer bzw. § 13b laufen über ihn. Die Rechnung gilt mit dem vollen Betrag als bezahlt."
-            : "Die einbehaltene Gebühr derselben Bewegung wird Aufwand (Nebenkosten des Geldverkehrs, ohne Steuer); die Rechnung gilt mit dem vollen Betrag als bezahlt."}
+            ? "Die Gebühr wird dem gewählten Beleg zugeordnet; Vorsteuer bzw. § 13b laufen über ihn."
+            : "Die einbehaltene Gebühr derselben Bewegung wird Aufwand (Nebenkosten des Geldverkehrs, ohne Steuer)."}
         </span>
       </div>
       {wahl.mitbuchen && (
@@ -122,4 +127,66 @@ export function GebuehrWahl({ gebuehr, wahl, belege, busy }: { gebuehr: GebuehrB
       )}
     </>
   );
+}
+
+/** Beschriftung des Hauptknopfs der Zuordnung */
+export function zuordnenText(p: { direkt: boolean; skontoRest: number; gebuehrMitbuchen: boolean }): string {
+  if (p.direkt) return "Buchen";
+  if (p.skontoRest !== 0) return `Zuordnen, Rest ${formatEuro(Math.abs(p.skontoRest))} als Skonto`;
+  return p.gebuehrMitbuchen ? "Zuordnen und Gebühr buchen" : "Zuordnen";
+}
+
+/** Auszahlung unter dem Betrag der Rechnung: der Rest wird als einbehaltene Gebühr gebucht */
+export function RestAlsGebuehr({ rest, busy, onClick }: { rest: number; busy: boolean; onClick: () => void }) {
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <button type="button" className="btn" onClick={onClick} disabled={busy}>
+        Voll zuordnen, Rest {formatEuro(Math.abs(rest))} als Gebühr
+      </button>
+      <span className="small muted">
+        Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird Aufwand (Nebenkosten des
+        Geldverkehrs).
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Knopf für die monatliche Sammelrechnung des Dienstleisters: Er ordnet alle offenen Gebühren des Monats dem Beleg zu, die
+ * Gutschriften nur, wenn alles zusammen genau den Beleg ergibt. Ihn gibt es bei jedem gewählten Beleg und beim besten
+ * Vorschlag, wenn dieser der Sammelbeleg des Monats ist.
+ */
+export function SammelrechnungKnopf(p: {
+  tx: { amount: number; purpose: string; bookingDate: string };
+  target: { type: string; id: string; open: number } | undefined;
+  andereWahl: boolean;
+  sammelrechnung: { documentId: string | null; summe: number } | null | undefined;
+  busy: boolean;
+  onClick: (documentId: string) => void;
+}) {
+  const { tx, target, sammelrechnung } = p;
+  if (target?.type !== "document" || tx.amount >= 0 || !tx.purpose.startsWith("Gebühr")) return null;
+  if (!p.andereWahl && target.id !== sammelrechnung?.documentId) return null;
+  const monat = formatDate(tx.bookingDate).slice(3);
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <button type="button" className="btn" disabled={p.busy} onClick={() => p.onClick(target.id)}>
+        Alle offenen Gebühren aus {monat} diesem Beleg zuordnen
+      </button>
+      <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
+      {sammelrechnung && target.id !== sammelrechnung.documentId && (
+        <span className="small muted">
+          Die offenen Gebühren und Gutschriften von {monat} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der Beleg steht mit{" "}
+          {formatEuro(Math.abs(target.open))} offen.
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Eingabe von `allocatePaymentAndFee` für den gewählten Posten, `null` bei einem anderen Ziel als Rechnung oder Beleg */
+export function gebuehrPaar(type: string | undefined, id: string, amount: number, gebuehrBelegId: string) {
+  if (type !== "invoice" && type !== "document") return null;
+  const target = type === "invoice" ? ({ kind: "invoice", invoiceId: id } as const) : ({ kind: "document", documentId: id } as const);
+  return { target, amount, gebuehrBelegId: gebuehrBelegId || undefined };
 }

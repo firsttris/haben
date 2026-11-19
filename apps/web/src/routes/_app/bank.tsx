@@ -17,7 +17,18 @@ import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.ts
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
-import { GebuehrWahl, UmsatzBetrag, gebuehrMoeglich, useGebuehrWahl, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
+import {
+  GebuehrWahl,
+  RestAlsGebuehr,
+  SammelrechnungKnopf,
+  UmsatzBetrag,
+  gebuehrMoeglich,
+  gebuehrPaar,
+  useGebuehrWahl,
+  useGebuehrZeilen,
+  zuordnenText,
+} from "../../components/BankGebuehr.tsx";
+import { useUmsatzTasten } from "../../components/BankTasten.ts";
 import { FintsAbruf } from "../../components/FintsAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
@@ -234,24 +245,7 @@ function BankPage() {
   const openCount = data.allAccounts ? data.accounts.reduce((sum, a) => sum + a.openCount, 0) : (selectedAccount?.openCount ?? 0);
   const accountName = new Map(data.accounts.map((a) => [a.id, a.name]));
 
-  // J/K springen zum nächsten bzw. vorigen Umsatz
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      const target = event.target as HTMLElement;
-      if (isDialogOpen() || target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
-      const step = event.key === "j" ? 1 : event.key === "k" ? -1 : 0;
-      if (!step) return;
-      const next = sichtbar[index + step];
-      if (next) {
-        event.preventDefault();
-        void navigate({ search: (prev) => ({ ...prev, umsatz: next.id }), replace: true });
-        document.getElementById(`tx-${next.id}`)?.focus();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sichtbar, index, navigate]);
-
+  useUmsatzTasten(sichtbar, index, (id) => void navigate({ search: (prev) => ({ ...prev, umsatz: id }), replace: true }));
   return (
     <>
       <div className="page-head">
@@ -1111,11 +1105,8 @@ function AllocationPanel({
     const choice = mode === "best" && best ? `${best.item.type}:${best.item.id}` : candidate;
     const [type, id] = choice.split(":");
     if (!id) return;
-    if (gebuehrWahl.mitbuchen && (type === "invoice" || type === "document")) {
-      const posten = type === "invoice" ? ({ kind: "invoice", invoiceId: id } as const) : ({ kind: "document", documentId: id } as const);
-      const gebuehrBelegId = gebuehrWahl.beleg || undefined;
-      return runAndAdvance(() => paymentFeeFn({ data: { transactionId: tx.id, target: posten, amount: signedAmount, gebuehrBelegId } }), true);
-    }
+    const paar = gebuehrWahl.mitbuchen ? gebuehrPaar(type, id, signedAmount, gebuehrWahl.beleg) : null;
+    if (paar) return runAndAdvance(() => paymentFeeFn({ data: { transactionId: tx.id, ...paar } }), true);
     return runAndAdvance(() => allocateFn({ data: { ...itemTarget(type, id, signedAmount), transactionId: tx.id } }), completes);
   }
 
@@ -1462,48 +1453,18 @@ function AllocationPanel({
               disabled={busy || (mode === "direct" && directKind === "darlehen" && !darlehen.loanId)}
               onClick={() => void submitAllocation()}
             >
-              {mode === "direct"
-                ? "Buchen"
-                : skontoRest !== 0
-                  ? `Zuordnen, Rest ${formatEuro(Math.abs(skontoRest))} als Skonto`
-                  : gebuehrWahl.mitbuchen
-                    ? "Zuordnen und Gebühr buchen"
-                    : "Zuordnen"}
+              {zuordnenText({ direkt: mode === "direct", skontoRest, gebuehrMitbuchen: gebuehrWahl.mitbuchen })}
             </button>
           </div>
-          {feeRest !== 0 && (
-            <div className="stack" style={{ gap: 8 }}>
-              <button type="button" className="btn" onClick={() => void bookRestAsFee()} disabled={busy}>
-                Voll zuordnen, Rest {formatEuro(Math.abs(feeRest))} als Gebühr
-              </button>
-              <span className="small muted">
-                Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird Aufwand (Nebenkosten des
-                Geldverkehrs).
-              </span>
-            </div>
-          )}
-          {target?.type === "document" &&
-            tx.amount < 0 &&
-            tx.purpose.startsWith("Gebühr") &&
-            (mode === "other" || target.id === sammelrechnung?.documentId) && (
-              <div className="stack" style={{ gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  onClick={() => void run(() => feesFn({ data: { transactionId: tx.id, documentId: target.id } }))}
-                >
-                  Alle offenen Gebühren aus {formatDate(tx.bookingDate).slice(3)} diesem Beleg zuordnen
-                </button>
-                <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
-                {sammelrechnung && target.id !== sammelrechnung.documentId && (
-                  <span className="small muted">
-                    Die offenen Gebühren und Gutschriften von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der
-                    Beleg steht mit {formatEuro(Math.abs(target.open))} offen.
-                  </span>
-                )}
-              </div>
-            )}
+          {feeRest !== 0 && <RestAlsGebuehr rest={feeRest} busy={busy} onClick={() => void bookRestAsFee()} />}
+          <SammelrechnungKnopf
+            tx={tx}
+            target={target}
+            andereWahl={mode === "other"}
+            sammelrechnung={sammelrechnung}
+            busy={busy}
+            onClick={(documentId) => void run(() => feesFn({ data: { transactionId: tx.id, documentId } }))}
+          />
           {exchangeDifference !== 0 && target && (
             <div className="stack" style={{ gap: 8 }}>
               <button type="button" className="btn" onClick={() => void bookRest("kursdifferenz")} disabled={busy}>
