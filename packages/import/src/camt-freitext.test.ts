@@ -25,14 +25,23 @@ const camt = (details: string, additional = "") => `<?xml version="1.0" encoding
 const VON = "Eingehende Überweisung Von Muster Handel GmbH Rechnung 2026-0007 DE71010020030000000101 TESTDEFFXXX";
 
 describe("CAMT.053 von Vivid Business (Gegenpartei nur im Freitext)", () => {
+  // Anonymisierte Kopie eines Original-Exports aus #1515: 31 eingehende, 10 ausgehende Überweisungen, 4 Kartenzahlungen
   it("liest Name und IBAN bei ein- und ausgehender Überweisung, den Händler bei der Kartenzahlung", () => {
     const s = parseStatement(fixture("camt053-vivid.xml"));
     expect(s.format).toBe("camt053");
+    expect(s.transactions).toHaveLength(45);
     expect(s.openingBalance! + s.transactions.reduce((a, t) => a + t.amount, 0)).toBe(s.closingBalance);
-    expect(s.transactions.map((t) => [t.amount, t.counterpartyName, t.counterpartyIban, t.purpose])).toEqual([
-      [12000, "Muster Handel GmbH", "DE71010020030000000101", "Rechnung 2026-0007"],
-      [-4550, "Erika Mustermann", "GB27TEST20304000000102", "Auszahlung Periode 03"],
-      [-1999, "Beispiel Shop Online ABCDE", undefined, "Kartentransaktion Beispiel Shop Online ABCDE Ab9C3d, Musterstadt, DE"],
+    expect(s.transactions.filter((t) => t.counterpartyName === "")).toEqual([]);
+    expect(s.transactions.filter((t) => t.counterpartyIban !== undefined)).toHaveLength(41);
+    const zeile = (i: number) => {
+      const t = s.transactions[i]!;
+      return [t.amount, t.counterpartyName, t.counterpartyIban, t.purpose];
+    };
+    expect([0, 5, 35, 28].map(zeile)).toEqual([
+      [2373, "Beispiel Software AG", "DE71010020030000000101", "Rechnung 2026-0001"],
+      [-9238, "Demo Store Inc", "DE33010020030000000106", "Auszahlung Periode 07"],
+      [2428, "Max Mustermann", "IE77TEST90000100000136", "Auszahlung Periode 01"],
+      [-16817, "Beispiel Shop Online ABCDE", undefined, "Kartentransaktion Beispiel Shop Online ABCDE Ab9C3d, Musterstadt, DE"],
     ]);
   });
 
