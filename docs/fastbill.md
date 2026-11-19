@@ -1,7 +1,7 @@
 ---
 title: "Umzug aus FastBill mit Abgleich je Jahr"
 description: >-
-  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API übernehmen,
+  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Angebote, Kunden und Artikel über die API übernehmen,
   unveränderlich archivieren und kündigen.
 ---
 
@@ -111,9 +111,9 @@ Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelka
 
 ### Angebote
 
-Angebote aus FastBill liegen danach im Archiv unter **Auftragsdokumente**, wie die aus sevDesk: mit Nummer, Datum, Status aus FastBill (Erstellt, Versendet, Angenommen …), Kontakt, Beträgen und dem PDF. Sie buchen nichts und zählen nicht zum Abgleich. Das PDF lädt Haben über den Link aus FastBill, ohne Anmeldung; kommt keins, steht das Angebot mit „PDF fehlt“ da, und du reichst es von Hand nach. Ein neuer Abruf überspringt Angebote, die schon im Archiv liegen. Im Jahresexport stehen sie unter `fastbill/auftraege/`.
+Angebote aus FastBill liegen danach im Archiv unter **Auftragsdokumente**, wie die aus sevDesk: mit Nummer, Datum, Status aus FastBill (Erstellt, Versendet, Angenommen …), Kontakt, Beträgen und dem PDF. Sie buchen nichts und zählen nicht zum Abgleich. Das PDF lädt Haben über den Link aus FastBill, ohne Anmeldung; kommt keins, steht in der Spalte PDF „Fehlt“, und du reichst es auf der Detailseite von Hand nach. Ein neuer Abruf überspringt Angebote, die schon im Archiv liegen. Im Jahresexport stehen sie unter `fastbill/auftraege/`.
 
-Ein Angebot wird dabei nicht zu einem bearbeitbaren Angebot in Haben: Das bekäme beim Festschreiben eine eigene Nummer. Schreibst du die Rechnung zu einem Angebot aus FastBill in Haben, trag die Angebotsnummer als Auftragsnummer ein.
+Ein Angebot wird dabei nicht zu einem bearbeitbaren Angebot in Haben: Das bekäme beim Festschreiben eine eigene Nummer. Schreibst du die Rechnung zu einem Angebot aus FastBill in Haben, trag die Angebotsnummer als **Eigene Auftragsnummer** ein ([Bestellnummer, Auftrag und Lieferschein](rechnungen.md#bestellnummer-auftrag-und-lieferschein)).
 
 ### Grenzen des aktuellen Imports
 
@@ -136,6 +136,7 @@ Haben spricht standardmäßig mit `https://my.fastbill.com/api/1.0/api.php`. Mit
 
 - [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer
 - [ ] Keine Ausgabe wartet mehr auf ihren Beleg aus dem Browser-Skript
+- [ ] Angebote im Archiv, fehlende PDFs von Hand nachgereicht
 - [ ] Jeder Beleg hat eine Datei (Abgleich je Jahr); Ausgaben ohne Beleg in FastBill geklärt
 - [ ] Für jedes Geschäftsjahr: DATEV-Buchungsstapel, DATEV-XML-Export, ELSTER-Protokolle und Kontoauszüge abgelegt, jeweils mit Jahr
 - [ ] Einnahmen, Ausgaben, Umsatz- und Vorsteuer je Jahr mit FastBill verglichen

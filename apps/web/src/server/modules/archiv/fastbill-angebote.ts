@@ -1,5 +1,5 @@
 import { FastbillApiError, type FastbillClient, mapFbEstimate } from "@haben/import";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
@@ -14,10 +14,15 @@ import { progressMessage } from "./lexoffice.ts";
  * Schon archivierte Angebote überspringt ein neuer Abruf an ihrer Kennung fastbill/estimate/<ID>.
  */
 
+// Ein abgelehnter Download-Link betrifft nur dieses Angebot, nicht die Anmeldung (wie stopsRun in fastbill.ts)
 const fatal = (error: unknown, signal: AbortSignal) =>
   signal.aborted ||
   (error instanceof Error && error.name === "AbortError") ||
-  (error instanceof FastbillApiError && (error.status === 401 || error.status === 403));
+  (error instanceof FastbillApiError && error.service !== "document" && (error.status === 401 || error.status === 403));
+
+/** Wie beim Nachreichen von Hand (attachOrderPdf): nur ein PDF bis 20 MB, sonst gilt das PDF als fehlend */
+const isPdf = (bytes: Uint8Array) =>
+  bytes.byteLength > 0 && bytes.byteLength <= 20 * 1024 * 1024 && Buffer.from(bytes.subarray(0, 5)).equals(Buffer.from("%PDF-"));
 
 export async function importFastbillEstimates(
   actor: string,
@@ -45,16 +50,14 @@ export async function importFastbillEstimates(
         continue;
       }
       try {
-        const pdf = raw.DOCUMENT_URL ? await client.document(raw.DOCUMENT_URL) : null;
+        const download = raw.DOCUMENT_URL ? await client.document(raw.DOCUMENT_URL) : null;
+        const pdf = download && isPdf(download.bytes) ? download : null;
         const files: LegacyOriginalFile[] = pdf
           ? [{ role: "pdf", sourceFileId: null, filename: pdf.filename ?? `${mapped.number}.pdf`, mimeType: pdf.mimeType, bytes: pdf.bytes }]
           : [];
         const stored = await withActor(actor, async (tx) => {
           const [contact] = mapped.customerId
-            ? await tx
-                .select({ id: schema.contacts.id })
-                .from(schema.contacts)
-                .where(inArray(schema.contacts.fastbillId, [mapped.customerId]))
+            ? await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.fastbillId, mapped.customerId))
             : [];
           const { customerId: _, ...document } = mapped;
           return storeLegacyOrder(tx, { ...document, source: "fastbill", importId, contactId: contact?.id ?? null }, files);

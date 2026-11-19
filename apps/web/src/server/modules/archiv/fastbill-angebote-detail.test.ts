@@ -6,7 +6,15 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 // Detail und Abbruch #1524: Angebote aus FastBill, Feldformen wie fastbill-angebote.test.ts; Namen und Beträge erfunden
 const API = "https://my.fastbill.com/api/1.0/api.php";
 const PDF = new TextEncoder().encode("%PDF-1.4\n% Angebot\n%%EOF\n");
-const base = { CUSTOMER_ID: "601", ORGANIZATION: "Muster GmbH", CURRENCY_CODE: "EUR", SUB_TOTAL: "1000.00", VAT_TOTAL: "190.00", TOTAL: "1190.00", STATE: "sent" };
+const base = {
+  CUSTOMER_ID: "601",
+  ORGANIZATION: "Muster GmbH",
+  CURRENCY_CODE: "EUR",
+  SUB_TOTAL: "1000.00",
+  VAT_TOTAL: "190.00",
+  TOTAL: "1190.00",
+  STATE: "sent",
+};
 const angebot = (id: string, number: string, date: string) => ({
   ...base,
   ESTIMATE_ID: id,
@@ -63,6 +71,24 @@ describe.skipIf(!testDatabaseUrl)("Detail und Abbruch #1524: Angebote aus FastBi
     const { orderDocumentDetail } = await import("./orders.ts");
     const detail = await orderDocumentDetail(row!.id as string);
     expect(detail!.document.sourceName).toBe("FastBill");
+  });
+
+  it("zeigt die Positionen aus ITEMS und den Status lesbar", async () => {
+    const items = [{ ESTIMATE_ITEM_ID: "1", DESCRIPTION: "Konzept", QUANTITY: "2.0000", UNIT_PRICE: "450.00", VAT_PERCENT: "19.00" }];
+    await run([{ ...angebot("8803", "AN-2026-10", "2026-07-01"), ITEMS: items }], pdf);
+    const [row] = await sql`select id from legacy_order_documents where external_id = 'fastbill/estimate/8803'`;
+    const { orderDocumentDetail } = await import("./orders.ts");
+    const { ORDER_STATUSES } = await import("../../../lib/auftraege.ts");
+    const detail = await orderDocumentDetail(row!.id as string);
+    expect(detail!.document.positions).toEqual([{ id: "1", name: "Konzept", quantity: "2.0000", price: "450.00", taxRate: "19.00", text: "" }]);
+    expect(ORDER_STATUSES[detail!.document.status]).toBeDefined();
+  });
+
+  it("legt eine Antwort, die kein PDF ist, nicht als PDF ab", async () => {
+    await run([angebot("8804", "AN-2026-11", "2026-08-01")], () => new Response("<html></html> kein PDF", { headers: { "content-type": "application/pdf" } }));
+    const [row] = await sql`select count(f.id)::int as dateien from legacy_order_documents d left join legacy_order_files f on f.order_id = d.id
+      where d.external_id = 'fastbill/estimate/8804' group by d.id`;
+    expect(row).toEqual({ dateien: 0 });
   });
 
   it("bricht den ganzen Abruf nicht ab, wenn der Download-Link eines Angebots 401 liefert (wie bei Belegen, stopsRun)", async () => {
