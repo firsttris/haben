@@ -5,7 +5,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 /*
  * Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ nach dem Accountable-Umzug (Review #579). Konten ohne Beleg
  * (Privat, Geldtransit) hängen am Kontenrahmen: SKR03 Privat 1800–1899 und Geldtransit 1360, SKR04 Privat 2100–2199
- * und Geldtransit 1460, dort ist 1800 die Bank (Kontenrahmen in packages/core/src/posting.ts).
+ * und Geldtransit 1460, dort ist 1800 die Bank (Kontenrahmen in packages/core/src/kontenplan.ts).
  */
 
 const COLUMNS =

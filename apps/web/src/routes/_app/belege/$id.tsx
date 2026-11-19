@@ -51,6 +51,8 @@ import { KATEGORIE_BEISPIEL } from "../../../components/KategorieGruppen.ts";
 import { MoreActionsMenu } from "../../../components/MoreActionsMenu.tsx";
 import { WeitereAngaben, inWeitereAngaben, isEuVatId, leistungsendeFehler, weitereAngabenKurz } from "../../../components/WeitereAngaben.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
+import { readContinuePreference, subscribeContinuePreference, writeContinuePreference } from "./-beleg-weiter.ts";
+import { type Detail, Preview } from "./-beleg-vorschau.tsx";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
 function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
@@ -69,7 +71,6 @@ export const Route = createFileRoute("/_app/belege/$id")({
   component: DocumentPage,
 });
 
-type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 type Rate = BetragsSatz;
 
 interface AmountState extends Betragszeile {
@@ -78,37 +79,8 @@ interface AmountState extends Betragszeile {
 
 let nextKey = 1;
 
-const CONTINUE_KEY = "haben-belege-weiter";
 /** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
 const BUCHEN_KUERZEL: readonly Taste[] = ["mod", "Enter"];
-
-/** Voreinstellung „nach dem Buchen weiter“: an, solange nichts anderes gemerkt ist; ohne Speicher (privates Fenster) einfach an */
-function readContinuePreference(): boolean {
-  if (continueFallback !== null) return continueFallback;
-  try {
-    return window.localStorage.getItem(CONTINUE_KEY) !== "nein";
-  } catch {
-    return true;
-  }
-}
-
-const continueListeners = new Set<() => void>();
-/** Ohne Speicher (privates Fenster) gilt die Wahl, bis die Seite neu geladen wird */
-let continueFallback: boolean | null = null;
-
-function subscribeContinuePreference(listener: () => void) {
-  continueListeners.add(listener);
-  return () => continueListeners.delete(listener);
-}
-
-function writeContinuePreference(value: boolean) {
-  try {
-    window.localStorage.setItem(CONTINUE_KEY, value ? "ja" : "nein");
-  } catch {
-    continueFallback = value;
-  }
-  for (const listener of continueListeners) listener();
-}
 
 function DocumentPage() {
   const data = Route.useLoaderData();
@@ -279,33 +251,6 @@ function DocumentPage() {
         </div>
       </div>
     </>
-  );
-}
-
-function Preview({ doc }: { doc: Detail["document"] }) {
-  const src = `/api/beleg/${doc.id}`;
-  if (doc.mimeType === "application/pdf") {
-    return (
-      <>
-        <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Beleg ${doc.filename}`} />
-        <a className="btn pdf-open" href={src} target="_blank" rel="noreferrer">
-          PDF öffnen
-        </a>
-      </>
-    );
-  }
-  if (doc.mimeType.startsWith("image/") && doc.mimeType !== "image/heic") {
-    return <img className="doc-image" src={src} alt={`Beleg ${doc.filename}`} />;
-  }
-  return (
-    <section className="card">
-      <p className="muted" style={{ margin: 0 }}>
-        Für {doc.mimeType === "application/xml" ? "XML-Rechnungen" : "dieses Format"} gibt es keine Vorschau.{" "}
-        <a href={src} target="_blank" rel="noreferrer">
-          Datei öffnen
-        </a>
-      </p>
-    </section>
   );
 }
 

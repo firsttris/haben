@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /*
  * Ansprechpartner in Entwurf, Rechnung und Angebot (#424): Im Entwurf wählbar (nur aktive Personen des eigenen Kunden,
@@ -92,7 +93,7 @@ describe.skipIf(!testDatabaseUrl)("Ansprechpartner an Rechnung und Angebot (Post
     const mara = await persons.createContactPerson(actor, contactId, maraInput);
     const draft = await invoices.createDraft(actor, draftInput({ contactPersonId: mara }));
     expect(draft.contactPersonId).toBe(mara);
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoice = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
 
     expect(invoice.buyer?.ansprechpartner).toEqual(maraInput);
     // BT-56 am Käufer der gespeicherten E-Rechnung (ZUGFeRD: CII)
@@ -134,14 +135,14 @@ describe.skipIf(!testDatabaseUrl)("Ansprechpartner an Rechnung und Angebot (Post
   });
 
   it("Rechnung ohne Person bleibt wie bisher: kein Ansprechpartner im Käufer, keine Zeile im XML", async () => {
-    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput())).id);
+    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput())).id, kleinunternehmerStand);
     expect(invoice.buyer).not.toHaveProperty("ansprechpartner");
     expect(käufer(invoice.xml)).not.toContain("PersonName");
   });
 
   it("Storno trägt den Stand der Rechnung, auch wenn die Person inzwischen anders heißt", async () => {
     const mara = await persons.createContactPerson(actor, contactId, maraInput);
-    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput({ contactPersonId: mara }))).id);
+    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draftInput({ contactPersonId: mara }))).id, kleinunternehmerStand);
     await persons.updateContactPerson(actor, mara, { ...maraInput, name: "Mara Beispielmann" });
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-09-20");
     expect(storno.buyer?.ansprechpartner?.name).toBe("Mara Beispiel");

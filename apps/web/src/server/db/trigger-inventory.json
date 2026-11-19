@@ -1187,7 +1187,7 @@
       "table": "public.inbox_settings",
       "name": "inbox_settings_audit_update",
       "enabled": "O",
-      "definition": "CREATE TRIGGER inbox_settings_audit_update AFTER UPDATE OF host, port, secure, username, ciphertext, folder, outbound_folder, allowed_senders, enabled ON public.inbox_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "definition": "CREATE TRIGGER inbox_settings_audit_update AFTER UPDATE OF host, port, secure, username, ciphertext, folder, outbound_folder, allowed_senders, after_fetch, archive_folder, enabled ON public.inbox_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
       "function": "public.haben_audit()"
     },
     {
@@ -1357,6 +1357,20 @@
       "enabled": "O",
       "definition": "CREATE TRIGGER invoices_no_truncate BEFORE TRUNCATE ON public.invoices FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_reduction_rule",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_reduction_rule BEFORE UPDATE OF locked_at ON public.invoices FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL) AND (new.kind = ANY (ARRAY['storno'::public.invoice_kind, 'korrektur'::public.invoice_kind])))) EXECUTE FUNCTION public.haben_check_reduction_rule()",
+      "function": "public.haben_check_reduction_rule()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_reduction_rule_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_reduction_rule_insert BEFORE INSERT ON public.invoices FOR EACH ROW WHEN (((new.locked_at IS NOT NULL) AND (new.kind = ANY (ARRAY['storno'::public.invoice_kind, 'korrektur'::public.invoice_kind])))) EXECUTE FUNCTION public.haben_check_reduction_rule()",
+      "function": "public.haben_check_reduction_rule()"
     },
     {
       "table": "public.invoices",
@@ -3290,6 +3304,14 @@
       "securityDefiner": false,
       "sourceHash": "629638a3c97173dcbff9498658862a61c0a52427be5990e96533ed1bae6dc519",
       "definitionHash": "8381e1372b105f5fdf467aeccdf49be18b1f080f78656d9a0f61acc6800e2252"
+    },
+    {
+      "name": "public.haben_check_reduction_rule()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "cf0de834d0b3194cfcd02d7d574114efa2f85f60c2d992bee71b2c2b37425309",
+      "definitionHash": "334c47f192d2b1561097061519d48f2b4e387779bb9ea78a496a29297d00e398"
     },
     {
       "name": "public.haben_check_sv_portal_filing()",

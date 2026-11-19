@@ -67,7 +67,7 @@ Befund `norm-<id>`. `scripts/jahreswerte/normen.json` nennt je Norm, wofür Habe
 
 ## Kontenrahmen
 
-Befunde `datev-skr03`, `datev-skr04`: die Kontenzuordnung (`hgb.ts`, `posting.ts`, `ebilanz.ts`) mit der neuen Ausgabe abgleichen, dann `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` anheben. Widerspricht eine Kontenfunktion dem Gesetz, einer Kennzahl oder der Taxonomie, gilt die Norm.
+Befunde `datev-skr03`, `datev-skr04`: die Kontenzuordnung (`hgb.ts`, `kontenplan.ts`, `ebilanz.ts`) mit der neuen Ausgabe abgleichen, dann `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` anheben. Widerspricht eine Kontenfunktion dem Gesetz, einer Kennzahl oder der Taxonomie, gilt die Norm.
 
 Dabei die Konvention [„Neue Systemkonten“](../../../docs/entwicklung.md#konventionen) beachten: neu genutzte Nummern können mit bestehenden eigenen Konten kollidieren.
 

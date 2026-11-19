@@ -85,7 +85,7 @@
       "norm": "§ 6 EStG",
       "url": "https://www.gesetze-im-internet.de/estg/__6.html",
       "zweck": "Geringwertige Wirtschaftsgüter (Abs. 2) und Sammelposten (Abs. 2a): Grenzen und Behandlung",
-      "stellen": ["packages/core/src/afa.ts", "packages/elster/src/erklaerung.ts"],
+      "stellen": ["packages/core/src/afa.ts", "packages/elster/src/aveuer.ts"],
       "sha256": "0f2f775eed620acbeb76eb555aa7d1d983d04c848a19a382f546b3cf312c07a9"
     },
     {

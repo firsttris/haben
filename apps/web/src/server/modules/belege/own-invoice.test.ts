@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { invoiceDocument, ownSeller } from "./own-invoice-fixtures.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 // Die KI wird nicht aufgerufen; je Test liefert die Auslesung feste Werte oder ist gar nicht eingerichtet.
 vi.mock("./extraction.ts", async (importOriginal) => {
@@ -179,7 +180,7 @@ describe.skipIf(!testDatabaseUrl)("Eigene Ausgangsrechnung beim Beleg-Upload erk
       note: "",
       lines: [{ description: "Gestaltung Flyer", quantity: 1000, unit: "Psch.", unitPrice: 50_000, taxRate: 1900 }],
     });
-    const { number } = await rechnungen.finalizeInvoice(actor, draft.id);
+    const { number } = await rechnungen.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     // Die KI erkennt keinen Rechnungssteller, nur Nummer und Beträge
     const anonymous = { ...kiExtraction, lieferant: null, lieferantUstId: null, empfaenger: null };
     const fields = { ...kiFields, supplierName: "", supplierUstId: "", invoiceNumber: number! };

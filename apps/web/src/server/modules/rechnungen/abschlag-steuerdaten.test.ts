@@ -2,6 +2,7 @@ import type { OutgoingTaxDetails, TaxTreatment } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Steuerzuordnung von Abschlag und Schlussrechnung (Postgres)", () => {
   let sql: postgres.Sql;
@@ -62,7 +63,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerzuordnung von Abschlag und Schlussrechn
   });
   const advance = async (taxDetails: OutgoingTaxDetails | null, treatment?: TaxTreatment) => {
     const draft = await invoices.createDraft(actor, { ...input(taxDetails, treatment), variant: "abschlag" });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   };
   const finalInput = (id: string, taxDetails: OutgoingTaxDetails | null, treatment?: TaxTreatment) => ({
     ...input(taxDetails, treatment, 50_000),
@@ -89,7 +90,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerzuordnung von Abschlag und Schlussrechn
     // Eine Entwurfsänderung außerhalb der normalen Maske darf die erneute Prüfung nicht umgehen.
     await sql`update invoices set tax_details = ${JSON.stringify(unterricht)}::jsonb where id = ${draft.id}`;
     expect((await invoices.finalizeIssues(draft.id)).some((issue) => /andere.*Befreiungsvorschrift/.test(issue))).toBe(true);
-    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/andere.*Befreiungsvorschrift/);
+    await expect(invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).rejects.toThrow(/andere.*Befreiungsvorschrift/);
     const [stored] = await sql`select status, number from invoices where id = ${draft.id}`;
     expect(stored).toEqual({ status: "draft", number: null });
     expect(await sql`select id from journal_entries where source_id = ${draft.id}`).toHaveLength(0);
@@ -100,7 +101,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerzuordnung von Abschlag und Schlussrechn
     const [before] = await sql`select to_jsonb(i) as row from invoices i where id = ${original.id}`;
     const draft = await invoices.createDraft(actor, finalInput(original.id, heilbehandlung));
     expect(await invoices.finalizeIssues(draft.id)).toEqual([]);
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(final).toMatchObject({ status: "final", taxDetails: heilbehandlung, net: 40_000, tax: 0, gross: 40_000 });
     expect((await sql`select to_jsonb(i) as row from invoices i where id = ${original.id}`)[0]).toEqual(before);
   });
@@ -114,7 +115,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerzuordnung von Abschlag und Schlussrechn
     const original = await advance(null);
     const [before] = await sql`select to_jsonb(i) as row from invoices i where id = ${original.id}`;
     const draft = await invoices.createDraft(actor, finalInput(original.id, unterricht));
-    const final = await invoices.finalizeInvoice(actor, draft.id);
+    const final = await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
     expect(final).toMatchObject({ status: "final", taxDetails: unterricht, gross: 40_000 });
     expect((await sql`select to_jsonb(i) as row from invoices i where id = ${original.id}`)[0]).toEqual(before);
     expect((await invoices.getInvoice(original.id))!.invoice.taxDetails).toBeNull();

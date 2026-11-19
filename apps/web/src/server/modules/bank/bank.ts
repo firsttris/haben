@@ -35,13 +35,11 @@ import {
   advancePaymentDateProblem,
   recordedTaxShares,
   settlementTaxShares,
-  skontoZahlfristen,
   suggestMatches,
   type DirectBooking,
   type DirektKategorie,
   kategorieText,
   type InvoiceTotals,
-  type OpenItem,
   type OwnAccount,
   type PostingLine,
   type Steuerart,
@@ -68,7 +66,6 @@ import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
 import { importAccount } from "./import-konto.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import {
@@ -78,9 +75,9 @@ import {
   invoicePostingMode,
   lockInvoice,
   invoicePaymentGroup,
-  invoicePayments,
   paidByTarget,
   paperCancellationIds,
+  paymentProcedure,
   unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
@@ -89,12 +86,14 @@ import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammda
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
-import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts";
-import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.ts";
+import { directDebitMatch } from "./lastschrift-abgleich.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { aufladungBuchung, kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { openItems } from "./offene-posten.ts";
 import { quellenHinweis } from "./quellen.ts";
+
+export { openItems } from "./offene-posten.ts";
 import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
@@ -501,170 +500,8 @@ export async function documentPayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("document_id", ids, q);
 }
 
-/** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
-function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }, externalId = inv.externalId) {
-  const refs = [...new Set([externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
-  return refs.length > 0 ? { orderReferences: refs } : {};
-}
-
-/** Offene Rechnungen und Belege für den Abgleich */
-export async function openItems(): Promise<OpenItem[]> {
-  const invoices = await db
-    .select({
-      id: schema.invoices.id,
-      kind: schema.invoices.kind,
-      correctsId: schema.invoices.correctsId,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      gross: schema.invoices.gross,
-      currency: schema.invoices.currency,
-      skonto: schema.invoices.skonto,
-      buyer: schema.invoices.buyer,
-      contactIban: schema.contacts.iban,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-    })
-    .from(schema.invoices)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(and(eq(schema.invoices.status, "final"), inArray(schema.invoices.kind, ["rechnung", "korrektur"])));
-  const stornos = await db
-    .select({
-      id: schema.invoices.id,
-      correctsId: schema.invoices.correctsId,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      buyer: schema.invoices.buyer,
-      contactIban: schema.contacts.iban,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-    })
-    .from(schema.invoices)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
-  const cancelled = new Set(stornos.map((r) => r.correctsId));
-  // Die eindeutige externe Referenz bleibt am Original. Für den Abgleich zählen Korrektur und Storno zur selben Bestellung.
-  const externalIds = new Map(invoices.map((inv) => [inv.id, inv.externalId]));
-  for (const inv of invoices) {
-    if (inv.correctsId && !inv.externalId) externalIds.set(inv.id, externalIds.get(inv.correctsId) ?? null);
-  }
-  const invoicePaid = await invoicePayments([...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
-  const paperStornos = await paperCancellationIds(stornos.map((st) => st.id));
-  // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
-  const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
-
-  const documents = await db
-    .select({
-      id: schema.documents.id,
-      invoiceNumber: schema.documents.invoiceNumber,
-      documentDate: schema.documents.documentDate,
-      uploadedAt: schema.documents.uploadedAt,
-      dueDate: schema.documents.dueDate,
-      gross: schema.documents.gross,
-      currency: schema.documents.currency,
-      supplierName: schema.documents.supplierName,
-    })
-    .from(schema.documents)
-    // Storniert: nichts mehr zu zahlen; stornieren lässt Haben nur ohne Zahlung (#237)
-    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
-  const documentPaid = await paidByTarget(
-    "document_id",
-    documents.map((d) => d.id),
-  );
-  // Konto des Lieferanten und Referenzen der SEPA-Überweisungen aus Haben: Die Abbuchung findet so ihren Beleg
-  const ids = documents.map((d) => d.id);
-  const [payees, decisions] = await Promise.all([documentPayees(ids), ibanDecisions(ids)]);
-  // Feiertage für das Ende der Skontofrist (§ 193 BGB) wie beim Zahlungsziel: die im Bundesland der Firma
-  const { bundesland } = await loadCompany();
-
-  const items: OpenItem[] = [];
-  for (const inv of invoices) {
-    const paid = invoicePaid.get(inv.id) ?? 0;
-    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid, cancelled: cancelled.has(inv.id) });
-    if (open === 0) continue;
-    // Skonto nur auf den ganzen Betrag: nach einer Teilzahlung oder Ausbuchung erkennt der Abgleich es nicht mehr
-    const skonto = inv.kind === "rechnung" && inv.currency === "EUR" && paid === 0 ? skontoZahlfristen(inv.skonto, inv.issueDate, inv.gross, bundesland) : [];
-    items.push({
-      type: "invoice",
-      id: inv.id,
-      number: inv.number!,
-      date: inv.issueDate,
-      dueDate: inv.dueDate,
-      open,
-      partyName: inv.buyer?.name ?? "",
-      partyIbans: inv.contactIban ? [inv.contactIban] : [],
-      ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
-      ...orderReferencesOf(inv, externalIds.get(inv.id)),
-      currency: inv.currency,
-      ...(skonto.length > 0 ? { skonto } : {}),
-    });
-  }
-  // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
-  for (const storno of stornos) {
-    if (paperStornos.has(storno.id)) continue;
-    const open = invoiceOpen({
-      status: "final",
-      kind: "storno",
-      gross: 0,
-      paid: invoicePaid.get(storno.id) ?? 0,
-      paidOnOriginal: invoicePaid.get(storno.correctsId!) ?? 0,
-      cancelled: false,
-    });
-    if (open === 0) continue;
-    items.push({
-      type: "invoice",
-      id: storno.id,
-      number: storno.number!,
-      date: storno.issueDate,
-      dueDate: storno.issueDate,
-      open,
-      partyName: storno.buyer?.name ?? "",
-      partyIbans: storno.contactIban ? [storno.contactIban] : [],
-      // Storno erbt die Bestellnummer der Rechnung (#389): die Erstattung beim Dienstleister findet es darüber
-      ...orderReferencesOf(storno, externalIds.get(storno.correctsId!)),
-    });
-  }
-  for (const doc of documents) {
-    const open = documentOpen(doc.gross, documentPaid.get(doc.id) ?? 0);
-    if (open === 0) continue;
-    items.push({
-      type: "document",
-      id: doc.id,
-      number: doc.invoiceNumber,
-      date: doc.documentDate ?? today(doc.uploadedAt),
-      dueDate: doc.dueDate,
-      open,
-      partyName: doc.supplierName,
-      partyIbans: payeeIbans(payees.get(doc.id), decisions.get(doc.id) ?? []),
-      references: payees.get(doc.id)?.references ?? [],
-      currency: doc.currency,
-    });
-  }
-  return items;
-}
-
-export async function transactionDetail(id: string) {
-  const [tx] = await db
-    .select({
-      id: schema.bankTransactions.id,
-      bankAccountId: schema.bankTransactions.bankAccountId,
-      bookingDate: schema.bankTransactions.bookingDate,
-      valueDate: schema.bankTransactions.valueDate,
-      amount: schema.bankTransactions.amount,
-      currency: schema.bankTransactions.currency,
-      counterpartyName: schema.bankTransactions.counterpartyName,
-      counterpartyIban: schema.bankTransactions.counterpartyIban,
-      purpose: schema.bankTransactions.purpose,
-      type: schema.bankTransactions.type,
-      bankReference: schema.bankTransactions.bankReference,
-      endToEndId: schema.bankTransactions.endToEndId,
-      open: openAmountSql.mapWith(Number),
-    })
-    .from(schema.bankTransactions)
-    .where(eq(schema.bankTransactions.id, id));
-  if (!tx) return null;
+/** Zuordnungen eines Umsatzes ohne Gegenzeilen, mit Beschriftung und ob sie aufgehoben sind */
+async function transactionAllocations(id: string) {
   const allocationRows = await db
     .select({
       id: schema.allocations.id,
@@ -696,7 +533,7 @@ export async function transactionDetail(id: string) {
     .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
   const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
   const vatLabels = await ustvaLabels(allocationRows.flatMap((a) => (a.vatReturnId ? [a.vatReturnId] : [])));
-  const allocations = allocationRows
+  return allocationRows
     .filter((a) => !a.reversesId)
     .map((a) => ({
       ...a,
@@ -706,6 +543,29 @@ export async function transactionDetail(id: string) {
       darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
       kategorieLabel: a.category && a.taxRate !== null ? kategorieText({ kategorie: a.category, steuersatz: a.taxRate }) : null,
     }));
+}
+
+export async function transactionDetail(id: string) {
+  const [tx] = await db
+    .select({
+      id: schema.bankTransactions.id,
+      bankAccountId: schema.bankTransactions.bankAccountId,
+      bookingDate: schema.bankTransactions.bookingDate,
+      valueDate: schema.bankTransactions.valueDate,
+      amount: schema.bankTransactions.amount,
+      currency: schema.bankTransactions.currency,
+      counterpartyName: schema.bankTransactions.counterpartyName,
+      counterpartyIban: schema.bankTransactions.counterpartyIban,
+      purpose: schema.bankTransactions.purpose,
+      type: schema.bankTransactions.type,
+      bankReference: schema.bankTransactions.bankReference,
+      endToEndId: schema.bankTransactions.endToEndId,
+      open: openAmountSql.mapWith(Number),
+    })
+    .from(schema.bankTransactions)
+    .where(eq(schema.bankTransactions.id, id));
+  if (!tx) return null;
+  const allocations = await transactionAllocations(id);
 
   // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
   const items = tx.open === 0 ? [] : [...(await openItems()), ...(await ustvaOpenItems())];
@@ -1218,7 +1078,7 @@ async function invoiceBooking(
 ): Promise<{ lines: PostingLine[]; description: string; target: Zuordnungsziel }> {
   const invoice = await lockInvoice(tx, part.invoiceId);
   if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
-  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount);
+  const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount, await paymentProcedure(invoice, tx));
   if (dateProblem) throw new BankError(dateProblem);
 
   const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
