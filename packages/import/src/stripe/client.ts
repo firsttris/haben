@@ -195,6 +195,7 @@ export class StripeClient {
 
   async #alle(dateFrom: string, dateTo: string, details: boolean): Promise<StripeBalanceTransaction[]> {
     const all: StripeBalanceTransaction[] = [];
+    const seen = new Set<string>();
     let startingAfter: string | undefined;
     for (let page = 0; page < MAX_PAGES; page++) {
       const query = new URLSearchParams({
@@ -211,7 +212,12 @@ export class StripeClient {
       }
       if (startingAfter) query.set("starting_after", startingAfter);
       const result = await this.#json(`/v1/balance_transactions?${query}`, listSchema);
-      all.push(...result.data.map(normalize));
+      // Eine Bewegung, die auf zwei Seiten steht, zählt einmal; der Importvertrag lehnte sonst die ganze Lieferung ab
+      for (const raw of result.data) {
+        if (seen.has(raw.id)) continue;
+        seen.add(raw.id);
+        all.push(normalize(raw));
+      }
       const last = result.data.at(-1);
       if (!result.has_more || !last) return all;
       startingAfter = last.id;
@@ -256,17 +262,18 @@ export class StripeClient {
         continue;
       }
       // Stripe maskiert den Schlüssel in seinen Meldungen; ein Rumpf, der kein JSON ist, tut es nicht
-      throw new StripeApiError(errorText(response.status, text).replaceAll(this.#apiKey, "…"), response.status, path);
+      throw new StripeApiError(errorText(response.status, text, this.#apiKey), response.status, path);
     }
   }
 }
 
 /** Fehlermeldung aus der Antwort: Stripe liefert {error: {message, type, code}} */
-function errorText(status: number, body: string): string {
-  let detail = body.slice(0, 300);
+function errorText(status: number, body: string, apiKey: string): string {
+  // Den Schlüssel vor dem Kürzen entfernen, sonst bliebe ein Stück an der Schnittstelle stehen
+  let detail = body.replaceAll(apiKey, "…").slice(0, 300);
   try {
     const message = (JSON.parse(body) as { error?: { message?: unknown } }).error?.message;
-    if (typeof message === "string" && message) detail = message;
+    if (typeof message === "string" && message) detail = message.replaceAll(apiKey, "…");
   } catch {
     // kein JSON
   }

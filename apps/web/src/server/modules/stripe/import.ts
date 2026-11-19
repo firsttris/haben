@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { type StripeBalanceTransaction, stripeBatch, stripeEventOf, stripeStatement } from "@haben/import";
+import { type StripeBalanceTransaction, STRIPE_NICHT_UNTERSTUETZT, stripeBatch, stripeEventOf, stripeStatement } from "@haben/import";
 import { and, asc, eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -73,6 +73,11 @@ export async function importStripe(actor: string, transactions: StripeBalanceTra
     // Fenster und Zeitpunkt: zwei Abrufe zur selben Zeit mit anderem Fenster sind zwei Lieferungen, nicht eine mit anderem Inhalt
     fetchId: `stripe-${options.dateFrom}-${options.now.toISOString()}`,
   });
+  if (batch.unsupported.length > 0) {
+    result.messages.push(
+      `${batch.unsupported.length} Bewegung${batch.unsupported.length === 1 ? "" : "en"}: ${STRIPE_NICHT_UNTERSTUETZT} (${batch.unsupported.map((u) => u.sourceEventId).join(", ")}). Haben übernimmt sie als Umsatz; der Zeitraum gilt nicht als vollständig abgerufen.`,
+    );
+  }
   const input = {
     batch,
     binding: { provider: "stripe", externalAccountId: options.accountId, accountKind: "psp" as const },
