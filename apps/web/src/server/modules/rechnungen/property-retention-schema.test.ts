@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 describe("Auswahl des Aufbewahrungshinweises für Grundstücksleistungen", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let recurring: typeof import("./recurring.ts");
 
   beforeAll(async () => {
@@ -11,7 +11,7 @@ describe("Auswahl des Aufbewahrungshinweises für Grundstücksleistungen", () =>
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "https://haben.example.de",
       HABEN_ENCRYPTION_KEY: process.env.HABEN_ENCRYPTION_KEY ?? Buffer.alloc(32).toString("base64"),
     });
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     recurring = await import("./recurring.ts");
   });
 

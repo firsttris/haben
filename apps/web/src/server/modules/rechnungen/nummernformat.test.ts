@@ -5,7 +5,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let formats: typeof import("./number-formats.ts");
@@ -65,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
     formats = await import("./number-formats.ts");

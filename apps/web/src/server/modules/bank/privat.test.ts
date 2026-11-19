@@ -8,7 +8,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * etwas zu buchen.
  */
 describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let privat: typeof import("./privat.ts");
   let auswahl: typeof import("./umsatzauswahl.ts");
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     privat = await import("./privat.ts");
     auswahl = await import("./umsatzauswahl.ts");
     figures = await import("../umsatzsteuer/vat-figures.ts");

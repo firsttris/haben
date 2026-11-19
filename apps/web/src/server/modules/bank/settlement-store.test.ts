@@ -13,7 +13,7 @@ function sources(dir: string): string[] {
 it("Zahlungen und Ausbuchungen gehen immer durch den gemeinsamen Steuerschreiber (#622)", () => {
   const writes = /\.insert\(schema\.(allocations|cashEntries|writeOffs)\)|(insert\s+into)\s+(allocations|cash_entries|write_offs)\b/i;
   const files = sources(fileURLToPath(new URL("../../", import.meta.url)));
-  expect(files.some((file) => file.endsWith(join("bank", "bank.ts")))).toBe(true);
+  expect(files.some((file) => file.endsWith(join("bank", "allocation.ts")))).toBe(true);
   expect(files.filter((file) => !file.endsWith(join("bank", "settlement-store.ts")) && writes.test(readFileSync(file, "utf8")))).toEqual([]);
   expect(writes.test("tx.insert(schema.cashEntries).values(entry)")).toBe(true);
   expect(writes.test("insert into allocations (invoice_id) values ($1)")).toBe(true);

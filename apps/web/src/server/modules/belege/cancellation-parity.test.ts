@@ -56,7 +56,7 @@ describe.skipIf(!testDatabaseUrl)("Gemeinsamer Belegstorno entspricht der manuel
 
   async function invoice() {
     const contacts = await import("../stammdaten/contacts.ts");
-    const invoices = await import("../rechnungen/invoices.ts");
+    const invoices = await import("../rechnungen/index.ts");
     const contact = await contacts.createContact(actor, {
       kundennummer: "",
       name: "Testkunde GmbH",

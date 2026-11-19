@@ -7,7 +7,7 @@ describe.skipIf(!testDatabaseUrl)("Teilabzug bei Anlagen: bestehende Erwerbsgren
   let sql: postgres.Sql;
   let documents: typeof import("./documents.ts");
   let reports: typeof import("../auswertungen/reports.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
   const actor = "teilabzug-anlagen";
   let seq = 0;
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Teilabzug bei Anlagen: bestehende Erwerbsgren
     sql = await setupTestDb();
     documents = await import("./documents.ts");
     reports = await import("../auswertungen/reports.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     vat = await import("../umsatzsteuer/vat-figures.ts");
   }, 30_000);
   afterAll(async () => {

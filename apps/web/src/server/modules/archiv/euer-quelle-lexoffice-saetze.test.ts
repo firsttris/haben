@@ -27,7 +27,7 @@ function kurz(e: EuerResult) {
 
 describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten mit mehreren Steuersätzen in der EÜR aus dem Journal (Postgres)", () => {
   let legacy: typeof import("./legacy-open.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let storage: typeof import("../../storage.ts");
   let sql: postgres.Sql;
@@ -36,7 +36,7 @@ describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten mit mehreren St
   beforeAll(async () => {
     sql = await setupTestDb();
     legacy = await import("./legacy-open.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("../auswertungen/reports.ts");
     storage = await import("../../storage.ts");
   }, 30_000);

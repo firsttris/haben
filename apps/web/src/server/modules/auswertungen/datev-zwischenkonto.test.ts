@@ -22,7 +22,7 @@ describe.skipIf(!testDatabaseUrl)(
   "DATEV-Export: Zwischenkonto der Vorsteuer bei „erstattet bereits Bezahltes“ und Leistung nach dem Belegdatum (Postgres, #786, #693)",
   () => {
     let datev: typeof import("./datev-export.ts");
-    let bank: typeof import("../bank/bank.ts");
+    let bank: typeof import("../bank/index.ts");
     let contacts: typeof import("../stammdaten/contacts.ts");
     let documents: typeof import("../belege/documents.ts");
     let sql: postgres.Sql;
@@ -33,7 +33,7 @@ describe.skipIf(!testDatabaseUrl)(
     beforeAll(async () => {
       sql = await setupTestDb();
       datev = await import("./datev-export.ts");
-      bank = await import("../bank/bank.ts");
+      bank = await import("../bank/index.ts");
       contacts = await import("../stammdaten/contacts.ts");
       documents = await import("../belege/documents.ts");
     }, 60_000);

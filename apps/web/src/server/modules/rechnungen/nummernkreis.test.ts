@@ -5,7 +5,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zähler (Postgres, #328)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let lastFinalizedByCircle: typeof import("./number-counter.ts").lastFinalizedByCircle;
   let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
@@ -40,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     ({ lastFinalizedByCircle } = await import("./number-counter.ts"));
     quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");

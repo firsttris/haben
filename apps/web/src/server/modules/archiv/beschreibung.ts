@@ -1,5 +1,5 @@
 import { beschreibungXml, csvKopfzeile, DTD_DATEI, mitKopfzeile, type SpaltenTyp } from "@firsttris/gobd-kern/beschreibung";
-import type { ArchiveFile } from "./export.ts";
+import type { ArchiveFile } from "./export-zip.ts";
 
 export { csvKopfzeile, DTD_DATEI, type SpaltenTyp };
 

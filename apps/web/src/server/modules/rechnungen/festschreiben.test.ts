@@ -20,7 +20,7 @@ vi.mock("@haben/einvoice", async (importOriginal) => {
 describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der Hash-Kette (Postgres)", () => {
   let sql: postgres.Sql;
   let other: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   const actor = "test-user";
@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
   beforeAll(async () => {
     sql = await setupTestDb();
     other = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);

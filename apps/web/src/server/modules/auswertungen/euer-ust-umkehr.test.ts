@@ -7,13 +7,13 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025 */
 describe.skipIf(!testDatabaseUrl)("USt-Zuordnung in der EÜR aufheben (Postgres)", () => {
   let sql: postgres.Sql;
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("./reports.ts");
   let abgleich: typeof import("./abgleich.ts");
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("./reports.ts");
     abgleich = await import("./abgleich.ts");
   }, 30_000);

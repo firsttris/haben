@@ -153,7 +153,7 @@ Braucht ein Modul etwas von einem Modul über sich, gehört der Code woanders hi
 ### Rechnung festschreiben
 
 1. Die Seite ruft die Server Function `finalizeInvoiceDraft` auf. `authMiddleware` prüft die Sitzung.
-2. `finalizeInvoice` in `server/modules/rechnungen/invoices.ts` öffnet eine Transaktion mit `withActor`.
+2. `finalizeInvoice` in `server/modules/rechnungen/invoice-finalize.ts` öffnet eine Transaktion mit `withActor`.
 3. In dieser Transaktion:
    - Entwurf mit `SELECT … FOR UPDATE` sperren,
    - Firmendaten, Kunde, Positionen, Beträge, die umsatzsteuerliche Behandlung und die Pflichtfelder des gewählten E-Rechnungsformats prüfen (`finalizeIssues`, dieselbe Prüfung wie in der Oberfläche, hier mit der Transaktion),
@@ -180,7 +180,7 @@ Angebote nummeriert `finalizeQuote` nach demselben Muster (eigener Kreis). Die R
 
 ### Bankumsatz zuordnen
 
-1. `allocateTransaction` → `allocate` in `server/modules/bank/bank.ts`, in einer Transaktion mit `withActor`.
+1. `allocateTransaction` → `allocate` in `server/modules/bank/allocation.ts`, in einer Transaktion mit `withActor`.
 2. Der Umsatz wird mit `FOR UPDATE` gesperrt; Vorzeichen und offener Betrag werden geprüft, ebenso der offene Betrag der Rechnung bzw. des Belegs.
 3. Haben liest die Firmendaten in der Transaktion (`openBooks`), bildet den Buchungssatz mit `@haben/core` (`invoicePaymentPosting`, `documentPaymentPosting` oder `directPosting`), legt die Zuordnung an und bucht über `ledger.post` auf den Buchungstag des Umsatzes.
 4. Der Trigger auf `allocations` prüft noch einmal, dass die Summe der Zuordnungen den Umsatz nicht übersteigt. Bei einem Zahlungseingang merkt sich Haben die IBAN des Kunden, falls noch keine hinterlegt ist.

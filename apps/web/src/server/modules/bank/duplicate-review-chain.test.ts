@@ -7,7 +7,7 @@ it.skipIf(!testDatabaseUrl).each(["original-zuerst", "dublette-zuerst", "gleichz
     const sql = await setupTestDb();
     try {
       const { decideDuplicate, duplicateReviewsForTransaction } = await import("./duplicate-review.ts");
-      const { listAccounts } = await import("./bank.ts");
+      const { listAccounts } = await import("./index.ts");
       const { userMessage } = await import("../../errors.ts");
       const [account] = await sql`insert into bank_accounts (name, purpose, provider, ledger_index)
         values ('Zahlungsdienstkonto', 'zahlungsdienstleister', 'sonstige', 1) returning id`;

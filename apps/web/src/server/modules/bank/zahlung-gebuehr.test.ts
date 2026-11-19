@@ -4,9 +4,9 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Zahlung und Gebühr eines Zahlungsdienstleisters zusammen zuordnen (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let gebuehr: typeof import("./zahlung-gebuehr.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
@@ -15,9 +15,9 @@ describe.skipIf(!testDatabaseUrl)("Zahlung und Gebühr eines Zahlungsdienstleist
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     gebuehr = await import("./zahlung-gebuehr.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     vat = await import("../umsatzsteuer/vat-figures.ts");

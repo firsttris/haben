@@ -5,8 +5,9 @@ import { withActor } from "../../db/actor.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { sha256Of } from "../../storage.ts";
-import { BankError, insertStatement } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 import { eventKey, freeHash, MovementConflictError, type StoreBatchInput } from "./import-batch.ts";
+import { insertStatement } from "./statement-import.ts";
 
 /*
  * Weg aus einem Konflikt des Importvertrags (#306, 3b, abgestimmt im Issue). Liefert die Bank eine schon übernommene

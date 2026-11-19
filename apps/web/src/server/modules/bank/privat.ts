@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
-import { BankError } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 
 /*
  * Umsätze auf einem privaten Konto, für die es dort keine Buchungsart gibt (#1088). Auf einem privaten Konto sind

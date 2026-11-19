@@ -9,11 +9,11 @@ import { turnoverFixtures } from "../../../test-fixtures/gesamtumsatz.ts";
 describe.skipIf(!testDatabaseUrl)("Unabhängige Nachprüfung 926: Steuererstattung im Folgejahr aufgehoben", () => {
   let sql: postgres.Sql;
   let reports: typeof import("./reports.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   beforeAll(async () => {
     sql = await setupTestDb();
     reports = await import("./reports.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 30_000);
   afterAll(async () => {
     await sql?.end();

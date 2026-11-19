@@ -13,7 +13,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Ansprechpartner an Rechnung und Angebot (Postgres, #424)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let persons: typeof import("../stammdaten/contact-persons.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
@@ -25,7 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Ansprechpartner an Rechnung und Angebot (Post
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     persons = await import("../stammdaten/contact-persons.ts");
     contacts = await import("../stammdaten/contacts.ts");

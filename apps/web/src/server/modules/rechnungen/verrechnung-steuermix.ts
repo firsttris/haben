@@ -29,7 +29,7 @@ export function mixeNachVerrechnungen(
  * verteilen sich die Zahlungen — sonst trüge bei zwei Steuersätzen der zurückgenommene Satz die Steuer mit (Befunde 2 und 3
  * im Review zu #877). Rechnungen ohne Verrechnung fehlen in der Map, für sie gilt ihr voller Mix.
  *
- * Die eine Stelle dafür: Voranmeldung (vat-figures.ts), EÜR (reports.ts) und Bankabgleich (bank.ts) lesen dieselben
+ * Die eine Stelle dafür: Voranmeldung (vat-figures.ts), EÜR (reports.ts) und Bankabgleich (settled-amounts.ts) lesen dieselben
  * Stände, damit alle dieselbe Zahlung gleich aufteilen.
  */
 export async function mixNachVerrechnungen(totals: Map<string, InvoiceTotals>, q: Db | Tx): Promise<Map<string, InvoiceTotals[]>> {

@@ -10,7 +10,7 @@ describe.skipIf(!testDatabaseUrl)("Teilabzug der Vorsteuer (Postgres, #433)", ()
   let cancellation: typeof import("./cancellation.ts");
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
   let reports: typeof import("../auswertungen/reports.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   const actor = "teilabzug-test";
   let seq = 0;
 
@@ -20,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Teilabzug der Vorsteuer (Postgres, #433)", ()
     cancellation = await import("./cancellation.ts");
     vat = await import("../umsatzsteuer/vat-figures.ts");
     reports = await import("../auswertungen/reports.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 30_000);
   afterAll(async () => {
     await sql?.end();
