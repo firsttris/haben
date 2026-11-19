@@ -490,6 +490,28 @@ test("Belege per E-Mail: Tab aus dem letzten Feld und Enter entfernt das Postfac
   await tabUndEnterBehaeltZugang(page.getByRole("form", { name: "Belege per E-Mail" }), "Jetzt abrufen");
 });
 
+test("Belege per E-Mail: Umstellen auf „Löschen“ fragt vor dem Speichern nach (#1419)", async () => {
+  await go("/einstellungen?bereich=email");
+  const karte = page.getByRole("form", { name: "Belege per E-Mail" });
+  await karte.getByLabel("IMAP-Server").fill("127.0.0.1");
+  await karte.getByLabel("Benutzername", { exact: true }).fill("max");
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByLabel("Mail im Postfach").selectOption("delete");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(rueckfrage("Abgerufene Mails löschen?")).toContainText("Mailtext und Original sind danach weg");
+  await abbrechen("Abgerufene Mails löschen?");
+  await expect(karte.getByRole("status")).toHaveCount(0);
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await bestaetigen(page, "Löschen aktivieren");
+  await expect(karte.getByRole("status")).toHaveText("Postfach gespeichert.");
+  await go("/einstellungen?bereich=email");
+  await expect(karte.getByLabel("Mail im Postfach")).toHaveValue("delete");
+  // Schon auf „Löschen“ gestellt: weiteres Speichern fragt nicht erneut
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status")).toHaveText("Postfach gespeichert.");
+});
+
 test("E-Mail-Versand: Tab aus dem letzten Feld und Enter entfernt den Zugang nicht (#394)", async () => {
   await go("/einstellungen?bereich=email");
   const karte = page.getByRole("form", { name: "E-Mail-Versand" });

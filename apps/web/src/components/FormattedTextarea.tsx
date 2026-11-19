@@ -1,4 +1,4 @@
-import { type ComponentProps, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from "react";
+import { type ComponentProps, type KeyboardEvent, type RefObject, useCallback, useEffect, useId, useRef, useState } from "react";
 import { type TextEdit, type TextStyle, toggleTextStyle } from "@haben/core";
 import { caretPosition } from "../lib/textarea-caret.ts";
 import { ariaKuerzel, kuerzelSprache, kuerzelText, useApple } from "../lib/tastatur.ts";
@@ -71,34 +71,18 @@ function moveFocus(event: KeyboardEvent<HTMLElement>, onEscape: () => void): voi
   event.preventDefault();
 }
 
-/**
- * Textfeld mit Knöpfen für die Auszeichnungen aus text-format.ts. Gespeichert wird weiter der Text mit den
- * Zeichen. Die Leiste erscheint an der Markierung, damit lange Formulare und viele Positionen ruhig bleiben.
- */
-export function FormattedTextarea({
-  onKeyDown,
-  onInput,
-  onFocus,
-  "aria-describedby": describedBy,
-  fieldRef,
-  ...props
-}: Omit<ComponentProps<"textarea">, "ref"> & { fieldRef?: (element: HTMLTextAreaElement | null) => void }) {
-  const field = useRef<HTMLTextAreaElement>(null);
+/** Lage der Leiste an der Markierung im Feld; mit Esc geschlossen bleibt sie zu, bis sich die Auswahl ändert */
+function useSelectionAnchor(field: RefObject<HTMLTextAreaElement | null>) {
   const dismissed = useRef<string | null>(null);
-  const [active, setActive] = useState(0);
-  const [status, setStatus] = useState("");
   const [anchor, setAnchor] = useState<Anchor | null>(null);
-  const hintId = useId();
-  const apple = useApple();
 
   const syncAnchor = useCallback(() => {
     const element = field.current;
     if (!element || document.activeElement !== element) return;
-    // Mit Esc geschlossen bleibt die Leiste zu, bis sich die Auswahl ändert
     if (dismissed.current === `${element.selectionStart}:${element.selectionEnd}`) return;
     dismissed.current = null;
     setAnchor(selectionAnchor(element));
-  }, []);
+  }, [field]);
 
   useEffect(() => {
     document.addEventListener("selectionchange", syncAnchor);
@@ -113,6 +97,28 @@ export function FormattedTextarea({
     dismissed.current = `${element.selectionStart}:${element.selectionEnd}`;
     setAnchor(null);
   }
+
+  return { anchor, setAnchor, syncAnchor, dismiss };
+}
+
+/**
+ * Textfeld mit Knöpfen für die Auszeichnungen aus text-format.ts. Gespeichert wird weiter der Text mit den
+ * Zeichen. Die Leiste erscheint an der Markierung, damit lange Formulare und viele Positionen ruhig bleiben.
+ */
+export function FormattedTextarea({
+  onKeyDown,
+  onInput,
+  onFocus,
+  "aria-describedby": describedBy,
+  fieldRef,
+  ...props
+}: Omit<ComponentProps<"textarea">, "ref"> & { fieldRef?: (element: HTMLTextAreaElement | null) => void }) {
+  const field = useRef<HTMLTextAreaElement>(null);
+  const [active, setActive] = useState(0);
+  const [status, setStatus] = useState("");
+  const hintId = useId();
+  const apple = useApple();
+  const { anchor, setAnchor, syncAnchor, dismiss } = useSelectionAnchor(field);
 
   function toggle(style: TextStyle) {
     const element = field.current;
