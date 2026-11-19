@@ -47,6 +47,8 @@ export const DURCHLAEUFE = {
   "bank-dubletten": 35,
   // Vorschläge der Bankliste markieren und gemeinsam bestätigen (#1440)
   "bank-bestaetigen": 37,
+  // Stripe (#1280): nur dieser Server fragt die nachgebaute Stripe-API auf STRIPE_PORT; 38 und 39 bleiben für PayPal (#1531) frei
+  "stripe-abruf": 40,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
@@ -58,6 +60,9 @@ export const FINTS_BANK_PORT = PORT + 31;
 
 /** Nachgebaute Etsy-API mit Anmeldung in etsy-abruf.spec.ts (ETSY_API_URL, ETSY_TOKEN_URL, ETSY_AUTH_URL) */
 export const ETSY_PORT = PORT + 33;
+
+/** Nachgebaute Stripe-API in stripe-abruf.spec.ts (STRIPE_API_URL) */
+export const STRIPE_PORT = PORT + 41;
 
 /**
  * Nachgebauter Dienst des BZSt für die Bestätigung von USt-IdNrn. in belege-steuern.spec.ts (EVATR_API_URL, #1385); jeder

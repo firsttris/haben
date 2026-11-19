@@ -13,6 +13,7 @@ import {
   LAYOUT_PAKETE_PORT,
   portFuer,
   SEVDESK_PORT,
+  STRIPE_PORT,
 } from "./e2e/durchlaeufe.ts";
 
 /**
@@ -83,6 +84,9 @@ function webServer(durchlauf?: Durchlauf) {
             ETSY_AUTH_URL: `http://127.0.0.1:${ETSY_PORT}/oauth/connect`,
           }
         : {}),
+      // Stripe (#1280) nur im Durchlauf „stripe-abruf“ gegen die nachgebaute API; sonst die echte, die ohne gespeicherten
+      // Schlüssel nie gefragt wird
+      ...(durchlauf === "stripe-abruf" ? { STRIPE_API_URL: `http://127.0.0.1:${STRIPE_PORT}` } : {}),
       // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
       HABEN_FIRMEN: durchlauf === "firmen" ? habenFirmen(serverURL) : "",
     },
