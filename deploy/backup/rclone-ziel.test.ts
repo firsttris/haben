@@ -19,9 +19,15 @@ function falschesRclone(): string {
   const pfad = join(arbeit, "rclone");
   writeFileSync(
     pfad,
-    ["#!/bin/sh", '[ "$1" = listremotes ] || exit 1', '[ -r "$RCLONE_CONFIG" ] || exit 0', "sed -n 's/^\\[\\(.*\\)\\]$/\\1:/p' \"$RCLONE_CONFIG\"", ""].join(
-      "\n",
-    ),
+    [
+      "#!/bin/sh",
+      '[ "$1" = listremotes ] || exit 1',
+      '[ -r "$RCLONE_CONFIG" ] || exit 0',
+      // RCLONE_FAKE_FEHLER stellt eine Datei nach, die rclone nicht lesen kann (kaputt, gesperrt, verschlüsselt)
+      '[ -n "$RCLONE_FAKE_FEHLER" ] && { echo "CRITICAL: Failed to load config file" >&2; exit 1; }',
+      "sed -n 's/^\\[\\(.*\\)\\]$/\\1:/p' \"$RCLONE_CONFIG\"",
+      "",
+    ].join("\n"),
   );
   chmodSync(pfad, 0o755);
   return pfad;
@@ -79,6 +85,14 @@ describe("configure_rclone", () => {
     const r = pruefe({ RESTIC_REPOSITORY: "rclone:haben:backup", RCLONE_CONFIG: conf });
     expect(r.code).toBe(2);
     expect(r.stderr).toContain("Abschnitt haben fehlt");
+  });
+
+  it("meldet eine Datei, die rclone nicht lesen kann, als solche und nicht als fehlenden Abschnitt", () => {
+    const conf = konfiguration(webdavConf);
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf, RCLONE_FAKE_FEHLER: "1" });
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain("rclone kann");
+    expect(r.stderr).not.toContain("Abschnitt webdav fehlt");
   });
 
   it("nimmt nur den genauen Namen, nicht einen, der den gesuchten enthält", () => {

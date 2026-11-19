@@ -57,7 +57,7 @@ AWS_SECRET_ACCESS_KEY=…
 
 #### Ziel über rclone für WebDAV, OneDrive und SMB
 
-restic kennt nur wenige Ziele selbst. Für alles andere ruft es `rclone` auf, und rclone deckt über 70 Speicher ab: WebDAV (Nextcloud, HiDrive, Strato), OneDrive, Google Drive, Dropbox, Box, pCloud, SMB und weitere. Das Backup-Image bringt rclone mit; Haben baut die Typen nicht nach, sondern liest nur die rclone-Konfiguration. Alles, was eine rclone-Konfiguration kann, funktioniert damit auch als Backup-Ziel.
+restic kennt nur wenige Ziele selbst. Für alles andere ruft es `rclone` auf, und rclone deckt [über 70 Speicher](https://rclone.org/overview/) ab: WebDAV (Nextcloud, HiDrive, Strato), OneDrive, Google Drive, Dropbox, Box, pCloud, SMB und weitere. Das Backup-Image bringt rclone mit; Haben baut die Typen nicht nach, sondern liest nur die rclone-Konfiguration. Was rclone kann, kann damit auch das Backup.
 
 1. **Konfiguration anlegen**, auf einem Rechner mit Browser; OneDrive und Google Drive brauchen den Anmeldedialog dort:
 
@@ -91,11 +91,11 @@ restic kennt nur wenige Ziele selbst. Für alles andere ruft es `rclone` auf, un
           - /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro
     ```
 
-    Quadlets: `Volume=%h/.config/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Unraid: dieselbe Datei als zusätzlichen Pfad `/var/lib/haben-backup/rclone.conf` mit Zugriffsart „Nur lesen“ abbilden. Helm: `backup.extraVolumes` und `backup.extraVolumeMounts` in `values.yaml`, etwa aus einem Secret, mit `subPath: rclone.conf`, damit der Mount nur die Datei ersetzt und nicht das Verzeichnis mit Dump und Zustand. Der Pfad ist im Image als `RCLONE_CONFIG` hinterlegt, weitere Einstellungen braucht es nicht; liegt die Datei woanders, `RCLONE_CONFIG` in der `.env` auf diesen Pfad setzen.
+    Quadlets: `Volume=%h/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro` (`%h` ist das Heimverzeichnis). Danach `systemctl --user daemon-reload`; ohne ihn kennt der Dienst den neuen `Volume=`-Eintrag nicht. Unraid: dieselbe Datei als zusätzlichen Pfad `/var/lib/haben-backup/rclone.conf` mit Zugriffsart „Nur lesen“ abbilden. Helm: `backup.extraVolumes` und `backup.extraVolumeMounts` in `values.yaml`, etwa aus einem Secret, mit `subPath: rclone.conf`, damit der Mount nur die Datei ersetzt und nicht das Verzeichnis mit Dump und Zustand. Der Pfad ist im Image als `RCLONE_CONFIG` hinterlegt, weitere Einstellungen braucht es nicht; liegt die Datei woanders, `RCLONE_CONFIG` in der `.env` auf diesen Pfad setzen.
 
 3. **Ziel eintragen:** `RESTIC_REPOSITORY=rclone:<abschnitt>:<pfad>`. Der Abschnitt ist der Name in eckigen Klammern der Konfiguration, der Pfad der Ordner im Ziel, den Haben anlegt, etwa `rclone:onedrive:haben`.
 
-4. **Starten** mit `docker compose up -d` bzw. `systemctl --user restart haben-backup.timer`. Vor jedem Lauf prüft der Container vier Dinge: rclone ist da, die Konfiguration ist lesbar, der Abschnitt steht darin (über `rclone listremotes`), und die Rechte sind nicht zu offen; bei einer für Gruppe oder andere lesbaren Datei gibt es einen Hinweis, keinen Abbruch. Die Prüfung steckt im Einstiegspunkt und in `backup.sh`, `restore.sh` und `restore-check.sh`, gilt also auch für `docker compose exec backup backup.sh` und fürs Wiederherstellen. Das Log nennt das Ziel ohne Zugangsdaten.
+4. **Starten** mit `docker compose up -d` bzw. `systemctl --user daemon-reload && systemctl --user start haben-backup.timer`, für einen Lauf sofort `systemctl --user start haben-backup`. Beim Start des Containers und bei jedem Aufruf von Hand prüft er vier Dinge: rclone ist da, die Konfiguration ist lesbar, der Abschnitt steht darin (über `rclone listremotes`), und die Rechte sind nicht zu offen; bei einer für Gruppe oder andere lesbaren Datei gibt es einen Hinweis, keinen Abbruch. Die Prüfung steckt im Einstiegspunkt und in `backup.sh`, `restore.sh` und `restore-check.sh`, gilt also auch für `docker compose exec backup backup.sh` und fürs Wiederherstellen.
 
 > [!IMPORTANT]
 > Die rclone-Konfiguration ist ein Geheimnis: bei OneDrive steht ein OAuth-Token darin, bei WebDAV das Passwort. Verschleiert ist keine Verschlüsselung, wer die Datei liest, kommt an den Zugang. Deshalb Rechte 600, nicht ins Repository, und nicht in eine Sicherung, die jeder lesen kann.
