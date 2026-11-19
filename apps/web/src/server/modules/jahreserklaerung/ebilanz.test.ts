@@ -1,3 +1,4 @@
+import { ebilanzPruefen } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -338,6 +339,51 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
       },
       60_000,
     );
+
+    // Gesetzliche Rücklage der UG (§ 5a Abs. 3 GmbHG): Gewinnrücklage nach § 266 Abs. 3 A. III. 1. HGB, keine Auffangposition
+    it("UG mit gesetzlicher Rücklage", async () => {
+      const ruecklage = kontenrahmen === "SKR03" ? "0846" : "2930";
+      await setup(kontenrahmen, "ist");
+      await sql`update company set name = 'Nordlicht UG (haftungsbeschränkt)', rechtsform = 'ug'`;
+      await manual.createManualEntry(
+        actor,
+        {
+          kind: "eroeffnung",
+          date: "2026-01-01",
+          description: "Eröffnungsbilanz",
+          lines: [
+            { account: k.bank, debit: 400_000, credit: 0 },
+            { account: k.kapital, debit: 0, credit: 100_000 },
+            { account: ruecklage, debit: 0, credit: 25_000 },
+            { account: k.vortrag, debit: 0, credit: 275_000 },
+          ],
+        },
+        today,
+      );
+      await book("2026-03-01", [
+        [k.bank, 119_000, 0],
+        [k.erloes, 0, 100_000],
+        [k.ust, 0, 19_000],
+      ]);
+
+      const company = await stammdaten.loadCompany();
+      const { daten, issues } = await ebilanz.ebilanzDaten(2026, company);
+      expect(issues).toEqual([]);
+      expect(daten.werte).toMatchObject({
+        "bs.eqLiab.equity.subscribed.corp": 100_000,
+        "bs.eqLiab.equity.revenueRes.legal": 25_000,
+        "bs.eqLiab.equity.retainedEarnings": 275_000,
+        "bs.eqLiab.equity.netIncome": 100_000,
+      });
+      expect(daten.bvv).toEqual({ eigenkapitalVorjahr: 400_000, einlagen: 0, ausschuettungen: 0 });
+      const summen = ebilanzPruefen({ year: 2026, ...daten });
+      expect(summen.get("bs.eqLiab.equity.revenueRes")).toBe(25_000);
+      expect(summen.get("bs.eqLiab.equity")).toBe(500_000);
+      expect(summen.get("bs.ass")).toBe(519_000);
+      expect(summen.get("bs.eqLiab")).toBe(519_000);
+      const validated = await ebilanz.submitEbilanz(actor, 2026, new EricGeprueftClient(), { kind: "validate", today });
+      expect(validated.ok, validated.message).toBe(true);
+    });
 
     it("Konten ohne Position hindern die E-Bilanz", async () => {
       await setup(kontenrahmen, "ist");
