@@ -188,7 +188,7 @@ Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. 
 
 | Hinweis | Bedeutung |
 | --- | --- |
-| Vorschlag | Es gibt einen passenden offenen Posten; das Wort steht in Blau, darunter Rechnung oder Voranmeldung mit Nummer, bei einem Beleg der Lieferant. Bei einem [Vorschlag ohne Rechnung](#vorschläge-ohne-rechnung-und-geldtransit) und einer Buchung nach der Gegenpartei steht nichts darunter. |
+| Vorschlag | Es gibt einen passenden offenen Posten; das Wort steht in Blau, darunter Rechnung oder Voranmeldung mit Nummer, bei einem Beleg der Lieferant. Bei einem [Vorschlag ohne Rechnung](#vorschläge-ohne-rechnung-und-geldtransit) und einer Buchung nach der Gegenpartei steht in der Statusspalte nichts darunter; was gebucht würde, steht unter dem Verwendungszweck („Vorschlag: …“, siehe [Vorschläge bestätigen](#vorschläge-bestätigen)). |
 | Teilweise | Ein Teil des Umsatzes ist zugeordnet; darunter, wie viel noch offen ist. |
 | Beleg fehlt | Ausgabe ohne Zuordnung und ohne Vorschlag; das Wort steht in Orange. |
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
@@ -200,12 +200,22 @@ Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auc
 
 ### Vorschläge bestätigen
 
-Bei Umsätzen mit Vorschlag steht in der Liste unter dem Verwendungszweck, was gebucht würde („Vorschlag: Rechnung R-2026-001“, „Vorschlag: Erlöse 19 %“). Davor steht ein Markierfeld; **Alle Vorschläge markieren** über der Liste setzt alle Haken, die Leertaste markiert den Umsatz mit dem Fokus. **… bestätigen** bucht alle markierten Umsätze in einem Schritt, genau so, als hättest du jeden einzeln mit **Zuordnen** bzw. **Buchen** gebucht: dieselbe Buchung, festgeschrieben, nur mit Gegenbuchung aufzuheben.
+Bei Umsätzen mit Vorschlag steht in der Liste unter dem Verwendungszweck, was gebucht würde („Vorschlag: Rechnung R-2026-001“, „Vorschlag: Erlöse 19 %“). Mehrere davon bestätigst du in einem Schritt:
 
-- Bestätigen lässt sich ein Vorschlag nur, wenn er ohne Rückfrage buchbar ist: eine Rechnung oder ein Beleg mit genau dem Betrag des Umsatzes (ohne Skonto, Kursdifferenz oder Gebühr), eine Buchung auf eine Kategorie nach früheren Zuordnungen und die einfachen Arten ohne weitere Angaben (Privat, Spende, Gebühren, Mahnerlöse, Zinserträge). Dabei gilt dieselbe Reihenfolge wie in der Detailansicht: Eine Regel der Kontozwecke geht dem Gelernten vor, ist sie nicht bestätigbar, gibt es keinen Vorschlag zum Bestätigen. Geldtransit, Steuerzahlungen (Umsatzsteuer, Sondervorauszahlung, Lohnsteuer), Darlehen, Voranmeldungen und Aufladungen bleiben beim Einzelbuchen in der Detailansicht; Umsätze ohne bestätigbaren Vorschlag haben kein Markierfeld.
+1. Markiere die Umsätze mit dem Markierfeld vor der Zeile. Die Leertaste markiert den Umsatz mit dem Fokus. **Alle … Vorschläge markieren** über der Liste setzt alle Haken, höchstens 200 auf einmal; gibt es mehr, steht dort **Die ersten 200 von … Vorschlägen markieren**.
+2. Klicke auf **… bestätigen** (der Knopf nennt die Zahl der markierten Umsätze). Haben bucht alle markierten Umsätze in einem Schritt, genau so, als hättest du jeden einzeln mit **Zuordnen** bzw. **Buchen** gebucht: dieselbe Buchung, festgeschrieben, nur mit Gegenbuchung aufzuheben.
+
+Einzelne Umsätze markierst und bestätigst du genauso.
+
+- Bestätigen lässt sich ein Vorschlag nur, wenn er ohne Rückfrage buchbar ist:
+  - eine Rechnung oder ein Beleg mit genau dem offenen Betrag des Umsatzes, ohne Skonto und ohne Kursdifferenz;
+  - eine Buchung auf eine Kategorie nach früheren Zuordnungen;
+  - die einfachen Arten ohne weitere Angaben: Privat, Spende, Gebühren, Mahnerlöse, Zinserträge.
+- Es gilt dieselbe Reihenfolge wie in der Detailansicht: Eine Regel der Kontozwecke geht dem Gelernten vor; ist sie nicht bestätigbar, gibt es keinen Vorschlag zum Bestätigen.
+- Beim Einzelbuchen in der Detailansicht bleiben Geldtransit, Steuerzahlungen (Umsatzsteuer, Sondervorauszahlung, Lohnsteuer), Darlehen, Voranmeldungen und Aufladungen. Auch eine Zahlung auf dem Konto eines Zahlungsdienstleisters bleibt dort, weil zur Zahlung eine Gebühr gehören kann, die erst **Zuordnen und Gebühr buchen** mitbucht. Umsätze ohne bestätigbaren Vorschlag haben kein Markierfeld.
 - Haben bucht auch hier nie von selbst: Gebucht wird erst mit dem Klick auf **… bestätigen**. Der Server berechnet den Vorschlag dabei neu und bucht, was er jetzt ergibt.
 - Es wird alles oder nichts gebucht. Geht bei einem Umsatz etwas schief, etwa weil ein Beleg inzwischen bezahlt ist, bleibt auch der Rest ungebucht, und die Meldung nennt den Umsatz.
-- Ein einzelner Umsatz lässt sich markieren und bestätigen; in der Detailansicht bucht **Zuordnen** den Vorschlag wie bisher.
+
 
 ## Vorschläge
 
@@ -381,7 +391,7 @@ So gelernt werden:
 
 Nie gelernt werden Geldtransit (dafür braucht es die Gegenbuchung), alles mit dem Finanzamt, weil über dieselbe IBAN Umsatzsteuer und private Steuern laufen, und Lohn, Sozialversicherung, Steuerzahlungen und Darlehen: Dort ändern sich Abrechnung, Steuerart und Jahr oder der Teil der Rate von Zahlung zu Zahlung, und die Regeln oben kennen sie besser.
 
-Gebucht wird ein gelernter Vorschlag wie jeder andere erst mit **Buchen**; Haben bucht nie von selbst.
+Gebucht wird ein gelernter Vorschlag wie jeder andere erst mit **Buchen** oder, für mehrere Umsätze, mit [**… bestätigen**](#vorschläge-bestätigen); Haben bucht nie von selbst.
 
 ### Direkt buchen
 

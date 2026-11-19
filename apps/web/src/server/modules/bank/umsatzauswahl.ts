@@ -6,8 +6,10 @@ import {
   type DirectSuggestion,
   type Suggestion,
   suggestDirectBooking,
+  suggestLohnsteuer,
   suggestMatches,
 } from "@haben/core";
+import { lstaZahlbetraege } from "../lohn/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { ownAccounts } from "./accounts.ts";
 import type { AllocationInput } from "./allocation.ts";
@@ -32,12 +34,14 @@ function bestaetigungFuer(
   direkt: DirectSuggestion | null,
   gelernt: DirectSuggestion | undefined,
   rechtsform: Parameters<typeof directBookingLabel>[1],
+  zahlungsdienstleister: boolean,
 ): Bestaetigung | null {
   const transactionId = row.id;
   const amount = row.open;
   if (match) {
-    // Nur der volle Betrag ohne Skonto, Kursdifferenz oder Gebühr; alles andere entscheidet der Mensch in der Detailansicht
-    if (match.amount !== amount || match.skonto || match.exchangeDifference) return null;
+    // Nur der volle Betrag ohne Skonto oder Kursdifferenz; alles andere entscheidet der Mensch in der Detailansicht.
+    // Beim Zahlungsdienstleister kann zur Zahlung eine Gebühr gehören, die erst die Detailansicht mitbucht („Zuordnen und Gebühr buchen“)
+    if (match.amount !== amount || match.skonto || match.exchangeDifference || (zahlungsdienstleister && amount > 0)) return null;
     if (match.item.type === "invoice")
       return { input: { kind: "invoice", transactionId, invoiceId: match.item.id, amount }, text: `Rechnung ${match.item.number}` };
     if (match.item.type === "document")
@@ -62,6 +66,7 @@ export async function mitHinweisen(
   own: Awaited<ReturnType<typeof ownAccounts>>,
   konten: readonly Konto[],
 ) {
+  const lohnsteuer = await lstaZahlbetraege();
   const learned = await learnedDirectSuggestions(umsatze.filter((row) => !row.duplicatePending && row.open !== 0 && row.open === row.amount));
   const { rechtsform } = await loadCompany();
   return umsatze.map((row) => {
@@ -75,12 +80,16 @@ export async function mitHinweisen(
     const purpose = konten.find((konto) => konto.id === row.bankAccountId)?.purpose ?? "geschaeft";
     const [match] = suggestMatches({ ...row, amount: row.open }, items, 1);
     // PayPal auf dem Bankkonto braucht die Gegenbuchung, die erst die Detailansicht sucht.
-    const direct = !match && row.open === row.amount && current ? suggestDirectBooking(row, current, own) : null;
+    let direct = !match && row.open === row.amount && current ? suggestDirectBooking(row, current, own) : null;
+    // Wie die Detailansicht: Lastschrift des Finanzamts über den Betrag einer Lohnsteuer-Anmeldung, vor dem Gelernten
+    if (!match && !direct && row.open === row.amount) direct = suggestLohnsteuer(row, lohnsteuer);
+    // Was auf diesem Konto nicht buchbar ist, wird nicht vorgeschlagen (#873)
+    if (direct && !aufKontoAngeboten(direct.kind, purpose)) direct = null;
     // Gelernte Buchungsarten müssen auf diesem Konto zulässig sein (#873).
     const previous = learned.get(row.id);
     const hasSuggestion = !!match || (direct !== null && !direct.requiresCounterpart) || (previous !== undefined && aufKontoAngeboten(previous.kind, purpose));
     const gelerntErlaubt = previous !== undefined && aufKontoAngeboten(previous.kind, purpose) ? previous : undefined;
-    const bestaetigung = hasSuggestion ? bestaetigungFuer(row, match, direct, gelerntErlaubt, rechtsform) : null;
+    const bestaetigung = hasSuggestion ? bestaetigungFuer(row, match, direct, gelerntErlaubt, rechtsform, purpose === "zahlungsdienstleister") : null;
     return {
       ...row,
       bestaetigung,

@@ -1,6 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
+import { BESTAETIGEN_HOECHSTENS } from "../lib/bestaetigen-grenze.ts";
 import { useAction } from "../lib/use-action.ts";
 import { confirmProposalsFn } from "../server/functions/bank-bestaetigen.ts";
 import { isDialogOpen } from "./ConfirmDialog.tsx";
@@ -52,7 +53,8 @@ export function useBestaetigen(umsaetze: readonly MitVorschlag[]) {
     markierbar,
     marked,
     toggle,
-    setAlle: (an: boolean) => setMarked(new Set(an ? markierbar : [])),
+    /** Höchstens so viele, wie der Server auf einmal bucht: sonst scheitert der Klick erst beim Bestätigen */
+    setAlle: (an: boolean) => setMarked(new Set(an ? markierbar.slice(0, BESTAETIGEN_HOECHSTENS) : [])),
     confirm,
     busy: action.busy,
     notice: action.notice,
@@ -64,13 +66,18 @@ type Bestaetigen = ReturnType<typeof useBestaetigen>;
 /** Leiste über der Liste: alle Vorschläge markieren und die markierten gemeinsam bestätigen */
 export function BestaetigenLeiste({ b }: { b: Bestaetigen }) {
   if (b.markierbar.length === 0) return <NoticeBanner notice={b.notice} />;
-  const alle = b.marked.size === b.markierbar.length;
+  const grenze = Math.min(b.markierbar.length, BESTAETIGEN_HOECHSTENS);
+  const alle = b.marked.size === grenze;
   return (
     <>
       <div className="tx-confirm-bar">
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
           <input type="checkbox" checked={alle} onChange={(e) => b.setAlle(e.target.checked)} disabled={b.busy} />
-          <span>Alle {b.markierbar.length} Vorschläge markieren</span>
+          <span>
+            {b.markierbar.length > grenze
+              ? `Die ersten ${grenze} von ${b.markierbar.length} Vorschlägen markieren`
+              : `Alle ${b.markierbar.length} Vorschläge markieren`}
+          </span>
         </label>
         <button type="button" className="btn btn-primary btn-sm" disabled={b.busy || b.marked.size === 0} onClick={() => void b.confirm([...b.marked])}>
           {b.marked.size === 0 ? "Markierte bestätigen" : `${b.marked.size} bestätigen`}
