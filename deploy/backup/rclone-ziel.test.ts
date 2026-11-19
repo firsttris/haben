@@ -95,6 +95,21 @@ describe("configure_rclone", () => {
     expect(r.stderr).not.toContain("Abschnitt webdav fehlt");
   });
 
+  it("nimmt einen Abschnitt mit Parametern als Verbindungszeichenkette (remote,parameter=wert:pfad)", () => {
+    // rclone-Doku, „Connection strings“: remote,parameter=value,parameter2=value2:path/to/dir
+    const conf = konfiguration(webdavConf);
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav,vendor=nextcloud:haben", RCLONE_CONFIG: conf });
+    expect(r.stderr).toBe("");
+    expect(r.code).toBe(0);
+  });
+
+  it("schreibt Parameter einer Verbindungszeichenkette nicht ins Log, auch nicht bei fehlendem Abschnitt (#1349)", () => {
+    const conf = konfiguration(webdavConf);
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:andere,pass=geheim123:haben", RCLONE_CONFIG: conf });
+    expect(r.code).toBe(2);
+    expect(r.stderr + r.stdout).not.toContain("geheim123");
+  });
+
   it("nimmt nur den genauen Namen, nicht einen, der den gesuchten enthält", () => {
     const conf = konfiguration("[webdav-alt]\ntype = webdav\n[backup]\ntype = local\n");
     const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf });
