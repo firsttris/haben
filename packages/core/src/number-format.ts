@@ -87,7 +87,7 @@ export function documentNumberLengthProblem(number: string): string | null {
  * Standardformate“, Dok.-Nr. 1003221, Stand 13.08.2026, Abschnitt 3, Feld 11, https://apps.datev.de/help-center/documents/1003221).
  * Der Punkt aus dem Nummernformat wird zu „-“, damit `RE.2026.001` als `RE-2026-001` erkennbar bleibt; alles andere
  * außerhalb der Liste fällt weg (#675). Der DATEV-Export schreibt Belegnummern so ins Belegfeld 1 (datev-export.ts);
- * beim Festschreiben hält documentNumber Nummern auf, die dort aussehen wie eine schon vergebene (#1426).
+ * beim Festschreiben hält takeInvoiceNumber Nummern auf, die dort aussehen wie eine schon vergebene (#1426).
  */
 export function voucherField(value: string): string {
   return value
