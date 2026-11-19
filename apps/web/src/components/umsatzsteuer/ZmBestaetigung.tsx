@@ -1,7 +1,9 @@
 import { EVATR_FRIST_TAGE } from "@haben/core";
-import { useRouter } from "@tanstack/react-router";
+import { useLocation, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useAction } from "../../lib/use-action.ts";
+import { useState } from "react";
+import { errorMessage } from "../../lib/format.ts";
+import { useGemerkteMeldung } from "../../lib/gemerkte-meldung.ts";
 import { bestaetigeZmNummernFn } from "../../server/functions/zm.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 
@@ -12,18 +14,25 @@ import { NoticeBanner } from "../NoticeBanner.tsx";
 export function ZmBestaetigung({ period, offen }: { period: { year: number; month: number }; offen: number }) {
   const router = useRouter();
   const bestaetige = useServerFn(bestaetigeZmNummernFn);
-  const { busy, notice, setNotice, run } = useAction();
+  const [busy, setBusy] = useState(false);
+  // Die Meldung übersteht einen Neuaufbau der Seite nach dem Neuladen und gilt für diesen Besuch der Seite (gemerkte-meldung.ts)
+  const besuch = useLocation({ select: (location) => location.state.__TSR_key ?? location.href });
+  const [notice, setNotice] = useGemerkteMeldung(`zm-bestaetigung-${period.year}-${period.month}`, besuch);
   const nummern = (n: number) => `${n} gemeldete ${n === 1 ? "USt-IdNr." : "USt-IdNrn."}`;
 
   async function bestaetigen() {
-    let ergebnis: Awaited<ReturnType<typeof bestaetige>> | undefined;
-    const ok = await run(async () => {
-      ergebnis = await bestaetige({ data: period });
+    setBusy(true);
+    setNotice(null);
+    try {
+      const ergebnis = await bestaetige({ data: period });
+      if (ergebnis.hinweise.length) setNotice({ tone: "info", text: ergebnis.hinweise.join(" · ") });
+      else setNotice({ tone: "ok", text: `${nummern(ergebnis.gefragt)} beim BZSt angefragt; das Ergebnis steht in der Vorprüfung oben.` });
       await router.invalidate();
-    });
-    if (!ok || !ergebnis) return;
-    if (ergebnis.hinweise.length) setNotice({ tone: "info", text: ergebnis.hinweise.join(" · ") });
-    else setNotice({ tone: "ok", text: `${nummern(ergebnis.gefragt)} beim BZSt angefragt; das Ergebnis steht in der Vorprüfung oben.` });
+    } catch (error) {
+      setNotice({ tone: "danger", text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
