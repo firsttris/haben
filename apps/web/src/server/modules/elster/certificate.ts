@@ -18,7 +18,7 @@ export interface CertificateUpload {
  * Datei, sonst das eingetragene.
  */
 export async function saveCertificate(actor: string, file: CertificateUpload): Promise<{ validUntil: string | null; readFromFile: boolean }> {
-  // Vor der Transaktion, damit der Unterprozess keine Datenbankverbindung festhält
+  // Vor der Transaktion, damit keine Datenbankverbindung auf die Schlüsselableitung aus der PIN wartet
   const fromFile = file.pin ? await readCertificateExpiry(file.bytes, file.pin) : null;
   const validUntil = fromFile ?? file.validUntil;
   await withActor(actor, async (tx) => {
