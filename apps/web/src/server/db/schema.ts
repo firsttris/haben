@@ -17,6 +17,7 @@ import {
   text,
   timestamp,
   index,
+  unique,
   uniqueIndex,
   uuid,
   type AnyPgColumn,
@@ -162,6 +163,9 @@ export const company = pgTable(
     /** Zähler je Kreis: false = beginnt jedes Jahr bei 1, true = läuft über den Jahreswechsel weiter (#328) */
     invoiceCounterRunning: boolean("invoice_counter_running").notNull().default(false),
     quoteCounterRunning: boolean("quote_counter_running").notNull().default(false),
+    /** Zähler je Kunde: eigener Nummernkreis pro Kontakt statt gemeinsamem Kreis; {KUNDENNR} wird im Format Pflicht (#1426) */
+    invoiceCounterPerCustomer: boolean("invoice_counter_per_customer").notNull().default(false),
+    quoteCounterPerCustomer: boolean("quote_counter_per_customer").notNull().default(false),
     /** Kundennummern automatisch, z. B. "K-{NNNN}"; leer = von Hand. Der Zähler läuft durch, ohne Jahr */
     customerNumberFormat: text("customer_number_format").notNull().default(""),
     customerNumberNext: integer("customer_number_next").notNull().default(1),
@@ -1379,6 +1383,8 @@ export const invoices = pgTable(
     /** Kreis des Zählers: Jahr des Belegdatums, 0 = durchlaufender Zähler (counterCircle) */
     numberYear: smallint("number_year"),
     numberCounter: integer("number_counter"),
+    /** Kontakt des Kundenkreises, in dem die Nummer vergeben wurde; NULL = gemeinsamer Kreis (#1426) */
+    numberContactId: uuid("number_contact_id").references(() => contacts.id, { onDelete: "restrict" }),
     contactId: uuid("contact_id").references(() => contacts.id),
     contactVersion: integer("contact_version"),
     issueDate: date("issue_date", { mode: "string" }).notNull(),
@@ -1513,7 +1519,9 @@ export const invoices = pgTable(
     check("invoices_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
     // Storno und Korrektur verweisen immer auf das Original
     check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
-    uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
+    // Gleiche laufende Nummer in zwei Kreisen erlaubt, im selben Kreis nicht; Entwürfe tragen noch keinen Kreis.
+    // NULLS NOT DISTINCT am Index ergänzt die Migration von Hand — drizzle kennt es an Indexen nicht (#1426).
+    uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberContactId, t.numberCounter).where(sql`${t.numberYear} is not null`),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
     index("invoices_number_trgm_idx").using("gin", sql`haben_unaccent(${t.number}) gin_trgm_ops`),
     index("invoices_buyer_order_reference_trgm_idx").using("gin", sql`haben_unaccent(${t.buyerOrderReference}) gin_trgm_ops`),
@@ -1614,11 +1622,21 @@ export const invoiceAttachments = pgTable(
   ],
 );
 
-/** Letzte vergebene laufende Nummer je Jahr (0 = durchlaufender Zähler); lückenlos, weil nur beim Festschreiben gezogen */
-export const invoiceNumberCounters = pgTable("invoice_number_counters", {
-  year: smallint("year").primaryKey(),
-  last: integer("last").notNull(),
-});
+/**
+ * Letzte vergebene laufende Nummer je Nummernkreis: Jahr des Belegdatums (0 = durchlaufender Zähler) mal Kreis;
+ * `contact_id` NULL ist der gemeinsame Kreis wie bisher, sonst der Kundenkreis eines Kontakts (#1426). Lückenlos,
+ * weil nur beim Festschreiben gezogen.
+ */
+export const invoiceNumberCounters = pgTable(
+  "invoice_number_counters",
+  {
+    year: smallint("year").notNull(),
+    last: integer("last").notNull(),
+    /** Kreis des Zählers: NULL = gemeinsamer Kreis, sonst der Kontakt des Kundenkreises (#1426) */
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "restrict" }),
+  },
+  (t) => [unique().on(t.year, t.contactId).nullsNotDistinct()],
+);
 
 /**
  * Angebote: Entwurf frei änderbar, beim Festschreiben Nummer (eigener Kreis) und PDF, danach fest.
@@ -1633,6 +1651,8 @@ export const quotes = pgTable(
     /** Kreis des Zählers: Jahr des Belegdatums, 0 = durchlaufender Zähler (counterCircle) */
     numberYear: smallint("number_year"),
     numberCounter: integer("number_counter"),
+    /** Kontakt des Kundenkreises, in dem die Nummer vergeben wurde; NULL = gemeinsamer Kreis (#1426) */
+    numberContactId: uuid("number_contact_id").references(() => contacts.id, { onDelete: "restrict" }),
     contactId: uuid("contact_id").references(() => contacts.id),
     contactVersion: integer("contact_version"),
     /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
@@ -1692,7 +1712,8 @@ export const quotes = pgTable(
     index("quotes_buyer_name_trgm_idx").using("gin", sql`haben_unaccent(${t.buyer} ->> 'name') gin_trgm_ops`),
     index("quotes_gross_search_idx").on(t.gross),
     index("quotes_contactId_search_idx").on(t.contactId),
-    uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
+    // Kreise wie bei `invoices_number_counter` (#1426)
+    uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberContactId, t.numberCounter).where(sql`${t.numberYear} is not null`),
   ],
 );
 
@@ -1939,11 +1960,17 @@ export const textBlocks = pgTable(
   ],
 );
 
-/** Letzte Angebotsnummer je Jahr (0 = durchlaufender Zähler) */
-export const quoteNumberCounters = pgTable("quote_number_counters", {
-  year: smallint("year").primaryKey(),
-  last: integer("last").notNull(),
-});
+/** Letzte Angebotsnummer je Nummernkreis (Kreise wie bei `invoiceNumberCounters`) */
+export const quoteNumberCounters = pgTable(
+  "quote_number_counters",
+  {
+    year: smallint("year").notNull(),
+    last: integer("last").notNull(),
+    /** Kreis des Zählers: NULL = gemeinsamer Kreis, sonst der Kontakt des Kundenkreises (#1426) */
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "restrict" }),
+  },
+  (t) => [unique().on(t.year, t.contactId).nullsNotDistinct()],
+);
 
 /** Buchungen. Festgeschrieben ab Entstehung; Korrektur nur per Gegenbuchung. */
 export const journalEntries = pgTable(

@@ -28,6 +28,7 @@ import {
   listInvoices,
   newDraftDefaults,
   numbering,
+  contactNumbering,
   abschlagLinks,
   openAbschlaege,
   invoiceSettlementReversalSchema,
@@ -295,10 +296,22 @@ export const getNumbering = createServerFn({ method: "GET" })
     return { invoice, quote };
   });
 
+/** Die Nummernkreise eines Kunden (#1426): je Art nur, wenn deren Zähler je Kunde läuft, sonst null */
+export const getCustomerNumbering = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.object({ contactId: z.string().uuid() }))
+  .handler(async ({ data }) => contactNumbering(today(), data.contactId));
+
 export const saveNextNumber = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ kind: z.enum(["rechnung", "angebot"]).default("rechnung"), next: z.number().int().min(1).max(999_999) }))
+  .validator(
+    z.object({
+      kind: z.enum(["rechnung", "angebot"]).default("rechnung"),
+      next: z.number().int().min(1).max(999_999),
+      contactId: z.string().uuid().nullable().optional(),
+    }),
+  )
   .handler(async ({ data, context }) => {
-    await setNextNumber(context.user.id, today(), data.next, data.kind);
+    await setNextNumber(context.user.id, today(), data.next, data.kind, data.contactId ?? null);
     return { ok: true };
   });

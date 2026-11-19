@@ -51,7 +51,14 @@ export const saveNavMarkSetting = createServerFn({ method: "POST" })
 export const saveNumberFormatSettings = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    z.object({ invoice: z.string().max(100), quote: z.string().max(100), invoiceRunning: z.boolean().optional(), quoteRunning: z.boolean().optional() }),
+    z.object({
+      invoice: z.string().max(100),
+      quote: z.string().max(100),
+      invoiceRunning: z.boolean().optional(),
+      quoteRunning: z.boolean().optional(),
+      invoicePerCustomer: z.boolean().optional(),
+      quotePerCustomer: z.boolean().optional(),
+    }),
   )
   .handler(async ({ data, context }) => {
     await saveNumberFormats(context.user.id, data);

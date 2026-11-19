@@ -103,6 +103,17 @@ describe.skipIf(!testDatabaseUrl)("Verfahrensdokumentation aus der Instanz (Post
     expect(md).toContain("ELSTER-Zertifikat ist hinterlegt, gültig bis 31.03.2028");
   });
 
+  it("nennt den Zähler je Kunde nur an der Art, für die er läuft (#1426)", async () => {
+    await seed();
+    await sql`update company set invoice_counter_per_customer = true`;
+    const text = doku.buildProcedureDocument(await doku.readInstanzStand(now), { ...DETAILS }, now);
+    const liste = text.abschnitte.find((a) => a.titel.startsWith("2."))!.liste!;
+    expect(liste.find((e) => e.startsWith("Rechnungsnummern"))).toContain(
+      "jeder Kunde hat einen eigenen Zähler; Storno und Korrektur zählen im Kreis, den die Einstellung beim Festschreiben ergibt",
+    );
+    expect(liste.find((e) => e.startsWith("Angebotsnummern"))).not.toContain("eigenen Zähler");
+  });
+
   it("enthält keine Geheimnisse, weder im Datenmodell noch im Markdown", async () => {
     await seed();
     const document = doku.buildProcedureDocument(await doku.readInstanzStand(now), { ...DETAILS }, now);

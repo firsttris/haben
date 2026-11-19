@@ -1,5 +1,5 @@
 import { formatRateMonth, invoicePosting, legacyCorrectionPosting, leistungsdatum, lineAmount, outgoingTaxIssues, rateMonth } from "@haben/core";
-import { buildEInvoice, validateForFormat } from "@haben/einvoice";
+import { buildEInvoice, validateForFormat, type Buyer } from "@haben/einvoice";
 import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
@@ -7,7 +7,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { today } from "../../today.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { ansprechpartnerSnapshot, loadCompany, loadLetterhead, loadUnitCodes, sellerIssues, withCustomLayout } from "../stammdaten/index.ts";
+import { ansprechpartnerSnapshot, type Contact, loadCompany, loadLetterhead, loadUnitCodes, sellerIssues, withCustomLayout } from "../stammdaten/index.ts";
 import { deductedRefs, deductionIds, deductionProblems, openAbschlaege } from "./advance-deductions.ts";
 import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { advanceProcedure } from "./advance-procedure.ts";
@@ -23,7 +23,7 @@ import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
 import { getInvoice, type Invoice, type InvoiceLine } from "./invoices.ts";
 import { directDebitFor, directDebitIssues } from "./lastschrift.ts";
 import { serviceEntryCustomerIssues } from "./leistungen-kunde.ts";
-import { circleFor, documentNumber, peekNumber, takeInvoiceNumber } from "./number-counter.ts";
+import { assertNumberingCurrent, circleContact, circleFor, customerNumberConflict, documentNumber, peekNumber, takeInvoiceNumber } from "./number-counter.ts";
 import { assertQuotesLocked, billsWholeQuote, lockQuotes, quotesTouching, syncQuoteBilling } from "./quote-billing.ts";
 import { pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
@@ -45,7 +45,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
   issues.push(...(await versteuerungIssues(company, invoice.issueDate, q)));
-  issues.push(...buyerIssues(company.invoiceNumberFormat, contact, data.corrects));
+  issues.push(...buyerIssues(company.invoiceNumberFormat, contact, data.corrects, company.invoiceCounterPerCustomer));
   if (invoice.advanceType === "teilleistung") {
     if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
     if ((invoice.serviceTo ?? invoice.serviceFrom ?? "") > invoice.issueDate) issues.push("Die Teilleistung ist am Rechnungsdatum noch nicht erbracht");
@@ -212,14 +212,17 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
   }
 
-  // Storno/Korrektur: Anschrift des Originals, {KUNDENNR} daraus oder vom Kontakt (#1426); nur gelesen, daher vor der Sperre
-  const seller = sellerFrom(company);
-  const buyer = numberedBuyer(corrects?.buyer ?? null, contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId), company.invoiceNumberFormat);
-
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
-  // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
+  // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts).
+  // Der Kreis ist der des Kunden, wenn der Zähler je Kunde kreist; Storno und Korrektur nummerieren wie eine neue
+  // Rechnung im Kreis, den die Einstellung beim Festschreiben ergibt — nicht im Kreis des Originals (#1426).
   const circle = await circleFor(tx, "rechnung", invoice.issueDate);
-  const counter = await peekNumber(tx, "rechnung", circle);
+  const numberContactId = circleContact(company.invoiceCounterPerCustomer, invoice.contactId!);
+  // Storno/Korrektur: Anschrift des Originals. {KUNDENNR} ist im gemeinsamen Kreis die Nummer des Originals, solange
+  // sie taugt, sonst die heutige; im Kundenkreis muss sie zum Kreis gehören und ist die des Kontakts (#1426).
+  const seller = sellerFrom(company);
+  const buyer = await buyerForFinalization(tx, company, invoice, corrects, contact!, numberContactId);
+  const counter = await peekNumber(tx, "rechnung", circle, numberContactId);
   const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, umsatzStand, bestaetigt);
@@ -239,7 +242,9 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
-  await takeInvoiceNumber(tx, circle, counter, number);
+  await takeInvoiceNumber(tx, circle, counter, number, numberContactId);
+  const used = { format: company.invoiceNumberFormat, date: invoice.issueDate, year: circle, contactId: numberContactId };
+  await assertNumberingCurrent(tx, "rechnung", used, invoice.contactId!);
   const [finalized] = await withAdvanceVatChange(tx, id, () =>
     tx
       .update(schema.invoices)
@@ -249,6 +254,7 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
         number,
         numberYear: circle,
         numberCounter: counter,
+        numberContactId,
         contactVersion: contact!.version,
         seller,
         buyer,
@@ -273,6 +279,33 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   await syncQuoteBilling(tx, quoteIds);
 
   return finalized!;
+}
+
+/** Käufer für Nummer und Beleg plus die Eindeutigkeit der Kundennummer für neue Belege im Kundenkreis (#1426) */
+async function buyerForFinalization(
+  tx: Tx,
+  company: Company,
+  invoice: Invoice,
+  corrects: Invoice | undefined,
+  contact: Contact,
+  numberContactId: string | null,
+): Promise<Buyer> {
+  const buyer = numberedBuyer(
+    corrects?.buyer ?? null,
+    contact,
+    await ansprechpartnerSnapshot(tx, invoice.contactPersonId),
+    company.invoiceNumberFormat,
+    numberContactId !== null,
+  );
+  // Storno und Korrektur bleiben immer möglich (GoBD), auch wenn die Kundennummer inzwischen zweimal vorkommt;
+  // die Eindeutigkeit zählt nur für neue Belege im Kundenkreis
+  if (!corrects && numberContactId !== null) {
+    const conflict = await customerNumberConflict(tx, contact);
+    if (conflict) {
+      throw new InvoiceError(`Die Kundennummer ${contact.kundennummer} hat auch „${conflict}“; mit Zähler je Kunde muss sie eindeutig sein.`);
+    }
+  }
+  return buyer;
 }
 
 /**

@@ -18,23 +18,20 @@ export function RechnungAngaben({ data, cancelled }: { data: Detail; cancelled: 
         <dd>{buyer?.name ?? "–"}</dd>
         <dt>Rechnungsdatum</dt>
         <dd>{formatDate(invoice.issueDate)}</dd>
-        {invoice.kind === "rechnung" && (
-          <>
-            {invoice.paymentMethod === "bereits_bezahlt" && invoice.paidOn ? (
-              <>
-                <dt>Bezahlt am</dt>
-                <dd>{formatDate(invoice.paidOn)}</dd>
-                <dt>Bezahlt über</dt>
-                <dd>{invoice.paidVia}</dd>
-              </>
-            ) : (
-              <>
-                <dt>Fällig</dt>
-                <dd>{formatDate(invoice.dueDate)}</dd>
-              </>
-            )}
-          </>
-        )}
+        {invoice.kind === "rechnung" &&
+          (invoice.paymentMethod === "bereits_bezahlt" && invoice.paidOn ? (
+            <>
+              <dt>Bezahlt am</dt>
+              <dd>{formatDate(invoice.paidOn)}</dd>
+              <dt>Bezahlt über</dt>
+              <dd>{invoice.paidVia}</dd>
+            </>
+          ) : (
+            <>
+              <dt>Fällig</dt>
+              <dd>{formatDate(invoice.dueDate)}</dd>
+            </>
+          ))}
         <dt>Netto</dt>
         <dd className="amount">{formatEuro(invoice.net)}</dd>
         <dt>Umsatzsteuer</dt>

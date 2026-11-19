@@ -2122,6 +2122,20 @@
       "when": 1795096207968,
       "tag": "0302_fastbill_vorlagen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 303,
+      "version": "7",
+      "when": 1795114370068,
+      "tag": "0303_nummernkreis_kunde",
+      "breakpoints": true
+    },
+    {
+      "idx": 304,
+      "version": "7",
+      "when": 1795114391267,
+      "tag": "0304_nummernkreis_kunde_audit",
+      "breakpoints": true
     }
   ]
 }

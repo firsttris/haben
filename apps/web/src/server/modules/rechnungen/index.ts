@@ -79,7 +79,7 @@ export { cancelInvoice, createCorrection } from "./invoice-cancellation.ts";
 export { buyerFrom, sellerFrom } from "./invoice-document.ts";
 export { assertCustomer, createDraft, deleteDraft, insertDraft, newDraftDefaults, updateDraft } from "./invoice-drafts.ts";
 export { finalizeInvoice, finalizeIssues } from "./invoice-finalize.ts";
-export { numbering, setNextNumber } from "./invoice-numbering.ts";
+export { contactNumbering, numbering, setNextNumber } from "./invoice-numbering.ts";
 export { getInvoice, invoiceSummary, listInvoices, type Invoice, type InvoiceLine, type InvoiceListStatus } from "./invoices.ts";
 export { confirmationPdf, deliveryNotePdf, OrderDocumentError } from "./order-documents.ts";
 export { DocumentPreviewError, documentPreview, documentPreviewSchema, type DocumentPreview, type DocumentPreviewInput } from "./document-preview.ts";
