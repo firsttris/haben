@@ -305,6 +305,44 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(await sql`select 1 from beleg_layouts`).toEqual([]);
   });
 
+  it("gibt ein Layout nicht frei, das ein anderes Paket lädt als die Datei nennt", async () => {
+    await testinstanz();
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    // cetz steht nur im Kommentar; den zusammengesetzten Namen sieht erst Typst beim Setzen
+    const source = `// @preview/cetz:0.3.4\n#import "@preview/" + "tablex:0.0.8": tablex\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow("@preview/tablex:0.0.8");
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
+  it("gibt ein Layout nicht frei, wenn nur die Paketliste das zusammengesetzt geladene Paket nennt", async () => {
+    await testinstanz();
+    // „Pakete neu laden“ lädt die Pakete aus dem Quelltext, nicht die Liste der Datei
+    const liste = [
+      { name: "@preview/cetz", version: "0.3.4" },
+      { name: "@preview/tablex", version: "0.0.8" },
+    ];
+    const source = `// @preview/cetz:0.3.4\n#import "@preview/" + "tablex:0.0.8": tablex\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(liste)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow("@preview/tablex:0.0.8");
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
+  it("gibt ein Layout frei, das ohne seine Pakete auch an einer Folge davon scheitert", async () => {
+    await testinstanz();
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    // Ohne cetz fehlt der Wert, den der zweite #context abfragt; Typst meldet dazu „array is empty“
+    const source = `#context { import "@preview/cetz:0.3.4": canvas; [#metadata(1) <wert>] }\n#context query(<wert>).first().value\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    const sha256 = createHash("sha256").update(source).digest("hex");
+    expect(await sql`select packages, approved_sha256 from beleg_layouts`).toEqual([{ packages: cetz, approved_sha256: sha256 }]);
+  });
+
   it("speichert ein Layout, das ohne seine Pakete setzt, wie eines ohne Pakete: geprüft und ohne Freigabe", async () => {
     await testinstanz();
     const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
