@@ -72,7 +72,7 @@ export function StripePaymentsCard({ data }: { data: Data }) {
         </div>
       )}
 
-      <form onSubmit={onSubmit}>
+      <form className="stack" onSubmit={onSubmit}>
         <Field
           label={data.configured ? "API-Schlüssel (leer lassen zum Behalten)" : "API-Schlüssel"}
           hint="Beginnt mit rk_live_ oder sk_live_; er liegt verschlüsselt in der Datenbank. Der öffentliche Schlüssel pk_ reicht nicht."
@@ -93,9 +93,9 @@ export function StripePaymentsCard({ data }: { data: Data }) {
             </select>
           )}
         </Field>
-        <div className="row" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? "Speichere …" : "Speichern"}
+        <div className="actions">
+          <button type="button" className="btn btn-danger" disabled={busy || !data.configured} onClick={() => setConfirmingRemove(true)}>
+            Zugang entfernen
           </button>
           <button
             type="button"
@@ -113,8 +113,8 @@ export function StripePaymentsCard({ data }: { data: Data }) {
           >
             {busy ? "Laufe …" : "Jetzt abrufen"}
           </button>
-          <button type="button" className="btn btn-danger" disabled={busy || !data.configured} onClick={() => setConfirmingRemove(true)}>
-            Zugang entfernen
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? "Speichere …" : "Speichern"}
           </button>
         </div>
         <NoticeBanner notice={notice} />
