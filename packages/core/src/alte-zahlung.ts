@@ -13,7 +13,9 @@ import { ACCOUNTS, type Kontenrahmen, type PostingLine } from "./posting.ts";
  * Gebuchte Zeilen bleiben, wie sie sind (GoBD); beim Lesen bekommt die Zahlung Forderungs- und Steuerzeilen, wie Haben sie
  * heute aus Rechnung und Anteil bucht, wenn diese auf jedem dieser Konten denselben Saldo ergeben. Die Geldzeile bleibt die
  * gebuchte: Bank, Kasse oder Verrechnungskonto eines Zahlungsdienstleisters. Trägt eine Zeile schon eine
- * Bemessungsgrundlage, ist die Zahlung im heutigen Format gebucht und bleibt, wie sie ist.
+ * Bemessungsgrundlage, ist die Zahlung im heutigen Format gebucht und bleibt, wie sie ist. Der Aufrufer wendet die Funktion
+ * nur auf Zahlungen an, die vor dem Update auf das Journal angelegt wurden, und ihre Stornos (zahlungAusAlterVersion in
+ * apps/web); eine neue Zahlung ohne Bemessungsgrundlage wäre ein Fehler, den die Verprobung zeigen soll.
  */
 
 /** Die Zeilen einer Zahlung auf eine Rechnung, bei einer Buchung von vor #552 mit der Bemessungsgrundlage wie heute */

@@ -10,24 +10,11 @@ import {
   type VatPeriod,
   type Versteuerung,
 } from "@haben/core";
-import { and, asc, eq, gte, lt, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
+import { belegAusAlterVersion } from "./alte-version.ts";
 import { zahlungenWieHeute } from "./zahlung-alte-version.ts";
-
-const updateAufDasJournal = sql`(select min(${schema.journalUmstellung.at}) from ${schema.journalUmstellung})`;
-
-/**
- * Belegbuchung aus einer Version vor dem Update auf das Journal (v0.10): angelegt vor der ersten Zeile in
- * journal_umstellung, die die Migration 0275 beim Update schreibt, oder der Storno einer solchen. Nur solche Buchungen kann
- * Haben vor #551 geschrieben haben; ein späterer Storno kehrt die gebuchten Zeilen um, wenn die heutigen nicht auf jedem
- * Konto dasselbe ergeben (zeilenWieHeute). mitBemessungWieHeute gilt nur für sie, Buchungen neuer Versionen deutet es so
- * nie um (#1396). Ohne die Tabelle oder ihre erste Zeile: keine. Fällt journal_umstellung mit #1201 weg, muss dieser
- * Zeitpunkt bleiben.
- */
-export const belegAusAlterVersion = sql<boolean>`(${schema.journalEntries.sourceType} = 'document' and coalesce(
-  (select o.created_at from journal_entries o where o.id = ${schema.journalEntries.reversesId}), ${schema.journalEntries.createdAt}
-) < ${updateAufDasJournal})`;
 
 /*
  * Kennzahlen der Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): die Quelle der Voranmeldung,
@@ -68,7 +55,7 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .orderBy(asc(e.id));
   const buchungen = new Map<
     string,
-    { sourceType: string; sourceId: string; kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; alt: boolean; zeilen: JournalZeile[] }
+    { id: string; sourceType: string; sourceId: string; kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; alt: boolean; zeilen: JournalZeile[] }
   >();
   const taxes = invoiceTaxReader(q);
   for (const r of rows) {
@@ -87,7 +74,15 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
             taxTreatment: r.treatment ?? "regulaer",
           })
         : versteuerung;
-      b = { sourceType: r.sourceType, sourceId: r.sourceId, kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, alt: r.alt === true, zeilen: [] };
+      b = {
+        id: r.id,
+        sourceType: r.sourceType,
+        sourceId: r.sourceId,
+        kontenrahmen: r.kontenrahmen as Kontenrahmen,
+        versteuerung: mode,
+        alt: r.alt === true,
+        zeilen: [],
+      };
       buchungen.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });

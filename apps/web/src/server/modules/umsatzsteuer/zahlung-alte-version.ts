@@ -7,18 +7,23 @@ import {
   type Kontenrahmen,
   type TaxShare,
 } from "@haben/core";
-import { inArray } from "drizzle-orm";
+import { and, inArray } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTaxReader, invoiceTotalsById } from "../rechnungen/index.ts";
+import { zahlungAusAlterVersion } from "./alte-version.ts";
 
 /*
  * Zahlungen auf Ausgangsrechnungen bei Ist aus Versionen vor #552 (bis v0.6) tragen keine Bemessungsgrundlage (#1502,
  * zahlungMitBemessungWieHeute in @haben/core). Voranmeldung, Verprobung und „Vorgang gegen Buchung“ lesen sie mit den
  * Zeilen, die Haben heute aus Rechnung, Betrag und gespeichertem Anteil bucht (wie der Storno einer solchen Bareinnahme,
- * bank/cash.ts), wenn diese auf Forderung und Umsatzsteuer denselben Saldo ergeben. Gebucht bleibt, wie es ist.
+ * bank/cash.ts), wenn diese auf Forderung und Umsatzsteuer denselben Saldo ergeben. Gebucht bleibt, wie es ist. Nur für
+ * Buchungen von vor dem Update auf das Journal und ihre Stornos (zahlungAusAlterVersion): Eine neue Zahlung ohne
+ * Bemessungsgrundlage wäre ein Fehler, den die Verprobung zeigen soll.
  */
 
 export interface ZahlungsBuchung {
+  /** Die Buchung (journal_entries.id) */
+  id: string;
   sourceType: string;
   sourceId: string;
   kontenrahmen: Kontenrahmen;
@@ -46,7 +51,22 @@ async function inBloecken<T>(ids: string[], lade: (block: string[]) => Promise<T
 
 /** Die Buchungen, Zahlungen von vor #552 mit der Bemessungsgrundlage wie heute; alle anderen unverändert */
 export async function zahlungenWieHeute<B extends ZahlungsBuchung>(buchungen: readonly B[], q: Db | Tx): Promise<B[]> {
-  const kandidaten = buchungen.filter(ohneBemessung);
+  const ohne = buchungen.filter(ohneBemessung);
+  if (ohne.length === 0) return [...buchungen];
+  const e = schema.journalEntries;
+  const alt = new Set(
+    (
+      await inBloecken(
+        ohne.map((b) => b.id),
+        (ids) =>
+          q
+            .select({ id: e.id })
+            .from(e)
+            .where(and(inArray(e.id, ids), zahlungAusAlterVersion)),
+      )
+    ).map((r) => r.id),
+  );
+  const kandidaten = ohne.filter((b) => alt.has(b.id));
   if (kandidaten.length === 0) return [...buchungen];
   const quelle = (typ: string) => [...new Set(kandidaten.filter((b) => b.sourceType === typ).map((b) => b.sourceId))];
   const a = schema.allocations;
@@ -72,7 +92,7 @@ export async function zahlungenWieHeute<B extends ZahlungsBuchung>(buchungen: re
   const ist = new Set<string>();
   for (const r of rechnungen.values()) if ((await taxes.paymentPostingMode(r)) === "ist") ist.add(r.id);
   return buchungen.map((b) => {
-    if (!ohneBemessung(b)) return b;
+    if (!alt.has(b.id) || !ohneBemessung(b)) return b;
     const v = vorgaenge.get(`${b.sourceType}:${b.sourceId}`);
     const rechnung = v?.invoiceId ? rechnungen.get(v.invoiceId) : undefined;
     const t = rechnung ? totals.get(rechnung.id) : undefined;

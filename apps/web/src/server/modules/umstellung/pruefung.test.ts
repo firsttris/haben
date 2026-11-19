@@ -130,11 +130,14 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
   /**
    * Daten wie aus einer Version vor v0.7.0: Steuerschlüssel bzw. Bemessungsgrundlage an der Zahlung fehlen (#551, #552).
    * `passtNicht`: Die Zahlung bucht einen Cent weniger Umsatzsteuer, als Haben heute aus Rechnung und Anteil buchen würde;
-   * dann bleibt sie auch beim Lesen, wie gebucht (#1502).
+   * dann bleibt sie auch beim Lesen, wie gebucht (#1502). Das Update auf das Journal (erste Zeile in journal_umstellung)
+   * liegt danach hinter den Buchungen, wie bei einer Instanz, die vor dem Update gebucht hat; `nachDemUpdate`: die Buchungen
+   * danach, also wie aus einer neuen Version.
    */
-  async function alteBuchung(kr: "SKR03" | "SKR04", v: "ist" | "soll", passtNicht = false) {
+  async function alteBuchung(kr: "SKR03" | "SKR04", v: "ist" | "soll", passtNicht = false, nachDemUpdate = false) {
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
+      if (!nachDemUpdate) await tx`update journal_umstellung set at = clock_timestamp()`;
       if (v === "ist") await tx`update journal_lines set basis = null where basis is not null`;
       else await tx`update journal_lines set tax_code = null where account = ${kr === "SKR03" ? "8400" : "4400"}`;
       if (v === "ist" && passtNicht) {
@@ -448,6 +451,24 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);
     }
+
+  for (const kr of ["SKR03", "SKR04"] as const)
+    it(`Zahlung ohne Bemessungsgrundlage, nach dem Update gebucht: bleibt, wie gebucht, die Verprobung meldet sie (#1502) (${kr}, ist)`, async () => {
+      await reset(kr, "ist");
+      const inv = await invoice("2026-03-10");
+      await pay(inv.id, "20.04.2026", "119,00");
+      // Eine neue Version bucht die Bemessungsgrundlage immer; fehlt sie, ist das ein Fehler, den die Prüfung zeigen soll
+      await alteBuchung(kr, "ist", false, true);
+      expect(await umstellung.umstellungBefunde(2027, today)).toContainEqual(
+        expect.objectContaining({
+          bereich: "ustva",
+          schluessel: expect.stringMatching(/^buchung:[0-9a-f-]+:umsatzsteuer:1900$/),
+          journal: 19_00,
+          quelle: 0,
+        }),
+      );
+      expect((await vat.computedValues({ year: 2026, month: 4 })).kz81).toBe(0);
+    }, 60_000);
 
   it("vermerkte Umsatzsteuererklärung, danach die Voranmeldungen des Jahres vermerkt: Journal unverändert, kein Befund", async () => {
     await reset("SKR03", "soll");

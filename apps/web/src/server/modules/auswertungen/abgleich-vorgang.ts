@@ -285,7 +285,7 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
     (
       await zahlungenWieHeute(
         [...buchungen].map((b) => ({
-          entryId: b.entry_id,
+          id: b.entry_id,
           sourceType: b.typ,
           sourceId: b.source_id,
           kontenrahmen: b.kontenrahmen,
@@ -293,7 +293,7 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
         })),
         q,
       )
-    ).map((b) => [b.entryId, b.zeilen]),
+    ).map((b) => [b.id, b.zeilen]),
   );
   // Erledigt: Zuordnungen, Ausbuchungen und Bareinnahmen decken das Brutto
   const summen = new Map(
