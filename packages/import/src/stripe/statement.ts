@@ -9,6 +9,11 @@ import type { StripeBalanceTransaction } from "./client.ts";
  * dieselbe Funktion beide: Die Balance Transactions werden zu den Zeilen des Exports (Spalten `balance_transaction_id`,
  * `created_utc`, `reporting_category`, `gross`, `fee`, `net`, `currency`, `description`, `customer_name`), und
  * `parseStripe` macht daraus die Umsätze: Bruttobetrag und Gebühr getrennt, die Gebühr mit der Referenz `<txn>-gebuehr`.
+ *
+ * Grenze: Der Zweck enthält die Art der Zeile und geht in den Dubletten-Hash. Der Abruf nimmt die `reporting_category` wie der
+ * aktuelle Balance-Bericht. Der ältere Export führt die Spalte `Type`; wo sie anders heißt (`payment`, `payment_refund`,
+ * `adjustment` statt `charge`, `refund`, `dispute`), gilt dieselbe Zeile im Abruf als anderer Umsatz. Die Doku sagt, wie man
+ * das umgeht (Abruf ab nach dem letzten Tag des Exports); der Test „Grenze“ in statement.test.ts hält es fest.
  */
 
 const euro = (cents: number) => (cents / 100).toFixed(2);

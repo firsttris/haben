@@ -89,6 +89,32 @@ describe("StripeClient", () => {
     ]);
   });
 
+  it("holt ohne Aufklappen erneut, wenn der Schlüssel es nicht erlaubt (403), und sagt es", async () => {
+    const { client: c, calls } = client([
+      json({ error: { message: "The provided key does not have the required permissions" } }, 403),
+      json({ object: "list", data: [txn("txn_a")], has_more: false }),
+    ]);
+    expect((await c.balanceTransactions("2026-10-01", "2026-10-31")).map((t) => t.id)).toEqual(["txn_a"]);
+    expect(calls[0]!.url.searchParams.getAll("expand[]")).toEqual(["data.source", "data.source.charge"]);
+    expect(calls[1]!.url.searchParams.getAll("expand[]")).toEqual([]);
+    expect(c.ohneZahlungsdetails).toBe(true);
+  });
+
+  it("meldet 403 auch ohne Aufklappen und fällt bei 401 nicht zurück", async () => {
+    const { client: c } = client([json({ error: { message: "keine Rechte" } }, 403), json({ error: { message: "keine Rechte" } }, 403)]);
+    await expect(c.balanceTransactions("2026-10-01", "2026-10-31")).rejects.toMatchObject({ status: 403, message: "Zugriff abgelehnt: keine Rechte" });
+    expect(c.ohneZahlungsdetails).toBe(false);
+    const { client: ungueltig, calls } = client([json({ error: { message: "Invalid API Key" } }, 401)]);
+    await expect(ungueltig.balanceTransactions("2026-10-01", "2026-10-31")).rejects.toMatchObject({ status: 401 });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("lässt den Schlüssel nie in einer Meldung stehen, auch nicht in einem Rumpf, der kein JSON ist", async () => {
+    const { client: c } = client([new Response("Bad gateway for rk_test_beispiel", { status: 400 })]);
+    const error = await c.balanceTransactions("2026-10-01", "2026-10-31").catch((e: Error) => e);
+    expect((error as Error).message).toBe("HTTP 400: Bad gateway for …");
+  });
+
   it("liefert die Konto-ID", async () => {
     const { client: c } = client([json({ id: "acct_beispiel", object: "account" })]);
     expect(await c.accountId()).toBe("acct_beispiel");

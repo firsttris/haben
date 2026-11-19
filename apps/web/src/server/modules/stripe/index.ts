@@ -14,5 +14,5 @@ export {
   stripeSettingsSchema,
   stripeSummary,
 } from "./connections.ts";
-export { importStripe, stripeAuszug, type StripeImportOptions, type StripeImportResult } from "./import.ts";
+export { importStripe, type StripeImportOptions, type StripeImportResult } from "./import.ts";
 export { runDueStripeSyncs, STRIPE_SYNC_ACTOR, syncStripe, type StripeSyncResult } from "./sync.ts";

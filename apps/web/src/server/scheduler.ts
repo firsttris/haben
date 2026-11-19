@@ -87,6 +87,7 @@ export async function runScheduledJobs(): Promise<void> {
   try {
     const result = await runDueStripeSyncs();
     if (result.added > 0) console.log(`Stripe: ${result.added} neue Umsätze aus den Balance Transactions`);
+    for (const message of result.messages) console.warn(`Stripe: ${message}`);
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Stripe", error);

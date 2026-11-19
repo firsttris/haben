@@ -50,8 +50,14 @@ async function syncStripeEinmal(actor: string, now: Date): Promise<StripeSyncRes
   const dateTo = utcDay(now);
   let neuerStart = dateFrom;
   try {
-    const transactions = await stripeClientFor(connection.apiKey).balanceTransactions(dateFrom, dateTo);
+    const client = stripeClientFor(connection.apiKey);
+    const transactions = await client.balanceTransactions(dateFrom, dateTo);
     result.entries = transactions.length;
+    if (client.ohneZahlungsdetails) {
+      result.messages.push(
+        "Der Schlüssel erlaubt Stripe nicht, Zahlungen aufzuklappen: Name des Kunden und Bezug von Erstattungen fehlen. Die Umsätze sind vollständig; mit zusätzlichem Lesezugriff (etwa auf Zahlungen und Erstattungen) kommen die Angaben dazu.",
+      );
+    }
     const imported = await importStripe(actor, transactions, { accountId: connection.row.accountId, dateFrom, dateTo, now });
     result.added = imported.added;
     result.accountName = imported.accountName;
@@ -71,8 +77,8 @@ function update(actor: string, values: Partial<typeof schema.stripeConnections.$
 }
 
 /** Automatischer Abruf: nur, wenn eingerichtet und der letzte Anlauf lange genug her ist */
-export async function runDueStripeSyncs(now = new Date()): Promise<{ synced: number; added: number; errors: string[] }> {
-  const summary = { synced: 0, added: 0, errors: [] as string[] };
+export async function runDueStripeSyncs(now = new Date()): Promise<{ synced: number; added: number; messages: string[]; errors: string[] }> {
+  const summary = { synced: 0, added: 0, messages: [] as string[], errors: [] as string[] };
   const connection = await loadStripeConnection();
   if (!connection) return summary;
   const letzter = connection.row.lastSyncAt ? { zeit: connection.row.lastSyncAt, fehlgeschlagen: connection.row.lastError !== null } : null;
@@ -81,6 +87,7 @@ export async function runDueStripeSyncs(now = new Date()): Promise<{ synced: num
     const result = await syncStripe(STRIPE_SYNC_ACTOR, now);
     summary.synced = 1;
     summary.added = result.added;
+    summary.messages.push(...result.messages);
     if (result.error) {
       summary.errors.push(`Stripe: ${result.error}`);
       // Fehlschlag zählt als Anlauf; der nächste Versuch kommt nach einem Tag (abrufFaellig)

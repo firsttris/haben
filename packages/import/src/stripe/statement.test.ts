@@ -44,6 +44,37 @@ describe("stripeStatement", () => {
     );
   });
 
+  it("Grenze: Der ältere Export (Spalte Type) stimmt im Zweck nur dort überein, wo Type und Kategorie gleich heißen", () => {
+    // Zweck und damit der Dubletten-Hash enthalten die Art; Zeilen, die Stripe als Type payment, payment_refund oder
+    // adjustment führt und in die Kategorie charge, refund oder dispute einordnet, gelten im Abruf als andere Umsätze
+    const base = { currency: "eur", fee: 0, status: "available", created: 1_790_000_000, description: "Rechnung" };
+    const abruf = [
+      { ...base, id: "txn_1", amount: 1000, net: 1000, type: "charge", reporting_category: "charge" },
+      { ...base, id: "txn_2", amount: 1000, net: 1000, type: "payment", reporting_category: "charge" },
+      { ...base, id: "txn_3", amount: -500, net: -500, type: "payment_refund", reporting_category: "refund" },
+    ];
+    const rows = [
+      ["id", "Type", "Source", "Amount", "Fee", "Net", "Currency", "Created (UTC)", "Available On (UTC)", "Description"],
+      ...abruf.map((t) => [
+        t.id,
+        t.type,
+        "x",
+        (t.amount / 100).toFixed(2),
+        "0.00",
+        (t.net / 100).toFixed(2),
+        "eur",
+        "2026-10-27 06:26:40",
+        "2026-11-03 00:00:00",
+        "Rechnung",
+      ]),
+    ];
+    const alt = parseStripe(rows, findHeaderRow(rows, isStripeHeader)).transactions.map((t) => t.purpose);
+    const neu = stripeStatement(abruf).transactions.map((t) => t.purpose);
+    expect(alt[0]).toBe(neu[0]);
+    expect(alt[1]).not.toBe(neu[1]);
+    expect(alt[2]).not.toBe(neu[2]);
+  });
+
   it("nimmt den Namen des Kunden, wo Stripe ihn zur Zahlung kennt", () => {
     const mitName = stripeStatement([{ ...transactions[3]!, customerName: "Erika Beispiel" }]);
     expect(mitName.transactions[0]!.counterpartyName).toBe("Erika Beispiel");

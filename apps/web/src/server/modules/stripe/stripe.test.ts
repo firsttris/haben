@@ -174,6 +174,27 @@ describe.skipIf(!testDatabaseUrl)("Stripe-Abruf (Postgres)", () => {
     }
   });
 
+  it("hält einen Konflikt bei der Gebühr mit der Referenz der Gebühr fest, nicht der des Hauptbetrags", async () => {
+    const [zahlung] = transactions.filter((t) => t.type === "charge" && t.created > 1_700_000_000);
+    imAbruf = transactions.map((t) => (t.id === zahlung!.id ? { ...t, fee: 500, net: 11400 } : t));
+    try {
+      const result = await stripe.syncStripe(actor, new Date("2026-11-09T10:00:00Z"));
+      expect(result.error).toContain("Konflikt");
+      const rows = await sql`select transaction->>'bankReference' as ref, amount from import_conflicts where transaction->>'bankReference' like '%-gebuehr'`;
+      expect(rows.map((r) => [r.ref, Number(r.amount)])).toEqual([[`${zahlung!.id}-gebuehr`, -500]]);
+    } finally {
+      imAbruf = transactions;
+    }
+  });
+
+  it("ruft im Zeitplan nur ab, wenn der Rhythmus es verlangt, und gibt die Meldungen weiter", async () => {
+    const nach = new Date("2026-12-01T10:00:00Z");
+    const erster = await stripe.runDueStripeSyncs(nach);
+    expect(erster).toMatchObject({ synced: 1, added: 0, errors: [] });
+    expect(Array.isArray(erster.messages)).toBe(true);
+    expect((await stripe.runDueStripeSyncs(nach)).synced).toBe(0);
+  });
+
   it("meldet einen abgelehnten Schlüssel am Zugang, ohne ihn zu nennen", async () => {
     stripe.setStripeClientFactory(
       () =>

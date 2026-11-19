@@ -152,6 +152,7 @@ export class StripeClient {
   readonly #fetch: typeof fetch;
   readonly #now: () => number;
   readonly #sleep: (ms: number) => Promise<void>;
+  #ohneDetails = false;
 
   constructor(options: StripeClientOptions) {
     if (!options.apiKey.trim()) throw new Error("Stripe-API-Schlüssel fehlt");
@@ -167,8 +168,32 @@ export class StripeClient {
     return (await this.#json("/v1/account", accountSchema)).id;
   }
 
-  /** Alle Balance Transactions, deren `created` in den Tagen von `dateFrom` bis `dateTo` (UTC, einschließlich) liegt, über alle Seiten */
+  /**
+   * Der letzte Abruf kam ohne Zahlungsdetails (Name des Kunden, Bezug von Erstattung und Streit), weil der Schlüssel das
+   * Aufklappen von `source` nicht erlaubt (403). Die Umsätze selbst sind vollständig; nur diese Angaben fehlen.
+   */
+  get ohneZahlungsdetails(): boolean {
+    return this.#ohneDetails;
+  }
+
+  /**
+   * Alle Balance Transactions, deren `created` in den Tagen von `dateFrom` bis `dateTo` (UTC, einschließlich) liegt, über
+   * alle Seiten. Erlaubt ein eingeschränkter Schlüssel das Aufklappen von `source` nicht (403), holt der Client sie ohne.
+   */
   async balanceTransactions(dateFrom: string, dateTo: string): Promise<StripeBalanceTransaction[]> {
+    this.#ohneDetails = false;
+    try {
+      return await this.#alle(dateFrom, dateTo, true);
+    } catch (error) {
+      if (!(error instanceof StripeApiError) || error.status !== 403) throw error;
+      // Ohne Rechte am Guthaben scheitert auch dieser Anlauf mit 403 und die Meldung von Stripe erreicht den Aufrufer
+      const result = await this.#alle(dateFrom, dateTo, false);
+      this.#ohneDetails = true;
+      return result;
+    }
+  }
+
+  async #alle(dateFrom: string, dateTo: string, details: boolean): Promise<StripeBalanceTransaction[]> {
     const all: StripeBalanceTransaction[] = [];
     let startingAfter: string | undefined;
     for (let page = 0; page < MAX_PAGES; page++) {
@@ -180,8 +205,10 @@ export class StripeClient {
       });
       // `source` klappt bei einer Zahlung den Charge mit Name, E-Mail und Beschreibung des Kunden auf, `source.charge`
       // bei Erstattung und Streit die Zahlung, auf die sie sich beziehen. Andere Arten haben keinen Charge.
-      query.append("expand[]", "data.source");
-      query.append("expand[]", "data.source.charge");
+      if (details) {
+        query.append("expand[]", "data.source");
+        query.append("expand[]", "data.source.charge");
+      }
       if (startingAfter) query.set("starting_after", startingAfter);
       const result = await this.#json(`/v1/balance_transactions?${query}`, listSchema);
       all.push(...result.data.map(normalize));
@@ -228,7 +255,8 @@ export class StripeClient {
         await this.#sleep(parseRetryAfter(response.headers.get("retry-after"), this.#now()) ?? backoff(attempt));
         continue;
       }
-      throw new StripeApiError(errorText(response.status, text), response.status, path);
+      // Stripe maskiert den Schlüssel in seinen Meldungen; ein Rumpf, der kein JSON ist, tut es nicht
+      throw new StripeApiError(errorText(response.status, text).replaceAll(this.#apiKey, "…"), response.status, path);
     }
   }
 }

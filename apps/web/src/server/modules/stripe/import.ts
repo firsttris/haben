@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { type ParsedStatement, type StripeBalanceTransaction, stripeBatch, stripeEventOf, stripeStatement } from "@haben/import";
+import { type StripeBalanceTransaction, stripeBatch, stripeEventOf, stripeStatement } from "@haben/import";
 import { and, asc, eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -43,11 +43,6 @@ async function providerAccount() {
     .orderBy(asc(schema.bankAccounts.createdAt))
     .limit(1);
   return account ?? null;
-}
-
-/** Die Balance Transactions als Kontoauszug lesen, ohne ihn zu buchen (Vorschau und Tests) */
-export function stripeAuszug(transactions: StripeBalanceTransaction[]): ParsedStatement {
-  return stripeStatement(transactions);
 }
 
 /** Die Balance Transactions ins Konto des Dienstleisters übernehmen */
