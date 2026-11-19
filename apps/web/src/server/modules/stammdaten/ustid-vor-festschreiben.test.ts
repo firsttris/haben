@@ -133,10 +133,21 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. vor dem Festschreiben bestätigen (
 
   it("Reverse Charge: scheitert die qualifizierte Abfrage, sagt der Hinweis das", async () => {
     const ergebnis = await modul.ustIdVorFestschreiben(actor, contactId, "reverse_charge", AM_TAG, dienst(ok("e"), fehler(403, "evatr-0008")).via);
-    expect(ergebnis.hinweis).toMatch(/^ATU12345678 ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: .*Höchstzahl/);
+    // Der Grund steht einmal da, ohne den Vorsatz der Kontaktseite
+    expect(ergebnis.hinweis).toBe(
+      "ATU12345678 ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: Höchstzahl qualifizierter Abfragen beim BZSt erreicht; nur einfach bestätigt.",
+    );
     // Ebenso, wenn der Dienst zwischen den beiden Abfragen ausfällt; die einfache Antwort von eben reicht bei Reverse Charge nicht
     const ausfall = await modul.ustIdVorFestschreiben(actor, contactId, "reverse_charge", AM_TAG, dienst(ok("e"), fehler(503, "evatr-1001")).via);
     expect(ausfall.hinweis).toMatch(/^ATU12345678 ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: .*evatr-1001/);
+    expect(ausfall.hinweis).not.toContain("bestätigt: Name und Anschrift nicht bestätigt");
+  });
+
+  it("Reverse Charge: fällt der Dienst aus, nennt der letzte Stand auch, dass der Ort nicht passt", async () => {
+    await modul.bestaetigeUstId(actor, contactId, {}, dienst(ok("e"), ok("q", { ergFirmenname: "A", ergOrt: "B" })).via);
+    const ergebnis = await modul.ustIdVorFestschreiben(actor, contactId, "reverse_charge", AM_TAG, dienst("kein-netz").via);
+    expect(ergebnis.hinweis).toContain("Keine Antwort vom BZSt");
+    expect(ergebnis.hinweis).toMatch(/Zuletzt am 18\.11\.2026: Gültig\. Der Ort passt laut BZSt nicht zu ATU12345678; prüfe die Angaben am Kontakt\.$/);
   });
 
   it("Reverse Charge: passt der Ort nicht, Hinweis; eine solche Antwort zählt beim nächsten Mal nicht als bestätigt", async () => {

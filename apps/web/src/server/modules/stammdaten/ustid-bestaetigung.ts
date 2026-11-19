@@ -48,6 +48,8 @@ export interface UstIdBestaetigungsErgebnis {
   neu: number;
   /** Was nicht bestätigt werden konnte, sonst null */
   hinweis: string | null;
+  /** Bei gescheiterter Abfrage die Meldung ohne Vorsatz, für einen eigenen Satz (Festschreiben) */
+  grund?: string;
 }
 
 export interface EvatrVerbindung {
@@ -186,14 +188,14 @@ export async function bestaetigeUstId(
 
   const einfach = evatrAnfrage(company.ustId, contact, "einfach");
   const ersteAntwort = await frage(einfach, via);
-  if (!ersteAntwort.ok) return { neu: 0, hinweis: ersteAntwort.hinweis };
+  if (!ersteAntwort.ok) return { neu: 0, hinweis: ersteAntwort.hinweis, grund: ersteAntwort.hinweis };
   await speichere(actor, contactId, "einfach", einfach, ersteAntwort);
   // Name und Anschrift vergleicht das BZSt nur bei gültiger Nummer
   if (!evatrGueltig(ersteAntwort.antwort.status) || !evatrQualifizierbar(contact)) return { neu: 1, hinweis: null };
 
   const qualifiziert = evatrAnfrage(company.ustId, contact, "qualifiziert");
   const zweiteAntwort = await frage(qualifiziert, via);
-  if (!zweiteAntwort.ok) return { neu: 1, hinweis: `Name und Anschrift nicht bestätigt: ${zweiteAntwort.hinweis}` };
+  if (!zweiteAntwort.ok) return { neu: 1, hinweis: `Name und Anschrift nicht bestätigt: ${zweiteAntwort.hinweis}`, grund: zweiteAntwort.hinweis };
   await speichere(actor, contactId, "qualifiziert", qualifiziert, zweiteAntwort);
   return { neu: 2, hinweis: null };
 }
@@ -278,17 +280,26 @@ export async function ustIdVorFestschreiben(
   }
   const neu = (await zurNummer()).filter((b) => !vorher.some((v) => v.id === b.id));
   const einfach = neu.find((b) => b.art === "einfach");
-  if (!einfach) {
-    const zuletzt = vorher[0] ? `Zuletzt am ${formatDate(vorher[0].anfrageZeitpunkt)}: ${evatrMeldung(vorher[0])}.` : "Bestätigt ist sie noch nicht.";
-    return { hinweis: `${nummer} ließ sich gerade nicht beim BZSt bestätigen: ${ergebnis.hinweis}. ${zuletzt}` };
-  }
+  if (!einfach) return { hinweis: `${nummer} ließ sich gerade nicht beim BZSt bestätigen: ${ergebnis.grund}. ${zuletzt(nummer, vorher, qualifiziert)}` };
   if (!evatrGueltig(einfach.status)) return { hinweis: `Laut BZSt ist ${nummer} nicht gültig: ${evatrMeldung(einfach)}.` };
   if (!qualifiziert) return { hinweis: null };
   const antwort = neu.find((b) => b.art === "qualifiziert");
-  if (!antwort) return { hinweis: `${nummer} ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: ${ergebnis.hinweis}.` };
+  if (!antwort) return { hinweis: `${nummer} ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: ${ergebnis.grund}.` };
   // Gerade eingetroffen: nur Gültigkeit, Name und Ort zählen, die Frist nicht
   if (!evatrGueltig(antwort.status)) return { hinweis: `Laut BZSt ist ${nummer} nicht gültig: ${evatrMeldung(antwort)}.` };
   return { hinweis: antwort.ergFirmenname === "B" || antwort.ergOrt === "B" ? stimmtNicht(nummer, antwort) : null };
+}
+
+/**
+ * Letzter Stand für den Hinweis, wenn das BZSt gerade nicht antwortet. Bei Reverse Charge gehört der Abgleich von Name und
+ * Ort der letzten qualifizierten Antwort dazu, solange die letzte Antwort die Nummer gültig nennt.
+ */
+function zuletzt(nummer: string, vorher: readonly UstIdBestaetigung[], qualifiziert: boolean): string {
+  const letzte = vorher[0];
+  if (!letzte) return "Bestätigt ist sie noch nicht.";
+  const q = qualifiziert && evatrGueltig(letzte.status) ? vorher.find((b) => b.art === "qualifiziert") : undefined;
+  const abgleich = q && evatrGueltig(q.status) && (q.ergFirmenname === "B" || q.ergOrt === "B") ? ` ${stimmtNicht(nummer, q)}` : "";
+  return `Zuletzt am ${formatDate(letzte.anfrageZeitpunkt)}: ${evatrMeldung(letzte)}.${abgleich}`;
 }
 
 /** Hinweis, wenn Name oder Ort laut BZSt nicht zu den Daten des Mitgliedstaats passen (B); einer von beiden ist B */

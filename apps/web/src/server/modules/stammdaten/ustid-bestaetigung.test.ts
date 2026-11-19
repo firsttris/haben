@@ -97,16 +97,17 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. beim BZSt bestätigen (Postgres)", 
 
   it("bei einem Fehler des Dienstes oder ohne Netz bleibt alles wie vorher, mit Hinweis", async () => {
     const ausfall = await modul.bestaetigeUstId(actor, contactId, {}, dienst(fehler(503, "evatr-1001")).via);
-    expect(ausfall).toEqual({ neu: 0, hinweis: expect.stringContaining("evatr-1001") });
+    expect(ausfall).toEqual({ neu: 0, hinweis: expect.stringContaining("evatr-1001"), grund: ausfall.hinweis });
     const ohneNetz = await modul.bestaetigeUstId(actor, contactId, {}, dienst("kein-netz").via);
     expect(ohneNetz.hinweis).toContain("Keine Antwort vom BZSt");
     const kaputt = await modul.bestaetigeUstId(actor, contactId, {}, dienst({ status: 200, body: { status: "gültig" } }).via);
-    expect(kaputt).toEqual({ neu: 0, hinweis: expect.stringContaining("ließ sich nicht lesen") });
+    expect(kaputt).toEqual({ neu: 0, hinweis: expect.stringContaining("ließ sich nicht lesen"), grund: kaputt.hinweis });
     // Gültig, aber ohne lesbaren Zeitpunkt: kein Nachweis, und der Hinweis sagt nicht „Gültig“
     const ohneZeit = { status: 200, body: { id: "z", anfrageZeitpunkt: "18.11.2026 14:34", status: "evatr-0000" } };
     expect(await modul.bestaetigeUstId(actor, contactId, {}, dienst(ohneZeit).via)).toEqual({
       neu: 0,
       hinweis: expect.stringContaining("ließ sich nicht lesen"),
+      grund: expect.stringContaining("ließ sich nicht lesen"),
     });
     expect(await modul.listUstIdBestaetigungen(contactId)).toEqual([]);
   });
@@ -114,7 +115,11 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. beim BZSt bestätigen (Postgres)", 
   it("beim Limit qualifizierter Abfragen bleibt es bei der einfachen, ohne Wiederholung", async () => {
     const { via, anfragen } = dienst(ok("e"), fehler(403, "evatr-0008"));
     const ergebnis = await modul.bestaetigeUstId(actor, contactId, {}, via);
-    expect(ergebnis).toEqual({ neu: 1, hinweis: expect.stringContaining("Höchstzahl qualifizierter Abfragen") });
+    expect(ergebnis).toEqual({
+      neu: 1,
+      hinweis: "Name und Anschrift nicht bestätigt: Höchstzahl qualifizierter Abfragen beim BZSt erreicht; nur einfach bestätigt",
+      grund: "Höchstzahl qualifizierter Abfragen beim BZSt erreicht; nur einfach bestätigt",
+    });
     expect(anfragen).toHaveLength(2);
     expect(await modul.listUstIdBestaetigungen(contactId)).toMatchObject([{ art: "einfach", status: "evatr-0000" }]);
   });
