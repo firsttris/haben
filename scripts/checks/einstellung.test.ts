@@ -68,6 +68,20 @@ describe("Meldungen wie früher (language: de)", () => {
     );
   });
 
+  it("file-size zählt apps/node_modules/src wie scripts/dateigroesse, das node_modules nur unter src übersprang", () => {
+    const ordner = projekt([]);
+    mkdirSync(join(ordner, "apps/node_modules/src"), { recursive: true });
+    writeFileSync(join(ordner, "apps/node_modules/src/a.ts"), "x\n".repeat(401));
+    mkdirSync(join(ordner, "apps/web/src/node_modules"), { recursive: true });
+    writeFileSync(join(ordner, "apps/web/src/node_modules/b.ts"), "x\n".repeat(401));
+    const lauf = checks(ordner, "file-size");
+    expect(lauf.status).toBe(1);
+    expect(lauf.stderr).toBe(
+      "apps/node_modules/src/a.ts  401 Zeilen, mehr als 400 und nicht in .checks/large-files.txt: Neues in eine eigene Datei legen. Ist es eine umbenannte alte Datei, den Pfad in .checks/large-files.txt mit ändern.\n" +
+        "\nDateigröße: 1 Datei über 400 Zeilen, nicht in .checks/large-files.txt\n",
+    );
+  });
+
   it("file-size --clean schreibt die Liste ohne Ausgabe wie früher --aufraeumen", () => {
     const ordner = projekt(["apps/web/src/weg.ts"]);
     const lauf = checks(ordner, "file-size", "--clean");
