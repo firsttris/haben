@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abweichung, type BwaEuerPosten, FORM43_ZEILEN, form43, form43Anteile, form43Zeile, type Form43Zeile } from "./bwa.ts";
+import { abweichung, type BwaEuerPosten, FORM43_ZEILEN, form43, form43Anteile, form43KostenartZeile, form43Zeile, type Form43Zeile } from "./bwa.ts";
 import { bwaZeitraum } from "./bwa-zeitraum.ts";
 import { kostenartOf } from "./bwa-kostenart.ts";
 import { euerErgebnis, type EuerLineKey } from "./euer.ts";
@@ -134,6 +134,75 @@ describe("Einnahmen-Ausgaben-BWA (DATEV-Form 43)", () => {
     expect(w.summeKosten).toBe(20_000);
     expect(w.summeAusgaben).toBe(38_800);
     expect(w.ergebnis).toBe(81_200);
+  });
+});
+
+describe("Form 43 bleibt für Kategorien und Pauschalen, wie sie vor der Form 01 war", () => {
+  // Stand vor den Kostenarten der Form 01 (neutral, Zinsen, Steuern vom Einkommen und Ertrag), in SKR03 und SKR04 gleich
+  const VORHER: Record<string, Form43Zeile> = {
+    "ausgabe:software": "verschiedeneKosten",
+    "ausgabe:edv": "instandhaltung",
+    "ausgabe:reparatur": "instandhaltung",
+    "ausgabe:miete": "raum",
+    "ausgabe:hardware": "abschreibungen",
+    "ausgabe:telefon": "verschiedeneKosten",
+    "ausgabe:internet": "verschiedeneKosten",
+    "ausgabe:buero": "verschiedeneKosten",
+    "ausgabe:betriebsbedarf": "verschiedeneKosten",
+    "ausgabe:literatur": "verschiedeneKosten",
+    "ausgabe:fortbildung": "verschiedeneKosten",
+    "ausgabe:fahrtkosten": "werbeReise",
+    "ausgabe:uebernachtung": "werbeReise",
+    "ausgabe:porto": "verschiedeneKosten",
+    "ausgabe:werbung": "werbeReise",
+    "ausgabe:bewirtung": "werbeReise",
+    "ausgabe:geschenke": "werbeReise",
+    "ausgabe:beratung": "verschiedeneKosten",
+    "ausgabe:buchfuehrung": "verschiedeneKosten",
+    "ausgabe:wareneinkauf": "material",
+    "ausgabe:fremdleistung": "fremdleistungen",
+    "ausgabe:geldverkehr": "verschiedeneKosten",
+    "ausgabe:kfzBetrieb": "kfz",
+    "ausgabe:kfzVersicherung": "kfz",
+    "ausgabe:kfzSteuer": "steuernVersicherungenBeitraege",
+    "ausgabe:kfzReparatur": "kfz",
+    "ausgabe:kfzLeasing": "kfz",
+    "ausgabe:kfzSonstige": "kfz",
+    "ausgabe:versicherung": "steuernVersicherungenBeitraege",
+    "ausgabe:beitraege": "steuernVersicherungenBeitraege",
+    "ausgabe:berufsgenossenschaft": "personal",
+    "ausgabe:versorgungskassen": "personal",
+    "ausgabe:sonstiges": "verschiedeneKosten",
+    "ausgabe:anlage": "verschiedeneKosten",
+    "ausgabe:einfuhrumsatzsteuer": "verschiedeneKosten",
+    "pauschale:homeoffice": "raum",
+    "pauschale:fahrt": "werbeReise",
+    "pauschale:verpflegung": "werbeReise",
+    "pauschale:entfernung": "werbeReise",
+  };
+
+  it("jede Kategorie und Pauschale", () => {
+    const keys = [
+      ...(Object.keys(EXPENSE_CATEGORIES) as ExpenseCategory[]).map((k) => `ausgabe:${k}` as const),
+      ...(Object.keys(PAUSCHALE_KONTEN) as PauschaleArt[]).map((k) => `pauschale:${k}` as const),
+    ];
+    expect(keys.sort()).toEqual(Object.keys(VORHER).sort());
+    for (const kr of ["SKR03", "SKR04"] as const) for (const key of keys) expect(form43Zeile(kr, key), `${kr} ${key}`).toBe(VORHER[key]);
+  });
+
+  const NEU: [Kontenrahmen, string, Form43Zeile][] = [
+    ["SKR03", "2400", "sonstigeAufwendungen"],
+    ["SKR04", "6880", "sonstigeAufwendungen"],
+    ["SKR03", "2100", "sonstigeAufwendungen"],
+    ["SKR04", "7100", "sonstigeErloese"],
+    ["SKR03", "2660", "sonstigeErloese"],
+    ["SKR03", "8970", "sonstigeErloese"],
+    ["SKR04", "7600", "steuernVersicherungenBeitraege"],
+    ["SKR03", "4320", "steuernVersicherungenBeitraege"],
+    ["SKR03", "2890", "verschiedeneKosten"],
+  ];
+  it.each(NEU)("die neuen Kostenarten: %s %s → %s", (kr, konto, zeile) => {
+    expect(form43KostenartZeile(kostenartOf(kr, konto)!)).toBe(zeile);
   });
 });
 

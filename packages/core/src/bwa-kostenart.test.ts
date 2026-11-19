@@ -8,13 +8,27 @@ const alleKonten = Array.from({ length: 10_000 }, (_, i) => String(i).padStart(4
 
 /** Kostenarten, die zu einem GuV-Posten passen: verfeinert, nie aus einem fremden Posten */
 const PASSEND: Record<GuvPosten, readonly Kostenart[]> = {
-  umsatzerloese: ["erloese"],
-  sonstigeErtraege: ["sonstigeErloese"],
+  // Grundstückserträge (SKR03 2750, SKR04 4860) sind Umsatzerlöse der GuV und in Form 01 neutral
+  umsatzerloese: ["erloese", "neutralErtrag"],
+  sonstigeErtraege: ["sonstigeErloese", "bestandsveraenderungen", "eigenleistungen", "zinsertrag", "neutralErtrag"],
   materialaufwand: ["material", "fremdleistungen"],
   personalaufwand: ["personal"],
-  abschreibungen: ["abschreibungen"],
-  sonstigeAufwendungen: ["raum", "versicherungen", "kfz", "werbeReise", "warenabgabe", "instandhaltung", "sonstigeKosten"],
-  steuern: ["betrieblicheSteuern"],
+  // Forderungsverluste, soweit unüblich hoch (SKR03 2430, SKR04 6280)
+  abschreibungen: ["abschreibungen", "neutralAufwand"],
+  sonstigeAufwendungen: [
+    "raum",
+    "versicherungen",
+    "kfz",
+    "werbeReise",
+    "warenabgabe",
+    "instandhaltung",
+    "sonstigeKosten",
+    "zinsaufwand",
+    "neutralAufwand",
+    "kalkulatorisch",
+  ],
+  // Steuern vom Einkommen und Ertrag, Steuern für Vorjahre (SKR03 2285, SKR04 7690) neutral
+  steuern: ["betrieblicheSteuern", "ertragsteuern", "neutralAufwand"],
 };
 
 describe("Kostenart der BWA (DATEV-Kontenrahmen 2026)", () => {
@@ -44,9 +58,9 @@ describe("Kostenart der BWA (DATEV-Kontenrahmen 2026)", () => {
     ["4120", "6020", "personal"],
     ["4210", "6310", "raum"],
     ["4288", "6348", "raum"],
-    // Grundstücksaufwendungen: betrieblich bei den Raumkosten, „sonstige (neutral)“ nicht
+    // Grundstücksaufwendungen: betrieblich bei den Raumkosten, „sonstige (neutral)“ neutral
     ["4290", "6350", "raum"],
-    ["2350", "6352", "sonstigeKosten"],
+    ["2350", "6352", "neutralAufwand"],
     ["4360", "6400", "versicherungen"],
     ["4380", "6420", "versicherungen"],
     ["4390", "6430", "versicherungen"],
@@ -63,7 +77,66 @@ describe("Kostenart der BWA (DATEV-Kontenrahmen 2026)", () => {
     ["4810", "6498", "sonstigeKosten"],
     ["4830", "6220", "abschreibungen"],
     ["4964", "6837", "sonstigeKosten"],
-    ["4320", "7610", "betrieblicheSteuern"],
+    // Gewerbesteuer ist eine Steuer vom Einkommen und Ertrag (GuV-Posten beider Rahmen); Form 43 zeigt sie bei den Steuern
+    ["4320", "7610", "ertragsteuern"],
+    ["4340", "7650", "betrieblicheSteuern"],
+    ["2375", "7680", "betrieblicheSteuern"],
+    // Neutral (Entscheidung in #1460): Forderungsverluste, nicht abziehbare Vorsteuer, Kursdifferenzen
+    ["2400", "6930", "neutralAufwand"],
+    ["2406", "6936", "neutralAufwand"],
+    ["2430", "6280", "neutralAufwand"],
+    ["2170", "6860", "neutralAufwand"],
+    ["2171", "6865", "neutralAufwand"],
+    ["2176", "6871", "neutralAufwand"],
+    ["2150", "6880", "neutralAufwand"],
+    ["2151", "6881", "neutralAufwand"],
+    ["2660", "4840", "neutralErtrag"],
+    ["2661", "4847", "neutralErtrag"],
+    ["2166", "6883", "neutralAufwand"],
+    ["2666", "4843", "neutralErtrag"],
+    // Betriebsfremd, periodenfremd, außergewöhnlich
+    ["2007", "7553", "neutralAufwand"],
+    ["2020", "6960", "neutralAufwand"],
+    ["2308", "6968", "neutralAufwand"],
+    ["2310", "6895", "neutralAufwand"],
+    ["2315", "4855", "neutralErtrag"],
+    ["2326", "6905", "neutralAufwand"],
+    ["2347", "6918", "neutralAufwand"],
+    ["2381", "6391", "neutralAufwand"],
+    ["2385", "6875", "neutralAufwand"],
+    ["2450", "6920", "neutralAufwand"],
+    ["2490", "7390", "neutralAufwand"],
+    ["2492", "7392", "neutralAufwand"],
+    ["2520", "4960", "neutralErtrag"],
+    ["2709", "4839", "neutralErtrag"],
+    ["2710", "4910", "neutralErtrag"],
+    ["2725", "4905", "neutralErtrag"],
+    ["2732", "4925", "neutralErtrag"],
+    ["2742", "4970", "neutralErtrag"],
+    ["2744", "4980", "neutralErtrag"],
+    ["2750", "4860", "neutralErtrag"],
+    ["2764", "4992", "neutralErtrag"],
+    ["2790", "7190", "neutralErtrag"],
+    ["2285", "7690", "neutralAufwand"],
+    // Zinsen
+    ["2100", "7300", "zinsaufwand"],
+    ["2118", "7318", "zinsaufwand"],
+    ["2146", "7364", "zinsaufwand"],
+    ["2600", "7000", "zinsertrag"],
+    ["2650", "7100", "zinsertrag"],
+    ["2686", "7144", "zinsertrag"],
+    // Steuern vom Einkommen und Ertrag
+    ["2200", "7600", "ertragsteuern"],
+    ["2208", "7608", "ertragsteuern"],
+    ["2255", "7649", "ertragsteuern"],
+    // Leistung und kalkulatorische Kosten
+    ["8970", "4815", "bestandsveraenderungen"],
+    ["8990", "4820", "eigenleistungen"],
+    ["2890", "6980", "kalkulatorisch"],
+    ["4990", "6970", "sonstigeKosten"],
+    // Betriebliche Erträge und Verwahrentgelt bleiben, wo sie sind
+    ["8590", "4940", "sonstigeErloese"],
+    ["4971", "6879", "sonstigeKosten"],
   ];
   it.each(PAARE)("SKR03 %s und SKR04 %s → %s", (skr03, skr04, erwartet) => {
     expect(kostenartOf("SKR03", skr03)).toBe(erwartet);
