@@ -156,6 +156,25 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #14
     await expect(contacts.updateContact(actor, contactId, contactInput("10002", "Nordwerk Software GmbH"))).resolves.toMatchObject({ kundennummer: "10002" });
   });
 
+  it("stellt Storno und Korrektur auch zu, wenn inzwischen ein zweiter Kontakt dieselbe Kundennummer trägt", async () => {
+    await formats.saveNumberFormats(actor, JE_KUNDE);
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    const zweites = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    // Die Kundennummer darf doppelt angelegt werden; erst das Festschreiben im Kundenkreis verlangt Eindeutigkeit
+    const nachzuegler = (await createContact("ACME", "Nachzügler AG")).id;
+    // GoBD: Storno und Korrektur folgen dem Original und dürfen nie an der Eindeutigkeit scheitern
+    const storno = await invoices.cancelInvoice(actor, original.id, "2026-12-15");
+    expect(storno.number).toBe("RE-2026-ACME-003");
+    const [beleg] = await sql`select number_contact_id from invoices where id = ${storno.id}`;
+    expect(beleg!.number_contact_id).toBe(contactA);
+    const korrektur = await invoices.createCorrection(actor, zweites.id, "2026-12-16");
+    const korrigiert = await invoices.finalizeInvoice(actor, korrektur.id, kleinunternehmerStand);
+    expect(korrigiert.number).toBe("RE-2026-ACME-004");
+    // Festschreiben eines neuen Belegs im Kreis des Nachzüglers scheitert weiterhin an der Eindeutigkeit
+    const draft = await invoiceDraft(nachzuegler);
+    await expect(invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).rejects.toThrow(/Kundennummer ACME hat auch.*eindeutig/);
+  });
+
   it("verlangt beim Zähler je Kunde eine eindeutige Kundennummer und lässt den Zähler unverändert", async () => {
     await formats.saveNumberFormats(actor, JE_KUNDE);
     await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);

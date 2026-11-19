@@ -1268,7 +1268,9 @@ async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, besta
   // unabhängig von der heutigen Einstellung (#1426).
   const circle = await circleFor(tx, "rechnung", invoice.issueDate);
   const numberContactId = corrects ? corrects.numberContactId : circleContact(company.invoiceCounterPerCustomer, invoice.contactId!);
-  if (numberContactId !== null) {
+  // Storno und Korrektur bleiben immer möglich (GoBD): ihre Nummer trägt ohnehin die Kundennummer des Originals;
+  // die Eindeutigkeit zählt nur für neue Belege im Kundenkreis (#1426)
+  if (!corrects && numberContactId !== null) {
     const conflict = await customerNumberConflict(tx, contact!);
     if (conflict) {
       throw new InvoiceError(`Die Kundennummer ${contact!.kundennummer} hat auch „${conflict}“; mit Zähler je Kunde muss sie eindeutig sein.`);
