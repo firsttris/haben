@@ -1,7 +1,7 @@
 import { and, eq, gte, lt, or } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { externalSettlementLinks } from "../auswertungen/index.ts";
-import type { ArchiveFile } from "./export.ts";
+import type { ArchiveFile } from "./export-zip.ts";
 
 /** Herkunft im Belegjahr, unabhängig vom Datum des technischen Imports. */
 export async function* externalImportArchive(year: number): AsyncGenerator<ArchiveFile> {

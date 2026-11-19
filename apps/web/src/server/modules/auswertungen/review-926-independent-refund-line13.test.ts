@@ -7,12 +7,12 @@ import { turnoverFixtures } from "../../../test-fixtures/gesamtumsatz.ts";
 // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
 describe.skipIf(!testDatabaseUrl)("Unabhängige EÜR-Gegenprobe 926: bekannte USt-Erstattungszinsen in Zeile 13", () => {
   let sql: postgres.Sql;
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let annual: typeof import("../jahreserklaerung/annual.ts");
   let turnover: typeof import("./gesamtumsatz.ts");
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     annual = await import("../jahreserklaerung/annual.ts");
     turnover = await import("./gesamtumsatz.ts");
   }, 30_000);

@@ -80,7 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Abgelehnter Abruf in Kontoübersicht und Date
     const [pending] = await sql`select state from bank_connections where status = 'wartet'`;
     expect((await sync.completeConnection("test", { state: pending!.state, code: "c" })).ok).toBe(true);
     const [connection] = await sync.listConnections();
-    const { listAccounts } = await import("./bank.ts");
+    const { listAccounts } = await import("./index.ts");
     const vorher = (await listAccounts()).find((a) => a.iban === IBAN_A)!.lastImport;
     expect(vorher?.closingBalance).toBe(123456);
 

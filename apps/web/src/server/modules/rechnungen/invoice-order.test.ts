@@ -5,7 +5,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Rechnungen nach Rechnungsdatum (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let database: typeof import("../../db/index.ts");
   const finals: string[] = [];
   let newestDraft: string;
@@ -14,7 +14,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen nach Rechnungsdatum (Postgres)", (
   beforeAll(async () => {
     sql = await setupTestDb();
     database = await import("../../db/index.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     const contacts = await import("../stammdaten/contacts.ts");
     await sql`insert into company(id,name,strasse,plz,ort,email,steuernummer,bundesland,kleinunternehmer,iban)
       values(1,'Erfundener Testbetrieb','Musterweg 1','12345','Musterstadt','test@example.com','123/456/78901','NI',true,'DE89370400440532013000')`;

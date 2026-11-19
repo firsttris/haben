@@ -41,7 +41,7 @@ const heute = today();
 const heuteDkb = `${heute.slice(8, 10)}.${heute.slice(5, 7)}.${heute.slice(2, 4)}`;
 
 describe.skipIf(!testDatabaseUrl)("Direkt buchen mit Kategorie und Steuersatz (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let datev: typeof import("../auswertungen/datev-export.ts");
@@ -52,7 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Direkt buchen mit Kategorie und Steuersatz (P
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     datev = await import("../auswertungen/datev-export.ts");

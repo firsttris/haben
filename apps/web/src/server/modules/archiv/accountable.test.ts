@@ -195,7 +195,7 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03') on conflict (id) do nothing`;
-    const bank = await import("../bank/bank.ts");
+    const bank = await import("../bank/index.ts");
     accountable.analyseAccountableUpload(export_(), "Accountable_Max_Mustermann_skr03_2025-01-01_test.zip");
     await accountable.startAccountableImport(actor, { wait: true });
     // Accountable bucht zahlungsbasiert: Der Beleg ist dort bezahlt. Als offener Posten in Haben zöge er die nächste

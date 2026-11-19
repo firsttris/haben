@@ -1,7 +1,7 @@
 import { schema } from "../../db/index.ts";
 import { attachmentStore, type Attachment } from "./attachment-store.ts";
 import { InvoiceError } from "./invoice-error.ts";
-import { lockDraft } from "./invoices.ts";
+import { lockDraft } from "./invoice-drafts.ts";
 
 /**
  * Zusätzliche Anhänge an Ausgangsrechnungen (#272): PDF-Dateien wie Stundenzettel oder Leistungsnachweise, die mit der

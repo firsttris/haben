@@ -3,6 +3,7 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { z } from "zod/mini";
 import { TransactionStatus } from "../../components/BankStatus.tsx";
+import { UmsatzBetrag, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
 import { formatDate, daysUntil } from "../../lib/format.ts";
 import { getBankOverview } from "../../server/functions/bank.ts";
 import { ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
@@ -106,14 +107,14 @@ function BankPage() {
   const richtung = search.dir ?? "ab";
   const filter = search.filter ?? "offen";
   const selectedId = data.detail?.transaction.id;
-  const index = data.transactions.findIndex((t) => t.id === selectedId);
+  const { zeilen, sichtbar, index } = useGebuehrZeilen(data.transactions, data.accounts, selectedId);
   const selectedAccount = data.accounts.find((a) => a.id === data.accountId);
   // „Alle Konten“ zeigt die Umsätze aller Konten, etwa für „Alle anzeigen“ der Schnellsuche (#617)
   const konto = data.allAccounts ? ("alle" as const) : (data.accountId ?? undefined);
   const openCount = data.allAccounts ? data.accounts.reduce((sum, a) => sum + a.openCount, 0) : (selectedAccount?.openCount ?? 0);
   const accountName = new Map(data.accounts.map((a) => [a.id, a.name]));
 
-  useUmsatzTasten(data.transactions, index);
+  useUmsatzTasten(sichtbar, index);
 
   return (
     <>
@@ -202,7 +203,7 @@ function BankPage() {
                   {filter === "offen" ? "Alles zugeordnet." : filter === "vorschlag" ? "Keine Umsätze mit Vorschlag." : "Keine Umsätze."}
                 </p>
               )}
-              {data.transactions.map((tx) => (
+              {zeilen.map(({ umsatz: tx, gebuehr }) => (
                 <Link
                   key={tx.id}
                   id={`tx-${tx.id}`}
@@ -221,10 +222,7 @@ function BankPage() {
                       {data.allAccounts ? [accountName.get(tx.bankAccountId), tx.purpose].filter(Boolean).join(" · ") : tx.purpose}
                     </span>
                   </div>
-                  <div className="num" style={{ color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
-                    {tx.amount > 0 ? "+" : "−"}
-                    {formatEuro(Math.abs(tx.amount))}
-                  </div>
+                  <UmsatzBetrag betrag={tx.amount} gebuehr={gebuehr?.amount ?? null} />
                   <div>
                     <TransactionStatus tx={tx} />
                   </div>
@@ -239,7 +237,8 @@ function BankPage() {
                 steuerOptionen={{ steuerarten: data.steuerarten, steuerPosten: data.steuerPosten }}
                 darlehenOptionen={{ loans: data.loans, loanParts: data.loanParts }}
                 kategorieOptionen={{ kategorien: data.kategorien, kleinunternehmer: data.kleinunternehmer }}
-                nextOpenId={nextOpenAfter(data.transactions, data.detail.transaction.id)}
+                nextOpenId={nextOpenAfter(sichtbar, data.detail.transaction.id)}
+                gebuehr={zeilen.find((z) => z.umsatz.id === selectedId)?.gebuehr ?? null}
               />
             ) : (
               <aside className="card" aria-label="Zuordnung">

@@ -42,7 +42,7 @@ vi.mock("../../auth.ts", () => ({
 
 describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", () => {
   let drafts: typeof import("./draft-pdf.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let dunning: typeof import("./dunning.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
@@ -85,7 +85,7 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
   beforeAll(async () => {
     sql = await setupTestDb();
     drafts = await import("./draft-pdf.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     dunning = await import("./dunning.ts");
     contacts = await import("../stammdaten/contacts.ts");

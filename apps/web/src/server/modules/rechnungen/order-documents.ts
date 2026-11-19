@@ -4,7 +4,7 @@ import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { loadCompany, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
-import { withCurrentLegalInfo } from "./invoices.ts";
+import { withCurrentLegalInfo } from "./invoice-document.ts";
 import { quoteChoices } from "./quote-choices.ts";
 import { documentReferences, type ReferenceColumns } from "./order-references.ts";
 import { orderLines, quoteDocumentFor } from "./quotes.ts";

@@ -168,7 +168,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Angeboten (Postgres,
   });
 
   it("die Datei eines Rechnungsanhangs bleibt liegen, wenn derselbe Angebotsanhang entfernt wird", async () => {
-    const invoices = await import("./invoices.ts");
+    const invoices = await import("./index.ts");
     const invoiceAttachments = await import("./attachments.ts");
     const bytes = pdf("AGB gemeinsam");
     const invoice = await invoices.createDraft(actor, {

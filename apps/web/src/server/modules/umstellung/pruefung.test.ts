@@ -33,10 +33,10 @@ const eingang = (date: string, purpose: string, amount: string) => [
 describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgres)", () => {
   let sql: postgres.Sql;
   let umstellung: typeof import("./index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let annual: typeof import("../jahreserklaerung/annual.ts");
@@ -47,10 +47,10 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
   beforeAll(async () => {
     sql = await setupTestDb();
     umstellung = await import("./index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     vat = await import("../umsatzsteuer/index.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     annual = await import("../jahreserklaerung/annual.ts");

@@ -6,7 +6,7 @@ import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
   let datev: typeof import("./datev-export.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let ledger: typeof import("../buchhaltung/ledger.ts");
   let sql: postgres.Sql;
@@ -15,7 +15,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     datev = await import("./datev-export.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     ledger = await import("../buchhaltung/ledger.ts");
   }, 30_000);

@@ -28,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Rollen bei der Zuordnung von Kontakten (Postg
   let sql: postgres.Sql;
   let contacts: typeof import("./contacts.ts");
   let blocks: typeof import("./text-blocks.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let quotes: typeof import("../rechnungen/quotes.ts");
   let recurring: typeof import("../rechnungen/recurring.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -40,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)("Rollen bei der Zuordnung von Kontakten (Postg
     sql = await setupTestDb();
     contacts = await import("./contacts.ts");
     blocks = await import("./text-blocks.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     quotes = await import("../rechnungen/quotes.ts");
     recurring = await import("../rechnungen/recurring.ts");
     documents = await import("../belege/documents.ts");

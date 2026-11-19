@@ -6,7 +6,9 @@ import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice, paymentProcedure } from "../rechnungen/index.ts";
-import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
+import { openItems } from "./offene-posten.ts";
+import { invoiceTaxShares, settledOn } from "./settled-amounts.ts";
+import { bookWriteOff } from "./write-offs.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
 import { bareinnahmeSteuerSchema, bookCashIncome } from "./cash-income.ts";
 

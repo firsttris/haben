@@ -19,10 +19,10 @@ function dkbCsv(rows: string[][]) {
 
 describe.skipIf(!testDatabaseUrl)("DATEV-Export: Belegfeld 1 im Zeichensatz von DATEV (Postgres, #675)", () => {
   let datev: typeof import("./datev-export.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   const inhaber = { id: actor, role: "inhaber" as const };
@@ -31,10 +31,10 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export: Belegfeld 1 im Zeichensatz von 
   beforeAll(async () => {
     sql = await setupTestDb();
     datev = await import("./datev-export.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 30_000);
 
   afterAll(async () => {

@@ -8,7 +8,7 @@ const pdf = (text: string) => new TextEncoder().encode(`%PDF-1.4\n% ${text}\n%%E
 
 describe.skipIf(!testDatabaseUrl)("Review: Anhänge an Rechnungen (Postgres)", () => {
   let attachments: typeof import("./attachments.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let storage: typeof import("../../storage.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Anhänge an Rechnungen (Postgres)", (
   beforeAll(async () => {
     sql = await setupTestDb();
     attachments = await import("./attachments.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     storage = await import("../../storage.ts");
   }, 30_000);
 

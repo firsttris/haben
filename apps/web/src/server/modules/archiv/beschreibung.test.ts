@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { csvKopfzeile, DTD_DATEI, indexXml, mitIndexXml, spaltenTyp } from "./beschreibung.ts";
-import type { ArchiveFile } from "./export.ts";
+import type { ArchiveFile } from "./export-zip.ts";
 
 /** Wie csv() in export.ts: UTF-8 mit BOM, Semikolon, CRLF, Anführungszeichen nach RFC 4180 (ohne die Datenbank zu laden) */
 const csvZeile = (werte: string[]) => `${werte.map((w) => (/[;"\r\n]/.test(w) ? `"${w.replace(/"/g, '""')}"` : w)).join(";")}\r\n`;

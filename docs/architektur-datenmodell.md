@@ -76,8 +76,8 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `bank_transactions` | Importierte Umsätze mit Hash zur Deduplizierung; EndToEndId, soweit der Auszug sie nennt | nur anhängen |
 | `import_sources` | Quellenbindung des Importvertrags ([#306](https://github.com/firsttris/haben/issues/306)): Konto, Kennung beim Anbieter und Stichtag (erster Tag, den die Quelle liefert, gesetzt mit der Bindung), eindeutig je Anbieter und Kennung | nur anhängen, Audit |
 | `import_batches` | Angenommene Lieferungen mit Prüfwert, Fenster, offenen Ereignissen, nachweislich mehrfach vergebenen Enable-Banking-Referenzen und dem Abrufstand danach | nur anhängen, Audit |
-| `import_movements` | Quellenidentität: Ereignis und Komponente mit buchungsrelevantem Kern und dem Umsatz in `bank_transactions` | nur anhängen, Audit |
-| `import_conflicts` | Konflikt im Abruf: eine übernommene Bewegung, die die Bank mit anderem Kern liefert, mit dem gelieferten Kern, dem Umsatz, den er ergäbe, und dem abgelehnten Abruf; je Bewegung und Kern einmal | nur anhängen, Audit |
+| `import_movements` | Quellenidentität: Ereignis und Komponente mit buchungsrelevantem Kern, den gelieferten Referenzen (`refs`) und dem Umsatz in `bank_transactions` | nur anhängen, Audit |
+| `import_conflicts` | Konflikt im Abruf: eine übernommene Bewegung, die die Quelle (Bankabruf oder Etsy) mit anderem Kern liefert, mit dem gelieferten Kern, dem Umsatz, den er ergäbe, und dem abgelehnten Abruf; je Bewegung und Kern einmal | nur anhängen, Audit |
 | `import_resolutions` | Entscheidung zu einem Konflikt, genau eine: bisherigen behalten oder als weiteren Umsatz übernehmen (dann mit dem neuen Umsatz) | nur anhängen, Audit |
 | `sepa_transfers` | Erzeugte SEPA-Dateien (pain.001) mit Auftraggeberkonto, Ausführungsdatum, Anzahl, Summe und XML | nur anhängen, Audit |
 | `sepa_transfer_items` | Je Beleg eine Überweisung der Datei: EndToEndId (eindeutig), Betrag, Skonto, Empfänger, IBAN, Verwendungszweck | nur anhängen, Audit |

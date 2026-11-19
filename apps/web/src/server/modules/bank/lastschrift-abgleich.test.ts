@@ -36,7 +36,7 @@ const ACCOUNTS = {
 describe.skipIf(!testDatabaseUrl)("Lastschriften im Bankabgleich: Sammelgutschrift und Rücklastschrift (Postgres, #445)", () => {
   let sql: postgres.Sql;
   let bank: typeof import("./index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let mandates: typeof import("../stammdaten/sepa-mandate.ts");
   const actor = "test-user";
@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("Lastschriften im Bankabgleich: Sammelgutschri
   beforeAll(async () => {
     sql = await setupTestDb();
     bank = await import("./index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     mandates = await import("../stammdaten/sepa-mandate.ts");
   }, 30_000);
