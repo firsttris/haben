@@ -123,7 +123,7 @@ Eine Trefferzeile zeigt Symbolkachel, Titel und darunter Kontext. Am Desktop ste
 
 Die Kennzahlenreihe zeigt nur Zahlen.
 
-Auf der Übersicht steht „Zu erledigen“ vor der Reihe: Fristen der nächsten zwei Wochen zuerst (auch überfällige), die früheste vorn, dann Warnung vor Hinweis vor Anstehendem. Die Reihe entfällt, solange keine Zahlen da sind (`ohneKennzahlen`). Fehlt „Letzte Voranmeldungen“, nimmt „Letzte Rechnungen“ die ganze Breite (`.uebersicht-listen`).
+Auf der Übersicht steht „Zu erledigen“ vor der Reihe: Fristen der nächsten zwei Wochen zuerst (auch überfällige), die früheste vorn, dann Warnung vor Hinweis vor Anstehendem; offen stehen die drei dringendsten, der Rest zugeklappt unter „Weitere (n)“. Die Reihe entfällt, solange keine Zahlen da sind (`ohneKennzahlen`). Fehlt „Letzte Voranmeldungen“, nimmt „Letzte Rechnungen“ die ganze Breite (`.uebersicht-listen`).
 
 ### Status
 
