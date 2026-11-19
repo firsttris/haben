@@ -47,6 +47,12 @@ export function CompanyForm() {
   };
   const { form: checkScope, error, check } = useSubmitCheck(fehler);
 
+  // Wer zur GmbH oder UG wechselt, hat die Pflichtangaben noch nicht eingetragen: Das Handelsregister steht dann offen
+  function wechseln(neu: Rechtsform) {
+    if (isKapitalgesellschaft(neu) && !gesellschaft) aufklappen(["company-register"]);
+    setRechtsform(neu);
+  }
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     // Vor der Prüfung aufklappen: In einem zugeklappten Abschnitt fände der Fokus das Feld mit dem Fehler nicht
@@ -75,7 +81,7 @@ export function CompanyForm() {
 
       {gesellschaft && <Handelsregister company={company} letterIssues={letterIssues} {...abschnitt("company-register")} />}
 
-      <Steuern company={company} locks={locks} rechtsform={rechtsform} onRechtsform={setRechtsform} />
+      <Steuern company={company} locks={locks} rechtsform={rechtsform} onRechtsform={wechseln} />
 
       <Fremdwaehrung tageskurs={company.tageskurs} {...abschnitt("company-currency")} />
 
