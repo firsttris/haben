@@ -66,7 +66,7 @@ Für innergemeinschaftliche Lieferungen muss die USt-IdNr. des Kunden gültig se
 Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/firsttris/haben/issues/587)):
 
 - **Umsatz und Rechnungen** (Kunde): festgeschriebene Rechnungen aus Haben und die Einnahmen aus dem Archiv des Umzugs. Entwürfe zählen nicht. Stornorechnung, Rechnungskorrektur und Gutschrift mindern mit ihrem negativen Betrag, und zwar im Jahr ihres eigenen Datums: Ein Storno im Januar zu einer Rechnung vom Dezember mindert das neue Jahr.
-- **Ausgaben und Belege** (Lieferant): gebuchte [Belege](belege.md), in der Spalte „Art“ mit der Kategorie und der Nummer ihres Kontos, und die Ausgaben aus dem Archiv. Ein stornierter Beleg steht in der Liste, zählt aber nicht; ungebuchte Belege fehlen.
+- **Ausgaben und Belege** (Lieferant): gebuchte [Belege](belege.md), in der Spalte „Art“ mit der Kategorie und der Nummer ihres Standardkontos (beim Anlagegut ohne Nummer), und die Ausgaben aus dem Archiv. Ein stornierter Beleg steht in der Liste, zählt aber nicht; ungebuchte Belege fehlen.
 
 Oben stehen die Summen je Jahr, netto und brutto, mit dem Anteil aus dem Altbestand und bei mehreren Jahren einer Zeile **Gesamt**. Ab zwei Jahren zeigt ein Säulendiagramm darüber die Nettosummen, in den Farben der Einnahmen bzw. Ausgaben wie unter [Auswertungen](auswertungen.md#einnahmen-und-ausgaben-je-monat); Zeigen oder Fokus nennt netto, brutto und den Anteil aus dem Altbestand. Ein Klick auf ein Jahr in der Tabelle oder auf seine Säule (per Tastatur mit Enter) zeigt seine Einträge darunter; ohne Wahl ist es das neueste Jahr mit Einträgen. Jede Zeile führt zur Rechnung, zum Beleg oder zum archivierten Beleg.
 
