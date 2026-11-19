@@ -3,19 +3,19 @@ import { UstIdVorFestschreiben } from "./UstIdVorFestschreiben.tsx";
 
 /**
  * Hinweise in der Rückfrage zum Festschreiben einer Rechnung: Rechnungsdatum vor der zuletzt festgeschriebenen und, bei
- * Reverse Charge oder innergemeinschaftlicher Lieferung, die Bestätigung der USt-IdNr. beim BZSt (ustIdVon, #1385).
+ * Reverse Charge oder innergemeinschaftlicher Lieferung, die Bestätigung der USt-IdNr. beim BZSt (ustId, #1385).
  * Eigene Komponente, damit InvoiceEditor nicht weiter wächst.
  */
 export function FestschreibenHinweise({
   open,
   earlierThanLast,
   numberDate,
-  ustIdVon,
+  ustId,
 }: {
   open: boolean;
   earlierThanLast: { number: string; issueDate: string } | null;
   numberDate: string;
-  ustIdVon: string | null;
+  ustId: { contactId: string; behandlung: "reverse_charge" | "ig_lieferung" } | null;
 }) {
   return (
     <>
@@ -25,7 +25,7 @@ export function FestschreibenHinweise({
           {formatDate(earlierThanLast.issueDate)}.
         </div>
       )}
-      {ustIdVon && <UstIdVorFestschreiben open={open} contactId={ustIdVon} />}
+      {ustId && <UstIdVorFestschreiben open={open} contactId={ustId.contactId} behandlung={ustId.behandlung} />}
     </>
   );
 }

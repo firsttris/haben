@@ -20,5 +20,5 @@ export const bestaetigeUstIdFn = createServerFn({ method: "POST" })
 /** Beim Öffnen der Rückfrage zum Festschreiben einer Rechnung mit Reverse Charge oder innergemeinschaftlicher Lieferung */
 export const ustIdVorFestschreibenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ contactId: z.uuid() }))
-  .handler(({ data, context }) => ustIdVorFestschreiben(context.user.id, data.contactId));
+  .validator(z.object({ contactId: z.uuid(), behandlung: z.enum(["reverse_charge", "ig_lieferung"]) }))
+  .handler(({ data, context }) => ustIdVorFestschreiben(context.user.id, data.contactId, data.behandlung));

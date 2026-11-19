@@ -115,6 +115,17 @@ export function evatrFrischGueltig(antwort: { status: string; anfrageZeitpunkt: 
   return Boolean(antwort && evatrGueltig(antwort.status) && evatrFrisch(antwort.anfrageZeitpunkt, jetzt));
 }
 
+/**
+ * Für Reverse Charge zählt nur eine frische qualifizierte Bestätigung, bei der Name und Ort nicht „stimmt nicht“ (B) sind:
+ * UStAE 3a.2 Abs. 9 Satz 5 setzt die Bestätigung von Gültigkeit, Name und Anschrift voraus. Straße und PLZ sind optional.
+ */
+export function evatrQualifiziertBestaetigt(
+  antwort: { art: EvatrArt; status: string; anfrageZeitpunkt: Date | string; ergFirmenname: string | null; ergOrt: string | null } | undefined,
+  jetzt: Date,
+): boolean {
+  return Boolean(antwort?.art === "qualifiziert" && evatrFrischGueltig(antwort, jetzt) && antwort.ergFirmenname !== "B" && antwort.ergOrt !== "B");
+}
+
 /** Fehler der angefragten Nummer selbst (Syntax, Länderkennzeichen); andere Nummern betrifft das nicht, anders als ein Ausfall */
 export const evatrNummerFehler = (status: string) => status === "evatr-0005" || status === "evatr-0012" || status === "evatr-2003";
 

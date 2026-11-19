@@ -5,10 +5,10 @@ import { ustIdVorFestschreibenFn } from "../server/functions/ustid-bestaetigung.
 
 /**
  * Hinweis in der Rückfrage zum Festschreiben einer Rechnung mit Reverse Charge oder innergemeinschaftlicher Lieferung (#1385).
- * Beim Öffnen fragt der Server das BZSt, wenn die letzte Antwort zur Nummer des Kunden nicht gültig oder älter als 30 Tage ist.
+ * Beim Öffnen fragt der Server das BZSt, wenn die Nummer des Kunden nicht frisch bestätigt ist (bei Reverse Charge mit Name und Ort).
  * Ein Hinweis sperrt das Festschreiben nicht.
  */
-export function UstIdVorFestschreiben({ open, contactId }: { open: boolean; contactId: string }) {
+export function UstIdVorFestschreiben({ open, contactId, behandlung }: { open: boolean; contactId: string; behandlung: "reverse_charge" | "ig_lieferung" }) {
   const pruefe = useServerFn(ustIdVorFestschreibenFn);
   const [stand, setStand] = useState<"laeuft" | { hinweis: string | null } | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: nur das Öffnen und der Kunde lösen eine Prüfung aus
@@ -19,14 +19,14 @@ export function UstIdVorFestschreiben({ open, contactId }: { open: boolean; cont
     }
     let offen = true;
     setStand("laeuft");
-    pruefe({ data: { contactId } }).then(
+    pruefe({ data: { contactId, behandlung } }).then(
       (ergebnis) => offen && setStand(ergebnis),
       () => offen && setStand(null),
     );
     return () => {
       offen = false;
     };
-  }, [open, contactId]);
+  }, [open, contactId, behandlung]);
   if (stand === "laeuft") {
     return (
       <p className="small muted" role="status">

@@ -6,8 +6,8 @@ import { bestaetigeZmNummernFn } from "../../server/functions/zm.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 
 /**
- * Gemeldete USt-IdNrn. der Zusammenfassenden Meldung beim BZSt bestätigen (#1385): fragt jede Nummer ohne gültige Antwort aus
- * den letzten Tagen einfach ab; was das BZSt meldet, steht danach oben in der Vorprüfung.
+ * Gemeldete USt-IdNrn. der Zusammenfassenden Meldung beim BZSt bestätigen (#1385): fragt jede Nummer, deren letzte Antwort
+ * nicht gültig oder älter als 30 Tage ist, einfach ab; was das BZSt meldet, steht danach oben in der Vorprüfung.
  */
 export function ZmBestaetigung({ period, offen }: { period: { year: number; month: number }; offen: number }) {
   const router = useRouter();

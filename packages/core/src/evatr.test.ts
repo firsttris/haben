@@ -4,6 +4,7 @@ import {
   evatrAntwortSchema,
   evatrFrisch,
   evatrFrischGueltig,
+  evatrQualifiziertBestaetigt,
   evatrGueltig,
   evatrMeldung,
   evatrNachweis,
@@ -182,5 +183,19 @@ describe("evatrFrischGueltig", () => {
     expect(evatrFrischGueltig({ status: "evatr-2001", anfrageZeitpunkt: "2026-11-18T12:00:00Z" }, jetzt)).toBe(false);
     expect(evatrFrischGueltig({ status: "evatr-0000", anfrageZeitpunkt: "2026-09-18T12:00:00Z" }, jetzt)).toBe(false);
     expect(evatrFrischGueltig(undefined, jetzt)).toBe(false);
+  });
+});
+
+describe("evatrQualifiziertBestaetigt", () => {
+  const jetzt = new Date("2026-11-20T12:00:00Z");
+  const q = { art: "qualifiziert" as const, status: "evatr-0000", anfrageZeitpunkt: "2026-11-18T12:00:00Z", ergFirmenname: "A", ergOrt: "A" };
+  it("für Reverse Charge: frisch, gültig, qualifiziert, Name und Ort nicht „stimmt nicht“", () => {
+    expect(evatrQualifiziertBestaetigt(q, jetzt)).toBe(true);
+    // D (vom Mitgliedstaat nicht mitgeteilt) ist kein Widerspruch
+    expect(evatrQualifiziertBestaetigt({ ...q, ergOrt: "D" }, jetzt)).toBe(true);
+    expect(evatrQualifiziertBestaetigt({ ...q, ergOrt: "B" }, jetzt)).toBe(false);
+    expect(evatrQualifiziertBestaetigt({ ...q, ergFirmenname: "B" }, jetzt)).toBe(false);
+    expect(evatrQualifiziertBestaetigt({ ...q, art: "einfach" }, jetzt)).toBe(false);
+    expect(evatrQualifiziertBestaetigt({ ...q, anfrageZeitpunkt: "2026-09-18T12:00:00Z" }, jetzt)).toBe(false);
   });
 });

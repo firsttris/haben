@@ -367,7 +367,8 @@ export function InvoiceEditor({
   const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
   const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   // Vor dem Festschreiben die USt-IdNr. beim BZSt bestätigen (#1385)
-  const ustIdPruefen = kind === "rechnung" && (taxTreatment === "reverse_charge" || taxTreatment === "ig_lieferung");
+  const ustIdPruefen =
+    kind === "rechnung" && (taxTreatment === "reverse_charge" || taxTreatment === "ig_lieferung") ? { contactId, behandlung: taxTreatment } : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
   const lastschrift = kind === "rechnung" && paymentMethod === "lastschrift";
@@ -718,7 +719,7 @@ export function InvoiceEditor({
           </>
         ) : (
           <>
-            <FestschreibenHinweise open={confirming} earlierThanLast={earlierThanLast} numberDate={numberDate} ustIdVon={ustIdPruefen ? contactId : null} />
+            <FestschreibenHinweise open={confirming} earlierThanLast={earlierThanLast} numberDate={numberDate} ustId={ustIdPruefen} />
             <p>PDF und XML werden erzeugt und gebucht.</p>
             <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>
