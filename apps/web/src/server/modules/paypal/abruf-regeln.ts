@@ -38,7 +38,7 @@ const later = (a: string, b: string) => (a > b ? a : b);
 const earlier = (a: string, b: string) => (a < b ? a : b);
 
 /**
- * Erster Tag des nächsten Abrufs: drei Tage vor dem Tag dieses erfolgreichen Abrufs, nie vor dem bisherigen Start (`fetchFrom`).
+ * Erster Tag des nächsten Abrufs: zehn Tage vor dem Tag dieses erfolgreichen Abrufs, nie vor dem bisherigen Start (`fetchFrom`).
  * Liegt eine ausstehende Zahlung zurück (`offenSeit`, ihr Tag), beginnt der Abruf an diesem Tag, höchstens aber `AUSSTEHEND_TAGE` zurück.
  */
 export function naechsterAbrufStart(fetchFrom: string, now: Date, offenSeit: string | null = null): string {
