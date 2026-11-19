@@ -64,6 +64,15 @@ describe("uebernommeneAnteile (Beleg duplizieren, #1295)", () => {
       erwartet: { beleg: 0, saetze: [null] },
     },
     {
+      // Umgekehrt zum Wechsel aus der Kleinunternehmerregelung: voll gebucht, heute „ohne Vorsteuerabzug“ in den Firmendaten.
+      // Der volle Anteil kommt als eigene Angabe mit und geht der Vorgabe vor; der Hinweis am Entwurf lässt ihn prüfen
+      name: "voll gebucht, heute ohne Vorsteuerabzug: bleibt voll",
+      beleg: { gebucht: true, vorsteuerAnteil: VOLLER_ABZUG },
+      saetze: [VOLLER_ABZUG],
+      vorgabe: 0,
+      erwartet: { beleg: VOLLER_ABZUG, saetze: [null] },
+    },
+    {
       name: "ältere Buchung ohne Anteil und ohne Abzug: bleibt ohne Abzug",
       beleg: { gebucht: true, vorsteuerAnteil: null, vorsteuerAbzug: false },
       saetze: [null],
