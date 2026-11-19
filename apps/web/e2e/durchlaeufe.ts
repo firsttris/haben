@@ -44,6 +44,7 @@ export const DURCHLAEUFE = {
   "etsy-abruf": 32,
   // Zahlung und Gebühr eines Zahlungsdienstleisters in einer Zeile und in einem Schritt zugeordnet (#1417)
   "zahlung-gebuehr": 34,
+  "bank-dubletten": 35,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

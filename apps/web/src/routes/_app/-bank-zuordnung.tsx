@@ -1,4 +1,5 @@
 import { formatDecimal } from "@haben/core";
+import { BankDuplicateNotice } from "../../components/BankDuplicateNotice.tsx";
 import { GebuehrWahl, zuordnenText } from "../../components/BankGebuehr.tsx";
 import { DarlehenFelder } from "../../components/DarlehenFelder.tsx";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
@@ -23,6 +24,9 @@ import { type Gebuehr, type Optionen, useZuordnung, type Zuordnung } from "./-ba
 export function AllocationPanel({ detail, nextOpenId, gebuehr, ...optionen }: Optionen & { detail: Detail; nextOpenId: string | undefined; gebuehr: Gebuehr }) {
   const z = useZuordnung(detail, optionen, nextOpenId, gebuehr);
   const { tx, busy, notice, run, aufrufe } = z;
+  const duplicateNotice = (
+    <BankDuplicateNotice tx={tx} reviews={detail.duplicateReviews} busy={busy} onDecision={(data) => void run(() => aufrufe.decideDuplicateFn({ data }))} />
+  );
   // Auf einem privaten Konto ohne Buchungsart bleibt nur die Kennzeichnung: „Zuordnen", „Direkt buchen" und „Aufteilen"
   // wären beim selben Umsatz eine zweite Aussage zum selben Vorgang — sie gelten erst, wenn die Kennzeichnung aufgehoben
   // ist (#1088)
@@ -30,12 +34,14 @@ export function AllocationPanel({ detail, nextOpenId, gebuehr, ...optionen }: Op
     return (
       <aside ref={z.panel} className="card" aria-label="Umsatz" style={{ gap: 16 }}>
         <PrivatUmsatz tx={tx} busy={busy} notice={notice} onAufheben={() => void run(() => aufrufe.unmarkPrivatFn({ data: { transactionId: tx.id } }))} />
+        {duplicateNotice}
       </aside>
     );
 
   return (
     <aside ref={z.panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
       <UmsatzKopf tx={tx} />
+      {duplicateNotice}
       <Stand z={z} />
       {tx.open !== 0 && z.wahl.mode === "split" && <Aufteilen z={z} />}
       {tx.open !== 0 && z.wahl.mode !== "split" && (

@@ -7,12 +7,13 @@ import * as schema from "./schema.ts";
  */
 // Tabelle ausdrücklich nennen: in der Spaltenliste schreibt drizzle nur "id", das träfe in Unterabfragen a.id
 export const bankNeutralizedSql = sql<boolean>`haben_bank_neutralized(${schema.bankTransactions}.id)`;
+export const bankDuplicateConfirmedSql = sql<boolean>`haben_bank_duplicate(${schema.bankTransactions}.id)`;
 
 /**
  * Noch nicht erledigter Teil eines Umsatzes: Betrag minus Zuordnungen, null bei einem verrechneten Umsatz. Bankabgleich,
  * Kontenliste und die Vorprüfung der Voranmeldung rechnen damit gleich.
  */
-export const bankOpenAmountSql = sql<number>`(case when ${bankNeutralizedSql} then 0 else ${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = ${schema.bankTransactions}.id), 0) end)`;
+export const bankOpenAmountSql = sql<number>`(case when ${bankNeutralizedSql} or ${bankDuplicateConfirmedSql} then 0 else ${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = ${schema.bankTransactions}.id), 0) end)`;
 
 /**
  * Für Abfragen auf `bank_transactions` und `bank_imports`: das Konto gehört zu dieser Firma. Ein ausgeschlossenes Konto
@@ -33,3 +34,16 @@ export const bankPrivateMarkedSql = sql<boolean>`(exists (select 1 from ${schema
 
 /** Gegenteil von `bankPrivateMarkedSql`: Ein gekennzeichneter Umsatz zählt weder im Bankabgleich noch in der Vorprüfung als offen */
 export const bankNotPrivateMarkedSql = sql<boolean>`not ${bankPrivateMarkedSql}`;
+
+/** Die Originalimporte und spätere Wiederbeobachtungen gelten als gleichwertiger Abrufnachweis. */
+export const separateDuplicateFetchesSql = sql<boolean>`not haben_bank_shared_fetch(dupe.transaction_id, dupe.original_transaction_id)`;
+
+/** Offener Verdacht; ein später belegter gemeinsamer Abruf entkräftet ihn ohne Änderung des Auditverlaufs. */
+export const bankDuplicatePendingSql = sql<boolean>`not ${bankDuplicateConfirmedSql} and exists (
+  select 1 from bank_duplicate_reviews dupe
+  where dupe.transaction_id = ${schema.bankTransactions}.id and haben_active_bank_duplicate_decision(dupe.id) is null
+    and ${separateDuplicateFetchesSql}
+)`;
+
+/** Ein offener oder bestätigter Dublettenvermerk schließt den Umsatz aus Zuordnungsvorschlägen aus. */
+export const bankDuplicateProposalEligibleSql = sql<boolean>`not (${bankDuplicateConfirmedSql} or (${bankDuplicatePendingSql}))`;

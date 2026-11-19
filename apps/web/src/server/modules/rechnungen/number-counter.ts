@@ -4,6 +4,7 @@ import {
   documentNumberLengthProblem,
   formatDocumentNumber,
   usesCustomerNumber,
+  voucherField,
   type FinalizedCircleRef,
 } from "@haben/core";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
@@ -43,6 +44,9 @@ export class NumberCustomerError extends UserError {}
 
 /** Nummer länger, als DATEV sie als Belegnummer übernimmt (#1426) */
 export class NumberLengthError extends UserError {}
+
+/** Nummer sieht im DATEV-Belegfeld 1 aus wie eine vergebene (#1426) */
+export class NumberCollisionError extends UserError {}
 
 /** Ob der Zähler des Kreises durchläuft; nur gelesen, ohne die Firmenzeile anzulegen (loadCompany schriebe Audit) */
 export async function countsRunning(tx: Tx, kind: NumberKind): Promise<boolean> {
@@ -109,6 +113,22 @@ export async function takeNumber(tx: Tx, kind: NumberKind, year: number, number:
     .onConflictDoUpdate({ target: counter.year, set: { last: number }, setWhere: eq(counter.last, number - 1) })
     .returning({ last: counter.last });
   if (!row) throw new Error(`Nummernkreis ${kind} ${year}: Nummer ${number} ist nicht mehr die nächste.`);
+}
+
+/** Vergibt die Rechnungsnummer und prüft unter der Audit-Sperre auch kreisübergreifend auf DATEV-Kollisionen. */
+export async function takeInvoiceNumber(tx: Tx, year: number, counter: number, number: string): Promise<void> {
+  // Der Audit-Trigger des Zählers sperrt die Hash-Kette bis zum Commit. Erst danach lesen, damit auch parallel
+  // festgeschriebene Nummern aus anderen Kreisen sichtbar sind. Bei Kollision rollt der Zähler mit zurück.
+  await takeNumber(tx, "rechnung", year, counter);
+  const field = voucherField(number);
+  const { invoices } = schema;
+  const rows = await tx.select({ number: invoices.number }).from(invoices).where(isNotNull(invoices.number));
+  const clash = rows.find((row) => row.number !== null && voucherField(row.number) === field);
+  if (clash) {
+    throw new NumberCollisionError(
+      `Die Nummer ${number} sieht im DATEV-Export aus wie die vergebene Nummer ${clash.number}; im Belegfeld 1 stehen beide als „${field}“. Bitte unter Einstellungen › Rechnungen das Nummernformat oder die Kundennummer anpassen.`,
+    );
+  }
 }
 
 /** Setzt den Zähler so, dass `next` die nächste Nummer ist (Umstieg von einem anderen Programm) */

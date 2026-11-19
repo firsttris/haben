@@ -662,6 +662,9 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .banner-ok { background: var(--accent-soft); color: var(--accent-ink); }
 .banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
 .banner a { color: inherit; font-weight: 500; }
+/* Aufeinanderfolgende Hinweise unter der Seitenüberschrift rücken auf 12px zusammen (die Seite hat 24px Abstand); der Link bricht nicht mitten im Namen um */
+.main > .banner + .banner { margin-top: -12px; }
+.eric-hinweis a { white-space: nowrap; }
 .banner-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 16px; }
 .error-banner details { margin-top: 4px; font-size: 13px; }
 .error-banner summary { cursor: pointer; }

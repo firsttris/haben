@@ -179,7 +179,6 @@ async function earlierRows(base: string) {
       messageId: schema.inboxMessages.messageId,
       skipped: schema.inboxMessages.skipped,
       documentIds: schema.inboxMessages.documentIds,
-      duplicates: schema.inboxMessages.duplicates,
     })
     .from(schema.inboxMessages)
     .where(or(eq(schema.inboxMessages.messageId, base), sql`starts_with(${schema.inboxMessages.messageId}, ${prefix})`));

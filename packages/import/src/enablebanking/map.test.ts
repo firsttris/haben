@@ -44,6 +44,7 @@ describe("mapEnableBankingTransaction", () => {
       purpose: "RE-2026-0042 Danke",
       type: "Gutschrift",
       bankReference: "ref-1",
+      entryReference: "ref-1",
       index: 0,
     });
     const out = mapEnableBankingTransaction(outgoing, 1)!;
@@ -51,6 +52,8 @@ describe("mapEnableBankingTransaction", () => {
     expect(out.counterpartyName).toBe("Telekom");
     expect(out.counterpartyIban).toBe("DE89370400440532013000");
     expect(out.bankReference).toBe("t-2");
+    expect(out.providerTransactionId).toBe("t-2");
+    expect(out.entryReference).toBeUndefined();
   });
 
   it("lässt vorgemerkte Umsätze weg", () => {});

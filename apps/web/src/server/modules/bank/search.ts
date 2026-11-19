@@ -1,7 +1,7 @@
 import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
 import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { amountInEitherSign, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
-import { bankNeutralizedSql, bankOpenAmountSql, bankPrivateMarkedSql } from "../../db/bank-open.ts";
+import { bankDuplicateConfirmedSql, bankDuplicatePendingSql, bankNeutralizedSql, bankOpenAmountSql, bankPrivateMarkedSql } from "../../db/bank-open.ts";
 import { db, schema } from "../../db/index.ts";
 import { firstHits, partsFor, runSearchParts, searchPart } from "../../db/search-parts.ts";
 import { bestaende } from "./darlehen.ts";
@@ -17,14 +17,23 @@ export interface BankTransactionHit {
   purpose: string;
   accountName: string;
   /** Hinweis wie in der Liste der Bankseite (`TransactionStatus`), ohne „Vorschlag“: den rechnet erst der Abgleich */
-  hint: "verrechnet" | "privat" | "zugeordnet" | "teilweise" | "belegFehlt" | "offen";
+  hint: "bestaetigteDublette" | "dublette" | "verrechnet" | "privat" | "zugeordnet" | "teilweise" | "belegFehlt" | "offen";
   /** Noch nicht zugeordneter Teil in Cent */
   open: number;
   ibanLast4: string | null;
 }
 
 /** Hinweis eines Umsatzes wie `mitHinweisen` in umsatzauswahl.ts, nur ohne Vorschlag */
-function transactionHint(tx: { neutralized: boolean; privat: boolean; open: number; amount: number }): BankTransactionHit["hint"] {
+function transactionHint(tx: {
+  duplicateConfirmed: boolean;
+  duplicatePending: boolean;
+  neutralized: boolean;
+  privat: boolean;
+  open: number;
+  amount: number;
+}): BankTransactionHit["hint"] {
+  if (tx.duplicateConfirmed) return "bestaetigteDublette";
+  if (tx.duplicatePending) return "dublette";
   if (tx.neutralized) return "verrechnet";
   if (tx.privat) return "privat";
   if (tx.open === 0) return "zugeordnet";
@@ -65,6 +74,8 @@ function bankTransactionsPart(query: string, limit: number) {
       purpose: bt.purpose,
       counterpartyIban: bt.counterpartyIban,
       accountName: schema.bankAccounts.name,
+      duplicateConfirmed: bankDuplicateConfirmedSql.mapWith(Boolean),
+      duplicatePending: bankDuplicatePendingSql.mapWith(Boolean),
       neutralized: bankNeutralizedSql,
       privat: bankPrivateMarkedSql.mapWith(Boolean),
       open: sql<number>`${bankOpenAmountSql}`.mapWith(Number),
@@ -84,9 +95,9 @@ function bankTransactionsPart(query: string, limit: number) {
         .orderBy(desc(bt.bookingDate), desc(bt.createdAt))
         .limit(limit + 1),
     (rows): { hits: BankTransactionHit[]; more: boolean } => ({
-      hits: rows.slice(0, limit).map(({ counterpartyIban, neutralized, privat, ...rest }) => ({
+      hits: rows.slice(0, limit).map(({ counterpartyIban, duplicateConfirmed, duplicatePending, neutralized, privat, ...rest }) => ({
         ...rest,
-        hint: transactionHint({ neutralized, privat, open: rest.open, amount: rest.amount }),
+        hint: transactionHint({ duplicateConfirmed, duplicatePending, neutralized, privat, open: rest.open, amount: rest.amount }),
         ibanLast4: counterpartyIban ? counterpartyIban.slice(-4) : null,
       })),
       more: rows.length > limit,

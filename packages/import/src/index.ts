@@ -4,6 +4,7 @@ export { parseGermanAmount, parseDotAmount, parseDate } from "./text.ts";
 export { decodeText } from "./decode.ts";
 export { parseStatement, detectStatementFormat } from "./parse.ts";
 export { transactionHash, withDedupHashes } from "./dedup.ts";
+export { findDuplicateCandidates } from "./duplicate-candidates.ts";
 export { checkBalanceContinuity } from "./continuity.ts";
 export {
   parseDatevBuchungsstapel,

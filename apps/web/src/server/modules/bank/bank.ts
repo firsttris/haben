@@ -38,15 +38,12 @@ import {
   suggestMatches,
   type DirectBooking,
   type DirektKategorie,
-  kategorieAnzeige,
   type InvoiceTotals,
   type OwnAccount,
   type PostingLine,
   type Steuerart,
   type SteuerPosten,
-  steuerzahlungText,
   type DarlehenTeil,
-  darlehenText,
   type TaxShare,
   inCents,
   gruppiereGebuehren,
@@ -65,9 +62,19 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
 import { importAccount } from "./import-konto.ts";
+import { recordDuplicateCandidates } from "./duplicate-scan.ts";
+import { duplicateReviewsForTransaction } from "./duplicate-review.ts";
+import { transactionAllocations } from "./transaction-allocations.ts";
+import { lockImportObservations, recordImportObservations } from "./import-observations.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import {
+  bankDuplicateConfirmedSql,
+  bankDuplicatePendingSql,
+  bankDuplicateProposalEligibleSql,
+  bankNeutralizedSql,
+  bankOpenAmountSql,
+} from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import {
   invoicePaymentPostingMode,
@@ -84,7 +91,7 @@ import {
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
 import { belegTotals, freigabeNachziehen } from "../umsatzsteuer/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
-import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
+import { assertUstvaOffen, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { directDebitMatch } from "./lastschrift-abgleich.ts";
@@ -93,8 +100,6 @@ import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darl
 import { aufladungBuchung, kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { openItems } from "./offene-posten.ts";
 import { quellenHinweis } from "./quellen.ts";
-
-export { openItems } from "./offene-posten.ts";
 import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
@@ -102,7 +107,7 @@ import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from ".
 import { bankTransactionMatch } from "./search.ts";
 import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";
 
-export { BankError };
+export { BankError, openItems };
 
 /** Eine CSV, die keiner bekannten Bank gehört; die Seite bietet dann die Spaltenzuordnung an (#1275) */
 export class UnbekannteCsvError extends BankError {}
@@ -168,7 +173,7 @@ export async function listAccounts() {
           ? await db
               .select({ total: sql<string>`coalesce(sum(${schema.bankTransactions.amount}), 0)` })
               .from(schema.bankTransactions)
-              .where(eq(schema.bankTransactions.bankAccountId, account.id))
+              .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`not ${bankDuplicateConfirmedSql}`))
           : [];
       // Beim Dienstleister bleibt nach zwei Wochen nichts offen, was zugeordnet werden kann; sonst fehlt eine Zuordnung
       const [stale] =
@@ -294,7 +299,15 @@ export async function storeStatement(
     transactions.map((t) => t.dedupHash),
   );
   const fresh = transactions.filter((t) => !known.has(t.dedupHash));
-  await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  const fromEnableBanking = statement.format === "enablebanking";
+  const scanDays = fromEnableBanking ? [...new Set(fresh.map((row) => row.bookingDate))] : [];
+  const observed = fromEnableBanking
+    ? await lockImportObservations(tx, account.id, scanDays, { hashes: transactions.filter((row) => known.has(row.dedupHash)) })
+    : [];
+  const { importId, transactionIds } = await insertStatement(tx, account.id, statement, source, fresh, transactions.length - fresh.length);
+  await recordImportObservations(tx, importId, observed);
+  // Ohne Quellenbindung ist auch eine innerhalb des Abrufs eindeutige Referenz kein Beleg über mehrere Abrufe.
+  await recordDuplicateCandidates(tx, account.id, scanDays, new Set(transactionIds.values()), new Set());
   return statementResult(tx, account, statement, continuity, fresh.length, transactions);
 }
 
@@ -320,7 +333,12 @@ export async function prepareStatement(tx: Tx, statement: ParsedStatement, filen
   );
 
   // Konto sperren, damit parallele Importe dieselben Umsätze nicht doppelt anlegen
-  await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account.id)).for("update");
+  const [locked] = await tx
+    .select({ excludedAt: schema.bankAccounts.excludedAt })
+    .from(schema.bankAccounts)
+    .where(eq(schema.bankAccounts.id, account.id))
+    .for("update");
+  if (!locked || locked.excludedAt) throw new BankError("Das Konto ist ausgeschlossen oder nicht mehr vorhanden.");
   return { account, continuity };
 }
 
@@ -451,6 +469,8 @@ export async function listTransactions(
     .select({
       /** Auf einem privaten Konto als „kein Betriebsvorgang" gekennzeichnet und ganz offen (#1088) */
       privat: privat().mapWith(Boolean),
+      duplicatePending: bankDuplicatePendingSql.mapWith(Boolean),
+      duplicateConfirmed: bankDuplicateConfirmedSql.mapWith(Boolean),
       id: schema.bankTransactions.id,
       bankAccountId: schema.bankTransactions.bankAccountId,
       bookingDate: schema.bankTransactions.bookingDate,
@@ -514,52 +534,6 @@ export async function documentPayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("document_id", ids, q);
 }
 
-/** Zuordnungen eines Umsatzes ohne Gegenzeilen, mit Beschriftung und ob sie aufgehoben sind */
-async function transactionAllocations(id: string) {
-  const allocationRows = await db
-    .select({
-      id: schema.allocations.id,
-      kind: schema.allocations.kind,
-      amount: schema.allocations.amount,
-      reversesId: schema.allocations.reversesId,
-      splitId: schema.allocations.splitId,
-      createdAt: schema.allocations.createdAt,
-      invoiceId: schema.allocations.invoiceId,
-      invoiceNumber: schema.invoices.number,
-      documentId: schema.allocations.documentId,
-      documentSupplier: schema.documents.supplierName,
-      documentNumber: schema.documents.invoiceNumber,
-      vatReturnId: schema.allocations.vatReturnId,
-      taxType: schema.allocations.taxType,
-      taxYear: schema.allocations.taxYear,
-      taxItem: schema.allocations.taxItem,
-      loanName: schema.loans.name,
-      loanPart: schema.allocations.loanPart,
-      category: schema.allocations.category,
-      taxRate: schema.allocations.taxRate,
-    })
-    .from(schema.allocations)
-    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
-    .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
-    .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
-    .where(eq(schema.allocations.transactionId, id))
-    // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
-    .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
-  const { kontenrahmen } = await loadCompany();
-  const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
-  const vatLabels = await ustvaLabels(allocationRows.flatMap((a) => (a.vatReturnId ? [a.vatReturnId] : [])));
-  return allocationRows
-    .filter((a) => !a.reversesId)
-    .map((a) => ({
-      ...a,
-      reversed: reversed.has(a.id),
-      vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
-      steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
-      darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
-      kategorieLabel: a.category && a.taxRate !== null ? kategorieAnzeige({ kategorie: a.category, steuersatz: a.taxRate }, kontenrahmen) : null,
-    }));
-}
-
 export async function transactionDetail(id: string) {
   const [tx] = await db
     .select({
@@ -582,17 +556,19 @@ export async function transactionDetail(id: string) {
   if (!tx) return null;
   const allocations = await transactionAllocations(id);
 
+  const duplicateReviews = await duplicateReviewsForTransaction(tx.id);
+  const automatic = duplicateReviews.every((review) => review.decision === "distinct");
   // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
   const items = tx.open === 0 ? [] : [...(await openItems()), ...(await ustvaOpenItems())];
   // Vorschläge für den noch offenen Teil des Umsatzes
-  const suggestions = tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
+  const suggestions = !automatic || tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
   const candidates = items.filter((i) => Math.sign(i.open) === Math.sign(tx.amount));
   // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
   // Sammelrechnung des Monats an einer Gebührenzeile eines Zahlungsdienstleisters (#680)
-  const { sammelrechnung, sammelbeleg } = await sammelrechnungVorschlag(tx, account?.purpose, items);
-  let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
+  const { sammelrechnung, sammelbeleg } = automatic ? await sammelrechnungVorschlag(tx, account?.purpose, items) : { sammelrechnung: null, sammelbeleg: null };
+  let direct = automatic && account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
   let counterpart: TransferCounterpart | null = null;
   if (direct?.kind === "geldtransit" && account) {
     // Auszahlung vom Dienstleister: Gegenbuchung auf einem Bankkonto, dort mit dem Namen des Dienstleisters
@@ -626,16 +602,16 @@ export async function transactionDetail(id: string) {
   }
   if (direct?.requiresCounterpart && !counterpart) direct = null;
   // Lohnsteuer: Lastschrift des Finanzamts über den Gesamtbetrag einer übermittelten Lohnsteuer-Anmeldung
-  if (!direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
+  if (automatic && !direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
   // Sonst aus früheren Buchungen derselben Gegenpartei (Gebühren, Privat …), schwächer als die Regeln der Kontozwecke
-  if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
+  if (automatic && !direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
   // Was auf diesem Konto nicht buchbar ist, wird auch nicht vorgeschlagen, etwa gelernte Gebühren auf dem Privatkonto (#873)
   if (direct && !aufKontoAngeboten(direct.kind, account?.purpose ?? null)) direct = null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   // Belege aus Dauerbelegen, die noch zu prüfen sind: auf Klick buchen und zuordnen (bookAndAllocateDauerbeleg)
-  const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
+  const dauerbelege = !automatic || tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
   // Lastschriften aus Haben (#445): Sammelgutschrift aufteilen oder Rücklastschrift zuordnen
-  const lastschrift = await directDebitMatch(tx);
+  const lastschrift = automatic ? await directDebitMatch(tx) : null;
   // Der Sammelbeleg des Monats steht ganz oben, damit er in der Oberfläche als Treffer erscheint
   const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg.item.id)] : suggestions;
   // Für die Kennzeichnung „privat, kein Betriebsvorgang" (#1088): Zweck des Kontos und bestehende Markierung
@@ -643,6 +619,7 @@ export async function transactionDetail(id: string) {
   return {
     ...stand,
     lastschrift,
+    duplicateReviews,
     transaction: tx,
     allocations,
     suggestions: vorschlaege,
@@ -772,6 +749,7 @@ async function transferCounterpart(
         inArray(schema.bankTransactions.bankAccountId, accountIds),
         eq(schema.bankTransactions.amount, -tx.amount),
         sql`${schema.bankTransactions.bookingDate} between ${tx.bookingDate}::date - 5 and ${tx.bookingDate}::date + 5`,
+        bankDuplicateProposalEligibleSql,
       ),
     );
   const match = findTransferCounterpart(tx, sourceIban, rows, pattern);
@@ -789,7 +767,8 @@ async function payoutCandidates(accountIds: string[], bookingDate: string) {
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
       bankReference: schema.bankTransactions.bankReference,
-      open: openAmountSql.mapWith(Number),
+      // Die Zeile bleibt Teil der Gruppe. Mit einem Verdacht ist die ganze Auszahlung kein Vorschlag.
+      open: sql<number>`case when ${bankDuplicateProposalEligibleSql} then ${openAmountSql} else 0 end`.mapWith(Number),
     })
     .from(schema.bankTransactions)
     .where(

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { EricHinweis } from "../../../components/EricHinweis.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VatFrequencyCard } from "../../../components/umsatzsteuer/VatFrequencyCard.tsx";
 import { DauerfristCard } from "../../../components/umsatzsteuer/DauerfristCard.tsx";
@@ -123,12 +124,7 @@ function VatPeriodPage() {
         </Field>
       </div>
 
-      {data.mode === "simuliert" && (
-        <div className="banner banner-info" role="status">
-          <Icon name="info" />
-          <span>ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.</span>
-        </div>
-      )}
+      {data.mode === "simuliert" && <EricHinweis />}
       {!data.herstellerIdConfigured && data.current?.status !== "sent" && (
         <div className="banner banner-info" role="status">
           <Icon name="info" />

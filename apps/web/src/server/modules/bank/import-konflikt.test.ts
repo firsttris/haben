@@ -132,6 +132,21 @@ describe.skipIf(!testDatabaseUrl)("Konflikt klären (Postgres)", () => {
     expect((await konflikt.openConflicts()).filter((k) => k.sourceEventId === "ER-6")).toEqual([]);
   });
 
+  it("behandelt eine ausdrücklich als weiterer Umsatz geklärte Quellenreferenz bei der Bestandsprüfung als bekannt", async () => {
+    const iban = "DE02100500000054540447";
+    const normal = buchung("ER-BESTAND", "2026-11-15", "89.00");
+    const anderer = { ...buchung("ER-ANDERS", "2026-11-15", "98.00"), remittance_information: ["Kundennummer 4711 ER-BESTAND X"] };
+    expect((await abruf(iban, "hash-bestand", [normal, anderer])).ok).toBe(true);
+    expect((await abruf(iban, "hash-bestand", [{ ...normal, transaction_amount: { amount: "98.00", currency: "EUR" } }])).ok).toBe(false);
+    const [k] = (await konflikt.openConflicts()).filter((c) => c.sourceEventId === "ER-BESTAND");
+    const { transactionId } = await konflikt.resolveConflict("test", { conflictId: k!.id, decision: "add" });
+    expect(transactionId).not.toBeNull();
+    const { runExistingDuplicateCheck } = await import("./duplicate-scan.ts");
+    expect(await runExistingDuplicateCheck()).not.toBeNull();
+    const reviews = await sql`select id from bank_duplicate_reviews where transaction_id = ${transactionId}`;
+    expect(reviews).toEqual([]);
+  });
+
   it("nimmt den Umsatz aus der Bewegung, wenn der Auszug keinen zum Ereignis hat (etwa eine Gebühr als Komponente)", async () => {
     const iban = "DE02500105170137075030";
     await abruf(iban, "hash-6", [buchung("ER-7", "2026-11-14", "30.00")]);

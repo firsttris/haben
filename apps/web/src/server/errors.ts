@@ -75,20 +75,35 @@ export async function mitBezeichnung<T>(bezeichnung: string, anlegen: () => Prom
 
 export const INTERNAL_ERROR = "Interner Fehler. Details stehen im Server-Log.";
 
-function issueText(issues: readonly { message: string }[]): string {
+type Issue = { message: string; path?: readonly unknown[] };
+
+function issueText(issues: readonly Issue[]): string {
   return [...new Set(issues.map((issue) => issue.message))].join("; ") || "Ungültige Eingabe.";
 }
 
+/** Die Namen aus den Pfaden der Zod-Issues: die Felder, an denen die Prüfung scheitert (`felder` wie bei einem UserError) */
+function issueFelder(issues: readonly Issue[]): string[] {
+  const namen = issues.flatMap((issue) =>
+    (issue.path ?? []).map((teil) => (typeof teil === "object" && teil !== null ? (teil as { key?: unknown }).key : teil)),
+  );
+  return [...new Set(namen.filter((name): name is string => typeof name === "string"))];
+}
+
 /** Der Validator von TanStack Start wirft bei Zod-Schemas einen Error mit den Issues als JSON. */
-function validatorIssues(error: Error): string | undefined {
+function validatorIssueList(error: Error): Issue[] | undefined {
   if (error.constructor !== Error || !error.message.startsWith("[")) return undefined;
   try {
     const issues: unknown = JSON.parse(error.message);
-    if (Array.isArray(issues) && issues.length > 0 && issues.every((issue) => typeof issue?.message === "string")) return issueText(issues);
+    if (Array.isArray(issues) && issues.length > 0 && issues.every((issue) => typeof issue?.message === "string")) return issues;
   } catch {
     // kein JSON
   }
   return undefined;
+}
+
+function validatorIssues(error: Error): string | undefined {
+  const issues = validatorIssueList(error);
+  return issues && issueText(issues);
 }
 
 /**
@@ -128,8 +143,18 @@ export function clientError(message: string, felder: readonly string[] = []): Er
   return error;
 }
 
-/** Fehler für den Browser mit Meldung und Feldern, wenn er für den Nutzer bestimmt ist; sonst undefined („Interner Fehler“) */
+/**
+ * Fehler für den Browser mit Meldung und Feldern, wenn er für den Nutzer bestimmt ist; sonst undefined („Interner Fehler“).
+ * Die Felder nennt ein UserError selbst, bei einer Zod-Prüfung stehen sie im Pfad der Issues.
+ */
 export function userClientError(error: unknown): Error | undefined {
   const message = userMessage(error);
-  return message === undefined ? undefined : clientError(message, error instanceof UserError ? error.felder : []);
+  if (message === undefined) return undefined;
+  const felder =
+    error instanceof UserError
+      ? error.felder
+      : error instanceof ZodError
+        ? issueFelder(error.issues)
+        : issueFelder(error instanceof Error ? (validatorIssueList(error) ?? []) : []);
+  return clientError(message, felder);
 }

@@ -134,6 +134,7 @@ export default defineConfig({
         "bank-sortierung.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
+        "bwa.spec.ts",
         "datumsfelder.spec.ts",
         "einstellungen-export.spec.ts",
         "kopfzeile.spec.ts",
