@@ -63,7 +63,8 @@ export function zerlegeAbweichung(posten: readonly WarumPosten[], zeitraum: Zeit
   const je = new Map<string, Omit<WarumTeil, "art" | "differenz" | "jeVorgang" | "jeVorgangVergleich"> & { datum: string }>();
   for (const p of posten) {
     const imZeitraumP = imZeitraum(zeitraum, p.datum);
-    if (!imZeitraumP && !imZeitraum(vergleich, p.datum)) continue;
+    const imVergleichP = imZeitraum(vergleich, p.datum);
+    if (!imZeitraumP && !imVergleichP) continue;
     const key = schluessel(p.kontakt);
     const k = je.get(key) ?? {
       kontaktId: p.kontakt.id,
@@ -76,10 +77,13 @@ export function zerlegeAbweichung(posten: readonly WarumPosten[], zeitraum: Zeit
     };
     // Der Name des jüngsten Postens gilt, falls er sich geändert hat
     if (p.datum >= k.datum && p.kontakt.name.trim()) Object.assign(k, { name: p.kontakt.name.trim(), datum: p.datum });
+    // Überschneiden sich die Zeiträume (freier Zeitraum über mehr als ein Jahr gegen das Vorjahr), zählt ein Posten wie in
+    // der BWA auf beiden Seiten
     if (imZeitraumP) {
       k.betrag += p.betrag;
       k.anzahl++;
-    } else {
+    }
+    if (imVergleichP) {
       k.vergleich += p.betrag;
       k.anzahlVergleich++;
     }

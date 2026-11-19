@@ -106,6 +106,18 @@ describe("Abweichung einer BWA-Zeile nach Kontakt", () => {
     expect([w.betrag, w.vergleich]).toEqual([300, 800]);
   });
 
+  it("überschneiden sich Zeitraum und Vergleich, zählt ein Posten aus der Überschneidung in beiden, wie in der BWA", () => {
+    // Frei 2025–2026 gegen das Vorjahr 2024–2025: das Jahr 2025 liegt in beiden
+    const zeitraum = { von: "2025-01-01", bis: "2026-12-31" };
+    const w = zerlegeAbweichung(
+      [p("2024-06-01", 10_000, cloudwerk), p("2025-06-01", 20_000, cloudwerk), p("2026-06-01", 30_000, cloudwerk)],
+      zeitraum,
+      vorjahreszeitraum(zeitraum),
+    );
+    expect([w.betrag, w.vergleich, w.abweichung]).toEqual([50_000, 30_000, 20_000]);
+    expect(w.teile).toEqual([expect.objectContaining({ differenz: 20_000, anzahl: 2, anzahlVergleich: 2 })]);
+  });
+
   it("Erlöse: ein Kunde mit weniger Umsatz ist „gesunken“, die Abweichung negativ", () => {
     const w = zerlegeAbweichung([p("2026-04-01", 500_000, cloudwerk), p("2027-04-01", 410_000, cloudwerk)], ZEITRAUM, VERGLEICH);
     expect(w.abweichung).toBe(-90_000);

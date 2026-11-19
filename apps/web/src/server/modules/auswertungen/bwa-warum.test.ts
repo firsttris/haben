@@ -181,4 +181,20 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
       }, 60_000);
     }
   }
+
+  it("freier Zeitraum über zwei Jahre gegen das Vorjahr: das gemeinsame Jahr zählt auf beiden Seiten, die Teile ergeben die Zeile", async () => {
+    await reset("ist", "SKR03");
+    const cloudwerk = (await contacts.createContact(actor, kontakt("Cloudwerk GmbH", "lieferant"))).id;
+    await beleg("2024-06-03", 10_000, "Cloudwerk GmbH", cloudwerk);
+    await beleg("2025-06-02", 20_000, "Cloudwerk GmbH", cloudwerk);
+    await beleg("2026-06-01", 30_000, "Cloudwerk GmbH", cloudwerk);
+
+    // 2025–2026 gegen 2024–2025
+    const zeitraum = { von: "2025-01-01", bis: "2026-12-31" };
+    const zeile = (await bwa.bwaBericht(zeitraum, "vorjahr")).zeilen.find((z) => z.key === "instandhaltung")!;
+    expect(zeile.abweichung?.betrag).toBe(20_000);
+    const warum = (await bwa.bwaWarum(zeitraum, "vorjahr", "instandhaltung"))!;
+    expect([warum.betrag, warum.vergleich, warum.abweichung]).toEqual([zeile.betrag, zeile.vergleich, zeile.abweichung!.betrag]);
+    expect(warum.teile.map((t) => [t.name, t.differenz, t.anzahl, t.anzahlVergleich])).toEqual([["Cloudwerk GmbH", 20_000, 2, 2]]);
+  }, 60_000);
 });
