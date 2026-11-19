@@ -293,10 +293,6 @@ async function importListed(
   }
 }
 
-/**
- * Antwort der API fürs Archiv ohne DOCUMENT_URL: Der Link trägt einen eigenen Schlüssel und öffnet die Datei ohne Anmeldung;
- * im unveränderlichen Archiv und im Jahresexport (quelle.json) bliebe er für immer stehen. Die Datei selbst liegt im Archiv.
- */
 type VoucherFile = { role: "pdf" | "anhang"; fileId: string | null; file: FbFile };
 
 async function importVoucher(
