@@ -4,6 +4,6 @@
  * Anbieter mit eigener Anbindung in Haben: Ihre Quellen entstehen beim Verbinden, nie über den REST-Import (#306, Schritt
  * 4). Eine neue Anbindung in Haben gehört hier dazu, sonst könnte ein Dienst von außen in ihre Quelle liefern.
  */
-export const INTERNAL_PROVIDERS = ["enablebanking", "etsy"] as const;
+export const INTERNAL_PROVIDERS = ["enablebanking", "etsy", "paypal"] as const;
 
 export const isInternalProvider = (provider: string): boolean => (INTERNAL_PROVIDERS as readonly string[]).includes(provider);
