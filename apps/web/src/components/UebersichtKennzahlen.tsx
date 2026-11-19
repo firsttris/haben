@@ -15,7 +15,8 @@ export const ohneKennzahlen = (data: UebersichtDaten) =>
   data.invoices.revenuePreviousMonth === 0 &&
   data.computedKz83 === 0 &&
   data.current === null &&
-  data.invoices.bank.every((a) => a.balance === null);
+  // Das Steuerkonto zeigt die Reihe beim Kleinunternehmer nicht
+  data.invoices.bank.every((a) => a.balance === null || (data.kleinunternehmer && a.purpose === "steuer"));
 
 interface Props {
   data: UebersichtDaten;

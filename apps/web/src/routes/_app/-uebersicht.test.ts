@@ -261,6 +261,14 @@ describe("Übersicht: Aufbau", () => {
     expect(render()).toContain("Umsatz Oktober (netto)");
   });
 
+  // Beim Kleinunternehmer zeigt die Reihe kein Steuerkonto: Dessen Stand allein ergäbe nur Karten mit 0,00 €
+  it("Kleinunternehmer mit Stand nur auf dem Steuerkonto: keine Karten mit 0,00 €", () => {
+    (state.data.invoices as { bank: unknown[] }).bank = [{ ...konto, name: "Rücklage", purpose: "steuer", balance: 50000 }];
+    const html = render();
+    expect(html).not.toContain("Offene Forderungen");
+    expect(html).not.toContain("0,00");
+  });
+
   // Nahe Fristen (Voranmeldung, Bescheid, Zertifikat; bis 14 Tage) gehen vor, nach Fälligkeit; sonst verschwänden sie hinter drei Warnungen
   // Kalendertage, nicht n * 24 Stunden: Sonst kippt es in den zwei Wochen vor der Zeitumstellung zwischen 23 und 1 Uhr
   const inTagen = (n: number) => {
