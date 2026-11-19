@@ -10,6 +10,8 @@ import {
   type InvoiceTotals,
 } from "@haben/core";
 import type { Buyer, DirectDebit, InvoiceDocument, InvoiceFormat, Seller } from "@haben/einvoice";
+import { eq } from "drizzle-orm";
+import { schema, type Db, type Tx } from "../../db/index.ts";
 import type { Company, Contact } from "../stammdaten/index.ts";
 import type { Invoice, InvoiceLine } from "./invoices.ts";
 import { paidPaymentOf } from "./lastschrift.ts";
@@ -49,12 +51,27 @@ function sellerLegalInfo(company: Company): Pick<Seller, "legalInfo"> {
 }
 
 /**
- * Absender eines festgeschriebenen Belegs mit den Pflichtangaben von heute: Mahnung, Auftragsbestätigung und
- * Lieferschein sind neue Briefe und brauchen sie auch dann, wenn der Beleg älter ist als die Angaben.
+ * Absender eines festgeschriebenen Belegs in einem neuen Brief (Mahnung, Auftragsbestätigung, Lieferschein): Name,
+ * Anschrift und Pflichtangaben von heute, denn ein neuer Brief braucht sie auch dann, wenn der Beleg älter ist als die
+ * Angaben. Bankverbindung und Steuernummer bleiben wie auf dem Beleg.
  */
-export function withCurrentLegalInfo(seller: Seller, company: Company): Seller {
+export function withCurrentSeller(seller: Seller, company: Company): Seller {
   const { legalInfo: _snapshot, ...rest } = seller;
-  return { ...rest, ...sellerLegalInfo(company) };
+  const { name, strasse, plz, ort } = company;
+  // Die Bankverbindung der Rechnung lautet auf den damaligen Kontoinhaber: ohne eigenen Eintrag auf den damaligen Firmennamen
+  const kontoinhaber = rest.iban ? { kontoinhaber: rest.kontoinhaber?.trim() || rest.name } : {};
+  return { ...rest, name, strasse, plz, ort, ...kontoinhaber, ...sellerLegalInfo(company) };
+}
+
+/**
+ * Käufer eines festgeschriebenen Belegs in einem neuen Brief: Name und Anschrift des Kontakts von heute, Ansprechpartner
+ * und Kundennummer bleiben wie auf dem Beleg. Fehlt der Kontakt, gilt der Käufer des Belegs.
+ */
+export async function withCurrentBuyer(q: Db | Tx, buyer: Buyer, contactId: string | null): Promise<Buyer> {
+  const [contact] = contactId ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, contactId)) : [];
+  if (!contact) return buyer;
+  const { name, strasse, plz, ort, land } = contact;
+  return { ...buyer, name, strasse, plz, ort, land };
 }
 
 /** Käufer eines Belegs aus dem Kontakt; mit Ansprechpartner (Stand der Person beim Festschreiben, #424) */
