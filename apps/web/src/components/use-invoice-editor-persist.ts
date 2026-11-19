@@ -11,129 +11,17 @@ import type { InvoiceEditorFigures } from "./use-invoice-editor-figures.ts";
 // Speichern, Festschreiben, Entwurf als PDF und Löschen
 
 export function useInvoiceEditorPersist(editor: InvoiceEditorFigures) {
-  const {
-    advanceType,
-    alreadyPaid,
-    contactId,
-    contactPersonId,
-    currencyCode,
-    deducted,
-    dirty,
-    discount,
-    exchangeRate,
-    exchangeRateDate,
-    foreign,
-    format,
-    grossPrices,
-    id,
-    initial,
-    initialId,
-    intro,
-    issueDate,
-    kind,
-    language,
-    lastschrift,
-    mandateId,
-    note,
-    paidOn,
-    paidVia,
-    parsed,
-    paymentMethod,
-    plan,
-    planInConfirmation,
-    propertyRetention,
-    pruefe,
-    quote,
-    quoteId,
-    references,
-    reload,
-    run,
-    schluss,
-    serviceFrom,
-    serviceTo,
-    setConfirming,
-    setDirty,
-    setNeuerEntwurf,
-    setNotice,
-    setUmsatzwarnung,
-    skonto,
-    special,
-    taxDetails,
-    taxNote,
-    taxTreatment,
-    term,
-    termValid,
-    validUntil,
-    variant,
-  } = editor;
+  const { dirty, id, initialId, pruefe, quote, reload, run, setDirty, setNotice } = editor;
   const navigate = useNavigate();
   const save = useServerFn(saveInvoiceDraft);
-  const finalize = useServerFn(finalizeInvoiceDraft);
   const remove = useServerFn(removeInvoiceDraft);
   const saveQuote = useServerFn(saveQuoteDraft);
-  const finalizeQuote = useServerFn(finalizeQuoteDraft);
   const removeQuote = useServerFn(removeQuoteDraft);
 
-  function draft(): DraftInput {
-    return {
-      contactId: contactId || null,
-      contactPersonId: contactPersonId || null,
-      issueDate,
-      serviceFrom: serviceFrom || null,
-      serviceTo: serviceTo || null,
-      paymentTermDays: termValid ? term : initial.paymentTermDays,
-      skonto: skonto.stufen,
-      format,
-      intro,
-      note,
-      propertyRetention: !quote && propertyRetention,
-      ...references,
-      taxTreatment,
-      taxDetails,
-      exemptionReason: special ? taxNote : "",
-      priceMode: grossPrices ? "brutto" : "netto",
-      language,
-      variant: kind === "rechnung" ? variant : null,
-      advanceType: kind === "rechnung" && variant === "abschlag" ? advanceType : null,
-      deducts: schluss ? deducted.map((a) => a.id) : [],
-      quoteId: kind === "rechnung" && quoteId ? quoteId : null,
-      currency: currencyCode,
-      exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
-      exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
-      discount,
-      paymentMethod: kind === "rechnung" ? paymentMethod : "ueberweisung",
-      sepaMandateId: lastschrift ? mandateId || null : null,
-      paidVia: alreadyPaid ? paidVia : null,
-      paidOn: alreadyPaid ? paidOn || null : null,
-      lines: parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, kind: _kind, ...line }) => line),
-    };
-  }
+  const draft = () => draftInput(editor);
 
   async function persist(): Promise<string> {
-    const {
-      paymentTermDays: _term,
-      skonto: _skonto,
-      format: _format,
-      currency: _currency,
-      exchangeRate: _rate,
-      exchangeRateDate: _rateDate,
-      quoteId: _quote,
-      paymentMethod: _method,
-      sepaMandateId: _mandate,
-      paidVia: _paidVia,
-      paidOn: _paidOn,
-      propertyRetention: _propertyRetention,
-      ...common
-    } = draft();
-    const quoteLines = parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, ...line }) => line);
-    const result = quote
-      ? await saveQuote({
-          data: {
-            id,
-            draft: { ...common, lines: quoteLines, validUntil, paymentPlan: plan.rows, paymentPlanInConfirmation: plan.rows.length > 0 && planInConfirmation },
-          },
-        })
-      : await save({ data: { id, draft: draft() } });
+    const result = quote ? await saveQuote({ data: { id, draft: quoteDraftInput(editor) } }) : await save({ data: { id, draft: draft() } });
     setDirty(false);
     return result.id;
   }
@@ -154,6 +42,40 @@ export function useInvoiceEditorPersist(editor: InvoiceEditorFigures) {
       }
     });
   };
+
+  const { onFinalize, finalizeNow, finalizeSaved } = useInvoiceEditorFinalize(editor, persist, openSaved);
+
+  // Entwurf als PDF aus dem gespeicherten Stand: Ungespeichertes erst speichern, damit das PDF zeigt, was im Formular steht
+  const onDraftPdf = () => {
+    if (!pruefe()) return;
+    void run(async () => {
+      const saving = dirty || id === null;
+      const savedId = saving ? await persist() : id;
+      await downloadFrom(`/api/entwurf/${quote ? "angebot" : "rechnung"}/${savedId}?download`, quote ? "Angebot-Entwurf.pdf" : "Rechnung-Entwurf.pdf");
+      if (initialId === null) {
+        await openSaved(savedId);
+      } else if (saving) {
+        await reload();
+        setNotice({ tone: "ok", text: "Entwurf gespeichert, das PDF ist heruntergeladen." });
+      }
+    });
+  };
+
+  const deleteNow = () => {
+    void run(async () => {
+      if (id) await (quote ? removeQuote({ data: id }) : remove({ data: id }));
+      await (quote ? navigate({ to: "/angebote" }) : navigate({ to: "/rechnungen" }));
+    });
+  };
+
+  return { deleteNow, draft, finalizeNow, finalizeSaved, onDraftPdf, onFinalize, onSave };
+}
+
+/** Festschreiben, bei Rechnungen mit der Rückfrage zur Kleinunternehmergrenze */
+function useInvoiceEditorFinalize(editor: InvoiceEditorFigures, persist: () => Promise<string>, openSaved: (savedId: string) => Promise<void>) {
+  const { dirty, id, initialId, pruefe, quote, reload, run, setConfirming, setNeuerEntwurf, setUmsatzwarnung } = editor;
+  const finalize = useServerFn(finalizeInvoiceDraft);
+  const finalizeQuote = useServerFn(finalizeQuoteDraft);
 
   const onFinalize = () => {
     if (pruefe()) setConfirming(true);
@@ -183,28 +105,67 @@ export function useInvoiceEditorPersist(editor: InvoiceEditorFigures) {
     else await reload();
   }
 
-  // Entwurf als PDF aus dem gespeicherten Stand: Ungespeichertes erst speichern, damit das PDF zeigt, was im Formular steht
-  const onDraftPdf = () => {
-    if (!pruefe()) return;
-    void run(async () => {
-      const saving = dirty || id === null;
-      const savedId = saving ? await persist() : id;
-      await downloadFrom(`/api/entwurf/${quote ? "angebot" : "rechnung"}/${savedId}?download`, quote ? "Angebot-Entwurf.pdf" : "Rechnung-Entwurf.pdf");
-      if (initialId === null) {
-        await openSaved(savedId);
-      } else if (saving) {
-        await reload();
-        setNotice({ tone: "ok", text: "Entwurf gespeichert, das PDF ist heruntergeladen." });
-      }
-    });
-  };
+  return { onFinalize, finalizeNow, finalizeSaved };
+}
 
-  const deleteNow = () => {
-    void run(async () => {
-      if (id) await (quote ? removeQuote({ data: id }) : remove({ data: id }));
-      await (quote ? navigate({ to: "/angebote" }) : navigate({ to: "/rechnungen" }));
-    });
+/** Entwurf einer Rechnung, wie ihn saveInvoiceDraft speichert */
+function draftInput(editor: InvoiceEditorFigures): DraftInput {
+  const { advanceType, alreadyPaid, contactId, contactPersonId, currencyCode, deducted, discount, exchangeRate, exchangeRateDate, foreign } = editor;
+  const { format, grossPrices, initial, intro, issueDate, kind, language, lastschrift, mandateId, note, paidOn, paidVia, parsed } = editor;
+  const { paymentMethod, propertyRetention, quote, quoteId, references, schluss, serviceFrom, serviceTo, skonto, special } = editor;
+  const { taxDetails, taxNote, taxTreatment, term, termValid, variant } = editor;
+  return {
+    contactId: contactId || null,
+    contactPersonId: contactPersonId || null,
+    issueDate,
+    serviceFrom: serviceFrom || null,
+    serviceTo: serviceTo || null,
+    paymentTermDays: termValid ? term : initial.paymentTermDays,
+    skonto: skonto.stufen,
+    format,
+    intro,
+    note,
+    propertyRetention: !quote && propertyRetention,
+    ...references,
+    taxTreatment,
+    taxDetails,
+    exemptionReason: special ? taxNote : "",
+    priceMode: grossPrices ? "brutto" : "netto",
+    language,
+    variant: kind === "rechnung" ? variant : null,
+    advanceType: kind === "rechnung" && variant === "abschlag" ? advanceType : null,
+    deducts: schluss ? deducted.map((a) => a.id) : [],
+    quoteId: kind === "rechnung" && quoteId ? quoteId : null,
+    currency: currencyCode,
+    exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
+    exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
+    discount,
+    paymentMethod: kind === "rechnung" ? paymentMethod : "ueberweisung",
+    sepaMandateId: lastschrift ? mandateId || null : null,
+    paidVia: alreadyPaid ? paidVia : null,
+    paidOn: alreadyPaid ? paidOn || null : null,
+    lines: parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, kind: _kind, ...line }) => line),
   };
+}
 
-  return { deleteNow, draft, finalizeNow, finalizeSaved, onDraftPdf, onFinalize, onSave };
+/** Entwurf eines Angebots: der Rechnungsentwurf ohne Zahlungsangaben, mit Gültigkeit und Zahlungsplan */
+function quoteDraftInput(editor: InvoiceEditorFigures) {
+  const { parsed, plan, planInConfirmation, validUntil } = editor;
+  const {
+    paymentTermDays: _term,
+    skonto: _skonto,
+    format: _format,
+    currency: _currency,
+    exchangeRate: _rate,
+    exchangeRateDate: _rateDate,
+    quoteId: _quote,
+    paymentMethod: _method,
+    sepaMandateId: _mandate,
+    paidVia: _paidVia,
+    paidOn: _paidOn,
+    propertyRetention: _propertyRetention,
+    ...common
+  } = draftInput(editor);
+  const quoteLines = parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, ...line }) => line);
+  return { ...common, lines: quoteLines, validUntil, paymentPlan: plan.rows, paymentPlanInConfirmation: plan.rows.length > 0 && planInConfirmation };
 }

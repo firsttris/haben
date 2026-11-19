@@ -12,8 +12,85 @@ import type { InvoiceEditorProps } from "./invoice-editor-types.ts";
 
 // Eingabestand des Editors: Props mit Vorgaben, Felder, Dialoge und die Markierung „geändert“
 
-export function useInvoiceEditorState({
-  id: initialId,
+export function useInvoiceEditorState(props: InvoiceEditorProps) {
+  const { id: initialId, kind, initial, action: sharedAction } = props;
+  const [neuerEntwurf, setNeuerEntwurf] = useState<string | null>(null);
+  const id = initialId ?? neuerEntwurf;
+  const router = useRouter();
+  /**
+   * Neu laden und warten, bis der neue Stand angezeigt wird. Ohne `sync` endet invalidate schon mit den alten Daten und
+   * lädt im Hintergrund nach; die Seite baut den Editor danach mit dem neuen `updatedAt` neu auf und verwirft, was
+   * inzwischen geschah, etwa den Dialog von „Festschreiben“. So bleiben die Knöpfe gesperrt, bis der Editor neu steht
+   */
+  const reload = () => router.invalidate({ sync: true });
+  const quote = kind === "angebot";
+  /** Rechnung oder Angebot, an dem Kunde und Steuer noch frei wählbar sind */
+  const editable = kind === "rechnung" || quote;
+
+  const kopf = useKopfFelder(initial);
+  const steuer = useSteuerFelder(initial);
+  const zahlung = useZahlungFelder(initial);
+  const { setLines } = zahlung;
+  const [dirty, setDirty] = useState(id === null);
+  /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
+  const [touched, setTouched] = useState<Set<number>>(() => new Set());
+  const [attempted, setAttempted] = useState(false);
+  const showError = (key: number) => attempted || touched.has(key);
+  const markTouched = (key: number) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  const ownAction = useAction();
+  const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
+  const [confirming, setConfirming] = useState(false);
+  const [umsatzwarnung, setUmsatzwarnung] = useState<({ id: string } & UmsatzgrenzeBestaetigung) | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function touch<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setDirty(true);
+    };
+  }
+
+  function updateLine(key: number, patch: Partial<LineState>) {
+    setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
+    setDirty(true);
+  }
+
+  return {
+    ...editorProps(props),
+    ...kopf,
+    ...steuer,
+    ...zahlung,
+    id,
+    initialId,
+    reload,
+    quote,
+    editable,
+    dirty,
+    setDirty,
+    attempted,
+    setAttempted,
+    showError,
+    markTouched,
+    busy,
+    notice,
+    setNotice,
+    run,
+    confirming,
+    setConfirming,
+    umsatzwarnung,
+    setUmsatzwarnung,
+    confirmingDelete,
+    setConfirmingDelete,
+    setNeuerEntwurf,
+    touch,
+    updateLine,
+  };
+}
+
+export type InvoiceEditorState = ReturnType<typeof useInvoiceEditorState>;
+
+/** Props des Editors mit ihren Vorgaben, ohne id und action */
+function editorProps({
   kind,
   initial,
   contacts,
@@ -41,21 +118,40 @@ export function useInvoiceEditorState({
   mandates = [],
   contactPersons = [],
   keptDeductions = [],
-  action: sharedAction,
 }: InvoiceEditorProps) {
-  const [neuerEntwurf, setNeuerEntwurf] = useState<string | null>(null);
-  const id = initialId ?? neuerEntwurf;
-  const router = useRouter();
-  /**
-   * Neu laden und warten, bis der neue Stand angezeigt wird. Ohne `sync` endet invalidate schon mit den alten Daten und
-   * lädt im Hintergrund nach; die Seite baut den Editor danach mit dem neuen `updatedAt` neu auf und verwirft, was
-   * inzwischen geschah, etwa den Dialog von „Festschreiben“. So bleiben die Knöpfe gesperrt, bis der Editor neu steht
-   */
-  const reload = () => router.invalidate({ sync: true });
-  const quote = kind === "angebot";
-  /** Rechnung oder Angebot, an dem Kunde und Steuer noch frei wählbar sind */
-  const editable = kind === "rechnung" || quote;
+  return {
+    kind,
+    initial,
+    contacts,
+    seller,
+    sellerIssues,
+    letterIssues,
+    issues,
+    numberCounters,
+    numberFormat,
+    numberRunning,
+    lastFinalized,
+    corrects,
+    bundesland,
+    kleinunternehmer,
+    articles,
+    textBlocks,
+    units,
+    abschlaege,
+    quotes,
+    tageskurs,
+    rateInfo,
+    companySkonto,
+    attachments,
+    planTemplates,
+    mandates,
+    contactPersons,
+    keptDeductions,
+  };
+}
 
+/** Kunde, Daten, Format, Texte und Bezüge; dazu die Dialoge „Neuer Kunde“ und „Neuer Artikel“ */
+function useKopfFelder(initial: InvoiceEditorProps["initial"]) {
   const [contactId, setContactId] = useState(initial.contactId ?? "");
   const [contactPersonId, setContactPersonId] = useState(initial.contactPersonId ?? "");
   /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
@@ -72,6 +168,40 @@ export function useInvoiceEditorState({
   const [references, setReferences] = useState(() => orderReferenceValues(initial));
   const [note, setNote] = useState(initial.note);
   const [propertyRetention, setPropertyRetention] = useState(initial.propertyRetention ?? false);
+  return {
+    contactId,
+    setContactId,
+    contactPersonId,
+    setContactPersonId,
+    newContactName,
+    setNewContactName,
+    newArticle,
+    setNewArticle,
+    issueDate,
+    setIssueDate,
+    serviceFrom,
+    setServiceFrom,
+    serviceTo,
+    setServiceTo,
+    paymentTermDays,
+    setPaymentTermDays,
+    validUntil,
+    setValidUntil,
+    format,
+    setFormat,
+    intro,
+    setIntro,
+    references,
+    setReferences,
+    note,
+    setNote,
+    propertyRetention,
+    setPropertyRetention,
+  };
+}
+
+/** Steuer, Preise, Sprache, Währung, Abschläge und Angebot */
+function useSteuerFelder(initial: InvoiceEditorProps["initial"]) {
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
@@ -84,6 +214,36 @@ export function useInvoiceEditorState({
   const [advanceType, setAdvanceType] = useState<"anzahlung" | "teilleistung">(initial.advanceType ?? "anzahlung");
   const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
+  return {
+    taxTreatment,
+    setTaxTreatment,
+    priceMode,
+    setPriceMode,
+    exemptionReason,
+    setExemptionReason,
+    taxDetails,
+    setTaxDetails,
+    language,
+    setLanguage,
+    currency,
+    setCurrency,
+    exchangeRate,
+    setExchangeRate,
+    exchangeRateDate,
+    setExchangeRateDate,
+    variant,
+    setVariant,
+    advanceType,
+    setAdvanceType,
+    deducts,
+    setDeducts,
+    quoteId,
+    setQuoteId,
+  };
+}
+
+/** Positionen, Skonto, Zahlungsweg, Rabatt und Zahlungsplan */
+function useZahlungFelder(initial: InvoiceEditorProps["initial"]) {
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(initial.skonto ?? []));
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>(initial.paymentMethod ?? "ueberweisung");
@@ -93,153 +253,24 @@ export function useInvoiceEditorState({
   const [discountText, setDiscountText] = useState(() => discountInput(initial.discount));
   const [planRows, setPlanRows] = useState(() => toPlanRows(initial.paymentPlan ?? []));
   const [planInConfirmation, setPlanInConfirmation] = useState(initial.paymentPlanInConfirmation ?? false);
-  const [dirty, setDirty] = useState(id === null);
-  /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
-  const [touched, setTouched] = useState<Set<number>>(() => new Set());
-  const [attempted, setAttempted] = useState(false);
-  const showError = (key: number) => attempted || touched.has(key);
-  const markTouched = (key: number) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-  const ownAction = useAction();
-  const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
-  const [confirming, setConfirming] = useState(false);
-  const [umsatzwarnung, setUmsatzwarnung] = useState<({ id: string } & UmsatzgrenzeBestaetigung) | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  function touch<T>(setter: (value: T) => void) {
-    return (value: T) => {
-      setter(value);
-      setDirty(true);
-    };
-  }
-
-  function updateLine(key: number, patch: Partial<LineState>) {
-    setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
-    setDirty(true);
-  }
-
   return {
-    seller,
-    abschlaege,
-    advanceType,
-    articles,
-    attachments,
-    attempted,
-    bundesland,
-    busy,
-    companySkonto,
-    confirming,
-    confirmingDelete,
-    contactId,
-    contactPersonId,
-    contactPersons,
-    contacts,
-    corrects,
-    currency,
-    deducts,
-    dirty,
-    discountText,
-    editable,
-    exchangeRate,
-    exchangeRateDate,
-    exemptionReason,
-    format,
-    id,
-    initial,
-    initialId,
-    intro,
-    issueDate,
-    issues,
-    keptDeductions,
-    kind,
-    kleinunternehmer,
-    language,
-    lastFinalized,
-    letterIssues,
     lines,
-    mandateId,
-    mandates,
-    markTouched,
-    newArticle,
-    newContactName,
-    note,
-    notice,
-    numberCounters,
-    numberFormat,
-    numberRunning,
-    paidOn,
-    paidVia,
-    paymentMethod,
-    paymentTermDays,
-    planInConfirmation,
-    planRows,
-    planTemplates,
-    priceMode,
-    propertyRetention,
-    quote,
-    quoteId,
-    quotes,
-    rateInfo,
-    references,
-    reload,
-    run,
-    sellerIssues,
-    serviceFrom,
-    serviceTo,
-    setAdvanceType,
-    setAttempted,
-    setConfirming,
-    setConfirmingDelete,
-    setContactId,
-    setContactPersonId,
-    setCurrency,
-    setDeducts,
-    setDirty,
-    setDiscountText,
-    setExchangeRate,
-    setExchangeRateDate,
-    setExemptionReason,
-    setFormat,
-    setIntro,
-    setIssueDate,
-    setLanguage,
     setLines,
-    setMandateId,
-    setNeuerEntwurf,
-    setNewArticle,
-    setNewContactName,
-    setNote,
-    setNotice,
-    setPaidOn,
-    setPaidVia,
-    setPaymentMethod,
-    setPaymentTermDays,
-    setPlanInConfirmation,
-    setPlanRows,
-    setPriceMode,
-    setPropertyRetention,
-    setQuoteId,
-    setReferences,
-    setServiceFrom,
-    setServiceTo,
-    setSkontoRows,
-    setTaxDetails,
-    setTaxTreatment,
-    setUmsatzwarnung,
-    setValidUntil,
-    setVariant,
-    showError,
     skontoRows,
-    tageskurs,
-    taxDetails,
-    taxTreatment,
-    textBlocks,
-    touch,
-    umsatzwarnung,
-    units,
-    updateLine,
-    validUntil,
-    variant,
+    setSkontoRows,
+    paymentMethod,
+    setPaymentMethod,
+    paidVia,
+    setPaidVia,
+    paidOn,
+    setPaidOn,
+    mandateId,
+    setMandateId,
+    discountText,
+    setDiscountText,
+    planRows,
+    setPlanRows,
+    planInConfirmation,
+    setPlanInConfirmation,
   };
 }
-
-export type InvoiceEditorState = ReturnType<typeof useInvoiceEditorState>;

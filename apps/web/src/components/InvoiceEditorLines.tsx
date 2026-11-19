@@ -106,64 +106,13 @@ export function InvoiceEditorLines({ editor }: { editor: InvoiceEditorModel }) {
 }
 
 function EditorLineRow({ editor, line, index }: { editor: InvoiceEditorModel; line: LineState; index: number }) {
-  const {
-    amountLabel,
-    articles,
-    busy,
-    error,
-    grossPrices,
-    lines,
-    markTouched,
-    openNewArticle,
-    parsed,
-    pickArticle,
-    quote,
-    setDirty,
-    setLines,
-    showError,
-    special,
-    storeAsArticle,
-    units,
-    updateLine,
-  } = editor;
+  const { amountLabel, error, markTouched, parsed, showError, special, units, updateLine } = editor;
   const p = parsed[index]!;
   const posFehler = error(`pos-${line.key}`);
   const posFehlerId = posFehler ? `pos-fehler-${line.key}` : undefined;
-  const inCatalog = articles.some(
-    (a) =>
-      sameText(a.description, p.description) &&
-      sameText(a.detail, p.detail) &&
-      a.number === p.itemNumber &&
-      a.unitPrice === p.unitPrice &&
-      a.unit === p.unit &&
-      a.priceIncludesTax === grossPrices,
-  );
   return (
     <div className="line-row with-discount">
-      <div className={quote ? "line-title with-kind" : "line-title"}>
-        <input
-          className="line-item"
-          placeholder="Art.-Nr."
-          aria-label={`Artikelnummer Position ${index + 1} (optional)`}
-          value={line.itemNumber}
-          maxLength={ITEM_NUMBER_MAX}
-          autoComplete="off"
-          onChange={(e) => updateLine(line.key, { itemNumber: e.target.value })}
-        />
-        <ArticleCombobox
-          label={`Beschreibung Position ${index + 1}`}
-          placeholder={`Beschreibung Position ${index + 1}`}
-          value={line.description}
-          articles={articles}
-          invalid={showError(line.key) && line.description.trim() === ""}
-          describedBy={posFehlerId}
-          onInput={(description) => updateLine(line.key, { description })}
-          onPick={(article) => pickArticle(line.key, article)}
-          onCreate={(description) => openNewArticle(line, description)}
-          onBlur={() => markTouched(line.key)}
-        />
-        {quote && <LineKind index={index} kind={line.kind} onKind={(value) => updateLine(line.key, { kind: value })} />}
-      </div>
+      <LineTitle editor={editor} line={line} index={index} posFehlerId={posFehlerId} />
       <FormattedTextarea
         className="line-detail"
         rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
@@ -233,49 +182,97 @@ function EditorLineRow({ editor, line, index }: { editor: InvoiceEditorModel; li
         </select>
       </LineCell>
       <LineAmount label={amountLabel}>{p.valid ? formatEuro(discountedLineAmount(p)) : "–"}</LineAmount>
-      <div className="line-actions">
-        <button
-          type="button"
-          className="icon-btn icon-btn-plain"
-          aria-label={`Position ${index + 1} als Artikel speichern`}
-          title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
-          disabled={busy || !p.valid || inCatalog}
-          onClick={() => storeAsArticle(p)}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={`Position ${index + 1} entfernen`}
-          disabled={lines.length === 1}
-          onClick={() => {
-            setLines((prev) => prev.filter((l) => l.key !== line.key));
-            setDirty(true);
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
-      </div>
+      <LineActions editor={editor} line={line} index={index} p={p} />
       {posFehler && (
         <span id={posFehlerId} className="field-error" style={{ gridColumn: "1 / -1" }}>
           {posFehler}
         </span>
       )}
+    </div>
+  );
+}
+
+/** Artikelnummer, Beschreibung mit Artikelsuche und im Angebot die Art der Position */
+function LineTitle({ editor, line, index, posFehlerId }: { editor: InvoiceEditorModel; line: LineState; index: number; posFehlerId: string | undefined }) {
+  const { articles, markTouched, openNewArticle, pickArticle, quote, showError, updateLine } = editor;
+  return (
+    <div className={quote ? "line-title with-kind" : "line-title"}>
+      <input
+        className="line-item"
+        placeholder="Art.-Nr."
+        aria-label={`Artikelnummer Position ${index + 1} (optional)`}
+        value={line.itemNumber}
+        maxLength={ITEM_NUMBER_MAX}
+        autoComplete="off"
+        onChange={(e) => updateLine(line.key, { itemNumber: e.target.value })}
+      />
+      <ArticleCombobox
+        label={`Beschreibung Position ${index + 1}`}
+        placeholder={`Beschreibung Position ${index + 1}`}
+        value={line.description}
+        articles={articles}
+        invalid={showError(line.key) && line.description.trim() === ""}
+        describedBy={posFehlerId}
+        onInput={(description) => updateLine(line.key, { description })}
+        onPick={(article) => pickArticle(line.key, article)}
+        onCreate={(description) => openNewArticle(line, description)}
+        onBlur={() => markTouched(line.key)}
+      />
+      {quote && <LineKind index={index} kind={line.kind} onKind={(value) => updateLine(line.key, { kind: value })} />}
+    </div>
+  );
+}
+
+/** Als Artikel speichern und Entfernen */
+function LineActions({ editor, line, index, p }: { editor: InvoiceEditorModel; line: LineState; index: number; p: InvoiceEditorModel["parsed"][number] }) {
+  const { articles, busy, grossPrices, lines, setDirty, setLines, storeAsArticle } = editor;
+  const inCatalog = articles.some(
+    (a) =>
+      sameText(a.description, p.description) &&
+      sameText(a.detail, p.detail) &&
+      a.number === p.itemNumber &&
+      a.unitPrice === p.unitPrice &&
+      a.unit === p.unit &&
+      a.priceIncludesTax === grossPrices,
+  );
+  return (
+    <div className="line-actions">
+      <button
+        type="button"
+        className="icon-btn icon-btn-plain"
+        aria-label={`Position ${index + 1} als Artikel speichern`}
+        title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
+        disabled={busy || !p.valid || inCatalog}
+        onClick={() => storeAsArticle(p)}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label={`Position ${index + 1} entfernen`}
+        disabled={lines.length === 1}
+        onClick={() => {
+          setLines((prev) => prev.filter((l) => l.key !== line.key));
+          setDirty(true);
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
     </div>
   );
 }

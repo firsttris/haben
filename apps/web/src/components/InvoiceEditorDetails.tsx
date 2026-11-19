@@ -1,15 +1,10 @@
-import { advanceUsesPayments, CURRENCY_CODE, formatEuro, parseExchangeRate, skontoFristen, type PriceMode } from "@haben/core";
+import { advanceUsesPayments, CURRENCY_CODE, parseExchangeRate } from "@haben/core";
 import { Link } from "@tanstack/react-router";
-import { formatDate } from "../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
-import { ContactCombobox } from "./ContactCombobox.tsx";
-import { ContactPersonField } from "./ContactPersonField.tsx";
 import { Field } from "./Field.tsx";
 import { OrderReferenceFields } from "./OrderReferenceFields.tsx";
-import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
-import { PaymentMethodFields, PaymentTermField } from "./PaymentMethodFields.tsx";
-import { SkontoFields } from "./SkontoFields.tsx";
+import { InvoiceCustomerFields, InvoiceDatePaymentFields, InvoiceTaxFields } from "./InvoiceEditorFields.tsx";
 import type { InvoiceEditorModel } from "./use-invoice-editor.ts";
 
 // Karte „Rechnungsdaten“ bzw. „Angebotsdaten“: Art, Kunde, Daten, Zahlung, Währung, Format und Steuer
@@ -17,163 +12,30 @@ import type { InvoiceEditorModel } from "./use-invoice-editor.ts";
 export function InvoiceEditorDetails({ editor }: { editor: InvoiceEditorModel }) {
   const {
     advanceType,
-    alreadyPaid,
-    attempted,
-    chooseContact,
-    chooseQuote,
-    chooseTreatment,
-    contactChoices,
-    contactId,
-    contactPersonId,
-    contactPersons,
     contacts,
-    customerQuotes,
-    dueDate,
     editable,
     error,
-    exemptionReason,
     format,
-    grossPrices,
-    initial,
-    issueDate,
     kind,
-    kleinunternehmer,
     language,
-    mandateId,
-    mandates,
-    paidOn,
-    paidVia,
-    paymentMethod,
-    paymentTermDays,
-    previewGross,
-    priceMode,
     quote,
-    quoteId,
     references,
     serviceFrom,
     serviceTo,
-    setContactPersonId,
-    setExemptionReason,
     setFormat,
-    setIssueDate,
     setLanguage,
-    setMandateId,
-    setNewContactName,
-    setPaidOn,
-    setPaidVia,
-    setPaymentMethod,
-    setPaymentTermDays,
-    setPriceMode,
     setReferences,
     setServiceFrom,
     setServiceTo,
-    setSkontoRows,
-    setTaxDetails,
-    setValidUntil,
-    skonto,
-    skontoAllowed,
-    skontoIssue,
-    skontoRows,
-    special,
-    taxDetails,
-    taxTreatment,
-    termValid,
     touch,
-    validUntil,
-    validUntilOk,
     variant,
   } = editor;
   return (
     <section className="card" aria-label={quote ? "Angebotsdaten" : "Rechnungsdaten"}>
       <div className="form-grid">
         <InvoiceVariantFields editor={editor} />
-        <Field label="Kunde" error={error("contact")} style={{ gridColumn: "1 / -1" }}>
-          {(control) => (
-            <ContactCombobox
-              {...control}
-              rolle="kunde"
-              contacts={contactChoices}
-              contactId={contactId}
-              disabled={!editable}
-              onChoose={chooseContact}
-              onCreate={setNewContactName}
-            />
-          )}
-        </Field>
-        <ContactPersonField persons={contactPersons} contactId={contactId} value={contactPersonId} disabled={!editable} onChange={touch(setContactPersonId)} />
-        {kind === "rechnung" && (variant || quoteId) && (
-          <Field
-            label="Angebot"
-            hint={
-              contactId
-                ? "Die Schlussrechnung zu einem Angebot zieht nur dessen Abschläge ab; auf der Seite des Angebots stehen alle Rechnungen dazu."
-                : "Zur Auswahl stehen die festgeschriebenen Angebote des gewählten Empfängers."
-            }
-            style={{ gridColumn: "1 / -1" }}
-          >
-            {(control) => (
-              <select {...control} value={quoteId} onChange={(e) => chooseQuote(e.target.value)} disabled={!editable}>
-                <option value="">Ohne Angebot</option>
-                {customerQuotes.map((q) => (
-                  <option key={q.id} value={q.id}>
-                    Angebot {q.number} vom {formatDate(q.issueDate)}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-        )}
-        <Field label={quote ? "Angebotsdatum" : "Rechnungsdatum"} error={error("issueDate")}>
-          {(control) => <input {...control} type="date" value={issueDate} onChange={(e) => touch(setIssueDate)(e.target.value)} required />}
-        </Field>
-        {quote ? (
-          <Field label="Gültig bis" error={error("validUntil")}>
-            {(control) => (
-              <input
-                {...control}
-                type="date"
-                value={validUntil}
-                min={issueDate || undefined}
-                onChange={(e) => touch(setValidUntil)(e.target.value)}
-                aria-invalid={!validUntilOk}
-                required
-              />
-            )}
-          </Field>
-        ) : alreadyPaid ? null : (
-          <PaymentTermField value={paymentTermDays} dueDate={dueDate} valid={termValid} error={error("term")} onChange={touch(setPaymentTermDays)} />
-        )}
-        {kind === "rechnung" && (
-          <PaymentMethodFields
-            id="invoice-payment"
-            method={paymentMethod}
-            mandateId={mandateId}
-            mandates={mandates.filter((m) => m.contactId === contactId || m.id === mandateId)}
-            contactId={contactId}
-            paidVia={paidVia}
-            paidOn={paidOn}
-            paidViaError={error("paidVia") ?? null}
-            paidOnError={error("paidOn") ?? null}
-            onPaidVia={touch(setPaidVia)}
-            onPaidOn={touch(setPaidOn)}
-            onChange={(method, mandate) => {
-              touch(setPaymentMethod)(method);
-              setMandateId(mandate);
-            }}
-          />
-        )}
-        {skontoAllowed && (
-          <SkontoFields
-            id="invoice-skonto"
-            rows={skontoRows}
-            onChange={touch(setSkontoRows)}
-            problem={attempted || skonto.valid ? skontoIssue : null}
-            describe={(stufe) => {
-              const [frist] = skontoFristen([stufe], issueDate || initial.issueDate, previewGross);
-              return frist ? `bis ${formatDate(frist.until)}: ${formatEuro(frist.amount)} Skonto, zu zahlen ${formatEuro(frist.payable)}` : null;
-            }}
-          />
-        )}
+        <InvoiceCustomerFields editor={editor} />
+        <InvoiceDatePaymentFields editor={editor} />
         <Field label="Leistung von" error={error("serviceFrom")}>
           {(control) => (
             <input
@@ -211,39 +73,7 @@ export function InvoiceEditorDetails({ editor }: { editor: InvoiceEditorModel })
             )}
           </Field>
         )}
-        <OutgoingTaxFields
-          treatment={taxTreatment}
-          details={taxDetails}
-          exemptionReason={exemptionReason}
-          kleinunternehmer={kleinunternehmer}
-          disabled={!editable}
-          error={error("tax")}
-          reasonError={error("exemption")}
-          onTreatmentChange={chooseTreatment}
-          onDetailsChange={touch(setTaxDetails)}
-          onReasonChange={touch(setExemptionReason)}
-        />
-        {!special && (
-          <Field
-            label="Preise"
-            hint={
-              <>
-                {grossPrices
-                  ? "Endpreise für Verbraucher: Die Umsatzsteuer wird je Steuersatz aus der Summe herausgerechnet."
-                  : "Üblich zwischen Unternehmen: Die Umsatzsteuer kommt auf die Einzelpreise."}
-                {!editable && " Wie in der ursprünglichen Rechnung."}
-              </>
-            }
-            style={{ gridColumn: "1 / -1" }}
-          >
-            {(control) => (
-              <select {...control} value={priceMode} onChange={(e) => touch(setPriceMode)(e.target.value as PriceMode)} disabled={!editable}>
-                <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
-                <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
-              </select>
-            )}
-          </Field>
-        )}
+        <InvoiceTaxFields editor={editor} />
       </div>
       {!contacts.length && (
         <p className="small muted" style={{ margin: 0 }}>
