@@ -142,7 +142,7 @@ Anders als die EÜR zählt die BWA nicht abziehbare Ausgaben (30 % der Bewirtung
 
 Ein Klick auf eine Zeile mit Beträgen zeigt darunter, was darin steht: je Zeile der EÜR die Zahlungen mit Datum, Betrag und Link zur Rechnung oder zum Beleg. Die Kontonummer führt zum Kontenblatt; das zeigt die Buchungen nach Buchungsdatum, nicht nach Zahlung.
 
-Mit einem Vergleich steht darüber „Warum?“: die Abweichung der Zeile nach Kontakt, die fünf größten einzeln, der Rest als „übrige“. Zusammen ergeben sie genau die Abweichung der Zeile. **neu** heißt, im Vergleich gab es mit dem Kontakt nichts, **weggefallen**, jetzt nichts; sonst **gestiegen** oder **gesunken**. Anzahl und Betrag je Vorgang („3 × 240,00 € statt 1 × 90,00 €“) zeigen, ob es mehr Vorgänge waren oder höhere Beträge. Kontakt ist der Kunde der bezahlten Rechnung bzw. der Lieferant des Belegs; ein Beleg ohne verknüpften Kontakt zählt nach dem Lieferantennamen am Beleg, eine Zahlung ohne Rechnung und Beleg (Pauschalen, Lohn, Finanzamt) unter „Ohne Kontakt“.
+Mit einem Vergleich steht darüber „Warum?“: die Abweichung der Zeile nach Kontakt, die fünf größten einzeln, der Rest als „übrige“. Zusammen ergeben sie genau die Abweichung der Zeile. **neu** heißt, im Vergleich gab es mit dem Kontakt keinen Vorgang, **weggefallen**, jetzt keinen; sonst **gestiegen** oder **gesunken**. Anzahl und Betrag je Vorgang („3 × 240,00 € statt 1 × 90,00 €“) zeigen, ob es mehr Vorgänge waren oder höhere Beträge. Kontakt ist der Kunde der bezahlten Rechnung bzw. der Lieferant des Belegs; ein Beleg ohne verknüpften Kontakt zählt nach dem Lieferantennamen am Beleg, eine Zahlung ohne Rechnung und Beleg (Pauschalen, Lohn, Finanzamt) unter „Ohne Kontakt“.
 
 Grenzen:
 

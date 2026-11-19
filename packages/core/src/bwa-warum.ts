@@ -4,7 +4,7 @@ import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 /*
  * „Warum?“ je Zeile der BWA (#1380, Teil 2): Die Abweichung einer Zeile zum Vergleichszeitraum, zerlegt nach Kontakt (Kunde
  * bzw. Lieferant). Ohne KI und genau: Jeder Kontakt trägt seine Differenz bei, zusammen ergeben sie die Abweichung auf den
- * Cent. Die Art sagt, wie sie zustande kam: neu (im Vergleich nichts), weggefallen (jetzt nichts), gestiegen oder gesunken.
+ * Cent. Die Art sagt, wie sie zustande kam: neu (im Vergleich kein Vorgang), weggefallen (jetzt keiner), gestiegen oder gesunken.
  * Anzahl und Betrag je Vorgang trennen eine Preiserhöhung von mehr Vorgängen.
  *
  * Ein Posten ohne Kontakt zählt nach dem Namen am Beleg (Lieferant ohne Eintrag in den Kontakten), ohne Namen als
@@ -52,9 +52,10 @@ const schluessel = ({ id, name }: WarumPosten["kontakt"]) => (id ? `id:${id}` : 
 
 const jeVorgang = (betrag: Cents, anzahl: number): Cents | null => (anzahl === 0 ? null : roundHalfAwayFromZero(betrag / anzahl));
 
-function art(betrag: Cents, vergleich: Cents): WarumArt {
-  if (vergleich === 0) return "neu";
-  if (betrag === 0) return "weggefallen";
+/** Nach den Vorgängen, nicht nach dem Betrag: Gleichen sich Zahlung und Erstattung aus, gab es trotzdem Vorgänge */
+function art({ betrag, vergleich, anzahl, anzahlVergleich }: Pick<WarumTeil, "betrag" | "vergleich" | "anzahl" | "anzahlVergleich">): WarumArt {
+  if (anzahlVergleich === 0) return "neu";
+  if (anzahl === 0) return "weggefallen";
   return betrag > vergleich ? "gestiegen" : "gesunken";
 }
 
@@ -92,7 +93,7 @@ export function zerlegeAbweichung(posten: readonly WarumPosten[], zeitraum: Zeit
   const alle = [...je.values()].map(
     ({ datum: _datum, ...k }): WarumTeil => ({
       ...k,
-      art: art(k.betrag, k.vergleich),
+      art: art(k),
       differenz: k.betrag - k.vergleich,
       jeVorgang: jeVorgang(k.betrag, k.anzahl),
       jeVorgangVergleich: jeVorgang(k.vergleich, k.anzahlVergleich),

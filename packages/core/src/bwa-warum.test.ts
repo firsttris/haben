@@ -118,6 +118,27 @@ describe("Abweichung einer BWA-Zeile nach Kontakt", () => {
     expect(w.teile).toEqual([expect.objectContaining({ differenz: 20_000, anzahl: 2, anzahlVergleich: 2 })]);
   });
 
+  it("die Art folgt den Vorgängen: gleichen sie sich aus, ist der Kontakt nicht neu bzw. weggefallen, sondern gestiegen bzw. gesunken", () => {
+    const w = zerlegeAbweichung(
+      [
+        // Vergleich: Zahlung und Erstattung gleichen sich aus, im Zeitraum wieder ein Vorgang
+        p("2026-02-01", 5_000, cloudwerk),
+        p("2026-03-01", -5_000, cloudwerk),
+        p("2027-02-01", 3_000, cloudwerk),
+        // Umgekehrt: im Vergleich ein Vorgang, im Zeitraum gleichen sie sich aus
+        p("2026-02-01", 2_000, netzwerk),
+        p("2027-02-01", 4_000, netzwerk),
+        p("2027-03-01", -4_000, netzwerk),
+      ],
+      ZEITRAUM,
+      VERGLEICH,
+    );
+    expect(w.teile.map((t) => [t.name, t.art, t.differenz])).toEqual([
+      ["Cloudwerk GmbH", "gestiegen", 3_000],
+      ["Netzwerk AG", "gesunken", -2_000],
+    ]);
+  });
+
   it("Erlöse: ein Kunde mit weniger Umsatz ist „gesunken“, die Abweichung negativ", () => {
     const w = zerlegeAbweichung([p("2026-04-01", 500_000, cloudwerk), p("2027-04-01", 410_000, cloudwerk)], ZEITRAUM, VERGLEICH);
     expect(w.abweichung).toBe(-90_000);
