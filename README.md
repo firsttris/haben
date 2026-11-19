@@ -20,13 +20,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server; Daten gehen nur an Di
 [![Discussions](https://img.shields.io/badge/GitHub-Discussions-24292f?logo=github&logoColor=white)](https://github.com/firsttris/haben/discussions)
 [![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://haben.app/rechnungen.html)
 [![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://haben.app/umsatzsteuer.html)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154)](https://tanstack.com/start)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
-[![Image Size](https://img.shields.io/docker/image-size/tristanteu/haben/latest?logo=docker&logoColor=white&label=image)](https://hub.docker.com/r/tristanteu/haben)
-[![Plattformen](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/haben/tags)
-[![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](https://haben.app/installation.html)
 
 [Warum?](#warum-haben) •
 [Funktionen](#funktionen) •
@@ -50,9 +44,9 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server; Daten gehen nur an Di
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation-backup.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
-## Haben ist, was dir gehört.
+## Warum Haben?
 
-**Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
+**Haben ist, was dir gehört. Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
 
 Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
 Lexware Office (früher lexoffice) oder sevDesk, und deine Rechnungen liegen nicht auf fremden Servern. Haben ist die
@@ -111,6 +105,19 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
   </tr>
 </table>
 
+## Haben und die Alternativen
+
+Haben läuft auf deinem eigenen Server, ohne Abo. Beim Umzug rechnet es jedes Jahr nach, damit du vor der Kündigung
+siehst, dass alles da ist.
+
+| | Was es ist | Umzug nach Haben |
+|---|---|---|
+| Lexware Office (früher lexoffice) | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Über die Public API, eine Sicherung aus der Web-Oberfläche oder den DATEV-Export ([Umzug](https://haben.app/lexoffice.html)) |
+| sevDesk | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Mit API-Token oder über die Exporte, samt Anlagen ([Umzug](https://haben.app/sevdesk.html)) |
+| FastBill | Rechnungen und Buchhaltung online im Abo | Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API ([Umzug](https://haben.app/fastbill.html)) |
+| BuchhaltungsButler · Accountable | Online-Buchhaltung im Abo | Aus den Exportdateien (DATEV-Buchungsstapel und Belege) ([BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html), [Accountable](https://haben.app/accountable.html)) |
+| DATEV | Software und Datenformat der Steuerberatung | Kein Umzug nötig: Du buchst in Haben, die Steuerberatung bekommt einen [Lesezugang](https://haben.app/steuerberatung.html) oder den DATEV-Buchungsstapel |
+
 ## Schnellstart
 
 Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL, Caddy für HTTPS und ein
@@ -164,9 +171,8 @@ Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS 
 <details>
 <summary><b>Ist Haben eine Alternative zu Lexware Office (lexoffice) und sevDesk?</b></summary>
 
-Ja, ohne Abo und auf deinem eigenen Server. Rechnungen, Belege und Kontakte übernimmst du per API oder, bei
-Lexware Office ohne Public API, über eine Sicherung deiner Daten aus der Web-Oberfläche, siehe
-[Umzug aus Lexoffice](https://haben.app/lexoffice.html) und [Umzug aus sevDesk](https://haben.app/sevdesk.html).
+Ja, ohne Abo und auf deinem eigenen Server, siehe [Haben und die Alternativen](#haben-und-die-alternativen). Den Umzug
+beschreiben [Umzug aus Lexoffice](https://haben.app/lexoffice.html) und [Umzug aus sevDesk](https://haben.app/sevdesk.html).
 </details>
 
 <details>
@@ -292,6 +298,13 @@ Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt 
   [Architektur](https://haben.app/architektur.html) · [Agentic Engineering](https://haben.app/agentic-engineering.html) und [Roadmap](https://haben.app/roadmap.html)
 
 ## Entwicklung
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Bun](https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white)](https://bun.sh)
+[![TanStack](https://img.shields.io/badge/TanStack-Start%20%7C%20Router-ff4154?logo=reactquery&logoColor=white)](https://tanstack.com/start)
+[![React](https://img.shields.io/badge/React-149eca?logo=react&logoColor=white)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white)](https://vite.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Drizzle-4169e1?logo=postgresql&logoColor=white)](https://orm.drizzle.team)
 
 Voraussetzungen: Bun in der Version aus `packageManager` in `package.json`, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
 
