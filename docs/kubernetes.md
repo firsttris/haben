@@ -98,7 +98,7 @@ fehlender fällt erst beim Start der App auf.
 
 ## Mit Flux
 
-Mit [Flux](https://fluxcd.io/) baut der Cluster das Chart selbst vom Release-Tag, ab v0.10.1. Die Werte aus
+Mit [Flux](https://fluxcd.io/) baut der Cluster das Chart selbst vom Release-Tag, ab v0.11.0. Die Werte aus
 `werte.yaml` stehen dann in der `HelmRelease`, die geheimen in Secrets wie unter
 [Secrets aus einer anderen Quelle](#secrets-aus-einer-anderen-quelle), nicht im Klartext im Git-Repository:
 
@@ -112,7 +112,7 @@ spec:
   interval: 1h
   url: https://github.com/firsttris/haben
   ref:
-    tag: v0.10.1
+    tag: v0.11.0
   ignore: |                         # nur das Chart, nicht das ganze Repository
     /*
     !/deploy/helm/
@@ -138,7 +138,7 @@ spec:
   values:
     domain: haben.example.de
     image:
-      tag: "0.10.1"                 # dieselbe Version wie ref.tag
+      tag: "0.11.0"                 # dieselbe Version wie ref.tag
     app:
       existingSecret: haben-app
     postgresql:
