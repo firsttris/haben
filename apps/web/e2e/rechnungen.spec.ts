@@ -3089,12 +3089,16 @@ test("Kopieren: festgeschriebene Rechnung und daraus wieder der Entwurf als neue
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("80,00");
   await expect(page.getByLabel("Rechnungsdatum")).not.toHaveValue(day(-4));
 
-  // Aus dem gerade kopierten Entwurf entsteht mit „Kopieren“ wieder ein neuer Entwurf (#1465)
+  // Aus dem gerade kopierten Entwurf entsteht mit „Kopieren“ wieder ein neuer Entwurf (#1465); Ungespeichertes wird vorher
+  // gespeichert, die Kopie und der Entwurf selbst zeigen also die geänderte Position
   const draftUrl = page.url();
+  await page.getByLabel("Beschreibung Position 1").fill("Betreuung Server, Dezember");
   await page.getByRole("button", { name: "Kopieren", exact: true }).click();
   await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== draftUrl);
-  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Monatliche Betreuung Server");
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Betreuung Server, Dezember");
   await expect(page.getByRole("button", { name: "Festschreiben", exact: true }).first()).toBeVisible();
+  await page.goto(draftUrl);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Betreuung Server, Dezember");
 
   await page.goto(originalUrl);
   await expect(page.getByRole("button", { name: "Kopieren", exact: true })).toBeVisible();
