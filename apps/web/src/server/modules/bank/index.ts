@@ -60,6 +60,7 @@ export {
   writeOffSchema,
 } from "./bank.ts";
 export { allocateFeesToDocument, feesSchema } from "./sammelzuordnung.ts";
+export { allocatePaymentWithFee, zahlungMitGebuehrSchema } from "./zahlung-gebuehr.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
 export { umsatzauswahl } from "./umsatzauswahl.ts";
 export {
