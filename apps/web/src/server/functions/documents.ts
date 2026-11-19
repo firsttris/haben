@@ -17,6 +17,7 @@ import {
   documentInputSchema,
   documentNavigation,
   dauerbelegName,
+  duplicateDocument,
   getDocument,
   supplierCategory,
   supplierPayment,
@@ -146,6 +147,22 @@ export const uploadDocuments = createServerFn({ method: "POST" })
       }
     }
     return results;
+  });
+
+/** Beleg duplizieren (#1295): neue Datei mit den Feldern des Belegs `id`, ohne Auslesung */
+export const duplicateDocumentFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: unknown) => {
+    if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
+    const file = data.get("file");
+    if (!(file instanceof File)) throw new UserError("Keine Datei ausgewählt.");
+    return { id: z.uuid().parse(data.get("id")), file };
+  })
+  .handler(async ({ data, context }) => {
+    // Vor dem Einlesen prüfen, wie beim Hochladen
+    if (data.file.size > MAX_DOCUMENT_SIZE) throw new DocumentError(`${data.file.name}: größer als 20 MB.`);
+    const bytes = new Uint8Array(await data.file.arrayBuffer());
+    return duplicateDocument(context.user.id, data.id, { bytes, filename: data.file.name });
   });
 
 export const saveDocument = createServerFn({ method: "POST" })
