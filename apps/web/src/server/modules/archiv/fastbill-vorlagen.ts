@@ -1,4 +1,4 @@
-import { FastbillApiError, type FastbillClient, type FbRecurring, mapFbRecurring } from "@haben/import";
+import { FastbillApiError, type FastbillClient, type FbRecurring, fbForArchive, mapFbRecurring } from "@haben/import";
 import { eq, isNull } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -17,13 +17,6 @@ import { progressMessage } from "./lexoffice.ts";
  */
 
 class TemplateError extends UserError {}
-
-/** Bankdaten des Kunden gehören nicht in den Nachweis */
-const BANK_FIELDS = ["BANK_NAME", "BANK_ACCOUNT_NUMBER", "BANK_CODE", "BANK_ACCOUNT_OWNER", "BANK_IBAN", "BANK_BIC"];
-
-function withoutBankData(raw: FbRecurring): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(raw).filter(([k]) => !BANK_FIELDS.includes(k)));
-}
 
 const fatal = (error: unknown, signal: AbortSignal) =>
   signal.aborted ||
@@ -79,7 +72,7 @@ async function importOne(actor: string, importId: string, raw: FbRecurring, paym
     // Zuerst der Nachweis: ein gleichzeitiger Lauf mit derselben Vorlage scheitert an der eindeutigen fastbill_id
     const [link] = await tx
       .insert(schema.fastbillRecurringTemplates)
-      .values({ fastbillId: String(raw.INVOICE_ID), importId, hints: mapped.hints, raw: withoutBankData(raw) })
+      .values({ fastbillId: String(raw.INVOICE_ID), importId, hints: mapped.hints, raw: fbForArchive(raw) })
       .onConflictDoNothing({ target: schema.fastbillRecurringTemplates.fastbillId })
       .returning({ id: schema.fastbillRecurringTemplates.id });
     if (!link) return false;
