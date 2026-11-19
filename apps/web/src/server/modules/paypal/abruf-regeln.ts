@@ -32,10 +32,20 @@ export function minusDays(day: string, days: number): string {
 }
 
 /** Heute als Tag in UTC; der Rhythmus des Abrufs rechnet in UTC, der Buchungstag in der Zeitzone des Kontos (eintraege.ts) */
-export const utcDay = (now: Date) => now.toISOString().slice(0, 10);
+const utcDay = (now: Date) => now.toISOString().slice(0, 10);
 
 const later = (a: string, b: string) => (a > b ? a : b);
 const earlier = (a: string, b: string) => (a < b ? a : b);
+
+/**
+ * Fenster eines Abrufs: vom Start bis zum Tag des Abrufs in UTC. Der erste Start ist der deutsche Tag (`today()`); zwischen
+ * Mitternacht in Deutschland und Mitternacht in UTC läge er hinter dem Ende, und der Importvertrag lehnte das Fenster ab.
+ * Deshalb beginnt es höchstens am UTC-Tag; einen Tag mehr zu holen schadet nicht, Haben erkennt Übernommenes an der Kennung.
+ */
+export function abrufFenster(fetchFrom: string, now: Date): { dateFrom: string; dateTo: string } {
+  const dateTo = utcDay(now);
+  return { dateFrom: earlier(fetchFrom, dateTo), dateTo };
+}
 
 /**
  * Erster Tag des nächsten Abrufs: zehn Tage vor dem Tag dieses erfolgreichen Abrufs, nie vor dem bisherigen Start (`fetchFrom`).

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
-import { abrufFaellig, naechsterAbrufStart, type PayPalRhythmus, utcDay } from "./abruf-regeln.ts";
+import { abrufFaellig, abrufFenster, naechsterAbrufStart, type PayPalRhythmus } from "./abruf-regeln.ts";
 import { loadPayPalConnection, PayPalError, paypalClientFor } from "./connections.ts";
 import { importPayPal } from "./import.ts";
 
@@ -47,8 +47,7 @@ async function syncPayPalEinmal(actor: string, now: Date): Promise<PayPalSyncRes
   const connection = await loadPayPalConnection();
   if (!connection) throw new PayPalError("Der PayPal-Zugang ist nicht eingerichtet (Einstellungen › Bank).");
   const result: PayPalSyncResult = { entries: 0, added: 0, accountName: null, messages: [], error: null };
-  const dateFrom = connection.row.fetchFrom;
-  const dateTo = utcDay(now);
+  const { dateFrom, dateTo } = abrufFenster(connection.row.fetchFrom, now);
   let neuerStart = dateFrom;
   try {
     const transactions = await paypalClientFor(connection.credentials).transactions(dateFrom, dateTo);
