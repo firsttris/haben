@@ -123,6 +123,14 @@ describe("configure_rclone", () => {
     expect(r.stderr).toContain("/var/lib/haben-backup/rclone.conf");
   });
 
+  it("warnt nicht, wenn nur die Gruppe lesen darf", () => {
+    // In einem Pod gehören Gruppe und Datei dem fsGroup; 0440 ist dort der Normalfall und kein Fehler
+    const conf = konfiguration(webdavConf, 0o640);
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf });
+    expect(r.code).toBe(0);
+    expect(r.stderr).toBe("");
+  });
+
   it("warnt bei offenen Rechten, arbeitet aber weiter", () => {
     const conf = konfiguration(webdavConf, 0o644);
     const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf });

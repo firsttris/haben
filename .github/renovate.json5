@@ -2,7 +2,7 @@
 // dessen, worauf Haben aufbaut, dazu das Issue „Dependency Dashboard“ mit allem, was offen ist.
 // Eigene Pull Requests: KoSIT-Validator und XRechnung-Konfiguration (CI-Job kosit), Bun (Images,
 // package.json, Screenshots, README), die Wolfi-Basis des App-Images (wöchentlich), PostgreSQL
-// (Datenbank, Backup-Image, CI, Doku), lib-fints, Caddy und restic.
+// (Datenbank, Backup-Image, CI, Doku), lib-fints, Caddy, restic und rclone.
 // Nicht über Renovate: ERiC (download.elster.de hat keine Liste, die Renovate lesen könnte;
 // DEFAULT_ERIC_VERSION in packages/elster/src/install.ts hebt man von Hand nach einer
 // Testübermittlung) und Habens eigene Images. Neue ERiC-Versionen, Lohnsteuer-PAP, Sozialversicherungswerte,
@@ -167,6 +167,16 @@
       prBodyNotes: [
         "Vor dem Mergen: Release Notes gegen `deploy/Caddyfile` und den Caddy-Block in `deploy/compose.yml` prüfen (Sicherheits-Header, `max_size`).",
       ],
+      schedule: ["at any time"],
+      automerge: false,
+      dependencyDashboardApproval: false,
+    },
+    {
+      // rclone im Backup-Image (deploy/backup/Containerfile): Zieltypen ändern sich mit den Versionen, vor dem Mergen
+      // einmal `rclone listremotes` und einen Lauf gegen ein WebDAV-Ziel prüfen
+      matchPackageNames: ["docker.io/rclone/rclone"],
+      sourceUrl: "https://github.com/rclone/rclone",
+      groupName: "rclone",
       schedule: ["at any time"],
       automerge: false,
       dependencyDashboardApproval: false,

@@ -87,9 +87,10 @@ backup:
     # PGHOST: "haben-db-rw.datenbank.svc"
     # PGUSER: "haben"
     # PGDATABASE: "haben"
-  # Zusätzliche Volumes für den Backup-Container, etwa die rclone-Konfiguration aus einem Secret. Der Vorgabepfad
-  # im Image ist /var/lib/haben-backup/rclone.conf; ohne subPath überschreibt ein Mount das Verzeichnis mit dem
-  # Dump und dem Zustand von backup.sh.
+  # Zusätzliche Volumes für den Backup-Container, etwa die rclone-Konfiguration. Der Vorgabepfad im Image ist
+  # /var/lib/haben-backup/rclone.conf; ohne subPath überschreibt ein Mount das Verzeichnis mit dem Dump und dem
+  # Zustand von backup.sh. Ein Secret reicht nur für Ziele ohne Anmeldung (WebDAV, SMB, SFTP): rclone schreibt einen
+  # erneuerten Token zurück und braucht dafür ein schreibbares Verzeichnis, also ein PVC (docs/installation-backup.md).
   extraVolumeMounts: []
     # - name: rclone-conf
     #   mountPath: /var/lib/haben-backup/rclone.conf

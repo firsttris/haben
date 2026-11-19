@@ -91,7 +91,25 @@ restic kennt nur wenige Ziele selbst. Für alles andere ruft es `rclone` auf, un
           - /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro
     ```
 
-    Quadlets: `Volume=%h/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro` (`%h` ist das Heimverzeichnis). Danach `systemctl --user daemon-reload`; ohne ihn kennt der Dienst den neuen `Volume=`-Eintrag nicht. Unraid: dieselbe Datei als zusätzlichen Pfad `/var/lib/haben-backup/rclone.conf` mit Zugriffsart „Nur lesen“ abbilden. Helm: `backup.extraVolumes` und `backup.extraVolumeMounts` in `values.yaml`, etwa aus einem Secret, mit `subPath: rclone.conf`, damit der Mount nur die Datei ersetzt und nicht das Verzeichnis mit Dump und Zustand. Der Pfad ist im Image als `RCLONE_CONFIG` hinterlegt, weitere Einstellungen braucht es nicht; liegt die Datei woanders, `RCLONE_CONFIG` in der `.env` auf diesen Pfad setzen.
+    **Ziele mit Anmeldung (OneDrive, Google Drive, Box, Dropbox): Verzeichnis einhängen, keine einzelne Datei.** rclone erneuert den Token im Betrieb und schreibt die Konfiguration dabei neu: Es legt eine temporäre Datei daneben und benennt sie um. Über eine einzeln eingehängte Datei scheitert das mit `Device or resource busy`, egal ob mit oder ohne `:ro`; beim zweiten Lauf ist das Ziel dann tot, bei Box sofort (der Refresh-Token gilt nur einmal), bei OneDrive, sobald der alte abläuft. Für diese Ziele ein Verzeichnis einhängen und den Pfad in der `.env` nennen:
+
+    ```yaml
+    services:
+      backup:
+        volumes:
+          - /root/haben/rclone:/var/lib/haben-backup/rclone
+      restore:
+        volumes:
+          - /root/haben/rclone:/var/lib/haben-backup/rclone
+    ```
+
+    ```sh
+    RCLONE_CONFIG=/var/lib/haben-backup/rclone/rclone.conf
+    ```
+
+    WebDAV, SMB und SFTP schreiben nichts zurück; dort reicht die einzelne Datei.
+
+    Quadlets: `Volume=%h/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro` (`%h` ist das Heimverzeichnis), für ein Ziel mit Anmeldung `Volume=%h/haben/rclone:/var/lib/haben-backup/rclone`. Danach `systemctl --user daemon-reload`; ohne ihn kennt der Dienst den neuen `Volume=`-Eintrag nicht. Unraid: dieselbe Datei als zusätzlichen Pfad `/var/lib/haben-backup/rclone.conf` mit Zugriffsart „Nur lesen“ abbilden. Helm: `backup.extraVolumes` und `backup.extraVolumeMounts` in `values.yaml`, für WebDAV und SMB aus einem Secret mit `subPath: rclone.conf`; für ein Ziel mit Anmeldung ein PVC, weil rclone die Datei im Betrieb neu schreibt und ein Secret das nicht hergibt. Der Pfad ist im Image als `RCLONE_CONFIG` hinterlegt, weitere Einstellungen braucht es nicht; liegt die Datei woanders, `RCLONE_CONFIG` in der `.env` auf diesen Pfad setzen.
 
 3. **Ziel eintragen:** `RESTIC_REPOSITORY=rclone:<abschnitt>:<pfad>`. Der Abschnitt ist der Name in eckigen Klammern der Konfiguration, der Pfad der Ordner im Ziel, den Haben anlegt, etwa `rclone:onedrive:haben`.
 
@@ -171,7 +189,7 @@ podman run --rm -it --network haben --env-file ~/.config/haben/backup.env -e PGH
 systemctl --user start haben-app
 ```
 
-Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu, bei einem rclone-Ziel `-v /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
+Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu, bei einem rclone-Ziel `-v ~/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
 
 Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `HABEN_ENCRYPTION_KEY`, demselben Passwort des Backups und demselben `RESTIC_REPOSITORY`. Dann startest du nur die Datenbank (`docker compose up -d db` bzw. `systemctl --user start haben-db`) und legst die App-Rolle aus [Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) an. Erst danach den Dump wiederherstellen und die App starten. [`pg_dump`](https://www.postgresql.org/docs/18/app-pgdump.html) sichert die Zugriffsrechte, aber keine Rollendefinitionen oder Rollenpasswörter: Die im Dump genannte Rolle muss vor dem Einspielen existieren. Ihre Zugangsdaten deshalb ebenfalls im Passwortmanager aufbewahren; beim neuen Ziel können sie neu gewählt werden, wenn `DATABASE_URL` dazu passt. Beim Start werden die Rechte erneut gesetzt, auch die Datenbankrechte, die der Dump ohne `--create` nicht enthält. Lief die App schon, stoppst du sie vorher; `restore.sh` ersetzt die leere Datenbank genauso. Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
 

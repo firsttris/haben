@@ -43,8 +43,9 @@ configure_rclone() {
     echo "RESTIC_REPOSITORY nutzt den rclone-Abschnitt ${name}, aber es gibt keine Konfiguration: $conf fehlt. Die Datei einhängen oder RCLONE_CONFIG auf ihren Pfad setzen; ein Beispiel steht in docs/installation-backup.md." >&2
     exit 2
   }
-  if mode="$(stat -c %a "$conf" 2>/dev/null)" && [ -n "$mode" ] && [ $((mode % 100)) -ne 0 ]; then
-    echo "Hinweis: $conf ist für Gruppe oder andere lesbar ($mode) und enthält Zugangsdaten. chmod 600 empfohlen." >&2
+  # Nur wenn andere die Datei lesen können: In einem Pod gehören Gruppe und Datei dem fsGroup, dort ist 0440 normal
+  if mode="$(stat -c %a "$conf" 2>/dev/null)" && [ -n "$mode" ] && [ $((mode % 10)) -ne 0 ]; then
+    echo "Hinweis: $conf ist für andere lesbar ($mode) und enthält Zugangsdaten. chmod 600 empfohlen." >&2
   fi
   export RCLONE_CONFIG="$conf"
   export RCLONE_ZIEL_GEPRUEFT=1
