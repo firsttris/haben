@@ -21,18 +21,19 @@ type Konflikte = Parameters<typeof KonfliktKlaeren>[0]["konflikte"];
 
 export function ExterneQuelle({
   account,
-  konflikte: alleKonflikte,
-  quellen,
-  gebundeneKonten,
+  daten,
 }: {
   account: { id: string; name: string };
-  konflikte: (Konflikte[number] & { bankAccountId: string; provider: string })[];
-  quellen: (Quelle & { accountId: string })[];
-  /** Konten mit irgendeiner Quelle, auch ohne Stichtag */
-  gebundeneKonten: string[];
+  /** Aus dem Loader der Bankseite: offene Konflikte, externe Quellen und Konten mit irgendeiner Quelle (auch ohne Stichtag) */
+  daten: {
+    sync: { konflikte: (Konflikte[number] & { bankAccountId: string; provider: string })[] };
+    quellen: (Quelle & { accountId: string })[];
+    gebundeneKonten: string[];
+  };
 }) {
+  const { quellen, gebundeneKonten } = daten;
   const quelle = quellen.find((q) => q.accountId === account.id);
-  const konflikte = alleKonflikte.filter((k) => k.bankAccountId === account.id && quelleZuAnbieter(k.provider) === "extern");
+  const konflikte = daten.sync.konflikte.filter((k) => k.bankAccountId === account.id && quelleZuAnbieter(k.provider) === "extern");
   // Ohne andere Quelle am Konto (Bankabruf, Etsy): ein Konto bekommt Umsätze nur aus einer
   const kannFreigeben = !gebundeneKonten.includes(account.id);
   const [open, setOpen] = useState(false);

@@ -187,15 +187,7 @@ function BankPage() {
               excludeBlockedBy={data.excludeBlockedBy}
             />
           )}
-          {selectedAccount && (
-            <ExterneQuelle
-              key={`quelle-${selectedAccount.id}`}
-              account={selectedAccount}
-              konflikte={data.sync.konflikte}
-              quellen={data.quellen}
-              gebundeneKonten={data.gebundeneKonten}
-            />
-          )}
+          {selectedAccount && <ExterneQuelle key={`quelle-${selectedAccount.id}`} account={selectedAccount} daten={data} />}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
