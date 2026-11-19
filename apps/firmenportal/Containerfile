@@ -1,7 +1,7 @@
 # Firmenportal (#504, Stufe 2): Anmeldung per SSO und Links auf die Instanzen der eigenen Firmen. Keine Datenbank,
 # keine Buchhaltungsdaten. Kontext ist das Wurzelverzeichnis des Repositorys (wegen bun.lock und packages/core):
 #   docker build -f apps/firmenportal/Containerfile -t haben-firmenportal .
-FROM docker.io/oven/bun:1.4.4-slim AS build
+FROM docker.io/oven/bun:1.4.5-slim AS build
 WORKDIR /app
 COPY bun.lock bunfig.toml package.json ./
 # Alle Workspace-Pakete, sonst passt bun.lock nicht (--frozen-lockfile)
@@ -21,7 +21,7 @@ RUN bun build apps/firmenportal/src/main.ts --target bun --outfile /app/firmenpo
  && mkdir /app/schrift \
  && for g in 400 500 600; do cp "apps/firmenportal/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-$g-normal.woff2" /app/schrift/; done
 
-FROM docker.io/oven/bun:1.4.4-slim
+FROM docker.io/oven/bun:1.4.5-slim
 WORKDIR /app
 COPY --from=build /app/firmenportal.js ./firmenportal.js
 COPY --from=build /app/schrift ./schrift
