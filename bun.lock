@@ -6,7 +6,7 @@
       "name": "haben",
       "devDependencies": {
         "@biomejs/biome": "2.6.4",
-        "@firsttris/checks": "github:firsttris/workflows#88b3d239f82c614bf23a30c4825d59c9f24e3986",
+        "@firsttris/checks": "github:firsttris/workflows#v1",
         "@tanstack/redact": "0.3.1",
         "@types/node": "^26.0.0",
         "oxc-parser": "^0.156.0",
@@ -300,7 +300,7 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
 
-    "@firsttris/checks": ["@firsttris/checks@github:firsttris/workflows#88b3d23", { "dependencies": { "oxc-parser": "^0.156.0" }, "bin": { "checks": "checks/cli.ts" } }, "firsttris-workflows-88b3d23", "sha512-j0FuCtFbHxW2QxUGF8F+5SMyh53QR/JkoYL/x3zODype7PkJulTk893ST+RuvQ0r9kJOsNna2Ukf5o0WKTn7uw=="],
+    "@firsttris/checks": ["@firsttris/checks@github:firsttris/workflows#552b725", { "dependencies": { "oxc-parser": "^0.156.0" }, "bin": { "checks": "checks/cli.ts" } }, "firsttris-workflows-552b725", "sha512-tgWcb/BnJaG6MaYvFySlcGffP9uZPTBiejMgMZxNYLcXQn07P9RroTXtvZbIrqUVjT2q9iw2UCSlljHjRfz7Ug=="],
 
     "@firsttris/gobd-kern": ["@firsttris/gobd-kern@workspace:packages/gobd-kern"],
 
