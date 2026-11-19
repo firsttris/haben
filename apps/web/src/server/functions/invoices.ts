@@ -299,7 +299,8 @@ export const getNumbering = createServerFn({ method: "GET" })
 /** Die Nummernkreise eines Kunden (#1426): je Art nur, wenn deren Zähler je Kunde läuft, sonst null */
 export const getCustomerNumbering = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ contactId: z.string().uuid() }))
+  // Wie die übrigen Loader der Kontaktseite: eine kaputte Kennung ist 404, nicht 500 (seiten.spec.ts, „kaputte Adresse“)
+  .validator(({ contactId }: { contactId: string }) => ({ contactId: detailId(contactId) }))
   .handler(async ({ data }) => contactNumbering(today(), data.contactId));
 
 export const saveNextNumber = createServerFn({ method: "POST" })
