@@ -79,7 +79,10 @@ describe.skipIf(!testDatabaseUrl)("TDD-PDF eines FastBill-Angebots nachholen (Po
   it("meldet eine abgelehnte Anmeldung am Download-Link nur beim Angebot und läuft weiter", async () => {
     await run([angebot("33")], html);
     const progress = await run([angebot("33"), angebot("34")], () => new Response("nein", { status: 401 }));
-    expect(progress.failed).toMatchObject([{ lexofficeId: "fastbill/estimate/33", message: expect.stringContaining("PDF nicht nachgeholt") }, { lexofficeId: "fastbill/estimate/34" }]);
+    expect(progress.failed).toMatchObject([
+      { lexofficeId: "fastbill/estimate/33", message: expect.stringContaining("PDF nicht nachgeholt") },
+      { lexofficeId: "fastbill/estimate/34" },
+    ]);
     expect(await files("33")).toEqual([]);
   });
 
