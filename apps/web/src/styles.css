@@ -1065,6 +1065,17 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sort-head.num { justify-content: flex-end; }
 .sort-head:hover { color: var(--ink); }
 .sort-head.aktiv { color: var(--ink); font-weight: 500; }
+/* Vorschläge bestätigen (#1440): Das Markierfeld liegt im linken Rand der Zeile und macht die Liste nicht breiter */
+.tx-wrap { position: relative; }
+.tx-check { position: absolute; left: 4px; top: 6px; width: 24px; display: flex; justify-content: center; z-index: 1; }
+/* 24 × 24 px: Mindestgröße des Ziels (WCAG 2.2, 2.5.8) */
+.tx-check input { margin: 0; width: 24px; height: 24px; }
+/* Mit Markierfeldern bekommt die Liste links Platz dafür, Kopf und Zeilen bleiben bündig */
+.card:has(.tx-check) .tx-cols { padding-left: 36px; }
+@media (min-width: 761px) {
+  .card:has(.tx-check) .tx-cols { grid-template-columns: 84px minmax(0, 1fr) 112px 112px; }
+}
+.tx-confirm-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 4px 20px 8px; }
 .tx-row.selected { background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
 .tx-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .section-label { font-size: 13px; color: var(--muted); }

@@ -18,9 +18,12 @@ export async function listTransactions(
   search: string,
   sortierung: UmsatzSortierung = STANDARD_SORTIERUNG,
   offset?: number,
+  /** Nur diese Umsätze (Sammelbestätigung, #1440) */
+  ids?: readonly string[],
 ) {
   // Mehrere Konten in „Alle Konten“ der Bankseite, wohin „Alle anzeigen“ der Schnellsuche führt (#617)
   const conditions = [inArray(schema.bankTransactions.bankAccountId, typeof accountIds === "string" ? [accountIds] : [...accountIds])];
+  if (ids) conditions.push(inArray(schema.bankTransactions.id, [...ids]));
   if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`, nichtPrivat());
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
   if (search.trim()) {

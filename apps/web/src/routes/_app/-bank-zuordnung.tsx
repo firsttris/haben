@@ -1,6 +1,8 @@
+import { getRouteApi } from "@tanstack/react-router";
 import { formatDecimal } from "@haben/core";
 import { BankDuplicateNotice } from "../../components/BankDuplicateNotice.tsx";
 import { GebuehrWahl, zuordnenText } from "../../components/BankGebuehr.tsx";
+import { BuchungsVorschlag } from "../../components/BuchungsVorschlag.tsx";
 import { DarlehenFelder } from "../../components/DarlehenFelder.tsx";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { Field } from "../../components/Field.tsx";
@@ -20,6 +22,8 @@ import { RestAktionen } from "./-bank-zuordnung-rest.tsx";
 import { BuchungsartWahl, KandidatWahl } from "./-bank-zuordnung-wahl.tsx";
 import { BesterTreffer, DirektVorschlagKarte, UmsatzKopf, ZuordnungenListe } from "./-bank-zuordnung-teile.tsx";
 import { type Gebuehr, type Optionen, useZuordnung, type Zuordnung } from "./-bank-zuordnung-zustand.ts";
+
+const bankRoute = getRouteApi("/_app/bank");
 
 export function AllocationPanel({ detail, nextOpenId, gebuehr, ...optionen }: Optionen & { detail: Detail; nextOpenId: string | undefined; gebuehr: Gebuehr }) {
   const z = useZuordnung(detail, optionen, nextOpenId, gebuehr);
@@ -142,6 +146,7 @@ function Vorschlaege({ z }: { z: Zuordnung }) {
 function Auswahl({ z }: { z: Zuordnung }) {
   const { tx, wahl, error, optionen } = z;
   const { mode, directKind } = wahl;
+  const kontenrahmen = bankRoute.useLoaderData().kontenrahmen;
   return (
     <>
       {mode === "other" && (
@@ -179,6 +184,7 @@ function Auswahl({ z }: { z: Zuordnung }) {
           onChange={wahl.setKategorie}
         />
       )}
+      {mode === "direct" && directKind === "kategorie" && <BuchungsVorschlag wahl={wahl.kategorie} amount={wahl.signedAmount} kontenrahmen={kontenrahmen} />}
     </>
   );
 }
