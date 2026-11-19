@@ -191,6 +191,10 @@ Danach erscheint unter **Bank** der Knopf **Bank verbinden**. Ablauf, Zustimmung
 
 Was an Enable Banking geht: beim Verbinden die gewählte Bank und die Rückleitungsadresse, danach nur Abrufe von Umsätzen und Kontoständen der freigegebenen Konten. Die Anmeldung bei der Bank geschieht auf deren Seite; Haben sieht weder Zugangsdaten noch TAN. Zahlungen auslösen kann Haben nicht.
 
+## PayPal-Abruf
+
+Der Abruf der PayPal-Umsätze braucht auf dem Server nichts: keine Umgebungsvariable, kein Secret im Container. Client-ID und Secret der PayPal-App trägst du in Haben ein (Einstellungen › Bank › PayPal, siehe [PayPal-Umsätze über die API](bank-zahlungsdienstleister.md#paypal-umsätze-über-die-api)); sie liegen verschlüsselt in der Datenbank. Der Server muss `api-m.paypal.com` (Sandbox: `api-m.sandbox.paypal.com`) auf Port 443 erreichen.
+
 ## Kontoabruf über FinTS
 
 Optional. Über FinTS (früher HBCI) holt Haben die Umsätze direkt bei der Bank, ohne Enable Banking und ohne Vertrag mit einem Dienst dazwischen. Die meisten Sparkassen, Volks- und Raiffeisenbanken und viele Direktbanken bieten FinTS mit PIN/TAN an, Neobanken meist nicht; dort bleiben Enable Banking oder der Dateiimport. Beide Wege gehen nebeneinander, ein Konto ruft Haben aber nur über einen ab.

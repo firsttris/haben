@@ -139,5 +139,5 @@ export {
 export { bankCsvMappingSchema, csvZuordnungSchema, importCsvZuordnung, importStatementFile, type CsvImportResult } from "./csv-zuordnung.ts";
 export { klaerungView, openConflicts, recordRefusedBatch, resolveConflict, resolveConflictSchema } from "./import-konflikt.ts";
 export { cutoverDates } from "./andere-importe.ts";
-export { storeBatch, type BatchResult, type StoreBatchInput } from "./import-batch.ts";
+export { eventKey, storeBatch, type BatchResult, type StoreBatchInput } from "./import-batch.ts";
 export { runExistingDuplicateCheck } from "./duplicate-scan.ts";

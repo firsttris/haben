@@ -36,6 +36,14 @@ import { lockImportObservations, recordImportObservations } from "./import-obser
 
 export { freeHash } from "./import-batch-plan.ts";
 
+/**
+ * Schlüssel einer Bewegung unter ihren Umsätzen: die Kennung des Ereignisses, bei einer anderen Komponente als dem
+ * Hauptbetrag mit "#<Komponente>" (etwa die Gebühr einer Zahlung von Stripe). `eventOf` eines Adapters liefert zu
+ * einem Umsatz denselben Schlüssel; ohne ihn überschriebe die Gebühr den Hauptbetrag desselben Ereignisses.
+ */
+export const eventKey = (m: Pick<ImportMovement, "sourceEventId" | "component">) =>
+  m.component === "main" ? m.sourceEventId : `${m.sourceEventId}#${m.component}`;
+
 export interface StoreBatchInput {
   batch: ImportBatch;
   binding: Omit<SourceBinding, "cutoverDate">;
@@ -310,7 +318,7 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
       `Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`,
       results.filter((r) => r.outcome === "conflict").map((r) => ({ movementId: movementIds.get(r.key)!, movement: r.movement })),
     );
-  const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [r.movement.sourceEventId, r.movement]));
+  const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [eventKey(r.movement), r.movement]));
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
   const rows = withDedupHashes(statement.transactions);
