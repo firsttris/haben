@@ -6,7 +6,7 @@ import { createRenderClient, LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfReq
 import { eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { checkLayout, LayoutError, MAX_LAYOUT_BYTES, packagesIn, typstMeldung } from "./layout-pruefung.ts";
 import { clearPackages, directorySize, dropRenderer, packageCache, rendererFor, samePackages } from "./layout-pakete.ts";
 import {
@@ -34,7 +34,7 @@ export type LayoutArt = "beleg" | "mahnung";
 /** Mahnungen haben eigene Felder; alle anderen Belegarten setzt dieselbe Art Vorlage */
 export const artFor = (type: LayoutDocumentType): LayoutArt => (type === "mahnung" ? "mahnung" : "beleg");
 
-function cleanName(name: string): string {
+export function cleanName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 60) throw new LayoutError("Der Name des Layouts hat 1 bis 60 Zeichen.");
   return trimmed;
@@ -45,7 +45,7 @@ async function nameTaken(name: string, except?: string): Promise<boolean> {
   return rows.some((row) => row.id !== except);
 }
 
-function checkSource(source: string): LayoutPackage[] {
+export function checkSource(source: string): LayoutPackage[] {
   if (!source.trim()) throw new LayoutError("Die Datei ist leer.");
   if (Buffer.byteLength(source, "utf8") > MAX_LAYOUT_BYTES) throw new LayoutError("Ein Layout darf höchstens 256 KB groß sein.");
   return packagesIn(source);
@@ -76,8 +76,8 @@ export function envLimits(): LayoutLimits {
 }
 
 /** Platz aller Layouts ohne das genannte: Quelltexte in der Datenbank und Paket-Caches */
-async function usedBytes(except?: string): Promise<number> {
-  const rows = await db.select({ id: schema.belegLayouts.id, source: schema.belegLayouts.source }).from(schema.belegLayouts);
+async function usedBytes(except?: string, q: Db | Tx = db): Promise<number> {
+  const rows = await q.select({ id: schema.belegLayouts.id, source: schema.belegLayouts.source }).from(schema.belegLayouts);
   let total = 0;
   for (const row of rows.filter((r) => r.id !== except)) total += Buffer.byteLength(row.source, "utf8") + (await directorySize(await packageCache(row.id)));
   return total;
@@ -86,14 +86,14 @@ async function usedBytes(except?: string): Promise<number> {
 const megabytes = (bytes: number) => `${Math.ceil(bytes / 1024 / 1024)} MB`;
 
 /** Prüft, ob noch ein Layout bzw. so viel Platz frei ist; replacing ist das Layout, das ersetzt wird */
-async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: string): Promise<void> {
+export async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: string, q: Db | Tx = db): Promise<void> {
   if (!replacing && limits.maxCount !== undefined) {
-    const rows = await db.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts);
+    const rows = await q.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts);
     if (rows.length >= limits.maxCount) {
       throw new LayoutError(`Es sind schon ${rows.length} eigene Layouts gespeichert, mehr erlaubt diese Installation nicht. Lösche erst eines.`);
     }
   }
-  if (limits.maxBytes !== undefined && (await usedBytes(replacing)) + bytes > limits.maxBytes) {
+  if (limits.maxBytes !== undefined && (await usedBytes(replacing, q)) + bytes > limits.maxBytes) {
     throw new LayoutError(`Für eigene Layouts sind auf dieser Installation höchstens ${megabytes(limits.maxBytes)} frei, mit diesem Layout wären es mehr.`);
   }
 }

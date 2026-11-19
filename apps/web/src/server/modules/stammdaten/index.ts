@@ -160,3 +160,12 @@ export {
   type TextBlock,
   type TextBlockInput,
 } from "./text-blocks.ts";
+export {
+  artikelUebernehmen,
+  einheitenUebernehmen,
+  einrichtungUebernehmen,
+  firmaErgaenzen,
+  kontakteUebernehmen,
+  textbausteineUebernehmen,
+} from "./uebernahme.ts";
+export { gestaltungUebernehmen } from "./uebernahme-gestaltung.ts";

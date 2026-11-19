@@ -402,10 +402,11 @@ async function latestWithFile(sha256: string): Promise<string | null> {
   return row?.id ?? null;
 }
 
-/** Legt die Zeile an; null, wenn dieselbe Datei gleichzeitig angelegt wurde */
+/** Legt die Zeile an, mit `fields` gleich in derselben Transaktion ausgefüllt; null, wenn dieselbe Datei gleichzeitig angelegt wurde */
 async function insertDocument(
   actor: string,
   row: { sha256: string; filename: string; mimeType: string; size: number; note: string; reference: DocumentReference | null },
+  fields: DocumentInput | null,
 ): Promise<string | null> {
   const { reference, ...values } = row;
   return withActor(actor, async (tx) => {
@@ -418,6 +419,7 @@ async function insertDocument(
         where: sql`${schema.documents.replacesDocumentId} is null and ${schema.documents.recurringDocumentId} is null`,
       })
       .returning({ id: schema.documents.id });
+    if (created && fields) await updateDocumentIn(tx, created.id, fields);
     return created?.id ?? null;
   });
 }
@@ -425,12 +427,13 @@ async function insertDocument(
 /**
  * Legt einen Beleg ab. E-Rechnungen werden sofort gelesen; andere PDFs und Fotos
  * gehen an die KI-Auslesung im Hintergrund, falls eingerichtet. Mit externer Referenz (REST-API) liefert dieselbe
- * Referenz den vorhandenen Beleg, auch bei gleichzeitigen Anfragen.
+ * Referenz den vorhandenen Beleg, auch bei gleichzeitigen Anfragen. Mit `fields` (Duplikat, #1295) stehen diese Felder am
+ * Beleg, ausgelesen wird dann nichts.
  */
 export async function uploadDocument(
   actor: string,
   file: { bytes: Uint8Array; filename: string },
-  options: { background?: (work: Promise<void>) => void; reference?: DocumentReference; note?: string } = {},
+  options: { background?: (work: Promise<void>) => void; reference?: DocumentReference; note?: string; fields?: DocumentInput } = {},
 ): Promise<UploadResult> {
   const problem = documentFileProblem(file);
   if (problem) throw new DocumentError(problem.message);
@@ -447,7 +450,7 @@ export async function uploadDocument(
   const row = { sha256, filename: file.filename.slice(0, 200), mimeType: type.mimeType, size: file.bytes.byteLength, note: options.note ?? "", reference };
   let id: string | null;
   try {
-    id = await insertDocument(actor, row);
+    id = await insertDocument(actor, row, options.fields ?? null);
   } catch (error) {
     // Gleichzeitig mit derselben Referenz angelegt: der andere Beleg gilt. Die eigene Datei bleibt liegen, denn eine
     // dritte Anfrage mit derselben Datei könnte sie gerade nutzen; unter ihrem Hash schadet sie nicht.
@@ -458,6 +461,7 @@ export async function uploadDocument(
   if (!id) {
     return { id: (await latestWithFile(sha256))!, duplicate: true };
   }
+  if (options.fields) return { id, duplicate: false };
 
   if (type.kind === "pdf" || type.kind === "xml") {
     try {
@@ -509,54 +513,57 @@ async function lockOpen(tx: Tx, id: string): Promise<Document> {
 }
 
 export async function updateDocument(actor: string, id: string, input: DocumentInput): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const previous = await lockOpen(tx, id);
-    const parsed = documentInputSchema.parse(input);
-    // Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Lieferant mehr ist, bleibt am Beleg
-    if (parsed.supplierContactId && parsed.supplierContactId !== previous.supplierContactId) {
-      const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
-      if (problem) throw new DocumentError(problem);
+  await withActor(actor, (tx) => updateDocumentIn(tx, id, input));
+}
+
+/** Wie updateDocument, in einer laufenden Transaktion; etwa gleich nach dem Anlegen eines Duplikats */
+async function updateDocumentIn(tx: Tx, id: string, input: DocumentInput): Promise<void> {
+  const previous = await lockOpen(tx, id);
+  const parsed = documentInputSchema.parse(input);
+  // Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Lieferant mehr ist, bleibt am Beleg
+  if (parsed.supplierContactId && parsed.supplierContactId !== previous.supplierContactId) {
+    const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
+    if (problem) throw new DocumentError(problem);
+  }
+  // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
+  const beleg = parsed.splits.length > 0 ? { ownAccountId: null, category: null } : parsed;
+  const bisher = { beleg: previous.ownAccountId, zeilen: (await loadSplits(id, tx)).map((s) => s.ownAccountId) };
+  const [kontoProblem] = await documentOwnAccountProblems(tx, beleg, parsed.splits, bisher);
+  if (kontoProblem) throw new DocumentError(kontoProblem);
+  const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
+  const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
+  if (parsed.erstattetBezahltes) {
+    const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.payment, parsed.category);
+    if (problem) throw new DocumentError(problem);
+    // Dieselbe Sperre wie bei jeder Änderung am gebuchten Beleg: Ein gemeldeter Zeitraum bleibt unberührt (#786)
+    if (!previous.erstattetBezahltes && parsed.documentDate && (await periodReported(tx, parsed.documentDate))) {
+      throw new DocumentError(
+        "Der Belegmonat ist schon gemeldet; die Vorsteuerminderung ließe sich nach § 17 Abs. 1 Satz 2 UStG nicht mehr in ihm ziehen. Lass die Angabe weg oder nimm ein Belegdatum im laufenden Zeitraum.",
+      );
     }
-    // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
-    const beleg = parsed.splits.length > 0 ? { ownAccountId: null, category: null } : parsed;
-    const bisher = { beleg: previous.ownAccountId, zeilen: (await loadSplits(id, tx)).map((s) => s.ownAccountId) };
-    const [kontoProblem] = await documentOwnAccountProblems(tx, beleg, parsed.splits, bisher);
-    if (kontoProblem) throw new DocumentError(kontoProblem);
-    const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
-    const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
-    if (parsed.erstattetBezahltes) {
-      const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.payment, parsed.category);
-      if (problem) throw new DocumentError(problem);
-      // Dieselbe Sperre wie bei jeder Änderung am gebuchten Beleg: Ein gemeldeter Zeitraum bleibt unberührt (#786)
-      if (!previous.erstattetBezahltes && parsed.documentDate && (await periodReported(tx, parsed.documentDate))) {
-        throw new DocumentError(
-          "Der Belegmonat ist schon gemeldet; die Vorsteuerminderung ließe sich nach § 17 Abs. 1 Satz 2 UStG nicht mehr in ihm ziehen. Lass die Angabe weg oder nimm ein Belegdatum im laufenden Zeitraum.",
-        );
-      }
-    }
-    await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-    if (amounts.length > 0) {
-      await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
-    }
-    // Aufgeteilt: Kategorie und Anlage stehen in den Zeilen bzw. gibt es nicht (Anlagegüter lassen sich nicht aufteilen)
-    await replaceSplits(tx, id, parsed.splits, amounts);
-    const { amounts: _amounts, splits, asset, ...fields } = parsed;
-    const category = splits.length > 0 ? null : fields.category;
-    const ownAccountId = splits.length > 0 ? null : fields.ownAccountId;
-    await tx
-      .update(schema.documents)
-      .set({
-        ...fields,
-        ...rate,
-        category,
-        ownAccountId,
-        asset: category === "anlage" ? (asset ?? null) : null,
-        supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
-        ...totalsOf(amounts, fields.reverseCharge),
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.documents.id, id));
-  });
+  }
+  await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
+  if (amounts.length > 0) {
+    await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
+  }
+  // Aufgeteilt: Kategorie und Anlage stehen in den Zeilen bzw. gibt es nicht (Anlagegüter lassen sich nicht aufteilen)
+  await replaceSplits(tx, id, parsed.splits, amounts);
+  const { amounts: _amounts, splits, asset, ...fields } = parsed;
+  const category = splits.length > 0 ? null : fields.category;
+  const ownAccountId = splits.length > 0 ? null : fields.ownAccountId;
+  await tx
+    .update(schema.documents)
+    .set({
+      ...fields,
+      ...rate,
+      category,
+      ownAccountId,
+      asset: category === "anlage" ? (asset ?? null) : null,
+      supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
+      ...totalsOf(amounts, fields.reverseCharge),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.documents.id, id));
 }
 
 export async function getDocument(id: string) {

@@ -250,16 +250,20 @@ export async function createContact(actor: string, input: ContactInput): Promise
 }
 
 /** Legt einen Kontakt in der laufenden Transaktion an; auch für den CSV-Import, der alle Zeilen in einer Transaktion anlegt */
-export async function insertContact(tx: Tx, input: ContactInput): Promise<Contact> {
+/**
+ * `id` und `vergeben: false` nur für die Übernahme aus einer anderen Instanz (#488): Ansprechpartner und Textbausteine
+ * behalten ihren Kontakt, und ein Kunde ohne Nummer bleibt ohne, wie er dort war.
+ */
+export async function insertContact(tx: Tx, input: ContactInput, { id, vergeben = true }: { id?: string; vergeben?: boolean } = {}): Promise<Contact> {
   const values = clean(input);
   // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht; nur an Kunden,
   // ein reiner Lieferant hat keine Kundennummer (#224)
   // Eine eigene Nummer geht immer über die Sperre der Firmenzeile, damit keine gleichzeitige Vergabe sie doppelt nimmt
-  const kundennummer = values.isCustomer || values.kundennummer ? await takeCustomerNumber(tx, values.kundennummer) : null;
+  const kundennummer = values.kundennummer || (vergeben && values.isCustomer) ? await takeCustomerNumber(tx, values.kundennummer) : null;
   const [created] = await samePersonenkonto(tx, () =>
     tx
       .insert(schema.contacts)
-      .values({ ...values, kundennummer })
+      .values({ ...values, kundennummer, ...(id ? { id } : {}) })
       .returning(),
   );
   return created!;

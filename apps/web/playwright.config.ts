@@ -135,6 +135,7 @@ export default defineConfig({
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "datumsfelder.spec.ts",
+        "einstellungen-export.spec.ts",
         "kopfzeile.spec.ts",
         "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",

@@ -7,6 +7,7 @@ import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
+import { openConflicts } from "../bank/index.ts";
 import { ETSY_RHYTHMEN, type EtsyRhythmus } from "./abruf-regeln.ts";
 
 /*
@@ -239,6 +240,8 @@ export async function etsySummary() {
     lastSyncAt: connection?.row.lastSyncAt ?? null,
     lastError: connection?.row.lastError ?? null,
     updatedAt: connection?.row.updatedAt ?? null,
+    /** Offene Konflikte des Abrufs (#306): Bis sie geklärt sind, übernimmt Haben aus dem Etsy-Abruf nichts */
+    konflikte: (await openConflicts()).filter((k) => k.provider === "etsy"),
   };
 }
 

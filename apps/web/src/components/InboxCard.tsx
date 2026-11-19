@@ -13,6 +13,7 @@ import { Status, Tag, type StatusTone } from "./Status.tsx";
 type Data = Awaited<ReturnType<typeof getInbox>>;
 type Settings = Data["settings"];
 type Abruf = Awaited<ReturnType<typeof fetchInboxNow>>;
+type AfterFetch = "seen" | "move" | "delete";
 
 /** Was „Jetzt abrufen“ meldet; Mails nicht freigegebener Absender bleiben ungelesen und zählen nur als Hinweis */
 function abrufText(r: Abruf): string {
@@ -35,8 +36,11 @@ export function InboxCard({ data }: { data: Data }) {
   const [host, setHost] = useState(s?.host ?? "");
   const [port, setPort] = useState(String(s?.port ?? 993));
   const [secure, setSecure] = useState(s?.secure ?? true);
+  const [afterFetch, setAfterFetch] = useState<AfterFetch>(s?.afterFetch ?? "seen");
   const action = useAction();
   const [removing, setRemoving] = useState(false);
+  /** Das Formular, dessen Speichern noch auf die Rückfrage zu „Löschen“ wartet */
+  const [askingDelete, setAskingDelete] = useState<HTMLFormElement | null>(null);
   const { busy, notice } = action;
 
   const run = (work: () => Promise<Notice>) =>
@@ -55,7 +59,12 @@ export function InboxCard({ data }: { data: Data }) {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const element = event.currentTarget;
+    // Löschen lässt sich nicht zurückholen: beim Umstellen erst fragen
+    if (afterFetch === "delete" && s?.afterFetch !== "delete") setAskingDelete(event.currentTarget);
+    else submit(event.currentTarget);
+  }
+
+  function submit(element: HTMLFormElement) {
     const form = new FormData(element);
     const text = (name: string) => String(form.get(name) ?? "").trim();
     void run(async () => {
@@ -69,6 +78,8 @@ export function InboxCard({ data }: { data: Data }) {
           folder: text("folder") || "INBOX",
           outboundFolder: text("outboundFolder") || null,
           allowedSenders: absender(text("allowedSenders")),
+          afterFetch,
+          archiveFolder: text("archiveFolder") || null,
           enabled: form.get("enabled") === "on",
         },
       });
@@ -79,6 +90,20 @@ export function InboxCard({ data }: { data: Data }) {
 
   return (
     <>
+      <ConfirmDialog
+        open={askingDelete !== null}
+        title="Abgerufene Mails löschen?"
+        confirmLabel="Löschen aktivieren"
+        danger
+        onConfirm={() => askingDelete && submit(askingDelete)}
+        onClose={() => setAskingDelete(null)}
+      >
+        <p>
+          Haben löscht ab dem nächsten Abruf jede Mail im Postfach, deren Anhänge als Belege abgelegt sind. Haben behält die Anhänge sowie Absender und Betreff
+          in der Notiz am Beleg; Mailtext und Original sind danach weg. Gelöschte Mails lassen sich nicht zurückholen, bei manchen Anbietern liegen sie zunächst
+          im Papierkorb.
+        </p>
+      </ConfirmDialog>
       <form className="card form-card" onSubmit={onSubmit} aria-labelledby="inbox-heading">
         <div className="form-card-head">
           <h2 id="inbox-heading">Belege per E-Mail</h2>
@@ -92,6 +117,10 @@ export function InboxCard({ data }: { data: Data }) {
         <section className="form-section" aria-labelledby="inbox-ordner">
           <h3 id="inbox-ordner">Ordner</h3>
           <OrdnerFelder settings={s} />
+        </section>
+        <section className="form-section" aria-labelledby="inbox-danach">
+          <h3 id="inbox-danach">Nach dem Abruf</h3>
+          <NachAbrufFelder settings={s} afterFetch={afterFetch} setAfterFetch={setAfterFetch} />
         </section>
         <section className="form-section" aria-labelledby="inbox-absender">
           <h3 id="inbox-absender">Absender</h3>
@@ -221,21 +250,53 @@ function OrdnerFelder({ settings }: { settings: Settings }) {
     <>
       <p className="small muted">Am besten eigene Ordner, in die du Rechnungen weiterleitest oder filterst.</p>
       <div className="form-row cols-2">
-        <Field label="Ordner für Eingangsrechnungen" hint="Anhänge werden Belege, die Mail danach gelesen.">
+        <Field label="Ordner für Eingangsrechnungen" hint="Anhänge werden Belege; was danach mit der Mail geschieht, steht unter „Nach dem Abruf“.">
           {(control) => <input {...control} name="folder" defaultValue={settings?.folder ?? "INBOX"} placeholder="INBOX" />}
         </Field>
         <Field
           label="Ordner für Ausgangsrechnungen (optional)"
           hint={
             <>
-              <Tag>noch ohne Wirkung</Tag> Für Rechnungen aus Shop oder Fremdsystem. Haben liest den Ordner erst, wenn die Übernahme fremder Ausgangsrechnungen
-              eingebaut ist (#660); er muss ein anderer sein als der Eingangsordner.
+              <Tag>noch ohne Wirkung</Tag> Für Rechnungen aus Shop oder Fremdsystem. Haben liest diesen Ordner noch nicht; fremde Ausgangsrechnungen übernimmst
+              du bisher auf der Seite Rechnungen mit „Ausgangsrechnung hochladen“. Der Ordner muss ein anderer sein als der Eingangsordner.
             </>
           }
         >
           {(control) => <input {...control} name="outboundFolder" defaultValue={settings?.outboundFolder ?? ""} placeholder="Ausgang" />}
         </Field>
       </div>
+    </>
+  );
+}
+
+/** Was mit einer abgelegten Mail im Postfach geschieht: gelesen, in einen Ordner verschoben oder gelöscht */
+function NachAbrufFelder({ settings, afterFetch, setAfterFetch }: { settings: Settings; afterFetch: AfterFetch; setAfterFetch: (value: AfterFetch) => void }) {
+  return (
+    <>
+      <Field
+        label="Mail im Postfach"
+        hint="Gilt erst, wenn die Anhänge als Belege abgelegt sind. Mails nicht freigegebener Absender und Mails, die sich nicht verarbeiten lassen, bleiben liegen."
+      >
+        {(control) => (
+          <select {...control} value={afterFetch} onChange={(e) => setAfterFetch(e.target.value as AfterFetch)}>
+            <option value="seen">Als gelesen markieren</option>
+            <option value="move">In einen Ordner verschieben</option>
+            <option value="delete">Löschen</option>
+          </select>
+        )}
+      </Field>
+      {afterFetch === "move" && (
+        <Field label="Zielordner" hint="Muss im Postfach schon bestehen und ein anderer sein als die Ordner oben.">
+          {(control) => <input {...control} name="archiveFolder" defaultValue={settings?.archiveFolder ?? ""} placeholder="Belege/Abgeholt" required />}
+        </Field>
+      )}
+      {afterFetch === "delete" && (
+        <p className="small muted">
+          Haben behält die Anhänge als Belege sowie Absender und Betreff in der Notiz; Mailtext und Original sind danach weg. Mails ohne Anhang, mit Anhängen,
+          die Haben nicht ablegen kann, und zu große Mails löscht Haben nicht; sie bleiben als gelesen markiert im Postfach. Bei manchen Anbietern landet eine
+          gelöschte Mail zunächst im Papierkorb. Der Server muss gezieltes Löschen (UIDPLUS) beherrschen, sonst bricht der Abruf mit einer Meldung ab.
+        </p>
+      )}
     </>
   );
 }

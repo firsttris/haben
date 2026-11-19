@@ -1,5 +1,5 @@
 ---
-title: "Umzug aus Accountable ohne Datenverlust"
+title: "Umzug aus Accountable mit Abgleich je Jahr"
 description: >-
   Von Accountable zu Haben wechseln: Exporte übernehmen, Buchungen und Belege verknüpfen,
   im unveränderlichen Archiv aufbewahren und das Abo kündigen.
@@ -7,9 +7,9 @@ description: >-
 
 # Umzug aus Accountable
 
-Haben übernimmt deinen Bestand aus Accountable, damit du kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite „Archiv“ unter „Umzug“: Wähle oben „Umzug aus Accountable“. Die Schritte bis zum Abgleich sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
+Haben übernimmt deinen Bestand aus Accountable, damit du kündigen kannst; der Abgleich je Jahr zeigt vorher, ob alles da ist. Der Umzug läuft auf der Seite „Archiv“ unter „Umzug“: Wähle oben „Umzug aus Accountable“. Die Schritte bis zum Abgleich sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
 
-Accountable hat keinen API-Zugang. Es gibt deshalb keine Verbindungskarte mit Schlüssel oder Token. Du lädst die Exportdatei hoch, Haben liest daraus den DATEV-Buchungsstapel, entpackt die Belege und verknüpft beides.
+Accountable bietet keinen API-Zugang an (Stand November 2026). Es gibt deshalb keine Verbindungskarte mit Schlüssel oder Token. Du lädst die Exportdatei hoch, Haben liest daraus den DATEV-Buchungsstapel, entpackt die Belege und verknüpft beides.
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
