@@ -38,6 +38,7 @@ export * from "./ust-vorauszahlung-euer.ts";
 export * from "./euer.ts";
 export * from "./journal-kennzahlen.ts";
 export * from "./alte-belegbuchung.ts";
+export * from "./alte-zahlung.ts";
 export * from "./ust-verprobung.ts";
 export * from "./journal-euer.ts";
 export * from "./kontenrahmen-wechsel.ts";

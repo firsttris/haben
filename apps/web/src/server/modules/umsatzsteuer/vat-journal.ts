@@ -13,6 +13,7 @@ import {
 import { and, asc, eq, gte, lt, notInArray, or, sql } from "drizzle-orm";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
+import { zahlungenWieHeute } from "./zahlung-alte-version.ts";
 
 const updateAufDasJournal = sql`(select min(${schema.journalUmstellung.at}) from ${schema.journalUmstellung})`;
 
@@ -41,6 +42,8 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
   const rows = await q
     .select({
       id: e.id,
+      sourceType: e.sourceType,
+      sourceId: e.sourceId,
       kontenrahmen: e.kontenrahmen,
       alt: belegAusAlterVersion,
       account: l.account,
@@ -63,7 +66,10 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, start), lt(e.date, end), notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
-  const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; alt: boolean; zeilen: JournalZeile[] }>();
+  const buchungen = new Map<
+    string,
+    { sourceType: string; sourceId: string; kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; alt: boolean; zeilen: JournalZeile[] }
+  >();
   const taxes = invoiceTaxReader(q);
   for (const r of rows) {
     let b = buchungen.get(r.id);
@@ -81,17 +87,19 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
             taxTreatment: r.treatment ?? "regulaer",
           })
         : versteuerung;
-      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, alt: r.alt === true, zeilen: [] };
+      b = { sourceType: r.sourceType, sourceId: r.sourceId, kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, alt: r.alt === true, zeilen: [] };
       buchungen.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });
   }
+  // Zahlungen bei Ist von vor #552 mit der Bemessungsgrundlage wie heute (#1502)
+  const gelesen = await zahlungenWieHeute([...buchungen.values()], q);
   const summe = leereJournalKennzahlen();
   // Ein Jahr hat einen Kontenrahmen; je Kontenrahmen gerechnet, falls ein Zeitraum doch beide sieht
   for (const kr of ["SKR03", "SKR04"] as const)
     for (const mode of ["ist", "soll"] as const) {
       // Belegbuchungen alter Versionen mit § 13b oder Erwerb mit der Bemessungsgrundlage wie heute (#1396)
-      const eigene = [...buchungen.values()]
+      const eigene = gelesen
         .filter((b) => b.kontenrahmen === kr && b.versteuerung === mode)
         .map((b) => (b.alt ? mitBemessungWieHeute(kr, b.zeilen) : b.zeilen));
       if (eigene.length === 0) continue;

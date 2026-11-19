@@ -12,7 +12,7 @@ import {
 import { and, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
-import { belegAusAlterVersion } from "../umsatzsteuer/index.ts";
+import { belegAusAlterVersion, zahlungenWieHeute } from "../umsatzsteuer/index.ts";
 
 /*
  * Umsatzsteuer-Verprobung im Journal (#1116, verprobeBuchung in @haben/core): je Buchung die Steuer auf den Steuerkonten
@@ -41,7 +41,7 @@ export interface JournalBuchung {
   versteuerung?: Versteuerung;
 }
 
-/** Alle Buchungen eines Zeitraums mit ihren Zeilen, ohne Eröffnungen (sie gehören zum Vorjahr) */
+/** Alle Buchungen eines Zeitraums mit ihren Zeilen, ohne Eröffnungen (sie gehören zum Vorjahr); Zahlungen von vor #552 wie heute */
 export async function journalBuchungen(from: string, to: string, q: Db | Tx = db): Promise<JournalBuchung[]> {
   const e = schema.journalEntries;
   const l = schema.journalLines;
@@ -106,7 +106,8 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
     }
     buchung.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode, basis: r.basis });
   }
-  return [...byEntry.values()];
+  // Zahlungen bei Ist von vor #552 mit der Bemessungsgrundlage wie heute (#1502)
+  return zahlungenWieHeute([...byEntry.values()], q);
 }
 
 const ART = { umsatzsteuer: "Umsatzsteuer", erwerbsteuer: "Erwerbsteuer", vorsteuer: "Vorsteuer" } as const;
