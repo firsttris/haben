@@ -593,7 +593,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-section-zu { padding: 0; gap: 0; }
 .form-section-zu > details > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; align-content: center; min-height: 48px; padding: 12px 24px; cursor: pointer; list-style: none; }
 .form-section-zu > details > summary::-webkit-details-marker { display: none; }
-.form-section-zu > details > summary::before { content: "›" / ""; display: inline-block; width: 12px; color: var(--muted); transition: transform 0.15s; }
+.form-section-zu > details > summary::before { content: "›"; content: "›" / ""; display: inline-block; width: 12px; color: var(--muted); transition: transform 0.15s; }
 .form-section-zu > details[open] > summary::before { transform: rotate(90deg); }
 .form-section-zu > details > summary > h3 { margin: 0; font-size: 13px; font-weight: 500; color: var(--muted); }
 .form-section-kurz { font-size: 13px; color: var(--ink); }

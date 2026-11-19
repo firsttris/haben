@@ -1,5 +1,5 @@
 import { useLocation } from "@tanstack/react-router";
-import { useEffect, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 
 /** Die einklappbaren Abschnitte der Firmendaten; der Schlüssel ist zugleich die Anker-ID (`#company-dunning`) */
 export const FIRMA_ABSCHNITTE = ["company-register", "company-currency", "company-private", "company-dunning"] as const;
@@ -8,6 +8,22 @@ export type OffeneAbschnitte = Record<FirmaAbschnitt, boolean>;
 
 /** Der Abschnitt, den die Adresse per `#company-…` anspringt, sonst null */
 export const abschnittAusAnker = (hash: string): FirmaAbschnitt | null => FIRMA_ABSCHNITTE.find((id) => id === hash) ?? null;
+
+/**
+ * Welche Abschnitte der Firmendaten offen stehen. Fehlen einer Gesellschaft Pflichtangaben, steht das Handelsregister offen,
+ * damit der Hinweis darin nicht verborgen bleibt. `abschnitt(id)` gibt einem Abschnitt `offen` und `onOffen`.
+ */
+export function useOffeneAbschnitte(angabenFehlen: boolean) {
+  const [offen, setOffen] = useState<OffeneAbschnitte>({
+    "company-register": angabenFehlen,
+    "company-currency": false,
+    "company-private": false,
+    "company-dunning": false,
+  });
+  useAnkerAufklappen(setOffen);
+  const abschnitt = (id: FirmaAbschnitt) => ({ offen: offen[id], onOffen: (neu: boolean) => setOffen((aktuell) => ({ ...aktuell, [id]: neu })) });
+  return { abschnitt, aufklappen: (ids: FirmaAbschnitt[]) => setOffen((aktuell) => ({ ...aktuell, ...Object.fromEntries(ids.map((id) => [id, true])) })) };
+}
 
 /**
  * Klappt den Abschnitt auf, den ein Link per `#company-…` anspringt (Mahnwesen, Handelsregister). Erst nach dem Laden im
