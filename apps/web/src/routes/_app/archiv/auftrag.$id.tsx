@@ -123,8 +123,12 @@ function OrderFiles({ files, id }: { files: OrderDetail["files"]; id: string }) 
             PDF herunterladen
           </a>
           <p className="small muted archive-fingerprint">
-            {file.origin === "manuell" ? "Manuell nachgereicht" : file.origin === "import" ? "Geprüftes Original übernommen" : "Aus sevdesk abgerufen"} am{" "}
-            {formatDateTime(file.createdAt)} · SHA-256 {file.sha256}
+            {file.origin === "manuell"
+              ? "Manuell nachgereicht"
+              : file.origin === "import"
+                ? "Geprüftes Original übernommen"
+                : `Aus ${file.origin === "fastbill" ? "FastBill" : "sevDesk"} abgerufen`}{" "}
+            am {formatDateTime(file.createdAt)} · SHA-256 {file.sha256}
           </p>
         </>
       ) : (

@@ -148,6 +148,7 @@ export const envBlocks = (cfg) => [
       ["AWS_SECRET_ACCESS_KEY", cfg.backupMode === "s3" ? PLATZHALTER : ""],
       ["BACKUP_TIME", cfg.backupTime],
       ["RESTORE_CHECK_DAYS", cfg.restoreCheckDays],
+      ["RCLONE_CONFIG", ""],
     ],
   },
   {

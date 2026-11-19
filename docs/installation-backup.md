@@ -43,6 +43,7 @@ Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backup
 | SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.override.yml` bei `backup` und `restore` `~/.ssh:/root/.ssh:ro` unter `volumes` eintragen ([SFTP Schritt für Schritt](#sftp-schritt-für-schritt)) bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
 | S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
 | restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | Im Passwort außer `A–Z`, `a–z`, `0–9` und `-._~!&'()*+,;=:@` jedes Zeichen prozentkodiert, etwa `/` als `%2F`, `#` als `%23`, `%` als `%25`, `$` als `%24` (Compose liest `$` in `.env` als Variable), Leerzeichen als `%20`, `ä` als `%C3%A4`; sonst liest restic die Adresse nicht oder falsch |
+| rclone (WebDAV, OneDrive, SMB und weitere) | `rclone:<abschnitt>:<pfad>` | rclone-Konfiguration als Datei einhängen ([Ziel über rclone](#ziel-über-rclone-für-webdav-onedrive-und-smb)) |
 
 Das Protokoll des Backup-Containers und Haben nennen Ziel und Fehlermeldungen ohne Nutzer und Passwort.
 
@@ -53,6 +54,71 @@ RESTIC_REPOSITORY=s3:https://fsn1.your-objectstorage.com/bucket/haben
 AWS_ACCESS_KEY_ID=…
 AWS_SECRET_ACCESS_KEY=…
 ```
+
+#### Ziel über rclone für WebDAV, OneDrive und SMB
+
+restic kennt nur wenige Ziele selbst. Für alles andere ruft es `rclone` auf, und rclone deckt [über 70 Speicher](https://rclone.org/overview/) ab: WebDAV (Nextcloud, HiDrive, Strato), OneDrive, Google Drive, Dropbox, Box, pCloud, SMB und weitere. Das Backup-Image bringt rclone mit; Haben baut die Typen nicht nach, sondern liest nur die rclone-Konfiguration. Was rclone kann, kann damit auch das Backup.
+
+1. **Konfiguration anlegen**, auf einem Rechner mit Browser; OneDrive und Google Drive brauchen den Anmeldedialog dort:
+
+    ```sh
+    rclone config
+    ```
+
+    Abschnitt anlegen, Typ wählen, Zugangsdaten eintragen. Ergebnis ist eine Datei `~/.config/rclone/rclone.conf`. Ohne Dialog geht es auch, etwa für eine Nextcloud:
+
+    ```sh
+    rclone config create webdav webdav url=https://cloud.example.de/remote.php/dav/files/<nutzer> vendor=nextcloud user=<nutzer> pass=<App-Passwort>
+    ```
+
+    Das Passwort speichert rclone dabei verschleiert.
+
+2. **Datei zum Server und in den Container**, mit Rechten 600:
+
+    ```sh
+    install -m 600 rclone.conf /root/haben/rclone.conf
+    ```
+
+    Compose: die Datei in `compose.override.yml` bei `backup` und `restore` einhängen, damit sie beim nächsten Herunterladen von `compose.yml` erhalten bleibt:
+
+    ```yaml
+    services:
+      backup:
+        volumes:
+          - /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro
+      restore:
+        volumes:
+          - /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro
+    ```
+
+    **Ziele mit Anmeldung (OneDrive, Google Drive, Box, Dropbox): Verzeichnis einhängen, keine einzelne Datei.** rclone erneuert den Token im Betrieb und schreibt die Konfiguration dabei neu: Es legt eine temporäre Datei daneben und benennt sie um. Über eine einzeln eingehängte Datei scheitert das mit `Device or resource busy`, egal ob mit oder ohne `:ro`; beim zweiten Lauf ist das Ziel dann tot, bei Box sofort (der Refresh-Token gilt nur einmal), bei OneDrive, sobald der alte abläuft. Für diese Ziele ein Verzeichnis einhängen und den Pfad in der `.env` nennen:
+
+    ```yaml
+    services:
+      backup:
+        volumes:
+          - /root/haben/rclone:/var/lib/haben-backup/rclone
+      restore:
+        volumes:
+          - /root/haben/rclone:/var/lib/haben-backup/rclone
+    ```
+
+    ```sh
+    RCLONE_CONFIG=/var/lib/haben-backup/rclone/rclone.conf
+    ```
+
+    WebDAV, SMB und SFTP schreiben nichts zurück; dort reicht die einzelne Datei.
+
+    Quadlets: `Volume=%h/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro` (`%h` ist das Heimverzeichnis), für ein Ziel mit Anmeldung `Volume=%h/haben/rclone:/var/lib/haben-backup/rclone`. Danach `systemctl --user daemon-reload`; ohne ihn kennt der Dienst den neuen `Volume=`-Eintrag nicht. Unraid: dieselbe Datei als zusätzlichen Pfad `/var/lib/haben-backup/rclone.conf` mit Zugriffsart „Nur lesen“ abbilden. Helm: `backup.extraVolumes` und `backup.extraVolumeMounts` in `values.yaml`, für WebDAV und SMB aus einem Secret mit `subPath: rclone.conf`; für ein Ziel mit Anmeldung ein PVC, weil rclone die Datei im Betrieb neu schreibt und ein Secret das nicht hergibt. Der Pfad ist im Image als `RCLONE_CONFIG` hinterlegt, weitere Einstellungen braucht es nicht; liegt die Datei woanders, `RCLONE_CONFIG` in der `.env` auf diesen Pfad setzen.
+
+3. **Ziel eintragen:** `RESTIC_REPOSITORY=rclone:<abschnitt>:<pfad>`. Der Abschnitt ist der Name in eckigen Klammern der Konfiguration, der Pfad der Ordner im Ziel, den Haben anlegt, etwa `rclone:onedrive:haben`.
+
+4. **Starten** mit `docker compose up -d` bzw. `systemctl --user daemon-reload && systemctl --user start haben-backup.timer`, für einen Lauf sofort `systemctl --user start haben-backup`. Beim Start des Containers und bei jedem Aufruf von Hand prüft er vier Dinge: rclone ist da, die Konfiguration ist lesbar, der Abschnitt steht darin (über `rclone listremotes`), und die Rechte sind nicht zu offen; bei einer für Gruppe oder andere lesbaren Datei gibt es einen Hinweis, keinen Abbruch. Die Prüfung steckt im Einstiegspunkt und in `backup.sh`, `restore.sh` und `restore-check.sh`, gilt also auch für `docker compose exec backup backup.sh` und fürs Wiederherstellen.
+
+> [!IMPORTANT]
+> Die rclone-Konfiguration ist ein Geheimnis: bei OneDrive steht ein OAuth-Token darin, bei WebDAV das Passwort. Verschleiert ist keine Verschlüsselung, wer die Datei liest, kommt an den Zugang. Deshalb Rechte 600, nicht ins Repository, und nicht in eine Sicherung, die jeder lesen kann.
+
+Grenzen: restic legt viele kleine Objekte an. Bei OneDrive drosselt Microsoft gern, und `restic forget --prune` wird dort zäh, weil es Objekte liest, umbenennt und löscht. Für ein Repository von wenigen hundert Megabyte ist das unkritisch; wer mehr sichern will, nimmt S3 (nativ, ohne rclone) oder ein zweites System per SFTP.
 
 #### SFTP Schritt für Schritt
 
@@ -123,7 +189,7 @@ podman run --rm -it --network haben --env-file ~/.config/haben/backup.env -e PGH
 systemctl --user start haben-app
 ```
 
-Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
+Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu, bei einem rclone-Ziel `-v ~/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
 
 Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `HABEN_ENCRYPTION_KEY`, demselben Passwort des Backups und demselben `RESTIC_REPOSITORY`. Dann startest du nur die Datenbank (`docker compose up -d db` bzw. `systemctl --user start haben-db`) und legst die App-Rolle aus [Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) an. Erst danach den Dump wiederherstellen und die App starten. [`pg_dump`](https://www.postgresql.org/docs/18/app-pgdump.html) sichert die Zugriffsrechte, aber keine Rollendefinitionen oder Rollenpasswörter: Die im Dump genannte Rolle muss vor dem Einspielen existieren. Ihre Zugangsdaten deshalb ebenfalls im Passwortmanager aufbewahren; beim neuen Ziel können sie neu gewählt werden, wenn `DATABASE_URL` dazu passt. Beim Start werden die Rechte erneut gesetzt, auch die Datenbankrechte, die der Dump ohne `--create` nicht enthält. Lief die App schon, stoppst du sie vorher; `restore.sh` ersetzt die leere Datenbank genauso. Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
 

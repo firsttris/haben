@@ -17,7 +17,7 @@ copyright: >-
   (Lexoffice), sevDesk, FastBill, BuchhaltungsButler, Accountable, WISO und DATEV sind
   Marken ihrer Inhaber; Haben steht mit diesen Unternehmen nicht in Verbindung und wird
   von ihnen weder unterstützt noch geprüft.
-  · Einrichtung, Umzug, Support und Partnerschaften: <a href="https://teufel-it.de">teufel-it.de</a>
+  · Partnerprogramm für IT-Dienstleister, Hoster und Steuerberatungen: <a href="https://speicherstadt.app/partner/">speicherstadt.app/partner/</a>
   · <a href="https://teufel-it.de/de/impressum/">Impressum</a>
   · <a href="https://speicherstadt.app/datenschutz/">Datenschutz</a>
 
@@ -49,6 +49,7 @@ nav:
       - Single Sign-on: installation-sso.md
       - Backup und Updates: installation-backup.md
       - Häufige Probleme: installation-probleme.md
+      - Gehostet oder mit Partner: gehostet.md
   - Einrichten:
       - Erste Schritte: einrichtung.md
       - ELSTER einrichten: einrichtung-elster.md

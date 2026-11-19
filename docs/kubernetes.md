@@ -253,7 +253,8 @@ Der Container `backup` sichert Datenbank und Belege täglich um 03:15 Uhr, wie u
 [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) beschrieben. Ohne
 `RESTIC_REPOSITORY` unter `backup.env` liegt das Repository im Volume `haben-backups` im selben Cluster; gegen dessen
 Verlust gehört es auf ein [zweites System](installation-backup.md#repository-auf-einem-zweiten-system), mit dem Chart
-über S3 oder einen REST-Server.
+über S3, einen REST-Server oder ein [rclone-Ziel](installation-backup.md#ziel-über-rclone-für-webdav-onedrive-und-smb);
+dafür die Konfiguration über `backup.extraVolumes` und `backup.extraVolumeMounts` einhängen.
 
 Ein Backup von Hand, etwa vor einem Update:
 

@@ -8,6 +8,7 @@ import {
   type FbContact,
   type FbCustomer,
   type FbEnvelope,
+  type FbEstimate,
   type FbExpense,
   type FbFile,
   type FbInvoice,
@@ -15,6 +16,7 @@ import {
   fbContactSchema,
   fbCustomerSchema,
   fbEnvelopeSchema,
+  fbEstimateSchema,
   fbExpenseSchema,
   fbInvoiceSchema,
 } from "./types.ts";
@@ -163,6 +165,11 @@ export class FastbillClient {
 
   expenses(filter: Record<string, string> = {}): AsyncGenerator<FbExpense> {
     return this.#pages("expense.get", "EXPENSES", filter, fbExpenseSchema, "INVOICE_ID");
+  }
+
+  /** Angebote aller Status; ohne LIMIT liefert FastBill nur 10 */
+  estimates(): AsyncGenerator<FbEstimate> {
+    return this.#pages("estimate.get", "ESTIMATES", {}, fbEstimateSchema, "ESTIMATE_ID");
   }
 
   /** Artikelkatalog; die Doku nennt den Namen der Liste nicht, listOf nimmt sonst die einzige Liste der Antwort */
