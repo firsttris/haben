@@ -625,6 +625,8 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
         "/angebote/{id}",
         "/artikel",
         "/artikel/{id}",
+        "/bankimporte",
+        "/bankquellen",
         "/belege",
         "/belege/{id}",
         "/kontakte",
@@ -637,6 +639,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(doc.paths["/rechnungen"]!.post!.security).toEqual([{ token: ["rechnungen:entwuerfe"] }]);
       expect(doc.paths["/leistungen"]!.post!.security).toEqual([{ token: ["leistungen:schreiben"] }]);
       expect(doc.paths["/angebote"]!.get!.security).toEqual([{ token: ["angebote:lesen"] }]);
+      expect(doc.paths["/bankimporte"]!.post!.security).toEqual([{ token: ["bank:importieren"] }]);
     });
   });
 });

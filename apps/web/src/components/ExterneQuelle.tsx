@@ -7,7 +7,7 @@ import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { addExternalBankSource } from "../server/functions/bank.ts";
 import { Field } from "./Field.tsx";
 import { FormDialog } from "./FormDialog.tsx";
-import { KonfliktKlaeren } from "./ImportKonflikt.tsx";
+import { KonfliktKlaeren, quelleZuAnbieter } from "./ImportKonflikt.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 /*
@@ -21,16 +21,19 @@ type Konflikte = Parameters<typeof KonfliktKlaeren>[0]["konflikte"];
 
 export function ExterneQuelle({
   account,
-  quelle,
-  konflikte,
-  kannFreigeben,
+  sync,
 }: {
   account: { id: string; name: string };
-  quelle: Quelle | undefined;
-  konflikte: Konflikte;
-  /** Ohne andere Quelle am Konto (Bankabruf, Etsy): ein Konto bekommt Umsätze nur aus einer */
-  kannFreigeben: boolean;
+  sync: {
+    quellen: (Quelle & { accountId: string })[];
+    konflikte: (Konflikte[number] & { bankAccountId: string; provider: string })[];
+    stichtage: { bankAccountId: string }[];
+  };
 }) {
+  const quelle = sync.quellen.find((q) => q.accountId === account.id);
+  const konflikte = sync.konflikte.filter((k) => k.bankAccountId === account.id && quelleZuAnbieter(k.provider) === "extern");
+  // Ohne andere Quelle am Konto (Bankabruf, Etsy): ein Konto bekommt Umsätze nur aus einer
+  const kannFreigeben = !sync.stichtage.some((s) => s.bankAccountId === account.id);
   const [open, setOpen] = useState(false);
   if (!quelle && !kannFreigeben) return null;
   return (
