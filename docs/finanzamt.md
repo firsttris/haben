@@ -54,7 +54,7 @@ Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die S
 | Gewünschte Vorauszahlung je Quartal | vorbelegt mit einem Viertel der voraussichtlichen Steuer, änderbar |
 | Bisherige Vorauszahlung je Quartal | trägst du ein |
 
-Gewinn bis heute, Hochrechnung, Vorjahr und die Rechnung zur voraussichtlichen Steuer stehen zugeklappt unter **Schätzrechnung**; die Überschrift nennt die Vorauszahlung je Termin. Die Adresse `/finanzamt#schaetzung` öffnet sie.
+Gewinn bis heute, Hochrechnung, Vorjahr und die Rechnung zur voraussichtlichen Steuer stehen zugeklappt unter **Schätzrechnung**; der Kopf nennt darunter die Vorauszahlung je Termin. Die Adresse `/finanzamt#schaetzung` öffnet sie.
 
 ### Steuerprognose
 

@@ -191,7 +191,7 @@ Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shad
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
-Hinweise (`.banner`) als direkte Kinder von `<main>` stehen 24px von ihren Nachbarn, folgen zwei aufeinander, nur 12px. Der Hinweis „ERiC ist nicht eingerichtet“ (`EricHinweis`) steht auf jeder Seite, die an ELSTER sendet, gleich; sein Link bricht nicht um.
+Hinweise (`.banner`) als direkte Kinder von `<main>` stehen 24px von ihren Nachbarn, folgen zwei aufeinander, nur 12px. Der Hinweis „ERiC ist nicht eingerichtet“ ist die Komponente `EricHinweis`, nie ein eigener Text; sein Link bricht nicht um.
 
 ### Blätter am Handy
 

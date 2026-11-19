@@ -23,7 +23,7 @@ export function Schaetzung({ basis: b }: { basis: Basis }) {
   }, []);
 
   return (
-    <details id="schaetzung" className="est-block" open={offen} onToggle={(event) => setOffen(event.currentTarget.open)}>
+    <details id="schaetzung" className="est-block est-block-schaetzung" open={offen} onToggle={(event) => setOffen(event.currentTarget.open)}>
       <summary>
         <span className="est-block-title">Schätzrechnung {b.year}</span>
         <span className="est-block-wert small muted">Vorauszahlung je Termin {formatEuro(p.jeQuartal)}</span>
