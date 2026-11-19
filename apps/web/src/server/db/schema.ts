@@ -4645,6 +4645,41 @@ export const etsyConnections = pgTable(
 );
 
 /**
+ * Zugang zu den Balance Transactions von Stripe über die API (Einstellungen › Bank, #1280). Genau eine Zeile, weil Haben
+ * ein Stripe-Konto je Installation anbindet. Der Schlüssel (`rk_…` mit Lesezugriff oder `sk_…`) liegt verschlüsselt in
+ * ciphertext; die Kennung des Kontos (`acct_…`) ist nicht geheim und ermittelt Haben beim Speichern über die API. Sie
+ * ist die Kennung der Quellenbindung. Der Abrufstand bleibt stehen, wenn der Zugang getrennt wird.
+ */
+export const stripeConnections = pgTable(
+  "stripe_connections",
+  {
+    /** Es gibt genau eine Verbindung; der feste Wert hält es dabei */
+    id: text("id").primaryKey().default("stripe"),
+    /** Kennung des Stripe-Kontos, beim Speichern von Stripe ermittelt */
+    accountId: text("account_id").notNull(),
+    /** Letzte Zeichen des Schlüssels für die Anzeige, ohne ihn zu verraten */
+    keyHint: text("key_hint").notNull().default(""),
+    /** Schlüssel des Testmodus (`_test_`) liefern Testdaten, keine echten Umsätze */
+    testmodus: boolean("testmodus").notNull().default(false),
+    /** Der Schlüssel: AES-256-GCM */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */
+    fetchFrom: date("fetch_from").notNull(),
+    /** Der in den Einstellungen gewählte erste Tag */
+    abrufStart: date("abruf_start").notNull(),
+    /** Wie oft der Zeitplan abruft: stuendlich, taeglich oder woechentlich */
+    rhythmus: text("rhythmus").notNull().default("taeglich"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("stripe_connections_id", sql`${t.id} = 'stripe'`),
+    check("stripe_connections_rhythmus", sql`${t.rhythmus} in ('stuendlich', 'taeglich', 'woechentlich')`),
+  ],
+);
+
+/**
  * Angaben zum Betrieb für die Verfahrensdokumentation (#860), genau eine Zeile (id = 1): was Haben nicht wissen kann.
  * Felder und Längen aus dem gemeinsamen Schema in @firsttris/gobd-kern/verfahrensdoku; Firma, Rechtsform und Anschrift
  * kommen aus den Firmendaten. Jede Änderung steht im Audit-Log (Rz. 154: nachvollziehbare Änderungshistorie).

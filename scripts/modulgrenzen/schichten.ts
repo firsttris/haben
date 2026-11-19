@@ -33,6 +33,7 @@ export const SCHICHTEN = [
   "instanzwechsel",
   "stores",
   "etsy",
+  "stripe",
   "mcp",
   "api",
 ] as const;

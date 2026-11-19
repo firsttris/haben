@@ -2780,6 +2780,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.stripe_connections",
+      "name": "stripe_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER stripe_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.stripe_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.stripe_connections",
+      "name": "stripe_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER stripe_connections_no_truncate BEFORE TRUNCATE ON public.stripe_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.sv_portal_filings",
       "name": "sv_portal_filings_append_only",
       "enabled": "O",

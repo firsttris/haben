@@ -22,6 +22,8 @@ export type StatementFormat =
   | "accountable-xlsx"
   | "paypal-csv"
   | "stripe-csv"
+  /** Abruf der Balance Transactions über die Stripe-API (#1280) */
+  | "stripe-api"
   | "shopify-payments-csv"
   | "ebay-csv"
   | "etsy-csv"
@@ -35,6 +37,7 @@ export type StatementFormat =
 export const PSP_FORMATS: StatementFormat[] = [
   "paypal-csv",
   "stripe-csv",
+  "stripe-api",
   "shopify-payments-csv",
   "ebay-csv",
   "etsy-csv",

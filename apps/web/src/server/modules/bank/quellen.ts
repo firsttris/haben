@@ -27,6 +27,7 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "accountable-xlsx": "Accountable",
   "paypal-csv": "PayPal",
   "stripe-csv": "Stripe",
+  "stripe-api": "Stripe (Abruf)",
   "shopify-payments-csv": "Shopify",
   "ebay-csv": "eBay",
   "etsy-csv": "Etsy",
@@ -38,7 +39,7 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
 };
 
 /** Anbieter einer Quellenbindung (`import_sources.provider`, #306), wie die Meldung ihn nennt */
-const ABRUF_NAMEN: Record<string, string> = { enablebanking: "der Bankabruf", etsy: "der Etsy-Abruf" };
+const ABRUF_NAMEN: Record<string, string> = { enablebanking: "der Bankabruf", etsy: "der Etsy-Abruf", stripe: "der Stripe-Abruf" };
 
 /**
  * Meldet, wenn im Zeitraum des neuen Auszugs schon Umsätze aus einem anderen Dateiformat liegen und

@@ -25,6 +25,7 @@ import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EtsyPaymentsCard } from "../../components/EtsyPaymentsCard.tsx";
+import { StripePaymentsCard } from "../../components/StripePaymentsCard.tsx";
 import { KontoabrufKarten } from "../../components/FintsCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
@@ -66,6 +67,7 @@ import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
 import { getEtsySettings } from "../../server/functions/etsy.ts";
+import { getStripeSettings } from "../../server/functions/stripe.ts";
 import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/settings-areas.ts";
 import { getCompany, getExchangeRates, saveCompany } from "../../server/functions/company.ts";
 import reportStyles from "../../styles/auswertungen.css?url";
@@ -91,10 +93,10 @@ import { getUnits } from "../../server/functions/units.ts";
 import { TaxpayerForm } from "./-einstellungen-steuerpflichtige.tsx";
 import { CertificateForm, EricCard } from "./-einstellungen-elster.tsx";
 
-/** Anbindungen unter Bank: Kontoabruf über Enable Banking, Finanzberichte der Stores und Etsy Payments */
+/** Anbindungen unter Bank: Kontoabruf über Enable Banking, Finanzberichte der Stores, Etsy Payments und Stripe */
 async function loadBankConnections() {
-  const [enableBanking, stores, etsy] = await Promise.all([getEnableBankingSettings(), getStoreConnections(), getEtsySettings()]);
-  return { enableBanking, stores, etsy };
+  const [enableBanking, stores, etsy, stripe] = await Promise.all([getEnableBankingSettings(), getStoreConnections(), getEtsySettings(), getStripeSettings()]);
+  return { enableBanking, stores, etsy, stripe };
 }
 
 export const Route = createFileRoute("/_app/einstellungen")({
@@ -212,6 +214,7 @@ function SettingsPage() {
     enableBanking,
     stores,
     etsy,
+    stripe,
     customPages,
     zugaenge,
     extraction,
@@ -287,6 +290,7 @@ function SettingsPage() {
               <KontoabrufKarten data={enableBanking} />
               <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
               <EtsyPaymentsCard data={etsy} />
+              <StripePaymentsCard data={stripe} />
             </>
           )}
           {bereich === "zugaenge" && zugaenge.mode === "sso" && <SsoZugaengeCard accounts={zugaenge.ssoAccounts} providerName={oidc.name} />}

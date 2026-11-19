@@ -117,6 +117,9 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
     // Der Zahlungsverlauf von Etsy Payments kommt über die API (etsy-ledger.ts), nicht als Datei
     case "etsy-ledger":
       throw new StatementParseError("Der Etsy-Zahlungsverlauf kommt über die API, nicht als Datei.");
+    // Der Abruf der Balance Transactions von Stripe kommt über die API (stripe/statement.ts), nicht als Datei
+    case "stripe-api":
+      throw new StatementParseError("Der Abruf von Stripe kommt über die API, nicht als Datei.");
   }
 }
 
