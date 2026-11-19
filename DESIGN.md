@@ -213,7 +213,7 @@ Auswahllisten sind Formularfelder wie die übrigen: `<select>` steht in `Field` 
 
 Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen und bei denen der Fokus bleibt, etwa eine Antwort des Servers; beim Tippen bleibt es aus, ebenso bei Fehlern aus `useSubmitCheck`: Deren erstes Feld bekommt den Fokus, der Screenreader liest den Fehler dabei, und `role="alert"` an allen Feldern läse alle auf einmal. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
-Seltenes steht eingeklappt, Gesetztes in der Überschrift („Weitere Angaben: EUR · fällig 30.11.2026“), und ein Fehler an einem Feld darin klappt den Bereich auf, auch einer vom Server; was jeder Beleg braucht, bleibt draußen.
+Seltenes steht eingeklappt, Gesetztes in der Überschrift („Weitere Angaben: EUR · fällig 30.11.2026“), und ein Fehler an einem Feld darin klappt den Bereich auf, auch einer vom Server; was jeder Beleg oder Kontakt braucht, bleibt draußen. Beim Beleg (`WeitereAngaben`) und beim Kontakt (`ContactWeitereAngaben`) gilt das Muster; den Feldnamen eines Fehlers nennt `felder` (`UserError`, bei Zod-Prüfungen der Pfad), nie der Meldungstext.
 
 ### Datei-Felder
 

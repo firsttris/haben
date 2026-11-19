@@ -28,6 +28,8 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | Sprache von Rechnungen und Angeboten | Deutsch oder Englisch, siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch). |
 | Skonto | „wie in den Einstellungen“ oder „eigenes für diesen Kunden“ mit bis zu drei Stufen; ohne Stufe bekommt der Kunde kein Skonto (siehe [Skonto](rechnungen-zahlung.md#skonto)). |
 
+**Weitere Angaben.** Das Seltene steht im Formular eingeklappt unter **Weitere Angaben**: DATEV-Debitor und -Kreditor, Stundensatz, Leitweg-ID, Standardformat und Skonto. Die Überschrift nennt, was dort gesetzt ist („Leitweg-ID gesetzt · Skonto 2 % in 10 Tagen“); ein Fehler in einem dieser Felder klappt den Bereich auf. Auch zugeklappt gehen alle Werte mit dem Speichern.
+
 **Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Welche Platzhalter gehen, steht unter [Kundennummern](einrichtung.md#kundennummern). Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
 
 ## Die Liste sortieren
