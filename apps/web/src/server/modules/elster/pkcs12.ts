@@ -1,6 +1,5 @@
 import { createDecipheriv, createHash, pbkdf2 } from "node:crypto";
 import { promisify } from "node:util";
-import { rc2CbcDecrypt } from "./rc2.ts";
 
 /*
  * Zertifikate aus einer PKCS#12-Datei (.pfx) lesen, nur so weit, wie das Ablaufdatum der ELSTER-Zertifikatsdatei es
@@ -25,11 +24,14 @@ const OID = {
   pbkdf2: "1.2.840.113549.1.5.12",
 } as const;
 
-/** RFC 7292, Anhang C: Schlüssel und IV mit SHA-1 aus PIN und Salz (Anhang B) */
-const PKCS12_PBE: Record<string, { cipher: "rc2" | "des-ede3-cbc"; keyLength: number; rc2Bits?: number }> = {
+/**
+ * RFC 7292, Anhang C: Schlüssel und IV mit SHA-1 aus PIN und Salz (Anhang B). RC2 entschlüsselt node:crypto in Bun
+ * (BoringSSL): rc2-40-cbc mit 40, rc2-cbc mit 128 effektiven Bit, genau die beiden Varianten aus PKCS#12.
+ */
+const PKCS12_PBE: Record<string, { cipher: string; keyLength: number }> = {
   "1.2.840.113549.1.12.1.3": { cipher: "des-ede3-cbc", keyLength: 24 },
-  "1.2.840.113549.1.12.1.5": { cipher: "rc2", keyLength: 16, rc2Bits: 128 },
-  "1.2.840.113549.1.12.1.6": { cipher: "rc2", keyLength: 5, rc2Bits: 40 },
+  "1.2.840.113549.1.12.1.5": { cipher: "rc2-cbc", keyLength: 16 },
+  "1.2.840.113549.1.12.1.6": { cipher: "rc2-40-cbc", keyLength: 5 },
 };
 
 /** PBES2: Verfahren und Schlüssellänge, PRF von PBKDF2 (RFC 8018) */
@@ -91,11 +93,6 @@ async function decryptContent(encryptedData: Der, pin: string): Promise<Uint8Arr
   const password = bmpPassword(pin);
   const key = pkcs12Kdf(password, octets(salt!), iterations, 1, pbe.keyLength);
   const iv = pkcs12Kdf(password, octets(salt!), iterations, 2, 8);
-  if (pbe.cipher === "rc2") {
-    const plain = rc2CbcDecrypt(key, pbe.rc2Bits!, iv, data);
-    if (!plain) throw new Error("PKCS#12: Entschlüsseln gescheitert");
-    return plain;
-  }
   return decipher(pbe.cipher, key, iv, data);
 }
 

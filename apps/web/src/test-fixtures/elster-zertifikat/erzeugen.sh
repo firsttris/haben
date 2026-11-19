@@ -23,6 +23,7 @@ pfx() {
 }
 # Wie die Datei aus Mein ELSTER vom November 2024: Zertifikate mit RC2-40, Schlüssel mit 3DES, MAC mit SHA-1
 pfx -legacy -iter 10000 -out rc2-40.pfx
+pfx -legacy -certpbe PBE-SHA1-RC2-128 -iter 10000 -out rc2-128.pfx
 pfx -legacy -certpbe PBE-SHA1-3DES -iter 10000 -out 3des.pfx
 # Vorgabe von OpenSSL 3: PBES2 mit PBKDF2 (HMAC-SHA-256) und AES-256-CBC
 pfx -iter 10000 -out aes.pfx

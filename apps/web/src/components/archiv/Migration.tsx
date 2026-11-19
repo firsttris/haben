@@ -16,7 +16,7 @@ import { SevdeskAssets } from "./SevdeskAssets.tsx";
 import { WisoImport } from "./WisoImport.tsx";
 import { SevdeskExportImport } from "./SevdeskExportImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
-import { FastbillArticles, FastbillLoginFields } from "./FastbillTeile.tsx";
+import { fastbillUsageText, FastbillArticles, FastbillLoginFields } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 
 import { ALL_SOURCES, type ConnectedSource, type FastbillPlan, type MigrationData, SOURCES, type Source } from "./migration-quellen.ts";
@@ -62,7 +62,7 @@ function SourceConnection({ data, source }: { data: MigrationData; source: Conne
               ? {
                   name: data.fastbillConnection.email,
                   since: data.fastbillConnection.createdAt,
-                  detail: `Tarif ${data.fastbillPlans.find((p) => p.callsPerHour === data.fastbillConnection?.callsPerHour)?.label ?? ""}, ${data.fastbillConnection.callsPerHour} Anfragen pro Stunde.`,
+                  detail: `Tarif ${data.fastbillPlans.find((p) => p.callsPerHour === data.fastbillConnection?.callsPerHour)?.label ?? ""}, ${data.fastbillConnection.callsPerHour} Anfragen pro Stunde.${fastbillUsageText(data.fastbillUsage, data.fastbillConnection.callsPerHour)}`,
                 }
               : null
           }

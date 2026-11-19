@@ -35,6 +35,10 @@ const LEGACY_TYPE_LABELS: Record<string, string> = {
   purchasecreditnote: "Ausgabe-Gutschrift",
 };
 
+/** Ordner der Auftragsdokumente im Export: FastBill eigen, sevDesk und lokale Pakete wie bisher unter sevdesk/ */
+const orderFolder = (source: string) => (source === "fastbill" ? "fastbill" : "sevdesk");
+const orderLabel = (source: string) => (source === "fastbill" ? "FastBill-Angebot" : "sevdesk-Auftragsdokument");
+
 /** Auftragskopien bleiben im Export von steuerwirksamen Altbelegen getrennt. */
 export async function* orderFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
   const documents = await db
@@ -54,9 +58,10 @@ export async function* orderFiles(year: number, problems: string[]): AsyncGenera
     )
     .orderBy(asc(schema.legacyOrderFiles.createdAt), asc(schema.legacyOrderFiles.id));
   const byDocument = groupBy(files, (f) => f.orderId);
-  const rows: CsvValue[][] = [];
+  const rows = new Map<string, CsvValue[][]>();
   for (const document of documents) {
-    const base = `sevdesk/auftraege/${document.date}_${safeName(document.number || document.externalId)}_${document.id.slice(0, 8)}`;
+    const folder = orderFolder(document.source);
+    const base = `${folder}/auftraege/${document.date}_${safeName(document.number || document.externalId)}_${document.id.slice(0, 8)}`;
     yield { path: `${base}/quelle.json`, content: encoder.encode(JSON.stringify(document.raw, null, 2)), compress: true };
     const attached = byDocument.get(document.id) ?? [];
     yield { path: `${base}/dateien.json`, content: encoder.encode(JSON.stringify(attached, null, 2)), compress: true };
@@ -66,35 +71,40 @@ export async function* orderFiles(year: number, problems: string[]): AsyncGenera
       .where(eq(schema.legacyOrderPdfAttempts.orderId, document.id))
       .orderBy(schema.legacyOrderPdfAttempts.createdAt);
     if (attempts.length) yield { path: `${base}/pdf-abrufe.json`, content: encoder.encode(JSON.stringify(attempts, null, 2)), compress: true };
-    if (!attached.length) problems.push(`sevdesk-Auftragsdokument ${document.number || document.externalId}: PDF fehlt.`);
+    if (!attached.length) problems.push(`${orderLabel(document.source)} ${document.number || document.externalId}: PDF fehlt.`);
     for (const file of attached) {
       const path = `${base}/${file.id.slice(0, 8)}_${safeName(file.filename, 100, "dokument.pdf")}`;
       try {
         yield { path, content: new Uint8Array(await loadFile(file.sha256)), compress: false };
       } catch {
-        problems.push(`sevdesk-Auftragsdokument ${document.number || document.externalId}: PDF ${file.filename} nicht lesbar.`);
+        problems.push(`${orderLabel(document.source)} ${document.number || document.externalId}: PDF ${file.filename} nicht lesbar.`);
       }
     }
-    rows.push([
-      document.date,
-      document.kind,
-      document.number,
-      document.contactName,
-      document.status,
-      document.currency,
-      money(document.net),
-      money(document.tax),
-      money(document.gross),
-      document.externalId,
-      attached.map((f) => f.sha256).join(" | "),
-      attached.map((f) => `${f.origin}: ${f.filename}`).join(" | "),
-    ]);
+    if (!rows.has(folder)) rows.set(folder, []);
+    rows
+      .get(folder)!
+      .push([
+        document.date,
+        document.kind,
+        document.number,
+        document.contactName,
+        document.status,
+        document.currency,
+        money(document.net),
+        money(document.tax),
+        money(document.gross),
+        document.externalId,
+        attached.map((f) => f.sha256).join(" | "),
+        attached.map((f) => `${f.origin}: ${f.filename}`).join(" | "),
+      ]);
   }
-  yield {
-    path: "sevdesk/auftraege.csv",
-    content: csv(["Datum", "Art", "Nummer", "Kontakt", "Quellstatus", "Währung", "Netto", "Steuer", "Brutto", "Quell-ID", "SHA-256", "Dateien"], rows),
-    compress: true,
-  };
+  for (const [folder, folderRows] of rows) {
+    yield {
+      path: `${folder}/auftraege.csv`,
+      content: csv(["Datum", "Art", "Nummer", "Kontakt", "Quellstatus", "Währung", "Netto", "Steuer", "Brutto", "Quell-ID", "SHA-256", "Dateien"], folderRows),
+      compress: true,
+    };
+  }
 }
 
 /** Übernommene Belege aus Lexoffice, sevDesk und den anderen Quellen samt Dateistand, Zahlungen, DATEV-Stapel und Originalen */
