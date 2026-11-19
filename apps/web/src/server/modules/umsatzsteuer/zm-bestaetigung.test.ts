@@ -1,5 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { evatrDienst as dienst, evatrFehler as fehler, evatrOk as ok } from "../../test-evatr.ts";
 
@@ -56,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)("ZM: gemeldete USt-IdNrn. beim BZSt bestätige
       taxTreatment: "reverse_charge",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Stk." as const, unitPrice: 100_000, taxRate: 0 }],
     });
-    await invoices.finalizeInvoice(actor, draft.id);
+    await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }, 60_000);
 
   afterAll(async () => {

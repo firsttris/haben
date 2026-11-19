@@ -1,5 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { evatrDienst as dienst, evatrFehler as fehler, evatrOk as ok } from "../../test-evatr.ts";
 
@@ -47,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("Review #1458: ZM-Knopf „Beim BZSt bestätig
       taxTreatment: "reverse_charge",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Stk." as const, unitPrice: 100_000, taxRate: 0 }],
     });
-    return (await invoices.finalizeInvoice(actor, draft.id)).id;
+    return (await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).id;
   };
 
   beforeAll(async () => {
