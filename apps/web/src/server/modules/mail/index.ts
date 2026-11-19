@@ -15,6 +15,8 @@ export {
   mailSettingsSchema,
   MAIL_ACTOR,
   mailSettingsSummary,
+  mailCommonSchema,
+  putMailTemplates,
   saveMailSettings,
   send,
   sendTestMail,
