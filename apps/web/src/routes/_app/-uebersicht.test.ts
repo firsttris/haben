@@ -309,7 +309,7 @@ describe("Übersicht: Aufbau", () => {
 
   // Platzt die Lastschrift, gilt die Steuer nicht als am Fälligkeitstag entrichtet (§ 224 Abs. 2 Nr. 3 AO), es drohen Säumniszuschläge (§ 240 AO)
   it("Steuerkonto deckt die Zahllast nicht: die Fälligkeit zählt als Frist und geht der späteren Voranmeldung vor", () => {
-    const d = state.data as ReturnType<typeof fixture> & Record<string, unknown>;
+    const d = state.data as Record<string, unknown>;
     d.kleinunternehmer = false;
     d.dueDate = inTagen(5);
     d.computedKz83 = 100000;
