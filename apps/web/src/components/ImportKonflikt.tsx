@@ -42,11 +42,15 @@ function Spalte({ titel, umsatz, zuordnung }: { titel: string; umsatz: Umsatz; z
   );
 }
 
-/** Wer liefert: der Bankabruf (Bank › Automatischer Abruf) oder der Etsy-Abruf (Einstellungen › Bank) */
+/** Wer liefert: der Bankabruf (Bank › Automatischer Abruf), der Etsy-Abruf (Einstellungen › Bank) oder ein Dienst über den REST-Import */
 const QUELLEN = {
   bank: { wer: "Die Bank", von: "von der Bank", angaben: "der Bank", abruf: "aus dem Abruf dieses Kontos" },
   etsy: { wer: "Etsy", von: "von Etsy", angaben: "von Etsy", abruf: "aus dem Etsy-Abruf" },
+  extern: { wer: "Der Dienst", von: "vom Dienst", angaben: "des Dienstes", abruf: "aus dieser Quelle" },
 } as const;
+
+/** Texte zum Anbieter einer Quelle (`import_sources.provider`) */
+export const quelleZuAnbieter = (provider: string): keyof typeof QUELLEN => (provider === "etsy" ? "etsy" : provider === "enablebanking" ? "bank" : "extern");
 
 const ENTSCHEIDUNGEN = [
   {
@@ -182,7 +186,7 @@ type Bezug = { id: string; bookingDate: string; amount: number };
 /** Hinweis in der Detailansicht: am bisherigen Umsatz die nach einem Konflikt übernommenen, am übernommenen der bisherige */
 export function KlaerungHinweis({ klaerung }: { klaerung: { provider: string; added: Bezug[]; previous: Bezug | null } | null }) {
   if (!klaerung) return null;
-  const { wer } = klaerung.provider === "etsy" ? QUELLEN.etsy : QUELLEN.bank;
+  const { wer } = QUELLEN[quelleZuAnbieter(klaerung.provider)];
   const verweis = (u: Bezug) => (
     <Link from="/bank" to="/bank" search={(prev) => ({ ...prev, umsatz: u.id })}>
       {formatDate(u.bookingDate)}, {betrag(u.amount)}

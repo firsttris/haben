@@ -13,6 +13,8 @@ import type { Data } from "./-bank-daten.ts";
 import { AllocationPanel } from "./-bank-zuordnung.tsx";
 import { BankSync } from "./-bank-verbindung.tsx";
 import { AccountSettings, ImportControls, SearchBox } from "./-bank-konto.tsx";
+import { ExterneQuelle } from "../../components/ExterneQuelle.tsx";
+import { quelleZuAnbieter } from "../../components/ImportKonflikt.tsx";
 
 const searchSchema = z.object({
   /** Ein Konto oder „alle“ (#617) */
@@ -175,6 +177,15 @@ function BankPage() {
               purposes={data.purposes}
               ledger={data.ledgers[selectedAccount.id]}
               excludeBlockedBy={data.excludeBlockedBy}
+            />
+          )}
+          {selectedAccount && (
+            <ExterneQuelle
+              key={`quelle-${selectedAccount.id}`}
+              account={selectedAccount}
+              quelle={data.sync.quellen.find((q) => q.accountId === selectedAccount.id)}
+              konflikte={data.sync.konflikte.filter((k) => k.bankAccountId === selectedAccount.id && quelleZuAnbieter(k.provider) === "extern")}
+              kannFreigeben={!data.sync.stichtage.some((s) => s.bankAccountId === selectedAccount.id)}
             />
           )}
 

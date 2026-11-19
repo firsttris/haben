@@ -65,6 +65,7 @@ import {
 } from "../modules/bank/index.ts";
 import { deleteEnableBankingSettings, enableBankingSettingsSchema, enableBankingSettingsSummary, saveEnableBankingSettings } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
+import { addExternalSource, externalSources, externalSourceSchema } from "../modules/bank/index.ts";
 import { fintsConfigured, listFintsConnections } from "../modules/bank/index.ts";
 import { cutoverDates, klaerungView, openConflicts, resolveConflict, resolveConflictSchema } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -149,6 +150,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
         /** Offene Konflikte im Abruf und Stichtag je Konto (#306) */
         konflikte: await openConflicts(),
         stichtage: await cutoverDates(),
+        /** Am Konto freigegebene externe Quellen für den REST-Import (#306, Schritt 4) */
+        quellen: await externalSources(),
       },
       fints: { configured: fintsConfigured(), connections: await listFintsConnections() },
     };
@@ -345,6 +348,15 @@ export const syncBankConnection = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const result = await syncConnection(context.user.id, data);
     return { added: result.added, error: result.error, gaps: result.accounts.flatMap((a) => (a.gap ? [a.gap] : [])) };
+  });
+
+/** Externe Quelle am Konto freigeben (#306, Schritt 4): erst danach nimmt der REST-Import Lieferungen dafür an */
+export const addExternalBankSource = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(externalSourceSchema)
+  .handler(async ({ data, context }) => {
+    await addExternalSource(context.user.id, data);
+    return { ok: true };
   });
 
 /** Konflikt im Abruf klären (#306): bisherigen Umsatz behalten oder den gelieferten als weiteren übernehmen */
