@@ -63,8 +63,7 @@ export async function circleFor(tx: Tx, kind: NumberKind, date: string): Promise
 /**
  * Nummer im Format aus den Einstellungen. Ein Format ergibt nie zweimal dieselbe Nummer (number-format.ts), nach einem
  * Wechsel des Formats kann sie aber mit einer früher vergebenen übereinstimmen; dann lieber eine klare Meldung als die
- * Verletzung des Unique-Index. Verschiedene Nummern können auch erst im DATEV-Belegfeld 1 zusammenfallen; das fängt bei
- * Rechnungen die zweite Prüfung unten.
+ * Verletzung des Unique-Index.
  */
 export async function documentNumber(tx: Tx, kind: NumberKind, format: string, date: string, counter: number, customerNumber?: string): Promise<string> {
   // Vor allem Schreiben: ohne verwendbare Kundennummer darf {KUNDENNR} nicht zur Nummer werden
@@ -83,19 +82,6 @@ export async function documentNumber(tx: Tx, kind: NumberKind, format: string, d
   const [taken] = await tx.select({ id: table.id }).from(table).where(eq(table.number, number)).limit(1);
   if (taken) {
     throw new NumberTakenError(`Die Nummer ${number} ist schon vergeben. Bitte unter Einstellungen › Rechnungen das Nummernformat anpassen.`);
-  }
-  // Das Belegfeld 1 ist in DATEV der Schlüssel für den Ausgleich offener Posten: Sieht die neue Nummer nach der
-  // Umwandlung des Exports (voucherField, number-format.ts) aus wie eine vergebene, verwechselt DATEV ihre Posten.
-  // Rechnungen exportiert DATEV, Angebote nicht; der Abgleich läuft hier, damit die Umwandlung nur einmal definiert ist
-  if (kind === "rechnung") {
-    const field = voucherField(number);
-    const rows = await tx.select({ number: table.number }).from(table).where(isNotNull(table.number));
-    const clash = rows.find((row) => row.number !== null && voucherField(row.number) === field);
-    if (clash) {
-      throw new NumberCollisionError(
-        `Die Nummer ${number} sieht im DATEV-Export aus wie die vergebene Nummer ${clash.number}; im Belegfeld 1 stehen beide als „${field}“. Bitte unter Einstellungen › Rechnungen das Nummernformat oder die Kundennummer anpassen.`,
-      );
-    }
   }
   return number;
 }
@@ -127,6 +113,22 @@ export async function takeNumber(tx: Tx, kind: NumberKind, year: number, number:
     .onConflictDoUpdate({ target: counter.year, set: { last: number }, setWhere: eq(counter.last, number - 1) })
     .returning({ last: counter.last });
   if (!row) throw new Error(`Nummernkreis ${kind} ${year}: Nummer ${number} ist nicht mehr die nächste.`);
+}
+
+/** Vergibt die Rechnungsnummer und prüft unter der Audit-Sperre auch kreisübergreifend auf DATEV-Kollisionen. */
+export async function takeInvoiceNumber(tx: Tx, year: number, counter: number, number: string): Promise<void> {
+  // Der Audit-Trigger des Zählers sperrt die Hash-Kette bis zum Commit. Erst danach lesen, damit auch parallel
+  // festgeschriebene Nummern aus anderen Kreisen sichtbar sind. Bei Kollision rollt der Zähler mit zurück.
+  await takeNumber(tx, "rechnung", year, counter);
+  const field = voucherField(number);
+  const { invoices } = schema;
+  const rows = await tx.select({ number: invoices.number }).from(invoices).where(isNotNull(invoices.number));
+  const clash = rows.find((row) => row.number !== null && voucherField(row.number) === field);
+  if (clash) {
+    throw new NumberCollisionError(
+      `Die Nummer ${number} sieht im DATEV-Export aus wie die vergebene Nummer ${clash.number}; im Belegfeld 1 stehen beide als „${field}“. Bitte unter Einstellungen › Rechnungen das Nummernformat oder die Kundennummer anpassen.`,
+    );
+  }
 }
 
 /** Setzt den Zähler so, dass `next` die nächste Nummer ist (Umstieg von einem anderen Programm) */
