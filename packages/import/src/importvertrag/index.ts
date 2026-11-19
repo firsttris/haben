@@ -1,4 +1,5 @@
 export * from "./types.ts";
+export { INTERNAL_PROVIDERS, isInternalProvider } from "./anbieter.ts";
 export { validateBatch, type BatchValidation, type RejectedMovement } from "./pruefen.ts";
 export {
   batchFingerprint,

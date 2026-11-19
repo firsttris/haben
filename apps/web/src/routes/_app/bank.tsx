@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_app/bank")({
       // Externe Quellen für den REST-Import (#306, Schritt 4)
       getExternalBankSources(),
     ]);
-    return { ...overview, quellen };
+    return { ...overview, ...quellen };
   },
   head: () => ({ meta: [{ title: "Bank · Haben" }] }),
   component: BankPage,
@@ -187,7 +187,15 @@ function BankPage() {
               excludeBlockedBy={data.excludeBlockedBy}
             />
           )}
-          {selectedAccount && <ExterneQuelle key={`quelle-${selectedAccount.id}`} account={selectedAccount} sync={data.sync} quellen={data.quellen} />}
+          {selectedAccount && (
+            <ExterneQuelle
+              key={`quelle-${selectedAccount.id}`}
+              account={selectedAccount}
+              konflikte={data.sync.konflikte}
+              quellen={data.quellen}
+              gebundeneKonten={data.gebundeneKonten}
+            />
+          )}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">

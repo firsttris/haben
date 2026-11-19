@@ -1,6 +1,6 @@
 import { addDays } from "@haben/core";
-import { type ImportBatch, statementFromBatch, validateBatch } from "@haben/import";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { type ImportBatch, INTERNAL_PROVIDERS, isInternalProvider, statementFromBatch, validateBatch } from "@haben/import";
+import { and, asc, desc, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -16,9 +16,6 @@ import { recordRefusedBatch } from "./import-konflikt.ts";
  * (`statementFromBatch`) und speichert sie wie einen Abruf (`storeBatch`): Wiederholungen, Konflikte und der Abrufstand
  * gelten genauso. Der Import ordnet nichts zu und bucht nichts.
  */
-
-/** Anbieter mit eigener Anbindung in Haben; ihre Quellen entstehen beim Verbinden, nie von außen */
-const INTERNAL_PROVIDERS = new Set(["enablebanking", "etsy"]);
 
 /** Höchstens so viele Bewegungen je Lieferung; mehr kommen über mehrere Teile desselben Abrufs (`part`) */
 export const MAX_MOVEMENTS = 1000;
@@ -37,7 +34,7 @@ export const externalSourceSchema = z.object({
 /** Gibt eine Quelle am Konto frei. Der Stichtag liegt nie vor dem Tag nach dem letzten Umsatz, damit nichts doppelt kommt. */
 export async function addExternalSource(actor: string, input: z.input<typeof externalSourceSchema>) {
   const data = externalSourceSchema.parse(input);
-  if (INTERNAL_PROVIDERS.has(data.provider)) {
+  if (isInternalProvider(data.provider)) {
     throw new BankError(`„${data.provider}“ hat in Haben eine eigene Anbindung; ihre Quelle entsteht beim Verbinden.`);
   }
   return withActor(actor, async (tx) => {
@@ -103,10 +100,19 @@ export async function externalSources() {
     .from(schema.importSources)
     .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.importSources.bankAccountId))
     .leftJoin(latest, eq(latest.sourceId, schema.importSources.id))
-    .where(sql`${schema.importSources.provider} not in ('enablebanking', 'etsy') and ${schema.bankAccounts.excludedAt} is null`)
+    .where(and(notInArray(schema.importSources.provider, [...INTERNAL_PROVIDERS]), isNull(schema.bankAccounts.excludedAt)))
     .orderBy(asc(schema.bankAccounts.name), asc(schema.importSources.provider));
   const complete = await completeness(rows.map((r) => r.id));
   return rows.map((r) => ({ ...r, complete: complete.get(r.id) ?? false }));
+}
+
+/**
+ * Konten mit irgendeiner Quelle (Bankabruf, Etsy, extern), auch ohne Stichtag (Bindungen aus v0.11.0): Ein Konto bekommt
+ * Umsätze nur aus einer, „Externe Quelle hinzufügen“ steht dort deshalb nicht
+ */
+export async function boundAccountIds(): Promise<string[]> {
+  const rows = await db.selectDistinct({ id: schema.importSources.bankAccountId }).from(schema.importSources);
+  return rows.map((r) => r.id);
 }
 
 /** Ob die jüngste Lieferung je Quelle ihren Zeitraum vollständig abgeschlossen hat */
@@ -144,7 +150,7 @@ export async function importExternalBatch(actor: string, body: unknown): Promise
     status: "not_found" as const,
     message: `Die Quelle ${head.data.provider}/${head.data.externalAccountId} ist in Haben nicht freigegeben. Freigeben unter Bank › Konto › Externe Quelle hinzufügen.`,
   };
-  if (INTERNAL_PROVIDERS.has(head.data.provider)) return notFound;
+  if (isInternalProvider(head.data.provider)) return notFound;
   if ((head.data.movements?.length ?? 0) > MAX_MOVEMENTS) {
     return { status: "too_large", message: `Mehr als ${MAX_MOVEMENTS} Bewegungen in einer Lieferung; bitte auf mehrere Teile (part) verteilen.` };
   }

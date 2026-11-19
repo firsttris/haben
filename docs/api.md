@@ -47,6 +47,7 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `artikel:schreiben` | dazu `POST /artikel`, `PATCH /artikel/{id}` |
 | `leistungen:lesen` | `GET /leistungen`, `GET /leistungen/{id}` |
 | `leistungen:schreiben` | dazu `POST /leistungen`, `DELETE /leistungen/{id}` |
+| `bank:importieren` | `GET /bankquellen`, `POST /bankimporte` |
 | `haben:lesen` | nur die Werkzeuge über [MCP](ki-assistenten.md), nicht die REST-API |
 
 Schreiben und anlegen schließen lesen ein. Ein Token ohne das nötige Recht bekommt `403`.

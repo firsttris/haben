@@ -1,4 +1,5 @@
 import { formatEuro } from "@haben/core";
+import { isInternalProvider } from "@haben/import/anbieter";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { type FormEvent, useState } from "react";
@@ -50,7 +51,7 @@ const QUELLEN = {
 } as const;
 
 /** Texte zum Anbieter einer Quelle (`import_sources.provider`) */
-export const quelleZuAnbieter = (provider: string): keyof typeof QUELLEN => (provider === "etsy" ? "etsy" : provider === "enablebanking" ? "bank" : "extern");
+export const quelleZuAnbieter = (provider: string): keyof typeof QUELLEN => (provider === "etsy" ? "etsy" : isInternalProvider(provider) ? "bank" : "extern");
 
 const ENTSCHEIDUNGEN = [
   {

@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./bank-zuordnung": "./src/bank-zuordnung/index.ts",
+    "./anbieter": "./src/importvertrag/anbieter.ts",
     "./fints-testbank": "./src/fints/testbank.ts"
   },
   "scripts": {

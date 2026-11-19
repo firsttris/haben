@@ -155,6 +155,13 @@ describe.skipIf(!testDatabaseUrl)("Externe Quellen und REST-Import (Postgres)", 
     expect(await umsaetze(psp)).toHaveLength(4);
   });
 
+  it("zählt ein Konto mit Bankabruf ohne Stichtag (Bindung aus v0.11.0) als gebunden", async () => {
+    const [konto] = await sql<{ id: string }[]>`insert into bank_accounts (name, iban) values ('Giro', 'DE89370400440532013000') returning id`;
+    await sql`insert into import_sources (bank_account_id, provider, external_account_id, account_kind) values (${konto!.id}, 'enablebanking', 'hash-alt', 'bank')`;
+    expect(await quellen.boundAccountIds()).toEqual(expect.arrayContaining([konto!.id, psp]));
+    await expect(quellen.addExternalSource("test", { accountId: konto!.id, provider: "anderer-dienst", externalAccountId: "z" })).rejects.toThrow(/schon eine Quelle/);
+  });
+
   it("lehnt eine Lieferung ab, die gegen den Vertrag verstößt, und nennt den Grund", async () => {
     const r = await quellen.importExternalBatch("api:t:Dienst", { ...lieferung({ key: "kaputt" }), contractVersion: 2 });
     expect(r).toMatchObject({ status: "invalid", problems: [expect.stringMatching(/Vertragsversion 2/)] });
