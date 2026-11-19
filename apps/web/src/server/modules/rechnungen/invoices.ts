@@ -88,7 +88,7 @@ import {
   lockNumbering,
   peekNumber,
   setNextNumber as setNextCounter,
-  takeNumber,
+  takeInvoiceNumber,
   type NumberKind,
 } from "./number-counter.ts";
 
@@ -1276,7 +1276,7 @@ async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, besta
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
-  await takeNumber(tx, "rechnung", circle, counter);
+  await takeInvoiceNumber(tx, circle, counter, number);
   const [finalized] = await withAdvanceVatChange(tx, id, () =>
     tx
       .update(schema.invoices)
