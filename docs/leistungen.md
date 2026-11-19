@@ -7,7 +7,7 @@ description: >-
 
 # Zeiteinträge
 
-Unter **Zeiteinträge** erfasst du abrechenbare Zeit je Kunde: Arbeitstag, Dauer, Tätigkeit und Stundensatz. Wer nach Stunden abrechnet, hat die Zeiten dort, wo auch die Rechnung entsteht, und muss sie nicht aus einem anderen Programm abtippen. Eine Zeiterfassung wie Kimai oder Toggl schickt ihre Einträge über die [REST-API](api.md#leistungen-und-zeiterfassung) an Haben. In der API und in der Adresse heißen sie `leistungen`.
+Unter **Zeiteinträge** erfasst du abrechenbare Zeit je Kunde: Arbeitstag, Dauer, Tätigkeit und Stundensatz. Wer nach Stunden abrechnet, hat die Zeiten dort, wo auch die Rechnung entsteht, und muss sie nicht aus einem anderen Programm abtippen. Eine Zeiterfassung wie Kimai oder Toggl schickt ihre Einträge über die [REST-API](api.md#leistungen-und-zeiterfassung) an Haben; offene Zeiten aus FastBill holt der [Umzug aus FastBill](fastbill.md#offene-zeiten). In der API und in der Adresse heißen sie `leistungen`.
 
 Eine Buchung entsteht aus einem Eintrag nicht: Er ist die Grundlage, aus der die Rechnung wird ([Abrechnen](#abrechnen)). Gebucht wird wie immer erst, wenn du die Rechnung festschreibst.
 
@@ -26,11 +26,11 @@ Eine Buchung entsteht aus einem Eintrag nicht: Er ist die Grundlage, aus der die
 | Stundensatz | Optional. Ohne Angabe nimmt Haben den Satz des Kunden, siehe unten. |
 | Tätigkeit | Optional. Steht später auf der Rechnung. |
 
-Die Liste zeigt die neuesten Arbeitstage zuerst und lässt sich nach Kunde und Zeitraum eingrenzen. Darunter stehen Anzahl, Stunden und Summe der Einträge im Filter; ein Eintrag ohne Stundensatz zählt in der Summe nicht mit. Einträge lassen sich ändern und löschen, solange sie auf keiner Rechnung stehen. Jede Änderung steht im Änderungsprotokoll. Der Filter **Stand** zeigt offene, abgerechnete und nicht abrechenbare Einträge.
+Die Liste zeigt die neuesten Arbeitstage zuerst und lässt sich nach Kunde und Zeitraum eingrenzen. Je Eintrag stehen Kunde und Tätigkeit in einer Zeile, darunter Projekt und „nicht abrechenbar“; weicht die abrechenbare Dauer ab, steht sie als „abr.“ unter der Dauer. Unter der Liste stehen Anzahl, Stunden und Summe der Einträge im Filter; ein Eintrag ohne Stundensatz zählt in der Summe nicht mit. Einträge lassen sich ändern und löschen, solange sie auf keiner Rechnung stehen. Jede Änderung steht im Änderungsprotokoll. Der Filter **Stand** zeigt offene, abgerechnete und nicht abrechenbare Einträge.
 
 ## Stundensatz
 
-Den Stundensatz eines Kunden pflegst du im **Kontakt** unter **Stundensatz**. Er ist die Vorgabe für neue Einträge dieses Kunden.
+Den Stundensatz eines Kunden pflegst du im **Kontakt** unter **Weitere Angaben › Stundensatz**. Er ist die Vorgabe für neue Einträge dieses Kunden.
 
 Jeder Eintrag **behält den Satz vom Anlegen** als Kopie. Erhöhst du später den Satz am Kunden, bleiben bestehende Einträge bei ihrem Satz; nur neue bekommen den neuen. So ändert sich der Betrag von Zeit, die schon erfasst ist, nicht rückwirkend. Hat der Kunde beim Anlegen keinen Satz und gibst du keinen an, bleibt der Eintrag ohne Satz; in der Liste steht dann „fehlt“. Den Satz trägst du am Eintrag nach.
 
@@ -38,7 +38,7 @@ Der Betrag eines Eintrags ist die abrechenbare Dauer mal Stundensatz, auf ganze 
 
 ## Einträge aus einer Zeiterfassung
 
-Zeiterfassungsprogramme legen Einträge über `POST /api/v1/leistungen` an. Mit `source` (etwa `kimai`) und `externalId` (die Nummer der Zeile in dem Programm) ist der Aufruf wiederholbar: Gibt es die Kennung schon, aktualisiert Haben den Eintrag, statt ihn zu verdoppeln. In der Liste steht „aus kimai“. Wie ein Abruf aus Kimai aussieht, steht in der [API-Beschreibung](api.md#zeitbuchungen-aus-kimai-holen).
+Zeiterfassungsprogramme legen Einträge über `POST /api/v1/leistungen` an. Mit `source` (etwa `kimai`) und `externalId` (die Nummer der Zeile in dem Programm) ist der Aufruf wiederholbar: Gibt es die Kennung schon, aktualisiert Haben den Eintrag, statt ihn zu verdoppeln. Beim Bearbeiten steht „Übernommen aus kimai“; Einträge aus einem Umzug nennen das Programm, etwa „Übernommen aus FastBill“. Wie ein Abruf aus Kimai aussieht, steht in der [API-Beschreibung](api.md#zeitbuchungen-aus-kimai-holen).
 
 Das Token braucht das Recht `leistungen:schreiben` (anlegen und löschen) oder `leistungen:lesen`. Der [Zugang der Steuerberatung](steuerberatung.md) sieht die Seite nicht: Zeiteinträge sind keine Buchführungsunterlage.
 

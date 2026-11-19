@@ -96,6 +96,67 @@ heißt er `<Release>-haben-db`. Die Passwörter bestehen wie im Chart nur aus Bu
 (`openssl rand -hex 24`), weil sie in der URL stehen. Mit `app.existingSecret` prüft das Chart die Schlüssel nicht; ein
 fehlender fällt erst beim Start der App auf.
 
+## Mit Flux
+
+Mit [Flux](https://fluxcd.io/) baut der Cluster das Chart selbst vom Release-Tag, ab v0.11.0. Die Werte aus
+`werte.yaml` stehen dann in der `HelmRelease`, die geheimen in Secrets wie unter
+[Secrets aus einer anderen Quelle](#secrets-aus-einer-anderen-quelle), nicht im Klartext im Git-Repository:
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: haben
+  namespace: haben
+spec:
+  interval: 1h
+  url: https://github.com/firsttris/haben
+  ref:
+    tag: v0.11.0
+  ignore: |                         # nur das Chart, nicht das ganze Repository
+    /*
+    !/deploy/helm/
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: haben
+  namespace: haben
+spec:
+  interval: 30m
+  timeout: 45m                      # Datenbank bis 30 min (etwa Upgrade von PostgreSQL), danach App bis 15 min
+  chart:
+    spec:
+      chart: ./deploy/helm
+      reconcileStrategy: Revision   # Chart.yaml bleibt bei 0.1.0, ohne bliebe das Chart beim ersten Tag stehen
+      sourceRef:
+        kind: GitRepository
+        name: haben
+  upgrade:
+    remediation:
+      retries: 0                    # kein Rollback durch Flux, die Migrationen gehen nur vorwärts
+  values:
+    domain: haben.example.de
+    image:
+      tag: "0.11.0"                 # dieselbe Version wie ref.tag
+    app:
+      existingSecret: haben-app
+    postgresql:
+      existingSecret: haben-db
+    backup:
+      existingSecret: haben-backup
+    # übrige Werte wie in werte.yaml, etwa ingress
+```
+
+Ein Update geht wie unter [Updates](#updates), statt der Befehle im Klon mit einem Commit, der `ref.tag` und
+`image.tag` anhebt. Zum Zurücknehmen stehen `ref.tag` und `image.tag` auf der vorigen Version und `postgresql.tag` auf
+der neuen (Schritt 2 unter [Updates](#updates)) im selben Commit wie `restore.enabled: true`, sonst startet die alte
+Version mit der schon migrierten Datenbank; nach `restore.sh` folgt ein Commit mit `restore.enabled: false`.
+
+Flux wendet einen solchen Commit meist zweimal an: zuerst die Werte mit dem bisherigen Chart, dann das Chart des Tags.
+`restore.sh` startest du deshalb erst, wenn `flux get helmrelease -n haben` als Revision `0.1.0+` mit dem Commit des
+vorigen Tags zeigt.
+
 ## Eigene Datenbank
 
 Mit `postgresql.enabled: false` startet keine Datenbank. Die Zugänge stehen dann in `app.secretEnv`: `DATABASE_URL` für
@@ -192,7 +253,8 @@ Der Container `backup` sichert Datenbank und Belege täglich um 03:15 Uhr, wie u
 [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) beschrieben. Ohne
 `RESTIC_REPOSITORY` unter `backup.env` liegt das Repository im Volume `haben-backups` im selben Cluster; gegen dessen
 Verlust gehört es auf ein [zweites System](installation-backup.md#repository-auf-einem-zweiten-system), mit dem Chart
-über S3 oder einen REST-Server.
+über S3, einen REST-Server oder ein [rclone-Ziel](installation-backup.md#ziel-über-rclone-für-webdav-onedrive-und-smb);
+dafür die Konfiguration über `backup.extraVolumes` und `backup.extraVolumeMounts` einhängen.
 
 Ein Backup von Hand, etwa vor einem Update:
 

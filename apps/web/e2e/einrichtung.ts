@@ -167,7 +167,7 @@ export async function neuenLieferantenOeffnen(page: Page, text?: string): Promis
     .click();
 }
 
-/** Klappt „Weitere Angaben“ am Beleg auf (USt-IdNr., Fällig am, Leistung, Währung, Notiz), wenn sie zu sind */
+/** Klappt „Weitere Angaben“ am Beleg (USt-IdNr., Fällig am, Leistung, Währung, Notiz) oder am Kontakt (DATEV-Konten, Skonto, …) auf, wenn sie zu sind */
 export async function weitereAngabenOeffnen(page: Page): Promise<void> {
   const bereich = page.locator("details.weitere-angaben");
   if (await bereich.evaluate((el) => (el as HTMLDetailsElement).open)) return;

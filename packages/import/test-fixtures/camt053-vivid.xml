@@ -1,0 +1,1888 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+    <BkToCstmrStmt>
+        <GrpHdr>
+            <MsgId>CAMT053-0000000001</MsgId>
+            <CreDtTm>2026-10-08T12:00:00+00:00</CreDtTm>
+        </GrpHdr>
+        <Stmt>
+            <Id>ANONYM-0001</Id>
+            <CreDtTm>2026-10-08T12:00:00+00:00</CreDtTm>
+            <FrToDt>
+                <FrDtTm>2024-08-06T00:00:00+00:00</FrDtTm>
+                <ToDtTm>2026-10-08T23:59:59+00:00</ToDtTm>
+            </FrToDt>
+            <Acct>
+                <Id>
+                    <IBAN>DE55010020030000000001</IBAN>
+                </Id>
+                <Ccy>EUR</Ccy>
+                <Ownr>
+                    <Nm>Muster UG (haftungsbeschränkt)</Nm>
+                </Ownr>
+                <Svcr>
+                    <FinInstnId>
+                        <BICFI>SXPYDEHHXXX</BICFI>
+                    </FinInstnId>
+                </Svcr>
+            </Acct>
+            <Bal>
+                <Tp>
+                    <CdOrPrtry>
+                        <Cd>OPBD</Cd>
+                    </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">1000.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                    <Dt>2024-08-06</Dt>
+                </Dt>
+            </Bal>
+            <Bal>
+                <Tp>
+                    <CdOrPrtry>
+                        <Cd>CLBD</Cd>
+                    </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">2512.25</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                    <Dt>2026-10-08</Dt>
+                </Dt>
+            </Bal>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000001</NtryRef>
+                <Amt Ccy="EUR">23.73</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2024-09-13</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000001</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">23.73</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0001</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Beispiel Software AG Rechnung 2026-0001 DE71010020030000000101 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Beispiel Software AG Rechnung 2026-0001 DE71010020030000000101 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000002</NtryRef>
+                <Amt Ccy="EUR">37.46</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2024-09-20</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000002</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">37.46</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0002</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Erika Mustermann Rechnung 2026-0002 GB27TEST20304000000102 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Erika Mustermann Rechnung 2026-0002 GB27TEST20304000000102 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000003</NtryRef>
+                <Amt Ccy="EUR">51.19</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2024-10-25</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000003</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">51.19</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 04</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Test Verlag UG Auszahlung Periode 04 GB97TEST20304000000103 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Test Verlag UG Auszahlung Periode 04 GB97TEST20304000000103 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000004</NtryRef>
+                <Amt Ccy="EUR">64.92</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2024-11-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000004</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">64.92</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0004</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Max Mustermann Rechnung 2026-0004 GB70TEST20304000000104 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Max Mustermann Rechnung 2026-0004 GB70TEST20304000000104 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000005</NtryRef>
+                <Amt Ccy="EUR">78.65</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2024-12-20</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000005</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">78.65</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0005</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Probe Dienste Ltd Rechnung 2026-0005 GB43TEST20304000000105 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Probe Dienste Ltd Rechnung 2026-0005 GB43TEST20304000000105 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000006</NtryRef>
+                <Amt Ccy="EUR">92.38</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-01-11</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000006</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">92.38</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 07</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Demo Store Inc Auszahlung Periode 07 DE33010020030000000106 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Demo Store Inc Auszahlung Periode 07 DE33010020030000000106 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000007</NtryRef>
+                <Amt Ccy="EUR">106.11</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-01-24</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000007</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">106.11</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0007</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Finanzamt Musterstadt Rechnung 2026-0007 GB86TEST20304000000107 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Finanzamt Musterstadt Rechnung 2026-0007 GB86TEST20304000000107 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000008</NtryRef>
+                <Amt Ccy="EUR">119.84</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-02-07</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000008</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">119.84</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0008</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Muster Handel GmbH Rechnung 2026-0008 DE76010020030000000108 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Muster Handel GmbH Rechnung 2026-0008 DE76010020030000000108 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000009</NtryRef>
+                <Amt Ccy="EUR">133.57</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-02-11</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000009</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">133.57</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 10</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Beispiel Software AG Auszahlung Periode 10 DE49010020030000000109 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Beispiel Software AG Auszahlung Periode 10 DE49010020030000000109 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000010</NtryRef>
+                <Amt Ccy="EUR">147.30</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-02-21</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000010</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">147.30</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0010</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Erika Mustermann Rechnung 2026-0010 GB05TEST20304000000110 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Erika Mustermann Rechnung 2026-0010 GB05TEST20304000000110 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000011</NtryRef>
+                <Amt Ccy="EUR">161.03</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-03-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000011</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">161.03</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0011</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Test Verlag UG Rechnung 2026-0011 GB75TEST20304000000111 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Test Verlag UG Rechnung 2026-0011 GB75TEST20304000000111 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000012</NtryRef>
+                <Amt Ccy="EUR">174.76</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-04-10</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000012</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">174.76</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 01</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Max Mustermann Auszahlung Periode 01 DE65010020030000000112 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Max Mustermann Auszahlung Periode 01 DE65010020030000000112 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000013</NtryRef>
+                <Amt Ccy="EUR">188.49</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-04-25</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000013</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">188.49</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0013</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Probe Dienste Ltd Rechnung 2026-0013 GB21TEST20304000000113 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Probe Dienste Ltd Rechnung 2026-0013 GB21TEST20304000000113 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000014</NtryRef>
+                <Amt Ccy="EUR">202.22</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-05-17</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000014</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">202.22</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0014</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Demo Store Inc Rechnung 2026-0014 DE11010020030000000114 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Demo Store Inc Rechnung 2026-0014 DE11010020030000000114 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000015</NtryRef>
+                <Amt Ccy="EUR">215.95</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-05-23</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000015</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">215.95</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 04</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Finanzamt Musterstadt Auszahlung Periode 04 GB64TEST20304000000115 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Finanzamt Musterstadt Auszahlung Periode 04 GB64TEST20304000000115 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000016</NtryRef>
+                <Amt Ccy="EUR">229.68</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-06-20</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000016</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">229.68</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0016</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Muster Handel GmbH Rechnung 2026-0016 GB37TEST20304000000116 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Muster Handel GmbH Rechnung 2026-0016 GB37TEST20304000000116 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000017</NtryRef>
+                <Amt Ccy="EUR">243.41</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-07-25</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000017</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">243.41</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0017</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Beispiel Software AG Rechnung 2026-0017 GB10TEST20304000000117 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Beispiel Software AG Rechnung 2026-0017 GB10TEST20304000000117 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000018</NtryRef>
+                <Amt Ccy="EUR">17.14</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-08-15</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000018</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">17.14</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 07</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Erika Mustermann Auszahlung Periode 07 DE97010020030000000118 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Erika Mustermann Auszahlung Periode 07 DE97010020030000000118 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000019</NtryRef>
+                <Amt Ccy="EUR">30.87</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-08-16</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000019</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">30.87</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0019</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Test Verlag UG Rechnung 2026-0019 DE70010020030000000119 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Test Verlag UG Rechnung 2026-0019 DE70010020030000000119 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000020</NtryRef>
+                <Amt Ccy="EUR">44.60</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-08-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000020</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">44.60</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0020</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Max Mustermann Rechnung 2026-0020 GB26TEST20304000000120 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Max Mustermann Rechnung 2026-0020 GB26TEST20304000000120 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000021</NtryRef>
+                <Amt Ccy="EUR">58.33</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-09-19</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000021</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">58.33</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 10</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Probe Dienste Ltd Auszahlung Periode 10 GB96TEST20304000000121 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Probe Dienste Ltd Auszahlung Periode 10 GB96TEST20304000000121 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000022</NtryRef>
+                <Amt Ccy="EUR">72.06</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-10-24</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000022</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">72.06</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0022</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Demo Store Inc Rechnung 2026-0022 GB69TEST20304000000122 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Demo Store Inc Rechnung 2026-0022 GB69TEST20304000000122 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000023</NtryRef>
+                <Amt Ccy="EUR">85.79</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-11-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000023</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">85.79</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0023</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Finanzamt Musterstadt Rechnung 2026-0023 GB42TEST20304000000123 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Finanzamt Musterstadt Rechnung 2026-0023 GB42TEST20304000000123 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000024</NtryRef>
+                <Amt Ccy="EUR">99.52</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2025-12-19</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000024</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">99.52</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 01</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Muster Handel GmbH Auszahlung Periode 01 GB15TEST20304000000124 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Muster Handel GmbH Auszahlung Periode 01 GB15TEST20304000000124 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000025</NtryRef>
+                <Amt Ccy="EUR">113.25</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-01-23</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000025</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">113.25</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0025</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Beispiel Software AG Rechnung 2026-0025 DE05010020030000000125 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Beispiel Software AG Rechnung 2026-0025 DE05010020030000000125 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000026</NtryRef>
+                <Amt Ccy="EUR">126.98</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-01-23</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000026</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">126.98</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0026</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Erika Mustermann Rechnung 2026-0026 GB58TEST20304000000126 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Erika Mustermann Rechnung 2026-0026 GB58TEST20304000000126 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000027</NtryRef>
+                <Amt Ccy="EUR">140.71</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-02-03</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000027</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">140.71</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 04</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Test Verlag UG Auszahlung Periode 04 DE48010020030000000127 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Test Verlag UG Auszahlung Periode 04 DE48010020030000000127 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000028</NtryRef>
+                <Amt Ccy="EUR">154.44</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-02-03</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000028</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">154.44</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0028</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Max Mustermann Rechnung 2026-0028 DE21010020030000000128 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Max Mustermann Rechnung 2026-0028 DE21010020030000000128 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000029</NtryRef>
+                <Amt Ccy="EUR">168.17</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-02-20</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000029</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>CCRD</Cd>
+                            <SubFmlyCd>POSD</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">168.17</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>CCRD</Cd>
+                                    <SubFmlyCd>POSD</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <AddtlTxInf>Kartentransaktion Beispiel Shop Online ABCDE Ab9C3d, Musterstadt, DE</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Kartentransaktion Beispiel Shop Online ABCDE Ab9C3d, Musterstadt, DE</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000030</NtryRef>
+                <Amt Ccy="EUR">181.90</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-02-20</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000030</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">181.90</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 07</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Demo Store Inc Auszahlung Periode 07 GB47TEST20304000000130 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Demo Store Inc Auszahlung Periode 07 GB47TEST20304000000130 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000031</NtryRef>
+                <Amt Ccy="EUR">195.63</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-02-28</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000031</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">195.63</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0031</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Finanzamt Musterstadt Rechnung 2026-0031 DE37010020030000000131 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Finanzamt Musterstadt Rechnung 2026-0031 DE37010020030000000131 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000032</NtryRef>
+                <Amt Ccy="EUR">209.36</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-03-20</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000032</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">209.36</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0032</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Muster Handel GmbH Rechnung 2026-0032 GB90TEST20304000000132 TESTGBFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Muster Handel GmbH Rechnung 2026-0032 GB90TEST20304000000132 TESTGBFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000033</NtryRef>
+                <Amt Ccy="EUR">223.09</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-03-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000033</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>CCRD</Cd>
+                            <SubFmlyCd>POSD</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">223.09</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>CCRD</Cd>
+                                    <SubFmlyCd>POSD</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <AddtlTxInf>Kartentransaktion Beispiel Shop Online ABCDE Ab3C1d, Musterstadt, DE</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Kartentransaktion Beispiel Shop Online ABCDE Ab3C1d, Musterstadt, DE</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000034</NtryRef>
+                <Amt Ccy="EUR">236.82</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-04-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000034</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>CCRD</Cd>
+                            <SubFmlyCd>POSD</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">236.82</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>CCRD</Cd>
+                                    <SubFmlyCd>POSD</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <AddtlTxInf>Kartentransaktion Beispiel Shop Online ABCDE Ab4C8d, Musterstadt, DE</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Kartentransaktion Beispiel Shop Online ABCDE Ab4C8d, Musterstadt, DE</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000035</NtryRef>
+                <Amt Ccy="EUR">10.55</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-04-25</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000035</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">10.55</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0035</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Test Verlag UG Rechnung 2026-0035 DE26010020030000000135 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Test Verlag UG Rechnung 2026-0035 DE26010020030000000135 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000036</NtryRef>
+                <Amt Ccy="EUR">24.28</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-04-29</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000036</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">24.28</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 01</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Max Mustermann Auszahlung Periode 01 IE77TEST90000100000136 TESTIEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Max Mustermann Auszahlung Periode 01 IE77TEST90000100000136 TESTIEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000037</NtryRef>
+                <Amt Ccy="EUR">38.01</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-05-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000037</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>CCRD</Cd>
+                            <SubFmlyCd>POSD</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">38.01</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>CCRD</Cd>
+                                    <SubFmlyCd>POSD</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <AddtlTxInf>Kartentransaktion Beispiel Shop Online ABCDE Ab7C9d, Musterstadt, DE</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Kartentransaktion Beispiel Shop Online ABCDE Ab7C9d, Musterstadt, DE</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000038</NtryRef>
+                <Amt Ccy="EUR">51.74</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-05-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000038</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">51.74</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0038</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Demo Store Inc Rechnung 2026-0038 DE42010020030000000138 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Demo Store Inc Rechnung 2026-0038 DE42010020030000000138 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000039</NtryRef>
+                <Amt Ccy="EUR">65.47</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-05-22</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000039</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">65.47</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 04</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Finanzamt Musterstadt Auszahlung Periode 04 DE15010020030000000139 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Finanzamt Musterstadt Auszahlung Periode 04 DE15010020030000000139 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000040</NtryRef>
+                <Amt Ccy="EUR">79.20</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-06-07</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000040</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>ICDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">79.20</Amt>
+                        <CdtDbtInd>DBIT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>ICDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0040</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Ausgehende Überweisung An Muster Handel GmbH Rechnung 2026-0040 DE85010020030000000140 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Ausgehende Überweisung An Muster Handel GmbH Rechnung 2026-0040 DE85010020030000000140 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000041</NtryRef>
+                <Amt Ccy="EUR">92.93</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-06-19</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000041</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">92.93</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0041</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Beispiel Software AG Rechnung 2026-0041 DE58010020030000000141 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Beispiel Software AG Rechnung 2026-0041 DE58010020030000000141 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000042</NtryRef>
+                <Amt Ccy="EUR">106.66</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-07-23</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000042</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">106.66</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 07</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Erika Mustermann Auszahlung Periode 07 DE31010020030000000142 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Erika Mustermann Auszahlung Periode 07 DE31010020030000000142 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000043</NtryRef>
+                <Amt Ccy="EUR">120.39</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-07-24</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000043</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">120.39</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0043</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Test Verlag UG Rechnung 2026-0043 DE04010020030000000143 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Test Verlag UG Rechnung 2026-0043 DE04010020030000000143 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000044</NtryRef>
+                <Amt Ccy="EUR">134.12</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-08-21</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000044</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">134.12</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Rechnung 2026-0044</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Max Mustermann Rechnung 2026-0044 DE74010020030000000144 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Max Mustermann Rechnung 2026-0044 DE74010020030000000144 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+            <Ntry>
+                <NtryRef>00000000000000000000000000000045</NtryRef>
+                <Amt Ccy="EUR">147.85</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                    <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                    <Dt>2026-09-18</Dt>
+                </BookgDt>
+                <AcctSvcrRef>00000000000000000000000000000045</AcctSvcrRef>
+                <BkTxCd>
+                    <Domn>
+                        <Cd>PMNT</Cd>
+                        <Fmly>
+                            <Cd>RCDT</Cd>
+                            <SubFmlyCd>DMCT</SubFmlyCd>
+                        </Fmly>
+                    </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                    <TxDtls>
+                        <Amt Ccy="EUR">147.85</Amt>
+                        <CdtDbtInd>CRDT</CdtDbtInd>
+                        <BkTxCd>
+                            <Domn>
+                                <Cd>PMNT</Cd>
+                                <Fmly>
+                                    <Cd>RCDT</Cd>
+                                    <SubFmlyCd>DMCT</SubFmlyCd>
+                                </Fmly>
+                            </Domn>
+                        </BkTxCd>
+                        <RmtInf>
+                            <Ustrd>Auszahlung Periode 10</Ustrd>
+                        </RmtInf>
+                        <AddtlTxInf>Eingehende Überweisung Von Probe Dienste Ltd Auszahlung Periode 10 DE47010020030000000145 TESTDEFFXXX</AddtlTxInf>
+                    </TxDtls>
+                </NtryDtls>
+                <AddtlNtryInf>Eingehende Überweisung Von Probe Dienste Ltd Auszahlung Periode 10 DE47010020030000000145 TESTDEFFXXX</AddtlNtryInf>
+            </Ntry>
+        </Stmt>
+    </BkToCstmrStmt>
+</Document>

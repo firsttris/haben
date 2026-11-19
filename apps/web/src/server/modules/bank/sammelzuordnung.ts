@@ -1,13 +1,27 @@
 import { documentOpen } from "@haben/core";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
-import { schema } from "../../db/index.ts";
+import { bankDuplicateProposalEligibleSql, bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
+import { schema, type Tx } from "../../db/index.ts";
 import { openBooks } from "../buchhaltung/index.ts";
-import { BankError, bookPart, lockTransaction, settledOn } from "./bank.ts";
+import { bookPart } from "./allocation.ts";
+import { BankError } from "./bank-error.ts";
+import { lockTransaction } from "./payment-booking.ts";
+import { settledOn } from "./settled-amounts.ts";
 
 export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid() });
+
+/** Erst die Umsätze in derselben UUID-Reihenfolge wie die Dublettenprüfung sperren, dann den aktuellen Stand lesen. */
+async function lockEligibleFees(tx: Tx, chosenId: string, rowIds: string[]) {
+  const bank = schema.bankTransactions;
+  const ids = inArray(bank.id, [...new Set([chosenId, ...rowIds])]);
+  await tx.select({ id: bank.id }).from(bank).where(ids).orderBy(asc(bank.id)).for("update");
+  const eligible = await tx.select({ id: bank.id }).from(bank).where(and(ids, bankDuplicateProposalEligibleSql));
+  const eligibleIds = new Set(eligible.map((row) => row.id));
+  if (!eligibleIds.has(chosenId)) throw new BankError("Kläre zuerst den Dublettenverdacht zum gewählten Umsatz.");
+  return eligibleIds;
+}
 
 /**
  * Gebühren eines Zahlungsdienstleisters gegen seine Sammelrechnung: ordnet alle noch offenen Gebühren (Umsätze „Gebühr …“)
@@ -31,8 +45,8 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
     if (!chosen) throw new BankError("Umsatz nicht gefunden.");
     if (chosen.purpose !== "zahlungsdienstleister") throw new BankError("Sammelrechnungen gibt es nur für Gebühren eines Zahlungsdienstleisters.");
     const month = chosen.bookingDate.slice(0, 7);
-    const rows = await tx
-      .select({ id: schema.bankTransactions.id, amount: schema.bankTransactions.amount, open: openAmountSql.mapWith(Number) })
+    const kandidaten = await tx
+      .select({ id: schema.bankTransactions.id, amount: schema.bankTransactions.amount })
       .from(schema.bankTransactions)
       .where(
         and(
@@ -40,13 +54,18 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
           sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${month}`,
           sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
           sql`${openAmountSql} <> 0`,
+          bankDuplicateProposalEligibleSql,
         ),
       )
       .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
+    // Wie die Einzelzuordnung zuerst die Umsätze, dann den Beleg sperren.
+    const eligibleIds = await lockEligibleFees(
+      tx,
+      input.transactionId,
+      kandidaten.map((row) => row.id),
+    );
+    const rows = kandidaten.filter((row) => eligibleIds.has(row.id));
     const fees = rows.filter((row) => row.amount < 0);
-    // Wie die Einzelzuordnung zuerst die Umsätze, dann den Beleg sperren, auf beiden Wegen; sonst entstünde ein Deadlock
-    // (PostgreSQL 18, 13.3.4: https://www.postgresql.org/docs/18/explicit-locking.html#LOCKING-DEADLOCKS).
-    for (const row of rows) await lockTransaction(tx, row.id);
     const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
     if (!doc) throw new BankError("Beleg nicht gefunden.");
     const offen = async () => documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));

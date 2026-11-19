@@ -1,7 +1,7 @@
 import { asc, eq, isNotNull, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { withActor } from "../../db/actor.ts";
-import { BankError } from "./bank.ts";
+import { BankError } from "./bank-error.ts";
 
 /**
  * Fremdes Bankkonto ausschließen (#462). Zu einem Bankzugang gehören manchmal Konten, die nicht zu dieser Firma gehören

@@ -15,14 +15,14 @@ function vorschlag(stored: BankCsvMapping | null = null) {
 }
 
 describe.skipIf(!testDatabaseUrl)("Bank-CSV mit eigener Spaltenzuordnung (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let zuordnung: typeof import("./csv-zuordnung.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     zuordnung = await import("./csv-zuordnung.ts");
   }, 30_000);
 

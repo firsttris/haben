@@ -251,6 +251,9 @@ describe("Posten aus dem DATEV-Kontenrahmen 2026", () => {
     ["SKR03", "2498", null, null, "SKR03 S. 16: Einstellungen in die Rücklage für Anteile an einem herrschenden … Unternehmen"],
     ["SKR03", "2499", null, null, "SKR03 S. 16: Einstellungen in andere Gewinnrücklagen"],
     ["SKR03", "2745", null, null, "SKR03 S. 17: Ertrag aus Kapitalherabsetzung (wie SKR04 7755)"],
+    // Gewinnrücklagen (§ 266 Abs. 3 A. III. 1. HGB): Eigenkapital; die UG bildet sie nach § 5a Abs. 3 GmbHG
+    ["SKR03", "0846", "passiva.A", "passiva.A", "SKR03 S. 3: Gesetzliche Rücklage"],
+    ["SKR04", "2930", "passiva.A", "passiva.A", "SKR04 S. 10: Gesetzliche Rücklage"],
     // „Auf Grund einer Gewinngemeinschaft … abgeführte Gewinne [oder Erträge aus Verlustübernahme]“: Aufwand
     ["SKR03", "2491", "sonstigeAufwendungen", "sonstigeErtraege", "SKR03 S. 15: … abgeführte Gewinne oder Erträge aus Verlustübernahme"],
     ["SKR03", "2492", "sonstigeAufwendungen", "sonstigeAufwendungen", "SKR03 S. 16: … abgeführte Gewinne"],

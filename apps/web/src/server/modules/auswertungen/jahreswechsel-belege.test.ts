@@ -47,11 +47,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
   let vat: typeof import("../umsatzsteuer/vat.ts");
   let vermerk: typeof import("../umsatzsteuer/vermerk.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let cash: typeof import("../bank/cash-income.ts");
   let cashBook: typeof import("../bank/cash.ts");
   let cashInvoice: typeof import("../bank/cash-invoice.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let legacy: typeof import("../archiv/legacy-open.ts");
@@ -66,11 +66,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
     figures = await import("../umsatzsteuer/vat-figures.ts");
     vat = await import("../umsatzsteuer/vat.ts");
     vermerk = await import("../umsatzsteuer/vermerk.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     cash = await import("../bank/cash-income.ts");
     cashBook = await import("../bank/cash.ts");
     cashInvoice = await import("../bank/cash-invoice.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     legacy = await import("../archiv/legacy-open.ts");

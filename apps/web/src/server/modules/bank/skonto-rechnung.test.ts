@@ -36,7 +36,7 @@ const ACCOUNTS = {
 
 describe.skipIf(!testDatabaseUrl)("Skonto auf Ausgangsrechnungen (Postgres)", () => {
   let bank: typeof import("./index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let auswertungen: typeof import("../auswertungen/index.ts");
@@ -46,7 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Skonto auf Ausgangsrechnungen (Postgres)", ()
   beforeAll(async () => {
     sql = await setupTestDb();
     bank = await import("./index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     vat = await import("../umsatzsteuer/index.ts");
     auswertungen = await import("../auswertungen/index.ts");

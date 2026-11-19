@@ -45,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten nach einer Er
   let eroeffnung: typeof import("../archiv/datev-eroeffnung.ts");
   let legacy: typeof import("../archiv/legacy-open.ts");
   let storage: typeof import("../../storage.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let datev: typeof import("./datev-export.ts");
   const actor = "test-user";
   const today = heute();
@@ -58,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten nach einer Er
     eroeffnung = await import("../archiv/datev-eroeffnung.ts");
     legacy = await import("../archiv/legacy-open.ts");
     storage = await import("../../storage.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     datev = await import("./datev-export.ts");
   }, 30_000);
 

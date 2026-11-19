@@ -6,6 +6,10 @@
 # Das Ergebnis steht danach in der App (Tabelle backup_status); alle RESTORE_CHECK_DAYS Tage (Standard 7, 0 aus)
 # folgt auf ein erfolgreiches Backup ein Test-Restore mit restore-check.sh.
 set -euo pipefail
+# Auch ohne Einstiegspunkt (etwa docker compose exec backup backup.sh) muss die rclone-Konfiguration
+# gesetzt und geprüft sein, bevor restic startet
+. "${BASH_SOURCE[0]%/*}/rclone-ziel.sh"
+configure_rclone
 . "${BASH_SOURCE[0]%/*}/backup-status.sh"
 state=/var/lib/haben-backup
 dump="$state/dump/haben.sql.gz"

@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Standard-Einleitung für Rechnungen und Angebote (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let stammdaten: typeof import("../stammdaten/index.ts");
   let guard: typeof import("../auswertungen/settings-guard.ts");
@@ -12,7 +12,7 @@ describe.skipIf(!testDatabaseUrl)("Standard-Einleitung für Rechnungen und Angeb
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     stammdaten = await import("../stammdaten/index.ts");
     guard = await import("../auswertungen/settings-guard.ts");

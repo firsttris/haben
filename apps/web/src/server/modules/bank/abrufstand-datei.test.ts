@@ -81,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("Datei nach vorgemerktem Umsatz im Abruf, #306
 
     // Die Bank bucht den Umsatz; der Nutzer importiert den Kontoauszug als Datei bis T0+2
     umsaetze[1] = buchung("x2", tag(t0, -3), "20.00");
-    const bank = await import("./bank.ts");
+    const bank = await import("./index.ts");
     const db = await import("../../db/index.ts");
     await db.db.transaction((t) =>
       bank.storeStatement(

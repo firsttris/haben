@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistungen (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let externalReference: typeof import("./external-reference.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
@@ -13,7 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistun
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     externalReference = await import("./external-reference.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);

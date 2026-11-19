@@ -23,7 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import type { BankCsvMapping, ParsedTransaction } from "@haben/import";
+import type { BankCsvMapping, ImportMovement, ParsedTransaction } from "@haben/import";
 import type { LetterheadDesign, OutgoingTaxDetails } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
@@ -2474,6 +2474,20 @@ export const importSources = pgTable(
   (t) => [uniqueIndex("import_sources_identity").on(t.provider, t.externalAccountId), check("import_sources_kind", sql`${t.accountKind} in ('bank', 'psp')`)],
 );
 
+/** Die in einem Abruf schon vorhandenen Umsätze; neue verbindet bereits bank_transactions.import_id. */
+export const bankImportTransactions = pgTable(
+  "bank_import_transactions",
+  {
+    bankImportId: uuid("bank_import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+  },
+  (t) => [primaryKey({ columns: [t.bankImportId, t.transactionId] }), index("bank_import_transactions_transaction").on(t.transactionId, t.bankImportId)],
+);
+
 /** Jede angenommene Lieferung des Importvertrags mit ihrem Prüfwert und dem Stand danach; nur anhängen */
 export const importBatches = pgTable(
   "import_batches",
@@ -2493,6 +2507,8 @@ export const importBatches = pgTable(
     openFrom: date("open_from", { mode: "string" }),
     /** `batchFingerprint`: Dieselbe Lieferung noch einmal liefert das bisherige Ergebnis, mit anderem Inhalt ist sie ein Konflikt */
     fingerprint: text("fingerprint").notNull(),
+    /** Nachweis mehrfach vergebener Enable-Banking-Referenzen in dieser Lieferung. */
+    ambiguousEntryReferences: text("ambiguous_entry_references").array(),
     bankImportId: uuid("bank_import_id")
       .notNull()
       .references(() => bankImports.id),
@@ -2502,6 +2518,62 @@ export const importBatches = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("import_batches_key").on(t.sourceId, t.idempotencyKey), index("import_batches_source_created").on(t.sourceId, t.createdAt)],
+);
+
+/** Verdacht zwischen zwei gespeicherten Umsätzen. Der Import legt nur offene Vermerke an. */
+export const bankDuplicateReviews = pgTable(
+  "bank_duplicate_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    originalTransactionId: uuid("original_transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    decision: text("decision", { enum: ["pending", "duplicate", "distinct"] })
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("bank_duplicate_reviews_pair").on(
+      sql`least(${t.transactionId}, ${t.originalTransactionId})`,
+      sql`greatest(${t.transactionId}, ${t.originalTransactionId})`,
+    ),
+    index("bank_duplicate_reviews_transaction").on(t.transactionId),
+    check("bank_duplicate_reviews_distinct_rows", sql`${t.transactionId} <> ${t.originalTransactionId}`),
+    check("bank_duplicate_reviews_decision", sql`${t.decision} in ('pending', 'duplicate', 'distinct')`),
+  ],
+);
+
+/** Entscheidung oder Gegenzeile zu einem Verdacht. Die Umsätze bleiben gesperrt. */
+export const bankDuplicateDecisions = pgTable(
+  "bank_duplicate_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => bankDuplicateReviews.id),
+    decision: text("decision", { enum: ["pending", "duplicate", "distinct"] }).notNull(),
+    reversesId: uuid("reverses_id").references((): AnyPgColumn => bankDuplicateDecisions.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("bank_duplicate_decisions_review").on(t.reviewId),
+    uniqueIndex("bank_duplicate_decisions_reversal").on(t.reversesId),
+    check(
+      "bank_duplicate_decisions_kind",
+      sql`(${t.decision} in ('duplicate', 'distinct') and ${t.reversesId} is null) or (${t.decision} = 'pending' and ${t.reversesId} is not null)`,
+    ),
+  ],
+);
+
+/** Abschluss der einmaligen Bestandsprüfung, auch wenn kein Verdacht gefunden wurde. */
+export const bankDuplicateCheck = pgTable(
+  "bank_duplicate_check",
+  { id: integer("id").primaryKey(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow() },
+  (t) => [check("bank_duplicate_check_single", sql`${t.id} = 1`)],
 );
 
 /**
@@ -2526,6 +2598,11 @@ export const importMovements = pgTable(
     currency: text("currency").notNull(),
     /** Prüfwert aller Angaben der ersten Lieferung (`knownMovement`) */
     details: text("details").notNull(),
+    /**
+     * Referenzen der ersten Lieferung (Anbieterreferenz, Ereigniscode, EndToEndId, Bezug bei Erstattung und Rückbelastung,
+     * Auszahlung, Bestellung), wie geliefert (#306). Leer bei Bewegungen, die vor dieser Spalte übernommen wurden.
+     */
+    refs: jsonb("refs").$type<ImportMovement["references"]>(),
     transactionId: uuid("transaction_id")
       .notNull()
       .references(() => bankTransactions.id),
@@ -3382,6 +3459,10 @@ export type LexofficeImportProgress = {
   vatReports?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
+  /** Umzug aus FastBill: übernommene und schon bekannte Vorlagen wiederkehrender Rechnungen */
+  fastbillRecurring?: { imported: number; known: number };
+  /** Umzug aus FastBill: archivierte, schon vorhandene und Angebote ohne PDF */
+  fastbillEstimates?: { imported: number; known: number; withoutPdf: number; pdfNachgeholt?: number };
   /** sevDesk: Artikel aus GET /Part, in diesem Lauf neu angelegt, mit vorhandenen verknüpft und schon früher übernommen */
   sevdeskArticles?: { imported: number; linked: number; known: number };
   /** sevDesk: Dateistand der Belege dieses Laufs nach den Zuständen in legacy_file_states (#345) */
@@ -3462,7 +3543,7 @@ export const legacyOrderFiles = pgTable(
     mimeType: text("mime_type").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
-    origin: text("origin", { enum: ["sevdesk", "manuell", "import"] }).notNull(),
+    origin: text("origin", { enum: ["sevdesk", "fastbill", "manuell", "import"] }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],
@@ -3941,6 +4022,24 @@ export const sevdeskRecurringTemplates = pgTable("sevdesk_recurring_templates", 
   billingEvidence: integer("billing_evidence").notNull().default(0),
   /** Platzhalter von sevDesk wie [%KONTAKTPERSON%], als Text übernommen */
   placeholders: jsonb("placeholders").$type<string[]>().notNull(),
+  hints: jsonb("hints").$type<string[]>().notNull(),
+  raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Aus FastBill übernommene Vorlagen wiederkehrender Rechnungen (recurring.get): Antwort der API ohne Bankdaten, Hinweise
+ * zum Prüfen und die Vorlage in Haben. Je FastBill-Vorlage eine Zeile, ein neuer Abruf überspringt sie; wird die Vorlage
+ * in Haben gelöscht, bleibt der Nachweis ohne Verweis.
+ */
+export const fastbillRecurringTemplates = pgTable("fastbill_recurring_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** INVOICE_ID der Vorlage in FastBill */
+  fastbillId: text("fastbill_id").notNull().unique(),
+  importId: uuid("import_id")
+    .notNull()
+    .references(() => lexofficeImports.id),
+  recurringId: uuid("recurring_id").references(() => recurringInvoices.id, { onDelete: "set null" }),
   hints: jsonb("hints").$type<string[]>().notNull(),
   raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

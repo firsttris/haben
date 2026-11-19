@@ -4,7 +4,9 @@ import { schema, type Tx } from "../../db/index.ts";
 import type { Company, Contact } from "../stammdaten/index.ts";
 import { InvoiceError } from "./invoice-error.ts";
 import { storeInvoiceTaxes } from "./invoice-taxes.ts";
-import { buyerFrom, type Invoice, sellerFrom, sha256 } from "./invoices.ts";
+import { buyerFrom, sellerFrom } from "./invoice-document.ts";
+import { sha256 } from "./invoice-finalize.ts";
+import type { Invoice } from "./invoices.ts";
 import type { RebuiltInvoice } from "./positionen-nachbilden.ts";
 
 /** Eine Rechnung, die woanders geschrieben wurde und in Haben festgeschrieben vorliegen soll (Fremdsystem, Umzug) */

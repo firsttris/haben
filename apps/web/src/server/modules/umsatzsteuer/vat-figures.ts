@@ -261,7 +261,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     for (const p of payments) {
       if (advanceIds.has(p.invoiceId)) continue;
       if ((await invoiceMode(p)) !== "ist") continue;
-      // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
+      // Wie gebucht (settled-amounts.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
       const voll = totals.get(p.invoiceId)!;
       for (const share of recordedTaxShares(voll, p.amount, stored, mix.get(p.invoiceId) ?? [voll])) {

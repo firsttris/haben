@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
-import { bestaetigeUstId, ustIdBestaetigungen } from "../modules/stammdaten/index.ts";
+import { bestaetigeUstId, ustIdBestaetigungen, ustIdVorFestschreiben } from "../modules/stammdaten/index.ts";
 import { detailId } from "./schemas.ts";
 
 /** Bestätigungen der USt-IdNr. beim BZSt am Kontakt (#1385) */
@@ -16,3 +16,9 @@ export const bestaetigeUstIdFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ contactId: z.uuid(), nurWennFaellig: z.boolean().default(false) }))
   .handler(({ data, context }) => bestaetigeUstId(context.user.id, data.contactId, { nurWennFaellig: data.nurWennFaellig }));
+
+/** Beim Öffnen der Rückfrage zum Festschreiben einer Rechnung mit Reverse Charge oder innergemeinschaftlicher Lieferung */
+export const ustIdVorFestschreibenFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ contactId: z.uuid(), behandlung: z.enum(["reverse_charge", "ig_lieferung"]) }))
+  .handler(({ data, context }) => ustIdVorFestschreiben(context.user.id, data.contactId, data.behandlung));

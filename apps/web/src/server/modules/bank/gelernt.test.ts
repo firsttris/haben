@@ -29,13 +29,13 @@ const heute = today();
 const heuteDkb = `${heute.slice(8, 10)}.${heute.slice(5, 7)}.${heute.slice(2, 4)}`;
 
 describe.skipIf(!testDatabaseUrl)("Vorschläge aus früheren Zuordnungen (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
   }, 30_000);
 
   afterAll(async () => {

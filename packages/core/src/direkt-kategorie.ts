@@ -1,5 +1,6 @@
 import { taxIncluded, type BasisPoints, type Cents } from "./money.ts";
 import {
+  ACCOUNT_NAMES,
   ACCOUNTS,
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_KEYS,
@@ -190,4 +191,31 @@ export function kategorieAnzeige(angabe: KategorieAngabe, kontenrahmen: Kontenra
 /** Die Kategorien der Auswahl „Direkt buchen“ mit der Nummer des Kontos vor der Bezeichnung der Ausgaben (#1438); Einnahmen bleiben ohne */
 export function kategorienMitKonto(kategorien: ReturnType<typeof direktKategorienFuer>, kontenrahmen: Kontenrahmen): ReturnType<typeof direktKategorienFuer> {
   return kategorien.map((k) => (k.art === "ausgabe" ? { ...k, label: kategorieMitKonto(kontenrahmen, k.value) } : k));
+}
+
+/** Eine Zeile des Buchungsvorschlags in der Bankliste (#1440): Konto mit Nummer, Betrag mit Vorzeichen wie auf dem Bankkonto, Steuer */
+export interface VorschlagZeile {
+  konto: string;
+  kontoName: string;
+  /** Einnahme positiv, Ausgabe negativ; die Bankzeile selbst fehlt, sie ist der Umsatz */
+  betrag: Cents;
+  /** „19 %“, „7 %“, „ohne“ (Kleinunternehmer, nicht steuerbar, Ausgabe ohne Vorsteuer) */
+  steuer: string;
+}
+
+const STEUER_ANZEIGE: Partial<Record<string, string>> = { USt19: "19 %", USt7: "7 %" };
+
+/** Was Direkt buchen auf eine Kategorie bucht, als Zeilen für die Oberfläche; die Umsatzsteuer steht als eigene Zeile */
+export function kategorieVorschlag(angabe: KategorieAngabe, amount: Cents, kontenrahmen: Kontenrahmen): VorschlagZeile[] {
+  const bank = ACCOUNTS[kontenrahmen].bank;
+  const aufwandskonto = istEinnahme(angabe.kategorie) ? null : EXPENSE_CATEGORIES[angabe.kategorie as ExpenseCategory][kontenrahmen];
+  return kategoriePosting(angabe, amount, kontenrahmen)
+    .filter((line) => line.account !== bank)
+    .map((line) => ({
+      konto: line.account,
+      // Das Aufwandskonto einer Kategorie steht nicht in ACCOUNT_NAMES; dort gilt die Bezeichnung der Kategorie
+      kontoName: ACCOUNT_NAMES[kontenrahmen][line.account] ?? (aufwandskonto === line.account ? kategorieText(angabe) : ""),
+      betrag: line.credit - line.debit,
+      steuer: (line.taxCode && STEUER_ANZEIGE[line.taxCode]) || "ohne",
+    }));
 }

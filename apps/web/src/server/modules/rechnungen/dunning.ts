@@ -19,7 +19,8 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { type DocumentPreview, renderPreview, withDesign } from "./document-preview.ts";
-import { listInvoices, withCurrentLegalInfo } from "./invoices.ts";
+import { withCurrentLegalInfo } from "./invoice-document.ts";
+import { listInvoices } from "./invoices.ts";
 import { importedDunnings, type ImportedDunning } from "./mahnung-altbestand.ts";
 import { loadDesign, loadLetterhead, logoInfo, withCustomLayout } from "../stammdaten/index.ts";
 

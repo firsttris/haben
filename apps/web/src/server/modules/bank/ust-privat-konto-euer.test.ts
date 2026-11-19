@@ -11,7 +11,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Journal (euerForYear ab journal_ab) und Nebenbücher (euerAbgleich) müssen dabei übereinstimmen.
  */
 describe.skipIf(!testDatabaseUrl)("USt auf privatem Konto in EÜR und Abgleich (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let sql: postgres.Sql;
@@ -19,7 +19,7 @@ describe.skipIf(!testDatabaseUrl)("USt auf privatem Konto in EÜR und Abgleich (
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
   }, 30_000);

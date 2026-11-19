@@ -5,7 +5,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
   let sql: postgres.Sql;
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let formats: typeof import("./number-formats.ts");
@@ -65,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
     formats = await import("./number-formats.ts");
@@ -182,6 +182,37 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
     // Eine kürzere Kundennummer passt wieder unter 36 Zeichen
     await updateKundennummer(lang, "ACME");
     expect((await invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).number).toBe("RE-2026-ACME-002");
+  });
+
+  it("hält Nummern auf, die im DATEV-Belegfeld 1 aussehen wie eine vergebene (#1426)", async () => {
+    // Der Fall aus dem Review: „A1“ + Zähler 1 und „A“ + Zähler 11 stehen beide als „RE-2026-A11“ im
+    // Belegfeld 1; DATEV könnte ihre offenen Posten verwechseln
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}_{N}", quote: "AN-{JJJJ}-{NNN}" });
+    const a1 = (await createContact("A1")).id;
+    expect((await invoices.finalizeInvoice(actor, (await invoiceDraft(a1)).id, kleinunternehmerStand)).number).toBe("RE-2026-A1_1");
+    await invoices.setNextNumber(actor, "2026-03-02", 11);
+    const a = (await createContact("A")).id;
+    const draft = await invoiceDraft(a);
+    await expect(invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).rejects.toThrow(/RE-2026-A_11.*RE-2026-A1_1/);
+    const [counter] = await sql`select last from invoice_number_counters where year = 2026`;
+    expect(counter!.last).toBe(10);
+    expect((await sql`select status from invoices where id = ${draft.id}`)[0]!.status).toBe("draft");
+    // Eine Nummer mit eigenem Belegfeld geht weiter durch
+    const b = (await createContact("B")).id;
+    expect((await invoices.finalizeInvoice(actor, (await invoiceDraft(b)).id, kleinunternehmerStand)).number).toBe("RE-2026-B_11");
+  });
+
+  it("fängt auch Kollisionen durch den Punkt ab, der im Belegfeld 1 zum Bindestrich wird (#1426)", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}_{N}", quote: "AN-{JJJJ}-{NNN}" });
+    const strich = (await createContact("A-1")).id;
+    expect((await invoices.finalizeInvoice(actor, (await invoiceDraft(strich)).id, kleinunternehmerStand)).number).toBe("RE-2026-A-1_1");
+    // „A.“ + Zähler 11 ergibt „RE-2026-A._11“ — im Belegfeld 1 ebenfalls „RE-2026-A-11“
+    await invoices.setNextNumber(actor, "2026-03-02", 11);
+    const punkt = (await createContact("A.")).id;
+    const draft = await invoiceDraft(punkt);
+    await expect(invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand)).rejects.toThrow(/RE-2026-A\._11.*RE-2026-A-1_1/);
+    const [counter] = await sql`select last from invoice_number_counters where year = 2026`;
+    expect(counter!.last).toBe(10);
   });
 
   it("vergibt dem Storno die Kundennummer des Originals, auch wenn die des Kontakts inzwischen anders ist (#1426)", async () => {

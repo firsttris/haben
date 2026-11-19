@@ -68,12 +68,16 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `journal_lines` | Buchungszeilen mit Konto, Soll, Haben, Steuerschlüssel | gesperrt mit der Buchung |
 | `own_accounts` | Eigene Sachkonten (#270): Aufwandskonto mit eigener Nummer und eigenem Namen je Kontenrahmen, `parent_category` ist die Elternkategorie, auf die Auswertungen nach Kontonummer es auflösen. Archivieren statt löschen, sobald im Journal oder an einem Beleg gebucht ist; `documents.own_account_id` und `document_splits.own_account_id` verweisen darauf, `category` bleibt die Elternkategorie | Nummer, Kontenrahmen und Elternkategorie fest (`0211`), Audit, Sperre gegen `TRUNCATE` |
 | `cash_entries` | Kassenbuch: jede Bewegung der Barkasse mit lückenloser Nummer, Beleg oder Art (Einlage, Entnahme, Geldtransit, Bareinnahme auf eine Rechnung mit `invoice_id` und Steueranteil wie bei `allocations`, Bareinnahme ohne Rechnung mit Behandlung und Satz in `tax_treatment`, `tax_rate`, nur zusammen und nur dort), Buchung; Storno als Gegenzeile | nur anhängen, Bareinnahme nur auf eine festgeschriebene Rechnung, Audit |
-| `bank_imports` | Jede importierte Auszugsdatei mit SHA-256, Zeitraum, Salden, bei einer eigenen Zuordnung mit dieser (`csv_mapping`) | nur anhängen, Audit |
+| `bank_imports` | Auszugsdateien und Bankabrufe mit SHA-256, Zeitraum, Salden und gegebenenfalls eigener CSV-Zuordnung (`csv_mapping`) | nur anhängen, Audit |
+| `bank_import_transactions` | Ordnet einem Enable-Banking-Abruf bereits vorhandene Umsätze aus einem früheren Abruf, einer Datei oder FinTS zu. Neue Umsätze sind über ihren ursprünglichen Import verbunden. | nur anhängen, Audit, kein `TRUNCATE` |
+| `bank_duplicate_reviews` | Verdachtspaare ähnlicher Bankumsätze aus Bankabruf oder Bestandsprüfung | nur anhängen, Audit, kein `TRUNCATE` |
+| `bank_duplicate_decisions` | Entscheidungen zu Verdachtsvermerken und Gegenzeilen, die jeweils eine konkrete Entscheidung aufheben | nur anhängen, Audit, kein `TRUNCATE` |
+| `bank_duplicate_check` | Abschluss der einmaligen Prüfung bestehender Bankumsätze auf Dubletten, auch ohne Treffer | nur anhängen, Audit, kein `TRUNCATE` |
 | `bank_transactions` | Importierte Umsätze mit Hash zur Deduplizierung; EndToEndId, soweit der Auszug sie nennt | nur anhängen |
 | `import_sources` | Quellenbindung des Importvertrags ([#306](https://github.com/firsttris/haben/issues/306)): Konto, Kennung beim Anbieter und Stichtag (erster Tag, den die Quelle liefert, gesetzt mit der Bindung), eindeutig je Anbieter und Kennung | nur anhängen, Audit |
-| `import_batches` | Angenommene Lieferungen mit Prüfwert, Fenster, offenen Ereignissen und dem Abrufstand danach | nur anhängen, Audit |
-| `import_movements` | Quellenidentität: Ereignis und Komponente mit buchungsrelevantem Kern und dem Umsatz in `bank_transactions` | nur anhängen, Audit |
-| `import_conflicts` | Konflikt im Abruf: eine übernommene Bewegung, die die Bank mit anderem Kern liefert, mit dem gelieferten Kern, dem Umsatz, den er ergäbe, und dem abgelehnten Abruf; je Bewegung und Kern einmal | nur anhängen, Audit |
+| `import_batches` | Angenommene Lieferungen mit Prüfwert, Fenster, offenen Ereignissen, nachweislich mehrfach vergebenen Enable-Banking-Referenzen und dem Abrufstand danach | nur anhängen, Audit |
+| `import_movements` | Quellenidentität: Ereignis und Komponente mit buchungsrelevantem Kern, den gelieferten Referenzen (`refs`) und dem Umsatz in `bank_transactions` | nur anhängen, Audit |
+| `import_conflicts` | Konflikt im Abruf: eine übernommene Bewegung, die die Quelle (Bankabruf oder Etsy) mit anderem Kern liefert, mit dem gelieferten Kern, dem Umsatz, den er ergäbe, und dem abgelehnten Abruf; je Bewegung und Kern einmal | nur anhängen, Audit |
 | `import_resolutions` | Entscheidung zu einem Konflikt, genau eine: bisherigen behalten oder als weiteren Umsatz übernehmen (dann mit dem neuen Umsatz) | nur anhängen, Audit |
 | `sepa_transfers` | Erzeugte SEPA-Dateien (pain.001) mit Auftraggeberkonto, Ausführungsdatum, Anzahl, Summe und XML | nur anhängen, Audit |
 | `sepa_transfer_items` | Je Beleg eine Überweisung der Datei: EndToEndId (eindeutig), Betrag, Skonto, Empfänger, IBAN, Verwendungszweck | nur anhängen, Audit |
@@ -146,13 +150,14 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `sevdesk_connection` | API-Token für sevDesk, verschlüsselt, mit Buchhaltungsversion; eine Zeile | Audit ohne Chiffrat |
 | `fastbill_connection` | Login-E-Mail und API-Schlüssel für FastBill, der Schlüssel verschlüsselt, mit Stundengrenze des Tarifs; eine Zeile | Audit ohne Chiffrat |
 | `fastbill_receipts` | Ausgaben, deren Beleg FastBill nur im Browser herausgibt, bis zum Archivieren: wartend, mit Datei aus dem Browser-Skript oder „ohne Beleg“ | kein Audit (Zwischenlager, Download-Links mit eigenem Schlüssel) |
+| `fastbill_recurring_templates` | Aus FastBill übernommene Vorlagen wiederkehrender Rechnungen: Antwort der API ohne Bankdaten, Hinweise zum Prüfen und die pausierte Vorlage in `recurring_invoices`; eindeutig je FastBill-Vorlage | Audit, TRUNCATE gesperrt |
 | `lexoffice_imports` | Läufe aller Umzugsquellen (`source`: Lexoffice, sevDesk, FastBill, BuchhaltungsButler, Accountable, lokale Paketübernahme) mit Fortschritt; höchstens ein Lauf zugleich | Audit beim Anlegen |
 | `lexoffice_vouchers` | Rechnungen und Belege aller Umzugsquellen (`source`) mit vollständiger Quellantwort beziehungsweise Originalpaket | nur anhängen |
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
 | `legacy_voucher_payments` | Belegte Einzelzahlungen aus sevDesk oder lokalen Paketen mit Datum, Betrag, Konto und Herkunft; eindeutig je Zuordnung | nur anhängen, Audit |
 | `sevdesk_accounting_types` | Kontostamm der Buchungskonten aus sevDesk (`GET /AccountingType/{id}`), unverändert; eindeutig je Konto und Stand | nur anhängen, Audit, TRUNCATE gesperrt |
 | `sevdesk_accounting_type_decisions` | Kontoart einer sevDesk-Gutschrift auf ein Buchungskonto, von Hand festgelegt (Erlös- oder Aufwandskonto); die jüngste gilt | nur anhängen, Audit, TRUNCATE gesperrt |
-| `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
+| `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevDesk oder lokalen Paketen, Angebote aus FastBill, mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
 | `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer Auftrags-PDF-Abrufe mit Buchhaltungsversion | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
 | `legacy_dunnings` | Mahnungen aus sevDesk, je Stufe eine Zeile mit Kennung der gemahnten Rechnung, Stufe, Frist, gemahntem Betrag und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit, TRUNCATE gesperrt |

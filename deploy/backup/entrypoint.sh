@@ -3,6 +3,10 @@
 # so betreibt Compose den Dienst backup. Mit Argument wird der Befehl ausgeführt, etwa backup.sh,
 # restore-check.sh, restore.sh latest oder restic snapshots.
 set -euo pipefail
+# Ziele über rclone (WebDAV, OneDrive …) brauchen eine Konfiguration, bevor restic startet; das gilt für den
+# Zeitplan und für jeden Aufruf von Hand, etwa restore.sh oder restic snapshots
+. "${BASH_SOURCE[0]%/*}/rclone-ziel.sh"
+configure_rclone
 if [ "${1:-zeitplan}" != zeitplan ]; then
   exec "$@"
 fi

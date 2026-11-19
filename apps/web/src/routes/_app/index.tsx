@@ -2,6 +2,7 @@ import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { daysUntil, formatDate, formatDateTime, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
+import { EricHinweis } from "../../components/EricHinweis.tsx";
 import { KleinunternehmerHinweise } from "../../components/KleinunternehmerHinweise.tsx";
 import { UebersichtAufgaben, ZUERST, ordneAufgaben, type Todo } from "../../components/UebersichtAufgaben.tsx";
 import { UebersichtKennzahlen, ohneKennzahlen } from "../../components/UebersichtKennzahlen.tsx";
@@ -230,11 +231,7 @@ function OverviewPage() {
         </div>
       </div>
 
-      {data.mode === "simuliert" && vatRequired && (
-        <div className="banner banner-info" role="status">
-          ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
-        </div>
-      )}
+      {data.mode === "simuliert" && vatRequired && <EricHinweis />}
 
       {data.kleinunternehmerStand && <KleinunternehmerHinweise stand={data.kleinunternehmerStand} />}
 

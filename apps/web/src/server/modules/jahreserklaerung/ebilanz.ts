@@ -181,7 +181,7 @@ async function ebilanzIssues(year: number, today: string, company: Company): Pro
           {
             tone: "fehler" as const,
             // BMF-Schreiben vom 8. Juni 2026; das Plugin bringt erst ERiC 45 mit (ERiC-Releasenotes 45.1, Kap. 3.1.8)
-            text: `Für ${year} gilt die HGB-Taxonomie ${taxonomie}, die das installierte ERiC nicht prüfen kann. Unter Einstellungen › ERiC eine Version ab 45 installieren.`,
+            text: `Für ${year} gilt die HGB-Taxonomie ${taxonomie}, die das installierte ERiC nicht prüfen kann. Unter Einstellungen › ELSTER › ERiC eine Version ab 45 installieren.`,
           },
         ]),
     ...(abschluss.kapitalgesellschaft ? abschluss.issues.filter((i) => i.tone === "fehler") : []),

@@ -193,6 +193,8 @@ Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shad
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
+Hinweise (`.banner`) als direkte Kinder von `<main>` stehen 24px von ihren Nachbarn, folgen zwei aufeinander, nur 12px. Der Hinweis „ERiC ist nicht eingerichtet“ ist die Komponente `EricHinweis`, nie ein eigener Text; sein Link bricht nicht um.
+
 ### Blätter am Handy
 
 Am Handy wird aus dem `ConfirmDialog` (bis 640px) sowie aus der Überblendung `PreviewDialog` und ihrer Gestaltungskarte `.design-sheet` (bis 720px) ein Blatt von unten. Formular-Dialoge wie der `NewContactDialog` bleiben schwebende, fast bildschirmbreite Dialoge. Ein neues Blatt nutzt `SheetGrip` und `useSwipeToClose`, statt sie nachzubauen, und hält sich an diese Regeln:
@@ -213,7 +215,7 @@ Auswahllisten sind Formularfelder wie die übrigen: `<select>` steht in `Field` 
 
 Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen und bei denen der Fokus bleibt, etwa eine Antwort des Servers; beim Tippen bleibt es aus, ebenso bei Fehlern aus `useSubmitCheck`: Deren erstes Feld bekommt den Fokus, der Screenreader liest den Fehler dabei, und `role="alert"` an allen Feldern läse alle auf einmal. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
-Seltenes steht eingeklappt, Gesetztes in der Überschrift („Weitere Angaben: EUR · fällig 30.11.2026“), und ein Fehler an einem Feld darin klappt den Bereich auf, auch einer vom Server; was jeder Beleg braucht, bleibt draußen.
+Seltenes steht eingeklappt, Gesetztes in der Überschrift („Weitere Angaben: EUR · fällig 30.11.2026“), und ein Fehler an einem Feld darin klappt den Bereich auf, auch einer vom Server; was jeder Beleg oder Kontakt braucht, bleibt draußen. Beim Beleg (`WeitereAngaben`) und beim Kontakt (`ContactWeitereAngaben`) gilt das Muster; den Feldnamen eines Fehlers nennt `felder` (`UserError`, bei Zod-Prüfungen der Pfad), nie der Meldungstext.
 
 ### Datei-Felder
 

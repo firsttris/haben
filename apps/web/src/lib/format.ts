@@ -9,6 +9,8 @@ const dayMonthFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month:
 export const formatDate = (value: string | Date) => dateFormat.format(new Date(value));
 export const formatLongDate = (value: string | Date) => longDateFormat.format(new Date(value));
 export const formatDateTime = (value: string | Date) => dateTimeFormat.format(new Date(value));
+const timeFormat = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone });
+export const formatTime = (value: string | Date) => timeFormat.format(new Date(value));
 
 /**
  * Zeitraum vom Jahresanfang bis zum Stichtag, einheitlich geschrieben: „01.01.2026–14.11.2026".

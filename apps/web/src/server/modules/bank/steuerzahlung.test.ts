@@ -37,7 +37,7 @@ function dkbCsv(rows: [date: string, name: string, purpose: string, amount: stri
 }
 
 describe.skipIf(!testDatabaseUrl)("Steuerzahlungen im Bankabgleich (Postgres)", () => {
-  let bank: typeof import("./bank.ts");
+  let bank: typeof import("./index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let datev: typeof import("../auswertungen/datev-export.ts");
@@ -50,7 +50,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerzahlungen im Bankabgleich (Postgres)", 
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("./bank.ts");
+    bank = await import("./index.ts");
     reports = await import("../auswertungen/reports.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
     datev = await import("../auswertungen/datev-export.ts");

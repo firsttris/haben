@@ -23,45 +23,32 @@ export { fintsVerbinden, fintsVerbindenSchema, listFintsConnections, removeFints
 export { fintsAbrufen, runDueFintsSyncs } from "./fints-abruf.ts";
 export { fintsConfigured } from "./fints-produkt.ts";
 export { type FintsSchritt, vorgangFortsetzen as fintsFortsetzen, vorgangVerwerfen as fintsVerwerfen } from "./fints-vorgang.ts";
+export { BankError } from "./bank-error.ts";
 export {
   accountSchema,
-  allocate,
-  allocateIn,
-  allocateTransfer,
-  allocateTransferIn,
-  allocateExchangeDifferenceIn,
-  allocateSplit,
-  allocationSchema,
-  BankError,
-  UnbekannteCsvError,
+  accountSettingsSchema,
   createAccount,
   createProviderAccount,
-  providerAccountSchema,
-  importStatement,
-  storeStatement,
-  type ImportResult,
   listAccounts,
-  learnedDirectSuggestions,
-  listTransactions,
-  openItems,
   ownAccounts,
+  providerAccountSchema,
   updateAccount,
-  accountSettingsSchema,
-  reverseAllocation,
-  reverseAllocationIn,
-  splitSchema,
-  transactionDetail,
-  transferSchema,
-  allocateWithRest,
-  listWriteOffs,
-  restSchema,
-  reverseWriteOff,
-  writeOff,
-  writeOffSchema,
-} from "./bank.ts";
+} from "./accounts.ts";
+export { importStatement, type ImportResult, storeStatement, UnbekannteCsvError } from "./statement-import.ts";
+export { listTransactions } from "./transaction-list.ts";
+export { transactionDetail } from "./transaction-detail.ts";
+export { openItems } from "./offene-posten.ts";
+export { learnedDirectSuggestions } from "./learned-suggestions.ts";
+export { allocateTransfer, allocateTransferIn, transferSchema } from "./transfers.ts";
+export { allocate, allocateExchangeDifferenceIn, allocateIn, allocateSplit, allocationSchema, splitSchema } from "./allocation.ts";
+export { gemeldeteVoranmeldungen, reverseAllocation, reverseAllocationIn } from "./allocation-reversal.ts";
+export { allocateWithRest, restSchema } from "./allocation-rest.ts";
+export { listWriteOffs, reverseWriteOff, writeOff, writeOffSchema } from "./write-offs.ts";
 export { allocateFeesToDocument, feesSchema } from "./sammelzuordnung.ts";
+export { allocatePaymentWithFee, zahlungMitGebuehrSchema } from "./zahlung-gebuehr.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
 export { umsatzauswahl } from "./umsatzauswahl.ts";
+export { bestaetigeVorschlaege, BESTAETIGEN_HOECHSTENS } from "./bestaetigen.ts";
 export {
   nachStatusSortieren,
   SORTIERRICHTUNGEN,
@@ -72,6 +59,7 @@ export {
 export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
 export { hebePrivatAuf, markierePrivat } from "./privat.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
+export { decideDuplicate, duplicateDecisionSchema, type DuplicateDecisionInput } from "./duplicate-review.ts";
 export {
   createSepaTransfer,
   documentSepaTransfers,
@@ -149,8 +137,8 @@ export {
   settlementSchema,
   type SettlementInput,
 } from "./verrechnung.ts";
-export { gemeldeteVoranmeldungen } from "./bank.ts";
 export { bankCsvMappingSchema, csvZuordnungSchema, importCsvZuordnung, importStatementFile, type CsvImportResult } from "./csv-zuordnung.ts";
 export { klaerungView, openConflicts, recordRefusedBatch, resolveConflict, resolveConflictSchema } from "./import-konflikt.ts";
 export { cutoverDates } from "./andere-importe.ts";
 export { storeBatch, type BatchResult, type StoreBatchInput } from "./import-batch.ts";
+export { runExistingDuplicateCheck } from "./duplicate-scan.ts";

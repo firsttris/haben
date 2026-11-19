@@ -2,7 +2,7 @@ import { and, asc, sql } from "drizzle-orm";
 import { bankAccountIncludedSql } from "../../db/bank-open.ts";
 import { db, schema } from "../../db/index.ts";
 import { csv, iso, money } from "./csv.ts";
-import type { ArchiveFile } from "./export.ts";
+import type { ArchiveFile } from "./export-zip.ts";
 import { KLAERUNGEN_HEADER, klaerungenFuerArchiv, QUELLEN_HEADER, quellenFuerArchiv } from "./export-importvertrag.ts";
 import { berlinStart, yearEnd, yearStart } from "./jahr.ts";
 

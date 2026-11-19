@@ -1,4 +1,4 @@
-import type { EbTransaction } from "@haben/import";
+import { type EbTransaction, enableBankingStatement } from "@haben/import";
 import { describe, expect, it } from "vitest";
 import { abrufNachVertrag, berlinTimestamp } from "./vertrag-abruf.ts";
 
@@ -25,7 +25,7 @@ describe("abrufNachVertrag", () => {
       identificationHash: "hash-1",
       transactions,
       balances: [],
-      statement: { format: "enablebanking", currency: "EUR", transactions: [], warnings: [] },
+      statement: enableBankingStatement({ account: { uid: "u" }, transactions, balances: [], dateFrom: "2026-10-01", dateTo: "2026-10-09" }),
       dateFrom: "2026-10-01",
       dateTo: "2026-10-09",
       now: new Date("2026-10-09T20:00:00Z"),
@@ -63,8 +63,8 @@ describe("abrufNachVertrag", () => {
     expect(input.batch.unsupported).toEqual([]);
   });
 
-  it("nennt Umsätze nach dem Fenster und doppelt gelieferte, die nicht übernommen werden", () => {
-    const { hinweise } = nachVertrag([
+  it("ordnet mehrdeutige Zeilen auch nach der Sortierung ihrer Vertragsprüfung zu und nennt sie im Hinweis", () => {
+    const { input, hinweise } = nachVertrag([
       tx(),
       tx(),
       tx({ entry_reference: "ER-2", booking_date: "2026-09-28" }),
@@ -72,11 +72,22 @@ describe("abrufNachVertrag", () => {
     ]);
     expect(hinweise).toEqual([
       "1 Umsatz nach dem abgerufenen Zeitraum nicht übernommen; der nächste Abruf holt ihn.",
-      "1 Umsatz mit derselben Referenz der Bank doppelt geliefert und einmal übernommen.",
+      "2 Umsätze mit mehrfach vergebener Bankreferenz: am Inhalt erkannt.",
     ]);
+    const events = input.statement.transactions.map(input.eventOf);
+    expect(events[0]).toBe("ER-2");
+    expect(events[3]).toBe("ER-3");
+    expect(new Set(events.slice(1, 3))).toEqual(input.fallbackEvents);
   });
 
   it("lässt vorgemerkte Umsätze unter unsupported", () => {
     expect(nachVertrag([tx({ status: "PDNG" })]).input.batch.unsupported).toHaveLength(1);
+  });
+
+  it("verwechselt eine Prüfkennung nicht mit der echten Referenz einer Zeile außerhalb des Fensters", () => {
+    const { input } = nachVertrag([tx(), tx(), tx({ entry_reference: "~zeile:0", booking_date: "2026-10-12" })]);
+    const event = input.eventOf(input.statement.transactions[2]!);
+    expect(event).toBe("~zeile:0");
+    expect(input.fallbackEvents?.has(event!)).toBe(false);
   });
 });

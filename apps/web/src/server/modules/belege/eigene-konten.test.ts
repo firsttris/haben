@@ -25,7 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg mit eigenem Konto (Postgres, #270)", ()
   let konten: typeof import("../eigene-konten/index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let fileSeq = 0;
@@ -37,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg mit eigenem Konto (Postgres, #270)", ()
     konten = await import("../eigene-konten/index.ts");
     reports = await import("../auswertungen/reports.ts");
     vat = await import("../umsatzsteuer/vat-figures.ts");
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
   }, 30_000);
 
   afterAll(async () => {

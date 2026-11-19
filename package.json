@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
-  "packageManager": "bun@1.4.4",
+  "packageManager": "bun@1.4.5",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -17,7 +17,7 @@
     "release:minor": "bun pm version minor",
     "release:major": "bun pm version major",
     "postversion": "git push --follow-tags",
-    "lint": "bun --bun biome check --error-on-warnings && bun scripts/modulgrenzen/pruefen.ts && bun scripts/seitenabdeckung/pruefen.ts && bun scripts/dateigroesse/pruefen.ts && bun scripts/raster/pruefen.ts",
+    "lint": "bun --bun biome check --error-on-warnings && bun scripts/modulgrenzen/pruefen.ts && checks pages && checks file-size && bun scripts/raster/pruefen.ts",
     "format": "bun --bun biome format --write",
     "test": "bun --bun vitest run",
     "db:generate": "bun run --cwd apps/web db:generate",
@@ -28,12 +28,13 @@
     "docs:hero": "bun scripts/hero/render.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
+    "@firsttris/checks": "github:firsttris/workflows#v1",
     "@tanstack/redact": "0.3.1",
     "@types/node": "^26.0.0",
-    "oxc-parser": "^0.156.0",
+    "oxc-parser": "^0.159.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "5.1.0"
   },
   "trustedDependencies": [
     "esbuild",

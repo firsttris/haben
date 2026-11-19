@@ -1,4 +1,4 @@
-import { ACCOUNTS, type JournalZeile, type Kontenrahmen, resolveOwnAccount } from "@haben/core";
+import { ACCOUNTS, type EuerAusJournal, type JournalZeile, type Kontenrahmen, resolveOwnAccount } from "@haben/core";
 import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { loadOwnAccountParents } from "../eigene-konten/index.ts";
@@ -20,6 +20,37 @@ export interface Buchung {
   zeilen: Zeile[];
   /** Position der Buchung im Audit-Log: daran richtet sich die Reihenfolge von Zahlungen und Verrechnungen (#877) */
   position?: number;
+}
+
+/**
+ * Empfängt, was eine Buchung bzw. eine Verrechnung (#274, `sourceType` „verrechnung“) in der EÜR bewirkt, mit der Rechnung bzw.
+ * dem Beleg, den sie ausgleicht: die Grundlage der BWA nach Zufluss und Abfluss (#1380)
+ */
+export type EuerBeitraege = (
+  buchung: Pick<Buchung, "id" | "date" | "kontenrahmen" | "sourceType" | "sourceId"> & { invoiceId: string | null; documentId: string | null },
+  beitrag: EuerAusJournal,
+) => void;
+
+/** Meldet die Wirkung einer Buchung dem Sammler der BWA, falls es einen gibt, mit ihrem Ausgleich; gibt sie unverändert zurück */
+export function melden(
+  beitraege: EuerBeitraege | undefined,
+  b: Buchung,
+  ziel: { invoiceId: string | null; documentId: string | null } | undefined,
+  beitrag: EuerAusJournal,
+): EuerAusJournal {
+  beitraege?.({ ...b, invoiceId: ziel?.invoiceId ?? null, documentId: ziel?.documentId ?? null }, beitrag);
+  return beitrag;
+}
+
+/** Wie melden für eine Verrechnung (#274): Sie gleicht den Beleg aus; der Rahmen ist der der Firma */
+export function meldenVerrechnung(
+  beitraege: EuerBeitraege | undefined,
+  v: { id: string; date: string; dokumentId: string },
+  kontenrahmen: Kontenrahmen,
+  beitrag: EuerAusJournal,
+): EuerAusJournal {
+  beitraege?.({ id: v.id, date: v.date, kontenrahmen, sourceType: "verrechnung", sourceId: v.id, invoiceId: null, documentId: v.dokumentId }, beitrag);
+  return beitrag;
 }
 
 /** Höchstzahl der IDs je Abfrage mit inArray; PostgreSQL nimmt höchstens 65 535 Parameter je Abfrage */

@@ -16,6 +16,7 @@ import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { waitingReceipt } from "./fastbill-belege.ts";
+import { importAfterVouchers } from "./fastbill-nachlauf.ts";
 import { FastbillError, fastbillCredentials, forgetOtherFastbillCalls, newFastbillClient, otherFastbillCalls } from "./fastbill-zugang.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
@@ -193,6 +194,7 @@ async function runImport(actor: string, importId: string, client: FastbillClient
   await save(true);
   await importListed(actor, importId, client, listed, { invoicesById, creditsByInvoice }, progress, save, signal);
   await save(true);
+  await importAfterVouchers(actor, importId, client, progress, signal, save);
 }
 
 /** 1. Kunden; FastBill führt keine Lieferanten als Kontakte */

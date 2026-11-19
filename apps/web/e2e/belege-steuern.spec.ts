@@ -7,6 +7,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { periodKey, periodLabel } from "@haben/core";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
+import { TEST_PIN, testZertifikatsdatei } from "../src/test-fixtures/elster-zertifikat.ts";
 import { currentDay, currentYear, day, YEAR } from "./daten.ts";
 import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
@@ -29,7 +30,7 @@ import {
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
 import { vorsteuerPruefen } from "./belege-vorsteuer.ts";
-import { ustIdBestaetigungPruefen } from "./ustid-bestaetigung.ts";
+import { ustIdBestaetigungPruefen, zmBestaetigungPruefen } from "./ustid-bestaetigung.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -324,13 +325,18 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await expect(taxpayer.getByRole("status")).toBeVisible();
   await go("/einstellungen?bereich=elster");
   const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
+  // Mit der PIN liest Haben das Ablaufdatum aus der Datei (#1366); die Testdatei ist aufgebaut wie eine aus Mein ELSTER
   await cert
     .getByLabel("Zertifikatsdatei")
-    .setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
+    .setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from(testZertifikatsdatei("rc2-40")) });
+  await cert.getByLabel("Zertifikats-PIN (optional)").fill(TEST_PIN);
   await cert.getByRole("button", { name: "Hochladen" }).click();
+  await expect(cert.getByRole("status")).toHaveText("Zertifikat verschlüsselt gespeichert, gültig bis 01.01.2030.");
   // Den Dateinamen zeigt schon die Dateiauswahl; „Entfernen“ gibt es erst, wenn das Zertifikat gespeichert ist
   await expect(cert.getByRole("button", { name: "Entfernen" })).toBeVisible();
   await expect(cert.getByText("test.pfx").first()).toBeVisible();
+  await expect(cert.getByText("gültig bis 01.01.2030", { exact: true })).toBeVisible();
+  await expect(cert.getByLabel("Zertifikats-PIN (optional)")).toHaveValue("");
   const formate = page.getByRole("group", { name: "Formate prüfen" });
   await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
   await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
@@ -2142,6 +2148,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await expect(page.getByRole("form", { name: "Meldung an das BZSt" })).toBeVisible();
 });
 
+zmBestaetigungPruefen(() => page);
+
 test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart L in der Zusammenfassenden Meldung", async () => {
   // Nach der Zusammenfassenden Meldung oben: USt-IdNr. in den Firmendaten und der Kunde in Wien sind angelegt
   const next = YEAR + 1;
@@ -2225,6 +2233,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   await page.getByLabel("Straße und Hausnummer").fill("Speicherstadt 4");
   await page.getByLabel("PLZ").fill("20457");
   await page.getByLabel("Ort").fill("Hamburg");
+  await weitereAngabenOeffnen(page);
   await page.getByRole("combobox", { name: /^Skonto/ }).selectOption("eigen");
   await page.getByRole("button", { name: "Skontostufe hinzufügen" }).click();
   await page.getByLabel("Stufe 1: Skonto in %").fill("3");
@@ -3046,7 +3055,7 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await page.waitForLoadState("networkidle");
   await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
   await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeVisible();
-  await expect(panel.getByText("Ausgabe: Telefon")).toBeVisible();
+  await expect(panel.getByText(/Ausgabe: [0-9]{4} · Telefon/)).toBeVisible();
   await expect(panel.getByText(`2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am ${day(0).split("-").reverse().join(".")}`)).toBeVisible();
   await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
   await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("telefon"));

@@ -7,13 +7,13 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * EÜR-Anleitung 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025 */
 describe.skipIf(!testDatabaseUrl)("Review #706: USt-Teile und Rechtsformen (Postgres)", () => {
   let sql: postgres.Sql;
-  let bank: typeof import("../bank/bank.ts");
+  let bank: typeof import("../bank/index.ts");
   let reports: typeof import("./reports.ts");
   let journal: typeof import("./euer-journal.ts");
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    bank = await import("../bank/bank.ts");
+    bank = await import("../bank/index.ts");
     reports = await import("./reports.ts");
     journal = await import("./euer-journal.ts");
   }, 30_000);
