@@ -1,5 +1,6 @@
 import { formatDecimal, formatHundredths, type SkontoStufe } from "@haben/core";
 import { useState } from "react";
+import { fehlerFelder } from "../lib/format.ts";
 import { FORMAT_LABEL, FORMATS, type InvoiceFormat } from "../lib/invoice.ts";
 import type { ContactInput } from "../server/modules/stammdaten/index.ts";
 import { Field } from "./Field.tsx";
@@ -21,7 +22,7 @@ export interface KontaktWeitereWerte {
 export function kontaktWeitereKurz(werte: KontaktWeitereWerte): string {
   const skonto = werte.ownSkonto
     ? werte.skonto.length > 0
-      ? `Skonto ${werte.skonto.map((s) => `${formatHundredths(s.percent).replace(/,00$/, "")} % in ${s.days} Tagen`).join(", ")}`
+      ? `Skonto ${werte.skonto.map((s) => `${formatHundredths(s.percent).replace(/,00$/, "")} % in ${s.days} ${s.days === 1 ? "Tag" : "Tagen"}`).join(", ")}`
       : "ohne Skonto"
     : "";
   const gesetzt = [
@@ -37,19 +38,14 @@ export function kontaktWeitereKurz(werte: KontaktWeitereWerte): string {
   return gesetzt || "optional: DATEV-Konten, Skonto, Stundensatz, Leitweg-ID, Rechnungsformat";
 }
 
-/**
- * Das Feld (Name im Formular), das eine Meldung des Formulars oder des Servers nennt; undefined bei jeder anderen Meldung. Zod-Meldungen des Servers tragen keine `felder` (nur `UserError`), darum
- * nennen die Schranken im Schema das Feld im Text (`contactSchema`).
- */
-const MELDUNG_FELD = [
-  [/Debitor/i, "debitorNr"],
-  [/Kreditor/i, "kreditorNr"],
-  [/Stundensatz/i, "hourlyRateCents"],
-  [/Leitweg/i, "leitwegId"],
-  [/Skonto/i, "skonto"],
-] as const;
-export const weitereAngabenFeld = (meldung: string): string | undefined => MELDUNG_FELD.find(([muster]) => muster.test(meldung))?.[1];
-export const betrifftWeitereAngaben = (meldung: string) => weitereAngabenFeld(meldung) !== undefined;
+/** Die Felder im Bereich, benannt wie im Formular und in `contactSchema`; ein Fehler nennt sie in `felder` (UserError, Pfad der Zod-Prüfung) */
+const WEITERE_FELDER = ["debitorNr", "kreditorNr", "hourlyRateCents", "leitwegId", "defaultFormat", "skonto"] as const;
+
+/** Das erste Feld im Bereich, an dem ein Fehler liegt; die Seite klappt ihn dann auf und setzt den Fokus dorthin */
+export const weitereAngabenFeld = (error: unknown) => fehlerFelder(error).find((feld) => (WEITERE_FELDER as readonly string[]).includes(feld));
+
+/** Fehler der Prüfung im Browser an einem Feld im Bereich, mit denselben `felder` wie vom Server */
+export const feldFehler = (feld: (typeof WEITERE_FELDER)[number], message: string) => Object.assign(new Error(message), { felder: [feld] });
 
 /**
  * Das Seltene am Kontakt eingeklappt (#1253): DATEV-Konten, Stundensatz, Leitweg-ID, Rechnungsformat und Skonto. Die Felder

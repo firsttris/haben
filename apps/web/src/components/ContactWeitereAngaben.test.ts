@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { ContactInput } from "../server/modules/stammdaten/index.ts";
-import { betrifftWeitereAngaben, ContactWeitereAngaben, type KontaktWeitereWerte, kontaktWeitereKurz } from "./ContactWeitereAngaben.tsx";
+import { ContactWeitereAngaben, feldFehler, type KontaktWeitereWerte, kontaktWeitereKurz, weitereAngabenFeld } from "./ContactWeitereAngaben.tsx";
 
 const leer: KontaktWeitereWerte = { debitorNr: "", kreditorNr: "", hourlyRate: "", leitwegId: "", defaultFormat: "", ownSkonto: false, skonto: [] };
 const initial = { leitwegId: "991-01234-44", debitorNr: 10050, hourlyRateCents: 9500, defaultFormat: "xrechnung-cii" } as ContactInput;
@@ -57,16 +57,17 @@ describe("Weitere Angaben am Kontakt", () => {
     expect(render(true)).toMatch(/<details[^>]* open/);
   });
 
-  it("erkennt Meldungen zu Feldern im Bereich, aus Formular und Server", () => {
-    for (const meldung of [
-      "Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)",
-      "Kreditor 70087 hat schon „Muster GmbH“.",
-      "Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.",
-      "Bitte den Stundensatz als Betrag angeben",
-    ]) {
-      expect(betrifftWeitereAngaben(meldung), meldung).toBe(true);
-    }
-    for (const meldung of ["Ein Kontakt ist Kunde oder Lieferant oder beides.", "Kontakt nicht gefunden."])
-      expect(betrifftWeitereAngaben(meldung), meldung).toBe(false);
+  it("schreibt „1 Tag“ im Singular", () => {
+    expect(kontaktWeitereKurz({ ...leer, ownSkonto: true, skonto: [{ days: 1, percent: 300 }] })).toBe("Skonto 3 % in 1 Tag");
+  });
+
+  it("erkennt das Feld im Bereich an `felder` des Fehlers, vom Server und aus dem Browser", () => {
+    const vomServer = (...felder: string[]) => Object.assign(new Error("Meldung"), { felder });
+    expect(weitereAngabenFeld(vomServer("debitorNr"))).toBe("debitorNr");
+    expect(weitereAngabenFeld(vomServer("contact", "skonto", "days"))).toBe("skonto");
+    expect(weitereAngabenFeld(feldFehler("hourlyRateCents", "Stundensatz fehlt"))).toBe("hourlyRateCents");
+    // Auch ein Kontakt, dessen Name ein Stichwort trägt, trifft nicht das falsche Feld: Der Text zählt nicht
+    expect(weitereAngabenFeld(Object.assign(new Error("Kreditor 70087 hat schon „Debitor Müller GmbH“."), { felder: ["kreditorNr"] }))).toBe("kreditorNr");
+    for (const fehler of [vomServer("name"), vomServer(), new Error("Debitor: 10000 bis 69999"), null]) expect(weitereAngabenFeld(fehler)).toBeUndefined();
   });
 });

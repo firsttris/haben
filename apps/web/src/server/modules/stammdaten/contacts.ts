@@ -229,7 +229,7 @@ function clean(input: ContactInput) {
   for (const rolle of ["debitor", "kreditor"] as const) {
     const nr = input[`${rolle}Nr`];
     const problem = nr == null ? null : personenkontoProblem(rolle, nr);
-    if (problem) throw new ContactError(problem);
+    if (problem) throw new ContactError(problem, { felder: [`${rolle}Nr`] });
   }
   return {
     ...input,
@@ -278,7 +278,7 @@ async function samePersonenkonto<T>(tx: Tx, write: () => Promise<T>): Promise<T>
       const nr = Number(/\((\d+)\)/.exec(String((error as { cause?: { detail?: string } }).cause?.detail))?.[1]);
       const column = rolle === "debitor" ? schema.contacts.debitorNr : schema.contacts.kreditorNr;
       const [owner] = Number.isFinite(nr) ? await tx.select({ name: schema.contacts.name }).from(schema.contacts).where(eq(column, nr)) : [];
-      throw new ContactError(`${PERSONENKONTO_LABEL[rolle]} ${nr} hat schon „${owner?.name ?? "einen anderen Kontakt"}“.`);
+      throw new ContactError(`${PERSONENKONTO_LABEL[rolle]} ${nr} hat schon „${owner?.name ?? "einen anderen Kontakt"}“.`, { felder: [`${rolle}Nr`] });
     }
     throw error;
   }

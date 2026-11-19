@@ -1,11 +1,11 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { betrifftWeitereAngaben } from "../../../components/ContactWeitereAngaben.tsx";
-import { userMessage } from "../../errors.ts";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { weitereAngabenFeld } from "../../../components/ContactWeitereAngaben.tsx";
+import { userClientError } from "../../errors.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
-/** Meldungen des Servers zu Feldern in „Weitere Angaben“ (#1253): Das Formular klappt den Bereich dann auf */
-describe.skipIf(!testDatabaseUrl)("Weitere Angaben am Kontakt: Meldungen des Servers nennen das Feld", () => {
+/** Fehler des Servers zu Feldern in „Weitere Angaben“ (#1253): Das Formular klappt den Bereich dann auf */
+describe.skipIf(!testDatabaseUrl)("Weitere Angaben am Kontakt: Fehler des Servers nennen das Feld", () => {
   let sql: postgres.Sql;
   let contacts: typeof import("./contacts.ts");
   const gueltig = {
@@ -32,36 +32,49 @@ describe.skipIf(!testDatabaseUrl)("Weitere Angaben am Kontakt: Meldungen des Ser
     await sql?.end();
   });
 
-  /** Die Meldung, die der Browser sieht, wenn der Server die Eingabe ablehnt */
-  function serverMeldung(aenderung: Record<string, unknown>): string {
+  /** Der Fehler, den der Browser bekommt, wenn der Server die Eingabe ablehnt */
+  function serverFehler(aenderung: Record<string, unknown>): Error {
     const ergebnis = contacts.contactSchema.safeParse({ ...gueltig, ...aenderung });
     expect(ergebnis.success).toBe(false);
-    return userMessage(ergebnis.error)!;
+    return userClientError(ergebnis.error)!;
   }
 
   it("Skonto: Frist und Satz außerhalb der Grenzen", () => {
     for (const skonto of [[{ days: 121, percent: 200 }], [{ days: 0, percent: 200 }], [{ days: 10, percent: 10_000 }], [{ days: 10, percent: 0 }]]) {
-      const meldung = serverMeldung({ skonto });
-      expect(betrifftWeitereAngaben(meldung), meldung).toBe(true);
+      expect(weitereAngabenFeld(serverFehler({ skonto })), JSON.stringify(skonto)).toBe("skonto");
     }
   });
 
   it("Leitweg-ID über 46 Zeichen", () => {
-    const meldung = serverMeldung({ leitwegId: "9".repeat(47) });
-    expect(meldung).toBe("Leitweg-ID: höchstens 46 Zeichen");
-    expect(betrifftWeitereAngaben(meldung)).toBe(true);
+    const fehler = serverFehler({ leitwegId: "9".repeat(47) });
+    expect(fehler.message).toBe("Leitweg-ID: höchstens 46 Zeichen");
+    expect(weitereAngabenFeld(fehler)).toBe("leitwegId");
   });
 
-  it("Stundensatz über 100.000 €, den der Browser durchlässt", () => {
-    const meldung = serverMeldung({ hourlyRateCents: 100_000_01 });
-    expect(meldung).toBe("Stundensatz: höchstens 100.000 €");
-    expect(betrifftWeitereAngaben(meldung)).toBe(true);
+  it("Stundensatz über 100.000 €, den der Browser durchlässt, und negativer Stundensatz", () => {
+    const zuHoch = serverFehler({ hourlyRateCents: 100_000_01 });
+    expect(zuHoch.message).toBe("Stundensatz: höchstens 100.000 €");
+    expect(weitereAngabenFeld(zuHoch)).toBe("hourlyRateCents");
+    expect(weitereAngabenFeld(serverFehler({ hourlyRateCents: -1 }))).toBe("hourlyRateCents");
   });
 
-  it("negativer Stundensatz, Debitor und Kreditor außerhalb des Bereichs", () => {
-    for (const aenderung of [{ hourlyRateCents: -1 }, { debitorNr: 5 }, { kreditorNr: 5 }]) {
-      const meldung = serverMeldung(aenderung);
-      expect(betrifftWeitereAngaben(meldung), meldung).toBe(true);
-    }
+  it("Debitor und Kreditor außerhalb des Bereichs", () => {
+    expect(weitereAngabenFeld(serverFehler({ debitorNr: 5 }))).toBe("debitorNr");
+    expect(weitereAngabenFeld(serverFehler({ kreditorNr: 5 }))).toBe("kreditorNr");
+  });
+
+  it("eine vergebene Nummer nennt das Feld, auch wenn der andere Kontakt wie ein Stichwort heißt", async () => {
+    await leeren(sql)`truncate contact_versions, contacts, company cascade`;
+    await sql`insert into company (id, name) values (1, 'Testfirma')`;
+    await contacts.createContact("test-user", { ...gueltig, name: "Debitor Müller GmbH", kreditorNr: 70087 });
+    const doppelt = await contacts
+      .createContact("test-user", { ...gueltig, name: "Zweiter" })
+      .then(() => contacts.createContact("test-user", { ...gueltig, name: "Dritter", kreditorNr: 70087 }))
+      .catch((error: unknown) => error);
+    expect((doppelt as Error).message).toContain("Kreditor 70087 hat schon „Debitor Müller GmbH“");
+    expect(weitereAngabenFeld(userClientError(doppelt)!)).toBe("kreditorNr");
+    // Eine Nummer außerhalb des Bereichs, die erst der Server prüft (clean), nennt ebenfalls das Feld
+    const ausserhalb = await contacts.createContact("test-user", { ...gueltig, name: "Vierter", debitorNr: 5 }).catch((error: unknown) => error);
+    expect(weitereAngabenFeld(userClientError(ausserhalb)!)).toBe("debitorNr");
   });
 });

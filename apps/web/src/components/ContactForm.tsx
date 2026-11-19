@@ -8,9 +8,8 @@ import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
 import { Field } from "./Field.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { ContactWeitereAngaben, weitereAngabenFeld } from "./ContactWeitereAngaben.tsx";
+import { ContactWeitereAngaben, feldFehler, weitereAngabenFeld } from "./ContactWeitereAngaben.tsx";
 import { parseSkontoRows, toSkontoRows } from "./SkontoFields.tsx";
-import { errorMessage } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 
 const EMPTY: ContactInput = {
@@ -110,10 +109,10 @@ export function ContactForm({
     void run(async () => {
       try {
         if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
-        if (!debitor.ok) throw new Error(debitor.error);
-        if (!kreditor.ok) throw new Error(kreditor.error);
-        if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error(amountError("den Stundensatz", 9_500));
-        if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
+        if (!debitor.ok) throw feldFehler("debitorNr", debitor.error);
+        if (!kreditor.ok) throw feldFehler("kreditorNr", kreditor.error);
+        if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw feldFehler("hourlyRateCents", amountError("den Stundensatz", 9_500));
+        if (ownSkonto && !skonto.valid) throw feldFehler("skonto", "Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
         const input = {
           ...textFields(text),
           defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
@@ -136,8 +135,8 @@ export function ContactForm({
         }
       } catch (error) {
         // Ein Fehler an einem Feld im eingeklappten Bereich, vom Formular oder vom Server, klappt ihn auf; der Fokus geht ins Feld
-        const feld = weitereAngabenFeld(errorMessage(error));
-        if (feld !== undefined) {
+        const feld = weitereAngabenFeld(error);
+        if (feld) {
           flushSync(() => setWeitereOffen(true));
           (formElement.elements.namedItem(feld) as HTMLElement | null)?.focus();
         }
