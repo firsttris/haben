@@ -107,13 +107,16 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 
 ## Haben und die Alternativen
 
-| | Was es ist | Was Haben anders macht |
+Haben läuft auf deinem eigenen Server, ohne Abo. Beim Umzug rechnet es jedes Jahr nach, damit du vor der Kündigung
+siehst, dass alles da ist.
+
+| | Was es ist | Umzug nach Haben |
 |---|---|---|
-| Lexware Office (früher lexoffice) | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Eigener Server, kein Abo; Umzug über die Public API, eine Sicherung aus der Web-Oberfläche oder den DATEV-Export, mit Abgleich je Jahr vor der Kündigung ([Umzug](https://haben.app/lexoffice.html)) |
-| sevDesk | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Eigener Server, kein Abo; Umzug mit API-Token oder über die Exporte, samt Anlagen, mit Abgleich je Jahr ([Umzug](https://haben.app/sevdesk.html)) |
-| FastBill | Rechnungen und Buchhaltung online im Abo | Eigener Server, kein Abo; Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API übernehmen, mit Abgleich je Jahr ([Umzug](https://haben.app/fastbill.html)) |
-| BuchhaltungsButler · Accountable | Online-Buchhaltung im Abo | Eigener Server, kein Abo; Umzug ohne API aus den Exportdateien (DATEV-Buchungsstapel und Belege), unveränderlich archiviert und je Jahr abgeglichen ([BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html), [Accountable](https://haben.app/accountable.html)) |
-| DATEV | Software und Datenformat der Steuerberatung | Du buchst selbst; die Steuerberatung bekommt einen [Lesezugang](https://haben.app/steuerberatung.html) oder den DATEV-Buchungsstapel. Bei GmbH und UG rechnet Haben aus dem DATEV-Stapel des alten Programms Bilanz, GuV und Steuern zum Vergleich mit ihrem Abschluss |
+| Lexware Office (früher lexoffice) | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Über die Public API, eine Sicherung aus der Web-Oberfläche oder den DATEV-Export ([Umzug](https://haben.app/lexoffice.html)) |
+| sevDesk | Buchhaltung und Rechnungen als Cloud-Dienst im Abo | Mit API-Token oder über die Exporte, samt Anlagen ([Umzug](https://haben.app/sevdesk.html)) |
+| FastBill | Rechnungen und Buchhaltung online im Abo | Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API ([Umzug](https://haben.app/fastbill.html)) |
+| BuchhaltungsButler · Accountable | Online-Buchhaltung im Abo | Aus den Exportdateien (DATEV-Buchungsstapel und Belege) ([BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html), [Accountable](https://haben.app/accountable.html)) |
+| DATEV | Software und Datenformat der Steuerberatung | Kein Umzug nötig: Du buchst in Haben, die Steuerberatung bekommt einen [Lesezugang](https://haben.app/steuerberatung.html) oder den DATEV-Buchungsstapel |
 
 ## Schnellstart
 
