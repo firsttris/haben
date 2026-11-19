@@ -141,7 +141,7 @@ describe("stripeBatch", () => {
 
   it("erkennt dieselben Bewegungen bei erneutem Abruf als bekannt", () => {
     const first = accept([txn()]);
-    const known = new Map(first.accepted.map((m) => [movementKey(binding, m), knownMovement(m)]));
+    const known = new Map(first.accepted.map((m) => [movementKey(binding, m), [knownMovement(m)]]));
     const again = accept([txn()]);
     expect(classifyMovements(known, binding, again.accepted).results.map((r) => r.outcome)).toEqual(["known", "known"]);
   });
