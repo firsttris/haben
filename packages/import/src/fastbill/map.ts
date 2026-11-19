@@ -63,7 +63,7 @@ function text(value: string | number | null | undefined): string {
 }
 
 /** Datum, wenn FastBill eines gesetzt hat: ISO oder TT.MM.JJJJ; "0000-00-00" steht für leer. */
-function fbDate(value: string | null | undefined): string | null {
+export function fbDate(value: string | null | undefined): string | null {
   const german = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(value?.trim() ?? "");
   const d = german ? `${german[3]}-${german[2]}-${german[1]}` : lexDate(value);
   return d && !d.startsWith("0000") ? d : null;

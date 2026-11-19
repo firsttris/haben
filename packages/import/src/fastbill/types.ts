@@ -81,6 +81,9 @@ export const fbInvoiceItemSchema = z.looseObject({
   COMPLETE_NET: numeric,
   COMPLETE_GROSS: numeric,
   SORT_ORDER: numeric,
+  UNIT: str,
+  DISCOUNT_PERCENT: numeric,
+  DISCOUNT_AMOUNT: numeric,
 });
 export type FbInvoiceItem = z.infer<typeof fbInvoiceItemSchema>;
 
@@ -178,6 +181,34 @@ export const fbExpenseSchema = z.looseObject({
   DOCUMENT_URL: str,
 });
 export type FbExpense = z.infer<typeof fbExpenseSchema>;
+
+// ---------------------------------------------------------------- Wiederkehrende Rechnungen
+
+/** recurring.get (https://apidocs.fastbill.com/fastbill/de/recurring.html); Liste INVOICES im echten Konto */
+export const fbRecurringSchema = z.looseObject({
+  INVOICE_ID: id,
+  CUSTOMER_ID: id.nullish(),
+  INVOICE_TITLE: str,
+  INTROTEXT: str,
+  NOTE: str,
+  CURRENCY_CODE: str,
+  /** monthly, 3 months, 6 months, yearly, weekly, 2 weeks, 4 weeks, 2 months */
+  FREQUENCY: str,
+  START_DATE: str,
+  /** Anzahl der Rechnungen, 0 = unbegrenzt */
+  OCCURENCES: numeric,
+  IS_GROSS: numeric,
+  VAT_CASE: numeric,
+  PAYMENT_TYPE: numeric,
+  CASH_DISCOUNT_PERCENT: numeric,
+  CASH_DISCOUNT_DAYS: numeric,
+  DISCOUNT_PERCENT: numeric,
+  DISCOUNT_AMOUNT: numeric,
+  SERVICE_PERIOD_START: str,
+  DELIVERY_DATE: str,
+  ITEMS: list(fbInvoiceItemSchema),
+});
+export type FbRecurring = z.infer<typeof fbRecurringSchema>;
 
 // ---------------------------------------------------------------- Artikel
 

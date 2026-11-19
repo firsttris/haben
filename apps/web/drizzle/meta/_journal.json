@@ -2108,6 +2108,20 @@
       "when": 1795085347613,
       "tag": "0300_importvertrag_referenzen",
       "breakpoints": true
+    },
+    {
+      "idx": 301,
+      "version": "7",
+      "when": 1795096206845,
+      "tag": "0301_fastbill_vorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 302,
+      "version": "7",
+      "when": 1795096207968,
+      "tag": "0302_fastbill_vorlagen_trigger",
+      "breakpoints": true
     }
   ]
 }

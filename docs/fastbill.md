@@ -37,6 +37,7 @@ Trag Login-E-Mail, Tarif und API-Schlüssel ein und klicke „Prüfen und speich
 1. **Kunden:** Name (Firma oder Person), Adresse, Land, E-Mail, USt-IdNr. und Kundennummer, als Kontakte mit der Rolle Kunde. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne FastBill-Herkunft, verknüpft Haben ihn. FastBill führt Lieferanten nicht als Kontakte; sie stehen in den Ausgaben nur als Name.
 2. **Belegliste:** Ausgangsrechnungen, Gutschriften und stornierte Rechnungen, je Art ein eigener Abruf, dazu die Ausgaben. Entwürfe bleiben draußen.
 3. **Dateien:** je Rechnung und Gutschrift das PDF, je Ausgabe der hochgeladene Beleg. Gibt FastBill den Beleg einer Ausgabe nur im angemeldeten Browser heraus, wartet die Ausgabe, siehe [Belege, die FastBill nur im Browser herausgibt](#belege-die-fastbill-nur-im-browser-herausgibt).
+4. **Wiederkehrende Rechnungen:** als pausierte Vorlagen, siehe [Wiederkehrende Rechnungen](#wiederkehrende-rechnungen).
 
 Die Antwort der API wird je Beleg gespeichert, zum Nachweis; ohne die Download-Adresse (`DOCUMENT_URL`), denn wer sie kennt, lädt den Beleg ohne Anmeldung.
 
@@ -108,9 +109,19 @@ Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelka
 - **Währung:** Einen Preis in anderer Währung als Euro übernimmt Haben nicht; die Vorschau zeigt ihn als Fehler.
 - **Stundengrenze:** Der Abruf zählt auf dieselbe Grenze wie der Abruf der Belege, und umgekehrt. Ist sie erreicht oder antwortet FastBill gerade nicht, sagt Haben, in wie vielen Minuten es wieder geht. Während eines laufenden Abrufs holt Haben keine Artikel.
 
+### Wiederkehrende Rechnungen
+
+Jede Vorlage aus FastBill kommt als [wiederkehrende Rechnung](rechnungen.md#wiederkehrende-rechnungen) an, und zwar **pausiert**, als Entwurf und ohne E-Mail. So schicken in der Übergangszeit nicht FastBill und Haben dieselbe Rechnung. Stoppe die Vorlage in FastBill, prüfe sie in Haben und schalte sie dann auf **Aktiv**. Ein neuer Abruf legt keine Vorlage doppelt an, auch wenn du sie in Haben gelöscht hast.
+
+- **Turnus:** monatlich, vierteljährlich, halbjährlich und jährlich. Wöchentlich, alle 2 oder 4 Wochen und alle 2 Monate kennt Haben nicht; solche Vorlagen nennt der Abruf mit Grund, sie legst du von Hand an.
+- **Nächste Rechnung am** ist das Startdatum aus FastBill, denn FastBill nennt keinen nächsten Termin. Prüfe es gegen die letzte Rechnung aus der Vorlage. Ist die Vorlage in FastBill auf eine Anzahl Rechnungen begrenzt, rechnet Haben das Enddatum ab dem Startdatum.
+- **Positionen** mit Bezeichnung, Text, Art.-Nr., Menge, Einheit, Preis und Steuersatz; netto oder brutto wie in FastBill. Eine Einheit, die Haben nicht kennt, wird „Stk.“.
+- **Nicht übernommen:** Vorlagen in anderer Währung, mit Rabatt, mit einem Steuersatz außer 0, 7 und 19 %, mit dem Umsatzsteuerfall 1 (Lieferung oder Leistung ins EU-Ausland, siehe [Steuerarten](#steuerarten-im-abgleich)) und solche, deren Kunde nicht übernommen ist. Der Abruf nennt sie je Vorlage.
+- **Zum Prüfen:** Zahlungsart außer Überweisung, Skonto, Leistungszeitraum und Lieferdatum übernimmt Haben nicht. Zahlungsziel ist das aus deinen Firmendaten. Was davon eine Vorlage betrifft, steht auf ihrer Seite unter „Aus FastBill übernommen“.
+
 ### Grenzen des aktuellen Imports
 
-Angebote, wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
+Angebote, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
 
 ## Schritt 3 bis 5
 

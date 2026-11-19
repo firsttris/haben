@@ -12,4 +12,5 @@ export {
   mapFbInvoice,
 } from "./map.ts";
 export { fbArticlesCsv } from "./artikel.ts";
-export type { FbArticle, FbContact, FbCustomer, FbExpense, FbFile, FbInvoice, FbInvoiceItem, FbPayment, FbVatItem } from "./types.ts";
+export { type FbRecurringLine, type FbRecurringMapped, type FbRecurringTemplate, mapFbRecurring } from "./vorlagen.ts";
+export type { FbArticle, FbRecurring, FbContact, FbCustomer, FbExpense, FbFile, FbInvoice, FbInvoiceItem, FbPayment, FbVatItem } from "./types.ts";
