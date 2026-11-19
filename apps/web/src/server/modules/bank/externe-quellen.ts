@@ -158,6 +158,25 @@ export async function importExternalBatch(actor: string, body: unknown): Promise
   if (!validation.ok)
     return { status: "invalid", message: `Lieferung entspricht nicht dem Importvertrag: ${validation.problems.join(" ")}`, problems: validation.problems };
 
+  // Ein offener Konflikt hält die Quelle an, wie Bankabruf und Etsy-Abruf: bis zum Klären nimmt Haben nichts an
+  const [offen] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(schema.importConflicts)
+    .innerJoin(schema.importMovements, eq(schema.importMovements.id, schema.importConflicts.movementId))
+    .where(
+      and(
+        eq(schema.importMovements.sourceId, source.id),
+        sql`not exists (select 1 from import_resolutions r where r.conflict_id = ${schema.importConflicts.id})`,
+      ),
+    );
+  if (offen && offen.n > 0) {
+    return {
+      status: "conflict",
+      message: `Die Quelle hat ${offen.n === 1 ? "einen offenen Konflikt" : `${offen.n} offene Konflikte`}. Bis er in Haben unter Bank am Konto mit „Konflikt klären“ geklärt ist, nimmt sie nichts an.`,
+      conflicts: [],
+    };
+  }
+
   const batch: ImportBatch = validation.batch;
   const { statement, eventOf } = statementFromBatch(batch, source.accountKind);
   const input: StoreBatchInput = {
