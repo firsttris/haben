@@ -78,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote aus FastBill ins Archiv (Postgres)",
 
   it("legt Angebote als Auftragsdokumente mit Kontakt und PDF ab, ohne PDF zum Nachreichen", async () => {
     const progress = await run();
-    expect(progress.fastbillEstimates).toEqual({ imported: 2, known: 0, withoutPdf: 1 });
+    expect(progress.fastbillEstimates).toEqual({ imported: 2, known: 0, withoutPdf: 1, pdfNachgeholt: 0 });
     expect(progress.failed).toEqual([]);
     const rows = await sql`select d.external_id, d.source, d.kind, d.number, d.date::text as date, d.status, d.gross, c.name as kontakt,
       (select count(*)::int from legacy_order_files f where f.order_id = d.id) as dateien,
@@ -129,10 +129,11 @@ describe.skipIf(!testDatabaseUrl)("Angebote aus FastBill ins Archiv (Postgres)",
     expect(problems).toEqual(["FastBill-Angebot AN-2026-5: PDF fehlt."]);
   });
 
-  it("überspringt beim zweiten Lauf, was schon im Archiv liegt, ohne die PDFs noch einmal zu laden", async () => {
+  it("überspringt beim zweiten Lauf, was schon im Archiv liegt, und lädt nur das fehlende PDF noch einmal (#1541)", async () => {
     const progress = await run();
-    expect(progress.fastbillEstimates).toEqual({ imported: 0, known: 2, withoutPdf: 0 });
-    expect(documents).toEqual([]);
+    expect(progress.fastbillEstimates).toEqual({ imported: 0, known: 2, withoutPdf: 0, pdfNachgeholt: 0 });
+    // 7701 hat sein PDF, 7702 liefert weiter keins
+    expect(documents).toEqual(["https://my.fastbill.com/download/angebot-7702"]);
     expect(await sql`select count(*)::int as n from legacy_order_documents`).toEqual([{ n: 2 }]);
   });
 });

@@ -21,6 +21,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { firstHits, runSearchParts, searchPart } from "../../db/search-parts.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
+import { customerNumberLocked } from "./kundennummer-sperre.ts";
 
 function personenkonto(rolle: PersonenkontoRolle) {
   return z.optional(
@@ -291,7 +292,15 @@ async function samePersonenkonto<T>(tx: Tx, write: () => Promise<T>): Promise<T>
 /** Änderungen erhöhen per Trigger die Version; alte Stände bleiben in contact_versions. */
 export async function updateContact(actor: string, id: string, input: ContactInput): Promise<Contact> {
   return withActor(actor, async (tx) => {
-    const [updated] = await samePersonenkonto(tx, () => tx.update(schema.contacts).set(clean(input)).where(eq(schema.contacts.id, id)).returning());
+    const values = clean(input);
+    const [current] = await tx.select({ kundennummer: schema.contacts.kundennummer }).from(schema.contacts).where(eq(schema.contacts.id, id));
+    if (!current) throw new ContactError("Kontakt nicht gefunden.");
+    if (current.kundennummer !== values.kundennummer && (await customerNumberLocked(tx, id))) {
+      throw new ContactError(
+        `Die Kundennummer ${current.kundennummer} ist gesperrt, weil festgeschriebene Belege im Nummernkreis dieses Kunden sie in der Nummer tragen.`,
+      );
+    }
+    const [updated] = await samePersonenkonto(tx, () => tx.update(schema.contacts).set(values).where(eq(schema.contacts.id, id)).returning());
     if (!updated) throw new ContactError("Kontakt nicht gefunden.");
     return updated;
   });

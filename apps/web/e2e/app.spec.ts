@@ -92,9 +92,9 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(format.getByText(/braucht das Jahr/)).toBeVisible();
   await expect(format.getByRole("button", { name: "Format speichern" })).toBeDisabled();
   // Läuft der Zähler weiter, ist das Jahr frei; das Beispiel zeigt den Jahreswechsel (#328)
-  await rechnungen.getByLabel("Zähler").selectOption({ label: "läuft weiter" });
+  await rechnungen.getByLabel("Zähler", { exact: true }).selectOption({ label: "läuft weiter" });
   await expect(format).toContainText("Beispiel: RE-412, RE-413");
-  await rechnungen.getByLabel("Zähler").selectOption({ label: "beginnt jedes Jahr neu" });
+  await rechnungen.getByLabel("Zähler", { exact: true }).selectOption({ label: "beginnt jedes Jahr neu" });
   await rechnungen.getByLabel("Format").fill("RE-{JJJJ}-{MM}-{NNNN}");
   await expect(format).toContainText(/Beispiel: RE-\d{4}-\d{2}-0001, RE-\d{4}-\d{2}-0002/);
   await format.getByRole("button", { name: "Format speichern" }).click();
@@ -104,7 +104,7 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   // Die folgenden Tests rechnen mit den Nummern ab Werk
   await format.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(rechnungen.getByLabel("Format")).toHaveValue("{JJJJ}-{NNN}");
-  await expect(rechnungen.getByLabel("Zähler")).toHaveValue("jaehrlich");
+  await expect(rechnungen.getByLabel("Zähler", { exact: true })).toHaveValue("jaehrlich");
 
   await go("/einstellungen?bereich=gestaltung");
   const akzent = page.getByRole("form", { name: "Akzentfarbe" });
@@ -214,6 +214,35 @@ test("Kunden anlegen", async () => {
   await expect(liste).toContainText("+49 40 123456-0");
   await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
   await expect(liste).toContainText("Kein Kontakt passt");
+});
+
+test("Zähler je Kunde: Einstellung mit Pflichtformat, Karte am Kontakt (#1426)", async () => {
+  await go("/einstellungen?bereich=rechnungen");
+  const format = page.getByRole("form", { name: "Nummernformat" });
+  const rechnungen = format.getByRole("group", { name: "Rechnungen" });
+  await rechnungen.getByLabel("Eigener Zähler je Kunde").check();
+  await expect(format.getByText(/braucht die Kundennummer/)).toBeVisible();
+  await expect(format.getByRole("button", { name: "Format speichern" })).toBeDisabled();
+  await rechnungen.getByLabel("Format").fill("RE-{JJJJ}-{KUNDENNR}-{NNN}");
+  await format.getByRole("button", { name: "Format speichern" }).click();
+  await expect(format.getByRole("status")).toContainText("Nummernformat gespeichert.");
+
+  // Die Karte des Kundenkreises steht auf der Seite des Kontakts — nur mit Kundennummer und nur für die Art mit Schalter
+  await go("/kontakte");
+  await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().click();
+  await expect(page.getByRole("form", { name: /Nummern dieses Kunden/ })).toHaveCount(0);
+  await page.getByLabel("Kundennummer").fill("NW-1");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("form", { name: /^Rechnungsnummern dieses Kunden/ })).toBeVisible();
+  await expect(page.getByRole("form", { name: /^Angebotsnummern dieses Kunden/ })).toHaveCount(0);
+
+  // Zurück auf den Stand, mit dem die folgenden Tests rechnen
+  await page.getByLabel("Kundennummer").fill("");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await go("/einstellungen?bereich=rechnungen");
+  await format.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
+  await expect(rechnungen.getByLabel("Format")).toHaveValue("{JJJJ}-{NNN}");
+  await expect(rechnungen.getByLabel("Eigener Zähler je Kunde")).not.toBeChecked();
 });
 
 test("Lastschriftmandat am Kunden: Gläubiger-ID, Mandat mit PDF anlegen und widerrufen (#445)", async ({ browser }) => {

@@ -81,6 +81,9 @@ export const fbInvoiceItemSchema = z.looseObject({
   COMPLETE_NET: numeric,
   COMPLETE_GROSS: numeric,
   SORT_ORDER: numeric,
+  UNIT: str,
+  DISCOUNT_PERCENT: numeric,
+  DISCOUNT_AMOUNT: numeric,
 });
 export type FbInvoiceItem = z.infer<typeof fbInvoiceItemSchema>;
 
@@ -179,6 +182,33 @@ export const fbExpenseSchema = z.looseObject({
 });
 export type FbExpense = z.infer<typeof fbExpenseSchema>;
 
+// ---------------------------------------------------------------- Wiederkehrende Rechnungen
+
+/** recurring.get (https://apidocs.fastbill.com/fastbill/de/recurring.html); Liste INVOICES im echten Konto */
+export const fbRecurringSchema = z.looseObject({
+  INVOICE_ID: id,
+  CUSTOMER_ID: id.nullish(),
+  INVOICE_TITLE: str,
+  INTROTEXT: str,
+  NOTE: str,
+  CURRENCY_CODE: str,
+  /** monthly, 3 months, 6 months, yearly, weekly, 2 weeks, 4 weeks, 2 months */
+  FREQUENCY: str,
+  START_DATE: str,
+  /** Anzahl der Rechnungen, 0 = unbegrenzt */
+  OCCURENCES: numeric,
+  IS_GROSS: numeric,
+  VAT_CASE: numeric,
+  PAYMENT_TYPE: numeric,
+  CASH_DISCOUNT_PERCENT: numeric,
+  CASH_DISCOUNT_DAYS: numeric,
+  DISCOUNT_PERCENT: numeric,
+  DISCOUNT_AMOUNT: numeric,
+  SERVICE_PERIOD_START: str,
+  DELIVERY_DATE: str,
+  ITEMS: list(fbInvoiceItemSchema),
+});
+export type FbRecurring = z.infer<typeof fbRecurringSchema>;
 // ---------------------------------------------------------------- Angebote
 
 /** estimate.get (https://apidocs.fastbill.com/fastbill/de/estimate.html); Liste ESTIMATES im echten Konto */
@@ -202,6 +232,33 @@ export const fbEstimateSchema = z.looseObject({
   DOCUMENT_URL: str,
 });
 export type FbEstimate = z.infer<typeof fbEstimateSchema>;
+
+// ---------------------------------------------------------------- Zeiten und Projekte
+
+/** time.get (https://apidocs.fastbill.com/fastbill/de/time.html); Liste TIMES im echten Konto */
+export const fbTimeSchema = z.looseObject({
+  TIME_ID: id,
+  CUSTOMER_ID: id.nullish(),
+  PROJECT_ID: id.nullish(),
+  /** Fehlt bei einer Zeit, die noch nicht abgerechnet ist (echtes Konto, November 2026) */
+  INVOICE_ID: id.nullish(),
+  /** JJJJ-MM-TT hh:mm:ss */
+  DATE: str,
+  MINUTES: numeric,
+  BILLABLE_MINUTES: numeric,
+  COMMENT: str,
+});
+export type FbTime = z.infer<typeof fbTimeSchema>;
+
+/** project.get (https://apidocs.fastbill.com/fastbill/de/project.html); Liste PROJECTS im echten Konto */
+export const fbProjectSchema = z.looseObject({
+  PROJECT_ID: id,
+  PROJECT_NAME: str,
+  CUSTOMER_ID: id.nullish(),
+  HOUR_PRICE: numeric,
+  CURRENCY_CODE: str,
+});
+export type FbProject = z.infer<typeof fbProjectSchema>;
 
 // ---------------------------------------------------------------- Artikel
 

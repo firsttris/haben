@@ -90,7 +90,7 @@ function DunningPage() {
       </section>
       <p className="small muted">
         Läuft die Frist der letzten Mahnung noch, ist die nächste Stufe hell dargestellt. Mahngebühr, Frist und Basiszinssatz stellst du in den{" "}
-        <Link to="/einstellungen" search={{ bereich: "firma" }}>
+        <Link to="/einstellungen" search={{ bereich: "firma" }} hash="company-dunning">
           Einstellungen
         </Link>{" "}
         ein.

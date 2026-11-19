@@ -87,14 +87,16 @@ export type InvoiceEditorProps = {
   /** GmbH und UG: fehlende Pflichtangaben für Geschäftsbriefe (§ 35a GmbHG); nur ein Hinweis, keine Sperre */
   letterIssues?: string[];
   issues: string[];
-  /** Letzte vergebene Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
-  numberCounters: Record<number, number>;
+  /** Letzte vergebene Nummer je Kreis: Jahr (0 = durchlaufender Zähler), beim Kundenkreis Jahr:Kontakt (#1426) */
+  numberCounters: Record<string, number>;
   /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{MM}-{NNN}" */
   numberFormat: string;
   /** Zähler läuft über den Jahreswechsel weiter (#328) */
   numberRunning?: boolean;
-  /** Zuletzt festgeschriebene Rechnung je Kreis (#713) */
-  lastFinalized?: Record<number, FinalizedCircleRef>;
+  /** Zähler kreist je Kunde (#1426): die Vorschau folgt dem Kreis des gewählten Kontakts */
+  numberPerCustomer?: boolean;
+  /** Zuletzt festgeschriebene Rechnung je Kreis (#713), Schlüssel wie bei numberCounters */
+  lastFinalized?: Record<string, FinalizedCircleRef>;
   corrects: { number: string | null; issueDate: string; buyer?: { kundennummer?: string } | null } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;

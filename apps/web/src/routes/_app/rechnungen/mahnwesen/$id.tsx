@@ -159,7 +159,7 @@ function NewDunningPage() {
                   draft.baseRate === null ? (
                     <>
                       Für Zinsen den Basiszinssatz in den{" "}
-                      <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                      <Link to="/einstellungen" search={{ bereich: "firma" }} hash="company-dunning">
                         Einstellungen
                       </Link>{" "}
                       eintragen.

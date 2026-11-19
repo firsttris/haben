@@ -5,6 +5,7 @@ import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { InvoiceServiceEntries } from "../../../components/InvoiceServiceEntries.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { getInvoiceDetail } from "../../../server/functions/invoices.ts";
+import type { InvoiceEditorProps } from "../../../components/invoice-editor-types.ts";
 import { FinalInvoice } from "./-rechnung-festgeschrieben.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
@@ -15,12 +16,12 @@ export const Route = createFileRoute("/_app/rechnungen/$id")({
   component: InvoicePage,
 });
 
+type Detail = Awaited<ReturnType<typeof getInvoiceDetail>>;
+
 function InvoicePage() {
   const data = Route.useLoaderData();
   const { invoice } = data;
   const draftAction = useAction();
-  // Nachweis der Leistungen, aus denen die Rechnung entstanden ist (#417)
-  const nachweis = <InvoiceServiceEntries entries={data.serviceEntries} />;
   if (invoice.status === "draft") {
     return (
       <>
@@ -30,59 +31,7 @@ function InvoicePage() {
           action={draftAction}
           id={invoice.id}
           kind={invoice.kind}
-          initial={{
-            contactId: invoice.contactId,
-            contactPersonId: invoice.contactPersonId,
-            issueDate: invoice.issueDate,
-            serviceFrom: invoice.serviceFrom,
-            serviceTo: invoice.serviceTo,
-            paymentTermDays: invoice.paymentTermDays,
-            skonto: invoice.skonto,
-            format: invoice.format,
-            intro: invoice.intro,
-            note: invoice.note,
-            propertyRetention: invoice.propertyRetention,
-            buyerOrderReference: invoice.buyerOrderReference,
-            sellerOrderReference: invoice.sellerOrderReference,
-            despatchAdviceReference: invoice.despatchAdviceReference,
-            taxTreatment: invoice.taxTreatment,
-            taxDetails: invoice.taxDetails,
-            exemptionReason: invoice.exemptionReason,
-            priceMode: invoice.priceMode,
-            language: invoice.language,
-            variant: invoice.variant,
-            advanceType: invoice.advanceType,
-            currency: invoice.currency,
-            // Ein übernommener USt-Kurs bleibt im Feld leer: er folgt dem Leistungsmonat
-            exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,
-            exchangeRateDate: invoice.exchangeRateSource === "ust" ? null : invoice.exchangeRateDate,
-            // Schlussrechnung zu einem Angebot: inzwischen festgeschriebene Abschläge dieses Angebots gleich mit vorschlagen
-            deducts: [
-              ...new Set([
-                ...data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])),
-                ...(invoice.variant === "schluss" && invoice.quoteId ? data.abschlaege.filter((a) => a.quoteId === invoice.quoteId).map((a) => a.id) : []),
-              ]),
-            ],
-            quoteId: invoice.quoteId,
-            discount: discountFromColumns(invoice.discountPercent, invoice.discountAmount),
-            paymentMethod: invoice.paymentMethod,
-            paidVia: invoice.paidVia,
-            paidOn: invoice.paidOn,
-            sepaMandateId: invoice.sepaMandateId,
-            // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
-            lines: data.lines
-              .filter((line) => !line.deductionOf)
-              .map((line) => ({
-                description: line.description,
-                detail: line.detail,
-                itemNumber: line.itemNumber,
-                quantity: line.quantity,
-                unit: line.unit as UnitLabel,
-                unitPrice: line.unitPrice,
-                taxRate: line.taxRate as 1900 | 700 | 0,
-                discount: discountFromColumns(line.discountPercent, line.discountAmount),
-              })),
-          }}
+          initial={draftInitial(data, invoice)}
           contacts={data.contacts}
           seller={data.company}
           sellerIssues={data.sellerIssues}
@@ -90,6 +39,7 @@ function InvoicePage() {
           issues={data.issues}
           numberCounters={data.numberCounters}
           numberRunning={data.numberRunning}
+          numberPerCustomer={data.numberPerCustomer}
           numberFormat={data.numberFormat}
           lastFinalized={data.lastFinalized}
           corrects={data.corrects}
@@ -109,33 +59,98 @@ function InvoicePage() {
           }
           attachments={<InvoiceAttachments ownerId={invoice.id} attachments={data.attachments} editable />}
           // Korrektur einer Schlussrechnung: Ihre Abzüge bleiben fest und außerhalb der Grundlage des Gesamtrabatts
-          keptDeductions={
-            invoice.kind === "rechnung"
-              ? []
-              : data.lines.flatMap((line) =>
-                  line.deductionOf
-                    ? [
-                        {
-                          description: line.description,
-                          quantity: line.quantity,
-                          unit: line.unit as UnitLabel,
-                          unitPrice: line.unitPrice,
-                          taxRate: line.taxRate as 1900 | 700 | 0,
-                          deductionOf: line.deductionOf,
-                        },
-                      ]
-                    : [],
-                )
-          }
+          keptDeductions={keptDeductions(data, invoice)}
         />
-        {nachweis}
+        <Leistungsnachweis data={data} />
       </>
     );
   }
   return (
     <>
       <FinalInvoice data={data} />
-      {nachweis}
+      <Leistungsnachweis data={data} />
     </>
   );
+}
+
+/** Vorgaben des Editors aus dem Entwurf und den geladenen Zeilen */
+function draftInitial(data: Detail, invoice: Detail["invoice"]): InvoiceEditorProps["initial"] {
+  return {
+    contactId: invoice.contactId,
+    contactPersonId: invoice.contactPersonId,
+    issueDate: invoice.issueDate,
+    serviceFrom: invoice.serviceFrom,
+    serviceTo: invoice.serviceTo,
+    paymentTermDays: invoice.paymentTermDays,
+    skonto: invoice.skonto,
+    format: invoice.format,
+    intro: invoice.intro,
+    note: invoice.note,
+    propertyRetention: invoice.propertyRetention,
+    buyerOrderReference: invoice.buyerOrderReference,
+    sellerOrderReference: invoice.sellerOrderReference,
+    despatchAdviceReference: invoice.despatchAdviceReference,
+    taxTreatment: invoice.taxTreatment,
+    taxDetails: invoice.taxDetails,
+    exemptionReason: invoice.exemptionReason,
+    priceMode: invoice.priceMode,
+    language: invoice.language,
+    variant: invoice.variant,
+    advanceType: invoice.advanceType,
+    currency: invoice.currency,
+    // Ein übernommener USt-Kurs bleibt im Feld leer: er folgt dem Leistungsmonat
+    exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,
+    exchangeRateDate: invoice.exchangeRateSource === "ust" ? null : invoice.exchangeRateDate,
+    // Schlussrechnung zu einem Angebot: inzwischen festgeschriebene Abschläge dieses Angebots gleich mit vorschlagen
+    deducts: [
+      ...new Set([
+        ...data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])),
+        ...(invoice.variant === "schluss" && invoice.quoteId ? data.abschlaege.filter((a) => a.quoteId === invoice.quoteId).map((a) => a.id) : []),
+      ]),
+    ],
+    quoteId: invoice.quoteId,
+    discount: discountFromColumns(invoice.discountPercent, invoice.discountAmount),
+    paymentMethod: invoice.paymentMethod,
+    paidVia: invoice.paidVia,
+    paidOn: invoice.paidOn,
+    sepaMandateId: invoice.sepaMandateId,
+    // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
+    lines: data.lines
+      .filter((line) => !line.deductionOf)
+      .map((line) => ({
+        description: line.description,
+        detail: line.detail,
+        itemNumber: line.itemNumber,
+        quantity: line.quantity,
+        unit: line.unit as UnitLabel,
+        unitPrice: line.unitPrice,
+        taxRate: line.taxRate as 1900 | 700 | 0,
+        discount: discountFromColumns(line.discountPercent, line.discountAmount),
+      })),
+  };
+}
+
+/** Feste Abzüge einer Korrektur einer Schlussrechnung; nur dort, sonst leer */
+function keptDeductions(data: Detail, invoice: Detail["invoice"]): InvoiceEditorProps["keptDeductions"] {
+  return invoice.kind === "rechnung"
+    ? []
+    : data.lines.flatMap((line) =>
+        line.deductionOf
+          ? [
+              {
+                description: line.description,
+                quantity: line.quantity,
+                unit: line.unit as UnitLabel,
+                unitPrice: line.unitPrice,
+                taxRate: line.taxRate as 1900 | 700 | 0,
+                deductionOf: line.deductionOf,
+              },
+            ]
+          : [],
+      );
+}
+
+/** Nachweis der Leistungen, aus denen die Rechnung entstanden ist (#417) */
+function Leistungsnachweis({ data }: { data: Detail }) {
+  return <InvoiceServiceEntries entries={data.serviceEntries} />;
 }

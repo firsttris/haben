@@ -17,6 +17,7 @@ import { Field } from "./Field.tsx";
 interface Circle {
   format: string;
   running: boolean;
+  perCustomer: boolean;
 }
 
 /** Zwei Beispiele, beim durchlaufenden Zähler über den Jahreswechsel, sonst aus diesem Monat; {KUNDENNR} wird zur Beispiel-Kundennummer */
@@ -30,7 +31,7 @@ function examples(format: string, running: boolean, date: string): [string, stri
 /** Format und Zähler eines Nummernkreises, mit Beispiel oder Fehler darunter */
 function CircleFields({ label, name, value, onChange, date }: { label: string; name: string; value: Circle; onChange: (value: Circle) => void; date: string }) {
   const format = value.format.trim();
-  const problem = numberFormatError(format, { requireYear: !value.running, allowCustomer: true });
+  const problem = numberFormatError(format, { requireYear: !value.running, allowCustomer: true, requireCustomer: value.perCustomer });
   const [first, second] = problem ? ["", ""] : examples(format, value.running, date);
   return (
     <fieldset className="field-group" style={{ border: 0, padding: 0, margin: 0 }}>
@@ -71,36 +72,70 @@ function CircleFields({ label, name, value, onChange, date }: { label: string; n
           </select>
         )}
       </Field>
+      <div className="checkbox-hinted">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            name={`${name}-perCustomer`}
+            checked={value.perCustomer}
+            onChange={(e) => onChange({ ...value, perCustomer: e.target.checked })}
+            aria-describedby={`${name}-perCustomer-hint`}
+          />
+          <span>Eigener Zähler je Kunde</span>
+        </label>
+        <span id={`${name}-perCustomer-hint`} className="field-hint">
+          Jeder Kunde zählt für sich; das Format braucht dann {"{KUNDENNR}"}.
+        </span>
+      </div>
     </fieldset>
   );
 }
 
-/** Aufbau der Rechnungs- und Angebotsnummern, etwa mit eigenem Präfix, und ob der Zähler jährlich neu beginnt */
+/** Aufbau der Rechnungs- und Angebotsnummern, etwa mit eigenem Präfix, ob der Zähler jährlich neu beginnt und ob jeder Kunde einen eigenen Zähler bekommt */
 export function NumberFormatCard({
   invoice,
   quote,
   invoiceRunning,
   quoteRunning,
+  invoicePerCustomer,
+  quotePerCustomer,
   date,
 }: {
   invoice: string;
   quote: string;
   invoiceRunning: boolean;
   quoteRunning: boolean;
+  invoicePerCustomer: boolean;
+  quotePerCustomer: boolean;
   date: string;
 }) {
   const router = useRouter();
   const save = useServerFn(saveNumberFormatSettings);
   const { busy, notice, run } = useAction();
-  const [invoiceCircle, setInvoiceCircle] = useState<Circle>({ format: invoice, running: invoiceRunning });
-  const [quoteCircle, setQuoteCircle] = useState<Circle>({ format: quote, running: quoteRunning });
-  const valid = [invoiceCircle, quoteCircle].every((c) => !numberFormatError(c.format.trim(), { requireYear: !c.running, allowCustomer: true }));
-  const isDefault = invoice === DEFAULT_INVOICE_NUMBER_FORMAT && quote === DEFAULT_QUOTE_NUMBER_FORMAT && !invoiceRunning && !quoteRunning;
+  const [invoiceCircle, setInvoiceCircle] = useState<Circle>({ format: invoice, running: invoiceRunning, perCustomer: invoicePerCustomer });
+  const [quoteCircle, setQuoteCircle] = useState<Circle>({ format: quote, running: quoteRunning, perCustomer: quotePerCustomer });
+  const valid = [invoiceCircle, quoteCircle].every(
+    (c) => !numberFormatError(c.format.trim(), { requireYear: !c.running, allowCustomer: true, requireCustomer: c.perCustomer }),
+  );
+  const isDefault =
+    invoice === DEFAULT_INVOICE_NUMBER_FORMAT &&
+    quote === DEFAULT_QUOTE_NUMBER_FORMAT &&
+    !invoiceRunning &&
+    !quoteRunning &&
+    !invoicePerCustomer &&
+    !quotePerCustomer;
 
   const store = (next: { invoice: Circle; quote: Circle }) =>
     run(async () => {
       await save({
-        data: { invoice: next.invoice.format, quote: next.quote.format, invoiceRunning: next.invoice.running, quoteRunning: next.quote.running },
+        data: {
+          invoice: next.invoice.format,
+          quote: next.quote.format,
+          invoiceRunning: next.invoice.running,
+          quoteRunning: next.quote.running,
+          invoicePerCustomer: next.invoice.perCustomer,
+          quotePerCustomer: next.quote.perCustomer,
+        },
       });
       setInvoiceCircle({ ...next.invoice, format: next.invoice.format.trim() });
       setQuoteCircle({ ...next.quote, format: next.quote.format.trim() });
@@ -140,7 +175,10 @@ export function NumberFormatCard({
             className="btn"
             disabled={busy}
             onClick={() =>
-              void store({ invoice: { format: DEFAULT_INVOICE_NUMBER_FORMAT, running: false }, quote: { format: DEFAULT_QUOTE_NUMBER_FORMAT, running: false } })
+              void store({
+                invoice: { format: DEFAULT_INVOICE_NUMBER_FORMAT, running: false, perCustomer: false },
+                quote: { format: DEFAULT_QUOTE_NUMBER_FORMAT, running: false, perCustomer: false },
+              })
             }
           >
             Auf Standard zurücksetzen

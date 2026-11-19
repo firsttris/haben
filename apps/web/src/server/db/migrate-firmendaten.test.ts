@@ -59,14 +59,14 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
       expect(Object.hasOwn(original.new_value, "firmendaten_gespeichert_at")).toBe(false);
       await migrate(database, { migrationsFolder: MIGRATIONS });
       expect(await sql`select firmendaten_gespeichert_at from company`).toEqual([{ firmendaten_gespeichert_at: null }]);
-      // Spätere Migrationen ergänzen Spalten für Navigation (#504), Vorsteuerabzug (#852), Archivsuche (#617)
-      // und Gründungsdatum (#717); sonst bleibt alles gleich.
+      // Spätere Migrationen ergänzen Spalten für Navigation (#504), Vorsteuerabzug (#852), Archivsuche (#617),
+      // Gründungsdatum (#717) und den Zähler je Kunde (#1426); sonst bleibt alles gleich.
       expect(await sql`select nav_color, nav_logo, ohne_vorsteuerabzug, archive_search, founded_on from company`).toEqual([
         { nav_color: null, nav_logo: false, ohne_vorsteuerabzug: false, archive_search: true, founded_on: null },
       ]);
       expect(
         await sql`select to_jsonb(company) - 'firmendaten_gespeichert_at' - 'nav_color' - 'nav_logo' - 'ohne_vorsteuerabzug'
-          - 'archive_search' - 'founded_on' as value from company`,
+          - 'archive_search' - 'founded_on' - 'invoice_counter_per_customer' - 'quote_counter_per_customer' as value from company`,
       ).toEqual(before.company);
       // Bisherige Einträge unverändert; neu ist nur die Zeile der Prüfung beim Update (Migration 0275, #1116)
       const audit = await sql`select * from audit_log order by seq`;

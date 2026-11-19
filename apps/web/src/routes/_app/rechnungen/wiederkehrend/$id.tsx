@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/$id")({
 });
 
 function RecurringDetailPage() {
-  const { recurring, invoices, contacts, textBlocks, units, defaults, sevdesk } = Route.useLoaderData();
+  const { recurring, invoices, contacts, textBlocks, units, defaults, sevdesk, fastbill } = Route.useLoaderData();
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveRecurring);
@@ -102,6 +102,7 @@ function RecurringDetailPage() {
         />
         <div className="stack">
           {sevdesk && <SevdeskOrigin origin={sevdesk} />}
+          {fastbill && <FastbillOrigin hints={fastbill.hints} />}
           <section className="card stack" aria-labelledby="history-heading">
             <h2 id="history-heading">Erzeugte Rechnungen</h2>
             {recurring.lastRunAt && (
@@ -164,6 +165,25 @@ function SevdeskOrigin({ origin }: { origin: SevdeskOriginData }) {
       {origin.hints.length > 0 && (
         <ul className="small" style={{ margin: 0, paddingLeft: 20 }}>
           {origin.hints.map((hint) => (
+            <li key={hint}>{hint}</li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Herkunft aus dem Umzug aus FastBill: was vor dem Aktivieren zu prüfen ist */
+function FastbillOrigin({ hints }: { hints: string[] }) {
+  return (
+    <section className="card stack" aria-labelledby="fastbill-heading">
+      <h2 id="fastbill-heading">Aus FastBill übernommen</h2>
+      <p className="small" style={{ margin: 0 }}>
+        Pausiert, bis du sie prüfst und aktivierst. Stoppe die Vorlage vorher in FastBill, sonst kommt die Rechnung doppelt.
+      </p>
+      {hints.length > 0 && (
+        <ul className="small" style={{ margin: 0, paddingLeft: 20 }}>
+          {hints.map((hint) => (
             <li key={hint}>{hint}</li>
           ))}
         </ul>

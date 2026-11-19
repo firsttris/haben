@@ -50,6 +50,7 @@ export {
   startSevdeskImport,
 } from "./sevdesk.ts";
 export { sevdeskPlaceholders, sevdeskRecurringOrigin } from "./sevdesk-vorlagen.ts";
+export { fastbillRecurringOrigin } from "./fastbill-vorlagen.ts";
 export { decideAccountingType } from "./sevdesk-kontoart-hand.ts";
 export { previewSevdeskAssets, takeOverSevdeskAssets, type SevdeskAssetPreview } from "./sevdesk-anlagen.ts";
 export {
@@ -66,6 +67,7 @@ export {
   uploadFastbillReceipts,
 } from "./fastbill.ts";
 export { fastbillArticlesCsv } from "./fastbill-artikel.ts";
+export { importFastbillTimes, previewFastbillTimes } from "./fastbill-zeiten.ts";
 export { fastbillUsage } from "./fastbill-anfragen.ts";
 export { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "./buchhaltungsbutler.ts";
 export { latestWisoImport, MAX_WISO_CSV_SIZE, previewWisoCsv, startWisoImport, wisoSummary } from "./wiso.ts";
