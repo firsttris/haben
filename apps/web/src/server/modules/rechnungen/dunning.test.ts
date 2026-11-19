@@ -103,6 +103,39 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     await expect(sql`delete from dunnings`).rejects.toThrow("darf nur ergänzt werden");
   });
 
+  it("Absender und Kunde stehen mit der heutigen Anschrift auf der Mahnung, die übrigen Angaben wie auf der Rechnung", async () => {
+    const [row] = await sql<{ contact_id: string }[]>`select contact_id from invoices where id = ${invoiceId}`;
+    const contactId = row!.contact_id;
+    await contacts.updateContact(actor, contactId, {
+      kundennummer: "10001",
+      name: "Nordwerk Software GmbH",
+      strasse: "Speicherstraße 9",
+      plz: "20457",
+      ort: "Hamburg-Mitte",
+      land: "DE",
+      email: "rechnung@nordwerk.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    await sql`update company set strasse = 'Neuer Weg 2', plz = '93049', ort = 'Regensburg a. D.', bank = 'Sparkasse' where id = 1`;
+    const input = { invoiceId, level: 1 as const, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" };
+    const before = seen.docs.length;
+    await dunning.dunningDraftPdf(input, "2026-10-15");
+    await dunning.createDunning(actor, input, "2026-10-15");
+    const docs = seen.docs.slice(before);
+    expect(docs).toHaveLength(2);
+    for (const doc of docs) {
+      expect(doc.buyer).toMatchObject({ name: "Nordwerk Software GmbH", strasse: "Speicherstraße 9", ort: "Hamburg-Mitte", kundennummer: "10001" });
+      expect(doc.seller).toMatchObject({ strasse: "Neuer Weg 2", plz: "93049", ort: "Regensburg a. D.", bank: "Commerzbank", iban: "DE89370400440532013000" });
+    }
+    // Die festgeschriebene Rechnung bleibt, wie sie war
+    const [invoice] = await sql`select buyer, seller from invoices where id = ${invoiceId}`;
+    expect(invoice!.buyer).toMatchObject({ strasse: "Hafenstraße 5", ort: "Hamburg" });
+    expect(invoice!.seller).toMatchObject({ strasse: "Musterstraße 1", ort: "Regensburg" });
+  });
+
   it("keine zweite Mahnung derselben oder einer niedrigeren Stufe, auch nicht gleichzeitig", async () => {
     const input = { invoiceId, level: 1 as const, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" };
     const results = await Promise.allSettled([dunning.createDunning(actor, input, "2026-10-15"), dunning.createDunning(actor, input, "2026-10-15")]);
