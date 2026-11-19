@@ -5,7 +5,6 @@
   "apps/web/src/routes/_app/jahreserklaerung/$jahr.tsx",
   "apps/web/src/routes/_app/umsatzsteuer/$zeitraum.tsx",
   "apps/web/src/server/db/schema.ts",
-  "apps/web/src/server/modules/archiv/export.ts",
   "apps/web/src/server/modules/archiv/legacy-open.ts",
   "apps/web/src/server/modules/archiv/lexoffice.ts",
   "apps/web/src/server/modules/bank/bank-sync.ts",
