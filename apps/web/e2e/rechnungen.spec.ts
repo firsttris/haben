@@ -2755,6 +2755,10 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   await expect(liste.getByTitle("abrechenbar")).toHaveText("abr.");
   await expect(liste).toContainText("95,00");
   await expect(liste).not.toContainText("142,50");
+  // Kopf und Zeilen teilen das Raster: „Betrag“ steht rechtsbündig über dem Betrag, nicht über den Knöpfen (#1547)
+  const kopfBetrag = await liste.locator(".table-row.head > div", { hasText: "Betrag" }).boundingBox();
+  const zelleBetrag = await liste.locator(".table-row:not(.head) > .num").nth(2).boundingBox();
+  expect(Math.round(kopfBetrag!.x + kopfBetrag!.width)).toBe(Math.round(zelleBetrag!.x + zelleBetrag!.width));
   // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
   await ohneAxeVerstoesse(page, ["/leistungen"]);
   await page.setViewportSize({ width: 1440, height: 900 });
