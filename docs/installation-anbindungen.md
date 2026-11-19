@@ -193,7 +193,7 @@ Was an Enable Banking geht: beim Verbinden die gewählte Bank und die Rückleitu
 
 ## PayPal-Abruf
 
-Der Abruf der PayPal-Umsätze braucht auf dem Server nichts: keine Umgebungsvariable, kein Secret im Container. Client-ID und Secret der PayPal-App trägst du in Haben ein (Einstellungen › Bank › PayPal, siehe [PayPal-Umsätze über die API](bank-zahlungsdienstleister.md#paypal-umsätze-über-die-api)); sie liegen verschlüsselt in der Datenbank. Der Server muss `api-m.paypal.com` (Sandbox: `api-m.sandbox.paypal.com`) auf Port 443 erreichen.
+Der Abruf der PayPal-Umsätze braucht auf dem Server nichts Eigenes: keine Umgebungsvariable und kein Secret für PayPal. Die Zugangsdaten verschlüsselt Haben wie alle anderen mit dem vorhandenen Schlüssel der Installation; wechselst du ihn, musst du sie neu eintragen. Client-ID und Secret der PayPal-App trägst du in Haben ein (Einstellungen › Bank › PayPal, siehe [PayPal-Umsätze über die API](bank-zahlungsdienstleister.md#paypal-umsätze-über-die-api)); sie liegen verschlüsselt in der Datenbank. Der Server muss `api-m.paypal.com` (Sandbox: `api-m.sandbox.paypal.com`) auf Port 443 erreichen.
 
 ## Kontoabruf über FinTS
 

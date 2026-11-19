@@ -3,13 +3,13 @@ import { abrufFaellig, AUSSTEHEND_TAGE, naechsterAbrufStart } from "./abruf-rege
 
 describe("naechsterAbrufStart", () => {
   const jetzt = new Date("2026-11-07T10:00:00Z");
-  it("beginnt drei Tage vor dem Tag des Abrufs, nie vor dem bisherigen Start", () => {
-    expect(naechsterAbrufStart("2026-10-01", jetzt)).toBe("2026-11-04");
+  it("beginnt zehn Tage vor dem Tag des Abrufs, nie vor dem bisherigen Start", () => {
+    expect(naechsterAbrufStart("2026-10-01", jetzt)).toBe("2026-10-28");
     expect(naechsterAbrufStart("2026-11-06", jetzt)).toBe("2026-11-06");
   });
   it("beginnt am Tag der ältesten ausstehenden Zahlung, wenn sie vor dem Überlapp liegt", () => {
     expect(naechsterAbrufStart("2026-10-01", jetzt, "2026-10-21")).toBe("2026-10-21");
-    expect(naechsterAbrufStart("2026-10-01", jetzt, "2026-11-06")).toBe("2026-11-04");
+    expect(naechsterAbrufStart("2026-10-01", jetzt, "2026-11-06")).toBe("2026-10-28");
   });
   it("hält eine ausstehende Zahlung höchstens 45 Tage zurück und nie vor dem bisherigen Start", () => {
     expect(AUSSTEHEND_TAGE).toBe(45);

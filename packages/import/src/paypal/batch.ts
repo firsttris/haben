@@ -32,9 +32,9 @@ const RELATED = new Set(["refund", "chargeback", "adjustment"]);
 function movements(entry: PayPalEntry): ImportMovement[] {
   const { tx, kind } = entry;
   if (!kind) return [];
-  const base = { sourceEventId: tx.id, kind, bookingDate: entry.bookingDate, sourceTimestamp: tx.initiated, currency: "EUR" };
+  const base = { sourceEventId: entry.eventId, kind, bookingDate: entry.bookingDate, sourceTimestamp: tx.initiated, currency: "EUR" };
   const references = {
-    providerReference: tx.id,
+    providerReference: entry.eventId,
     ...(tx.eventCode ? { eventCode: tx.eventCode } : {}),
     ...(RELATED.has(kind) && tx.referenceIdType === "TXN" && tx.referenceId ? { relatedEventId: tx.referenceId } : {}),
   };
@@ -52,7 +52,7 @@ function movements(entry: PayPalEntry): ImportMovement[] {
   }
   // Wie im CSV-Export: eine Zeile ohne Betrag, aber mit Gebühr bleibt als Gebührenkomponente
   if (tx.fee !== 0) {
-    list.push({ ...base, component: "fee", amount: tx.fee, counterpartyName: "PayPal", purpose: `Gebühr · ${tx.id}`, references });
+    list.push({ ...base, component: "fee", amount: tx.fee, counterpartyName: "PayPal", purpose: `Gebühr · ${entry.eventId}`, references });
   }
   return list;
 }

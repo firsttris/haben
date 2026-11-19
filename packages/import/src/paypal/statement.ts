@@ -35,7 +35,7 @@ export function paypalStatement(entries: PayPalEntry[]): ParsedStatement {
       euro(e.tx.amount),
       euro(e.tx.fee),
       euro(e.tx.amount + e.tx.fee),
-      e.tx.id,
+      e.eventId,
       e.tx.invoiceId ?? "",
       e.tx.subject ?? e.tx.itemTitle ?? "",
     ]),

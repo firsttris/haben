@@ -220,7 +220,7 @@ describe.skipIf(!testDatabaseUrl)("PayPal-Abruf (Postgres)", () => {
     expect(result.error).toBeNull();
     expect(result.added).toBe(0);
     expect((await sql`select count(*)::int as n from bank_transactions`)[0]!.n).toBe(12);
-    // Drei Tage vor heute wäre der 04.11.; die ausstehende Zahlung vom 21.10. hält den Start auf dem 21.10.
+    // Zehn Tage vor heute wäre der 28.10.; die ausstehende Zahlung vom 21.10. hält den Start auf dem 21.10.
     const [row] = await sql`select fetch_from::text as f, last_error from paypal_connections`;
     expect(row!.f).toBe("2026-10-21");
     expect(row!.last_error).toBeNull();
@@ -236,7 +236,7 @@ describe.skipIf(!testDatabaseUrl)("PayPal-Abruf (Postgres)", () => {
       expect(result.error).toBeNull();
       // Zahlung mit Betrag 20,00 und Gebühr 0: ein Umsatz
       expect(result.added).toBe(1);
-      expect((await sql`select fetch_from::text as f from paypal_connections`)[0]!.f).toBe("2026-11-05");
+      expect((await sql`select fetch_from::text as f from paypal_connections`)[0]!.f).toBe("2026-10-29");
     } finally {
       rows = fixture.transaction_details;
     }

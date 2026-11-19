@@ -5,10 +5,12 @@
 
 /**
  * Überlappung in Tagen: Der nächste Abruf beginnt so viele Tage vor dem Tag des letzten erfolgreichen. PayPal stellt
- * Transaktionen bis zu drei Stunden verzögert bereit (Transaction Search); Haben erkennt schon übernommene an ihrer Kennung
- * und legt sie nicht noch einmal an.
+ * Transaktionen bis zu drei Stunden verzögert bereit (Transaction Search), und eine Zahlung trägt den Tag ihres Beginns, auch wenn
+ * sie später abgeschlossen wird (Lastschrift: einige Tage). Ob die Liste der Zeilen, die das Guthaben ändern, eine ausstehende
+ * Zahlung überhaupt zeigt, ist nicht belegt; der Überlapp fängt deshalb auch Zahlungen auf, die der Abruf nie als `P` gesehen hat.
+ * Haben erkennt schon übernommene an ihrer Kennung und legt sie nicht noch einmal an.
  */
-export const OVERLAP_DAYS = 3;
+export const OVERLAP_DAYS = 10;
 
 /**
  * Wie lange eine ausstehende Zahlung (Status P) den Start des nächsten Abrufs zurückhält: PayPal ändert ihren Status später,

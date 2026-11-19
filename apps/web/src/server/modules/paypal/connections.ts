@@ -117,7 +117,6 @@ export async function savePayPalConnection(actor: string, input: z.input<typeof 
   }
   const anderesKonto = existing !== null && existing.row.accountId !== accountId;
   const startGeaendert = existing?.row.abrufStart !== data.fetchFrom;
-  const zeitzoneGeaendert = existing !== null && existing.row.zeitzone !== data.zeitzone;
   const values = {
     accountId,
     keyHint: credentials.clientId.slice(-4),
@@ -126,8 +125,8 @@ export async function savePayPalConnection(actor: string, input: z.input<typeof 
     zeitzone: data.zeitzone,
     abrufStart: data.fetchFrom,
     rhythmus: data.rhythmus,
-    // Ein anderer Start, ein anderes Konto oder eine andere Zeitzone (andere Buchungstage) beginnt wieder am gewählten Tag
-    fetchFrom: anderesKonto || startGeaendert || zeitzoneGeaendert || !existing ? data.fetchFrom : existing.row.fetchFrom,
+    // Ein anderer Start oder ein anderes Konto beginnt wieder am gewählten Tag
+    fetchFrom: anderesKonto || startGeaendert || !existing ? data.fetchFrom : existing.row.fetchFrom,
     ...(anderesKonto || clientId ? { lastError: null } : {}),
     updatedAt: new Date(),
   };

@@ -7,8 +7,8 @@ import type { PayPalTransaction } from "./client.ts";
  *
  * Ereigniskennung ist die `transaction_id`. PayPal sagt selbst, dass sie im Reporting nicht eindeutig ist (eine Zeile, die das
  * Guthaben ändert, und eine, die es nicht ändert, können dieselbe tragen); Haben fragt nur nach Zeilen, die es ändern, und
- * nimmt die Kennung allein. Kommt sie dennoch mit zwei Ereigniscodes, bleibt der erste (nach Code sortiert) und der andere steht
- * unter `unsupported`, statt den Abruf wegen einer doppelten Kennung abzulehnen.
+ * nimmt die Kennung allein. Kommt sie dennoch mit zwei Ereigniscodes, behält der erste (nach Code sortiert) die Kennung und jeder
+ * weitere bekommt `<Kennung>/<Code>`, damit kein Betrag fehlt und der Vertrag die Lieferung annimmt.
  *
  * Betrag (`transaction_amount`) und Gebühr (`fee_amount`) sind zwei Komponenten desselben Ereignisses. Die Gebühr steht in
  * der API mit Vorzeichen wie in der Spalte „Gebühr“ des CSV-Exports; Haben bucht sie so. Eine Zahlung mit positiver Gebühr
@@ -17,7 +17,7 @@ import type { PayPalTransaction } from "./client.ts";
  */
 
 /** Teil des Grunds für ein Ereignis, das Haben nicht einordnet */
-export const PAYPAL_NICHT_UNTERSTUETZT = "Ereignis nicht unterstützt";
+const PAYPAL_NICHT_UNTERSTUETZT = "Ereignis nicht unterstützt";
 
 /** T-Code → Art und Beschreibung wie in der [T-Code-Tabelle](https://developer.paypal.com/reports/reference/t-codes); die Beschreibung ist die Spalte „Type“ des Exports (auf Englisch) */
 const CODES: Record<string, [MovementKind, string]> = {
@@ -75,6 +75,8 @@ export function localDay(initiated: string, zone: string): string {
 
 export interface PayPalEntry {
   tx: PayPalTransaction;
+  /** Kennung des Ereignisses: die Transaktions-ID, bei einer zweiten Zeile mit derselben ID und anderem Code `<ID>/<Code>` */
+  eventId: string;
   bookingDate: string;
   /** null: Ereigniscode, den Haben nicht einordnet; die Zeile kommt als Umsatz in den Auszug, aber ohne Bewegung */
   kind: MovementKind | null;
@@ -106,13 +108,10 @@ export function classify(transactions: PayPalTransaction[], window: PayPalWindow
     const bookingDate = localDay(tx.initiated, window.zone);
     if (bookingDate < window.dateFrom || bookingDate > window.dateTo) continue;
     const refuse = (reason: string, final = false) =>
-      unsupported.push({ sourceEventId: tx.id, bookingDate, reason, ...(final ? { final: true as const } : {}) });
+      unsupported.push({ sourceEventId: eventId, bookingDate, reason, ...(final ? { final: true as const } : {}) });
     const first = codeOf.get(tx.id);
-    if (first !== undefined) {
-      refuse(`Kennung doppelt vergeben: ${tx.eventCode || "ohne Code"} neben ${first || "ohne Code"}.`);
-      continue;
-    }
-    codeOf.set(tx.id, tx.eventCode);
+    if (first === undefined) codeOf.set(tx.id, tx.eventCode);
+    const eventId = first === undefined || first === tx.eventCode ? tx.id : `${tx.id}/${tx.eventCode || "ohne-code"}`;
     // S abgeschlossen, V nachträglich zurückgebucht: die Zahlung bleibt gebucht, die Rückbuchung ist ein eigenes Ereignis
     if (tx.status === "D") refuse("Status D (abgelehnt).", true);
     else if (tx.status === "P") refuse("Status P (ausstehend); folgt, sobald PayPal ihn abschließt.");
@@ -126,7 +125,7 @@ export function classify(transactions: PayPalTransaction[], window: PayPalWindow
         continue;
       }
       if (!known) refuse(`${PAYPAL_NICHT_UNTERSTUETZT}: ${tx.eventCode || "ohne Code"}.`);
-      entries.push({ tx, bookingDate, kind: known?.[0] ?? null, typeText: known?.[1] ?? (tx.eventCode || "Unbekannt") });
+      entries.push({ tx, eventId, bookingDate, kind: known?.[0] ?? null, typeText: known?.[1] ?? (tx.eventCode || "Unbekannt") });
     }
   }
   return { entries, unsupported };
@@ -140,5 +139,5 @@ export function counterpartyOf(entry: PayPalEntry): string {
 /** Zweck wie `parsePayPal`: Art, Rechnungsnummer, Betreff, Transaktionscode */
 export function purposeOf(entry: PayPalEntry): string {
   const { tx } = entry;
-  return [entry.typeText, tx.invoiceId, tx.subject ?? tx.itemTitle, tx.id].filter(Boolean).join(" · ");
+  return [entry.typeText, tx.invoiceId, tx.subject ?? tx.itemTitle, entry.eventId].filter(Boolean).join(" · ");
 }

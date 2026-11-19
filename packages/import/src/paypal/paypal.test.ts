@@ -106,13 +106,29 @@ describe("Einordnung der Zeilen", () => {
     ]);
   });
 
-  it("behält bei einer Kennung mit zwei Ereigniscodes den ersten und meldet den anderen", () => {
-    const { entries, unsupported } = classify([tx({ eventCode: "T0006" }), tx({ eventCode: "T0107", amount: -100, fee: 0 })], window);
-    expect(entries.map((e) => e.tx.eventCode)).toEqual(["T0006"]);
-    expect(unsupported[0]).toMatchObject({ sourceEventId: "1AB23456CD789012E", reason: expect.stringContaining("Kennung doppelt vergeben") });
+  it("gibt bei einer Kennung mit zwei Ereigniscodes dem ersten die Kennung und dem zweiten <Kennung>/<Code>, damit kein Betrag fehlt", () => {
+    const zwei = [tx({ eventCode: "T0006" }), tx({ eventCode: "T1109", amount: 0, fee: 25 })];
+    const { entries } = classify(zwei, window);
+    expect(entries.map((e) => [e.eventId, e.tx.eventCode])).toEqual([
+      ["1AB23456CD789012E", "T0006"],
+      ["1AB23456CD789012E/T1109", "T1109"],
+    ]);
     // Die Reihenfolge der Lieferung ändert nichts
-    const andersherum = classify([tx({ eventCode: "T0107", amount: -100, fee: 0 }), tx({ eventCode: "T0006" })], window);
-    expect(andersherum.entries.map((e) => e.tx.eventCode)).toEqual(["T0006"]);
+    expect(classify([...zwei].reverse(), window).entries.map((e) => e.eventId)).toEqual(["1AB23456CD789012E", "1AB23456CD789012E/T1109"]);
+    const batch = paypalBatch({
+      externalAccountId: "A1",
+      classified: classify(zwei, window),
+      dateFrom: "2026-10-01",
+      dateTo: "2026-10-31",
+      fetchedAt: "2026-11-01T06:00:00Z",
+      fetchId: "x",
+    });
+    expect(batch.movements.map((m) => [m.sourceEventId, m.component, m.amount])).toEqual([
+      ["1AB23456CD789012E", "main", 10_000],
+      ["1AB23456CD789012E", "fee", -300],
+      ["1AB23456CD789012E/T1109", "fee", 25],
+    ]);
+    expect(paypalStatement(entries).transactions.map((t2) => t2.bankReference)).toContain("1AB23456CD789012E/T1109-gebuehr");
   });
 
   it("meldet einen unbekannten Status, statt ihn zu buchen", () => {

@@ -9,7 +9,7 @@ import { importPayPal } from "./import.ts";
  * Abruf der Transaction Search von PayPal: holt die Transaktionen seit dem letzten Anlauf und übernimmt sie ins Konto des
  * Zahlungsdienstleisters (import.ts).
  *
- * - Der erste Abruf beginnt am gewählten Starttag, jeder weitere drei Tage vor dem Tag des letzten erfolgreichen Abrufs, nie
+ * - Der erste Abruf beginnt am gewählten Starttag, jeder weitere zehn Tage vor dem Tag des letzten erfolgreichen Abrufs, nie
  *   davor (abruf-regeln.ts); schon übernommene Bewegungen erkennt Haben an ihrer Kennung. Liegt eine ausstehende Zahlung
  *   zurück, beginnt er an deren Tag (höchstens 45 Tage zurück), damit sie ankommt, sobald PayPal sie abschließt.
  * - Ein Fehler landet am Zugang (lastError) und im Ergebnis; der nächste Lauf versucht es erneut.
