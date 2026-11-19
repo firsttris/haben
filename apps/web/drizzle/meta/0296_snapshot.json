@@ -1,5 +1,5 @@
 {
-  "id": "fdd985eb-ed53-40c1-bbcb-a116dd802f36",
+  "id": "7e1502fb-1623-494d-8382-f8614d733a3a",
   "prevId": "7300c3fa-c1fc-4a3f-a0d1-7e4600c4d147",
   "version": "7",
   "dialect": "postgresql",
@@ -7696,12 +7696,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "refs": {
-          "name": "refs",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "transaction_id": {
           "name": "transaction_id",
           "type": "uuid",
@@ -8176,6 +8170,19 @@
           "notNull": true,
           "default": "'{}'::text[]"
         },
+        "after_fetch": {
+          "name": "after_fetch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'seen'"
+        },
+        "archive_folder": {
+          "name": "archive_folder",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "enabled": {
           "name": "enabled",
           "type": "boolean",
@@ -8219,6 +8226,10 @@
         "inbox_settings_single_row": {
           "name": "inbox_settings_single_row",
           "value": "\"inbox_settings\".\"id\" = 1"
+        },
+        "inbox_settings_after_fetch": {
+          "name": "inbox_settings_after_fetch",
+          "value": "\"inbox_settings\".\"after_fetch\" in ('seen', 'move', 'delete')"
         }
       },
       "isRLSEnabled": false

@@ -1,8 +1,8 @@
 ---
-title: "Barrierefreiheit und Tastaturbedienung (WCAG 2.2 AA)"
+title: "Barrierefreiheit und Tastaturbedienung"
 description: >-
-  Haben ist vollständig per Tastatur bedienbar und erfüllt nach automatischen Prüfungen WCAG 2.2
-  AA – mit Tastenkürzeln und Hinweisen für Screenreader.
+  Haben ist vollständig per Tastatur bedienbar und wird in der CI automatisch gegen WCAG 2.2 AA
+  geprüft – mit Tastenkürzeln und Hinweisen für Screenreader.
 ---
 
 # Barrierefreiheit und Tastatur

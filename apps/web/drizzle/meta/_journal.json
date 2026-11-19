@@ -2077,8 +2077,22 @@
     {
       "idx": 296,
       "version": "7",
-      "when": 1795072013883,
-      "tag": "0296_importvertrag_referenzen",
+      "when": 1795036081041,
+      "tag": "0296_inbox_nach_abruf",
+      "breakpoints": true
+    },
+    {
+      "idx": 297,
+      "version": "7",
+      "when": 1795036084015,
+      "tag": "0297_inbox_nach_abruf_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 298,
+      "version": "7",
+      "when": 1795074791565,
+      "tag": "0298_importvertrag_referenzen",
       "breakpoints": true
     }
   ]
