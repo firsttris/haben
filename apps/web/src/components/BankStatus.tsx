@@ -2,13 +2,15 @@ import { formatEuro } from "@haben/core";
 import { daysUntil, formatDate, formatDayMonth, relativeDays } from "../lib/format.ts";
 import { Status, type StatusLook } from "./Status.tsx";
 
-type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "privat" | "verrechnet";
+type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "privat" | "verrechnet" | "dublette" | "bestaetigteDublette";
 
 const HINT: Record<Hint, StatusLook> = {
   // Ein Klick erledigt den Umsatz: hebt die Zeilen hervor, die ohne Suchen gehen
   vorschlag: { text: "Vorschlag", tone: "info", emphasis: "notice" },
   // Eine Arbeitsliste: viele Zeilen sind offen, deshalb „notice“ und nicht „urgent“ (DESIGN.md › Status)
   belegFehlt: { text: "Beleg fehlt", tone: "warn", emphasis: "notice" },
+  dublette: { text: "Mögliche Dublette", tone: "warn", emphasis: "notice" },
+  bestaetigteDublette: { text: "Dublette" },
   offen: { text: "Offen" },
   teilweise: { text: "Teilweise", tone: "info" },
   zugeordnet: { text: "Zugeordnet", tone: "ok" },

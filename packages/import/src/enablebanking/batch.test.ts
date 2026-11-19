@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { validateBatch } from "../importvertrag/index.ts";
 import type { EbTransaction } from "./client.ts";
-import { enableBankingBatch } from "./batch.ts";
+import { enableBankingBatch, entryReferenceOf } from "./batch.ts";
+import { enableBankingStatement } from "./map.ts";
 
 const tx = (over: Partial<EbTransaction> = {}): EbTransaction => ({
   entry_reference: "ER-1",
@@ -69,6 +70,16 @@ describe("enableBankingBatch", () => {
     expect(result.ok && result.blocking).toBe(1);
   });
 
+  it("verwechselt die transaction_id eines anderen Umsatzes nicht mit seiner entry_reference", () => {
+    const transactions = [
+      tx({ entry_reference: " ER-1 ", transaction_id: "T-1" }),
+      tx({ entry_reference: null, transaction_id: " ER-1 ", remittance_information: ["Eigenständiger Umsatz"] }),
+    ];
+    const statement = enableBankingStatement({ ...input(transactions), account: { uid: "konto" } });
+    const eventOf = entryReferenceOf(transactions);
+    expect(statement.transactions.map(eventOf)).toEqual(["ER-1", undefined]);
+  });
+
   it("legt vorgemerkte und unbekannte Status nicht als Bewegung an", () => {
     const batch = enableBankingBatch(input([tx({ entry_reference: "ER-2", status: "PDNG" }), tx({ entry_reference: "ER-3", status: "OTHR" })]));
     expect(batch.movements).toEqual([]);
@@ -109,14 +120,23 @@ describe("enableBankingBatch", () => {
     ]);
   });
 
-  it("nimmt dieselbe entry_reference mit gleichem Inhalt nur einmal", () => {
+  it("verwendet eine mehrfach gelieferte entry_reference auch bei gleichem Inhalt nicht als Identität", () => {
     const result = validateBatch(enableBankingBatch(input([tx(), tx()])), binding);
-    expect(result.ok && result.accepted.map((m) => m.sourceEventId)).toEqual(["ER-1"]);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.accepted.map((m) => m.sourceEventId)).not.toContain("ER-1");
   });
 
-  it("lehnt dieselbe entry_reference mit anderem Betrag ab", () => {
+  it("lässt eine Lieferung mit derselben entry_reference und verschiedenem Betrag zur Inhaltsprüfung zu", () => {
     const result = validateBatch(enableBankingBatch(input([tx(), tx({ transaction_amount: { currency: "EUR", amount: "5.00" } })])), binding);
-    expect(result.ok ? [] : result.problems).toEqual(["ER-1/main steht zweimal in der Lieferung."]);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.accepted.map((m) => m.sourceEventId)).not.toContain("ER-1");
+  });
+
+  it("zählt einen gebuchten Umsatz nach dem Fenster bei der Eindeutigkeit der Bankreferenz mit", () => {
+    const result = validateBatch(enableBankingBatch(input([tx(), tx({ booking_date: "2026-11-03" })])), binding);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.accepted.map((m) => m.sourceEventId)).not.toContain("ER-1");
+    expect(result.ok && result.accepted.map((m) => m.bookingDate)).toEqual(["2026-10-05"]);
   });
 
   it("übernimmt die Art des Umsatzes der Bank als Ereigniscode", () => {

@@ -70,25 +70,43 @@ function movement(t: EbTransaction, index: number, window: { dateFrom: string; d
   };
 }
 
-/** Gleicher Kern: Dieselbe entry_reference zweimal mit gleichem Betrag, Tag und Währung ist ein Umsatz */
-const sameCore = (a: ImportMovement, b: ImportMovement) => a.amount === b.amount && a.bookingDate === b.bookingDate && a.currency === b.currency;
+/** Mehrfach vergebene Referenzen sind keine Quellenidentität, ihre Zeilen müssen aber durch die Vertragsprüfung. */
+function projectAmbiguousRows(rows: { index: number; movement: ImportMovement }[], transactions: EbTransaction[]): Map<number, string> {
+  const counts = new Map<string, number>();
+  // Auch eine gebuchte Zeile außerhalb des Zeitfensters belegt, dass die Bank die Referenz wiederverwendet.
+  for (const t of transactions) {
+    const ref = referenz(t);
+    if (ref && (!t.status || t.status === "BOOK")) counts.set(ref, (counts.get(ref) ?? 0) + 1);
+  }
+  let prefix = "~zeile:";
+  const refs = transactions.map(referenz);
+  while (refs.some((ref) => ref?.startsWith(prefix))) prefix = `~${prefix}`;
+  const fallback = new Map<number, string>();
+  for (const { index, movement: m } of rows) {
+    if (counts.get(m.sourceEventId) === 1) continue;
+    const key = `${prefix}${index}`;
+    fallback.set(index, key);
+    m.sourceEventId = key;
+  }
+  return fallback;
+}
 
 /**
  * Lieferung für `validateBatch`; Status und Abbildung je Umsatz wie `enableBankingStatement`. Saldo: der gebuchte
  * (bevorzugt CLBD, sonst ITBD, `bookedBalance`) mit seinem Stichtag, ohne Abstimmung auf den letzten Buchungstag wie
  * im Kontoauszug; die Lieferung nennt ihn als Saldo zu diesem Tag, ohne Stichtag gar nicht.
  */
-export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch {
-  const movements: ImportMovement[] = [];
+export function enableBankingDelivery(input: EnableBankingBatchInput): { batch: ImportBatch; fallback: ReadonlyMap<number, string> } {
+  const rows: { index: number; movement: ImportMovement }[] = [];
   const unsupported: ImportBatch["unsupported"] = [];
   input.transactions.forEach((t, index) => {
     const m = movement(t, index, input);
     if (!("component" in m)) unsupported.push(m);
-    // Mit anderem Kern bleibt die zweite stehen, dann lehnt der Vertrag die Lieferung ab
-    else if (!movements.some((other) => other.sourceEventId === m.sourceEventId && sameCore(other, m))) movements.push(m);
+    else rows.push({ index, movement: m });
   });
+  const fallback = projectAmbiguousRows(rows, input.transactions);
   const balance = bookedBalance(input.balances);
-  return {
+  const batch: ImportBatch = {
     contractVersion: IMPORT_CONTRACT_VERSION,
     provider: "enablebanking",
     externalAccountId: input.externalAccountId,
@@ -97,18 +115,29 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
     // Das angefragte Fenster; gebuchte Umsätze davor nimmt der Vertrag an, ohne dass sie Tage davor abdecken
     coverage: { from: input.dateFrom, to: input.dateTo },
     part: { fetchId: input.fetchId, index: 0, last: true },
-    movements,
+    movements: rows.map(({ movement: m }) => m),
     // Nur ein Stichtag, den es gibt: Ein falscher Tag der Bank soll nicht die ganze Lieferung ablehnen
     balances: balance?.date && parseDate(balance.date) === balance.date ? [{ date: balance.date, amount: balance.amount, currency: "EUR" }] : [],
     unsupported,
   };
+  return { batch, fallback };
+}
+
+/** Prüfkopie für Tests des Enable-Banking-Adapters. Beim Speichern auch die Fallback-Kennungen übernehmen. */
+export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch {
+  return enableBankingDelivery(input).batch;
 }
 
 /**
- * Ereignis zu einem Umsatz aus `enableBankingStatement`: Dessen `bankReference` ist die `entry_reference` oder, ohne
- * sie, die `transaction_id`; nur die erste ist eine stabile Kennung.
+ * Ereignis zu einem Umsatz aus `enableBankingStatement`. Die Kennung muss aus der `entry_reference` dieser Zeile
+ * stammen: Eine fremde `entry_reference` kann denselben Wert wie ihre `transaction_id` haben.
  */
-export function entryReferenceOf(transactions: EbTransaction[]): (t: ParsedTransaction) => string | undefined {
-  const refs = new Map(transactions.filter((t) => t.entry_reference).map((t) => [t.entry_reference!, referenz(t)]));
-  return (t) => (t.bankReference ? refs.get(t.bankReference) : undefined);
+export function entryReferenceOf(transactions: EbTransaction[], fallback?: ReadonlyMap<number, string>): (t: ParsedTransaction) => string | undefined {
+  const refs = new Set(transactions.map(referenz));
+  return (t) => {
+    const key = t.providerRowIndex === undefined ? undefined : fallback?.get(t.providerRowIndex);
+    if (key) return key;
+    const ref = t.entryReference?.trim() || undefined;
+    return ref && refs.has(ref) ? ref : undefined;
+  };
 }

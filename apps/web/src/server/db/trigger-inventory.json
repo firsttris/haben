@@ -37,6 +37,13 @@
     },
     {
       "table": "public.allocations",
+      "name": "allocations_not_duplicate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_not_duplicate BEFORE INSERT ON public.allocations FOR EACH ROW EXECUTE FUNCTION public.haben_check_bank_operation_not_duplicate()",
+      "function": "public.haben_check_bank_operation_not_duplicate()"
+    },
+    {
+      "table": "public.allocations",
       "name": "allocations_not_neutralized",
       "enabled": "O",
       "definition": "CREATE TRIGGER allocations_not_neutralized BEFORE INSERT ON public.allocations FOR EACH ROW EXECUTE FUNCTION public.haben_check_allocation_not_neutralized()",
@@ -316,6 +323,104 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.bank_duplicate_check",
+      "name": "bank_duplicate_check_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_check_append_only BEFORE DELETE OR UPDATE ON public.bank_duplicate_check FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.bank_duplicate_check",
+      "name": "bank_duplicate_check_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_check_audit AFTER INSERT ON public.bank_duplicate_check FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_duplicate_check",
+      "name": "bank_duplicate_check_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_check_no_truncate BEFORE TRUNCATE ON public.bank_duplicate_check FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_duplicate_decisions",
+      "name": "bank_duplicate_decisions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_decisions_append_only BEFORE DELETE OR UPDATE ON public.bank_duplicate_decisions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.bank_duplicate_decisions",
+      "name": "bank_duplicate_decisions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_decisions_audit AFTER INSERT ON public.bank_duplicate_decisions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_duplicate_decisions",
+      "name": "bank_duplicate_decisions_check",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_decisions_check BEFORE INSERT ON public.bank_duplicate_decisions FOR EACH ROW EXECUTE FUNCTION public.haben_check_bank_duplicate_decision()",
+      "function": "public.haben_check_bank_duplicate_decision()"
+    },
+    {
+      "table": "public.bank_duplicate_decisions",
+      "name": "bank_duplicate_decisions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_decisions_no_truncate BEFORE TRUNCATE ON public.bank_duplicate_decisions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_duplicate_reviews",
+      "name": "bank_duplicate_reviews_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_reviews_append_only BEFORE DELETE OR UPDATE ON public.bank_duplicate_reviews FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.bank_duplicate_reviews",
+      "name": "bank_duplicate_reviews_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_reviews_audit AFTER INSERT ON public.bank_duplicate_reviews FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_duplicate_reviews",
+      "name": "bank_duplicate_reviews_check_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_reviews_check_insert BEFORE INSERT ON public.bank_duplicate_reviews FOR EACH ROW EXECUTE FUNCTION public.haben_check_new_bank_duplicate_review()",
+      "function": "public.haben_check_new_bank_duplicate_review()"
+    },
+    {
+      "table": "public.bank_duplicate_reviews",
+      "name": "bank_duplicate_reviews_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_duplicate_reviews_no_truncate BEFORE TRUNCATE ON public.bank_duplicate_reviews FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_import_transactions",
+      "name": "bank_import_transactions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_import_transactions_append_only BEFORE DELETE OR UPDATE ON public.bank_import_transactions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.bank_import_transactions",
+      "name": "bank_import_transactions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_import_transactions_audit AFTER INSERT ON public.bank_import_transactions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_import_transactions",
+      "name": "bank_import_transactions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_import_transactions_no_truncate BEFORE TRUNCATE ON public.bank_import_transactions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.bank_imports",
       "name": "bank_imports_append_only",
       "enabled": "O",
@@ -377,6 +482,13 @@
       "enabled": "O",
       "definition": "CREATE TRIGGER bank_neutralizations_no_truncate BEFORE TRUNCATE ON public.bank_neutralizations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_neutralizations",
+      "name": "bank_neutralizations_not_duplicate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_neutralizations_not_duplicate BEFORE INSERT ON public.bank_neutralizations FOR EACH ROW EXECUTE FUNCTION public.haben_check_bank_operation_not_duplicate()",
+      "function": "public.haben_check_bank_operation_not_duplicate()"
     },
     {
       "table": "public.bank_private_marks",
@@ -3039,6 +3151,13 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.write_offs",
+      "name": "write_offs_not_duplicate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER write_offs_not_duplicate BEFORE INSERT ON public.write_offs FOR EACH ROW EXECUTE FUNCTION public.haben_check_bank_operation_not_duplicate()",
+      "function": "public.haben_check_bank_operation_not_duplicate()"
+    },
+    {
       "table": "public.year_closings",
       "name": "year_closings_append_only",
       "enabled": "O",
@@ -3089,6 +3208,14 @@
     }
   ],
   "functions": [
+    {
+      "name": "public.haben_active_bank_duplicate_decision(verdacht_id uuid)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "aade1048a988090fdfdb4e2e5789fc31fdc04c16ba52a820ea3aaa6d86b987cc",
+      "definitionHash": "74e75a3d77da8a808d6e36a8c4454884fd9aae5c015ca780ec6626577f4eddcc"
+    },
     {
       "name": "public.haben_allocation_vat_return()",
       "config": [],
@@ -3154,12 +3281,36 @@
       "definitionHash": "d7a24cb4e12a7da196676232214b2f4ec674e1d47c2203bf9c0695160f3bff48"
     },
     {
+      "name": "public.haben_bank_duplicate(umsatz_id uuid)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "b35d67b753d72247ff79f48163d410703ca0aa1a12437c491b76cb632d65d541",
+      "definitionHash": "d18508dfa8bbb1d17460cdfbb07d78c14c832cab41e84a87cb0fd8917e154753"
+    },
+    {
+      "name": "public.haben_bank_duplicate_block_reason(candidate_id uuid, original_id uuid)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "504c85f31a0e79fff773ff8f4f8784f0aeb26c1ff56ce37ff8d59797421ec444",
+      "definitionHash": "3283b2b35052416b48b0c0f424a4d1f51d8e82a70e0a996572d039d1b1a60238"
+    },
+    {
       "name": "public.haben_bank_neutralized(tx_id uuid)",
       "config": [],
       "language": "sql",
       "securityDefiner": false,
       "sourceHash": "ecdca07ef0639c088cb1bec620277a98790735cf3f3ea3f7558608889bfd7bf7",
       "definitionHash": "5f9be8e9e60f0fb4d2a78c25050c2d5536a7c2231d4a46a5784d3710ac726b48"
+    },
+    {
+      "name": "public.haben_bank_shared_fetch(left_id uuid, right_id uuid)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "130cea69d88a86a48ef995b4c6c6c9b3df8e2cb4ecda12510937335f23e0edf5",
+      "definitionHash": "ea37e4985a386347d2f45f0b7819db938f5b2fed889e252a2f4b036081d160da"
     },
     {
       "name": "public.haben_cash_entry_invoice()",
@@ -3218,12 +3369,28 @@
       "definitionHash": "ab9fc84e458daa36b2a310f69d6684d8f31e3c84edc3a77e798b0657f770829a"
     },
     {
+      "name": "public.haben_check_bank_duplicate_decision()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "e783f0fafaf3c8ca0277df6864275e5d707d9cec36773d258e2c95c15a372d35",
+      "definitionHash": "0294086b6a6fbd5be7584274ff7b628e64fe14bac5a2e4fd08af50048fdcccc5"
+    },
+    {
       "name": "public.haben_check_bank_neutralization()",
       "config": [],
       "language": "plpgsql",
       "securityDefiner": false,
       "sourceHash": "9bd083a02bb4bc714e7d5d5574fbd9286ab885b9b59acf45136a71cf7ab38fe4",
       "definitionHash": "f0075f1aead27bd4ade54070158c6ed102cab4660b96d2b2e00a2afc82e58b74"
+    },
+    {
+      "name": "public.haben_check_bank_operation_not_duplicate()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "8a4e468b95373f420e0c1ba88ad5b21257b996844e62aa74da4ec4f7fc586c3a",
+      "definitionHash": "dd814ab105ac2990b72f7192e56aacc9bb438f8c460496cf96c269b0da9fee6a"
     },
     {
       "name": "public.haben_check_company_delete()",
@@ -3288,6 +3455,14 @@
       "securityDefiner": false,
       "sourceHash": "3814e74385b661d352d694c23dd0c3d001898023382972a4724fb18de602e602",
       "definitionHash": "90e1d736e45199e07225c78c44f870d91d32b024a35df4ff9d572bd227f67d8b"
+    },
+    {
+      "name": "public.haben_check_new_bank_duplicate_review()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "82a3702fd21c6bfb24c495640fbebb20c23c788b3d846d7a35b5dc6bbcc69b6c",
+      "definitionHash": "e4e73bb28bfb9456f22a45d438a27a1dca1ac993cc68227db378071223a8a699"
     },
     {
       "name": "public.haben_check_payslip()",

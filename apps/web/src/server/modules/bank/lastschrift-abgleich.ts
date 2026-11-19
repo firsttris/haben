@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { findDirectDebitBatch, findDirectDebitReturn, type CollectedDirectDebit, type DirectDebitState } from "@haben/core";
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankDuplicateProposalEligibleSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { openBooks } from "../buchhaltung/index.ts";
 import { invoicePayments } from "../rechnungen/index.ts";
@@ -135,10 +135,12 @@ async function transactionFor(transactionId: string) {
       endToEndId: schema.bankTransactions.endToEndId,
       // Wie im Bankabgleich: ein verrechneter Umsatz (#457) ist nicht offen
       open: bankOpenAmountSql.mapWith(Number),
+      proposalEligible: bankDuplicateProposalEligibleSql.mapWith(Boolean),
     })
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, transactionId));
   if (!row) throw new BankError("Umsatz nicht gefunden.");
+  if (!row.proposalEligible) throw new BankError("Kläre den Dublettenverdacht, bevor du die Lastschrift aus dem Vorschlag zuordnest.");
   return row;
 }
 

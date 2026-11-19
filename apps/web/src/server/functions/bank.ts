@@ -108,7 +108,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
         ? {
             ...detail,
             neutralization: await neutralizationView(detail.transaction.id),
-            storePayout: await storePayoutView(detail.transaction.id),
+            storePayout: detail.duplicateReviews.every((review) => review.decision === "distinct") ? await storePayoutView(detail.transaction.id) : null,
             /** Bezug zu einem Umsatz aus der Klärung eines Konflikts im Abruf (#306) */
             klaerung: await klaerungView(detail.transaction.id),
           }
