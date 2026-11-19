@@ -115,9 +115,19 @@ Angebote aus FastBill liegen danach im Archiv unter **Auftragsdokumente**, wie d
 
 Ein Angebot wird dabei nicht zu einem bearbeitbaren Angebot in Haben: Das bekäme beim Festschreiben eine eigene Nummer. Schreibst du die Rechnung zu einem Angebot aus FastBill in Haben, trag die Angebotsnummer als **Eigene Auftragsnummer** ein ([Bestellnummer, Auftrag und Lieferschein](rechnungen.md#bestellnummer-auftrag-und-lieferschein)).
 
+### Offene Zeiten
+
+Zeiten aus FastBill, die noch auf keiner Rechnung stehen, kommen als [Zeiteinträge](leistungen.md) zum Kunden. Den Kasten **Offene Zeiten** gibt es, sobald der API-Schlüssel hinterlegt ist. **Vorschau holen** ruft Zeiten und Projekte ab und zeigt je Kunde Anzahl, Dauer und Summe netto, dazu was nicht geht; erst **Zeiteinträge übernehmen** legt sie an.
+
+- **Übernommen:** Arbeitstag, Dauer, abrechenbare Dauer (0 heißt nicht abrechenbar), Tätigkeit und der Name des Projekts als Text. Stundensatz ist der des Projekts, ohne Satz im Projekt der des Kunden in Haben.
+- **Nicht übernommen:** abgerechnete Zeiten, denn sie stecken in den Rechnungen im Archiv; Zeiten über 24 Stunden; Zeiten zu Projekten in anderer Währung; Zeiten, deren Kunde in Haben fehlt (zuerst „Alles abrufen“), archiviert oder kein Kunde ist. Die Vorschau nennt sie je Zeit.
+- **Projekte** gibt es in Haben nicht: Budget, Laufzeit, Kostenstelle, Projektnummer und Steuersatz des Projekts gehen nicht über; den Steuersatz setzt der Rechnungsentwurf.
+- **Erneut übernehmen** aktualisiert offene Einträge über die Kennung der Zeit, statt sie zu verdoppeln. Was in Haben schon abgerechnet ist, bleibt, wie es ist. In der Liste der Zeiteinträge steht „aus fastbill“.
+- Der Abruf zählt auf dieselbe Stundengrenze wie Belege und Artikel; je 100 Zeiten oder Projekte eine Anfrage.
+
 ### Grenzen des aktuellen Imports
 
-Wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
+Wiederkehrende Rechnungen, eine Projektverwaltung und die Dokumentenablage von FastBill übernimmt Haben nicht.
 
 ## Schritt 3 bis 5
 

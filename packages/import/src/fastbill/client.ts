@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseContentDispositionFilename } from "../lexoffice/client.ts";
 import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 import { describeIssues, errorTexts, listOf } from "./antwort.ts";
+import { abortableSleep, contentType, errorMessage, isAbortError, isFastbillHost } from "./hilfen.ts";
 import { unwrapFormUpload } from "./huelle.ts";
 import {
   type FbArticle,
@@ -10,6 +11,8 @@ import {
   type FbEnvelope,
   type FbEstimate,
   type FbExpense,
+  type FbProject,
+  type FbTime,
   type FbFile,
   type FbInvoice,
   fbArticleSchema,
@@ -18,6 +21,8 @@ import {
   fbEnvelopeSchema,
   fbEstimateSchema,
   fbExpenseSchema,
+  fbProjectSchema,
+  fbTimeSchema,
   fbInvoiceSchema,
 } from "./types.ts";
 
@@ -170,6 +175,18 @@ export class FastbillClient {
   /** Angebote aller Status; ohne LIMIT liefert FastBill nur 10 */
   estimates(): AsyncGenerator<FbEstimate> {
     return this.#pages("estimate.get", "ESTIMATES", {}, fbEstimateSchema, "ESTIMATE_ID");
+  }
+
+  /**
+   * Zeiten aller Projekte. Ohne Filter liefert FastBill laut Doku nur die letzten des laufenden Monats; mit einem Zeitraum
+   * über alles kamen am echten Konto alle seitenweise.
+   */
+  times(): AsyncGenerator<FbTime> {
+    return this.#pages("time.get", "TIMES", { START_DATE: "2000-01-01", END_DATE: "2099-12-31" }, fbTimeSchema, "TIME_ID");
+  }
+
+  projects(): AsyncGenerator<FbProject> {
+    return this.#pages("project.get", "PROJECTS", {}, fbProjectSchema, "PROJECT_ID");
   }
 
   /** Artikelkatalog; die Doku nennt den Namen der Liste nicht, listOf nimmt sonst die einzige Liste der Antwort */
@@ -352,41 +369,4 @@ export class FastbillClient {
   #checkAborted(service: string): void {
     if (this.#signal?.aborted) throw new FastbillApiError("Import abgebrochen", 0, service, { cause: this.#signal.reason });
   }
-}
-
-// ------------------------------------------------------------ Hilfsfunktionen
-
-function isFastbillHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return host === "fastbill.com" || host.endsWith(".fastbill.com");
-}
-
-function contentType(headers: Headers): string {
-  return (headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
-}
-
-function isAbortError(e: unknown): boolean {
-  return e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
-}
-
-function abortableSleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(signal.reason);
-    const t = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(t);
-      reject(signal!.reason);
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
-function errorMessage(status: number, service: string): string {
-  if (status === 401) return "Login-E-Mail oder API-Schlüssel falsch";
-  if (status === 403) return "Kein Zugriff – das FastBill-Konto erlaubt keinen API-Zugriff";
-  if (status === 429) return `Aufruflimit der FastBill-API überschritten (${service}), auch nach mehreren Versuchen`;
-  return `FastBill-API-Fehler ${status} bei ${service}`;
 }

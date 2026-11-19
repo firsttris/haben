@@ -17,6 +17,7 @@ import { WisoImport } from "./WisoImport.tsx";
 import { SevdeskExportImport } from "./SevdeskExportImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
 import { FastbillArticles, FastbillLoginFields } from "./FastbillTeile.tsx";
+import { FastbillZeiten } from "./FastbillZeiten.tsx";
 import { Field } from "../Field.tsx";
 
 import { ALL_SOURCES, type ConnectedSource, type FastbillPlan, type MigrationData, SOURCES, type Source } from "./migration-quellen.ts";
@@ -131,6 +132,7 @@ export function Migration({ data }: { data: MigrationData }) {
           {source === "sevdesk" && <SevdeskExportImport key={`sevdesk-export-${data.sevdeskExportImport?.id ?? "neu"}`} initial={data.sevdeskExportImport} />}
           {source === "fastbill" && <FastbillReceipts receipts={data.fastbillReceipts} running={data.fastbillImport?.status === "laeuft"} />}
           {source === "fastbill" && data.fastbillConnection && <FastbillArticles />}
+          {source === "fastbill" && data.fastbillConnection && <FastbillZeiten />}
         </>
       )}
       <OpenItems

@@ -13,4 +13,18 @@ export {
 } from "./map.ts";
 export { type FbMappedEstimate, mapFbEstimate } from "./angebote.ts";
 export { fbArticlesCsv } from "./artikel.ts";
-export type { FbArticle, FbEstimate, FbContact, FbCustomer, FbExpense, FbFile, FbInvoice, FbInvoiceItem, FbPayment, FbVatItem } from "./types.ts";
+export { type FbMappedTime, type FbTimeMapped, isFbTimeBilled, mapFbTime } from "./zeiten.ts";
+export type {
+  FbArticle,
+  FbProject,
+  FbTime,
+  FbEstimate,
+  FbContact,
+  FbCustomer,
+  FbExpense,
+  FbFile,
+  FbInvoice,
+  FbInvoiceItem,
+  FbPayment,
+  FbVatItem,
+} from "./types.ts";
