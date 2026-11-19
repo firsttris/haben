@@ -120,6 +120,17 @@ describe("Platzhalter {KUNDENNR} (#1426)", () => {
     // Neben Jahr und Monat ist sie erlaubt: die haben feste Breite
     expect(numberFormatError("{JJJJ}{KUNDENNR}-{NNN}", allowCustomer)).toBeNull();
   });
+
+  it("verlangt beim Zähler je Kunde die Kundennummer im Format (requireCustomer, #1426)", () => {
+    const perCustomer = { requireYear: false, allowCustomer: true, requireCustomer: true } as const;
+    expect(numberFormatError("RE-{JJJJ}-{NNN}", perCustomer)).toMatch(/\{KUNDENNR\}.*eigenen Nummernkreis/);
+    expect(numberFormatError("RE-{NNN}", perCustomer)).toMatch(/\{KUNDENNR\}/);
+    expect(numberFormatError("RE-{JJJJ}-{KUNDENNR}-{NNN}", perCustomer)).toBeNull();
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", perCustomer)).toBeNull();
+    // requireCustomer schließt den Platzhalter auch ohne allowCustomer ein
+    expect(numberFormatError("RE-{KUNDENNR}-{NNN}", { requireYear: false, requireCustomer: true })).toBeNull();
+    expect(numberFormatError("RE-{NNN}", { requireYear: false, requireCustomer: true })).toMatch(/\{KUNDENNR\}/);
+  });
 });
 
 describe("documentNumberLengthProblem (#1426)", () => {

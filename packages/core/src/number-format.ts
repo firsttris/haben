@@ -142,22 +142,24 @@ export function issueDateBeforeLastFinalized(byCircle: Record<number, FinalizedC
  * Warum ein Format nicht taugt, als Satz für die Oberfläche; null = in Ordnung. requireYear: false für Nummern, deren
  * Zähler nicht jährlich neu beginnt (Kundennummern, durchlaufende Nummernkreise); dort ist das Jahr erlaubt, aber nicht
  * nötig. allowCustomer erlaubt {KUNDENNR}: Rechnungen und Angebote tragen die Nummer ihres Käufers, für die Vergabe
- * neuer Kundennummern ergäbe der Platzhalter keinen Sinn.
+ * neuer Kundennummern ergäbe der Platzhalter keinen Sinn. requireCustomer verlangt {KUNDENNR}: beim Zähler je Kunde
+ * muss die Nummer aus dem Kreis ablesbar bleiben, der Platzhalter ist dann auch ohne allowCustomer erlaubt (#1426).
  */
 export function numberFormatError(
   format: string,
-  { requireYear = true, allowCustomer = false }: { requireYear?: boolean; allowCustomer?: boolean } = {},
+  { requireYear = true, allowCustomer = false, requireCustomer = false }: { requireYear?: boolean; allowCustomer?: boolean; requireCustomer?: boolean } = {},
 ): string | null {
   if (format.length > MAX_NUMBER_FORMAT_LENGTH) return `Das Format darf höchstens ${MAX_NUMBER_FORMAT_LENGTH} Zeichen lang sein.`;
   const names = [...format.matchAll(PLACEHOLDER)].map((m) => m[1]!);
-  const unknown = names.find((name) => !COUNTER.test(name) && !YEAR.test(name) && !MONTH.test(name) && !(allowCustomer && name === CUSTOMER));
+  const customerAllowed = allowCustomer || requireCustomer;
+  const unknown = names.find((name) => !COUNTER.test(name) && !YEAR.test(name) && !MONTH.test(name) && !(customerAllowed && name === CUSTOMER));
   if (unknown !== undefined)
-    return `Den Platzhalter {${unknown}} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM}${allowCustomer ? `, {${CUSTOMER}}` : ""} und {N} bis {NNNNNN}.`;
+    return `Den Platzhalter {${unknown}} gibt es nicht. Möglich sind {JJJJ}, {JJ}, {MM}${customerAllowed ? `, {${CUSTOMER}}` : ""} und {N} bis {NNNNNN}.`;
   if (!LITERAL.test(format.replace(PLACEHOLDER, ""))) {
     return "Außerhalb der Platzhalter gehen nur Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt.";
   }
   if (names.filter((name) => name === CUSTOMER).length > 1) return `Der Platzhalter {${CUSTOMER}} darf nur einmal vorkommen.`;
-  if (allowCustomer && CUSTOMER_NEXT_TO_COUNTER.test(format)) {
+  if (customerAllowed && CUSTOMER_NEXT_TO_COUNTER.test(format)) {
     return `Der Platzhalter {${CUSTOMER}} darf nicht direkt neben der laufenden Nummer stehen, sonst wird die Nummer nicht mehr eindeutig.`;
   }
   const counters = names.filter((name) => COUNTER.test(name)).length;
@@ -165,5 +167,7 @@ export function numberFormatError(
   if (counters > 1) return "Die laufende Nummer darf nur genau einmal vorkommen.";
   if (requireYear && !names.some((name) => YEAR.test(name)))
     return "Das Format braucht das Jahr ({JJJJ} oder {JJ}), weil die laufende Nummer jedes Jahr neu beginnt.";
+  if (requireCustomer && !names.some((name) => name === CUSTOMER))
+    return `Das Format braucht die Kundennummer ({${CUSTOMER}}), weil jeder Kunde einen eigenen Nummernkreis bekommt.`;
   return null;
 }

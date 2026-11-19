@@ -489,12 +489,12 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts); {KUNDENNR} wird zur
     // Kundennummer des Käufers (#1426)
     const circle = await circleFor(tx, "angebot", quote.issueDate);
-    const counter = await peekNumber(tx, "angebot", circle);
+    const counter = await peekNumber(tx, "angebot", circle, null);
     const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, quote.issueDate, counter, buyer.kundennummer);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
     const pdf = await withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuotePdf({ ...doc, ...letterhead }));
     const now = new Date();
-    await takeNumber(tx, "angebot", circle, counter);
+    await takeNumber(tx, "angebot", circle, counter, null);
     const [finalized] = await tx
       .update(schema.quotes)
       .set({

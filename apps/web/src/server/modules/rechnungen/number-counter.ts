@@ -7,13 +7,15 @@ import {
   voucherField,
   type FinalizedCircleRef,
 } from "@haben/core";
-import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
 /*
  * Nummernkreise für Rechnungen und Angebote, lückenlos je Kreis. Ein Kreis ist das Jahr des Belegdatums oder, wenn der
- * Zähler in den Einstellungen durchläuft, der eine Kreis 0 (counterCircle, #328). Die Funktionen unten nehmen den Kreis.
+ * Zähler in den Einstellungen durchläuft, der eine Kreis 0 (counterCircle, #328); beim Zähler je Kunde trägt jeder
+ * Kontakt einen eigenen Kreis (contact_id der Zählertabelle, NULL = gemeinsamer Kreis wie bisher, #1426). Die
+ * Funktionen unten nehmen den Kreis.
  *
  * Das Festschreiben erzeugt PDF und XML mit der neuen Nummer. Jede Änderung mit Audit-Eintrag nimmt die Sperre der
  * Hash-Kette bis zum Commit (drizzle/0063), und solange warten alle anderen Schreibvorgänge. Deshalb wird die Nummer
@@ -86,40 +88,52 @@ export async function documentNumber(tx: Tx, kind: NumberKind, format: string, d
   return number;
 }
 
+type CounterContactColumn = typeof schema.invoiceNumberCounters.contactId | typeof schema.quoteNumberCounters.contactId;
+
+/** Kreis-Bedingung der Zählertabelle: NULL ist der gemeinsame Kreis, sonst der Kontakt des Kundenkreises (#1426) */
+function contactCondition(column: CounterContactColumn, contactId: string | null): SQL | undefined {
+  return contactId === null ? isNull(column) : eq(column, contactId);
+}
+
 /** Sperrt einen Nummernkreis bis zum Ende der Transaktion; mehrfach aufrufbar */
-export async function lockNumbering(tx: Tx, kind: NumberKind, year: number): Promise<void> {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`haben.nummernkreis.${kind}.${year}`}))`);
+export async function lockNumbering(tx: Tx, kind: NumberKind, year: number, contactId: string | null): Promise<void> {
+  // Der gemeinsame Kreis behält seinen bisherigen Schlüssel, Kundenkreise hängen den Kontakt an (#1426)
+  const key = `haben.nummernkreis.${kind}.${year}${contactId === null ? "" : `.${contactId}`}`;
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
 }
 
 /** Letzte vergebene Nummer des Kreises (0 = noch keine), unter der Sperre des Kreises gelesen */
-export async function lastNumber(tx: Tx, kind: NumberKind, year: number): Promise<number> {
+export async function lastNumber(tx: Tx, kind: NumberKind, year: number, contactId: string | null): Promise<number> {
   const counter = COUNTERS[kind];
-  const [row] = await tx.select({ last: counter.last }).from(counter).where(eq(counter.year, year));
+  const [row] = await tx
+    .select({ last: counter.last })
+    .from(counter)
+    .where(and(eq(counter.year, year), contactCondition(counter.contactId, contactId)));
   return row?.last ?? 0;
 }
 
 /** Nächste Nummer, ohne sie zu verbrauchen. Sperrt den Kreis bis zum Commit; bis dahin vergibt niemand eine Nummer. */
-export async function peekNumber(tx: Tx, kind: NumberKind, year: number): Promise<number> {
-  await lockNumbering(tx, kind, year);
-  return (await lastNumber(tx, kind, year)) + 1;
+export async function peekNumber(tx: Tx, kind: NumberKind, year: number, contactId: string | null): Promise<number> {
+  await lockNumbering(tx, kind, year, contactId);
+  return (await lastNumber(tx, kind, year, contactId)) + 1;
 }
 
 /** Verbraucht die mit peekNumber gelesene Nummer. Schlägt fehl, wenn der Zähler inzwischen woanders steht. */
-export async function takeNumber(tx: Tx, kind: NumberKind, year: number, number: number): Promise<void> {
+export async function takeNumber(tx: Tx, kind: NumberKind, year: number, number: number, contactId: string | null): Promise<void> {
   const counter = COUNTERS[kind];
   const [row] = await tx
     .insert(counter)
-    .values({ year, last: number })
-    .onConflictDoUpdate({ target: counter.year, set: { last: number }, setWhere: eq(counter.last, number - 1) })
+    .values({ year, last: number, contactId })
+    .onConflictDoUpdate({ target: [counter.year, counter.contactId], set: { last: number }, setWhere: eq(counter.last, number - 1) })
     .returning({ last: counter.last });
-  if (!row) throw new Error(`Nummernkreis ${kind} ${year}: Nummer ${number} ist nicht mehr die nächste.`);
+  if (!row) throw new Error(`Nummernkreis ${kind} ${year}${contactId === null ? "" : `:${contactId}`}: Nummer ${number} ist nicht mehr die nächste.`);
 }
 
 /** Vergibt die Rechnungsnummer und prüft unter der Audit-Sperre auch kreisübergreifend auf DATEV-Kollisionen. */
-export async function takeInvoiceNumber(tx: Tx, year: number, counter: number, number: string): Promise<void> {
+export async function takeInvoiceNumber(tx: Tx, year: number, counter: number, number: string, contactId: string | null): Promise<void> {
   // Der Audit-Trigger des Zählers sperrt die Hash-Kette bis zum Commit. Erst danach lesen, damit auch parallel
   // festgeschriebene Nummern aus anderen Kreisen sichtbar sind. Bei Kollision rollt der Zähler mit zurück.
-  await takeNumber(tx, "rechnung", year, counter);
+  await takeNumber(tx, "rechnung", year, counter, contactId);
   const field = voucherField(number);
   const { invoices } = schema;
   const rows = await tx.select({ number: invoices.number }).from(invoices).where(isNotNull(invoices.number));
@@ -132,31 +146,43 @@ export async function takeInvoiceNumber(tx: Tx, year: number, counter: number, n
 }
 
 /** Setzt den Zähler so, dass `next` die nächste Nummer ist (Umstieg von einem anderen Programm) */
-export async function setNextNumber(tx: Tx, kind: NumberKind, year: number, next: number): Promise<{ ok: true } | { ok: false; last: number }> {
-  await lockNumbering(tx, kind, year);
-  const last = await lastNumber(tx, kind, year);
+export async function setNextNumber(
+  tx: Tx,
+  kind: NumberKind,
+  year: number,
+  next: number,
+  contactId: string | null,
+): Promise<{ ok: true } | { ok: false; last: number }> {
+  await lockNumbering(tx, kind, year, contactId);
+  const last = await lastNumber(tx, kind, year, contactId);
   if (next <= last) return { ok: false, last };
   const counter = COUNTERS[kind];
   await tx
     .insert(counter)
-    .values({ year, last: next - 1 })
-    .onConflictDoUpdate({ target: counter.year, set: { last: next - 1 } });
+    .values({ year, last: next - 1, contactId })
+    .onConflictDoUpdate({ target: [counter.year, counter.contactId], set: { last: next - 1 } });
   return { ok: true };
 }
 
 /**
- * Beim Umschalten auf den durchlaufenden Zähler: Er beginnt hinter der letzten Nummer des jüngsten Jahres, damit
- * „RE-2026-12-0412“ im Januar mit 0413 weitergeht. Steht der Kreis 0 schon (früher einmal durchlaufend), rückt er nur
- * vor, wenn das jüngste Jahr inzwischen weiter ist; sonst ergäbe ein Format mit Jahr eine schon vergebene Nummer.
+ * Beim Umschalten auf den durchlaufenden Zähler: Er beginnt hinter der letzten Nummer des jüngsten Jahres desselben
+ * Kreises, damit „RE-2026-12-0412“ im Januar mit 0413 weitergeht. Steht der Kreis 0 schon (früher einmal
+ * durchlaufend), rückt er nur vor, wenn das jüngste Jahr inzwischen weiter ist; sonst ergäbe ein Format mit Jahr eine
+ * schon vergebene Nummer.
  */
-export async function startRunning(tx: Tx, kind: NumberKind): Promise<void> {
+export async function startRunning(tx: Tx, kind: NumberKind, contactId: string | null): Promise<void> {
   const counter = COUNTERS[kind];
-  await lockNumbering(tx, kind, 0);
-  const [latest] = await tx.select({ last: counter.last }).from(counter).where(sql`${counter.year} > 0`).orderBy(sql`${counter.year} desc`).limit(1);
+  await lockNumbering(tx, kind, 0, contactId);
+  const [latest] = await tx
+    .select({ last: counter.last })
+    .from(counter)
+    .where(and(sql`${counter.year} > 0`, contactCondition(counter.contactId, contactId)))
+    .orderBy(sql`${counter.year} desc`)
+    .limit(1);
   await tx
     .insert(counter)
-    .values({ year: 0, last: latest?.last ?? 0 })
-    .onConflictDoUpdate({ target: counter.year, set: { last: sql`excluded.last` }, setWhere: sql`${counter.last} < excluded.last` });
+    .values({ year: 0, last: latest?.last ?? 0, contactId })
+    .onConflictDoUpdate({ target: [counter.year, counter.contactId], set: { last: sql`excluded.last` }, setWhere: sql`${counter.last} < excluded.last` });
 }
 
 /** Zuletzt festgeschriebene Rechnung je Nummernkreis (`number_year`), für die Datumsprüfung beim Festschreiben (#713) */

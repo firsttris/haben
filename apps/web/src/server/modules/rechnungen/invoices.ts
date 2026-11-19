@@ -1256,7 +1256,7 @@ async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, besta
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
   const circle = await circleFor(tx, "rechnung", invoice.issueDate);
-  const counter = await peekNumber(tx, "rechnung", circle);
+  const counter = await peekNumber(tx, "rechnung", circle, null);
   const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, umsatzStand, bestaetigt);
@@ -1276,7 +1276,7 @@ async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, besta
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
-  await takeInvoiceNumber(tx, circle, counter, number);
+  await takeInvoiceNumber(tx, circle, counter, number, null);
   const [finalized] = await withAdvanceVatChange(tx, id, () =>
     tx
       .update(schema.invoices)
@@ -1422,7 +1422,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     await lockInvoice(tx, id);
     // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts). Das PDF entsteht hier nach dem
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
-    await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today));
+    await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today), null);
     const { invoice, lines } = await finalOriginal(id, tx);
     // Festgeschriebene Korrekturen haben die Rechnung schon gemindert: jede bekommt ihr eigenes Storno. Je Beleg genau
     // negiert hebt sich auch die Steuer auf den Cent auf, die jeder Beleg für sich rundet. Neue Korrekturen warten auf die
@@ -1524,14 +1524,14 @@ export async function numbering(date: string, kind: NumberKind = "rechnung") {
   const { running, circle, last } = await db.transaction(async (tx) => {
     const running = await countsRunning(tx, kind);
     const circle = running ? 0 : Number(date.slice(0, 4));
-    return { running, circle, last: await lastNumber(tx, kind, circle) };
+    return { running, circle, last: await lastNumber(tx, kind, circle, null) };
   });
   return { kind, date, year: Number(date.slice(0, 4)), running, circle, last, next: formatDocumentNumber(company[NUMBER_FORMAT[kind]], date, last + 1) };
 }
 
 export async function setNextNumber(actor: string, date: string, next: number, kind: NumberKind = "rechnung") {
   const result = await withActor(actor, async (tx) => {
-    const set = await setNextCounter(tx, kind, await circleFor(tx, kind, date), next);
+    const set = await setNextCounter(tx, kind, await circleFor(tx, kind, date), next, null);
     if (set.ok) return set;
     // Nur lesen: loadCompany legte die Firmenzeile an, wenn sie fehlt, und das gehört nicht in eine Fehlermeldung
     const [company] = await tx.select({ invoice: schema.company.invoiceNumberFormat, quote: schema.company.quoteNumberFormat }).from(schema.company);
