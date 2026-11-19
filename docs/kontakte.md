@@ -50,8 +50,6 @@ Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine ode
 
 **Aus einer Liste übernehmen.** **CSV importieren** über der Liste übernimmt Kunden und Lieferanten aus einer CSV-Datei, etwa dem Kontakt-Export von Lexware Office, mit Vorschau und ohne Dubletten ([CSV-Import](csv-import.md#kontakte)), auch Debitoren und Kreditoren aus einem DATEV-Export ([Kontakte aus DATEV](csv-import.md#kontakte-aus-datev)).
 
-**Vom Kontakt aus abrechnen.** Oben auf der Detailseite eines Kunden öffnet **Rechnung schreiben** einen Entwurf, in dem der Kunde mit seinen Vorgaben (Format, Sprache, Skonto) schon gewählt ist; bei einem archivierten Kontakt bleibt die Auswahl leer. **Zeiteinträge** führt zu seinen [Leistungen](leistungen.md). Liegen offene Einträge vor, nennt der Knopf ihre abrechenbare Dauer, etwa „Zeiteinträge · 3:30 offen“, und die Liste zeigt nur diese. Dort legst du mit **Neuer Eintrag** einen Eintrag für den Kunden an oder rechnest ab. Ein reiner Lieferant hat den Knopf nur, wenn bei ihm noch Einträge liegen.
-
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
 
 ## USt-IdNr. beim BZSt bestätigen
@@ -66,6 +64,8 @@ Für innergemeinschaftliche Lieferungen muss die USt-IdNr. des Kunden gültig se
 - **Grenzen:** Deutsche Nummern bestätigt das BZSt nicht. Nummern, deren Aufbau nicht zum Land passt (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm)), fragt Haben nicht an. Ohne deine USt-IdNr. in den Firmendaten sagt die Karte, was fehlt; mit `HABEN_EVATR=off` ([Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen)) fragt Haben nie. Kontakte, die du anderswo anlegst oder änderst (Dialog in Rechnung, Beleg und Vorlagen, Import, REST-API), bestätigt Haben beim Speichern nicht. Vor dem Festschreiben prüft es die Nummer, bei Reverse Charge auch Name und Ort der letzten qualifizierten Antwort, aber nicht, ob sich Name oder Anschrift seitdem geändert haben; das bestätigst du auf der Detailseite des Kontakts.
 
 ## Rechnungen und Belege am Kontakt
+
+**Vom Kontakt aus abrechnen.** Oben auf der Detailseite eines Kunden öffnet **Rechnung schreiben** einen Entwurf, in dem der Kunde mit seinen Vorgaben (Format, Sprache, Skonto) schon gewählt ist; bei einem archivierten Kontakt bleibt die Auswahl leer. **Zeiteinträge** führt zu seinen [Zeiteinträgen](leistungen.md). Liegen offene Einträge vor, nennt der Knopf ihre abrechenbare Dauer, etwa „Zeiteinträge · 3:30 offen“, und die Liste zeigt nur diese. Dort legst du mit **Neuer Eintrag** einen Eintrag für den Kunden an oder rechnest ab. Ein reiner Lieferant hat den Knopf nur, wenn es bei ihm Einträge gibt, auch abgerechnete.
 
 Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/firsttris/haben/issues/587)):
 

@@ -26,7 +26,7 @@ Eine Buchung entsteht aus einem Eintrag nicht: Er ist die Grundlage, aus der die
 | Stundensatz | Optional. Ohne Angabe nimmt Haben den Satz des Kunden, siehe unten. |
 | Tätigkeit | Optional. Steht später auf der Rechnung. |
 
-Die Liste zeigt die neuesten Arbeitstage zuerst und lässt sich nach Kunde und Zeitraum eingrenzen. Je Eintrag stehen Kunde und Tätigkeit in einer Zeile, darunter Projekt und „nicht abrechenbar“; weicht die abrechenbare Dauer ab, steht sie als „abr.“ unter der Dauer. Unter der Liste stehen Anzahl, Stunden und Summe der Einträge im Filter; ein Eintrag ohne Stundensatz zählt in der Summe nicht mit. Einträge lassen sich ändern und löschen, solange sie auf keiner Rechnung stehen. Jede Änderung steht im Änderungsprotokoll. Der Filter **Stand** zeigt offene, abgerechnete und nicht abrechenbare Einträge. Die Einträge eines Kunden erreichst du auch von seiner Kontaktseite mit **Zeiteinträge** ([Kontakte](kontakte.md)).
+Die Liste zeigt die neuesten Arbeitstage zuerst und lässt sich nach Kunde und Zeitraum eingrenzen. Je Eintrag stehen Kunde und Tätigkeit in einer Zeile, darunter Projekt und „nicht abrechenbar“; weicht die abrechenbare Dauer ab, steht sie als „abr.“ unter der Dauer. Unter der Liste stehen Anzahl, Stunden und Summe der Einträge im Filter; ein Eintrag ohne Stundensatz zählt in der Summe nicht mit. Einträge lassen sich ändern und löschen, solange sie auf keiner Rechnung stehen. Jede Änderung steht im Änderungsprotokoll. Der Filter **Stand** zeigt offene, abgerechnete und nicht abrechenbare Einträge. Die Einträge eines Kunden erreichst du auch von seiner Kontaktseite mit **Zeiteinträge** ([Kontakte](kontakte.md#rechnungen-und-belege-am-kontakt)).
 
 ## Stundensatz
 
