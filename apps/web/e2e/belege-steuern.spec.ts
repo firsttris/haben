@@ -3046,7 +3046,7 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await page.waitForLoadState("networkidle");
   await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
   await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeVisible();
-  await expect(panel.getByText("Ausgabe: Telefon")).toBeVisible();
+  await expect(panel.getByText(/Ausgabe: [0-9]{4} · Telefon/)).toBeVisible();
   await expect(panel.getByText(`2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am ${day(0).split("-").reverse().join(".")}`)).toBeVisible();
   await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
   await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue(kategorieName("telefon"));

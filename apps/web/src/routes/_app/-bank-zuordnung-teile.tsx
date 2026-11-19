@@ -1,4 +1,5 @@
 import { formatEuro } from "@haben/core";
+import { getRouteApi } from "@tanstack/react-router";
 import { vorschlagTitel } from "../../components/DirektVorschlag.ts";
 import { Icon } from "../../components/Icon.tsx";
 import { formatDate } from "../../lib/format.ts";
@@ -8,6 +9,8 @@ import { type Allocation, type Data, type Detail, itemLabel, zuordnungText } fro
  * Anzeigeteile der Zuordnung eines Bankumsatzes (AllocationPanel in -bank-zuordnung.tsx): Kopf mit dem Umsatz, die
  * bisherigen Zuordnungen, der beste Treffer und der Vorschlag ohne Rechnung.
  */
+
+const appRoute = getRouteApi("/_app");
 
 type Direct = NonNullable<Detail["direct"]>;
 type Counterpart = NonNullable<Direct["counterpart"]>;
@@ -128,12 +131,13 @@ export function DirektVorschlagKarte({
   busy: boolean;
   onTransit: (counterpart: Counterpart) => void;
 }) {
+  const { kontenrahmen } = appRoute.useRouteContext();
   const counterpart = direct.counterpart;
   return (
     <div className="stack" style={{ gap: 10 }}>
       <div className="section-label">Vorschlag ohne Rechnung</div>
       <div className="match-card">
-        <span style={{ fontWeight: 600 }}>{vorschlagTitel(direct) ?? directKinds.find((k) => k.value === direct.kind)?.label}</span>
+        <span style={{ fontWeight: 600 }}>{vorschlagTitel(direct, kontenrahmen) ?? directKinds.find((k) => k.value === direct.kind)?.label}</span>
         <ul className="reasons">
           {direct.reasons.map((reason) => (
             <li key={reason}>

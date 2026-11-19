@@ -1,5 +1,5 @@
-import { EXPENSE_CATEGORIES, formatEuro, type ContactYearTotal, type ExpenseCategory } from "@haben/core";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { formatEuro, kategorieMitKonto, type ContactYearTotal, type Kontenrahmen } from "@haben/core";
+import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { legacySource } from "../lib/altbestand.ts";
 import { formatDate } from "../lib/format.ts";
@@ -163,6 +163,7 @@ function archiveAmount(net: number): string {
 }
 
 function Entries({ rows, label }: { rows: ContactHistoryRow[]; label: string }) {
+  const { kontenrahmen } = getRouteApi("/_app").useRouteContext();
   return (
     <div className="table" role="group" aria-label={label}>
       <div className="table-row head contact-entry-cols">
@@ -177,7 +178,7 @@ function Entries({ rows, label }: { rows: ContactHistoryRow[]; label: string }) 
         <EntryLink key={row.id} row={row}>
           <div className="small">{formatDate(row.date)}</div>
           <div className="mono small ellipsis">{entryNumber(row)}</div>
-          <div className="small ellipsis">{entryKind(row)}</div>
+          <div className="small ellipsis">{entryKind(row, kontenrahmen)}</div>
           <div className={row.counts ? "num" : "num muted"}>{formatEuro(row.net)}</div>
           <div className={row.counts ? "num" : "num muted"}>{formatEuro(row.gross)}</div>
           <div>
@@ -215,10 +216,10 @@ function entryNumber(row: ContactHistoryRow): string {
   return row.number || "–";
 }
 
-function entryKind(row: ContactHistoryRow): string {
+function entryKind(row: ContactHistoryRow, kontenrahmen: Kontenrahmen): string {
   if (row.kind === "rechnung") return invoiceTitle(row.invoiceKind, row.variant);
   if (row.kind === "archiv") return LEGACY_TYPES[row.type] ?? row.type;
-  if (row.category) return EXPENSE_CATEGORIES[row.category as ExpenseCategory]?.label ?? row.category;
+  if (row.category) return kategorieMitKonto(kontenrahmen, row.category);
   return row.splitCount > 0 ? `Aufgeteilt auf ${row.splitCount} Zeilen` : "–";
 }
 
