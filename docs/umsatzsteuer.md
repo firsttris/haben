@@ -439,6 +439,7 @@ Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION
 Ist weder `ERIC_HOME` gesetzt noch ERiC unter Einstellungen › ELSTER › ERiC heruntergeladen, zeigt die Seite „ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.“ mit einem Link zu Einstellungen › ELSTER. Derselbe Hinweis steht auf diesen Seiten:
 
 - Übersicht (nur bei Umsatzsteuerpflicht)
+- Voranmeldung
 - Zusammenfassende Meldung (mit „Bundeszentralamt für Steuern“ statt „Finanzamt“)
 - Jahreserklärung
 - Lohnsteuer-Anmeldung
