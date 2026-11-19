@@ -1,4 +1,4 @@
-import { amountError, formatDecimal, isKapitalgesellschaft, parseEuro, startwertFuerBuchungsart } from "@haben/core";
+import { amountError, formatDecimal, isKapitalgesellschaft, parseEuro, startwertFuerBuchungsart, type ZahlungMitKorrektur } from "@haben/core";
 import { getRouteApi, useNavigate, useRouter } from "@tanstack/react-router";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { isDialogOpen } from "../../components/ConfirmDialog.tsx";
@@ -165,7 +165,26 @@ function restBuchungen(wahl: Wahl, tx: Detail["transaction"], aufrufe: Aufrufe, 
     const first = itemTarget(target.type, target.id, target.open);
     return run(() => aufrufe.splitFn({ data: { transactionId: tx.id, parts: [first, { kind: "gebuehren", amount: angebot.feeRest }] } }));
   }
-  return { target, angebot, bookRest, bookRestAsFee };
+  // Rechnung mit Korrekturen und Skonto auf den geminderten Betrag (#1398), wenn nicht schon der Hauptknopf das bucht
+  function bookKorrekturSkonto() {
+    if (target?.type !== "invoice" || !angebot.korrektur) return;
+    const work = korrekturBuchung(tx, target, angebot.korrektur, aufrufe);
+    return run(work);
+  }
+  return { target, angebot, bookRest, bookRestAsFee, bookKorrekturSkonto };
+}
+
+/**
+ * Buchung „Rechnung minus Korrektur“ (#1398): als Aufteilung Rechnung über ihren offenen Betrag und jede Korrektur über
+ * ihren; bleibt ein Skonto auf den geminderten Betrag, bucht der Server Aufteilung und Skonto zusammen
+ */
+function korrekturBuchung(tx: Detail["transaction"], rechnung: { id: string; open: number }, zahlung: ZahlungMitKorrektur, aufrufe: Aufrufe) {
+  if (zahlung.skonto !== 0) {
+    const korrekturen = zahlung.corrections.map((k) => k.id);
+    return () => aufrufe.restFn({ data: { transactionId: tx.id, target: { kind: "invoice", invoiceId: rechnung.id }, rest: "skonto", korrekturen } });
+  }
+  const parts = [rechnung, ...zahlung.corrections].map((p) => ({ kind: "invoice" as const, invoiceId: p.id, amount: p.open }));
+  return () => aufrufe.splitFn({ data: { transactionId: tx.id, parts } });
 }
 
 /** Gebühr derselben Bewegung, wenn der Umsatz eine Zahlung mit abgezogener Gebühr ist */
@@ -184,21 +203,27 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
   const primaryButton = useRef<HTMLButtonElement>(null);
   const { form: panel, error, check } = useSubmitCheck(fehler(wahl, detail.candidates));
   const { best, mode, signedAmount } = wahl;
-  // Zahlung in der Skontofrist um genau das Skonto gekürzt: zuordnen und den Rest gleich als gewährtes Skonto ausbuchen
-  // Gleicht eine offene Korrektur den Rest aus, ist er kein Skonto (#1398)
-  const skontoRest =
-    mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open && !passendeKorrektur(best.item, tx) ? best.skonto : 0;
+  // Bester Treffer „Rechnung minus Korrektur“ über den ganzen Umsatz (#1398): Zuordnen bucht die Aufteilung mit den Korrekturen
+  const korrekturTreffer = mode === "best" && best?.item.type === "invoice" && signedAmount === tx.open ? passendeKorrektur(best.item, tx) : undefined;
+  // Zahlung in der Skontofrist um genau das Skonto gekürzt: zuordnen und den Rest gleich als gewährtes Skonto ausbuchen.
+  // Mit Korrekturen ist es nur das Skonto auf den geminderten Betrag, nie der Rest samt Korrektur (#1398)
+  const skontoRest = korrekturTreffer
+    ? korrekturTreffer.skonto
+    : mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open && !passendeKorrektur(best.item, tx)
+      ? best.skonto
+      : 0;
   useEnterOrdnetZu(tx.open, primaryButton);
   const rest = restBuchungen(wahl, tx, aufrufe, ausfuehren.run);
   // Zahlung mit der Gebühr ihrer Bewegung: ganze Zahlung auf eine Rechnung oder einen Beleg, die Gebühr gleich mit
   const gebuehrWahl = useGebuehrWahl(gebuehrMoeglich({ gebuehr, tx, skontoRest, posten: rest.target?.type, signedAmount }));
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
   const [splitInitial, setSplitInitial] = useState<typeof rest.target>(undefined);
-  // Zahlung „Rechnung minus Korrektur“: die zweite Zeile der Aufteilung ist die Korrektur (#1398)
-  const [splitKorrektur, setSplitKorrektur] = useState<Korrektur | undefined>(undefined);
+  // Zahlung „Rechnung minus Korrektur“: die weiteren Zeilen der Aufteilung sind die Korrekturen (#1398)
+  const [splitKorrekturen, setSplitKorrekturen] = useState<readonly Korrektur[]>([]);
 
   function submitAllocation() {
     if (!check() || signedAmount === null) return;
+    if (korrekturTreffer && best) return ausfuehren.runAndAdvance(korrekturBuchung(tx, best.item, korrekturTreffer, aufrufe), true);
     if (skontoRest !== 0 && best) {
       const work = () => aufrufe.restFn({ data: { transactionId: tx.id, target: { kind: "invoice", invoiceId: best.item.id }, rest: "skonto" } });
       return ausfuehren.runAndAdvance(work, true);
@@ -224,13 +249,14 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
     panel,
     error,
     skontoRest,
+    korrekturTreffer,
     gebuehr,
     gebuehrWahl,
     rest,
     splitInitial,
     setSplitInitial,
-    splitKorrektur,
-    setSplitKorrektur,
+    splitKorrekturen,
+    setSplitKorrekturen,
     submitAllocation,
   };
 }

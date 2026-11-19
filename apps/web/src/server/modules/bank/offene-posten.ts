@@ -91,6 +91,25 @@ function attachOpenCorrections(items: OpenItem[], invoices: { id: string; kind: 
   }
 }
 
+/**
+ * Skonto nach den offenen Korrekturen (skontoNachKorrektur): Zieht der Kunde die Korrekturen ab und dann Skonto, ist das
+ * Skonto vom geminderten Betrag gerechnet, nicht vom Betrag der Rechnung (#1398). Nur wo das Skonto noch gilt (skonto).
+ */
+function attachSkontoNachKorrektur(
+  items: OpenItem[],
+  invoices: { id: string; skonto: Parameters<typeof skontoZahlfristen>[0]; issueDate: string; gross: number }[],
+  bundesland: Parameters<typeof skontoZahlfristen>[3],
+): void {
+  const byId = new Map(invoices.map((inv) => [inv.id, inv]));
+  for (const item of items) {
+    const inv = byId.get(item.id);
+    if (!inv || !item.skonto || !item.openCorrections) continue;
+    const gemindert = inv.gross + item.openCorrections.reduce((sum, k) => sum + k.open, 0);
+    const fristen = gemindert > 0 ? skontoZahlfristen(inv.skonto, inv.issueDate, gemindert, bundesland) : [];
+    if (fristen.length > 0) item.skontoNachKorrektur = fristen;
+  }
+}
+
 /** Offene Rechnungen und Belege für den Abgleich */
 export async function openItems(): Promise<OpenItem[]> {
   const { invoices, stornos } = await finalInvoiceRows();
@@ -139,6 +158,7 @@ export async function openItems(): Promise<OpenItem[]> {
     });
   }
   attachOpenCorrections(items, invoices);
+  attachSkontoNachKorrektur(items, invoices, bundesland);
   // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
   for (const storno of stornos) {
     if (paperStornos.has(storno.id)) continue;

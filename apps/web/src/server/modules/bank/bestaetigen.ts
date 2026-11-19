@@ -1,6 +1,6 @@
 import { withActor } from "../../db/actor.ts";
 import { listAccounts, ownAccounts } from "./accounts.ts";
-import { allocateIn } from "./allocation.ts";
+import { allocateIn, allocateSplitIn } from "./allocation.ts";
 import { openItems } from "./offene-posten.ts";
 import { listTransactions } from "./transaction-list.ts";
 import { BankError } from "./bank-error.ts";
@@ -45,7 +45,8 @@ export async function bestaetigeVorschlaege(actor: string, transactionIds: reado
     for (const id of ids) {
       const row = byId.get(id)!;
       try {
-        await allocateIn(tx, row.bestaetigung!.input);
+        const bestaetigung = row.bestaetigung!;
+        await ("split" in bestaetigung ? allocateSplitIn(tx, bestaetigung.split) : allocateIn(tx, bestaetigung.input));
       } catch (error) {
         const reason = error instanceof Error ? error.message : "Unbekannter Fehler";
         throw new BankError(`Umsatz ${name(row)}: ${reason} Es wurde nichts gebucht.`);

@@ -10,7 +10,7 @@ import {
 } from "@haben/core";
 import { loadCompany } from "../stammdaten/index.ts";
 import { ownAccounts } from "./accounts.ts";
-import type { AllocationInput } from "./allocation.ts";
+import type { AllocationInput, SplitInput } from "./allocation.ts";
 import { learnedDirectSuggestions } from "./learned-suggestions.ts";
 import { openItems } from "./offene-posten.ts";
 import { listTransactions, UMSATZ_LISTENLIMIT } from "./transaction-list.ts";
@@ -24,7 +24,7 @@ type Konto = { id: string; purpose: AccountPurpose };
 const EINFACHE_ARTEN = ["privat", "spende", "gebuehren", "mahnerloes", "zinsertrag"] as const;
 
 /** Was „Bestätigen“ bucht (#1440): genau der Vorschlag, den die Liste zeigt; null, wenn er sich nicht ohne Rückfrage buchen lässt */
-export type Bestaetigung = { input: AllocationInput; text: string };
+export type Bestaetigung = { input: AllocationInput; text: string } | { split: SplitInput; text: string };
 
 function bestaetigungFuer(
   row: { id: string; open: number },
@@ -38,6 +38,15 @@ function bestaetigungFuer(
   if (match) {
     // Nur der volle Betrag ohne Skonto, Kursdifferenz oder Gebühr; alles andere entscheidet der Mensch in der Detailansicht
     if (match.amount !== amount || match.skonto || match.exchangeDifference) return null;
+    // „Rechnung minus Korrektur“ (#1398): wie „Mit Korrektur … aufteilen“, die Rechnung voll und jede Korrektur negativ
+    if (match.item.type === "invoice" && match.corrections) {
+      const parts = [match.item, ...match.corrections].map((p) => ({ kind: "invoice" as const, invoiceId: p.id, amount: p.open }));
+      const nummern = match.corrections.map((k) => k.number).join(", ");
+      return {
+        split: { transactionId, parts },
+        text: `Rechnung ${match.item.number} mit ${match.corrections.length === 1 ? "Korrektur" : "Korrekturen"} ${nummern}`,
+      };
+    }
     if (match.item.type === "invoice")
       return { input: { kind: "invoice", transactionId, invoiceId: match.item.id, amount }, text: `Rechnung ${match.item.number}` };
     if (match.item.type === "document")

@@ -134,10 +134,12 @@ function hinweisText(wahl: GebuehrWahlZustand): string {
 }
 
 /** Beschriftung des Hauptknopfs der Zuordnung */
-export function zuordnenText(p: { direkt: boolean; skontoRest: number; gebuehrMitbuchen: boolean }): string {
+export function zuordnenText(p: { direkt: boolean; skontoRest: number; gebuehrMitbuchen: boolean; korrekturen?: string }): string {
   if (p.direkt) return "Buchen";
-  if (p.skontoRest !== 0) return `Zuordnen, Rest ${formatEuro(Math.abs(p.skontoRest))} als Skonto`;
-  return p.gebuehrMitbuchen ? "Zuordnen und Gebühr buchen" : "Zuordnen";
+  // Bester Treffer „Rechnung minus Korrektur“ (#1398): „Mit Korrektur 2026-004 zuordnen“
+  const zuordnen = p.korrekturen ? `Mit ${p.korrekturen} zuordnen` : "Zuordnen";
+  if (p.skontoRest !== 0) return `${zuordnen}, Rest ${formatEuro(Math.abs(p.skontoRest))} als Skonto`;
+  return p.gebuehrMitbuchen ? "Zuordnen und Gebühr buchen" : zuordnen;
 }
 
 /** Eingabe von `allocatePaymentAndFee` für den gewählten Posten, `null` bei einem anderen Ziel als Rechnung oder Beleg */

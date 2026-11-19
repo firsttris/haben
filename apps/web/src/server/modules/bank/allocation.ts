@@ -235,19 +235,22 @@ export async function allocateIn(tx: Tx, input: AllocationInput): Promise<void> 
  * Gebühr als Aufwand), alles in einer Transaktion; aufgehoben wird nur die ganze Aufteilung.
  */
 export async function allocateSplit(actor: string, input: SplitInput): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const company = await openBooks(tx);
-    const bank = await lockTransaction(tx, input.transactionId);
-    // Ohne offenen Betrag ergäben beliebige Teile mit Summe 0 eine erfundene Zahlung (Rechnung +x, Privat −x)
-    if (bank.open === 0) throw new BankError("Der Umsatz ist schon ganz zugeordnet.");
-    if (input.parts.some((p) => p.amount === 0)) throw new BankError("Jeder Teil braucht einen Betrag.");
-    const sum = input.parts.reduce((s, p) => s + p.amount, 0);
-    if (sum !== bank.open) {
-      throw new BankError(`Die Teile ergeben ${sum / 100} €, offen sind ${bank.open / 100} €. Sie müssen genau den offenen Betrag ergeben.`);
-    }
-    const splitId = randomUUID();
-    for (const part of input.parts) await bookPart(tx, company, bank, part, splitId);
-  });
+  await withActor(actor, (tx) => allocateSplitIn(tx, input));
+}
+
+/** Wie allocateSplit, in einer laufenden Transaktion; etwa beim Bestätigen mehrerer Vorschläge (bestaetigeVorschlaege) */
+export async function allocateSplitIn(tx: Tx, input: SplitInput): Promise<void> {
+  const company = await openBooks(tx);
+  const bank = await lockTransaction(tx, input.transactionId);
+  // Ohne offenen Betrag ergäben beliebige Teile mit Summe 0 eine erfundene Zahlung (Rechnung +x, Privat −x)
+  if (bank.open === 0) throw new BankError("Der Umsatz ist schon ganz zugeordnet.");
+  if (input.parts.some((p) => p.amount === 0)) throw new BankError("Jeder Teil braucht einen Betrag.");
+  const sum = input.parts.reduce((s, p) => s + p.amount, 0);
+  if (sum !== bank.open) {
+    throw new BankError(`Die Teile ergeben ${sum / 100} €, offen sind ${bank.open / 100} €. Sie müssen genau den offenen Betrag ergeben.`);
+  }
+  const splitId = randomUUID();
+  for (const part of input.parts) await bookPart(tx, company, bank, part, splitId);
 }
 
 /**
