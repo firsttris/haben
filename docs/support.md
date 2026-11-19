@@ -20,7 +20,8 @@ Haben für ihre Kunden ein und betreuen es.
 
 ## Fragen zur Nutzung
 
-Fragen zu Haben gehören in die öffentlichen Kanäle: [Discussions](https://github.com/firsttris/haben/discussions),
-[Discord](https://discord.gg/CT2GQytSYH) oder, bei Fehlern, die [Issues](https://github.com/firsttris/haben/issues).
-Kostenlose Einzelhilfe gibt es nicht; die Einrichtung für eine einzelne Firma übernimmt ein Partner oder, als bezahltes
-Projekt, die Entwicklung (siehe [Partnerprogramm](https://speicherstadt.app/partner/)).
+Fragen zur Nutzung beantworten wir öffentlich in den [Discussions](https://github.com/firsttris/haben/discussions),
+im [Discord](https://discord.gg/CT2GQytSYH) oder in den [Issues](https://github.com/firsttris/haben/issues), damit alle
+etwas davon haben. Wer Einrichtung oder Betrieb für seine Firma abgeben will, findet einen Partner im
+[Partnerprogramm](https://speicherstadt.app/partner/) oder nutzt den gehosteten Betrieb; größere Einführungen
+übernehmen wir auch als bezahltes Projekt.
