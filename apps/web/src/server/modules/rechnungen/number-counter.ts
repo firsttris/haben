@@ -118,8 +118,8 @@ function contactCondition(column: CounterContactColumn, contactId: string | null
 /** Sperrt einen Nummernkreis bis zum Ende der Transaktion; mehrfach aufrufbar */
 export async function lockNumbering(tx: Tx, kind: NumberKind, year: number, contactId: string | null): Promise<void> {
   // Der gemeinsame Kreis behält seinen bisherigen Schlüssel, Kundenkreise hängen den Kontakt an (#1426)
-  const key = `haben.nummernkreis.${kind}.${year}${contactId === null ? "" : `.${contactId}`}`;
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
+  const lockKey = `haben.nummernkreis.${kind}.${year}${contactId === null ? "" : `.${contactId}`}`;
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${lockKey}))`);
 }
 
 /** Letzte vergebene Nummer des Kreises (0 = noch keine), unter der Sperre des Kreises gelesen */
