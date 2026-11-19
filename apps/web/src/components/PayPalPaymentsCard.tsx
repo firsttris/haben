@@ -81,7 +81,7 @@ export function PayPalPaymentsCard({ data }: { data: Data }) {
         </div>
       )}
 
-      <form onSubmit={onSubmit}>
+      <form className="stack" onSubmit={onSubmit}>
         <Field
           label={data.configured ? "Client-ID (leer lassen zum Behalten)" : "Client-ID"}
           hint="Aus der PayPal-App; sie liegt zusammen mit dem Secret verschlüsselt in der Datenbank."
@@ -119,9 +119,9 @@ export function PayPalPaymentsCard({ data }: { data: Data }) {
             </select>
           )}
         </Field>
-        <div className="row" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? "Speichere …" : "Speichern"}
+        <div className="actions">
+          <button type="button" className="btn btn-danger" disabled={busy || !data.configured} onClick={() => setConfirmingRemove(true)}>
+            Zugang entfernen
           </button>
           <button
             type="button"
@@ -139,8 +139,8 @@ export function PayPalPaymentsCard({ data }: { data: Data }) {
           >
             {busy ? "Laufe …" : "Jetzt abrufen"}
           </button>
-          <button type="button" className="btn btn-danger" disabled={busy || !data.configured} onClick={() => setConfirmingRemove(true)}>
-            Zugang entfernen
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? "Speichere …" : "Speichern"}
           </button>
         </div>
         <NoticeBanner notice={notice} />
