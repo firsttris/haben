@@ -39,7 +39,7 @@ export interface OpenItem {
   orderReferences?: string[];
   /**
    * Nur bei Rechnungen: festgeschriebene Rechnungskorrekturen zu dieser Rechnung, die selbst noch offen sind (open mit
-   * dem Vorzeichen der Erstattung). Zahlt der Kunde „Rechnung minus Korrektur“, gehört der Rest dorthin (#1398).
+   * dem Vorzeichen der Erstattung). Zahlt der Kunde „Rechnung minus Korrektur“, gehört der Rest dorthin, nicht in eine Ausbuchung nach § 17 Abs. 1 UStG (#1398).
    */
   openCorrections?: { id: string; number: string; open: Cents }[];
   /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */

@@ -81,21 +81,10 @@ function bookedBankDocuments() {
  * Aufteilung an statt Skonto oder Forderungsausfall (#1398)
  */
 function attachOpenCorrections(items: OpenItem[], invoices: { id: string; kind: string; correctsId: string | null }[]): void {
-  // Eine Korrektur kann eine frühere Korrektur korrigieren: maßgeblich ist die Rechnung am Anfang der Kette
+  // Eine Korrektur korrigiert immer eine Rechnung, nie eine andere Korrektur (correction-checks.ts)
   const byId = new Map(items.map((item) => [item.id, item]));
-  const rows = new Map(invoices.map((inv) => [inv.id, inv]));
-  const rootOf = (id: string) => {
-    const seen = new Set<string>();
-    let row = rows.get(id);
-    while (row?.correctsId && !seen.has(row.id)) {
-      seen.add(row.id);
-      row = rows.get(row.correctsId);
-    }
-    return row?.kind === "rechnung" ? row.id : undefined;
-  };
   for (const inv of invoices) {
-    const rootId = inv.kind === "korrektur" ? rootOf(inv.id) : undefined;
-    const original = rootId ? byId.get(rootId) : undefined;
+    const original = inv.kind === "korrektur" && inv.correctsId ? byId.get(inv.correctsId) : undefined;
     const correction = byId.get(inv.id);
     if (!original || !correction) continue;
     original.openCorrections = [...(original.openCorrections ?? []), { id: correction.id, number: correction.number, open: correction.open }];

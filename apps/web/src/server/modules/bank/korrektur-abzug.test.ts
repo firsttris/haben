@@ -80,21 +80,29 @@ describe.skipIf(!testDatabaseUrl)("Zahlung „Rechnung minus Korrektur“ im Abg
     expect(items.find((item) => item.id === korrektur.id)?.openCorrections).toBeUndefined();
   }, 30_000);
 
-  it("ordnet die Zahlung auf Rechnung und Korrektur auf; danach ist beides bezahlt und nichts ausgebucht", async () => {
-    const { rechnung, korrektur } = await rechnungMitKorrektur();
-    await bank.importStatement(actor, { bytes: statement("95,20"), filename: "a.csv" }, null);
-    const [payment] = await sql`select id from bank_transactions where amount = 9520`;
-    await bank.allocateSplit(actor, {
-      transactionId: payment!.id,
-      parts: [
-        { kind: "invoice", invoiceId: rechnung.id, amount: 11_900 },
-        { kind: "invoice", invoiceId: korrektur.id, amount: -2380 },
-      ],
-    });
-    const offen = (await bank.openItems()).filter((item) => item.id === rechnung.id || item.id === korrektur.id);
-    expect(offen).toEqual([]);
-    expect(await sql`select id from write_offs`).toHaveLength(0);
-  }, 30_000);
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)(
+    "ordnet die Zahlung auf Rechnung und Korrektur auf (%s, %s); danach ist beides bezahlt und nichts ausgebucht",
+    async (kontenrahmen, versteuerung) => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+      const { rechnung, korrektur } = await rechnungMitKorrektur();
+      await bank.importStatement(actor, { bytes: statement("95,20"), filename: "a.csv" }, null);
+      const [payment] = await sql`select id from bank_transactions where amount = 9520`;
+      await bank.allocateSplit(actor, {
+        transactionId: payment!.id,
+        parts: [
+          { kind: "invoice", invoiceId: rechnung.id, amount: 11_900 },
+          { kind: "invoice", invoiceId: korrektur.id, amount: -2380 },
+        ],
+      });
+      const offen = (await bank.openItems()).filter((item) => item.id === rechnung.id || item.id === korrektur.id);
+      expect(offen).toEqual([]);
+      expect(await sql`select id from write_offs`).toHaveLength(0);
+    },
+    30_000,
+  );
 
   it("liefert eine schon bezahlte Korrektur nicht mehr an der Rechnung", async () => {
     const { rechnung, korrektur } = await rechnungMitKorrektur();

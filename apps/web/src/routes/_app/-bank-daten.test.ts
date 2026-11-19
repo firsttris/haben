@@ -34,6 +34,13 @@ describe("Rest einer Zahlung mit offener Korrektur (#1398)", () => {
     expect(angebot.restKinds).toEqual(["skonto", "forderungsausfall"]);
   });
 
+  it("bietet bei einer Rechnung in Fremdwährung auch keine Kursdifferenz an", () => {
+    const usd = { ...rechnung([korrektur]), currency: "USD" } as Posten;
+    const angebot = restAngebot(usd, zahlung(9520));
+    expect(angebot.korrektur).toEqual(korrektur);
+    expect(angebot.exchangeDifference).toBe(0);
+  });
+
   it("bietet bei voller Zahlung keine Korrektur an", () => {
     expect(restAngebot(rechnung([korrektur]), zahlung(11_900)).korrektur).toBeUndefined();
   });

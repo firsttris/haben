@@ -125,7 +125,8 @@ export function passendeKorrektur(target: Posten | undefined, tx: Detail["transa
 
 /** Was nach der Zuordnung an einen Posten übrig bliebe und wie es sich ausbuchen lässt */
 export function restAngebot(target: Posten | undefined, tx: Detail["transaction"]) {
-  // Gleicht eine offene Korrektur den Rest aus, ist er weder Gebühr noch Skonto noch Forderungsausfall (#1398)
+  // Gleicht eine offene Korrektur den Rest aus, ist er weder Gebühr noch Skonto noch Forderungsausfall (#1398): Die
+  // Korrektur hat das Entgelt schon gemindert (§ 17 Abs. 1 UStG); eine Ausbuchung minderte Erlös und Umsatzsteuer doppelt
   const korrektur = passendeKorrektur(target, tx);
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
   const feeRest = target && !korrektur && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
@@ -141,6 +142,8 @@ export function restAngebot(target: Posten | undefined, tx: Detail["transaction"
           : [];
   // Rechnung oder Beleg in Fremdwährung: Abweichung der Zahlung vom umgerechneten Betrag als Kursdifferenz (Zahlung − offen)
   const exchangeDifference =
-    target?.currency && target.currency !== "EUR" && Math.sign(target.open) === Math.sign(tx.open) && target.open !== tx.open ? tx.open - target.open : 0;
+    !korrektur && target?.currency && target.currency !== "EUR" && Math.sign(target.open) === Math.sign(tx.open) && target.open !== tx.open
+      ? tx.open - target.open
+      : 0;
   return { feeRest, rest, restKinds, exchangeDifference, korrektur };
 }
