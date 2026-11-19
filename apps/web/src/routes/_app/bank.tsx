@@ -11,13 +11,13 @@ import {
 } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
-import { GebuehrZeile, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
+import { UmsatzBetrag, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
 import { FintsAbruf } from "../../components/FintsAbruf.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
@@ -226,9 +226,7 @@ function BankPage() {
   const navigate = useNavigate({ from: "/bank" });
   const filter = search.filter ?? "offen";
   const selectedId = data.detail?.transaction.id;
-  const dienstleister = useMemo(() => new Set(data.accounts.filter((a) => a.purpose === "zahlungsdienstleister").map((a) => a.id)), [data.accounts]);
-  const { zeilen, sichtbar } = useGebuehrZeilen(data.transactions, dienstleister);
-  const index = sichtbar.findIndex((t) => t.id === selectedId);
+  const { zeilen, sichtbar, index } = useGebuehrZeilen(data.transactions, data.accounts, selectedId);
   const selectedAccount = data.accounts.find((a) => a.id === data.accountId);
   // „Alle Konten“ zeigt die Umsätze aller Konten, etwa für „Alle anzeigen“ der Schnellsuche (#617)
   const konto = data.allAccounts ? ("alle" as const) : (data.accountId ?? undefined);
@@ -359,11 +357,7 @@ function BankPage() {
                       {data.allAccounts ? [accountName.get(tx.bankAccountId), tx.purpose].filter(Boolean).join(" · ") : tx.purpose}
                     </span>
                   </div>
-                  <div className="num" style={{ color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
-                    {tx.amount > 0 ? "+" : "−"}
-                    {formatEuro(Math.abs(tx.amount))}
-                    {gebuehr && <GebuehrZeile betrag={gebuehr.amount} />}
-                  </div>
+                  <UmsatzBetrag betrag={tx.amount} gebuehr={gebuehr?.amount ?? null} />
                   <div>
                     <TransactionStatus tx={tx} />
                   </div>

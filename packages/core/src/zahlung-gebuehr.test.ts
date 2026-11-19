@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gebuehrReferenzen, gruppiereGebuehren, zahlungsReferenz } from "./zahlung-gebuehr.ts";
+import { gebuehrReferenzen, gruppiereGebuehren, vorauswahlUmsatz, zahlungsReferenz } from "./zahlung-gebuehr.ts";
 
 const u = (id: string, bankReference: string | null, amount = 100, bankAccountId = "k1", open = amount) => ({ id, bankAccountId, bankReference, amount, open });
 const zahlung = (id: string, ref: string) => u(id, ref, 5_600);
@@ -95,5 +95,22 @@ describe("gruppiereGebuehren", () => {
 
   it("kommt mit Umsätzen ohne Referenz zurecht", () => {
     expect(gruppiereGebuehren([u("a", null), u("b", null)]).map((g) => g.umsatz.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("vorauswahlUmsatz", () => {
+  const konten = new Set(["k1"]);
+
+  it("wählt den ersten sichtbaren offenen Umsatz, nicht die ausgeblendete Gebühr davor", () => {
+    // Betrag aufsteigend: die Gebühr steht vor der Zahlung, ist aber in der Zeile der Zahlung aufgegangen
+    const list = [gebuehr("fee", "RE-1-gebuehr"), zahlung("pay", "RE-1")];
+    expect(vorauswahlUmsatz(list, konten)?.id).toBe("pay");
+  });
+
+  it("überspringt zugeordnete Umsätze und fällt sonst auf den ersten sichtbaren zurück", () => {
+    const erledigt = u("alt", null, 100, "k1", 0);
+    expect(vorauswahlUmsatz([erledigt, u("offen", null)], konten)?.id).toBe("offen");
+    expect(vorauswahlUmsatz([erledigt], konten)?.id).toBe("alt");
+    expect(vorauswahlUmsatz([], konten)).toBeUndefined();
   });
 });

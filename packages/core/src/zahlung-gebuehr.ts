@@ -69,3 +69,12 @@ export function gruppiereGebuehren<T extends GebuehrUmsatz>(umsaetze: readonly T
   }
   return umsaetze.filter((u) => !versteckt.has(u.id)).map((u) => ({ umsatz: u, gebuehr: gruppen.get(u.id) ?? null }));
 }
+
+/**
+ * Der Umsatz, den die Bankseite zuerst zeigt: der erste offene unter den sichtbaren Zeilen, sonst der erste sichtbare.
+ * Eine in die Zeile der Zahlung aufgegangene Gebühr zählt nicht, auch wenn die Sortierung sie vor die Zahlung stellt.
+ */
+export function vorauswahlUmsatz<T extends GebuehrUmsatz>(umsaetze: readonly T[], konten?: ReadonlySet<string>): T | undefined {
+  const sichtbar = gruppiereGebuehren(umsaetze, konten).map((g) => g.umsatz);
+  return sichtbar.find((u) => u.open !== 0) ?? sichtbar[0];
+}

@@ -12,6 +12,7 @@ import {
   formatEuro,
   STEUERARTEN,
   steuerartenFor,
+  vorauswahlUmsatz,
 } from "@haben/core";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { storePayoutView } from "../modules/stores/index.ts";
@@ -87,7 +88,9 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const allAccounts = data.konto === "alle" && accounts.length > 1;
     const shown = allAccounts ? accounts : [accounts.find((a) => a.id === data.konto) ?? accounts[0]].filter((a) => a !== undefined);
     const transactions = shown.length > 0 ? await umsatzauswahl(shown, data.filter, data.suche, { feld: data.sort, richtung: data.dir }) : [];
-    const selectedId = data.umsatz ?? transactions.find((t) => t.open !== 0)?.id ?? transactions[0]?.id;
+    // Vorausgewählt wird unter den Zeilen, die die Seite zeigt: eine mit der Zahlung zusammengefasste Gebühr gehört nicht dazu
+    const dienstleister = new Set(accounts.filter((a) => a.purpose === "zahlungsdienstleister").map((a) => a.id));
+    const selectedId = data.umsatz ?? vorauswahlUmsatz(transactions, dienstleister)?.id;
     const found = selectedId ? await transactionDetail(selectedId) : null;
     const detail = found && shown.some((a) => a.id === found.transaction.bankAccountId) ? found : null;
     // Das gewählte Konto; in „Alle Konten“ das des gewählten Umsatzes, nach dessen Zweck sich die Buchungsarten richten
