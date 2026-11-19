@@ -31,12 +31,6 @@ export type EuerBeitraege = (
   beitrag: EuerAusJournal,
 ) => void;
 
-/** Kontenrahmen der Firma: für einen Beleg ganz ohne Buchung die einzige Angabe zum Rahmen (aus Lexoffice übernommen) */
-export async function firmenKontenrahmen(q: Db | Tx): Promise<Kontenrahmen> {
-  const [firma] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).limit(1);
-  return firma?.kontenrahmen ?? "SKR03";
-}
-
 /** Höchstzahl der IDs je Abfrage mit inArray; PostgreSQL nimmt höchstens 65 535 Parameter je Abfrage */
 export const BLOCK = 5000;
 
