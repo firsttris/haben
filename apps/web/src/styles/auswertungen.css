@@ -178,10 +178,12 @@
 .jump-target { scroll-margin-top: 56px; }
 .est-block { border: 1px solid var(--line); border-radius: 10px; padding: 0 16px; }
 .est-block[open] { padding-bottom: 16px; }
-.est-block > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; list-style: none; }
+.est-block > summary { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; min-height: 48px; padding-block: 8px; cursor: pointer; list-style: none; }
 .est-block > summary::-webkit-details-marker { display: none; }
-.est-block > summary::before { content: "›"; display: inline-block; width: 12px; color: var(--muted); transition: transform 0.15s; }
+.est-block > summary::before { content: "›"; flex: none; width: 12px; font-size: 18px; line-height: 1; text-align: center; color: var(--muted); transition: transform 0.15s; }
 .est-block[open] > summary::before { transform: rotate(90deg); }
-.est-block-title { flex: 1; font-weight: 600; }
+.est-block-title { flex: 1 1 0; min-width: 0; font-weight: 600; }
+/* Kurzwert unter dem Titel, auf der Textkante des Titels (Pfeil 12px + Abstand 12px) */
+.est-block-wert { flex: 0 0 100%; padding-left: 24px; }
 .est-sub { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); }
 .form-sticky-footer { position: sticky; bottom: 0; z-index: 4; display: flex; flex-direction: column; gap: 8px; margin: 0 -20px -20px; padding: 12px 20px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; }

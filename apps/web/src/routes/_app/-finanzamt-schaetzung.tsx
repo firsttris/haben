@@ -24,13 +24,9 @@ export function Schaetzung({ basis: b }: { basis: Basis }) {
 
   return (
     <details id="schaetzung" className="est-block" open={offen} onToggle={(event) => setOffen(event.currentTarget.open)}>
-      <summary style={{ flexWrap: "wrap", rowGap: 0 }}>
-        <span className="est-block-title" style={{ flexBasis: "10rem" }}>
-          Schätzrechnung {b.year}
-        </span>
-        <span className="small muted" style={{ whiteSpace: "nowrap" }}>
-          Vorauszahlung je Termin {formatEuro(p.jeQuartal)}
-        </span>
+      <summary>
+        <span className="est-block-title">Schätzrechnung {b.year}</span>
+        <span className="est-block-wert small muted">Vorauszahlung je Termin {formatEuro(p.jeQuartal)}</span>
       </summary>
       <div className="stack" style={{ gap: 12, paddingTop: 4 }}>
         <ScrollTable className="report-table">
