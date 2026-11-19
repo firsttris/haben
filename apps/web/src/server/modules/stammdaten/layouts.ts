@@ -272,7 +272,9 @@ async function removeLayout(actor: string, id: string): Promise<void> {
   await dropRenderer(id);
   await clearPackages(id);
   await withActor(actor, async (tx) => {
-    await tx.delete(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
+    // Erst das Profil, dann das Layout: Jede Änderung nimmt im Audit-Trigger die Sperre der Hash-Kette. Käme das Löschen
+    // zuerst, hielte es diese Sperre, während es auf die Zeile des Profils wartet, und verhakte sich mit saveDesign, das
+    // die Zeile hält und auf die Sperre wartet.
     const fallback = JSON.stringify(DEFAULT_LAYOUT);
     await tx.execute(sql`
       update letterhead_profiles set settings = jsonb_set(settings, '{layouts}', (
@@ -280,6 +282,7 @@ async function removeLayout(actor: string, id: string): Promise<void> {
         from jsonb_each(coalesce(settings->'layouts', '{}'::jsonb))
       )), updated_at = now()
       where settings->'layouts' is not null`);
+    await tx.delete(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
   });
 }
 

@@ -209,6 +209,29 @@ export const fbRecurringSchema = z.looseObject({
   ITEMS: list(fbInvoiceItemSchema),
 });
 export type FbRecurring = z.infer<typeof fbRecurringSchema>;
+// ---------------------------------------------------------------- Angebote
+
+/** estimate.get (https://apidocs.fastbill.com/fastbill/de/estimate.html); Liste ESTIMATES im echten Konto */
+export const fbEstimateSchema = z.looseObject({
+  ESTIMATE_ID: id,
+  ESTIMATE_NUMBER: numeric,
+  ESTIMATE_DATE: str,
+  /** Gültig bis */
+  DUE_DATE: str,
+  /** created, sent, negotiation, accepted, rejected, invoiced */
+  STATE: str,
+  CUSTOMER_ID: id.nullish(),
+  ORGANIZATION: str,
+  FIRST_NAME: str,
+  LAST_NAME: str,
+  CURRENCY_CODE: str,
+  SUB_TOTAL: numeric,
+  VAT_TOTAL: numeric,
+  TOTAL: numeric,
+  /** Lädt das PDF ohne Anmeldung (echtes Konto, November 2026) */
+  DOCUMENT_URL: str,
+});
+export type FbEstimate = z.infer<typeof fbEstimateSchema>;
 
 // ---------------------------------------------------------------- Artikel
 

@@ -6,21 +6,9 @@ import { UserError } from "../../errors.ts";
 import { loadFile, sha256Of, storeFile } from "../../storage.ts";
 import { storeLegacyOrder } from "./legacy-store.ts";
 
-export const ORDER_KINDS = { AN: "Angebot", AB: "Auftragsbestätigung", LI: "Lieferschein" } as const;
-export const ORDER_STATUSES: Record<string, string> = {
-  "100": "Entwurf",
-  "200": "Ausgegeben / versendet",
-  "300": "Abgelehnt",
-  "500": "Angenommen",
-  "750": "Teilweise berechnet",
-  "1000": "Vollständig berechnet",
-  draft: "Entwurf",
-  open: "Offen",
-  declined: "Geschlossen / abgelehnt",
-  accepted: "Angenommen",
-  partlyInvoiced: "Teilweise berechnet",
-  invoiced: "Vollständig berechnet",
-};
+import { ORDER_KINDS, orderSourceName } from "../../../lib/auftraege.ts";
+
+export { ORDER_KINDS, ORDER_STATUSES } from "../../../lib/auftraege.ts";
 export class OrderArchiveError extends UserError {}
 
 export function isImportableOrder(order: SevOrder): order is SevOrder & { orderType: keyof typeof ORDER_KINDS } {
@@ -132,22 +120,24 @@ export async function orderDocumentDetail(id: string) {
     .orderBy(schema.legacyOrderPdfAttempts.createdAt);
   const { raw, ...fields } = document;
   const text = (value: unknown) => (typeof value === "string" || typeof value === "number" ? String(value) : "");
-  const positions = Array.isArray(raw.positions)
-    ? raw.positions
+  // sevDesk liefert positions, FastBill ITEMS
+  const items = Array.isArray(raw.positions) ? raw.positions : Array.isArray(raw.ITEMS) ? raw.ITEMS : null;
+  const positions = items
+    ? items
         .filter((p): p is Record<string, unknown> => Boolean(p) && typeof p === "object")
         .map((p, index) => ({
-          id: text(p.id) || String(index),
-          name: text(p.name),
-          quantity: text(p.quantity),
-          price: text(p.price),
-          taxRate: text(p.taxRate),
+          id: text(p.id ?? p.ESTIMATE_ITEM_ID) || String(index),
+          name: text(p.name ?? p.DESCRIPTION),
+          quantity: text(p.quantity ?? p.QUANTITY),
+          price: text(p.price ?? p.UNIT_PRICE),
+          taxRate: text(p.taxRate ?? p.VAT_PERCENT),
           text: text(p.text),
         }))
     : [];
   return {
     document: {
       ...fields,
-      sourceName: fields.source === "import" ? text(raw.sourceName) || "JSON-Import" : "sevDesk",
+      sourceName: orderSourceName(fields.source, text(raw.sourceName)),
       sourceExternalId: fields.source === "import" ? text(raw.externalId) : fields.externalId,
       positions,
       relatedObjects: JSON.stringify(raw.relatedObjects ?? []),

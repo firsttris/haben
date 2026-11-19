@@ -3461,6 +3461,8 @@ export type LexofficeImportProgress = {
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
   /** Umzug aus FastBill: übernommene und schon bekannte Vorlagen wiederkehrender Rechnungen */
   fastbillRecurring?: { imported: number; known: number };
+  /** Umzug aus FastBill: archivierte, schon vorhandene und Angebote ohne PDF */
+  fastbillEstimates?: { imported: number; known: number; withoutPdf: number };
   /** sevDesk: Artikel aus GET /Part, in diesem Lauf neu angelegt, mit vorhandenen verknüpft und schon früher übernommen */
   sevdeskArticles?: { imported: number; linked: number; known: number };
   /** sevDesk: Dateistand der Belege dieses Laufs nach den Zuständen in legacy_file_states (#345) */
@@ -3541,7 +3543,7 @@ export const legacyOrderFiles = pgTable(
     mimeType: text("mime_type").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
-    origin: text("origin", { enum: ["sevdesk", "manuell", "import"] }).notNull(),
+    origin: text("origin", { enum: ["sevdesk", "fastbill", "manuell", "import"] }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],

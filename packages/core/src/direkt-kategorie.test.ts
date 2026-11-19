@@ -9,6 +9,7 @@ import {
   kategorieAnzeige,
   kategorienMitKonto,
   kategorieText,
+  kategorieVorschlag,
   type KategorieAngabe,
 } from "./direkt-kategorie.ts";
 
@@ -246,5 +247,23 @@ describe("kategorienMitKonto (#1438)", () => {
     expect(liste.find((k) => k.value === "telefon")?.label).toBe("6805 · Telefon");
     expect(liste.find((k) => k.value === "erloese")?.label).toBe("Erlöse");
     expect(liste.map((k) => k.value)).toEqual(direktKategorienFuer().map((k) => k.value));
+  });
+});
+
+describe("kategorieVorschlag (#1440)", () => {
+  it("zeigt Erlös und Umsatzsteuer mit Kontonummer und Steuerschlüssel, ohne die Bankzeile", () => {
+    const zeilen = kategorieVorschlag({ kategorie: "erloese", steuersatz: 1900 }, 11900, "SKR03");
+    expect(zeilen.map((z) => [z.konto, z.betrag, z.steuer])).toEqual([
+      ["8400", 10000, "19 %"],
+      ["1776", 1900, "19 %"],
+    ]);
+  });
+
+  it("zeigt eine Ausgabe mit negativem Betrag und ohne Steuer", () => {
+    const zeilen = kategorieVorschlag({ kategorie: "sonstiges", steuersatz: 0 }, -35, "SKR04");
+    expect(zeilen).toHaveLength(1);
+    expect(zeilen[0]?.betrag).toBe(-35);
+    expect(zeilen[0]?.steuer).toBe("ohne");
+    expect(zeilen[0]?.kontoName).not.toBe("");
   });
 });

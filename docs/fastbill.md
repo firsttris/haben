@@ -1,7 +1,7 @@
 ---
 title: "Umzug aus FastBill mit Abgleich je Jahr"
 description: >-
-  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API übernehmen,
+  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Angebote, Kunden und Artikel über die API übernehmen,
   unveränderlich archivieren und kündigen.
 ---
 
@@ -38,6 +38,7 @@ Trag Login-E-Mail, Tarif und API-Schlüssel ein und klicke „Prüfen und speich
 2. **Belegliste:** Ausgangsrechnungen, Gutschriften und stornierte Rechnungen, je Art ein eigener Abruf, dazu die Ausgaben. Entwürfe bleiben draußen.
 3. **Dateien:** je Rechnung und Gutschrift das PDF, je Ausgabe der hochgeladene Beleg. Gibt FastBill den Beleg einer Ausgabe nur im angemeldeten Browser heraus, wartet die Ausgabe, siehe [Belege, die FastBill nur im Browser herausgibt](#belege-die-fastbill-nur-im-browser-herausgibt).
 4. **Wiederkehrende Rechnungen:** als pausierte Vorlagen, siehe [Wiederkehrende Rechnungen](#wiederkehrende-rechnungen).
+5. **Angebote:** samt PDF als Auftragsdokumente ins Archiv, siehe [Angebote](#angebote).
 
 Die Antwort der API wird je Beleg gespeichert, zum Nachweis; ohne die Download-Adresse (`DOCUMENT_URL`), denn wer sie kennt, lädt den Beleg ohne Anmeldung.
 
@@ -120,9 +121,15 @@ Jede Vorlage aus FastBill kommt als [wiederkehrende Rechnung](rechnungen.md#wied
 - **Nicht übernommen:** Vorlagen in anderer Währung, mit Rabatt, mit einem Steuersatz außer 0, 7 und 19 %, mit dem Umsatzsteuerfall 1 (Lieferung oder Leistung ins EU-Ausland, siehe [Steuerarten](#steuerarten-im-abgleich)) oder `b2c_eu_goods` und `b2c_noneu_goods` (Lieferung an Privatkunden; ob über OSS oder als steuerfreie Ausfuhr, sagt FastBill nicht), ohne Positionen oder Startdatum und solche, deren Kunde nicht übernommen ist. Der Abruf nennt sie je Vorlage.
 - **Zum Prüfen:** Zahlungsart außer Überweisung, Skonto, Leistungszeitraum, Lieferdatum und Notiz übernimmt Haben nicht. Zahlungsziel ist das aus deinen Firmendaten. Was davon eine Vorlage betrifft, steht auf ihrer Seite unter „Aus FastBill übernommen“.
 
+### Angebote
+
+Angebote aus FastBill liegen danach im Archiv unter **Auftragsdokumente**, wie die aus sevDesk: mit Nummer, Datum, Status aus FastBill (Erstellt, Versendet, Angenommen …), Kontakt, Beträgen und dem PDF. Sie buchen nichts und zählen nicht zum Abgleich. Das PDF lädt Haben über den Link aus FastBill, ohne Anmeldung; kommt keins, steht in der Spalte PDF „Fehlt“, und du reichst es auf der Detailseite von Hand nach. Ein neuer Abruf überspringt Angebote, die schon im Archiv liegen. Im Jahresexport stehen sie unter `fastbill/auftraege/`.
+
+Ein Angebot wird dabei nicht zu einem bearbeitbaren Angebot in Haben: Das bekäme beim Festschreiben eine eigene Nummer. Schreibst du die Rechnung zu einem Angebot aus FastBill in Haben, trag die Angebotsnummer als **Eigene Auftragsnummer** ein ([Bestellnummer, Auftrag und Lieferschein](rechnungen.md#bestellnummer-auftrag-und-lieferschein)).
+
 ### Grenzen des aktuellen Imports
 
-Angebote, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
+Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
 
 ## Schritt 3 bis 5
 
@@ -141,6 +148,7 @@ Haben spricht standardmäßig mit `https://my.fastbill.com/api/1.0/api.php`. Mit
 
 - [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer
 - [ ] Keine Ausgabe wartet mehr auf ihren Beleg aus dem Browser-Skript
+- [ ] Angebote im Archiv, fehlende PDFs von Hand nachgereicht
 - [ ] Jeder Beleg hat eine Datei (Abgleich je Jahr); Ausgaben ohne Beleg in FastBill geklärt
 - [ ] Für jedes Geschäftsjahr: DATEV-Buchungsstapel, DATEV-XML-Export, ELSTER-Protokolle und Kontoauszüge abgelegt, jeweils mit Jahr
 - [ ] Einnahmen, Ausgaben, Umsatz- und Vorsteuer je Jahr mit FastBill verglichen

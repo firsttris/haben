@@ -8,6 +8,7 @@ import {
   type FbContact,
   type FbCustomer,
   type FbEnvelope,
+  type FbEstimate,
   type FbExpense,
   type FbRecurring,
   type FbFile,
@@ -16,6 +17,7 @@ import {
   fbContactSchema,
   fbCustomerSchema,
   fbEnvelopeSchema,
+  fbEstimateSchema,
   fbExpenseSchema,
   fbInvoiceSchema,
   fbRecurringSchema,
@@ -170,6 +172,11 @@ export class FastbillClient {
   /** Vorlagen wiederkehrender Rechnungen; ohne LIMIT liefert FastBill nur 10 */
   recurring(): AsyncGenerator<FbRecurring> {
     return this.#pages("recurring.get", "INVOICES", {}, fbRecurringSchema, "INVOICE_ID");
+  }
+
+  /** Angebote aller Status; ohne LIMIT liefert FastBill nur 10 */
+  estimates(): AsyncGenerator<FbEstimate> {
+    return this.#pages("estimate.get", "ESTIMATES", {}, fbEstimateSchema, "ESTIMATE_ID");
   }
 
   /** Artikelkatalog; die Doku nennt den Namen der Liste nicht, listOf nimmt sonst die einzige Liste der Antwort */
