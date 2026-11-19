@@ -6,6 +6,8 @@ import {
   kategorieArt,
   kategorieFehler,
   kategoriePosting,
+  kategorieAnzeige,
+  kategorienMitKonto,
   kategorieText,
   type KategorieAngabe,
 } from "./direkt-kategorie.ts";
@@ -219,5 +221,30 @@ describe("EÜR", () => {
     expect(euer.ausgaben.find((l) => l.key === "vorsteuer")?.amount).toBe(0);
     expect(euer.monthly.ausgaben[4]).toBe(30_00);
     expect(euer.gewinn).toBe(-30_00);
+  });
+});
+
+describe("kategorieAnzeige (#1438)", () => {
+  it("setzt bei Ausgaben die Nummer des Kontos vor die Bezeichnung, je Kontenrahmen", () => {
+    expect(kategorieAnzeige({ kategorie: "telefon", steuersatz: 0 }, "SKR04")).toBe("6805 · Telefon");
+    expect(kategorieAnzeige({ kategorie: "telefon", steuersatz: 0 }, "SKR03")).toBe("4920 · Telefon");
+  });
+
+  it("lässt Einnahmen ohne Nummer, ihr Erlöskonto hängt am Steuersatz", () => {
+    expect(kategorieAnzeige(erloese19, "SKR03")).toBe("Erlöse 19 %");
+    expect(kategorieAnzeige({ kategorie: "nichtSteuerbar", steuersatz: 0 }, "SKR04")).toBe("Nicht steuerbare Einnahme");
+  });
+
+  it("ändert den Buchungstext nicht: kategorieText bleibt bei der Bezeichnung", () => {
+    expect(kategorieText({ kategorie: "telefon", steuersatz: 0 })).toBe("Telefon");
+  });
+});
+
+describe("kategorienMitKonto (#1438)", () => {
+  it("setzt die Nummer vor die Ausgaben und lässt die Einnahmen, wie sie sind", () => {
+    const liste = kategorienMitKonto(direktKategorienFuer(), "SKR04");
+    expect(liste.find((k) => k.value === "telefon")?.label).toBe("6805 · Telefon");
+    expect(liste.find((k) => k.value === "erloese")?.label).toBe("Erlöse");
+    expect(liste.map((k) => k.value)).toEqual(direktKategorienFuer().map((k) => k.value));
   });
 });

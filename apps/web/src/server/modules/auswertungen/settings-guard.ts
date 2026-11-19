@@ -119,24 +119,31 @@ function keptBaseRateState(current: Company, input: CompanyInput): Company["dunn
 }
 
 export async function saveCompany(actor: string, input: CompanyInput, today: string): Promise<void> {
+  await withActor(actor, (tx) => saveCompanyIn(tx, input, today));
+}
+
+/**
+ * saveCompany in der Transaktion des Aufrufers, etwa für die Übernahme der Einstellungen aus einer anderen Instanz (#488).
+ * `bewusst: false` nur dort, wo die Firmendaten in der alten Instanz nie bewusst gespeichert waren: Dann bleiben
+ * Zeitpunkt und offene Fragen, wie sie sind, und Haben trägt keine Bestätigung ein, die niemand gegeben hat.
+ */
+export async function saveCompanyIn(tx: Tx, input: CompanyInput, today: string, { bewusst = true }: { bewusst?: boolean } = {}): Promise<void> {
   if (input.foundedOn && input.foundedOn > today) {
     throw new UserError("Das Gründungsdatum darf nicht in der Zukunft liegen.");
   }
-  await withActor(actor, async (tx) => {
-    await loadCompany(tx);
-    const [current] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
-    const locked = lockedChange(current!, input, await settingsLocks(today, tx));
-    if (locked) throw new UserError(locked);
-    await tx
-      .update(schema.company)
-      .set({
-        ...input,
-        dunning: keptBaseRateState(current!, input),
-        companySavedAt: sql`clock_timestamp()`,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.company.id, 1));
-    // Wer die Firmendaten speichert, hat Rechtsform und Kleinunternehmer selbst entschieden: Die Übersicht erinnert nicht mehr (#266)
-    await offeneFragenErledigt(tx);
-  });
+  await loadCompany(tx);
+  const [current] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
+  const locked = lockedChange(current!, input, await settingsLocks(today, tx));
+  if (locked) throw new UserError(locked);
+  await tx
+    .update(schema.company)
+    .set({
+      ...input,
+      dunning: keptBaseRateState(current!, input),
+      ...(bewusst ? { companySavedAt: sql`clock_timestamp()` } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.company.id, 1));
+  // Wer die Firmendaten speichert, hat Rechtsform und Kleinunternehmer selbst entschieden: Die Übersicht erinnert nicht mehr (#266)
+  if (bewusst) await offeneFragenErledigt(tx);
 }

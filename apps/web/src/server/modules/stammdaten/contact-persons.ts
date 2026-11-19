@@ -57,16 +57,19 @@ export async function listContactPersons(contactId: string): Promise<ContactPers
 }
 
 export async function createContactPerson(actor: string, contactId: string, input: ContactPersonInput): Promise<string> {
+  return withActor(actor, (tx) => insertContactPerson(tx, actor, contactId, input));
+}
+
+/** createContactPerson in der Transaktion des Aufrufers */
+export async function insertContactPerson(tx: Tx, actor: string, contactId: string, input: ContactPersonInput): Promise<string> {
   const data = contactPersonInputSchema.parse(input);
-  return withActor(actor, async (tx) => {
-    const [contact] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, contactId));
-    if (!contact) throw new ContactPersonError("Kontakt nicht gefunden.");
-    const [created] = await tx
-      .insert(schema.contactPersons)
-      .values({ ...data, contactId, createdBy: actor })
-      .returning({ id: schema.contactPersons.id });
-    return created!.id;
-  });
+  const [contact] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, contactId));
+  if (!contact) throw new ContactPersonError("Kontakt nicht gefunden.");
+  const [created] = await tx
+    .insert(schema.contactPersons)
+    .values({ ...data, contactId, createdBy: actor })
+    .returning({ id: schema.contactPersons.id });
+  return created!.id;
 }
 
 export async function updateContactPerson(actor: string, id: string, input: ContactPersonInput): Promise<void> {

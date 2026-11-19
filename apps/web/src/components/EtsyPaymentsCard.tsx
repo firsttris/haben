@@ -5,6 +5,7 @@ import { formatDate, formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
+import { KonfliktKlaeren } from "./ImportKonflikt.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { connectEtsyFn, disconnectEtsyFn, type getEtsySettings, removeEtsyConnectionFn, saveEtsyConnectionFn, syncEtsyNow } from "../server/functions/etsy.ts";
 
@@ -37,6 +38,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
   const [sammelzeilen, setSammelzeilen] = useState(data.sammelzeilen);
   const [rhythmus, setRhythmus] = useState(data.rhythmus);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [geklaert, setGeklaert] = useState(false);
   const { busy, notice, run } = useAction();
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -67,6 +69,11 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
       {data.lastError && (
         <div className="banner banner-danger" role="status">
           {data.lastError}
+        </div>
+      )}
+      {(data.konflikte.length > 0 || geklaert) && (
+        <div className="actions">
+          <KonfliktKlaeren konflikte={data.konflikte} disabled={busy} quelle="etsy" onGeklaert={() => setGeklaert(true)} />
         </div>
       )}
 
@@ -116,6 +123,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
             disabled={busy || !data.connected}
             onClick={() =>
               void run(async () => {
+                setGeklaert(false);
                 const result = await sync();
                 await router.invalidate();
                 if (result.error) throw new Error(result.error);

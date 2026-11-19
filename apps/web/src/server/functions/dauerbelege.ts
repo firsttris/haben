@@ -1,5 +1,5 @@
 import { notFound } from "@tanstack/react-router";
-import { EXPENSE_CATEGORIES } from "@haben/core";
+import { EXPENSE_CATEGORIES, kategorieMitKonto, type Kontenrahmen } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { UserError } from "../errors.ts";
@@ -22,15 +22,17 @@ import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts"
 import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
 
-const categoryOptions = Object.entries(EXPENSE_CATEGORIES)
-  .filter(([value]) => value !== "anlage")
-  .map(([value, { label }]) => ({ value, label }));
+/** Kategorien zur Auswahl, die Bezeichnung mit der Nummer des Kontos im Kontenrahmen der Firma (#1438) */
+const categoryOptions = (kontenrahmen: Kontenrahmen) =>
+  Object.keys(EXPENSE_CATEGORIES)
+    .filter((value) => value !== "anlage")
+    .map((value) => ({ value, label: kategorieMitKonto(kontenrahmen, value) }));
 
 async function formContext() {
   const company = await loadCompany();
   return {
     suppliers: await listContactChoices("lieferant"),
-    categories: categoryOptions,
+    categories: categoryOptions(company.kontenrahmen),
     kleinunternehmer: company.kleinunternehmer,
     today: today(),
   };
@@ -38,7 +40,7 @@ async function formContext() {
 
 export const getDauerbelegList = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => ({ items: await listDauerbelege(), categories: categoryOptions, today: today() }));
+  .handler(async () => ({ items: await listDauerbelege(), categories: categoryOptions((await loadCompany()).kontenrahmen), today: today() }));
 
 export const getDauerbelegForm = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
