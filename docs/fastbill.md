@@ -111,7 +111,7 @@ Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelka
 
 ### Angebote
 
-Angebote aus FastBill liegen danach im Archiv unter **Auftragsdokumente**, wie die aus sevDesk: mit Nummer, Datum, Status aus FastBill (Erstellt, Versendet, Angenommen …), Kontakt, Beträgen und dem PDF. Sie buchen nichts und zählen nicht zum Abgleich. Das PDF lädt Haben über den Link aus FastBill, ohne Anmeldung; kommt keins, steht in der Spalte PDF „Fehlt“, und du reichst es auf der Detailseite von Hand nach. Ein neuer Abruf überspringt Angebote, die schon im Archiv liegen. Im Jahresexport stehen sie unter `fastbill/auftraege/`.
+Angebote aus FastBill liegen danach im Archiv unter **Auftragsdokumente**, wie die aus sevDesk: mit Nummer, Datum, Status aus FastBill (Erstellt, Versendet, Angenommen …), Kontakt, Beträgen und dem PDF. Sie buchen nichts und zählen nicht zum Abgleich. Das PDF lädt Haben über den Link aus FastBill, ohne Anmeldung; kommt keins, steht in der Spalte PDF „Fehlt“, und du reichst es auf der Detailseite von Hand nach. Ein neuer Abruf überspringt Angebote, die schon im Archiv liegen; fehlt einem davon das PDF, versucht er es noch einmal und hängt es an, wenn der Link jetzt eins liefert. Im Jahresexport stehen sie unter `fastbill/auftraege/`.
 
 Ein Angebot wird dabei nicht zu einem bearbeitbaren Angebot in Haben: Das bekäme beim Festschreiben eine eigene Nummer. Schreibst du die Rechnung zu einem Angebot aus FastBill in Haben, trag die Angebotsnummer als **Eigene Auftragsnummer** ein ([Bestellnummer, Auftrag und Lieferschein](rechnungen.md#bestellnummer-auftrag-und-lieferschein)).
 

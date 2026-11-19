@@ -5,6 +5,7 @@ import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import type { LegacyOriginalFile } from "./legacy-store.ts";
 import { storeLegacyOrder } from "./legacy-store.ts";
+import { sha256Of, storeFile } from "../../storage.ts";
 import { progressMessage } from "./lexoffice.ts";
 
 /*
@@ -31,7 +32,7 @@ export async function importFastbillEstimates(
   progress: LexofficeImportProgress,
   signal: AbortSignal,
 ): Promise<void> {
-  const result = { imported: 0, known: 0, withoutPdf: 0 };
+  const result = { imported: 0, known: 0, withoutPdf: 0, pdfNachgeholt: 0 };
   progress.fastbillEstimates = result;
   try {
     for await (const raw of client.estimates()) {
@@ -47,6 +48,12 @@ export async function importFastbillEstimates(
         .where(eq(schema.legacyOrderDocuments.externalId, mapped.externalId));
       if (known) {
         result.known += 1;
+        try {
+          if (await retryPdf(actor, client, known.id, raw.DOCUMENT_URL)) result.pdfNachgeholt += 1;
+        } catch (error) {
+          if (fatal(error, signal)) throw error;
+          progress.failed.push({ lexofficeId: mapped.externalId, number: label, message: `PDF nicht nachgeholt: ${progressMessage(error)}` });
+        }
         continue;
       }
       try {
@@ -76,4 +83,31 @@ export async function importFastbillEstimates(
     if (fatal(error, signal)) throw error;
     progress.failed.push({ lexofficeId: "fastbill/estimate", number: "Angebote", message: progressMessage(error) });
   }
+}
+
+/**
+ * Fehlt einem archivierten Angebot das PDF, versucht der nächste Abruf es erneut (#1541). Angebote mit Datei bleiben
+ * unberührt; angehängt wird nur, nie ersetzt (legacy_order_files ist nur anhängen).
+ */
+async function retryPdf(actor: string, client: FastbillClient, orderId: string, documentUrl: string | null | undefined): Promise<boolean> {
+  if (!documentUrl) return false;
+  const [file] = await db.select({ id: schema.legacyOrderFiles.id }).from(schema.legacyOrderFiles).where(eq(schema.legacyOrderFiles.orderId, orderId)).limit(1);
+  if (file) return false;
+  const download = await client.document(documentUrl);
+  if (!download || !isPdf(download.bytes)) return false;
+  await storeFile(download.bytes);
+  await withActor(actor, (tx) =>
+    tx
+      .insert(schema.legacyOrderFiles)
+      .values({
+        orderId,
+        origin: "fastbill",
+        filename: (download.filename ?? "angebot.pdf").slice(0, 200),
+        mimeType: download.mimeType,
+        sha256: sha256Of(download.bytes),
+        size: download.bytes.byteLength,
+      })
+      .onConflictDoNothing(),
+  );
+  return true;
 }
