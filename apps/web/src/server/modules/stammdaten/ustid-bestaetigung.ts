@@ -257,12 +257,14 @@ export async function ustIdVorFestschreiben(
   const qualifiziert = behandlung === "reverse_charge" && evatrQualifizierbar(contact);
   const zurNummer = async () => (await listUstIdBestaetigungen(contactId)).filter((b) => b.angefragteUstid === nummer);
   const vorher = await zurNummer();
-  const bestaetigt = qualifiziert
-    ? evatrQualifiziertBestaetigt(
+  // Die letzte Antwort muss gültig sein, auch wenn eine ältere qualifizierte es war
+  const bestaetigt =
+    evatrFrischGueltig(vorher[0], jetzt) &&
+    (!qualifiziert ||
+      evatrQualifiziertBestaetigt(
         vorher.find((b) => b.art === "qualifiziert"),
         jetzt,
-      )
-    : evatrFrischGueltig(vorher[0], jetzt);
+      ));
   if (bestaetigt || evatrAbgeschaltet()) return { hinweis: null };
   // Ohne Nummer meldet das Festschreiben selbst, was fehlt (treatmentIssues); den Aufbau prüft es nur bei der Lieferung
   if (!nummer) return { hinweis: null };
