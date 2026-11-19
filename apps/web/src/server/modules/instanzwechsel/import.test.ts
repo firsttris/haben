@@ -255,6 +255,19 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(await sql`select 1 from beleg_layouts`).toEqual([]);
   });
 
+  it("lehnt ein Layout ab, dessen Quelltext kein Paket lädt, wenn die Datei trotzdem Pakete nennt", async () => {
+    await testinstanz();
+    // Die Liste in der Datei allein macht kein Layout mit Paketen: Ohne #import im Quelltext gäbe es nichts nachzuladen,
+    // „Pakete neu laden“ prüfte es nie, es bliebe ohne Probesatz freigegeben und setzte trotzdem
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    await sql`update beleg_layouts set source = '#let rechnung(daten) = [Rechnung]', packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow(
+      "Layout „Mein Layout“: Die Pakete passen nicht zum Quelltext.",
+    );
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
   it("schreibt jede Änderung mit der Person ins Änderungsprotokoll", async () => {
     await testinstanz();
     const text = await exportierenUndNeu();
