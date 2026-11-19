@@ -18,9 +18,16 @@ export class LayoutError extends UserError {}
 
 /**
  * Das Layout lädt ein Paket, das nicht im Cache des Render-Prozesses liegt. Typst entscheidet das selbst beim Setzen,
- * anders als packagesIn, das jede Nennung im Quelltext zählt, auch in Kommentaren (#488)
+ * anders als packagesIn, das jede Nennung im Quelltext zählt, auch in Kommentaren (#488). pakete nennt, welche
  */
-export class LayoutPaketFehltError extends LayoutError {}
+export class LayoutPaketFehltError extends LayoutError {
+  readonly pakete: { name: string; version: string }[];
+
+  constructor(message: string, pakete: { name: string; version: string }[]) {
+    super(message);
+    this.pakete = pakete;
+  }
+}
 
 /**
  * So meldet Typst ein Paket, das es ohne Netz nicht laden kann (siehe typstMeldung). Nur am Anfang einer Meldung von Typst:
@@ -28,13 +35,23 @@ export class LayoutPaketFehltError extends LayoutError {}
  */
 const PAKET_FEHLT = /^failed to download package/i;
 
-function paketFehlt(error: unknown): boolean {
+/** Typst nennt das Paket nur in der Adresse des Downloads: …packages.typst.org/preview/cetz-0.3.4.tar.gz */
+const PAKET_ADRESSE = /packages\.typst\.org\/([a-z0-9_-]+)\/([a-z0-9_-]+)-(\d+\.\d+\.\d+)\.tar\.gz/i;
+
+/** Pakete, die Typst nicht laden konnte; leer, wenn keine Meldung so lautet oder eine kein Paket nennt */
+function fehlendePakete(error: unknown): { name: string; version: string }[] {
+  let meldungen: unknown;
   try {
-    const meldungen = JSON.parse(error instanceof Error ? error.message : String(error)) as { message?: unknown }[];
-    return Array.isArray(meldungen) && meldungen.some((m) => typeof m.message === "string" && PAKET_FEHLT.test(m.message));
+    meldungen = JSON.parse(error instanceof Error ? error.message : String(error));
   } catch {
-    return false;
+    return [];
   }
+  if (!Array.isArray(meldungen)) return [];
+  const adressen = meldungen.flatMap((m: { message?: unknown } | null) =>
+    typeof m?.message === "string" && PAKET_FEHLT.test(m.message) ? [PAKET_ADRESSE.exec(m.message)] : [],
+  );
+  if (adressen.some((adresse) => !adresse)) return [];
+  return adressen.map((adresse) => ({ name: `@${adresse![1]}/${adresse![2]}`, version: adresse![3]! }));
 }
 
 export const MAX_LAYOUT_BYTES = 256 * 1024;
@@ -54,8 +71,7 @@ export function packagesIn(source: string): { name: string; version: string }[] 
 export function typstMeldung(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
   if (text.includes("Zeitlimit")) return text;
-  // Typst nennt das Paket nur in der Adresse des Downloads: …/preview/cetz-0.3.4.tar.gz
-  const paket = /failed to download package[^"]*?packages\.typst\.org\/([a-z0-9_-]+)\/([a-z0-9_-]+)-(\d+\.\d+\.\d+)\.tar\.gz/i.exec(text);
+  const paket = new RegExp(`failed to download package[^"]*?${PAKET_ADRESSE.source}`, "i").exec(text);
   if (paket) return `Das Paket @${paket[1]}/${paket[2]}:${paket[3]} ist nicht freigegeben oder fehlt im Cache.`;
   try {
     const [first] = JSON.parse(text) as { message: string; range?: { start?: { line?: number } } }[];
@@ -103,7 +119,8 @@ export async function checkLayout(layout: { id: string; source: string; art: "be
       pdf = await renderer.renderPdf(await customLayoutJob(layout, beispiel.data, probeLetterhead), "2026-10-02");
     } catch (error) {
       // Ohne das Paket scheitert jedes Beispiel gleich; der Aufrufer muss es unterscheiden können (insertImportedLayout)
-      if (paketFehlt(error)) throw new LayoutPaketFehltError(`Das Layout lässt sich so nicht verwenden. ${beispiel.name}: ${typstMeldung(error)}`);
+      const fehlend = fehlendePakete(error);
+      if (fehlend.length > 0) throw new LayoutPaketFehltError(`Das Layout lässt sich so nicht verwenden. ${beispiel.name}: ${typstMeldung(error)}`, fehlend);
       probleme.push(`${beispiel.name}: ${typstMeldung(error)}`);
       // Was schon am Setzen scheitert, scheitert meist an allen Beispielen gleich
       if (probleme.length >= 3) break;

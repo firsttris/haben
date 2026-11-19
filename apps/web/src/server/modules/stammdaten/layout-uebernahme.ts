@@ -48,14 +48,17 @@ export async function insertImportedLayout(
 /**
  * Setzt das Layout ohne Paket-Cache zur Probe (#488). Gelingt das, braucht es keine Pakete, auch wenn der Quelltext eines
  * nennt, etwa in einem Kommentar; dann gilt der Probesatz wie bei einem Layout ohne Pakete. Scheitert es nur an einem
- * fehlenden Paket, setzt es erst „Pakete neu laden“ zur Probe. Jeder andere Fehler lehnt das Layout ab.
+ * fehlenden Paket aus der Datei, setzt es erst „Pakete neu laden“ zur Probe. Jeder andere Fehler lehnt das Layout ab, auch
+ * ein Paket, das die Datei nicht nennt (zusammengesetzter Name): Das lädt „Pakete neu laden“ nie. Typst meldet nur das
+ * erste fehlende Paket; ein weiteres fällt erst bei „Pakete neu laden“ auf.
  */
 async function brauchtPakete(layout: { id: string; source: string; art: LayoutArt; packages: readonly LayoutPackage[] }): Promise<boolean> {
   try {
     await checkLayout({ id: layout.id, source: layout.source, art: layout.art });
     return false;
   } catch (error) {
-    if (error instanceof LayoutPaketFehltError && layout.packages.length > 0) return true;
+    const genannt = new Set(layout.packages.map(packageSpec));
+    if (error instanceof LayoutPaketFehltError && error.pakete.length > 0 && error.pakete.every((pkg) => genannt.has(packageSpec(pkg)))) return true;
     throw error;
   }
 }

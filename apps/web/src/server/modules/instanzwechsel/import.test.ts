@@ -305,6 +305,17 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(await sql`select 1 from beleg_layouts`).toEqual([]);
   });
 
+  it("gibt ein Layout nicht frei, das ein anderes Paket lädt als die Datei nennt", async () => {
+    await testinstanz();
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    // cetz steht nur im Kommentar; den zusammengesetzten Namen sieht erst Typst beim Setzen
+    const source = `// @preview/cetz:0.3.4\n#import "@preview/" + "tablex:0.0.8": tablex\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow("@preview/tablex:0.0.8");
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
   it("speichert ein Layout, das ohne seine Pakete setzt, wie eines ohne Pakete: geprüft und ohne Freigabe", async () => {
     await testinstanz();
     const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
