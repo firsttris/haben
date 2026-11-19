@@ -120,6 +120,12 @@ test("Kleinunternehmer-Ersteinrichtung: Übersicht ohne reguläre UStVA-Aufforde
         // Noch nichts erfasst: statt Karten mit 0,00 € der Weg zur ersten Rechnung
         await expect(page.getByText("Offene Forderungen", { exact: true })).toHaveCount(0);
         await expect(page.getByRole("link", { name: "Erste Rechnung schreiben" })).toBeVisible();
+        // Ohne „Letzte Voranmeldungen“ nimmt „Letzte Rechnungen“ die ganze Breite, wie „Zu erledigen“ darüber
+        const breite = (name: string) =>
+          page
+            .locator("section.card", { has: page.getByRole("heading", { name, exact: true }) })
+            .evaluate((el) => Math.round(el.getBoundingClientRect().width));
+        expect(await breite("Letzte Rechnungen")).toBe(await breite("Zu erledigen"));
       }
     }
   } finally {
