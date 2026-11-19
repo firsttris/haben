@@ -1,10 +1,10 @@
-import { numberFormatError } from "@haben/core";
+import { numberFormatError, usesCustomerNumber } from "@haben/core";
 import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
-import { counterContacts, startRunning, type NumberKind } from "./number-counter.ts";
+import { counterContacts, seedCustomerCircles, startRunning, type NumberKind } from "./number-counter.ts";
 
 /** Nummernformate für Rechnungen und Angebote; sie gelten für alles, was ab dann festgeschrieben wird */
 
@@ -32,11 +32,14 @@ async function startCircles(tx: Tx, kind: NumberKind): Promise<void> {
   for (const contactId of await counterContacts(tx, kind)) await startRunning(tx, kind, contactId);
 }
 
-/** saveNumberFormats in der Transaktion des Aufrufers; `current` sagt, welche Zähler schon über den Jahreswechsel laufen und je Kunde kreisen */
+/** saveNumberFormats in der Transaktion des Aufrufers; `current` sagt, wie die Formate bisher lauten und welche Zähler schon über den Jahreswechsel laufen und je Kunde kreisen */
 export async function putNumberFormats(
   tx: Tx,
   formats: NumberFormats,
-  current: Pick<Company, "invoiceCounterRunning" | "quoteCounterRunning" | "invoiceCounterPerCustomer" | "quoteCounterPerCustomer">,
+  current: Pick<
+    Company,
+    "invoiceNumberFormat" | "quoteNumberFormat" | "invoiceCounterRunning" | "quoteCounterRunning" | "invoiceCounterPerCustomer" | "quoteCounterPerCustomer"
+  >,
 ): Promise<void> {
   const invoice = formats.invoice.trim();
   const quote = formats.quote.trim();
@@ -54,9 +57,15 @@ export async function putNumberFormats(
     const problem = numberFormatError(format, { requireYear: !running, allowCustomer: true, requireCustomer: perCustomer });
     if (problem) throw new NumberFormatError(`Nummernformat für ${label}: ${problem}`);
   }
+  // Wird der Zähler je Kunde neu eingeschaltet und trug das bisherige Format schon {KUNDENNR}, beginnt jeder Kunde
+  // hinter seiner höchsten Nummer des gemeinsamen Kreises — sonst ergäbe die erste Nummer eine schon vergebene
+  // (#1426). Vor startCircles, damit ein neu durchlaufender Kundenkreis den Stand gleich mitbekommt.
+  if (invoicePerCustomer && !current.invoiceCounterPerCustomer && usesCustomerNumber(current.invoiceNumberFormat)) await seedCustomerCircles(tx, "rechnung");
+  if (quotePerCustomer && !current.quoteCounterPerCustomer && usesCustomerNumber(current.quoteNumberFormat)) await seedCustomerCircles(tx, "angebot");
   // Läuft der Zähler durch, bekommt jeder Kreis eine Zeile für den Kreis 0: neu eingeschaltet oder der Kundenkreis
   // neu dazu, je hinter der letzten Nummer des jüngsten Jahres desselben Kreises (startRunning, #1426). Kontakte
-  // ohne Zählerzeile haben noch keine Nummer verbraucht und beginnen einfach bei 1.
+  // ohne Zählerzeile haben noch keine Nummer verbraucht und beginnen einfach bei 1 — es sei denn, sie sind oben
+  // beim Einschalten eben hinter ihre Nummern aus dem gemeinsamen Kreis gesetzt worden.
   if (invoiceRunning && (!current.invoiceCounterRunning || (invoicePerCustomer && !current.invoiceCounterPerCustomer))) await startCircles(tx, "rechnung");
   if (quoteRunning && (!current.quoteCounterRunning || (quotePerCustomer && !current.quoteCounterPerCustomer))) await startCircles(tx, "angebot");
   await tx

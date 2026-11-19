@@ -25,6 +25,8 @@ export async function nummernformateUebernehmen(tx: Tx, company: unknown): Promi
   const formate = geprueft(formateSchema, company, "Nummernformate");
   const [current] = await tx
     .select({
+      invoiceNumberFormat: schema.company.invoiceNumberFormat,
+      quoteNumberFormat: schema.company.quoteNumberFormat,
       invoiceCounterRunning: schema.company.invoiceCounterRunning,
       quoteCounterRunning: schema.company.quoteCounterRunning,
       invoiceCounterPerCustomer: schema.company.invoiceCounterPerCustomer,
@@ -41,7 +43,14 @@ export async function nummernformateUebernehmen(tx: Tx, company: unknown): Promi
       invoiceRunning: formate.invoiceCounterRunning,
       quoteRunning: formate.quoteCounterRunning,
     },
-    current ?? { invoiceCounterRunning: false, quoteCounterRunning: false, invoiceCounterPerCustomer: false, quoteCounterPerCustomer: false },
+    current ?? {
+      invoiceNumberFormat: "",
+      quoteNumberFormat: "",
+      invoiceCounterRunning: false,
+      quoteCounterRunning: false,
+      invoiceCounterPerCustomer: false,
+      quoteCounterPerCustomer: false,
+    },
   );
 }
 

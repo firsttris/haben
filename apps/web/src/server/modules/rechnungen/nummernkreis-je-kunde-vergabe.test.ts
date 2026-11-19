@@ -1,3 +1,4 @@
+import { issueDateBeforeLastFinalized } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -222,6 +223,98 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Vergabe (Postgres, #14
     const kreise = await invoices.contactNumbering("2026-11-07", contactA);
     expect(kreise.invoice).toMatchObject({ kind: "rechnung", year: 2026, last: 0, next: "RE-2026-ACME-001" });
     expect(kreise.quote).toBeNull();
+  });
+
+  it("setzt beim Einschalten den Kundenkreis hinter die gemeinsamen Nummern des Kunden: das Storno bleibt möglich", async () => {
+    // {KUNDENNR} schon im gemeinsamen Kreis: die verbrauchten Nummern zählen zum Kundenkreis, sonst kollidiert 1
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}" });
+    const original = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    expect(original.number).toBe("RE-2026-ACME-001");
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const storno = await invoices.cancelInvoice(actor, original.id, "2026-12-15");
+    expect(storno.number).toBe("RE-2026-ACME-002");
+  });
+
+  it("setzt beim Einschalten den Kundenkreis hinter die gemeinsamen Nummern des Kunden: die nächste Rechnung", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}" });
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const next = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    expect(next.number).toBe("RE-2026-ACME-002");
+  });
+
+  it("übernimmt je Kunde seine höchste Nummer des gemeinsamen Zählers, Lücken bleiben Lücken", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}" });
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-2026-ACME-001
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand); // RE-2026-BETA-002
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-2026-ACME-003
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const rows = await sql`select contact_id, last from invoice_number_counters order by contact_id`;
+    expect(Object.fromEntries(rows.map((r) => [r.contact_id, r.last]))).toEqual({ null: 3, [contactA]: 3, [contactB]: 2 });
+    const nextA = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    const nextB = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand);
+    const gamma = (await createContact("GAMMA", "Gamma AG")).id;
+    const nextG = await invoices.finalizeInvoice(actor, (await invoiceDraft(gamma)).id, kleinunternehmerStand);
+    expect([nextA.number, nextB.number, nextG.number]).toEqual(["RE-2026-ACME-004", "RE-2026-BETA-003", "RE-2026-GAMMA-001"]);
+  });
+
+  it("setzt beim durchlaufenden Zähler den Kundenkreis 0 hinter die gemeinsamen Nummern des Kunden", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true });
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-ACME-0001
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand); // RE-BETA-0002
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-ACME-0003
+    await formats.saveNumberFormats(actor, { invoice: "RE-{KUNDENNR}-{NNNN}", quote: "AN-{JJJJ}-{NNN}", invoiceRunning: true, invoicePerCustomer: true });
+    const [kreis] = await sql`select last from invoice_number_counters where year = 0 and contact_id = ${contactA}`;
+    expect(kreis!.last).toBe(3);
+    const next = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA, "2027-01-05")).id, kleinunternehmerStand);
+    expect(next.number).toBe("RE-ACME-0004");
+  });
+
+  it("beginnt je Kunde bei 1, wenn das bisherige Format keine {KUNDENNR} trug", async () => {
+    await formats.saveNumberFormats(actor, GEMEINSAM);
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand);
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand);
+    const dritte = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    expect(dritte.number).toBe("RE-2026-003");
+    // Ohne {KUNDENNR} gehören die alten Nummern zu keinem Kunden: nichts zu übernehmen, keine Kollision möglich
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const next = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    expect(next.number).toBe("RE-2026-ACME-001");
+  });
+
+  it("rückt den Kundenkreis beim erneuten Einschalten nur vor, nie zurück", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-2026-ACME-001
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: false });
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand); // RE-2026-BETA-001
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-2026-ACME-002
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactB)).id, kleinunternehmerStand); // RE-2026-BETA-003
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-2026-ACME-004
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand); // RE-2026-ACME-005
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const [kreis] = await sql`select last from invoice_number_counters where year = 2026 and contact_id = ${contactA}`;
+    expect(kreis!.last).toBe(5);
+    const next = await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA)).id, kleinunternehmerStand);
+    expect(next.number).toBe("RE-2026-ACME-006");
+  });
+
+  it("setzt den Kundenkreis auch bei Angeboten hinter die gemeinsamen Nummern des Kunden", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNN}", quote: "AN-{JJJJ}-{KUNDENNR}-{NNN}" });
+    const angebot = await quotes.finalizeQuote(actor, (await quoteDraft(contactA)).id);
+    expect(angebot.number).toBe("AN-2026-ACME-001");
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNN}", quote: "AN-{JJJJ}-{KUNDENNR}-{NNN}", quotePerCustomer: true });
+    const next = await quotes.finalizeQuote(actor, (await quoteDraft(contactA)).id);
+    expect(next.number).toBe("AN-2026-ACME-002");
+  });
+
+  it("prüft das Belegdatum im Kundenkreis nicht gegen Belege des gemeinsamen Kreises (#713)", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}" });
+    await invoices.finalizeInvoice(actor, (await invoiceDraft(contactA, "2026-03-02")).id, kleinunternehmerStand);
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{KUNDENNR}-{NNN}", quote: "AN-{JJJJ}-{NNN}", invoicePerCustomer: true });
+    const byCircle = await invoices.lastFinalizedByCircle();
+    // Der Altbeleg steht im gemeinsamen Kreis; der Kundenkreis hat noch keinen Stand, der das Datum begrenzt
+    expect(byCircle["2026"]?.number).toBe("RE-2026-ACME-001");
+    expect(issueDateBeforeLastFinalized(byCircle, false, "2026-03-02", contactA)).toBeNull();
   });
 
   it("startet den durchlaufenden Kundenkreis hinter seiner letzten Jahresnummer", async () => {

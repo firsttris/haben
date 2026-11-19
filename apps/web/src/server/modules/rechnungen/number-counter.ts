@@ -212,6 +212,43 @@ export async function startRunning(tx: Tx, kind: NumberKind, contactId: string |
     .onConflictDoUpdate({ target: [counter.year, counter.contactId], set: { last: sql`excluded.last` }, setWhere: sql`${counter.last} < excluded.last` });
 }
 
+/**
+ * Beim Umschalten auf den Zähler je Kunde: Jeder Kontakt beginnt hinter der höchsten Nummer, die seine
+ * festgeschriebenen Belege im gemeinsamen Kreis schon verbraucht haben — beim Format mit {KUNDENNR} ergäbe sonst die
+ * nächste Nummer eine vergebene (#1426). Wie startRunning rückt die Zeile nur vor: War der Kundenkreis aus einem
+ * früheren Einschalten schon weiter, bleibt der höhere Stand.
+ */
+export async function seedCustomerCircles(tx: Tx, kind: NumberKind): Promise<void> {
+  const numbered = NUMBERED[kind];
+  const counter = COUNTERS[kind];
+  const rows = await tx
+    .select({ year: numbered.numberYear, contactId: numbered.contactId, last: sql<number>`max(${numbered.numberCounter})` })
+    .from(numbered)
+    .where(
+      and(
+        eq(numbered.status, "final"),
+        isNotNull(numbered.numberYear),
+        isNotNull(numbered.numberCounter),
+        isNull(numbered.numberContactId),
+        isNotNull(numbered.contactId),
+      ),
+    )
+    .groupBy(numbered.numberYear, numbered.contactId)
+    .orderBy(asc(numbered.numberYear), asc(numbered.contactId));
+  // Je Kreis unter seiner Sperre, damit zwei Umschaltungen nicht aneinander vorbei schreiben
+  for (const row of rows) {
+    await lockNumbering(tx, kind, row.year!, row.contactId!);
+    await tx
+      .insert(counter)
+      .values({ year: row.year!, last: row.last, contactId: row.contactId })
+      .onConflictDoUpdate({
+        target: [counter.year, counter.contactId],
+        set: { last: sql`excluded.last` },
+        setWhere: sql`${counter.last} < excluded.last`,
+      });
+  }
+}
+
 /** Kontakte mit eigener Zählerzeile dieser Art — die Kundenkreise, die beim Zähler je Kunde entstanden sind (#1426) */
 export async function counterContacts(tx: Tx, kind: NumberKind): Promise<string[]> {
   const counter = COUNTERS[kind];
