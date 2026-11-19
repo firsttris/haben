@@ -75,6 +75,8 @@ Mit einer eigenen Registrierungsnummer für FinTS holt Haben die Umsätze direkt
 | Etsy | Monatsabrechnung (CSV), Spalten deutsch (Datum, Art, Titel, Info, Betrag, Gebühren & Steuern, Netto) oder englisch (Date, Type, Title, Info, Amount, Fees & Taxes, Net) | nein, wie oben | wie oben |
 | Andere Bank (CSV) | Jede andere CSV mit Kopfzeile; die Spalten ordnest du einmal selbst zu ([Andere Banken](bank-spaltenzuordnung.md)) | nein | nein |
 
+Im CAMT.053 stehen Name und IBAN der Gegenpartei im Block `RltdPties`. Vivid Business lässt ihn im Export weg und schreibt beides nur in den Freitext des Umsatzes (`AddtlTxInf`, `AddtlNtryInf`). Haben liest es dann von dort: bei „Eingehende Überweisung Von …“ und „Ausgehende Überweisung An …“ den Namen vor dem Verwendungszweck und die IBAN, bei „Kartentransaktion …“ den Händler ohne IBAN. Passt der Text nicht genau dazu, etwa ohne gültige IBAN am Ende, bleibt die Gegenpartei leer.
+
 Bank und Format erkennt Haben am Inhalt, nicht am Dateinamen. CAMT.052 und CAMT.054 werden mit einer eigenen Meldung abgelehnt; nur der Tagesauszug CAMT.053 wird gelesen.
 
 Die Zeichenkodierung wird ebenfalls erkannt: UTF-8 mit oder ohne BOM, UTF-16 mit BOM, und alles, was kein gültiges UTF-8 ist, als Windows-1252 (ältere DKB-Exporte, ING).
