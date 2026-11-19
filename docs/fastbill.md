@@ -136,7 +136,7 @@ Zeiten aus FastBill, die noch auf keiner Rechnung stehen, kommen als [Zeiteintr�
 - **Übernommen:** Arbeitstag, Dauer, abrechenbare Dauer (0 heißt nicht abrechenbar), Tätigkeit und der Name des Projekts als Text. Stundensatz ist der des Projekts, ohne Satz im Projekt der des Kunden in Haben.
 - **Nicht übernommen:** Zeiten, die FastBill einer Rechnung zuordnet; sie stecken in der Regel in den Rechnungen im Archiv, prüfe das bei Rechnungsentwürfen und Stornos in FastBill. Außerdem Zeiten ohne Datum oder Dauer, mit einer Dauer oder abrechenbaren Dauer über 24 Stunden, zu Projekten in anderer Währung und solche, deren Kunde in Haben fehlt (zuerst „Alles abrufen“), archiviert oder kein Kunde ist. Die Vorschau nennt sie je Zeit.
 - **Projekte** gibt es in Haben nicht: Laufzeit, Kostenstelle, Projektnummer und Steuersatz des Projekts gehen nicht über; den Steuersatz setzt der Rechnungsentwurf.
-- Ein erneutes Übernehmen aktualisiert offene Einträge über die Kennung der Zeit, statt sie zu verdoppeln. Was in Haben schon abgerechnet ist, bleibt, wie es ist, und zählt in der Vorschau nicht als offen. In der Liste der Zeiteinträge steht „aus fastbill“.
+- Ein erneutes Übernehmen aktualisiert offene Einträge über die Kennung der Zeit, statt sie zu verdoppeln. Was in Haben schon abgerechnet ist, bleibt, wie es ist, und zählt in der Vorschau nicht als offen. Beim Bearbeiten eines Eintrags steht „Übernommen aus FastBill“.
 - Der Abruf zählt auf dieselbe Stundengrenze wie Belege und Artikel; je 100 Zeiten oder Projekte eine Anfrage.
 
 ### Grenzen des aktuellen Imports

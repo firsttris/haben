@@ -5,7 +5,11 @@ export function serviceEntryNote(entry: { project: string; nonBillable: boolean 
   return [entry.project, entry.nonBillable && "nicht abrechenbar"].filter(Boolean).join(" · ");
 }
 
-/** Herkunft eines Eintrags beim Bearbeiten: Quellen aus dem Umzug tragen ihren Schlüssel („fastbill“), solche über die API den Namen des Programms */
+// Quellen, aus denen ein Umzug Zeiteinträge übernimmt (#1522). Nur sie bekommen den Namen des Programms: Über die API
+// kann jeder Text als Quelle kommen, auch einer, der wie ein anderer Schlüssel aus dem Archiv heißt („import“).
+const MIGRATED_TIME_SOURCES: Record<string, string> = { fastbill: LEGACY_SOURCE.fastbill.name };
+
+/** Herkunft eines Eintrags beim Bearbeiten: Umzug mit dem Namen des Programms („fastbill“ → FastBill), API wie übergeben */
 export function serviceEntrySource(source: string): string {
-  return Object.hasOwn(LEGACY_SOURCE, source) ? LEGACY_SOURCE[source as keyof typeof LEGACY_SOURCE].name : source;
+  return Object.hasOwn(MIGRATED_TIME_SOURCES, source) ? (MIGRATED_TIME_SOURCES[source] ?? source) : source;
 }

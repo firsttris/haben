@@ -13,8 +13,12 @@ describe("Hinweiszeile eines Zeiteintrags in der Liste", () => {
 describe("Quelle eines Zeiteintrags beim Bearbeiten", () => {
   it("nennt Quellen aus dem Umzug mit dem Namen des Programms, andere wie übergeben", () => {
     expect(serviceEntrySource("fastbill")).toBe("FastBill");
-    expect(serviceEntrySource("sevdesk")).toBe("sevDesk");
     expect(serviceEntrySource("kimai")).toBe("kimai");
     expect(serviceEntrySource("toString")).toBe("toString");
+  });
+
+  it("nimmt nur Quellen, aus denen ein Umzug Zeiten übernimmt: „import“ über die API bleibt „import“ (Review #1548)", () => {
+    expect(serviceEntrySource("import")).toBe("import");
+    expect(serviceEntrySource("wiso")).toBe("wiso");
   });
 });
