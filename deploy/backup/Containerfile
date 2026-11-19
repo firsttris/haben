@@ -30,7 +30,8 @@ ENV PGHOST=db \
     BACKUP_HOST=haben \
     BACKUP_TIME=03:15 \
     RESTORE_CHECK_DAYS=7 \
-    TZ=Europe/Berlin
+    TZ=Europe/Berlin \
+    RCLONE_CONFIG=/var/lib/haben-backup/rclone.conf
 # Das postgres-Image hält mit SIGINT an; der Zeitplan endet mit SIGTERM
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["entrypoint.sh"]

@@ -31,8 +31,9 @@ x-backup: &backup
     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     # Ziel über rclone (WebDAV, OneDrive, SMB …): RESTIC_REPOSITORY=rclone:<abschnitt>:<pfad>. Die rclone-Konfiguration
-    # liegt als Datei, ohne RCLONE_CONFIG unter /var/lib/haben-backup/rclone.conf (siehe docs/installation-backup.md)
-    RCLONE_CONFIG: ${RCLONE_CONFIG:-}
+    # liegt als Datei unter /var/lib/haben-backup/rclone.conf, dem Vorgabewert im Image (siehe
+    # docs/installation-backup.md); ein anderer Pfad gehört in RCLONE_CONFIG
+    RCLONE_CONFIG: ${RCLONE_CONFIG:-/var/lib/haben-backup/rclone.conf}
 
 services:
   db:

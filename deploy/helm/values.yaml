@@ -79,7 +79,7 @@ backup:
   env: {}
     # RESTIC_REPOSITORY: "s3:s3.eu-central-1.amazonaws.com/bucket/haben"
     # rclone-Ziele (WebDAV, OneDrive, SMB ...): RESTIC_REPOSITORY: "rclone:<abschnitt>:<pfad>", dazu die rclone.conf
-    # einhängen und RCLONE_CONFIG auf ihren Pfad setzen
+    # einhängen (extraVolumeMounts/extraVolumes unten); Vorgabepfad im Image ist /var/lib/haben-backup/rclone.conf
     # BACKUP_TIME: "03:15"
     # BACKUP_HOST: "haben"
     # RESTORE_CHECK_DAYS: "7"
@@ -87,6 +87,18 @@ backup:
     # PGHOST: "haben-db-rw.datenbank.svc"
     # PGUSER: "haben"
     # PGDATABASE: "haben"
+  # Zusätzliche Volumes für den Backup-Container, etwa die rclone-Konfiguration aus einem Secret. Der Vorgabepfad
+  # im Image ist /var/lib/haben-backup/rclone.conf; ohne subPath überschreibt ein Mount das Verzeichnis mit dem
+  # Dump und dem Zustand von backup.sh.
+  extraVolumeMounts: []
+    # - name: rclone-conf
+    #   mountPath: /var/lib/haben-backup/rclone.conf
+    #   subPath: rclone.conf
+    #   readOnly: true
+  extraVolumes: []
+    # - name: rclone-conf
+    #   secret:
+    #     secretName: haben-rclone
   persistence:
     # restic-Repository unter /backups, solange RESTIC_REPOSITORY nicht gesetzt ist. Liegt im selben Cluster; gegen
     # dessen Verlust gehört das Repository auf ein zweites System. Ohne Volume ist RESTIC_REPOSITORY Pflicht.

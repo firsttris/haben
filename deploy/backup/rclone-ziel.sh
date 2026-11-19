@@ -33,8 +33,13 @@ rclone_remote_name() {
 
 # Prüft vor dem Start, dass rclone da ist und die Konfiguration den Abschnitt kennt, statt restic mit einer Meldung
 # wie „didn't find section in config file" scheitern zu lassen. Gibt nichts aus, was in der Datei steht.
+#
+# Der Abschnitt wird über `rclone listremotes` geprüft: `rclone config show <name>` endet auch für einen Abschnitt,
+# den die Datei nicht enthält, mit 0 (rclone 1.76.0, cmd/config/config.go), taugt also nicht als Prüfung.
 configure_rclone() {
   uses_rclone || return 0
+  # Einstiegspunkt und die Skripte rufen die Prüfung beide auf; die Meldung soll einmal erscheinen
+  [ "${RCLONE_ZIEL_GEPRUEFT:-}" = 1 ] && return 0
   local bin conf name mode
   bin="${RCLONE_BIN:-rclone}"
   conf="$(rclone_config_file)"
@@ -52,9 +57,11 @@ configure_rclone() {
     echo "Hinweis: $conf ist für Gruppe oder andere lesbar ($mode) und enthält Zugangsdaten. chmod 600 empfohlen." >&2
   fi
   export RCLONE_CONFIG="$conf"
-  "$bin" config show "$name" > /dev/null 2>&1 || {
-    echo "Der rclone-Abschnitt ${name} fehlt in $conf. Vorhandene Abschnitte zeigt rclone config show." >&2
+  export RCLONE_ZIEL_GEPRUEFT=1
+  # listremotes gibt je Abschnitt eine Zeile „name:" aus; ein Abschnitt, den die Datei nicht enthält, fehlt darin
+  if ! "$bin" listremotes 2>/dev/null | grep -qxF "${name}:"; then
+    echo "Der rclone-Abschnitt ${name} fehlt in $conf. Vorhandene Abschnitte zeigt rclone listremotes." >&2
     exit 2
-  }
+  fi
   echo "rclone: Ziel ${name} aus ${conf}"
 }

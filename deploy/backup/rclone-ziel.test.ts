@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,20 +11,17 @@ const arbeit = mkdtempSync(join(tmpdir(), "rclone-ziel-"));
 afterAll(() => rmSync(arbeit, { recursive: true, force: true }));
 
 /**
- * Ersatz für rclone: `config show <abschnitt>` findet nur, was in RCLONE_FAKE_SECTIONS steht. So läuft der Test
- * ohne die Binärdatei und ohne echte Zugangsdaten.
+ * Ersatz für rclone: `listremotes` liest die Abschnitte aus der Datei, die RCLONE_CONFIG nennt, so wie rclone es tut.
+ * So läuft der Test ohne die Binärdatei und ohne echte Zugangsdaten, prüft aber dieselbe Eigenschaft: ob der
+ * gesuchte Abschnitt in der Datei steht oder nicht.
  */
 function falschesRclone(): string {
   const pfad = join(arbeit, "rclone");
   writeFileSync(
     pfad,
-    [
-      "#!/bin/sh",
-      '[ "$1" = config ] || exit 1',
-      'for s in $RCLONE_FAKE_SECTIONS; do [ "$s" = "$3" ] && exit 0; done',
-      "exit 1",
-      "",
-    ].join("\n"),
+    ["#!/bin/sh", '[ "$1" = listremotes ] || exit 1', '[ -r "$RCLONE_CONFIG" ] || exit 0', "sed -n 's/^\\[\\(.*\\)\\]$/\\1:/p' \"$RCLONE_CONFIG\"", ""].join(
+      "\n",
+    ),
   );
   chmodSync(pfad, 0o755);
   return pfad;
@@ -52,7 +49,7 @@ const webdavConf = "[webdav]\ntype = webdav\nurl = https://cloud.example.de/remo
 describe("configure_rclone", () => {
   it("prüft den Abschnitt aus der Konfiguration und meldet das Ziel", () => {
     const conf = konfiguration(webdavConf);
-    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf, RCLONE_FAKE_SECTIONS: "webdav" });
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf });
     expect(r.code).toBe(0);
     expect(r.stdout).toBe(`rclone: Ziel webdav aus ${conf}`);
     expect(r.stderr).toBe("");
@@ -64,7 +61,6 @@ describe("configure_rclone", () => {
       const r = pruefe({
         RESTIC_REPOSITORY: `rclone:${name}:haben`,
         RCLONE_CONFIG: conf,
-        RCLONE_FAKE_SECTIONS: "onedrive mynas",
       });
       expect(r.code).toBe(0);
       expect(r.stdout).toContain(`Ziel ${name}`);
@@ -80,9 +76,16 @@ describe("configure_rclone", () => {
 
   it("bricht ab, wenn der Abschnitt in der Konfiguration fehlt", () => {
     const conf = konfiguration(webdavConf);
-    const r = pruefe({ RESTIC_REPOSITORY: "rclone:haben:backup", RCLONE_CONFIG: conf, RCLONE_FAKE_SECTIONS: "webdav" });
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:haben:backup", RCLONE_CONFIG: conf });
     expect(r.code).toBe(2);
     expect(r.stderr).toContain("Abschnitt haben fehlt");
+  });
+
+  it("nimmt nur den genauen Namen, nicht einen, der den gesuchten enthält", () => {
+    const conf = konfiguration("[webdav-alt]\ntype = webdav\n[backup]\ntype = local\n");
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf });
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain("Abschnitt webdav fehlt");
   });
 
   it("nutzt die Vorgabe /var/lib/haben-backup/rclone.conf, wenn RCLONE_CONFIG ungesetzt ist", () => {
@@ -93,7 +96,7 @@ describe("configure_rclone", () => {
 
   it("warnt bei offenen Rechten, arbeitet aber weiter", () => {
     const conf = konfiguration(webdavConf, 0o644);
-    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf, RCLONE_FAKE_SECTIONS: "webdav" });
+    const r = pruefe({ RESTIC_REPOSITORY: "rclone:webdav:haben", RCLONE_CONFIG: conf });
     expect(r.code).toBe(0);
     expect(r.stderr).toContain("chmod 600");
   });
@@ -120,7 +123,6 @@ describe("configure_rclone", () => {
       RESTIC_REPOSITORY: "rclone:webdav:haben",
       RCLONE_CONFIG: conf,
       RCLONE_BIN: join(arbeit, "kein-rclone"),
-      RCLONE_FAKE_SECTIONS: "webdav",
     });
     expect(r.code).toBe(2);
     expect(r.stderr).toContain("nicht vorhanden");

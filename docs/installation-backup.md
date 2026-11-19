@@ -79,11 +79,23 @@ restic kennt nur wenige Ziele selbst. Für alles andere ruft es `rclone` auf, un
     install -m 600 rclone.conf /root/haben/rclone.conf
     ```
 
-    Compose: bei `backup` und `restore` unter `volumes` `- /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Quadlets: `Volume=%h/.config/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Liegt die Datei woanders, `RCLONE_CONFIG` auf diesen Pfad setzen.
+    Compose: die Datei in `compose.override.yml` bei `backup` und `restore` einhängen, damit sie beim nächsten Herunterladen von `compose.yml` erhalten bleibt:
+
+    ```yaml
+    services:
+      backup:
+        volumes:
+          - /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro
+      restore:
+        volumes:
+          - /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro
+    ```
+
+    Quadlets: `Volume=%h/.config/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Unraid: dieselbe Datei als zusätzlichen Pfad `/var/lib/haben-backup/rclone.conf` mit Zugriffsart „Nur lesen“ abbilden. Helm: `backup.extraVolumes` und `backup.extraVolumeMounts` in `values.yaml`, etwa aus einem Secret, mit `subPath: rclone.conf`, damit der Mount nur die Datei ersetzt und nicht das Verzeichnis mit Dump und Zustand. Der Pfad ist im Image als `RCLONE_CONFIG` hinterlegt, weitere Einstellungen braucht es nicht; liegt die Datei woanders, `RCLONE_CONFIG` in der `.env` auf diesen Pfad setzen.
 
 3. **Ziel eintragen:** `RESTIC_REPOSITORY=rclone:<abschnitt>:<pfad>`. Der Abschnitt ist der Name in eckigen Klammern der Konfiguration, der Pfad der Ordner im Ziel, den Haben anlegt, etwa `rclone:onedrive:haben`.
 
-4. **Starten** mit `docker compose up -d` bzw. `systemctl --user restart haben-backup.timer`. Der Container prüft vor dem Lauf, dass der Abschnitt existiert, und nennt das Ziel im Log ohne Zugangsdaten.
+4. **Starten** mit `docker compose up -d` bzw. `systemctl --user restart haben-backup.timer`. Vor jedem Lauf prüft der Container vier Dinge: rclone ist da, die Konfiguration ist lesbar, der Abschnitt steht darin (über `rclone listremotes`), und die Rechte sind nicht zu offen; bei einer für Gruppe oder andere lesbaren Datei gibt es einen Hinweis, keinen Abbruch. Die Prüfung steckt im Einstiegspunkt und in `backup.sh`, `restore.sh` und `restore-check.sh`, gilt also auch für `docker compose exec backup backup.sh` und fürs Wiederherstellen. Das Log nennt das Ziel ohne Zugangsdaten.
 
 > [!IMPORTANT]
 > Die rclone-Konfiguration ist ein Geheimnis: bei OneDrive steht ein OAuth-Token darin, bei WebDAV das Passwort. Verschleiert ist keine Verschlüsselung, wer die Datei liest, kommt an den Zugang. Deshalb Rechte 600, nicht ins Repository, und nicht in eine Sicherung, die jeder lesen kann.
@@ -159,7 +171,7 @@ podman run --rm -it --network haben --env-file ~/.config/haben/backup.env -e PGH
 systemctl --user start haben-app
 ```
 
-Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
+Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu, bei einem rclone-Ziel `-v /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
 
 Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `HABEN_ENCRYPTION_KEY`, demselben Passwort des Backups und demselben `RESTIC_REPOSITORY`. Dann startest du nur die Datenbank (`docker compose up -d db` bzw. `systemctl --user start haben-db`) und legst die App-Rolle aus [Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) an. Erst danach den Dump wiederherstellen und die App starten. [`pg_dump`](https://www.postgresql.org/docs/18/app-pgdump.html) sichert die Zugriffsrechte, aber keine Rollendefinitionen oder Rollenpasswörter: Die im Dump genannte Rolle muss vor dem Einspielen existieren. Ihre Zugangsdaten deshalb ebenfalls im Passwortmanager aufbewahren; beim neuen Ziel können sie neu gewählt werden, wenn `DATABASE_URL` dazu passt. Beim Start werden die Rechte erneut gesetzt, auch die Datenbankrechte, die der Dump ohne `--create` nicht enthält. Lief die App schon, stoppst du sie vorher; `restore.sh` ersetzt die leere Datenbank genauso. Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
 
