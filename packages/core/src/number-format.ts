@@ -82,6 +82,21 @@ export function documentNumberLengthProblem(number: string): string | null {
 }
 
 /**
+ * Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - /, höchstens 36 Zeichen; unzulässig sind „insbesondere
+ * Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“ (DATEV „ASCII-Import: Feldbeschreibungen für
+ * Standardformate“, Dok.-Nr. 1003221, Stand 13.08.2026, Abschnitt 3, Feld 11, https://apps.datev.de/help-center/documents/1003221).
+ * Der Punkt aus dem Nummernformat wird zu „-“, damit `RE.2026.001` als `RE-2026-001` erkennbar bleibt; alles andere
+ * außerhalb der Liste fällt weg (#675). Der DATEV-Export schreibt Belegnummern so ins Belegfeld 1 (datev-export.ts);
+ * beim Festschreiben hält documentNumber Nummern auf, die dort aussehen wie eine schon vergebene (#1426).
+ */
+export function voucherField(value: string): string {
+  return value
+    .replace(/\./g, "-")
+    .replace(/[^A-Za-z0-9$&%*+\-/]/g, "")
+    .slice(0, MAX_DOCUMENT_NUMBER_LENGTH);
+}
+
+/**
  * Kundennummer, mit der Storno und Rechnungskorrektur bei {KUNDENNR} nummeriert werden: die festgeschriebene
  * des Originals, solange sie taugt, sonst die heutige des Kontakts (#1426). Was übrig bleibt, meldet
  * customerNumberProblem.
