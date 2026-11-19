@@ -130,9 +130,14 @@ export {
   type MandateOption,
 } from "./sepa-mandate.ts";
 export {
+  bestaetigeNummer,
   bestaetigeUstId,
+  evatrMoeglich,
+  letzteBestaetigungen,
   listUstIdBestaetigungen,
   ustIdBestaetigungen,
+  ustIdVorFestschreiben,
+  type EvatrVerbindung,
   type UstIdBestaetigung,
   type UstIdBestaetigungsErgebnis,
   type UstIdBestaetigungsZustand,

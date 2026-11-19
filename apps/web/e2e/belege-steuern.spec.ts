@@ -30,7 +30,7 @@ import {
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
 import { vorsteuerPruefen } from "./belege-vorsteuer.ts";
-import { ustIdBestaetigungPruefen } from "./ustid-bestaetigung.ts";
+import { ustIdBestaetigungPruefen, zmBestaetigungPruefen } from "./ustid-bestaetigung.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -2148,6 +2148,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await expect(page.getByRole("form", { name: "Meldung an das BZSt" })).toBeVisible();
 });
 
+zmBestaetigungPruefen(() => page);
+
 test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart L in der Zusammenfassenden Meldung", async () => {
   // Nach der Zusammenfassenden Meldung oben: USt-IdNr. in den Firmendaten und der Kunde in Wien sind angelegt
   const next = YEAR + 1;
@@ -2231,6 +2233,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   await page.getByLabel("Straße und Hausnummer").fill("Speicherstadt 4");
   await page.getByLabel("PLZ").fill("20457");
   await page.getByLabel("Ort").fill("Hamburg");
+  await weitereAngabenOeffnen(page);
   await page.getByRole("combobox", { name: /^Skonto/ }).selectOption("eigen");
   await page.getByRole("button", { name: "Skontostufe hinzufügen" }).click();
   await page.getByLabel("Stufe 1: Skonto in %").fill("3");

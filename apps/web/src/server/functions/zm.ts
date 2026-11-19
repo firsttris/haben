@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { elsterClient, elsterMode, loadActiveCertificate } from "../modules/elster/index.ts";
-import { submitZm, zmOverview, zmQuartale, zmSubmissions } from "../modules/umsatzsteuer/index.ts";
+import { bestaetigeZmNummern, submitZm, zmOverview, zmQuartale, zmSubmissions } from "../modules/umsatzsteuer/index.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
 
@@ -37,3 +37,9 @@ export const submitZmMeldung = createServerFn({ method: "POST" })
     const result = await submitZm(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID });
     return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
   });
+
+/** Gemeldete USt-IdNrn. des Quartals beim BZSt bestätigen, die keine frische gültige Antwort haben (#1385) */
+export const bestaetigeZmNummernFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(quarterSchema)
+  .handler(async ({ data: period, context }) => bestaetigeZmNummern(context.user.id, await zmOverview(period)));

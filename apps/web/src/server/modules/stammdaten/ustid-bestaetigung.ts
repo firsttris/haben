@@ -5,17 +5,21 @@ import {
   type EvatrAntwort,
   evatrAntwortSchema,
   type EvatrArt,
+  evatrFrischGueltig,
   evatrGueltig,
   evatrMeldung,
   evatrNachweis,
   evatrNeuNoetig,
+  evatrNummerFehler,
+  evatrQualifiziertBestaetigt,
   evatrPruefbar,
   evatrQualifizierbar,
   evatrZeitpunkt,
   isValidGermanUstId,
   normalizeUstId,
 } from "@haben/core";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
+import { formatDate } from "../../../lib/format.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
@@ -44,6 +48,8 @@ export interface UstIdBestaetigungsErgebnis {
   neu: number;
   /** Was nicht bestätigt werden konnte, sonst null */
   hinweis: string | null;
+  /** Bei gescheiterter Abfrage die Meldung ohne Vorsatz, für einen eigenen Satz (Festschreiben) */
+  grund?: string;
 }
 
 export interface EvatrVerbindung {
@@ -96,7 +102,8 @@ export async function ustIdBestaetigungen(contactId: string): Promise<{ bestaeti
   return { bestaetigungen, zustand: contact ? zustandFuer(contact, company.ustId, bestaetigungen) : { art: "nicht-pruefbar" } };
 }
 
-type Abfrage = { ok: true; antwort: EvatrAntwort; text: string; zeitpunkt: Date } | { ok: false; hinweis: string };
+/** status: der Status einer Antwort ohne Nachweis, null ohne lesbare Antwort */
+type Abfrage = { ok: true; antwort: EvatrAntwort; text: string; zeitpunkt: Date } | { ok: false; hinweis: string; status: string | null };
 
 const KEINE_ANTWORT = "Keine Antwort vom BZSt (Zeitüberschreitung oder Dienst nicht erreichbar); versuch es später noch einmal";
 const UNLESBAR = "Die Antwort des BZSt ließ sich nicht lesen; gespeichert ist nichts, versuch es später noch einmal";
@@ -114,14 +121,14 @@ async function frage(anfrage: EvatrAnfrage, via: EvatrVerbindung): Promise<Abfra
     text = await response.text();
   } catch {
     // Zeitüberschreitung, kein Netz
-    return { ok: false, hinweis: KEINE_ANTWORT };
+    return { ok: false, hinweis: KEINE_ANTWORT, status: null };
   }
   const parsed = text.length > MAX_ANTWORT ? null : evatrAntwortSchema.safeParse(parseJson(text));
-  if (!parsed?.success) return { ok: false, hinweis: UNLESBAR };
-  if (!evatrNachweis(parsed.data.status)) return { ok: false, hinweis: evatrMeldung(parsed.data) };
+  if (!parsed?.success) return { ok: false, hinweis: UNLESBAR, status: null };
+  if (!evatrNachweis(parsed.data.status)) return { ok: false, hinweis: evatrMeldung(parsed.data), status: parsed.data.status };
   // Ohne lesbaren Zeitpunkt des BZSt kein Nachweis; die OpenAPI nennt für das Feld kein Format
   const zeitpunkt = evatrZeitpunkt(parsed.data.anfrageZeitpunkt);
-  if (!zeitpunkt) return { ok: false, hinweis: UNLESBAR };
+  if (!zeitpunkt) return { ok: false, hinweis: UNLESBAR, status: null };
   return { ok: true, antwort: parsed.data, text, zeitpunkt };
 }
 
@@ -181,14 +188,124 @@ export async function bestaetigeUstId(
 
   const einfach = evatrAnfrage(company.ustId, contact, "einfach");
   const ersteAntwort = await frage(einfach, via);
-  if (!ersteAntwort.ok) return { neu: 0, hinweis: ersteAntwort.hinweis };
+  if (!ersteAntwort.ok) return { neu: 0, hinweis: ersteAntwort.hinweis, grund: ersteAntwort.hinweis };
   await speichere(actor, contactId, "einfach", einfach, ersteAntwort);
   // Name und Anschrift vergleicht das BZSt nur bei gültiger Nummer
   if (!evatrGueltig(ersteAntwort.antwort.status) || !evatrQualifizierbar(contact)) return { neu: 1, hinweis: null };
 
   const qualifiziert = evatrAnfrage(company.ustId, contact, "qualifiziert");
   const zweiteAntwort = await frage(qualifiziert, via);
-  if (!zweiteAntwort.ok) return { neu: 1, hinweis: `Name und Anschrift nicht bestätigt: ${zweiteAntwort.hinweis}` };
+  if (!zweiteAntwort.ok) return { neu: 1, hinweis: `Name und Anschrift nicht bestätigt: ${zweiteAntwort.hinweis}`, grund: zweiteAntwort.hinweis };
   await speichere(actor, contactId, "qualifiziert", qualifiziert, zweiteAntwort);
   return { neu: 2, hinweis: null };
+}
+
+/** Letzte Antwort je angefragter Nummer, gleich an welchem Kontakt; für die Vorprüfung der ZM */
+export async function letzteBestaetigungen(nummern: readonly string[]): Promise<Map<string, UstIdBestaetigung>> {
+  const letzte = new Map<string, UstIdBestaetigung>();
+  if (!nummern.length) return letzte;
+  const b = schema.ustidBestaetigungen;
+  const rows = await db
+    .select()
+    .from(b)
+    .where(inArray(b.angefragteUstid, [...nummern]))
+    .orderBy(desc(b.createdAt), desc(b.anfrageZeitpunkt));
+  for (const row of rows) if (!letzte.has(row.angefragteUstid)) letzte.set(row.angefragteUstid, row);
+  return letzte;
+}
+
+/** Ob sich überhaupt bestätigen lässt: eingeschaltet und mit gültiger eigener USt-IdNr. */
+export async function evatrMoeglich(): Promise<boolean> {
+  return !evatrAbgeschaltet() && isValidGermanUstId(normalizeUstId((await loadCompany()).ustId));
+}
+
+/**
+ * Einfache Abfrage einer bestimmten Nummer, etwa einer in der Zusammenfassenden Meldung gemeldeten, die von der heutigen am
+ * Kontakt abweichen kann. Der Nachweis kommt an den Kontakt der Rechnung.
+ */
+export async function bestaetigeNummer(
+  actor: string,
+  contactId: string,
+  ustId: string,
+  via: EvatrVerbindung = verbindung(),
+): Promise<{ hinweis: string | null; ausfall: boolean }> {
+  if (evatrAbgeschaltet()) throw new ContactError(ZUSTAND_TEXT.aus);
+  const company = await loadCompany();
+  if (!isValidGermanUstId(normalizeUstId(company.ustId))) throw new ContactError(ZUSTAND_TEXT["ohne-eigene"]);
+  if (!evatrPruefbar(ustId)) return { hinweis: `${ustId}: ${ZUSTAND_TEXT["nicht-pruefbar"]}`, ausfall: false };
+  const anfrage: EvatrAnfrage = { anfragendeUstid: normalizeUstId(company.ustId), angefragteUstid: normalizeUstId(ustId) };
+  const antwort = await frage(anfrage, via);
+  // Ausfall: keine lesbare Antwort oder ein Fehler, der nicht nur diese Nummer betrifft (Dienst, eigene USt-IdNr.)
+  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, ausfall: !evatrNummerFehler(antwort.status ?? "") };
+  await speichere(actor, contactId, "einfach", anfrage, antwort);
+  return { hinweis: null, ausfall: false };
+}
+
+/**
+ * Vor dem Festschreiben einer Rechnung mit Reverse Charge oder innergemeinschaftlicher Lieferung (#1385): Ist die Nummer des
+ * Kontakts frisch bestätigt, gibt es nichts zu sagen; sonst fragt Haben das BZSt neu. Bei der Lieferung reicht die Gültigkeit
+ * (§ 6a Abs. 1 Satz 1 Nr. 4 UStG), bei Reverse Charge braucht es auch Name und Ort (evatrQualifiziertBestaetigt), ohne Ort
+ * die einfache. Zurück kommt ein Hinweis für die Rückfrage oder null; das Festschreiben sperrt er nie. Abgeschaltet wie vorher.
+ */
+export async function ustIdVorFestschreiben(
+  actor: string,
+  contactId: string,
+  behandlung: "reverse_charge" | "ig_lieferung",
+  jetzt = new Date(),
+  via: EvatrVerbindung = verbindung(),
+): Promise<{ hinweis: string | null }> {
+  const contact = await ladeKontakt(contactId);
+  const nummer = normalizeUstId(contact.ustId);
+  const qualifiziert = behandlung === "reverse_charge" && evatrQualifizierbar(contact);
+  const zurNummer = async () => (await listUstIdBestaetigungen(contactId)).filter((b) => b.angefragteUstid === nummer);
+  const vorher = await zurNummer();
+  // Die letzte Antwort muss gültig sein, auch wenn eine ältere qualifizierte es war
+  const bestaetigt =
+    evatrFrischGueltig(vorher[0], jetzt) &&
+    (!qualifiziert ||
+      evatrQualifiziertBestaetigt(
+        vorher.find((b) => b.art === "qualifiziert"),
+        jetzt,
+      ));
+  if (bestaetigt || evatrAbgeschaltet()) return { hinweis: null };
+  // Ohne Nummer meldet das Festschreiben selbst, was fehlt (treatmentIssues); den Aufbau prüft es nur bei der Lieferung
+  if (!nummer) return { hinweis: null };
+  if (!evatrPruefbar(nummer)) return { hinweis: `${nummer}: ${ZUSTAND_TEXT["nicht-pruefbar"]}` };
+  let ergebnis: UstIdBestaetigungsErgebnis;
+  try {
+    ergebnis = await bestaetigeUstId(actor, contactId, {}, via);
+  } catch (error) {
+    if (error instanceof ContactError) return { hinweis: `${nummer}: ${error.message}` };
+    throw error;
+  }
+  const neu = (await zurNummer()).filter((b) => !vorher.some((v) => v.id === b.id));
+  const einfach = neu.find((b) => b.art === "einfach");
+  if (!einfach) return { hinweis: `${nummer} ließ sich gerade nicht beim BZSt bestätigen: ${ergebnis.grund}. ${zuletzt(nummer, vorher, qualifiziert)}` };
+  if (!evatrGueltig(einfach.status)) return { hinweis: `Laut BZSt ist ${nummer} nicht gültig: ${evatrMeldung(einfach)}.` };
+  if (!qualifiziert) return { hinweis: null };
+  const antwort = neu.find((b) => b.art === "qualifiziert");
+  if (!antwort) return { hinweis: `${nummer} ist gültig, Name und Anschrift hat das BZSt aber nicht bestätigt: ${ergebnis.grund}.` };
+  // Gerade eingetroffen: nur Gültigkeit, Name und Ort zählen, die Frist nicht
+  if (!evatrGueltig(antwort.status)) return { hinweis: `Laut BZSt ist ${nummer} nicht gültig: ${evatrMeldung(antwort)}.` };
+  return { hinweis: antwort.ergFirmenname === "B" || antwort.ergOrt === "B" ? stimmtNicht(nummer, antwort) : null };
+}
+
+/**
+ * Letzter Stand für den Hinweis, wenn das BZSt gerade nicht antwortet. Bei Reverse Charge gehört der Abgleich von Name und
+ * Ort der letzten qualifizierten Antwort dazu, solange die letzte Antwort die Nummer gültig nennt.
+ */
+function zuletzt(nummer: string, vorher: readonly UstIdBestaetigung[], qualifiziert: boolean): string {
+  const letzte = vorher[0];
+  if (!letzte) return "Bestätigt ist sie noch nicht.";
+  const q = qualifiziert && evatrGueltig(letzte.status) ? vorher.find((b) => b.art === "qualifiziert") : undefined;
+  const abgleich = q && evatrGueltig(q.status) && (q.ergFirmenname === "B" || q.ergOrt === "B") ? ` ${stimmtNicht(nummer, q)}` : "";
+  return `Zuletzt am ${formatDate(letzte.anfrageZeitpunkt)}: ${evatrMeldung(letzte)}.${abgleich}`;
+}
+
+/** Hinweis, wenn Name oder Ort laut BZSt nicht zu den Daten des Mitgliedstaats passen (B); einer von beiden ist B */
+function stimmtNicht(nummer: string, antwort: UstIdBestaetigung): string {
+  const name = antwort.ergFirmenname === "B";
+  const ort = antwort.ergOrt === "B";
+  const was = name && ort ? "Name und Ort passen" : name ? "Der Name passt" : "Der Ort passt";
+  return `${was} laut BZSt nicht zu ${nummer}; prüfe die Angaben am Kontakt.`;
 }

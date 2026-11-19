@@ -4,11 +4,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { OutcomeStatus } from "../../../components/Status.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { EricHinweis } from "../../../components/EricHinweis.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getZm, submitZmMeldung } from "../../../server/functions/zm.ts";
 import { Field } from "../../../components/Field.tsx";
+import { ZmBestaetigung } from "../../../components/umsatzsteuer/ZmBestaetigung.tsx";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/zm/$quartal")({
   loader: ({ params }) => {
@@ -50,12 +52,7 @@ function ZmPage() {
         </Field>
       </div>
 
-      {data.mode === "simuliert" && (
-        <div className="banner banner-info" role="status">
-          <Icon name="info" />
-          <span>ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Bundeszentralamt für Steuern.</span>
-        </div>
-      )}
+      {data.mode === "simuliert" && <EricHinweis empfaenger="Bundeszentralamt für Steuern" />}
       {data.issues.map((issue) => (
         <div key={issue.text} className={`banner ${issue.tone === "info" ? "banner-info" : ""}`} role="status">
           <Icon name={issue.tone === "info" ? "info" : "alert"} />
@@ -118,6 +115,7 @@ function ZmPage() {
               </table>
             </details>
           )}
+          {data.bestaetigung.moeglich && data.zeilen.length > 0 && <ZmBestaetigung period={data.period} offen={data.bestaetigung.offen} />}
         </section>
         <ZmSenden data={data} />
       </div>
