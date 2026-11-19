@@ -30,12 +30,9 @@ x-backup: &backup
     # Zugangsdaten für ein Repository auf S3, sonst leer
     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-    # Ziel über rclone (WebDAV, OneDrive …): RESTIC_REPOSITORY=rclone:webdav:<pfad>, dazu Adresse, Nutzer und
-    # Passwort. Das Passwort steht im Klartext in der .env und wird beim Start verschleiert.
-    RCLONE_WEBDAV_URL: ${RCLONE_WEBDAV_URL:-}
-    RCLONE_WEBDAV_USER: ${RCLONE_WEBDAV_USER:-}
-    RCLONE_WEBDAV_PASS: ${RCLONE_WEBDAV_PASS:-}
-    RCLONE_WEBDAV_VENDOR: ${RCLONE_WEBDAV_VENDOR:-}
+    # Ziel über rclone (WebDAV, OneDrive, SMB …): RESTIC_REPOSITORY=rclone:<abschnitt>:<pfad>. Die rclone-Konfiguration
+    # liegt als Datei, ohne RCLONE_CONFIG unter /var/lib/haben-backup/rclone.conf (siehe docs/installation-backup.md)
+    RCLONE_CONFIG: ${RCLONE_CONFIG:-}
 
 services:
   db:

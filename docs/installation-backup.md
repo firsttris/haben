@@ -43,7 +43,7 @@ Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backup
 | SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.override.yml` bei `backup` und `restore` `~/.ssh:/root/.ssh:ro` unter `volumes` eintragen ([SFTP Schritt für Schritt](#sftp-schritt-für-schritt)) bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
 | S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
 | restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | Im Passwort außer `A–Z`, `a–z`, `0–9` und `-._~!&'()*+,;=:@` jedes Zeichen prozentkodiert, etwa `/` als `%2F`, `#` als `%23`, `%` als `%25`, `$` als `%24` (Compose liest `$` in `.env` als Variable), Leerzeichen als `%20`, `ä` als `%C3%A4`; sonst liest restic die Adresse nicht oder falsch |
-| WebDAV, OneDrive, SMB und weitere über rclone | `rclone:webdav:haben-backup` | `RCLONE_WEBDAV_URL`, `RCLONE_WEBDAV_USER`, `RCLONE_WEBDAV_PASS` ([WebDAV Schritt für Schritt](#webdav-schritt-für-schritt)) |
+| rclone (WebDAV, OneDrive, SMB und weitere) | `rclone:<abschnitt>:<pfad>` | rclone-Konfiguration als Datei einhängen ([Ziel über rclone](#ziel-über-rclone-für-webdav-onedrive-und-smb)) |
 
 Das Protokoll des Backup-Containers und Haben nennen Ziel und Fehlermeldungen ohne Nutzer und Passwort.
 
@@ -55,33 +55,40 @@ AWS_ACCESS_KEY_ID=…
 AWS_SECRET_ACCESS_KEY=…
 ```
 
-#### WebDAV Schritt für Schritt
+#### Ziel über rclone für WebDAV, OneDrive und SMB
 
-restic spricht kein WebDAV. Es ruft dafür rclone auf, und rclone deckt rund 70 Ziele ab: WebDAV (Nextcloud, HiDrive, Strato), OneDrive, Google Drive, Dropbox, SMB und weitere. Das Backup-Image bringt rclone mit.
+restic kennt nur wenige Ziele selbst. Für alles andere ruft es `rclone` auf, und rclone deckt über 70 Speicher ab: WebDAV (Nextcloud, HiDrive, Strato), OneDrive, Google Drive, Dropbox, Box, pCloud, SMB und weitere. Das Backup-Image bringt rclone mit; Haben baut die Typen nicht nach, sondern liest nur die rclone-Konfiguration. Alles, was eine rclone-Konfiguration kann, funktioniert damit auch als Backup-Ziel.
 
-Am Beispiel einer Nextcloud; die Befehle laufen als der Benutzer, der `docker compose` startet.
-
-1. **App-Passwort anlegen:** in der Nextcloud unter **Einstellungen › Sicherheit › Geräte und Sitzungen** ein neues App-Passwort für „Haben Backup“ erzeugen. Nicht das Kontokennwort nehmen, es lässt sich nicht einzeln widerrufen.
-2. **Adresse bestimmen:** `RCLONE_WEBDAV_URL` ist der Ordner, in dem Haben sein Repository anlegt, bei Nextcloud das persönliche Wurzelverzeichnis `https://cloud.example.de/remote.php/dav/files/<nutzer>`. Der Teil hinter `rclone:webdav:` ist der Ordnername innerhalb davon, im Beispiel `haben-backup`; Haben legt ihn beim ersten Lauf an. Zeigt die Adresse selbst schon auf einen Unterordner, entsteht das Repository darin, und der Elternordner muss existieren, sonst bricht der erste Lauf mit `409 Conflict` ab.
-3. **Werte eintragen** (Compose in `.env`, Quadlets in `~/.config/haben/backup.env`):
+1. **Konfiguration anlegen**, auf einem Rechner mit Browser; OneDrive und Google Drive brauchen den Anmeldedialog dort:
 
     ```sh
-    RESTIC_REPOSITORY=rclone:webdav:haben-backup
-    RCLONE_WEBDAV_URL=https://cloud.example.de/remote.php/dav/files/<nutzer>
-    RCLONE_WEBDAV_USER=<nutzer>
-    RCLONE_WEBDAV_PASS=<App-Passwort>
-    RCLONE_WEBDAV_VENDOR=nextcloud
+    rclone config
     ```
 
-4. **Starten und den ersten Lauf abwarten:** `docker compose up -d` bzw. `systemctl --user restart haben-backup.timer`. Der Container verschleiert das Passwort beim Start und schreibt die rclone-Konfiguration nach `/var/lib/haben-backup/rclone.conf` (Rechte 600). Im Log steht das Ziel ohne Zugangsdaten.
+    Abschnitt anlegen, Typ wählen, Zugangsdaten eintragen. Ergebnis ist eine Datei `~/.config/rclone/rclone.conf`. Ohne Dialog geht es auch, etwa für eine Nextcloud:
 
-Die drei Variablen heißen wie rclones eigene Umgebungs-Konfiguration. Der Container liest sie beim Start, schreibt sie in die Konfigurationsdatei und entfernt sie danach, damit rclone nicht die Klartextwerte als fertig verschleiertes Passwort liest.
+    ```sh
+    rclone config create webdav webdav url=https://cloud.example.de/remote.php/dav/files/<nutzer> vendor=nextcloud user=<nutzer> pass=<App-Passwort>
+    ```
 
-Das Passwort steht in der `.env` im Klartext und in der Konfigurationsdatei verschleiert. Verschleiert ist keine Verschlüsselung: Wer die Datei liest, kommt an das Passwort. Deshalb die `.env` und das Volume des Backup-Containers wie Zugangsdaten behandeln.
+    Das Passwort speichert rclone dabei verschleiert.
 
-`RCLONE_WEBDAV_VENDOR=nextcloud` setzt die Eigenheiten der Nextcloud, etwa das Verhalten bei großen Dateien; ohne Angabe gilt `other`. Für ein anderes WebDAV-Ziel die Zeile weglassen und die Adresse so eintragen, wie der Anbieter sie nennt.
+2. **Datei zum Server und in den Container**, mit Rechten 600:
 
-Grenzen: restic legt viele kleine Objekte an. Bei OneDrive drosselt Microsoft gern, und `restic forget --prune` wird dort zäh, weil es Objekte liest, umbenennt und löscht. Für ein Repository von wenigen hundert Megabyte ist das unkritisch; wer mehr sichern will, nimmt S3 oder ein zweites System per SFTP.
+    ```sh
+    install -m 600 rclone.conf /root/haben/rclone.conf
+    ```
+
+    Compose: bei `backup` und `restore` unter `volumes` `- /root/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Quadlets: `Volume=%h/.config/haben/rclone.conf:/var/lib/haben-backup/rclone.conf:ro`. Liegt die Datei woanders, `RCLONE_CONFIG` auf diesen Pfad setzen.
+
+3. **Ziel eintragen:** `RESTIC_REPOSITORY=rclone:<abschnitt>:<pfad>`. Der Abschnitt ist der Name in eckigen Klammern der Konfiguration, der Pfad der Ordner im Ziel, den Haben anlegt, etwa `rclone:onedrive:haben`.
+
+4. **Starten** mit `docker compose up -d` bzw. `systemctl --user restart haben-backup.timer`. Der Container prüft vor dem Lauf, dass der Abschnitt existiert, und nennt das Ziel im Log ohne Zugangsdaten.
+
+> [!IMPORTANT]
+> Die rclone-Konfiguration ist ein Geheimnis: bei OneDrive steht ein OAuth-Token darin, bei WebDAV das Passwort. Verschleiert ist keine Verschlüsselung, wer die Datei liest, kommt an den Zugang. Deshalb Rechte 600, nicht ins Repository, und nicht in eine Sicherung, die jeder lesen kann.
+
+Grenzen: restic legt viele kleine Objekte an. Bei OneDrive drosselt Microsoft gern, und `restic forget --prune` wird dort zäh, weil es Objekte liest, umbenennt und löscht. Für ein Repository von wenigen hundert Megabyte ist das unkritisch; wer mehr sichern will, nimmt S3 (nativ, ohne rclone) oder ein zweites System per SFTP.
 
 #### SFTP Schritt für Schritt
 
