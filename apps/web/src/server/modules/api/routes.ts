@@ -321,9 +321,9 @@ export const API_ROUTES: ApiRoute[] = [
     },
     errors: {
       404: "Die Quelle (provider, externalAccountId) ist in Haben nicht freigegeben",
-      409: "Konflikt: eine schon übernommene Bewegung kommt mit anderem Betrag, Tag oder anderer Art, oder derselbe idempotencyKey mit anderem Inhalt. Klären in Haben unter Bank.",
+      409: "Konflikt: eine schon übernommene Bewegung kommt mit anderem Betrag, Tag oder anderer Art, die Quelle hat noch einen offenen Konflikt, oder derselbe idempotencyKey kam mit anderem Inhalt. Klären in Haben unter Bank.",
       413: "Mehr als 1.000 Bewegungen in einer Lieferung",
-      422: "Verstoß gegen den Importvertrag (Version, Feld, Währung, Kontoart, vor dem Stichtag)",
+      422: "Verstoß gegen den Importvertrag (Version, Feld, Fenster, Kontoart); eine Bewegung in anderer Währung oder vor dem Stichtag nimmt Haben nicht an und nennt sie in warnings",
     },
     handler: createBankImportHandler,
   },

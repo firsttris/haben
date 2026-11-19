@@ -343,11 +343,11 @@ Ein eigener Dienst, der Zahlungen bei einem Anbieter abholt, liefert sie mit `PO
 2. **Token** mit dem Recht „Bankumsätze in freigegebene Quellen liefern“ (`bank:importieren`).
 3. **Liefern** wie unten.
 
-Jede Bewegung hat eine feste Kennung beim Anbieter (`sourceEventId`) und eine Komponente: `main` für den Betrag, `fee` für die Gebühr, die der Anbieter einbehält. Ein Netto liefert der Dienst nicht, sonst zählte die Gebühr doppelt. Beträge in Cent, nur Euro.
+Jede Bewegung hat eine feste Kennung beim Anbieter (`sourceEventId`) und eine Komponente: `main` für den Betrag, `fee` für die Gebühr, die der Anbieter einbehält. Ein Netto liefert der Dienst nicht, sonst zählte die Gebühr doppelt. Beträge in Cent, nur Euro; eine Bewegung in anderer Währung oder vor dem Stichtag übernimmt Haben nicht und nennt sie in `warnings`.
 
 - **Gebühren und Auszahlungen:** Die Gebühr wird ein eigener Umsatz mit „Gebühr“ vorn im Verwendungszweck, eine Auszahlung (`kind: "payout"`) schlägt der Abgleich als Geldtransit zum Eingang auf der Bank vor. Bezug einer Erstattung (`relatedEventId`) und Bestellung (`orderId`) stehen im Verwendungszweck.
 - **Wiederholen:** Dieselbe Lieferung (gleicher `idempotencyKey`, gleicher Inhalt) noch einmal gibt das bisherige Ergebnis mit `200` zurück, ohne etwas anzulegen; derselbe Schlüssel mit anderem Inhalt ist ein Konflikt. Bekannte Bewegungen in einem überlappenden Fenster überspringt Haben.
-- **Seiten:** höchstens 1.000 Bewegungen je Lieferung. Mehr kommen als Teile desselben Abrufs: gleiche `part.fetchId`, `part.index` ab 0, beim letzten `part.last: true`. Erst mit allen Teilen gilt der Zeitraum als vollständig; Ereignisse unter `unsupported` halten ihn offen.
+- **Seiten:** höchstens 1.000 Bewegungen je Lieferung. Mehr kommen als Teile desselben Abrufs: gleiche `part.fetchId`, `part.index` ab 0, beim letzten `part.last: true`. Erst mit allen Teilen gilt der Zeitraum als vollständig; Ereignisse unter `unsupported` halten ihn offen, außer mit `final: true` (Endzustand wie storniert oder abgelehnt).
 - **Konflikt:** Kommt eine schon übernommene Bewegung mit anderem Betrag, Tag oder anderer Art, überschreibt Haben nichts, antwortet mit `409` und nimmt aus der Quelle nichts mehr an, bis du am Konto **Konflikt klären** wählst.
 - **Stand:** `GET /bankquellen` nennt je Quelle Stichtag, bis wann vollständig geliefert ist (`checkpoint`) und offene Konflikte.
 
@@ -392,9 +392,9 @@ Die Antwort (`201`):
 | 201 | Angenommen, Umsätze angelegt |
 | 200 | Dieselbe Lieferung kam schon; nichts neu angelegt |
 | 404 | Quelle nicht freigegeben |
-| 409 | Konflikt mit einer übernommenen Bewegung oder derselbe Schlüssel mit anderem Inhalt; `issues` nennt die Bewegungen |
+| 409 | Konflikt mit einer übernommenen Bewegung (`issues` nennt sie), ein noch offener Konflikt der Quelle oder derselbe Schlüssel mit anderem Inhalt |
 | 413 | Mehr als 1.000 Bewegungen |
-| 422 | Verstoß gegen den Vertrag, etwa andere Version, andere Währung oder Bewegung vor dem Stichtag; `issues` nennt den Grund |
+| 422 | Verstoß gegen den Vertrag, etwa andere Version, ungültiges Feld oder ein Fenster, das nach dem Abruf endet; `issues` nennt den Grund |
 
 ## Sicherheit
 
