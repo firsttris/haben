@@ -1,4 +1,5 @@
 import {
+  circleKey,
   counterCircle,
   customerNumberProblem,
   documentNumberLengthProblem,
@@ -7,7 +8,7 @@ import {
   voucherField,
   type FinalizedCircleRef,
 } from "@haben/core";
-import { and, asc, desc, eq, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
@@ -55,6 +56,25 @@ export async function countsRunning(tx: Tx, kind: NumberKind): Promise<boolean> 
   const column = kind === "rechnung" ? schema.company.invoiceCounterRunning : schema.company.quoteCounterRunning;
   const [row] = await tx.select({ running: column }).from(schema.company).where(eq(schema.company.id, 1));
   return row?.running ?? false;
+}
+
+/** Kontakt des Kreises beim Festschreiben: beim Zähler je Kunde der Kunde, sonst der gemeinsame Kreis (NULL, #1426) */
+export function circleContact(perCustomer: boolean, contactId: string): string | null {
+  return perCustomer ? contactId : null;
+}
+
+/**
+ * Name eines anderen Kontakts mit derselben Kundennummer, sonst null. Kreist der Zähler je Kunde, steht die Kundennummer
+ * für genau einen Kreis: zwei Kontakte mit derselben Nummer dürfen dann nicht beide Belege bekommen (#1426).
+ */
+export async function customerNumberConflict(tx: Tx, contact: { id: string; kundennummer: string | null }): Promise<string | null> {
+  if (!contact.kundennummer) return null;
+  const [other] = await tx
+    .select({ name: schema.contacts.name })
+    .from(schema.contacts)
+    .where(and(eq(schema.contacts.kundennummer, contact.kundennummer), ne(schema.contacts.id, contact.id)))
+    .limit(1);
+  return other?.name ?? null;
 }
 
 /** Kreis für ein Belegdatum, nach der Einstellung des Kreises */
@@ -185,11 +205,22 @@ export async function startRunning(tx: Tx, kind: NumberKind, contactId: string |
     .onConflictDoUpdate({ target: [counter.year, counter.contactId], set: { last: sql`excluded.last` }, setWhere: sql`${counter.last} < excluded.last` });
 }
 
-/** Zuletzt festgeschriebene Rechnung je Nummernkreis (`number_year`), für die Datumsprüfung beim Festschreiben (#713) */
-export async function lastFinalizedByCircle(q: Db | Tx = db): Promise<Record<number, FinalizedCircleRef>> {
+/** Kontakte mit eigener Zählerzeile dieser Art — die Kundenkreise, die beim Zähler je Kunde entstanden sind (#1426) */
+export async function counterContacts(tx: Tx, kind: NumberKind): Promise<string[]> {
+  const counter = COUNTERS[kind];
+  const rows = await tx.selectDistinct({ contactId: counter.contactId }).from(counter).where(isNotNull(counter.contactId));
+  return rows.map((r) => r.contactId!);
+}
+
+/**
+ * Zuletzt festgeschriebene Rechnung je Nummernkreis, für die Datumsprüfung beim Festschreiben (#713). Der Schlüssel ist
+ * der Kreis: das Jahr, beim Kundenkreis Jahr:Kontakt (circleKey, #1426).
+ */
+export async function lastFinalizedByCircle(q: Db | Tx = db): Promise<Record<string, FinalizedCircleRef>> {
   const rows = await q
-    .selectDistinctOn([schema.invoices.numberYear], {
+    .selectDistinctOn([schema.invoices.numberYear, schema.invoices.numberContactId], {
       numberYear: schema.invoices.numberYear,
+      numberContactId: schema.invoices.numberContactId,
       number: schema.invoices.number,
       issueDate: schema.invoices.issueDate,
     })
@@ -202,6 +233,6 @@ export async function lastFinalizedByCircle(q: Db | Tx = db): Promise<Record<num
         isNotNull(schema.invoices.number),
       ),
     )
-    .orderBy(asc(schema.invoices.numberYear), desc(schema.invoices.numberCounter));
-  return Object.fromEntries(rows.map((r) => [r.numberYear!, { number: r.number!, issueDate: r.issueDate }]));
+    .orderBy(asc(schema.invoices.numberYear), asc(schema.invoices.numberContactId), desc(schema.invoices.numberCounter));
+  return Object.fromEntries(rows.map((r) => [circleKey(r.numberYear!, r.numberContactId), { number: r.number!, issueDate: r.issueDate }]));
 }

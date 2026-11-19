@@ -17,6 +17,7 @@ import {
   type PlanTemplate,
   formatDecimal,
   formatEuro,
+  circleKey,
   counterCircle,
   customerNumberProblem,
   documentNumberLengthProblem,
@@ -171,6 +172,7 @@ export function InvoiceEditor({
   numberCounters,
   numberFormat,
   numberRunning = false,
+  numberPerCustomer = false,
   lastFinalized = {},
   corrects,
   bundesland,
@@ -203,15 +205,17 @@ export function InvoiceEditor({
   /** GmbH und UG: fehlende Pflichtangaben für Geschäftsbriefe (§ 35a GmbHG); nur ein Hinweis, keine Sperre */
   letterIssues?: string[];
   issues: string[];
-  /** Letzte vergebene Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
-  numberCounters: Record<number, number>;
+  /** Letzte vergebene Nummer je Kreis: Jahr (0 = durchlaufender Zähler), beim Kundenkreis Jahr:Kontakt (#1426) */
+  numberCounters: Record<string, number>;
   /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{MM}-{NNN}" */
   numberFormat: string;
   /** Zähler läuft über den Jahreswechsel weiter (#328) */
   numberRunning?: boolean;
-  /** Zuletzt festgeschriebene Rechnung je Kreis (#713) */
-  lastFinalized?: Record<number, FinalizedCircleRef>;
-  corrects: { number: string | null; issueDate: string; buyer?: { kundennummer?: string } | null } | null;
+  /** Zähler kreist je Kunde (#1426): die Vorschau folgt dem Kreis des gewählten Kontakts */
+  numberPerCustomer?: boolean;
+  /** Zuletzt festgeschriebene Rechnung je Kreis (#713), Schlüssel wie bei numberCounters */
+  lastFinalized?: Record<string, FinalizedCircleRef>;
+  corrects: { number: string | null; issueDate: string; numberContactId?: string | null; buyer?: { kundennummer?: string } | null } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
   kleinunternehmer: boolean;
@@ -360,12 +364,15 @@ export function InvoiceEditor({
   // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
-  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, contact, corrects);
+  // Der Kreis der Vorschau: Storno und Korrektur folgen dem Kreis des Originals, sonst beim Zähler je Kunde der
+  // Kreis des gewählten Kunden (#1426)
+  const circleContactId = corrects ? (corrects.numberContactId ?? null) : numberPerCustomer && contactId ? contactId : null;
+  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circleKey(circle, circleContactId)] ?? 0) + 1, contact, corrects);
   // Dasselbe Problem wie in buyerIssues, aber live aus dem Formular: Bei einem neuen oder geänderten Entwurf steht sonst nichts da
   const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects)) : null;
   // Zu lang für DATEV (Belegfeld 1, 36 Zeichen): dasselbe hält das Festschreiben auf, Angebote exportiert DATEV nicht
   const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
-  const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
+  const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate, circleContactId) : null;
   // Vor dem Festschreiben die USt-IdNr. beim BZSt bestätigen (#1385)
   const ustIdPruefen =
     kind === "rechnung" && (taxTreatment === "reverse_charge" || taxTreatment === "ig_lieferung") ? { contactId, behandlung: taxTreatment } : null;

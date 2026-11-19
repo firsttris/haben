@@ -4,7 +4,7 @@ import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
-import { startRunning } from "./number-counter.ts";
+import { counterContacts, startRunning, type NumberKind } from "./number-counter.ts";
 
 /** Nummernformate für Rechnungen und Angebote; sie gelten für alles, was ab dann festgeschrieben wird */
 
@@ -24,6 +24,12 @@ export interface NumberFormats {
 export async function saveNumberFormats(actor: string, formats: NumberFormats): Promise<void> {
   const company = await loadCompany();
   await withActor(actor, (tx) => putNumberFormats(tx, formats, company));
+}
+
+/** Den durchlaufenden Kreis für den gemeinsamen und jeden vorhandenen Kundenkreis dieser Art hinter dessen Jahresnummer starten */
+async function startCircles(tx: Tx, kind: NumberKind): Promise<void> {
+  await startRunning(tx, kind, null);
+  for (const contactId of await counterContacts(tx, kind)) await startRunning(tx, kind, contactId);
 }
 
 /** saveNumberFormats in der Transaktion des Aufrufers; `current` sagt, welche Zähler schon über den Jahreswechsel laufen und je Kunde kreisen */
@@ -48,8 +54,11 @@ export async function putNumberFormats(
     const problem = numberFormatError(format, { requireYear: !running, allowCustomer: true, requireCustomer: perCustomer });
     if (problem) throw new NumberFormatError(`Nummernformat für ${label}: ${problem}`);
   }
-  if (invoiceRunning && !current.invoiceCounterRunning) await startRunning(tx, "rechnung", null);
-  if (quoteRunning && !current.quoteCounterRunning) await startRunning(tx, "angebot", null);
+  // Läuft der Zähler durch, bekommt jeder Kreis eine Zeile für den Kreis 0: neu eingeschaltet oder der Kundenkreis
+  // neu dazu, je hinter der letzten Nummer des jüngsten Jahres desselben Kreises (startRunning, #1426). Kontakte
+  // ohne Zählerzeile haben noch keine Nummer verbraucht und beginnen einfach bei 1.
+  if (invoiceRunning && (!current.invoiceCounterRunning || (invoicePerCustomer && !current.invoiceCounterPerCustomer))) await startCircles(tx, "rechnung");
+  if (quoteRunning && (!current.quoteCounterRunning || (quotePerCustomer && !current.quoteCounterPerCustomer))) await startCircles(tx, "angebot");
   await tx
     .update(schema.company)
     .set({

@@ -49,6 +49,7 @@ function NewInvoicePage() {
       issues={[]}
       numberCounters={data.numberCounters}
       numberRunning={data.numberRunning}
+      numberPerCustomer={data.numberPerCustomer}
       numberFormat={data.numberFormat}
       lastFinalized={data.lastFinalized}
       corrects={null}

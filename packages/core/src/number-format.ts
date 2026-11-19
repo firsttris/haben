@@ -121,18 +121,34 @@ export function counterCircle(running: boolean, date: string): number {
 export type FinalizedCircleRef = { number: string; issueDate: string };
 
 /**
- * Gibt die zuletzt festgeschriebene Rechnung des Nummernkreises zurück, wenn das gewählte Rechnungsdatum davor liegt;
- * sonst null. Beim Wechsel auf den durchlaufenden Zähler gilt vor der ersten neuen Rechnung noch das jüngste Jahr.
+ * Schlüssel eines Nummernkreises in lastFinalizedByCircle und numberCounters: das Jahr (0 beim durchlaufenden Zähler),
+ * beim Zähler je Kunde Jahr:Kontakt (#1426). Der gemeinsame Kreis trägt keinen Kontakt und heißt wie bisher.
  */
-export function issueDateBeforeLastFinalized(byCircle: Record<number, FinalizedCircleRef>, running: boolean, issueDate: string): FinalizedCircleRef | null {
+export function circleKey(year: number, contactId: string | null): string {
+  return contactId === null ? String(year) : `${year}:${contactId}`;
+}
+
+/**
+ * Gibt die zuletzt festgeschriebene Rechnung des Nummernkreises zurück, wenn das gewählte Rechnungsdatum davor liegt;
+ * sonst null. Beim Wechsel auf den durchlaufenden Zähler gilt vor der ersten neuen Rechnung noch das jüngste Jahr —
+ * beim Zähler je Kunde das jüngste Jahr desselben Kundenkreises (#1426).
+ */
+export function issueDateBeforeLastFinalized(
+  byCircle: Record<string, FinalizedCircleRef>,
+  running: boolean,
+  issueDate: string,
+  contactId: string | null = null,
+): FinalizedCircleRef | null {
   if (!issueDate) return null;
   const circle = counterCircle(running, issueDate);
-  let last = byCircle[circle];
+  let last = byCircle[circleKey(circle, contactId)];
   if (!last && running) {
+    const suffix = contactId === null ? null : `:${contactId}`;
     const years = Object.keys(byCircle)
-      .map(Number)
+      .filter((key) => (suffix === null ? !key.includes(":") : key.endsWith(suffix)))
+      .map((key) => Number(key.split(":")[0]))
       .filter((y) => y > 0);
-    if (years.length > 0) last = byCircle[Math.max(...years)];
+    if (years.length > 0) last = byCircle[circleKey(Math.max(...years), contactId)];
   }
   if (!last || issueDate >= last.issueDate) return null;
   return last;

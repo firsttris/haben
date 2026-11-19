@@ -81,8 +81,10 @@ import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 import { InvoiceError } from "./invoice-error.ts";
 import { OHNE_UMSATZSTAND, pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import {
+  circleContact,
   circleFor,
   countsRunning,
+  customerNumberConflict,
   documentNumber,
   lastNumber,
   lockNumbering,
@@ -764,8 +766,15 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     : [];
   const [corrects] = invoice.correctsId
     ? await q
-        // buyer: {KUNDENNR} von Storno und Korrektur nimmt die Kundennummer des Originals, solange sie taugt (#1426)
-        .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate, buyer: schema.invoices.buyer })
+        // buyer: {KUNDENNR} von Storno und Korrektur nimmt die Kundennummer des Originals, solange sie taugt; der
+        // Kreis des Originals entscheidet ebenso über den Kreis des Folgebelegs (#1426)
+        .select({
+          id: schema.invoices.id,
+          number: schema.invoices.number,
+          issueDate: schema.invoices.issueDate,
+          numberContactId: schema.invoices.numberContactId,
+          buyer: schema.invoices.buyer,
+        })
         .from(schema.invoices)
         .where(eq(schema.invoices.id, invoice.correctsId))
     : [];
@@ -1254,9 +1263,18 @@ async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, besta
   const buyer = numberedBuyer(corrects?.buyer ?? null, contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId), company.invoiceNumberFormat);
 
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
-  // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
+  // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts).
+  // Der Kreis ist der des Kunden, wenn der Zähler je Kunde kreist; Storno und Korrektur folgen dem Kreis des Originals,
+  // unabhängig von der heutigen Einstellung (#1426).
   const circle = await circleFor(tx, "rechnung", invoice.issueDate);
-  const counter = await peekNumber(tx, "rechnung", circle, null);
+  const numberContactId = corrects ? corrects.numberContactId : circleContact(company.invoiceCounterPerCustomer, invoice.contactId!);
+  if (numberContactId !== null) {
+    const conflict = await customerNumberConflict(tx, contact!);
+    if (conflict) {
+      throw new InvoiceError(`Die Kundennummer ${contact!.kundennummer} hat auch „${conflict}“; mit Zähler je Kunde muss sie eindeutig sein.`);
+    }
+  }
+  const counter = await peekNumber(tx, "rechnung", circle, numberContactId);
   const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, umsatzStand, bestaetigt);
@@ -1276,7 +1294,7 @@ async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, besta
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
-  await takeInvoiceNumber(tx, circle, counter, number, null);
+  await takeInvoiceNumber(tx, circle, counter, number, numberContactId);
   const [finalized] = await withAdvanceVatChange(tx, id, () =>
     tx
       .update(schema.invoices)
@@ -1286,6 +1304,7 @@ async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand, besta
         number,
         numberYear: circle,
         numberCounter: counter,
+        numberContactId,
         contactVersion: contact!.version,
         seller,
         buyer,
@@ -1420,10 +1439,11 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     // Original zuerst: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf (Fremdschlüssel
     // auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
     await lockInvoice(tx, id);
-    // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts). Das PDF entsteht hier nach dem
-    // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
-    await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today), null);
     const { invoice, lines } = await finalOriginal(id, tx);
+    // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts): der Kreis des Originals, beim
+    // Kundenkreis also der seines Kunden (#1426). Das PDF entsteht hier nach dem Entwurf, also mit gesperrter Kette;
+    // ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
+    await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today), invoice.numberContactId);
     // Festgeschriebene Korrekturen haben die Rechnung schon gemindert: jede bekommt ihr eigenes Storno. Je Beleg genau
     // negiert hebt sich auch die Steuer auf den Cent auf, die jeder Beleg für sich rundet. Neue Korrekturen warten auf die
     // Sperre des Originals oben.
@@ -1515,30 +1535,63 @@ export async function createCorrection(actor: string, id: string, today: string)
 
 const NUMBER_FORMAT = { rechnung: "invoiceNumberFormat", angebot: "quoteNumberFormat" } as const;
 
+/** Der Kreis eines Kunden gibt es nur, solange der Zähler der Art je Kunde kreist (#1426) */
+function assertContactCircle(company: Pick<Company, "invoiceCounterPerCustomer" | "quoteCounterPerCustomer">, kind: NumberKind, contactId: string | null) {
+  if (contactId !== null && !(kind === "rechnung" ? company.invoiceCounterPerCustomer : company.quoteCounterPerCustomer)) {
+    throw new InvoiceError(`Der Zähler je Kunde ist für ${kind === "rechnung" ? "Rechnungen" : "Angebote"} nicht eingeschaltet.`);
+  }
+}
+
 /**
  * Nächste Nummer eines Kreises für ein Datum (heute), z. B. um nach Lexoffice oder sevDesk nahtlos weiterzuzählen.
- * Mit durchlaufendem Zähler ist es der eine Kreis 0, sonst das Jahr (#328).
+ * Mit durchlaufendem Zähler ist es der eine Kreis 0, sonst das Jahr (#328); mit `contactId` der Kreis dieses Kunden
+ * beim Zähler je Kunde (#1426).
  */
-export async function numbering(date: string, kind: NumberKind = "rechnung") {
+export async function numbering(date: string, kind: NumberKind = "rechnung", contactId: string | null = null) {
   const company = await loadCompany();
+  assertContactCircle(company, kind, contactId);
   const { running, circle, last } = await db.transaction(async (tx) => {
     const running = await countsRunning(tx, kind);
     const circle = running ? 0 : Number(date.slice(0, 4));
-    return { running, circle, last: await lastNumber(tx, kind, circle, null) };
+    return { running, circle, last: await lastNumber(tx, kind, circle, contactId) };
   });
-  return { kind, date, year: Number(date.slice(0, 4)), running, circle, last, next: formatDocumentNumber(company[NUMBER_FORMAT[kind]], date, last + 1) };
+  const [contact] = contactId
+    ? await db.select({ kundennummer: schema.contacts.kundennummer }).from(schema.contacts).where(eq(schema.contacts.id, contactId))
+    : [];
+  return {
+    kind,
+    date,
+    year: Number(date.slice(0, 4)),
+    running,
+    circle,
+    last,
+    next: formatDocumentNumber(company[NUMBER_FORMAT[kind]], date, last + 1, contact?.kundennummer ?? undefined),
+  };
 }
 
-export async function setNextNumber(actor: string, date: string, next: number, kind: NumberKind = "rechnung") {
+export async function setNextNumber(actor: string, date: string, next: number, kind: NumberKind = "rechnung", contactId: string | null = null) {
   const result = await withActor(actor, async (tx) => {
-    const set = await setNextCounter(tx, kind, await circleFor(tx, kind, date), next, null);
-    if (set.ok) return set;
     // Nur lesen: loadCompany legte die Firmenzeile an, wenn sie fehlt, und das gehört nicht in eine Fehlermeldung
-    const [company] = await tx.select({ invoice: schema.company.invoiceNumberFormat, quote: schema.company.quoteNumberFormat }).from(schema.company);
+    const [company] = await tx
+      .select({
+        invoice: schema.company.invoiceNumberFormat,
+        quote: schema.company.quoteNumberFormat,
+        invoiceCounterPerCustomer: schema.company.invoiceCounterPerCustomer,
+        quoteCounterPerCustomer: schema.company.quoteCounterPerCustomer,
+      })
+      .from(schema.company);
+    assertContactCircle(company ?? { invoiceCounterPerCustomer: false, quoteCounterPerCustomer: false }, kind, contactId);
+    const [contact] = contactId
+      ? await tx.select({ kundennummer: schema.contacts.kundennummer }).from(schema.contacts).where(eq(schema.contacts.id, contactId))
+      : [];
+    if (contactId !== null && !contact) throw new InvoiceError("Kontakt nicht gefunden.");
+    const set = await setNextCounter(tx, kind, await circleFor(tx, kind, date), next, contactId);
+    if (set.ok) return set;
     const fallback = kind === "rechnung" ? DEFAULT_INVOICE_NUMBER_FORMAT : DEFAULT_QUOTE_NUMBER_FORMAT;
-    return { ...set, format: (kind === "rechnung" ? company?.invoice : company?.quote) ?? fallback };
+    return { ...set, format: (kind === "rechnung" ? company?.invoice : company?.quote) ?? fallback, kundennummer: contact?.kundennummer ?? undefined };
   });
-  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(result.format, date, result.last)} sein.`);
+  if (!result.ok)
+    throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(result.format, date, result.last, result.kundennummer)} sein.`);
 }
 
 /** Kennzahlen für die Übersicht */

@@ -93,17 +93,10 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde (Postgres, #1426)", () 
       await counter.takeNumber(tx, "angebot", 2026, 1, contactA);
       await counter.takeNumber(tx, "angebot", 2026, 1, null);
     });
-    const rows = await sql`select year, contact_id, last from invoice_number_counters order by contact_id asc nulls first`;
-    expect(rows.map((r) => [r.contact_id, r.last])).toEqual([
-      [null, 2],
-      [contactA, 2],
-      [contactB, 1],
-    ]);
-    const quoteRows = await sql`select contact_id, last from quote_number_counters order by contact_id asc nulls first`;
-    expect(quoteRows.map((r) => [r.contact_id, r.last])).toEqual([
-      [null, 1],
-      [contactA, 1],
-    ]);
+    const rows = await sql`select year, contact_id, last from invoice_number_counters`;
+    expect(Object.fromEntries(rows.map((r) => [r.contact_id, r.last]))).toEqual({ null: 2, [contactA]: 2, [contactB]: 1 });
+    const quoteRows = await sql`select contact_id, last from quote_number_counters`;
+    expect(Object.fromEntries(quoteRows.map((r) => [r.contact_id, r.last]))).toEqual({ null: 1, [contactA]: 1 });
   });
 
   it("verweigert eine zweite Zeile für Jahr und gemeinsamen Kreis (NULLS NOT DISTINCT)", async () => {

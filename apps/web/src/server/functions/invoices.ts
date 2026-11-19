@@ -286,19 +286,27 @@ export const copyFinalInvoice = createServerFn({ method: "POST" })
     return { id: draft.id };
   });
 
-/** Nummernkreise für Rechnungen und Angebote, heute: im Jahr oder durchlaufend */
+/** Nummernkreise für Rechnungen und Angebote, heute: im Jahr oder durchlaufend, optional der Kreis eines Kunden (#1426) */
 export const getNumbering = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => {
+  .validator(z.object({ contactId: z.string().uuid().nullable().optional() }).optional())
+  .handler(async ({ data }) => {
     const date = today();
-    const [invoice, quote] = await Promise.all([numbering(date, "rechnung"), numbering(date, "angebot")]);
+    const contactId = data?.contactId ?? null;
+    const [invoice, quote] = await Promise.all([numbering(date, "rechnung", contactId), numbering(date, "angebot", contactId)]);
     return { invoice, quote };
   });
 
 export const saveNextNumber = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ kind: z.enum(["rechnung", "angebot"]).default("rechnung"), next: z.number().int().min(1).max(999_999) }))
+  .validator(
+    z.object({
+      kind: z.enum(["rechnung", "angebot"]).default("rechnung"),
+      next: z.number().int().min(1).max(999_999),
+      contactId: z.string().uuid().nullable().optional(),
+    }),
+  )
   .handler(async ({ data, context }) => {
-    await setNextNumber(context.user.id, today(), data.next, data.kind);
+    await setNextNumber(context.user.id, today(), data.next, data.kind, data.contactId ?? null);
     return { ok: true };
   });
