@@ -78,7 +78,9 @@ test("Zuordnen und Gebühr buchen: beide Umsätze sind erledigt, danach stehen s
   await expect(mitbuchen).not.toBeChecked();
   await expect(panel().getByRole("button", { name: "Zuordnen", exact: true })).toBeVisible();
   await expect(panel().getByLabel("Steuer der Gebühr")).toHaveCount(0);
+  await expect(panel()).toContainText("Ohne Häkchen bleibt die Gebühr offen");
   await mitbuchen.check();
+  await expect(panel()).toContainText("wird Aufwand");
   // Ohne Beleg wird die Gebühr ohne Steuer gebucht; für Vorsteuer oder § 13b gibt es die Auswahl darunter
   await expect(panel().getByLabel("Steuer der Gebühr")).toHaveValue("");
   expect(await axeVerstoesse(page)).toEqual([]);

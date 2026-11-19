@@ -102,9 +102,7 @@ export function GebuehrWahl({ gebuehr, wahl, belege, busy }: { gebuehr: GebuehrB
           <span>Gebühr {formatEuro(Math.abs(gebuehr.amount))} mitbuchen</span>
         </label>
         <span id="gebuehr-mitbuchen-hinweis" className="field-hint">
-          {wahl.mitbuchen && wahl.beleg
-            ? "Die Gebühr wird dem gewählten Beleg zugeordnet; Vorsteuer bzw. § 13b laufen über ihn."
-            : "Die einbehaltene Gebühr derselben Bewegung wird Aufwand (Nebenkosten des Geldverkehrs, ohne Steuer)."}
+          {hinweisText(wahl)}
         </span>
       </div>
       {wahl.mitbuchen && (
@@ -126,6 +124,13 @@ export function GebuehrWahl({ gebuehr, wahl, belege, busy }: { gebuehr: GebuehrB
       )}
     </>
   );
+}
+
+/** Hinweis am Kästchen: was beim Zuordnen mit der Gebühr geschieht */
+function hinweisText(wahl: GebuehrWahlZustand): string {
+  if (!wahl.mitbuchen) return "Ohne Häkchen bleibt die Gebühr offen; du ordnest sie später ihrem Beleg zu.";
+  if (wahl.beleg) return "Die Gebühr wird dem gewählten Beleg zugeordnet; Vorsteuer bzw. § 13b laufen über ihn.";
+  return "Die einbehaltene Gebühr derselben Bewegung wird Aufwand (Nebenkosten des Geldverkehrs, ohne Steuer).";
 }
 
 /** Beschriftung des Hauptknopfs der Zuordnung */
