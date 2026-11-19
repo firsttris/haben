@@ -38,4 +38,4 @@ export {
 } from "./altbestand-kontoart.ts";
 export { taxTypeOf } from "./altbestand-steuerart.ts";
 export { lastStapelYear, legacyTakeoverCutoff, TakeoverError } from "./altbestand-stichtag.ts";
-export { bwaBericht, bwaZeileDetails, type BwaBericht, type BwaGruppe, type BwaVorgang, type BwaZeileWerte } from "./bwa.ts";
+export { bwaBericht, bwaWarum, bwaZeileDetails, type BwaBericht, type BwaGruppe, type BwaVorgang, type BwaZeileWerte } from "./bwa.ts";
