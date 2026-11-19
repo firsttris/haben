@@ -148,4 +148,40 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Einschalten bei parall
     expect(String(ergebnis?.status === "rejected" && ergebnis.reason)).toContain("wurden gerade in den Einstellungen geändert");
     expect((await quotes.finalizeQuote(actor, (await quoteDraft()).id)).number).toBe("AN-2026-ACME-002");
   }, 30_000);
+
+  it("verklemmt sich nicht, wenn Rechnungen und Angebote zugleich je Kunde zählen und ein durchlaufendes Angebot festgeschrieben wird", async () => {
+    const formate = { ...STUFE_1, quote: "AN-{KUNDENNR}-{NNN}", quoteRunning: true, quotePerCustomer: false };
+    await formats.saveNumberFormats(actor, formate);
+    const quoteDraft = () =>
+      quotes.createQuoteDraft(actor, {
+        contactId: acme,
+        issueDate: "2026-03-02",
+        validUntil: "2026-03-31",
+        serviceFrom: null,
+        serviceTo: null,
+        note: "",
+        lines: [{ description: "Beratung", quantity: 1000, unit: "Std.", unitPrice: 10_000, taxRate: 1900 }],
+      });
+    const draft = await quoteDraft();
+    let angebot: Promise<PromiseSettledResult<{ number: string | null }>> | undefined;
+    let einschalten: Promise<PromiseSettledResult<void>> | undefined;
+    await sql.begin(async (blocker) => {
+      // Das Einschalten wartet zuerst auf die Kette, dann zieht das Angebot seine Nummer im Kreis 0 und wartet dahinter
+      await blocker`select haben_lock_audit_chain()`;
+      einschalten = settled(formats.saveNumberFormats(actor, { ...formate, invoicePerCustomer: true, quotePerCustomer: true }));
+      await waitForWaiters(blocker, 1);
+      angebot = settled(quotes.finalizeQuote(actor, draft.id));
+      // Das Angebot wartet auf die Kette oder auf den Kreis 0, den das Einschalten schon hält
+      const deadline = Date.now() + 5_000;
+      for (;;) {
+        const [row] = await blocker`select count(*)::int as count from pg_locks where locktype = 'advisory' and not granted`;
+        if (row!.count >= 2) break;
+        if (Date.now() > deadline) throw new Error("Das Angebot wartet nicht");
+        await pause(20);
+      }
+    });
+    const [e, a] = [await einschalten, await angebot];
+    expect(e?.status === "rejected" ? String(e.reason) : "fulfilled").toBe("fulfilled");
+    if (a?.status === "rejected") expect(String(a.reason)).toContain("wurden gerade in den Einstellungen geändert");
+  }, 30_000);
 });
