@@ -9,7 +9,6 @@
   "apps/web/src/server/modules/belege/documents.ts",
   "apps/web/src/server/modules/jahreserklaerung/annual.ts",
   "apps/web/src/server/modules/mcp/tools.ts",
-  "apps/web/src/server/modules/rechnungen/invoices.ts",
   "apps/web/src/server/modules/rechnungen/quotes.ts",
   "apps/web/src/server/modules/umsatzsteuer/vat-figures.ts",
   "packages/einvoice/src/incoming.ts",
