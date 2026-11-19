@@ -109,7 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Verfahrensdokumentation aus der Instanz (Post
     const text = doku.buildProcedureDocument(await doku.readInstanzStand(now), { ...DETAILS }, now);
     const liste = text.abschnitte.find((a) => a.titel.startsWith("2."))!.liste!;
     expect(liste.find((e) => e.startsWith("Rechnungsnummern"))).toContain(
-      "jeder Kunde hat einen eigenen Zähler (Storno und Korrektur im Kreis der ursprünglichen Rechnung)",
+      "jeder Kunde hat einen eigenen Zähler; Storno und Korrektur zählen im Kreis, den die Einstellung beim Festschreiben ergibt",
     );
     expect(liste.find((e) => e.startsWith("Angebotsnummern"))).not.toContain("eigenen Zähler");
   });

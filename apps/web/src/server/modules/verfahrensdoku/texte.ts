@@ -46,7 +46,7 @@ export function allgemein(s: InstanzStand, angaben: ProcedureDetails): Verfahren
 }
 
 function nummernkreis(name: string, format: string, laufend: boolean, jeKunde: boolean): string {
-  const kreis = jeKunde ? ", jeder Kunde hat einen eigenen Zähler (Storno und Korrektur im Kreis der ursprünglichen Rechnung)" : "";
+  const kreis = jeKunde ? ", jeder Kunde hat einen eigenen Zähler; Storno und Korrektur zählen im Kreis, den die Einstellung beim Festschreiben ergibt" : "";
   return `${name}: Format „${format}“, ${laufend ? "der Zähler läuft über den Jahreswechsel weiter" : "der Zähler beginnt jedes Jahr bei 1"}${kreis}`;
 }
 
