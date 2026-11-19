@@ -4,7 +4,8 @@ import { z } from "zod";
 import { schema, type Tx } from "../../db/index.ts";
 import { geprueft, mitBezeichnung } from "../../errors.ts";
 import { putBackground } from "./background.ts";
-import { artFor, insertImportedLayout, type LayoutArt } from "./layouts.ts";
+import { insertImportedLayout } from "./layout-uebernahme.ts";
+import { artFor, type LayoutArt } from "./layouts.ts";
 import { putLogo } from "./logo.ts";
 import { genannt, UebernahmeError } from "./uebernahme.ts";
 

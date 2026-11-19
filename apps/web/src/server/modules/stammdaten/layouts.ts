@@ -34,7 +34,7 @@ export type LayoutArt = "beleg" | "mahnung";
 /** Mahnungen haben eigene Felder; alle anderen Belegarten setzt dieselbe Art Vorlage */
 export const artFor = (type: LayoutDocumentType): LayoutArt => (type === "mahnung" ? "mahnung" : "beleg");
 
-function cleanName(name: string): string {
+export function cleanName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 60) throw new LayoutError("Der Name des Layouts hat 1 bis 60 Zeichen.");
   return trimmed;
@@ -45,7 +45,7 @@ async function nameTaken(name: string, except?: string): Promise<boolean> {
   return rows.some((row) => row.id !== except);
 }
 
-function checkSource(source: string): LayoutPackage[] {
+export function checkSource(source: string): LayoutPackage[] {
   if (!source.trim()) throw new LayoutError("Die Datei ist leer.");
   if (Buffer.byteLength(source, "utf8") > MAX_LAYOUT_BYTES) throw new LayoutError("Ein Layout darf höchstens 256 KB groß sein.");
   return packagesIn(source);
@@ -86,7 +86,7 @@ async function usedBytes(except?: string, q: Db | Tx = db): Promise<number> {
 const megabytes = (bytes: number) => `${Math.ceil(bytes / 1024 / 1024)} MB`;
 
 /** Prüft, ob noch ein Layout bzw. so viel Platz frei ist; replacing ist das Layout, das ersetzt wird */
-async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: string, q: Db | Tx = db): Promise<void> {
+export async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: string, q: Db | Tx = db): Promise<void> {
   if (!replacing && limits.maxCount !== undefined) {
     const rows = await q.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts);
     if (rows.length >= limits.maxCount) {
@@ -195,46 +195,6 @@ export async function createLayout(
     }),
   );
   return { id };
-}
-
-/**
- * Layout aus der Einstellungsdatei einer anderen Instanz (#488) in der Transaktion des Aufrufers, mit seiner ID, damit die
- * Gestaltung es weiter zuordnet. Ohne Pakete setzt es das Layout wie beim Hochladen zur Probe (checkLayout). Pakete lädt
- * es nicht: Ihre Freigabe galt dort für genau diesen Quelltext, nachgeladen und dabei zur Probe gesetzt werden sie wie
- * nach einem Restore nur auf Klick (reloadPackages, das die Liste mit Typst Universe neu abgleicht).
- */
-export async function insertImportedLayout(
-  tx: Tx,
-  input: { id: string; name: string; art: LayoutArt; source: string; schemaVersion: number; packages: LayoutPackage[] },
-  limits: LayoutLimits = envLimits(),
-): Promise<void> {
-  const name = cleanName(input.name);
-  // In der Transaktion gezählt, damit die Layouts derselben Datei mitzählen
-  await checkLimits(limits, Buffer.byteLength(input.source, "utf8"), undefined, tx);
-  const genannt = new Set(input.packages.map(packageSpec));
-  const roots = checkSource(input.source);
-  // Pakete ohne #import im Quelltext lädt „Pakete neu laden“ nie; das Layout bliebe ohne Probesatz freigegeben
-  if (roots.some((pkg) => !genannt.has(packageSpec(pkg))) || (roots.length === 0 && genannt.size > 0))
-    throw new LayoutError("Die Pakete passen nicht zum Quelltext.");
-  if (input.schemaVersion < 1 || input.schemaVersion > LAYOUT_SCHEMA_VERSION)
-    throw new LayoutError(
-      `Das Layout ist für den Feldvertrag v${input.schemaVersion} geschrieben; diese Version von Haben kennt bis v${LAYOUT_SCHEMA_VERSION}.`,
-    );
-  const [vorhanden] = await tx.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts).where(eq(schema.belegLayouts.name, name));
-  if (vorhanden) throw new LayoutError(`Es gibt schon ein Layout „${name}“.`);
-  if (input.packages.length === 0) await checkLayout({ id: input.id, source: input.source, art: input.art });
-  const sha256 = createHash("sha256").update(input.source).digest("hex");
-  const packages = input.packages.map(({ name, version }) => ({ name, version }));
-  await tx.insert(schema.belegLayouts).values({
-    id: input.id,
-    name,
-    art: input.art,
-    source: input.source,
-    sha256,
-    schemaVersion: input.schemaVersion,
-    packages,
-    approvedSha256: packages.length > 0 ? sha256 : null,
-  });
 }
 
 /** Neuer Quelltext für ein bestehendes Layout; die Zuordnung bleibt, Pakete fragen neu */

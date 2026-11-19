@@ -229,7 +229,7 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
 
   it("übernimmt ein Layout mit Paketen als freigegeben, geladen werden sie erst auf Klick; Pakete müssen zum Quelltext passen", async () => {
     await testinstanz();
-    const source = '#import "@preview/cetz:0.3.4": canvas\n#let rechnung(daten) = [Rechnung]';
+    const source = `#import "@preview/cetz:0.3.4": canvas\n${startvorlage("beleg")}`;
     const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
     await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
     await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
@@ -253,6 +253,27 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
       /^Layout „Mein Layout“: Das Layout verwendet diese Pflichtfelder nicht/,
     );
     expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
+  it("lehnt ein Layout ab, das ein Paket nur im Kommentar nennt", async () => {
+    await testinstanz();
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    const source = "// @preview/cetz:0.3.4\n#let rechnung(daten) = [Rechnung]";
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow();
+    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+  });
+
+  it("speichert ein Layout, das ohne seine Pakete setzt, wie eines ohne Pakete: geprüft und ohne Freigabe", async () => {
+    await testinstanz();
+    const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
+    const source = `// Früher: #import "@preview/cetz:0.3.4": canvas\n${startvorlage("beleg")}`;
+    await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    expect(await sql`select packages, approved_sha256 from beleg_layouts`).toEqual([{ packages: [], approved_sha256: null }]);
   });
 
   it("lehnt ein Layout ab, dessen Quelltext kein Paket lädt, wenn die Datei trotzdem Pakete nennt", async () => {
@@ -319,7 +340,7 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
   });
 
   it("hält beim Übernehmen die Höchstzahl eigener Layouts des Betreibers ein (LAYOUTS_MAX_COUNT)", async () => {
-    const layouts = await import("../stammdaten/layouts.ts");
+    const layouts = await import("../stammdaten/layout-uebernahme.ts");
     const { withActor } = await import("../../db/actor.ts");
     const layout = (id: string, name: string) => ({ id, name, art: "beleg" as const, source: startvorlage("beleg"), schemaVersion: 1, packages: [] });
 
