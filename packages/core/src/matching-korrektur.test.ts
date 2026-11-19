@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { korrekturenFuerRest, type OpenItem, suggestMatches } from "./matching.ts";
+import { korrekturenFuerRest, type OpenItem, suggestMatches, zahlungMitKorrektur } from "./matching.ts";
 import { formatEuro } from "./money.ts";
 import { formatPercent, skontoZahlfristen } from "./skonto.ts";
 
@@ -93,8 +93,9 @@ describe("suggestMatches mit offener Korrektur (#1398)", () => {
     expect(suggestMatches(zahlung(9520), [rechnung(undefined)])[0]?.corrections).toBeUndefined();
   });
 
-  it("schlägt bei Zahlungsausgängen keine Korrektur vor", () => {
-    const beleg = { ...rechnung([korrektur]), open: -11_900 };
-    expect(suggestMatches(zahlung(-9520), [beleg])[0]?.corrections).toBeUndefined();
+  it("erkennt bei Zahlungsausgängen keine Korrektur, auch wenn die Beträge passen würden", () => {
+    // Erstattung einer Rechnung mit negativem offenen Betrag: Der Abzug einer Korrektur gilt nur für Zahlungseingänge
+    const erstattung = rechnung([{ ...korrektur, open: 2380 }], { open: -11_900 });
+    expect(zahlungMitKorrektur(zahlung(-9520), erstattung)).toBeUndefined();
   });
 });

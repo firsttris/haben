@@ -173,6 +173,37 @@ export function transactionHasReference(tx: Pick<MatchTransaction, "purpose" | "
   return [tx.endToEndId, tx.bankReference, tx.purpose].some((value) => value && compact(value).includes(needle));
 }
 
+/** Punkte für den Betrag: exakt, „Rechnung minus Korrektur“ (auch mit Skonto), Skonto, Kursdifferenz oder Teilbetrag */
+function betragsPunkte(tx: MatchTransaction, item: OpenItem) {
+  const reasons: string[] = [];
+  let score = 0;
+  const exact = item.open === tx.amount;
+  const foreign = item.currency !== undefined && item.currency !== "EUR";
+  const nearRate = foreign && !exact && Math.abs(tx.amount - item.open) <= Math.abs(item.open) * EXCHANGE_TOLERANCE;
+  const korrektur = exact ? undefined : zahlungMitKorrektur(tx, item);
+  const skonto = exact || korrektur ? undefined : skontoTaken(tx, item);
+  if (exact) {
+    score += 50;
+    reasons.push("Betrag stimmt exakt");
+  } else if (korrektur) {
+    score += 50;
+    const nummern = korrektur.corrections.map((k) => k.number).join(", ");
+    const summe = formatEuro(korrektur.corrections.reduce((sum, k) => sum + k.open, 0));
+    const text = `Betrag stimmt mit ${korrektur.corrections.length === 1 ? "Korrektur" : "Korrekturen"} ${nummern} (${summe})`;
+    reasons.push(korrektur.stufe ? `${text} und ${formatPercent(korrektur.stufe.percent)} Skonto (${formatEuro(korrektur.skonto)}), in der Frist` : text);
+  } else if (skonto) {
+    score += 50;
+    reasons.push(`Betrag stimmt mit ${formatPercent(skonto.percent)} Skonto (${formatEuro(skonto.amount)}), in der Frist`);
+  } else if (nearRate) {
+    score += 30;
+    reasons.push(`Betrag passt bis auf eine Kursdifferenz (${item.currency})`);
+  } else if (Math.abs(tx.amount) < Math.abs(item.open)) {
+    score += 5;
+    reasons.push("Teilbetrag des offenen Betrags");
+  }
+  return { score, reasons, exact, nearRate, skonto, korrektur };
+}
+
 /**
  * Vorschläge für einen Bankumsatz mit Begründung: Betrag, Rechnungsnummer im Verwendungszweck,
  * bekannte IBAN, Name; bei Belegen Betrag und Datum ± 5 Tage und die Referenz einer Überweisung aus Haben.
@@ -189,33 +220,8 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
       if (vat) suggestions.push(vat);
       continue;
     }
-    const reasons: string[] = [];
-    let score = 0;
-
-    const exact = item.open === tx.amount;
-    const foreign = item.currency !== undefined && item.currency !== "EUR";
-    const nearRate = foreign && !exact && Math.abs(tx.amount - item.open) <= Math.abs(item.open) * EXCHANGE_TOLERANCE;
-    const korrektur = exact ? undefined : zahlungMitKorrektur(tx, item);
-    const skonto = exact || korrektur ? undefined : skontoTaken(tx, item);
-    if (exact) {
-      score += 50;
-      reasons.push("Betrag stimmt exakt");
-    } else if (korrektur) {
-      score += 50;
-      const nummern = korrektur.corrections.map((k) => k.number).join(", ");
-      const summe = formatEuro(korrektur.corrections.reduce((sum, k) => sum + k.open, 0));
-      const text = `Betrag stimmt mit ${korrektur.corrections.length === 1 ? "Korrektur" : "Korrekturen"} ${nummern} (${summe})`;
-      reasons.push(korrektur.stufe ? `${text} und ${formatPercent(korrektur.stufe.percent)} Skonto (${formatEuro(korrektur.skonto)}), in der Frist` : text);
-    } else if (skonto) {
-      score += 50;
-      reasons.push(`Betrag stimmt mit ${formatPercent(skonto.percent)} Skonto (${formatEuro(skonto.amount)}), in der Frist`);
-    } else if (nearRate) {
-      score += 30;
-      reasons.push(`Betrag passt bis auf eine Kursdifferenz (${item.currency})`);
-    } else if (Math.abs(tx.amount) < Math.abs(item.open)) {
-      score += 5;
-      reasons.push("Teilbetrag des offenen Betrags");
-    }
+    const { score: betrag, reasons, exact, nearRate, skonto, korrektur } = betragsPunkte(tx, item);
+    let score = betrag;
     const reference = item.references?.find((r) => transactionHasReference(tx, r));
     if (reference) {
       score += 60;

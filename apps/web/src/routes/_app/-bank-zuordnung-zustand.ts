@@ -215,7 +215,8 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
   useEnterOrdnetZu(tx.open, primaryButton);
   const rest = restBuchungen(wahl, tx, aufrufe, ausfuehren.run);
   // Zahlung mit der Gebühr ihrer Bewegung: ganze Zahlung auf eine Rechnung oder einen Beleg, die Gebühr gleich mit
-  const gebuehrWahl = useGebuehrWahl(gebuehrMoeglich({ gebuehr, tx, skontoRest, posten: rest.target?.type, signedAmount }));
+  // Beim Treffer mit Korrektur bucht Zuordnen die Aufteilung; eine Gebühr der Bewegung käme dort nicht mit (#1398)
+  const gebuehrWahl = useGebuehrWahl(!korrekturTreffer && gebuehrMoeglich({ gebuehr, tx, skontoRest, posten: rest.target?.type, signedAmount }));
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
   const [splitInitial, setSplitInitial] = useState<typeof rest.target>(undefined);
   // Zahlung „Rechnung minus Korrektur“: die weiteren Zeilen der Aufteilung sind die Korrekturen (#1398)

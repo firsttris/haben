@@ -50,9 +50,11 @@ describe.skipIf(!testDatabaseUrl)("Vorschlag „Rechnung mit Korrektur“ im Abg
 
   beforeEach(() => firma("SKR03", "ist"));
 
-  async function beleg(unitPrice: number, issueDate: string, korrigiert?: string) {
+  type Zeile = { unitPrice: number; taxRate: 1900 | 700 };
+  async function beleg(betrag: number | Zeile[], issueDate: string, korrigiert?: string) {
     const defaults = await invoices.newDraftDefaults(issueDate);
-    const lines = [{ description: "Wartung", quantity: 1000, unit: "Psch.", unitPrice, taxRate: 1900 as const }];
+    const zeilen = typeof betrag === "number" ? [{ unitPrice: betrag, taxRate: 1900 as const }] : betrag;
+    const lines = zeilen.map((z) => ({ description: "Wartung", quantity: 1000, unit: "Psch.", ...z }));
     const entwurf = await invoices.createDraft(
       actor,
       { ...defaults, contactId, format: "zugferd", lines },
@@ -175,7 +177,61 @@ describe.skipIf(!testDatabaseUrl)("Vorschlag „Rechnung mit Korrektur“ im Abg
         rest: "skonto",
         korrekturen: [fremd.korrekturen[0]!.id],
       }),
-    ).rejects.toThrow(/gehört nicht zu dieser Rechnung/);
+    ).rejects.toThrow(/passen nicht zu den offenen Korrekturen/);
+    expect(await sql`select id from allocations`).toHaveLength(0);
+  }, 30_000);
+
+  it("lehnt Skonto mit nur einer von zwei offenen Korrekturen ab; die übergangene minderte sonst später ein zweites Mal", async () => {
+    const { rechnung, korrekturen } = await rechnungMitKorrekturen(-1000, -1000);
+    const id = await zahlung("93,30", `Rechnung ${rechnung.number}`);
+    const nurEine = {
+      transactionId: id,
+      target: { kind: "invoice" as const, invoiceId: rechnung.id },
+      rest: "skonto" as const,
+      korrekturen: [korrekturen[0]!.id],
+    };
+    await expect(bank.allocateWithRest(actor, nurEine)).rejects.toThrow(/passen nicht zu den offenen Korrekturen/);
+    expect(await sql`select id from allocations`).toHaveLength(0);
+  }, 30_000);
+
+  it("lehnt Skonto nach Korrektur auf eine schon teilweise bezahlte Rechnung ab", async () => {
+    const { rechnung, korrekturen } = await rechnungMitKorrekturen(-2000);
+    const teil = await zahlung("10,00", "Anzahlung");
+    await bank.allocate(actor, { kind: "invoice", transactionId: teil, invoiceId: rechnung.id, amount: 1000 });
+    const id = await zahlung("83,30", `Rechnung ${rechnung.number}`);
+    await expect(
+      bank.allocateWithRest(actor, {
+        transactionId: id,
+        target: { kind: "invoice", invoiceId: rechnung.id },
+        rest: "skonto",
+        korrekturen: [korrekturen[0]!.id],
+      }),
+    ).rejects.toThrow(/teilweise bezahlt/);
+  }, 30_000);
+
+  it("bietet kein Skonto nach Korrektur an, wenn die Korrektur nur einen von zwei Steuersätzen trifft, und der Server lehnt es ab", async () => {
+    // Rechnung 100,00 € zu 19 % und 100,00 € zu 7 %, Korrektur −20,00 € nur zu 19 %: Das Ausbuchen verteilte nach dem Mix der Rechnung
+    const rechnung = await beleg(
+      [
+        { unitPrice: 10_000, taxRate: 1900 },
+        { unitPrice: 10_000, taxRate: 700 },
+      ],
+      "2026-11-02",
+    );
+    const korrektur = await beleg(-2000, "2026-11-05", rechnung.id);
+    const item = (await bank.openItems()).find((i) => i.id === rechnung.id);
+    expect(item?.openCorrections).toHaveLength(1);
+    expect(item?.skontoNachKorrektur).toBeUndefined();
+    const id = await zahlung("199,92", `Rechnung ${rechnung.number}`);
+    await expect(
+      bank.allocateWithRest(actor, { transactionId: id, target: { kind: "invoice", invoiceId: rechnung.id }, rest: "skonto", korrekturen: [korrektur.id] }),
+    ).rejects.toThrow(/denselben Steuersatz/);
+  }, 30_000);
+
+  it("lässt einen Vorschlag mit Korrektur und Skonto nicht per „Bestätigen“ buchen", async () => {
+    const { rechnung } = await rechnungMitKorrekturen(-2000);
+    const id = await zahlung("93,30", `Rechnung ${rechnung.number}`);
+    await expect(bank.bestaetigeVorschlaege(actor, [id])).rejects.toThrow(/keinen Vorschlag zum Bestätigen/);
     expect(await sql`select id from allocations`).toHaveLength(0);
   }, 30_000);
 });
