@@ -10,6 +10,7 @@ import { ServiceBillingForm } from "../../components/ServiceBillingForm.tsx";
 import { ServiceEntryForm, type ServiceEntryRow } from "../../components/ServiceEntryForm.tsx";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import type { Notice } from "../../lib/use-action.ts";
+import { serviceEntryNote } from "../../lib/zeiteintrag.ts";
 import { getServiceEntries, removeServiceEntry } from "../../server/functions/leistungen.ts";
 
 const searchSchema = z.object({
@@ -192,14 +193,11 @@ function ServiceEntriesPage() {
                           {e.description}
                         </div>
                       )}
-                      {(e.project || e.nonBillable) && (
-                        <div className="small muted">
-                          {e.project}
-                          {e.project && e.nonBillable ? " · " : ""}
-                          {e.nonBillable && "nicht abrechenbar"}
+                      {serviceEntryNote(e) && (
+                        <div className="small muted" style={{ overflowWrap: "anywhere" }}>
+                          {serviceEntryNote(e)}
                         </div>
                       )}
-                      {e.source && <div className="small muted">aus {e.source}</div>}
                       {e.invoiceId && (
                         <div className="small">
                           <Link to="/rechnungen/$id" params={{ id: e.invoiceId }}>
