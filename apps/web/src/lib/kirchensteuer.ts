@@ -4,8 +4,8 @@
  * dem eigenen Lohn für die Kirche des Ehegatten, bei Konfessionsverschiedenheit) sowie in Nr. 13 und 14 für
  * ermäßigt besteuerte sonstige Bezüge — die Felder sind im Muster für 2026 unbesetzt, weil die Fünftelregelung im
  * Lohnsteuerabzug entfallen ist; Bescheinigungen bis 2024 weisen sie aus. Daneben ist ein gezahltes Kirchgeld
- * abziehbar. Wer das vergisst, trägt zu niedrige Beiträge ein; die Prognose weist dann einen
- * Erstattungsüberhang aus, den es nicht gibt, oder setzt einen bestehenden zu hoch an (§ 10 Abs. 4b Satz 3 EStG),
+ * abziehbar. Wer das vergisst, trägt zu niedrige Beiträge ein; die Prognose kann dann einen
+ * Erstattungsüberhang ausweisen oder einen bestehenden zu hoch ansetzen (§ 10 Abs. 4b Satz 3 EStG),
  * und das zu versteuernde Einkommen liegt zu hoch.
  * Nicht abziehbar ist nur die Kirchensteuer zur Abgeltungsteuer: der Zuschlag zur Kapitalertragsteuer und zur
  * Steuer nach dem gesonderten Tarif des § 32d Abs. 1 EStG (Halbsatz 2 der Nummer 4).
