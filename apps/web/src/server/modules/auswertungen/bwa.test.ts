@@ -2,6 +2,7 @@ import { bwaZeitraum } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { kleinunternehmerStand } from "./test-umsatz-stand.ts";
 
 /*
  * BWA nach Zufluss und Abfluss (#1380): dieselben Beträge wie die EÜR aus dem Journal, je Buchung mit Datum. Über ein Jahr
@@ -37,6 +38,7 @@ describe.skipIf(!testDatabaseUrl)("BWA nach Zufluss und Abfluss (Postgres, #1380
   let konten: typeof import("../eigene-konten/index.ts");
   let reports: typeof import("./reports.ts");
   let bwa: typeof import("./bwa.ts");
+  let euerJournal: typeof import("./euer-journal.ts");
   const actor = "test-user";
   let contactId: string;
   let docSeq = 0;
@@ -50,6 +52,7 @@ describe.skipIf(!testDatabaseUrl)("BWA nach Zufluss und Abfluss (Postgres, #1380
     konten = await import("../eigene-konten/index.ts");
     reports = await import("./reports.ts");
     bwa = await import("./bwa.ts");
+    euerJournal = await import("./euer-journal.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -91,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("BWA nach Zufluss und Abfluss (Postgres, #1380
       note: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: net, taxRate: 1900 }],
     });
-    return invoices.finalizeInvoice(actor, draft.id);
+    return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
   async function beleg(date: string, net: number, category: "edv" | "bewirtung" | "software", payment: "bank" | "privat" = "bank", ownAccountId?: string) {
@@ -140,6 +143,21 @@ describe.skipIf(!testDatabaseUrl)("BWA nach Zufluss und Abfluss (Postgres, #1380
         await bank.allocate(actor, { kind: "invoice", transactionId: id(50_000), invoiceId: r.id, amount: 50_000 });
         await bank.allocate(actor, { kind: "invoice", transactionId: id(69_000), invoiceId: r.id, amount: 69_000 });
         await bank.allocate(actor, { kind: "document", transactionId: id(-23_800), documentId: b, amount: -23_800 });
+
+        // Der Sammler ist rein additiv: Die Beiträge je Buchung ergeben über ein Jahr je Zeile genau die EÜR
+        for (const jahr of [2026, 2027]) {
+          const gesammelt: Record<string, number> = {};
+          let bewirtung = 0;
+          let gewerbesteuer = 0;
+          const euer = await euerJournal.euerAusJournal(jahr, undefined, undefined, false, (_b, beitrag) => {
+            for (const [key, betrag] of Object.entries(beitrag.zeilen)) gesammelt[key] = (gesammelt[key] ?? 0) + (betrag ?? 0);
+            bewirtung += beitrag.bewirtungNichtAbziehbar;
+            gewerbesteuer += beitrag.gewerbesteuerNichtAbziehbar;
+          });
+          expect(gesammelt, String(jahr)).toEqual(euer.summe.zeilen);
+          expect([bewirtung, gewerbesteuer]).toEqual([euer.summe.bewirtungNichtAbziehbar, euer.summe.gewerbesteuerNichtAbziehbar]);
+          expect(Object.keys(gesammelt).length, String(jahr)).toBeGreaterThan(0);
+        }
 
         // Über das ganze Jahr: Ergebnis plus Überleitung ist der Gewinn der EÜR
         for (const jahr of [2026, 2027]) {

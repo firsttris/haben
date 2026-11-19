@@ -208,8 +208,8 @@ function BwaTabelle({ bericht, zeitraum, offen }: { bericht: BwaBericht; zeitrau
     <section className="card">
       <h2>Einnahmen-Ausgaben-BWA</h2>
       <p className="small muted">
-        Nach Zahlungsdatum wie die EÜR (§ 4 Abs. 3, § 11 EStG), Einnahmen mit Umsatzsteuer, Ausgaben mit Vorsteuer; gegliedert nach DATEV-Form 43. Eine Zeile
-        öffnet, was darin steht.
+        Eigene Auswertung von Haben nach dem Aufbau der DATEV-Form 43, keine Auswertung von DATEV. Nach Zahlungsdatum wie die EÜR (§ 4 Abs. 3, § 11 EStG),
+        Einnahmen mit Umsatzsteuer, Ausgaben mit Vorsteuer. Eine Zeile öffnet, was darin steht.
       </p>
       <ScrollTable className="report-table euer-table">
         <caption className="visually-hidden">BWA {zeitraumText(zeitraum)}</caption>

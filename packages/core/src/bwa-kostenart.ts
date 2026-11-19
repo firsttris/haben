@@ -49,28 +49,30 @@ type Bereich = readonly [von: string, bis: string, kostenart: Kostenart];
  * Kurzfristige Erfolgsrechnung (Form 01); bis dahin stehen sie bei ihrem GuV-Posten.
  */
 const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
+  // DATEV-Kontenrahmen SKR 03 2026, Art.-Nr. 11174
   SKR03: [
-    ["3100", "3199", "fremdleistungen"],
-    ["4200", "4299", "raum"],
-    ["4360", "4399", "versicherungen"],
-    ["4500", "4500", "kfz"],
-    // 4510 Kfz-Steuer bleibt bei den Steuern: DATEV zeigt „Kfz-Kosten (o. St.)“
-    ["4520", "4599", "kfz"],
-    ["4600", "4699", "werbeReise"],
-    ["4700", "4799", "warenabgabe"],
-    ["4800", "4809", "instandhaltung"],
+    ["3100", "3199", "fremdleistungen"], // S. 19, 3100 „Fremdleistungen“
+    ["4200", "4299", "raum"], // S. 22, 4200 „Raumkosten“ bis 4290 „Grundstücksaufwendungen“
+    ["4360", "4399", "versicherungen"], // S. 23, 4360 „Versicherungen“, 4380 „Beiträge“, 4390 „Sonstige Abgaben“
+    ["4500", "4500", "kfz"], // S. 23, 4500 „Fahrzeugkosten“; 4510 „Kfz-Steuer“ bleibt bei den Steuern („Kfz-Kosten (o. St.)“)
+    ["4520", "4599", "kfz"], // S. 23, 4520 „Fahrzeug-Versicherungen“ bis 4595 „Fremdfahrzeugkosten“
+    ["4600", "4699", "werbeReise"], // S. 23, 4600 „Werbekosten“ bis 4681 „Verpflegungsmehraufwendungen“
+    ["4700", "4799", "warenabgabe"], // S. 23, 4700 „Kosten der Warenabgabe“
+    ["4800", "4809", "instandhaltung"], // S. 24, 4800 „Reparaturen und Instandhaltungen“; 4810 „Mietleasing“ nicht
   ],
+  // DATEV-Kontenrahmen SKR 04 2026, Art.-Nr. 11175
   SKR04: [
-    ["5900", "5999", "fremdleistungen"],
-    // bis 6351 wie SKR03 4200 bis 4299; 6352 „Sonstige Grundstücksaufwendungen (neutral)“ wie SKR03 2350 nicht
+    ["5900", "5999", "fremdleistungen"], // S. 20, 5900 „Fremdleistungen“
+    // S. 23, 6305 „Raumkosten“ bis 6350 „Grundstücksaufwendungen, betrieblich“ wie SKR03 4200 bis 4299; 6352 „Sonstige
+    // Grundstücksaufwendungen (neutral)“ wie SKR03 2350 nicht
     ["6305", "6351", "raum"],
-    // ohne 6440 Ausgleichsabgabe, im SKR03 4139 bei den sonstigen Aufwendungen
+    // S. 23, 6400 „Versicherungen“ bis 6436/6437 Verspätungszuschläge; 6440 „Ausgleichsabgabe“ wie SKR03 4139 nicht
     ["6400", "6439", "versicherungen"],
-    // ohne 6498 Mietleasing, im SKR03 4810 bei den sonstigen Aufwendungen
+    // S. 23, 6450 „Reparaturen und Instandhaltung“; 6498 „Mietleasing“ wie SKR03 4810 nicht
     ["6450", "6497", "instandhaltung"],
-    ["6500", "6599", "kfz"],
-    ["6600", "6699", "werbeReise"],
-    ["6700", "6799", "warenabgabe"],
+    ["6500", "6599", "kfz"], // S. 23, 6500 „Fahrzeugkosten“; 7685 „Kfz-Steuer“ (S. 28) bleibt bei den Steuern
+    ["6600", "6699", "werbeReise"], // S. 23, 6600 „Werbekosten“ bis 6691 „Verpflegungsmehraufwendungen“
+    ["6700", "6799", "warenabgabe"], // S. 24, 6700 „Kosten der Warenabgabe“
   ],
 };
 

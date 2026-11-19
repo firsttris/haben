@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { abweichung, type BwaEuerPosten, form43, form43Anteile, form43Zeile, type Form43Zeile } from "./bwa.ts";
+import { abweichung, type BwaEuerPosten, FORM43_ZEILEN, form43, form43Anteile, form43Zeile, type Form43Zeile } from "./bwa.ts";
 import { bwaZeitraum } from "./bwa-zeitraum.ts";
+import { kostenartOf } from "./bwa-kostenart.ts";
 import { euerErgebnis, type EuerLineKey } from "./euer.ts";
+import { postenOf } from "./hgb.ts";
+import { euerZuordnung } from "./journal-euer.ts";
+import { ACCOUNT_NAMES } from "./kontenplan.ts";
 import { PAUSCHALE_KONTEN, type PauschaleArt } from "./pauschalen.ts";
-import { EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 
 const FESTE: EuerLineKey[] = [
   "einnahmenKleinunternehmer",
@@ -130,6 +134,43 @@ describe("Einnahmen-Ausgaben-BWA (DATEV-Form 43)", () => {
     expect(w.summeKosten).toBe(20_000);
     expect(w.summeAusgaben).toBe(38_800);
     expect(w.ergebnis).toBe(81_200);
+  });
+});
+
+describe("Jedes Konto aus kontenplan.ts in genau einer Zeile", () => {
+  const ZEILEN = new Set<string>(FORM43_ZEILEN);
+  /** Alle Konten, die Haben kennt: benannte Konten, Systemkonten und die Konten der Kategorien */
+  const konten = (kr: Kontenrahmen) => {
+    const flach = (v: unknown): string[] => (typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v).flatMap(flach) : []);
+    return [...new Set([...Object.keys(ACCOUNT_NAMES[kr]), ...flach(ACCOUNTS[kr]), ...Object.values(EXPENSE_CATEGORIES).map((c) => c[kr])])].filter((k) =>
+      /^\d{4}$/.test(k),
+    );
+  };
+
+  it.each(["SKR03", "SKR04"] as const)("%s: ein Konto, das in der EÜR wirkt, steht in genau einer Zeile der BWA", (kr) => {
+    for (const konto of konten(kr)) {
+      const zuordnung = euerZuordnung(kr, konto);
+      if (zuordnung === null) continue;
+      // Zahlungen an das bzw. Erstattungen vom Finanzamt teilt euerAusZeilen nach dem Vorzeichen; jede Richtung hat ihre Zeile
+      const zeilen =
+        zuordnung === "ustZahlung"
+          ? [form43Zeile(kr, "gezahlteUst"), form43Zeile(kr, "erstatteteUst")]
+          : zuordnung === "nichtAbziehbar"
+            ? ["steuernVersicherungenBeitraege"]
+            : [form43Zeile(kr, zuordnung)];
+      for (const zeile of zeilen) expect(ZEILEN.has(zeile), `${kr} ${konto} (${zuordnung})`).toBe(true);
+    }
+  });
+
+  it.each(["SKR03", "SKR04"] as const)("%s: jedes Konto mit einem Posten der GuV hat eine Kostenart und damit eine Zeile", (kr) => {
+    let erfolgskonten = 0;
+    for (const konto of konten(kr)) {
+      const posten = postenOf(kr, konto);
+      if (posten === null || posten.startsWith("aktiva.") || posten.startsWith("passiva.")) continue;
+      erfolgskonten++;
+      expect(kostenartOf(kr, konto), `${kr} ${konto} (${posten})`).not.toBeNull();
+    }
+    expect(erfolgskonten).toBeGreaterThan(50);
   });
 });
 
