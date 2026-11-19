@@ -181,4 +181,19 @@ describe.skipIf(!testDatabaseUrl)("Externe Quellen und REST-Import (Postgres)", 
     }));
     expect(await quellen.importExternalBatch("api:t:Dienst", lieferung({ key: "viele", movements: viele }))).toMatchObject({ status: "too_large" });
   });
+
+  it("übernimmt eine geänderte Gebühr nach dem Konflikt als Gebühr, wie der Import sie angelegt hätte", async () => {
+    const geaendert = lieferung({ key: "lieferung-gebuehr" });
+    (geaendert.movements[1] as { amount: number }).amount = -1106;
+    const r = await quellen.importExternalBatch("api:t:Dienst", geaendert);
+    expect(r).toMatchObject({ status: "conflict", conflicts: [{ sourceEventId: "SALE-1", component: "fee" }] });
+
+    const konflikt = await import("./import-konflikt.ts");
+    const [offen] = await konflikt.openConflicts();
+    expect(offen!.delivered).toMatchObject({ amount: -1106, purpose: "Gebühr · Gebühren zu Bestellung 01-1" });
+    const { transactionId } = await konflikt.resolveConflict("test", { conflictId: offen!.id, decision: "add" });
+    const [weiterer] = await sql`select amount, purpose, bank_reference from bank_transactions where id = ${transactionId!}`;
+    // Mit „Gebühr“ vorn erkennt die Sammelzuordnung sie, wie die Gebühr aus der ersten Lieferung
+    expect(weiterer).toEqual({ amount: -1106, purpose: "Gebühr · Gebühren zu Bestellung 01-1", bank_reference: "SALE-1/fee" });
+  });
 });
