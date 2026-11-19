@@ -112,6 +112,7 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     ["datev", "export"],
     ["ablage", "export"],
     ["backup", "export"],
+    ["instanz", "export"],
     ["zertifikat", "elster"],
     ["handelsregister", "firma"],
     ["privatanteile", "firma"],

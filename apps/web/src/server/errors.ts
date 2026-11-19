@@ -10,7 +10,8 @@ import {
   SevdeskApiError,
   StatementParseError,
 } from "@haben/import";
-import { ZodError } from "zod";
+import { ZodError, type z } from "zod";
+import { de } from "zod/locales";
 
 /**
  * Fachfehler, deren Meldung der Nutzer sehen soll. Alles andere wird zentral als „Interner Fehler“ ausgegeben. `felder` nennt
@@ -45,6 +46,31 @@ const PACKAGE_USER_ERRORS = [
 export function isUniqueViolation(error: unknown, constraint: string): boolean {
   const pg = (error as { cause?: { code?: string; constraint_name?: string } } | null)?.cause;
   return pg?.code === "23505" && pg.constraint_name === constraint;
+}
+
+const { localeError } = de();
+
+/**
+ * Prüft einen Wert aus einer hochgeladenen Datei mit dem Schema eines Formulars (#488) und nennt bei einem Fehler, welcher
+ * Eintrag es ist, etwa „Kontakt „Nordwerk GmbH“: Keine gültige E-Mail-Adresse“.
+ */
+export function geprueft<S extends z.ZodType>(schema: S, value: unknown, bezeichnung: string): z.output<S> {
+  // Meldungen von Zod auf Deutsch, wo ein Schema keine eigene hat, wie in der REST-API (api/http.ts)
+  const parsed = schema.safeParse(value, { error: localeError });
+  if (parsed.success) return parsed.data;
+  const issue = parsed.error.issues[0];
+  const feld = issue?.path.length ? ` (${issue.path.join(".")})` : "";
+  throw new UserError(`${bezeichnung}${feld}: ${issue?.message ?? "ungültig"}`);
+}
+
+/** Meldung einer Prüfung beim Anlegen mit dem Eintrag davor, damit man ihn in der hochgeladenen Datei findet (#488) */
+export async function mitBezeichnung<T>(bezeichnung: string, anlegen: () => Promise<T>): Promise<T> {
+  try {
+    return await anlegen();
+  } catch (error) {
+    if (error instanceof UserError) throw new UserError(`${bezeichnung}: ${error.message}`, { cause: error });
+    throw error;
+  }
 }
 
 export const INTERNAL_ERROR = "Interner Fehler. Details stehen im Server-Log.";

@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import { env } from "../../env.ts";
 import { UserError } from "../../errors.ts";
 import { checkEmbedding, type EmbeddingResult } from "./embedding.ts";
@@ -44,8 +44,12 @@ function validate(input: CustomPageInput) {
 }
 
 export async function createCustomPage(actor: string, input: CustomPageInput): Promise<CustomPage> {
-  const values = validate(input);
-  const [row] = await withActor(actor, (tx) => tx.insert(schema.customPages).values(values).returning());
+  return withActor(actor, (tx) => insertCustomPage(tx, input));
+}
+
+/** createCustomPage in der Transaktion des Aufrufers */
+export async function insertCustomPage(tx: Tx, input: CustomPageInput): Promise<CustomPage> {
+  const [row] = await tx.insert(schema.customPages).values(validate(input)).returning();
   return row!;
 }
 

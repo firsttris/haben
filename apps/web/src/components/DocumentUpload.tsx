@@ -5,7 +5,8 @@ import { errorMessage } from "../lib/format.ts";
 import { uploadDocuments } from "../server/functions/documents.ts";
 import { UploadButton } from "./UploadButton.tsx";
 
-const ACCEPT = "application/pdf,image/jpeg,image/png,image/webp,image/heic,.xml,application/xml,text/xml";
+/** Dateien, die Haben als Beleg annimmt (documentFileProblem); auch für „Beleg duplizieren“ */
+export const BELEG_DATEITYPEN = "application/pdf,image/jpeg,image/png,image/webp,image/heic,.xml,application/xml,text/xml";
 
 /** Ablagefläche für Belege: Ziehen und Ablegen, Dateiauswahl oder Kamera (Handy). */
 export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
@@ -92,7 +93,7 @@ export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
           <UploadButton
             className="btn btn-primary"
             multiple
-            accept={ACCEPT}
+            accept={BELEG_DATEITYPEN}
             disabled={busy}
             inputLabel="Dateien auswählen"
             aria-describedby={hintId}
