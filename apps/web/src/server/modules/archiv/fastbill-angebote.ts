@@ -6,6 +6,7 @@ import type { LexofficeImportProgress } from "../../db/schema.ts";
 import type { LegacyOriginalFile } from "./legacy-store.ts";
 import { storeLegacyOrder } from "./legacy-store.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
+import { FastbillError } from "./fastbill-zugang.ts";
 import { progressMessage } from "./lexoffice.ts";
 
 /*
@@ -43,13 +44,14 @@ export async function importFastbillEstimates(
         continue;
       }
       const [known] = await db
-        .select({ id: schema.legacyOrderDocuments.id })
+        .select({ id: schema.legacyOrderDocuments.id, raw: schema.legacyOrderDocuments.raw })
         .from(schema.legacyOrderDocuments)
         .where(eq(schema.legacyOrderDocuments.externalId, mapped.externalId));
       if (known) {
         result.known += 1;
         try {
-          if (await retryPdf(actor, client, known.id, raw.DOCUMENT_URL)) result.pdfNachgeholt += 1;
+          if (await retryPdf(actor, client, { orderId: known.id, archived: known.raw, current: mapped.raw, number: mapped.number }, raw.DOCUMENT_URL))
+            result.pdfNachgeholt += 1;
         } catch (error) {
           if (fatal(error, signal)) throw error;
           progress.failed.push({ lexofficeId: mapped.externalId, number: label, message: `PDF nicht nachgeholt: ${progressMessage(error)}` });
@@ -89,10 +91,20 @@ export async function importFastbillEstimates(
  * Fehlt einem archivierten Angebot das PDF, versucht der nächste Abruf es erneut (#1541). Angebote mit Datei bleiben
  * unberührt; angehängt wird nur, nie ersetzt (legacy_order_files ist nur anhängen).
  */
-async function retryPdf(actor: string, client: FastbillClient, orderId: string, documentUrl: string | null | undefined): Promise<boolean> {
+async function retryPdf(
+  actor: string,
+  client: FastbillClient,
+  order: { orderId: string; archived: Record<string, unknown>; current: Record<string, unknown>; number: string },
+  documentUrl: string | null | undefined,
+): Promise<boolean> {
+  const { orderId } = order;
   if (!documentUrl) return false;
   const [file] = await db.select({ id: schema.legacyOrderFiles.id }).from(schema.legacyOrderFiles).where(eq(schema.legacyOrderFiles.orderId, orderId)).limit(1);
   if (file) return false;
+  // Wie bei sevDesk (order-pdfs.ts): Ein seit der Archivierung geändertes Angebot bekäme ein PDF, das nicht zum Archiv passt.
+  // Nur der Status darf weiter sein (etwa von created zu sent).
+  if (sameEstimate(order.archived) !== sameEstimate(order.current))
+    throw new FastbillError("Angebot seit der Archivierung in FastBill geändert. PDF nach Prüfung von Hand nachreichen.");
   const download = await client.document(documentUrl);
   if (!download || !isPdf(download.bytes)) return false;
   await storeFile(download.bytes);
@@ -102,7 +114,7 @@ async function retryPdf(actor: string, client: FastbillClient, orderId: string, 
       .values({
         orderId,
         origin: "fastbill",
-        filename: (download.filename ?? "angebot.pdf").slice(0, 200),
+        filename: (download.filename ?? `${order.number}.pdf`).slice(0, 200),
         mimeType: download.mimeType,
         sha256: sha256Of(download.bytes),
         size: download.bytes.byteLength,
@@ -110,4 +122,20 @@ async function retryPdf(actor: string, client: FastbillClient, orderId: string, 
       .onConflictDoNothing(),
   );
   return true;
+}
+
+/** Vergleichsform eines Angebots ohne Status, mit sortierten Schlüsseln */
+function sameEstimate(raw: Record<string, unknown>): string {
+  const sorted = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(sorted)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((k) => [k, sorted((value as Record<string, unknown>)[k])]),
+          )
+        : value;
+  const { STATE: _, ...rest } = raw;
+  return JSON.stringify(sorted(rest));
 }
