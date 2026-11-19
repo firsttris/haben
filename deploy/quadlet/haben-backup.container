@@ -12,7 +12,9 @@ Network=haben.network
 Environment=PGHOST=haben-db
 Secret=haben-db-password,type=env,target=PGPASSWORD
 Secret=haben-restic-password,type=env,target=RESTIC_PASSWORD
-# Optional RESTIC_REPOSITORY (sftp:…, s3:…, rest:…) und Zugangsdaten; ohne liegt das Backup im Volume haben-backups
+# Optional RESTIC_REPOSITORY (sftp:…, s3:…, rest:…, rclone:webdav:…) und Zugangsdaten; ohne liegt das Backup
+# im Volume haben-backups. Für WebDAV und OneDrive zusätzlich RCLONE_WEBDAV_URL, RCLONE_WEBDAV_USER und
+# RCLONE_WEBDAV_PASS in backup.env
 EnvironmentFile=%h/.config/haben/backup.env
 Volume=haben-belege.volume:/belege:ro
 Volume=haben-backups.volume:/backups

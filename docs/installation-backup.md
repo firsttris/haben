@@ -43,6 +43,7 @@ Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backup
 | SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.override.yml` bei `backup` und `restore` `~/.ssh:/root/.ssh:ro` unter `volumes` eintragen ([SFTP Schritt für Schritt](#sftp-schritt-für-schritt)) bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
 | S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
 | restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | Im Passwort außer `A–Z`, `a–z`, `0–9` und `-._~!&'()*+,;=:@` jedes Zeichen prozentkodiert, etwa `/` als `%2F`, `#` als `%23`, `%` als `%25`, `$` als `%24` (Compose liest `$` in `.env` als Variable), Leerzeichen als `%20`, `ä` als `%C3%A4`; sonst liest restic die Adresse nicht oder falsch |
+| WebDAV, OneDrive, SMB und weitere über rclone | `rclone:webdav:haben-backup` | `RCLONE_WEBDAV_URL`, `RCLONE_WEBDAV_USER`, `RCLONE_WEBDAV_PASS` ([WebDAV Schritt für Schritt](#webdav-schritt-für-schritt)) |
 
 Das Protokoll des Backup-Containers und Haben nennen Ziel und Fehlermeldungen ohne Nutzer und Passwort.
 
@@ -53,6 +54,34 @@ RESTIC_REPOSITORY=s3:https://fsn1.your-objectstorage.com/bucket/haben
 AWS_ACCESS_KEY_ID=…
 AWS_SECRET_ACCESS_KEY=…
 ```
+
+#### WebDAV Schritt für Schritt
+
+restic spricht kein WebDAV. Es ruft dafür rclone auf, und rclone deckt rund 70 Ziele ab: WebDAV (Nextcloud, HiDrive, Strato), OneDrive, Google Drive, Dropbox, SMB und weitere. Das Backup-Image bringt rclone mit.
+
+Am Beispiel einer Nextcloud; die Befehle laufen als der Benutzer, der `docker compose` startet.
+
+1. **App-Passwort anlegen:** in der Nextcloud unter **Einstellungen › Sicherheit › Geräte und Sitzungen** ein neues App-Passwort für „Haben Backup“ erzeugen. Nicht das Kontokennwort nehmen, es lässt sich nicht einzeln widerrufen.
+2. **Adresse bestimmen:** `RCLONE_WEBDAV_URL` ist der Ordner, in dem Haben sein Repository anlegt, bei Nextcloud das persönliche Wurzelverzeichnis `https://cloud.example.de/remote.php/dav/files/<nutzer>`. Der Teil hinter `rclone:webdav:` ist der Ordnername innerhalb davon, im Beispiel `haben-backup`; Haben legt ihn beim ersten Lauf an. Zeigt die Adresse selbst schon auf einen Unterordner, entsteht das Repository darin, und der Elternordner muss existieren, sonst bricht der erste Lauf mit `409 Conflict` ab.
+3. **Werte eintragen** (Compose in `.env`, Quadlets in `~/.config/haben/backup.env`):
+
+    ```sh
+    RESTIC_REPOSITORY=rclone:webdav:haben-backup
+    RCLONE_WEBDAV_URL=https://cloud.example.de/remote.php/dav/files/<nutzer>
+    RCLONE_WEBDAV_USER=<nutzer>
+    RCLONE_WEBDAV_PASS=<App-Passwort>
+    RCLONE_WEBDAV_VENDOR=nextcloud
+    ```
+
+4. **Starten und den ersten Lauf abwarten:** `docker compose up -d` bzw. `systemctl --user restart haben-backup.timer`. Der Container verschleiert das Passwort beim Start und schreibt die rclone-Konfiguration nach `/var/lib/haben-backup/rclone.conf` (Rechte 600). Im Log steht das Ziel ohne Zugangsdaten.
+
+Die drei Variablen heißen wie rclones eigene Umgebungs-Konfiguration. Der Container liest sie beim Start, schreibt sie in die Konfigurationsdatei und entfernt sie danach, damit rclone nicht die Klartextwerte als fertig verschleiertes Passwort liest.
+
+Das Passwort steht in der `.env` im Klartext und in der Konfigurationsdatei verschleiert. Verschleiert ist keine Verschlüsselung: Wer die Datei liest, kommt an das Passwort. Deshalb die `.env` und das Volume des Backup-Containers wie Zugangsdaten behandeln.
+
+`RCLONE_WEBDAV_VENDOR=nextcloud` setzt die Eigenheiten der Nextcloud, etwa das Verhalten bei großen Dateien; ohne Angabe gilt `other`. Für ein anderes WebDAV-Ziel die Zeile weglassen und die Adresse so eintragen, wie der Anbieter sie nennt.
+
+Grenzen: restic legt viele kleine Objekte an. Bei OneDrive drosselt Microsoft gern, und `restic forget --prune` wird dort zäh, weil es Objekte liest, umbenennt und löscht. Für ein Repository von wenigen hundert Megabyte ist das unkritisch; wer mehr sichern will, nimmt S3 oder ein zweites System per SFTP.
 
 #### SFTP Schritt für Schritt
 

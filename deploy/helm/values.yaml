@@ -78,6 +78,7 @@ backup:
   # Jeder Wert in Anführungszeichen; siehe https://haben.app/installation-backup.html#backup-und-wiederherstellen
   env: {}
     # RESTIC_REPOSITORY: "s3:s3.eu-central-1.amazonaws.com/bucket/haben"
+    # WebDAV und OneDrive über rclone: RESTIC_REPOSITORY: "rclone:webdav:haben" und dazu die drei RCLONE_WEBDAV_-Werte
     # BACKUP_TIME: "03:15"
     # BACKUP_HOST: "haben"
     # RESTORE_CHECK_DAYS: "7"

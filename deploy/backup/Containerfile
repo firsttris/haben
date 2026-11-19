@@ -4,6 +4,7 @@
 # Compose betreibt ihn als Dienst mit täglichem Zeitplan, die Quadlets starten ihn über haben-backup.timer
 # einmal am Tag. Gebaut wird aus deploy/backup:  podman build -t haben-backup -f Containerfile deploy/backup
 FROM ghcr.io/restic/restic:0.19.1 AS restic
+FROM docker.io/rclone/rclone:1.76.0 AS rclone
 
 FROM docker.io/library/postgres:18
 ARG UPGRADE_FROM=16
@@ -17,7 +18,9 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     for v in $old; do test -x "/usr/lib/postgresql/$v/bin/pg_dump"; done
 COPY --from=restic /usr/bin/restic /usr/local/bin/restic
-COPY entrypoint.sh backup.sh backup-status.sh restic-ziel.sh restore.sh restore-check.sh /usr/local/bin/
+# Ziele, die restic nicht selbst spricht (WebDAV, OneDrive, SMB …), gehen über rclone
+COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
+COPY entrypoint.sh backup.sh backup-status.sh restic-ziel.sh rclone-ziel.sh restore.sh restore-check.sh /usr/local/bin/
 # Datenbank wie in compose.yml (Dienst db); die Quadlets setzen PGHOST=haben-db. Das Passwort kommt als
 # PGPASSWORD, das restic-Passwort als RESTIC_PASSWORD oder RESTIC_PASSWORD_FILE.
 ENV PGHOST=db \
