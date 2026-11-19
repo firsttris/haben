@@ -330,15 +330,17 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     expect(await sql`select 1 from beleg_layouts`).toEqual([]);
   });
 
-  it("gibt ein Layout nicht frei, das ohne seine Pakete auch an etwas anderem scheitert", async () => {
+  it("gibt ein Layout frei, das ohne seine Pakete auch an einer Folge davon scheitert", async () => {
     await testinstanz();
     const cetz = [{ name: "@preview/cetz", version: "0.3.4" }];
-    // In #context meldet Typst beide Fehler, nicht nur das fehlende Paket
-    const source = `#context { import "@preview/cetz:0.3.4": canvas }\n#context panic("kaputt")\n${startvorlage("beleg")}`;
+    // Ohne cetz fehlt der Wert, den der zweite #context abfragt; Typst meldet dazu „array is empty“
+    const source = `#context { import "@preview/cetz:0.3.4": canvas; [#metadata(1) <wert>] }\n#context query(<wert>).first().value\n${startvorlage("beleg")}`;
     await sql`update beleg_layouts set source = ${source}, packages = ${JSON.stringify(cetz)}::jsonb where id = ${LAYOUT}`;
 
-    await expect(instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE)).rejects.toThrow();
-    expect(await sql`select 1 from beleg_layouts`).toEqual([]);
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    const sha256 = createHash("sha256").update(source).digest("hex");
+    expect(await sql`select packages, approved_sha256 from beleg_layouts`).toEqual([{ packages: cetz, approved_sha256: sha256 }]);
   });
 
   it("speichert ein Layout, das ohne seine Pakete setzt, wie eines ohne Pakete: geprüft und ohne Freigabe", async () => {
