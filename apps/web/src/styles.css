@@ -388,8 +388,8 @@ dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content
 }
 .grid-main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
-/* Steht nur eine Karte darin (Übersicht des Kleinunternehmers), nimmt sie die ganze Breite statt der 3fr-Spalte */
-.grid-main > :only-child { grid-column: 1 / -1; }
+/* Übersicht: Fehlt „Letzte Voranmeldungen“ (Kleinunternehmer, Befreite), nimmt „Letzte Rechnungen“ die ganze Breite */
+.uebersicht-listen > :only-child { grid-column: 1 / -1; }
 @media (max-width: 1100px) { .grid-main { grid-template-columns: minmax(0, 1fr); } }
 
 /* Zweizeilige Beschriftungen schieben die Zahl nicht aus der Reihe */

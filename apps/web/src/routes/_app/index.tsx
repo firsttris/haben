@@ -253,7 +253,7 @@ function OverviewPage() {
         />
       )}
 
-      <div className="grid-main">
+      <div className="grid-main uebersicht-listen">
         {(vatRequired || data.recent.length > 0) && (
           <section className="card" aria-labelledby="recent-heading">
             <h2 id="recent-heading">Letzte Voranmeldungen</h2>

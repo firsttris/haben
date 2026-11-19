@@ -123,7 +123,7 @@ Eine Trefferzeile zeigt Symbolkachel, Titel und darunter Kontext. Am Desktop ste
 
 Die Kennzahlenreihe zeigt nur Zahlen.
 
-Auf der Übersicht steht „Zu erledigen“ vor der Reihe: Fristen der nächsten zwei Wochen zuerst (auch überfällige), die früheste vorn, dann Warnung vor Hinweis vor Anstehendem. Die Reihe entfällt, solange keine Zahlen da sind (`ohneKennzahlen`).
+Auf der Übersicht steht „Zu erledigen“ vor der Reihe: Fristen der nächsten zwei Wochen zuerst (auch überfällige), die früheste vorn, dann Warnung vor Hinweis vor Anstehendem. Die Reihe entfällt, solange keine Zahlen da sind (`ohneKennzahlen`). Fehlt „Letzte Voranmeldungen“, nimmt „Letzte Rechnungen“ die ganze Breite (`.uebersicht-listen`).
 
 ### Status
 
@@ -189,7 +189,7 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 ### Karten
 
-Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Zwei Karten nebeneinander stehen in `.grid-main` (3fr und 2fr, unter 1100px untereinander); steht dort nur eine, nimmt sie die ganze Breite. Am Handy stehen `.grid-3`, `.grid-4` und `.grid-5` (fünf Kennzahlen, am Desktop in einer Reihe, wenn sie passen) in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand; bei ungerader Zahl füllt die letzte Karte die Zeile. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
+Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3`, `.grid-4` und `.grid-5` (fünf Kennzahlen, am Desktop in einer Reihe, wenn sie passen) in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand; bei ungerader Zahl füllt die letzte Karte die Zeile. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
