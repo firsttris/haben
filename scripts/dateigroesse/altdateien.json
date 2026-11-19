@@ -1,5 +1,4 @@
 [
-  "apps/web/src/components/InvoiceEditor.tsx",
   "apps/web/src/routes/_app/einstellungen.tsx",
   "apps/web/src/routes/_app/jahreserklaerung/$jahr.tsx",
   "apps/web/src/routes/_app/umsatzsteuer/$zeitraum.tsx",
