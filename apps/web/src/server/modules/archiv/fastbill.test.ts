@@ -37,6 +37,9 @@ const base = {
   SERVICE_PERIOD_END: "0000-00-00 00:00:00",
   DELIVERY_DATE: "0000-00-00 00:00:00",
   PAYMENTS: [],
+  // Bankverbindung des Kunden, wie invoice.get sie mitliefert (erfunden)
+  BANK_IBAN: "DE02120300000000202051",
+  BANK_ACCOUNT_OWNER: "Muster GmbH",
 };
 
 const OUTGOING = [
@@ -404,6 +407,11 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     await fastbill.startFastbillImport(actor, { wait: true });
     const run = await fastbill.latestFastbillImport();
     expect(run).toMatchObject({ status: "fehler", error: "Login-E-Mail oder API-Schlüssel falsch" });
+  });
+
+  it("legt die Bankverbindung des Kunden nicht ins unveränderliche Archiv (#1540)", async () => {
+    const rows = await sql`select lexoffice_id from lexoffice_vouchers where source = 'fastbill' and (raw ? 'BANK_IBAN' or raw ? 'BANK_ACCOUNT_OWNER')`;
+    expect(rows.map((r) => r.lexoffice_id)).toEqual([]);
   });
 
   it("legt die DOCUMENT_URL (Link mit eigenem Schlüssel) nicht ins unveränderliche Archiv", async () => {
