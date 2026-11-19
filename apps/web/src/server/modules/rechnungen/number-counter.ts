@@ -172,6 +172,37 @@ export async function takeInvoiceNumber(tx: Tx, year: number, counter: number, n
   }
 }
 
+/** Die Nummerneinstellungen haben sich zwischen dem Lesen und dem Schreiben der Nummer geändert (#1426) */
+export class NumberSettingsChangedError extends UserError {}
+
+/**
+ * Nach takeNumber, also unter der Sperre der Hash-Kette: Gelten Format und Kreis noch, mit denen die Nummer gebildet
+ * wurde? Sonst rollt das Festschreiben zurück. Eine Nummer nach den alten Einstellungen fehlte dem Kreis, den das
+ * Umschalten schon gestartet hat (seedCustomerCircles, startRunning), und er gäbe sie noch einmal aus (#1426).
+ */
+export async function assertNumberingCurrent(
+  tx: Tx,
+  kind: NumberKind,
+  used: { format: string; date: string; year: number; contactId: string | null },
+  customerId: string,
+): Promise<void> {
+  const { company } = schema;
+  const [row] = await tx
+    .select(
+      kind === "rechnung"
+        ? { format: company.invoiceNumberFormat, running: company.invoiceCounterRunning, perCustomer: company.invoiceCounterPerCustomer }
+        : { format: company.quoteNumberFormat, running: company.quoteCounterRunning, perCustomer: company.quoteCounterPerCustomer },
+    )
+    .from(company)
+    .where(eq(company.id, 1));
+  if (
+    row &&
+    (row.format !== used.format || counterCircle(row.running, used.date) !== used.year || circleContact(row.perCustomer, customerId) !== used.contactId)
+  ) {
+    throw new NumberSettingsChangedError("Die Nummernkreise wurden gerade in den Einstellungen geändert. Bitte noch einmal festschreiben.");
+  }
+}
+
 /** Setzt den Zähler so, dass `next` die nächste Nummer ist (Umstieg von einem anderen Programm) */
 export async function setNextNumber(
   tx: Tx,
@@ -217,10 +248,18 @@ export async function startRunning(tx: Tx, kind: NumberKind, contactId: string |
  * festgeschriebenen Belege im gemeinsamen Kreis schon verbraucht haben — beim Format mit {KUNDENNR} ergäbe sonst die
  * nächste Nummer eine vergebene (#1426). Wie startRunning rückt die Zeile nur vor: War der Kundenkreis aus einem
  * früheren Einschalten schon weiter, bleibt der höhere Stand.
+ *
+ * Erst lesen, wenn die Hash-Kette gesperrt ist: Eine Rechnung, die im gemeinsamen Kreis gerade ihre Nummer geschrieben
+ * hat, hält die Kette bis zum Commit, und ihre Nummer zählt hier mit. Wer die Kette erst danach bekommt, sieht die neue
+ * Einstellung und rollt zurück (assertNumberingCurrent). Den durchlaufenden gemeinsamen Kreis sperrt das vorher, weil
+ * startCircles ihn danach braucht und wer dort zählt, nach seinem Kreis auf die Kette wartet. Die Kundenkreise kommen
+ * hier ausnahmsweise nach der Kette: Solange der Zähler je Kunde aus war, zählt niemand in ihnen.
  */
 export async function seedCustomerCircles(tx: Tx, kind: NumberKind, running: boolean): Promise<void> {
   const numbered = NUMBERED[kind];
   const counter = COUNTERS[kind];
+  await lockNumbering(tx, kind, 0, null);
+  await tx.execute(sql`select haben_lock_audit_chain()`);
   // Durchlaufende Altbelege tragen Kreis 0. Für einen Jahreskreis zählt ihr Belegjahr.
   const year = running
     ? numbered.numberYear

@@ -43,7 +43,7 @@ import { ansprechpartnerSnapshot, contactPersonProblem, contactRoleProblem, load
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
-import { circleContact, circleFor, customerNumberConflict, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
+import { assertNumberingCurrent, circleContact, circleFor, customerNumberConflict, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { quoteDraftLineSchema } from "./draft-line.ts";
 import { openAbschlaege } from "./advance-deductions.ts";
 import { effectivePriceMode } from "./draft-schema.ts";
@@ -496,6 +496,8 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const pdf = await withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuotePdf({ ...doc, ...letterhead }));
     const now = new Date();
     await takeNumber(tx, "angebot", circle, counter, numberContactId);
+    const used = { format: company.quoteNumberFormat, date: quote.issueDate, year: circle, contactId: numberContactId };
+    await assertNumberingCurrent(tx, "angebot", used, quote.contactId!);
     const [finalized] = await tx
       .update(schema.quotes)
       .set({

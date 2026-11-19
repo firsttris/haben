@@ -13,6 +13,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Einschalten bei parallelem Festschreiben (Postgres, #1426)", () => {
   let sql: postgres.Sql;
   let invoices: typeof import("./index.ts");
+  let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let formats: typeof import("./number-formats.ts");
   const actor = "test-user";
@@ -51,6 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Einschalten bei parall
   beforeAll(async () => {
     sql = await setupTestDb();
     invoices = await import("./index.ts");
+    quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
     formats = await import("./number-formats.ts");
   }, 30_000);
@@ -60,7 +62,9 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Einschalten bei parall
   });
 
   beforeEach(async () => {
-    await leeren(sql)`truncate journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions,
+    await leeren(
+      sql,
+    )`truncate quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions,
       contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
@@ -116,5 +120,32 @@ describe.skipIf(!testDatabaseUrl)("Nummernkreis je Kunde, Einschalten bei parall
     const [entwurf] = await sql`select status from invoices where id = ${draft.id}`;
     expect(entwurf!.status).toBe("draft");
     expect((await finalize()).number).toBe("RE-2026-ACME-002");
+  }, 30_000);
+  it("schreibt auch ein Angebot, das mit dem gemeinsamen Kreis begonnen hat, nach dem Einschalten nicht mehr dort fest", async () => {
+    const formate = { ...STUFE_1, quote: "AN-{JJJJ}-{KUNDENNR}-{NNN}", quotePerCustomer: false };
+    await formats.saveNumberFormats(actor, formate);
+    const quoteDraft = () =>
+      quotes.createQuoteDraft(actor, {
+        contactId: acme,
+        issueDate: "2026-03-02",
+        validUntil: "2026-03-31",
+        serviceFrom: null,
+        serviceTo: null,
+        note: "",
+        lines: [{ description: "Beratung", quantity: 1000, unit: "Std.", unitPrice: 10_000, taxRate: 1900 }],
+      });
+    expect((await quotes.finalizeQuote(actor, (await quoteDraft()).id)).number).toBe("AN-2026-ACME-001");
+    const draft = await quoteDraft();
+    let angebot: Promise<PromiseSettledResult<{ number: string | null }>> | undefined;
+    await sql.begin(async (blocker) => {
+      await blocker`select pg_advisory_xact_lock(hashtext('haben.nummernkreis.angebot.2026'))`;
+      angebot = settled(quotes.finalizeQuote(actor, draft.id));
+      await waitForWaiters(blocker, 1);
+      await formats.saveNumberFormats(actor, { ...formate, quotePerCustomer: true });
+    });
+    const ergebnis = await angebot;
+    expect(ergebnis?.status).toBe("rejected");
+    expect(String(ergebnis?.status === "rejected" && ergebnis.reason)).toContain("wurden gerade in den Einstellungen geändert");
+    expect((await quotes.finalizeQuote(actor, (await quoteDraft()).id)).number).toBe("AN-2026-ACME-002");
   }, 30_000);
 });

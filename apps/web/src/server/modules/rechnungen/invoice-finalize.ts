@@ -23,7 +23,7 @@ import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
 import { getInvoice, type Invoice, type InvoiceLine } from "./invoices.ts";
 import { directDebitFor, directDebitIssues } from "./lastschrift.ts";
 import { serviceEntryCustomerIssues } from "./leistungen-kunde.ts";
-import { circleContact, circleFor, customerNumberConflict, documentNumber, peekNumber, takeInvoiceNumber } from "./number-counter.ts";
+import { assertNumberingCurrent, circleContact, circleFor, customerNumberConflict, documentNumber, peekNumber, takeInvoiceNumber } from "./number-counter.ts";
 import { assertQuotesLocked, billsWholeQuote, lockQuotes, quotesTouching, syncQuoteBilling } from "./quote-billing.ts";
 import { pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
@@ -243,6 +243,8 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   const now = new Date();
 
   await takeInvoiceNumber(tx, circle, counter, number, numberContactId);
+  const used = { format: company.invoiceNumberFormat, date: invoice.issueDate, year: circle, contactId: numberContactId };
+  await assertNumberingCurrent(tx, "rechnung", used, invoice.contactId!);
   const [finalized] = await withAdvanceVatChange(tx, id, () =>
     tx
       .update(schema.invoices)
