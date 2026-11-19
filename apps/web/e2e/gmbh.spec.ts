@@ -73,6 +73,8 @@ test("Einrichtung als GmbH mit SKR04", async () => {
   await firma.getByLabel(/^Steuernummer/).fill("60/145/12345");
   await firma.getByLabel("IBAN").fill("DE89370400440532013000");
   await firma.getByLabel("Rechtsform").selectOption("gmbh");
+  // Wer zur GmbH wechselt, hat noch keine Pflichtangaben (§ 35a GmbHG): Das Handelsregister steht dann offen (#1253)
+  await expect(firma.getByLabel("Registergericht")).toBeVisible();
   await firma.getByLabel(/^Kontenrahmen/).selectOption("SKR04");
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
