@@ -31,6 +31,8 @@ export function mapEnableBankingTransaction(t: EbTransaction, index: number): Pa
     purpose: normalizeText((t.remittance_information ?? []).join(" ")),
     type: normalizeText(t.bank_transaction_code?.description ?? "") || undefined,
     bankReference: t.entry_reference || t.transaction_id || undefined,
+    ...(t.entry_reference != null ? { entryReference: t.entry_reference } : {}),
+    ...(t.transaction_id != null ? { providerTransactionId: t.transaction_id } : {}),
     index,
   };
 }
@@ -88,7 +90,7 @@ export function enableBankingStatement(input: {
   const transactions = mapped
     .map((t, order) => ({ t, order }))
     .sort((a, b) => a.t.bookingDate.localeCompare(b.t.bookingDate) || a.order - b.order)
-    .map(({ t }, index) => ({ ...t, index }));
+    .map(({ t }, index) => ({ ...t, providerRowIndex: t.index, index }));
   // Wie applyStatedBalance: nicht vor dem letzten Buchungstag, nicht nach dem Ende des Abrufs
   const lastBooking = transactions.reduce<string | undefined>((latest, t) => (!latest || t.bookingDate > latest ? t.bookingDate : latest), undefined);
   const balance = bookedBalance(input.balances, (date = input.dateTo) => (!lastBooking || date >= lastBooking) && date <= input.dateTo);

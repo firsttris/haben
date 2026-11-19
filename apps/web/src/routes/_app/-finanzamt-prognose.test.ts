@@ -117,6 +117,21 @@ describe("Finanzamt: Voraussichtliche Steuer nennt das Jahr der Angaben (#1449)"
   });
 });
 
+describe("Finanzamt: Schätzrechnung zugeklappt (#1253)", () => {
+  it("steht zu, nennt die Vorauszahlung je Termin in der Überschrift und lässt Tabellen und Formular im Dokument", () => {
+    state.data = fixture(JAHR);
+    const html = render();
+    const details = /<details id="schaetzung"[^>]*>(.*?)<\/details>/s.exec(html);
+    expect(details?.[0]).not.toMatch(/^<details[^>]*\sopen/);
+    expect(details?.[1]).toContain("Schätzrechnung 2026");
+    expect(details?.[1]).toMatch(/Vorauszahlung je Termin 150,00\s€/);
+    expect(details?.[1]).toContain("Hochgerechnet auf 2026");
+    // Die Warnhinweise zur Schätzung und das Antragsformular bleiben vorn
+    expect(html.indexOf("Eine Schätzung, keine")).toBeGreaterThan(html.indexOf("</details>"));
+    expect(html).toContain("Gewünschte Vorauszahlung je Quartal (€)");
+  });
+});
+
 describe("Finanzamt: Hinweis zur Lohnkirchensteuer unter der Prognose (#1451)", () => {
   beforeEach(() => {
     state.data = fixture(JAHR - 1);

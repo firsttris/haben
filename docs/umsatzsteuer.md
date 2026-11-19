@@ -159,12 +159,13 @@ Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchst
 | Anschrift unvollständig (Straße, fünfstellige PLZ, Ort) | Senden gesperrt |
 | USt-IdNr. eines Kunden fehlt, ist deutsch, britisch (seit dem Brexit; für Nordirland XI) oder hat kein Länderkennzeichen eines anderen Mitgliedstaats, oder nach dem Kennzeichen nicht 5 bis 12 Buchstaben, Ziffern, + oder * | Senden gesperrt, mit Rechnung und Kunde. Nordirische Nummern (XI) gelten nur für Lieferungen |
 | USt-IdNr. eines Kunden passt nicht zum Aufbau in ihrem Land, etwa `ATU` und acht Ziffern in Österreich ([Übersicht des BZSt](https://www.bzst.de/SharedDocs/Downloads/DE/Merkblaetter/ust_idnr_aufbau.html); wo sie die Art der Stellen offenlässt, wie hier nach dem `U`, die [FAQ der EU-Kommission zu VIES](https://ec.europa.eu/taxation_customs/vies/#/faq), Frage 11) | Warnung, mit Rechnung und Kunde. Senden geht trotzdem: Die Rechnung ist festgeschrieben, und eine schon gemeldete Nummer muss sich mit einer Berichtigung zurücknehmen lassen. Eine innergemeinschaftliche Lieferung mit einer solchen Nummer lässt sich gar nicht erst [festschreiben](rechnungen.md#umsatzsteuer-auf-der-rechnung) |
+| Zu einer gemeldeten USt-IdNr. fehlt die [Bestätigung des BZSt](kontakte.md#ust-idnr-beim-bzst-bestätigen), oder ihre letzte Antwort ist nicht „gültig“ (`evatr-0000`) | Warnung mit der Antwort des BZSt, bei „gültig“ mit Besonderheit (`evatr-2008`) nur ein Hinweis. **Beim BZSt bestätigen** in der Karte **Meldezeilen** fragt jede Nummer, deren letzte Antwort nicht gültig oder älter als 30 Tage ist, einfach ab; der Nachweis steht am Kontakt der Rechnung. Nach einer Antwort ohne Ergebnis fragt er die übrigen Nummern nicht mehr, das BZSt bittet dann um eine spätere Anfrage. Senden geht trotzdem. Geprüft wird nur, was als Nächstes gesendet würde, nicht ein schon gemeldetes Quartal: Rückwirkend bestätigt das BZSt nichts. Abgeschaltet (`HABEN_EVATR=off`) oder ohne eigene USt-IdNr. entfällt die Prüfung |
 | Voranmeldungen des Quartals noch nicht alle gesendet | Hinweis; der Abgleich mit Kz 21 folgt danach |
 | Summe der Meldung weicht von Kz 21 der gesendeten Voranmeldungen ab, bei Lieferungen von Kz 41 | Warnung. Bis zu einem Euro je Zeile und Voranmeldung ist Rundung. Eine größere Abweichung heißt: Die Voranmeldung oder die Meldung braucht eine Berichtigung |
 | Mehr als 50.000 € Lieferungen im Quartal | Senden gesperrt: Die Meldung ist dann monatlich abzugeben (§ 18a Abs. 1 Satz 2 UStG), das kann Haben nicht; gib sie im BZStOnline-Portal ab |
 | Lieferungen im Quartal | Hinweis: Lagen sie in einem der vier vorangegangenen Quartale über 50.000 €, ist ebenfalls monatlich zu melden; und für jede Lieferung gehört der Gelangensnachweis (§ 17a UStDV) zu den Unterlagen |
 
-Die Prüfungen sind die des ERiC-Plugins `checkZMDO`, dazu der Aufbau je Land; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das bestätigt das BZSt am [Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen), am besten vor der ersten Rechnung.
+Die Prüfungen sind die des ERiC-Plugins `checkZMDO`, dazu der Aufbau je Land und die Bestätigung des BZSt.
 
 ### Senden
 
@@ -432,11 +433,20 @@ In einem Jahr, dessen Abweichungen beim [Update auf das Journal](einrichtung.md#
 
 ## Zertifikat
 
-Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION_KEY` verschlüsselt gespeichert. Trägst du dort **Gültig bis** ein, erinnert die Übersicht 30 Tage vor Ablauf („ELSTER-Zertifikat läuft bald ab“) und nach Ablauf („ELSTER-Zertifikat abgelaufen“). Ohne Datum gibt es keine Erinnerung.
+Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION_KEY` verschlüsselt gespeichert. **Gültig bis** liest Haben mit der PIN aus der Datei, sonst trägst du es selbst ein ([ELSTER einrichten](einrichtung-elster.md#schritte)). Damit erinnert die Übersicht 30 Tage vor Ablauf („ELSTER-Zertifikat läuft bald ab“) und nach Ablauf („ELSTER-Zertifikat abgelaufen“). Ohne Datum gibt es keine Erinnerung.
 
 ## Simulierter Modus
 
-Ist weder `ERIC_HOME` gesetzt noch ERiC unter Einstellungen › ELSTER › ERiC heruntergeladen, zeigt die Seite „ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.“ Ein Ersatz-Client prüft dann nur, ob das XML wohlgeformt ist und Kz 83 enthält. Übermittlungen bekommen ein erfundenes Ticket (`fake-…`) und ein Protokoll-PDF mit dem Text „Testprotokoll – keine echte Übermittlung“.
+Ist weder `ERIC_HOME` gesetzt noch ERiC unter Einstellungen › ELSTER › ERiC heruntergeladen, zeigt die Seite „ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.“ mit einem Link zu Einstellungen › ELSTER. Derselbe Hinweis steht auf diesen Seiten:
+
+- Übersicht (nur bei Umsatzsteuerpflicht)
+- Voranmeldung
+- Zusammenfassende Meldung (mit „Bundeszentralamt für Steuern“ statt „Finanzamt“)
+- Jahreserklärung
+- Lohnsteuer-Anmeldung
+- Finanzamt
+
+Ein Ersatz-Client prüft dann nur, ob das XML wohlgeformt ist und Kz 83 enthält. Übermittlungen bekommen ein erfundenes Ticket (`fake-…`) und ein Protokoll-PDF mit dem Text „Testprotokoll – keine echte Übermittlung“.
 
 Eine Echtübermittlung ist im simulierten Modus nicht möglich: Der Haken **Nur Testübermittlung** bleibt gesetzt, und Haben lehnt eine Echtübermittlung ab, solange kein ERiC eingerichtet ist. So wird keine Anmeldung als gesendet festgeschrieben, die nie beim Finanzamt war.
 

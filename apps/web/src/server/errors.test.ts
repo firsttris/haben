@@ -2,7 +2,7 @@ import { AssetError } from "@haben/core";
 import { StatementParseError } from "@haben/import";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { userMessage, UserError } from "./errors.ts";
+import { userClientError, userMessage, UserError } from "./errors.ts";
 
 describe("UserError", () => {
   it("nennt die Felder, an denen der Fehler liegt, und behält die Ursache", () => {
@@ -64,5 +64,21 @@ describe("userMessage", () => {
     expect(userMessage(new TypeError("[1,2]"))).toBeUndefined();
     expect(userMessage(new Error('[{"x":1}]'))).toBeUndefined();
     expect(userMessage("kaputt")).toBeUndefined();
+  });
+});
+
+describe("userClientError", () => {
+  it("nennt die Felder eines UserError und die Felder aus dem Pfad einer Zod-Prüfung, auch aus dem Validator von TanStack Start", async () => {
+    expect(userClientError(new UserError("Kurs prüfen", { felder: ["exchangeRate"] }))).toMatchObject({ felder: ["exchangeRate"] });
+    const schema = z.object({
+      contact: z.object({ leitwegId: z.string().max(3, "zu lang"), skonto: z.array(z.object({ days: z.number().max(9, "zu spät") })) }),
+    });
+    const eingabe = { contact: { leitwegId: "abcd", skonto: [{ days: 10 }] } };
+    expect(userClientError(schema.safeParse(eingabe).error)).toMatchObject({ message: "zu lang; zu spät", felder: ["contact", "leitwegId", "skonto", "days"] });
+    const result = await schema["~standard"].validate(eingabe);
+    expect(userClientError(new Error(JSON.stringify(result.issues, undefined, 2)))).toMatchObject({ felder: ["contact", "leitwegId", "skonto", "days"] });
+    // Ohne Pfad und für interne Fehler gibt es keine Felder bzw. keinen Fehler für den Browser
+    expect(Object.hasOwn(userClientError(new UserError("Konto fehlt"))!, "felder")).toBe(false);
+    expect(userClientError(new Error("SQL intern"))).toBeUndefined();
   });
 });

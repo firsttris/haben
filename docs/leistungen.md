@@ -30,7 +30,7 @@ Die Liste zeigt die neuesten Arbeitstage zuerst und lässt sich nach Kunde und Z
 
 ## Stundensatz
 
-Den Stundensatz eines Kunden pflegst du im **Kontakt** unter **Stundensatz**. Er ist die Vorgabe für neue Einträge dieses Kunden.
+Den Stundensatz eines Kunden pflegst du im **Kontakt** unter **Weitere Angaben › Stundensatz**. Er ist die Vorgabe für neue Einträge dieses Kunden.
 
 Jeder Eintrag **behält den Satz vom Anlegen** als Kopie. Erhöhst du später den Satz am Kunden, bleiben bestehende Einträge bei ihrem Satz; nur neue bekommen den neuen. So ändert sich der Betrag von Zeit, die schon erfasst ist, nicht rückwirkend. Hat der Kunde beim Anlegen keinen Satz und gibst du keinen an, bleibt der Eintrag ohne Satz; in der Liste steht dann „fehlt“. Den Satz trägst du am Eintrag nach.
 

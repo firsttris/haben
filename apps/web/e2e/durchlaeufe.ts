@@ -42,6 +42,7 @@ export const DURCHLAEUFE = {
   "fints-abruf": 30,
   // Etsy Payments (#1133): nur dieser Server fragt die nachgebaute Etsy-API auf ETSY_PORT
   "etsy-abruf": 32,
+  "bank-dubletten": 35,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

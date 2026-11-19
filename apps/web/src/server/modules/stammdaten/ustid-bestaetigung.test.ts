@@ -1,38 +1,9 @@
 import type postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
-import type { EvatrVerbindung } from "./ustid-bestaetigung.ts";
+import { evatrFehler as fehler, evatrOk as ok, evatrDienst as dienst } from "../../test-evatr.ts";
 
-/*
- * Bestätigung beim BZSt (#1385) gegen einen nachgebauten Dienst; keine echte Abfrage. Die Antworten haben die Form der
- * Testabfrage vom 2026-11-18 mit den Beispielwerten der OpenAPI-Beschreibung.
- */
-
-type Antwort = { status: number; body: unknown } | "kein-netz";
-
-function dienst(...antworten: Antwort[]) {
-  const anfragen: Record<string, string>[] = [];
-  const via: EvatrVerbindung = {
-    url: "http://evatr.test/app/v1/abfrage",
-    fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
-      anfragen.push(JSON.parse(String(init?.body)));
-      const antwort = antworten.shift();
-      if (!antwort) throw new Error("unerwartete Abfrage");
-      if (antwort === "kein-netz") throw new TypeError("fetch failed");
-      return new Response(JSON.stringify(antwort.body), { status: antwort.status, headers: { "Content-Type": "application/json" } });
-    }) as typeof fetch,
-  };
-  return { via, anfragen };
-}
-
-const ok = (id: string, erg?: Record<string, string>): Antwort => ({
-  status: 200,
-  body: { id, anfrageZeitpunkt: "2026-11-18T14:34:36.318854732+01:00", status: "evatr-0000", ...erg },
-});
-const fehler = (status: number, code: string): Antwort => ({
-  status,
-  body: { id: "f1", anfrageZeitpunkt: "2026-11-18T14:34:44.75460082+01:00", status: code },
-});
+/* Bestätigung beim BZSt (#1385) gegen den nachgebauten Dienst aus test-evatr.ts; keine echte Abfrage. */
 
 describe.skipIf(!testDatabaseUrl)("USt-IdNr. beim BZSt bestätigen (Postgres)", () => {
   let sql: postgres.Sql;
@@ -126,16 +97,17 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. beim BZSt bestätigen (Postgres)", 
 
   it("bei einem Fehler des Dienstes oder ohne Netz bleibt alles wie vorher, mit Hinweis", async () => {
     const ausfall = await modul.bestaetigeUstId(actor, contactId, {}, dienst(fehler(503, "evatr-1001")).via);
-    expect(ausfall).toEqual({ neu: 0, hinweis: expect.stringContaining("evatr-1001") });
+    expect(ausfall).toEqual({ neu: 0, hinweis: expect.stringContaining("evatr-1001"), grund: ausfall.hinweis });
     const ohneNetz = await modul.bestaetigeUstId(actor, contactId, {}, dienst("kein-netz").via);
     expect(ohneNetz.hinweis).toContain("Keine Antwort vom BZSt");
     const kaputt = await modul.bestaetigeUstId(actor, contactId, {}, dienst({ status: 200, body: { status: "gültig" } }).via);
-    expect(kaputt).toEqual({ neu: 0, hinweis: expect.stringContaining("ließ sich nicht lesen") });
+    expect(kaputt).toEqual({ neu: 0, hinweis: expect.stringContaining("ließ sich nicht lesen"), grund: kaputt.hinweis });
     // Gültig, aber ohne lesbaren Zeitpunkt: kein Nachweis, und der Hinweis sagt nicht „Gültig“
     const ohneZeit = { status: 200, body: { id: "z", anfrageZeitpunkt: "18.11.2026 14:34", status: "evatr-0000" } };
     expect(await modul.bestaetigeUstId(actor, contactId, {}, dienst(ohneZeit).via)).toEqual({
       neu: 0,
       hinweis: expect.stringContaining("ließ sich nicht lesen"),
+      grund: expect.stringContaining("ließ sich nicht lesen"),
     });
     expect(await modul.listUstIdBestaetigungen(contactId)).toEqual([]);
   });
@@ -143,7 +115,11 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. beim BZSt bestätigen (Postgres)", 
   it("beim Limit qualifizierter Abfragen bleibt es bei der einfachen, ohne Wiederholung", async () => {
     const { via, anfragen } = dienst(ok("e"), fehler(403, "evatr-0008"));
     const ergebnis = await modul.bestaetigeUstId(actor, contactId, {}, via);
-    expect(ergebnis).toEqual({ neu: 1, hinweis: expect.stringContaining("Höchstzahl qualifizierter Abfragen") });
+    expect(ergebnis).toEqual({
+      neu: 1,
+      hinweis: "Name und Anschrift nicht bestätigt: Höchstzahl qualifizierter Abfragen beim BZSt erreicht; nur einfach bestätigt",
+      grund: "Höchstzahl qualifizierter Abfragen beim BZSt erreicht; nur einfach bestätigt",
+    });
     expect(anfragen).toHaveLength(2);
     expect(await modul.listUstIdBestaetigungen(contactId)).toMatchObject([{ art: "einfach", status: "evatr-0000" }]);
   });

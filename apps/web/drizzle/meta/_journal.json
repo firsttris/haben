@@ -2087,6 +2087,20 @@
       "when": 1795036084015,
       "tag": "0297_inbox_nach_abruf_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 298,
+      "version": "7",
+      "when": 1795074017903,
+      "tag": "0298_bank_dubletten",
+      "breakpoints": true
+    },
+    {
+      "idx": 299,
+      "version": "7",
+      "when": 1795074021287,
+      "tag": "0299_bank_dubletten_trigger",
+      "breakpoints": true
     }
   ]
 }

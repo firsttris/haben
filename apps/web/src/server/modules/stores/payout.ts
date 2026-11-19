@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { allocateExchangeDifferenceIn, allocateTransferIn, BankError, storeStatement } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
-import { bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankDuplicateProposalEligibleSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import type { Store } from "../../db/schema.ts";
 import { STORE_LABELS } from "./connections.ts";
@@ -57,11 +57,17 @@ async function unpaidMonths(q: typeof db | Tx, store: Store, accountId: string) 
       amount: schema.bankTransactions.amount,
       purpose: schema.bankTransactions.purpose,
       reference: schema.bankTransactions.bankReference,
+      eligible: bankDuplicateProposalEligibleSql.mapWith(Boolean),
     })
     .from(schema.bankTransactions)
     .where(and(eq(schema.bankTransactions.bankAccountId, accountId), like(schema.bankTransactions.bankReference, MONTHLY_REFERENCE[store])))
     .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.bankReference));
-  return rows.filter((r) => r.reference && !covered.has(r.reference)).map((r) => ({ ...r, reference: r.reference! }));
+  const unpaid = rows.filter((r) => r.reference && !covered.has(r.reference)).map((r) => ({ ...r, reference: r.reference! }));
+  const months = unpaid.filter((r) => r.eligible);
+  const eligibleReferences = new Set(months.map((r) => r.reference));
+  // Bei Apple darf eine Währung nicht fehlen. Ein Original mit derselben Referenz reicht aus.
+  const blockedDates = new Set(store === "appstore" ? unpaid.filter((r) => !eligibleReferences.has(r.reference)).map((r) => r.bookingDate) : []);
+  return { months, blockedDates };
 }
 
 /**
@@ -94,14 +100,15 @@ export async function storePayoutView(transactionId: string) {
     })
     .from(schema.bankTransactions)
     .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
-    .where(eq(schema.bankTransactions.id, transactionId));
+    .where(and(eq(schema.bankTransactions.id, transactionId), bankDuplicateProposalEligibleSql));
   if (!bank || bank.purpose === "zahlungsdienstleister" || bank.amount <= 0 || bank.open !== bank.amount) return null;
   const store = storeOfCounterparty(bank.counterpartyName);
   if (!store) return null;
   const account = await storeAccount(db, store);
   if (!account) return { store, label: STORE_LABELS[store], accountName: null, months: [] };
-  const months = await unpaidMonths(db, store, account.id);
-  const suggested = new Set(suggest(store, months, bank.amount));
+  const { months, blockedDates } = await unpaidMonths(db, store, account.id);
+  const firstBlocked = [...blockedDates].sort()[0];
+  const suggested = new Set(suggest(store, firstBlocked ? months.filter((month) => month.bookingDate < firstBlocked) : months, bank.amount));
   return {
     store,
     label: STORE_LABELS[store],
@@ -123,32 +130,58 @@ async function requireAllCurrencies(tx: Tx, accountId: string, chosen: { referen
   // Ein Erlösanteil von null (Verkauf und Rückgabe im selben Fiskalmonat) fehlt nicht, auch ohne Kurs
   const settlements = (await archivedSettlements("appstore", periods)).filter((s) => s.net !== 0);
   if (settlements.length === 0) return;
-  const present = new Set(
-    (
-      await tx
-        .select({ reference: schema.bankTransactions.bankReference })
-        .from(schema.bankTransactions)
-        .where(
-          and(
-            eq(schema.bankTransactions.bankAccountId, accountId),
-            inArray(
-              schema.bankTransactions.bankReference,
-              settlements.map((s) => s.reference),
-            ),
-          ),
-        )
-    ).map((r) => r.reference),
-  );
+  const rows = await tx
+    .select({ reference: schema.bankTransactions.bankReference, eligible: bankDuplicateProposalEligibleSql.mapWith(Boolean) })
+    .from(schema.bankTransactions)
+    .where(
+      and(
+        eq(schema.bankTransactions.bankAccountId, accountId),
+        inArray(
+          schema.bankTransactions.bankReference,
+          settlements.map((s) => s.reference),
+        ),
+      ),
+    );
+  const present = new Set(rows.filter((row) => row.eligible).map((row) => row.reference));
   const missing = settlements.filter((s) => !present.has(s.reference));
+  const blocked = new Set(rows.filter((row) => !row.eligible).map((row) => row.reference));
+  const label = (s: (typeof settlements)[number]) => `${s.currency} (Fiskalmonat ${formatRateMonth(s.period)})`;
+  const reviewed = missing.filter((s) => blocked.has(s.reference));
+  if (reviewed.length > 0) {
+    throw new BankError(`Kläre zuerst den Dublettenvermerk zum Erlösanteil ${reviewed.map(label).join(", ")}.`);
+  }
   if (missing.length > 0) {
     throw new BankError(
-      `Im Konto fehlt noch der Erlösanteil ${missing.map((s) => `${s.currency} (Fiskalmonat ${formatRateMonth(s.period)})`).join(", ")}, meist weil der Umsatzsteuer-Umrechnungskurs fehlt. Trage ihn unter Einstellungen › Fremdwährung ein und rufe die Berichte erneut ab; sonst bucht Haben den Anteil als Kursdifferenz.`,
+      `Im Konto fehlt noch der Erlösanteil ${missing.map(label).join(", ")}, meist weil der Umsatzsteuer-Umrechnungskurs fehlt. Trage ihn unter Einstellungen › Fremdwährung ein und rufe die Berichte erneut ab; sonst bucht Haben den Anteil als Kursdifferenz.`,
     );
   }
 }
 
+async function chosenMonths(tx: Tx, store: Store, accountId: string, monthIds: string[]) {
+  // Zwei gleichzeitige Übernahmen sähen sonst dieselben Monate als offen.
+  await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, accountId)).for("update");
+  // Dublettenentscheidungen sperren die Umsätze ebenfalls nach ID; ihre Wirkung erst danach ermitteln.
+  await tx
+    .select({ id: schema.bankTransactions.id })
+    .from(schema.bankTransactions)
+    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), inArray(schema.bankTransactions.id, monthIds)))
+    .orderBy(asc(schema.bankTransactions.id))
+    .for("update");
+  const { months, blockedDates } = await unpaidMonths(tx, store, accountId);
+  const chosen = months.filter((month) => monthIds.includes(month.id));
+  if (chosen.length !== new Set(monthIds).size)
+    throw new BankError("Ein gewählter Monat ist schon ausgezahlt oder gehört nicht zu diesem Konto oder hat einen Dublettenvermerk.");
+  if (store === "appstore") {
+    await requireAllCurrencies(tx, accountId, chosen);
+    if (chosen.some((m) => blockedDates.has(m.bookingDate))) throw new BankError("Kläre zuerst den Dublettenvermerk zum Erlösanteil des Fiskalmonats.");
+  }
+  return chosen;
+}
+
 /** Der Bankeingang einer Auszahlung, gesperrt: ganz offen, von Google Play oder App Store, auf einem Bankkonto */
 async function storeInflow(tx: Tx, transactionId: string) {
+  // Erst sperren, dann den Dublettenstand lesen: Eine vorherige Entscheidung kann beim Warten wirksam werden.
+  await tx.select({ id: schema.bankTransactions.id }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, transactionId)).for("update");
   const [bank] = await tx
     .select({
       id: schema.bankTransactions.id,
@@ -158,12 +191,13 @@ async function storeInflow(tx: Tx, transactionId: string) {
       accountName: schema.bankAccounts.name,
       purpose: schema.bankAccounts.purpose,
       open: bankOpenAmountSql.mapWith(Number),
+      eligible: bankDuplicateProposalEligibleSql.mapWith(Boolean),
     })
     .from(schema.bankTransactions)
     .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
-    .where(eq(schema.bankTransactions.id, transactionId))
-    .for("update", { of: schema.bankTransactions });
+    .where(eq(schema.bankTransactions.id, transactionId));
   if (!bank) throw new BankError("Umsatz nicht gefunden.");
+  if (!bank.eligible) throw new BankError("Kläre zuerst den Dublettenvermerk zum Zahlungseingang.");
   const store = storeOfCounterparty(bank.counterpartyName);
   if (!store || bank.purpose === "zahlungsdienstleister" || bank.amount <= 0)
     throw new BankError("Das ist kein Eingang von Google Play oder App Store auf einem Bankkonto.");
@@ -182,13 +216,7 @@ export async function takeOverStorePayout(actor: string, input: z.input<typeof s
     const label = STORE_LABELS[store];
     const account = await storeAccount(tx, store);
     if (!account) throw new BankError(`Für ${label} gibt es noch kein Konto. Lege es unter Bank als Zahlungsdienstleister an.`);
-    // Zwei gleichzeitige Übernahmen sähen sonst dieselben Monate als offen
-    await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account.id)).for("update");
-
-    const unpaid = await unpaidMonths(tx, store, account.id);
-    const chosen = unpaid.filter((m) => data.monthIds.includes(m.id));
-    if (chosen.length !== new Set(data.monthIds).size) throw new BankError("Ein gewählter Monat ist schon ausgezahlt oder gehört nicht zu diesem Konto.");
-    if (store === "appstore") await requireAllCurrencies(tx, account.id, chosen);
+    const chosen = await chosenMonths(tx, store, account.id, data.monthIds);
     const sum = chosen.reduce((s, m) => s + m.amount, 0);
     const difference = bank.amount - sum;
     if (store === "googleplay" && difference !== 0) {

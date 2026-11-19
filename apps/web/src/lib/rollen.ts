@@ -26,6 +26,7 @@ const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const STEUERBERATUNG_SEITEN = [
   /^\/steuerberatung$/,
   /^\/auswertungen$/,
+  /^\/auswertungen\/bwa$/,
   /^\/buchungen$/,
   /^\/konten$/,
   /^\/konten\/\d{4,8}$/,

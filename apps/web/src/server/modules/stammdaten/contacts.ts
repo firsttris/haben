@@ -72,7 +72,7 @@ export const contactSchema = z.object({
       .trim()
       .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen"),
   ]),
-  leitwegId: z.string().trim().max(46),
+  leitwegId: z.string().trim().max(46, "Leitweg-ID: höchstens 46 Zeichen"),
   /** Unsere Lieferantennummer beim Kunden (#711), im XML Verkäuferkennung BT-29; fehlt = leer */
   unsereLieferantennummer: z.string().trim().max(40).default(""),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
@@ -95,7 +95,9 @@ export const contactSchema = z.object({
   debitorNr: personenkonto("debitor"),
   kreditorNr: personenkonto("kreditor"),
   /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner, fehlt = unverändert */
-  hourlyRateCents: z.optional(z.nullable(inCents(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00)))),
+  hourlyRateCents: z.optional(
+    z.nullable(inCents(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00, "Stundensatz: höchstens 100.000 €"))),
+  ),
 });
 
 export type ContactRole = "kunde" | "lieferant";
@@ -227,7 +229,7 @@ function clean(input: ContactInput) {
   for (const rolle of ["debitor", "kreditor"] as const) {
     const nr = input[`${rolle}Nr`];
     const problem = nr == null ? null : personenkontoProblem(rolle, nr);
-    if (problem) throw new ContactError(problem);
+    if (problem) throw new ContactError(problem, { felder: [`${rolle}Nr`] });
   }
   return {
     ...input,
@@ -280,7 +282,7 @@ async function samePersonenkonto<T>(tx: Tx, write: () => Promise<T>): Promise<T>
       const nr = Number(/\((\d+)\)/.exec(String((error as { cause?: { detail?: string } }).cause?.detail))?.[1]);
       const column = rolle === "debitor" ? schema.contacts.debitorNr : schema.contacts.kreditorNr;
       const [owner] = Number.isFinite(nr) ? await tx.select({ name: schema.contacts.name }).from(schema.contacts).where(eq(column, nr)) : [];
-      throw new ContactError(`${PERSONENKONTO_LABEL[rolle]} ${nr} hat schon „${owner?.name ?? "einen anderen Kontakt"}“.`);
+      throw new ContactError(`${PERSONENKONTO_LABEL[rolle]} ${nr} hat schon „${owner?.name ?? "einen anderen Kontakt"}“.`, { felder: [`${rolle}Nr`] });
     }
     throw error;
   }
