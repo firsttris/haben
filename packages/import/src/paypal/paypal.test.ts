@@ -202,6 +202,22 @@ describe("Lieferung des Importvertrags", () => {
     expect(abbuchung[0]).toMatchObject({ kind: "payout", amount: -7_700, counterpartyName: "PayPal", references: { eventCode: "T0400" } });
   });
 
+  it("ordnet die Abbuchung per Hand (T0403) wie T0400 als Auszahlung ein, statt sie als nicht unterstützt zu melden", () => {
+    const classified = classify([tx({ id: "7UT34567CD890124E", eventCode: "T0403", amount: -5_000, fee: 0, feeCurrency: null })], window);
+    expect(classified.unsupported).toEqual([]);
+    const batch = paypalBatch({
+      externalAccountId: "A1",
+      classified,
+      dateFrom: "2026-10-01",
+      dateTo: "2026-10-31",
+      fetchedAt: "2026-11-01T06:00:00Z",
+      fetchId: "x",
+    });
+    expect(batch.movements).toHaveLength(1);
+    expect(batch.movements[0]).toMatchObject({ kind: "payout", amount: -5_000, counterpartyName: "PayPal", references: { eventCode: "T0403" } });
+    expect(batch.movements[0]!.purpose).toBe("Manual withdrawal · 7UT34567CD890124E");
+  });
+
   it("liefert ausstehende, abgelehnte, fremde und nicht eingeordnete Zeilen nicht als Bewegung", async () => {
     const batch = paypalBatch(await input());
     const ids = new Set(batch.movements.map((m) => m.sourceEventId));

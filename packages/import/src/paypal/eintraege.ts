@@ -48,6 +48,7 @@ const CODES: Record<string, [MovementKind, string]> = {
   T1109: ["fee", "Fee refund"],
   T0400: ["payout", "General withdrawal - bank account"],
   T0401: ["payout", "Auto-sweep"],
+  T0403: ["payout", "Manual withdrawal"],
   T1107: ["refund", "Payment refund"],
   T1120: ["refund", "Payment refund referenced to an authorization transaction"],
   T1106: ["chargeback", "Payment reversal"],
