@@ -56,7 +56,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
   let cancellation: typeof import("../belege/cancellation.ts");
   let figures: typeof import("./vat-figures.ts");
   let zm: typeof import("./zm.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let bank: typeof import("../bank/index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
@@ -72,7 +72,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     cancellation = await import("../belege/cancellation.ts");
     figures = await import("./vat-figures.ts");
     zm = await import("./zm.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     bank = await import("../bank/index.ts");
     reports = await import("../auswertungen/reports.ts");

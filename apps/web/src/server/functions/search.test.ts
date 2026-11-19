@@ -6,7 +6,7 @@ import { kleinunternehmerStand } from "../modules/auswertungen/test-umsatz-stand
 describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", () => {
   let search: typeof import("./search-query.ts");
   let contacts: typeof import("../modules/stammdaten/contacts.ts");
-  let invoices: typeof import("../modules/rechnungen/invoices.ts");
+  let invoices: typeof import("../modules/rechnungen/index.ts");
   let quotes: typeof import("../modules/rechnungen/quotes.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -15,7 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     sql = await setupTestDb();
     search = await import("./search-query.ts");
     contacts = await import("../modules/stammdaten/contacts.ts");
-    invoices = await import("../modules/rechnungen/invoices.ts");
+    invoices = await import("../modules/rechnungen/index.ts");
     quotes = await import("../modules/rechnungen/quotes.ts");
   }, 30_000);
 

@@ -22,7 +22,7 @@ vi.mock("@haben/einvoice", async (importOriginal) => {
 
 describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
   let dunning: typeof import("./dunning.ts");
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let layouts: typeof import("../stammdaten/layouts.ts");
   let sql: postgres.Sql;
@@ -32,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     dunning = await import("./dunning.ts");
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     layouts = await import("../stammdaten/layouts.ts");
   }, 30_000);

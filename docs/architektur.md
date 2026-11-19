@@ -151,7 +151,7 @@ Braucht ein Modul etwas von einem Modul über sich, gehört der Code woanders hi
 ### Rechnung festschreiben
 
 1. Die Seite ruft die Server Function `finalizeInvoiceDraft` auf. `authMiddleware` prüft die Sitzung.
-2. `finalizeInvoice` in `server/modules/rechnungen/invoices.ts` öffnet eine Transaktion mit `withActor`.
+2. `finalizeInvoice` in `server/modules/rechnungen/invoice-finalize.ts` öffnet eine Transaktion mit `withActor`.
 3. In dieser Transaktion:
    - Entwurf mit `SELECT … FOR UPDATE` sperren,
    - Firmendaten, Kunde, Positionen, Beträge, die umsatzsteuerliche Behandlung und die Pflichtfelder des gewählten E-Rechnungsformats prüfen (`finalizeIssues`, dieselbe Prüfung wie in der Oberfläche, hier mit der Transaktion),

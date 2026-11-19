@@ -44,7 +44,7 @@ const outgoing = (date: string, to: string, iban: string, purpose: string, amoun
 describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   let bank: typeof import("./index.ts");
   let sammel: typeof import("./sammelzuordnung.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let sql: postgres.Sql;
@@ -54,7 +54,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     sql = await setupTestDb();
     bank = await import("./index.ts");
     sammel = await import("./sammelzuordnung.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
   }, 30_000);

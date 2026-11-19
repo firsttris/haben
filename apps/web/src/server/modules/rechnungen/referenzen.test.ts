@@ -30,7 +30,7 @@ const REFS = { buyerOrderReference: "4500012345", sellerOrderReference: "AU-2026
 
 /** Bestell-, Auftrags- und Lieferscheinnummer an Rechnung und Angebot (#389, BT-13, BT-14, BT-16) */
 describe.skipIf(!testDatabaseUrl)("Referenzen an Rechnung und Angebot (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let quotes: typeof import("./quotes.ts");
   let orderDocuments: typeof import("./order-documents.ts");
   let externalReference: typeof import("./external-reference.ts");
@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Referenzen an Rechnung und Angebot (Postgres)
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     quotes = await import("./quotes.ts");
     orderDocuments = await import("./order-documents.ts");
     externalReference = await import("./external-reference.ts");

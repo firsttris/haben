@@ -4,7 +4,9 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
-import { assertCustomer, insertDraft, type DraftInput, type Invoice, type InvoiceLine } from "./invoices.ts";
+import type { DraftInput } from "./draft-schema.ts";
+import { assertCustomer, insertDraft } from "./invoice-drafts.ts";
+import type { Invoice, InvoiceLine } from "./invoices.ts";
 
 /*
  * Externe Referenz eines Rechnungsentwurfs (#199): Plattform und Bestellnummer eines Vorgangs außerhalb von Haben, etwa

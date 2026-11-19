@@ -10,7 +10,7 @@ function dkbCsv(rows: string[][]) {
 }
 
 describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -38,7 +38,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);
 

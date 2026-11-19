@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
   let cash: typeof import("../bank/cash-income.ts");
   let cashBook: typeof import("../bank/cash.ts");
   let cashInvoice: typeof import("../bank/cash-invoice.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let legacy: typeof import("../archiv/legacy-open.ts");
@@ -70,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Belege, Kasse, Über
     cash = await import("../bank/cash-income.ts");
     cashBook = await import("../bank/cash.ts");
     cashInvoice = await import("../bank/cash-invoice.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     legacy = await import("../archiv/legacy-open.ts");

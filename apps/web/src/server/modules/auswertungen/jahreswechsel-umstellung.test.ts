@@ -48,7 +48,7 @@ const NEUJAHR = "2027-01-02";
 describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1. und Rücklastschrift (Postgres)", () => {
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
   let bank: typeof import("../bank/index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let company: typeof import("../stammdaten/company.ts");
   let guard: typeof import("../auswertungen/settings-guard.ts");
@@ -65,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
     sql = await setupTestDb();
     figures = await import("../umsatzsteuer/vat-figures.ts");
     bank = await import("../bank/index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     company = await import("../stammdaten/company.ts");
     guard = await import("../auswertungen/settings-guard.ts");

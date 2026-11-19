@@ -10,7 +10,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
  * Entwurf), offene Posten der Auswertungen und die Anzeige am Beleg selbst (invoiceSettlementView).
  */
 describe.skipIf(!testDatabaseUrl)("Anzeige nach einer Verrechnung (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let verrechnung: typeof import("./verrechnung.ts");
   let dunning: typeof import("./dunning.ts");
   let reports: typeof import("../auswertungen/reports.ts");
@@ -22,7 +22,7 @@ describe.skipIf(!testDatabaseUrl)("Anzeige nach einer Verrechnung (Postgres)", (
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     verrechnung = await import("./verrechnung.ts");
     dunning = await import("./dunning.ts");
     reports = await import("../auswertungen/reports.ts");

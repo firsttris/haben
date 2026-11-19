@@ -26,7 +26,7 @@ const incoming = (date: string, purpose: string, amount: string) => [
 describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Voranmeldung (Postgres)", () => {
   let figures: typeof import("./vat-figures.ts");
   let bank: typeof import("../bank/index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
   let sql: postgres.Sql;
@@ -36,7 +36,7 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
     sql = await setupTestDb();
     figures = await import("./vat-figures.ts");
     bank = await import("../bank/index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
   }, 30_000);

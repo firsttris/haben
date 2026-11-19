@@ -37,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
   let vermerk: typeof import("../umsatzsteuer/vermerk.ts");
   let dauerfrist: typeof import("../umsatzsteuer/dauerfrist.ts");
   let bank: typeof import("../bank/index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let abgleich: typeof import("./abgleich.ts");
   let reports: typeof import("./reports.ts");
@@ -55,7 +55,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     vermerk = await import("../umsatzsteuer/vermerk.ts");
     dauerfrist = await import("../umsatzsteuer/dauerfrist.ts");
     bank = await import("../bank/index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     abgleich = await import("./abgleich.ts");
     reports = await import("./reports.ts");

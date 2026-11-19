@@ -8,7 +8,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
  * Soll-Versteuerung, SKR03 und SKR04.
  */
 describe.skipIf(!testDatabaseUrl)("Verrechnung von Rechnung und Korrektur, Review (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let verrechnung: typeof import("./verrechnung.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let bank: typeof import("../bank/index.ts");
@@ -19,7 +19,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung von Rechnung und Korrektur, Revie
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     verrechnung = await import("./verrechnung.ts");
     contacts = await import("../stammdaten/contacts.ts");
     bank = await import("../bank/index.ts");

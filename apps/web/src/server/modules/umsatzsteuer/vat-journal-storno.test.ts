@@ -16,7 +16,7 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Folgejahr von Buchungen im alten F
   let vat: typeof import("./vat.ts");
   let bank: typeof import("../bank/index.ts");
   let cash: typeof import("../bank/cash-income.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let cancellation: typeof import("../belege/cancellation.ts");
@@ -33,7 +33,7 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Folgejahr von Buchungen im alten F
     vat = await import("./vat.ts");
     bank = await import("../bank/index.ts");
     cash = await import("../bank/cash-income.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     cancellation = await import("../belege/cancellation.ts");

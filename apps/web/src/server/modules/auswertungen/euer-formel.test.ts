@@ -51,7 +51,7 @@ const ausgang = (date: string, name: string, amount: string) => [
 describe.skipIf(!testDatabaseUrl)("Gewinn nach der DATEV-Formel im Abgleich (Postgres)", () => {
   let abgleich: typeof import("./abgleich.ts");
   let bank: typeof import("../bank/index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let verrechnung: typeof import("../bank/verrechnung.ts");
@@ -65,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Gewinn nach der DATEV-Formel im Abgleich (Pos
     sql = await setupTestDb();
     abgleich = await import("./abgleich.ts");
     bank = await import("../bank/index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     verrechnung = await import("../bank/verrechnung.ts");

@@ -33,7 +33,7 @@ const eingang = (date: string, purpose: string, amount: string) => [
 describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgres)", () => {
   let sql: postgres.Sql;
   let umstellung: typeof import("./index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let bank: typeof import("../bank/index.ts");
@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
   beforeAll(async () => {
     sql = await setupTestDb();
     umstellung = await import("./index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     bank = await import("../bank/index.ts");

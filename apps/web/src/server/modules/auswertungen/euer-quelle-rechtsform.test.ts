@@ -31,7 +31,7 @@ const eingang = (date: string, purpose: string, amount: string) => [
 describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: nur im Einzelunternehmen, ohne leere Zeilen (Postgres)", () => {
   let reports: typeof import("./reports.ts");
   let bank: typeof import("../bank/index.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -41,7 +41,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: nur im Einzelunternehme
     sql = await setupTestDb();
     reports = await import("./reports.ts");
     bank = await import("../bank/index.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);
 

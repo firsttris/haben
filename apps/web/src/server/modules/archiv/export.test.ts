@@ -34,14 +34,14 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
   let sql: postgres.Sql;
   const actor = "test-user";
   let files: Record<string, Uint8Array>;
-  let invoice: import("../rechnungen/invoices.ts").Invoice;
+  let invoice: import("../rechnungen/index.ts").Invoice;
   let documentId: string;
   let vatSubmissionPrefix: string;
 
   beforeAll(async () => {
     sql = await setupTestDb();
     exporter = await import("./export.ts");
-    const invoices = await import("../rechnungen/invoices.ts");
+    const invoices = await import("../rechnungen/index.ts");
     const contacts = await import("../stammdaten/contacts.ts");
     const documents = await import("../belege/documents.ts");
     const bank = await import("../bank/index.ts");

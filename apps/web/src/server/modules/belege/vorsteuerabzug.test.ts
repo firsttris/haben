@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuerabzug unabhängig vom Kleinunternehm
   let cancellation: typeof import("./cancellation.ts");
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
   let reports: typeof import("../auswertungen/reports.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let bank: typeof import("../bank/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -36,7 +36,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuerabzug unabhängig vom Kleinunternehm
     cancellation = await import("./cancellation.ts");
     vat = await import("../umsatzsteuer/vat-figures.ts");
     reports = await import("../auswertungen/reports.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     bank = await import("../bank/index.ts");
   }, 30_000);
 

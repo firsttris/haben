@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   let bank: typeof import("../bank/index.ts");
   let cashInvoice: typeof import("../bank/cash-invoice.ts");
   let cashIncome: typeof import("../bank/cash-income.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let reports: typeof import("../auswertungen/reports.ts");
@@ -50,7 +50,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     bank = await import("../bank/index.ts");
     cashInvoice = await import("../bank/cash-invoice.ts");
     cashIncome = await import("../bank/cash-income.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     reports = await import("../auswertungen/reports.ts");

@@ -14,7 +14,7 @@ const SAMMELKONTEN = { SKR03: { forderungen: "1400", verbindlichkeiten: "1600" }
 
 describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #327)", () => {
   let datev: typeof import("./datev-export.ts");
-  let invoices: typeof import("../rechnungen/invoices.ts");
+  let invoices: typeof import("../rechnungen/index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
   let bank: typeof import("../bank/index.ts");
@@ -28,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
   beforeAll(async () => {
     sql = await setupTestDb();
     datev = await import("./datev-export.ts");
-    invoices = await import("../rechnungen/invoices.ts");
+    invoices = await import("../rechnungen/index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
     bank = await import("../bank/index.ts");

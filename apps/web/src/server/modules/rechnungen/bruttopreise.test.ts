@@ -10,7 +10,7 @@ function dkbCsv(rows: string[][]) {
 }
 
 describe.skipIf(!testDatabaseUrl)("Bruttopreise und gespeicherte Steuerzeilen (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let quotes: typeof import("./quotes.ts");
   let recurring: typeof import("./recurring.ts");
@@ -49,7 +49,7 @@ describe.skipIf(!testDatabaseUrl)("Bruttopreise und gespeicherte Steuerzeilen (P
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     contacts = await import("../stammdaten/contacts.ts");
     quotes = await import("./quotes.ts");
     recurring = await import("./recurring.ts");

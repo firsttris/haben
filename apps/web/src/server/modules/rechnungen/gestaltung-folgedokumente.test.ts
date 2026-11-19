@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 describe.skipIf(!testDatabaseUrl)("Gestaltung und festgeschriebene Belege (Postgres)", () => {
-  let invoices: typeof import("./invoices.ts");
+  let invoices: typeof import("./index.ts");
   let dunning: typeof import("./dunning.ts");
   let stammdaten: typeof import("../stammdaten/index.ts");
   let sql: postgres.Sql;
@@ -13,7 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Gestaltung und festgeschriebene Belege (Postg
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    invoices = await import("./invoices.ts");
+    invoices = await import("./index.ts");
     dunning = await import("./dunning.ts");
     stammdaten = await import("../stammdaten/index.ts");
   }, 30_000);
