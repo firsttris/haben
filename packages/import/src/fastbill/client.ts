@@ -10,6 +10,7 @@ import {
   type FbEnvelope,
   type FbEstimate,
   type FbExpense,
+  type FbRecurring,
   type FbFile,
   type FbInvoice,
   fbArticleSchema,
@@ -19,6 +20,7 @@ import {
   fbEstimateSchema,
   fbExpenseSchema,
   fbInvoiceSchema,
+  fbRecurringSchema,
 } from "./types.ts";
 
 export const FASTBILL_DEFAULT_URL = "https://my.fastbill.com/api/1.0/api.php";
@@ -165,6 +167,11 @@ export class FastbillClient {
 
   expenses(filter: Record<string, string> = {}): AsyncGenerator<FbExpense> {
     return this.#pages("expense.get", "EXPENSES", filter, fbExpenseSchema, "INVOICE_ID");
+  }
+
+  /** Vorlagen wiederkehrender Rechnungen; ohne LIMIT liefert FastBill nur 10 */
+  recurring(): AsyncGenerator<FbRecurring> {
+    return this.#pages("recurring.get", "INVOICES", {}, fbRecurringSchema, "INVOICE_ID");
   }
 
   /** Angebote aller Status; ohne LIMIT liefert FastBill nur 10 */

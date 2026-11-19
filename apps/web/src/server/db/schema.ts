@@ -3459,6 +3459,8 @@ export type LexofficeImportProgress = {
   vatReports?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
+  /** Umzug aus FastBill: übernommene und schon bekannte Vorlagen wiederkehrender Rechnungen */
+  fastbillRecurring?: { imported: number; known: number };
   /** Umzug aus FastBill: archivierte, schon vorhandene und Angebote ohne PDF */
   fastbillEstimates?: { imported: number; known: number; withoutPdf: number };
   /** sevDesk: Artikel aus GET /Part, in diesem Lauf neu angelegt, mit vorhandenen verknüpft und schon früher übernommen */
@@ -4020,6 +4022,24 @@ export const sevdeskRecurringTemplates = pgTable("sevdesk_recurring_templates", 
   billingEvidence: integer("billing_evidence").notNull().default(0),
   /** Platzhalter von sevDesk wie [%KONTAKTPERSON%], als Text übernommen */
   placeholders: jsonb("placeholders").$type<string[]>().notNull(),
+  hints: jsonb("hints").$type<string[]>().notNull(),
+  raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Aus FastBill übernommene Vorlagen wiederkehrender Rechnungen (recurring.get): Antwort der API ohne Bankdaten, Hinweise
+ * zum Prüfen und die Vorlage in Haben. Je FastBill-Vorlage eine Zeile, ein neuer Abruf überspringt sie; wird die Vorlage
+ * in Haben gelöscht, bleibt der Nachweis ohne Verweis.
+ */
+export const fastbillRecurringTemplates = pgTable("fastbill_recurring_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** INVOICE_ID der Vorlage in FastBill */
+  fastbillId: text("fastbill_id").notNull().unique(),
+  importId: uuid("import_id")
+    .notNull()
+    .references(() => lexofficeImports.id),
+  recurringId: uuid("recurring_id").references(() => recurringInvoices.id, { onDelete: "set null" }),
   hints: jsonb("hints").$type<string[]>().notNull(),
   raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
