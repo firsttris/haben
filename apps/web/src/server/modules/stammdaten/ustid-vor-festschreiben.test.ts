@@ -150,6 +150,14 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. vor dem Festschreiben bestätigen (
     expect(anfragen).toHaveLength(2);
   });
 
+  it("Reverse Charge: ist die Nummer nach der qualifizierten Antwort nicht mehr gültig, fragt Haben neu und nennt das", async () => {
+    await modul.bestaetigeUstId(actor, contactId, {}, dienst(ok("e"), ok("q", { ergFirmenname: "A", ergOrt: "A" })).via);
+    // Danach, etwa nach dem Speichern einer neuen Anschrift am Kontakt: einfach, nicht mehr gültig
+    await modul.bestaetigeUstId(actor, contactId, {}, dienst(fehler(200, "evatr-2006")).via);
+    const ergebnis = await modul.ustIdVorFestschreiben(actor, contactId, "reverse_charge", AM_TAG, dienst(fehler(200, "evatr-2006")).via);
+    expect(ergebnis.hinweis).toMatch(/^Laut BZSt ist ATU12345678 nicht gültig/);
+  });
+
   it("Reverse Charge ohne Ort: die einfache Antwort reicht, mehr lässt sich nicht bestätigen", async () => {
     await contacts.updateContact(actor, contactId, { ...kontakt("ATU12345678"), ort: "" });
     await modul.bestaetigeNummer(actor, contactId, "ATU12345678", dienst(ok("zm")).via);
