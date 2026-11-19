@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { today } from "../../today.ts";
 import { ownAccountAssignmentProblem } from "../eigene-konten/index.ts";
-import { contactRoleProblem, loadCompany } from "../stammdaten/index.ts";
+import { getContact, loadCompany } from "../stammdaten/index.ts";
 import { DocumentError, uploadDocument, type Document, type DocumentAmount, type DocumentInput, type UploadResult } from "./documents.ts";
 import { loadSplits, type DocumentSplit } from "./splits.ts";
 
@@ -23,13 +23,7 @@ type Satz = DocumentInput["amounts"][number]["taxRate"];
  * Leistungszeitraum, Notiz und „erstattet bereits Bezahltes“; der Kurs einer Fremdwährung gilt neu für den Monat des
  * Belegdatums (resolveExchangeRate). `vorgabe`: Vorsteueranteil nach den Firmendaten ohne Angabe am Beleg.
  */
-export function duplicateFields(
-  original: Document,
-  amounts: DocumentAmount[],
-  splits: DocumentSplit[],
-  vorgabe: BasisPoints,
-  todayDate: string,
-): DocumentInput {
+function duplicateFields(original: Document, amounts: DocumentAmount[], splits: DocumentSplit[], vorgabe: BasisPoints, todayDate: string): DocumentInput {
   const anteile = uebernommeneAnteile(
     { gebucht: original.lockedAt !== null, ...original },
     amounts.map((a) => a.vorsteuerAnteil),
@@ -72,9 +66,11 @@ export async function duplicateDocument(actor: string, id: string, file: { bytes
   if (!original) throw new DocumentError("Beleg nicht gefunden.");
   if (original.extractionStatus === "laeuft") throw new DocumentError("Der Beleg wird gerade ausgelesen. Dupliziere ihn, wenn die Felder da sind.");
   const amounts = await db.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)).orderBy(desc(schema.documentAmounts.taxRate));
-  // Was sich heute nicht mehr wählen ließe, fällt weg, statt das Duplikat abzulehnen: ein Kontakt, der kein Lieferant mehr
-  // ist, und ein archiviertes oder unpassendes eigenes Konto (dann gilt das Konto der Kategorie)
-  const kontakt = original.supplierContactId && !(await contactRoleProblem(db, original.supplierContactId, "lieferant")) ? original.supplierContactId : null;
+  // Was sich heute am Beleg nicht mehr wählen ließe, fällt weg, statt das Duplikat abzulehnen: ein archivierter Kontakt oder
+  // einer, der kein Lieferant mehr ist (wie listContactChoices), und ein archiviertes oder unpassendes eigenes Konto (dann
+  // gilt das Konto der Kategorie)
+  const lieferant = original.supplierContactId ? (await getContact(original.supplierContactId))?.contact : null;
+  const kontakt = lieferant?.isSupplier && !lieferant.archivedAt ? lieferant.id : null;
   const konto = async (ownAccountId: string | null, category: string | null) =>
     ownAccountId && !(await ownAccountAssignmentProblem(db, ownAccountId, category)) ? ownAccountId : null;
   const beleg = { ...original, supplierContactId: kontakt, ownAccountId: await konto(original.ownAccountId, original.category) };

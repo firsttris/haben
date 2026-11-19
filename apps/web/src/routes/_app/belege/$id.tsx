@@ -94,7 +94,7 @@ function DocumentPage() {
   // Das Formular meldet ungespeicherte Änderungen; beim Wechsel des Belegs setzt es sich mit false neu auf
   const [dirty, setDirty] = useState(false);
   // Ungespeicherte Änderungen: erst nachfragen, der Dialog wechselt und verwirft sie
-  const [pending, setPending] = useState<{ from: string; to: string; ziel?: DuplikatZiel } | null>(null);
+  const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
   const pendingId = pending?.from === doc.id ? pending.to : null;
 
   useEffect(() => {
@@ -107,12 +107,12 @@ function DocumentPage() {
     void (id === "liste" ? navigate({ to: "/belege" }) : navigate({ to: "/belege/$id", params: { id }, search: ziel }));
 
   /** Zu einem anderen Beleg oder ("liste") zurück zur Liste; bei ungespeicherten Änderungen erst nachfragen */
-  function go(id: string | null, ziel?: DuplikatZiel) {
+  function go(id: string | null) {
     if (!id) return;
-    if (dirty) setPending({ from: doc.id, to: id, ziel });
-    else leaveTo(id, ziel);
+    if (dirty) setPending({ from: doc.id, to: id });
+    else leaveTo(id);
   }
-  const duplizieren = useBelegDuplizieren({ id: doc.id, entwurf: doc.status === "neu" }, duplikat, go);
+  const duplizieren = useBelegDuplizieren(data, duplikat, dirty, leaveTo);
 
   // J/K bzw. Pfeiltasten springen zum nächsten bzw. vorigen Beleg, wie im Bankabgleich
   useEffect(() => {
@@ -212,7 +212,7 @@ function DocumentPage() {
         title="Ohne Speichern wechseln?"
         confirmLabel="Ohne Speichern wechseln"
         danger
-        onConfirm={() => pendingId && leaveTo(pendingId, pending?.ziel)}
+        onConfirm={() => pendingId && leaveTo(pendingId)}
         onClose={() => setPending(null)}
       >
         <p>Der Beleg hat ungespeicherte Änderungen. Beim Wechsel gehen sie verloren.</p>

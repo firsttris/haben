@@ -31,10 +31,8 @@ vi.mock("./extraction.ts", async (importOriginal) => {
   };
 });
 
-const KONTEN = {
-  SKR03: { privat: "1890" },
-  SKR04: { privat: "2180" },
-} as const;
+// Gegenkonto der Belegbuchung: privat bezahlt an Privateinlagen (SKR03), über die Bank an Verbindlichkeiten (SKR04)
+const KONTEN = { SKR03: { privat: "1890" }, SKR04: { verbindlichkeiten: "3300" } } as const;
 
 describe.skipIf(!testDatabaseUrl)("Beleg duplizieren (Postgres)", () => {
   let documents: typeof import("./documents.ts");
@@ -207,16 +205,18 @@ describe.skipIf(!testDatabaseUrl)("Beleg duplizieren (Postgres)", () => {
     expect(documents.bookingIssues(copy.document, copy.amounts, today(), copy.splits)).toEqual([]);
     await documents.bookDocument(actor, copyId);
     const [bank] = await sql`select l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
-      where e.source_id = ${copyId} and l.account = '3300'`;
+      where e.source_id = ${copyId} and l.account = ${KONTEN.SKR04.verbindlichkeiten}`;
     expect(bank!.credit).toBe(8_330);
   });
 
-  it("rechnet eine Fremdwährung mit dem Kurs des heutigen Monats um; ein unbekannter Beleg wird abgelehnt", async () => {
+  it("rechnet eine Fremdwährung mit dem Kurs des heutigen Monats um; archivierter Kontakt, Auslesung und unbekannter Beleg", async () => {
     await reset("SKR03", "soll");
+    const figma = await stammdaten.createContact(actor, { ...lieferant, name: "Figma Inc.", land: "US", ustId: "" });
     const { id } = await documents.uploadDocument(actor, jpeg());
     await documents.updateDocument(actor, id, {
       supplierName: "Figma Inc.",
       supplierUstId: "",
+      supplierContactId: figma.id,
       invoiceNumber: "F-1001",
       documentDate: "2026-09-15",
       dueDate: null,
@@ -229,13 +229,26 @@ describe.skipIf(!testDatabaseUrl)("Beleg duplizieren (Postgres)", () => {
       amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000, originalTax: 0 }],
     });
     await sql`insert into exchange_rates (currency, month, rate, source) values ('USD', ${today().slice(0, 7)}, '1.2500', 'bmf')`;
+    // Archiviert: in der Auswahl am Beleg nicht mehr zu finden (listContactChoices)
+    await stammdaten.setContactArchived(actor, figma.id, true);
 
     const { id: copyId } = await duplizieren.duplicateDocument(actor, id, jpeg());
     const copy = (await documents.getDocument(copyId))!;
     // 100,00 USD / 1,25 = 80,00 €; § 13b: 19 % selbst berechnet
-    expect(copy.document).toMatchObject({ currency: "USD", reverseCharge: "drittland", exchangeRate: "1.250000", exchangeRateSource: "ust", net: 8_000 });
+    expect(copy.document).toMatchObject({
+      supplierName: "Figma Inc.",
+      supplierContactId: null,
+      currency: "USD",
+      reverseCharge: "drittland",
+      exchangeRate: "1.250000",
+      exchangeRateSource: "ust",
+      net: 8_000,
+    });
     expect(copy.amounts.map((a) => [a.taxRate, a.net, a.tax, a.originalNet])).toEqual([[1900, 8_000, 1_520, 10_000]]);
 
+    // Solange die KI ausliest, stehen die Felder noch nicht fest
+    await sql`update documents set extraction_status = 'laeuft' where id = ${copyId}`;
+    await expect(duplizieren.duplicateDocument(actor, copyId, jpeg())).rejects.toThrow(/gerade ausgelesen/);
     await expect(duplizieren.duplicateDocument(actor, "00000000-0000-4000-8000-000000000000", jpeg())).rejects.toThrow(/nicht gefunden/);
   });
 });

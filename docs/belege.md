@@ -140,11 +140,12 @@ Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist
 
 Kaufst du beim selben Lieferanten immer wieder Ähnliches, aber nicht in festen Abständen wie bei den [Dauerbelegen](#dauerbelege), nimmst du einen früheren Beleg als Vorlage: auf seiner Seite oben **Beleg duplizieren** und die Datei des neuen Belegs wählen (Formate wie beim [Hochladen](#hochladen)). Haben legt damit einen Beleg „Zu prüfen“ an und öffnet ihn.
 
-- **Übernommen:** Lieferant mit Kontakt, Kategorie mit eigenem Konto und Aufteilung, Bezahlung, Privatanteil, § 13b oder innergemeinschaftlicher Erwerb, Währung und die Beträge je Steuersatz; ein [Vorsteueranteil](#anteiliger-vorsteuerabzug) nur, wenn er von der Vorgabe der Firmendaten abweicht. Ist der Kontakt inzwischen kein Lieferant mehr oder das eigene Konto archiviert, fehlt die Verknüpfung.
+- **Übernommen:** Lieferant mit Kontakt, Kategorie mit eigenem Konto, Aufteilung und Angaben zur Anlage, Bezahlung, Privatanteil, § 13b oder innergemeinschaftlicher Erwerb, Währung und die Beträge je Steuersatz. Ist der Kontakt archiviert oder kein Lieferant mehr, das eigene Konto archiviert oder passt es nicht mehr zur Kategorie, fehlt die Verknüpfung.
+- **Vorsteueranteil:** Ein gebuchter Beleg speichert den angewandten [Anteil](#anteiliger-vorsteuerabzug), auch wenn er aus den Firmendaten kam. Übernommen wird er deshalb nur, wenn er von der heutigen Vorgabe abweicht; der Hinweis auf dem neuen Beleg sagt das. Hast du die Firmendaten seitdem geändert, etwa nach dem Ende der Kleinunternehmerregelung, prüfe ihn.
 - **Neu:** Das Belegdatum ist heute; Rechnungsnummer, Fälligkeit, Leistungszeitraum und Notiz sind leer. Den Kurs einer Fremdwährung nimmt Haben für den Monat des neuen Datums.
 - **Beim Original** bleiben Datei, Zahlungen, Buchung und Festschreibung; es ändert sich nicht.
 - **Nicht ausgelesen** wird die neue Datei, auch keine E-Rechnung. Die lädst du besser normal hoch; Kategorie und Bezahlung kommen dann aus den [Vorschlägen](#vorschläge-aus-früheren-belegen).
-- Liegt die Datei schon in Haben, entsteht kein zweiter Beleg; du landest beim vorhandenen.
+- Liegt die Datei schon in Haben, entsteht kein zweiter Beleg; du landest beim vorhandenen. Hat der Beleg ungespeicherte Änderungen, speicherst du ihn vorher.
 
 ## E-Rechnungen
 

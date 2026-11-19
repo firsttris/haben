@@ -56,6 +56,14 @@ describe("uebernommeneAnteile (Beleg duplizieren, #1295)", () => {
       erwartet: { beleg: null, saetze: [null] },
     },
     {
+      // Am gebuchten Beleg nicht von einer eigenen Angabe 0 % zu unterscheiden; der Hinweis am Entwurf lässt ihn prüfen
+      name: "als Kleinunternehmer gebucht, heute regelbesteuert: bleibt ohne Abzug",
+      beleg: { gebucht: true, vorsteuerAnteil: 0, vorsteuerAbzug: false },
+      saetze: [0],
+      vorgabe: VOLLER_ABZUG,
+      erwartet: { beleg: 0, saetze: [null] },
+    },
+    {
       name: "ältere Buchung ohne Anteil und ohne Abzug: bleibt ohne Abzug",
       beleg: { gebucht: true, vorsteuerAnteil: null, vorsteuerAbzug: false },
       saetze: [null],
