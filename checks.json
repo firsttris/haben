@@ -1,4 +1,5 @@
 {
+  "language": "de",
   "fileSize": {
     "include": ["apps/*/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
     "exclude": ["**/*.{test,spec}.{ts,tsx}", "**/routeTree.gen.ts", "**/node_modules/**"],

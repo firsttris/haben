@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
-    "@firsttris/checks": "github:firsttris/workflows#v1",
+    "@firsttris/checks": "github:firsttris/workflows#2ce52015ecd323879bf9b49816349193b4dc12e5",
     "@tanstack/redact": "0.3.1",
     "@types/node": "^26.0.0",
     "oxc-parser": "^0.156.0",
