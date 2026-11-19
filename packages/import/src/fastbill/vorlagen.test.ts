@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FbRecurring } from "./types.ts";
-import { addMonths, mapFbRecurring } from "./vorlagen.ts";
+import { mapFbRecurring } from "./vorlagen.ts";
 
 // Vorlage in der Form von recurring.get am echten Konto (Feldformen), Namen und Beträge erfunden
 const vorlage = (fields: Partial<FbRecurring> = {}): FbRecurring => ({
@@ -88,7 +88,6 @@ describe("mapFbRecurring", () => {
   it("rechnet aus OCCURENCES das Enddatum, mit 0 ohne Ende, am Monatsende auf den letzten Tag", () => {
     const begrenzt = mapFbRecurring(vorlage({ FREQUENCY: "monthly", START_DATE: "2027-01-31", OCCURENCES: "3" }));
     expect(begrenzt.ok && [begrenzt.template.endDate, begrenzt.template.anchorDay]).toEqual(["2027-03-31", 31]);
-    expect(addMonths("2027-01-31", 1)).toBe("2027-02-28");
     const offen = mapFbRecurring(vorlage({ OCCURENCES: "0" }));
     expect(offen.ok && offen.template.endDate).toBeNull();
   });

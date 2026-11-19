@@ -1,5 +1,5 @@
 import { FastbillApiError, type FastbillClient, type FbRecurring, mapFbRecurring } from "@haben/import";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
@@ -40,6 +40,8 @@ export async function importFastbillRecurring(
   const result = { imported: 0, known: 0 };
   progress.fastbillRecurring = result;
   const paymentTermDays = (await loadCompany())?.paymentTermDays ?? 14;
+  // Eigene Einheiten (#748) bleiben erhalten, wie beim CSV-Import
+  const units = (await db.select({ label: schema.units.label }).from(schema.units).where(isNull(schema.units.archivedAt))).map((u) => u.label);
   try {
     for await (const raw of client.recurring()) {
       const id = String(raw.INVOICE_ID);
@@ -48,7 +50,7 @@ export async function importFastbillRecurring(
         continue;
       }
       try {
-        if (await importOne(actor, importId, raw, paymentTermDays)) result.imported += 1;
+        if (await importOne(actor, importId, raw, paymentTermDays, units)) result.imported += 1;
         else result.known += 1;
       } catch (error) {
         if (fatal(error, signal)) throw error;
@@ -65,8 +67,8 @@ export async function importFastbillRecurring(
   }
 }
 
-async function importOne(actor: string, importId: string, raw: FbRecurring, paymentTermDays: number): Promise<boolean> {
-  const mapped = mapFbRecurring(raw);
+async function importOne(actor: string, importId: string, raw: FbRecurring, paymentTermDays: number, units: readonly string[]): Promise<boolean> {
+  const mapped = mapFbRecurring(raw, units);
   if (!mapped.ok) throw new TemplateError(mapped.reason);
   return withActor(actor, async (tx) => {
     const [contact] = mapped.customerId
