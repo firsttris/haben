@@ -158,9 +158,9 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      # Chromium aus dem Cache, je Playwright-Version; die Systembibliotheken kommen bei jedem Lauf
       # Ubuntu-Mirror fallen auf den Runnern zeitweise aus („Could not wait for server fd“): apt versucht es mehrmals
       - run: printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee /etc/apt/apt.conf.d/80-wiederholen >/dev/null
+      # Chromium aus dem Cache, je Playwright-Version; die Systembibliotheken kommen bei jedem Lauf
       - id: playwright
         working-directory: apps/web
         run: echo "version=$(bun --bun playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
