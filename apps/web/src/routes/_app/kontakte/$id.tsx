@@ -1,3 +1,4 @@
+import { formatDuration } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import { useAction } from "../../../lib/use-action.ts";
 import { archiveContact, getContactDetail, getContactHistory } from "../../../server/functions/contacts.ts";
 import { getContactPersons } from "../../../server/functions/contact-persons.ts";
 import { getCustomerNumbering } from "../../../server/functions/invoices.ts";
+import { getContactServiceSummary } from "../../../server/functions/leistungen.ts";
 import { getMandates } from "../../../server/functions/mandate.ts";
 import { getUstIdBestaetigungen } from "../../../server/functions/ustid-bestaetigung.ts";
 import chartStyles from "../../../styles/auswertungen.css?url";
@@ -29,15 +31,16 @@ export const Route = createFileRoute("/_app/kontakte/$id")({
   }),
   loaderDeps: ({ search }) => ({ jahr: search.jahr }),
   loader: async ({ params, deps }) => {
-    const [detail, mandates, personen, history, ustid, kreise] = await Promise.all([
+    const [detail, mandates, personen, history, ustid, kreise, service] = await Promise.all([
       getContactDetail({ data: params.id }),
       getMandates({ data: params.id }),
       getContactPersons({ data: params.id }),
       getContactHistory({ data: { id: params.id, year: deps.jahr } }),
       getUstIdBestaetigungen({ data: params.id }),
       getCustomerNumbering({ data: { contactId: params.id } }),
+      getContactServiceSummary({ data: params.id }),
     ]);
-    return { ...detail, ...mandates, ...personen, history, ustid, kreise };
+    return { ...detail, ...mandates, ...personen, history, ustid, kreise, service };
   },
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.contact.name ?? "Kontakt"} · Haben` }],
@@ -51,7 +54,7 @@ export const Route = createFileRoute("/_app/kontakte/$id")({
 });
 
 function ContactPage() {
-  const { contact, versions, mandates, persons, today, history, ustid, kreise } = Route.useLoaderData();
+  const { contact, versions, mandates, persons, today, history, ustid, kreise, service } = Route.useLoaderData();
   const { bestaetigen } = Route.useSearch();
   const router = useRouter();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -78,7 +81,13 @@ function ContactPage() {
           <h1>{contact.name}</h1>
         </div>
         <div className="actions">
-          <Link to="/rechnungen/neu" className="btn">
+          {/* Zeiteinträge bei Kunden und bei jedem Kontakt mit Einträgen (#1557); offene führen gleich zum Stand „offen“ */}
+          {(contact.isCustomer || service.entries > 0) && (
+            <Link to="/leistungen" search={{ kunde: contact.id, stand: service.openMinutes > 0 ? "offen" : undefined }} className="btn">
+              Zeiteinträge{service.openMinutes > 0 && ` · ${formatDuration(service.openMinutes)} offen`}
+            </Link>
+          )}
+          <Link to="/rechnungen/neu" search={contact.isCustomer && !contact.archivedAt ? { kunde: contact.id } : {}} className="btn">
             Rechnung schreiben
           </Link>
           <button

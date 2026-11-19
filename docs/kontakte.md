@@ -50,6 +50,8 @@ Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine ode
 
 **Aus einer Liste übernehmen.** **CSV importieren** über der Liste übernimmt Kunden und Lieferanten aus einer CSV-Datei, etwa dem Kontakt-Export von Lexware Office, mit Vorschau und ohne Dubletten ([CSV-Import](csv-import.md#kontakte)), auch Debitoren und Kreditoren aus einem DATEV-Export ([Kontakte aus DATEV](csv-import.md#kontakte-aus-datev)).
 
+**Vom Kontakt aus abrechnen.** Oben auf der Detailseite eines Kunden öffnet **Rechnung schreiben** einen Entwurf, in dem der Kunde mit seinen Vorgaben (Format, Sprache, Skonto) schon gewählt ist; bei einem archivierten Kontakt bleibt die Auswahl leer. **Zeiteinträge** führt zu seinen [Leistungen](leistungen.md). Liegen offene Einträge vor, nennt der Knopf ihre abrechenbare Dauer, etwa „Zeiteinträge · 3:30 offen“, und die Liste zeigt nur diese. Dort legst du mit **Neuer Eintrag** einen Eintrag für den Kunden an oder rechnest ab. Ein reiner Lieferant hat den Knopf nur, wenn bei ihm noch Einträge liegen.
+
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
 
 ## USt-IdNr. beim BZSt bestätigen

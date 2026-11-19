@@ -11,6 +11,7 @@ import {
   listServiceEntries,
   previewBilling,
   serviceEntrySchema,
+  serviceSummaryOfContact,
   updateServiceEntry,
 } from "../modules/leistungen/index.ts";
 
@@ -29,6 +30,12 @@ export const getServiceEntries = createServerFn({ method: "GET" })
     entries: await listServiceEntries(data),
     customers: await listEntryCustomers(),
   }));
+
+/** Kontaktseite (#1557): Zahl der Einträge und offene, abrechenbare Zeit des Kunden */
+export const getContactServiceSummary = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(({ data }) => serviceSummaryOfContact(data));
 
 export const saveServiceEntry = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

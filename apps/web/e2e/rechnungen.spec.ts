@@ -3106,6 +3106,46 @@ test("Kopieren: festgeschriebene Rechnung und daraus wieder der Entwurf als neue
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible();
 });
 
+test("Kontaktseite: Zeiteinträge des Kunden erfassen und ansehen, Rechnung mit diesem Kunden schreiben (#1557)", async () => {
+  await go("/kontakte");
+  const kontakt = (await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!;
+  await go(kontakt);
+  // Ohne offene Einträge: nur „Zeiteinträge“, als Einstieg zum Erfassen
+  await page.getByRole("link", { name: "Zeiteinträge", exact: true }).click();
+  await page.waitForURL(/\/leistungen\?kunde=[0-9a-f-]{36}$/);
+  await page.getByRole("button", { name: "Neuer Eintrag" }).click();
+  const neu = page.getByRole("form", { name: "Neuer Eintrag" });
+  await expect(neu.getByLabel("Kunde").locator("option:checked")).toHaveText("Nordwerk Software GmbH");
+  await neu.getByLabel("Dauer", { exact: true }).fill("1:30");
+  await neu.getByLabel(/Stundensatz/).fill("95");
+  await neu.getByLabel(/Tätigkeit/).fill("Workshop Kontaktseite");
+  await neu.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByText("Eintrag angelegt.")).toBeVisible();
+
+  // Mit offenen Einträgen nennt der Link die Dauer und führt zum Stand „offen“
+  await go(kontakt);
+  await page.getByRole("link", { name: "Zeiteinträge · 1:30 offen" }).click();
+  await page.waitForURL(/\/leistungen\?kunde=[0-9a-f-]{36}&stand=offen$/);
+  const liste = page.getByRole("region", { name: "Leistungsliste" });
+  await expect(liste).toContainText("Workshop Kontaktseite");
+
+  // Rechnung schreiben: der Entwurf hat den Kunden schon gewählt
+  await go(kontakt);
+  await page.getByRole("link", { name: "Rechnung schreiben" }).click();
+  await page.waitForURL(/\/rechnungen\/neu\?kunde=[0-9a-f-]{36}$/);
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue(/^Nordwerk Software GmbH/);
+
+  // Aufräumen: der Eintrag gehört nur zu diesem Test
+  await go("/leistungen");
+  await liste
+    .locator(".table-row")
+    .filter({ hasText: "Workshop Kontaktseite" })
+    .getByRole("button", { name: /löschen/ })
+    .click();
+  await page.getByRole("dialog", { name: "Eintrag löschen?" }).getByRole("button", { name: "Löschen" }).click();
+  await expect(page.getByText("Eintrag gelöscht.")).toBeVisible();
+});
+
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);
 });

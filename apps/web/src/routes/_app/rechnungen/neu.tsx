@@ -4,8 +4,8 @@ import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { getNewInvoice } from "../../../server/functions/invoices.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/neu")({
-  /** schluss: Schlussrechnung zu dieser Abschlagsrechnung vorbereiten */
-  validateSearch: z.object({ schluss: z.optional(z.uuid()) }),
+  /** schluss: Schlussrechnung zu dieser Abschlagsrechnung vorbereiten; kunde: Entwurf für diesen Kunden (Kontaktseite, #1557) */
+  validateSearch: z.object({ schluss: z.optional(z.uuid()), kunde: z.optional(z.uuid()) }),
   loader: () => getNewInvoice(),
   head: () => ({ meta: [{ title: "Neue Rechnung · Haben" }] }),
   component: NewInvoicePage,
@@ -13,19 +13,24 @@ export const Route = createFileRoute("/_app/rechnungen/neu")({
 
 function NewInvoicePage() {
   const data = Route.useLoaderData();
-  const { schluss } = Route.useSearch();
+  const { schluss, kunde } = Route.useSearch();
   const abschlag = schluss ? data.abschlaege.find((a) => a.id === schluss) : undefined;
-  const contact = abschlag ? data.contacts.find((c) => c.id === abschlag.contactId) : undefined;
-  // Von einer Abschlagsrechnung aus: Kunde, Steuer, Preismodus und Angebot übernehmen; abgezogen werden die offenen
+  // Nur Kunden aus der Auswahl des Editors: ein archivierter Kontakt oder reiner Lieferant bleibt leer
+  const contact = data.contacts.find((c) => c.id === (abschlag ? abschlag.contactId : kunde));
+  // Vorgaben des Kunden wie beim Wählen im Editor (chooseContact in use-invoice-editor-figures.ts): Format, Sprache, Skonto
+  const withContact = contact && {
+    ...data.draft,
+    contactId: contact.id,
+    language: contact.language,
+    format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : data.draft.format),
+    skonto: (contact.skonto ?? data.companySkonto).filter((s) => s.days <= data.draft.paymentTermDays),
+  };
+  // Von einer Abschlagsrechnung aus: dazu Steuer, Preismodus und Angebot; abgezogen werden die offenen
   // Abschläge dieses Angebots, ohne Angebot alle offenen Abschläge des Kunden
   const initial =
-    abschlag && contact
+    abschlag && withContact
       ? {
-          ...data.draft,
-          contactId: contact.id,
-          language: contact.language,
-          format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : data.draft.format),
-          skonto: (contact.skonto ?? data.companySkonto).filter((s) => s.days <= data.draft.paymentTermDays),
+          ...withContact,
           taxTreatment: abschlag.taxTreatment,
           taxDetails: abschlag.taxDetails,
           exemptionReason: abschlag.exemptionReason,
@@ -33,12 +38,14 @@ function NewInvoicePage() {
           propertyRetention: abschlag.propertyRetention,
           variant: "schluss" as const,
           quoteId: abschlag.quoteId,
-          deducts: data.abschlaege.filter((a) => a.contactId === contact.id && (!abschlag.quoteId || a.quoteId === abschlag.quoteId)).map((a) => a.id),
+          deducts: data.abschlaege
+            .filter((a) => a.contactId === withContact.contactId && (!abschlag.quoteId || a.quoteId === abschlag.quoteId))
+            .map((a) => a.id),
         }
-      : data.draft;
+      : (withContact ?? data.draft);
   return (
     <InvoiceEditor
-      key={abschlag ? abschlag.id : "neu"}
+      key={abschlag ? abschlag.id : (contact?.id ?? "neu")}
       id={null}
       kind="rechnung"
       initial={initial}
