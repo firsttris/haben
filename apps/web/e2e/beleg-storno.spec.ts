@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { currentDay, day } from "./daten.ts";
 import { databaseUrlFuer, portFuer } from "./durchlaeufe.ts";
 import { einrichten } from "./einrichtung.ts";
+import { kategorieName } from "./kategorie.ts";
 
 /** Beleg und zugeordnete Bankzahlung in eigener Datenbank; der Storno läuft durch die echte Oberfläche (#653). */
 test.describe.configure({ mode: "serial" });
@@ -212,7 +213,7 @@ test("Beleg duplizieren: neue Datei mit den Feldern des Originals und Datum heut
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Papierhaus Petersen");
   await expect(page.getByLabel("Rechnungsnummer", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Belegdatum", { exact: true })).toHaveValue(currentDay());
-  await expect(page.getByLabel("Kategorie", { exact: true })).toHaveValue("Software und Lizenzen");
+  await expect(page.getByLabel("Kategorie", { exact: true })).toHaveValue(kategorieName("software"));
   const [neu] =
     await sql`select filename, status, gross, sha256 = (select sha256 from documents where id = ${original}) as gleiche_datei from documents where id = ${kopie}`;
   expect(neu).toEqual({ filename: "P-1102.jpg", status: "neu", gross: 11_900, gleiche_datei: false });
