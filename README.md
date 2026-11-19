@@ -345,7 +345,7 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 [Fehler melden](https://github.com/firsttris/haben/issues/new) &nbsp;·&nbsp; [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) &nbsp;·&nbsp; [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) &nbsp;·&nbsp; [Discord](https://discord.gg/CT2GQytSYH)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
-Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation. Einrichtung, Umzug, Support und Partnerschaften für IT-Dienstleister und Steuerberatungen: <a href="https://teufel-it.de">teufel-it.de</a>.<br>
+Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation. Für IT-Dienstleister und Steuerberatungen: Partnerschaft mit direktem Draht zur Entwicklung, dazu Einrichtung, Umzug und Support über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
 Haben ist keine Steuerberatung. Konten, Kategorien und Aufbewahrung vor dem Echtbetrieb mit deiner Steuerberatung abgleichen.<br>
 ELSTER ist eine Marke der Finanzverwaltung; Lexware Office (lexoffice), sevDesk, FastBill, BuchhaltungsButler, Accountable und DATEV sind Marken ihrer Inhaber. Haben steht weder mit der Finanzverwaltung noch mit diesen Unternehmen in Verbindung.</sub>
 
