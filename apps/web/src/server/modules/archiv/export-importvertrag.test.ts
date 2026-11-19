@@ -5,8 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * Herkunft der abgerufenen Umsätze im Jahresarchiv (#306, 3b): `bank/quellen.csv` ordnet jedem Ereignis der Bank seinen
- * Umsatz zu, mit Quelle und Stichtag, und `index.xml` beschreibt die Datei.
+ * Herkunft der abgerufenen Umsätze im Jahresarchiv (#306, 3b): `bank/quellen.csv` ordnet jedem Ereignis (Bankabruf oder Etsy)
+ * seinen Umsatz zu, mit Quelle und Stichtag, und `index.xml` beschreibt die Datei.
  */
 
 const IBAN = "DE02500105170137075030";
