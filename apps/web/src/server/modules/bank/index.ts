@@ -45,6 +45,7 @@ export { gemeldeteVoranmeldungen, reverseAllocation, reverseAllocationIn } from 
 export { allocateWithRest, restSchema } from "./allocation-rest.ts";
 export { listWriteOffs, reverseWriteOff, writeOff, writeOffSchema } from "./write-offs.ts";
 export { allocateFeesToDocument, feesSchema } from "./sammelzuordnung.ts";
+export { allocatePaymentWithFee, zahlungMitGebuehrSchema } from "./zahlung-gebuehr.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
 export { umsatzauswahl } from "./umsatzauswahl.ts";
 export {
