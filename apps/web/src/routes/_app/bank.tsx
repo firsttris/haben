@@ -6,6 +6,7 @@ import { TransactionStatus } from "../../components/BankStatus.tsx";
 import { UmsatzBetrag, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
 import { formatDate, daysUntil } from "../../lib/format.ts";
 import { getBankOverview } from "../../server/functions/bank.ts";
+import { getExternalBankSources } from "../../server/functions/bank-quellen.ts";
 import { ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
 import { isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
@@ -39,17 +40,23 @@ export const Route = createFileRoute("/_app/bank")({
     sort: search.sort,
     dir: search.dir,
   }),
-  loader: ({ deps }) =>
-    getBankOverview({
-      data: {
-        konto: deps.konto,
-        filter: deps.filter ?? "offen",
-        suche: deps.suche ?? "",
-        umsatz: deps.umsatz,
-        sort: deps.sort ?? "datum",
-        dir: deps.dir ?? "ab",
-      },
-    }),
+  loader: async ({ deps }) => {
+    const [overview, quellen] = await Promise.all([
+      getBankOverview({
+        data: {
+          konto: deps.konto,
+          filter: deps.filter ?? "offen",
+          suche: deps.suche ?? "",
+          umsatz: deps.umsatz,
+          sort: deps.sort ?? "datum",
+          dir: deps.dir ?? "ab",
+        },
+      }),
+      // Externe Quellen für den REST-Import (#306, Schritt 4)
+      getExternalBankSources(),
+    ]);
+    return { ...overview, quellen };
+  },
   head: () => ({ meta: [{ title: "Bank · Haben" }] }),
   component: BankPage,
 });
@@ -180,7 +187,7 @@ function BankPage() {
               excludeBlockedBy={data.excludeBlockedBy}
             />
           )}
-          {selectedAccount && <ExterneQuelle key={`quelle-${selectedAccount.id}`} account={selectedAccount} sync={data.sync} />}
+          {selectedAccount && <ExterneQuelle key={`quelle-${selectedAccount.id}`} account={selectedAccount} sync={data.sync} quellen={data.quellen} />}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">

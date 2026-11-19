@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
-import { addExternalBankSource } from "../server/functions/bank.ts";
+import { addExternalBankSource } from "../server/functions/bank-quellen.ts";
 import { Field } from "./Field.tsx";
 import { FormDialog } from "./FormDialog.tsx";
 import { KonfliktKlaeren, quelleZuAnbieter } from "./ImportKonflikt.tsx";
@@ -22,15 +22,13 @@ type Konflikte = Parameters<typeof KonfliktKlaeren>[0]["konflikte"];
 export function ExterneQuelle({
   account,
   sync,
+  quellen,
 }: {
   account: { id: string; name: string };
-  sync: {
-    quellen: (Quelle & { accountId: string })[];
-    konflikte: (Konflikte[number] & { bankAccountId: string; provider: string })[];
-    stichtage: { bankAccountId: string }[];
-  };
+  sync: { konflikte: (Konflikte[number] & { bankAccountId: string; provider: string })[]; stichtage: { bankAccountId: string }[] };
+  quellen: (Quelle & { accountId: string })[];
 }) {
-  const quelle = sync.quellen.find((q) => q.accountId === account.id);
+  const quelle = quellen.find((q) => q.accountId === account.id);
   const konflikte = sync.konflikte.filter((k) => k.bankAccountId === account.id && quelleZuAnbieter(k.provider) === "extern");
   // Ohne andere Quelle am Konto (Bankabruf, Etsy): ein Konto bekommt Umsätze nur aus einer
   const kannFreigeben = !sync.stichtage.some((s) => s.bankAccountId === account.id);
