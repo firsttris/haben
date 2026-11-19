@@ -320,7 +320,7 @@ Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.h
 
 ## Mehr von uns
 
-Weitere Open-Source-Apps für deinen eigenen Server, für Mail, Office-Dokumente, ein Dokumentenarchiv und mehr: **[speicherstadt.app](https://speicherstadt.app)**
+Weitere Open-Source-Apps für deinen eigenen Server, etwa für Mail, Office-Dokumente, ein Dokumentenarchiv und mehr: **[speicherstadt.app](https://speicherstadt.app)**
 
 ## Mitwirken
 
