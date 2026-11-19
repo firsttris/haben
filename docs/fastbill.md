@@ -45,6 +45,8 @@ Die Antwort der API wird je Beleg gespeichert, zum Nachweis; ohne die Download-A
 
 Jede Seite mit bis zu 100 Einträgen ist eine Anfrage, die PDFs zählen nicht dazu. Ist die Grenze deines Tarifs erreicht, wartet der Abruf, bis wieder Anfragen frei sind, und zeigt bis wann. Ein neuer Abruf nach einem Abbruch rechnet die Anfragen der letzten Stunde an und überspringt alles, was schon im Archiv liegt.
 
+Unter „Verbindung zu FastBill“ steht neben dem Tarif, wie viele Anfragen Haben in der letzten Stunde genutzt hat und wie viele noch frei sind; sind keine mehr frei, auch wann die nächste frei wird. FastBill selbst nennt den Rest nicht. Nutzt ein anderes Programm denselben API-Schlüssel, zählen seine Anfragen bei FastBill mit, in Haben aber nicht.
+
 ### Belege, die FastBill nur im Browser herausgibt
 
 Bei einem Teil der Ausgaben liefert die Download-Adresse aus der API (`DOCUMENT_URL`) die Datei nur, wenn man im Browser bei FastBill angemeldet ist; der API liefert sie nur eine leere Seite. Rechnungen und Gutschriften betrifft das nicht. Damit solche Ausgaben nicht ohne Beleg im unveränderlichen Archiv landen, archiviert Haben sie erst, wenn der Beleg da ist, und zeigt unter Schritt 2 den Kasten „Belege, die FastBill nur im Browser herausgibt“:
