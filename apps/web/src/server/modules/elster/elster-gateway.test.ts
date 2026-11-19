@@ -39,7 +39,12 @@ describe("ELSTER-Gateway: Struktur", () => {
     expect(sources.some((file) => file.endsWith(join("finanzamt", "postfach.ts")))).toBe(true);
     const offenders = sources
       .filter((file) => !file.endsWith(join("elster", "elster-gateway.ts")))
-      .filter((file) => forbidden.test(readFileSync(file, "utf8")));
+      .filter((file) => {
+        const source = readFileSync(file, "utf8");
+        // Der Zähler je Kunde (#1426) sperrt seine Vergabe mit demselben Primitiv — die übrigen Muster bleiben verboten
+        const ohneLock = file.endsWith(join("rechnungen", "number-counter.ts")) ? source.replace(/pg_advisory_xact_lock\(hashtext\(\$\{key\}\)\)/, "") : source;
+        return forbidden.test(ohneLock);
+      });
     expect(offenders).toEqual([]);
     // Und kein Dienst importiert ELSTER-Infrastruktur mehr aus der Voranmeldung
     const fromVat = serverSources().filter((file) =>
