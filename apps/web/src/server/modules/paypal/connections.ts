@@ -2,6 +2,7 @@ import { PayPalClient, type PayPalClientOptions } from "@haben/import";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { decrypt, encrypt } from "../../crypto.ts";
+import { env } from "../../env.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -35,7 +36,12 @@ export interface PayPalCredentials {
 }
 
 export function paypalClientFor(credentials: PayPalCredentials): PayPalClient {
-  return clientFactory({ clientId: credentials.clientId, clientSecret: credentials.clientSecret, environment: credentials.sandbox ? "sandbox" : "live" });
+  return clientFactory({
+    clientId: credentials.clientId,
+    clientSecret: credentials.clientSecret,
+    environment: credentials.sandbox ? "sandbox" : "live",
+    baseUrl: env().PAYPAL_API_URL,
+  });
 }
 
 async function loadRow() {

@@ -31,6 +31,8 @@ export interface PayPalClientOptions {
   clientId: string;
   clientSecret: string;
   environment?: PayPalEnvironment;
+  /** Nur für Tests gegen eine nachgebaute API (PAYPAL_API_URL im E2E-Durchlauf „paypal-abruf“); ersetzt den Host der Umgebung */
+  baseUrl?: string;
   fetch?: typeof fetch;
   now?: () => number;
   /** Für Tests injizierbar; Standard setTimeout */
@@ -158,7 +160,7 @@ export class PayPalClient {
     if (!options.clientId.trim() || !options.clientSecret.trim()) throw new Error("Client-ID und Secret der PayPal-App fehlen");
     this.#clientId = options.clientId.trim();
     this.#clientSecret = options.clientSecret.trim();
-    this.#baseUrl = PAYPAL_HOSTS[options.environment ?? "live"];
+    this.#baseUrl = (options.baseUrl ?? PAYPAL_HOSTS[options.environment ?? "live"]).replace(/\/$/, "");
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.#now = options.now ?? Date.now;
     this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));

@@ -42,8 +42,8 @@ function api(options: { pageSize?: number; rows?: Row[]; respond?: (call: Call) 
       total_pages: Math.max(1, Math.ceil(inWindow.length / size)),
     });
   }) as typeof fetch;
-  const client = (environment: "live" | "sandbox" = "live") =>
-    new PayPalClient({ clientId: ID, clientSecret: SECRET, environment, fetch: fetchFn, now: () => NOW, sleep: async () => {} });
+  const client = (environment: "live" | "sandbox" = "live", baseUrl?: string) =>
+    new PayPalClient({ clientId: ID, clientSecret: SECRET, environment, baseUrl, fetch: fetchFn, now: () => NOW, sleep: async () => {} });
   return { calls, client };
 }
 
@@ -66,6 +66,13 @@ describe("PayPalClient", () => {
     const { calls, client } = api();
     await client("sandbox").accountId();
     expect(new Set(calls.map((c) => c.url.origin))).toEqual(new Set(["https://api-m.sandbox.paypal.com"]));
+  });
+
+  it("fragt mit Basis-URL (nachgebaute API im E2E-Test) nur dort, auch bei der Sandbox", async () => {
+    const { calls, client } = api();
+    await client("sandbox", "http://127.0.0.1:3139/").transactions("2026-10-01", "2026-10-02");
+    expect(new Set(calls.map((c) => c.url.origin))).toEqual(new Set(["http://127.0.0.1:3139"]));
+    expect(calls.map((c) => c.url.pathname)).toEqual(["/v1/oauth2/token", "/v1/reporting/transactions"]);
   });
 
   it("erneuert das Token nach einem 401 einmal und wiederholt die Anfrage", async () => {
