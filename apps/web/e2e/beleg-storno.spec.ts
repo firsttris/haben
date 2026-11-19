@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { currentDay, day } from "./daten.ts";
 import { databaseUrlFuer, portFuer } from "./durchlaeufe.ts";
 import { einrichten } from "./einrichtung.ts";
+import { kategorieName } from "./kategorie.ts";
 
 /** Beleg und zugeordnete Bankzahlung in eigener Datenbank; der Storno läuft durch die echte Oberfläche (#653). */
 test.describe.configure({ mode: "serial" });
@@ -212,7 +213,7 @@ test("Beleg duplizieren: neue Datei mit den Feldern des Originals und Datum heut
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Papierhaus Petersen");
   await expect(page.getByLabel("Rechnungsnummer", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Belegdatum", { exact: true })).toHaveValue(currentDay());
-  await expect(page.getByLabel("Kategorie", { exact: true })).toHaveValue("Software und Lizenzen");
+  await expect(page.getByLabel("Kategorie", { exact: true })).toHaveValue(kategorieName("software"));
   const [neu] =
     await sql`select filename, status, gross, sha256 = (select sha256 from documents where id = ${original}) as gleiche_datei from documents where id = ${kopie}`;
   expect(neu).toEqual({ filename: "P-1102.jpg", status: "neu", gross: 11_900, gleiche_datei: false });
@@ -420,11 +421,11 @@ test("Belegliste: Lieferant sortiert nach dem angezeigten Text, ohne Lieferant n
   expect(aufsteigend(namen), namen.join(" | ")).toBe(true);
 });
 
-test("Belegliste: Kategorie sortiert nach dem angezeigten Namen, nicht nach dem Schlüssel", async ({ browser }) => {
-  // Entwürfe, das Jahr ist weiter oben abgeschlossen. Schlüssel „beratung“ vor „buchfuehrung“, angezeigt
-  // „Buchführung und Steuerberatung“ vor „Rechts- und Beratungskosten“
+test("Belegliste: Kategorie sortiert nach dem angezeigten Text mit Kontonummer, nicht nach Schlüssel oder Name", async ({ browser }) => {
+  // Entwürfe, das Jahr ist weiter oben abgeschlossen. Schlüssel und Name stellen „beratung“ vor „telefon“, angezeigt
+  // „4920 · Telefon“ vor „4950 · Rechts- und Beratungskosten“ (SKR04 6805 vor 6825)
   await receipt(browser, "Kanzlei Klar", "K-1", currentDay(), false, "beratung");
-  await receipt(browser, "Steuerbüro Stark", "K-2", currentDay(), false, "buchfuehrung");
+  await receipt(browser, "Telefonwerk Thal", "K-2", currentDay(), false, "telefon");
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/belege?sort=kategorie&dir=auf");
   await expect(page.locator("a.table-row.document-cols").filter({ hasText: "Rechts- und Beratungskosten" })).toHaveCount(1);
