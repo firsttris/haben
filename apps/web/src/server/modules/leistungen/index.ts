@@ -27,6 +27,7 @@ export {
   ServiceEntryError,
   updateServiceEntry,
   upsertExternalServiceEntry,
+  billedExternalIds,
   type ExternalServiceEntryInput,
   type ServiceEntry,
   type ServiceEntryFilter,

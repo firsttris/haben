@@ -7,7 +7,7 @@ description: >-
 
 # Zeiteinträge
 
-Unter **Zeiteinträge** erfasst du abrechenbare Zeit je Kunde: Arbeitstag, Dauer, Tätigkeit und Stundensatz. Wer nach Stunden abrechnet, hat die Zeiten dort, wo auch die Rechnung entsteht, und muss sie nicht aus einem anderen Programm abtippen. Eine Zeiterfassung wie Kimai oder Toggl schickt ihre Einträge über die [REST-API](api.md#leistungen-und-zeiterfassung) an Haben. In der API und in der Adresse heißen sie `leistungen`.
+Unter **Zeiteinträge** erfasst du abrechenbare Zeit je Kunde: Arbeitstag, Dauer, Tätigkeit und Stundensatz. Wer nach Stunden abrechnet, hat die Zeiten dort, wo auch die Rechnung entsteht, und muss sie nicht aus einem anderen Programm abtippen. Eine Zeiterfassung wie Kimai oder Toggl schickt ihre Einträge über die [REST-API](api.md#leistungen-und-zeiterfassung) an Haben; offene Zeiten aus FastBill holt der [Umzug aus FastBill](fastbill.md#offene-zeiten). In der API und in der Adresse heißen sie `leistungen`.
 
 Eine Buchung entsteht aus einem Eintrag nicht: Er ist die Grundlage, aus der die Rechnung wird ([Abrechnen](#abrechnen)). Gebucht wird wie immer erst, wenn du die Rechnung festschreibst.
 
