@@ -20,7 +20,7 @@ import { lockDraft } from "./invoice-drafts.ts";
 import { InvoiceError } from "./invoice-error.ts";
 import { invoicePostingMode, invoiceVatDate } from "./invoice-tax.ts";
 import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
-import { getInvoice, type Invoice } from "./invoices.ts";
+import { getInvoice, type Invoice, type InvoiceLine } from "./invoices.ts";
 import { directDebitFor, directDebitIssues } from "./lastschrift.ts";
 import { serviceEntryCustomerIssues } from "./leistungen-kunde.ts";
 import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
@@ -29,6 +29,9 @@ import { pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 
 /* Festschreiben einer Rechnung: Prüfungen, Nummer, PDF und XML, Sperre und Buchung (GoBD) */
+
+type Company = Awaited<ReturnType<typeof loadCompany>>;
+type Totals = NonNullable<ReturnType<Awaited<ReturnType<typeof invoiceTotalsById>>["get"]>>;
 
 export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
@@ -69,65 +72,8 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
   } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
-  if (invoice.quoteId) {
-    const [quote] = await q
-      .select({ number: schema.quotes.number, status: schema.quotes.status, contactId: schema.quotes.contactId, decision: schema.quotes.decision })
-      .from(schema.quotes)
-      .where(eq(schema.quotes.id, invoice.quoteId));
-    if (quote?.status !== "final") issues.push("Das gewählte Angebot ist nicht festgeschrieben");
-    else if (quote.contactId !== invoice.contactId) issues.push(`Angebot ${quote.number} gehört zu einem anderen Kunden`);
-    else if (quote.decision === "abgelehnt") issues.push(`Angebot ${quote.number} ist als abgelehnt markiert`);
-    else {
-      // Schon über das Ganze abgerechnet (auch ältere Rechnungen, die nur über quotes.invoice_id verknüpft sind):
-      // keine zweite Rechnung, keine weiteren Abschläge
-      const [billed] = await q
-        .select({ number: schema.invoices.number })
-        .from(schema.invoices)
-        .where(
-          and(
-            ne(schema.invoices.id, invoice.id),
-            eq(schema.invoices.kind, "rechnung"),
-            eq(schema.invoices.status, "final"),
-            billsWholeQuote,
-            sql`${schema.invoices.id} not in (${cancelledIds})`,
-            or(eq(schema.invoices.quoteId, invoice.quoteId), sql`${schema.invoices.id} = (select invoice_id from quotes where id = ${invoice.quoteId})`),
-          ),
-        )
-        .limit(1);
-      if (billed) issues.push(`Angebot ${quote.number} ist schon mit Rechnung ${billed.number} abgerechnet`);
-      if (invoice.variant === "schluss") {
-        // Festgeschriebene Abschläge dieses Angebots, die keine Schlussrechnung abzieht, müssen hier abgezogen werden;
-        // sonst wäre der Auftrag doppelt abgerechnet
-        const deducted = new Set(deductionIds(lines));
-        for (const a of (await openAbschlaege(id, q)).filter((a) => a.quoteId === invoice.quoteId && !deducted.has(a.id))) {
-          issues.push(`Abschlagsrechnung ${a.number} zum Angebot ist noch nicht abgezogen`);
-        }
-      }
-    }
-  }
-  if (invoice.currency !== "EUR") {
-    if (invoice.variant) issues.push("Abschlags- und Schlussrechnungen gibt es nur in Euro");
-    // Bei Ist-Versteuerung ist das Entgelt mit dem Kurs des Monats umzurechnen, in dem es vereinnahmt wird (Abschn. 16.4
-    // UStAE); Haben rechnet mit dem Kurs der Rechnung. Ohne deutsche Umsatzsteuer (Leistung an ein Unternehmen im Ausland,
-    // § 13b, steuerfrei) spielt das keine Rolle, mit deutscher Steuer wäre die Voranmeldung um die Kursänderung falsch.
-    if (
-      invoice.kind === "rechnung" &&
-      !company.kleinunternehmer &&
-      company.versteuerung === "ist" &&
-      invoice.taxTreatment === "regulaer" &&
-      lines.some((line) => line.taxRate > 0)
-    ) {
-      issues.push("Rechnungen in Fremdwährung mit deutscher Umsatzsteuer gehen nur bei Soll-Versteuerung; bei Ist-Versteuerung in Euro abrechnen");
-    }
-    if (!invoice.exchangeRate) {
-      const month = rateMonth(serviceDate(invoice));
-      issues.push(
-        month >= rateMonth(today())
-          ? `Umrechnungskurs für ${formatRateMonth(month)} noch nicht veröffentlicht; trag einen Kurs von Hand ein oder warte bis nach Monatsende`
-          : `Umrechnungskurs für ${invoice.currency} ${formatRateMonth(month)} fehlt`,
-      );
-    }
-  }
+  if (invoice.quoteId) issues.push(...(await quoteIssues(invoice, invoice.quoteId, lines, q)));
+  if (invoice.currency !== "EUR") issues.push(...currencyIssues(invoice, lines, company));
   issues.push(...(await directDebitIssues(invoice, company, q)), ...(await serviceEntryCustomerIssues(q, id, invoice.contactId)));
   if (contact && issues.length === 0) {
     const preview = documentFor(
@@ -144,6 +90,73 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       await loadUnitCodes(q),
     );
     issues.push(...validateForFormat(preview));
+  }
+  return issues;
+}
+
+/** Was gegen das gewählte Angebot spricht: Stand, Kunde, Entscheidung, schon abgerechnet, offene Abschläge */
+async function quoteIssues(invoice: Invoice, quoteId: string, lines: InvoiceLine[], q: Db | Tx): Promise<string[]> {
+  const issues: string[] = [];
+  const [quote] = await q
+    .select({ number: schema.quotes.number, status: schema.quotes.status, contactId: schema.quotes.contactId, decision: schema.quotes.decision })
+    .from(schema.quotes)
+    .where(eq(schema.quotes.id, quoteId));
+  if (quote?.status !== "final") issues.push("Das gewählte Angebot ist nicht festgeschrieben");
+  else if (quote.contactId !== invoice.contactId) issues.push(`Angebot ${quote.number} gehört zu einem anderen Kunden`);
+  else if (quote.decision === "abgelehnt") issues.push(`Angebot ${quote.number} ist als abgelehnt markiert`);
+  else {
+    // Schon über das Ganze abgerechnet (auch ältere Rechnungen, die nur über quotes.invoice_id verknüpft sind):
+    // keine zweite Rechnung, keine weiteren Abschläge
+    const [billed] = await q
+      .select({ number: schema.invoices.number })
+      .from(schema.invoices)
+      .where(
+        and(
+          ne(schema.invoices.id, invoice.id),
+          eq(schema.invoices.kind, "rechnung"),
+          eq(schema.invoices.status, "final"),
+          billsWholeQuote,
+          sql`${schema.invoices.id} not in (${cancelledIds})`,
+          or(eq(schema.invoices.quoteId, quoteId), sql`${schema.invoices.id} = (select invoice_id from quotes where id = ${quoteId})`),
+        ),
+      )
+      .limit(1);
+    if (billed) issues.push(`Angebot ${quote.number} ist schon mit Rechnung ${billed.number} abgerechnet`);
+    if (invoice.variant === "schluss") {
+      // Festgeschriebene Abschläge dieses Angebots, die keine Schlussrechnung abzieht, müssen hier abgezogen werden;
+      // sonst wäre der Auftrag doppelt abgerechnet
+      const deducted = new Set(deductionIds(lines));
+      for (const a of (await openAbschlaege(invoice.id, q)).filter((a) => a.quoteId === quoteId && !deducted.has(a.id))) {
+        issues.push(`Abschlagsrechnung ${a.number} zum Angebot ist noch nicht abgezogen`);
+      }
+    }
+  }
+  return issues;
+}
+
+/** Was gegen eine Rechnung in Fremdwährung spricht */
+function currencyIssues(invoice: Invoice, lines: InvoiceLine[], company: Company): string[] {
+  const issues: string[] = [];
+  if (invoice.variant) issues.push("Abschlags- und Schlussrechnungen gibt es nur in Euro");
+  // Bei Ist-Versteuerung ist das Entgelt mit dem Kurs des Monats umzurechnen, in dem es vereinnahmt wird (Abschn. 16.4
+  // UStAE); Haben rechnet mit dem Kurs der Rechnung. Ohne deutsche Umsatzsteuer (Leistung an ein Unternehmen im Ausland,
+  // § 13b, steuerfrei) spielt das keine Rolle, mit deutscher Steuer wäre die Voranmeldung um die Kursänderung falsch.
+  if (
+    invoice.kind === "rechnung" &&
+    !company.kleinunternehmer &&
+    company.versteuerung === "ist" &&
+    invoice.taxTreatment === "regulaer" &&
+    lines.some((line) => line.taxRate > 0)
+  ) {
+    issues.push("Rechnungen in Fremdwährung mit deutscher Umsatzsteuer gehen nur bei Soll-Versteuerung; bei Ist-Versteuerung in Euro abrechnen");
+  }
+  if (!invoice.exchangeRate) {
+    const month = rateMonth(serviceDate(invoice));
+    issues.push(
+      month >= rateMonth(today())
+        ? `Umrechnungskurs für ${formatRateMonth(month)} noch nicht veröffentlicht; trag einen Kurs von Hand ein oder warte bis nach Monatsende`
+        : `Umrechnungskurs für ${invoice.currency} ${formatRateMonth(month)} fehlt`,
+    );
   }
   return issues;
 }
@@ -188,34 +201,8 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   const lines = await tx.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)).orderBy(asc(schema.invoiceLines.position));
   const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId!));
 
-  // Original und abgezogene Abschläge sperren und erneut prüfen: Ein paralleles Storno, eine Korrektur
-  // oder eine andere Schlussrechnung kann seit finalizeIssues festgeschrieben worden sein.
   const deducts = deductionIds(lines);
-  const referenced = [...(invoice.correctsId ? [invoice.correctsId] : []), ...deducts];
-  if (referenced.length > 0) {
-    await tx
-      .select({ id: schema.invoices.id })
-      .from(schema.invoices)
-      .where(inArray(schema.invoices.id, referenced))
-      .orderBy(asc(schema.invoices.id))
-      .for("update");
-  }
-  let corrects: Invoice | undefined;
-  if (invoice.correctsId) {
-    [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = corrects
-      ? ((await originalProblem(corrects, tx, invoice)) ?? (await reductionProblem(invoice, corrects, tx)))
-      : "Die korrigierte Rechnung fehlt";
-    if (problem) throw new InvoiceError(`${problem}.`);
-  }
-  if (invoice.kind === "rechnung" && deducts.length > 0) {
-    const { problems } = await deductionProblems(
-      id,
-      { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment, taxDetails: invoice.taxDetails },
-      tx,
-    );
-    if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
-  }
+  const corrects = await recheckReferences(tx, invoice, deducts);
   invoice = { ...invoice, ...(await advanceProcedure(invoice, lines, company, tx)) };
   // „Ausgeführt am“ einfrieren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung, wann die Umsatzsteuer
   // gemeldet wird. Ab hier ist er unveränderlich, damit ein späterer Entwurfsstand die gemeldete Zahl nicht verschiebt.
@@ -281,6 +268,55 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
       .returning(),
   );
 
+  await postInvoice(tx, invoice, totals, company, corrects, `${invoiceTitle(invoice)} ${number} · ${buyer.name}`);
+  // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
+  await syncQuoteBilling(tx, quoteIds);
+
+  return finalized!;
+}
+
+/**
+ * Original und abgezogene Abschläge sperren und erneut prüfen: Ein paralleles Storno, eine Korrektur
+ * oder eine andere Schlussrechnung kann seit finalizeIssues festgeschrieben worden sein. Gibt das Original zurück.
+ */
+async function recheckReferences(tx: Tx, invoice: Invoice, deducts: string[]): Promise<Invoice | undefined> {
+  const referenced = [...(invoice.correctsId ? [invoice.correctsId] : []), ...deducts];
+  if (referenced.length > 0) {
+    await tx
+      .select({ id: schema.invoices.id })
+      .from(schema.invoices)
+      .where(inArray(schema.invoices.id, referenced))
+      .orderBy(asc(schema.invoices.id))
+      .for("update");
+  }
+  let corrects: Invoice | undefined;
+  if (invoice.correctsId) {
+    [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
+    const problem = corrects
+      ? ((await originalProblem(corrects, tx, invoice)) ?? (await reductionProblem(invoice, corrects, tx)))
+      : "Die korrigierte Rechnung fehlt";
+    if (problem) throw new InvoiceError(`${problem}.`);
+  }
+  if (invoice.kind === "rechnung" && deducts.length > 0) {
+    const { problems } = await deductionProblems(
+      invoice.id,
+      { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment, taxDetails: invoice.taxDetails },
+      tx,
+    );
+    if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
+  }
+  return corrects;
+}
+
+/** Bucht die festgeschriebene Rechnung: Abschläge mit Verfahren „deferred“ eigens, sonst Erlös und Umsatzsteuer */
+async function postInvoice(
+  tx: Tx,
+  invoice: Invoice,
+  totals: Totals,
+  company: Awaited<ReturnType<typeof openBooks>>,
+  corrects: Invoice | undefined,
+  description: string,
+): Promise<void> {
   const versteuerung = await invoicePostingMode(invoice, tx);
   const bookings =
     invoice.advanceAccounting === "deferred"
@@ -298,15 +334,11 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
     if (booking.lines.length)
       await post(tx, company, {
         date: booking.date,
-        description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
+        description,
         sourceType: "invoice",
-        sourceId: id,
+        sourceId: invoice.id,
         lines: booking.lines,
       });
-  // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
-  await syncQuoteBilling(tx, quoteIds);
-
-  return finalized!;
 }
 
 /** Korrigiert die Rechnung (über Korrekturen hinweg) eine aus Lexoffice übernommene? Dann gehören ihre Erlöse zu den alten Büchern */
