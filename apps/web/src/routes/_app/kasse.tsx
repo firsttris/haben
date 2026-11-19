@@ -118,7 +118,6 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
   const { rechnung } = Route.useSearch();
   const [kind, setKind] = useState<Mode>(rechnung ? "rechnung" : "einlage");
   const [busy, setBusy] = useState(false);
-  // biome-ignore lint/complexity/useMathMinMax: Datumstexte (JJJJ-MM-TT), Math.min ergäbe NaN
   const defaultDate = `${data.year}-12-31` < data.today ? `${data.year}-12-31` : data.today;
   const [date, setDate] = useState(defaultDate);
   // Stand am Ende des Monats der Bareinnahme, wie ihn der Server prüft; nach dem Ende von § 19 gilt er für Monate davor weiter
