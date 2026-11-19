@@ -182,6 +182,54 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
     }
   }
 
+  for (const [kontenrahmen, versteuerung] of [
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const) {
+    it(`Skonto und Forderungsausfall zählen nicht als eigener Vorgang; die Teile ergeben die Zeile (${kontenrahmen}, ${versteuerung})`, async () => {
+      await reset(versteuerung, kontenrahmen);
+      const kunde = (await contacts.createContact(actor, kontakt("Nordwerk Software GmbH", "kunde"))).id;
+
+      // 2026 eine Rechnung über 1.000 €, voll bezahlt; 2027 eine mit 2 % Skonto bezahlt und eine über 200 € als Forderungsausfall
+      const r1 = await invoice(kunde, "2026-03-02", 100_000);
+      const r2 = await invoice(kunde, "2027-03-01", 100_000);
+      const r3 = await invoice(kunde, "2027-04-01", 20_000);
+      await bank.importStatement(
+        actor,
+        {
+          bytes: dkbCsv([umsatz("10.03.26", `RE ${r1.number}`, "1190,00"), umsatz("10.03.27", `RE ${r2.number}`, "1166,20")]),
+          filename: `${crypto.randomUUID()}.csv`,
+        },
+        null,
+      );
+      const txs = await sql<{ id: string }[]>`select id from bank_transactions order by booking_date`;
+      await bank.allocate(actor, { kind: "invoice", transactionId: txs[0]!.id, invoiceId: r1.id, amount: 119_000 });
+      await bank.allocateWithRest(actor, { transactionId: txs[1]!.id, target: { kind: "invoice", invoiceId: r2.id }, rest: "skonto" });
+      await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: r3.id, date: "2027-09-30" });
+      expect((await sql<{ kind: string }[]>`select kind from write_offs order by date`).map((w) => w.kind)).toEqual(["skonto", "forderungsausfall"]);
+
+      // Die EÜR zählt nur, was gezahlt wird: 2027 nur die Zahlung mit 980 € netto, ein Vorgang je Jahr
+      const jahr = bwaZeitraum("jahr", 2027);
+      const warum = (await bwa.bwaWarum(jahr, "vorjahr", "erloese"))!;
+      expect(warum.teile.map((t) => [t.name, t.kontaktId, t.art, t.differenz, t.anzahl, t.jeVorgang, t.anzahlVergleich, t.jeVorgangVergleich])).toEqual([
+        ["Nordwerk Software GmbH", kunde, "gesunken", -2_000, 1, 98_000, 1, 100_000],
+      ]);
+
+      const bericht = await bwa.bwaBericht(jahr, "vorjahr");
+      const mitBetrag = bericht.zeilen.filter((z) => z.art === "zeile" && (z.betrag !== 0 || z.vergleich !== 0));
+      expect(mitBetrag.map((z) => z.key)).toEqual(expect.arrayContaining(["erloese", "umsatzsteuer"]));
+      for (const z of mitBetrag) {
+        const w = (await bwa.bwaWarum(jahr, "vorjahr", z.key as Form43Zeile))!;
+        expect([w.betrag, w.vergleich, w.abweichung], z.key).toEqual([z.betrag, z.vergleich, z.abweichung!.betrag]);
+        expect(w.teile.reduce((s, t) => s + t.differenz, 0) + (w.uebrige?.differenz ?? 0), z.key).toBe(z.abweichung!.betrag);
+        expect(
+          w.teile.reduce((s, t) => s + t.anzahl, 0),
+          z.key,
+        ).toBe(1);
+      }
+    }, 60_000);
+  }
+
   it("freier Zeitraum über zwei Jahre gegen das Vorjahr: das gemeinsame Jahr zählt auf beiden Seiten, die Teile ergeben die Zeile", async () => {
     await reset("ist", "SKR03");
     const cloudwerk = (await contacts.createContact(actor, kontakt("Cloudwerk GmbH", "lieferant"))).id;
