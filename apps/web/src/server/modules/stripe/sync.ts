@@ -46,9 +46,11 @@ async function syncStripeEinmal(actor: string, now: Date): Promise<StripeSyncRes
   const connection = await loadStripeConnection();
   if (!connection) throw new StripeError("Der Stripe-Zugang ist nicht eingerichtet (Einstellungen › Bank).");
   const result: StripeSyncResult = { entries: 0, added: 0, accountName: null, messages: [], error: null };
-  const dateFrom = connection.row.fetchFrom;
   const dateTo = utcDay(now);
-  let neuerStart = dateFrom;
+  // Der gewählte Start ist ein Tag in Deutschland, das Fenster läuft in UTC: Zwischen 0 und 2 Uhr deutscher Zeit liegt der
+  // Start „heute“ hinter dem Ende des Fensters, und der Importvertrag lehnte die Lieferung ab
+  const dateFrom = [connection.row.fetchFrom, dateTo].sort()[0]!;
+  let neuerStart = connection.row.fetchFrom;
   try {
     const client = stripeClientFor(connection.apiKey);
     const transactions = await client.balanceTransactions(dateFrom, dateTo);
@@ -62,7 +64,7 @@ async function syncStripeEinmal(actor: string, now: Date): Promise<StripeSyncRes
     result.added = imported.added;
     result.accountName = imported.accountName;
     result.messages.push(...imported.messages);
-    if (imported.accountName !== null) neuerStart = naechsterAbrufStart(dateFrom, now);
+    if (imported.accountName !== null) neuerStart = naechsterAbrufStart(connection.row.fetchFrom, now);
     await update(actor, { lastSyncAt: now, lastError: null, fetchFrom: neuerStart });
   } catch (error) {
     const meldung = `Abruf fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`;

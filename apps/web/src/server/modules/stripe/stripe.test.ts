@@ -230,10 +230,41 @@ describe.skipIf(!testDatabaseUrl)("Stripe-Abruf (Postgres)", () => {
     expect(stand).toMatchObject({ accountId: "acct_anderes", naechsterAbrufAb: "2019-01-01" });
   });
 
+  it("ruft kurz nach Mitternacht deutscher Zeit ab, wenn der gewählte Tag schon nach dem UTC-Tag des Abrufs liegt", async () => {
+    // 23:30 UTC am 07.11. ist in Deutschland schon der 08.11.: „heute“ als Start liegt hinter dem Ende des Fensters (UTC)
+    const nachts = new Date("2026-11-07T23:30:00Z");
+    const zahlung: StripeBalanceTransaction = {
+      id: "txn_vorMitternacht",
+      amount: 2000,
+      created: Math.floor(Date.parse("2026-11-07T23:10:00Z") / 1000),
+      currency: "eur",
+      description: "Rechnung 2026-102",
+      fee: 100,
+      net: 1900,
+      reporting_category: "charge",
+      source: "ch_vorMitternacht",
+      status: "available",
+      type: "charge",
+    };
+    imAbruf = [zahlung];
+    try {
+      await stripe.saveStripeConnection(actor, { fetchFrom: "2026-11-08", rhythmus: "taeglich" });
+      const result = await stripe.syncStripe(actor, nachts);
+      expect(result.error).toBeNull();
+      expect(result.added).toBe(2);
+      const [row] = await sql`select fetch_from::text as f, last_error from stripe_connections`;
+      expect(row!.last_error).toBeNull();
+      // Nie vor dem gewählten Start: der Abruf rückt nicht hinter den Tag zurück, den die Person gewählt hat
+      expect(row!.f).toBe("2026-11-08");
+    } finally {
+      imAbruf = transactions;
+    }
+  });
+
   it("entfernt den Zugang, übernommene Umsätze bleiben stehen", async () => {
     await stripe.deleteStripeConnection(actor);
     expect((await stripe.stripeSummary()).configured).toBe(false);
     const [anzahl] = await sql`select count(*)::int as n from bank_transactions`;
-    expect(anzahl!.n).toBe(10);
+    expect(anzahl!.n).toBe(12);
   });
 });
