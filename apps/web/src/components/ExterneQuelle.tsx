@@ -34,7 +34,7 @@ export function ExterneQuelle({
   const { quellen, gebundeneKonten } = daten;
   const quelle = quellen.find((q) => q.accountId === account.id);
   const konflikte = daten.sync.konflikte.filter((k) => k.bankAccountId === account.id && quelleZuAnbieter(k.provider) === "extern");
-  // Ohne andere Quelle am Konto (Bankabruf, Etsy): ein Konto bekommt Umsätze nur aus einer
+  // Ohne andere Quelle am Konto (Bankabruf, Etsy, PayPal): ein Konto bekommt Umsätze nur aus einer
   const kannFreigeben = !gebundeneKonten.includes(account.id);
   const [open, setOpen] = useState(false);
   if (!quelle && !kannFreigeben) return null;
