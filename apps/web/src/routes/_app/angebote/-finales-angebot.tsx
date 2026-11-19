@@ -17,7 +17,7 @@ import { OutcomeStatus } from "../../../components/Status.tsx";
 export type Detail = Awaited<ReturnType<typeof getQuoteDetail>>;
 
 export function FinalQuote({ data }: { data: Detail }) {
-  const { quote, invoice, listStatus, billing } = data;
+  const { quote, invoice, billing } = data;
   /** Festgeschriebene, nicht stornierte Abschläge: erst dann ergibt eine Schlussrechnung Sinn */
   const finalAbschlaege = billing.filter((b) => b.variant === "abschlag" && b.status === "final" && !b.cancelled);
   const router = useRouter();

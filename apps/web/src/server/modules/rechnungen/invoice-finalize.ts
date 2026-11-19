@@ -1,5 +1,5 @@
 import { formatRateMonth, invoicePosting, legacyCorrectionPosting, leistungsdatum, lineAmount, outgoingTaxIssues, rateMonth } from "@haben/core";
-import { buildEInvoice, validateForFormat } from "@haben/einvoice";
+import { buildEInvoice, validateForFormat, type Buyer } from "@haben/einvoice";
 import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
@@ -7,7 +7,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { today } from "../../today.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { ansprechpartnerSnapshot, loadCompany, loadLetterhead, loadUnitCodes, sellerIssues, withCustomLayout } from "../stammdaten/index.ts";
+import { ansprechpartnerSnapshot, type Contact, loadCompany, loadLetterhead, loadUnitCodes, sellerIssues, withCustomLayout } from "../stammdaten/index.ts";
 import { deductedRefs, deductionIds, deductionProblems, openAbschlaege } from "./advance-deductions.ts";
 import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { advanceProcedure } from "./advance-procedure.ts";
@@ -221,21 +221,7 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   // Storno/Korrektur: Anschrift des Originals. {KUNDENNR} ist im gemeinsamen Kreis die Nummer des Originals, solange
   // sie taugt, sonst die heutige; im Kundenkreis muss sie zum Kreis gehören und ist die des Kontakts (#1426).
   const seller = sellerFrom(company);
-  const buyer = numberedBuyer(
-    corrects?.buyer ?? null,
-    contact!,
-    await ansprechpartnerSnapshot(tx, invoice.contactPersonId),
-    company.invoiceNumberFormat,
-    numberContactId !== null,
-  );
-  // Storno und Korrektur bleiben immer möglich (GoBD), auch wenn die Kundennummer inzwischen zweimal vorkommt;
-  // die Eindeutigkeit zählt nur für neue Belege im Kundenkreis (#1426)
-  if (!corrects && numberContactId !== null) {
-    const conflict = await customerNumberConflict(tx, contact!);
-    if (conflict) {
-      throw new InvoiceError(`Die Kundennummer ${contact!.kundennummer} hat auch „${conflict}“; mit Zähler je Kunde muss sie eindeutig sein.`);
-    }
-  }
+  const buyer = await buyerForFinalization(tx, company, invoice, corrects, contact!, numberContactId);
   const counter = await peekNumber(tx, "rechnung", circle, numberContactId);
   const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
@@ -291,6 +277,33 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   await syncQuoteBilling(tx, quoteIds);
 
   return finalized!;
+}
+
+/** Käufer für Nummer und Beleg plus die Eindeutigkeit der Kundennummer für neue Belege im Kundenkreis (#1426) */
+async function buyerForFinalization(
+  tx: Tx,
+  company: Company,
+  invoice: Invoice,
+  corrects: Invoice | undefined,
+  contact: Contact,
+  numberContactId: string | null,
+): Promise<Buyer> {
+  const buyer = numberedBuyer(
+    corrects?.buyer ?? null,
+    contact,
+    await ansprechpartnerSnapshot(tx, invoice.contactPersonId),
+    company.invoiceNumberFormat,
+    numberContactId !== null,
+  );
+  // Storno und Korrektur bleiben immer möglich (GoBD), auch wenn die Kundennummer inzwischen zweimal vorkommt;
+  // die Eindeutigkeit zählt nur für neue Belege im Kundenkreis
+  if (!corrects && numberContactId !== null) {
+    const conflict = await customerNumberConflict(tx, contact);
+    if (conflict) {
+      throw new InvoiceError(`Die Kundennummer ${contact.kundennummer} hat auch „${conflict}“; mit Zähler je Kunde muss sie eindeutig sein.`);
+    }
+  }
+  return buyer;
 }
 
 /**
