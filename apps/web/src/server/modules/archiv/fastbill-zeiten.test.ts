@@ -105,4 +105,18 @@ describe.skipIf(!testDatabaseUrl)("Offene Zeiten aus FastBill (Postgres)", () =>
       { external_id: "4002", minutes: 30 },
     ]);
   });
+
+  it("holt keine Zeiten, solange ein Abruf aus FastBill läuft, und zählt auf die Stundengrenze (#1522)", async () => {
+    await sql`insert into lexoffice_imports (source, status, progress) values ('fastbill', 'laeuft', '{}')`;
+    try {
+      await expect(zeiten.previewFastbillTimes()).rejects.toThrow(/Abruf aus FastBill.*Zeiten/);
+    } finally {
+      await sql`delete from lexoffice_imports where status = 'laeuft'`;
+    }
+    const anfragen = await import("./fastbill-anfragen.ts");
+    const vorher = (await anfragen.fastbillUsage()).used;
+    await zeiten.previewFastbillTimes();
+    // project.get und time.get, je eine Seite
+    expect((await anfragen.fastbillUsage()).used).toBe(vorher + 2);
+  });
 });
