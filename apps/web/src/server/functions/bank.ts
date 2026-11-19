@@ -90,7 +90,6 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const allAccounts = data.konto === "alle" && accounts.length > 1;
     const shown = allAccounts ? accounts : [accounts.find((a) => a.id === data.konto) ?? accounts[0]].filter((a) => a !== undefined);
     const transactions = shown.length > 0 ? await umsatzauswahl(shown, data.filter, data.suche, { feld: data.sort, richtung: data.dir }) : [];
-    // Vorausgewählt wird unter den Zeilen, die die Seite zeigt: eine mit der Zahlung zusammengefasste Gebühr gehört nicht dazu
     const dienstleister = new Set(accounts.filter((a) => a.purpose === "zahlungsdienstleister").map((a) => a.id));
     const selectedId = data.umsatz ?? vorauswahlUmsatz(transactions, dienstleister)?.id;
     const found = selectedId ? await transactionDetail(selectedId) : null;
