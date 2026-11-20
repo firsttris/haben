@@ -188,7 +188,7 @@ Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußt
 
 #### Standard je Belegart
 
-Unter **Standard für** machst du einen Baustein zum Standard einer Belegart. Er füllt dann neue Belege dieser Art von selbst vor; im Entwurf änderst oder leerst du den Text wie jeden anderen, und Belege, die es schon gibt, ändern sich nicht. In der Liste steht „Standard für …“ am Baustein.
+Unter **Standard für** machst du einen Baustein zum Standard einer Belegart. Er füllt dann neue Belege dieser Art von selbst vor, bei Rechnungen auch über die [REST-API](api.md) und **Leistungen abrechnen**. Rechnungen aus einem Angebot, aus einer wiederkehrenden Rechnung und Abrechnungen eines Shops oder App-Stores behalten ihre eigenen Texte; im Entwurf änderst oder leerst du den Text wie jeden anderen, und Belege, die es schon gibt, ändern sich nicht. In der Liste steht „Standard für …“ am Baustein.
 
 | Belegart | Kopftext | Fußtext |
 | --- | --- | --- |

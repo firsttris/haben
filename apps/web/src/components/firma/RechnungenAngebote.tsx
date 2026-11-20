@@ -33,7 +33,7 @@ export function RechnungenAngebote({ company, skontoRows, onSkonto }: { company:
         hint="Vorgabe für neue Rechnungen, z. B. 2 % bei Zahlung innerhalb von 10 Tagen; am Kunden und in der Rechnung änderbar. Die Frist zählt ab dem Rechnungsdatum und endet spätestens mit dem Zahlungsziel."
       />
       <p className="field-hint">
-        Standard-Texte für Einleitung und Hinweis neuer Rechnungen, Angebote und Mahnungen sowie für Auftragsbestätigung und Lieferschein legst du unter{" "}
+        Standard-Texte für neue Rechnungen, Angebote und Mahnungen sowie für Auftragsbestätigung und Lieferschein legst du unter{" "}
         <Link to="/textbausteine">Textbausteine</Link> fest: ein Baustein je Belegart, als „Standard für“ markiert.
       </p>
     </section>

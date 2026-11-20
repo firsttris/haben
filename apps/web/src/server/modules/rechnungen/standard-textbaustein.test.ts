@@ -76,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("Standard-Textbaustein je Belegart (Postgres, 
   const baustein = (kind: "kopf" | "fuss", text: string, standardFuer: Standard | null, name = text) =>
     stammdaten.createTextBlock(actor, { name, kind, text, contactId: null, standardFuer });
 
-  it("ohne Standard beginnen Rechnung und Angebot ohne Einleitung und Hinweis, die Mahnung mit den Texten der Stufe", async () => {
+  it("ohne Standard beginnen Rechnung und Angebot ohne Einleitung und Hinweis", async () => {
     await baustein("kopf", "Nur zum Einfügen", null);
     expect(await invoices.newDraftDefaults("2026-11-04")).toMatchObject({ intro: "", note: "" });
     expect(await quotes.newQuoteDefaults("2026-11-04")).toMatchObject({ intro: "", note: "" });
@@ -115,6 +115,12 @@ describe.skipIf(!testDatabaseUrl)("Standard-Textbaustein je Belegart (Postgres, 
     await stammdaten.setTextBlockArchived(actor, alt.id, true);
     expect((await standard())[alt.id]).toBeNull();
     expect((await invoices.newDraftDefaults("2026-11-04")).intro).toBe("");
+    // Ein archivierter Baustein kann nicht Standard werden und nimmt dem aktiven nichts weg
+    const aktiv = await baustein("kopf", "Aktive Einleitung", "rechnung");
+    await expect(
+      stammdaten.updateTextBlock(actor, alt.id, { name: "Alte Einleitung", kind: "kopf", text: "Alte Einleitung", contactId: null, standardFuer: "rechnung" }),
+    ).rejects.toThrow(/zuerst wieder her/);
+    expect((await standard())[aktiv.id]).toBe("rechnung");
     await stammdaten.setTextBlockArchived(actor, alt.id, false);
     expect((await standard())[alt.id]).toBeNull();
   });

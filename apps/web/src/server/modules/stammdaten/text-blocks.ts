@@ -97,8 +97,15 @@ export async function insertTextBlock(tx: Tx, input: TextBlockInput, { uebernomm
 export async function updateTextBlock(actor: string, id: string, input: TextBlockInput): Promise<TextBlock> {
   const values = textBlockInputSchema.parse(input);
   return withActor(actor, async (tx) => {
-    const [previous] = await tx.select({ contactId: schema.textBlocks.contactId }).from(schema.textBlocks).where(eq(schema.textBlocks.id, id)).for("update");
+    const [previous] = await tx
+      .select({ contactId: schema.textBlocks.contactId, archivedAt: schema.textBlocks.archivedAt })
+      .from(schema.textBlocks)
+      .where(eq(schema.textBlocks.id, id))
+      .for("update");
     if (!previous) throw new TextBlockError("Textbaustein nicht gefunden.");
+    // Sonst nähme ein archivierter Baustein dem aktiven die Markierung, ohne selbst Standard zu sein (text_blocks_standard)
+    if (previous.archivedAt && values.standardFuer)
+      throw new TextBlockError("Ein archivierter Baustein kann kein Standard sein; stelle ihn zuerst wieder her.");
     // Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt am Baustein
     if (values.contactId !== previous.contactId) await checkContact(tx, values.contactId);
     await standardAbloesen(tx, values, id);

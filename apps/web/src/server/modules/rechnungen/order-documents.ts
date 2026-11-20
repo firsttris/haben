@@ -13,7 +13,8 @@ import { angebotMitPlatzhaltern, mitVorlage } from "./beleg-platzhalter.ts";
 
 /**
  * Auftragsbestätigung und Lieferschein entstehen auf Abruf aus festgeschriebenen Angeboten und
- * Rechnungen. Sie buchen nichts; Inhalt und Datum folgen aus dem gespeicherten Beleg.
+ * Rechnungen. Sie buchen nichts; Positionen und Datum folgen aus dem gespeicherten Beleg, Einleitung und Hinweis aus
+ * dem aktuellen Standard-Textbaustein, wenn es einen gibt (#1494).
  */
 
 export class OrderDocumentError extends UserError {}
