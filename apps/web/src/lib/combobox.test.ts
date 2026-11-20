@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMBOBOX_LIMIT, defaultRow, moveActive, sameEntry, searchOptions } from "./combobox.ts";
+import { COMBOBOX_LIMIT, defaultRow, listKey, moveActive, sameEntry, searchOptions } from "./combobox.ts";
 
 interface Kunde {
   name: string;
@@ -124,5 +124,47 @@ describe("moveActive", () => {
   it("bleibt ohne Einträge außerhalb der Liste", () => {
     expect(moveActive(-1, 0, "ArrowDown")).toBe(-1);
     expect(moveActive(-1, 0, "ArrowUp")).toBe(-1);
+  });
+});
+
+describe("listKey", () => {
+  // Offene Liste mit drei Treffern und der Zeile zum Anlegen dahinter, der zweite Treffer aktiv
+  const offen = { open: true, active: 1, rows: 4, createIndex: 3, commitOnTab: true };
+  const zu = { ...offen, open: false };
+
+  it("öffnet mit den Pfeilen eine geschlossene Liste und bewegt in einer offenen", () => {
+    expect(listKey("ArrowDown", false, zu)).toEqual({ action: "open", prevent: true });
+    expect(listKey("ArrowUp", false, zu)).toEqual({ action: "open", prevent: true });
+    expect(listKey("ArrowDown", false, offen)).toEqual({ action: "move", row: 2, prevent: true });
+    expect(listKey("ArrowUp", false, { ...offen, active: 0 })).toEqual({ action: "move", row: 3, prevent: true });
+  });
+
+  it("öffnet mit Alt+Pfeil runter und schließt mit Alt+Pfeil hoch, offen oder nicht", () => {
+    for (const liste of [offen, zu]) {
+      expect(listKey("ArrowDown", true, liste)).toEqual({ action: "open", prevent: true });
+      expect(listKey("ArrowUp", true, liste)).toEqual({ action: "close", prevent: true });
+    }
+  });
+
+  it("übernimmt mit Enter die aktive Zeile, auch die zum Anlegen; ohne aktive schließt es; beides schickt das Formular nicht ab", () => {
+    expect(listKey("Enter", false, offen)).toEqual({ action: "commit", row: 1, prevent: true });
+    expect(listKey("Enter", false, { ...offen, active: 3 })).toEqual({ action: "commit", row: 3, prevent: true });
+    expect(listKey("Enter", false, { ...offen, active: -1 })).toEqual({ action: "close", prevent: true });
+  });
+
+  it("schließt mit Escape und reicht die Taste nicht weiter, etwa an einen Dialog", () => {
+    expect(listKey("Escape", false, offen)).toEqual({ action: "close", prevent: true, stop: true });
+  });
+
+  it("übernimmt mit Tab nur mit commitOnTab, nur eine aktive Zeile und nie die Zeile zum Anlegen", () => {
+    expect(listKey("Tab", false, offen)).toEqual({ action: "commit", row: 1, prevent: false });
+    expect(listKey("Tab", false, { ...offen, commitOnTab: false })).toBeNull();
+    expect(listKey("Tab", false, { ...offen, active: -1 })).toBeNull();
+    expect(listKey("Tab", false, { ...offen, active: 3 })).toBeNull();
+  });
+
+  it("lässt bei geschlossener Liste Enter, Escape und Tab durch, ebenso andere Tasten", () => {
+    for (const key of ["Enter", "Escape", "Tab"]) expect(listKey(key, false, zu)).toBeNull();
+    expect(listKey("a", false, offen)).toBeNull();
   });
 });
