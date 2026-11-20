@@ -23,7 +23,7 @@ describe.skipIf(!testDatabaseUrl)("Gesamtumsatz: ausdrücklich zugeordnete manue
 
   // § 19 Abs. 2 UStG: https://www.gesetze-im-internet.de/ustg_1980/__19.html — vereinnahmte Entgelte auch bei Soll.
   // Der bestätigte enge Herkunftsnachweis steht in
-  // https://github.com/firsttris/haben/pull/926#issuecomment-6904783330; Kontonummer oder heutiger KU-Status genügen nicht.
+  // https://github.com/Speicherstadt/haben/pull/926#issuecomment-6904783330; Kontonummer oder heutiger KU-Status genügen nicht.
   it.each([
     ["ist", "SKR03"],
     ["soll", "SKR04"],

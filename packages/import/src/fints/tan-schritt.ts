@@ -3,7 +3,7 @@ import type { ClientResponse, FinTSClient } from "lib-fints";
 /*
  * lib-fints stellt HKTAN nur in einen Auftrag, wenn HIPINS ihn als „mit TAN“ führt (dist/dialog.js,
  * createCurrentCustomerMessage). Die Consorsbank führt den Umsatzabruf dort ohne TAN (HKKAZ:N), lehnt ihn mit ihrem
- * App-Verfahren ohne HKTAN aber mit 9075 ab (Test gegen die Bank in firsttris/haben#1387; ebenso der offene
+ * App-Verfahren ohne HKTAN aber mit 9075 ab (Test gegen die Bank in Speicherstadt/haben#1387; ebenso der offene
  * python-fints#218, der HKTAN bei der Consorsbank deshalb für HKKAZ, HKSAL und HKCCS immer mitschickt,
  * force_twostep_tan). Nach einer 9075 gilt der Umsatzabruf darum
  * für diesen Client als „mit TAN“. Die Änderung steht in den BPD, die Haben mit der Verbindung speichert: Auch der nächste

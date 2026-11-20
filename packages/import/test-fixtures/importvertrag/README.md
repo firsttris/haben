@@ -18,14 +18,14 @@ und Beträge sind erfunden. Sie zeigen, wie ein Connector die Daten seines Anbie
 - `etsy.json` (von @Niruthan96, Aufbau nach dem echten Zahlungsverlauf): Zahlungsdienstleister, bei dem jede Gebühr
   und die von Etsy abgeführte Sales Tax eine eigene Zeile mit eigener `entry_id` haben
   ([getShopPaymentAccountLedgerEntries](https://developers.etsy.com/documentation/reference/#operation/getShopPaymentAccountLedgerEntries),
-  Zeilenarten nach der [Auswertung in #306](https://github.com/firsttris/haben/issues/306#issuecomment-6900551383)). Sie
+  Zeilenarten nach der [Auswertung in #306](https://github.com/Speicherstadt/haben/issues/306#issuecomment-6900551383)). Sie
   sind deshalb eigene Ereignisse mit der Komponente `main` (Art `fee`, die Steuer `adjustment`), verbunden über
   `orderId`, die der Connector ergänzt, wo der Verlauf sie nicht nennt; eine eigene Komponente für die Steuer braucht es
   nicht. Der Saldo vom 30.09. ist der Anfangsstand vor dem Fenster, die Tagessalden folgen aus den Bewegungen.
 - `paypal.json`: Zahlungsdienstleister mit dem Beispiel aus #306 (+100,00 € Zahlung, −3,00 € Gebühr), Teilerstattung,
   Abbuchung auf die Bank, ein ausstehendes Ereignis, das der Connector nicht einordnet, und eine nachträglich
   zurückgebuchte Zahlung (Status V): Die Zahlung bleibt gebucht, die Rückbuchung ist ein eigenes Ereignis mit
-  `relatedEventId` ([abgestimmt in #306](https://github.com/firsttris/haben/issues/306#issuecomment-6897475489)). Codes
+  `relatedEventId` ([abgestimmt in #306](https://github.com/Speicherstadt/haben/issues/306#issuecomment-6897475489)). Codes
   nach den [T-Codes](https://developer.paypal.com/reports/reference/t-codes) (T0006 Zahlung über Express Checkout, T1107
   Erstattung, T1106 Rückbuchung durch PayPal, T0400 Abbuchung auf das Bankkonto) und `transaction_status` P (ausstehend)
   und V (zurückgebucht) unter [List transactions](https://developer.paypal.com/api/transaction-search/v1/search-get).

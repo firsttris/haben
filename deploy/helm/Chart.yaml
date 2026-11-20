@@ -6,5 +6,5 @@ type: application
 version: 0.1.0
 home: https://haben.app/
 sources:
-  - https://github.com/firsttris/haben
-icon: https://raw.githubusercontent.com/firsttris/haben/main/apps/web/public/favicon.svg
+  - https://github.com/Speicherstadt/haben
+icon: https://raw.githubusercontent.com/Speicherstadt/haben/main/apps/web/public/favicon.svg

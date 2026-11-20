@@ -93,7 +93,7 @@
   packageRules: [
     {
       // Habens eigene Images ziehen mit den Releases nach (release.yml)
-      matchPackageNames: ["docker.io/tristanteu/**", "tristanteu/**", "ghcr.io/firsttris/**"],
+      matchPackageNames: ["docker.io/tristanteu/**", "tristanteu/**", "ghcr.io/speicherstadt/**"],
       enabled: false,
     },
     {

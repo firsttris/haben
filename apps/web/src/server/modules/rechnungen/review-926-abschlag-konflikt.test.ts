@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
-// Produktgrenze aus https://github.com/firsttris/haben/issues/433#issuecomment-6853419682:
+// Produktgrenze aus https://github.com/Speicherstadt/haben/issues/433#issuecomment-6853419682:
 // keine verschiedenen bekannten Befreiungen in einer Schlussrechnung, auch bei ungeklärten Altdaten.
 // § 4 Nr. 14 a und Nr. 21: https://www.gesetze-im-internet.de/ustg_1980/__4.html
 // Daraus folgt kein allgemeines gesetzliches Mischungsverbot.

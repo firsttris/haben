@@ -7,6 +7,6 @@ Tastaturtests geprüft (`apps/web/e2e/barrierefreiheit.spec.ts`).
 Tastenkürzel, wie geprüft wird und was noch nicht systematisch getestet ist (etwa Screenreader), steht unter
 [Barrierefreiheit und Tastatur](https://haben.app/barrierefreiheit.html).
 
-Fällt dir eine Barriere auf, freuen wir uns über ein [Issue](https://github.com/firsttris/haben/issues/new/choose).
+Fällt dir eine Barriere auf, freuen wir uns über ein [Issue](https://github.com/Speicherstadt/haben/issues/new/choose).
 Beiträge, die die Oberfläche ändern, halten die Regeln ein: echte Buttons und Links, ein Label für jedes Feld,
 sichtbarer Fokus, ausreichender Kontrast (siehe [CONTRIBUTING.md](CONTRIBUTING.md)).

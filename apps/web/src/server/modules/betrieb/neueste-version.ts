@@ -14,7 +14,7 @@ import { z } from "zod";
  * `HABEN_UPDATE_CHECK=off` schaltet die Anfrage ab.
  */
 
-const LATEST_RELEASE_URL = "https://api.github.com/repos/firsttris/haben/releases/latest";
+const LATEST_RELEASE_URL = "https://api.github.com/repos/Speicherstadt/haben/releases/latest";
 const DAY = 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 5000;
 

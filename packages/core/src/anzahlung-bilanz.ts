@@ -8,7 +8,7 @@ import type { Versteuerung } from "./posting.ts";
 /**
  * Neue Bilanz-Schlussketten unterstützen Zahlungen vor Leistung noch nicht. Eine Anforderung ist dafür
  * der vorgesehene Weg. § 13 Abs. 1 Nr. 1 a Satz 4 UStG und Entscheidung:
- * https://github.com/firsttris/haben/issues/750#issuecomment-6850907108
+ * https://github.com/Speicherstadt/haben/issues/750#issuecomment-6850907108
  */
 export function advancePaymentDateProblem(
   invoice: {
@@ -28,9 +28,9 @@ export function advancePaymentDateProblem(
 ): string | null {
   // Neue Vorauszahlungen auf unmarkierte normale Altbelege brauchen eine datierte Bestandsklärung, keine
   // automatische Differenzbuchung. Nur das dokumentierte Leistungsdatum zählt, nie ersatzweise das Rechnungsdatum.
-  // https://github.com/firsttris/haben/issues/853#issuecomment-6910075659
+  // https://github.com/Speicherstadt/haben/issues/853#issuecomment-6910075659
   // Nur wo der alte Weg falsch würde: Soll (Steuer erst mit der Leistung) oder GmbH/UG (Anzahlung statt Forderung).
-  // Bei Ist ohne Bilanz stimmt er schon. Entscheidung: https://github.com/firsttris/haben/pull/1228#issuecomment-6925771896
+  // Bei Ist ohne Bilanz stimmt er schon. Entscheidung: https://github.com/Speicherstadt/haben/pull/1228#issuecomment-6925771896
   const performance = invoice.serviceTo ?? invoice.serviceFrom;
   if (
     (procedure.versteuerung === "soll" || procedure.kapitalgesellschaft) &&

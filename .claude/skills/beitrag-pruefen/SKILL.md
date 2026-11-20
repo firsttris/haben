@@ -24,7 +24,7 @@ Jeder Text an den Beitragenden folgt dem [Verhaltenskodex](../../../CODE_OF_COND
 
 ## 0. Holen
 
-- **Rolle:** Ist die aufrufende Person Autor oder Co-Autor des Pull Requests: Selbstprüfung. Sonst Maintainer-Prüfung, nur mit Schreibrecht in `firsttris/haben`; ohne Schreibrecht abbrechen.
+- **Rolle:** Ist die aufrufende Person Autor oder Co-Autor des Pull Requests: Selbstprüfung. Sonst Maintainer-Prüfung, nur mit Schreibrecht in `Speicherstadt/haben`; ohne Schreibrecht abbrechen.
 - **Unabhängig:** Hat diese Session am Code mitgeschrieben: einen frischen Subagenten mit diesem Skill, der Rolle und der PR-Nummer starten, ohne eigene Einschätzung (wie `tdd-review`, Schritt 0). Gibt es für eine Selbstprüfung noch keinen Pull Request, vorher einen Entwurf nach Skill `beitrag` anlegen.
 - Metadaten mit dem vorhandenen GitHub-Werkzeug (`gh pr view <nr> --json …` oder GitHub-MCP `pull_request_read`): Autor, Fork oder Branch im Repo, Entwurf, Titel, Beschreibung, verknüpfte Issues, Commits, Checks, vorhandene Kommentare und Reviews, besonders den Kommentar von „PR-Regeln“.
 - Code: `git fetch origin main pull/<nr>/head:pr-<nr>`, dann `git diff --stat origin/main...pr-<nr>` und `git diff origin/main...pr-<nr>`. Konflikte: `git merge-tree --write-tree origin/main pr-<nr>`.
@@ -39,7 +39,7 @@ Je Punkt ein Ergebnis mit Beleg:
 
 - **Passung:** `docs/roadmap.md` lesen („Bewusst nicht“, Zertifizierung, blockiert). Gehört es zur Buchhaltung für Freiberufler und kleine GmbHs, oder macht es Haben zu etwas anderem?
 - **Issue und Board:** Gibt es ein Issue, ist es dem Autor zugewiesen, steht es im Project „Roadmap“ (Spalte, Priorität)? Ohne Issue: Ist der Wunsch nachvollziehbar und würde der Maintainer ihn einplanen? Das ist eine Frage an die prüfende Person (bei einem Collaborator: an den Maintainer weitergeben), keine Entscheidung des Agenten.
-- **Doppelt:** offene und geschlossene Pull Requests zum Thema (`gh pr list --state all --search …` oder `gh api -X GET search/issues -f q='repo:firsttris/haben is:pr <begriffe>'`), dazu `git grep` auf `origin/main` und in `docs/`: Gibt es das schon, ganz oder teilweise? Wurde es abgelehnt, mit welchem Grund?
+- **Doppelt:** offene und geschlossene Pull Requests zum Thema (`gh pr list --state all --search …` oder `gh api -X GET search/issues -f q='repo:Speicherstadt/haben is:pr <begriffe>'`), dazu `git grep` auf `origin/main` und in `docs/`: Gibt es das schon, ganz oder teilweise? Wurde es abgelehnt, mit welchem Grund?
 - **Nutzen gegen Last:** Was gewinnt ein Nutzer im Alltag? Was kostet es dauerhaft: neue Einstellungen, Abhängigkeiten (Lizenz passend zur AGPL-3.0, gepflegt, Größe; `package.json` und `bun.lock`, `trustedDependencies`), neue Hosts oder Dienste, neue Tabellen und Migrationen, Sonderfälle in Buchung und Steuer, Wartung jedes Jahr (Jahreswerte)?
 - **Bestehende Installationen:** Was passiert beim Update mit vorhandenen Daten (Migration auf echten Beständen, festgeschriebene Jahre, Standardwerte für neue Spalten)? Ändert sich Verhalten, das Nutzer kennen, oder eine Schnittstelle (REST-API, MCP, Exporte, Belegvorlagen), auf die sich jemand verlässt? Braucht es einen Hinweis im Release?
 - **Grundsätzliche Entscheidung:** Ist eine nötig, die der Maintainer treffen sollte (ein ADR in `docs/adr/` wert)?

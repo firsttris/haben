@@ -11,7 +11,7 @@ export const LABEL = "jahreswerte";
 const LABEL_FARBE = "c5def5";
 const LABEL_BESCHREIBUNG = "Amtliche Jahreswerte, ERiC oder Normen haben sich geändert (Workflow „Jahreswerte prüfen“)";
 
-/** Aufruf der GitHub-API; `pfad` ohne Host, z. B. `/repos/firsttris/haben/issues` */
+/** Aufruf der GitHub-API; `pfad` ohne Host, z. B. `/repos/Speicherstadt/haben/issues` */
 export type GitHub = (methode: "GET" | "POST" | "PATCH", pfad: string, daten?: unknown) => Promise<{ status: number; daten: unknown }>;
 
 export interface Issue {

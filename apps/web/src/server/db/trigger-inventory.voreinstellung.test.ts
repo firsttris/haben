@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
 
 // Gegenprobe aus dem korrigierten Review; ausschließlich die eigene Worker-Datenbank verändern.
-// https://github.com/firsttris/haben/pull/874#issuecomment-6869530241
+// https://github.com/Speicherstadt/haben/pull/874#issuecomment-6869530241
 // https://www.postgresql.org/docs/18/sql-alterdatabase.html
 describe.skipIf(!testDatabaseUrl)("Sperrprüfung und dauerhafte Voreinstellungen der Datenbank (Postgres, #764)", () => {
   let sql: postgres.Sql;
