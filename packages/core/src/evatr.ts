@@ -92,7 +92,7 @@ export function evatrZeitpunkt(text: string): Date | null {
 }
 
 /** Fehler der angefragten Nummer selbst (Syntax, Länderkennzeichen); andere Nummern betrifft das nicht, anders als ein Ausfall */
-export const evatrNummerFehler = (status: string) => status === "evatr-0005" || status === "evatr-0012" || status === "evatr-2003";
+const evatrNummerFehler = (status: string) => status === "evatr-0005" || status === "evatr-0012" || status === "evatr-2003";
 
 /**
  * Antworten, die etwas über die angefragte Nummer sagen; nur sie zählen als Nachweis. Dazu gehören die Fehler der Nummer
