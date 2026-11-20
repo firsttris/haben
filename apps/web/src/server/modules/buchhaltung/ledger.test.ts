@@ -86,4 +86,16 @@ describe.skipIf(!testDatabaseUrl)("Saldenliste und Kontenblatt (Postgres)", () =
     expect(ledger.ledgerRange(2026, "q2")).toEqual({ from: "2026-04-01", to: "2026-07-01" });
     expect(ledger.ledgerRange(2026)).toEqual({ from: "2026-01-01", to: "2027-01-01" });
   });
+
+  it("Kontenblatt von–bis (BWA, #1380): beide Tage eingeschlossen, Eröffnung ab Jahresbeginn, nur innerhalb eines Jahres", async () => {
+    expect(ledger.ledgerRangeVonBis({ von: "2026-02-20", bis: "2026-02-28" })).toEqual({ from: "2026-02-20", to: "2026-03-01" });
+    expect(ledger.ledgerRangeVonBis({ von: "2026-12-31", bis: "2026-12-31" })).toEqual({ from: "2026-12-31", to: "2027-01-01" });
+    const blatt = await ledger.kontenblatt("1200", ledger.ledgerRangeVonBis({ von: "2026-02-04", bis: "2026-02-20" }));
+    expect(blatt).toMatchObject({ eroeffnung: 119_000, saldo: 113_050 });
+    expect(blatt.zeilen.map((z) => z.date)).toEqual(["2026-02-20"]);
+    expect(ledger.ledgerVonBisSchema.safeParse({ von: "2026-02-04", bis: "2026-02-20" }).success).toBe(true);
+    expect(ledger.ledgerVonBisSchema.safeParse({ von: "2026-02-21", bis: "2026-02-20" }).success).toBe(false);
+    expect(ledger.ledgerVonBisSchema.safeParse({ von: "2025-12-01", bis: "2026-01-31" }).success).toBe(false);
+    expect(ledger.ledgerVonBisSchema.safeParse({ von: "2026-02-30", bis: "2026-03-01" }).success).toBe(false);
+  });
 });

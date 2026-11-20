@@ -1,8 +1,8 @@
-import { FORM43_ZEILEN } from "@haben/core";
+import { FORM01_ZEILEN, FORM43_ZEILEN } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
-import { bwaBericht, bwaWarum, bwaZeileDetails } from "../modules/auswertungen/index.ts";
+import { bwaBericht, bwaForm01Konten, bwaWarum, bwaZeileDetails } from "../modules/auswertungen/index.ts";
 import { readMiddleware } from "../middleware.ts";
 
 /** Höchstens so viele Jahre rechnet ein freier Zeitraum; jedes Jahr ist eine ganze EÜR aus dem Journal */
@@ -31,3 +31,9 @@ export const getBwaWarum = createServerFn({ method: "GET" })
   .middleware([readMiddleware])
   .validator(z.object({ zeitraum: zeitraumSchema, vergleich: z.enum(["vorjahr", "vorperiode"]), zeile: z.enum(FORM43_ZEILEN) }))
   .handler(({ data }) => bwaWarum(data.zeitraum, data.vergleich, data.zeile));
+
+/** Die Konten einer Zeile der Kurzfristigen Erfolgsrechnung (Form 01, GmbH und UG) im Zeitraum */
+export const getBwaKonten = createServerFn({ method: "GET" })
+  .middleware([readMiddleware])
+  .validator(z.object({ zeitraum: zeitraumSchema, zeile: z.enum(FORM01_ZEILEN) }))
+  .handler(({ data }) => bwaForm01Konten(data.zeitraum, data.zeile));

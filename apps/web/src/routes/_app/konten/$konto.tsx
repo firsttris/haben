@@ -9,15 +9,26 @@ import { getKontenblatt } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { Field } from "../../../components/Field.tsx";
 
+const datum = z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/));
+
+/*
+ * Zeitraum wie in der Saldenliste (jahr, q1–q4, m1–m12) oder von–bis innerhalb eines Jahres, etwa aus der BWA (#1380); den
+ * Rest prüft die Server-Funktion.
+ */
 export const Route = createFileRoute("/_app/konten/$konto")({
   validateSearch: z.object({
     jahr: z.optional(z.int()),
     zeitraum: z.optional(z.string().check(z.regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/))),
+    von: z.optional(datum),
+    bis: z.optional(datum),
   }),
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) => {
     if (!/^\d{4,8}$/.test(params.konto)) throw notFound();
-    return getKontenblatt({ data: { account: params.konto, year: deps.jahr ?? currentYear(), period: deps.zeitraum ?? "jahr" } });
+    const vonBis = deps.von && deps.bis ? { von: deps.von, bis: deps.bis } : undefined;
+    return getKontenblatt({
+      data: { account: params.konto, year: vonBis ? Number(vonBis.von.slice(0, 4)) : (deps.jahr ?? currentYear()), period: deps.zeitraum ?? "jahr", vonBis },
+    });
   },
   head: ({ params }) => ({ meta: [{ title: `Konto ${params.konto} · Haben` }], links: [{ rel: "stylesheet", href: styles }] }),
   component: KontenblattPage,
@@ -57,11 +68,14 @@ function KontenblattPage() {
   const deps = Route.useSearch();
   const navigate = useNavigate();
   const year = Number(data.from.slice(0, 4));
-  const zeitraum = deps.zeitraum ?? "jahr";
+  const vonBis = deps.von && deps.bis ? { von: deps.von, bis: deps.bis } : null;
+  const zeitraum = vonBis ? "frei" : (deps.zeitraum ?? "jahr");
+  // Links auf andere Konten zeigen denselben Zeitraum
+  const suche = vonBis ? { jahr: year, ...vonBis } : { jahr: year, zeitraum };
   const kr: Kontenrahmen = data.kontenrahmen ?? "SKR03";
   // Ertragskonten aus Sicht des Kontos positiv zeigen, wie in der Saldenliste
   const sign = kontoart(kr, konto, data.saldo) === "ertrag" ? -1 : 1;
-  const multiMonth = !zeitraum.startsWith("m");
+  const multiMonth = vonBis ? vonBis.von.slice(0, 7) !== vonBis.bis.slice(0, 7) : !zeitraum.startsWith("m");
 
   // Zeilen nach Monat gruppieren, mit Zwischensumme je Monat
   const months = new Map<string, typeof data.zeilen>();
@@ -72,7 +86,7 @@ function KontenblattPage() {
       <div className="page-head">
         <div>
           <div className="eyebrow">
-            <Link to="/konten" search={{ jahr: year, zeitraum }}>
+            <Link to="/konten" search={{ jahr: year, zeitraum: deps.zeitraum ?? "jahr" }}>
               Konten {year}
             </Link>{" "}
             · Kontenblatt
@@ -94,10 +108,18 @@ function KontenblattPage() {
                     {label}
                   </option>
                 ))}
+                {vonBis && (
+                  <option value="frei">
+                    {formatDate(vonBis.von)}–{formatDate(vonBis.bis)}
+                  </option>
+                )}
               </select>
             )}
           </Field>
-          <a className="btn" href={`/api/konten/${year}?zeitraum=${zeitraum}&konto=${konto}`}>
+          <a
+            className="btn"
+            href={vonBis ? `/api/konten/${year}?von=${vonBis.von}&bis=${vonBis.bis}&konto=${konto}` : `/api/konten/${year}?zeitraum=${zeitraum}&konto=${konto}`}
+          >
             CSV
           </a>
         </div>
@@ -180,7 +202,7 @@ function KontenblattPage() {
                       {z.gegenkonten.map((g, j) => (
                         <span key={g}>
                           {j > 0 && ", "}
-                          <Link to="/konten/$konto" params={{ konto: g }} search={{ jahr: year, zeitraum }}>
+                          <Link to="/konten/$konto" params={{ konto: g }} search={suche}>
                             {g}
                           </Link>
                         </span>

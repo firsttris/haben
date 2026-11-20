@@ -31,7 +31,7 @@ export {
   type BookingHit,
   type PauschaleHit,
 } from "./search.ts";
-export { kontenblatt, ledgerPeriodSchema, ledgerRange, openBooks, post, saldenliste, uebernahmen } from "./ledger.ts";
+export { kontenblatt, ledgerPeriodSchema, ledgerRange, ledgerRangeVonBis, ledgerVonBisSchema, openBooks, post, saldenliste, uebernahmen } from "./ledger.ts";
 export {
   activeOpenings,
   firstEntryBefore,

@@ -1,4 +1,5 @@
 import {
+  FORM01,
   FORM43,
   abweichung,
   euerZeileLabel,
@@ -15,6 +16,8 @@ import {
   type BasisPoints,
   type BwaEuerPosten,
   type Cents,
+  type Form01Summe,
+  type Form01Zeile,
   type Form43Anteil,
   type Form43Summe,
   type Form43Zeile,
@@ -29,15 +32,17 @@ import { listAssets } from "../buchhaltung/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { euerAusJournal } from "./euer-journal.ts";
 import { bloecke, type EuerBeitraege } from "./euer-journal-buchungen.ts";
+import { form01Werte } from "./bwa-form01.ts";
 
 /*
  * BWA (#1380): rechnet aus denselben Beträgen wie die EÜR aus dem Journal (euerAusJournal), je Buchung mit Datum, und ordnet
  * sie nach dem Aufbau der DATEV-Auswertungen (packages/core/src/bwa.ts). Bucht nichts. Einzelunternehmen bekommen die
- * Einnahmen-Ausgaben-BWA (Form 43) nach Zufluss und Abfluss.
+ * Einnahmen-Ausgaben-BWA (Form 43) nach Zufluss und Abfluss, GmbH und UG die Kurzfristige Erfolgsrechnung (Form 01)
+ * periodengerecht aus den Salden der Konten (bwa-form01.ts).
  */
 
 export interface BwaZeileWerte {
-  key: Form43Zeile | Form43Summe;
+  key: Form43Zeile | Form43Summe | Form01Zeile | Form01Summe;
   label: string;
   art: "zeile" | "summe" | "ergebnis";
   betrag: Cents;
@@ -48,7 +53,7 @@ export interface BwaZeileWerte {
 }
 
 export interface BwaBericht {
-  /** GmbH und UG bilanzieren; ihre BWA (Form 01) rechnet periodengerecht und fehlt hier noch */
+  /** GmbH und UG bilanzieren: Form 01 periodengerecht statt Form 43 nach Zufluss und Abfluss */
   kapitalgesellschaft: boolean;
   zeitraum: Zeitraum;
   kumuliert: Zeitraum;
@@ -90,37 +95,42 @@ async function anteile(zeitraeume: readonly (Zeitraum | null)[], q: Db | Tx): Pr
   return (await euerPosten(jahre, q)).flatMap(form43Anteile);
 }
 
+/** Die Zeilen einer Form mit den Beträgen je Spalte; ohne Vergleich null */
+function zeilenWerte<K extends string>(
+  form: readonly { key: K; label: string; art: BwaZeileWerte["art"] }[],
+  [werte, werteKum, werteVgl, werteVglKum]: readonly (Record<K, Cents> | null)[],
+): BwaZeileWerte[] {
+  return form.map((d) => ({
+    key: d.key as BwaZeileWerte["key"],
+    label: d.label,
+    art: d.art,
+    betrag: werte![d.key],
+    kumuliert: werteKum![d.key],
+    vergleich: werteVgl ? werteVgl[d.key] : null,
+    vergleichKumuliert: werteVglKum ? werteVglKum[d.key] : null,
+    abweichung: werteVgl ? abweichung(werte![d.key], werteVgl[d.key]) : null,
+  }));
+}
+
 export async function bwaBericht(zeitraum: Zeitraum, vergleich: Vergleich, q: Db | Tx = db): Promise<BwaBericht> {
   const kapitalgesellschaft = isKapitalgesellschaft((await loadCompany(q)).rechtsform);
   const kum = kumuliert(zeitraum);
   const vgl = vergleichszeitraum(zeitraum, vergleich);
   const vglKum = vergleich === "vorjahr" ? kumuliert(vorjahreszeitraum(zeitraum)) : null;
-  const alle = kapitalgesellschaft ? [] : await anteile([zeitraum, kum, vgl, vglKum], q);
-  const werte = form43(alle, zeitraum);
-  const werteKum = form43(alle, kum);
-  const werteVgl = vgl ? form43(alle, vgl) : null;
-  const werteVglKum = vglKum ? form43(alle, vglKum) : null;
+  const zeitraeume = [zeitraum, kum, vgl, vglKum];
+  let zeilen: BwaZeileWerte[];
+  if (kapitalgesellschaft) zeilen = zeilenWerte(FORM01, await form01Werte(zeitraeume, q));
+  else {
+    const alle = await anteile(zeitraeume, q);
+    zeilen = zeilenWerte(
+      FORM43,
+      zeitraeume.map((z) => (z ? form43(alle, z) : null)),
+    );
+  }
   const afaOffen: number[] = [];
   // Alle Jahre des Zeitraums; kumuliert liegt im letzten davon
   for (const jahr of jahreVon(zeitraum)) if ((await listAssets(jahr, q)).some((a) => a.pending)) afaOffen.push(jahr);
-  return {
-    kapitalgesellschaft,
-    zeitraum,
-    kumuliert: kum,
-    vergleich: vgl,
-    vergleichKumuliert: vglKum,
-    afaOffen,
-    zeilen: FORM43.map((d) => ({
-      key: d.key,
-      label: d.label,
-      art: d.art,
-      betrag: werte[d.key],
-      kumuliert: werteKum[d.key],
-      vergleich: werteVgl ? werteVgl[d.key] : null,
-      vergleichKumuliert: werteVglKum ? werteVglKum[d.key] : null,
-      abweichung: werteVgl ? abweichung(werte[d.key], werteVgl[d.key]) : null,
-    })),
-  };
+  return { kapitalgesellschaft, zeitraum, kumuliert: kum, vergleich: vgl, vergleichKumuliert: vglKum, afaOffen, zeilen };
 }
 
 export interface BwaVorgang {
@@ -221,7 +231,7 @@ const angabeZu = (angaben: ReadonlyMap<string, QuellenAngabe>, { rechnungId, bel
 /**
  * „Warum?“ (#1380): die Abweichung einer Zeile der Form 43 zum Vergleichszeitraum nach Kontakt, die fünf größten einzeln.
  * Ein Vorgang ist eine Buchung; ihre Anteile aus mehreren Zeilen der EÜR (etwa zwei Steuersätze) zählen zusammen. Ohne
- * Vergleich und für GmbH und UG (ihre BWA fehlt noch) null.
+ * Vergleich und für GmbH und UG (ihre Form 01 rechnet aus Salden, nicht je Vorgang) null.
  */
 export async function bwaWarum(zeitraum: Zeitraum, vergleich: Vergleich, zeile: Form43Zeile, q: Db | Tx = db): Promise<Warum | null> {
   const vgl = vergleichszeitraum(zeitraum, vergleich);

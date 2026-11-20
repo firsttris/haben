@@ -24,6 +24,7 @@ export * from "./vortrag.ts";
 export * from "./hgb.ts";
 export * from "./bwa.ts";
 export * from "./bwa-kostenart.ts";
+export * from "./bwa-form01.ts";
 export * from "./bwa-zeitraum.ts";
 export * from "./bwa-warum.ts";
 export * from "./datev-eroeffnung.ts";

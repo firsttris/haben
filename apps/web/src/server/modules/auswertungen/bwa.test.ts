@@ -248,11 +248,12 @@ describe.skipIf(!testDatabaseUrl)("BWA nach Zufluss und Abfluss (Postgres, #1380
     expect((await bwa.bwaBericht({ von: "2025-07-01", bis: "2026-06-30" }, "keiner")).afaOffen).toEqual([2025, 2026]);
   }, 60_000);
 
-  it("GmbH: noch keine BWA nach Zufluss, alle Zeilen leer", async () => {
+  it("GmbH: keine BWA nach Zufluss, sondern Form 01 (bwa-form01.test.ts)", async () => {
     await reset("soll", "SKR04", "gmbh");
     await beleg("2027-03-01", 5_000, "software", "privat");
     const bericht = await bwa.bwaBericht(bwaZeitraum("jahr", 2027), "vorjahr");
     expect(bericht.kapitalgesellschaft).toBe(true);
-    expect(bericht.zeilen.every((z) => z.betrag === 0)).toBe(true);
+    expect(bericht.zeilen.some((z) => z.key === "gewinnEuer")).toBe(false);
+    expect(zeile(bericht, "sonstigeKosten").betrag).toBe(5_000);
   }, 60_000);
 });

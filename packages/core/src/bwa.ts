@@ -113,7 +113,21 @@ const JE_KOSTENART: Record<Kostenart, Form43Zeile> = {
   instandhaltung: "instandhaltung",
   abschreibungen: "abschreibungen",
   sonstigeKosten: "verschiedeneKosten",
+  // Was Form 01 gesondert zeigt, fasst Form 43 zusammen: Erträge bei den sonstigen Erlösen, neutrale Aufwendungen und Zinsen
+  // bei den sonstigen Aufwendungen, die Steuern vom Einkommen und Ertrag bei den Steuern
+  bestandsveraenderungen: "sonstigeErloese",
+  eigenleistungen: "sonstigeErloese",
+  zinsertrag: "sonstigeErloese",
+  neutralErtrag: "sonstigeErloese",
+  zinsaufwand: "sonstigeAufwendungen",
+  neutralAufwand: "sonstigeAufwendungen",
+  // Verrechnete kalkulatorische Kosten gleichen die kalkulatorischen Kosten aus, die bei den verschiedenen Kosten stehen
+  kalkulatorisch: "verschiedeneKosten",
+  ertragsteuern: "steuernVersicherungenBeitraege",
 };
+
+/** Zeile der Form 43 für die Kostenart eines Kontos */
+export const form43KostenartZeile = (kostenart: Kostenart): Form43Zeile => JE_KOSTENART[kostenart];
 
 /** Zeilen der EÜR ohne eigenes Konto */
 const FESTE_ZEILEN: Partial<Record<EuerLineKey, Form43Zeile>> = {
@@ -165,7 +179,7 @@ export function form43Zeile(kontenrahmen: Kontenrahmen, key: EuerLineKey): Form4
   const konto = euerZeilenKonto(kontenrahmen, key);
   const kostenart = konto === null ? null : kostenartOf(kontenrahmen, konto);
   // Ohne Kostenart (ein Konto, das es im Rahmen nicht als Erfolgskonto gibt) unter den verschiedenen Kosten statt verloren
-  return kostenart ? JE_KOSTENART[kostenart] : "verschiedeneKosten";
+  return kostenart ? form43KostenartZeile(kostenart) : "verschiedeneKosten";
 }
 
 /** Woher ein Betrag kommt: die Buchung und, bei einer Zahlung, die Rechnung bzw. der Beleg, den sie ausgleicht */
