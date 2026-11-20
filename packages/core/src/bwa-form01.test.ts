@@ -140,6 +140,16 @@ describe("Kurzfristige Erfolgsrechnung (DATEV-Form 01)", () => {
     expect(w03.neutralAufwand).toBe(1_490);
   });
 
+  it.each([
+    ["SKR03", "2310", "8820"],
+    ["SKR04", "6895", "4845"],
+  ] as const)("%s: ein Anlagenabgang steht mit Restbuchwert %s und Erlös %s nur im sonstigen neutralen Ergebnis", (kr, restbuchwert, erloes) => {
+    // Restbuchwert 3.000 €, Verkauf für 5.000 € netto: 2.000 € Buchgewinn
+    const w = form01([saldo(kr, restbuchwert, 300_000), saldo(kr, erloes, -500_000)]);
+    expect([w.neutralAufwand, w.neutralErtrag, w.sonstigeErloese, w.betriebsergebnis]).toEqual([300_000, 500_000, 0, 0]);
+    expect(w.vorlaeufigesErgebnis).toBe(200_000);
+  });
+
   it("Betrag je Zeile: Ertragszeilen drehen das Vorzeichen des Saldos", () => {
     const ertrag: Form01Zeile[] = [
       "umsatzerloese",

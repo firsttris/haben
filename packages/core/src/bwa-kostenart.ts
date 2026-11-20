@@ -100,6 +100,9 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     ["4600", "4699", "werbeReise"], // S. 23, 4600 „Werbekosten“ bis 4681 „Verpflegungsmehraufwendungen“
     ["4700", "4799", "warenabgabe"], // S. 23, 4700 „Kosten der Warenabgabe“
     ["4800", "4809", "instandhaltung"], // S. 24, 4800 „Reparaturen und Instandhaltungen“; 4810 „Mietleasing“ nicht
+    // S. 28 f., 8800 bis 8819 „Erlöse aus Verkäufen …“ bei Buchverlust (GuV-Posten „Sonstige betriebliche Aufwendungen“),
+    // 8820 bis 8839 bei Buchgewinn („Sonstige betriebliche Erträge“): neutral wie der Restbuchwert 2310 bis 2318
+    ["8800", "8839", "neutral"],
     // S. 29, „Erhöhung oder Verminderung des Bestandes an fertigen und unfertigen Erzeugnissen“ 8960 bis 8980
     ["8960", "8989", "bestandsveraenderungen"],
     ["8990", "8995", "eigenleistungen"], // S. 29, „Andere aktivierte Eigenleistungen“
@@ -111,7 +114,9 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     // S. 17, 4839 „Sonstige Erträge unregelmäßig“ wie SKR03 2709, 4840 „Erträge aus der Währungsumrechnung“ wie SKR03 2660
     ["4839", "4840", "neutral"],
     ["4843", "4843", "neutral"], // S. 17, „Erträge aus Bewertung Finanzmittelfonds“ wie SKR03 2666
-    ["4847", "4847", "neutral"], // S. 17, „Erträge aus der Währungsumrechnung (nicht § 256a HGB)“ wie SKR03 2661
+    // S. 17, 4844 bis 4852 „Erlöse aus Verkäufen …“ bei Buchgewinn wie SKR03 8820 bis 8839, dazwischen 4847 „Erträge aus der
+    // Währungsumrechnung (nicht § 256a HGB)“ wie SKR03 2661
+    ["4844", "4852", "neutral"],
     ["4855", "4858", "neutral"], // S. 17, „Anlagenabgänge“ (Restbuchwert bei Buchgewinn) wie SKR03 2315 bis 2318
     ["4860", "4864", "neutral"], // S. 17, „Grundstückserträge“ wie SKR03 2750 bis 2752
     // S. 17 f., 4904 bis 4938 Abgänge, Zuschreibungen, Herabsetzungen und Auflösungen wie SKR03 2710 bis 2741
@@ -138,6 +143,7 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     // SKR03 2385/2386; 6879 „Verwahrentgelt“ wie SKR03 4971 nicht
     ["6860", "6876", "neutral"],
     ["6880", "6883", "neutral"], // S. 24, „Aufwendungen aus der Währungsumrechnung“ und Bewertung wie SKR03 2150 bis 2166
+    ["6884", "6892", "neutral"], // S. 25, „Erlöse aus Verkäufen …“ bei Buchverlust wie SKR03 8800 bis 8819
     // S. 25, 6895 bis 6908 Anlagenabgänge und Abgänge des Umlaufvermögens wie SKR03 2310 bis 2328; 6910 „Abschreibungen
     // auf Umlaufvermögen“ wie SKR03 4880 nicht
     ["6895", "6908", "neutral"],
