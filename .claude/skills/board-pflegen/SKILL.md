@@ -47,6 +47,7 @@ Daraus ermitteln:
 - Karten in „In Arbeit“ ohne offenen PR und ohne Kommentar seit 14 Tagen (`gh issue view <n> --json comments,updatedAt`, `gh pr list --search "<n> in:body"`);
 - geschlossene Issues, deren Karte nicht in „Erledigt“ steht;
 - Karten in „Im nächsten Release“, deren PR kein `Umgesetzt #…` hat: die schließt das Release nicht (`scripts/board/regel.ts`);
+- **offene Teile:** Karten in „In Arbeit“, deren Pull Requests alle gemergt sind, nur mit `Refs`, und für die kein offener Pull Request mehr da ist (`gh pr list --state all --search "<n> in:body"`). Meist fehlte beim letzten Teil das `Umgesetzt`, und das Release schließt das Issue nie. Akzeptanzkriterien des Issues gegen die gemergten Pull Requests halten (Abschnitte „Offen“ oder „Nicht dabei“ in ihren Beschreibungen): ist alles da, mit der Vorlage „Erledigt“ schließen (Release, in dem der letzte Teil kam); bleibt ein klar abgegrenzter Rest, ihn als Folge-Issue anlegen (Schritt 5) und das Issue dann schließen; sonst bleibt die Karte, und der Zugewiesene bekommt eine kurze Frage nach dem Stand;
 - Entwürfe, für die es inzwischen ein Issue gibt.
 
 ### 2. Issues prüfen

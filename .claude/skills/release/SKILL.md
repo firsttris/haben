@@ -45,6 +45,7 @@ Neue Migrationen: `git diff --name-only --diff-filter=A <letzter-tag>..origin/ma
 
   Nach dem Tag zeigt `bun scripts/board/release.ts vX.Y.Z --probe` dieselbe Liste.
 - **Karten in „Im nächsten Release“, deren PR nur `Refs` hat:** Die schließt das Release nicht. Dem Maintainer melden; er schließt sie danach von Hand (Skill `board-pflegen`).
+- **Offene Teile:** Karten in „In Arbeit“, deren Pull Requests seit der vorigen fertigen Version alle nur mit `Refs` gemergt sind und für die kein offener Pull Request mehr da ist. Als Liste dem Maintainer vorlegen, bevor er das Release freigibt: Was fertig ist, bekommt im letzten Pull Request `Umgesetzt` (zählt auch nach dem Merge, `scripts/board/release.ts`) oder wird nach dem Release geschlossen (Skill `board-pflegen`, „offene Teile“).
 - **Offene Pull Requests**, die mit hinein sollen: beim Maintainer nachfragen.
 
 ## 4. Vorschlag an den Maintainer

@@ -141,7 +141,7 @@ export async function statusLesen(token: string, itemId: string): Promise<string
 
 /** REST für Issues mit GITHUB_TOKEN: Kommentar schreiben und als erledigt schließen */
 export async function issueLesen(token: string, repo: string, nummer: number) {
-  return anfrage<{ state: string; pull_request?: unknown }>(token, `/repos/${repo}/issues/${nummer}`);
+  return anfrage<{ state: string; body?: string | null; pull_request?: unknown }>(token, `/repos/${repo}/issues/${nummer}`);
 }
 
 export async function kommentieren(token: string, repo: string, nummer: number, text: string): Promise<void> {
