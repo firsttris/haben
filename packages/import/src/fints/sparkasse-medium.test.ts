@@ -166,6 +166,16 @@ describe("Sparkasse KölnBonn: unbekanntes pushTAN-Medium", () => {
     expect(sync).toHaveBeenCalledTimes(2);
   });
 
+  it("respektiert eine aktuelle 3920, die das gespeicherte Verfahren nicht mehr erlaubt", async () => {
+    const c = client();
+    const abgelehnt = response();
+    abgelehnt.bankAnswers.find((a) => a.code === 3920)!.params = ["912"];
+    const sync = vi.spyOn(c, "synchronize").mockResolvedValue(abgelehnt);
+    expect((await fintsSynchronisieren(c)).art).toBe("abgelehnt");
+    expect(sync).toHaveBeenCalledTimes(1);
+    expect(c.config.tanMediaName).toBeUndefined();
+  });
+
   it.each(["ohne Erlaubnis", "abgelehnt", "nicht erreichbar"])("sendet nach erfolgloser BPD-Ermittlung keine weitere PIN: %s", async (fall) => {
     const c = client(false);
     const sync = vi.spyOn(c, "synchronize").mockResolvedValue(response(fall === "ohne Erlaubnis" ? [9955] : undefined));
