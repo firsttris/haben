@@ -270,6 +270,21 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     expect(invoice).toMatchObject({ format: "xrechnung-cii", language: "en", skonto: [{ days: 7, percent: 200 }] });
   });
 
+  it("der Entwurf wählt den einzigen aktiven Ansprechpartner, bei zweien keinen (#1335)", async () => {
+    const { createContactPerson, setContactPersonActive } = await import("../stammdaten/contact-persons.ts");
+    const erika = await createContactPerson(actor, kunde, { name: "Erika Musterfrau" });
+    const alt = await createContactPerson(actor, kunde, { name: "Alt Ausgeschieden" });
+    await setContactPersonActive(actor, alt, false);
+    await eintrag();
+    const ersterEntwurf = (await abrechnen_()).invoiceId;
+    expect((await sql`select contact_person_id from invoices where id = ${ersterEntwurf}`)[0]?.contact_person_id).toBe(erika);
+
+    await createContactPerson(actor, kunde, { name: "Max Beispiel" });
+    await eintrag({ workedOn: "2026-03-03" });
+    const zweiterEntwurf = (await abrechnen_()).invoiceId;
+    expect((await sql`select contact_person_id from invoices where id = ${zweiterEntwurf}`)[0]?.contact_person_id).toBeNull();
+  });
+
   it("Filter nach Stand: offen, abgerechnet, nicht abrechenbar", async () => {
     const offen = await eintrag({ workedOn: "2026-02-10" });
     const nicht = await eintrag({ workedOn: "2026-02-11", nonBillable: true });
