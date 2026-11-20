@@ -326,3 +326,75 @@ describe("Auszug und Aktivitätenexport", () => {
     expect(zugeordnet[massen]).toBeUndefined();
   });
 });
+
+describe("Echte Antwort der PayPal-Sandbox (anonymisiert)", () => {
+  const sandbox = readFileSync(new URL("../../test-fixtures/paypal/sandbox-transaktionen.json", import.meta.url), "utf8");
+  type Echt = {
+    transaction_details: {
+      transaction_info: {
+        transaction_event_code: string;
+        transaction_amount: { value: string };
+        fee_amount: { value: string };
+        ending_balance: { value: string };
+      };
+    }[];
+  };
+  const echt = JSON.parse(sandbox) as Echt;
+
+  const laden = async () => {
+    const fetchFn = (async (input: string | URL | Request) =>
+      String(input).includes("oauth2")
+        ? Response.json({ access_token: "t", expires_in: 3600 })
+        : new Response(sandbox, { headers: { "content-type": "application/json" } })) as typeof fetch;
+    return new PayPalClient({
+      clientId: "id-fuer-test",
+      clientSecret: "secret-fuer-test",
+      fetch: fetchFn,
+      now: () => Date.parse("2026-11-20T10:00:00Z"),
+    }).transactions("2026-11-19", "2026-11-19");
+  };
+
+  it("liest Zahlung und Erstattung: Gebühr bei der Zahlung negativ, bei der Erstattung positiv, Name aus alternate_full_name", async () => {
+    const list = await laden();
+    expect(list.map((t) => [t.eventCode, t.status, t.amount, t.fee, t.currency, t.payerName])).toEqual([
+      ["T0000", "S", 10_000, -225, "EUR", "Erika Beispiel"],
+      ["T1107", "S", -2_000, 38, "EUR", "Erika Beispiel"],
+    ]);
+  });
+
+  it("stimmt mit dem Saldo der Antwort überein: Betrag plus Gebühr jeder Zeile ergibt den ending_balance", () => {
+    const cents = (v: string) => Math.round(Number(v) * 100);
+    let saldo = 0;
+    for (const z of echt.transaction_details) {
+      saldo += cents(z.transaction_info.transaction_amount.value) + cents(z.transaction_info.fee_amount.value);
+      expect(saldo).toBe(cents(z.transaction_info.ending_balance.value));
+    }
+  });
+
+  it("ordnet die Zeilen ein und liefert Zahlung und Erstattung mit Gebühr und Bezug; der Tag ist der in Berlin", async () => {
+    const classified = classify(await laden(), { zone: "Europe/Berlin", dateFrom: "2026-11-19", dateTo: "2026-11-20" });
+    expect(classified.unsupported).toEqual([]);
+    expect(classified.entries.map((e) => [e.kind, e.typeText, e.bookingDate])).toEqual([
+      ["payment", "General payment", "2026-11-19"],
+      ["refund", "Payment refund", "2026-11-19"],
+    ]);
+    const batch = paypalBatch({
+      externalAccountId: "ACC05XXXXXXXX",
+      classified,
+      dateFrom: "2026-11-19",
+      dateTo: "2026-11-20",
+      fetchedAt: "2026-11-20T10:00:00Z",
+      fetchId: "sandbox",
+    });
+    const gueltig = validateBatch(batch, { provider: "paypal", externalAccountId: "ACC05XXXXXXXX", accountKind: "psp" });
+    expect(gueltig.ok).toBe(true);
+    expect(batch.movements.map((m) => [m.component, m.kind, m.amount, m.references.relatedEventId ?? null])).toEqual([
+      ["main", "payment", 10_000, null],
+      ["fee", "payment", -225, null],
+      ["main", "refund", -2_000, "SBX02XXXXXXXXXXXX"],
+      ["fee", "refund", 38, "SBX02XXXXXXXXXXXX"],
+    ]);
+    // Zusammen das, was das Konto bewegt hat: 97,75 € − 19,62 €
+    expect(batch.movements.reduce((s, m) => s + m.amount, 0)).toBe(7_813);
+  });
+});

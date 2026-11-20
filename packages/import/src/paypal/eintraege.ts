@@ -16,7 +16,7 @@ import type { PayPalTransaction } from "./client.ts";
  * für die Annahme sind nur die Spalte „Gebühr“ des Aktivitätenexports (bei Zahlungen negativ) und zwei Integrationen, die die
  * Transaction Search im Echtbetrieb nutzen und die Gebühr ebenso lesen: pgeu-system
  * (`postgresqleu/paypal/management/commands/paypal_fetch.py`) und OCA `account_statement_import_online_paypal`. Eine
- * echte Antwort der API steht aus (#1512). Stimmt die Annahme nicht, bucht Haben nichts Falsches: Eine Zahlung mit positiver
+ * Antwort der Sandbox von PayPal bestätigt sie (test-fixtures/paypal/sandbox-transaktionen.json: Zahlung −2,25 €, bei der Erstattung +0,38 € zurück); an einem Konto im Livebetrieb ist sie nicht geprüft (#1512). Stimmt die Annahme nicht, bucht Haben nichts Falsches: Eine Zahlung mit positiver
  * Gebühr übernimmt es nicht, sondern meldet sie.
  */
 
