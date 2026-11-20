@@ -65,20 +65,9 @@ export async function synchronisierenMitSparkassenMedium(client: FinTSClient): P
   return client.synchronize();
 }
 
-/** lib-fints prüft beim Wiederladen die Medienliste; HKTAB kann trotz erfolgreicher Anmeldung scheitern. */
-export function bestaetigtesSparkassenMediumMerken(client: FinTSClient, response: ClientResponse): void {
-  const config = client.config;
+/** Neue BPD ersetzen die Medienliste; das bei erfolgreicher Einrichtung gespeicherte Medium bleibt gültig. */
+export function gespeichertesSparkassenMediumErgaenzen(config: FinTSConfig, medium: string): void {
   const method = config.selectedTanMethod;
-  if (
-    !response.success ||
-    response.requiresTan ||
-    !bekannteBank(config) ||
-    config.tanMethodId !== PUSH ||
-    config.tanMediaName !== MEDIUM ||
-    !method?.isDecoupled ||
-    method.tanMediaRequirement !== 2
-  )
-    return;
-  // Erst die erfolgreiche Antwort bestätigt das zuvor ohne Medienliste gesetzte Sondermedium, auch nach einer TAN.
+  if (!bekannteBank(config) || config.tanMethodId !== PUSH || medium !== MEDIUM || !method?.isDecoupled || method.tanMediaRequirement !== 2) return;
   if (!method.activeTanMedia.includes(MEDIUM)) method.activeTanMedia.push(MEDIUM);
 }

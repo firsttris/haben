@@ -13,10 +13,7 @@ const BPD = [
   "HITABS:{n}:5+1+1+0",
   "HIKAZS:{n}:7+1+1+0+90:N:N",
 ];
-const UPD = [
-  "HIUPA:{n}:4+testperson+1+0",
-  "HIUPD:{n}:6+0000202051::280:37050198+DE02370501980000202051+testperson+1+EUR+Max Mustermann++Girokonto++HKKAZ:1",
-];
+const UPD = ["HIUPA:{n}:4+testperson+1+0", "HIUPD:{n}:6+0000202051::280:37050198+DE02370501980000202051+testperson+1+EUR+Max Mustermann++Girokonto++HKKAZ:1"];
 
 function antwort(segmente: string[], msgNr: number): Response {
   const rumpf = [...segmente.map((s, i) => s.replace("{n}", String(i + 2))), `HNHBS:${segmente.length + 2}:1+${msgNr}`].join("'") + "'";
