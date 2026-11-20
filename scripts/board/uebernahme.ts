@@ -11,7 +11,7 @@ export const TAGE_BIS_FREIGABE = 7;
 /** Unsichtbare Marke im Kommentar der Erinnerung, damit der nächste Lauf sie wiederfindet */
 export const MARKE_ERINNERUNG = "<!-- board:erinnerung -->";
 
-const BOARD = "[Board](https://github.com/users/firsttris/projects/2)";
+const BOARD = "[Board](https://github.com/orgs/Speicherstadt/projects/3)";
 const ANLEITUNG = "[Etwas übernehmen](https://haben.app/mitwirken.html#etwas-übernehmen)";
 const TAG = 24 * 60 * 60 * 1000;
 

@@ -1,4 +1,4 @@
-# Schiebt Karten im Project „Roadmap“ (https://github.com/users/firsttris/projects/2) weiter, nach
+# Schiebt Karten im Project „Roadmap“ (https://github.com/orgs/Speicherstadt/projects/3) weiter, nach
 # scripts/board/regel.ts: Issue zugewiesen oder PR mit `Refs #…`/`Umgesetzt #…` geöffnet → In Arbeit;
 # PR mit `Umgesetzt #…` gemergt → Im nächsten Release. Geschlossen wird beim Release (release.yml), danach
 # schiebt das Board die Karte selbst nach „Erledigt“.

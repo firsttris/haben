@@ -15,7 +15,7 @@ description: >-
 <p class="showcase-claim">Agenten schreiben den Code. Frische Agenten prüfen ihn und dürfen nur melden, was ein
 fehlschlagender Test belegt. Ein Mensch entscheidet, was nach <code>main</code> kommt.</p>
 
-[Ein echtes Beispiel](#beispiel){ .md-button .md-button--primary } [Etwas übernehmen](mitwirken.md#etwas-übernehmen){ .md-button } [Zum Board](https://github.com/users/firsttris/projects/2){ .md-button }
+[Ein echtes Beispiel](#beispiel){ .md-button .md-button--primary } [Etwas übernehmen](mitwirken.md#etwas-übernehmen){ .md-button } [Zum Board](https://github.com/orgs/Speicherstadt/projects/3){ .md-button }
 
 </div>
 

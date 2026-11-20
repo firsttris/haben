@@ -22,7 +22,7 @@ function nachgebautesGithub() {
       const query: string = body.query;
       if (query.includes("projectV2(number")) {
         const options = STATUS.map((name) => ({ id: `option-${name}`, name }));
-        return antwort({ data: { user: { projectV2: { id: "projekt", field: { id: "status", options } } } } });
+        return antwort({ data: { organization: { projectV2: { id: "projekt", field: { id: "status", options } } } } });
       }
       if (query.includes("issueOrPullRequest")) {
         const projectItems = { nodes: [{ id: "karte", project: { id: "projekt" }, fieldValueByName: { name: "Geplant" } }] };
