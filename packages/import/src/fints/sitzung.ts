@@ -1,7 +1,7 @@
 import { type BankAccount, type BankAnswer, type BankingInformation, type ClientResponse, FinTSClient, FinTSConfig, type Statement } from "lib-fints";
 import { bankdatenNichtLoggen } from "./log.ts";
 import { lesefehler, lesefehlerMerken, type UmsatzFormat, umsatzFormat } from "./lesefehler.ts";
-import { synchronisierenMitSparkassenMedium } from "./sparkasse-medium.ts";
+import { bestaetigtesSparkassenMediumMerken, synchronisierenMitSparkassenMedium } from "./sparkasse-medium.ts";
 import { mitEingetippterTan } from "./tan-eintippen.ts";
 import { umsatzabrufMitTanSchritt } from "./tan-schritt.ts";
 
@@ -156,6 +156,7 @@ export async function fintsSynchronisieren(client: FinTSClient, weiter?: FintsWe
   const response = weiter
     ? await mitEingetippterTan(client, weiter.tan, () => client.synchronizeWithTan(weiter.referenz, weiter.tan))
     : await synchronisierenMitSparkassenMedium(client);
+  bestaetigtesSparkassenMediumMerken(client, response);
   return antwort(client, response, () => client.config.bankingInformation);
 }
 
