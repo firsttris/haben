@@ -224,6 +224,24 @@ describe.skipIf(!testDatabaseUrl)("BWA nach DATEV-Form 01 (Postgres, #1380)", ()
     expect(guv.report.jahresergebnis).toBe(-1_500);
   }, 60_000);
 
+  for (const [kontenrahmen, ruecklage, gewinnruecklage] of [
+    ["SKR03", "2496", "0846"],
+    ["SKR04", "7765", "2930"],
+  ] as const) {
+    it(`Einstellung in die Gewinnrücklage ändert das vorläufige Ergebnis nicht (${kontenrahmen})`, async () => {
+      await reset("soll", kontenrahmen);
+      await invoice("2027-03-10", 100_000);
+      // Ergebnisverwendung nach dem Jahresergebnis (§ 158 AktG): Einstellung in die gesetzliche Rücklage
+      await umbuchung("2027-12-31", ruecklage, gewinnruecklage, 5_000, "Einstellung in die Gewinnrücklage");
+      const bericht = await bwa.bwaBericht(bwaZeitraum("jahr", 2027), "keiner");
+      expect(zeile(bericht, "unbesetzt").betrag).toBe(0);
+      expect(zeile(bericht, "vorlaeufigesErgebnis").betrag).toBe(100_000);
+      const guv = await abschluss.jahresabschluss(2027, "2028-06-30");
+      if (!guv.kapitalgesellschaft) throw new Error("GmbH erwartet");
+      expect(zeile(bericht, "vorlaeufigesErgebnis").betrag).toBe(guv.report.jahresergebnis);
+    }, 60_000);
+  }
+
   it("Einzelunternehmen bekommen weiter Form 43", async () => {
     await reset("ist", "SKR03", "einzelunternehmen");
     const bericht = await bwa.bwaBericht(bwaZeitraum("jahr", 2027), "keiner");

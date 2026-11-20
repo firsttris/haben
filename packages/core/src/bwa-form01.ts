@@ -8,8 +8,9 @@ import { carriesForward } from "./vortrag.ts";
  * Kurzfristige Erfolgsrechnung (#1380) nach dem Aufbau der DATEV BWA-Form 01 (Musterauswertung BWA, DATEV 2016) für GmbH
  * und UG: periodengerecht wie die GuV aus den Salden der Erfolgskonten nach Buchungsdatum. Jedes Erfolgskonto steht nach
  * seiner Kostenart (bwa-kostenart.ts) in genau einer Zeile; ein Erfolgskonto ohne Kostenart (Lücke im Kontenrahmen) steht
- * unter „Kontenklasse unbesetzt“. Über ein Jahr ist das vorläufige Ergebnis deshalb das Jahresergebnis der GuV
- * (hgb-abschluss.ts), plus was unter „Kontenklasse unbesetzt“ steht; dort fehlt es als nicht zugeordnet.
+ * unter „Kontenklasse unbesetzt“. Die Konten der Ergebnisverwendung fehlen wie in der GuV. Über ein Jahr ist das vorläufige
+ * Ergebnis deshalb das Jahresergebnis der GuV (hgb-abschluss.ts), plus was unter „Kontenklasse unbesetzt“ steht; dort fehlt
+ * es als nicht zugeordnet.
  */
 
 /** Zeilen der Form 01 mit Beträgen, ohne Summen */
@@ -148,11 +149,33 @@ const KOSTEN: readonly Form01Zeile[] = [
 ];
 
 /**
- * Zeile der Form 01 für ein Konto; null für Bestandskonten, Vortragskonten der Klasse 9 und Personenkonten. Ein eigenes
+ * Konten der Ergebnisverwendung nach dem Jahresergebnis (§ 158 AktG), ohne GuV-Posten (hgb.ts); DATEV-Kontenrahmen 2026.
+ * Einstellungen in und Entnahmen aus Rücklagen, Gewinn- und Verlustvortrag, Vorabausschüttung und Ertrag aus der
+ * Kapitalherabsetzung ändern das Ergebnis nicht, sie verteilen es.
+ */
+const ERGEBNISVERWENDUNG: Record<Kontenrahmen, readonly (readonly [von: string, bis: string])[]> = {
+  SKR03: [
+    ["2480", "2489"], // S. 15, Einstellungen in Rücklagen, Änderung steuerlicher Ausgleichsposten
+    ["2495", "2499"], // S. 16, Einstellungen in Kapital- und Gewinnrücklagen
+    ["2745", "2745"], // S. 17, „Ertrag aus der Kapitalherabsetzung“
+    ["2795", "2799"], // S. 18, Entnahmen aus Kapital- und Gewinnrücklagen
+    ["2840", "2870"], // S. 18, Entnahmen aus Rücklagen, Gewinn- und Verlustvortrag, 2870 „Vorabausschüttung“
+  ],
+  SKR04: [
+    ["7700", "7790"], // S. 29, Gewinn- und Verlustvortrag, Entnahmen und Einstellungen, 7790 „Vorabausschüttung“
+  ],
+};
+
+const ergebnisverwendung = (kontenrahmen: Kontenrahmen, account: string) =>
+  ERGEBNISVERWENDUNG[kontenrahmen].some(([von, bis]) => account >= von && account <= bis);
+
+/**
+ * Zeile der Form 01 für ein Konto; null für Bestandskonten, Vortragskonten der Klasse 9, Personenkonten und die Konten der
+ * Ergebnisverwendung. Ein eigenes
  * Sachkonto (#270) löst der Aufrufer vorher auf das Konto seiner Elternkategorie auf, wie bei `kostenartOf`.
  */
 export function form01Zeile(kontenrahmen: Kontenrahmen, account: string): Form01Zeile | null {
-  if (!/^\d{4}$/.test(account) || carriesForward(kontenrahmen, account)) return null;
+  if (!/^\d{4}$/.test(account) || carriesForward(kontenrahmen, account) || ergebnisverwendung(kontenrahmen, account)) return null;
   const kostenart = kostenartOf(kontenrahmen, account);
   return kostenart ? JE_KOSTENART[kostenart] : "unbesetzt";
 }

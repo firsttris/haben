@@ -17,6 +17,22 @@ const bekannteKonten = (kr: Kontenrahmen) => {
   );
 };
 
+/**
+ * Konten der Ergebnisverwendung nach dem Jahresergebnis (§ 158 AktG) laut DATEV-Kontenrahmen 2026: SKR03 S. 15 f. und
+ * S. 17 f., SKR04 S. 29. Sie haben keinen GuV-Posten (hgb.ts) und stehen in Form 01 nicht, wie in der GuV.
+ */
+const ERGEBNISVERWENDUNG: Record<Kontenrahmen, readonly [string, string][]> = {
+  SKR03: [
+    ["2480", "2489"],
+    ["2495", "2499"],
+    ["2745", "2745"],
+    ["2795", "2799"],
+    ["2840", "2870"],
+  ],
+  SKR04: [["7700", "7790"]],
+};
+const ergebnisverwendung = (kr: Kontenrahmen, konto: string) => ERGEBNISVERWENDUNG[kr].some(([von, bis]) => konto >= von && konto <= bis);
+
 const saldo = (kontenrahmen: Kontenrahmen, account: string, betrag: number): Form01Saldo => ({ kontenrahmen, account, saldo: betrag });
 
 describe("Kurzfristige Erfolgsrechnung (DATEV-Form 01)", () => {
@@ -39,7 +55,7 @@ describe("Kurzfristige Erfolgsrechnung (DATEV-Form 01)", () => {
   it.each(RAHMEN)("%s: jedes Erfolgskonto mit GuV-Posten hat eine Zeile mit Kostenart, eines ohne steht unter „Kontenklasse unbesetzt“", (kr) => {
     for (const konto of alleKonten) {
       const zeile = form01Zeile(kr, konto);
-      if (carriesForward(kr, konto)) expect(zeile, konto).toBeNull();
+      if (carriesForward(kr, konto) || ergebnisverwendung(kr, konto)) expect(zeile, konto).toBeNull();
       else {
         const posten = postenOf(kr, konto);
         expect(zeile === "unbesetzt", `${kr} ${konto} (${posten})`).toBe(posten === null || isBilanz(posten));
@@ -57,14 +73,31 @@ describe("Kurzfristige Erfolgsrechnung (DATEV-Form 01)", () => {
   });
 
   it("Konten in einer Lücke stehen unter „Kontenklasse unbesetzt“ und zählen zum Ergebnis vor Steuern", () => {
-    // SKR03 2480: Einstellung in Rücklagen, nach dem Jahresergebnis; SKR03 4310: Lücke zwischen 4306 und 4320
-    expect(form01Zeile("SKR03", "2480")).toBe("unbesetzt");
+    // SKR03 4310: Lücke zwischen 4306 und 4320
     expect(form01Zeile("SKR03", "4310")).toBe("unbesetzt");
     const w = form01([saldo("SKR03", "8400", -100_000), saldo("SKR03", "4310", 3_000)]);
     expect(w.unbesetzt).toBe(-3_000);
     expect(w.ergebnisVorSteuern).toBe(97_000);
     // In der GuV fehlt das Konto als nicht zugeordnet
     expect(abschluss("SKR03", [saldo("SKR03", "8400", -100_000), saldo("SKR03", "4310", 3_000)]).jahresergebnis).toBe(100_000);
+  });
+
+  it.each([
+    ["SKR03", "2496"], // Einstellungen in die gesetzliche Rücklage
+    ["SKR03", "2745"], // Ertrag aus der Kapitalherabsetzung
+    ["SKR03", "2860"], // Gewinnvortrag nach Verwendung
+    ["SKR03", "2870"], // Vorabausschüttung
+    ["SKR04", "7765"], // Einstellungen in die gesetzliche Rücklage
+    ["SKR04", "7755"], // Ertrag aus der Kapitalherabsetzung
+    ["SKR04", "7700"], // Gewinnvortrag nach Verwendung
+    ["SKR04", "7790"], // Vorabausschüttung
+  ] as const)("%s %s: Ergebnisverwendung steht wie in der GuV nicht in Form 01, auch nicht unter „Kontenklasse unbesetzt“", (kr, konto) => {
+    expect(form01Zeile(kr, konto)).toBeNull();
+    const salden = [saldo(kr, kr === "SKR03" ? "8400" : "4400", -100_000), saldo(kr, konto, 30_000)];
+    const w = form01(salden);
+    expect(w.unbesetzt).toBe(0);
+    expect(w.vorlaeufigesErgebnis).toBe(100_000);
+    expect(w.vorlaeufigesErgebnis).toBe(abschluss(kr, salden).jahresergebnis);
   });
 
   it("Bestandskonten, Vortragskonten und Personenkonten zählen nicht", () => {
