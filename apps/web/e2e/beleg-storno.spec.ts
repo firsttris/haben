@@ -228,6 +228,33 @@ test("Beleg duplizieren: neue Datei mit den Feldern des Originals und Datum heut
   expect((await sql`select count(*)::int as n from documents where supplier_name = 'Papierhaus Petersen'`)[0]!.n).toBe(2);
 });
 
+test("gleiche Rechnungsnummer desselben Lieferanten: Hinweis mit Link und im Buchungsdialog, ohne Sperre (#1314)", async ({ browser }) => {
+  const original = await receipt(browser, "Papierhaus Petersen", "P-2201", day(-5));
+  const zweiter = await receipt(browser, "Papierhaus Petersen", "p - 2201", currentDay(), false);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/belege/${zweiter}`);
+  await page.waitForLoadState("networkidle");
+  const hinweis = page.getByRole("status").filter({ hasText: "Mögliche Dublette" });
+  await expect(hinweis).toContainText("Vom selben Lieferanten gibt es schon einen Beleg mit dieser Rechnungsnummer");
+  // „gebucht“ allein passte auch zu „noch nicht gebucht“
+  await expect(hinweis).toContainText(/119,00\s€, gebucht/);
+
+  // Buchen bleibt möglich; der Dialog nennt die mögliche Dublette
+  await page.getByRole("button", { name: "Bestätigen und buchen", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Mögliche Dublette:");
+  await expect(dialog.getByRole("button", { name: "Buchen", exact: true })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+  // Der Link führt zum gebuchten Original; dort steht der Hinweis auf den neuen, noch nicht gebuchten
+  await hinweis.getByRole("link", { name: "Papierhaus Petersen P-2201" }).click();
+  await expect(page).toHaveURL(new RegExp(`/belege/${original}$`));
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("status").filter({ hasText: "Mögliche Dublette" })).toContainText("noch nicht gebucht");
+  // Aufräumen: Die Listen-Tests darunter zählen die Belege
+  await (await import("../src/server/modules/belege/index.ts")).deleteDocument("e2e-storno", zweiter);
+});
+
 test("Belegliste: Status sortiert nach dem angezeigten Status, Storniert und Gebucht stehen je für sich", async ({ browser }) => {
   // Vor dem Abschluss des Jahres weiter unten. Ein stornierter Beleg bleibt im Code „gebucht“; listDocuments liefert bei
   // gleichem Datum den zuletzt hochgeladenen zuerst, hier also Gebucht, Storniert, Gebucht

@@ -24,6 +24,7 @@ export {
   uploadDocument,
 } from "./documents.ts";
 export { duplicateDocument } from "./duplizieren.ts";
+export { belegeMitGleicherNummer, type GleicheNummer } from "./gleiche-nummer.ts";
 export { searchBelege, searchDocuments, type DocumentHit, type RecurringDocumentHit } from "./search.ts";
 export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {

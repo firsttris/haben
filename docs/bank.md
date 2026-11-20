@@ -194,7 +194,7 @@ Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. 
 
 | Hinweis | Bedeutung |
 | --- | --- |
-| Vorschlag | Es gibt einen passenden offenen Posten; das Wort steht in Blau, darunter Rechnung oder Voranmeldung mit Nummer, bei einem Beleg der Lieferant. Bei einem [Vorschlag ohne Rechnung](#vorschläge-ohne-rechnung-und-geldtransit) und einer Buchung nach der Gegenpartei steht nichts darunter. |
+| Vorschlag | Es gibt einen passenden offenen Posten; das Wort steht in Blau, darunter Rechnung oder Voranmeldung mit Nummer, bei einem Beleg der Lieferant. Bei einem [Vorschlag ohne Rechnung](#vorschläge-ohne-rechnung-und-geldtransit) und einer Buchung nach der Gegenpartei steht in der Statusspalte nichts darunter. Bei einem [bestätigbaren Vorschlag](#vorschläge-bestätigen) steht unter dem Verwendungszweck, was gebucht würde („Vorschlag: …“). |
 | Teilweise | Ein Teil des Umsatzes ist zugeordnet; darunter, wie viel noch offen ist. |
 | Beleg fehlt | Ausgabe ohne Zuordnung und ohne Vorschlag; das Wort steht in Orange. |
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
@@ -206,12 +206,19 @@ Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auc
 
 ### Vorschläge bestätigen
 
-Bei Umsätzen mit Vorschlag steht in der Liste unter dem Verwendungszweck, was gebucht würde („Vorschlag: Rechnung R-2026-001“, „Vorschlag: Erlöse 19 %“). Davor steht ein Markierfeld; **Alle Vorschläge markieren** über der Liste setzt alle Haken, die Leertaste markiert den Umsatz mit dem Fokus. **… bestätigen** bucht alle markierten Umsätze in einem Schritt, genau so, als hättest du jeden einzeln mit **Zuordnen** bzw. **Buchen** gebucht: dieselbe Buchung, festgeschrieben, nur mit Gegenbuchung aufzuheben.
+Bei Umsätzen mit bestätigbarem Vorschlag steht in der Liste unter dem Verwendungszweck, was gebucht würde („Vorschlag: Rechnung R-2026-001“, „Vorschlag: Erlöse 19 %“). Mehrere davon bestätigst du in einem Schritt:
 
-- Bestätigen lässt sich ein Vorschlag nur, wenn er ohne Rückfrage buchbar ist: eine Rechnung oder ein Beleg mit genau dem Betrag des Umsatzes (ohne Skonto, Kursdifferenz oder Gebühr), eine Buchung auf eine Kategorie nach früheren Zuordnungen und die einfachen Arten ohne weitere Angaben (Privat, Spende, Gebühren, Mahnerlöse, Zinserträge). Dabei gilt dieselbe Reihenfolge wie in der Detailansicht: Eine Regel der Kontozwecke geht dem Gelernten vor, ist sie nicht bestätigbar, gibt es keinen Vorschlag zum Bestätigen. Geldtransit, Steuerzahlungen (Umsatzsteuer, Sondervorauszahlung, Lohnsteuer), Darlehen, Voranmeldungen und Aufladungen bleiben beim Einzelbuchen in der Detailansicht; Umsätze ohne bestätigbaren Vorschlag haben kein Markierfeld.
-- Haben bucht auch hier nie von selbst: Gebucht wird erst mit dem Klick auf **… bestätigen**. Der Server berechnet den Vorschlag dabei neu und bucht, was er jetzt ergibt.
+1. Markiere die Umsätze mit dem Markierfeld vor der Zeile. Die Leertaste markiert den Umsatz mit dem Fokus. **Alle … Vorschläge markieren** über der Liste setzt alle Haken. Es lassen sich höchstens 200 Umsätze auf einmal markieren; gibt es mehr Vorschläge, steht dort **Die ersten 200 von … Vorschlägen markieren**, und ein weiterer Haken von Hand wird mit einem Hinweis abgelehnt.
+2. Klicke auf **… bestätigen** (mit der Zahl der markierten Umsätze, etwa **3 bestätigen**). Haben bucht alle markierten Umsätze in einem Schritt, genau so, als hättest du jeden einzeln mit **Zuordnen** bzw. **Buchen** gebucht: dieselbe Buchung, festgeschrieben, nur mit Gegenbuchung aufzuheben.
+
+- Bestätigen lässt sich ein Vorschlag nur, wenn er ohne Rückfrage buchbar ist:
+  - eine Rechnung oder ein Beleg mit genau dem offenen Betrag des Umsatzes, ohne Skonto und ohne Kursdifferenz;
+  - eine Buchung auf eine Kategorie nach früheren Zuordnungen;
+  - die einfachen Arten ohne weitere Angaben: Privat, Spende, Gebühren, Mahnerlöse, Zinserträge.
+- Es gilt dieselbe Reihenfolge wie in der Detailansicht: Eine Regel der Kontozwecke geht dem Gelernten vor; ist sie nicht bestätigbar, gibt es keinen Vorschlag zum Bestätigen.
+- Beim Einzelbuchen in der Detailansicht bleiben Geldtransit, Steuerzahlungen (Umsatzsteuer, Sondervorauszahlung, Lohnsteuer), Darlehen, Voranmeldungen und Aufladungen. Auch ein Zahlungseingang mit Rechnung oder Beleg auf dem Konto eines Zahlungsdienstleisters bleibt dort, weil zur Zahlung eine Gebühr gehören kann, die erst **Zuordnen und Gebühr buchen** mitbucht. Umsätze ohne bestätigbaren Vorschlag haben kein Markierfeld. Eine Lastschrift des Finanzamts über den Betrag einer Lohnsteuer-Anmeldung zeigt wie in der Detailansicht den Hinweis „Vorschlag“ und steht im Filter **Vorschlag**, aber ohne Markierfeld.
+- Gebucht wird erst mit dem Klick auf **… bestätigen**. Der Server berechnet den Vorschlag dabei neu und bucht, was er jetzt ergibt.
 - Es wird alles oder nichts gebucht. Geht bei einem Umsatz etwas schief, etwa weil ein Beleg inzwischen bezahlt ist, bleibt auch der Rest ungebucht, und die Meldung nennt den Umsatz.
-- Ein einzelner Umsatz lässt sich markieren und bestätigen; in der Detailansicht bucht **Zuordnen** den Vorschlag wie bisher.
 
 ## Vorschläge
 
@@ -389,7 +396,7 @@ So gelernt werden:
 
 Nie gelernt werden Geldtransit (dafür braucht es die Gegenbuchung), alles mit dem Finanzamt, weil über dieselbe IBAN Umsatzsteuer und private Steuern laufen, und Lohn, Sozialversicherung, Steuerzahlungen und Darlehen: Dort ändern sich Abrechnung, Steuerart und Jahr oder der Teil der Rate von Zahlung zu Zahlung, und die Regeln oben kennen sie besser.
 
-Gebucht wird ein gelernter Vorschlag wie jeder andere erst mit **Buchen**; Haben bucht nie von selbst.
+Gebucht wird ein gelernter Vorschlag wie jeder andere erst mit **Buchen** oder, für mehrere Umsätze, mit [**… bestätigen**](#vorschläge-bestätigen); Haben bucht nie von selbst.
 
 ### Direkt buchen
 
@@ -427,14 +434,14 @@ Bei manchen Anbietern zahlst du Geld ein, das dort als Guthaben liegt und erst s
 
 Gebucht wird Bank gegen das Konto der gewählten Ausgabekategorie, ohne Vorsteuer; auf einem [privaten Konto](#privates-konto-geschäftsvorfälle-gegen-entnahme-und-einlage) steht statt der Bank die Privateinlage. Die Aufladung selbst trägt keine Umsatzsteuer: Beim Mehrzweck-Gutschein unterliegt die vorangegangene Übertragung nicht der Umsatzsteuer (§ 3 Abs. 15 UStG). Beim Einzweck-Gutschein ist dagegen schon die Aufladung die Leistung (§ 3 Abs. 14 UStG); dort brauchst du eine Rechnung, und der Betrag geht über [Belege](belege.md). Für den Vorsteuerabzug ist ohnehin eine Rechnung nötig, hier die über den Verbrauch des Guthabens (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Damit ist die Aufladung im Monat der Zahlung Betriebsausgabe (§ 11 Abs. 2 EStG). Eine Aufladung trägt nie einen Steuersatz; Haben lehnt eine Einnahmekategorie und jede andere Kategorie ab, die einen Beleg verlangt.
 
-Die Aufladung braucht keinen Beleg: Sie steht in der EÜR als Ausgabe ihrer Kategorie und im DATEV-Buchungsstapel ohne Belegnummer. Verbraucht die spätere Rechnung das Guthaben, steht dort eine Position „Verrechnung Guthaben“: Sie mindert den Aufwand der Rechnung, ohne dass Geld fließt. Diese Verrechnung kann Haben noch nicht buchen. Bis der Bezug zwischen Aufladung und Rechnung kommt (Teil 2 von [#1356](https://github.com/firsttris/haben/issues/1356)), bildet deshalb keine der beiden Buchungen Aufwand und Vorsteuer der Rechnung zugleich richtig ab:
+Die Aufladung braucht keinen Beleg: Sie steht in der EÜR als Ausgabe ihrer Kategorie und im DATEV-Buchungsstapel ohne Belegnummer. Verbraucht die spätere Rechnung das Guthaben, steht dort eine Position „Verrechnung Guthaben“: Sie mindert den Aufwand der Rechnung, ohne dass Geld fließt. Diese Verrechnung kann Haben noch nicht buchen. Bis der Bezug zwischen Aufladung und Rechnung kommt (Teil 2 von [#1356](https://github.com/Speicherstadt/haben/issues/1356)), bildet deshalb keine der beiden Buchungen Aufwand und Vorsteuer der Rechnung zugleich richtig ab:
 
 - **Nur die Aufladung buchen, die Rechnung liegen lassen:** Der Aufwand steht einmal, im Monat der Zahlung; die Vorsteuer der Rechnung bleibt ungenutzt. Das ist die Regel bis Teil 2.
 - **Die Rechnung zusätzlich als Beleg buchen:** Die Vorsteuer der Rechnung wäre abziehbar, aber der verrechnete Teil bleibt als offener Posten stehen, weil für ihn kein Geld fließt — und sobald du ihn mit einer Zahlung ausgleichst, zählt die EÜR den Aufwand ein zweites Mal.
 
 Mit dem Bezug zählt der Aufwand einmal, und die Vorsteuer kommt aus der Rechnung.
 
-Die Buchung als Ausgabe gilt für die EÜR des Einzelunternehmens (§ 11 Abs. 2 EStG). In GmbH und UG bietet Haben die Zuordnungsart deshalb weder an noch bucht sie sie: Dort bleibt der gezahlte Betrag bis zur Rechnung ein Vermögensgegenstand (§ 246 Abs. 1 Satz 1 HGB), und die Aktivierung über ein eigenes Sachkonto ist noch nicht gebaut ([#1281](https://github.com/firsttris/haben/issues/1281)).
+Die Buchung als Ausgabe gilt für die EÜR des Einzelunternehmens (§ 11 Abs. 2 EStG). In GmbH und UG bietet Haben die Zuordnungsart deshalb weder an noch bucht sie sie: Dort bleibt der gezahlte Betrag bis zur Rechnung ein Vermögensgegenstand (§ 246 Abs. 1 Satz 1 HGB), und die Aktivierung über ein eigenes Sachkonto ist noch nicht gebaut ([#1281](https://github.com/Speicherstadt/haben/issues/1281)).
 
 ### Auf eine Kategorie buchen
 

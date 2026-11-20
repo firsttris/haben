@@ -29,7 +29,7 @@ Abgegeben wird über das offizielle Portal und mit deiner eigenen Anmeldung.
 | Übermittlungsprotokoll herunterladen | du oder der Assistent |
 
 > [!WARNING]
-> **Noch offen: Nutzungsbedingungen von Mein ELSTER.** Ob das Ausfüllen durch einen gesteuerten Browser im Auftrag des angemeldeten Nutzers nach den Nutzungsbedingungen von Mein ELSTER zulässig ist, ist nicht geklärt. Lies sie vorher selbst. Die Verantwortung für die Abgabe liegt wie beim Abtippen bei dir. Erfährst du etwas Verbindliches, freuen wir uns über ein Issue ([#124](https://github.com/firsttris/haben/issues/124)).
+> **Noch offen: Nutzungsbedingungen von Mein ELSTER.** Ob das Ausfüllen durch einen gesteuerten Browser im Auftrag des angemeldeten Nutzers nach den Nutzungsbedingungen von Mein ELSTER zulässig ist, ist nicht geklärt. Lies sie vorher selbst. Die Verantwortung für die Abgabe liegt wie beim Abtippen bei dir. Erfährst du etwas Verbindliches, freuen wir uns über ein Issue ([#124](https://github.com/Speicherstadt/haben/issues/124)).
 
 ## Datenschutz
 

@@ -8,7 +8,7 @@ import type { Abgleich, AbgleichZeile } from "./abgleich.ts";
  * Bestände desselben markierten Belegumfangs, kein globaler Sammelkontenabgleich: Altbelege, Eröffnungen und freie
  * Sachbuchungen haben hier keine Nebenbuch-Gegenposition. Herkunft nur aus IDs, nie aus Buchungstexten erschließen.
  * Unbilanzierte Anforderungen und fortbestehender Anspruch beim Papierstorno: Entscheidung in #750.
- * https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 export async function oposAbgleich(cutoff: string, q: Db | Tx = db): Promise<Abgleich> {
   const stand = await advanceReceivablesAt(cutoff, q);

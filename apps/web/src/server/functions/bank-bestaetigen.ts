@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
-import { BESTAETIGEN_HOECHSTENS, bestaetigeVorschlaege } from "../modules/bank/index.ts";
+import { BESTAETIGEN_HOECHSTENS } from "../../lib/bestaetigen-grenze.ts";
+import { bestaetigeVorschlaege } from "../modules/bank/index.ts";
 
 /** Vorschläge der Bankliste bestätigen: ein Umsatz oder alle markierten, alles oder nichts (#1440) */
 export const confirmProposalsFn = createServerFn({ method: "POST" })

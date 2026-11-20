@@ -121,7 +121,7 @@ describe.skipIf(!testDatabaseUrl)("Normale Rechnung mit Leistungszeitraum ohne V
 
   // Rechnung mit und ohne Leistungszeitraum, sonst gleich: Die Steuer darf nicht davon abhängen, ob das Feld befüllt ist.
   // Bereits vereinnahmtes Entgelt mindert sich erst mit der Rückzahlung (§ 17 UStG, UStAE 17.1 Abs. 2 Satz 3,
-  // BFH V R 34/09), bei Soll wie bei Ist. Entscheidung: https://github.com/firsttris/haben/pull/1228#issuecomment-6925771896
+  // BFH V R 34/09), bei Soll wie bei Ist. Entscheidung: https://github.com/Speicherstadt/haben/pull/1228#issuecomment-6925771896
   for (const service of [null, "2026-10-05"] as const)
     for (const { frame, mode } of [
       { frame: "SKR03", mode: "soll" },

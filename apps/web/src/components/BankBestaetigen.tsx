@@ -1,6 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
+import { BESTAETIGEN_HOECHSTENS, ersteMarkierbare, umschalten } from "../lib/bestaetigen-grenze.ts";
 import { useAction } from "../lib/use-action.ts";
 import { confirmProposalsFn } from "../server/functions/bank-bestaetigen.ts";
 import { isDialogOpen } from "./ConfirmDialog.tsx";
@@ -32,13 +33,11 @@ export function useBestaetigen(umsaetze: readonly MitVorschlag[]) {
     });
   }, [markierbarKey]);
 
-  const toggle = (id: string) =>
-    setMarked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => {
+    const { markiert, voll } = umschalten(marked, id);
+    setMarked(markiert);
+    if (voll) action.setNotice({ tone: "info", text: `Höchstens ${BESTAETIGEN_HOECHSTENS} Umsätze lassen sich auf einmal bestätigen.` });
+  };
 
   const confirm = (ids: readonly string[]) =>
     action.run(async () => {
@@ -52,7 +51,8 @@ export function useBestaetigen(umsaetze: readonly MitVorschlag[]) {
     markierbar,
     marked,
     toggle,
-    setAlle: (an: boolean) => setMarked(new Set(an ? markierbar : [])),
+    /** Höchstens so viele, wie der Server auf einmal bucht: sonst scheitert der Klick erst beim Bestätigen */
+    setAlle: (an: boolean) => setMarked(new Set(an ? ersteMarkierbare(markierbar) : [])),
     confirm,
     busy: action.busy,
     notice: action.notice,
@@ -64,13 +64,18 @@ type Bestaetigen = ReturnType<typeof useBestaetigen>;
 /** Leiste über der Liste: alle Vorschläge markieren und die markierten gemeinsam bestätigen */
 export function BestaetigenLeiste({ b }: { b: Bestaetigen }) {
   if (b.markierbar.length === 0) return <NoticeBanner notice={b.notice} />;
-  const alle = b.marked.size === b.markierbar.length;
+  const grenze = Math.min(b.markierbar.length, BESTAETIGEN_HOECHSTENS);
+  const alle = b.marked.size === grenze;
   return (
     <>
       <div className="tx-confirm-bar">
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-          <input type="checkbox" checked={alle} onChange={(e) => b.setAlle(e.target.checked)} disabled={b.busy} />
-          <span>Alle {b.markierbar.length} Vorschläge markieren</span>
+          <input type="checkbox" className="row-check" checked={alle} onChange={(e) => b.setAlle(e.target.checked)} disabled={b.busy} />
+          <span>
+            {b.markierbar.length > grenze
+              ? `Die ersten ${grenze} von ${b.markierbar.length} Vorschlägen markieren`
+              : `Alle ${b.markierbar.length} Vorschläge markieren`}
+          </span>
         </label>
         <button type="button" className="btn btn-primary btn-sm" disabled={b.busy || b.marked.size === 0} onClick={() => void b.confirm([...b.marked])}>
           {b.marked.size === 0 ? "Markierte bestätigen" : `${b.marked.size} bestätigen`}
@@ -86,7 +91,14 @@ export function ZeilenMarkierung({ id, b, label }: { id: string; b: Bestaetigen;
   if (!b.markierbar.includes(id)) return null;
   return (
     <span className="tx-check">
-      <input type="checkbox" aria-label={`${label} markieren`} checked={b.marked.has(id)} onChange={() => b.toggle(id)} disabled={b.busy} />
+      <input
+        type="checkbox"
+        className="row-check"
+        aria-label={`${label} markieren`}
+        checked={b.marked.has(id)}
+        onChange={() => b.toggle(id)}
+        disabled={b.busy}
+      />
     </span>
   );
 }

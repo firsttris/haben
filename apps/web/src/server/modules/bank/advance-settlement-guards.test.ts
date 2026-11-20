@@ -6,7 +6,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
 /**
  * #750: Keine Forderung vor Leistung und keine Vorauszahlung auf den Schlussrest neuer Bilanzketten.
- * Quelle: https://github.com/firsttris/haben/issues/750#issuecomment-6850907108
+ * Quelle: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6850907108
  */
 describe.skipIf(!testDatabaseUrl)("Sperren vor der Schlussleistung (Postgres)", () => {
   let sql: postgres.Sql;

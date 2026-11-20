@@ -288,7 +288,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(text(files["protokoll/pruefwert.txt"])).toMatch(/^Beim Erstellen dieses Archivs .*:\nNr\. \d+ · [0-9a-f]{64}$/m);
     expect(Number(head!.seq)).toBeGreaterThanOrEqual(Number(/Nr\. (\d+)/.exec(text(files["protokoll/pruefwert.txt"]))![1]));
     expect(text(files["protokoll/versionen.csv"])).toBe(
-      "\uFEFFVersion;Seit;PostgreSQL;Hinweis;Versionshinweise\r\n0.8.2;2026-01-01T00:00:00.000Z;18.6;;https://github.com/firsttris/haben/releases/tag/v0.8.2\r\n",
+      "\uFEFFVersion;Seit;PostgreSQL;Hinweis;Versionshinweise\r\n0.8.2;2026-01-01T00:00:00.000Z;18.6;;https://github.com/Speicherstadt/haben/releases/tag/v0.8.2\r\n",
     );
     expect(text(files["LIESMICH.txt"])).toContain("protokoll/versionen.csv");
 

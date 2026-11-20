@@ -9,7 +9,7 @@ Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst da
 
 **Lokal** (Claude Code auf dem eigenen Rechner): `git push` auf den Branch des Forks geht mit den eigenen Zugangsdaten. Der Rest dieses Skills betrifft nur die Cloud.
 
-**Cloud-Session:** Sie schreibt nur in die Repositories, die beim Start als Quelle gewählt wurden. Ein Fork heißt meist ebenfalls `haben`; neben `firsttris/haben` lässt er sich nicht nachträglich hinzufügen (gleicher Name, gleiches Verzeichnis), und `git push`, `add_repo` und das GitHub-Werkzeug lehnen ihn ab. Das nicht durchprobieren und niemanden bitten, von Hand zu pushen, sondern sofort so:
+**Cloud-Session:** Sie schreibt nur in die Repositories, die beim Start als Quelle gewählt wurden. Ein Fork heißt meist ebenfalls `haben`; neben `Speicherstadt/haben` lässt er sich nicht nachträglich hinzufügen (gleicher Name, gleiches Verzeichnis), und `git push`, `add_repo` und das GitHub-Werkzeug lehnen ihn ab. Das nicht durchprobieren und niemanden bitten, von Hand zu pushen, sondern sofort so:
 
 1. Die Commits in dieser Session fertig machen und prüfen, auf einer lokalen Kopie des PR-Branches (`git fetch origin pull/<nr>/head:pr-<nr>`). Den erwarteten HEAD-SHA des Forks notieren.
 2. `git format-patch <head-sha>..pr-<nr> --stdout` erzeugt den Patch mit Nachrichten, Autor und Trailern.
@@ -20,5 +20,5 @@ Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst da
    - die Kontrolle (`git log`, `git diff --stat`, bei Code die Prüfung wie Biome);
    - `git push origin HEAD:<branch-des-pr>` ohne Force und auf keinen anderen Branch, am Ende den neuen SHA melden.
 
-   Ist der Patch zu groß für den Prompt, die Commits auf den eigenen Branch der Session in `firsttris/haben` pushen, ohne dessen Inhalt zu ändern (`git merge -s ours pr-<nr>`); der Branch darf keinen offenen Pull Request haben, sonst landen die Commits darin. Die Hilfssession holt sie statt `git am` mit `git fetch https://github.com/firsttris/haben <eigener-branch>` und `git merge --ff-only <letzter-sha>`; ihr HEAD ist danach genau dieser SHA.
+   Ist der Patch zu groß für den Prompt, die Commits auf den eigenen Branch der Session in `Speicherstadt/haben` pushen, ohne dessen Inhalt zu ändern (`git merge -s ours pr-<nr>`); der Branch darf keinen offenen Pull Request haben, sonst landen die Commits darin. Die Hilfssession holt sie statt `git am` mit `git fetch https://github.com/Speicherstadt/haben <eigener-branch>` und `git merge --ff-only <letzter-sha>`; ihr HEAD ist danach genau dieser SHA.
 4. Auf das Ende der Hilfssession warten (sie meldet sich nicht von selbst): `get_session` bis `status_bucket` nicht mehr `working` ist, ihre Antwort mit `list_events` und `kinds` `["assistant", "result"]`. Dann den Push prüfen: `git ls-remote origin refs/pull/<nr>/head` zeigt den neuen SHA. Die Hilfssession danach mit `archive_session` beenden.

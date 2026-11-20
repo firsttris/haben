@@ -7,7 +7,7 @@ description: >-
 
 # Entscheidung: nur noch das Journal
 
-**Status:** umgesetzt mit [#1116](https://github.com/firsttris/haben/issues/1116).
+**Status:** umgesetzt mit [#1116](https://github.com/Speicherstadt/haben/issues/1116).
 **Bezug:** [Entscheidung: Voranmeldung und EÜR aus dem Journal](journal-als-quelle.md) (#542, überholt in Stichjahr und
 Gegenprobe), [Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen),
 [Abgleich im Journal](../buchhaltung.md#abgleich-im-journal), [Update auf das Journal](../einrichtung.md#update-auf-das-journal).

@@ -1,6 +1,7 @@
 import type { TaxTreatment } from "@haben/core";
 import { useMemo } from "react";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
+import { einzigerAnsprechpartner } from "../lib/invoice.ts";
 import type { ContactChoice } from "./ContactCombobox.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { toSkontoRows } from "./SkontoFields.tsx";
@@ -34,7 +35,7 @@ export type InvoiceEditorFigures = InvoiceEditorState & ReturnType<typeof useInv
 
 /** Auswahl, die weitere Felder mitsetzt: Steuer, Kunde, Art, Angebot und abgezogene Abschläge */
 function editorChoices(state: InvoiceEditorState, schluss: boolean, lastschrift: boolean, { term, termValid }: { term: number; termValid: boolean }) {
-  const { abschlaege, companySkonto, contactId, contacts, deducts, kind, mandates, quoteId, quotes, touch } = state;
+  const { abschlaege, companySkonto, contactId, contactPersons, contacts, deducts, kind, mandates, quoteId, quotes, touch } = state;
   const {
     setContactId,
     setContactPersonId,
@@ -61,8 +62,8 @@ function editorChoices(state: InvoiceEditorState, schluss: boolean, lastschrift:
   /** saved: gerade im Dialog angelegt, steht also noch nicht in contacts */
   function chooseContact(value: string, saved?: SavedContact) {
     touch(setContactId)(value);
-    // Ein Ansprechpartner gehört zu genau einem Kunden
-    if (value !== contactId) setContactPersonId("");
+    // Ein Ansprechpartner gehört zu genau einem Kunden; hat der neue genau einen aktiven, ist er gleich gewählt (#1335)
+    if (value !== contactId) setContactPersonId(einzigerAnsprechpartner(contactPersons, value));
     const chosen = saved ?? contacts.find((c) => c.id === value);
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");

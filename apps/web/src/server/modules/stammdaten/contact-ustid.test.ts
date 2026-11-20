@@ -44,6 +44,13 @@ describe.skipIf(!testDatabaseUrl)("Kontakte mit gleicher USt-IdNr. finden (Postg
     expect((await contacts.findContactsByUstId("DE999999999")).map((c) => c.name)).toEqual(["Lieferfirma"]);
   });
 
+  it("findet die Nummer auch mit Punkten oder GR statt EL, wie sie in der Meldung steht", async () => {
+    await contacts.createContact(actor, input("Brüssel BV", "BE0123.456.789"));
+    await contacts.createContact(actor, input("Athen AE", "GR123456789"));
+    expect((await contacts.findContactsByUstId("BE0123456789")).map((c) => c.name)).toEqual(["Brüssel BV"]);
+    expect((await contacts.findContactsByUstId("EL123456789")).map((c) => c.name)).toEqual(["Athen AE"]);
+  });
+
   it("nimmt den Kontakt aus, den das Formular gerade ändert", async () => {
     const kunde = await contacts.createContact(actor, input("Kundenfirma", "DE123456789"));
     expect(await contacts.findContactsByUstId("DE123456789", kunde.id)).toEqual([]);

@@ -132,6 +132,7 @@ export {
 export {
   bestaetigeNummer,
   bestaetigeUstId,
+  evatrAbgeschaltet,
   evatrMoeglich,
   letzteBestaetigungen,
   listUstIdBestaetigungen,
@@ -142,6 +143,7 @@ export {
   type UstIdBestaetigungsErgebnis,
   type UstIdBestaetigungsZustand,
 } from "./ustid-bestaetigung.ts";
+export { ustIdBestaetigungPdf } from "./ustid-bestaetigung-pdf.ts";
 export {
   ansprechpartnerSnapshot,
   ContactPersonError,

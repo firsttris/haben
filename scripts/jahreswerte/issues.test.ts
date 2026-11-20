@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Befund } from "./abruf.ts";
 import { type GitHub, type Issue, issuesAbgleichen, issueText, issueTitel, LABEL, plane } from "./issues.ts";
 
-const REPO = "firsttris/haben";
+const REPO = "Speicherstadt/haben";
 const pap: Befund = { schluessel: "pap-2027", titel: "Lohnsteuer-PAP 2027 ist erschienen", text: "Quelle: …" };
 const eric: Befund = { schluessel: "eric", titel: "ERiC 45.1.5.0 ist verfügbar (Haben: 43.4.6.0)", text: "neu" };
 

@@ -2,7 +2,6 @@ import {
   JOURNAL_KENNZAHLEN,
   kennzahlenAusJournal,
   leereJournalKennzahlen,
-  mitBemessungWieHeute,
   periodRange,
   type JournalKennzahlen,
   type JournalZeile,
@@ -10,23 +9,12 @@ import {
   type VatPeriod,
   type Versteuerung,
 } from "@haben/core";
-import { and, asc, eq, gte, lt, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
-
-const updateAufDasJournal = sql`(select min(${schema.journalUmstellung.at}) from ${schema.journalUmstellung})`;
-
-/**
- * Belegbuchung aus einer Version vor dem Update auf das Journal (v0.10): angelegt vor der ersten Zeile in
- * journal_umstellung, die die Migration 0275 beim Update schreibt, oder der Storno einer solchen. Nur solche Buchungen kann
- * Haben vor #551 geschrieben haben; ein späterer Storno kehrt die gebuchten Zeilen um, wenn die heutigen nicht auf jedem
- * Konto dasselbe ergeben (zeilenWieHeute). mitBemessungWieHeute gilt nur für sie, Buchungen neuer Versionen deutet es so
- * nie um (#1396). Ohne die Tabelle oder ihre erste Zeile: keine. Fällt journal_umstellung mit #1201 weg, muss dieser
- * Zeitpunkt bleiben.
- */
-export const belegAusAlterVersion = sql<boolean>`(${schema.journalEntries.sourceType} = 'document' and coalesce(
-  (select o.created_at from journal_entries o where o.id = ${schema.journalEntries.reversesId}), ${schema.journalEntries.createdAt}
-) < ${updateAufDasJournal})`;
+import { belegAusAlterVersion } from "./alte-version.ts";
+import { belegeWieHeute } from "./beleg-alte-version.ts";
+import { zahlungenWieHeute } from "./zahlung-alte-version.ts";
 
 /*
  * Kennzahlen der Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): die Quelle der Voranmeldung,
@@ -41,6 +29,8 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
   const rows = await q
     .select({
       id: e.id,
+      sourceType: e.sourceType,
+      sourceId: e.sourceId,
       kontenrahmen: e.kontenrahmen,
       alt: belegAusAlterVersion,
       account: l.account,
@@ -63,7 +53,10 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, start), lt(e.date, end), notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
-  const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; alt: boolean; zeilen: JournalZeile[] }>();
+  const buchungen = new Map<
+    string,
+    { id: string; sourceType: string; sourceId: string; kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; alt: boolean; zeilen: JournalZeile[] }
+  >();
   const taxes = invoiceTaxReader(q);
   for (const r of rows) {
     let b = buchungen.get(r.id);
@@ -81,19 +74,27 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
             taxTreatment: r.treatment ?? "regulaer",
           })
         : versteuerung;
-      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, alt: r.alt === true, zeilen: [] };
+      b = {
+        id: r.id,
+        sourceType: r.sourceType,
+        sourceId: r.sourceId,
+        kontenrahmen: r.kontenrahmen as Kontenrahmen,
+        versteuerung: mode,
+        alt: r.alt === true,
+        zeilen: [],
+      };
       buchungen.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });
   }
+  // Belege mit § 13b oder Erwerb von vor #551 (#1396) und Zahlungen bei Ist von vor #552 (#1502) mit der
+  // Bemessungsgrundlage wie heute
+  const gelesen = await belegeWieHeute(await zahlungenWieHeute([...buchungen.values()], q), q);
   const summe = leereJournalKennzahlen();
   // Ein Jahr hat einen Kontenrahmen; je Kontenrahmen gerechnet, falls ein Zeitraum doch beide sieht
   for (const kr of ["SKR03", "SKR04"] as const)
     for (const mode of ["ist", "soll"] as const) {
-      // Belegbuchungen alter Versionen mit § 13b oder Erwerb mit der Bemessungsgrundlage wie heute (#1396)
-      const eigene = [...buchungen.values()]
-        .filter((b) => b.kontenrahmen === kr && b.versteuerung === mode)
-        .map((b) => (b.alt ? mitBemessungWieHeute(kr, b.zeilen) : b.zeilen));
+      const eigene = gelesen.filter((b) => b.kontenrahmen === kr && b.versteuerung === mode).map((b) => b.zeilen);
       if (eigene.length === 0) continue;
       const k = kennzahlenAusJournal(kr, mode, eigene);
       for (const feld of JOURNAL_KENNZAHLEN) summe[feld] += k[feld];

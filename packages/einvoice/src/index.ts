@@ -39,6 +39,7 @@ export { buildLohnkontoPdf, lohnkontoPdfData, type LohnkontoDocument } from "./l
 export { buildLstbAusdruckPdf, lstbAusdruckPdfData, type LstbAusdruckDocument } from "./lohnsteuerbescheinigung.ts";
 export { buildDunningDraftPdf, buildDunningPdf, dunningPdfData, type DunningDocument } from "./dunning.ts";
 export { buildHinterlegungPdf, hinterlegungPdfData } from "./hinterlegung.ts";
+export { buildUstidBestaetigungPdf, ustidBestaetigungPdfData, type UstidBestaetigungDocument } from "./ustid-bestaetigung.ts";
 export { buildEInvoice } from "./xml.ts";
 export { validateForFormat } from "./validate.ts";
 export { extractFacturXXml } from "./zugferd.ts";

@@ -5,6 +5,7 @@ import { InvoiceError } from "./invoice-error.ts";
 import { draftSchema } from "./draft-schema.ts";
 import { assertCustomer, insertDraft } from "./invoice-drafts.ts";
 import { getInvoice, type Invoice } from "./invoices.ts";
+import { mitVorlage } from "./beleg-platzhalter.ts";
 
 /** Warum sich eine Rechnung nicht kopieren lässt; null = sie lässt sich kopieren */
 function copyProblem(invoice: Pick<Invoice, "kind" | "variant">): string | null {
@@ -30,6 +31,8 @@ export async function copyInvoice(actor: string, id: string, today: string): Pro
     const personActive = (await contactPersonProblem(tx, invoice.contactId, invoice.contactPersonId)) === null;
     const input = draftSchema.parse({
       ...draftInputOf(invoice, lines),
+      // Mit Platzhaltern, wie im Entwurf des Originals, nicht mit dessen Werten (#1334)
+      ...mitVorlage(invoice),
       contactPersonId: personActive ? invoice.contactPersonId : null,
       issueDate: today,
       serviceFrom: null,

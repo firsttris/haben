@@ -27,7 +27,7 @@ import {
   updateDocument,
   uploadDocument,
 } from "../modules/belege/index.ts";
-import { extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
+import { belegeMitGleicherNummer, extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
 import {
   listSettlements,
   openAmount,
@@ -104,6 +104,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       splits: result.splits,
       // Je Hinweis das Feld, an dem er liegt: Die Seite klappt „Weitere Angaben“ dafür auf
       issues: result.document.lockedAt ? [] : bookingIssueList(result.document, result.amounts, today(), result.splits),
+      // Andere Belege desselben Lieferanten mit derselben Rechnungsnummer: Hinweis auf eine mögliche Dublette (#1314)
+      gleicheNummer: await belegeMitGleicherNummer(result.document),
       // Bisherige Kategorie und Bezahlung des Lieferanten als Hinweis am Feld, nur solange der Beleg offen ist (#295)
       categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document),
       paymentHint: result.document.lockedAt ? null : await supplierPayment(result.document),
@@ -121,6 +123,25 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
         : null,
     };
   });
+
+/**
+ * Mögliche Dublette zu den Eingaben im Formular, noch vor dem Speichern (#1314, #1378): Lieferant und Rechnungsnummer
+ * wie gerade getippt oder ausgelesen; der Hinweis und der Buchungsdialog zeigen so nie einen alten Stand.
+ */
+export const checkSameInvoiceNumber = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      id: z.uuid(),
+      supplierName: z.string().max(200),
+      supplierUstId: z.string().max(50),
+      supplierContactId: z.uuid().nullable(),
+      invoiceNumber: z.string().max(100),
+      gross: z.number().int(),
+      recurringDocumentId: z.uuid().nullable(),
+    }),
+  )
+  .handler(({ data }) => belegeMitGleicherNummer(data));
 
 export const uploadDocuments = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
