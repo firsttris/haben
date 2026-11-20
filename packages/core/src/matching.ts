@@ -41,9 +41,14 @@ export interface OpenItem {
    * Nur bei Rechnungen: festgeschriebene Rechnungskorrekturen zu dieser Rechnung, die selbst noch offen sind (open mit
    * dem Vorzeichen der Erstattung). Zahlt der Kunde „Rechnung minus Korrektur“, gehört der Rest dorthin, nicht in eine Ausbuchung nach § 17 Abs. 1 UStG (#1398).
    */
-  openCorrections?: { id: string; number: string; open: Cents }[];
+  openCorrections?: OffeneKorrektur[];
   /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */
   skonto?: SkontoZahlfrist[];
+  /**
+   * Nur bei ganz offenen Rechnungen in Euro mit offenen Korrekturen: das Skonto je Stufe auf den Betrag nach allen
+   * offenen Korrekturen. Das Skonto mindert das schon geminderte Entgelt, nicht den Betrag der Rechnung (#1398).
+   */
+  skontoNachKorrektur?: SkontoZahlfrist[];
   /** Nur bei Voranmeldungen: der Zeitraum, den die Finanzkasse im Verwendungszweck nennt */
   period?: VatPeriod;
   /**
@@ -51,6 +56,50 @@ export interface OpenItem {
    * Bundesland des Finanzamts); fehlt er, zählen nur die bundesweiten Feiertage
    */
   schonfristEnde?: string;
+}
+
+/** Offene Rechnungskorrektur an ihrer Rechnung, open mit dem Vorzeichen der Erstattung (negativ) */
+export interface OffeneKorrektur {
+  id: string;
+  number: string;
+  open: Cents;
+}
+
+/**
+ * Korrekturen, die den Rest einer Zahlung auf eine Rechnung genau ausgleichen: eine einzelne mit genau diesem Betrag,
+ * sonst alle offenen zusammen. Eine Suche über Teilmengen gibt es bewusst nicht; im Alltag zieht der Kunde eine
+ * Korrektur ab oder alle.
+ */
+export function korrekturenFuerRest(corrections: readonly OffeneKorrektur[] | undefined, rest: Cents): OffeneKorrektur[] | undefined {
+  if (!corrections?.length || rest <= 0) return undefined;
+  const einzeln = corrections.find((k) => k.open === -rest);
+  if (einzeln) return [einzeln];
+  return corrections.length > 1 && corrections.reduce((sum, k) => sum + k.open, 0) === -rest ? [...corrections] : undefined;
+}
+
+/** Zahlung „Rechnung minus Korrektur“, auch mit Skonto auf den geminderten Betrag */
+export interface ZahlungMitKorrektur {
+  corrections: OffeneKorrektur[];
+  /** Skontostufe, um die die Zahlung nach den Korrekturen noch gekürzt ist */
+  stufe?: SkontoZahlfrist;
+  /** Rest der Rechnung nach Zahlung und Korrekturen, als Skonto auszubuchen (0 ohne Skonto) */
+  skonto: Cents;
+}
+
+/**
+ * Erkennt einen Zahlungseingang „Rechnung minus Korrektur“ (#1398): Die offenen Korrekturen gleichen den Rest genau aus
+ * (korrekturenFuerRest), oder nach allen offenen Korrekturen ist die Zahlung in der Frist genau um das Skonto auf den
+ * geminderten Betrag gekürzt (skontoNachKorrektur). Zugeordnet wird als Aufteilung: Rechnung über ihren offenen Betrag,
+ * jede Korrektur über ihren; ein Skonto bucht der Abgleich als Rest der Rechnung aus.
+ */
+export function zahlungMitKorrektur(tx: Pick<MatchTransaction, "amount" | "bookingDate">, item: OpenItem): ZahlungMitKorrektur | undefined {
+  if (item.type !== "invoice" || tx.amount <= 0 || !item.openCorrections?.length) return undefined;
+  const corrections = korrekturenFuerRest(item.openCorrections, item.open - tx.amount);
+  if (corrections) return { corrections, skonto: 0 };
+  const stufe = skontoGezogen(item.skontoNachKorrektur, tx.bookingDate, tx.amount);
+  if (!stufe) return undefined;
+  const all = [...item.openCorrections];
+  return { corrections: all, stufe, skonto: item.open + all.reduce((sum, k) => sum + k.open, 0) - tx.amount };
 }
 
 /** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
@@ -72,6 +121,11 @@ export interface Suggestion {
    * der Zahlung als gewährtes Skonto ausbucht
    */
   skonto?: Cents;
+  /**
+   * Zahlung „Rechnung minus Korrektur“ (zahlungMitKorrektur): diese offenen Korrekturen gehören mit zur Zahlung. Gebucht
+   * wird als Aufteilung, mit skonto zusätzlich das Skonto auf den geminderten Betrag.
+   */
+  corrections?: OffeneKorrektur[];
 }
 
 /** Stufe, um deren Skonto die Zahlung gekürzt ist (skontoGezogen) */
@@ -119,6 +173,37 @@ export function transactionHasReference(tx: Pick<MatchTransaction, "purpose" | "
   return [tx.endToEndId, tx.bankReference, tx.purpose].some((value) => value && compact(value).includes(needle));
 }
 
+/** Punkte für den Betrag: exakt, „Rechnung minus Korrektur“ (auch mit Skonto), Skonto, Kursdifferenz oder Teilbetrag */
+function betragsPunkte(tx: MatchTransaction, item: OpenItem) {
+  const reasons: string[] = [];
+  let score = 0;
+  const exact = item.open === tx.amount;
+  const foreign = item.currency !== undefined && item.currency !== "EUR";
+  const nearRate = foreign && !exact && Math.abs(tx.amount - item.open) <= Math.abs(item.open) * EXCHANGE_TOLERANCE;
+  const korrektur = exact ? undefined : zahlungMitKorrektur(tx, item);
+  const skonto = exact || korrektur ? undefined : skontoTaken(tx, item);
+  if (exact) {
+    score += 50;
+    reasons.push("Betrag stimmt exakt");
+  } else if (korrektur) {
+    score += 50;
+    const nummern = korrektur.corrections.map((k) => k.number).join(", ");
+    const summe = formatEuro(korrektur.corrections.reduce((sum, k) => sum + k.open, 0));
+    const text = `Betrag stimmt mit ${korrektur.corrections.length === 1 ? "Korrektur" : "Korrekturen"} ${nummern} (${summe})`;
+    reasons.push(korrektur.stufe ? `${text} und ${formatPercent(korrektur.stufe.percent)} Skonto (${formatEuro(korrektur.skonto)}), in der Frist` : text);
+  } else if (skonto) {
+    score += 50;
+    reasons.push(`Betrag stimmt mit ${formatPercent(skonto.percent)} Skonto (${formatEuro(skonto.amount)}), in der Frist`);
+  } else if (nearRate) {
+    score += 30;
+    reasons.push(`Betrag passt bis auf eine Kursdifferenz (${item.currency})`);
+  } else if (Math.abs(tx.amount) < Math.abs(item.open)) {
+    score += 5;
+    reasons.push("Teilbetrag des offenen Betrags");
+  }
+  return { score, reasons, exact, nearRate, skonto, korrektur };
+}
+
 /**
  * Vorschläge für einen Bankumsatz mit Begründung: Betrag, Rechnungsnummer im Verwendungszweck,
  * bekannte IBAN, Name; bei Belegen Betrag und Datum ± 5 Tage und die Referenz einer Überweisung aus Haben.
@@ -135,26 +220,8 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
       if (vat) suggestions.push(vat);
       continue;
     }
-    const reasons: string[] = [];
-    let score = 0;
-
-    const exact = item.open === tx.amount;
-    const foreign = item.currency !== undefined && item.currency !== "EUR";
-    const nearRate = foreign && !exact && Math.abs(tx.amount - item.open) <= Math.abs(item.open) * EXCHANGE_TOLERANCE;
-    const skonto = exact ? undefined : skontoTaken(tx, item);
-    if (exact) {
-      score += 50;
-      reasons.push("Betrag stimmt exakt");
-    } else if (skonto) {
-      score += 50;
-      reasons.push(`Betrag stimmt mit ${formatPercent(skonto.percent)} Skonto (${formatEuro(skonto.amount)}), in der Frist`);
-    } else if (nearRate) {
-      score += 30;
-      reasons.push(`Betrag passt bis auf eine Kursdifferenz (${item.currency})`);
-    } else if (Math.abs(tx.amount) < Math.abs(item.open)) {
-      score += 5;
-      reasons.push("Teilbetrag des offenen Betrags");
-    }
+    const { score: betrag, reasons, exact, nearRate, skonto, korrektur } = betragsPunkte(tx, item);
+    let score = betrag;
     const reference = item.references?.find((r) => transactionHasReference(tx, r));
     if (reference) {
       score += 60;
@@ -163,6 +230,10 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     if (purposeContainsNumber(tx.purpose, item.number)) {
       score += 40;
       reasons.push("Rechnungsnummer im Verwendungszweck");
+    } else if (korrektur?.corrections.some((k) => purposeContainsNumber(tx.purpose, k.number))) {
+      // „abzgl. Korrektur 2026-004“: Die Nummer der Korrektur zeigt so sicher auf die Rechnung wie ihre eigene
+      score += 40;
+      reasons.push("Nummer der Korrektur im Verwendungszweck");
     }
     // Zahlungsdienstleister nennen die Bestellnummer statt der Rechnungsnummer („Payment for Order #…“). Sie entscheidet,
     // wenn mehrere Rechnungen denselben Betrag haben, und zählt deshalb wie die Referenz einer Überweisung aus Haben.
@@ -199,6 +270,7 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
       amount,
       ...(nearRate ? { exchangeDifference: tx.amount - item.open } : {}),
       ...(skonto ? { skonto: item.open - tx.amount } : {}),
+      ...(korrektur ? { corrections: korrektur.corrections, ...(korrektur.skonto ? { skonto: korrektur.skonto } : {}) } : {}),
     });
   }
 

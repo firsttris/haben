@@ -16,7 +16,7 @@ import { SteuerFelder } from "../../components/SteuerFelder.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
-import { DIRECT_HINT, type Detail, zuAufhebendeZuordnung } from "./-bank-daten.ts";
+import { DIRECT_HINT, type Detail, korrekturText, zuAufhebendeZuordnung } from "./-bank-daten.ts";
 import { SplitForm } from "./-bank-aufteilen.tsx";
 import { RestAktionen } from "./-bank-zuordnung-rest.tsx";
 import { BuchungsartWahl, KandidatWahl } from "./-bank-zuordnung-wahl.tsx";
@@ -97,7 +97,7 @@ function Aufteilen({ z }: { z: Zuordnung }) {
       key={tx.id}
       tx={tx}
       initial={z.splitInitial}
-      gegenposten={z.splitKorrektur && { type: "invoice", id: z.splitKorrektur.id }}
+      gegenposten={z.splitKorrekturen.map((k) => ({ type: "invoice", id: k.id, open: k.open }))}
       splitCandidates={z.detail.splitCandidates}
       {...z.optionen}
       busy={z.busy}
@@ -229,7 +229,12 @@ function Knoepfe({ z }: { z: Zuordnung }) {
           disabled={busy || (mode === "direct" && wahl.directKind === "darlehen" && !wahl.darlehen.loanId)}
           onClick={() => void z.submitAllocation()}
         >
-          {zuordnenText({ direkt: mode === "direct", skontoRest, gebuehrMitbuchen: z.gebuehrWahl.mitbuchen })}
+          {zuordnenText({
+            direkt: mode === "direct",
+            skontoRest,
+            gebuehrMitbuchen: z.gebuehrWahl.mitbuchen,
+            korrekturen: z.korrekturTreffer && korrekturText(z.korrekturTreffer.corrections),
+          })}
         </button>
       </div>
     </>
@@ -254,9 +259,10 @@ function WeitereWege({ z }: { z: Zuordnung }) {
         onRest={(kind) => void rest.bookRest(kind)}
         onKorrektur={() => {
           z.setSplitInitial(rest.target);
-          z.setSplitKorrektur(rest.angebot.korrektur);
+          z.setSplitKorrekturen(rest.angebot.korrektur?.corrections ?? []);
           wahl.setMode("split");
         }}
+        onKorrekturSkonto={z.korrekturTreffer ? undefined : () => void rest.bookKorrekturSkonto()}
       />
       {wahl.mode !== "direct" && (
         <button type="button" className="btn" onClick={() => wahl.setMode("direct")} disabled={busy} title={DIRECT_HINT}>
@@ -268,7 +274,7 @@ function WeitereWege({ z }: { z: Zuordnung }) {
         className="btn"
         onClick={() => {
           z.setSplitInitial(rest.target);
-          z.setSplitKorrektur(undefined);
+          z.setSplitKorrekturen([]);
           wahl.setMode("split");
         }}
         disabled={busy}

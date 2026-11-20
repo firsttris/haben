@@ -213,6 +213,7 @@ Bei Umsätzen mit bestätigbarem Vorschlag steht in der Liste unter dem Verwendu
 
 - Bestätigen lässt sich ein Vorschlag nur, wenn er ohne Rückfrage buchbar ist:
   - eine Rechnung oder ein Beleg mit genau dem offenen Betrag des Umsatzes, ohne Skonto und ohne Kursdifferenz;
+  - eine Rechnung mit ihren offenen Korrekturen („Rechnung minus Korrektur“), gebucht als Aufteilung, ohne Skonto;
   - eine Buchung auf eine Kategorie nach früheren Zuordnungen;
   - die einfachen Arten ohne weitere Angaben: Privat, Spende, Gebühren, Mahnerlöse, Zinserträge.
 - Es gilt dieselbe Reihenfolge wie in der Detailansicht: Eine Regel der Kontozwecke geht dem Gelernten vor; ist sie nicht bestätigbar, gibt es keinen Vorschlag zum Bestätigen.
@@ -230,8 +231,10 @@ Jeder Posten bekommt Punkte:
 | --- | ---: |
 | Betrag stimmt exakt | 50 |
 | Betrag stimmt mit … Skonto (…), in der Frist (siehe [Skonto auf eigene Rechnungen](#skonto-auf-eigene-rechnungen)) | 50 |
+| Betrag stimmt mit Korrektur … (…), auch „… und … Skonto (…), in der Frist“, nur bei Rechnungen mit offenen Korrekturen (siehe [Skonto auf eigene Rechnungen](#skonto-auf-eigene-rechnungen)) | 50 |
 | Betrag passt bis auf eine Kursdifferenz (…), nur bei Fremdwährung (siehe [Kursdifferenz](#kursdifferenz-bei-fremdwährung)) | 30 |
 | Rechnungsnummer im Verwendungszweck | 40 |
+| Nummer der Korrektur im Verwendungszweck, nur wenn der Betrag mit der Korrektur stimmt und die Rechnungsnummer fehlt | 40 |
 | Bestellnummer im Verwendungszweck, nur bei exaktem Betrag (siehe unten) | 60 |
 | Überweisung aus Haben (Referenz), nur bei Belegen | 60 |
 | IBAN bekannt vom Kontakt bzw. bei Belegen IBAN des Lieferanten | 30 |
@@ -348,7 +351,9 @@ Beispiel: Rechnung 4.760,00 €, der Kunde überweist 4.664,80 € (2 % Skonto).
 
 Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung, vor der Ausführung einer Leistung nach dem Belegdatum nicht ([Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66)). Ohne Vorsteuerabzug mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
 
-**Rechnung minus Korrektur:** Gibt es zur Rechnung eine offene Rechnungskorrektur, die den Rest genau ausgleicht, hat der Kunde die Korrektur gleich abgezogen. Haben bietet dann weder Skonto noch Forderungsausfall, Gebühr oder Kursdifferenz an, sondern **Mit Korrektur … aufteilen**. Das öffnet die Aufteilung mit der Rechnung über ihren offenen Betrag und der Korrektur über ihren negativen Betrag; danach sind beide bezahlt.
+**Rechnung minus Korrektur:** Gibt es zur Rechnung eine offene Rechnungskorrektur, die den Rest genau ausgleicht, hat der Kunde die Korrektur gleich abgezogen. Gleicht keine einzelne den Rest aus, aber alle offenen Korrekturen der Rechnung zusammen, gilt dasselbe für alle. Der Hauptknopf beim besten Treffer heißt dann **Mit Korrektur … zuordnen** (bei mehreren **Mit Korrekturen … zuordnen**) und bucht die Aufteilung: die Rechnung über ihren offenen Betrag, jede Korrektur über ihren negativen Betrag; danach sind alle bezahlt, nichts wird ausgebucht. Haben bietet für den Rest weder Skonto noch Forderungsausfall, Gebühr oder Kursdifferenz an, sondern **Mit Korrektur … aufteilen**, das dieselbe Aufteilung zum Ansehen und Ändern öffnet.
+
+Zieht der Kunde die Korrektur ab und dann Skonto, rechnet Haben das Skonto vom geminderten Betrag (Rechnung 119,00 €, Korrektur −23,80 €, 2 % Skonto auf 95,20 € = 1,90 €, Zahlung 93,30 €). **Mit Korrektur … zuordnen, Rest … als Skonto** bucht die Aufteilung auf Rechnung und Korrekturen und bucht nur diese 1,90 € als gewährtes Skonto aus. Das gilt für die noch ganz offene Rechnung mit allen ihren offenen Korrekturen und nur, wenn Rechnung und Korrekturen denselben Steuersatz haben; sonst teilst du den Umsatz auf und buchst den Rest einzeln. Hebst du einen Teil auf, hebt Haben die ganze Aufteilung samt Skonto auf.
 
 Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du auf der Seite der Rechnung unter **Ausbuchen** (siehe [Rechnungen](rechnungen.md#ausbuchen)). Hebst du die Zuordnung einer Zahlung auf, hebt Haben einen mit ihr ausgebuchten Rest mit auf.
 

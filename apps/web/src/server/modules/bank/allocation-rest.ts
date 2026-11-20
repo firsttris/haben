@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { BankError } from "./bank-error.ts";
 import { documentOpen, invoiceOpen } from "@haben/core";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks } from "../buchhaltung/index.ts";
@@ -12,6 +12,7 @@ import { bookPart, type Part } from "./allocation.ts";
 import { type LockedTransaction, lockTransaction } from "./payment-booking.ts";
 import { settledOn } from "./settled-amounts.ts";
 import { bookWriteOff } from "./write-offs.ts";
+import { mitEinemSteuersatz } from "./offene-posten.ts";
 
 export const restSchema = z.object({
   transactionId: z.uuid(),
@@ -20,6 +21,8 @@ export const restSchema = z.object({
     z.object({ kind: z.literal("document"), documentId: z.uuid() }),
   ]),
   rest: z.enum(["skonto", "forderungsausfall", "skontoErhalten", "kursdifferenz"]),
+  /** Nur mit Skonto auf eine Rechnung: offene Korrekturen, die der Kunde vor dem Skonto abgezogen hat (#1398) */
+  korrekturen: z.array(z.uuid()).min(1).max(19).optional(),
 });
 
 /**
@@ -34,6 +37,11 @@ export async function allocateWithRest(actor: string, input: z.infer<typeof rest
     if (bank.open === 0) throw new BankError("Der Umsatz ist schon ganz zugeordnet.");
     if (input.rest === "kursdifferenz") {
       await allocateWithExchangeDifference(tx, company, bank, input.target);
+      return;
+    }
+    if (input.korrekturen) {
+      if (input.target.kind !== "invoice" || input.rest !== "skonto") throw new BankError("Korrekturen gehen nur mit Skonto auf eine Rechnung.");
+      await allocateWithCorrectionsAndSkonto(tx, company, bank, input.target.invoiceId, input.korrekturen);
       return;
     }
     const isInvoice = input.target.kind === "invoice";
@@ -52,6 +60,52 @@ export async function allocateWithRest(actor: string, input: z.infer<typeof rest
         : { ...base, kind: "skontoErhalten", documentId: input.target.documentId },
     );
   });
+}
+
+/**
+ * Zahlung „Rechnung minus Korrektur minus Skonto“ (#1398): als Aufteilung jede Korrektur über ihren offenen Betrag und
+ * die Rechnung über den Rest des Umsatzes, danach der Rest der Rechnung als gewährtes Skonto. Aufgehoben wird alles
+ * zusammen (die Aufteilung samt Ausbuchung).
+ */
+async function allocateWithCorrectionsAndSkonto(
+  tx: Tx,
+  company: Awaited<ReturnType<typeof openBooks>>,
+  bank: LockedTransaction,
+  invoiceId: string,
+  korrekturen: readonly string[],
+) {
+  if (bank.amount <= 0) throw new BankError("Korrekturen und Skonto gibt es nur bei einem Zahlungseingang.");
+  const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoiceId));
+  if (invoice?.kind !== "rechnung" || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+  // Wie im Abgleich (skontoNachKorrektur): Skonto nur auf die noch ganz offene Rechnung
+  if ((await settledOn(tx, "invoice_id", invoice.id)) !== 0)
+    throw new BankError(`Rechnung ${invoice.number} ist schon teilweise bezahlt; Skonto gibt es nur auf den ganzen Betrag.`);
+  // Alle offenen Korrekturen der Rechnung, nicht eine Auswahl: Eine übergangene bliebe offen, und ihre spätere Erstattung
+  // minderte das Entgelt neben dem Skonto ein zweites Mal
+  const rows = await tx
+    .select()
+    .from(schema.invoices)
+    .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "korrektur"), eq(schema.invoices.status, "final")));
+  const parts: Part[] = [];
+  for (const row of rows) {
+    const open = invoiceOpen({ ...row, paid: await settledOn(tx, "invoice_id", row.id), cancelled: false });
+    if (open < 0) parts.push({ kind: "invoice", invoiceId: row.id, amount: open });
+  }
+  const gewaehlt = new Set(korrekturen);
+  if (parts.length !== gewaehlt.size || parts.some((p) => p.kind === "invoice" && !gewaehlt.has(p.invoiceId))) {
+    throw new BankError("Die gewählten Korrekturen passen nicht zu den offenen Korrekturen der Rechnung. Bitte die Ansicht neu laden.");
+  }
+  const einSatz = await mitEinemSteuersatz(new Map([[invoice.id, [...gewaehlt]]]), tx);
+  if (!einSatz.has(invoice.id)) {
+    throw new BankError(
+      "Skonto nach einer Korrektur geht nur, wenn Rechnung und Korrekturen denselben Steuersatz haben. Teile den Umsatz auf und buche den Rest einzeln.",
+    );
+  }
+  const invoiceAmount = bank.open - parts.reduce((sum, p) => sum + p.amount, 0);
+  const splitId = randomUUID();
+  await bookPart(tx, company, bank, { kind: "invoice", invoiceId, amount: invoiceAmount }, splitId);
+  for (const part of parts) await bookPart(tx, company, bank, part, splitId);
+  await bookWriteOff(tx, company, { kind: "skonto", invoiceId, date: bank.bookingDate, transactionId: bank.id });
 }
 
 /**

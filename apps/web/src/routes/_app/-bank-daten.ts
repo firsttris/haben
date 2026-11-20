@@ -1,4 +1,4 @@
-import { AUFLADUNG, type DirectBooking, type OpenItem } from "@haben/core";
+import { AUFLADUNG, type DirectBooking, type OffeneKorrektur, zahlungMitKorrektur, type ZahlungMitKorrektur } from "@haben/core";
 import { aufladungWahl, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import type { getBankOverview } from "../../server/functions/bank.ts";
 import { today as todayInGermany } from "../../server/today.ts";
@@ -114,19 +114,26 @@ export type Posten = Detail["suggestions"][number]["item"] | Detail["candidates"
 export type RestArt = "skonto" | "forderungsausfall" | "skontoErhalten";
 
 /** Offene Korrektur einer Rechnung, wie der Abgleich sie mitliefert */
-export type Korrektur = NonNullable<OpenItem["openCorrections"]>[number];
+export type Korrektur = OffeneKorrektur;
 
-/** Offene Korrektur zur Rechnung, die den Rest einer Zahlung genau ausgleicht: Der Kunde hat „Rechnung minus Korrektur“ gezahlt */
-export function passendeKorrektur(target: Posten | undefined, tx: Detail["transaction"]) {
-  if (target?.type !== "invoice" || tx.amount <= 0 || !("openCorrections" in target) || !target.openCorrections) return undefined;
-  const rest = target.open - tx.open;
-  return rest > 0 ? target.openCorrections.find((k) => k.open === -rest) : undefined;
+/**
+ * Offene Korrekturen zur Rechnung, die den Rest einer Zahlung ausgleichen, auch mit Skonto auf den geminderten Betrag:
+ * Der Kunde hat „Rechnung minus Korrektur“ gezahlt (zahlungMitKorrektur)
+ */
+export function passendeKorrektur(target: Posten | undefined, tx: Detail["transaction"]): ZahlungMitKorrektur | undefined {
+  return target ? zahlungMitKorrektur({ amount: tx.open, bookingDate: tx.bookingDate }, target) : undefined;
+}
+
+/** „Korrektur 2026-004“ bzw. „Korrekturen 2026-004, 2026-005“ */
+export function korrekturText(korrekturen: readonly Korrektur[]): string {
+  return `${korrekturen.length === 1 ? "Korrektur" : "Korrekturen"} ${korrekturen.map((k) => k.number).join(", ")}`;
 }
 
 /** Was nach der Zuordnung an einen Posten übrig bliebe und wie es sich ausbuchen lässt */
 export function restAngebot(target: Posten | undefined, tx: Detail["transaction"]) {
-  // Gleicht eine offene Korrektur den Rest aus, ist er weder Gebühr noch Skonto noch Forderungsausfall (#1398): Die
-  // Korrektur hat das Entgelt schon gemindert (§ 17 Abs. 1 UStG); eine Ausbuchung minderte Erlös und Umsatzsteuer doppelt
+  // Gleichen offene Korrekturen den Rest aus, ist er weder Gebühr noch Skonto noch Forderungsausfall (#1398): Die
+  // Korrektur hat das Entgelt schon gemindert (§ 17 Abs. 1 UStG); eine Ausbuchung minderte Erlös und Umsatzsteuer doppelt.
+  // Bleibt nach den Korrekturen genau ein Skonto, ist nur dieses Skonto (auf den geminderten Betrag) auszubuchen.
   const korrektur = passendeKorrektur(target, tx);
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
   const feeRest = target && !korrektur && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
