@@ -43,17 +43,18 @@ function Spalte({ titel, umsatz, zuordnung }: { titel: string; umsatz: Umsatz; z
   );
 }
 
-/** Wer liefert: der Bankabruf (Bank › Automatischer Abruf), der Etsy-Abruf (Einstellungen › Bank) oder ein Dienst über den REST-Import */
+/** Wer liefert: der Bankabruf (Bank › Automatischer Abruf), der Abruf von Etsy, PayPal oder Stripe oder ein Dienst über den REST-Import */
 const QUELLEN = {
   bank: { wer: "Die Bank", von: "von der Bank", angaben: "der Bank", abruf: "aus dem Abruf dieses Kontos" },
   etsy: { wer: "Etsy", von: "von Etsy", angaben: "von Etsy", abruf: "aus dem Etsy-Abruf" },
   paypal: { wer: "PayPal", von: "von PayPal", angaben: "von PayPal", abruf: "aus dem PayPal-Abruf" },
+  stripe: { wer: "Stripe", von: "von Stripe", angaben: "von Stripe", abruf: "aus dem Stripe-Abruf" },
   extern: { wer: "Der Dienst", von: "vom Dienst", angaben: "des Dienstes", abruf: "aus dieser Quelle" },
 } as const;
 
-/** Texte zum Anbieter einer Quelle (`import_sources.provider`): Etsy und PayPal mit eigenem Namen, übrige interne sind Bankabrufe */
+/** Texte zum Anbieter einer Quelle (`import_sources.provider`): Etsy, PayPal und Stripe mit eigenem Namen, übrige interne sind Bankabrufe */
 export const quelleZuAnbieter = (provider: string): keyof typeof QUELLEN =>
-  provider === "etsy" ? "etsy" : provider === "paypal" ? "paypal" : isInternalProvider(provider) ? "bank" : "extern";
+  provider === "etsy" || provider === "paypal" || provider === "stripe" ? provider : isInternalProvider(provider) ? "bank" : "extern";
 
 const ENTSCHEIDUNGEN = [
   {
