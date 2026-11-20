@@ -10,8 +10,8 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
  * Buchung). Je SKR03 und SKR04, Ist und Soll.
  */
 
-function dkbCsv(rows: string[][]) {
-  const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
+function dkbCsv(rows: string[][], iban = "DE12 1203 0000 1234 5678 90") {
+  const header = `"Girokonto";"${iban}"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
@@ -552,6 +552,120 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
       const nov = await summeKz81([[2025, 11]]);
       expect(nov).not.toBe(0);
       expect(await summeKz81([[2026, 2]])).toBe(-nov);
+      expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+    }, 60_000);
+
+    const kennzahlen = async (monate: number[]) => {
+      const werte = [];
+      for (const month of monate) werte.push(await vat.computedValues({ year: 2026, month }));
+      return werte;
+    };
+    const mitBasis = async () => (await sql`select count(*)::int as n from journal_lines where basis is not null`)[0]!.n;
+
+    it("Sammellastschrift, Rücklastschrift mit Entgelt und neue Teilzahlung, alle von vor dem Update: wie heute gelesen, kein Befund (SKR03, ist)", async () => {
+      await reset("SKR03", "ist");
+      await sql`update company set glaeubiger_id = 'DE98ZZZ09999999999', bic = 'COBADEFFXXX', bank = 'Commerzbank' where id = 1`;
+      const mandates = await import("../stammdaten/sepa-mandate.ts");
+      const accountId = (await bank.createAccount(actor, { name: "Geschäftskonto", iban: "DE89370400440532013000" })).id;
+      const kunde = "DE02120300000000202051";
+      const contactId = (
+        await contacts.createContact(actor, {
+          kundennummer: "",
+          name: "Nordwerk Software GmbH",
+          strasse: "Hafenstraße 5",
+          plz: "20457",
+          ort: "Hamburg",
+          land: "DE",
+          email: "rechnung@nordwerk.example",
+          ustId: "",
+          iban: kunde,
+          leitwegId: "",
+          defaultFormat: null,
+        })
+      ).id;
+      const mandat = {
+        reference: "KD-1042-01",
+        signedOn: "2026-03-01",
+        scheme: "CORE",
+        firstSequence: "FRST",
+        debtorName: "Nordwerk Software GmbH",
+        debtorIban: kunde,
+      } as const;
+      const sepaMandateId = await mandates.createMandate(actor, contactId, mandat, "2026-04-01");
+      const lastschrift = async (net: number) => {
+        const lines = [{ description: "Wartung", quantity: 1000, unit: "Monat", unitPrice: net, taxRate: 1900 as const }];
+        const draft = { contactId, issueDate: "2026-04-02", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd" as const, note: "" };
+        const d = await invoices.createDraft(actor, { ...draft, lines, paymentMethod: "lastschrift", sepaMandateId });
+        return invoices.finalizeInvoice(actor, d.id, kleinunternehmerStand);
+      };
+      const a = await lastschrift(25_001);
+      const b = await lastschrift(10_000);
+      await bank.createDirectDebitFile(actor, { bankAccountId: accountId, invoiceIds: [a.id, b.id] }, new Date("2026-04-09T08:00:00Z"));
+      // Kontoauszug des Geschäftskontos (IBAN wie oben); Rücklastschrift als Ausgang an den Kunden
+      const umsatz = async (date: string, purpose: string, amount: string) => {
+        const aus = amount.startsWith("-");
+        const zeile = [
+          date,
+          date,
+          "Gebucht",
+          aus ? "Testfirma" : "SEPA Lastschrifteinzug",
+          aus ? "Nordwerk Software GmbH" : "Testfirma",
+          purpose,
+          aus ? "Ausgang" : "Eingang",
+          aus ? kunde : "",
+          amount,
+          "",
+          "",
+          "",
+        ];
+        const bytes = dkbCsv([zeile], "DE89 3704 0044 0532 0130 00");
+        await bank.importStatement(actor, { bytes, filename: `${crypto.randomUUID()}.csv` }, null);
+        const [tx] = await sql`select id from bank_transactions where purpose = ${purpose}`;
+        return tx!.id as string;
+      };
+      await bank.allocateDirectDebitBatch(actor, await umsatz("16.04.2026", "SEPA-Lastschrift Sammler", "416,51"));
+      await bank.allocateDirectDebitReturn(actor, await umsatz("12.05.2026", `RUECKLASTSCHRIFT AM04 KD-1042-01 Rechnung ${a.number}`, "-300,51"));
+      await bank.allocate(actor, {
+        kind: "invoice",
+        transactionId: await umsatz("20.06.2026", `Rechnung ${a.number} Teil`, "100,01"),
+        invoiceId: a.id,
+        amount: 10_001,
+      });
+      // Die Rücklastschrift ist eine negative Zuordnung mit Bezug auf die Lastschrift, das Entgelt ein eigener Teil
+      expect(await sql`select amount::int from allocations where direct_debit_item_id is not null and amount < 0`).toEqual([{ amount: -29_751 }]);
+      const vorher = await kennzahlen([4, 5, 6]);
+      expect(vorher.map((k) => k.kz81)).toEqual([35_000, -25_000, 8_400]);
+      await alteBuchung("SKR03", "ist");
+      expect(await mitBasis()).toBe(0);
+      expect(await kennzahlen([4, 5, 6])).toEqual(vorher);
+      expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+    }, 60_000);
+
+    it("Zahlung über PayPal von vor dem Update: die Geldzeile bleibt auf dem Verrechnungskonto, wie heute gelesen, kein Befund (SKR04, ist)", async () => {
+      await reset("SKR04", "ist");
+      const inv = await invoice("2026-03-10");
+      const paypal = await bank.createProviderAccount(actor, { name: "PayPal", provider: "paypal" });
+      const csv = [
+        `"Datum","Uhrzeit","Zeitzone","Name","Typ","Status","Währung","Brutto","Gebühr","Netto","Transaktionscode","Rechnungsnummer"`,
+        `"20.04.2026","10:00:00","CEST","Nordwerk","Website-Zahlung","Abgeschlossen","EUR","119,00","-2,50","116,50","1AB","${inv.number}"`,
+      ].join("\n");
+      await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "paypal.csv" }, paypal.id);
+      const [zahlung] = await sql`select id from bank_transactions where amount = 11900`;
+      const [gebuehr] = await sql`select id from bank_transactions where amount = -250`;
+      await bank.allocate(actor, { kind: "invoice", transactionId: zahlung!.id, invoiceId: inv.id, amount: 11_900 });
+      await bank.allocate(actor, { kind: "gebuehren", transactionId: gebuehr!.id, amount: -250 });
+      const vorher = await kennzahlen([4]);
+      expect(vorher[0]!.kz81).toBe(100_00);
+      await alteBuchung("SKR04", "ist");
+      expect(await mitBasis()).toBe(0);
+      const konten = (
+        await sql`select l.account from journal_lines l join journal_entries e on e.id = l.entry_id
+          join allocations a on a.id = e.source_id where e.source_type = 'allocation' and a.invoice_id = ${inv.id}`
+      ).map((r) => r.account as string);
+      // Geld auf dem Verrechnungskonto des Dienstleisters (SKR04 1461), nicht auf der Bank
+      expect(konten).toContain("1461");
+      expect(konten).not.toContain(ACCOUNTS.SKR04.bank);
+      expect(await kennzahlen([4])).toEqual(vorher);
       expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
     }, 60_000);
   });
