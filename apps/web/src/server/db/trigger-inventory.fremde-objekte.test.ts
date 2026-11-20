@@ -61,12 +61,43 @@ describe.skipIf(!testDatabaseUrl)("Fremde Funktionen, Operatoren und Casts (Post
       "create operator public.|| (leftarg = jsonb, rightarg = jsonb, function = pg_catalog.jsonb_concat)",
       "Zusätzlicher Operator public.||(jsonb, jsonb) überdeckt einen gleichnamigen Operator",
     ],
+    [
+      "create operator pg_catalog.=== (leftarg = integer, rightarg = integer, function = pg_catalog.int4eq)",
+      "Zusätzlicher Operator pg_catalog.===(integer, integer) im Systemschema pg_catalog",
+    ],
     // Ein Cast in json für einen eigenen Typ ändert, was to_jsonb aus dem Wert macht
     ["create cast (public.vat_return_status as json) with inout", "Zusätzlicher Cast public.vat_return_status → json"],
   ])("meldet %s", async (statement, text) => {
     await rolledBack(async (tx) => {
       expect((await checkTriggerIntegrity(tx)).problems).toEqual([]);
       await tx.execute(query.raw(statement));
+      expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund(text)]);
+    });
+  });
+
+  // Mitglied einer Erweiterung zu sein, sagt nichts über die Herkunft: Ihr Eigentümer kann jedes eigene Objekt aufnehmen
+  it.each([
+    [
+      [
+        "create function public.to_jsonb(public.vat_returns) returns jsonb language sql stable as $$ select pg_catalog.to_jsonb($1) $$",
+        "alter extension pg_trgm add function public.to_jsonb(public.vat_returns)",
+      ],
+      "Zusätzliche Funktion public.to_jsonb(public.vat_returns) überdeckt eine gleichnamige Funktion",
+    ],
+    [
+      ["create cast (public.vat_return_status as json) with inout", "alter extension pg_trgm add cast (public.vat_return_status as json)"],
+      "Zusätzlicher Cast public.vat_return_status → json",
+    ],
+    [
+      [
+        "create operator pg_catalog.=== (leftarg = integer, rightarg = integer, function = pg_catalog.int4eq)",
+        "alter extension pg_trgm add operator pg_catalog.=== (integer, integer)",
+      ],
+      "Zusätzlicher Operator pg_catalog.===(integer, integer) im Systemschema pg_catalog",
+    ],
+  ])("meldet ein selbst angelegtes Objekt auch als Mitglied einer Erweiterung: %s", async (statements, text) => {
+    await rolledBack(async (tx) => {
+      for (const statement of statements) await tx.execute(query.raw(statement));
       expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund(text)]);
     });
   });
@@ -86,6 +117,11 @@ describe.skipIf(!testDatabaseUrl)("Fremde Funktionen, Operatoren und Casts (Post
       "alter function pg_catalog.age(timestamp without time zone) security definer",
       "Eingebaute Funktion pg_catalog.age(timestamp without time zone) wurde verändert",
     ],
+    // Rumpf in SQL-Standard-Schreibweise: prosrc bleibt leer, der Rumpf steht in prosqlbody
+    [
+      "create or replace function pg_catalog.age(timestamp without time zone) returns interval language sql stable strict parallel safe return interval '0'",
+      "Eingebaute Funktion pg_catalog.age(timestamp without time zone) wurde verändert",
+    ],
   ])("meldet eine an Ort und Stelle ersetzte eingebaute Funktion: %s", async (statement, text) => {
     await rolledBack(async (tx) => {
       const [{ oid }] = (await tx.execute<{ oid: number }>(
@@ -102,6 +138,19 @@ describe.skipIf(!testDatabaseUrl)("Fremde Funktionen, Operatoren und Casts (Post
       const [{ name }] = (await tx.execute<{ name: string }>(query`select current_user as name`)) as unknown as [{ name: string }];
       await tx.execute(query.raw(`create schema "${name}"`));
       expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund(`Schema ${name} im Suchpfad der Verbindung`)]);
+    });
+  });
+
+  // PostgreSQL überspringt nur das temporäre Schema der Sitzung, erkannt an seiner OID; ein Schema mit dem Namen pg_temp_…
+  // kann ein Superuser mit allow_system_table_mods anlegen
+  it("erkennt das temporäre Schema der Sitzung an seiner OID, nicht am Namen", async () => {
+    await rolledBack(async (tx) => {
+      await tx.execute(query`create temporary table probe_temporaer (x integer)`);
+      expect((await checkTriggerIntegrity(tx)).problems).toEqual([]);
+      await tx.execute(query`set local allow_system_table_mods = on`);
+      await tx.execute(query`create schema pg_temp_probe`);
+      await tx.execute(query`set local search_path = "$user", public, pg_temp_probe`);
+      expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund("Schema pg_temp_probe im Suchpfad der Verbindung")]);
     });
   });
 
