@@ -28,7 +28,10 @@ describe.skipIf(!testDatabaseUrl)("Liquiditätsvorschau: Dauerbelege und wiederk
     await sql?.end();
   });
 
-  async function dauerbeleg(name: string, felder: { status?: string; payment?: string; taxShown?: boolean; privateShare?: number; amounts: object[] } & Record<string, unknown>) {
+  async function dauerbeleg(
+    name: string,
+    felder: { status?: string; payment?: string; taxShown?: boolean; privateShare?: number; amounts: object[] } & Record<string, unknown>,
+  ) {
     const [row] = await sql<{ id: string }[]>`insert into recurring_documents (name, status, supplier_name, category, payment, private_share,
         amounts, tax_shown, interval_months, anchor_day, start_date, next_date, end_date, due_days, sha256, filename, mime_type, size)
       values (${name}, ${felder.status ?? "aktiv"}, 'Vermieter', 'miete', ${felder.payment ?? "bank"}, ${felder.privateShare ?? 0},

@@ -76,7 +76,9 @@ describe.skipIf(!testDatabaseUrl)("Liquiditätsvorschau: Vorauszahlungen (Postgr
       ["2026-12-10", 6_600, "erwartet", true, "Solidaritätszuschlag, wie zuletzt gezahlt"],
       ["2027-03-10", 6_600, "erwartet", true, "Solidaritätszuschlag, wie zuletzt gezahlt"],
     ]);
-    const [est] = await sql<{ transaction_id: string }[]>`select transaction_id from allocations where tax_type = 'est' and tax_year = 2026 order by created_at desc limit 1`;
+    const [est] = await sql<
+      { transaction_id: string }[]
+    >`select transaction_id from allocations where tax_type = 'est' and tax_year = 2026 order by created_at desc limit 1`;
     expect(posten[0]?.quelle).toEqual({ art: "vorauszahlung", id: est!.transaction_id });
   }, 30_000);
 

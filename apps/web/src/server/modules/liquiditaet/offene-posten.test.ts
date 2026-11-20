@@ -100,50 +100,54 @@ describe.skipIf(!testDatabaseUrl)("Liquiditätsvorschau: Konten und offene Poste
   it.each([
     ["SKR03", "ist"],
     ["SKR04", "soll"],
-  ] as const)("Forderungen, Verbindlichkeiten und überfällige Forderungen (%s, %s)", async (kontenrahmen, versteuerung) => {
-    await firma(sql, { kontenrahmen, versteuerung });
-    const contactId = await kunde(contacts);
-    // 1.190 €, fällig 16.11. (02.11. + 14 Tage): überfällig
-    const ueberfaellig = await rechnung(contactId, 100_000, "2026-11-02");
-    // 2.380 €, zur Hälfte bezahlt, fällig 30.11. (16.11. + 14)
-    const teilweise = await rechnung(contactId, 200_000, "2026-11-16");
-    await bank.importStatement(ACTOR, dkbCsv([["18.11.26", "Nordwerk", "Abschlag", "1.190,00"]]), null);
-    const [tx] = await sql<{ id: string }[]>`select id from bank_transactions`;
-    await bank.allocate(ACTOR, { kind: "invoice", transactionId: tx!.id, invoiceId: teilweise.id, amount: 119_000 });
-    // Storniert: nichts mehr offen
-    const storniert = await rechnung(contactId, 50_000, "2026-11-16");
-    await invoices.cancelInvoice(ACTOR, storniert.id, "2026-11-17");
-    const telekom = await beleg(1, "bank", "2026-11-25");
-    await beleg(2, "privat", "2026-11-25");
+  ] as const)(
+    "Forderungen, Verbindlichkeiten und überfällige Forderungen (%s, %s)",
+    async (kontenrahmen, versteuerung) => {
+      await firma(sql, { kontenrahmen, versteuerung });
+      const contactId = await kunde(contacts);
+      // 1.190 €, fällig 16.11. (02.11. + 14 Tage): überfällig
+      const ueberfaellig = await rechnung(contactId, 100_000, "2026-11-02");
+      // 2.380 €, zur Hälfte bezahlt, fällig 30.11. (16.11. + 14)
+      const teilweise = await rechnung(contactId, 200_000, "2026-11-16");
+      await bank.importStatement(ACTOR, dkbCsv([["18.11.26", "Nordwerk", "Abschlag", "1.190,00"]]), null);
+      const [tx] = await sql<{ id: string }[]>`select id from bank_transactions`;
+      await bank.allocate(ACTOR, { kind: "invoice", transactionId: tx!.id, invoiceId: teilweise.id, amount: 119_000 });
+      // Storniert: nichts mehr offen
+      const storniert = await rechnung(contactId, 50_000, "2026-11-16");
+      await invoices.cancelInvoice(ACTOR, storniert.id, "2026-11-17");
+      const telekom = await beleg(1, "bank", "2026-11-25");
+      await beleg(2, "privat", "2026-11-25");
 
-    const k = await kontext.ladeKontext("2026-11-20", "13w");
-    const posten = await offene.offenePostenPosten(k, { ueberfaellige: true });
-    const ist = versteuerung === "ist";
-    expect(posten).toEqual([
-      {
-        // Freitag, 20.11.: nächster Werktag ist Montag, der 23.
-        datum: "2026-11-23",
-        betrag: 119_000,
-        richtung: "ein",
-        text: `${ueberfaellig.number} · Nordwerk Software GmbH`,
-        quelle: { art: "rechnung", id: ueberfaellig.id },
-        sicherheit: "geschaetzt",
-        ueberfaellig: true,
-        ...(ist ? { steuer: { betrag: 19_000, datum: "2026-11-23" } } : {}),
-      },
-      {
-        datum: "2026-11-30",
-        betrag: 119_000,
-        richtung: "ein",
-        text: `${teilweise.number} · Nordwerk Software GmbH`,
-        quelle: { art: "rechnung", id: teilweise.id },
-        sicherheit: "erwartet",
-        ...(ist ? { steuer: { betrag: 19_000, datum: "2026-11-30" } } : {}),
-      },
-      { datum: "2026-11-25", betrag: 11_900, richtung: "aus", text: "B-1 · Telekom", quelle: { art: "beleg", id: telekom }, sicherheit: "fest" },
-    ]);
+      const k = await kontext.ladeKontext("2026-11-20", "13w");
+      const posten = await offene.offenePostenPosten(k, { ueberfaellige: true });
+      const ist = versteuerung === "ist";
+      expect(posten).toEqual([
+        {
+          // Freitag, 20.11.: nächster Werktag ist Montag, der 23.
+          datum: "2026-11-23",
+          betrag: 119_000,
+          richtung: "ein",
+          text: `${ueberfaellig.number} · Nordwerk Software GmbH`,
+          quelle: { art: "rechnung", id: ueberfaellig.id },
+          sicherheit: "geschaetzt",
+          ueberfaellig: true,
+          ...(ist ? { steuer: { betrag: 19_000, datum: "2026-11-23" } } : {}),
+        },
+        {
+          datum: "2026-11-30",
+          betrag: 119_000,
+          richtung: "ein",
+          text: `${teilweise.number} · Nordwerk Software GmbH`,
+          quelle: { art: "rechnung", id: teilweise.id },
+          sicherheit: "erwartet",
+          ...(ist ? { steuer: { betrag: 19_000, datum: "2026-11-30" } } : {}),
+        },
+        { datum: "2026-11-25", betrag: 11_900, richtung: "aus", text: "B-1 · Telekom", quelle: { art: "beleg", id: telekom }, sicherheit: "fest" },
+      ]);
 
-    const ohne = await offene.offenePostenPosten(k, { ueberfaellige: false });
-    expect(ohne.map((p) => p.quelle.id)).toEqual([teilweise.id, telekom]);
-  }, 30_000);
+      const ohne = await offene.offenePostenPosten(k, { ueberfaellige: false });
+      expect(ohne.map((p) => p.quelle.id)).toEqual([teilweise.id, telekom]);
+    },
+    30_000,
+  );
 });

@@ -15,7 +15,7 @@ import { addMonthsAnchored } from "./recurring.ts";
  * Rechnung, fortgeschriebene Vorauszahlung), **geschätzt** = der Betrag ist gerechnet (laufende Umsatzsteuer, Vorauszahlung
  * aus der Prognose, überfällige Forderung).
  */
-export const SICHERHEITEN = { fest: "Fest", erwartet: "Erwartet", geschaetzt: "Geschätzt" } as const;
+export const SICHERHEITEN = { fest: "fest", erwartet: "erwartet", geschaetzt: "geschätzt" } as const;
 export type Sicherheit = keyof typeof SICHERHEITEN;
 
 /** Woher ein Posten kommt; die Seite verlinkt danach auf die Quelle */

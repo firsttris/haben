@@ -41,7 +41,7 @@ export async function firma(sql: postgres.Sql, { rechtsform = "einzelunternehmen
             ${JSON.stringify(taxpayer)}::jsonb)`;
 }
 
-export async function kunde(contacts: typeof import("../stammdaten/contacts.ts")): Promise<string> {
+export async function kunde(contacts: Pick<typeof import("../stammdaten/index.ts"), "createContact">): Promise<string> {
   const contact = await contacts.createContact(ACTOR, {
     kundennummer: "",
     name: "Nordwerk Software GmbH",

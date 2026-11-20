@@ -17,7 +17,11 @@ export interface LiquiditaetsBericht {
  * und wiederkehrende Rechnungen, Vorauszahlungen und die Umsatzsteuer der noch nicht abgegebenen Zeiträume. Rechnet nur,
  * bucht nichts. `ueberfaellige: false` lässt überfällige Forderungen weg.
  */
-export async function liquiditaetsvorschau(heute: string, horizont: Horizont, { ueberfaellige = true }: { ueberfaellige?: boolean } = {}): Promise<LiquiditaetsBericht> {
+export async function liquiditaetsvorschau(
+  heute: string,
+  horizont: Horizont,
+  { ueberfaellige = true }: { ueberfaellige?: boolean } = {},
+): Promise<LiquiditaetsBericht> {
   const k = await ladeKontext(heute, horizont);
   // Nacheinander: jeder Adapter stellt mehrere Abfragen, gleichzeitig belegten sie den Pool
   const konten = await kontostaende(heute);

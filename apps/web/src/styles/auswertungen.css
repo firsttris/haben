@@ -196,3 +196,14 @@
 .bwa-warum h3 { margin: 16px 0 4px; font-size: 14px; font-weight: 600; }
 /* Kontakt und „3 × 240,00 € statt 1 × 90,00 €“ je in einer Zeile; am Handy scrollt die Tabelle statt hoher Zeilen */
 .bwa-warum table { white-space: nowrap; }
+
+/* Liquiditätsvorschau (#1381): Zeitraum mit dem Tiefpunkt auf weicher Warnfläche, negative Stände in der Farbe für Gefahr */
+.liq-wahl { align-items: end; flex-wrap: wrap; }
+.betrag-negativ { color: var(--danger-ink); }
+.liq-table .liq-tief > th, .liq-table .liq-tief > td { background: var(--warn-soft); }
+.liq-umschalter { display: inline-flex; align-items: center; gap: 4px; }
+.liq-umschalter .small { margin-left: 4px; }
+.liq-ohne { padding-left: 20px; }
+.liq-aufgeklappt > td { padding: 0 0 12px 20px; }
+.liq-posten { font-size: 13px; }
+.liq-hinweise { margin: 0; padding-left: 20px; }

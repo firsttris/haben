@@ -145,6 +145,7 @@ export default defineConfig({
         "bwa.spec.ts",
         "datumsfelder.spec.ts",
         "einstellungen-export.spec.ts",
+        "liquiditaet.spec.ts",
         "kopfzeile.spec.ts",
         "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",

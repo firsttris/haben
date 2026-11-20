@@ -26,9 +26,7 @@ async function zeitraeume(k: Kontext): Promise<(UstZeitraum & { gebucht: Cents }
   const heute = { year: Number(k.heute.slice(0, 4)), month: Number(k.heute.slice(5, 7)) };
   const offen = openFilingPeriod(frequencies, heute, abgegeben);
   const ab = offen ? monthsOfPeriod(offen)[0]! : heute;
-  const liste = offeneUstZeitraeume({ ab, bis: k.bis, frequencies, dauerfrist, abgegeben, bundesland: k.bundesland }).filter(
-    (z) => !k.kleinunternehmer(z.von),
-  );
+  const liste = offeneUstZeitraeume({ ab, bis: k.bis, frequencies, dauerfrist, abgegeben, bundesland: k.bundesland }).filter((z) => !k.kleinunternehmer(z.von));
   const ergebnis: (UstZeitraum & { gebucht: Cents })[] = [];
   // Nacheinander: jede Rechnung liest das ganze Journal des Zeitraums
   for (const z of liste) {
