@@ -7,7 +7,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
-import { openConflicts } from "../bank/index.ts";
+import { keineExterneQuelleFuerAbruf, openConflicts } from "../bank/index.ts";
 import { MAX_RUECKBLICK_TAGE, minusDays, PAYPAL_RHYTHMEN, type PayPalRhythmus } from "./abruf-regeln.ts";
 
 /*
@@ -103,6 +103,8 @@ export async function savePayPalConnection(actor: string, input: z.input<typeof 
     throw new PayPalError("PayPal liefert Transaktionen nur für die letzten drei Jahre. Ältere Umsätze kommen über den Aktivitätenexport (CSV).");
   }
   if (!istZeitzone(data.zeitzone)) throw new PayPalError(`„${data.zeitzone}“ ist keine Zeitzone (etwa Europe/Berlin).`);
+  // Ein Konto, eine Quelle (#306): hat das Konto des Abrufs schon eine externe Quelle, kein Zugang
+  await keineExterneQuelleFuerAbruf(db, "paypal");
   const existing = await loadPayPalConnection();
   const clientId = data.clientId?.trim();
   const clientSecret = data.clientSecret?.trim();

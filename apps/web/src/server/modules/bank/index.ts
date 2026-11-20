@@ -150,4 +150,5 @@ export {
   MAX_MOVEMENTS,
   type ExternalImportResult,
 } from "./externe-quellen.ts";
+export { keineExterneQuelleFuerAbruf } from "./abruf-bindung.ts";
 export { runExistingDuplicateCheck } from "./duplicate-scan.ts";

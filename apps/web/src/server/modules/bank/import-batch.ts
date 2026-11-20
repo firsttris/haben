@@ -18,6 +18,7 @@ import {
   withDedupHashes,
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
+import { keineExterneQuelle } from "./abruf-bindung.ts";
 import { connectedRanges, cutoverFor, otherRanges } from "./andere-importe.ts";
 import { type ImportResult, insertStatement, prepareStatement, statementResult } from "./statement-import.ts";
 import { BankError } from "./bank-error.ts";
@@ -95,6 +96,8 @@ async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId:
     if (existing.bankAccountId !== accountId) throw new BankError("Die Quelle des Abrufs ist schon mit einem anderen Konto verbunden.");
     return existing;
   }
+  // Ein Konto, eine Quelle: auch wenn die externe Quelle vor dem Verbinden des Abrufs freigegeben wurde
+  await keineExterneQuelle(tx, [accountId]);
   await beforeInsert();
   // Parallel angelegt: der eindeutige Index hält die zweite Bindung ab, dann gilt die erste
   await tx

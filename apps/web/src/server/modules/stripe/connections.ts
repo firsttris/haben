@@ -7,7 +7,7 @@ import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
-import { openConflicts } from "../bank/index.ts";
+import { keineExterneQuelleFuerAbruf, openConflicts } from "../bank/index.ts";
 import { STRIPE_RHYTHMEN, type StripeRhythmus } from "./abruf-regeln.ts";
 
 /*
@@ -75,6 +75,8 @@ function pruefFehler(error: unknown): string {
 export async function saveStripeConnection(actor: string, input: z.input<typeof stripeSettingsSchema>): Promise<void> {
   const data = stripeSettingsSchema.parse(input);
   if (data.fetchFrom > today()) throw new StripeError("Der erste Tag des Abrufs liegt in der Zukunft.");
+  // Ein Konto, eine Quelle (#306): hat das Konto des Abrufs schon eine externe Quelle, kein Zugang
+  await keineExterneQuelleFuerAbruf(db, "stripe");
   const existing = await loadStripeConnection();
   const newKey = data.apiKey?.trim();
   if (!newKey && !existing) throw new StripeError("Der API-Schlüssel von Stripe fehlt.");
