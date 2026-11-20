@@ -131,6 +131,32 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNrn. im Hintergrund beim BZSt bestätig
     expect(await pruefung.runDueUstIdPruefung(um("2026-11-21"), naechster.via)).toEqual({ gefragt: 2, offen: 2, ausfall: null });
   });
 
+  // Eine falsche Prüfziffer beantwortet das BZSt mit HTTP 400 evatr-0005, mit id und Zeitpunkt (Testabfrage 2026-11-20, #1578)
+  it("fragt eine Nummer, die das BZSt syntaktisch falsch nennt, nicht jeden Tag neu, sondern nach 30 Tagen", async () => {
+    const erster = dienst(fehler(400, "evatr-0005", "2026-11-20T08:00:00+01:00"), ok("at", undefined, "2026-11-20T08:00:01+01:00"));
+    expect(await pruefung.runDueUstIdPruefung(um(HEUTE), erster.via)).toEqual({ gefragt: 2, offen: 2, ausfall: null });
+    const zweiter = dienst();
+    expect(await pruefung.runDueUstIdPruefung(um("2026-11-21"), zweiter.via)).toEqual({ gefragt: 0, offen: 0, ausfall: null });
+    expect(zweiter.anfragen).toEqual([]);
+    const spaeter = dienst(fehler(400, "evatr-0005"), ok("at2"));
+    expect(await pruefung.runDueUstIdPruefung(um("2026-12-21"), spaeter.via)).toMatchObject({ gefragt: 2, offen: 2 });
+  });
+
+  it("nennt eine Nummer, die das BZSt syntaktisch falsch nennt, in der Übersicht", async () => {
+    await pruefung.runDueUstIdPruefung(um(HEUTE), dienst(fehler(400, "evatr-0005", "2026-11-20T08:00:00+01:00"), ok("at")).via);
+    expect(await pruefung.ungueltigeUstIdNrn(HEUTE)).toEqual([
+      expect.objectContaining({ contactId: ids.seine, nummer: "FR12345678901", meldung: "Das BZSt hält die USt-IdNr. für syntaktisch falsch" }),
+    ]);
+  });
+
+  it("fragt eine Nummer aus Rechnungen nicht mehr, wenn der Kontakt inzwischen eine andere hat", async () => {
+    // Für die alte Rechnung hilft eine Bestätigung nach dem Umsatz nicht (UStAE 6a.8 Abs. 6), und angezeigt würde sie nirgends
+    await sql`update contacts set ust_id = 'ATU87654321' where id = ${ids.donau!}`;
+    const { via, anfragen } = dienst(ok("fr"));
+    expect(await pruefung.runDueUstIdPruefung(um(HEUTE), via)).toEqual({ gefragt: 1, offen: 1, ausfall: null });
+    expect(anfragen.map((a) => a.angefragteUstid)).toEqual(["FR12345678901"]);
+  });
+
   it("abgeschaltet oder ohne eigene USt-IdNr. läuft nichts", async () => {
     process.env.HABEN_EVATR = "off";
     expect(await pruefung.runDueUstIdPruefung(um(HEUTE), dienst().via)).toBeNull();
