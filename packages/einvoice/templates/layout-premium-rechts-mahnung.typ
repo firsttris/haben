@@ -43,8 +43,12 @@
   footer: seitenzahl(),
 )
 
-// Kopf: Logo rechts in der Randspalte und Name in der Serif links; links oder in der Mitte steht das Logo statt des Namens
-#if d.at("logo", default: none) != none and logo-stelle != "rechts" { logo(rand: rechts-rand) } else {
+// Kopf: Logo rechts in der Randspalte und Name in der Serif links; Logo links und Name rechts bündig mit der Randspalte;
+// in der Mitte steht nur das Logo
+#if d.at("logo", default: none) != none and logo-stelle != "rechts" {
+  logo(rand: rechts-rand)
+  if logo-stelle == "links" { place(top + left, dy: 2mm, box(width: spalte-x + spalte-breite - links, align(right, text(font: serif, size: 21pt, tracking: 0.02em, d.author)))) }
+} else {
   if d.at("logo", default: none) != none {
     place(top + left, dx: spalte-x - links, box(width: spalte-breite, context {
       let hoch = image(d.logo, height: look.logoHeight * 1mm)

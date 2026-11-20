@@ -9,9 +9,12 @@
 
 #show: seite.with(groesse: 9pt, leading: 0.62em, fuss-farbe: accent)
 
-// Kopf: Name in der Serif, darunter eine Haarlinie in der Akzentfarbe über die ganze Breite
-// Kopf: Logo oder Name, darunter eine Haarlinie in der Akzentfarbe über die ganze Breite, immer mit Abstand zum Logo
-#if d.at("logo", default: none) != none { logo() } else {
+// Kopf: Logo, Name oder beides, darunter eine Haarlinie in der Akzentfarbe über die ganze Breite, immer mit Abstand zum Logo
+// Steht das Logo links, steht der Name rechts daneben; mittig oder rechts steht nur das Logo
+#if d.at("logo", default: none) != none {
+  logo()
+  if logo-stelle == "links" { place(top + right, dy: 4mm, text(font: serif, size: 21pt, tracking: 0.02em, d.author)) }
+} else {
   place(top + left, dy: 4mm, text(font: serif, size: 21pt, tracking: 0.02em, d.author))
 }
 #context {
