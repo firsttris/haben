@@ -276,11 +276,19 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
     setOffen(null);
   };
 
+  // „Abbrechen“ bei einem Schritt der Bank: Ab dem Abruf der Umsätze hat Verbinden die Verbindung samt ID schon ersetzt.
+  // Erst neu laden, dann schließen; bis dahin sperrt busy „Trennen“ an der alten Zeile
+  const schrittAbbrechen = () =>
+    void run("neu", async () => {
+      await router.invalidate({ sync: true });
+      schliessen();
+    });
+
   return (
     <>
       {verbinden &&
         (offen?.fuer === "neu" ? (
-          <SchrittForm key={offen.schritt.vorgang} schritt={offen.schritt} onSchritt={(s) => ergebnis("neu", s)} onAbbrechen={schliessen} />
+          <SchrittForm key={offen.schritt.vorgang} schritt={offen.schritt} onSchritt={(s) => ergebnis("neu", s)} onAbbrechen={schrittAbbrechen} />
         ) : (
           // Nicht die ID der Verbindung allein: Die trägt schon ihre Zeile unten, und mit demselben Schlüssel blieb das
           // Formular nach „Zugang ändern“ im DOM stehen
