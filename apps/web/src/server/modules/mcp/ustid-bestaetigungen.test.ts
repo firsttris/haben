@@ -141,6 +141,21 @@ describe.skipIf(!testDatabaseUrl)("MCP-Werkzeug ustid_bestaetigungen (Postgres)"
     expect(await run({ ustid: "DE136695976" })).toEqual({ ustId: "DE136695976", hinweis: expect.stringContaining("anderen EU-Mitgliedstaats") });
   });
 
+  it("findet ohne Antwort auch Kontakte, deren Nummer mit Punkten oder GR gespeichert ist", async () => {
+    // Der Kontakt speichert die Nummer, wie sie eingegeben wurde (Punkte und GR erlaubt); gefragt und gemeldet wird sie normalisiert
+    await sql`insert into contacts (name, ust_id, land) values ('Brüssel BV', 'BE0123.456.789', 'BE'), ('Athen AE', 'GR123456789', 'GR')`;
+    expect(await run({ ustid: "BE0123.456.789" })).toMatchObject({
+      ustId: "BE0123456789",
+      letzteAntwort: "noch nicht bestätigt",
+      kontakteMitDieserNummer: [{ name: "Brüssel BV" }],
+    });
+    expect(await run({ ustid: "GR123456789" })).toMatchObject({
+      ustId: "EL123456789",
+      letzteAntwort: "noch nicht bestätigt",
+      kontakteMitDieserNummer: [{ name: "Athen AE" }],
+    });
+  });
+
   it("nennt ohne Eingabe die Nummern der nächsten ZM ohne frische gültige Antwort", async () => {
     const ergebnis = await run();
     expect(ergebnis.zm).toMatchObject({ quartal: "2026-Q3", berichtigung: false, nummern: 2 });
