@@ -20,6 +20,7 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "commerzbank-csv": "Commerzbank",
   "ing-csv": "ING",
   "c24-csv": "C24",
+  "deutsche-bank-group-csv": "Deutsche Bank",
   "csv-zuordnung": "CSV mit eigener Zuordnung",
   camt053: "CAMT.053",
   enablebanking: "Bankabruf",

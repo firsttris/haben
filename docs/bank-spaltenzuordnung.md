@@ -6,7 +6,7 @@ description: >-
 
 # Andere Banken: Spalten zuordnen
 
-Erkennt Haben eine CSV nicht, meldet es „Haben kennt diese Bank nicht“ mit dem Knopf **Spalten zuordnen**. Im Dialog wählst du das **Konto**; die Datei nennt keine eigene IBAN, Konten von Zahlungsdienstleistern stehen nicht zur Wahl. Kopfzeile, Spalten und Zahlenformat schlägt Haben vor:
+Erkennt Haben eine CSV nicht, meldet es „Haben kennt diese Bank nicht“ mit dem Knopf **Spalten zuordnen**. Das betrifft etwa einen älteren Export der Deutschen Bank, Norisbank oder Postbank (bis Anfang 2024); den liest Haben [bewusst nicht als eigenes Format](bank.md#unterstützte-formate). Im Dialog wählst du das **Konto**; die Datei nennt keine eigene IBAN, Konten von Zahlungsdienstleistern stehen nicht zur Wahl. Kopfzeile, Spalten und Zahlenformat schlägt Haben vor:
 
 - **Buchungstag und Betrag** sind Pflicht. Der Betrag steht in einer Spalte mit Vorzeichen oder in zwei Spalten für Soll und Haben; Soll gilt als Ausgang, auch ohne Minus.
 - **Gegenseite:** Name, IBAN und Verwendungszweck. Eine IBAN übernimmt Haben nur mit gültiger Prüfziffer.
