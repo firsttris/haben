@@ -65,7 +65,7 @@ test("auch zwischen 860 und 861 Pixel Breite rollt die Navigation bis zum Fuß",
     await navigationLaden(page);
     await page.mouse.move(100, 300);
     // mouse.wheel wartet nicht, bis Chromium gerollt hat (das geschieht erst in einem späteren Frame), deshalb messen, bis der Fuß sichtbar ist.
-    // Vor jeder Messung erneut drehen: Ein einzelnes Rad direkt nach dem Laden kam in der CI unter Last manchmal nicht an, gerollt war dann nichts
+    // Vor jeder Messung erneut drehen: Ein einzelnes Rad direkt nach dem Laden setzte Chromium in der CI unter Last manchmal nicht um, gerollt war dann nichts
     await expect
       .poll(async () => {
         await page.mouse.wheel(0, 5000);
