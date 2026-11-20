@@ -129,7 +129,7 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
  * wie gerade getippt oder ausgelesen; der Hinweis und der Buchungsdialog zeigen so nie einen alten Stand.
  */
 export const checkSameInvoiceNumber = createServerFn({ method: "POST" })
-  .middleware([readMiddleware])
+  .middleware([authMiddleware])
   .validator(
     z.object({
       id: z.uuid(),

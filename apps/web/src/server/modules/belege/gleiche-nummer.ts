@@ -33,7 +33,7 @@ export interface Pruefling extends Lieferant {
 /**
  * Andere Belege desselben Lieferanten (lieferantGleich: Kontakt, USt-IdNr. oder Name) mit derselben Rechnungsnummer,
  * jüngste zuerst, höchstens fünf. Nicht dazu zählen:
- * - stornierte Belege und ein Beleg ohne Nummer;
+ * - stornierte Belege und ein Beleg ohne Nummer; ist der geprüfte Beleg selbst storniert, gibt es keinen Treffer;
  * - Belege derselben Vorlage: Ein Dauerbeleg trägt jeden Monat die Vertragsnummer als Rechnungsnummer;
  * - eine Gutschrift zu einer Rechnung mit derselben Nummer (anderes Vorzeichen des Betrags).
  */
@@ -56,6 +56,8 @@ export async function belegeMitGleicherNummer(beleg: Pruefling, q: Db | Tx = db)
         sql`${nummerZumVergleich(schema.documents.invoiceNumber)} = ${nummerZumVergleich(sql`${beleg.invoiceNumber}::text`)}`,
         lieferant,
         documentNotCancelled(),
+        // Ein stornierter Beleg steht nicht mehr doppelt in den Büchern, auch wenn er neu erfasst ist
+        sql`not exists (select 1 from ${schema.documentCancellations} where ${schema.documentCancellations.documentId} = ${beleg.id})`,
         beleg.recurringDocumentId ? sql`${schema.documents.recurringDocumentId} is distinct from ${beleg.recurringDocumentId}` : undefined,
         beleg.gross !== 0 ? sql`sign(${schema.documents.gross}) <> ${-Math.sign(beleg.gross)}` : undefined,
       ),
