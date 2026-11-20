@@ -59,7 +59,7 @@ export function customerDraft<S extends { days: number }, L, D extends { format:
       language: L;
       format: InvoiceFormat;
       skonto: S[];
-      contactPersonId?: string;
+      contactPersonId: string;
     })
   | null {
   const contact = contacts.find((c) => c.id === contactId && c.isCustomer);
@@ -70,6 +70,6 @@ export function customerDraft<S extends { days: number }, L, D extends { format:
     language: contact.language,
     format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : draft.format),
     skonto: (contact.skonto ?? companySkonto).filter((s) => s.days <= draft.paymentTermDays),
-    ...(einzigerAnsprechpartner(persons, contact.id) ? { contactPersonId: einzigerAnsprechpartner(persons, contact.id) } : {}),
+    contactPersonId: einzigerAnsprechpartner(persons, contact.id),
   };
 }

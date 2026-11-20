@@ -66,6 +66,6 @@ describe("einzigerAnsprechpartner (#1335)", () => {
     const draft = { contactId: null as string | null, format: "zugferd" as const, language: "de", paymentTermDays: 14, skonto: [] };
     const kunde = { id: "k1", isCustomer: true, defaultFormat: null, leitwegId: null, language: "de", skonto: null };
     expect(customerDraft(draft, [kunde], "k1", [], [person("p1")])?.contactPersonId).toBe("p1");
-    expect(customerDraft(draft, [kunde], "k1", [], [person("p1"), person("p2")])?.contactPersonId).toBeUndefined();
+    expect(customerDraft(draft, [kunde], "k1", [], [person("p1"), person("p2")])?.contactPersonId).toBe("");
   });
 });
