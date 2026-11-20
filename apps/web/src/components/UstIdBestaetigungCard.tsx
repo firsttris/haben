@@ -43,6 +43,26 @@ function Antwort({ b }: { b: UstIdBestaetigung }) {
   );
 }
 
+/** Abgleich von Name und Anschrift; stammt er aus einer früheren Antwort als der letzten, steht dabei, von wann */
+function Vergleich({ b, aelter }: { b: UstIdBestaetigung; aelter: boolean }) {
+  return (
+    <>
+      {aelter && <span className="small muted">Name und Anschrift zuletzt am {formatDateTime(b.anfrageZeitpunkt)}:</span>}
+      <dl className="ustid-vergleich small">
+        {ANGABEN.map(([label, feld]) => {
+          const wert = b[feld] as EvatrVergleich | null;
+          return (
+            <div key={feld}>
+              <dt>{label}</dt>
+              <dd>{wert ? <Status tone={VERGLEICH_TON[wert]}>{EVATR_VERGLEICH[wert]}</Status> : "–"}</dd>
+            </div>
+          );
+        })}
+      </dl>
+    </>
+  );
+}
+
 export function UstIdBestaetigungCard({ contactId, ustId, bestaetigungen, zustand, nachSpeichern, onNachSpeichernErledigt }: Props) {
   const router = useRouter();
   const bestaetige = useServerFn(bestaetigeUstIdFn);
@@ -50,6 +70,13 @@ export function UstIdBestaetigungCard({ contactId, ustId, bestaetigungen, zustan
   const nummer = normalizeUstId(ustId);
   const letzte = bestaetigungen.find((b) => b.angefragteUstid === nummer);
   const meldung = letzte && evatrMeldung(letzte);
+  // Nach einer einfachen Antwort, etwa aus dem monatlichen Lauf, bleibt bei gültiger Nummer der Abgleich der letzten qualifizierten (#1489)
+  const vergleich =
+    letzte?.art === "qualifiziert"
+      ? letzte
+      : letzte && evatrGueltig(letzte.status)
+        ? bestaetigungen.find((b) => b.angefragteUstid === nummer && b.art === "qualifiziert")
+        : undefined;
 
   async function pruefen(nurWennFaellig: boolean) {
     let ergebnis: Awaited<ReturnType<typeof bestaetige>> | undefined;
@@ -91,19 +118,7 @@ export function UstIdBestaetigungCard({ contactId, ustId, bestaetigungen, zustan
             <Antwort b={letzte} />
           </div>
           {meldung !== evatrWort(letzte.status) && <span className="small muted">{meldung}</span>}
-          {letzte.art === "qualifiziert" && (
-            <dl className="ustid-vergleich small">
-              {ANGABEN.map(([label, feld]) => {
-                const wert = letzte[feld] as EvatrVergleich | null;
-                return (
-                  <div key={feld}>
-                    <dt>{label}</dt>
-                    <dd>{wert ? <Status tone={VERGLEICH_TON[wert]}>{EVATR_VERGLEICH[wert]}</Status> : "–"}</dd>
-                  </div>
-                );
-              })}
-            </dl>
-          )}
+          {vergleich && <Vergleich b={vergleich} aelter={vergleich !== letzte} />}
         </div>
       ) : (
         zustand.art === "bereit" && (
