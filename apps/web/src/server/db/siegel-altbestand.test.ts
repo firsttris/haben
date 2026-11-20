@@ -19,17 +19,52 @@ const ID = {
   voranmeldung: "00000000-0000-4000-8000-0000000000f1",
   kasse: "00000000-0000-4000-8000-000000000071",
   zuordnung: "00000000-0000-4000-8000-000000000081",
+  rechnung2: "00000000-0000-4000-8000-0000000002a1",
+  beleg2: "00000000-0000-4000-8000-0000000002d1",
+  pauschale: "00000000-0000-4000-8000-000000000291",
+  anlage: "00000000-0000-4000-8000-000000000292",
+  afa: "00000000-0000-4000-8000-000000000293",
+  belegstorno: "00000000-0000-4000-8000-000000000294",
 };
 
 /*
- * Siegel aus einem älteren Schemastand (#1574): Ein Siegel prüft nur die Spalten und Kindtabellen, die es beim
- * Festschreiben gab. Der Bestand hier ist auf dem Stand von Migration 0064 versiegelt, also vor jeder Spalte, die eine
+ * Siegel aus älteren Schemaständen (#1574): Ein Siegel prüft nur die Spalten und Kindtabellen, die es beim
+ * Festschreiben gab. Der erste Bestand ist auf dem Stand von Migration 0064 versiegelt, also vor jeder Spalte, die eine
  * versiegelte Tabelle später bekam, und vor den Anhängen (0125), der Aufteilung (0129) und dem Abgabevermerk (0138).
- * Nach dem Update darf die Prüfung an ihm nichts melden; was an den Triggern vorbei in eine solche Spalte oder
- * Kindtabelle geschrieben wird, muss sie melden.
+ * Der zweite ist auf dem Stand von 0190 versiegelt, wie auf einer Instanz, die über mehrere Versionen gebucht hat:
+ * Seine Siegel decken Spalten ab, die denen von 0064 fehlen. Nach dem Update darf die Prüfung an beiden nichts melden;
+ * was an den Triggern vorbei in eine nicht abgedeckte Spalte oder Kindtabelle geschrieben wird, muss sie melden.
  */
-describe.skipIf(!testDatabaseUrl)("Siegel aus einem älteren Schemastand (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Siegel aus älteren Schemaständen (Postgres)", () => {
   let sql: postgres.Sql;
+
+  /**
+   * Stand 0190: Rechnung mit Einleitung (0085) und Anhang, Beleg mit Aufteilung, dazu je eine Zeile der Tabellen, die
+   * bisher keine späteren Spalten haben, damit eine künftige Spalte dort am Altbestand auffällt.
+   */
+  async function zwischenbestand() {
+    await sql`insert into invoices (id, contact_id, issue_date, due_date, net, tax, gross, intro)
+      values (${ID.rechnung2}, ${ID.kontakt}, '2026-02-01', '2026-02-15', 10000, 1900, 11900, 'Guten Tag')`;
+    await sql`insert into invoice_lines (invoice_id, position, description, quantity, unit, unit_price, tax_rate, net)
+      values (${ID.rechnung2}, 1, 'Beratung', 1000, 'C62', 10000, 1900, 10000)`;
+    await sql`insert into invoice_taxes (invoice_id, rate, base, tax) values (${ID.rechnung2}, 1900, 10000, 1900)`;
+    await sql`insert into invoice_attachments (invoice_id, filename, mime_type, sha256, size)
+      values (${ID.rechnung2}, 'anhang.pdf', 'application/pdf', ${"f".repeat(64)}, 10)`;
+    await sql`update invoices set status = 'final', number = 'RE-2026-0001', number_year = 2026, number_counter = 1, locked_at = now()
+      where id = ${ID.rechnung2}`;
+    await sql`insert into documents (id, sha256, filename, mime_type, size, supplier_name, document_date, net, tax, gross)
+      values (${ID.beleg2}, ${"9".repeat(64)}, 'beleg2.pdf', 'application/pdf', 1234, 'Lieferant C', '2026-02-05', 5000, 950, 5950)`;
+    await sql`insert into document_amounts (document_id, tax_rate, net, tax) values (${ID.beleg2}, 1900, 5000, 950)`;
+    await sql`insert into document_splits (document_id, position, category, tax_rate, net, tax) values (${ID.beleg2}, 1, 'buero', 1900, 5000, 950)`;
+    await sql`update documents set status = 'gebucht', locked_at = now() where id = ${ID.beleg2}`;
+    await sql`insert into pauschalen (id, art, date, description, details, amount, journal_entry_id)
+      values (${ID.pauschale}, 'fahrt', '2026-02-03', 'Fahrt zum Kunden', '{"km": 20}'::jsonb, 600, ${ID.buchung})`;
+    await sql`insert into assets (id, name, kind, method, account, acquisition_date, cost)
+      values (${ID.anlage}, 'Rechner', 'beweglich', 'linear', '0420', '2026-01-10', 120000)`;
+    await sql`insert into asset_depreciations (id, asset_id, year, depreciation, entry_id) values (${ID.afa}, ${ID.anlage}, 2026, 40000, ${ID.buchung})`;
+    await sql`insert into document_cancellations (id, document_id, date, journal_entry_id)
+      values (${ID.belegstorno}, ${ID.beleg2}, '2026-02-10', ${ID.buchung})`;
+  }
 
   /** Je versiegelter Tabelle, die später Spalten bekam, ein Datensatz; festgeschrieben über die Trigger von 0064 */
   async function altbestand() {
@@ -72,16 +107,22 @@ describe.skipIf(!testDatabaseUrl)("Siegel aus einem älteren Schemastand (Postgr
     await admin`drop database if exists ${admin(name)} with (force)`;
     await admin`create database ${admin(name)}`;
     await admin.end();
-    const previous = mkdtempSync(join(tmpdir(), "haben-migrationen-"));
-    cpSync(MIGRATIONS, previous, { recursive: true });
     const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta", "_journal.json"), "utf8"));
-    const idx = full.entries.findIndex((e: { tag: string }) => e.tag === "0065_hauptbuch_sperren");
-    writeFileSync(join(previous, "meta", "_journal.json"), JSON.stringify({ ...full, entries: full.entries.slice(0, idx) }));
+    /** Ordner mit den Migrationen vor `tag` */
+    const vor = (tag: string) => {
+      const ordner = mkdtempSync(join(tmpdir(), "haben-migrationen-"));
+      cpSync(MIGRATIONS, ordner, { recursive: true });
+      const idx = full.entries.findIndex((e: { tag: string }) => e.tag === tag);
+      writeFileSync(join(ordner, "meta", "_journal.json"), JSON.stringify({ ...full, entries: full.entries.slice(0, idx) }));
+      return ordner;
+    };
     sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
     const { drizzle } = await import("drizzle-orm/postgres-js");
     const { migrate } = await import("drizzle-orm/postgres-js/migrator");
-    await migrate(drizzle(sql), { migrationsFolder: previous });
+    await migrate(drizzle(sql), { migrationsFolder: vor("0065_hauptbuch_sperren") });
     await altbestand();
+    await migrate(drizzle(sql), { migrationsFolder: vor("0191_journal_basis") });
+    await zwischenbestand();
     await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
   }, 180_000);
 
@@ -110,14 +151,36 @@ describe.skipIf(!testDatabaseUrl)("Siegel aus einem älteren Schemastand (Postgr
     return result;
   }
 
-  it("meldet am Altbestand nach dem Update nichts", async () => {
-    const siegel = await sql<{ table_name: string; columns: Record<string, string[]> }[]>`select table_name, columns from seals order by id`;
-    expect(siegel.map((s) => s.table_name)).toEqual(["journal_entries", "invoices", "documents", "vat_returns", "cash_entries", "allocations"]);
-    // Die Voraussetzung des Tests: Die Siegel kennen weder basis noch die später versiegelten Kindtabellen
-    expect(siegel[0]!.columns.journal_lines).not.toContain("basis");
-    expect(Object.keys(siegel[1]!.columns)).not.toContain("invoice_attachments");
-    expect(Object.keys(siegel[2]!.columns)).not.toContain("document_splits");
-    expect(Object.keys(siegel[3]!.columns)).not.toContain("vat_return_filings");
+  it("meldet am Bestand aus beiden Ständen nach dem Update nichts", async () => {
+    const siegel = await sql<{ table_name: string; row_id: string; columns: Record<string, string[]> }[]>`
+      select table_name, row_id, columns from seals order by id`;
+    expect(siegel.map((s) => s.table_name)).toEqual([
+      ...["journal_entries", "invoices", "documents", "vat_returns", "cash_entries", "allocations"],
+      ...["invoices", "documents", "pauschalen", "asset_depreciations", "document_cancellations"],
+    ]);
+    const spalten = (id: string) => siegel.find((s) => s.row_id === id)!.columns;
+    // Die Voraussetzung des Tests: Die Siegel von 0064 kennen weder basis noch die später versiegelten Kindtabellen
+    expect(spalten(ID.buchung).journal_lines).not.toContain("basis");
+    expect(Object.keys(spalten(ID.rechnung))).not.toContain("invoice_attachments");
+    expect(Object.keys(spalten(ID.beleg))).not.toContain("document_splits");
+    expect(Object.keys(spalten(ID.voranmeldung))).not.toContain("vat_return_filings");
+    // Die Siegel von 0190 decken ab, was denen von 0064 fehlt: Einleitung und Anhang der zweiten Rechnung sind gesetzt
+    // und trotzdem kein Befund
+    expect(spalten(ID.rechnung).invoices).not.toContain("intro");
+    expect(spalten(ID.rechnung2).invoices).toContain("intro");
+    expect(Object.keys(spalten(ID.rechnung2))).toContain("invoice_attachments");
+    expect(spalten(ID.beleg2).document_splits).not.toContain("own_account_id");
+    expect(await befunde()).toEqual([]);
+  });
+
+  it("bricht ab, wenn ein Siegel eine Kindtabelle nennt, die die Prüfung nicht kennt", async () => {
+    await expect(
+      sql.begin(async (tx) => {
+        await tx`create or replace function haben_seal_columns(tbl text) returns jsonb language sql stable as
+          $$ select jsonb_build_object(tbl, haben_columns(tbl::regclass), 'neue_kindtabelle', '[]'::jsonb) $$`;
+        await befunde(tx);
+      }),
+    ).rejects.toThrow(/Integritätsprüfung kennt neue_kindtabelle im Siegel von journal_entries nicht/);
     expect(await befunde()).toEqual([]);
   });
 
@@ -173,6 +236,19 @@ describe.skipIf(!testDatabaseUrl)("Siegel aus einem älteren Schemastand (Postgr
       "cash_entries",
       ID.kasse,
       (tx: postgres.TransactionSql) => tx`update cash_entries set tax_shares = '[{"rate": 700, "gross": 2000}]'::jsonb where id = ${ID.kasse}`,
+    ],
+    // Siegel von 0190: nur was nach 0190 dazukam, ist nicht abgedeckt
+    [
+      "invoices.intro_vorlage",
+      "invoices",
+      ID.rechnung2,
+      (tx: postgres.TransactionSql) => tx`update invoices set intro_vorlage = 'Vorlage' where id = ${ID.rechnung2}`,
+    ],
+    [
+      "document_splits.own_account_id",
+      "documents",
+      ID.beleg2,
+      (tx: postgres.TransactionSql) => tx`update document_splits set own_account_id = gen_random_uuid() where document_id = ${ID.beleg2}`,
     ],
   ])("meldet %s, an den Triggern vorbei geändert", async (spalte, tabelle, zeile, aendern) => {
     expect(await vorbeiAnDenTriggern(aendern)).toEqual([{ art: "siegel", tabelle, zeile, befund: `Spalte ${spalte} geändert, die das Siegel nicht abdeckt` }]);
