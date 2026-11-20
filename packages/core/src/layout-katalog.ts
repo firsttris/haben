@@ -233,3 +233,23 @@ export function bekannteLayoutOptionen(gewaehlt: Readonly<Record<string, Readonl
   }
   return ergebnis;
 }
+
+export interface OptionZurWahl {
+  id: string;
+  name: string;
+  /** Aufgelöster Wert, wie ihn das Blatt setzt */
+  wert: string;
+  /** Alle Werte; gesperrte zeigt die Gestaltung ausgegraut */
+  werte: { id: string; name: string; erlaubt: boolean }[];
+}
+
+/** Optionen für die Gestaltung: je Option der aufgelöste Wert und welche Werte bei den früheren erlaubt sind; ohne erlaubten Wert fällt sie weg */
+export function optionenZurWahl(layout: EingebautesLayout, gewaehlt: Readonly<Record<string, string>> = {}): OptionZurWahl[] {
+  const aufgeloest = layoutOptionen(layout, gewaehlt);
+  return layout.optionen.flatMap((option) => {
+    const wert = aufgeloest[option.id];
+    if (wert === undefined) return [];
+    const werte = option.werte.map(({ id, name, ...rest }) => ({ id, name, erlaubt: wertErlaubt({ id, name, ...rest }, aufgeloest) }));
+    return [{ id: option.id, name: option.name, wert, werte }];
+  });
+}

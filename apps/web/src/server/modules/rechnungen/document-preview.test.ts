@@ -81,6 +81,20 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
     expect(gesetzt(danach.svg)).toBe(gesetzt(standard.svg));
   });
 
+  it("setzt ungespeicherte Optionen des eingebauten Layouts, ohne sie zu speichern", async () => {
+    const { assignLayout } = await import("../stammdaten/layouts.ts");
+    const { loadDesign } = await import("../stammdaten/letterhead.ts");
+    await assignLayout("test", "rechnung", { kind: "eingebaut", id: "premium" });
+    try {
+      const unten = await preview.documentPreview(input());
+      const rechts = await preview.documentPreview(input({ design: { layoutOptions: { premium: { fuss: "rechts" } } } }));
+      expect(gesetzt(rechts.svg)).not.toBe(gesetzt(unten.svg));
+      expect((await loadDesign()).layoutOptions).toEqual({});
+    } finally {
+      await assignLayout("test", "rechnung", { kind: "eingebaut", id: "klar" });
+    }
+  });
+
   it("setzt Angebote mit optionalen Positionen und Zahlungsplan", async () => {
     const result = await preview.documentPreview(
       input({

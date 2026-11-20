@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BUILTIN_LAYOUTS, LAYOUT_DOCUMENT_LABELS, LAYOUT_DOCUMENT_TYPES, type LayoutDocumentType, type LayoutRef, type LetterheadDesign } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
+import { LayoutOptionsSections } from "./LayoutOptionFields.tsx";
 import { assignLayoutFn, reloadLayoutPackages, removeLayout, renameLayoutFn, replaceLayout, uploadLayout } from "../server/functions/layouts.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
@@ -109,6 +110,7 @@ export function LayoutsCard({ design, layouts }: { design: LetterheadDesign; lay
           ))}
         </tbody>
       </table>
+      <LayoutOptionsSections design={design} />
       <NoticeBanner notice={notice} />
       <section aria-labelledby="eingebaute-layouts-heading">
         <h3 id="eingebaute-layouts-heading">Eingebaute Layouts</h3>

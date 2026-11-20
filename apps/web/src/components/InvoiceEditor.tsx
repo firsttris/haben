@@ -100,7 +100,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       <PreviewLayout
         preview={preview}
         design={{
-          panel: <DesignPanel draft={designDraft} vatRates={distinctVatRates(parsed.filter((l) => l.valid))} logo={logo} onLogoChanged={setLogo} />,
+          panel: (
+            <DesignPanel
+              draft={designDraft}
+              vatRates={distinctVatRates(parsed.filter((l) => l.valid))}
+              logo={logo}
+              onLogoChanged={setLogo}
+              layoutType={kind === "angebot" ? "angebot" : "rechnung"}
+            />
+          ),
           onClosed: designDraft.discard,
         }}
         label="Vorschau"

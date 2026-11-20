@@ -10,6 +10,7 @@ import {
   layoutVorlagen,
   logoStelle,
   MAX_LAYOUT_OPTIONEN,
+  optionenZurWahl,
   STANDARD_LAYOUT_ID,
   wertErlaubt,
 } from "./layout-katalog.ts";
@@ -96,5 +97,18 @@ describe("Katalog der eingebauten Layouts", () => {
         modern: { akzent: "bunt" },
       }),
     ).toEqual({ premium: { fuss: "rechts", kerndaten: "zweispaltig" }, klar: {}, modern: {} });
+  });
+
+  it("bietet der Gestaltung je Option den aufgelösten Wert und graut gesperrte Werte aus", () => {
+    const wahl = optionenZurWahl(premium, { fuss: "rechts", kerndaten: "zweispaltig" });
+    expect(wahl.map((option) => [option.id, option.wert])).toEqual([
+      ["fuss", "rechts"],
+      ["kerndaten", "liste"],
+    ]);
+    expect(wahl[1]!.werte).toEqual([
+      { id: "liste", name: "Liste", erlaubt: true },
+      { id: "zweispaltig", name: "Zweispaltig", erlaubt: false },
+    ]);
+    expect(optionenZurWahl(premium, { fuss: "unten" })[1]!.werte.every((wert) => wert.erlaubt)).toBe(true);
   });
 });

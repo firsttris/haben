@@ -4,14 +4,15 @@ import { useState, type FormEvent } from "react";
 import { ACCENT_PATTERN, contrastOnWhite, DEFAULT_ACCENT, MIN_TEXT_CONTRAST } from "@haben/core";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { saveAccent } from "../server/functions/logo.ts";
+import { saveAccent, saveLetterheadDesign } from "../server/functions/logo.ts";
 import { Field } from "./Field.tsx";
 import { LayoutHintText, layoutHintId, type LayoutHintEntry } from "./LayoutHint.tsx";
 
 /** Akzentfarbe von Rechnungen, Angeboten und Mahnungen, etwa passend zum Logo */
-export function AccentColorCard({ color, hint }: { color: string; hint?: LayoutHintEntry | undefined }) {
+export function AccentColorCard({ color, fromLayout, hint }: { color: string; fromLayout: boolean; hint?: LayoutHintEntry | undefined }) {
   const router = useRouter();
   const save = useServerFn(saveAccent);
+  const saveDesign = useServerFn(saveLetterheadDesign);
   const { busy, notice, run } = useAction();
   const [value, setValue] = useState(color);
   const valid = ACCENT_PATTERN.test(value);
@@ -27,6 +28,15 @@ export function AccentColorCard({ color, hint }: { color: string; hint?: LayoutH
       await router.invalidate();
     }, "Akzentfarbe gespeichert. Sie gilt für alle Rechnungen, Angebote und Mahnungen, die ab jetzt festgeschrieben werden.");
 
+  const storeFromLayout = (next: boolean) =>
+    run(
+      async () => {
+        await saveDesign({ data: { accentFromLayout: next } });
+        await router.invalidate();
+      },
+      next ? "Gespeichert. Jedes Layout setzt jetzt seine eigene Farbe." : "Gespeichert. Alle Layouts setzen jetzt diese Farbe.",
+    );
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void store(value);
@@ -38,6 +48,13 @@ export function AccentColorCard({ color, hint }: { color: string; hint?: LayoutH
       <p className="small muted" style={{ margin: 0 }}>
         Färbt Spaltenköpfe und Linien auf Rechnungen, Angeboten, Auftragsbestätigungen, Lieferscheinen und Mahnungen, etwa passend zum Logo; Text,
         Beschriftungen und Fußzeile bekommen dazu passende Grautöne. Schon festgeschriebene Belege behalten ihr PDF.
+      </p>
+      <label className="checkbox">
+        <input type="checkbox" checked={fromLayout} disabled={off} onChange={(event) => void storeFromLayout(event.target.checked)} />
+        Farbe des Layouts
+      </label>
+      <p className="small muted" style={{ margin: 0 }}>
+        Jedes eingebaute Layout bringt eine eigene Farbe mit. Eine Farbe, die du hier übernimmst, gilt stattdessen für alle Layouts.
       </p>
       <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
         <Field label="Farbe wählen" describedBy={hintId}>

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdir, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { DEFAULT_LAYOUT, type LayoutDocumentType, type LayoutRef } from "@haben/core";
+import { DEFAULT_LAYOUT, eingebautesLayout, type LayoutDocumentType, type LayoutRef } from "@haben/core";
 import { createRenderClient, LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfRequest } from "@haben/einvoice";
 import { eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
@@ -288,7 +288,7 @@ async function removeLayout(actor: string, id: string): Promise<void> {
 
 /** Ordnet einer Belegart ein Layout zu; ein eigenes muss zur Art passen (Mahnung oder Beleg) */
 export async function assignLayout(actor: string, type: LayoutDocumentType, ref: LayoutRef): Promise<void> {
-  if (ref.kind === "eingebaut" && ref.id !== DEFAULT_LAYOUT.id) throw new LayoutError("Dieses eingebaute Layout gibt es nicht.");
+  if (ref.kind === "eingebaut" && !eingebautesLayout(ref.id)) throw new LayoutError("Dieses eingebaute Layout gibt es nicht.");
   if (ref.kind === "eigen") {
     const [row] = await db.select({ art: schema.belegLayouts.art }).from(schema.belegLayouts).where(eq(schema.belegLayouts.id, ref.id));
     if (!row) throw new LayoutError("Das Layout gibt es nicht mehr.");
@@ -329,11 +329,16 @@ export async function customLayoutFor(type: LayoutDocumentType) {
  * Briefkopf mit dem eingebauten Layout der Belegart und seinen Optionen (layout-katalog.ts in packages/core); bei einem
  * eigenen Layout unverändert. Die Vorlage, Vorgaben für Schrift und Farbe und die Stelle des Logos folgen daraus.
  */
-export async function mitEingebautemLayout(type: LayoutDocumentType, letterhead: Letterhead): Promise<Letterhead> {
+export async function mitEingebautemLayout(
+  type: LayoutDocumentType,
+  letterhead: Letterhead,
+  /** Ungespeicherte Wahl aus der Vorschau, vor der gespeicherten */
+  entwurf?: Record<string, Record<string, string>>,
+): Promise<Letterhead> {
   const design = await loadDesign();
   const ref = design.layouts[type];
   if (ref.kind !== "eingebaut") return letterhead;
-  return { ...letterhead, layout: { id: ref.id, optionen: design.layoutOptions[ref.id] ?? {} } };
+  return { ...letterhead, layout: { id: ref.id, optionen: entwurf?.[ref.id] ?? design.layoutOptions[ref.id] ?? {} } };
 }
 
 /**

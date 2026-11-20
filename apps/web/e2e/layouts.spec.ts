@@ -141,6 +141,31 @@ test("Ein Layout, das nur look.logoLeft kennt: Hinweis zu „Mitte“, der Knopf
   await page.context().close();
 });
 
+test("Eingebautes Layout mit Optionen: zuordnen, gesperrte Werte ausgegraut, Wahl bleibt gespeichert", async ({ browser }) => {
+  const page = await einstellungen(browser);
+  try {
+    await karte(page).getByLabel("Layout für Angebot").selectOption({ label: "Premium (eingebaut)" });
+    await expect(karte(page).getByRole("status").first()).toContainText("Gespeichert");
+    const fuss = karte(page).getByRole("group", { name: "Fuß (Premium)" });
+    const kerndaten = karte(page).getByRole("group", { name: "Kerndaten (Premium)" });
+    await expect(kerndaten.getByRole("button", { name: "Zweispaltig" })).toBeEnabled();
+    await fuss.getByRole("button", { name: "In der Randspalte" }).click();
+    await expect(fuss.getByRole("button", { name: "In der Randspalte" })).toHaveAttribute("aria-pressed", "true");
+    // Zweispaltig geht nur mit dem Fuß unten
+    await expect(kerndaten.getByRole("button", { name: "Zweispaltig" })).toBeDisabled();
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(karte(page).getByRole("group", { name: "Fuß (Premium)" }).getByRole("button", { name: "In der Randspalte" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  } finally {
+    await karte(page).getByLabel("Layout für Angebot").selectOption({ label: "Klar (eingebaut)" });
+    await expect(karte(page).getByRole("group", { name: "Fuß (Premium)" })).toHaveCount(0);
+  }
+  await page.context().close();
+});
+
 test("Die Downloads liefern die eingebauten Layouts, Beispieldaten, Feldvertrag und Anleitung", async ({ browser }) => {
   const page = await einstellungen(browser);
   expect(await startvorlage(page)).toContain("json(bytes(sys.inputs.data))");

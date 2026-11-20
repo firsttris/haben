@@ -14,7 +14,7 @@ import {
 } from "@haben/core";
 import { useAction } from "../lib/use-action.ts";
 import { saveLetterheadDesign } from "../server/functions/logo.ts";
-import { Segmented } from "./DesignPanel.tsx";
+import { Segmented } from "./Segmented.tsx";
 import { FormattedRuns } from "./FormattedText.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";

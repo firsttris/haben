@@ -254,6 +254,15 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     expect(xml).toContain("2026-034");
   }, 60_000);
 
+  it("ordnet jedes eingebaute Layout aus dem Katalog zu, ein unbekanntes nicht", async () => {
+    await layouts.assignLayout(actor, "rechnung", { kind: "eingebaut", id: "premium" });
+    await layouts.assignLayout(actor, "mahnung", { kind: "eingebaut", id: "elegant" });
+    const design = await letterhead.loadDesign();
+    expect(design.layouts.rechnung).toEqual({ kind: "eingebaut", id: "premium" });
+    expect(design.layouts.mahnung).toEqual({ kind: "eingebaut", id: "elegant" });
+    await expect(layouts.assignLayout(actor, "angebot", { kind: "eingebaut", id: "gibtsnicht" })).rejects.toThrow(/gibt es nicht/);
+  }, 60_000);
+
   it("passt die Art nicht, wird nichts zugeordnet", async () => {
     const { id } = await anlegen({ name: "Mahnlayout", art: "mahnung", source: eigene("mahnung") });
     await expect(layouts.assignLayout(actor, "rechnung", { kind: "eigen", id })).rejects.toThrow(/nur zu Mahnungen/);
@@ -279,7 +288,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
       await t`update letterhead_profiles set updated_at = now() where is_default`;
     });
     await loeschen;
-    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
+    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klar" });
   }, 60_000);
 
   it("fällt beim Setzen nicht still auf das eingebaute zurück", async () => {

@@ -4,7 +4,13 @@ import {
   ACCENT_PATTERN,
   contrastOnWhite,
   DEFAULT_DESIGN,
+  eingebautesLayout,
   LETTERHEAD_FONTS,
+  type LayoutDocumentType,
+  layoutLogo,
+  layoutOptionen,
+  layoutVorgaben,
+  type LayoutVorgaben,
   type LetterheadFont,
   MIN_TEXT_CONTRAST,
   type LetterheadDesign,
@@ -19,6 +25,8 @@ import { Field } from "./Field.tsx";
 import { layoutHint, LayoutHintText, layoutHintId, type LayoutHints } from "./LayoutHint.tsx";
 import { LogoUpload } from "./LogoUpload.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Segmented } from "./Segmented.tsx";
+import { LayoutOptionFields } from "./LayoutOptionFields.tsx";
 
 /** Ungespeicherte Änderungen an der Gestaltung: Die Vorschau zeigt sie sofort, gespeichert wird erst auf Zuruf */
 export function useDesignDraft(initial: LetterheadDesign = DEFAULT_DESIGN) {
@@ -73,43 +81,6 @@ const SWATCHES = [
   { hex: "#3F4A44", name: "Grau" },
 ];
 
-export function Segmented<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  disabled,
-  disabledValues,
-  describedBy,
-}: {
-  label: string;
-  options: { value: T; label: string; name: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  disabled?: boolean | undefined;
-  /** Einzelne Werte aus, etwa „Mitte“, wenn kein Layout das Logo mittig setzt; ein gespeicherter Wert bleibt gedrückt */
-  disabledValues?: readonly T[] | undefined;
-  describedBy?: string | undefined;
-}) {
-  return (
-    <div className="segmented" role="group" aria-label={label} aria-describedby={describedBy}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          className="btn btn-sm"
-          title={option.name}
-          aria-pressed={value === option.value}
-          disabled={disabled || disabledValues?.includes(option.value)}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /** Logo und Schalter; gleich im Panel der Vorschau und in den Einstellungen */
 export function DesignOptionFields({
   design,
@@ -118,6 +89,8 @@ export function DesignOptionFields({
   positions = true,
   logoUpload,
   hints,
+  vorgaben,
+  logoStellen,
 }: {
   design: LetterheadDesign;
   onChange: (input: LetterheadDesignInput) => void;
@@ -129,8 +102,15 @@ export function DesignOptionFields({
   logoUpload: ReactNode;
   /** Nur in den Einstellungen: Einstellungen, die ein zugeordnetes eigenes Layout nicht verwendet */
   hints?: LayoutHints | undefined;
+  /** Vorgaben des eingebauten Layouts, wo eines feststeht (Vorschau); nennt die Schrift bei „Wie im Layout“ */
+  vorgaben?: LayoutVorgaben | undefined;
+  /** Stellen, die das eingebaute Layout erlaubt; die anderen sind aus */
+  logoStellen?: readonly LogoPosition[] | undefined;
 }) {
   const hint = (option: string) => layoutHint(hints, option);
+  const stellenAus = LOGO_POSITION_OPTIONS.map((option) => option.value).filter(
+    (stelle) => (stelle === "mitte" && hint("logoMitte")?.aus) || (logoStellen && !logoStellen.includes(stelle)),
+  );
   return (
     <>
       <section>
@@ -141,8 +121,9 @@ export function DesignOptionFields({
               {...control}
               value={design.font}
               disabled={hint("font")?.aus}
-              onChange={(event) => onChange({ font: event.target.value as LetterheadFont })}
+              onChange={(event) => onChange({ font: event.target.value as LetterheadFont | "layout" })}
             >
+              <option value="layout">{vorgaben ? `Wie im Layout (${LETTERHEAD_FONTS[vorgaben.font].name})` : "Wie im Layout"}</option>
               {(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[]).map((font) => (
                 <option key={font} value={font}>
                   {LETTERHEAD_FONTS[font].name}
@@ -171,7 +152,7 @@ export function DesignOptionFields({
             value={design.logoPosition}
             onChange={(logoPosition) => onChange({ logoPosition })}
             disabled={hint("logoPosition")?.aus}
-            disabledValues={hint("logoMitte")?.aus ? ["mitte"] : undefined}
+            disabledValues={stellenAus}
             describedBy={
               [layoutHintId("logoPosition", hint("logoPosition")), layoutHintId("logoMitte", hint("logoMitte"))].filter(Boolean).join(" ") || undefined
             }
@@ -222,16 +203,29 @@ export function DesignOptionFields({
   );
 }
 
-function AccentField({ accent, onChange }: { accent: string; onChange: (accent: string) => void }) {
-  const weak = ACCENT_PATTERN.test(accent) && contrastOnWhite(accent) < MIN_TEXT_CONTRAST;
-  const custom = !SWATCHES.some((swatch) => swatch.hex === accent.toUpperCase());
+function AccentField({
+  accent,
+  fromLayout,
+  layoutAccent,
+  onChange,
+}: {
+  accent: string;
+  /** Farbe aus dem Layout statt der eigenen */
+  fromLayout: boolean;
+  layoutAccent?: string | undefined;
+  onChange: (input: LetterheadDesignInput) => void;
+}) {
+  // Nur zur eigenen Farbe: Die Farbe eines Layouts ist dort gesetzt, wo sie sich liest
+  const weak = !fromLayout && ACCENT_PATTERN.test(accent) && contrastOnWhite(accent) < MIN_TEXT_CONTRAST;
+  const custom = !fromLayout && !SWATCHES.some((swatch) => swatch.hex === accent.toUpperCase());
+  const pick = (hex: string) => onChange({ accent: hex, accentFromLayout: false });
   return (
     <section>
       <h3>Farbe</h3>
       <div className="color-swatches">
         <label className="color-swatch color-swatch-custom" title="Eigene Farbe wählen" data-active={custom || undefined}>
           <span>{custom && <span className="color-swatch-dot" style={{ background: accent }} />}</span>
-          <input type="color" aria-label="Eigene Farbe wählen" value={accent.toLowerCase()} onChange={(event) => onChange(event.target.value.toUpperCase())} />
+          <input type="color" aria-label="Eigene Farbe wählen" value={accent.toLowerCase()} onChange={(event) => pick(event.target.value.toUpperCase())} />
         </label>
         {SWATCHES.map((swatch) => (
           <button
@@ -239,13 +233,18 @@ function AccentField({ accent, onChange }: { accent: string; onChange: (accent: 
             type="button"
             className="color-swatch"
             aria-label={swatch.name}
-            aria-pressed={accent.toUpperCase() === swatch.hex}
-            onClick={() => onChange(swatch.hex)}
+            aria-pressed={!fromLayout && accent.toUpperCase() === swatch.hex}
+            onClick={() => pick(swatch.hex)}
           >
             <span style={{ background: swatch.hex }} />
           </button>
         ))}
       </div>
+      <label className="checkbox">
+        <input type="checkbox" checked={fromLayout} onChange={(event) => onChange({ accentFromLayout: event.target.checked })} />
+        Farbe des Layouts
+        {layoutAccent && <span className="color-swatch-dot" style={{ background: layoutAccent }} aria-hidden="true" />}
+      </label>
       {custom && (
         <p className="small muted">
           Eigene Farbe <span className="mono">{accent}</span>
@@ -267,9 +266,12 @@ export function DesignPanel({
   positions = true,
   logo,
   onLogoChanged,
+  layoutType,
 }: {
   draft: DesignDraft;
   vatRates: number;
+  /** Belegart der Vorschau; ihr Layout bestimmt Optionen, Vorgaben und erlaubte Stellen des Logos */
+  layoutType: LayoutDocumentType;
   /** Ohne Positionen (Mahnung) fehlen Artikelnummer und Spalte USt */
   positions?: boolean;
   logo: string | null;
@@ -285,11 +287,23 @@ export function DesignPanel({
       draft.commit(sent);
     }, "Gespeichert. Gilt für alles, was ab jetzt erzeugt wird.");
 
+  const ref = draft.design.layouts[layoutType];
+  const layout = ref.kind === "eingebaut" ? eingebautesLayout(ref.id) : undefined;
+  const optionen = layout ? layoutOptionen(layout, draft.design.layoutOptions[layout.id]) : {};
+  const vorgaben = layout ? layoutVorgaben(layout, optionen) : undefined;
+
   return (
     <aside className="design-panel" aria-label="Gestaltung">
       <div className="design-panel-body">
-        <AccentField accent={draft.design.accent} onChange={(accent) => draft.set({ accent })} />
+        <section className="layout-options">
+          <h3>Layout: {layout ? layout.name : "eigenes"}</h3>
+          <p className="small muted">Ändern unter Einstellungen › Beleggestaltung</p>
+          {layout && <LayoutOptionFields layoutId={layout.id} design={draft.design} onChange={(layoutOptions) => draft.set({ layoutOptions })} />}
+        </section>
+        <AccentField accent={draft.design.accent} fromLayout={draft.design.accentFromLayout} layoutAccent={vorgaben?.accent} onChange={draft.set} />
         <DesignOptionFields
+          vorgaben={vorgaben}
+          logoStellen={layout ? layoutLogo(layout, optionen) : undefined}
           design={draft.design}
           onChange={draft.set}
           vatRates={vatRates}

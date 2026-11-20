@@ -1335,6 +1335,10 @@ summary { cursor: pointer; min-height: 24px; }
 .design-panel-foot .actions .btn { padding-inline: 12px; }
 /* Größe und Stelle des Logos nebeneinander, auch am Handy (S M L und Links Mitte Rechts in 301px) */
 .design-logo-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.layout-options { display: grid; gap: 12px; justify-items: start; margin-top: 8px; }
+.layout-options h3, .layout-options p { margin: 0; }
+.layout-options fieldset.field { border: 0; padding: 0; margin: 0; min-width: 0; }
+.layout-options legend.field-label { padding: 0; margin-bottom: 8px; }
 .design-logo-row .segmented .btn { padding-inline: 8px; }
 .segmented { display: inline-flex; }
 .segmented .btn { min-width: 44px; min-height: 44px; border-radius: 0; margin-left: -1px; }

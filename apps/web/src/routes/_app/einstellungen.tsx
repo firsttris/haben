@@ -254,7 +254,7 @@ function SettingsPage() {
             <>
               <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} hints={layoutHints} />
               <LetterheadBackgroundCard design={design} background={background?.sha256 ?? null} hints={layoutHints} />
-              <AccentColorCard color={design.accent} hint={layoutHints.accent} />
+              <AccentColorCard color={design.accent} fromLayout={design.accentFromLayout} hint={layoutHints.accent} />
               <FooterCard columns={design.footerColumns} seller={company} hidden={design.footerHidden && background !== null} />
               <LayoutsCard design={design} layouts={layouts} />
             </>

@@ -266,7 +266,7 @@ export async function dunningPreview(input: z.output<typeof dunningPreviewSchema
   const doc = await dunningDocument(db, form, today, { ...checked, letterhead }, false);
   // Statt des GiroCodes ein Platzhalter, damit niemand eine Vorschau bezahlt; Mahnungen sind deutsch
   const { draft: _noMark, ...sheet } = asDraft(dunningPdfData(doc), texts("de", "EUR"));
-  return renderPreview("mahnung", "mahnung.typ", sheet, letterhead, () => dunningSheetText(sheet));
+  return renderPreview("mahnung", "mahnung.typ", sheet, letterhead, () => dunningSheetText(sheet), design.layoutOptions);
 }
 
 /** Erstellt die Mahnung mit PDF; Beträge werden zum heutigen Stand berechnet */
