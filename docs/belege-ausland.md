@@ -21,7 +21,7 @@ Unter **Wer schuldet die Umsatzsteuer?** wählst du bei einer Rechnung ohne deut
 
 Ohne Wahl bleibt es bei **Der Lieferant (normaler Beleg)**, mit oder ohne deutsche Umsatzsteuer auf der Rechnung, auch bei der Rechnung eines Kleinunternehmers oder bei 0 %. Die Kennzahlen der Voranmeldung stehen eingeklappt unter **Details zur Voranmeldung**.
 
-Nordirland zählt nur bei Lieferungen von Waren zum Gemeinschaftsgebiet ([§ 30 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__30.html)); für eine sonstige Leistung eines Unternehmers von dort passt **Ich (§ 13b, Drittland-Leistung)**. Wählst du **EU-Leistung** bei einer nordirischen USt-IdNr. (`XI`), weist die Rückfrage beim Buchen darauf hin, ohne beim BZSt zu fragen.
+Nordirland zählt nur bei Lieferungen von Waren zum Gemeinschaftsgebiet ([§ 30 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__30.html)); für eine sonstige Leistung eines Unternehmers von dort passt **Ich (§ 13b, Drittland-Leistung)**.
 
 Du trägst nur das Netto aus der Rechnung ein und wählst den zutreffenden deutschen Steuersatz (19 % oder 7 %). **Steuer § 13b (automatisch)** zeigt die daraus berechnete Steuer schreibgeschützt an. Änderungen am Netto oder am Satz aktualisieren sie automatisch, auch nach dem erneuten Öffnen eines gespeicherten Entwurfs. Beim Speichern rechnet Haben die Steuer selbst noch einmal aus Netto und Satz, auch bei der Erwerbsteuer; ein älterer Entwurf mit abweichender Steuer lässt sich erst buchen, wenn du ihn geöffnet und gespeichert hast. Bezahlt wird der Nettobetrag, der Bankabgleich erwartet also netto. Hat der Lieferant eine USt-IdNr. aus einem anderen EU-Land und steht keine Steuer auf dem Beleg, weist Haben darauf hin. Erkennt die [KI-Auslesung](belege.md#ki-auslesung) einen Reverse-Charge-Hinweis auf dem Beleg, schlägt sie § 13b (EU oder Drittland) oder den innergemeinschaftlichen Erwerb vor und setzt statt der ausgewiesenen 0 % den Satz 19 %; ist am Beleg schon etwas gewählt, bleibt es. Gebucht wird erst, wenn du bestätigst. Keinen Vorschlag gibt es, wenn der Beleg Umsatzsteuer ausweist, der Rechnungssteller eine deutsche USt-IdNr. hat oder es deine eigene Ausgangsrechnung ist.
 
@@ -61,7 +61,7 @@ Der innergemeinschaftliche Erwerb und § 13b für eine EU-Leistung setzen voraus
 
 - Ist die Nummer laut BZSt nicht gültig oder der Dienst nicht erreichbar, steht ein Hinweis in der Rückfrage; buchen kannst du trotzdem. Bei § 13b sagt er auch, wenn sich die Nummer gar nicht bestätigen lässt, etwa bei falschem Aufbau oder einer deutschen Nummer; beim Erwerb sperrt das schon „Vor dem Buchen“.
 - Ist der Lieferant nur als Name eingetragen, gibt es keinen Kontakt für den Nachweis: Haben fragt nicht und sagt das. Wähl oder leg dafür unter **Lieferant** einen Kontakt an.
-- Bei § 13b aus dem Drittland, bei normalen Belegen und mit `HABEN_EVATR=off` fragt Haben nicht.
+- Bei § 13b aus dem Drittland, bei normalen Belegen und mit `HABEN_EVATR=off` fragt Haben nicht. Bei § 13b EU mit einer nordirischen Nummer (`XI`) fragt es ebenfalls nicht und weist stattdessen auf **Drittland-Leistung** hin, auch mit `HABEN_EVATR=off`.
 
 ## Einfuhrumsatzsteuer
 
