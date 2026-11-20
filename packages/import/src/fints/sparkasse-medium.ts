@@ -54,6 +54,9 @@ async function bankparameterErgaenzen(client: FinTSClient, response: ClientRespo
 
 /** Einmaliger, eng begrenzter Fallback; synchronizeWithTan bleibt am Dialog des zweiten Versuchs. */
 export async function synchronisierenMitSparkassenMedium(client: FinTSClient): Promise<ClientResponse> {
+  const config = client.config;
+  // Das Sondermedium gehört nur zu 923; nach Wahl eines anderen Verfahrens nicht mitsenden oder speichern.
+  if (config.tanMediaName === MEDIUM && config.tanMethodId !== PUSH && bekannteBank(config)) config.tanMediaName = undefined;
   const response = await client.synchronize();
   if (!unbekanntesMedium(client, response)) return response;
   await bankparameterErgaenzen(client, response);
