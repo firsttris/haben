@@ -1,4 +1,4 @@
-import { EVATR_VERGLEICH, type EvatrArt, type EvatrVergleich, evatrMeldung } from "@haben/core";
+import { EVATR_VERGLEICH, type EvatrArt, type EvatrVergleich, evatrMeldung, germanDay } from "@haben/core";
 import { formatDate } from "./format.ts";
 import { renderUstidBestaetigungPdf } from "./pdf.ts";
 
@@ -48,8 +48,6 @@ const zeitFormat = new Intl.DateTimeFormat("de-DE", {
   timeZone: "Europe/Berlin",
 });
 
-const tagFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
-
 const vergleich = (wert: string | null) => (wert && wert in EVATR_VERGLEICH ? EVATR_VERGLEICH[wert as EvatrVergleich] : "–");
 /** Gültigkeitsdaten kommen als Text vom BZSt; ein ISO-Datum steht deutsch da, alles andere wie empfangen */
 const datum = (text: string) => (/^\d{4}-\d{2}-\d{2}$/.test(text) ? formatDate(text) : text);
@@ -70,7 +68,7 @@ export function ustidBestaetigungPdfData(doc: UstidBestaetigungDocument) {
     ["Ort", doc.ort, doc.ergOrt],
   ] as const;
   return {
-    docTitle: `Antwort des BZSt zur USt-IdNr. ${doc.angefragteUstid} vom ${tagFormat.format(doc.anfrageZeitpunkt)}`,
+    docTitle: `Antwort des BZSt zur USt-IdNr. ${doc.angefragteUstid} vom ${formatDate(germanDay(doc.anfrageZeitpunkt))}`,
     author: doc.firma,
     title: `Antwort des BZSt zur USt-IdNr. ${doc.angefragteUstid}`,
     untertitel: `Bestätigungsverfahren nach § 18e Nr. 1 UStG, ${qualifiziert ? "qualifizierte Abfrage mit Name und Anschrift" : "einfache Abfrage"} über die eVatR-Schnittstelle`,

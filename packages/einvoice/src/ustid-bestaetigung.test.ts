@@ -36,6 +36,9 @@ describe("Antwort des BZSt als PDF", () => {
   it("nennt Nummern, Zeitpunkt mit Uhrzeit in deutscher Zeit, ID, Status mit Code und Text und das Ergebnis je Angabe", () => {
     const data = ustidBestaetigungPdfData(qualifiziert);
     expect(data.title).toBe("Antwort des BZSt zur USt-IdNr. ATU12345678");
+    expect(data.docTitle).toBe("Antwort des BZSt zur USt-IdNr. ATU12345678 vom 18.11.2026");
+    // Der Tag im Titel der PDF-Metadaten ist der Tag in Deutschland
+    expect(ustidBestaetigungPdfData({ ...qualifiziert, anfrageZeitpunkt: new Date("2026-11-18T23:30:00Z") }).docTitle).toMatch(/ vom 19\.11\.2026$/);
     expect(data.untertitel).toContain("qualifizierte Abfrage mit Name und Anschrift");
     expect(data.anfrage).toEqual([
       { label: "Angefragte USt-IdNr.", value: "ATU12345678" },
