@@ -34,7 +34,9 @@ export function ServiceBillingForm({
   const navigate = useNavigate();
   const preview = useServerFn(getBillingPreview);
   const bill = useServerFn(billEntries);
-  const [contactId, setContactId] = useState(defaultContactId ?? "");
+  // Abrechnen nur für aktive Kunden; eine Vorgabe aus ?kunde= nur, wenn sie angeboten wird
+  const offered = customers.filter((c) => !c.inactive);
+  const [contactId, setContactId] = useState(offered.find((c) => c.id === defaultContactId)?.id ?? "");
   const [period, setPeriod] = useState(() => defaultBillingPeriod(today));
   const [result, setResult] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -99,13 +101,11 @@ export function ServiceBillingForm({
               <option value="" disabled>
                 Kunde wählen
               </option>
-              {customers
-                .filter((c) => !c.inactive)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+              {offered.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           )}
         </Field>
