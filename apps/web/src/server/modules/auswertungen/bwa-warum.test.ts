@@ -71,7 +71,7 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
   async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04") {
     await leeren(sql)`truncate own_accounts, document_settlements, asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports,
       bank_accounts, cash_entries, write_offs, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices,
-      invoice_number_counters, contact_versions, contacts, company cascade`;
+      invoice_number_counters, contact_versions, contacts, lexoffice_vouchers, lexoffice_imports, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, rechtsform)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, 'einzelunternehmen')`;
@@ -92,14 +92,14 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
   }
 
   /** Beleg über EDV (Instandhaltung), privat bezahlt: Abfluss am Belegdatum */
-  async function beleg(date: string, net: number, supplierName: string, supplierContactId: string | null = null) {
+  async function beleg(date: string, net: number, supplierName: string, supplierContactId: string | null = null, supplierUstId = "", lexwareKontakt?: string) {
     docSeq++;
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, docSeq % 256, Math.floor(docSeq / 256), 11]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: `w${docSeq}.jpg` });
     await documents.updateDocument(actor, id, {
       supplierName,
       supplierContactId,
-      supplierUstId: "",
+      supplierUstId,
       invoiceNumber: `W${docSeq}`,
       documentDate: date,
       dueDate: null,
@@ -110,6 +110,13 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
       privateShare: 0,
       reverseCharge: null,
     });
+    // Aus Lexware Office übernommen: der Kontakt steht nur am archivierten Beleg (wie auf der Kontaktseite, lieferant-belege.ts)
+    if (lexwareKontakt) {
+      const [imp] = await sql<{ id: string }[]>`insert into lexoffice_imports (progress) values ('{}'::jsonb) returning id`;
+      const [v] = await sql<{ id: string }[]>`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, date, status, contact_id, net, tax, gross, taxes, categories, raw)
+        values (${crypto.randomUUID()}, ${imp!.id}, 'purchaseinvoice', 'ausgabe', ${date}, 'open', ${lexwareKontakt}, ${net}, 0, ${net}, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb) returning id`;
+      await sql`update documents set lexoffice_voucher_id = ${v!.id} where id = ${id}`;
+    }
     await documents.bookDocument(actor, id);
     return id;
   }
@@ -178,6 +185,60 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
 
         // Ohne Vergleich gibt es nichts zu erklären
         expect(await bwa.bwaWarum(jahr, "keiner", "erloese")).toBeNull();
+      }, 60_000);
+    }
+  }
+
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`fasst denselben Lieferanten bzw. Kunden mit und ohne Kontakt zusammen, statt „neu“ und „weggefallen“ (#1514, ${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const hosting = (await contacts.createContact(actor, { ...kontakt("Muster Hosting", "lieferant"), ustId: "DE136695976" })).id;
+        const kunde = (await contacts.createContact(actor, kontakt("Nordwerk Software GmbH", "kunde"))).id;
+
+        // Vorjahr ohne Kontakt: gleiche USt-IdNr. wie der Kontakt, daran über den Namen ein zweiter, dazu ein aus Lexware
+        // Office übernommener mit dem Kontakt nur am archivierten Beleg; dieses Jahr mit Kontakt
+        await beleg("2026-02-02", 40_000, "Muster Hosting GmbH", null, "DE 136695976");
+        await beleg("2026-03-02", 8_000, " muster hosting gmbh");
+        await beleg("2026-04-01", 2_000, "MH Altname", null, "", hosting);
+        await beleg("2027-02-01", 60_000, "Muster Hosting", hosting);
+        await beleg("2027-03-01", 5_000, "Papierladen");
+
+        // Kunde: im Vorjahr eine Rechnung, die übernommen ohne Kunden nur seinen Namen trägt; dieses Jahr mit Kunde
+        const r1 = await invoice(kunde, "2026-03-02", 100_000);
+        const r2 = await invoice(kunde, "2027-03-01", 100_000);
+        await sql.begin(async (tx) => {
+          // An Haben vorbei, wie eine übernommene Rechnung ohne Kontakt; die Sperre lässt das sonst nicht zu
+          await tx`set local session_replication_role = replica`;
+          await tx`update invoices set contact_id = null, buyer = jsonb_set(buyer, '{name}', '"NORDWERK Software GmbH"') where id = ${r1.id}`;
+        });
+        await bank.importStatement(
+          actor,
+          { bytes: dkbCsv([umsatz("10.03.26", `RE ${r1.number}`, "1190,00"), umsatz("10.03.27", `RE ${r2.number}`, "1190,00")]), filename: `${crypto.randomUUID()}.csv` },
+          null,
+        );
+        const txs = await sql<{ id: string }[]>`select id from bank_transactions order by booking_date`;
+        await bank.allocate(actor, { kind: "invoice", transactionId: txs[0]!.id, invoiceId: r1.id, amount: 119_000 });
+        await bank.allocate(actor, { kind: "invoice", transactionId: txs[1]!.id, invoiceId: r2.id, amount: 119_000 });
+
+        const jahr = bwaZeitraum("jahr", 2027);
+        const warum = async (zeile: Form43Zeile) => (await bwa.bwaWarum(jahr, "vorjahr", zeile))!;
+        const instandhaltung = await warum("instandhaltung");
+        expect(instandhaltung.teile.map((t) => [t.name, t.kontaktId, t.art, t.differenz, t.anzahl, t.anzahlVergleich])).toEqual([
+          ["Muster Hosting", hosting, "gestiegen", 10_000, 1, 3],
+          ["Papierladen", null, "neu", 5_000, 1, 0],
+        ]);
+        const erloese = await warum("erloese");
+        expect([erloese.teile, erloese.unveraendert]).toEqual([[], 1]);
+
+        // Die Teile ergeben weiter genau die Abweichung jeder Zeile
+        const bericht = await bwa.bwaBericht(jahr, "vorjahr");
+        for (const z of bericht.zeilen.filter((z) => z.art === "zeile" && (z.betrag !== 0 || z.vergleich !== 0))) {
+          const w = await warum(z.key as Form43Zeile);
+          expect([w.betrag, w.vergleich, w.abweichung], z.key).toEqual([z.betrag, z.vergleich, z.abweichung!.betrag]);
+          expect(w.teile.reduce((s, t) => s + t.differenz, 0) + (w.uebrige?.differenz ?? 0), z.key).toBe(z.abweichung!.betrag);
+        }
+        expect(instandhaltung.abweichung).toBe(15_000);
       }, 60_000);
     }
   }
