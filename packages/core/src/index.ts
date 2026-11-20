@@ -33,6 +33,7 @@ export * from "./ebilanz.ts";
 export * from "./koerperschaft.ts";
 export * from "./ausschuettung.ts";
 export * from "./matching.ts";
+export * from "./beleg-platzhalter.ts";
 export * from "./ustva-posten.ts";
 export * from "./ust-vorauszahlung-euer.ts";
 export * from "./euer.ts";

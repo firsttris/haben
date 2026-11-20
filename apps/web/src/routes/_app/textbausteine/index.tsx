@@ -86,7 +86,8 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
           label="Text"
           hint={
             <>
-              In wiederkehrenden Rechnungen gelten auch hier Platzhalter wie {"{monat}"} oder {"{zeitraum}"}.
+              In Rechnung und Angebot gelten Platzhalter wie {"{nummer}"}, {"{betrag}"}, {"{faellig}"} oder {"{iban}"}, eingesetzt in der Vorschau und beim
+              Festschreiben (Liste im Editor unter den Positionen); in wiederkehrenden Rechnungen auch {"{monat}"} oder {"{zeitraum}"}.
             </>
           }
           style={{ gridColumn: "1 / -1" }}

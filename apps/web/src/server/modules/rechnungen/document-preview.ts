@@ -56,6 +56,7 @@ import { directDebitFor } from "./lastschrift.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { quoteCalculation } from "./quotes.ts";
 import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
+import { angebotMitPlatzhaltern, rechnungMitPlatzhaltern } from "./beleg-platzhalter.ts";
 
 /*
  * Echtes Blatt für die Vorschau der Belegeditoren: dieselbe Vorlage und dieselben Daten wie beim PDF, aber aus dem
@@ -260,8 +261,8 @@ export async function documentPreview(input: Input): Promise<DocumentPreview> {
   const t = texts(input.language, input.currency);
   const data =
     input.kind === "angebot"
-      ? quotePdfData(quoteDocument(input, company, buyer, letterhead))
-      : pdfData(invoiceDocument(input, company, buyer, letterhead, directDebit));
+      ? quotePdfData(angebotMitPlatzhaltern(quoteDocument(input, company, buyer, letterhead)))
+      : pdfData(rechnungMitPlatzhaltern(invoiceDocument(input, company, buyer, letterhead, directDebit)));
   const { draft: _noMark, ...sheet } = asDraft(data, t);
   return renderPreview(input.kind === "angebot" ? "angebot" : "rechnung", "rechnung.typ", sheet, letterhead, () => sheetText(sheet as unknown as SheetData));
 }

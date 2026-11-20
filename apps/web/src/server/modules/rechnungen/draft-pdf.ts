@@ -9,6 +9,7 @@ import { deductedRefs } from "./advance-deductions.ts";
 import { buyerFrom, documentFor, sellerFrom } from "./invoice-document.ts";
 import { getInvoice } from "./invoices.ts";
 import { getQuote, quoteDocumentFor } from "./quotes.ts";
+import { angebotMitPlatzhaltern, rechnungMitPlatzhaltern } from "./beleg-platzhalter.ts";
 
 /*
  * Entwürfe als PDF (Issue #342): aus dem gespeicherten Entwurf mit derselben Vorlage wie beim Festschreiben, mit dem
@@ -33,18 +34,20 @@ export async function invoiceDraftPdf(id: string): Promise<DraftPdf | null> {
   if (!buyer) throw new DraftPdfError(NO_CUSTOMER);
   const company = await loadCompany();
   // Die Nummer setzt renderInvoiceDraftPdf
-  const { number: _none, ...doc } = documentFor(
-    invoice,
-    lines,
-    await invoiceDocumentTotals(id),
-    (await invoiceTotalsById([id])).get(id)!,
-    sellerFrom(company),
-    buyer,
-    "",
-    corrects?.number ? { number: corrects.number, issueDate: corrects.issueDate } : null,
-    await deductedRefs(lines),
-    await directDebitFor(invoice, company, db),
-    await loadUnitCodes(),
+  const { number: _none, ...doc } = rechnungMitPlatzhaltern(
+    documentFor(
+      invoice,
+      lines,
+      await invoiceDocumentTotals(id),
+      (await invoiceTotalsById([id])).get(id)!,
+      sellerFrom(company),
+      buyer,
+      "",
+      corrects?.number ? { number: corrects.number, issueDate: corrects.issueDate } : null,
+      await deductedRefs(lines),
+      await directDebitFor(invoice, company, db),
+      await loadUnitCodes(),
+    ),
   );
   return withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => renderInvoiceDraftPdf({ ...doc, ...letterhead }));
 }
@@ -54,12 +57,14 @@ export async function quoteDraftPdf(id: string): Promise<DraftPdf | null> {
   const data = await getQuote(id);
   if (data?.quote.status !== "draft") return null;
   if (!data.contact) throw new DraftPdfError(NO_CUSTOMER);
-  const { number: _none, ...doc } = quoteDocumentFor(
-    data.quote,
-    data.lines,
-    sellerFrom(await loadCompany()),
-    buyerFrom(data.contact, await ansprechpartnerSnapshot(db, data.quote.contactPersonId)),
-    "",
+  const { number: _none, ...doc } = angebotMitPlatzhaltern(
+    quoteDocumentFor(
+      data.quote,
+      data.lines,
+      sellerFrom(await loadCompany()),
+      buyerFrom(data.contact, await ansprechpartnerSnapshot(db, data.quote.contactPersonId)),
+      "",
+    ),
   );
   return withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuoteDraftPdf({ ...doc, ...letterhead }));
 }

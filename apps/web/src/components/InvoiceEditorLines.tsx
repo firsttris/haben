@@ -10,6 +10,7 @@ import { LineKind } from "./LineKind.tsx";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { TextBlockField } from "./TextBlockField.tsx";
 import type { InvoiceEditorModel } from "./use-invoice-editor.ts";
+import { BELEG_PLATZHALTER } from "@haben/core";
 
 // Karte „Positionen“: Einleitung, je Zeile eine Position, Gesamtrabatt und Hinweis
 
@@ -45,6 +46,7 @@ export function InvoiceEditorLines({ editor }: { editor: InvoiceEditorModel }) {
       <TextBlockField
         label="Einleitung über den Positionen (optional)"
         kind="kopf"
+        hint={editable ? PLATZHALTER_HINWEIS : undefined}
         value={intro}
         onChange={touch(setIntro)}
         blocks={textBlocks}
@@ -95,15 +97,28 @@ export function InvoiceEditorLines({ editor }: { editor: InvoiceEditorModel }) {
       <TextBlockField
         label={quote ? "Hinweis auf dem Angebot (optional)" : "Hinweis auf der Rechnung (optional)"}
         kind="fuss"
+        hint={editable ? PLATZHALTER_HINWEIS : undefined}
         value={note}
         onChange={touch(setNote)}
         blocks={textBlocks}
         contactId={contactId || null}
       />
       {!quote && <PropertyRetentionField checked={propertyRetention} onChange={touch(setPropertyRetention)} inherited={!editable} />}
+      {editable && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Platzhalter in Einleitung und Hinweis, eingesetzt in der Vorschau und beim Festschreiben:{" "}
+          {Object.entries(BELEG_PLATZHALTER)
+            .map(([key, label]) => `{${key}} (${label})`)
+            .join(", ")}
+          .
+        </p>
+      )}
     </section>
   );
 }
+
+/** Am Feld selbst, damit Screenreader ihn mit Einleitung und Hinweis vorlesen; die Liste steht unter den Positionen */
+const PLATZHALTER_HINWEIS = "Platzhalter wie {nummer}, {betrag} oder {iban} setzt Haben in der Vorschau und beim Festschreiben ein; Liste unten.";
 
 function EditorLineRow({ editor, line, index }: { editor: InvoiceEditorModel; line: LineState; index: number }) {
   const { amountLabel, error, markTouched, parsed, showError, special, units, updateLine } = editor;
