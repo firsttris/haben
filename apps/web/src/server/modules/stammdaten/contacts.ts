@@ -3,6 +3,7 @@ import {
   joinEmails,
   MAX_EMAIL_RECIPIENTS,
   normalizeTelefon,
+  normalizeUstId,
   PERSONENKONTO_LABEL,
   type PersonenkontoRolle,
   personenkontoProblem,
@@ -174,9 +175,6 @@ export interface UstIdMatch {
   archived: boolean;
 }
 
-/** USt-IdNr. ohne Leerzeichen und in Großbuchstaben, wie sie gespeichert wird */
-const compactUstId = (value: string) => value.replace(/\s/g, "").toUpperCase();
-
 /**
  * Kontakte aller Rollen mit derselben USt-IdNr., auch archivierte; excludeId nimmt den Kontakt aus, den das Formular
  * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen. Aus mehr als fünf
@@ -188,8 +186,8 @@ export async function findContactsByUstId(
   excludeId?: string,
   wanted: { isCustomer?: boolean; isSupplier?: boolean } = {},
 ): Promise<UstIdMatch[]> {
-  const compact = compactUstId(ustId);
-  if (!compact) return [];
+  const nummer = normalizeUstId(ustId);
+  if (!nummer) return [];
   const rows = await db
     .select({
       id: schema.contacts.id,
@@ -200,7 +198,13 @@ export async function findContactsByUstId(
       archivedAt: schema.contacts.archivedAt,
     })
     .from(schema.contacts)
-    .where(and(sql`upper(replace(${schema.contacts.ustId}, ' ', '')) = ${compact}`, excludeId ? ne(schema.contacts.id, excludeId) : undefined))
+    // Gespeichert ist die Nummer, wie sie eingegeben wurde; verglichen wird wie normalizeUstId (ohne Punkte und Bindestriche, GR als EL)
+    .where(
+      and(
+        sql`regexp_replace(regexp_replace(upper(${schema.contacts.ustId}), '[[:space:]./-]', '', 'g'), '^GR', 'EL') = ${nummer}`,
+        excludeId ? ne(schema.contacts.id, excludeId) : undefined,
+      ),
+    )
     // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken; dann die mit den
     // gewünschten Rollen, damit sie nicht hinter fünf anderen aus der Liste fallen
     .orderBy(
