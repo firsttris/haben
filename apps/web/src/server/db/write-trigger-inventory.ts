@@ -33,8 +33,7 @@ try {
   writeFileSync(file, formatted.stdout);
   console.info(
     `Sollbestand aus frischen Migrationen: ${inventory.triggers.length} Trigger, ${inventory.functions.length} Funktionen, ` +
-      `${inventory.defaults.length} Standardwerte in ${inventory.sealedTables.length} versiegelten Tabellen, ` +
-      `${inventory.rowSecurity.tables.length} Tabellen mit Zeilensicherheit, ${inventory.rowSecurity.policies.length} Policies`,
+      `${inventory.defaults.length} Standardwerte in ${inventory.sealedTables.length} versiegelten Tabellen`,
   );
 } finally {
   await client.end();

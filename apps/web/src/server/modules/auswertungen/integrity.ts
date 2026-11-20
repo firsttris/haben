@@ -146,13 +146,13 @@ export type PruefwertResult =
  * Trigger und Funktionen dem Sollbestand entsprechen: Das Nachrechnen läuft über haben_audit_hash in derselben Datenbank.
  */
 export async function checkPruefwert(seq: number, hash: string): Promise<PruefwertResult> {
-  const [row] = await db.select({ hash: schema.auditLog.rowHash }).from(schema.auditLog).where(eq(schema.auditLog.seq, seq));
-  if (!row) return { status: "fehlt", seq, head: (await chainHead())?.seq ?? null };
-  const actual = row.hash.toString("hex");
-  if (actual !== hash.toLowerCase()) return { status: "abweichend", seq, expected: hash.toLowerCase(), actual };
   return db.transaction(
     async (tx): Promise<PruefwertResult> => {
-      // Der Katalog vor haben_integrity_problems: Eine fremde Funktion, die diese aufruft, könnte sonst den Suchpfad ändern
+      const [row] = await tx.select({ hash: schema.auditLog.rowHash }).from(schema.auditLog).where(eq(schema.auditLog.seq, seq));
+      if (!row) return { status: "fehlt", seq, head: (await chainHead(tx))?.seq ?? null };
+      const actual = row.hash.toString("hex");
+      if (actual !== hash.toLowerCase()) return { status: "abweichend", seq, expected: hash.toLowerCase(), actual };
+      // Zuerst der Katalog: Weicht er ab, ist auch das Nachrechnen der Kette nicht verlässlich
       const catalog = await checkTriggerIntegrity(tx);
       const [broken] = await tx.execute<{ seq: string; befund: string }>(
         sql`select seq, befund from haben_integrity_problems(1) where art = 'kette' and seq <= ${seq} order by seq limit 1`,

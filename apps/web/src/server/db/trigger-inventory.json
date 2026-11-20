@@ -3959,6 +3959,5 @@
     { "table": "public.vat_returns", "column": "source", "expression": "'manuell'::text" },
     { "table": "public.vat_returns", "column": "status", "expression": "'draft'::public.vat_return_status" },
     { "table": "public.vat_returns", "column": "updated_at", "expression": "now()" }
-  ],
-  "rowSecurity": { "tables": [], "policies": [] }
+  ]
 }
