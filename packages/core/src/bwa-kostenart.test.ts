@@ -133,6 +133,20 @@ describe("Kostenart der BWA (DATEV-Kontenrahmen 2026)", () => {
     ["2764", "4992", "neutralErtrag"],
     ["2790", "7190", "neutralErtrag"],
     ["2285", "7690", "neutralAufwand"],
+    // „Abschreibungen auf Finanzanlagen und auf Wertpapiere des Umlaufvermögens“ (SKR03 S. 24, SKR04 S. 27) gehören zum
+    // Finanzergebnis (§ 275 Abs. 2 Nr. 12 HGB), nicht zum Betriebsergebnis; die Abschreibungen davor und danach bleiben
+    ["4865", "6266", "abschreibungen"],
+    ["4866", "7201", "neutralAufwand"],
+    ["4870", "7200", "neutralAufwand"],
+    ["4871", "7204", "neutralAufwand"],
+    ["4872", "7208", "neutralAufwand"],
+    ["4873", "7255", "neutralAufwand"],
+    ["4874", "7250", "neutralAufwand"],
+    ["4875", "7210", "neutralAufwand"],
+    ["4876", "7214", "neutralAufwand"],
+    ["4877", "7207", "neutralAufwand"],
+    ["4878", "7217", "neutralAufwand"],
+    ["4880", "6270", "abschreibungen"],
     // Zinsen
     ["2100", "7300", "zinsaufwand"],
     ["2118", "7318", "zinsaufwand"],
