@@ -15,7 +15,8 @@ import { formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { errorKind } from "./ErrorBanner.tsx";
-import { MAX_PEM_SIZE, MailGraphFields } from "./MailGraphFields.tsx";
+import { mailInput } from "./mail-form-lesen.ts";
+import { MailGraphFields } from "./MailGraphFields.tsx";
 import { MailSmtpFields, type SmtpServer } from "./MailSmtpFields.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeMail, saveMail, sendMailTest, type getMailSettings } from "../server/functions/mail.ts";
@@ -146,43 +147,6 @@ export function MailCard({ data }: { data: Data }) {
       {data.last.length > 0 && <SentMails last={data.last} />}
     </form>
   );
-}
-
-type MailState = { transport: "smtp" | "graph"; graphAuth: "secret" | "certificate"; server: SmtpServer; days: number[]; templates: MailTemplates };
-
-/** Eingaben des Formulars für saveMail; Zertifikat und Schlüssel liest es aus den gewählten Dateien */
-async function mailInput(form: FormData, { transport, graphAuth, server, days, templates }: MailState) {
-  const text = (name: string) => String(form.get(name) ?? "").trim();
-  const common = {
-    fromAddress: text("fromAddress"),
-    fromName: text("fromName"),
-    reminderTo: text("reminderTo"),
-    remindersEnabled: form.get("remindersEnabled") === "on",
-    reminderDays: days,
-    templates,
-    pruefwertMail: form.get("pruefwertMail") === "on",
-  };
-  if (transport === "smtp") {
-    const { host, port, secure } = server;
-    return { transport, host, port: Number(port), secure, username: text("username"), password: text("password") || undefined, ...common };
-  }
-  const pem = async (name: string) => {
-    const file = form.get(name);
-    if (!(file instanceof File) || file.size === 0) return undefined;
-    if (file.size > MAX_PEM_SIZE) throw new Error("Die Datei ist zu groß für ein Zertifikat oder einen Schlüssel.");
-    return file.text();
-  };
-  return {
-    transport,
-    graphTenantId: text("graphTenantId"),
-    graphClientId: text("graphClientId"),
-    graphAuth,
-    graphMailbox: text("graphMailbox"),
-    clientSecret: graphAuth === "secret" ? text("clientSecret") || undefined : undefined,
-    certificatePem: graphAuth === "certificate" ? await pem("certificate") : undefined,
-    privateKeyPem: graphAuth === "certificate" ? await pem("privateKey") : undefined,
-    ...common,
-  };
 }
 
 /** Tage vor einer Frist, an denen Haben erinnert, und an welche Adresse */
