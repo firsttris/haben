@@ -10,8 +10,8 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
  * Buchung). Je SKR03 und SKR04, Ist und Soll.
  */
 
-function dkbCsv(rows: string[][]) {
-  const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
+function dkbCsv(rows: string[][], iban = "DE12 1203 0000 1234 5678 90") {
+  const header = `"Girokonto";"${iban}"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
@@ -602,7 +602,6 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
       const b = await lastschrift(10_000);
       await bank.createDirectDebitFile(actor, { bankAccountId: accountId, invoiceIds: [a.id, b.id] }, new Date("2026-04-09T08:00:00Z"));
       // Kontoauszug des Geschäftskontos (IBAN wie oben); Rücklastschrift als Ausgang an den Kunden
-      const kopf = `"Girokonto";"DE89 3704 0044 0532 0130 00"\n""\n"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
       const umsatz = async (date: string, purpose: string, amount: string) => {
         const aus = amount.startsWith("-");
         const zeile = [
@@ -619,7 +618,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           "",
           "",
         ];
-        const bytes = new TextEncoder().encode(`${kopf}${zeile.map((c) => `"${c}"`).join(";")}\n`);
+        const bytes = dkbCsv([zeile], "DE89 3704 0044 0532 0130 00");
         await bank.importStatement(actor, { bytes, filename: `${crypto.randomUUID()}.csv` }, null);
         const [tx] = await sql`select id from bank_transactions where purpose = ${purpose}`;
         return tx!.id as string;
