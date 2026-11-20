@@ -248,3 +248,47 @@ test("erneut verbinden, bei der TAN für die Umsätze abgebrochen: „Trennen“
   await expect(abruf().getByText("Verbindung nicht gefunden.")).toHaveCount(0);
   bank.zustand.scaBeiUmsaetzen = false;
 });
+
+test("erneut verbinden, das Formular oben mit „Über FinTS verbinden“ zugeklappt, während die Bank wartet: wie „Abbrechen“", async () => {
+  const oeffnen = () => abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
+  await oeffnen();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "chipTAN manuell" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  await expect(abruf().getByText(/^Testbank verbunden/)).toBeVisible();
+  const ids = await verbindungsIds();
+
+  // Vor dem Ersetzen, bei der Wahl des TAN-Verfahrens: Die Zeile bleibt, wie sie ist, und ihre Knöpfe gehen wieder
+  await oeffnen();
+  await zugangEingeben();
+  await expect(freigabe().getByLabel("TAN-Verfahren")).toBeVisible();
+  await oeffnen();
+  await expect(freigabe()).toHaveCount(0);
+  await expect(abruf().getByRole("button", { name: "Trennen" })).toBeEnabled();
+  expect(await verbindungsIds()).toEqual(ids);
+
+  // Nach dem Ersetzen, bei der TAN für die Umsätze: „Trennen“ trennt die neue Verbindung, auch wenn die Seite langsam neu lädt
+  bank.zustand.scaBeiUmsaetzen = true;
+  await oeffnen();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "chipTAN manuell" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  await expect(freigabe().getByLabel("TAN", { exact: true })).toBeVisible();
+  expect(await verbindungsIds()).not.toEqual(ids);
+  await page.route(
+    (url) => url.pathname.startsWith("/_serverFn/"),
+    async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      await new Promise((fertig) => setTimeout(fertig, 1500));
+      await route.continue();
+    },
+  );
+  await oeffnen();
+  await expect(freigabe()).toHaveCount(0);
+  await abruf().getByRole("button", { name: "Trennen" }).click();
+  await bestaetigen(page, "Trennen");
+  await expect(abruf().getByText(/Noch keine Bank verbunden/)).toBeVisible();
+  await page.unrouteAll({ behavior: "wait" });
+  await expect(abruf().getByText("Verbindung nicht gefunden.")).toHaveCount(0);
+  bank.zustand.scaBeiUmsaetzen = false;
+});
