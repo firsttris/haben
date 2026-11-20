@@ -16,7 +16,9 @@ import type { Kontenrahmen } from "./posting.ts";
  * Neutral sind die Abgrenzungskonten der Klasse 2 im SKR03 (betriebsfremd, periodenfremd, außergewöhnlich), darunter
  * Forderungsverluste, nicht abziehbare Vorsteuer und Kursdifferenzen (§ 277 Abs. 5 Satz 2 HGB verlangt die Erträge und
  * Aufwendungen aus der Währungsumrechnung gesondert). Der SKR04 hat keine solche Klasse; dort sind die gleich benannten Konten
- * neutral. Zinsen und Steuern vom Einkommen und Ertrag haben in Form 01 eigene Zeilen.
+ * neutral, ebenso die Abschreibungen auf Finanzanlagen und auf Wertpapiere des Umlaufvermögens: Sie gehören zum Finanzergebnis
+ * (§ 275 Abs. 2 Nr. 12 HGB), nicht zum Betriebsergebnis. Zinsen und Steuern vom Einkommen und Ertrag haben in Form 01 eigene
+ * Zeilen.
  */
 
 export type Kostenart =
@@ -100,6 +102,9 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     ["4600", "4699", "werbeReise"], // S. 23, 4600 „Werbekosten“ bis 4681 „Verpflegungsmehraufwendungen“
     ["4700", "4799", "warenabgabe"], // S. 23, 4700 „Kosten der Warenabgabe“
     ["4800", "4809", "instandhaltung"], // S. 24, 4800 „Reparaturen und Instandhaltungen“; 4810 „Mietleasing“ nicht
+    // S. 24, „Abschreibungen auf Finanzanlagen und auf Wertpapiere des Umlaufvermögens“ 4866 bis 4878: Finanzergebnis
+    // (§ 275 Abs. 2 Nr. 12 HGB), nicht Betriebsergebnis; 4880 „Abschreibungen auf … Umlaufvermögen“ (Nr. 7 b) nicht
+    ["4866", "4878", "neutral"],
     // S. 28 f., 8800 bis 8819 „Erlöse aus Verkäufen …“ bei Buchverlust (GuV-Posten „Sonstige betriebliche Aufwendungen“),
     // 8820 bis 8839 bei Buchgewinn („Sonstige betriebliche Erträge“): neutral wie der Restbuchwert 2310 bis 2318
     ["8800", "8839", "neutral"],
@@ -154,6 +159,8 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     ["6980", "6989", "kalkulatorisch"], // S. 25, „Verrechnete kalkulatorische Kosten“ wie SKR03 2890 bis 2895
     ["7000", "7189", "zinsen"], // S. 26, Erträge aus Beteiligungen und Wertpapieren, „Sonstige Zinsen“ wie SKR03 2600 bis 2689
     ["7190", "7199", "neutral"], // S. 26, „Erträge aus Verlustübernahme“ wie SKR03 2790 bis 2794
+    // S. 27, „Abschreibungen auf Finanzanlagen und auf Wertpapiere des Umlaufvermögens“ wie SKR03 4866 bis 4878
+    ["7200", "7255", "neutral"],
     ["7300", "7389", "zinsen"], // S. 27, „Zinsen und ähnliche Aufwendungen“ wie SKR03 2100 bis 2149
     // S. 28, Verlustübernahme und abgeführte Gewinne wie SKR03 2490 bis 2494, 7451 Verschmelzung wie SKR03 2504, 7551/7553
     // wie SKR03 2004/2007
