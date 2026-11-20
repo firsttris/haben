@@ -21,6 +21,7 @@ import { BareinnahmeFelder, bareinnahmeWahl } from "../../components/Bareinnahme
 import { CashInvoiceFields } from "../../components/CashInvoiceFields.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import type { Notice } from "../../lib/use-action.ts";
+import { kindHint, type Mode } from "./-kasse-hinweis.ts";
 import { createCashEntryFn, createCashIncomeFn, createCashInvoiceEntryFn, getCashBook, reverseCashEntryFn } from "../../server/functions/cash.ts";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { Field } from "../../components/Field.tsx";
@@ -40,9 +41,6 @@ export const Route = createFileRoute("/_app/kasse")({
 type Data = Awaited<ReturnType<typeof getCashBook>>;
 
 const KINDS = Object.keys(CASH_BOOKINGS) as CashBooking[];
-
-/** Kassenbuchung ohne Beleg, Bareinnahme auf eine Rechnung oder ohne Rechnung */
-type Mode = CashBooking | "rechnung" | "einnahme";
 
 function CashPage() {
   const data = Route.useLoaderData();
@@ -225,17 +223,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
         </Field>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
-        {kind === "einnahme"
-          ? "Für Verkäufe an Privatkunden ohne Rechnung, auch als Tagessumme. Gebucht am Tag der Bareinnahme: Kasse an Erlöse, die Umsatzsteuer ist im selben Monat fällig, bei Ist- wie bei Soll-Versteuerung."
-          : kind === "rechnung"
-            ? "Gebucht wie eine Zahlung im Bankabgleich, nur Kasse an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit der Bareinnahme fällig. Ein Rest bleibt offen oder wird als Skonto ausgebucht; gibt der Kunde mehr, etwa Trinkgeld, wird der Teil darüber eine weitere Einnahme."
-            : kind === "abhebung" || kind === "einzahlung"
-              ? "Gebucht über Geldtransit. Den Umsatz auf dem Bankkonto ordnest du im Bankabgleich als „Geldtransit“ zu."
-              : isKapitalgesellschaft(data.rechtsform)
-                ? "Gebucht über das Gesellschafter-Verrechnungskonto, z. B. Wechselgeld vom Gesellschafter oder eine Barauszahlung an ihn."
-                : kind === "einlage"
-                  ? "Privates Geld in die Kasse, z. B. als Wechselgeld oder um eine Barausgabe zu bezahlen."
-                  : "Geld aus der Kasse für private Zwecke."}
+        {kindHint(kind, data.rechtsform)}
       </p>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || (kind === "rechnung" && data.openInvoices.length === 0)}>
