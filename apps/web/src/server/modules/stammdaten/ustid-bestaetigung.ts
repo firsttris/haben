@@ -308,7 +308,7 @@ export async function ustIdVorBuchen(
   const contact = lieferant.contactId ? await ladeKontakt(lieferant.contactId) : null;
   const nummer = normalizeUstId(lieferant.ustId || contact?.ustId || "");
   // Für eine sonstige Leistung ist ein Unternehmer aus Nordirland im Drittland ansässig (§ 30 Abs. 1 UStG, UStAE 1.10 Abs. 2 Satz 2 und Abs. 3).
-  // Das BZSt bestätigt XI trotzdem (§ 30 Abs. 2), deshalb ohne Abfrage und auch abgeschaltet (#1579)
+  // Das BZSt bestätigt XI trotzdem (§ 30 Abs. 2, BMF vom 10.12.2020, BStBl I S. 1370, Rz. 22), deshalb ohne Abfrage und auch abgeschaltet (#1579)
   if (lieferant.behandlung === "eu" && nummer.startsWith("XI"))
     return { hinweis: `${nummer}: ${XI_NUR_LIEFERUNGEN}. Für eine Leistung aus Nordirland passt § 13b Drittland (Kz 84/85).` };
   if (evatrAbgeschaltet()) return { hinweis: null };
