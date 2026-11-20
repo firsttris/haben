@@ -1,9 +1,11 @@
 import { createServer, type Server } from "node:http";
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
-import { YEAR } from "./daten.ts";
+import { receiptJpeg } from "./belegbild.ts";
+import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer, EVATR_PORT } from "./durchlaeufe.ts";
-import { gehe, kontrasteInThemes, kundeWaehlen, ohneAxeVerstoesse } from "./einrichtung.ts";
+import { bestaetigen, gehe, kontrasteInThemes, kundeWaehlen, lieferantWaehlen, ohneAxeVerstoesse } from "./einrichtung.ts";
+import { waehleKategorie } from "./kategorie.ts";
 
 /*
  * Bestätigung der USt-IdNr. beim BZSt am Kontakt (#1385), gegen einen nachgebauten eVatR-Dienst auf EVATR_PORT; nur der
@@ -215,6 +217,85 @@ export function ustIdBestaetigungPruefen(getPage: () => Page) {
           await tx`delete from invoices where id = ${id}`;
         }
         await tx`update contacts set archived_at = now() where name = 'Bergsee GmbH' and archived_at is null`;
+      });
+      await sql.end();
+      await new Promise((resolve) => dienst.server.close(resolve));
+    }
+  });
+
+  test("Beleg: USt-IdNr. des Lieferanten vor dem Buchen bestätigen, bei § 1a und § 13b EU, nicht aus dem Drittland (#1490)", async ({ browser }) => {
+    const page = getPage();
+    const dienst = await evatrAttrappe();
+    const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+    try {
+      await sql.begin(async (tx) => {
+        await tx`select set_config('haben.actor', 'e2e', true)`;
+        await tx`insert into contacts (name, strasse, plz, ort, land, ust_id, is_supplier)
+          values ('Hardware Handel B.V.', 'Damrak 1', '1012 LG', 'Amsterdam', 'NL', 'NL123456789B01', true)`;
+      });
+      await gehe(page, "/belege");
+      await page
+        .locator("input[type=file][multiple]")
+        .setInputFiles([{ name: "hardware-nl.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Hardware Handel B.V.") }]);
+      await expect(page.getByText("hardware-nl.jpg: abgelegt.")).toBeVisible();
+      await page
+        .getByRole("link", { name: /hardware-nl\.jpg/ })
+        .first()
+        .click();
+      await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+      await page.waitForLoadState("networkidle");
+      await lieferantWaehlen(page, "Hardware Handel B.V.");
+      await page.getByLabel("Rechnungsnummer").fill("NL-2026-17");
+      await page.getByLabel("Belegdatum").fill(day(-3));
+      await waehleKategorie(page.getByLabel("Kategorie"), "buero");
+      await page.getByLabel("Netto", { exact: true }).fill("500,00");
+      const steuerschuldner = page.getByRole("combobox", { name: /^Wer schuldet die Umsatzsteuer/ });
+      const dialog = page.getByRole("dialog", { name: "Beleg buchen?" });
+      const oeffnen = async () => {
+        await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+        await expect(dialog).toBeVisible();
+      };
+
+      // Normaler Beleg und § 13b aus dem Drittland: Haben fragt nicht, obwohl die Nummer noch nie bestätigt ist
+      for (const wahl of ["", "drittland"]) {
+        await steuerschuldner.selectOption(wahl);
+        await oeffnen();
+        await page.waitForLoadState("networkidle");
+        await expect(dialog.getByText("Frage beim BZSt")).toHaveCount(0);
+        await bestaetigen(page, "Abbrechen");
+      }
+      expect(dienst.anfragen).toHaveLength(0);
+      await steuerschuldner.selectOption("ig_erwerb");
+
+      // Laut BZSt nicht vergeben: einfach gefragt, Hinweis in der Rückfrage, Buchen bliebe möglich
+      dienst.status = "evatr-2001";
+      await oeffnen();
+      await expect(dialog.getByRole("status")).toContainText("Laut BZSt ist NL123456789B01 nicht gültig: Nicht vergeben.");
+      await expect(dialog.getByRole("button", { name: "Buchen", exact: true })).toBeEnabled();
+      expect(dienst.anfragen).toEqual([{ anfragendeUstid: "DE136695976", angefragteUstid: "NL123456789B01" }]);
+      await bestaetigen(page, "Abbrechen");
+
+      // Gültig: kein Hinweis; danach ist die Antwort frisch, auch bei § 13b für eine EU-Leistung fragt Haben nicht noch einmal
+      dienst.status = null;
+      await oeffnen();
+      await expect.poll(() => dienst.anfragen.length).toBe(2);
+      await expect(dialog).not.toContainText("Laut BZSt");
+      await bestaetigen(page, "Abbrechen");
+      await steuerschuldner.selectOption("eu");
+      await oeffnen();
+      await page.waitForLoadState("networkidle");
+      await expect(dialog.getByText("Frage beim BZSt")).toHaveCount(0);
+      expect(dienst.anfragen).toHaveLength(2);
+      await bestaetigen(page, "Abbrechen");
+
+      // Nicht buchen: Beleg löschen, damit die folgenden Tests unverändert rechnen
+      await page.getByRole("button", { name: "Löschen", exact: true }).click();
+      await bestaetigen(page, "Beleg löschen");
+      await page.waitForURL(/\/belege$/);
+    } finally {
+      await sql.begin(async (tx) => {
+        await tx`select set_config('haben.actor', 'e2e', true)`;
+        await tx`update contacts set archived_at = now() where name = 'Hardware Handel B.V.' and archived_at is null`;
       });
       await sql.end();
       await new Promise((resolve) => dienst.server.close(resolve));

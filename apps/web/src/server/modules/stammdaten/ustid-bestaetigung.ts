@@ -228,7 +228,7 @@ export async function bestaetigeNummer(
   contactId: string,
   ustId: string,
   via: EvatrVerbindung = verbindung(),
-): Promise<{ hinweis: string | null; ausfall: boolean }> {
+): Promise<{ hinweis: string | null; ausfall: boolean; grund?: string }> {
   if (evatrAbgeschaltet()) throw new ContactError(ZUSTAND_TEXT.aus);
   const company = await loadCompany();
   if (!isValidGermanUstId(normalizeUstId(company.ustId))) throw new ContactError(ZUSTAND_TEXT["ohne-eigene"]);
@@ -236,7 +236,8 @@ export async function bestaetigeNummer(
   const anfrage: EvatrAnfrage = { anfragendeUstid: normalizeUstId(company.ustId), angefragteUstid: normalizeUstId(ustId) };
   const antwort = await frage(anfrage, via);
   // Ausfall: keine lesbare Antwort oder ein Fehler, der nicht nur diese Nummer betrifft (Dienst, eigene USt-IdNr.)
-  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, ausfall: !evatrNummerFehler(antwort.status ?? "") };
+  if (!antwort.ok)
+    return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, grund: antwort.hinweis, ausfall: !evatrNummerFehler(antwort.status ?? "") };
   await speichere(actor, contactId, "einfach", anfrage, antwort);
   return { hinweis: null, ausfall: false };
 }
@@ -288,6 +289,44 @@ export async function ustIdVorFestschreiben(
   // Gerade eingetroffen: nur Gültigkeit, Name und Ort zählen, die Frist nicht
   if (!evatrGueltig(antwort.status)) return { hinweis: `Laut BZSt ist ${nummer} nicht gültig: ${evatrMeldung(antwort)}.` };
   return { hinweis: antwort.ergFirmenname === "B" || antwort.ergOrt === "B" ? stimmtNicht(nummer, antwort) : null };
+}
+
+/**
+ * Vor dem Buchen eines Belegs mit innergemeinschaftlichem Erwerb (§ 1a UStG) oder § 13b für eine EU-Leistung (#1490), mit
+ * dem Stand im Formular: Ist die USt-IdNr. des Lieferanten (die vom Beleg, sonst die des Kontakts) frisch und gültig
+ * bestätigt, gleich an welchem Kontakt, gibt es nichts zu sagen; sonst fragt Haben das BZSt einfach und speichert die
+ * Antwort am Lieferanten-Kontakt. Die qualifizierte Abfrage entfällt: UStAE 3a.2 Abs. 9 betrifft den leistenden
+ * Unternehmer, nicht den Empfänger. Ohne Kontakt gibt es keinen Ort für den Nachweis. Zurück kommt ein Hinweis oder null;
+ * das Buchen sperrt er nie, wie vor dem Festschreiben. Abgeschaltet wie vorher.
+ */
+export async function ustIdVorBuchen(
+  actor: string,
+  lieferant: { contactId: string | null; ustId: string },
+  jetzt = new Date(),
+  via: EvatrVerbindung = verbindung(),
+): Promise<{ hinweis: string | null }> {
+  if (evatrAbgeschaltet()) return { hinweis: null };
+  const contact = lieferant.contactId ? await ladeKontakt(lieferant.contactId) : null;
+  const nummer = normalizeUstId(lieferant.ustId || contact?.ustId || "");
+  // Ohne Nummer oder mit falschem Aufbau meldet „Vor dem Buchen“ selbst, was fehlt (igErwerbIssues); bei § 13b ist sie keine Pflicht
+  if (!evatrPruefbar(nummer)) return { hinweis: null };
+  const vorher = (await letzteBestaetigungen([nummer])).get(nummer);
+  if (evatrFrischGueltig(vorher, jetzt)) return { hinweis: null };
+  if (!contact)
+    return {
+      hinweis: `${nummer} ist nicht frisch beim BZSt bestätigt. Bestätigen lässt sie sich erst mit einem Lieferanten-Kontakt, an dem der Nachweis steht.`,
+    };
+  let antwort: Awaited<ReturnType<typeof bestaetigeNummer>>;
+  try {
+    antwort = await bestaetigeNummer(actor, contact.id, nummer, via);
+  } catch (error) {
+    if (error instanceof ContactError) return { hinweis: `${nummer}: ${error.message}` };
+    throw error;
+  }
+  if (antwort.grund)
+    return { hinweis: `${nummer} ließ sich gerade nicht beim BZSt bestätigen: ${antwort.grund}. ${zuletzt(nummer, vorher ? [vorher] : [], false)}` };
+  const neu = (await letzteBestaetigungen([nummer])).get(nummer);
+  return { hinweis: neu && !evatrGueltig(neu.status) ? `Laut BZSt ist ${nummer} nicht gültig: ${evatrMeldung(neu)}.` : null };
 }
 
 /**

@@ -4,6 +4,7 @@ import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { DocumentSplits } from "../../../components/DocumentSplits.tsx";
 import { SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { UstIdVorBuchen } from "../../../components/UstIdVorFestschreiben.tsx";
 import { steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { BelegAktionen, useBelegAktionen } from "./-beleg-aktionen.tsx";
@@ -55,6 +56,7 @@ export function DocumentForm({ data, inhaber, onDirtyChange }: { data: Detail; i
         onClose={() => aktionen.setConfirming(false)}
       >
         <p>Der Beleg wird gebucht und festgeschrieben; danach ist er nicht mehr änderbar.</p>
+        <UstIdVorBuchen open={aktionen.confirming} reverseCharge={f.reverseCharge} contactId={f.supplierContactId} ustId={f.supplierUstId} />
       </ConfirmDialog>
       <ConfirmDialog
         open={aktionen.confirmingDelete}
