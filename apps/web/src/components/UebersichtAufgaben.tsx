@@ -9,9 +9,20 @@ export interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/einrichtung" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
+  to:
+    | "/umsatzsteuer/$zeitraum"
+    | "/einstellungen"
+    | "/einrichtung"
+    | "/rechnungen"
+    | "/bank"
+    | "/anlagen"
+    | "/rechnungen/mahnwesen"
+    | "/finanzamt"
+    | "/kontakte/$id";
   /** Bereich der Einstellungen, wenn to „/einstellungen“ ist */
   bereich?: SettingsArea;
+  /** Der Kontakt, wenn to „/kontakte/$id“ ist */
+  kontakt?: string;
   /** Datum (JJJJ-MM-TT), bis zu dem es zu erledigen ist: Eine Frist in den nächsten zwei Wochen oder schon vorbei geht vor, die frühere zuerst */
   frist?: string;
 }
@@ -31,14 +42,26 @@ export const ordneAufgaben = (todos: Todo[]) =>
   [...todos].sort((a, b) => Number(!nah(a)) - Number(!nah(b)) || (nah(a) ? a.frist!.localeCompare(b.frist!) : 0) || RANG[a.tone] - RANG[b.tone]);
 
 function Eintrag({ todo, zeitraum }: { todo: Todo; zeitraum: string }) {
-  return (
-    <Link to={todo.to} params={{ zeitraum }} search={todo.bereich ? { bereich: todo.bereich } : {}} className="todo">
+  const inhalt = (
+    <>
       <span className="todo-dot" style={{ background: DOT[todo.tone] }} />
       <span className="todo-body">
         <span className="todo-title">{todo.title}</span>
         <span className="small muted">{todo.detail}</span>
       </span>
       <span className="todo-action">{todo.action}</span>
+    </>
+  );
+  if (todo.to === "/kontakte/$id") {
+    return (
+      <Link to="/kontakte/$id" params={{ id: todo.kontakt ?? "" }} className="todo">
+        {inhalt}
+      </Link>
+    );
+  }
+  return (
+    <Link to={todo.to} params={{ zeitraum }} search={todo.bereich ? { bereich: todo.bereich } : {}} className="todo">
+      {inhalt}
     </Link>
   );
 }

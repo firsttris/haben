@@ -30,6 +30,19 @@ const BESCHEID_LABEL: Record<string, string> = {
   DivaSonstigerVA: "Bescheid",
 };
 
+/** Vor der nächsten Leistung klären: Reverse Charge und die steuerfreie Lieferung brauchen eine gültige Nummer (#1489) */
+function ustIdAufgaben(ungueltig: { contactId: string; kontakt: string; nummer: string; meldung: string }[]): Todo[] {
+  return ungueltig.map((u) => ({
+    id: `ustid-${u.nummer}`,
+    title: `USt-IdNr. von ${u.kontakt} laut BZSt nicht gültig`,
+    detail: `${u.nummer}: ${u.meldung}`,
+    action: "Ansehen",
+    tone: "warn",
+    to: "/kontakte/$id",
+    kontakt: u.contactId,
+  }));
+}
+
 function OverviewPage() {
   const data = Route.useLoaderData();
   const key = periodKey(data.period);
@@ -37,7 +50,7 @@ function OverviewPage() {
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
   const vatRequired = !data.kleinunternehmer && !data.exempt;
 
-  const todos: Todo[] = einrichtungsAufgaben(Route.useRouteContext().einrichtung);
+  const todos: Todo[] = [...einrichtungsAufgaben(Route.useRouteContext().einrichtung), ...ustIdAufgaben(data.ustIdUngueltig)];
   if (!sent && vatRequired) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,

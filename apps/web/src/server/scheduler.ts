@@ -13,6 +13,7 @@ import { runDueEtsySyncs } from "./modules/etsy/index.ts";
 import { runDuePayPalSyncs } from "./modules/paypal/index.ts";
 import { runDueStripeSyncs } from "./modules/stripe/index.ts";
 import { runDueStoreSyncs } from "./modules/stores/index.ts";
+import { runDueUstIdPruefung } from "./modules/umsatzsteuer/index.ts";
 import { today } from "./today.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -28,6 +29,23 @@ async function runDueBankJobs() {
     console.error("Bankdublettenprüfung", error);
   }
   return runDueBankSyncs();
+}
+
+/** USt-IdNrn. aus Rechnungen beim BZSt bestätigen; höchstens einmal am Tag (runDueUstIdPruefung) */
+async function ustIdPruefung() {
+  try {
+    const result = await runDueUstIdPruefung();
+    if (result?.gefragt) console.log(`USt-IdNrn. beim BZSt: ${result.gefragt} von ${result.offen} angefragt`);
+    if (result?.ausfall) console.warn(`USt-IdNrn. beim BZSt: abgebrochen, ${result.ausfall}`);
+  } catch (error) {
+    console.error("USt-IdNrn. beim BZSt", error);
+  }
+}
+
+/** Die Bestätigung vor der Erinnerung, damit eine ungültige Nummer gleich in der Mail steht */
+async function ustIdPruefungUndErinnerung() {
+  await ustIdPruefung();
+  return runDueFristenMails(today());
 }
 
 export async function runScheduledJobs(): Promise<void> {
@@ -139,7 +157,7 @@ export async function runScheduledJobs(): Promise<void> {
     console.error("Belege per E-Mail", error);
   }
   try {
-    const result = await runDueFristenMails(today());
+    const result = await ustIdPruefungUndErinnerung();
     if (result?.sent) console.log(`Fristen-Erinnerung: ${result.sent} Frist(en) per E-Mail erinnert`);
   } catch (error) {
     console.error("Fristen-Erinnerung", error);

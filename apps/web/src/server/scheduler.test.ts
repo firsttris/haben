@@ -8,6 +8,8 @@ const jobs = vi.hoisted(() => ({
   runExistingDuplicateCheck: vi.fn(),
   runDueFintsSyncs: vi.fn(),
   runDueInboxFetch: vi.fn(),
+  runDueUstIdPruefung: vi.fn(),
+  runDueFristenMails: vi.fn(),
 }));
 
 vi.mock("./modules/auswertungen/index.ts", () => ({ runDueFileCheck: jobs.runDueFileCheck, runDuePruefwertMail: jobs.runDuePruefwertMail }));
@@ -24,7 +26,7 @@ vi.mock("./modules/belege/index.ts", () => ({
   runDueInboxFetch: jobs.runDueInboxFetch,
 }));
 vi.mock("./modules/stammdaten/index.ts", () => ({ runDueExchangeRates: vi.fn(async () => null) }));
-vi.mock("./modules/finanzamt/index.ts", () => ({ runDueFristenMails: vi.fn(async () => null), runDuePostfachFetch: vi.fn(async () => null) }));
+vi.mock("./modules/finanzamt/index.ts", () => ({ runDueFristenMails: jobs.runDueFristenMails, runDuePostfachFetch: vi.fn(async () => null) }));
 vi.mock("./modules/rechnungen/index.ts", () => ({
   applyPublishedRatesToDrafts: vi.fn(async () => 0),
   runDueBaseRate: vi.fn(async () => null),
@@ -33,6 +35,7 @@ vi.mock("./modules/rechnungen/index.ts", () => ({
 vi.mock("./modules/stores/index.ts", () => ({ runDueStoreSyncs: vi.fn(async () => ({ synced: 0, added: 0, errors: [] })) }));
 vi.mock("./modules/ablage/index.ts", () => ({ runDueArchiveDeliveries: vi.fn(async () => null) }));
 vi.mock("./modules/etsy/index.ts", () => ({ runDueEtsySyncs: vi.fn(async () => ({ added: 0, errors: [] })) }));
+vi.mock("./modules/umsatzsteuer/index.ts", () => ({ runDueUstIdPruefung: jobs.runDueUstIdPruefung }));
 
 /** Eine Vollprüfung, die erst endet, wenn der Test es sagt; so lange wie bei einem großen Bestand auf einem NAS */
 function langeVollpruefung() {
@@ -57,7 +60,20 @@ describe("Scheduler", () => {
     jobs.runExistingDuplicateCheck.mockResolvedValue(null);
     jobs.runDueFintsSyncs.mockResolvedValue({ synced: 0, added: 0, errors: [] });
     jobs.runDueInboxFetch.mockResolvedValue(null);
+    jobs.runDueUstIdPruefung.mockResolvedValue(null);
+    jobs.runDueFristenMails.mockResolvedValue(null);
     scheduler = await import("./scheduler.ts");
+  });
+
+  it("bestätigt die USt-IdNrn. vor der Fristen-Erinnerung und erinnert auch nach einem Fehler dabei", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    jobs.runDueUstIdPruefung.mockRejectedValueOnce(new Error("Testfehler"));
+    await scheduler.runScheduledJobs();
+    // Sonst stünde eine heute ungültig gemeldete Nummer erst in der Mail des nächsten Laufs
+    expect(jobs.runDueUstIdPruefung).toHaveBeenCalledBefore(jobs.runDueFristenMails);
+    expect(jobs.runDueFristenMails).toHaveBeenCalledOnce();
+    expect(error).toHaveBeenCalledWith("USt-IdNrn. beim BZSt", expect.any(Error));
+    error.mockRestore();
   });
 
   it("versucht die Bestandsprüfung vor dem Kontoabruf und fährt auch nach einem Fehler fort", async () => {
