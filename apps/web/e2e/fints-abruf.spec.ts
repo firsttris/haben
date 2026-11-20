@@ -229,6 +229,7 @@ test("erneut verbinden, bei der TAN für die Umsätze abgebrochen: „Trennen“
   // Verbinden hat die Verbindung samt ID schon ersetzt, erst der Abruf der Umsätze fragt die TAN (#1614)
   await expect(freigabe().getByLabel("TAN", { exact: true })).toBeVisible();
   expect(await verbindungsIds()).not.toEqual(ids);
+  await expect(abruf().getByRole("button", { name: "Trennen" })).toBeDisabled();
   // Das Formular schließt erst mit der neuen Verbindung, auch wenn die Seite langsam neu lädt; sonst schickte „Trennen“
   // gleich danach die alte ID („Verbindung nicht gefunden.“)
   const neuLaden = (url: URL) => url.pathname.startsWith("/_serverFn/");
@@ -238,6 +239,7 @@ test("erneut verbinden, bei der TAN für die Umsätze abgebrochen: „Trennen“
     await route.continue();
   });
   await freigabe().getByRole("button", { name: "Abbrechen" }).click();
+  await expect(abruf().getByRole("button", { name: "Trennen" })).toBeDisabled();
   await expect(freigabe()).toHaveCount(0);
   await abruf().getByRole("button", { name: "Trennen" }).click();
   await bestaetigen(page, "Trennen");
