@@ -144,8 +144,10 @@ export type Builtins = { major: number; functions: Entry[] };
  * bleibt dabei unter FirstNormalObjectId. Fest eingebaute Funktionen (Sprache internal) unterscheiden sich zwischen
  * Unterversionen (18.7 hat eine mehr als 18.6). Die übrigen, in SQL oder als C-Bibliothek, waren in 18.4, 18.6 und 18.7
  * gleich. Eine ersetzte Funktion fällt deshalb so auf: Eigener Code in SQL oder PL/pgSQL macht aus einer fest eingebauten
- * eine zusätzliche Funktion dieser Gruppe, an einer Funktion der Gruppe ändert er den Hash. Ersetzt jemand eine
- * eingebaute Funktion durch eine andere fest eingebaute, fällt das nicht auf.
+ * eine zusätzliche Funktion dieser Gruppe, an einer Funktion der Gruppe ändert er den Hash. Eine fest eingebaute Funktion
+ * ruft PostgreSQL über ihre OID aus der eingebauten Tabelle auf, ohne pg_proc zu lesen; eine Umleitung auf eine andere fest
+ * eingebaute oder geänderte Eigenschaften wirken deshalb nicht.
+ * https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/fmgr/fmgr.c (fmgr_isbuiltin)
  * Erwartet search_path = pg_catalog wie die übrigen Abfragen des Sollbestands.
  */
 export async function readBuiltinFunctions(tx: Connection): Promise<Builtins> {
