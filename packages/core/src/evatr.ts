@@ -91,10 +91,17 @@ export function evatrZeitpunkt(text: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** Antworten, die etwas über die angefragte Nummer sagen; nur sie zählen als Nachweis */
+/** Fehler der angefragten Nummer selbst (Syntax, Länderkennzeichen); andere Nummern betrifft das nicht, anders als ein Ausfall */
+export const evatrNummerFehler = (status: string) => status === "evatr-0005" || status === "evatr-0012" || status === "evatr-2003";
+
+/**
+ * Antworten, die etwas über die angefragte Nummer sagen; nur sie zählen als Nachweis. Dazu gehören die Fehler der Nummer
+ * selbst: Eine falsche Prüfziffer beantwortet das BZSt mit evatr-0005, mit id und Zeitpunkt (Testabfrage 2026-11-20,
+ * #1578). Gespeichert gilt sie wie eine ungültige Antwort, statt bei jeder Gelegenheit neu gefragt zu werden.
+ */
 const NACHWEIS = new Set(["evatr-0000", "evatr-2001", "evatr-2002", "evatr-2006", "evatr-2008"]);
 
-export const evatrNachweis = (status: string) => NACHWEIS.has(status);
+export const evatrNachweis = (status: string) => NACHWEIS.has(status) || evatrNummerFehler(status);
 
 /** Gültig zum Anfragezeitpunkt; evatr-2008 heißt gültig mit einer Besonderheit der qualifizierten Abfrage */
 export const evatrGueltig = (status: string) => status === "evatr-0000" || status === "evatr-2008";
@@ -126,9 +133,6 @@ export function evatrQualifiziertBestaetigt(
   return Boolean(antwort?.art === "qualifiziert" && evatrFrischGueltig(antwort, jetzt) && antwort.ergFirmenname !== "B" && antwort.ergOrt !== "B");
 }
 
-/** Fehler der angefragten Nummer selbst (Syntax, Länderkennzeichen); andere Nummern betrifft das nicht, anders als ein Ausfall */
-export const evatrNummerFehler = (status: string) => status === "evatr-0005" || status === "evatr-0012" || status === "evatr-2003";
-
 /** Höchstzahl qualifizierter Abfragen „für diese Session“ erreicht; das BZSt rät, mit einer einfachen neu zu beginnen */
 export const EVATR_LIMIT = "evatr-0008";
 
@@ -144,6 +148,10 @@ export function evatrWort(status: string): string {
       return "Noch nicht gültig";
     case "evatr-2006":
       return "Nicht mehr gültig";
+    case "evatr-0005":
+    case "evatr-0012":
+    case "evatr-2003":
+      return "Syntaktisch falsch";
     default:
       return status;
   }

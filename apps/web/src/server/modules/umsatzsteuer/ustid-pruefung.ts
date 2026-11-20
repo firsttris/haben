@@ -9,7 +9,8 @@ import { bestaetigeNummer, type EvatrVerbindung, evatrMoeglich, letzteBestaetigu
  * Sorgfalt eines ordentlichen Kaufmanns (UStAE 6a.8 Abs. 6), und eine Nummer kann nach der Bestätigung ungültig werden.
  * Höchstens einmal am Tag, zwischen 7 und 22 Uhr (das BZSt wartet seinen Dienst zwischen 23 und 5 Uhr), fragt der Lauf jede
  * Nummer aus festgeschriebenen Rechnungen mit Reverse Charge oder innergemeinschaftlicher Lieferung der letzten 12 Monate,
- * deren letzte Antwort älter als 30 Tage ist (EVATR_FRIST_TAGE); so ist jede höchstens einmal im Monat dran. Einfach,
+ * die noch am Kontakt steht und deren letzte Antwort älter als 30 Tage ist (EVATR_FRIST_TAGE); so ist jede höchstens einmal
+ * im Monat dran, auch eine, die das BZSt syntaktisch falsch nennt (evatrNachweis). Einfach,
  * nacheinander, nach einem Ausfall nicht weiter (das BZSt bittet, bei Timeouts zu einer anderen Tageszeit erneut zu fragen;
  * Wartung und Bitte: Seite „Bestätigung ausländischer USt-IdNrn.“ auf bzst.de, gelesen 2026-11-20); der Nachweis kommt an den Kontakt
  * der jüngsten Rechnung, wie beim Knopf der ZM. Die qualifizierte Abfrage bleibt bei Kontakt und Festschreiben, so fallen
@@ -18,12 +19,22 @@ import { bestaetigeNummer, type EvatrVerbindung, evatrMoeglich, letzteBestaetigu
 
 export const USTID_PRUEFUNG_ACTOR = "system:ustid";
 
-/** Je USt-IdNr. aus den Rechnungen der letzten 12 Monate der Kontakt der jüngsten Rechnung */
-async function nummernDerRechnungen(heute: string): Promise<Map<string, string>> {
+interface Kunde {
+  contactId: string;
+  kontakt: string;
+}
+
+/**
+ * Je USt-IdNr. aus den Rechnungen der letzten 12 Monate der Kontakt der jüngsten Rechnung, solange die Nummer noch seine
+ * ist (#1578): Für die alte Rechnung hilft eine Bestätigung nach dem Umsatz nicht (UStAE 6a.8 Abs. 6).
+ */
+async function nummernDerRechnungen(heute: string): Promise<Map<string, Kunde>> {
   const i = schema.invoices;
+  const c = schema.contacts;
   const rows = await db
-    .select({ contactId: i.contactId, buyer: i.buyer })
+    .select({ contactId: c.id, kontakt: c.name, kontaktUstId: c.ustId, buyer: i.buyer })
     .from(i)
+    .innerJoin(c, eq(c.id, i.contactId))
     .where(
       and(
         inArray(i.taxTreatment, ["reverse_charge", "ig_lieferung"]),
@@ -32,10 +43,12 @@ async function nummernDerRechnungen(heute: string): Promise<Map<string, string>>
       ),
     )
     .orderBy(desc(i.issueDate), desc(i.createdAt));
-  const nummern = new Map<string, string>();
+  const nummern = new Map<string, Kunde>();
   for (const row of rows) {
     const nummer = normalizeUstId(row.buyer?.ustId ?? "");
-    if (row.contactId && evatrPruefbar(nummer) && !nummern.has(nummer)) nummern.set(nummer, row.contactId);
+    if (evatrPruefbar(nummer) && normalizeUstId(row.kontaktUstId) === nummer && !nummern.has(nummer)) {
+      nummern.set(nummer, { contactId: row.contactId, kontakt: row.kontakt });
+    }
   }
   return nummern;
 }
@@ -55,7 +68,7 @@ export async function runDueUstIdPruefung(jetzt = new Date(), via?: EvatrVerbind
     return !antwort || !evatrFrisch(antwort.anfrageZeitpunkt, jetzt);
   });
   let gefragt = 0;
-  for (const [nummer, contactId] of offen) {
+  for (const [nummer, { contactId }] of offen) {
     gefragt += 1;
     const { hinweis, ausfall } = await bestaetigeNummer(USTID_PRUEFUNG_ACTOR, contactId, nummer, via);
     if (ausfall) return { gefragt, offen: offen.length, ausfall: hinweis };
@@ -80,23 +93,14 @@ export interface UngueltigeUstId {
 export async function ungueltigeUstIdNrn(heute: string): Promise<UngueltigeUstId[]> {
   const nummern = await nummernDerRechnungen(heute);
   if (nummern.size === 0) return [];
-  const c = schema.contacts;
-  const [letzte, kontakte] = await Promise.all([
-    letzteBestaetigungen([...nummern.keys()]),
-    db
-      .select({ id: c.id, name: c.name, ustId: c.ustId })
-      .from(c)
-      .where(inArray(c.id, [...new Set(nummern.values())])),
-  ]);
-  const kontaktVon = new Map(kontakte.map((k) => [k.id, k]));
-  return [...nummern].flatMap(([nummer, contactId]): UngueltigeUstId[] => {
+  const letzte = await letzteBestaetigungen([...nummern.keys()]);
+  return [...nummern].flatMap(([nummer, { contactId, kontakt }]): UngueltigeUstId[] => {
     const antwort = letzte.get(nummer);
-    const kontakt = kontaktVon.get(contactId);
-    if (!antwort || evatrGueltig(antwort.status) || !kontakt || normalizeUstId(kontakt.ustId) !== nummer) return [];
+    if (!antwort || evatrGueltig(antwort.status)) return [];
     return [
       {
         contactId,
-        kontakt: kontakt.name,
+        kontakt,
         nummer,
         bestaetigungId: antwort.id,
         anfrageZeitpunkt: new Date(antwort.anfrageZeitpunkt),
