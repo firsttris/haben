@@ -14,6 +14,8 @@ export interface CatalogObjects {
   functions: Found[];
   operators: Found[];
   casts: Found[];
+  /** Relationen in pg_catalog und gleichnamige zu Tabellen in public im temporären Schema der Sitzung */
+  relations: { name: string; schema: string }[];
 }
 
 /** Mitglieder der Erweiterungen einer frischen Installation (pg_trgm, unaccent) */
@@ -73,8 +75,16 @@ export async function readCatalogObjects(tx: Connection): Promise<CatalogObjects
       false as builtin, ${member("pg_cast", "c.oid")} as extension, c.castfunc::regprocedure::text as function, c.castcontext, c.castmethod
     from pg_catalog.pg_cast c
     where c.oid >= 16384`);
+  // Die Prüffunktionen nennen auch Tabellen ohne Schema. Für Relationen stehen das temporäre Schema der Sitzung und
+  // pg_catalog im Suchpfad vor public; nach pg_catalog kann ein Superuser eine Sicht mit SET SCHEMA verschieben.
+  const relations = await tx.execute<{ name: string; schema: string }>(sql`
+    select format('%I.%I', n.nspname, c.relname) as name, n.nspname::text as schema
+    from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where c.oid >= 16384 and (n.nspname = 'pg_catalog' or (c.relnamespace = pg_my_temp_schema() and exists (
+      select 1 from pg_catalog.pg_class p join pg_catalog.pg_namespace pn on pn.oid = p.relnamespace where pn.nspname = 'public' and p.relname = c.relname)))
+    order by c.oid`);
   const sorted = (rows: Omit<Found, "hash">[]) => withHash(rows, [...keys]).sort(byName);
-  return { functions: sorted([...functions]), operators: sorted([...operators]), casts: sorted([...casts]) };
+  return { functions: sorted([...functions]), operators: sorted([...operators]), casts: sorted([...casts]), relations: [...relations] };
 }
 
 /** Mitglieder von Erweiterungen, für den Sollbestand aus einer frisch migrierten Datenbank */
@@ -113,6 +123,10 @@ export function catalogFindings(
     if (!shipped(members.operators, operator)) judge("Zusätzlicher Operator", "einen gleichnamigen Operator", operator, operator.builtin);
   }
   for (const cast of objects.casts) if (!shipped(members.casts, cast)) problems.push(`Zusätzlicher Cast ${cast.name}`);
+  for (const relation of objects.relations) {
+    if (relation.schema === "pg_catalog") problems.push(`Zusätzliche Relation ${relation.name} im Systemschema pg_catalog`);
+    else problems.push(`Relation ${relation.name} überdeckt eine gleichnamige Tabelle`);
+  }
   // Vor public liest PostgreSQL pg_catalog und, wenn es existiert, das Schema mit dem Namen der Anmeldung ("$user"). Das
   // temporäre Schema der Sitzung überspringt es für Funktionen und Operatoren, erkannt an seiner OID, nicht am Namen.
   // https://www.postgresql.org/docs/18/ddl-schemas.html#DDL-SCHEMAS-PATH

@@ -120,6 +120,21 @@ describe.skipIf(!testDatabaseUrl)("Sperrtrigger in Kette prüfen (Postgres, #764
     }
   });
 
+  // Maßgeblich ist der Suchpfad, mit dem die Prüffunktionen starten. Eine fremde Funktion, die sie aufrufen, kann ihn
+  // bis zum Ende der Transaktion ändern; diese hier gibt dabei nur das Ergebnis der eingebauten zurück.
+  it("meldet ein Schema im Suchpfad, auch wenn eine Funktion darin den Suchpfad während der Prüfung ändert", async () => {
+    const [{ name }] = (await sql`select current_user as name`) as unknown as [{ name: string }];
+    try {
+      await sql.unsafe(`create schema "${name}"`);
+      await sql.unsafe(`create function "${name}".jsonb_build_array(bigint, text, text, text, text, text, jsonb, jsonb) returns jsonb
+        language sql as $$ select pg_catalog.jsonb_build_array($1, $2, $3, $4, $5, $6, $7, $8)
+        from pg_catalog.set_config('search_path', 'public', true) $$`);
+      expect(await problems()).toContainEqual(expect.objectContaining({ tabelle: "Datenbank", befund: `Schema ${name} im Suchpfad der Verbindung` }));
+    } finally {
+      await sql.unsafe(`drop schema if exists "${name}" cascade`);
+    }
+  });
+
   it("nennt Tabelle und Trigger in der Wochenmail und in der Start-Logzeile", async () => {
     const mail = await import("../mail/mail.ts");
     const pruefwertMail = await import("./pruefwert-mail.ts");
