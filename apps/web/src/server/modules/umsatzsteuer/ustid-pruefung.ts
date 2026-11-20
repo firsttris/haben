@@ -9,11 +9,11 @@ import { bestaetigeNummer, type EvatrVerbindung, evatrMoeglich, letzteBestaetigu
  * Sorgfalt eines ordentlichen Kaufmanns (UStAE 6a.8 Abs. 6), und eine Nummer kann nach der Bestätigung ungültig werden.
  * Höchstens einmal am Tag, zwischen 7 und 22 Uhr (das BZSt wartet seinen Dienst zwischen 23 und 5 Uhr), fragt der Lauf jede
  * Nummer aus festgeschriebenen Rechnungen mit Reverse Charge oder innergemeinschaftlicher Lieferung der letzten 12 Monate,
- * die noch am Kontakt steht und deren letzte Antwort älter als 30 Tage ist (EVATR_FRIST_TAGE); so ist jede höchstens einmal
+ * die noch am Kontakt der Rechnung steht und deren letzte Antwort älter als 30 Tage ist (EVATR_FRIST_TAGE); so ist jede höchstens einmal
  * im Monat dran, auch eine, die das BZSt syntaktisch falsch nennt (evatrNachweis). Einfach,
  * nacheinander, nach einem Ausfall nicht weiter (das BZSt bittet, bei Timeouts zu einer anderen Tageszeit erneut zu fragen;
  * Wartung und Bitte: Seite „Bestätigung ausländischer USt-IdNrn.“ auf bzst.de, gelesen 2026-11-20); der Nachweis kommt an den Kontakt
- * der jüngsten Rechnung, wie beim Knopf der ZM. Die qualifizierte Abfrage bleibt bei Kontakt und Festschreiben, so fallen
+ * der jüngsten dieser Rechnungen, wie beim Knopf der ZM. Die qualifizierte Abfrage bleibt bei Kontakt und Festschreiben, so fallen
  * keine Abfragen gegen deren Höchstzahl an (evatr-0008). Abgeschaltet oder ohne eigene USt-IdNr. läuft nichts.
  */
 
@@ -25,8 +25,9 @@ interface Kunde {
 }
 
 /**
- * Je USt-IdNr. aus den Rechnungen der letzten 12 Monate der Kontakt der jüngsten Rechnung, solange die Nummer noch seine
- * ist (#1578): Für die alte Rechnung hilft eine Bestätigung nach dem Umsatz nicht (UStAE 6a.8 Abs. 6).
+ * Je USt-IdNr. aus den Rechnungen der letzten 12 Monate der Kontakt der jüngsten Rechnung, an dem sie noch steht (#1578);
+ * trägt sie kein Kontakt mehr, fehlt sie: Für die alte Rechnung hilft eine Bestätigung nach dem Umsatz nicht (UStAE 6a.8
+ * Abs. 6). Tragen zwei Kontakte dieselbe Nummer, zählt auch der einer älteren Rechnung, denn die Nummer ist noch in Gebrauch.
  */
 async function nummernDerRechnungen(heute: string): Promise<Map<string, Kunde>> {
   const i = schema.invoices;
