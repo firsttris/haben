@@ -28,6 +28,7 @@ export { assertUstvaOffen, ustvaLabels, ustvaOpenItems, ustvaPosten, ustvaPosten
 export { gesendeteAbweichungen, gesendetText, type GesendetAbweichung } from "./gesendet-pruefen.ts";
 export { quartalVon, ZM_POSTEN, zmAbweichungen, zmAbweichungenImJahr, type ZmAbweichung } from "./zm-pruefen.ts";
 export { bestaetigeZmNummern } from "./zm-bestaetigung.ts";
+export { runDueUstIdPruefung, ungueltigeUstIdNrn, type UngueltigeUstId } from "./ustid-pruefung.ts";
 export { anteilZumRechnungsdatum, ausfuehrungMitFreigabe, belegTotals, vorsteuerAnteile, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 export { freigabeAmAusfuehrung, freigabeNachziehen, freigabeStornieren } from "./vorsteuer-freigabe.ts";
 export { belegAusAlterVersion } from "./vat-journal.ts";

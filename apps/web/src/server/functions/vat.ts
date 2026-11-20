@@ -32,6 +32,7 @@ import {
   saveFrequency,
   submitDauerfrist,
   filingsFor,
+  ungueltigeUstIdNrn,
   ustvaPosten,
   ustvaPostenForPeriod,
   VatError,
@@ -195,6 +196,8 @@ export const getOverview = createServerFn({ method: "GET" })
       companyIssues: companyIssues(company),
       companyName: company.name,
       mode: elsterMode(),
+      /** USt-IdNrn. von EU-Kunden, die das BZSt nicht gültig nennt (#1489) */
+      ustIdUngueltig: (await ungueltigeUstIdNrn(today(now))).map((u) => ({ contactId: u.contactId, kontakt: u.kontakt, nummer: u.nummer, meldung: u.meldung })),
     };
   });
 

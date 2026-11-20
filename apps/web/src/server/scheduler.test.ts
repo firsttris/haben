@@ -33,6 +33,7 @@ vi.mock("./modules/rechnungen/index.ts", () => ({
 vi.mock("./modules/stores/index.ts", () => ({ runDueStoreSyncs: vi.fn(async () => ({ synced: 0, added: 0, errors: [] })) }));
 vi.mock("./modules/ablage/index.ts", () => ({ runDueArchiveDeliveries: vi.fn(async () => null) }));
 vi.mock("./modules/etsy/index.ts", () => ({ runDueEtsySyncs: vi.fn(async () => ({ added: 0, errors: [] })) }));
+vi.mock("./modules/umsatzsteuer/index.ts", () => ({ runDueUstIdPruefung: vi.fn(async () => null) }));
 
 /** Eine Vollprüfung, die erst endet, wenn der Test es sagt; so lange wie bei einem großen Bestand auf einem NAS */
 function langeVollpruefung() {
