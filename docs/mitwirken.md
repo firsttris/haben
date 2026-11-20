@@ -31,7 +31,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](entwicklung.md#tests)); nie au
 
 ## Etwas übernehmen
 
-Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus:
+Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/orgs/Speicherstadt/projects/3) aus:
 
 1. **Aussuchen:** eine Karte aus „Geplant“, am liebsten weit oben, denn die Reihenfolge ist die Priorität. Für den Einstieg eignen sich Karten mit Aufwand „S“ und Issues mit dem Label [`einstieg`](https://github.com/Speicherstadt/haben/issues?q=is%3Aopen+label%3Aeinstieg). Ein Entwurf ohne Issue bekommt zuerst ein Issue.
 2. **Übernehmen:** im Issue eine Zeile `/übernehmen` kommentieren, gern mit einem kurzen Plan darunter. Der Workflow „Übernehmen“ (`.github/workflows/uebernehmen.yml`) weist dir das Issue zu, schiebt die Karte nach „In Arbeit“ und bestätigt es im Issue; Schreibrecht brauchst du dafür nicht. Er lehnt mit Begründung ab, wenn das Issue schon vergeben ist, noch keine Karte hat oder die Karte schon in „Im nächsten Release“ oder „Erledigt“ steht. Eine Karte in „In Arbeit“ ohne Zuweisung, etwa weil ein Pull Request sie vorgezogen hat, lässt sich übernehmen. Wie viele Karten jemand übernimmt, ist nicht begrenzt. Bei Karten aus „Später“ den Umfang am besten erst kurz im Issue klären.
@@ -45,7 +45,7 @@ Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://gi
 - **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Jede Nummer aus `Umgesetzt #…` gehört hinein; bei `Refs #…` nur, wenn es ein Issue ist und kein anderer Pull Request. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
 - **Beschreibung:** Beim Squash wird die Beschreibung des Pull Requests die Nachricht des Commits auf `main` (Einstellung des Repositorys: `PR_BODY`) und bleibt so in der Historie. Sie muss deshalb bis zum Merge zum Stand des Pull Requests passen: Ändert ein weiterer Push, was der Pull Request tut oder wie er geprüft wurde, ändert sich die Beschreibung mit, auch nach Fixes aus dem Review und nach einem Rebase. Sie nennt alles, was der Pull Request ändert, und beschreibt das Ergebnis, nicht den Weg dorthin; Zwischenstände und Antworten auf Reviews gehören in Kommentare.
 - **Issues in der Beschreibung:** mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…` (ein Teil, ein Bezug). Mehrere gehen als Liste: `Umgesetzt #12, #13`. Nie `Closes` oder `Fixes`: GitHub schlösse das Issue schon beim Merge, die Nutzer haben es aber erst mit dem Release; „PR-Regeln“ meldet es als Fehler.
-- **Vom Issue zum Release:** Das [Project „Roadmap“](https://github.com/users/firsttris/projects/2) zieht die Karte mit (Workflows „Board“ und „Übernehmen“, `scripts/board/`), nie zurück:
+- **Vom Issue zum Release:** Das [Project „Roadmap“](https://github.com/orgs/Speicherstadt/projects/3) zieht die Karte mit (Workflows „Board“ und „Übernehmen“, `scripts/board/`), nie zurück:
     - Issue zugewiesen oder Pull Request mit `Refs` oder `Umgesetzt` geöffnet → „In Arbeit“.
     - Pull Request mit `Umgesetzt` gemergt → „Im nächsten Release“.
     - Eine fertige Version (kein Release Candidate) schließt diese Issues mit Link auf das Release (Job `issues-schliessen` in `release.yml`) → „Erledigt“.
@@ -120,7 +120,7 @@ Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSU
 
 - **[Discord](https://discord.gg/CT2GQytSYH):** schnelle Hilfe und lockerer Austausch, etwa eine kurze Rückfrage zur Einrichtung. Flüchtig und nicht über Suchmaschinen auffindbar.
 - **[GitHub Discussions](https://github.com/Speicherstadt/haben/discussions):** Fragen und Ideen, deren Antwort bleiben soll: durchsuchbar und verlinkbar, eine Antwort lässt sich als Lösung markieren. Dazu Ankündigungen und Meinungsbilder. Stellt sich eine Frage als Fehler heraus, wird aus der Discussion ein Issue; ein Issue, das eigentlich eine Frage ist, wird zur Discussion.
-- **Issues:** bestätigte Fehler und konkrete Wünsche; sie kommen ins [Board](https://github.com/users/firsttris/projects/2). Entschieden wird im Issue, auch über Ideen aus Discord oder Discussions.
+- **Issues:** bestätigte Fehler und konkrete Wünsche; sie kommen ins [Board](https://github.com/orgs/Speicherstadt/projects/3). Entschieden wird im Issue, auch über Ideen aus Discord oder Discussions.
 
 In keinem Issue, keiner Discussion und keinem Beitrag auf Discord stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
@@ -132,7 +132,7 @@ Größere Vorhaben und Issues von Agenten folgen dieser Gliederung:
 | Stand in Haben | Was Haben heute tut, **auf dem aktuellen `main` geprüft**, mit Commit und Links auf Doku oder Code. Nicht aus dem Gedächtnis. |
 | Vorschlag | Was sich ändern soll, bei Bedarf in Stufen. Grenzen nennen: was ausdrücklich nicht dazugehört. |
 | Akzeptanzkriterien | Drei bis sechs prüfbare Punkte als `- [ ]`, zu denen ein Test oder ein Blick in die Oberfläche Ja oder Nein sagt. Bei Buchungen und Steuer: SKR03 und SKR04, Ist und Soll. |
-| Bezug | Verwandte Issues und Pull Requests, Karte im [Project „Roadmap“](https://github.com/users/firsttris/projects/2), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. Quellen aus früheren Pull Requests dürfen mit Link auf den Pull Request übernommen werden. |
+| Bezug | Verwandte Issues und Pull Requests, Karte im [Project „Roadmap“](https://github.com/orgs/Speicherstadt/projects/3), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. Quellen aus früheren Pull Requests dürfen mit Link auf den Pull Request übernommen werden. |
 
 Ein Issue behandelt ein Thema und passt auf ein bis zwei Bildschirme; Quellcode steht als Link. Fachliche Aussagen belegt eine Quelle, kein Ratgeber; was unsicher ist oder die Steuerberatung entscheiden muss, steht ausdrücklich darin. Der Titel nennt das Ergebnis, nicht den Anlass. Agenten legen Issues nur auf Anweisung an und kennzeichnen sie; die Schritte stehen im Skill `issue-schreiben`. Beim Anlegen kommt der Typ als Label dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`, `technik`, `doku`); fehlt er, ergänzt ihn `board-pflegen` zusammen mit Themen-Labels und dem Platz in der Roadmap, nach OK des Maintainers.
 

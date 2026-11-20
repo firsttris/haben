@@ -339,7 +339,7 @@ Weitere Open-Source-Apps für deinen eigenen Server, etwa für Mail, Office-Doku
 
 ## Mitwirken
 
-Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und kommentiert im Issue `/übernehmen`. Wie es dann bis zum Merge weitergeht, zeigt [Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
+Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/orgs/Speicherstadt/projects/3) aus, etwa mit dem Label `einstieg`, und kommentiert im Issue `/übernehmen`. Wie es dann bis zum Merge weitergeht, zeigt [Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
 Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirken](https://haben.app/mitwirken.html). Programmieren musst du dafür nicht: Wissen zu Steuern und Buchhaltung hilft genauso.
 
 ## Sterne im Verlauf

@@ -2,10 +2,10 @@ import type { Status } from "./regel.ts";
 
 /*
  * Zugriff auf GitHub für das Board: GraphQL für das Project (Token PROJECT_TOKEN, klassisches Token mit Scope
- * `project`, weil GITHUB_TOKEN ein Project eines persönlichen Accounts nicht erreicht) und REST für Issues.
+ * `project`, weil GITHUB_TOKEN kein Project erreicht, auch nicht das der Organisation) und REST für Issues.
  */
 
-export const PROJECT = { owner: "firsttris", number: 2 };
+export const PROJECT = { owner: "Speicherstadt", number: 3 };
 
 const API = "https://api.github.com";
 
@@ -55,15 +55,15 @@ export type Projekt = { id: string; statusFeld: string; optionen: Map<string, st
 /** Project, Status-Feld und seine Optionen; fehlt eine Spalte, ist das Board anders benannt als in regel.ts */
 export async function projekt(token: string, status: readonly Status[]): Promise<Projekt> {
   const daten = await graphql<{
-    user: { projectV2: { id: string; field: { id: string; options: { id: string; name: string }[] } | null } };
+    organization: { projectV2: { id: string; field: { id: string; options: { id: string; name: string }[] } | null } };
   }>(
     token,
     `query($owner: String!, $number: Int!) {
-      user(login: $owner) { projectV2(number: $number) { id
+      organization(login: $owner) { projectV2(number: $number) { id
         field(name: "Status") { ... on ProjectV2SingleSelectField { id options { id name } } } } } }`,
     PROJECT,
   );
-  const { id, field } = daten.user.projectV2;
+  const { id, field } = daten.organization.projectV2;
   if (!field) throw new Error("Das Project hat kein Feld „Status“.");
   const optionen = new Map(field.options.map((option) => [option.name, option.id]));
   const fehlend = status.filter((name) => !optionen.has(name));
