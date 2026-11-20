@@ -154,6 +154,28 @@ describe.skipIf(!testDatabaseUrl)("Fremde Funktionen, Operatoren und Casts (Post
     });
   });
 
+  // Die Prüffunktionen nennen Tabellen ohne Schema. Für Relationen steht das temporäre Schema der Sitzung im Suchpfad
+  // vorn, dahinter pg_catalog; dorthin kann ein Superuser eine Sicht auch ohne besondere Einstellung verschieben.
+  // https://www.postgresql.org/docs/18/ddl-schemas.html#DDL-SCHEMAS-PATH
+  it("meldet eine Relation in pg_catalog", async () => {
+    await rolledBack(async (tx) => {
+      await tx.execute(query`create schema probe_quelle`);
+      await tx.execute(query`create view probe_quelle.vat_returns as select * from public.vat_returns`);
+      await tx.execute(query`alter view probe_quelle.vat_returns set schema pg_catalog`);
+      expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund("Zusätzliche Relation pg_catalog.vat_returns im Systemschema pg_catalog")]);
+    });
+  });
+
+  it("meldet eine temporäre Relation mit dem Namen einer Tabelle von Haben", async () => {
+    await rolledBack(async (tx) => {
+      await tx.execute(query`create temporary view vat_returns as select * from public.vat_returns`);
+      const [{ temp }] = (await tx.execute<{ temp: string }>(
+        query`select nspname::text as temp from pg_catalog.pg_namespace where oid = pg_catalog.pg_my_temp_schema()`,
+      )) as unknown as [{ temp: string }];
+      expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund(`Relation ${temp}.vat_returns überdeckt eine gleichnamige Tabelle`)]);
+    });
+  });
+
   it("meldet, wenn pg_catalog im Suchpfad der Verbindung nicht vorn steht", async () => {
     await rolledBack(async (tx) => {
       await tx.execute(query`set local search_path = public, pg_catalog`);
