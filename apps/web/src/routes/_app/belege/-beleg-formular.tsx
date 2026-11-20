@@ -6,6 +6,7 @@ import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { DocumentSplits } from "../../../components/DocumentSplits.tsx";
 import { SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { UstIdVorBuchen } from "../../../components/UstIdVorFestschreiben.tsx";
 import { steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { checkSameInvoiceNumber } from "../../../server/functions/documents.ts";
@@ -66,6 +67,7 @@ export function DocumentForm({ data, inhaber, onDirtyChange }: { data: Detail; i
             die Ausgabe nach dem Buchen doppelt in den Büchern, mit Vorsteuerabzug auch die Vorsteuer.
           </p>
         )}
+        <UstIdVorBuchen open={aktionen.confirming} reverseCharge={f.reverseCharge} contactId={f.supplierContactId} ustId={f.supplierUstId} />
       </ConfirmDialog>
       <ConfirmDialog
         open={aktionen.confirmingDelete}
