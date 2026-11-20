@@ -1,6 +1,7 @@
 import { type BillingPreview, billingPreview, type OffeneLeistung } from "@haben/core";
-import { and, asc, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
+import { einzigerAnsprechpartner } from "../../../lib/invoice.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { assertCustomer, defaultSkonto, type DraftInput, insertDraft, newDraftDefaults } from "../rechnungen/index.ts";
@@ -84,11 +85,15 @@ export async function billServiceEntries(actor: string, input: BillingInput, tod
       })
       .from(schema.contacts)
       .where(eq(schema.contacts.id, data.contactId));
-    // Der einzige aktive Ansprechpartner ist gleich gewählt, wie im Editor (einzigerAnsprechpartner, #1335)
+    // Der einzige aktive Ansprechpartner ist gleich gewählt, nach derselben Regel wie im Editor (#1335)
     const personen = await tx
-      .select({ id: schema.contactPersons.id })
+      .select({
+        id: schema.contactPersons.id,
+        contactId: schema.contactPersons.contactId,
+        deactivated: sql<boolean>`${schema.contactPersons.deactivatedAt} is not null`,
+      })
       .from(schema.contactPersons)
-      .where(and(eq(schema.contactPersons.contactId, data.contactId), isNull(schema.contactPersons.deactivatedAt)));
+      .where(eq(schema.contactPersons.contactId, data.contactId));
     const taxRate = defaults.lines[0]!.taxRate;
     const draft: DraftInput = {
       ...defaults,
@@ -96,7 +101,7 @@ export async function billServiceEntries(actor: string, input: BillingInput, tod
       format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : defaults.format),
       language: contact?.language ?? defaults.language,
       skonto: defaultSkonto({ skonto: defaults.skonto }, contact, defaults.paymentTermDays),
-      ...(personen.length === 1 ? { contactPersonId: personen[0]!.id } : {}),
+      contactPersonId: einzigerAnsprechpartner(personen, data.contactId) || null,
       issueDate: today,
       serviceFrom: preview.from,
       serviceTo: preview.to,
