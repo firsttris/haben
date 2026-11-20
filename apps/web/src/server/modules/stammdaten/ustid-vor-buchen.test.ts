@@ -159,4 +159,41 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
     const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via);
     expect(ergebnis.hinweis).toContain("Nicht vergeben");
   });
+
+  it("§ 13b mit nordirischer USt-IdNr. (XI): keine Abfrage, Hinweis auf § 13b Drittland; § 1a fragt wie bisher (#1579)", async () => {
+    // § 30 Abs. 1 UStG: Nordirland zählt nur bei Lieferungen und Erwerben zum Gemeinschaftsgebiet
+    const belfast = (
+      await contacts.createContact(actor, {
+        kundennummer: "",
+        name: "Agentur Belfast Ltd",
+        strasse: "Donegall Square 1",
+        plz: "BT1 5GS",
+        ort: "Belfast",
+        land: "GB",
+        email: "",
+        ustId: "XI123456789",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
+      })
+    ).id;
+    const hinweis =
+      "XI123456789: nordirische USt-IdNr. nur bei Lieferungen, nicht bei sonstigen Leistungen. Für eine Leistung aus Nordirland passt § 13b Drittland (Kz 84/85).";
+    const ohneAntworten = dienst();
+    // Nummer vom Beleg, vom Kontakt, ohne Kontakt und mit HABEN_EVATR=off: Der Hinweis braucht das BZSt nicht
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "xi 123 456 789", behandlung: "eu" }, AM_TAG, ohneAntworten.via)).toEqual({
+      hinweis,
+    });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: belfast, ustId: "", behandlung: "eu" }, AM_TAG, ohneAntworten.via)).toEqual({ hinweis });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "XI123456789", behandlung: "eu" }, AM_TAG, ohneAntworten.via)).toEqual({ hinweis });
+    process.env.HABEN_EVATR = "off";
+    expect(await modul.ustIdVorBuchen(actor, { contactId: belfast, ustId: "", behandlung: "eu" }, AM_TAG, ohneAntworten.via)).toEqual({ hinweis });
+    delete process.env.HABEN_EVATR;
+    expect(ohneAntworten.anfragen).toHaveLength(0);
+
+    // Der Erwerb nach § 1a mit XI bleibt richtig: Abfrage beim BZSt, kein Hinweis zu Nordirland
+    const erwerb = dienst(ok("xi"));
+    expect(await modul.ustIdVorBuchen(actor, { contactId: belfast, ustId: "", behandlung: "ig_erwerb" }, AM_TAG, erwerb.via)).toEqual({ hinweis: null });
+    expect(erwerb.anfragen).toEqual([{ anfragendeUstid: "DE123456788", angefragteUstid: "XI123456789" }]);
+  });
 });

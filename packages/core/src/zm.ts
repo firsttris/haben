@@ -88,6 +88,9 @@ export function normalizeUstId(raw: string): string {
 
 const aufbauDes = (land: string) => (Object.hasOwn(AUFBAU, land) ? AUFBAU[land] : undefined);
 
+/** Nordirland zählt nur bei Lieferungen und Erwerben zum Gemeinschaftsgebiet (§ 30 Abs. 1 UStG); auch für Belege mit § 13b (#1579) */
+export const XI_NUR_LIEFERUNGEN = "nordirische USt-IdNr. nur bei Lieferungen, nicht bei sonstigen Leistungen";
+
 /**
  * Formale Prüfung der USt-IdNr. eines Kunden für die Meldung, wie ERiC sie vornimmt: Länderkennzeichen eines anderen
  * Mitgliedstaats, danach nur Buchstaben, Ziffern, + und *, zusammen 7 bis 14 Zeichen (Schema knre_Type und Mindestlänge im
@@ -100,7 +103,7 @@ export function ustIdProblem(ustId: string, art: ZmArt): string | null {
   if (land === "GB") return `${ustId}: britische USt-IdNr. gelten seit dem Brexit nicht mehr; für Nordirland XI`;
   if (!aufbauDes(land)) return `${ustId}: kein Länderkennzeichen eines anderen EU-Mitgliedstaats`;
   if (!/^[A-Z]{2}[A-Z0-9+*]{5,12}$/.test(ustId)) return `${ustId}: nach dem Länderkennzeichen 5 bis 12 Buchstaben, Ziffern, + oder *`;
-  if (land === "XI" && art !== "L") return `${ustId}: nordirische USt-IdNr. nur bei Lieferungen, nicht bei sonstigen Leistungen`;
+  if (land === "XI" && art !== "L") return `${ustId}: ${XI_NUR_LIEFERUNGEN}`;
   return null;
 }
 
