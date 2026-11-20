@@ -103,6 +103,7 @@ import { Route as ApiRechnungsanhangIdRouteImport } from './routes/api/rechnungs
 import { Route as ApiStandardanhangIdRouteImport } from './routes/api/standardanhang/$id'
 import { Route as ApiSvProtokollIdRouteImport } from './routes/api/sv-protokoll/$id'
 import { Route as ApiUeberweisungIdRouteImport } from './routes/api/ueberweisung/$id'
+import { Route as ApiUstidBestaetigungIdRouteImport } from './routes/api/ustid-bestaetigung/$id'
 import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as ApiVastIdRouteImport } from './routes/api/vast/$id'
@@ -605,6 +606,11 @@ const ApiUeberweisungIdRoute = ApiUeberweisungIdRouteImport.update({
   path: '/api/ueberweisung/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUstidBestaetigungIdRoute = ApiUstidBestaetigungIdRouteImport.update({
+  id: '/api/ustid-bestaetigung/$id',
+  path: '/api/ustid-bestaetigung/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUstvaIdRoute = ApiUstvaIdRouteImport.update({
   id: '/api/ustva/$id',
   path: '/api/ustva/$id',
@@ -834,6 +840,7 @@ export interface FileRoutesByFullPath {
   '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
+  '/api/ustid-bestaetigung/$id': typeof ApiUstidBestaetigungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
@@ -956,6 +963,7 @@ export interface FileRoutesByTo {
   '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
+  '/api/ustid-bestaetigung/$id': typeof ApiUstidBestaetigungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
@@ -1080,6 +1088,7 @@ export interface FileRoutesById {
   '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
+  '/api/ustid-bestaetigung/$id': typeof ApiUstidBestaetigungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
@@ -1204,6 +1213,7 @@ export interface FileRouteTypes {
     | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
+    | '/api/ustid-bestaetigung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
     | '/api/vast/$id'
@@ -1326,6 +1336,7 @@ export interface FileRouteTypes {
     | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
+    | '/api/ustid-bestaetigung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
     | '/api/vast/$id'
@@ -1449,6 +1460,7 @@ export interface FileRouteTypes {
     | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
+    | '/api/ustid-bestaetigung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
     | '/api/vast/$id'
@@ -1536,6 +1548,7 @@ export interface RootRouteChildren {
   ApiStandardanhangIdRoute: typeof ApiStandardanhangIdRoute
   ApiSvProtokollIdRoute: typeof ApiSvProtokollIdRoute
   ApiUeberweisungIdRoute: typeof ApiUeberweisungIdRoute
+  ApiUstidBestaetigungIdRoute: typeof ApiUstidBestaetigungIdRoute
   ApiUstvaIdRoute: typeof ApiUstvaIdRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
   ApiVastIdRoute: typeof ApiVastIdRoute
@@ -2212,6 +2225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUeberweisungIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ustid-bestaetigung/$id': {
+      id: '/api/ustid-bestaetigung/$id'
+      path: '/api/ustid-bestaetigung/$id'
+      fullPath: '/api/ustid-bestaetigung/$id'
+      preLoaderRoute: typeof ApiUstidBestaetigungIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ustva/$id': {
       id: '/api/ustva/$id'
       path: '/api/ustva/$id'
@@ -2601,6 +2621,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStandardanhangIdRoute: ApiStandardanhangIdRoute,
   ApiSvProtokollIdRoute: ApiSvProtokollIdRoute,
   ApiUeberweisungIdRoute: ApiUeberweisungIdRoute,
+  ApiUstidBestaetigungIdRoute: ApiUstidBestaetigungIdRoute,
   ApiUstvaIdRoute: ApiUstvaIdRoute,
   ApiV1SplatRoute: ApiV1SplatRoute,
   ApiVastIdRoute: ApiVastIdRoute,

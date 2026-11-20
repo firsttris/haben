@@ -75,6 +75,11 @@ export function ustIdBestaetigungPruefen(getPage: () => Page) {
       await expect(karte.getByRole("definition").nth(1)).toContainText("Stimmt nicht");
       await expect(karte.getByText("Alle Abfragen (2)")).toBeVisible();
 
+      // Die letzte Antwort als PDF (#1491)
+      const pdfLink = karte.getByRole("link", { name: /^PDF der Abfrage vom .*, mit Name und Anschrift$/ });
+      const pdf = await page.request.get((await pdfLink.getAttribute("href")) ?? "");
+      expect(pdf.headers()["content-type"]).toBe("application/pdf");
+
       // Ausfall des Dienstes: Hinweis, nichts gespeichert, kein zweiter Versuch
       dienst.ausfall = true;
       await karte.getByRole("button", { name: "Beim BZSt bestätigen" }).click();
