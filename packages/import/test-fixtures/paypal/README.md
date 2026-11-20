@@ -9,14 +9,14 @@ Daraus belegt: Die Gebühr ist bei einer Zahlung negativ, bei einer Erstattung p
 der Zeitstempel ist UTC mit `Z`; der Name steht in `alternate_full_name`. Nicht darin: `P`, `D`, `V`, Rückbuchung,
 Abbuchung auf die Bank, Fremdwährung.
 
-# Nachgebaute Antworten
+## Nachgebaute Antworten
 
 `transaktionen.json`: eine Antwort von `GET /v1/reporting/transactions?fields=all` im Aufbau der
 [API-Referenz](https://developer.paypal.com/api/transaction-search/v1/) (`transaction_details` mit `transaction_info` und
 `payer_info`). **Keine echten Antworten:** Kennungen, Namen, Beträge und Zeitpunkte sind erfunden, der Aufbau folgt dem
-Schema von PayPal. Es gab beim Bau keinen Zugang zur Sandbox; die Fixture ersetzt keinen Test gegen echte Antworten.
-Offen sind deshalb vor allem das Vorzeichen von `fee_amount` (hier wie in der CSV-Spalte „Gebühr“: bei einer Zahlung
-negativ) und das Zeitzonenformat von `transaction_initiation_date` (hier beide Schreibweisen, `+0000` und `+00:00`).
+Schema von PayPal. Das Vorzeichen von `fee_amount` (hier wie in der CSV-Spalte „Gebühr“: bei einer Zahlung negativ) und
+das Zeitstempelformat bestätigt die echte Antwort in `sandbox-transaktionen.json`. Die beiden Schreibweisen des Offsets
+(`+0000` und `+00:00`) in dieser Datei decken weitere Formate ab, die PayPal liefern könnte; belegt sind sie nicht.
 
 Die zehn Zeilen:
 
