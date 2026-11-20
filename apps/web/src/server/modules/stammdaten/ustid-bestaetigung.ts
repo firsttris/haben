@@ -16,6 +16,7 @@ import {
   evatrZeitpunkt,
   isValidGermanUstId,
   normalizeUstId,
+  XI_NUR_LIEFERUNGEN,
 } from "@haben/core";
 import { desc, eq, inArray } from "drizzle-orm";
 import { formatDate } from "../../../lib/format.ts";
@@ -296,7 +297,7 @@ export async function ustIdVorFestschreiben(
  * bestätigt, gleich an welchem Kontakt, gibt es nichts zu sagen; sonst fragt Haben das BZSt einfach und speichert die
  * Antwort am Lieferanten-Kontakt. Die qualifizierte Abfrage entfällt: UStAE 3a.2 Abs. 9 betrifft den leistenden
  * Unternehmer, nicht den Empfänger. Ohne Kontakt gibt es keinen Ort für den Nachweis. Zurück kommt ein Hinweis oder null;
- * das Buchen sperrt er nie, wie vor dem Festschreiben. Abgeschaltet wie vorher.
+ * das Buchen sperrt er nie, wie vor dem Festschreiben. Abgeschaltet wie vorher, bis auf den Hinweis zu Nordirland.
  */
 export async function ustIdVorBuchen(
   actor: string,
@@ -304,9 +305,13 @@ export async function ustIdVorBuchen(
   jetzt = new Date(),
   via: EvatrVerbindung = verbindung(),
 ): Promise<{ hinweis: string | null }> {
-  if (evatrAbgeschaltet()) return { hinweis: null };
   const contact = lieferant.contactId ? await ladeKontakt(lieferant.contactId) : null;
   const nummer = normalizeUstId(lieferant.ustId || contact?.ustId || "");
+  // Für eine sonstige Leistung ist ein Unternehmer aus Nordirland im Drittland ansässig (§ 30 Abs. 1 UStG, UStAE 1.10 Abs. 2 Satz 2 und Abs. 3).
+  // Das BZSt bestätigt XI trotzdem (§ 30 Abs. 2, BMF vom 10.12.2020, BStBl I S. 1370, Rz. 22), deshalb ohne Abfrage und auch abgeschaltet (#1579)
+  if (lieferant.behandlung === "eu" && nummer.startsWith("XI"))
+    return { hinweis: `${nummer}: ${XI_NUR_LIEFERUNGEN}. Für eine Leistung aus Nordirland passt § 13b Drittland (Kz 84/85).` };
+  if (evatrAbgeschaltet()) return { hinweis: null };
   // Bei § 1a sperrt „Vor dem Buchen“ eine fehlende oder falsch aufgebaute Nummer selbst (igErwerbIssues). Bei § 13b ist sie
   // keine Pflicht; eine, die sich nicht bestätigen lässt, nennt der Hinweis wie vor dem Festschreiben
   if (!evatrPruefbar(nummer)) return { hinweis: lieferant.behandlung === "eu" && nummer ? `${nummer}: ${ZUSTAND_TEXT["nicht-pruefbar"]}` : null };
