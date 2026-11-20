@@ -116,12 +116,16 @@ describe.skipIf(!testDatabaseUrl)("MCP-Werkzeug ustid_bestaetigungen (Postgres)"
     expect(text).not.toMatch(/Hauptstraße|Rohdatensatz|1020/);
   });
 
-  it("findet den Kontakt auch über den Namen; ohne Antwort „noch nicht bestätigt“", async () => {
+  it("findet den Kontakt auch über den Namen; ohne Antwort „noch nicht bestätigt“, eine deutsche Nummer mit Hinweis", async () => {
     expect(await run({ kontakt: "seine" })).toMatchObject({ anzahl: 1, kontakte: [{ name: "Seine SARL" }] });
     await sql`insert into contacts (name, ust_id, land) values ('Neukunde BV', 'NL123456789B01', 'NL')`;
     expect(await run({ kontakt: "Neukunde" })).toMatchObject({
       kontakte: [{ name: "Neukunde BV", nummern: [{ ustId: "NL123456789B01", aktuell: true, letzteAntwort: "noch nicht bestätigt" }] }],
     });
+    // Bestätigt werden nur Nummern anderer Mitgliedstaaten (UStAE 18e.1 Abs. 3 Satz 1); „noch nicht“ hieße, es stünde noch aus
+    await sql`insert into contacts (name, ust_id, land) values ('Inlandskunde GmbH', 'DE123456789', 'DE')`;
+    const inland = (await run({ kontakt: "Inlandskunde" })) as { kontakte: { nummern: unknown[] }[] };
+    expect(inland.kontakte[0]!.nummern).toEqual([{ ustId: "DE123456789", aktuell: true, hinweis: expect.stringContaining("anderen EU-Mitgliedstaats") }]);
   });
 
   it("liefert zu einer Nummer die letzte Antwort, gleich an welchem Kontakt", async () => {
