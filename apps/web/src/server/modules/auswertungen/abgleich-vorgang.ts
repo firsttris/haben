@@ -14,6 +14,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { belegZeilen, loadSplits } from "../belege/index.ts";
 import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
+import { zahlungenWieHeute } from "../umsatzsteuer/index.ts";
 
 /*
  * Vorgang gegen Buchung (#1116): Jeder gespeicherte Vorgang muss genau seine Buchung mit seinen Beträgen haben. Statt die
@@ -27,8 +28,9 @@ import { invoiceTaxReader } from "../rechnungen/index.ts";
  * - Rechnung bei Ist, ganz erledigt: Die „nicht fällige“ Umsatzsteuer ihrer Buchungen (Rechnung, Zahlungen, Ausbuchungen,
  *   Bareinnahmen) ist auf den Cent null. So fällt auch ein systematischer Rest auf, den die Verprobung je Buchung mit ihrer
  *   Toleranz nicht sieht. Ist sie ganz bezahlt (ohne Ausbuchung), melden ihre Buchungen bei Ist zusammen genau die
- *   Bemessungsgrundlagen, die die Rechnung bei Soll meldet (Kz 81, 86, 43, 48, 0 %). Das findet ältere Zahlungen ohne
- *   Bemessungsgrundlage auch auf steuerfreie Rechnungen, an denen die Verprobung mangels Steuer nichts sieht.
+ *   Bemessungsgrundlagen, die die Rechnung bei Soll meldet (Kz 81, 86, 43, 48, 0 %). Zahlungen von vor #552 zählen dabei
+ *   wie heute gebucht (zahlungenWieHeute, #1502); jede andere Zahlung ohne Bemessungsgrundlage fällt so auf, auch auf
+ *   einer steuerfreien Rechnung, an der die Verprobung mangels Steuer nichts sieht.
  *
  * Nicht verglichen: aus Lexoffice übernommene Belege und Rechnungen (gebucht gegen den Saldenvortrag), Zuordnungen auf
  * privaten Konten (sie buchen auf Privatkonten), Kassenzeilen aus dem Datenimport (sie hängen an einer Originalbuchung)
@@ -267,8 +269,8 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
   if (ist.length === 0) return [];
   const ids = ist.map((r) => r.id);
   // Alle Buchungen der Rechnung: sie selbst (auch Storno), Zahlungen, Ausbuchungen, Bareinnahmen
-  const buchungen = await q.execute<{ invoice_id: string; typ: string; entry_id: string; kontenrahmen: Kontenrahmen }>(sql`
-    select x.invoice_id, x.typ, e.id as entry_id, e.kontenrahmen from (
+  const buchungen = await q.execute<{ invoice_id: string; typ: string; source_id: string; entry_id: string; kontenrahmen: Kontenrahmen }>(sql`
+    select x.invoice_id, x.typ, x.source_id, e.id as entry_id, e.kontenrahmen from (
       select id as invoice_id, 'invoice' as typ, id as source_id from invoices where id in ${ids}
       union all select invoice_id, 'allocation', id from allocations where invoice_id in ${ids}
       union all select invoice_id, 'ausbuchung', id from write_offs where invoice_id in ${ids}
@@ -277,6 +279,21 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
   const zeilen = await zeilenVon(
     q,
     [...buchungen].map((b) => b.entry_id),
+  );
+  // Gemeldet wird mit den Zahlungen bei Ist von vor #552 so, wie Haben sie heute bucht (#1502)
+  const wieHeute = new Map(
+    (
+      await zahlungenWieHeute(
+        [...buchungen].map((b) => ({
+          id: b.entry_id,
+          sourceType: b.typ,
+          sourceId: b.source_id,
+          kontenrahmen: b.kontenrahmen,
+          zeilen: zeilen.get(b.entry_id) ?? [],
+        })),
+        q,
+      )
+    ).map((b) => [b.id, b.zeilen]),
   );
   // Erledigt: Zuordnungen, Ausbuchungen und Bareinnahmen decken das Brutto
   const summen = new Map(
@@ -308,7 +325,7 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
     if (summe.ausgebucht !== 0) continue;
     const gemeldet = (v: "ist" | "soll", typen: (b: (typeof eigene)[number]) => boolean) =>
       eigene.filter(typen).reduce((s, b) => {
-        const k = kennzahlenAusJournal(b.kontenrahmen, v, [zeilen.get(b.entry_id) ?? []]);
+        const k = kennzahlenAusJournal(b.kontenrahmen, v, [wieHeute.get(b.entry_id) ?? []]);
         return s + [...IST_NACH_ZAHLUNG].reduce((t, feld) => t + k[feld], 0);
       }, 0);
     const beiZahlung = gemeldet("ist", () => true);

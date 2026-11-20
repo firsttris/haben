@@ -1,4 +1,4 @@
-import { formatEuro } from "@haben/core";
+import { ACCOUNTS, formatEuro } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -127,12 +127,24 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
     const werte = await vat.computedValues({ year: 2026, month });
     await sql`insert into vat_returns ${sql({ year: 2026, month, ...werte, kz81: werte.kz81 + delta, status: "sent", source: "berechnet", sent_at: new Date().toISOString() } as never)}`;
   }
-  /** Daten wie aus einer Version vor v0.7.0: Steuerschlüssel bzw. Bemessungsgrundlage an der Zahlung fehlen (#551, #552) */
-  async function alteBuchung(kr: "SKR03" | "SKR04", v: "ist" | "soll") {
+  /**
+   * Daten wie aus einer Version vor v0.7.0: Steuerschlüssel bzw. Bemessungsgrundlage an der Zahlung fehlen (#551, #552).
+   * `passtNicht`: Die Zahlung bucht einen Cent weniger Umsatzsteuer, als Haben heute aus Rechnung und Anteil buchen würde;
+   * dann bleibt sie auch beim Lesen, wie gebucht (#1502). Das Update auf das Journal (erste Zeile in journal_umstellung)
+   * liegt danach hinter den Buchungen, wie bei einer Instanz, die vor dem Update gebucht hat; `nachDemUpdate`: die Buchungen
+   * danach, also wie aus einer neuen Version.
+   */
+  async function alteBuchung(kr: "SKR03" | "SKR04", v: "ist" | "soll", passtNicht = false, nachDemUpdate = false) {
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
+      if (!nachDemUpdate) await tx`update journal_umstellung set at = clock_timestamp()`;
       if (v === "ist") await tx`update journal_lines set basis = null where basis is not null`;
       else await tx`update journal_lines set tax_code = null where account = ${kr === "SKR03" ? "8400" : "4400"}`;
+      if (v === "ist" && passtNicht) {
+        const zahlung = sql`select id from journal_entries where source_type = 'allocation'`;
+        await tx`update journal_lines set credit = credit - 1 where account = ${ACCOUNTS[kr].ust[1900]} and credit > 0 and entry_id in (${zahlung})`;
+        await tx`update journal_lines set debit = debit - 1 where account = ${ACCOUNTS[kr].ustNichtFaellig[1900]} and debit > 0 and entry_id in (${zahlung})`;
+      }
     });
   }
   /** Jahreserklärung wie übermittelt bzw. vermerkt; `figures` wie in annualXml bzw. vermerkeJahresabgabe */
@@ -210,22 +222,23 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         await reset(kr, v);
         const inv = await invoice("2026-03-10");
         await pay(inv.id, "20.04.2026", "119,00");
-        await alteBuchung(kr, v);
+        await alteBuchung(kr, v, true);
         const ergebnis = await umstellung.umstellungPruefen(today);
         expect(ergebnis.status).toBe("abweichung");
         const befunde = (ergebnis as { befunde: { jahr: number; text: string }[] }).befunde;
-        // Steuer ohne passende Bemessungsgrundlage: 19 € Umsatzsteuer auf 0 € (bei Ist an der Zahlung im April, bei Soll an der
-        // Rechnung im März)
+        // Steuer ohne passende Bemessungsgrundlage: 19 € Umsatzsteuer auf 0 € (bei Ist an der Zahlung im April, die einen Cent
+        // weniger bucht als heute und deshalb bleibt, wie gebucht; bei Soll an der Rechnung im März)
+        const steuer = v === "ist" ? 18_99 : 19_00;
         expect(befunde).toContainEqual({
           jahr: 2026,
           text: expect.stringMatching(
             new RegExp(
-              `^2026-${v === "ist" ? "04" : "03"} Umsatzsteuer 19 % zur Bemessungsgrundlage ${formatEuro(0)}: Buchung .*: im Journal ${formatEuro(19_00)}, aus der Bemessungsgrundlage ${formatEuro(0)}$`,
+              `^2026-${v === "ist" ? "04" : "03"} Umsatzsteuer 19 % zur Bemessungsgrundlage ${formatEuro(0)}: Buchung .*: im Journal ${formatEuro(steuer)}, aus der Bemessungsgrundlage ${formatEuro(0)}$`,
             ),
           ),
           bereich: "ustva",
           schluessel: expect.stringMatching(/^buchung:[0-9a-f-]+:umsatzsteuer:1900$/),
-          journal: 19_00,
+          journal: steuer,
           quelle: 0,
         });
         expect((await stand())!.ergebnis).toBe("offen");
@@ -238,7 +251,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         await reset(kr, v);
         const inv = await invoice("2026-03-10");
         await pay(inv.id, "20.04.2026", "119,00");
-        await alteBuchung(kr, v);
+        await alteBuchung(kr, v, true);
         expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
         const befunde = (await stand())!.befunde as { jahr: number; text: string; schluessel?: string }[];
         const verprobung = befunde.filter((b) => b.schluessel?.endsWith(":umsatzsteuer:1900"));
@@ -265,22 +278,70 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         expect(await offen()).toEqual([]);
       }, 60_000);
 
-      it(`ältere Zahlung auf eine steuerfreie Rechnung ohne Bemessungsgrundlage: fehlt in der Voranmeldung, Befund (${kr}, ${v})`, async () => {
+      it(`ältere Zahlungen ohne Bemessungsgrundlage, mit Steuer und steuerfrei: Voranmeldung und Erklärung wie damals, besteht (#1502) (${kr}, ${v})`, async () => {
         await reset(kr, v);
-        const inv = await invoice("2026-03-10", true);
-        await pay(inv.id, "20.04.2026", "100,00");
-        // Bei Ist meldet erst die Zahlung Kz 48, über die Bemessungsgrundlage an der Forderungszeile; vor v0.7.0 trug sie keine.
-        // Ohne Steuer findet die Verprobung nichts, also vergleicht „Vorgang gegen Buchung“ die gemeldete Bemessungsgrundlage
-        // der erledigten Rechnung mit der Rechnung. Bei Soll meldet die Rechnung selbst, die Zahlung ändert nichts.
-        await alteBuchung(kr, v);
+        const inv = await invoice("2026-03-10");
+        const frei = await invoice("2026-03-12", true);
+        await pay(inv.id, "20.04.2026", "119,00");
+        await pay(frei.id, "21.04.2026", "100,00");
+        // So meldete 0.9 aus dem Nebenbuch: gesendet bzw. vermerkt, bevor die Zahlungen wie vor v0.7.0 aussehen
+        await gesendet(4);
+        const ust = await annual.ustYear(2026);
+        await erklaert("ust", "vermerk", { amount: ust.abschluss, berechnet: ust.abschluss, abweichung: 0, abweichungBestaetigt: false, steuer: ust.steuer });
+        const april = await vat.computedValues({ year: 2026, month: 4 });
+        // Bei Ist meldet erst die Zahlung Kz 81 und 48 (steuerfrei), über die Bemessungsgrundlage an Umsatzsteuer- bzw.
+        // Forderungszeile; vor v0.7.0 trug sie keine. Gebucht bleibt, wie es ist; gelesen wird die Zahlung wie heute. Bei Soll
+        // meldet die Rechnung, die Zahlung trägt keine Bemessungsgrundlage.
+        if (v === "ist") await alteBuchung(kr, v);
+        expect(await vat.computedValues({ year: 2026, month: 4 })).toEqual(april);
+        expect((await annual.ustYear(2026)).steuer).toBe(ust.steuer);
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+        expect((await umstellung.umstellungPruefen(today)).status).toBe("gespeichert");
+        expect((await stand())!.ergebnis).toBe("bestanden");
+        // Die Buchungen selbst sind unverändert
+        if (v === "ist") expect((await sql`select count(*)::int as n from journal_lines where basis is not null`)[0]).toEqual({ n: 0 });
+      }, 60_000);
+
+      it(`ältere Zahlung, deren Steuer nicht zur Rechnung passt: bleibt, wie gebucht, Befund; übernommen nicht wieder (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "119,00");
+        // Bei Ist meldet erst die Zahlung Kz 81, über die Bemessungsgrundlage an der Umsatzsteuerzeile; vor v0.7.0 trug sie
+        // keine. Bucht sie einen Cent weniger Steuer, als Haben heute buchen würde, bleibt sie beim Lesen, wie gebucht: Dann
+        // melden die Verprobung die Steuer ohne Bemessungsgrundlage und „Vorgang gegen Buchung“ den Rest auf „nicht fällig“
+        // und die gemeldete Bemessungsgrundlage der erledigten Rechnung. Bei Soll meldet die Rechnung selbst; die Befunde
+        // dort gelten ihrer Buchung ohne Steuerschlüssel, keiner der Zahlung.
+        await alteBuchung(kr, v, true);
         const ergebnis = await umstellung.umstellungPruefen(today);
         if (v === "soll") {
-          expect(ergebnis.status).toBe("gespeichert");
+          expect(ergebnis.status).toBe("abweichung");
+          const befunde = (ergebnis as { befunde: { text: string }[] }).befunde;
+          expect(befunde.filter((b) => b.text.includes("Zahlung"))).toEqual([]);
           return;
         }
         expect(ergebnis).toEqual({
           status: "abweichung",
           befunde: [
+            {
+              jahr: 2026,
+              text: expect.stringMatching(
+                new RegExp(
+                  `^2026-04 Umsatzsteuer 19 % zur Bemessungsgrundlage ${formatEuro(0)}: Buchung „Zahlung ${inv.number} .*: im Journal ${formatEuro(18_99)}, aus der Bemessungsgrundlage ${formatEuro(0)}$`,
+                ),
+              ),
+              bereich: "ustva",
+              schluessel: expect.stringMatching(/^buchung:[0-9a-f-]+:umsatzsteuer:1900$/),
+              journal: 18_99,
+              quelle: 0,
+            },
+            {
+              jahr: 2026,
+              text: `2026-03 Rechnung ${inv.number} (Ist, ganz erledigt): Umsatzsteuer nicht fällig: im Journal ${formatEuro(-1)}, laut Vorgang ${formatEuro(0)}`,
+              bereich: "beleg",
+              schluessel: `rechnung:${inv.id}:nicht-faellig`,
+              journal: -1,
+              quelle: 0,
+            },
             {
               jahr: 2026,
               text: `2026-03 Rechnung ${inv.number} (Ist, ganz erledigt): gemeldete Bemessungsgrundlage: im Journal ${formatEuro(0)}, laut Vorgang ${formatEuro(100_00)}`,
@@ -292,11 +353,11 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           ],
         });
         expect((await stand())!.ergebnis).toBe("offen");
-        // Übernommen: Die übernommene Abweichung meldet die Integritätsprüfung nicht jede Woche wieder
+        // Übernommen: Die übernommenen Abweichungen meldet die Integritätsprüfung nicht jede Woche wieder
         expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
         const jahr = await abgleich.abgleichJahr(2026, today);
         expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
-        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal 1 Abweichung übernommen worden/);
+        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal 3 Abweichungen übernommen worden/);
       }, 60_000);
 
       it(`übermittelte bzw. vermerkte Jahreserklärung: gleich besteht, abweichend nennt sie Erklärung und Feld (${kr}, ${v})`, async () => {
@@ -391,6 +452,24 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
       }, 60_000);
     }
 
+  for (const kr of ["SKR03", "SKR04"] as const)
+    it(`Zahlung ohne Bemessungsgrundlage, nach dem Update gebucht: bleibt, wie gebucht, die Verprobung meldet sie (#1502) (${kr}, ist)`, async () => {
+      await reset(kr, "ist");
+      const inv = await invoice("2026-03-10");
+      await pay(inv.id, "20.04.2026", "119,00");
+      // Eine neue Version bucht die Bemessungsgrundlage immer; fehlt sie, ist das ein Fehler, den die Prüfung zeigen soll
+      await alteBuchung(kr, "ist", false, true);
+      expect(await umstellung.umstellungBefunde(2027, today)).toContainEqual(
+        expect.objectContaining({
+          bereich: "ustva",
+          schluessel: expect.stringMatching(/^buchung:[0-9a-f-]+:umsatzsteuer:1900$/),
+          journal: 19_00,
+          quelle: 0,
+        }),
+      );
+      expect((await vat.computedValues({ year: 2026, month: 4 })).kz81).toBe(0);
+    }, 60_000);
+
   it("vermerkte Umsatzsteuererklärung, danach die Voranmeldungen des Jahres vermerkt: Journal unverändert, kein Befund", async () => {
     await reset("SKR03", "soll");
     await invoice("2026-03-10");
@@ -417,4 +496,63 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
     await leeren(sql)`truncate journal_umstellung`;
     expect(await umstellung.umstellungPruefen(today)).toEqual({ status: "fertig", stand: null });
   }, 60_000);
+  describe("Review #1502: Teilzahlung, Storno nach dem Update, Bareinnahme, Kontenrahmenwechsel", () => {
+    const summeKz81 = async (monate: [number, number][]) => {
+      let s = 0;
+      for (const [year, month] of monate) s += (await vat.computedValues({ year, month })).kz81;
+      return s;
+    };
+    for (const kr of ["SKR03", "SKR04"] as const) {
+      it(`ältere Teilzahlungen ohne Bemessungsgrundlage: wie heute gelesen, kein Befund (${kr}, ist)`, async () => {
+        await reset(kr, "ist");
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "50,00");
+        await pay(inv.id, "20.05.2026", "69,00");
+        const vorher = [await vat.computedValues({ year: 2026, month: 4 }), await vat.computedValues({ year: 2026, month: 5 })];
+        await alteBuchung(kr, "ist");
+        expect([await vat.computedValues({ year: 2026, month: 4 }), await vat.computedValues({ year: 2026, month: 5 })]).toEqual(vorher);
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+      }, 60_000);
+
+      it(`ältere Zuordnung nach dem Update aufgehoben: Storno wie heute gelesen, kein Befund (${kr}, ist)`, async () => {
+        await reset(kr, "ist");
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "119,00");
+        await alteBuchung(kr, "ist");
+        const [a] = await sql`select id from allocations where invoice_id = ${inv.id}`;
+        await bank.reverseAllocation(actor, a!.id, "2026-05-05");
+        const april = (await vat.computedValues({ year: 2026, month: 4 })).kz81;
+        expect(april).not.toBe(0);
+        expect((await vat.computedValues({ year: 2026, month: 5 })).kz81).toBe(-april);
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+      }, 60_000);
+
+      it(`ältere Bareinnahme nach dem Update storniert: kein Befund, Kz 81 zurück (${kr}, ist)`, async () => {
+        await reset(kr, "ist");
+        await leeren(sql)`truncate cash_entries cascade`;
+        const inv = await invoice("2026-03-10");
+        const bar = await bank.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: "2026-04-20", amount: 119_00 }, today);
+        await alteBuchung(kr, "ist");
+        await bank.reverseCashEntry(actor, bar.id, "2026-05-05");
+        const april = (await vat.computedValues({ year: 2026, month: 4 })).kz81;
+        expect(april).not.toBe(0);
+        expect((await vat.computedValues({ year: 2026, month: 5 })).kz81).toBe(-april);
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+      }, 60_000);
+    }
+
+    it("ältere Zuordnung in SKR03, nach Wechsel auf SKR04 aufgehoben: Storno wie heute gelesen, kein Befund (ist)", async () => {
+      await reset("SKR03", "ist");
+      const inv = await invoice("2025-11-10");
+      await pay(inv.id, "20.11.2025", "119,00");
+      await alteBuchung("SKR03", "ist");
+      await sql`update company set kontenrahmen = 'SKR04'`;
+      const [a] = await sql`select id from allocations where invoice_id = ${inv.id}`;
+      await bank.reverseAllocation(actor, a!.id, "2026-02-02");
+      const nov = await summeKz81([[2025, 11]]);
+      expect(nov).not.toBe(0);
+      expect(await summeKz81([[2026, 2]])).toBe(-nov);
+      expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+    }, 60_000);
+  });
 });
