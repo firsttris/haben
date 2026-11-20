@@ -16,7 +16,9 @@ vi.mock("@tanstack/react-router", () => ({
     useLoaderData: () => state.data,
     useRouteContext: () => ({ einrichtung: state.einrichtung }),
   }),
-  Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => createElement("a", { href: to, className }, children),
+  // Mit id setzt der Link sie ein, damit ein Test das Ziel sieht (Kontakt einer Aufgabe); andere Parameter bleiben stehen
+  Link: ({ children, to, params, className }: { children: ReactNode; to: string; params?: { id?: string }; className?: string }) =>
+    createElement("a", { href: params?.id ? to.replace("$id", params.id) : to, className }, children),
 }));
 import { Route } from "./index.tsx";
 
@@ -390,7 +392,7 @@ describe("Übersicht: USt-IdNr. laut BZSt nicht gültig (#1489)", () => {
     const html = render();
     expect(html).toContain("USt-IdNr. von Donaublick GmbH laut BZSt nicht gültig");
     expect(html).toContain("ATU12345678: Nicht mehr gültig; gültig war sie vom 2019-03-01 bis 2026-03-10");
-    expect(html).toMatch(/<a href="\/kontakte\/\$id" class="todo">/);
+    expect(html).toContain('<a href="/kontakte/c1" class="todo">');
   });
 
   it("ohne ungültige Nummer keine Aufgabe dazu", () => {
