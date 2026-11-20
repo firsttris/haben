@@ -55,36 +55,36 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
 
   it("fragt ohne frische gültige Antwort einmal einfach und speichert die Antwort am Lieferanten-Kontakt", async () => {
     const { via, anfragen } = dienst(ok("nl"));
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "nl 123456789 b01" }, AM_TAG, via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "nl 123456789 b01", behandlung: "ig_erwerb" }, AM_TAG, via)).toEqual({ hinweis: null });
     expect(anfragen).toEqual([{ anfragendeUstid: "DE123456788", angefragteUstid: "NL123456789B01" }]);
     const [antwort] = await modul.listUstIdBestaetigungen(lieferant);
     expect(antwort).toMatchObject({ art: "einfach", angefragteUstid: "NL123456789B01", status: "evatr-0000", bzstId: "nl" });
 
     // Frisch und gültig: keine Abfrage, auch für einen Beleg ohne Kontakt mit derselben Nummer
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
-    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
 
     // Nach 30 Tagen fragt Haben neu
     const neu = dienst(ok("nl2"));
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01" }, NACH_31_TAGEN, neu.via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, NACH_31_TAGEN, neu.via)).toEqual({ hinweis: null });
     expect(neu.anfragen).toHaveLength(1);
   });
 
   it("ohne Nummer am Beleg nimmt es die des Kontakts (§ 13b verlangt sie am Beleg nicht)", async () => {
     const { via, anfragen } = dienst(ok("nl"));
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "" }, AM_TAG, via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "", behandlung: "eu" }, AM_TAG, via)).toEqual({ hinweis: null });
     expect(anfragen[0]?.angefragteUstid).toBe("NL123456789B01");
   });
 
   it("laut BZSt nicht vergeben: Hinweis, und die Antwort steht als Nachweis am Kontakt", async () => {
-    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01" }, AM_TAG, dienst(fehler(404, "evatr-2001")).via);
+    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst(fehler(404, "evatr-2001")).via);
     expect(ergebnis).toEqual({ hinweis: "Laut BZSt ist NL123456789B01 nicht gültig: Nicht vergeben." });
     expect((await modul.listUstIdBestaetigungen(lieferant))[0]?.status).toBe("evatr-2001");
   });
 
   it("Dienst nicht erreichbar: Hinweis mit dem letzten Stand, nichts gespeichert", async () => {
     await modul.bestaetigeNummer(actor, lieferant, "NL123456789B01", dienst(ok("alt")).via);
-    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01" }, NACH_31_TAGEN, dienst("kein-netz").via);
+    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, NACH_31_TAGEN, dienst("kein-netz").via);
     expect(ergebnis.hinweis).toMatch(
       /^NL123456789B01 ließ sich gerade nicht beim BZSt bestätigen: Keine Antwort vom BZSt .*\. Zuletzt am 18\.11\.2026: Gültig\.$/,
     );
@@ -93,29 +93,41 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
 
   it("ohne Lieferanten-Kontakt fragt es nicht und sagt, dass es dafür einen Kontakt braucht", async () => {
     const { via, anfragen } = dienst(ok("nl"));
-    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01" }, AM_TAG, via);
+    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, via);
     expect(ergebnis.hinweis).toMatch(/^NL123456789B01 ist nicht frisch beim BZSt bestätigt\. .*Lieferanten-Kontakt/);
     expect(anfragen).toHaveLength(0);
   });
 
   it("abgeschaltet, ohne Nummer oder mit einer Nummer, die das BZSt nicht bestätigt: keine Abfrage, kein Hinweis", async () => {
     process.env.HABEN_EVATR = "off";
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
     delete process.env.HABEN_EVATR;
-    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
-    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "DE123456788" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "DE123456788", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
     expect(await modul.listUstIdBestaetigungen(lieferant)).toHaveLength(0);
+  });
+
+  it("§ 13b: Eine USt-IdNr. mit falschem Aufbau prüft „Vor dem Buchen“ nicht, deshalb sagt es die Rückfrage (Review #1568)", async () => {
+    // IE6388047V mit einer Ziffer zu wenig; ebenso eine deutsche Nummer, die bei einer EU-Leistung nicht passt
+    const { via, anfragen } = dienst();
+    for (const ustId of ["IE638804V", "DE123456788"]) {
+      const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId, behandlung: "eu" }, AM_TAG, via);
+      expect(ergebnis.hinweis).toBe(`${ustId}: Bestätigen lässt sich nur die USt-IdNr. eines anderen EU-Mitgliedstaats mit passendem Aufbau.`);
+    }
+    // Bei § 1a sperrt „Vor dem Buchen“ selbst; dort hieße „Buchen geht trotzdem“ das Falsche
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "IE638804V", behandlung: "ig_erwerb" }, AM_TAG, via)).toEqual({ hinweis: null });
+    expect(anfragen).toHaveLength(0);
   });
 
   it("ohne eigene USt-IdNr. sagt der Hinweis, was fehlt", async () => {
     await sql`update company set ust_id = '' where id = 1`;
-    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01" }, AM_TAG, dienst().via);
+    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via);
     expect(ergebnis.hinweis).toMatch(/^NL123456789B01: .*deine deutsche USt-IdNr\. in den Firmendaten/);
   });
 
   it("ohne Lieferanten-Kontakt nennt der Hinweis die letzte Antwort, auch „nicht vergeben“ (Review #1568)", async () => {
     await modul.bestaetigeNummer(actor, lieferant, "NL123456789B01", dienst(fehler(404, "evatr-2001")).via);
-    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01" }, AM_TAG, dienst().via);
+    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via);
     expect(ergebnis.hinweis).toContain("Nicht vergeben");
   });
 });
