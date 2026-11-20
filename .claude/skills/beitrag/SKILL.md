@@ -12,7 +12,7 @@ Ist ein Werkzeug für GitHub da, egal unter welchem Namen (`gh`, MCP-Server, Plu
 ## 1. Branch
 
 - Vom aktuellen `origin/main` (`git fetch origin`), ein Thema je Branch.
-- Schreibrecht in `firsttris/haben` prüfen: mit `gh` über `gh repo view firsttris/haben --json viewerPermission` (`WRITE`, `MAINTAIN`, `ADMIN`); nur mit git über `git push --dry-run origin HEAD:refs/heads/<branch>` (`403` heißt nein); ohne Zugang die Person fragen.
+- Schreibrecht in `Speicherstadt/haben` prüfen: mit `gh` über `gh repo view Speicherstadt/haben --json viewerPermission` (`WRITE`, `MAINTAIN`, `ADMIN`); nur mit git über `git push --dry-run origin HEAD:refs/heads/<branch>` (`403` heißt nein); ohne Zugang die Person fragen.
 - Mit Schreibrecht in `origin`, sonst im Fork der Person.
 
 ## 2. Commits

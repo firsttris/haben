@@ -84,4 +84,16 @@ test("Vorschläge markieren (Klick, Leertaste) und gemeinsam bestätigen", async
   await expect(zeile("Reparatur vier")).toContainText("Zugeordnet");
   await expect(zeile("Etwas anderes")).not.toContainText("Zugeordnet");
   await expect(page.getByRole("button", { name: /bestätigen/ })).toHaveCount(0);
+
+  // Ohne Markierfeld bleiben die Trennlinien zwischen den Zeilen (sie liegen sonst am Umschlag der Zeile)
+  const linien = await page
+    .locator(".tx-wrap")
+    .evaluateAll((wraps) =>
+      wraps.map(
+        (w) =>
+          Number.parseFloat(getComputedStyle(w).borderTopWidth) + Number.parseFloat(getComputedStyle(w.querySelector(".tx-row") as Element).borderTopWidth),
+      ),
+    );
+  expect(linien.length).toBeGreaterThan(0);
+  expect(linien.every((breite) => breite === 1)).toBe(true);
 });

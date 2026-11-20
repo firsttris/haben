@@ -1,6 +1,6 @@
 ---
 name: "prs-abarbeiten"
-description: "Die offenen Pull Requests an Haben als Maintainer der Reihe nach abarbeiten: alle, die nicht Draft sind, als Rangliste von „am einfachsten zu mergen“ bis „wartet auf den Autor“, dann von oben nach unten je Pull Request beitrag-pruefen in einem frischen Agenten, Fixes auf den Branch, Befunde posten, bei grüner CI mergen und danach wieder von vorn. Bei Steuer, Buchung, ELSTER und GoBD erst nach OK des Maintainers. Wenn der Maintainer sagt „arbeite die Pull Requests ab“; auf eine Frage wie „was können wir mergen?“ nur die Rangliste."
+description: "Die offenen Pull Requests an Haben als Maintainer der Reihe nach abarbeiten: immer zuerst alle, die nicht Draft sind, als Rangliste von „am einfachsten zu mergen“ bis „wartet auf den Autor“ an den Maintainer, dann gleich von oben nach unten je Pull Request beitrag-pruefen in einem frischen Agenten, Fixes auf den Branch, Befunde posten, bei grüner CI mergen und danach wieder von vorn. Bei Steuer, Buchung, ELSTER und GoBD erst nach OK des Maintainers. Wenn der Maintainer sagt „arbeite die Pull Requests ab“; auf eine Frage wie „was können wir mergen?“ nur die Rangliste."
 ---
 
 # Pull Requests abarbeiten
@@ -20,7 +20,7 @@ Der Skill ordnet und verteilt nur. Die Prüfung eines Pull Requests macht `beitr
 
 Ist auf `main` ein Check rot, kommt das vor allem anderen: Sonst ist er in jedem Pull Request rot. Einen Fix legt der Maintainer an oder lässt ihn anlegen.
 
-Pull Requests, die der Maintainer anderen überlassen hat (eigene Pull Requests eines Collaborators, Pull Requests, die ein Collaborator betreut), fasst der Skill nicht an. Steht dazu nichts im Verlauf, fragt er einmal.
+Pull Requests, die der Maintainer anderen überlassen hat (eigene Pull Requests eines Collaborators, Pull Requests, die ein Collaborator betreut), fasst der Skill nicht an. Steht dazu nichts im Verlauf, fragt er einmal, zusammen mit der Rangliste.
 
 ## 2. Rangliste
 
@@ -38,9 +38,9 @@ Gleich einfache Pull Requests nach Alter.
 
 **Migrationen nacheinander:** Pull Requests mit Migration gehen einzeln durch, der fertigere zuerst; Pull Requests ohne Migration dürfen dazwischen. Erst nach dem Merge des vorigen holt der nächste `main` per Merge herein und erzeugt seine Migrationen neu, kurz vor seinem eigenen Merge, nach Prüfung und grüner CI: eigene Dateien in `apps/web/drizzle/` verwerfen, `drizzle/meta/` auf den Stand von `main` (nicht von Hand), dann `bun run db:generate`, eine eigene SQL-Migration (Trigger) mit `drizzle-kit generate --custom` und dem bisherigen SQL (`docs/entwicklung.md`, „Migrationen“). Die Rangliste nennt die Reihenfolge der Pull Requests mit Migration, der Kommentar aus Schritt 3 jedem Autor seinen Platz.
 
-Die Rangliste geht als Tabelle an den Maintainer, mit einer Zeile je Pull Request: Platz, Nummer, Titel, Stand, nächster Schritt.
+Die Rangliste geht als Tabelle an den Maintainer, bevor der Skill etwas fragt oder an einem Pull Request etwas tut (ein roter Check auf `main` aus Schritt 1 steht über der Tabelle), mit einer Zeile je Pull Request: Platz, Nummer (als Link), worum es geht, Stand, was noch fehlt. Auf Deutsch und in einfachen Worten: Ein Paragraf steht nie allein, sondern mit einem halben Satz, was er regelt (etwa „§ 13b UStG, der Kunde schuldet die Steuer“); was der Maintainer entscheiden muss, steht als konkrete Frage in der Zeile. Darunter nummeriert nur die Fragen, an denen ein Pull Request hängt.
 
-Hat der Maintainer nur gefragt, endet der Skill hier; Schritt 3 erst auf sein Wort.
+Hat der Maintainer nur gefragt, endet der Skill hier. Sonst geht es nach der Tabelle gleich mit Schritt 3 weiter, ohne auf eine Antwort zu warten: Was kein OK braucht und an keiner offenen Frage hängt, läuft. Heikle Pull Requests laufen bis grün mit; das OK holt der Skill erst vor ihrem Merge, einzeln nach `beitrag-pruefen`, Schritt 7.
 
 ## 3. Von oben nach unten
 

@@ -23,6 +23,7 @@ import { listQuoteAttachments, quoteAttachmentsForMail } from "./quote-attachmen
 import { invoiceDocumentTotals } from "./invoice-taxes.ts";
 import { invoiceTitle, withCurrentBuyer } from "./invoice-document.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
+import { fillTemplate } from "./beleg-platzhalter.ts";
 
 /**
  * Rechnungen, Angebote und Mahnungen per E-Mail: Empfänger aus der Rechnung bzw. dem Kontakt, Betreff und Text aus
@@ -30,10 +31,8 @@ import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts"
  * Anhang. Jeder Versand steht im Mail-Protokoll.
  */
 
-/** Ersetzt {name} durch den Wert; unbekannte Platzhalter bleiben stehen */
-export function fillTemplate(template: string, values: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (match, name: string) => values[name] ?? match);
-}
+// Dieselbe Ersetzung wie in Einleitung und Hinweis der Belege (#1334)
+export { fillTemplate };
 
 const germanDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 

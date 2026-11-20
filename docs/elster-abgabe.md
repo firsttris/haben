@@ -72,7 +72,7 @@ Mein ELSTER bietet den Import für das laufende und die drei vorherigen Jahre an
 
 Für **alle vier Formulare**. In Haben auf **Werte für Mein ELSTER kopieren** klicken, die Werte in die Erweiterung einfügen, dann in Mein ELSTER Seite für Seite durchgehen. Die Erweiterung findet jedes Feld über seine amtliche Kennung, trägt den Wert ein und rahmt ihn grün. Sie klickt nie: „Eintrag übernehmen“, Seitenwechsel, Prüfen und Absenden machst du. Was schon anders im Formular stand, etwa aus dem Vorjahr, überschreibt sie nur auf deinen Klick.
 
-Die Erweiterung läuft in Chrome, Edge, Brave und anderen Chromium-Browsern. Du lädst sie als ZIP vom [Release](https://github.com/firsttris/haben/releases/latest) und bindest sie als entpackte Erweiterung ein. Sie schickt nichts an Haben oder sonst wohin. Einrichten und Ablauf: [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md).
+Die Erweiterung läuft in Chrome, Edge, Brave und anderen Chromium-Browsern. Du lädst sie als ZIP vom [Release](https://github.com/Speicherstadt/haben/releases/latest) und bindest sie als entpackte Erweiterung ein. Sie schickt nichts an Haben oder sonst wohin. Einrichten und Ablauf: [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md).
 
 ### KI-Assistent
 
@@ -86,4 +86,4 @@ Geht immer: Haben zeigt auf der Seite der Voranmeldung jede Kennzahl und bei Ums
 
 ## Offen
 
-Ob Mein ELSTER das Ausfüllen durch eine Erweiterung oder einen gesteuerten Browser nach seinen Nutzungsbedingungen zulässt, ist nicht geklärt ([#124](https://github.com/firsttris/haben/issues/124)). Die Verantwortung für die Abgabe liegt bei dir, wie beim Abtippen. Der XML-Import ist ein Angebot von Mein ELSTER selbst.
+Ob Mein ELSTER das Ausfüllen durch eine Erweiterung oder einen gesteuerten Browser nach seinen Nutzungsbedingungen zulässt, ist nicht geklärt ([#124](https://github.com/Speicherstadt/haben/issues/124)). Die Verantwortung für die Abgabe liegt bei dir, wie beim Abtippen. Der XML-Import ist ein Angebot von Mein ELSTER selbst.

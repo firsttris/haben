@@ -8,7 +8,7 @@ type Invoice = typeof schema.invoices.$inferSelect;
 /**
  * Vor der ersten Schlussleistung ist die neue Anforderung nicht bilanziert; ein Papierstorno nimmt eine
  * bereits erbrachte Leistung nicht zurück. § 252 Abs. 1 Nr. 4 HGB, bestätigte Grenze:
- * https://github.com/firsttris/haben/issues/750#issuecomment-6850907108
+ * https://github.com/Speicherstadt/haben/issues/750#issuecomment-6850907108
  */
 export async function unbilledAdvanceRequest(invoice: Invoice, date: string, tx: Tx): Promise<boolean> {
   if (invoice.advanceAccounting !== "deferred") return false;
@@ -36,7 +36,7 @@ export async function unbilledAdvanceRequest(invoice: Invoice, date: string, tx:
 /**
  * Neue Anforderung: noch kein bilanzierter Anspruch. Schlussrest: einmalige Leistung; ein Papierstorno oder
  * betragsgleicher Ersatz ändert sie nicht. Echte Entgeltkorrekturen bleiben eigene Buchungen (§ 252 HGB, § 17 UStG).
- * Entscheidung: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * Entscheidung: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 export async function advanceInvoicePosting(invoice: Invoice, totals: InvoiceTotals, frame: Kontenrahmen, tx: Tx) {
   const original = await invoiceTaxReader(tx).original(invoice);

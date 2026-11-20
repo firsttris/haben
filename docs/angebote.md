@@ -15,7 +15,7 @@ Einleitung, Texte zu Positionen und Hinweis unterstützen [fett, kursiv und unte
 
 **Neues Angebot** öffnet den Editor:
 
-- Kunde und, wenn er Personen hat, ein [Ansprechpartner](kontakte.md#ansprechpartner) („z. Hd.“ im PDF und in Auftragsbestätigung und Lieferschein)
+- Kunde und, wenn er Personen hat, ein [Ansprechpartner](kontakte.md#ansprechpartner) („z. Hd.“ im PDF und in Auftragsbestätigung und Lieferschein; der einzige aktive ist gleich ausgewählt)
 - Angebotsdatum
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
@@ -23,7 +23,7 @@ Einleitung, Texte zu Positionen und Hinweis unterstützen [fett, kursiv und unte
 - Umsatzsteuer: dieselbe Auswahl und ausdrückliche Zuordnung wie bei der [Rechnung](rechnungen.md#umsatzsteuer-auf-der-rechnung), auch eine eigene §-4-Befreiung neben § 19 oder ein geklärter ausländischer Leistungsort. Die Rechnung übernimmt die gespeicherte Zuordnung.
 - Sprache, vorbelegt vom Kunden (siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch))
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
-- Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine); die Einleitung ist mit der Standard-Einleitung für Angebote aus den [Firmendaten](einrichtung.md) vorbelegt
+- Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine) und mit [Platzhaltern](rechnungen.md#platzhalter-in-einleitung-und-hinweis) wie `{nummer}` oder `{gueltig}`; die Einleitung ist mit der Standard-Einleitung für Angebote aus den [Firmendaten](einrichtung.md) vorbelegt
 - zu jeder Position optional ein mehrzeiliger **Text zur Position** wie bei der [Rechnung](rechnungen.md#positionen); er steht im PDF unter der Bezeichnung und geht in die Rechnung aus dem Angebot über
 - zu jeder Position optional die **Art.-Nr.**, aus dem Artikelkatalog übernommen; sie steht im PDF, in Auftragsbestätigung und Lieferschein und geht in die Rechnung aus dem Angebot über (in der E-Rechnung BT-155, siehe [Positionen](rechnungen.md#positionen))
 - **Positionsrabatt** und **Gesamtrabatt** in Prozent oder als Betrag wie bei der [Rechnung](rechnungen.md#rabatte); die Rechnung aus dem Angebot übernimmt beide

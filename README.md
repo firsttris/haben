@@ -12,12 +12,12 @@ Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder 
 direkt an ELSTER. Für die GoBD gebaut, auf deinem Server; Daten gehen nur an Dienste, die du selbst einschaltest.
 
 ![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)
-[![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/firsttris/haben?logo=github&label=release)](https://github.com/firsttris/haben/releases/latest)
+[![CI](https://github.com/Speicherstadt/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/Speicherstadt/haben/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Speicherstadt/haben?logo=github&label=release)](https://github.com/Speicherstadt/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 [![Doku](https://img.shields.io/badge/Doku-haben.app-4f46e5?logo=zensical&logoColor=white)](https://haben.app/)
 [![Discord](https://img.shields.io/badge/Discord-Fragen%20%26%20Austausch-5865f2?logo=discord&logoColor=white)](https://discord.gg/CT2GQytSYH)
-[![Discussions](https://img.shields.io/badge/GitHub-Discussions-24292f?logo=github&logoColor=white)](https://github.com/firsttris/haben/discussions)
+[![Discussions](https://img.shields.io/badge/GitHub-Discussions-24292f?logo=github&logoColor=white)](https://github.com/Speicherstadt/haben/discussions)
 [![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://haben.app/rechnungen.html)
 [![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://haben.app/umsatzsteuer.html)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
@@ -135,8 +135,8 @@ Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zuga
 
 ```bash
 mkdir haben && cd haben
-curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
-curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+curl -O https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.yml
+curl -o .env https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.env.example
 chmod 600 .env
 ```
 
@@ -344,10 +344,10 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 
 ## Sterne im Verlauf
 
-<a href="https://www.star-history.com/#firsttris/haben&Date">
+<a href="https://www.star-history.com/#Speicherstadt/haben&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=firsttris/haben&type=Date&theme=dark">
-    <img alt="Verlauf der GitHub-Sterne von Haben" src="https://api.star-history.com/svg?repos=firsttris/haben&type=Date">
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Speicherstadt/haben&type=Date&theme=dark">
+    <img alt="Verlauf der GitHub-Sterne von Haben" src="https://api.star-history.com/svg?repos=Speicherstadt/haben&type=Date">
   </picture>
 </a>
 
@@ -355,9 +355,9 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 
 <div align="center">
 
-⭐ **Gefällt dir Haben?** Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.
+⭐ **Gefällt dir Haben?** Ein [Stern auf GitHub](https://github.com/Speicherstadt/haben) hilft anderen, es zu finden.
 
-[Fehler melden](https://github.com/firsttris/haben/issues/new) &nbsp;·&nbsp; [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) &nbsp;·&nbsp; [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) &nbsp;·&nbsp; [Discord](https://discord.gg/CT2GQytSYH)
+[Fehler melden](https://github.com/Speicherstadt/haben/issues/new) &nbsp;·&nbsp; [Idee besprechen](https://github.com/Speicherstadt/haben/discussions/categories/ideas) &nbsp;·&nbsp; [Frage stellen](https://github.com/Speicherstadt/haben/discussions/categories/q-a) &nbsp;·&nbsp; [Discord](https://discord.gg/CT2GQytSYH)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
 Wer eine veränderte Fassung von Haben für andere übers Netz betreibt, muss ihnen den Quellcode anbieten (§ 13 AGPL); der Link steht in der Navigation. Für IT-Dienstleister, Hoster und Steuerberatungen: <a href="https://speicherstadt.app/partner/">Partnerprogramm</a>.<br>

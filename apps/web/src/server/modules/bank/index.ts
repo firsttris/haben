@@ -48,7 +48,7 @@ export { allocateFeesToDocument, feesSchema } from "./sammelzuordnung.ts";
 export { allocatePaymentWithFee, zahlungMitGebuehrSchema } from "./zahlung-gebuehr.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
 export { umsatzauswahl } from "./umsatzauswahl.ts";
-export { bestaetigeVorschlaege, BESTAETIGEN_HOECHSTENS } from "./bestaetigen.ts";
+export { bestaetigeVorschlaege } from "./bestaetigen.ts";
 export {
   nachStatusSortieren,
   SORTIERRICHTUNGEN,

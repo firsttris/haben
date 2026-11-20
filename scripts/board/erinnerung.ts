@@ -25,7 +25,7 @@ import { faellig, MARKE_ERINNERUNG, textAutomatischFreigegeben, textErinnerung }
 const probe = process.argv.includes("--probe");
 const github = process.env.GITHUB_TOKEN ?? "";
 const projectToken = process.env.PROJECT_TOKEN;
-const repo = process.env.GITHUB_REPOSITORY ?? "firsttris/haben";
+const repo = process.env.GITHUB_REPOSITORY ?? "Speicherstadt/haben";
 const jetzt = new Date();
 
 const beiPrs = new Set((await offenePrs(github, repo)).flatMap((text) => Object.values(verweise(text)).flat()));

@@ -28,7 +28,7 @@ describe("Neueste stabile Version (#1239)", () => {
     const f = nachbildung(antwort("v1.4.2"));
     expect(await latestStableVersion(0, f)).toBe("1.4.2");
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://api.github.com/repos/firsttris/haben/releases/latest");
+    expect(url).toBe("https://api.github.com/repos/Speicherstadt/haben/releases/latest");
     expect(init.headers).toEqual({ Accept: "application/vnd.github+json", "User-Agent": "Haben" });
     expect(init.credentials).toBeUndefined();
     expect(init.body).toBeUndefined();

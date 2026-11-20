@@ -11,7 +11,7 @@ import { befehl, entscheiden, textFreigegeben, textZugewiesen } from "./uebernah
 
 const github = process.env.GITHUB_TOKEN ?? "";
 const projectToken = process.env.PROJECT_TOKEN;
-const repo = process.env.GITHUB_REPOSITORY ?? "firsttris/haben";
+const repo = process.env.GITHUB_REPOSITORY ?? "Speicherstadt/haben";
 const payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8"));
 
 const { issue, comment } = payload;

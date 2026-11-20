@@ -8,7 +8,7 @@ description: >-
 # Dokumentation
 
 Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
-Überblick die [README auf GitHub](https://github.com/firsttris/haben#readme).
+Überblick die [README auf GitHub](https://github.com/Speicherstadt/haben#readme).
 
 ## Betrieb
 

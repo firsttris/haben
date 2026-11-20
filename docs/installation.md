@@ -59,16 +59,18 @@ Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub 
 | `docker.io/tristanteu/haben:x.y` / `:x.y.z` | Feste Version, wenn du Updates selbst steuern willst |
 | `docker.io/tristanteu/haben:next` | Neuester Release Candidate (`:x.y.z-rc.1` usw.) zum Testen, nur mit Backup |
 | `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
-| `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
-| `docker.io/tristanteu/haben-backup:…` / `ghcr.io/firsttris/haben-backup:…` | Backup-Container (`postgres:18` mit restic, `deploy/backup`), dieselben Tags wie die App |
-| `docker.io/tristanteu/haben-db:…` / `ghcr.io/firsttris/haben-db:…` | Datenbank-Container (`postgres:18` mit `pg_upgrade` für ältere Bestände, `deploy/db`), dieselben Tags wie die App |
+| `ghcr.io/speicherstadt/haben:…` | Dieselben Tags bei GitHub |
+| `docker.io/tristanteu/haben-backup:…` / `ghcr.io/speicherstadt/haben-backup:…` | Backup-Container (`postgres:18` mit restic, `deploy/backup`), dieselben Tags wie die App |
+| `docker.io/tristanteu/haben-db:…` / `ghcr.io/speicherstadt/haben-db:…` | Datenbank-Container (`postgres:18` mit `pg_upgrade` für ältere Bestände, `deploy/db`), dieselben Tags wie die App |
+
+> Bisher `ghcr.io/firsttris/…`? Stell auf `ghcr.io/speicherstadt/…` um, neue Versionen erscheinen nur noch dort. Die Images auf Docker Hub bleiben gleich.
 
 ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf. Haben lädt es auf deinen Wunsch direkt von der Finanzverwaltung in das Volume `eric` (siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden)), oder du mountest es selbst. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
 
 Selbst bauen geht auch, zum Beispiel für einen eigenen Stand. Dafür brauchst du das Repository; danach in `compose.override.yml` beim Dienst `app` `image: haben` bzw. in `haben-app.container` `Image=localhost/haben:latest` eintragen:
 
 ```sh
-git clone https://github.com/firsttris/haben.git && cd haben
+git clone https://github.com/Speicherstadt/haben.git && cd haben
 podman build -t haben -f Containerfile --build-arg HABEN_COMMIT="$(git rev-parse HEAD)" .   # oder docker build
 ```
 
@@ -91,8 +93,8 @@ Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den en
 
 ```sh
 mkdir haben && cd haben
-curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
-curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+curl -O https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.yml
+curl -o .env https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.env.example
 chmod 600 .env   # enthält Passwörter und Schlüssel, nur für dich lesbar
 ```
 
@@ -128,7 +130,7 @@ Der Dienst `backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr, siehe [
 
 **Updates:** `docker compose exec backup backup.sh && docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
 
-**Abweichungen** von `compose.yml`, etwa ein eigener Proxy, zusätzliche Mounts, `extra_hosts` oder eine feste Version, gehören in eine `compose.override.yml` daneben: Compose liest sie automatisch mit, und `compose.yml` lässt sich bei Updates neu herunterladen. Gibt es die Datei schon, kommen neue Einträge unter die vorhandenen Dienste; Beispiele stehen in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml).
+**Abweichungen** von `compose.yml`, etwa ein eigener Proxy, zusätzliche Mounts, `extra_hosts` oder eine feste Version, gehören in eine `compose.override.yml` daneben: Compose liest sie automatisch mit, und `compose.yml` lässt sich bei Updates neu herunterladen. Gibt es die Datei schon, kommen neue Einträge unter die vorhandenen Dienste; Beispiele stehen in [`compose.override.example.yml`](https://github.com/Speicherstadt/haben/blob/main/deploy/compose.override.example.yml).
 
 ## Podman Quadlets
 
@@ -137,7 +139,7 @@ Die Quadlets betreiben Haben rootless unter systemd: Zugangsdaten als Podman Sec
 ### Dateien ablegen
 
 ```sh
-RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
+RAW=https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
 for f in haben.network haben-db.volume haben-belege.volume haben-eric-log.volume haben-eric.volume haben-caddy.volume \
          haben-backups.volume haben-db.container haben-app.container haben-caddy.container haben-backup.container; do
@@ -191,7 +193,7 @@ In `~/.config/haben/haben.env` stehen die Werte, die nicht geheim sind. Mindeste
 BETTER_AUTH_URL=https://haben.example.de
 ```
 
-Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Was es sonst einstellt (Weiterleitung an `haben-app:3000`, Sicherheits-Header, Upload-Grenze), steht in [`deploy/Caddyfile`](https://github.com/firsttris/haben/blob/main/deploy/Caddyfile); `X-Frame-Options` bleibt dort `SAMEORIGIN`, nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer.
+Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Was es sonst einstellt (Weiterleitung an `haben-app:3000`, Sicherheits-Header, Upload-Grenze), steht in [`deploy/Caddyfile`](https://github.com/Speicherstadt/haben/blob/main/deploy/Caddyfile); `X-Frame-Options` bleibt dort `SAMEORIGIN`, nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer.
 
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Trag die Hersteller-ID erst ein, wenn du sie hast; sie muss dann genau fünf Ziffern haben.
@@ -233,7 +235,7 @@ Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-Fo
 Neben `compose.yml` eine `compose.override.yml` ablegen ([Abweichungen](#docker-compose)):
 
 ```sh
-curl -o compose.override.yml https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.override.example.yml
+curl -o compose.override.yml https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.override.example.yml
 ```
 
 Darin `DEIN_PROXY_NETZ` durch das Netz deines Proxy-Containers ersetzen. Das zeigt:
@@ -287,7 +289,7 @@ Getestet sind die Beispiele mit Apache 2.4, nginx 1.30, Nginx Proxy Manager 2.16
 </VirtualHost>
 ```
 
-**Caddy:** Den Block aus [`deploy/Caddyfile`](https://github.com/firsttris/haben/blob/main/deploy/Caddyfile) in dein Caddyfile übernehmen, mit deiner Domain (bei Caddy direkt auf dem Host `reverse_proxy 127.0.0.1:3000`), und `caddy reload` ausführen.
+**Caddy:** Den Block aus [`deploy/Caddyfile`](https://github.com/Speicherstadt/haben/blob/main/deploy/Caddyfile) in dein Caddyfile übernehmen, mit deiner Domain (bei Caddy direkt auf dem Host `reverse_proxy 127.0.0.1:3000`), und `caddy reload` ausführen.
 
 **nginx:** Zertifikat wie für deine anderen Seiten (etwa certbot). Wichtig sind `client_max_body_size` (Standard ist 1 MB) und die `proxy_set_header`-Zeilen:
 
@@ -399,7 +401,7 @@ Damit du die Instanzen in der Oberfläche auseinanderhältst, gib jeder ein eige
 `deploy/instanzen/haben-instanzen.ts` legt Instanzen an, aktualisiert alle nacheinander und zeigt ihren Stand. Es läuft mit [Bun](https://bun.com) direkt aus einem Checkout des Repositorys, ohne `bun install` und ohne Build, und braucht dazu Docker mit Compose 2.23 oder neuer. Die Vorlagen (`compose.yml`, `compose.env.example`) nimmt es aus `deploy/` im Checkout:
 
 ```sh
-git clone --depth 1 https://github.com/firsttris/haben.git ~/haben-werkzeug
+git clone --depth 1 https://github.com/Speicherstadt/haben.git ~/haben-werkzeug
 cd ~/haben-werkzeug
 bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.example.de
 bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.example.de

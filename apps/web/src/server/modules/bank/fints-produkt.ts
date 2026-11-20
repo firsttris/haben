@@ -6,7 +6,7 @@ import { env } from "../../env.ts";
 /*
  * Produktregistrierung für FinTS (#654). Die Nummer kommt nur aus FINTS_PRODUKT_ID: Die Deutsche Kreditwirtschaft
  * vergibt sie je Produkt und Hersteller, sie darf nur im registrierten Produkt stehen und nicht im veröffentlichten
- * Quellcode (Antwort der DK, firsttris/haben#654). Wer Haben betreibt, registriert sich selbst. Ohne Nummer bleibt
+ * Quellcode (Antwort der DK, Speicherstadt/haben#654). Wer Haben betreibt, registriert sich selbst. Ohne Nummer bleibt
  * FinTS aus.
  */
 

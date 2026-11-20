@@ -43,6 +43,7 @@ import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../stammda
 import { computeVatFigures, computedValues, dauerfristFor, loadFrequencies, preflight, returnsForPeriod } from "../umsatzsteuer/index.ts";
 import { ustvaAusfuellliste } from "./ausfuellliste.ts";
 import { McpError, type TokenScope } from "./tokens.ts";
+import { ustidBestaetigungen, ustidBestaetigungenInput } from "./ustid-bestaetigungen.ts";
 
 /*
  * Werkzeuge für KI-Assistenten, Stufe 1: nur lesen (#96). Jedes ist eine dünne Hülle um die öffentliche Schnittstelle
@@ -549,6 +550,18 @@ export const MCP_TOOLS: McpTool[] = [
         link: link(`/umsatzsteuer/${periodKey(period)}`),
       };
     },
+  }),
+
+  tool({
+    name: "ustid_bestaetigungen",
+    title: "Bestätigungen von USt-IdNrn. beim BZSt",
+    description:
+      "Gespeicherte Antworten des BZSt zu USt-IdNrn. von EU-Kunden und -Lieferanten, je Nummer die letzte: Zeitpunkt, einfach oder qualifiziert, Status mit Meldung, " +
+      "Ergebnis für Name, Straße, PLZ und Ort und ob sie frisch ist (höchstens 30 Tage alt). Mit ustid oder kontakt (Name oder Kundennummer) zu diesen; " +
+      "ohne beides die Nummern der nächsten Zusammenfassenden Meldung (oder des Quartals) ohne frische gültige Antwort. Fragt nie selbst beim BZSt.",
+    scope: "haben:lesen",
+    input: ustidBestaetigungenInput,
+    run: (args) => ustidBestaetigungen(args, link),
   }),
 
   tool({

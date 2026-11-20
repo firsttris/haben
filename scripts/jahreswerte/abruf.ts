@@ -124,4 +124,4 @@ export async function begrenzt<T, E>(eingaben: readonly T[], parallel: number, a
 }
 
 /** Die Schritte zum Nachziehen, je Abschnitt mit Anker; was beobachtet wird und warum: docs/entwicklung.md, „Jahreswerte“ */
-export const SKILL_JAHRESWERTE = "https://github.com/firsttris/haben/blob/main/.claude/skills/jahreswerte/SKILL.md";
+export const SKILL_JAHRESWERTE = "https://github.com/Speicherstadt/haben/blob/main/.claude/skills/jahreswerte/SKILL.md";

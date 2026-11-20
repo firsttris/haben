@@ -84,7 +84,7 @@ function readSnapshot(now: string) {
       const [seals] = await tx.select({ n: count() }).from(schema.seals);
       const abgleich = await abgleichAll(now, tx);
       // #787: Auch archivierte Konten und frühere Kontenrahmen bestimmen weiterhin die Bedeutung alter Buchungen.
-      // https://github.com/firsttris/haben/issues/787#issuecomment-6840030954
+      // https://github.com/Speicherstadt/haben/issues/787#issuecomment-6840030954
       const ownAccounts = await tx
         .select({ kontenrahmen: schema.ownAccounts.kontenrahmen, account: schema.ownAccounts.account, name: schema.ownAccounts.name })
         .from(schema.ownAccounts)

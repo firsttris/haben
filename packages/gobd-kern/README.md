@@ -1,6 +1,6 @@
 # @firsttris/gobd-kern
 
-Bausteine für unveränderbare Aufbewahrung nach GoBD, aus [Haben](https://github.com/firsttris/haben) herausgelöst, damit auch andere Apps wie [Belegt](https://github.com/firsttris/belegt) sie nutzen. Das Paket kennt keine App.
+Bausteine für unveränderbare Aufbewahrung nach GoBD, aus [Haben](https://github.com/Speicherstadt/haben) herausgelöst, damit auch andere Apps wie [Belegt](https://github.com/Speicherstadt/belegt) sie nutzen. Das Paket kennt keine App.
 
 | Modul | Aufgabe |
 | --- | --- |
@@ -79,7 +79,7 @@ Geheimnisse gehören nicht in das Dokument; die App gibt nur Namen, Rollen und Z
 Nicht auf npm, sondern als Datei an den Releases `gobd-kern-vX.Y.Z` von Haben (Actions → *GoBD-Kern als Release*):
 
 ```sh
-bun add https://github.com/firsttris/haben/releases/download/gobd-kern-v0.2.0/firsttris-gobd-kern-0.2.0.tgz
+bun add https://github.com/Speicherstadt/haben/releases/download/gobd-kern-v0.2.0/firsttris-gobd-kern-0.2.0.tgz
 ```
 
 Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite. Ab 0.2.0 braucht es `zod` (Version 4) für das Schema der Angaben.

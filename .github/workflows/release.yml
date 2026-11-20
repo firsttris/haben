@@ -56,6 +56,8 @@ jobs:
           path: ${{ runner.temp }}/haben-fuer-mein-elster-chrome-*.zip
           if-no-files-found: error
 
+  # Secrets mit Namen statt `inherit`: `inherit` reicht nur an Workflows desselben Owners, firsttris/workflows
+  # gehört seit dem Umzug nach Speicherstadt einem anderen (wie Speicherstadt/kontext#276)
   docker:
     needs: [tested, checks, erweiterung]
     # Die Prüfungen liefen durch oder waren nicht nötig; ohne Tag (Start von Hand, :edge) fehlt die Erweiterung
@@ -71,7 +73,8 @@ jobs:
       ghcr: true
       # Nur das GitHub-Release eines Tags lädt es; :edge legt kein Release an
       release-artifact: extension
-    secrets: inherit
+    secrets:
+      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
     permissions:
       contents: write
       packages: write
@@ -119,10 +122,11 @@ jobs:
       dockerfile: deploy/backup/Containerfile
       context: deploy/backup
       ghcr: true
-      ghcr-image: firsttris/haben-backup
+      ghcr-image: speicherstadt/haben-backup
       readme: deploy/backup/README.md
       github-release: false
-    secrets: inherit
+    secrets:
+      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
     permissions:
       contents: write
       packages: write
@@ -137,10 +141,11 @@ jobs:
       dockerfile: deploy/db/Containerfile
       context: deploy/db
       ghcr: true
-      ghcr-image: firsttris/haben-db
+      ghcr-image: speicherstadt/haben-db
       readme: deploy/db/README.md
       github-release: false
-    secrets: inherit
+    secrets:
+      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
     permissions:
       contents: write
       packages: write
@@ -156,10 +161,11 @@ jobs:
       dockerfile: apps/firmenportal/Containerfile
       context: .
       ghcr: true
-      ghcr-image: firsttris/haben-firmenportal
+      ghcr-image: speicherstadt/haben-firmenportal
       readme: apps/firmenportal/README.md
       github-release: false
-    secrets: inherit
+    secrets:
+      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
     permissions:
       contents: write
       packages: write

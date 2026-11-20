@@ -8,7 +8,7 @@ description: >-
 # Unraid
 
 Haben läuft auf Unraid als drei Container aus den Vorlagen in
-[`deploy/unraid/`](https://github.com/firsttris/haben/tree/main/deploy/unraid): `haben-db`, `haben` und `haben-backup`,
+[`deploy/unraid/`](https://github.com/Speicherstadt/haben/tree/main/deploy/unraid): `haben-db`, `haben` und `haben-backup`,
 mit denselben Images wie mit [Docker Compose](installation.md#docker-compose). In den Community Applications ist Haben
 noch nicht; die Vorlagen holst du mit einem Befehl im Terminal.
 
@@ -30,7 +30,7 @@ mkdir -p /mnt/user/appdata/haben/belege /mnt/user/appdata/haben/eric /mnt/user/a
 chown -R 1000:1000 /mnt/user/appdata/haben/belege /mnt/user/appdata/haben/eric /mnt/user/appdata/haben/eric-log
 for t in haben-db haben haben-backup; do
   wget -qO /boot/config/plugins/dockerMan/templates-user/my-$t.xml \
-    https://raw.githubusercontent.com/firsttris/haben/main/deploy/unraid/$t.xml
+    https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/unraid/$t.xml
 done
 echo "Datenbank-Passwort: $(openssl rand -hex 24)"
 echo "AUTH_SECRET:        $(openssl rand -base64 32)"

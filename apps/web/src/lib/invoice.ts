@@ -17,6 +17,22 @@ export function invoiceTitle(kind: keyof typeof KIND_TITLE, variant?: keyof type
   return kind === "rechnung" && variant ? VARIANT_TITLE[variant] : KIND_TITLE[kind];
 }
 
+/** Ansprechpartner eines Kunden, wie der Entwurf sie zur Auswahl hat (ContactPersonOption) */
+interface DraftPerson {
+  id: string;
+  contactId: string;
+  deactivated: boolean;
+}
+
+/**
+ * Der einzige aktive Ansprechpartner des Kunden, sonst leer (#1335): Hat der Kunde genau einen, ist er im Entwurf von
+ * Rechnung und Angebot gleich ausgewählt und lässt sich mit „Keiner“ abwählen.
+ */
+export function einzigerAnsprechpartner(persons: readonly DraftPerson[], contactId: string): string {
+  const aktive = persons.filter((p) => p.contactId === contactId && !p.deactivated);
+  return aktive.length === 1 ? aktive[0]!.id : "";
+}
+
 interface DraftContact<S, L> {
   id: string;
   isCustomer: boolean;
@@ -29,14 +45,23 @@ interface DraftContact<S, L> {
 /**
  * Neuer Entwurf für einen Kunden (Kontaktseite, #1557; Schlussrechnung) mit seinen Vorgaben wie beim Wählen im Editor
  * (chooseContact in use-invoice-editor-figures.ts): Format (mit Leitweg-ID XRechnung), Sprache, Skonto ohne Fristen über das
- * Zahlungsziel hinaus. null, wenn der Kontakt fehlt (archiviert, unbekannt) oder kein Kunde ist.
+ * Zahlungsziel hinaus, der einzige aktive Ansprechpartner (einzigerAnsprechpartner). null, wenn der Kontakt fehlt (archiviert, unbekannt) oder kein Kunde ist.
  */
 export function customerDraft<S extends { days: number }, L, D extends { format: InvoiceFormat; paymentTermDays: number }>(
   draft: D,
   contacts: readonly DraftContact<S, L>[],
   contactId: string | null | undefined,
   companySkonto: readonly S[],
-): (Omit<D, "contactId" | "language" | "format" | "skonto"> & { contactId: string; language: L; format: InvoiceFormat; skonto: S[] }) | null {
+  persons: readonly DraftPerson[] = [],
+):
+  | (Omit<D, "contactId" | "language" | "format" | "skonto"> & {
+      contactId: string;
+      language: L;
+      format: InvoiceFormat;
+      skonto: S[];
+      contactPersonId: string;
+    })
+  | null {
   const contact = contacts.find((c) => c.id === contactId && c.isCustomer);
   if (!contact) return null;
   return {
@@ -45,5 +70,6 @@ export function customerDraft<S extends { days: number }, L, D extends { format:
     language: contact.language,
     format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : draft.format),
     skonto: (contact.skonto ?? companySkonto).filter((s) => s.days <= draft.paymentTermDays),
+    contactPersonId: einzigerAnsprechpartner(persons, contact.id),
   };
 }

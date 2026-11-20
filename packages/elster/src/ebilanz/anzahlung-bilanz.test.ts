@@ -5,7 +5,7 @@ import { ebilanzKontensalden, ebilanzWerte } from "./xbrl.ts";
 
 /**
  * #750: Erhaltene Anzahlungen auf den bestätigten generischen Konten 1710/3250, Umsatzsteuer separat.
- * https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  * DATEV SKR03/04 2026 ordnet diese Konten den erhaltenen Anzahlungen auf Bestellungen zu, ohne AM-Funktion.
  * https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf
  * https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf

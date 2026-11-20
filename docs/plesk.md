@@ -36,14 +36,14 @@ dem Host:
 
 ```sh
 mkdir -p /opt/haben && cd /opt/haben
-curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
-curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+curl -O https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.yml
+curl -o .env https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.env.example
 chmod 600 .env
 ```
 
 `.env` füllst du aus wie unter [Docker Compose](installation.md#docker-compose) beschrieben, mit der Subdomain als
 `DOMAIN`. Daneben legst du `compose.override.yml` mit diesem Inhalt an (die Variante am Ende von
-[`deploy/compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml)):
+[`deploy/compose.override.example.yml`](https://github.com/Speicherstadt/haben/blob/main/deploy/compose.override.example.yml)):
 
 ```yaml
 services:

@@ -29,6 +29,7 @@ const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
 const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
+const USTID_BESTAETIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "ustid-bestaetigung.typ");
 export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
   const lines = [address.strasse, `${address.plz} ${address.ort}`];
   if (address.land.toUpperCase() !== "DE") lines.push(countryName(address.land, t.countryLocale).toUpperCase());
@@ -266,6 +267,11 @@ export function renderSteuerbescheinigungPdf(data: object, date: string, letterh
 /** Bilanz zur Hinterlegung als PDF/A-3b, ohne Logo und Akzentfarbe; die Daten kommen aus hinterlegungPdfData */
 export function renderHinterlegungPdf(data: object, date: string): Uint8Array {
   return compilePdf(HINTERLEGUNG_TEMPLATE, data, date, "Bilanz-PDF", {});
+}
+
+/** Antwort des BZSt zu einer USt-IdNr. als PDF/A-3b, ohne Logo; die Daten kommen aus ustidBestaetigungPdfData */
+export function renderUstidBestaetigungPdf(data: object, date: string): Uint8Array {
+  return compilePdf(USTID_BESTAETIGUNG_TEMPLATE, data, date, "Bestätigung-PDF", {});
 }
 
 /** Entgeltabrechnung und Lohnkonto als PDF/A-3b; die Daten kommen fertig formatiert aus lohnabrechnungPdfData bzw. lohnkontoPdfData */

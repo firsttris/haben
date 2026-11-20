@@ -4,7 +4,7 @@ name: GoBD-Kern als Release
 # als .tgz und legt Tag und GitHub-Release gobd-kern-vX.Y.Z mit der Datei an, X.Y.Z aus packages/gobd-kern/package.json.
 # Unabhängig von den Releases der App (Tags v*); das Release ist nicht „Latest“. Andere Projekte installieren das
 # Paket über die URL der Datei, ohne npm:
-#   bun add https://github.com/firsttris/haben/releases/download/gobd-kern-vX.Y.Z/firsttris-gobd-kern-X.Y.Z.tgz
+#   bun add https://github.com/Speicherstadt/haben/releases/download/gobd-kern-vX.Y.Z/firsttris-gobd-kern-X.Y.Z.tgz
 # Vorher laufen Typecheck und die Tests des Pakets gegen Postgres; gibt es die Version schon, bricht er ab.
 on:
   workflow_dispatch:

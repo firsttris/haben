@@ -32,7 +32,7 @@ Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für de
           <label for="cg-registry">Registry</label>
           <select id="cg-registry" class="cg-select">
             <option value="dockerhub" selected>Docker Hub (tristanteu)</option>
-            <option value="ghcr">GitHub (ghcr.io/firsttris)</option>
+            <option value="ghcr">GitHub (ghcr.io/speicherstadt)</option>
           </select>
         </div>
 

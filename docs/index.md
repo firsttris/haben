@@ -267,6 +267,6 @@ und die [Installationsanleitung](installation.md).
 <p class="showcase-claim">Gemacht für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs
 und UGs – für alle, die lieber arbeiten als buchen.</p>
 
-[Installieren](installation.md){ .md-button .md-button--primary } [Mitwirken](mitwirken.md){ .md-button } [Quellcode auf GitHub](https://github.com/firsttris/haben){ .md-button }
+[Installieren](installation.md){ .md-button .md-button--primary } [Mitwirken](mitwirken.md){ .md-button } [Quellcode auf GitHub](https://github.com/Speicherstadt/haben){ .md-button }
 
 </div>

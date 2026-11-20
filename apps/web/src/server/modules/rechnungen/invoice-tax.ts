@@ -145,7 +145,7 @@ export function invoiceTaxReader(q: Db | Tx = db) {
   /**
    * Derselbe Belegumfang wie im neuen Journalweg: Anforderungen, Papierstornos und Ersatz realisieren nicht erneut.
    * Echte Korrekturen der Schlussleistung bleiben eigene Entgeltänderungen; Altbelege behalten ihr Verfahren.
-   * Entscheidung: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+   * Entscheidung: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
    */
   async function invoicePostingAllowed(invoice: Reference): Promise<boolean> {
     const current = await snapshot(invoice);
