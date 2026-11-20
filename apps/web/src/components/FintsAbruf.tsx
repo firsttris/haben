@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { defaultFetchFrom, fetchFromForConnect } from "../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime } from "../lib/format.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
@@ -236,6 +236,7 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
   const router = useRouter();
   const sync = useServerFn(syncFints);
   const disconnect = useServerFn(disconnectFints);
+  const verwerfen = useServerFn(cancelFints);
   const [offen, setOffen] = useState<{ fuer: string; schritt: Offen } | null>(null);
   const [vorlage, setVorlage] = useState<Verbindung | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -279,6 +280,15 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
   // „Abbrechen“ bei einem Schritt der Bank: Ab dem Abruf der Umsätze hat Verbinden die Verbindung samt ID schon ersetzt.
   // Erst neu laden, dann schließen; solange ein Schritt offen ist, sind die Knöpfe an den Zeilen gesperrt
   const schrittAbbrechen = () => void router.invalidate({ sync: true }).then(schliessen);
+
+  // Klappt „Über FinTS verbinden“ oben das Formular zu, während die Bank beim Verbinden auf einen Schritt wartet, gilt das
+  // wie „Abbrechen“; sonst blieben die Knöpfe an den Zeilen gesperrt, ohne dass ein Schritt zu sehen ist
+  // biome-ignore lint/correctness/useExhaustiveDependencies: nur, wenn das Formular zuklappt oder ein Schritt kommt
+  useEffect(() => {
+    if (verbinden || offen?.fuer !== "neu") return;
+    void verwerfen({ data: offen.schritt.vorgang }).catch(() => undefined);
+    schrittAbbrechen();
+  }, [verbinden, offen]);
 
   return (
     <>
