@@ -171,6 +171,36 @@ describe.skipIf(!testDatabaseUrl)("Siegel aus älteren Schemaständen (Postgres)
     expect(Object.keys(spalten(ID.rechnung2))).toContain("invoice_attachments");
     expect(spalten(ID.beleg2).document_splits).not.toContain("own_account_id");
     expect(await befunde()).toEqual([]);
+    // #1580: Auch die Standardwerte stimmen nach dem Update vom ältesten Stand mit dem Sollbestand überein
+    const { drizzle } = await import("drizzle-orm/postgres-js");
+    const { checkTriggerIntegrity } = await import("./trigger-inventory.ts");
+    expect(await checkTriggerIntegrity(drizzle(sql))).toEqual({ problems: [], hints: [] });
+  });
+
+  // #1580: Den Standardwert liest die Prüfung der Siegel aus dem Katalog. Wer ihn nachzieht und die alte Zeile auf
+  // denselben Wert setzt, fällt ihr nicht auf, dem Sollbestand der Standardwerte schon.
+  it("meldet über den Sollbestand, wenn der Standardwert einer nicht abgedeckten Spalte nachgezogen ist", async () => {
+    const { sql: query } = await import("drizzle-orm");
+    const { drizzle } = await import("drizzle-orm/postgres-js");
+    const { checkTriggerIntegrity } = await import("./trigger-inventory.ts");
+    const rollback = new Error("rollback");
+    let siegel: unknown[] | undefined;
+    let sperren: unknown[] | undefined;
+    await drizzle(sql)
+      .transaction(async (tx) => {
+        await tx.execute(query`set local session_replication_role = replica`);
+        await tx.execute(query`alter table vat_returns alter column kz41 set default 500000`);
+        await tx.execute(query`update vat_returns set kz41 = 500000 where id = ${ID.voranmeldung}`);
+        await tx.execute(query`set local session_replication_role = origin`);
+        siegel = [...(await tx.execute(query`select art, tabelle, zeile, befund from haben_integrity_problems()`))];
+        sperren = (await checkTriggerIntegrity(tx)).problems;
+        throw rollback;
+      })
+      .catch((error) => {
+        if (error !== rollback) throw error;
+      });
+    expect(siegel).toEqual([]);
+    expect(sperren).toEqual([{ art: "sperre", tabelle: "vat_returns", zeile: null, seq: null, befund: "Standardwert von vat_returns.kz41 wurde verändert" }]);
   });
 
   it("bricht ab, wenn ein Siegel eine Kindtabelle nennt, die die Prüfung nicht kennt", async () => {

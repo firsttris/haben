@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { type ColumnDefault, columnDefaults, sealedTables } from "./column-defaults.ts";
 import type { Db } from "./index.ts";
 import expected from "./trigger-inventory.json";
 import { replicationDefaults } from "./trigger-defaults.ts";
@@ -10,6 +11,10 @@ type Reader = { transaction<T>(read: (tx: Connection) => Promise<T>, config?: { 
 export interface TriggerInventory {
   triggers: { table: string; name: string; enabled: string; definition: string; function: string }[];
   functions: { name: string; sourceHash: string; definitionHash: string; config: string[]; language: string; securityDefiner: boolean }[];
+  /** Tabellen, die in ein Siegel eingehen, samt Kindtabellen (#1580) */
+  sealedTables: string[];
+  /** Standardwerte ihrer Spalten; eine Spalte ohne Standardwert steht nicht darin */
+  defaults: ColumnDefault[];
 }
 
 export interface TriggerProblem {
@@ -31,13 +36,21 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
  * https://www.postgresql.org/docs/18/catalog-pg-trigger.html
  * https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE
  * https://github.com/Speicherstadt/haben/issues/764#issuecomment-6837874131
+ *
+ * `sealed` nennt die Tabellen, deren Standardwerte gelesen werden. Ohne die Angabe bestimmt sie die Datenbank selbst;
+ * das ist dem Generator auf einer frisch migrierten Datenbank vorbehalten.
  */
-async function readSnapshot(reader: Reader): Promise<{ inventory: TriggerInventory; defaults: string[] }> {
+async function readSnapshot(reader: Reader, sealed?: string[]): Promise<{ inventory: TriggerInventory; replication: string[] }> {
   return reader.transaction(
     async (tx) => {
       const [setting] = await tx.execute<{ path: string }>(sql`select pg_catalog.current_setting('search_path') as path`);
-      await tx.execute(sql`select pg_catalog.set_config('search_path', 'pg_catalog', true)`);
       try {
+        let tables = sealed;
+        if (!tables) {
+          await tx.execute(sql`select pg_catalog.set_config('search_path', 'public', true)`);
+          tables = await sealedTables(tx);
+        }
+        await tx.execute(sql`select pg_catalog.set_config('search_path', 'pg_catalog', true)`);
         const triggers = await tx.execute<TriggerInventory["triggers"][number]>(sql`
         select format('%I.%I', n.nspname, c.relname) as "table", t.tgname as name, t.tgenabled as enabled,
           pg_get_triggerdef(t.oid, false) as definition,
@@ -72,8 +85,10 @@ async function readSnapshot(reader: Reader): Promise<{ inventory: TriggerInvento
             sourceHash: sha256(source),
             definitionHash: sha256(definition),
           })),
+          sealedTables: tables,
+          defaults: await columnDefaults(tx, tables),
         };
-        return { inventory, defaults: await replicationDefaults(tx) };
+        return { inventory, replication: await replicationDefaults(tx) };
       } finally {
         await tx.execute(sql`select pg_catalog.set_config('search_path', ${setting!.path}, true)`);
       }
@@ -89,11 +104,11 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
 
 /** Der ausgelieferte Sollbestand stammt aus frischen Testmigrationen, niemals aus der geprüften Instanz. */
 export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems: TriggerProblem[]; hints: string[] }> {
-  const { inventory: actual, defaults } = await readSnapshot(reader);
+  const { inventory: actual, replication } = await readSnapshot(reader, expected.sealedTables);
   const problems: TriggerProblem[] = [];
   const hints: string[] = [];
   const problem = (table: string, befund: string) => problems.push({ art: "sperre", tabelle: table.replace(/^public\./, ""), zeile: null, seq: null, befund });
-  for (const message of defaults) problem("Datenbank", message);
+  for (const message of replication) problem("Datenbank", message);
   const key = (trigger: TriggerInventory["triggers"][number]) => `${trigger.table}.${trigger.name}`;
   const triggers = new Map(actual.triggers.map((trigger) => [key(trigger), trigger]));
   const functions = new Map(actual.functions.map((fn) => [fn.name, fn]));
@@ -117,6 +132,16 @@ export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems:
     if (!found) problem(table, `Funktion ${fn.name} fehlt`);
     else if (JSON.stringify(found) !== JSON.stringify(fn)) problem(table, `Funktion ${fn.name} wurde verändert`);
   }
+  // Auch ein zusätzlicher Standardwert ist ein Befund: Wo der Sollbestand keinen nennt, erwartet die Prüfung der Siegel NULL.
+  const column = (entry: ColumnDefault) => `${entry.table.replace(/^public\./, "")}.${entry.column}`;
+  const defaults = new Map(actual.defaults.map((entry) => [column(entry), entry]));
+  for (const entry of expected.defaults) {
+    const found = defaults.get(column(entry));
+    if (!found) problem(entry.table, `Standardwert von ${column(entry)} fehlt`);
+    else if (found.expression !== entry.expression) problem(entry.table, `Standardwert von ${column(entry)} wurde verändert`);
+    defaults.delete(column(entry));
+  }
+  for (const entry of defaults.values()) problem(entry.table, `Zusätzlicher Standardwert von ${column(entry)}`);
   // Eigene Betreibertrigger gehören nicht zum Sollbestand und beweisen keine beschädigte Sperre, auch wenn sie aus sind.
   for (const trigger of triggers.values()) hints.push(`Zusätzlicher Trigger ${key(trigger)}`);
   return { problems, hints };

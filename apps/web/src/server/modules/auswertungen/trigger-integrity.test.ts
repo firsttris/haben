@@ -93,6 +93,19 @@ describe.skipIf(!testDatabaseUrl)("Sperrtrigger in Kette prüfen (Postgres, #764
     }
   });
 
+  // #1580: An diesem Standardwert misst die Prüfung der Siegel, was ein älteres Siegel nicht abdeckt
+  it("meldet einen geänderten Standardwert einer versiegelten Tabelle mit Tabelle und Spalte", async () => {
+    try {
+      await sql`alter table vat_returns alter column kz41 set default 500000`;
+      expect(await problems()).toEqual([
+        { art: "sperre", tabelle: "vat_returns", zeile: null, seq: null, befund: "Standardwert von vat_returns.kz41 wurde verändert" },
+      ]);
+    } finally {
+      await sql`alter table vat_returns alter column kz41 set default 0`;
+    }
+    expect(await problems()).toEqual([]);
+  });
+
   it("meldet einen zusätzlichen Betreibertrigger nur als Hinweis", async () => {
     try {
       await sql`create function betreiber_probe() returns trigger language plpgsql as $$ begin return NEW; end $$`;
