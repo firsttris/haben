@@ -115,6 +115,22 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     expect(await problems()).toEqual([]);
   });
 
+  // Datensatz und Siegel zusammen gelöscht: Keine Prüfung geht von einem Siegel oder Datensatz aus, den es nicht mehr gibt.
+  // Der Eintrag des Siegels im Audit-Log bleibt aber stehen.
+  it("meldet einen festgeschriebenen Datensatz, der samt Siegel gelöscht wurde", async () => {
+    const entry = await lockedEntry();
+    const [seal] = await sql`select id from seals where table_name = 'journal_entries' and row_id = ${entry}`;
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        await tx`delete from journal_lines where entry_id = ${entry}`;
+        await tx`delete from journal_entries where id = ${entry}`;
+        await tx`delete from seals where id = ${seal!.id}`;
+      });
+      return problems(tx);
+    });
+    expect(found).toEqual([{ art: "siegel", tabelle: "journal_entries", zeile: entry, befund: "Siegel fehlt, steht aber im Audit-Log" }]);
+  });
+
   it("erkennt geänderte Buchungszeilen, Positionen und Steuerbeträge", async () => {
     const entry = await lockedEntry();
     const invoice = await lockedInvoice();
