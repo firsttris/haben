@@ -312,9 +312,10 @@ export async function ustIdVorBuchen(
   if (!evatrPruefbar(nummer)) return { hinweis: null };
   const vorher = (await letzteBestaetigungen([nummer])).get(nummer);
   if (evatrFrischGueltig(vorher, jetzt)) return { hinweis: null };
+  // Eine Antwort von einem anderen Kontakt, etwa „nicht vergeben“, gehört in den Hinweis
   if (!contact)
     return {
-      hinweis: `${nummer} ist nicht frisch beim BZSt bestätigt. Bestätigen lässt sie sich erst mit einem Lieferanten-Kontakt, an dem der Nachweis steht.`,
+      hinweis: `${nummer} ist nicht frisch beim BZSt bestätigt. Bestätigen lässt sie sich erst mit einem Lieferanten-Kontakt, an dem der Nachweis steht.${vorher ? ` ${zuletzt(nummer, [vorher], false)}` : ""}`,
     };
   let antwort: Awaited<ReturnType<typeof bestaetigeNummer>>;
   try {
