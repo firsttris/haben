@@ -177,7 +177,7 @@ Die Liquiditätsvorschau (`/auswertungen/liquiditaet`, im Kopf der Auswertungen 
 | Aktive [Dauerbelege](belege.md#dauerbelege) mit Zahlung „Bank“ | jeder Termin ab dem nächsten, plus Zahlungsziel | erwartet |
 | Aktive [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen) | jeder Termin ab dem nächsten, plus Zahlungsziel | erwartet |
 | Umsatzsteuer der noch nicht abgegebenen Zeiträume | Fälligkeit des Zeitraums, mit Dauerfristverlängerung einen Monat später | geschätzt |
-| Sondervorauszahlung bei Dauerfrist und monatlicher Abgabe | 10. Februar (§ 48 Abs. 1 UStDV) | angemeldet fest, sonst geschätzt wie im Vorjahr |
+| Sondervorauszahlung bei Dauerfrist und monatlicher Abgabe | 10. Februar (§ 48 Abs. 2 UStDV) | angemeldet fest, sonst geschätzt wie im Vorjahr |
 | Vorauszahlungen zu Einkommen-, Körperschaftsteuer, Soli und Kirchensteuer | 10. März, Juni, September, Dezember (§ 37 Abs. 1 EStG, § 31 Abs. 1 KStG) | wie zuletzt gezahlt erwartet, aus der Prognose geschätzt |
 | Gewerbesteuer-Vorauszahlung | 15. Februar, Mai, August, November (§ 19 Abs. 1 GewStG) | wie zuletzt gezahlt erwartet |
 
@@ -192,6 +192,7 @@ Grenzen:
 - Löhne, Darlehensraten, Privatentnahmen, Zahlungspläne aus Angeboten und das Zahlungsverhalten je Kunde fehlen noch.
 - Körperschaft- und Gewerbesteuer der GmbH ohne frühere Zahlung fehlen; für sie gibt es keine Prognose des laufenden Jahres.
 - Ein Beleg aus einem Dauerbeleg, der noch „Zu prüfen“ ist, fehlt, bis er gebucht ist.
+- Bei einer wiederkehrenden Rechnung im Modus „Entwurf“ fehlt der angelegte Entwurf, bis er festgeschrieben ist; sein Termin zählt schon nicht mehr als wiederkehrend.
 
 ## Offene Posten
 
