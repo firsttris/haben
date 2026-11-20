@@ -1,23 +1,17 @@
-import { and, desc, eq, ne, or, type SQL, sql } from "drizzle-orm";
+import { and, desc, ne, type SQL, sql } from "drizzle-orm";
 import { type Db, db, schema, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
+import { type Lieferant, lieferantGleich } from "./vorschlaege.ts";
 
 /*
  * Hinweis auf eine mögliche Dublette (#1314, #1378): ein anderer, nicht stornierter Beleg desselben Lieferanten mit
  * derselben Rechnungsnummer. Eine Rechnungsnummer darf der Lieferant nur einmal vergeben (§ 14 Abs. 4 Satz 1 Nr. 4
- * UStG); eine doppelt erfasste Eingangsrechnung zöge die Vorsteuer doppelt. Nur ein Hinweis, keine Sperre: Manche
- * Lieferanten vergeben Nummern doppelt, und eine Gutschrift kann die Nummer der Rechnung tragen.
+ * UStG); eine doppelt erfasste Eingangsrechnung buchte die Ausgabe und die Vorsteuer doppelt. Nur ein Hinweis, keine
+ * Sperre: Manche Lieferanten vergeben Nummern doppelt.
  */
 
-/** Rechnungsnummer zum Vergleich: ohne Groß- und Kleinschreibung und ohne Leerzeichen */
-export function nummerZumVergleich(nummer: string): string {
-  return nummer.replace(/\s/g, "").toLowerCase();
-}
-
-/** Lieferantenname zum Vergleich: ohne Groß- und Kleinschreibung, Leerzeichen zusammengefasst */
-function nameZumVergleich(name: string): string {
-  return name.trim().replace(/\s+/g, " ").toLowerCase();
-}
+/** Rechnungsnummer zum Vergleich, für Spalte und Eingabe derselbe Ausdruck: ohne Groß-/Kleinschreibung und Leerzeichen (auch geschützte) */
+const nummerZumVergleich = (wert: SQL | typeof schema.documents.invoiceNumber) => sql`lower(regexp_replace(${wert}, '[[:space:]' || chr(160) || ']', '', 'g'))`;
 
 export interface GleicheNummer {
   id: string;
@@ -28,22 +22,24 @@ export interface GleicheNummer {
   gebucht: boolean;
 }
 
-type Beleg = { id: string; invoiceNumber: string; supplierContactId: string | null; supplierUstId: string; supplierName: string };
+/** Was verglichen wird: der gespeicherte Beleg oder, beim Tippen, die Eingaben im Formular */
+export interface Pruefling extends Lieferant {
+  id: string;
+  invoiceNumber: string;
+  gross: number;
+  recurringDocumentId: string | null;
+}
 
 /**
- * Andere Belege desselben Lieferanten mit derselben Rechnungsnummer, jüngste zuerst. Derselbe Lieferant heißt: derselbe
- * Kontakt, sonst dieselbe USt-IdNr., sonst derselbe Name; so greift der Hinweis auch, bevor der Lieferant als Kontakt
- * gewählt ist (Auslesung, E-Rechnung). Ohne Nummer oder ohne Lieferant gibt es nichts zu vergleichen.
+ * Andere Belege desselben Lieferanten (lieferantGleich: Kontakt, USt-IdNr. oder Name) mit derselben Rechnungsnummer,
+ * jüngste zuerst, höchstens fünf. Nicht dazu zählen:
+ * - stornierte Belege und ein Beleg ohne Nummer;
+ * - Belege derselben Vorlage: Ein Dauerbeleg trägt jeden Monat die Vertragsnummer als Rechnungsnummer;
+ * - eine Gutschrift zu einer Rechnung mit derselben Nummer (anderes Vorzeichen des Betrags).
  */
-export async function belegeMitGleicherNummer(beleg: Beleg, q: Db | Tx = db): Promise<GleicheNummer[]> {
-  const nummer = nummerZumVergleich(beleg.invoiceNumber);
-  const ustId = nummerZumVergleich(beleg.supplierUstId);
-  const name = nameZumVergleich(beleg.supplierName);
-  const lieferant: SQL[] = [];
-  if (beleg.supplierContactId) lieferant.push(eq(schema.documents.supplierContactId, beleg.supplierContactId));
-  if (ustId) lieferant.push(sql`lower(regexp_replace(${schema.documents.supplierUstId}, '\\s', '', 'g')) = ${ustId}`);
-  if (name) lieferant.push(sql`lower(regexp_replace(trim(${schema.documents.supplierName}), '\\s+', ' ', 'g')) = ${name}`);
-  if (!nummer || lieferant.length === 0) return [];
+export async function belegeMitGleicherNummer(beleg: Pruefling, q: Db | Tx = db): Promise<GleicheNummer[]> {
+  const lieferant = lieferantGleich(beleg);
+  if (!beleg.invoiceNumber.trim() || !lieferant) return [];
   const rows = await q
     .select({
       id: schema.documents.id,
@@ -57,9 +53,11 @@ export async function belegeMitGleicherNummer(beleg: Beleg, q: Db | Tx = db): Pr
     .where(
       and(
         ne(schema.documents.id, beleg.id),
-        sql`lower(regexp_replace(${schema.documents.invoiceNumber}, '\\s', '', 'g')) = ${nummer}`,
-        or(...lieferant),
+        sql`${nummerZumVergleich(schema.documents.invoiceNumber)} = ${nummerZumVergleich(sql`${beleg.invoiceNumber}::text`)}`,
+        lieferant,
         documentNotCancelled(),
+        beleg.recurringDocumentId ? sql`${schema.documents.recurringDocumentId} is distinct from ${beleg.recurringDocumentId}` : undefined,
+        beleg.gross !== 0 ? sql`sign(${schema.documents.gross}) <> ${-Math.sign(beleg.gross)}` : undefined,
       ),
     )
     .orderBy(desc(schema.documents.documentDate), desc(schema.documents.uploadedAt))

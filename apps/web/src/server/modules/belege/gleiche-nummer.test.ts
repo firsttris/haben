@@ -27,15 +27,22 @@ describe.skipIf(!testDatabaseUrl)("Belege mit gleicher Rechnungsnummer desselben
   beforeEach(async () => {
     await leeren(
       sql,
-    )`truncate document_cancellations, journal_lines, journal_entries, document_amounts, documents, contact_versions, contacts, company cascade`;
+    )`truncate document_cancellations, journal_lines, journal_entries, document_splits, document_amounts, documents, recurring_documents, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', 'ist', 'SKR03')`;
   });
 
-  type Angaben = { lieferant?: string; ustId?: string; nummer?: string; contactId?: string | null; buchen?: boolean };
+  type Angaben = { lieferant?: string; ustId?: string; nummer?: string; contactId?: string | null; buchen?: boolean; netto?: number };
 
   /** Ein Beleg über 119,00 € vom 15.09.2026, auf Wunsch gebucht */
-  async function beleg({ lieferant = "Bürobedarf Muster GmbH", ustId = "", nummer = "RE-4711", contactId = null, buchen = false }: Angaben = {}) {
+  async function beleg({
+    lieferant = "Bürobedarf Muster GmbH",
+    ustId = "",
+    nummer = "RE-4711",
+    contactId = null,
+    buchen = false,
+    netto = 10_000,
+  }: Angaben = {}) {
     fileSeq++;
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, fileSeq % 256, Math.floor(fileSeq / 256), 41]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: `beleg-${fileSeq}.jpg` });
@@ -51,17 +58,25 @@ describe.skipIf(!testDatabaseUrl)("Belege mit gleicher Rechnungsnummer desselben
       privateShare: 0,
       reverseCharge: null,
       asset: null,
-      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+      amounts: [{ taxRate: 1900, net: netto, tax: Math.round(netto * 0.19) }],
     });
     if (contactId) await sql`update documents set supplier_contact_id = ${contactId} where id = ${id}`;
     if (buchen) await documents.bookDocument(actor, id);
-    const [row] = await sql`select id, invoice_number, supplier_contact_id, supplier_ust_id, supplier_name from documents where id = ${id}`;
+    return pruefling(id);
+  }
+
+  /** Der gespeicherte Beleg, wie die Belegseite ihn prüft */
+  async function pruefling(id: string) {
+    const [row] =
+      await sql`select invoice_number, supplier_contact_id, supplier_ust_id, supplier_name, gross, recurring_document_id from documents where id = ${id}`;
     return {
       id,
       invoiceNumber: row!.invoice_number as string,
       supplierContactId: row!.supplier_contact_id as string | null,
       supplierUstId: row!.supplier_ust_id as string,
       supplierName: row!.supplier_name as string,
+      gross: row!.gross as number,
+      recurringDocumentId: row!.recurring_document_id as string | null,
     };
   }
 
@@ -69,7 +84,8 @@ describe.skipIf(!testDatabaseUrl)("Belege mit gleicher Rechnungsnummer desselben
 
   it("findet den gebuchten Beleg desselben Lieferanten mit Datum, Betrag und Stand; auch ohne Groß-/Kleinschreibung und Leerzeichen", async () => {
     const alt = await beleg({ buchen: true });
-    const neu = await beleg({ lieferant: "bürobedarf  muster gmbh", nummer: "re - 4711" });
+    // Kleinschreibung, Leerzeichen und ein geschütztes Leerzeichen (aus PDF-Text) in der Nummer
+    const neu = await beleg({ lieferant: "bürobedarf muster gmbh ", nummer: "re -\u00a04711" });
     expect(await gleich.belegeMitGleicherNummer(neu)).toEqual([
       { id: alt.id, invoiceNumber: "RE-4711", supplierName: "Bürobedarf Muster GmbH", documentDate: "2026-09-15", gross: 11_900, gebucht: true },
     ]);
@@ -107,6 +123,44 @@ describe.skipIf(!testDatabaseUrl)("Belege mit gleicher Rechnungsnummer desselben
     const storniert = await beleg({ nummer: "D-1", buchen: true });
     await cancellation.cancelDocument(actor, storniert.id, { reason: "Doppelt erfasst" }, "2026-09-20");
     expect(await ids(await beleg({ nummer: "D-1" }))).toEqual([]);
+  }, 30_000);
+
+  it("nennt keine Gutschrift zur Rechnung mit derselben Nummer, wohl aber eine zweite Gutschrift", async () => {
+    await beleg({ nummer: "F-1", buchen: true });
+    const gutschrift = await beleg({ nummer: "F-1", netto: -2_000 });
+    expect(await ids(gutschrift)).toEqual([]);
+    expect(await ids(await beleg({ nummer: "F-1", netto: -2_000 }))).toEqual([gutschrift.id]);
+  }, 30_000);
+
+  it("nennt keine Belege derselben Vorlage: Ein Dauerbeleg trägt jeden Monat die Vertragsnummer", async () => {
+    const dauer = await import("./dauerbelege.ts");
+    const lauf = await import("./dauerbelege-lauf.ts");
+    await dauer.createDauerbeleg(
+      actor,
+      {
+        name: "Büromiete Hafenstraße",
+        supplierName: "Hafen Immobilien GmbH",
+        supplierUstId: "",
+        reference: "MV-2026-17",
+        category: "sonstiges",
+        payment: "bank",
+        amounts: [{ taxRate: 1900, net: 100_000, tax: 19_000 }],
+        taxShown: true,
+        note: "",
+        intervalMonths: 1,
+        nextDate: "2026-08-31",
+        endDate: null,
+        dueDays: 3,
+      },
+      { bytes: new TextEncoder().encode("%PDF-1.4\n% Mietvertrag\n%%EOF\n"), filename: "mietvertrag.pdf" },
+    );
+    await lauf.runDueDauerbelege("2026-11-05");
+    const monate = await sql`select id from documents where invoice_number = 'MV-2026-17' order by document_date`;
+    expect(monate.length).toBeGreaterThan(1);
+    expect(await ids(await pruefling(monate[0]!.id as string))).toEqual([]);
+    // Ein von Hand erfasster Beleg mit der Vertragsnummer ist dagegen eine mögliche Dublette
+    const vonHand = await beleg({ lieferant: "Hafen Immobilien GmbH", nummer: "MV-2026-17" });
+    expect((await ids(vonHand)).length).toBe(monate.length);
   }, 30_000);
 
   it("sperrt nichts: Ein Beleg mit gleicher Nummer lässt sich buchen", async () => {

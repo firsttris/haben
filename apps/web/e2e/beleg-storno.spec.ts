@@ -230,14 +230,14 @@ test("Beleg duplizieren: neue Datei mit den Feldern des Originals und Datum heut
 
 test("gleiche Rechnungsnummer desselben Lieferanten: Hinweis mit Link und im Buchungsdialog, ohne Sperre (#1314)", async ({ browser }) => {
   const original = await receipt(browser, "Papierhaus Petersen", "P-2201", day(-5));
-  const zweiter = await receipt(browser, "Papierhaus Petersen", "p 2201", currentDay(), false);
+  const zweiter = await receipt(browser, "Papierhaus Petersen", "p - 2201", currentDay(), false);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/belege/${zweiter}`);
   await page.waitForLoadState("networkidle");
   const hinweis = page.getByRole("status").filter({ hasText: "Mögliche Dublette" });
   await expect(hinweis).toContainText("Vom selben Lieferanten gibt es schon einen Beleg mit dieser Rechnungsnummer");
-  await expect(hinweis).toContainText("119,00");
-  await expect(hinweis).toContainText("gebucht");
+  // „gebucht“ allein passte auch zu „noch nicht gebucht“
+  await expect(hinweis).toContainText(/119,00\s€, gebucht/);
 
   // Buchen bleibt möglich; der Dialog nennt die mögliche Dublette
   await page.getByRole("button", { name: "Bestätigen und buchen", exact: true }).click();

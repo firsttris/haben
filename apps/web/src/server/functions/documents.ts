@@ -124,6 +124,25 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
     };
   });
 
+/**
+ * Mögliche Dublette zu den Eingaben im Formular, noch vor dem Speichern (#1314, #1378): Lieferant und Rechnungsnummer
+ * wie gerade getippt oder ausgelesen; der Hinweis und der Buchungsdialog zeigen so nie einen alten Stand.
+ */
+export const checkSameInvoiceNumber = createServerFn({ method: "POST" })
+  .middleware([readMiddleware])
+  .validator(
+    z.object({
+      id: z.uuid(),
+      supplierName: z.string().max(200),
+      supplierUstId: z.string().max(50),
+      supplierContactId: z.uuid().nullable(),
+      invoiceNumber: z.string().max(100),
+      gross: z.number().int(),
+      recurringDocumentId: z.uuid().nullable(),
+    }),
+  )
+  .handler(({ data }) => belegeMitGleicherNummer(data));
+
 export const uploadDocuments = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: unknown) => {
