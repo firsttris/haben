@@ -93,6 +93,11 @@ export function IntegrityCard({ head }: { head: Head }) {
           tone: "danger",
           text: `Prüfwert Nr. ${result.seq} stimmt, aber Eintrag Nr. ${result.first} davor passt nicht mehr zur Kette (${result.befund}). Er wurde nachträglich verändert.`,
         });
+      } else if (result.status === "unbestaetigt") {
+        action.setNotice({
+          tone: "danger",
+          text: `Prüfwert Nr. ${result.seq} stimmt, die Kette lässt sich aber nicht bestätigen: Die Datenbank weicht vom Sollbestand ab (${result.befunde.length === 1 ? "ein Befund" : `${result.befunde.length} Befunde`}, etwa „${result.befunde[0]}“). Wer Trigger oder Funktionen ändern kann, kann auch das Nachrechnen fälschen. „Kette prüfen“ nennt alle Befunde.`,
+        });
       } else if (result.status === "abweichend") {
         action.setNotice({
           tone: "danger",

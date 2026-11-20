@@ -293,7 +293,7 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
       expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({
         status: "unbestaetigt",
         seq: head.seq,
-        befunde: [expect.stringContaining("Funktion public.haben_audit_hash(prev bytea, r audit_log) wurde verändert")],
+        befunde: ["Funktionen: Funktion public.haben_audit_hash(prev bytea, r public.audit_log) wurde verändert"],
       });
     } finally {
       await sql.unsafe(before!.definition);

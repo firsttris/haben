@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { type ColumnDefault, columnDefaults, sealedTables } from "./column-defaults.ts";
 import type { Db } from "./index.ts";
 import expected from "./trigger-inventory.json";
+import { type RowSecurity, readRowSecurity, rowSecurityFindings } from "./row-security.ts";
 import { replicationDefaults } from "./trigger-defaults.ts";
 
 type Connection = Pick<Db, "execute">;
@@ -15,6 +16,8 @@ export interface TriggerInventory {
   sealedTables: string[];
   /** Standardwerte ihrer Spalten; eine Spalte ohne Standardwert steht nicht darin */
   defaults: ColumnDefault[];
+  /** Zeilensicherheit und Policies auf Tabellen in public (row-security.ts) */
+  rowSecurity: RowSecurity;
 }
 
 export interface TriggerProblem {
@@ -87,6 +90,7 @@ async function readSnapshot(reader: Reader, sealed?: string[]): Promise<{ invent
           })),
           sealedTables: tables,
           defaults: await columnDefaults(tx, tables),
+          rowSecurity: await readRowSecurity(tx),
         };
         return { inventory, replication: await replicationDefaults(tx) };
       } finally {
@@ -142,6 +146,7 @@ export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems:
     defaults.delete(column(entry));
   }
   for (const entry of defaults.values()) problem(entry.table, `Zusätzlicher Standardwert von ${column(entry)}`);
+  for (const finding of rowSecurityFindings(expected.rowSecurity, actual.rowSecurity)) problem(finding.table, finding.befund);
   // Eigene Betreibertrigger gehören nicht zum Sollbestand und beweisen keine beschädigte Sperre, auch wenn sie aus sind.
   for (const trigger of triggers.values()) hints.push(`Zusätzlicher Trigger ${key(trigger)}`);
   return { problems, hints };
