@@ -51,7 +51,7 @@ type Stand = Pick<UstIdBestaetigung, "art" | "status" | "anfrageZeitpunkt" | "gu
 const vergleich = (wert: string | null) => (wert && wert in EVATR_VERGLEICH ? EVATR_VERGLEICH[wert as EvatrVergleich] : null);
 
 /** Letzte Antwort zu einer Nummer, ohne die gesendeten Angaben; frisch heißt höchstens EVATR_FRIST_TAGE alt */
-export function letzteAntwort(b: Stand | undefined, jetzt: Date) {
+function letzteAntwort(b: Stand | undefined, jetzt: Date) {
   if (!b) return NOCH_NICHT;
   return {
     zeitpunkt: new Date(b.anfrageZeitpunkt),
@@ -93,14 +93,12 @@ async function zuKontakten(suche: string, jetzt: Date, link: Link) {
         name: k.name,
         kundennummer: k.kundennummer || null,
         archiviert: k.archivedAt !== null,
-        nummern: nummern.map((nummer) => ({
-          ustId: nummer,
-          aktuell: nummer === aktuell,
-          letzteAntwort: letzteAntwort(
-            antworten.find((b) => b.angefragteUstid === nummer),
-            jetzt,
-          ),
-        })),
+        nummern: nummern.map((nummer) => {
+          const antwort = antworten.find((b) => b.angefragteUstid === nummer);
+          // Ohne Antwort und nicht bestätigbar (etwa deutsch) der Hinweis wie zur Nummer, nicht „noch nicht bestätigt“
+          const stand = antwort || evatrPruefbar(nummer) ? { letzteAntwort: letzteAntwort(antwort, jetzt) } : { hinweis: NICHT_PRUEFBAR };
+          return { ustId: nummer, aktuell: nummer === aktuell, ...stand };
+        }),
         link: link(`/kontakte/${k.id}`),
       };
     }),
