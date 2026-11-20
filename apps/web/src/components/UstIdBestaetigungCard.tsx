@@ -34,6 +34,21 @@ const ANGABEN = [
 
 const VERGLEICH_TON = { A: "ok", B: "warn", C: "neutral", D: "neutral" } as const;
 
+/** Link auf die Antwort als PDF (#1491); der Name sagt, welche Abfrage gemeint ist */
+function PdfLink({ b }: { b: UstIdBestaetigung }) {
+  const art = b.art === "qualifiziert" ? "mit Name und Anschrift" : "einfach";
+  return (
+    <a
+      href={`/api/ustid-bestaetigung/${b.id}`}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`PDF der Abfrage vom ${formatDateTime(b.anfrageZeitpunkt)}, ${art}`}
+    >
+      PDF
+    </a>
+  );
+}
+
 function Antwort({ b }: { b: UstIdBestaetigung }) {
   const gueltig = evatrGueltig(b.status);
   return (
@@ -104,6 +119,9 @@ export function UstIdBestaetigungCard({ contactId, ustId, bestaetigungen, zustan
               })}
             </dl>
           )}
+          <span className="small">
+            <PdfLink b={letzte} />
+          </span>
         </div>
       ) : (
         zustand.art === "bereit" && (
@@ -139,7 +157,7 @@ export function UstIdBestaetigungCard({ contactId, ustId, bestaetigungen, zustan
           {bestaetigungen.map((b) => (
             <div key={b.id} className="history-row">
               <span>
-                <span className="mono">{b.angefragteUstid}</span> · {b.art === "qualifiziert" ? "mit Name und Anschrift" : "einfach"}
+                <span className="mono">{b.angefragteUstid}</span> · {b.art === "qualifiziert" ? "mit Name und Anschrift" : "einfach"} · <PdfLink b={b} />
               </span>
               <Antwort b={b} />
             </div>
