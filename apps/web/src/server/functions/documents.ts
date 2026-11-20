@@ -27,7 +27,7 @@ import {
   updateDocument,
   uploadDocument,
 } from "../modules/belege/index.ts";
-import { extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
+import { belegeMitGleicherNummer, extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
 import {
   listSettlements,
   openAmount,
@@ -104,6 +104,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       splits: result.splits,
       // Je Hinweis das Feld, an dem er liegt: Die Seite klappt „Weitere Angaben“ dafür auf
       issues: result.document.lockedAt ? [] : bookingIssueList(result.document, result.amounts, today(), result.splits),
+      // Andere Belege desselben Lieferanten mit derselben Rechnungsnummer: Hinweis auf eine mögliche Dublette (#1314)
+      gleicheNummer: await belegeMitGleicherNummer(result.document),
       // Bisherige Kategorie und Bezahlung des Lieferanten als Hinweis am Feld, nur solange der Beleg offen ist (#295)
       categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document),
       paymentHint: result.document.lockedAt ? null : await supplierPayment(result.document),

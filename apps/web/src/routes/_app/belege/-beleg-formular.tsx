@@ -40,6 +40,7 @@ export function DocumentForm({ data, inhaber, onDirtyChange }: { data: Detail; i
           </span>
         </div>
       )}
+      {data.gleicheNummer.length > 0 && <MoeglicheDublette belege={data.gleicheNummer} dirty={dirty} />}
       <ConfirmDialog
         open={aktionen.confirming}
         title="Beleg buchen?"
@@ -55,6 +56,12 @@ export function DocumentForm({ data, inhaber, onDirtyChange }: { data: Detail; i
         onClose={() => aktionen.setConfirming(false)}
       >
         <p>Der Beleg wird gebucht und festgeschrieben; danach ist er nicht mehr änderbar.</p>
+        {data.gleicheNummer.length > 0 && (
+          <p>
+            <strong>Mögliche Dublette:</strong> Vom selben Lieferanten gibt es schon einen Beleg mit dieser Rechnungsnummer. Ist es dieselbe Rechnung, zöge das
+            Buchen die Vorsteuer doppelt.
+          </p>
+        )}
       </ConfirmDialog>
       <ConfirmDialog
         open={aktionen.confirmingDelete}
@@ -135,6 +142,32 @@ function BelegAufteilung({ f, data }: { f: DocumentFormState; data: Detail }) {
           setSplitRows([]);
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Hinweis auf eine mögliche Dublette (#1314): andere Belege desselben Lieferanten mit derselben Rechnungsnummer, mit
+ * Datum, Betrag, Stand und Link. Nur ein Hinweis; Speichern und Buchen bleiben möglich.
+ */
+function MoeglicheDublette({ belege, dirty }: { belege: Detail["gleicheNummer"]; dirty: boolean }) {
+  return (
+    <div className="banner" role="status">
+      <Icon name="alert" />
+      <span>
+        Mögliche Dublette: Vom selben Lieferanten gibt es schon {belege.length === 1 ? "einen Beleg" : `${belege.length} Belege`} mit dieser Rechnungsnummer:{" "}
+        {belege.map((b, i) => (
+          <span key={b.id}>
+            {i > 0 && "; "}
+            <Link to="/belege/$id" params={{ id: b.id }}>
+              {b.supplierName} {b.invoiceNumber}
+            </Link>
+            {b.documentDate && ` vom ${formatDate(b.documentDate)}`}, {formatEuro(b.gross)}, {b.gebucht ? "gebucht" : "noch nicht gebucht"}
+          </span>
+        ))}
+        . Ist es dieselbe Rechnung, buche sie nur einmal; Speichern und Buchen bleiben möglich, weil manche Lieferanten Nummern doppelt vergeben.
+        {dirty && " Stand der letzten Speicherung."}
+      </span>
     </div>
   );
 }
