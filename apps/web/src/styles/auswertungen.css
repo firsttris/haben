@@ -199,6 +199,8 @@
 
 /* Liquiditätsvorschau (#1381): Zeitraum mit dem Tiefpunkt auf weicher Warnfläche, negative Stände in der Farbe für Gefahr */
 .liq-wahl { align-items: end; flex-wrap: wrap; }
+/* Am Handy scrollt die Kopfzeile sonst seitlich und schneidet den Schalter ab: Horizont und Schalter brechen um */
+.page-head .actions.liq-wahl { flex-wrap: wrap; overflow: visible; }
 .betrag-negativ { color: var(--danger-ink); }
 .liq-table .liq-tief > th, .liq-table .liq-tief > td { background: var(--warn-soft); }
 .liq-umschalter { display: inline-flex; align-items: center; gap: 4px; }

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
+import { HANDY } from "./kopfzeile.ts";
 
 /*
  * Liquiditätsvorschau (#1381) mit den Daten aus app.spec.ts (offene Rechnungen, Dauerbeleg Miete): über den Link der Auswertungen
@@ -41,4 +42,15 @@ test("Liquidität: überfällige Forderungen ausblenden und 4 Wochen je Woche", 
   await expect(page).toHaveURL(/ueberfaellige=false/);
   await expect(page.getByLabel("Überfällige Forderungen einrechnen")).not.toBeChecked();
   await expect(tabelle.locator("tbody tr").first()).toBeVisible();
+});
+
+test("Liquidität am Handy: Horizont und Schalter stehen ganz im Bild", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  await page.goto("/auswertungen/liquiditaet");
+  for (const element of [page.getByLabel("Horizont"), page.locator(".liq-wahl label.checkbox")]) {
+    const box = await element.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(HANDY.width);
+  }
 });
