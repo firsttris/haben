@@ -27,8 +27,8 @@ export async function sealedTables(tx: Connection): Promise<string[]> {
 /**
  * Standardwerte der Spalten der genannten Tabellen aus dem Katalog. An ihnen misst haben_integrity_problems, was ein
  * älteres Siegel nicht abdeckt (0310_siegel_unabgedeckte_spalten.sql). Erwartet search_path = pg_catalog wie die
- * Triggerdefinitionen, damit Typnamen im Ausdruck eindeutig sind. Erzeugte Spalten stehen auch in pg_attrdef, sind
- * aber kein Standardwert.
+ * Triggerdefinitionen, damit Typnamen im Ausdruck eindeutig sind. pg_attrdef enthält auch den Ausdruck einer erzeugten
+ * Spalte; 0310 liest ihn dort wie einen Standardwert, deshalb gehört er hier dazu.
  * https://www.postgresql.org/docs/18/catalog-pg-attrdef.html
  * https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE
  */
@@ -37,7 +37,7 @@ export async function columnDefaults(tx: Connection, tables: string[]): Promise<
     select format('%I.%I', n.nspname, c.relname) as "table", a.attname as "column", pg_get_expr(d.adbin, d.adrelid) as expression
     from pg_catalog.pg_attrdef d join pg_catalog.pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
     join pg_catalog.pg_class c on c.oid = d.adrelid join pg_catalog.pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and not a.attisdropped and a.attgenerated = ''
+    where n.nspname = 'public' and not a.attisdropped
     order by n.nspname, c.relname, a.attname`);
   const wanted = new Set(tables);
   return rows.filter((row) => wanted.has(row.table));
