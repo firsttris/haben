@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod/mini";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
+import { customerDraft } from "../../../lib/invoice.ts";
 import { getNewInvoice } from "../../../server/functions/invoices.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/neu")({
-  /** schluss: Schlussrechnung zu dieser Abschlagsrechnung vorbereiten */
-  validateSearch: z.object({ schluss: z.optional(z.uuid()) }),
+  /** schluss: Schlussrechnung zu dieser Abschlagsrechnung vorbereiten; kunde: Entwurf für diesen Kunden (Kontaktseite, #1557) */
+  validateSearch: z.object({ schluss: z.optional(z.uuid()), kunde: z.optional(z.uuid()) }),
   loader: () => getNewInvoice(),
   head: () => ({ meta: [{ title: "Neue Rechnung · Haben" }] }),
   component: NewInvoicePage,
@@ -13,19 +14,16 @@ export const Route = createFileRoute("/_app/rechnungen/neu")({
 
 function NewInvoicePage() {
   const data = Route.useLoaderData();
-  const { schluss } = Route.useSearch();
+  const { schluss, kunde } = Route.useSearch();
   const abschlag = schluss ? data.abschlaege.find((a) => a.id === schluss) : undefined;
-  const contact = abschlag ? data.contacts.find((c) => c.id === abschlag.contactId) : undefined;
-  // Von einer Abschlagsrechnung aus: Kunde, Steuer, Preismodus und Angebot übernehmen; abgezogen werden die offenen
+  // Die Schlussrechnung wählt keinen Ansprechpartner von selbst: Am Abschlag kann „Keiner“ bewusst gewählt sein (#1335)
+  const withContact = customerDraft(data.draft, data.contacts, abschlag ? abschlag.contactId : kunde, data.companySkonto, abschlag ? [] : data.contactPersons);
+  // Von einer Abschlagsrechnung aus: dazu Steuer, Preismodus und Angebot; abgezogen werden die offenen
   // Abschläge dieses Angebots, ohne Angebot alle offenen Abschläge des Kunden
   const initial =
-    abschlag && contact
+    abschlag && withContact
       ? {
-          ...data.draft,
-          contactId: contact.id,
-          language: contact.language,
-          format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : data.draft.format),
-          skonto: (contact.skonto ?? data.companySkonto).filter((s) => s.days <= data.draft.paymentTermDays),
+          ...withContact,
           taxTreatment: abschlag.taxTreatment,
           taxDetails: abschlag.taxDetails,
           exemptionReason: abschlag.exemptionReason,
@@ -33,12 +31,14 @@ function NewInvoicePage() {
           propertyRetention: abschlag.propertyRetention,
           variant: "schluss" as const,
           quoteId: abschlag.quoteId,
-          deducts: data.abschlaege.filter((a) => a.contactId === contact.id && (!abschlag.quoteId || a.quoteId === abschlag.quoteId)).map((a) => a.id),
+          deducts: data.abschlaege
+            .filter((a) => a.contactId === withContact.contactId && (!abschlag.quoteId || a.quoteId === abschlag.quoteId))
+            .map((a) => a.id),
         }
-      : data.draft;
+      : (withContact ?? data.draft);
   return (
     <InvoiceEditor
-      key={abschlag ? abschlag.id : "neu"}
+      key={abschlag ? abschlag.id : (withContact?.contactId ?? "neu")}
       id={null}
       kind="rechnung"
       initial={initial}
@@ -49,6 +49,7 @@ function NewInvoicePage() {
       issues={[]}
       numberCounters={data.numberCounters}
       numberRunning={data.numberRunning}
+      numberPerCustomer={data.numberPerCustomer}
       numberFormat={data.numberFormat}
       lastFinalized={data.lastFinalized}
       corrects={null}

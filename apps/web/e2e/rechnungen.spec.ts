@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
-import { day, firstLink, USER, YEAR } from "./daten.ts";
+import { currentDay, day, firstLink, USER, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { HANDY, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
@@ -2637,6 +2637,9 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
 
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   const feld = page.getByRole("combobox", { name: "Ansprechpartner" });
+  // Genau ein aktiver Ansprechpartner: gleich gewählt und abwählbar (#1335)
+  await expect(feld.locator("option:checked")).toHaveText("Mara Beispiel");
+  await feld.selectOption({ label: "Keiner" });
   await expect(feld).toHaveValue("");
   await feld.selectOption({ label: "Mara Beispiel" });
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
@@ -2677,6 +2680,43 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveCount(0);
+});
+
+test("Ansprechpartner: der einzige aktive ist in Rechnung und Angebot gleich gewählt, bei zweien keiner (#1335)", async () => {
+  await go("/kontakte");
+  const kontakt = (await page
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .first()
+    .getAttribute("href"))!;
+  await go(kontakt);
+  const karte = page.getByRole("region", { name: "Ansprechpartner" });
+  // Mara Beispielmann ist deaktiviert (#424): Jonas ist danach der einzige aktive
+  await karte.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
+  const neu = karte.getByRole("form", { name: "Neuer Ansprechpartner" });
+  await neu.getByLabel("Name").fill("Jonas Muster");
+  await neu.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Ansprechpartner angelegt.")).toBeVisible();
+
+  // „Rechnung schreiben“ am Kontakt (#1557): Kunde und Ansprechpartner stehen schon
+  await page.getByRole("link", { name: "Rechnung schreiben" }).click();
+  await page.waitForURL(/rechnungen\/neu/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" }).locator("option:checked")).toHaveText("Jonas Muster");
+
+  // Angebot: beim Wählen des Kunden ebenso
+  await go("/angebote/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" }).locator("option:checked")).toHaveText("Jonas Muster");
+
+  // Zwei aktive: Haben wählt nicht für dich
+  await go(kontakt);
+  await karte.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
+  await neu.getByLabel("Name").fill("Lea Beispiel");
+  await neu.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Ansprechpartner angelegt.")).toBeVisible();
+  await go("/angebote/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveValue("");
 });
 
 test("Rechnungsdatum vor der letzten festgeschriebenen Rechnung: Warnung beim Festschreiben ohne Sperre (#713)", async () => {
@@ -2751,9 +2791,14 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   await expect(liste).toContainText("1:30 Std.");
   await expect(liste).toContainText("Relaunch Shop");
   // Berechnet wird die abrechenbare Stunde, nicht die erfassten 90 Minuten
-  await expect(liste).toContainText("abrechenbar 1:00");
+  await expect(liste).toContainText("abr. 1:00");
+  await expect(liste.getByTitle("abrechenbar")).toHaveText("abr.");
   await expect(liste).toContainText("95,00");
   await expect(liste).not.toContainText("142,50");
+  // Kopf und Zeilen teilen das Raster: „Betrag“ steht rechtsbündig über dem Betrag, nicht über den Knöpfen (#1547)
+  const kopfBetrag = await liste.locator(".table-row.head > div", { hasText: "Betrag" }).boundingBox();
+  const zelleBetrag = await liste.locator(".table-row:not(.head) > .num").nth(2).boundingBox();
+  expect(Math.round(kopfBetrag!.x + kopfBetrag!.width)).toBe(Math.round(zelleBetrag!.x + zelleBetrag!.width));
   // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
   await ohneAxeVerstoesse(page, ["/leistungen"]);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -2892,7 +2937,8 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   const formular = karte.locator("form");
   await formular.getByLabel("Gegenbeleg").selectOption({ index: 1 });
   await expect(formular.getByLabel("Betrag")).toHaveValue("23,80");
-  await formular.getByLabel("Tag der Aufrechnung").fill(day(0));
+  // Der Tag der Korrektur kommt vom Server: currentDay() statt day(0), das beim Laden der Datei feststeht und nach Mitternacht hinter ihm läge
+  await formular.getByLabel("Tag der Aufrechnung").fill(currentDay());
   await formular.getByLabel("Grund").fill("Korrektur TE-1");
   await expect(await axeVerstoesse(page)).toEqual([]);
   await formular.getByRole("button", { name: "Verrechnen" }).click();
@@ -2923,7 +2969,7 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
 
   // Aufheben: der Rest ist wieder 119,00 EUR, die Zeile verschwindet
   await page.getByRole("region", { name: "Verrechnung" }).getByRole("button", { name: "aufheben" }).click();
-  await page.getByLabel("Tag der Aufhebung").fill(day(0));
+  await page.getByLabel("Tag der Aufhebung").fill(currentDay());
   await page.getByRole("button", { name: "Aufheben", exact: true }).click();
   await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*119,00\s*€/);
   await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
@@ -3070,7 +3116,7 @@ test("Artikel-API: Rechte, Anlegen, Suchen und Ändern im Katalog (#297)", async
   expect(await archived.json()).toMatchObject({ data: [{ id: result.id, archived: true }], total: 1 });
 });
 
-test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
+test("Kopieren: festgeschriebene Rechnung und daraus wieder der Entwurf als neuer Entwurf mit denselben Positionen, das Original bleibt", async () => {
   await rechnungFestschreiben(page, {
     customer: "Rheinpixel GmbH · Köln",
     date: day(-4),
@@ -3084,9 +3130,62 @@ test("Kopieren: festgeschriebene Rechnung als neuer Entwurf mit denselben Positi
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("80,00");
   await expect(page.getByLabel("Rechnungsdatum")).not.toHaveValue(day(-4));
 
+  // Aus dem gerade kopierten Entwurf entsteht mit „Kopieren“ wieder ein neuer Entwurf (#1465); Ungespeichertes wird vorher
+  // gespeichert, die Kopie und der Entwurf selbst zeigen also die geänderte Position
+  const draftUrl = page.url();
+  await page.getByLabel("Beschreibung Position 1").fill("Betreuung Server, Dezember");
+  await page.getByRole("button", { name: "Kopieren", exact: true }).click();
+  await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== draftUrl);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Betreuung Server, Dezember");
+  await expect(page.getByRole("button", { name: "Festschreiben", exact: true }).first()).toBeVisible();
+  await page.goto(draftUrl);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Betreuung Server, Dezember");
+
   await page.goto(originalUrl);
   await expect(page.getByRole("button", { name: "Kopieren", exact: true })).toBeVisible();
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible();
+});
+
+test("Kontaktseite: Zeiteinträge des Kunden erfassen und ansehen, Rechnung mit diesem Kunden schreiben (#1557)", async () => {
+  await go("/kontakte");
+  const kontakt = (await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!;
+  await go(kontakt);
+  // Im Seitenkopf: die Navigation hat ebenfalls einen Link „Zeiteinträge“
+  const kopf = page.locator(".main > .page-head");
+  // Ohne offene Einträge: nur „Zeiteinträge“, als Einstieg zum Erfassen
+  await kopf.getByRole("link", { name: "Zeiteinträge", exact: true }).click();
+  await page.waitForURL(/\/leistungen\?kunde=[0-9a-f-]{36}$/);
+  await page.getByRole("button", { name: "Neuer Eintrag" }).click();
+  const neu = page.getByRole("form", { name: "Neuer Eintrag" });
+  await expect(neu.getByLabel("Kunde").locator("option:checked")).toHaveText("Nordwerk Software GmbH");
+  await neu.getByLabel("Dauer", { exact: true }).fill("1:30");
+  await neu.getByLabel(/Stundensatz/).fill("95");
+  await neu.getByLabel(/Tätigkeit/).fill("Workshop Kontaktseite");
+  await neu.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByText("Eintrag angelegt.")).toBeVisible();
+
+  // Mit offenen Einträgen nennt der Link die Dauer und führt zum Stand „offen“
+  await go(kontakt);
+  await kopf.getByRole("link", { name: "Zeiteinträge · 1:30 offen" }).click();
+  await page.waitForURL(/\/leistungen\?kunde=[0-9a-f-]{36}&stand=offen$/);
+  const liste = page.getByRole("region", { name: "Leistungsliste" });
+  await expect(liste).toContainText("Workshop Kontaktseite");
+
+  // Rechnung schreiben: der Entwurf hat den Kunden schon gewählt
+  await go(kontakt);
+  await kopf.getByRole("link", { name: "Rechnung schreiben" }).click();
+  await page.waitForURL(/\/rechnungen\/neu\?kunde=[0-9a-f-]{36}$/);
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue(/^Nordwerk Software GmbH/);
+
+  // Aufräumen: der Eintrag gehört nur zu diesem Test
+  await go("/leistungen");
+  await liste
+    .locator(".table-row")
+    .filter({ hasText: "Workshop Kontaktseite" })
+    .getByRole("button", { name: /löschen/ })
+    .click();
+  await page.getByRole("dialog", { name: "Eintrag löschen?" }).getByRole("button", { name: "Löschen" }).click();
+  await expect(page.getByText("Eintrag gelöscht.")).toBeVisible();
 });
 
 test("Keine Fehler im Browser", async () => {

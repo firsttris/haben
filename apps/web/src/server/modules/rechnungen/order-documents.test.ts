@@ -1,7 +1,24 @@
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { DeliveryNoteDocument, QuoteDocument } from "@haben/einvoice";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
+
+const seen = vi.hoisted(() => ({ confirmations: [] as unknown[], deliveryNotes: [] as unknown[] }));
+vi.mock("@haben/einvoice", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@haben/einvoice")>();
+  return {
+    ...original,
+    buildConfirmationPdf: (...args: Parameters<typeof original.buildConfirmationPdf>) => {
+      seen.confirmations.push(args[0]);
+      return original.buildConfirmationPdf(...args);
+    },
+    buildDeliveryNotePdf: (...args: Parameters<typeof original.buildDeliveryNotePdf>) => {
+      seen.deliveryNotes.push(args[0]);
+      return original.buildDeliveryNotePdf(...args);
+    },
+  };
+});
 
 describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgres)", () => {
   let docs: typeof import("./order-documents.ts");
@@ -94,5 +111,71 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
     expect(note.filename).toBe("Lieferschein-2026-001.pdf");
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-10-03");
     await expect(docs.deliveryNotePdf("rechnung", storno.id)).rejects.toThrow(/nur zu festgeschriebenen Rechnungen/);
+  });
+
+  it("Absender und Kunde stehen mit dem heutigen Namen und der heutigen Anschrift auf den Dokumenten, die übrigen Angaben wie auf dem Beleg", async () => {
+    const quote = await quotes.finalizeQuote(
+      actor,
+      (
+        await quotes.createQuoteDraft(actor, {
+          contactId,
+          issueDate: "2026-10-01",
+          validUntil: "2026-10-31",
+          serviceFrom: null,
+          serviceTo: null,
+          note: "",
+          lines,
+        })
+      ).id,
+    );
+    await quotes.setQuoteDecision(actor, quote.id, "angenommen");
+    const invoice = await invoices.finalizeInvoice(
+      actor,
+      (
+        await invoices.createDraft(actor, {
+          contactId,
+          issueDate: "2026-10-02",
+          serviceFrom: null,
+          serviceTo: null,
+          paymentTermDays: 14,
+          format: "zugferd",
+          note: "",
+          lines,
+        })
+      ).id,
+      kleinunternehmerStand,
+    );
+    await contacts.updateContact(actor, contactId, {
+      kundennummer: "",
+      name: "Nordwerk Software AG",
+      strasse: "Speicherstraße 9",
+      plz: "20457",
+      ort: "Hamburg-Mitte",
+      land: "AT",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    await sql`update company set name = 'Testfirma Neu GmbH', strasse = 'Neuer Weg 2', plz = '93049', ort = 'Regensburg a. D.', bank = 'Sparkasse' where id = 1`;
+
+    const before = [seen.confirmations.length, seen.deliveryNotes.length] as const;
+    await docs.confirmationPdf(quote.id);
+    await docs.deliveryNotePdf("angebot", quote.id);
+    await docs.deliveryNotePdf("rechnung", invoice.id);
+
+    const shown = [...seen.confirmations.slice(before[0]), ...seen.deliveryNotes.slice(before[1])] as (QuoteDocument | DeliveryNoteDocument)[];
+    expect(shown).toHaveLength(3);
+    for (const doc of shown) {
+      expect(doc.buyer).toMatchObject({ name: "Nordwerk Software AG", strasse: "Speicherstraße 9", ort: "Hamburg-Mitte", land: "AT" });
+      expect(doc.seller).toMatchObject({ name: "Testfirma Neu GmbH", strasse: "Neuer Weg 2", plz: "93049", ort: "Regensburg a. D.", bank: "Commerzbank" });
+    }
+    // Angebot und Rechnung bleiben, wie sie waren
+    for (const table of [sql`select buyer, seller from quotes`, sql`select buyer, seller from invoices`]) {
+      const [row] = await table;
+      expect(row!.buyer).toMatchObject({ name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", ort: "Hamburg", land: "DE" });
+      expect(row!.seller).toMatchObject({ name: "Testfirma", strasse: "Musterstraße 1", ort: "Regensburg" });
+    }
   });
 });

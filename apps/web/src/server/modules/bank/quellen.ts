@@ -1,5 +1,5 @@
 import { and, eq, gte, lte, notInArray } from "drizzle-orm";
-import type { StatementFormat } from "@haben/import";
+import type { INTERNAL_PROVIDERS, StatementFormat } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
 
 /*
@@ -26,7 +26,9 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   fints: "FinTS-Abruf",
   "accountable-xlsx": "Accountable",
   "paypal-csv": "PayPal",
+  "paypal-api": "PayPal (Abruf)",
   "stripe-csv": "Stripe",
+  "stripe-api": "Stripe (Abruf)",
   "shopify-payments-csv": "Shopify",
   "ebay-csv": "eBay",
   "etsy-csv": "Etsy",
@@ -35,10 +37,17 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "googleplay-earnings": "Google Play",
   "appstore-finance": "App Store",
   "store-payout": "Store-Auszahlung",
+  importvertrag: "REST-Import",
+  "importvertrag-psp": "REST-Import",
 };
 
-/** Anbieter einer Quellenbindung (`import_sources.provider`, #306), wie die Meldung ihn nennt */
-const ABRUF_NAMEN: Record<string, string> = { enablebanking: "der Bankabruf", etsy: "der Etsy-Abruf" };
+/** Anbieter einer Quellenbindung (`import_sources.provider`, #306), wie die Meldung ihn nennt; tsc verlangt genau die Einträge aus INTERNAL_PROVIDERS */
+const ABRUF_NAMEN: Record<string, string> = {
+  enablebanking: "der Bankabruf",
+  etsy: "der Etsy-Abruf",
+  paypal: "der PayPal-Abruf",
+  stripe: "der Stripe-Abruf",
+} satisfies Record<(typeof INTERNAL_PROVIDERS)[number], string>;
 
 /**
  * Meldet, wenn im Zeitraum des neuen Auszugs schon Umsätze aus einem anderen Dateiformat liegen und

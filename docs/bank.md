@@ -56,6 +56,12 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 
 Mit einer eigenen Registrierungsnummer für FinTS holt Haben die Umsätze direkt bei der Bank, mit PIN und TAN, ohne Enable Banking. Verbinden, TAN, welche Umsätze kommen, Fehler und was passiert, wenn ein Konto schon über Enable Banking kommt, stehen in [Abruf über FinTS](bank-fints.md).
 
+### Externe Quelle
+
+Ein eigener Dienst, der Zahlungen bei einem Anbieter abholt, etwa Verkäufe, Gebühren und Auszahlungen eines Marktplatzes, liefert sie über die [REST-API](api.md#bankumsätze) als Umsätze in ein Konto. Dafür gibst du die Quelle am Konto frei: Konto wählen, **Externe Quelle hinzufügen**, dann Anbieter und Kennung des Kontos beim Anbieter eintragen, so wie der Dienst sie liefert. Der Stichtag ist der erste Tag, den die Quelle liefert, frühestens der Tag nach dem letzten Umsatz des Kontos; leer gilt dieser Tag, bei einem Konto ohne Umsätze der heutige. Davor nimmt Haben nichts an; soll der Dienst in ein Konto ohne Umsätze auch ältere Zahlungen liefern, trag den ersten Tag ein. Ein Konto hat höchstens eine Quelle; ein Konto mit Bankabruf (Enable Banking oder FinTS), Etsy-, PayPal- oder Stripe-Abruf bekommt keine externe, auch vor dem ersten Abruf. Umgekehrt lässt sich ein Konto mit externer Quelle nicht für einen Abruf verbinden.
+
+Danach steht unter dem Konto die Quelle mit Stichtag und bis wann geliefert ist; nach einer Lieferung zeigt der Reiter des Kontos „REST-Import“. Liefert der Dienst einen schon übernommenen Umsatz anders, steht dort **Konflikt klären**, mit denselben zwei Wegen wie beim [Bankabruf](#welche-umsätze-abgerufen-werden).
+
 ## Unterstützte Formate
 
 | Format | Erkennung | Eigene IBAN in der Datei | Salden |
@@ -342,6 +348,8 @@ Beispiel: Rechnung 4.760,00 €, der Kunde überweist 4.664,80 € (2 % Skonto).
 
 Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung, vor der Ausführung einer Leistung nach dem Belegdatum nicht ([Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66)). Ohne Vorsteuerabzug mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
 
+**Rechnung minus Korrektur:** Gibt es zur Rechnung eine offene Rechnungskorrektur, die den Rest genau ausgleicht, hat der Kunde die Korrektur gleich abgezogen. Haben bietet dann weder Skonto noch Forderungsausfall, Gebühr oder Kursdifferenz an, sondern **Mit Korrektur … aufteilen**. Das öffnet die Aufteilung mit der Rechnung über ihren offenen Betrag und der Korrektur über ihren negativen Betrag; danach sind beide bezahlt.
+
 Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du auf der Seite der Rechnung unter **Ausbuchen** (siehe [Rechnungen](rechnungen.md#ausbuchen)). Hebst du die Zuordnung einer Zahlung auf, hebt Haben einen mit ihr ausgebuchten Rest mit auf.
 
 ### Skonto auf eigene Rechnungen
@@ -580,6 +588,6 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 ## Grenzen
 
 - Automatischer Abruf über Enable Banking (PSD2) oder FinTS mit PIN/TAN; FinTS nur mit eigener Registrierungsnummer, ohne chipTAN optisch (Flickercode, dafür chipTAN manuell wählen) und ohne Kreditkarten. Ohne beides kommen die Umsätze per Datei.
-- Dateiimport mit eigenem Format für DKB, Commerzbank, ING, C24, N26, Swan und CAMT.053; die CSV anderer Banken über eine [eigene Spaltenzuordnung](bank-spaltenzuordnung.md), ohne Salden. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments, eBay und Etsy per CSV, [Etsy](bank-zahlungsdienstleister.md#etsy-zahlungsverlauf-über-die-api) auch per Abruf des Zahlungsverlaufs, [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store) per Abruf der Finanzberichte; SumUp und andere lassen sich anlegen, aber noch nicht importieren.
+- Dateiimport mit eigenem Format für DKB, Commerzbank, ING, C24, N26, Swan und CAMT.053; die CSV anderer Banken über eine [eigene Spaltenzuordnung](bank-spaltenzuordnung.md), ohne Salden. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments, eBay und Etsy per CSV, [Etsy](bank-zahlungsdienstleister.md#etsy-zahlungsverlauf-über-die-api) auch per Abruf des Zahlungsverlaufs, [PayPal](bank-zahlungsdienstleister.md#paypal-umsätze-über-die-api) auch per Abruf der Transaktionen, [Stripe](bank-zahlungsdienstleister.md#stripe-umsätze-über-die-api) auch per Abruf der Umsätze, [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store) per Abruf der Finanzberichte; SumUp und andere lassen sich anlegen, aber noch nicht importieren.
 - Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.

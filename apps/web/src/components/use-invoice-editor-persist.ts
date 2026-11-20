@@ -8,10 +8,10 @@ import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import type { InvoiceEditorFigures } from "./use-invoice-editor-figures.ts";
 
-// Speichern, Festschreiben, Entwurf als PDF und Löschen
+// Speichern, Festschreiben, Entwurf als PDF, Kopieren und Löschen
 
 export function useInvoiceEditorPersist(editor: InvoiceEditorFigures) {
-  const { dirty, id, initialId, pruefe, quote, reload, run, setDirty, setNotice } = editor;
+  const { dirty, id, initialId, kind, pruefe, quote, reload, run, setDirty, setNotice, variant } = editor;
   const navigate = useNavigate();
   const save = useServerFn(saveInvoiceDraft);
   const remove = useServerFn(removeInvoiceDraft);
@@ -61,6 +61,14 @@ export function useInvoiceEditorPersist(editor: InvoiceEditorFigures) {
     });
   };
 
+  // Kopieren aus dem gespeicherten Stand wie beim PDF: Ungespeichertes erst speichern, damit die Kopie zeigt, was im Formular steht
+  // Nur ein gespeicherter Rechnungsentwurf; ob die Art sich kopieren lässt, entscheidet useInvoiceCopy
+  const copySource = !quote && initialId ? { id: initialId, kind, variant } : null;
+  const prepareCopy = async () => {
+    if (!pruefe()) return null;
+    return dirty ? persist() : initialId;
+  };
+
   const deleteNow = () => {
     void run(async () => {
       if (id) await (quote ? removeQuote({ data: id }) : remove({ data: id }));
@@ -68,7 +76,7 @@ export function useInvoiceEditorPersist(editor: InvoiceEditorFigures) {
     });
   };
 
-  return { deleteNow, draft, finalizeNow, finalizeSaved, onDraftPdf, onFinalize, onSave };
+  return { deleteNow, draft, finalizeNow, finalizeSaved, onDraftPdf, onFinalize, onSave, copySource, prepareCopy };
 }
 
 /** Festschreiben, bei Rechnungen mit der Rückfrage zur Kleinunternehmergrenze */

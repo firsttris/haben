@@ -38,7 +38,7 @@ Die Liste steht nach Name aufsteigend. Die Spaltenköpfe sortieren nach Name, E-
 
 ## Ansprechpartner
 
-Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine oder mehrere Personen mit Name, E-Mail, Telefon und Funktion (etwa „Einkauf“). Im Entwurf von Rechnung und Angebot wählst du unter **Kunde** den **Ansprechpartner**; das Feld erscheint nur, wenn der Kunde Personen hat, und setzt sich beim Wechsel des Kunden zurück.
+Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine oder mehrere Personen mit Name, E-Mail, Telefon und Funktion (etwa „Einkauf“). Im Entwurf von Rechnung und Angebot wählst du unter **Kunde** den **Ansprechpartner**; das Feld erscheint nur, wenn der Kunde Personen hat. Hat er genau einen aktiven Ansprechpartner, ist dieser gleich ausgewählt, auch über **Rechnung schreiben** auf der Kontaktseite; mit **Keiner** wählst du ihn ab. Bei mehreren aktiven bleibt es bei **Keiner**, bis du jemanden wählst. Beim Wechsel des Kunden setzt sich das Feld entsprechend neu.
 
 - **PDF:** Hinter dem Firmennamen steht eine Zeile **z. Hd. <Name>**, englisch **FAO <Name>**; Firmenname und Anschrift bleiben. Das gilt für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung, in der Vorschau wie im PDF. Die Zeile kommt als Eintrag im Feld `recipient` bei der Vorlage an, auch bei [eigenen Belegvorlagen](belegvorlagen.md).
 - **E-Rechnung:** Der Name steht als **BT-56** (Ansprechpartner des Käufers), in XRechnung (CII und UBL) und in ZUGFeRD. Die E-Mail des Kontakts bleibt BT-49 und BT-58; E-Mail, Telefon und Funktion der Person stehen nicht in der Datei und nicht im PDF.
@@ -64,6 +64,8 @@ Für innergemeinschaftliche Lieferungen muss die USt-IdNr. des Kunden gültig se
 - **Grenzen:** Deutsche Nummern bestätigt das BZSt nicht. Nummern, deren Aufbau nicht zum Land passt (geprüft wie bei der [Vorprüfung der ZM](umsatzsteuer.md#vorprüfung-der-zm)), fragt Haben nicht an. Ohne deine USt-IdNr. in den Firmendaten sagt die Karte, was fehlt; mit `HABEN_EVATR=off` ([Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen)) fragt Haben nie. Kontakte, die du anderswo anlegst oder änderst (Dialog in Rechnung, Beleg und Vorlagen, Import, REST-API), bestätigt Haben beim Speichern nicht. Vor dem Festschreiben prüft es die Nummer, bei Reverse Charge auch Name und Ort der letzten qualifizierten Antwort, aber nicht, ob sich Name oder Anschrift seitdem geändert haben; das bestätigst du auf der Detailseite des Kontakts.
 
 ## Rechnungen und Belege am Kontakt
+
+**Vom Kontakt aus abrechnen.** Oben auf der Detailseite eines Kunden öffnet **Rechnung schreiben** einen Entwurf, in dem der Kunde mit seinen Vorgaben (Format, Sprache, Skonto, der einzige aktive [Ansprechpartner](#ansprechpartner)) schon gewählt ist; bei einem archivierten Kontakt bleibt die Auswahl leer. **Zeiteinträge** führt zu seinen [Zeiteinträgen](leistungen.md). Liegen offene Einträge vor, nennt der Knopf ihre abrechenbare Dauer, etwa „Zeiteinträge · 3:30 offen“, und die Liste zeigt nur diese. Dort legst du mit **Neuer Eintrag** einen Eintrag für den Kunden an oder rechnest ab, solange er nicht archiviert ist. Ein reiner Lieferant hat den Knopf nur, wenn es bei ihm Einträge gibt, auch abgerechnete.
 
 Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/firsttris/haben/issues/587)):
 

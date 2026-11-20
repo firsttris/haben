@@ -4,7 +4,7 @@ import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { loadCompany, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
-import { withCurrentLegalInfo } from "./invoice-document.ts";
+import { withCurrentBuyer, withCurrentSeller } from "./invoice-document.ts";
 import { quoteChoices } from "./quote-choices.ts";
 import { documentReferences, type ReferenceColumns } from "./order-references.ts";
 import { orderLines, quoteDocumentFor } from "./quotes.ts";
@@ -34,7 +34,8 @@ async function acceptedQuote(id: string) {
  */
 export async function confirmationPdf(quoteId: string) {
   const { quote, lines, choices } = await acceptedQuote(quoteId);
-  const doc = quoteDocumentFor(quote, lines, withCurrentLegalInfo(quote.seller, await loadCompany()), quote.buyer, quote.number, {
+  const buyer = await withCurrentBuyer(db, quote.buyer, quote.contactId);
+  const doc = quoteDocumentFor(quote, lines, withCurrentSeller(quote.seller, await loadCompany()), buyer, quote.number, {
     choices,
     withPlan: quote.paymentPlanInConfirmation,
   });
@@ -51,6 +52,7 @@ interface DeliverySource {
   deliveryDate: string;
   seller: Seller;
   buyer: Buyer;
+  contactId: string | null;
   language: "de" | "en";
   lines: { description: string; detail: string; itemNumber: string; quantity: number; unit: string }[];
   /** Bestellnummer des Kunden und eigene Auftragsnummer; die Lieferscheinnummer nennt der Lieferschein nicht noch einmal */
@@ -68,6 +70,7 @@ async function deliverySource(source: "angebot" | "rechnung", id: string): Promi
       deliveryDate: quote.serviceTo ?? quote.serviceFrom ?? date,
       seller: quote.seller,
       buyer: quote.buyer,
+      contactId: quote.contactId,
       language: quote.language,
       lines: orderLines(lines, choices),
       references: orderReferencesOf(quote),
@@ -85,6 +88,7 @@ async function deliverySource(source: "angebot" | "rechnung", id: string): Promi
     deliveryDate: invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate,
     seller: invoice.seller,
     buyer: invoice.buyer,
+    contactId: invoice.contactId,
     language: invoice.language,
     // Abzüge einer Schlussrechnung sind keine Lieferung
     lines: lines.filter((l) => !l.deductionOf),
@@ -100,14 +104,15 @@ function orderReferencesOf(row: ReferenceColumns): OrderReferences {
 /** Lieferschein zu einem angenommenen Angebot oder einer festgeschriebenen Rechnung */
 export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string) {
   const base = await deliverySource(source, id);
-  const seller = withCurrentLegalInfo(base.seller, await loadCompany());
+  const seller = withCurrentSeller(base.seller, await loadCompany());
+  const buyer = await withCurrentBuyer(db, base.buyer, base.contactId);
   const pdf = await withCustomLayout("lieferschein", await loadLetterhead(), (letterhead) =>
     buildDeliveryNotePdf({
       reference: { kind: source, number: base.number, issueDate: base.issueDate },
       deliveryDate: base.deliveryDate,
       date: base.date,
       seller,
-      buyer: base.buyer,
+      buyer,
       language: base.language,
       references: base.references,
       lines: base.lines.map((l, i) => ({

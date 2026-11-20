@@ -21,7 +21,11 @@ export type StatementFormat =
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
   | "accountable-xlsx"
   | "paypal-csv"
+  /** Abruf der Transaction Search über die PayPal-API (#1512) */
+  | "paypal-api"
   | "stripe-csv"
+  /** Abruf der Balance Transactions über die Stripe-API (#1280) */
+  | "stripe-api"
   | "shopify-payments-csv"
   | "ebay-csv"
   | "etsy-csv"
@@ -29,12 +33,17 @@ export type StatementFormat =
   | "etsy-ledger"
   | "googleplay-earnings"
   | "appstore-finance"
-  | "store-payout";
+  | "store-payout"
+  /** Lieferung eines Dienstes über den REST-Import (#306), ins Bankkonto bzw. ins Konto eines Zahlungsdienstleisters */
+  | "importvertrag"
+  | "importvertrag-psp";
 
 /** Exporte von Zahlungsdienstleistern: nur in ein Konto mit diesem Zweck importierbar */
 export const PSP_FORMATS: StatementFormat[] = [
   "paypal-csv",
+  "paypal-api",
   "stripe-csv",
+  "stripe-api",
   "shopify-payments-csv",
   "ebay-csv",
   "etsy-csv",
@@ -42,6 +51,7 @@ export const PSP_FORMATS: StatementFormat[] = [
   "googleplay-earnings",
   "appstore-finance",
   "store-payout",
+  "importvertrag-psp",
 ];
 
 /** Ein Umsatz, wie er in der Datei steht. Eingänge positiv, Ausgänge negativ. */

@@ -29,3 +29,10 @@ und Beträge sind erfunden. Sie zeigen, wie ein Connector die Daten seines Anbie
   nach den [T-Codes](https://developer.paypal.com/reports/reference/t-codes) (T0006 Zahlung über Express Checkout, T1107
   Erstattung, T1106 Rückbuchung durch PayPal, T0400 Abbuchung auf das Bankkonto) und `transaction_status` P (ausstehend)
   und V (zurückgebucht) unter [List transactions](https://developer.paypal.com/api/transaction-search/v1/search-get).
+- `stripe.json`: Zahlungsdienstleister, Balance Transactions aus
+  [`GET /v1/balance_transactions`](https://docs.stripe.com/api/balance_transactions/list) mit
+  `stripeBatch` abgebildet. Zahlung mit Gebühr als Hauptbetrag plus Gebührenkomponente (`amount` brutto, `fee`
+  positiv, `net` = Betrag − Gebühr), Erstattung ohne Gebühr, Stripe-Rechnung als eigene Gebühr, eine Zahlung mit
+  `status: pending` (nur noch nicht verfügbar, trotzdem übernommen), Auszahlung mit `payoutId` aus der Quelle
+  (`po_…`) und ein Transfer, den der Connector nicht einordnet und der den Zeitraum offen lässt. Buchungstag ist der Tag
+  von `created` in UTC wie im CSV-Export „Balance history“; Kennung ist die `txn_…`-ID.

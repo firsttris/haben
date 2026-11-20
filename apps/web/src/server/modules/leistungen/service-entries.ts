@@ -1,5 +1,5 @@
 import { inCents } from "@haben/core";
-import { and, asc, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
@@ -126,6 +126,19 @@ export async function listServiceEntries(filter: ServiceEntryFilter = {}): Promi
       ),
     )
     .orderBy(desc(schema.serviceEntries.workedOn), desc(schema.serviceEntries.createdAt));
+}
+
+/** Für die Kontaktseite (#1557): Zahl aller Einträge des Kunden und die offene, abrechenbare Zeit (wie billableMinutes in @haben/core) */
+export async function serviceSummaryOfContact(contactId: string): Promise<{ entries: number; openMinutes: number }> {
+  const e = schema.serviceEntries;
+  const [row] = await db
+    .select({
+      entries: sql<number>`count(*)::int`,
+      openMinutes: sql<number>`coalesce(sum(coalesce(${e.billableMinutes}, ${e.minutes})) filter (where not ${e.nonBillable} and not ${onActiveInvoice}), 0)::int`,
+    })
+    .from(e)
+    .where(eq(e.contactId, contactId));
+  return row ?? { entries: 0, openMinutes: 0 };
 }
 
 export interface EntryCustomer {
@@ -266,4 +279,14 @@ export async function upsertExternalServiceEntry(actor: string, input: ExternalS
       .returning({ id: schema.serviceEntries.id, created: sql<boolean>`(xmax = 0)` });
     return { id: row!.id, created: row!.created };
   });
+}
+
+/** Kennungen einer Quelle, deren Eintrag in Haben auf einer gültigen Rechnung steht; ein erneuter Abruf ändert sie nicht */
+export async function billedExternalIds(source: string, externalIds: readonly string[]): Promise<Set<string>> {
+  if (externalIds.length === 0) return new Set();
+  const rows = await db
+    .select({ id: schema.serviceEntries.externalId })
+    .from(schema.serviceEntries)
+    .where(and(eq(schema.serviceEntries.externalSource, source), inArray(schema.serviceEntries.externalId, [...externalIds]), onActiveInvoice));
+  return new Set(rows.flatMap((r) => (r.id ? [r.id] : [])));
 }

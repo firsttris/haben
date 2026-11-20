@@ -4,6 +4,7 @@ import {
   batchFingerprint,
   classifyBatch,
   classifyMovements,
+  eventKeyOf,
   type ImportBatch,
   type ImportMovement,
   type KnownMovement,
@@ -17,6 +18,7 @@ import {
   withDedupHashes,
 } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
+import { keineExterneQuelle } from "./abruf-bindung.ts";
 import { connectedRanges, cutoverFor, otherRanges } from "./andere-importe.ts";
 import { type ImportResult, insertStatement, prepareStatement, statementResult } from "./statement-import.ts";
 import { BankError } from "./bank-error.ts";
@@ -36,12 +38,22 @@ import { lockImportObservations, recordImportObservations } from "./import-obser
 
 export { freeHash } from "./import-batch-plan.ts";
 
+/**
+ * Schlüssel einer Bewegung unter ihren Umsätzen: die Kennung des Ereignisses, bei einer anderen Komponente als dem
+ * Hauptbetrag mit "#<Komponente>" (etwa die Gebühr einer Zahlung von Stripe). `eventOf` eines Adapters liefert zu
+ * einem Umsatz denselben Schlüssel; ohne ihn überschriebe die Gebühr den Hauptbetrag desselben Ereignisses.
+ */
+export const eventKey = eventKeyOf;
+
 export interface StoreBatchInput {
   batch: ImportBatch;
   binding: Omit<SourceBinding, "cutoverDate">;
   /** Derselbe Abruf als Kontoauszug: Zeitraum, Salden und Warnungen fürs Importprotokoll, Umsätze in Lieferreihenfolge */
   statement: ParsedStatement;
-  /** Ereignis zu einem Umsatz des Auszugs; ohne stabile Kennung undefined, dann erkennt Haben ihn wie bisher am Inhalt */
+  /**
+   * Ereignis zu einem Umsatz des Auszugs (`eventKeyOf`: bei einer anderen Komponente als `main` mit ihr dahinter); ohne stabile
+   * Kennung undefined, dann erkennt Haben ihn wie bisher am Inhalt
+   */
   eventOf: (t: ParsedTransaction) => string | undefined;
   /** Prüfkennungen mehrdeutiger Enable-Banking-Zeilen; nie als Quellenidentität speichern. */
   fallbackEvents?: ReadonlySet<string>;
@@ -84,6 +96,8 @@ async function sourceFor(tx: Tx, binding: StoreBatchInput["binding"], accountId:
     if (existing.bankAccountId !== accountId) throw new BankError("Die Quelle des Abrufs ist schon mit einem anderen Konto verbunden.");
     return existing;
   }
+  // Ein Konto, eine Quelle: auch wenn die externe Quelle vor dem Verbinden des Abrufs freigegeben wurde
+  await keineExterneQuelle(tx, [accountId]);
   await beforeInsert();
   // Parallel angelegt: der eindeutige Index hält die zweite Bindung ab, dann gilt die erste
   await tx
@@ -310,7 +324,7 @@ export async function storeBatch(tx: Tx, input: StoreBatchInput, accountId: stri
       `Konflikt mit schon übernommenen Umsätzen: ${conflicts.join(" ")}`,
       results.filter((r) => r.outcome === "conflict").map((r) => ({ movementId: movementIds.get(r.key)!, movement: r.movement })),
     );
-  const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [r.movement.sourceEventId, r.movement]));
+  const fresh = new Map(results.filter((r) => r.outcome === "new").map((r) => [eventKey(r.movement), r.movement]));
 
   // Umsätze in Lieferreihenfolge, damit die Hashes zu denen passen, die der bisherige Weg vergeben hat
   const rows = withDedupHashes(statement.transactions);

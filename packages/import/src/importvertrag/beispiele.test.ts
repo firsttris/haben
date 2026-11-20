@@ -17,6 +17,7 @@ const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../../test-fi
 const ebay: SourceBinding = { provider: "ebay", externalAccountId: "verkaeufer-beispiel", accountKind: "psp" };
 const bank: SourceBinding = { provider: "enablebanking", externalAccountId: "beispielbank-konto-1", accountKind: "bank", cutoverDate: "2026-10-01" };
 const paypal: SourceBinding = { provider: "paypal", externalAccountId: "haendler-beispiel", accountKind: "psp" };
+const stripe: SourceBinding = { provider: "stripe", externalAccountId: "acct_1Beispiel", accountKind: "psp" };
 const etsy: SourceBinding = { provider: "etsy", externalAccountId: "shop-beispiel", accountKind: "psp" };
 
 function accept(input: unknown, binding: SourceBinding) {
@@ -142,5 +143,38 @@ describe("Beispiel Etsy", () => {
       const saldo = result.balances.find((b) => b.date === tag);
       if (saldo) expect([tag, saldo.amount]).toEqual([tag, stand]);
     }
+  });
+});
+
+describe("Beispiel Stripe", () => {
+  const result = accept(fixture("stripe"), stripe);
+
+  it("zählt die Gebühr einmal; Auszahlung und Erstattung sind eigene Ereignisse", () => {
+    expect(result.accepted).toHaveLength(9);
+    // +100,00 € Zahlung und −3,00 € Gebühr ergeben die +97,00 €, die Stripe dem Guthaben gutschreibt
+    expect(sum(result.accepted.filter((m) => m.sourceEventId === "txn_3Pq0001"))).toBe(9700);
+    const payout = result.accepted.find((m) => m.kind === "payout")!;
+    expect(payout.references.payoutId).toBe("po_1Pq0001");
+    // Die Auszahlung deckt das verfügbare Guthaben; offen bleibt die noch nicht verfügbare Zahlung (pending)
+    expect(sum(result.accepted)).toBe(2400);
+  });
+
+  it("übernimmt auch die noch nicht verfügbare Zahlung, am Tag von created in UTC", () => {
+    const pending = result.accepted.find((m) => m.sourceEventId === "txn_3Pq0005" && m.component === "main")!;
+    expect(pending.bookingDate).toBe("2026-10-20");
+  });
+
+  it("lässt den Zeitraum mit dem Transfer offen, den der Connector nicht einordnet", () => {
+    expect(result.batch.unsupported.map((u) => u.sourceEventId)).toEqual(["txn_1Pq0007"]);
+    expect(result.blocking).toBe(1);
+    expect(
+      advanceCheckpoint("2026-09-30", [{ coverage: result.batch.coverage, part: result.batch.part, blocking: result.blocking, conflict: false }]).complete,
+    ).toBe(false);
+  });
+
+  it("legt bei erneutem Abruf nichts doppelt an", () => {
+    const known = remember(stripe, result.accepted);
+    const again = accept({ ...fixture("stripe"), idempotencyKey: "balance-2026-10-nochmal" }, stripe);
+    expect(classifyMovements(known, stripe, again.accepted).results.every((r) => r.outcome === "known")).toBe(true);
   });
 });

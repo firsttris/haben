@@ -9,7 +9,17 @@ import type { AufzuhebendeZuordnung } from "../../components/ZuordnungAufheben.t
 import { useAction } from "../../lib/use-action.ts";
 import { useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { gebuehrMoeglich, gebuehrPaar, useGebuehrWahl } from "../../components/BankGebuehr.tsx";
-import { type Data, type Detail, type DirectChoice, direktKategorie, itemTarget, type RestArt, restAngebot } from "./-bank-daten.ts";
+import {
+  type Data,
+  type Detail,
+  type DirectChoice,
+  direktKategorie,
+  itemTarget,
+  type Korrektur,
+  passendeKorrektur,
+  type RestArt,
+  restAngebot,
+} from "./-bank-daten.ts";
 import { useZuordnungsAufrufe } from "./-bank-zuordnung-aufrufe.ts";
 
 /*
@@ -175,13 +185,17 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
   const { form: panel, error, check } = useSubmitCheck(fehler(wahl, detail.candidates));
   const { best, mode, signedAmount } = wahl;
   // Zahlung in der Skontofrist um genau das Skonto gekürzt: zuordnen und den Rest gleich als gewährtes Skonto ausbuchen
-  const skontoRest = mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open ? best.skonto : 0;
+  // Gleicht eine offene Korrektur den Rest aus, ist er kein Skonto (#1398)
+  const skontoRest =
+    mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open && !passendeKorrektur(best.item, tx) ? best.skonto : 0;
   useEnterOrdnetZu(tx.open, primaryButton);
   const rest = restBuchungen(wahl, tx, aufrufe, ausfuehren.run);
   // Zahlung mit der Gebühr ihrer Bewegung: ganze Zahlung auf eine Rechnung oder einen Beleg, die Gebühr gleich mit
   const gebuehrWahl = useGebuehrWahl(gebuehrMoeglich({ gebuehr, tx, skontoRest, posten: rest.target?.type, signedAmount }));
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
   const [splitInitial, setSplitInitial] = useState<typeof rest.target>(undefined);
+  // Zahlung „Rechnung minus Korrektur“: die zweite Zeile der Aufteilung ist die Korrektur (#1398)
+  const [splitKorrektur, setSplitKorrektur] = useState<Korrektur | undefined>(undefined);
 
   function submitAllocation() {
     if (!check() || signedAmount === null) return;
@@ -215,6 +229,8 @@ export function useZuordnung(detail: Detail, optionen: Optionen, nextOpenId: str
     rest,
     splitInitial,
     setSplitInitial,
+    splitKorrektur,
+    setSplitKorrektur,
     submitAllocation,
   };
 }

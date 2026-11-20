@@ -279,7 +279,10 @@ describe.each(TAXONOMIEN)("E-Bilanz mit ERiC (Taxonomie %s, Wirtschaftsjahr %i)"
       const anlagen: AnlagenspiegelZeile[] = Object.entries(werte)
         .filter(([position]) => position.startsWith("bs.ass.fixAss."))
         .map(([position, wert]) => ({ position, akAnfang: wert, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 }));
-      const eigenkapital = ["bs.eqLiab.equity.subscribed.corp", "bs.eqLiab.equity.retainedEarnings"].reduce((sum, p) => sum + (werte[p] ?? 0), 0);
+      const eigenkapital = ["bs.eqLiab.equity.subscribed.corp", "bs.eqLiab.equity.revenueRes.legal", "bs.eqLiab.equity.retainedEarnings"].reduce(
+        (sum, p) => sum + (werte[p] ?? 0),
+        0,
+      );
       const konten = ebilanzKontensalden(zuordnung, (a) => `Konto ${a}`, taxonomie);
       await pruefe({ ...basis, werte, konten, bvv: { eigenkapitalVorjahr: eigenkapital, ausschuettungen: 0, einlagen: 0 }, anlagen });
     },

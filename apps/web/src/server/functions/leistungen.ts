@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
+import { detailId } from "./schemas.ts";
 import {
   billingSchema,
   billServiceEntries,
@@ -11,6 +12,7 @@ import {
   listServiceEntries,
   previewBilling,
   serviceEntrySchema,
+  serviceSummaryOfContact,
   updateServiceEntry,
 } from "../modules/leistungen/index.ts";
 
@@ -29,6 +31,12 @@ export const getServiceEntries = createServerFn({ method: "GET" })
     entries: await listServiceEntries(data),
     customers: await listEntryCustomers(),
   }));
+
+/** Kontaktseite (#1557): Zahl der Einträge und offene, abrechenbare Zeit des Kunden; eine kaputte Adresse gibt 404 wie die übrigen Loader */
+export const getContactServiceSummary = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(detailId)
+  .handler(({ data }) => serviceSummaryOfContact(data));
 
 export const saveServiceEntry = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

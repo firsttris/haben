@@ -300,3 +300,14 @@ export function mapFbExpense(e: FbExpense): FbMappedVoucher {
     payment: payments(gross, [], paidDate ? "paid" : null, paidDate),
   };
 }
+
+/**
+ * Felder, die nicht ins Archiv gehören: DOCUMENT_URL lädt das PDF ohne Anmeldung, die Bankverbindung des Kunden braucht
+ * die Buchhaltung nicht (personenbezogen, sonst in jedem Jahresexport). Felder laut invoice.get, estimate.get und recurring.get.
+ */
+export const FB_NOT_ARCHIVED = ["DOCUMENT_URL", "BANK_NAME", "BANK_ACCOUNT_NUMBER", "BANK_CODE", "BANK_ACCOUNT_OWNER", "BANK_IBAN", "BANK_BIC"] as const;
+
+/** Antwort der API ohne FB_NOT_ARCHIVED, zum Speichern als raw */
+export function fbForArchive(raw: object): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(raw).filter(([k]) => !(FB_NOT_ARCHIVED as readonly string[]).includes(k)));
+}

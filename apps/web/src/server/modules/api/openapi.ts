@@ -125,6 +125,7 @@ function buildDocument() {
       { name: "Belege", description: "Eingangsbelege hochladen und ihren Stand lesen; geprüft und gebucht wird in Haben" },
       { name: "Artikel", description: "Katalogartikel lesen, anlegen und ändern" },
       { name: "Leistungen", description: "Zeiteinträge je Kunde, auch aus Zeiterfassungsprogrammen wie Kimai; abgerechnet wird in Haben" },
+      { name: "Bank", description: "Bankumsätze nach dem Importvertrag in freigegebene Quellen liefern; zugeordnet und gebucht wird in Haben" },
     ],
     paths,
     components: {

@@ -20,7 +20,17 @@ type Detected =
       // accountable-xlsx steht nicht in der Liste: diese Umsaetze kommen mit dem Export, nie als Datei
       format: Exclude<
         StatementFormat,
-        "camt053" | "enablebanking" | "fints" | "googleplay-earnings" | "appstore-finance" | "store-payout" | "accountable-xlsx" | "csv-zuordnung"
+        | "camt053"
+        | "enablebanking"
+        | "fints"
+        | "googleplay-earnings"
+        | "appstore-finance"
+        | "store-payout"
+        | "accountable-xlsx"
+        | "csv-zuordnung"
+        // Lieferungen über den REST-Import (importvertrag/auszug.ts), nie als Datei
+        | "importvertrag"
+        | "importvertrag-psp"
       >;
       rows: string[][];
       headerRow: number;
@@ -114,9 +124,15 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseEbay(detected.rows, detected.headerRow);
     case "etsy-csv":
       return parseEtsy(detected.rows, detected.headerRow);
+    // Der Abruf der Transaction Search von PayPal kommt über die API (paypal/statement.ts), nicht als Datei
+    case "paypal-api":
+      throw new StatementParseError("Der Abruf von PayPal kommt über die API, nicht als Datei.");
     // Der Zahlungsverlauf von Etsy Payments kommt über die API (etsy-ledger.ts), nicht als Datei
     case "etsy-ledger":
       throw new StatementParseError("Der Etsy-Zahlungsverlauf kommt über die API, nicht als Datei.");
+    // Der Abruf der Balance Transactions von Stripe kommt über die API (stripe/statement.ts), nicht als Datei
+    case "stripe-api":
+      throw new StatementParseError("Der Abruf von Stripe kommt über die API, nicht als Datei.");
   }
 }
 

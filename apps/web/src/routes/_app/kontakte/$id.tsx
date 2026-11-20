@@ -1,3 +1,4 @@
+import { formatDuration } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -7,12 +8,15 @@ import { ContactHistory } from "../../../components/ContactHistory.tsx";
 import { ContactPersonsCard } from "../../../components/ContactPersonsCard.tsx";
 import { MandateCard } from "../../../components/MandateCard.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { NumberingCard } from "../../../components/NumberingCard.tsx";
 import { UstIdBestaetigungCard } from "../../../components/UstIdBestaetigungCard.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../../lib/jahre.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { archiveContact, getContactDetail, getContactHistory } from "../../../server/functions/contacts.ts";
 import { getContactPersons } from "../../../server/functions/contact-persons.ts";
+import { getCustomerNumbering } from "../../../server/functions/invoices.ts";
+import { getContactServiceSummary } from "../../../server/functions/leistungen.ts";
 import { getMandates } from "../../../server/functions/mandate.ts";
 import { getUstIdBestaetigungen } from "../../../server/functions/ustid-bestaetigung.ts";
 import chartStyles from "../../../styles/auswertungen.css?url";
@@ -27,14 +31,16 @@ export const Route = createFileRoute("/_app/kontakte/$id")({
   }),
   loaderDeps: ({ search }) => ({ jahr: search.jahr }),
   loader: async ({ params, deps }) => {
-    const [detail, mandates, personen, history, ustid] = await Promise.all([
+    const [detail, mandates, personen, history, ustid, kreise, service] = await Promise.all([
       getContactDetail({ data: params.id }),
       getMandates({ data: params.id }),
       getContactPersons({ data: params.id }),
       getContactHistory({ data: { id: params.id, year: deps.jahr } }),
       getUstIdBestaetigungen({ data: params.id }),
+      getCustomerNumbering({ data: { contactId: params.id } }),
+      getContactServiceSummary({ data: params.id }),
     ]);
-    return { ...detail, ...mandates, ...personen, history, ustid };
+    return { ...detail, ...mandates, ...personen, history, ustid, kreise, service };
   },
   head: ({ loaderData }) => ({
     meta: [{ title: `${loaderData?.contact.name ?? "Kontakt"} · Haben` }],
@@ -48,7 +54,7 @@ export const Route = createFileRoute("/_app/kontakte/$id")({
 });
 
 function ContactPage() {
-  const { contact, versions, mandates, persons, today, history, ustid } = Route.useLoaderData();
+  const { contact, versions, mandates, persons, today, history, ustid, kreise, service } = Route.useLoaderData();
   const { bestaetigen } = Route.useSearch();
   const router = useRouter();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -75,7 +81,13 @@ function ContactPage() {
           <h1>{contact.name}</h1>
         </div>
         <div className="actions">
-          <Link to="/rechnungen/neu" className="btn">
+          {/* Zeiteinträge bei Kunden und bei jedem Kontakt mit Einträgen (#1557); offene führen gleich zum Stand „offen“ */}
+          {(contact.isCustomer || service.entries > 0) && (
+            <Link to="/leistungen" search={{ kunde: contact.id, stand: service.openMinutes > 0 ? "offen" : undefined }} className="btn">
+              Zeiteinträge{service.openMinutes > 0 && ` · ${formatDuration(service.openMinutes)} offen`}
+            </Link>
+          )}
+          <Link to="/rechnungen/neu" search={contact.isCustomer && !contact.archivedAt ? { kunde: contact.id } : {}} className="btn">
             Rechnung schreiben
           </Link>
           <button
@@ -126,6 +138,9 @@ function ContactPage() {
             mandates={mandates}
             today={today}
           />
+          {/* Zähler je Kunde (#1426): die Karte einer Art steht nur, wenn deren Kreis läuft und der Kontakt eine Kundennummer trägt */}
+          {contact.kundennummer && kreise.invoice && <NumberingCard numbering={kreise.invoice} contactId={contact.id} />}
+          {contact.kundennummer && kreise.quote && <NumberingCard numbering={kreise.quote} contactId={contact.id} />}
           <section className="card" aria-labelledby="versions-heading">
             <h2 id="versions-heading">Versionen</h2>
             <p className="small muted" style={{ margin: 0 }}>

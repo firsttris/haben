@@ -19,7 +19,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { type DocumentPreview, renderPreview, withDesign } from "./document-preview.ts";
-import { withCurrentLegalInfo } from "./invoice-document.ts";
+import { withCurrentBuyer, withCurrentSeller } from "./invoice-document.ts";
 import { listInvoices } from "./invoices.ts";
 import { importedDunnings, type ImportedDunning } from "./mahnung-altbestand.ts";
 import { loadDesign, loadLetterhead, logoInfo, withCustomLayout } from "../stammdaten/index.ts";
@@ -229,8 +229,8 @@ async function dunningDocument(
     level: input.level,
     date: today,
     dueDate: input.dueDate,
-    seller: withCurrentLegalInfo(invoice.seller, company),
-    buyer: invoice.buyer,
+    seller: withCurrentSeller(invoice.seller, company),
+    buyer: await withCurrentBuyer(q, invoice.buyer, invoice.contactId),
     // Gemahnt wird erst nach der Fälligkeit, also nach jeder Skontofrist: dann gilt der volle Betrag
     invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0, gross: invoice.gross },
     payments: await invoicePaymentList(invoice.id, q),

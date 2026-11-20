@@ -10,6 +10,8 @@ import {
   type InvoiceTotals,
 } from "@haben/core";
 import type { Buyer, DirectDebit, InvoiceDocument, InvoiceFormat, Seller } from "@haben/einvoice";
+import { eq } from "drizzle-orm";
+import { schema, type Db, type Tx } from "../../db/index.ts";
 import type { Company, Contact } from "../stammdaten/index.ts";
 import type { Invoice, InvoiceLine } from "./invoices.ts";
 import { paidPaymentOf } from "./lastschrift.ts";
@@ -49,12 +51,27 @@ function sellerLegalInfo(company: Company): Pick<Seller, "legalInfo"> {
 }
 
 /**
- * Absender eines festgeschriebenen Belegs mit den Pflichtangaben von heute: Mahnung, Auftragsbestätigung und
- * Lieferschein sind neue Briefe und brauchen sie auch dann, wenn der Beleg älter ist als die Angaben.
+ * Absender eines festgeschriebenen Belegs in einem neuen Brief (Mahnung, Auftragsbestätigung, Lieferschein): Name,
+ * Anschrift und Pflichtangaben von heute, denn ein neuer Brief braucht sie auch dann, wenn der Beleg älter ist als die
+ * Angaben. Bankverbindung und Steuernummer bleiben wie auf dem Beleg.
  */
-export function withCurrentLegalInfo(seller: Seller, company: Company): Seller {
+export function withCurrentSeller(seller: Seller, company: Company): Seller {
   const { legalInfo: _snapshot, ...rest } = seller;
-  return { ...rest, ...sellerLegalInfo(company) };
+  const { name, strasse, plz, ort } = company;
+  // Die Bankverbindung der Rechnung lautet auf den damaligen Kontoinhaber: ohne eigenen Eintrag auf den damaligen Firmennamen
+  const kontoinhaber = rest.iban ? { kontoinhaber: rest.kontoinhaber?.trim() || rest.name } : {};
+  return { ...rest, name, strasse, plz, ort, ...kontoinhaber, ...sellerLegalInfo(company) };
+}
+
+/**
+ * Käufer eines festgeschriebenen Belegs in einem neuen Brief: Name und Anschrift des Kontakts von heute, Ansprechpartner
+ * und Kundennummer bleiben wie auf dem Beleg. Fehlt der Kontakt, gilt der Käufer des Belegs.
+ */
+export async function withCurrentBuyer(q: Db | Tx, buyer: Buyer, contactId: string | null): Promise<Buyer> {
+  const [contact] = contactId ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, contactId)) : [];
+  if (!contact) return buyer;
+  const { name, strasse, plz, ort, land } = contact;
+  return { ...buyer, name, strasse, plz, ort, land };
 }
 
 /** Käufer eines Belegs aus dem Kontakt; mit Ansprechpartner (Stand der Person beim Festschreiben, #424) */
@@ -159,13 +176,13 @@ export function invoiceDiscountOf(invoice: { discountPercent: number | null; dis
 
 /**
  * Probleme beim Käufer vor dem Festschreiben: fehlt er, fehlt seine Kundennummer für {KUNDENNR} oder taugt sie nicht
- * als Teil der Nummer. Storno und Korrektur nehmen die Kundennummer des Originals, solange sie taugt, sonst die
- * heutige des Kontakts (#1426).
+ * als Teil der Nummer. Storno und Korrektur nehmen im gemeinsamen Kreis die Kundennummer des Originals, solange sie
+ * taugt, sonst die heutige des Kontakts; im Kundenkreis immer die des Kontakts, sie gehört zum Kreis (#1426).
  */
-export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null): string[] {
+export function buyerIssues(format: string, contact: Contact | null, corrects: { buyer: Buyer | null } | null = null, kundenkreis = false): string[] {
   const issues = contact ? [] : ["Kunde fehlt"];
   if (usesCustomerNumber(format) && (contact || corrects)) {
-    const problem = customerNumberProblem(effectiveCustomerNumber(corrects?.buyer, contact));
+    const problem = customerNumberProblem(kundenkreis ? contact?.kundennummer : effectiveCustomerNumber(corrects?.buyer, contact));
     // ganze Sätze ohne Schlusspunkt in die Liste, „Noch nicht bereit: …“ setzt ihn selbst
     if (problem) issues.push(problem.replace(/\.$/, ""));
   }
@@ -173,11 +190,16 @@ export function buyerIssues(format: string, contact: Contact | null, corrects: {
 }
 
 /**
- * Käufer für das Festschreiben: bei Storno und Korrektur der festgeschriebene des Originals. Trug der noch keine
- * verwendbare Kundennummer für {KUNDENNR}, steht hier die heutige des Kontakts, mit der nummeriert wird (#1426).
+ * Käufer für das Festschreiben: bei Storno und Korrektur der festgeschriebene des Originals. {KUNDENNR} im gemeinsamen
+ * Kreis nimmt die Kundennummer des Originals, solange sie taugt, sonst die heutige des Kontakts; im Kundenkreis gehört
+ * die Nummer zum Kreis und trägt immer die heutige des Kontakts (#1426).
  */
-export function numberedBuyer(original: Buyer | null, contact: Contact, ansprechpartner: Buyer["ansprechpartner"], format: string): Buyer {
+export function numberedBuyer(original: Buyer | null, contact: Contact, ansprechpartner: Buyer["ansprechpartner"], format: string, kundenkreis = false): Buyer {
   const buyer = original ?? buyerFrom(contact, ansprechpartner);
-  const kundennummer = usesCustomerNumber(format) ? effectiveCustomerNumber(original, contact) : buyer.kundennummer;
+  const kundennummer = usesCustomerNumber(format)
+    ? kundenkreis
+      ? (contact.kundennummer ?? undefined)
+      : effectiveCustomerNumber(original, contact)
+    : buyer.kundennummer;
   return kundennummer && kundennummer !== buyer.kundennummer ? { ...buyer, kundennummer } : buyer;
 }

@@ -138,6 +138,14 @@ async function tabTo(p: Page, name: string, max = 80) {
   throw new Error(`„${name}“ ist mit Tab nicht erreichbar`);
 }
 
+/** Klappt die einklappbaren Abschnitte der Firmendaten auf (#1253); Felder in zugeklappten Abschnitten sind nicht sichtbar */
+async function firmaAufklappen(page: Page) {
+  for (const abschnitt of await page.locator("form[aria-labelledby=company-heading] details").all()) {
+    if (!(await abschnitt.evaluate((d) => (d as HTMLDetailsElement).open))) await abschnitt.locator("summary").click();
+    await expect(abschnitt).toHaveAttribute("open", "");
+  }
+}
+
 async function open(p: Page, path: string) {
   const response = await p.goto(path);
   expect(response?.status(), `${path} lädt`).toBeLessThan(400);
@@ -519,6 +527,7 @@ for (const group of chunks(PAGES, GROUP)) {
 
 test("Kontrollkästchen mit Hinweis: Der Name ist nur die Beschriftung, der Hinweis die Beschreibung, der Text schaltet um", async ({ page }) => {
   await open(page, "/einstellungen");
+  await firmaAufklappen(page);
   const faelle = [
     { name: "Kleinunternehmer nach § 19 UStG", hinweis: /^Rechnungen ohne Umsatzsteuer, keine Voranmeldung/ },
     { name: "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)", hinweis: /^Ohne Gestattung rechnet Haben Fremdwährung/ },
@@ -546,6 +555,7 @@ test.describe("Kontrollkästchen mit Hinweis am Handy", () => {
   test("Die Zeile mit dem Kästchen ist mindestens 44px hoch", async ({ page }) => {
     // Am Handy zeigt /einstellungen nur die Liste der Bereiche
     await open(page, "/einstellungen?bereich=firma");
+    await firmaAufklappen(page);
     for (const name of [
       "Kleinunternehmer nach § 19 UStG",
       "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
@@ -560,6 +570,7 @@ test.describe("Kontrollkästchen mit Hinweis am Handy", () => {
 
 test("Kontrollkästchen mit Hinweis: Der Hinweis fluchtet mit dem Text der Beschriftung", async ({ page }) => {
   await open(page, "/einstellungen");
+  await firmaAufklappen(page);
   for (const name of [
     "Kleinunternehmer nach § 19 UStG",
     "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
@@ -578,6 +589,7 @@ test("Kontrollkästchen mit Hinweis: Der Hinweis fluchtet mit dem Text der Besch
 
 test("Kontrollkästchen mit Hinweis am Desktop: Die Zeile ist nur so hoch wie der Text", async ({ page }) => {
   await open(page, "/einstellungen");
+  await firmaAufklappen(page);
   for (const name of [
     "Kleinunternehmer nach § 19 UStG",
     "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
@@ -591,6 +603,7 @@ test("Kontrollkästchen mit Hinweis am Desktop: Die Zeile ist nur so hoch wie de
 
 test("Kontrollkästchen mit Hinweis: Ein Klick auf den Hinweis schaltet nicht um", async ({ page }) => {
   await open(page, "/einstellungen");
+  await firmaAufklappen(page);
   const name = "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)";
   const kasten = page.getByRole("checkbox", { name, exact: true });
   const vorher = await kasten.isChecked();

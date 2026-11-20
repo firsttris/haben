@@ -1,5 +1,6 @@
 import {
   computeInvoice,
+  circleKey,
   counterCircle,
   documentDiscountProblem,
   customerNumberProblem,
@@ -66,7 +67,20 @@ export function editorLines(state: InvoiceEditorState) {
 
 /** Zahlungsziel, Fälligkeit, nächste Nummer und was an Datum und Nummer nicht stimmt */
 export function editorNumber(state: InvoiceEditorState, contact: InvoiceEditorProps["contacts"][number] | null) {
-  const { bundesland, corrects, initial, issueDate, lastFinalized, numberCounters, numberFormat, numberRunning, paymentTermDays, quote, validUntil } = state;
+  const {
+    bundesland,
+    corrects,
+    initial,
+    issueDate,
+    lastFinalized,
+    numberCounters,
+    numberFormat,
+    numberRunning,
+    numberPerCustomer,
+    paymentTermDays,
+    quote,
+    validUntil,
+  } = state;
   const { contactId, kind, taxTreatment } = state;
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
@@ -74,12 +88,16 @@ export function editorNumber(state: InvoiceEditorState, contact: InvoiceEditorPr
   // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
-  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1, contact, corrects);
+  // Der Kreis der Vorschau wie beim Festschreiben: beim Zähler je Kunde der Kreis des gewählten Kunden — auch für
+  // Storno und Korrektur, die wie eine neue Rechnung im Kreis nach heutiger Einstellung nummerieren (#1426)
+  const kundenkreis = Boolean(numberPerCustomer && contactId);
+  const circleContactId = kundenkreis ? contactId! : null;
+  const nextNumber = previewNumber(numberFormat, numberDate, (numberCounters[circleKey(circle, circleContactId)] ?? 0) + 1, contact, corrects, kundenkreis);
   // Dasselbe Problem wie in buyerIssues, aber live aus dem Formular: Bei einem neuen oder geänderten Entwurf steht sonst nichts da
-  const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects)) : null;
+  const customerNumberIssue = usesCustomerNumber(numberFormat) ? customerNumberProblem(previewCustomerNumber(contact, corrects, kundenkreis)) : null;
   // Zu lang für DATEV (Belegfeld 1, 36 Zeichen): dasselbe hält das Festschreiben auf, Angebote exportiert DATEV nicht
   const numberLengthIssue = quote ? null : documentNumberLengthProblem(nextNumber);
-  const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
+  const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate, circleContactId) : null;
   // Vor dem Festschreiben die USt-IdNr. beim BZSt bestätigen (#1385)
   const ustIdPruefen =
     kind === "rechnung" && (taxTreatment === "reverse_charge" || taxTreatment === "ig_lieferung") ? { contactId, behandlung: taxTreatment } : null;

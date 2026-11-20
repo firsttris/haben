@@ -1149,6 +1149,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.fastbill_recurring_templates",
+      "name": "fastbill_recurring_templates_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER fastbill_recurring_templates_audit AFTER INSERT OR DELETE OR UPDATE ON public.fastbill_recurring_templates FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.fastbill_recurring_templates",
+      "name": "fastbill_recurring_templates_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER fastbill_recurring_templates_no_truncate BEFORE TRUNCATE ON public.fastbill_recurring_templates FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.fints_connections",
       "name": "fints_connections_audit",
       "enabled": "O",
@@ -2087,6 +2101,20 @@
       "function": "public.haben_seal()"
     },
     {
+      "table": "public.paypal_connections",
+      "name": "paypal_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER paypal_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.paypal_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.paypal_connections",
+      "name": "paypal_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER paypal_connections_no_truncate BEFORE TRUNCATE ON public.paypal_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.payroll_runs",
       "name": "payroll_runs_audit",
       "enabled": "O",
@@ -2780,6 +2808,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.stripe_connections",
+      "name": "stripe_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER stripe_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.stripe_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.stripe_connections",
+      "name": "stripe_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER stripe_connections_no_truncate BEFORE TRUNCATE ON public.stripe_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.sv_portal_filings",
       "name": "sv_portal_filings_append_only",
       "enabled": "O",
@@ -3237,8 +3279,8 @@
       "config": [],
       "language": "plpgsql",
       "securityDefiner": false,
-      "sourceHash": "3fa034bd7d5f5e163715c6fd1c7ccc5cd3d73b4069748dee2833cd1007ff6d64",
-      "definitionHash": "3c58cb52e36e13df0913e54071bb98b95f3ea98f95dbe1d8243eaa9c1f125104"
+      "sourceHash": "b5ffdf40a6416a8cb22143de6df8aa69b4dd13d42039ce95ec59d01038c9bd20",
+      "definitionHash": "78acdbe6c38396d351a38da411c8ae403cf3c976b413938a8ab1030a7271cf6f"
     },
     {
       "name": "public.haben_audit_chain()",

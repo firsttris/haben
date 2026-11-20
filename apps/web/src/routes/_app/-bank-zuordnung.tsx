@@ -97,6 +97,7 @@ function Aufteilen({ z }: { z: Zuordnung }) {
       key={tx.id}
       tx={tx}
       initial={z.splitInitial}
+      gegenposten={z.splitKorrektur && { type: "invoice", id: z.splitKorrektur.id }}
       splitCandidates={z.detail.splitCandidates}
       {...z.optionen}
       busy={z.busy}
@@ -251,6 +252,11 @@ function WeitereWege({ z }: { z: Zuordnung }) {
         onFeeRest={() => void rest.bookRestAsFee()}
         onSammel={(documentId) => void run(() => aufrufe.feesFn({ data: { transactionId: tx.id, documentId } }))}
         onRest={(kind) => void rest.bookRest(kind)}
+        onKorrektur={() => {
+          z.setSplitInitial(rest.target);
+          z.setSplitKorrektur(rest.angebot.korrektur);
+          wahl.setMode("split");
+        }}
       />
       {wahl.mode !== "direct" && (
         <button type="button" className="btn" onClick={() => wahl.setMode("direct")} disabled={busy} title={DIRECT_HINT}>
@@ -262,6 +268,7 @@ function WeitereWege({ z }: { z: Zuordnung }) {
         className="btn"
         onClick={() => {
           z.setSplitInitial(rest.target);
+          z.setSplitKorrektur(undefined);
           wahl.setMode("split");
         }}
         disabled={busy}

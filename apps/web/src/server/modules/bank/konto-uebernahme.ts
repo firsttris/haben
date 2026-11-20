@@ -1,11 +1,12 @@
 import { eq } from "drizzle-orm";
 import { decrypt } from "../../crypto.ts";
 import { schema, type Tx } from "../../db/index.ts";
+import { keineExterneQuelle } from "./abruf-bindung.ts";
 
 /**
  * Ein Konto, ein Abruf (#654): Verbindet Enable Banking oder FinTS ein Konto, fällt es aus jeder anderen Verbindung,
  * über welchen Weg auch immer. Beide Wege schreiben den Verwendungszweck verschieden, der Dubletten-Hash erkennte
- * dieselbe Zahlung sonst nicht.
+ * dieselbe Zahlung sonst nicht. Ein Konto mit externer Quelle verbindet keiner der beiden Wege (Fehler).
  *
  * Eine Zustimmung bei Enable Banking ohne Konten wird gelöscht; ihre Sitzungen gibt die Funktion zurück, damit der
  * Aufrufer sie nach der Transaktion auch bei Enable Banking beendet. Eine FinTS-Verbindung ohne Konten bleibt stehen,
@@ -16,6 +17,7 @@ import { schema, type Tx } from "../../db/index.ts";
  */
 export async function kontenUebernehmen(tx: Tx, bankAccountIds: Set<string>, ausser?: string): Promise<string[]> {
   if (bankAccountIds.size === 0) return [];
+  await keineExterneQuelle(tx, [...bankAccountIds]);
   const sitzungen: string[] = [];
   const fints = await tx.select({ id: schema.fintsConnections.id, accounts: schema.fintsConnections.accounts }).from(schema.fintsConnections);
   for (const v of fints) {

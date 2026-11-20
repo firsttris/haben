@@ -148,11 +148,11 @@ export function ustIdBestaetigungPruefen(getPage: () => Page) {
       await page.getByRole("button", { name: "Kontakt anlegen" }).click();
       await expect.poll(() => dienst.anfragen.length).toBe(1);
       await page.getByRole("link", { name: "Rechnung schreiben" }).click();
-      await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+      await expect(page).toHaveURL(/\/rechnungen\/neu\?kunde=[0-9a-f-]{36}$/);
       // Die Abfrage läuft auf dem Server zu Ende, die Seite bleibt
       await expect.poll(() => dienst.anfragen.length).toBe(2);
       await page.waitForTimeout(2_000);
-      await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+      await expect(page).toHaveURL(/\/rechnungen\/neu\?kunde=[0-9a-f-]{36}$/);
     } finally {
       // Nicht in den Zahlen der folgenden Tests
       await sql.begin(async (tx) => {

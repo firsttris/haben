@@ -1,4 +1,4 @@
-import { type EbTransaction, enableBankingStatement } from "@haben/import";
+import { type EbTransaction, enableBankingStatement, statementFromBatch } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -758,5 +758,49 @@ describe.skipIf(!testDatabaseUrl)("storeBatch (Postgres)", () => {
     await expect(speichere(abruf({ iban: anderes.iban, hash: konto.hash }, [tx("ER-9", "2026-10-05")]))).rejects.toThrow(
       "schon mit einem anderen Konto verbunden",
     );
+  });
+
+  it("legt Zahlung und Gebühr desselben Ereignisses als zwei Umsätze an und erkennt beide beim nächsten Abruf (#306, Schritt 4)", async () => {
+    const [psp] = await sql<{ id: string }[]>`insert into bank_accounts (name, purpose, provider) values ('Marktplatz', 'zahlungsdienstleister', 'sonstige')
+      returning id`;
+    const zahlung = { sourceEventId: "SALE-1", kind: "payment" as const, bookingDate: "2026-10-03", currency: "EUR", references: { orderId: "01-1" } };
+    const lieferung = (fetchId: string) => ({
+      contractVersion: 1,
+      provider: "marktplatz",
+      externalAccountId: "verkaeufer-1",
+      idempotencyKey: fetchId,
+      fetchedAt: "2026-10-31T23:00:00+01:00",
+      coverage: { from: "2026-10-01", to: "2026-10-31" },
+      part: { fetchId, index: 0, last: true },
+      movements: [
+        { ...zahlung, component: "main" as const, amount: 4999, counterpartyName: "Erika Beispiel", purpose: "Bestellung 01-1" },
+        { ...zahlung, component: "fee" as const, amount: -1006, counterpartyName: "Marktplatz", purpose: "Gebühren zu Bestellung 01-1" },
+      ],
+      balances: [],
+      unsupported: [],
+    });
+    const input = (fetchId: string) => {
+      const batch = lieferung(fetchId);
+      const { statement, eventOf } = statementFromBatch(batch, "psp");
+      return {
+        batch,
+        binding: { provider: "marktplatz", externalAccountId: "verkaeufer-1", accountKind: "psp" as const },
+        statement,
+        eventOf,
+        source: { filename: `Lieferung ${fetchId}`, sha256: fetchId.padEnd(64, "0") },
+      };
+    };
+    const erste = await db.db.transaction((t) => importBatch.storeBatch(t, input("l-1"), psp!.id));
+    expect(erste).toMatchObject({ added: 2, complete: true });
+    const umsaetze = await sql`select amount, purpose from bank_transactions where bank_account_id = ${psp!.id} order by amount desc`;
+    expect(umsaetze).toEqual([
+      { amount: 4999, purpose: "Bestellung 01-1" },
+      { amount: -1006, purpose: "Gebühr · Gebühren zu Bestellung 01-1" },
+    ]);
+    const bewegungen = await sql`select component from import_movements m join import_sources s on s.id = m.source_id
+      where s.external_account_id = 'verkaeufer-1' order by 1`;
+    expect(bewegungen.map((b) => b.component)).toEqual(["fee", "main"]);
+    // Derselbe Inhalt in einer neuen Lieferung: beide bekannt, nichts doppelt
+    expect(await db.db.transaction((t) => importBatch.storeBatch(t, input("l-2"), psp!.id))).toMatchObject({ added: 0 });
   });
 });
