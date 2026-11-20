@@ -112,4 +112,10 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
     const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01" }, AM_TAG, dienst().via);
     expect(ergebnis.hinweis).toMatch(/^NL123456789B01: .*deine deutsche USt-IdNr\. in den Firmendaten/);
   });
+
+  it("ohne Lieferanten-Kontakt nennt der Hinweis die letzte Antwort, auch „nicht vergeben“ (Review #1568)", async () => {
+    await modul.bestaetigeNummer(actor, lieferant, "NL123456789B01", dienst(fehler(404, "evatr-2001")).via);
+    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01" }, AM_TAG, dienst().via);
+    expect(ergebnis.hinweis).toContain("Nicht vergeben");
+  });
 });
