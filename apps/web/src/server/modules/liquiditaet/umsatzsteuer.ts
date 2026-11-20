@@ -11,7 +11,7 @@ import {
 } from "@haben/core";
 import { sql } from "drizzle-orm";
 import { db } from "../../db/index.ts";
-import { abgegebeneZeitraeume, computedValues, kz39For, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
+import { abgegebeneZeitraeume, computedValues, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import type { Kontext } from "./kontext.ts";
 
 /*
@@ -30,9 +30,9 @@ async function zeitraeume(k: Kontext): Promise<(UstZeitraum & { gebucht: Cents }
   const ergebnis: (UstZeitraum & { gebucht: Cents })[] = [];
   // Nacheinander: jede Rechnung liest das ganze Journal des Zeitraums
   for (const z of liste) {
-    // Ein Zeitraum, der erst nach heute beginnt, hat noch keine Buchungen; nur die Sondervorauszahlung wird abgezogen (Kz 39)
-    const gebucht = z.von > k.heute ? -(await kz39For(z.zeitraum)) : (await computedValues(z.zeitraum)).kz83;
-    ergebnis.push({ ...z, gebucht });
+    // Auch ein Zeitraum nach heute: Bei Sollversteuerung steht die Steuer einer Rechnung schon zum Ende der Leistung im
+    // Journal bzw. im Plan der Anzahlungen (§ 13 Abs. 1 Nr. 1 Buchst. a UStG); im Dezember mit Abzug der Sondervorauszahlung
+    ergebnis.push({ ...z, gebucht: (await computedValues(z.zeitraum)).kz83 });
   }
   return ergebnis;
 }

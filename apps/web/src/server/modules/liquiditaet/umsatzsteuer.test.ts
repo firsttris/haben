@@ -87,4 +87,31 @@ describe.skipIf(!testDatabaseUrl)("Liquiditätsvorschau: Umsatzsteuer (Postgres)
     const bericht = await vorschau.liquiditaetsvorschau("2026-11-20", "6m");
     expect(steuerposten(bericht)).toEqual([["2027-01-11", "aus", 57_000, "geschaetzt", "Umsatzsteuer 4. Quartal 2026"]]);
   }, 30_000);
+
+  it.each(["einzelunternehmen", "gmbh"] as const)(
+    "Soll, Rechnung im November für Leistung im Dezember (%s, SKR04): die Steuer steht in der Vorschau",
+    async (rechtsform) => {
+      await firma(sql, { rechtsform, kontenrahmen: "SKR04", versteuerung: "soll" });
+      await sql`insert into vat_frequencies (year, from_month, frequency) values (2026, 1, 'monatlich')`;
+      const contactId = await kunde(contacts);
+      const draft = await invoices.createDraft(ACTOR, {
+        contactId,
+        issueDate: "2026-11-16",
+        serviceFrom: "2026-12-01",
+        serviceTo: "2026-12-31",
+        paymentTermDays: 14,
+        format: "zugferd",
+        note: "",
+        lines: [{ description: "Wartung Dezember", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 1900 as const }],
+      });
+      await invoices.finalizeInvoice(ACTOR, draft.id, kleinunternehmerStand);
+
+      const bericht = await vorschau.liquiditaetsvorschau("2026-11-20", "6m");
+      // Entsteht mit dem Ende der Leistung im Dezember (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG) oder, kommt das Geld
+      // vorher, mit dem Zahlungseingang (Satz 4); in einem der beiden Zeiträume steht sie
+      const steuer = steuerposten(bericht).reduce((s, [, richtung, betrag]) => s + (richtung === "aus" ? (betrag as number) : -(betrag as number)), 0);
+      expect(steuer).toBe(19_000);
+    },
+    30_000,
+  );
 });
