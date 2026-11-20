@@ -15,6 +15,11 @@ import type { ParsedStatement } from "./types.ts";
  * Anzahl der Schecks, Soll, Haben und Währung. Beträge deutsch, mit keiner, einer oder zwei Nachkommastellen, Daten ohne
  * führende Nullen.
  *
+ * Formatquellen: die Firefly-III-Konfiguration für die Deutsche Bank
+ * (https://github.com/firefly-iii/import-configurations/tree/main/de/deutschebank) und der Banana-Testfall
+ * csv_deutschebank_example_format5_20250414.csv (Postbank-Export); eine offizielle Beschreibung des Spaltenlayouts gibt
+ * die Bank nicht heraus.
+ *
  * „Betrag“ ist gefüllt und trägt das Vorzeichen; Soll und Haben wiederholen ihn. Fehlt er, zählt die gefüllte Spalte von
  * Soll und Haben. „Abweichender Empfänger“ bleibt unberücksichtigt: dort steht bei einer Umbuchung auf ein eigenes Konto
  * der eigene Name. Die Fußzeile ist der Kontostand am Ende, kein Umsatz.
