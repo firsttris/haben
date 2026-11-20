@@ -2637,6 +2637,9 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
 
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   const feld = page.getByRole("combobox", { name: "Ansprechpartner" });
+  // Genau ein aktiver Ansprechpartner: gleich gewählt und abwählbar (#1335)
+  await expect(feld.locator("option:checked")).toHaveText("Mara Beispiel");
+  await feld.selectOption({ label: "Keiner" });
   await expect(feld).toHaveValue("");
   await feld.selectOption({ label: "Mara Beispiel" });
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
@@ -2677,6 +2680,43 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveCount(0);
+});
+
+test("Ansprechpartner: der einzige aktive ist in Rechnung und Angebot gleich gewählt, bei zweien keiner (#1335)", async () => {
+  await go("/kontakte");
+  const kontakt = (await page
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .first()
+    .getAttribute("href"))!;
+  await go(kontakt);
+  const karte = page.getByRole("region", { name: "Ansprechpartner" });
+  // Mara Beispielmann ist deaktiviert (#424): Jonas ist danach der einzige aktive
+  await karte.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
+  const neu = karte.getByRole("form", { name: "Neuer Ansprechpartner" });
+  await neu.getByLabel("Name").fill("Jonas Muster");
+  await neu.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Ansprechpartner angelegt.")).toBeVisible();
+
+  // „Rechnung schreiben“ am Kontakt (#1557): Kunde und Ansprechpartner stehen schon
+  await page.getByRole("link", { name: "Rechnung schreiben" }).click();
+  await page.waitForURL(/rechnungen\/neu/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" }).locator("option:checked")).toHaveText("Jonas Muster");
+
+  // Angebot: beim Wählen des Kunden ebenso
+  await go("/angebote/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" }).locator("option:checked")).toHaveText("Jonas Muster");
+
+  // Zwei aktive: Haben wählt nicht für dich
+  await go(kontakt);
+  await karte.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
+  await neu.getByLabel("Name").fill("Lea Beispiel");
+  await neu.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Ansprechpartner angelegt.")).toBeVisible();
+  await go("/angebote/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveValue("");
 });
 
 test("Rechnungsdatum vor der letzten festgeschriebenen Rechnung: Warnung beim Festschreiben ohne Sperre (#713)", async () => {

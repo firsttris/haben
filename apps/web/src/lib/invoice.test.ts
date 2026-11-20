@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customerDraft, invoiceTitle } from "./invoice.ts";
+import { customerDraft, einzigerAnsprechpartner, invoiceTitle } from "./invoice.ts";
 
 describe("invoiceTitle", () => {
   it("nennt Abschlags- und Schlussrechnung nur bei Rechnungen", () => {
@@ -44,5 +44,28 @@ describe("customerDraft (#1557)", () => {
     expect(customerDraft(draft, [{ ...kunde, isCustomer: false }], "k1", firmenSkonto)).toBeNull();
     expect(customerDraft(draft, [kunde], "k2", firmenSkonto)).toBeNull();
     expect(customerDraft(draft, [kunde], undefined, firmenSkonto)).toBeNull();
+  });
+});
+
+describe("einzigerAnsprechpartner (#1335)", () => {
+  const person = (id: string, contactId = "k1", deactivated = false) => ({ id, contactId, deactivated });
+
+  it("gibt den einzigen aktiven Ansprechpartner des Kunden", () => {
+    expect(einzigerAnsprechpartner([person("p1"), person("p9", "k2")], "k1")).toBe("p1");
+    // Eine deaktivierte Person zählt nicht mit
+    expect(einzigerAnsprechpartner([person("p1"), person("p2", "k1", true)], "k1")).toBe("p1");
+  });
+
+  it("wählt bei keinem oder mehreren aktiven niemanden", () => {
+    expect(einzigerAnsprechpartner([], "k1")).toBe("");
+    expect(einzigerAnsprechpartner([person("p1", "k1", true)], "k1")).toBe("");
+    expect(einzigerAnsprechpartner([person("p1"), person("p2")], "k1")).toBe("");
+  });
+
+  it("belegt ihn im Entwurf für einen Kunden vor (customerDraft)", () => {
+    const draft = { contactId: null as string | null, format: "zugferd" as const, language: "de", paymentTermDays: 14, skonto: [] };
+    const kunde = { id: "k1", isCustomer: true, defaultFormat: null, leitwegId: null, language: "de", skonto: null };
+    expect(customerDraft(draft, [kunde], "k1", [], [person("p1")])?.contactPersonId).toBe("p1");
+    expect(customerDraft(draft, [kunde], "k1", [], [person("p1"), person("p2")])?.contactPersonId).toBeUndefined();
   });
 });

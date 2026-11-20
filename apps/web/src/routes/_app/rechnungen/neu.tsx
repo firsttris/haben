@@ -16,7 +16,7 @@ function NewInvoicePage() {
   const data = Route.useLoaderData();
   const { schluss, kunde } = Route.useSearch();
   const abschlag = schluss ? data.abschlaege.find((a) => a.id === schluss) : undefined;
-  const withContact = customerDraft(data.draft, data.contacts, abschlag ? abschlag.contactId : kunde, data.companySkonto);
+  const withContact = customerDraft(data.draft, data.contacts, abschlag ? abschlag.contactId : kunde, data.companySkonto, data.contactPersons);
   // Von einer Abschlagsrechnung aus: dazu Steuer, Preismodus und Angebot; abgezogen werden die offenen
   // Abschläge dieses Angebots, ohne Angebot alle offenen Abschläge des Kunden
   const initial =
