@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import type { Db } from "./index.ts";
 
@@ -73,4 +74,51 @@ export function catalogFindings(objects: CatalogObjects, schemas: string[], expe
   for (const schema of path) if (schema !== "pg_catalog" && schema !== "public") problems.push(`Schema ${schema} im Suchpfad der Verbindung`);
   if (path[0] !== "pg_catalog") problems.push("pg_catalog steht im Suchpfad der Verbindung nicht vorn");
   return { problems, hints };
+}
+
+/** Eingebaute Funktionen in pg_catalog, die nicht in C fest eingebaut sind, mit einem Hash über ihre Definition */
+export type Builtins = { major: number; functions: { name: string; hash: string }[] };
+
+/*
+ * Ein Superuser kann eine eingebaute Funktion an Ort und Stelle ersetzen (CREATE OR REPLACE in pg_catalog); ihre OID
+ * bleibt dabei unter FirstNormalObjectId. Fest eingebaute Funktionen (Sprache internal) unterscheiden sich zwischen
+ * Unterversionen (18.7 hat eine mehr als 18.6). Die übrigen, in SQL oder als C-Bibliothek, waren in 18.4, 18.6 und 18.7
+ * gleich. Eine ersetzte Funktion fällt deshalb so auf: Eigener Code in SQL oder PL/pgSQL macht aus einer fest eingebauten
+ * eine zusätzliche Funktion dieser Gruppe, an einer Funktion der Gruppe ändert er den Hash. Ersetzt jemand eine
+ * eingebaute Funktion durch eine andere fest eingebaute, fällt das nicht auf.
+ * Erwartet search_path = pg_catalog wie die übrigen Abfragen des Sollbestands.
+ * https://www.postgresql.org/docs/18/catalog-pg-proc.html
+ */
+export async function readBuiltinFunctions(tx: Connection): Promise<Builtins> {
+  const [version] = await tx.execute<{ major: number }>(sql`select current_setting('server_version_num')::integer / 10000 as major`);
+  const rows = await tx.execute<{ name: string }>(sql`
+    select format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) as name, p.prokind, l.lanname,
+      p.prosecdef, p.proleakproof, p.proisstrict, p.proretset, p.provolatile, p.proparallel, format_type(p.prorettype, null) as rettype,
+      p.prosrc, p.probin, coalesce(p.proconfig, '{}'::text[]) as config
+    from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace join pg_catalog.pg_language l on l.oid = p.prolang
+    where p.oid < 16384 and n.nspname = 'pg_catalog' and l.lanname <> 'internal'`);
+  const functions = rows.map(({ name, ...definition }) => ({ name, hash: createHash("sha256").update(JSON.stringify(definition)).digest("hex") }));
+  // Sortiert ohne Sortierfolge der Datenbank, damit der Sollbestand nicht von ihrer Locale abhängt
+  functions.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return { major: Number(version!.major), functions };
+}
+
+/** Befunde zu eingebauten Funktionen; auf einer anderen Hauptversion als der des Sollbestands nur ein Hinweis */
+export function builtinFindings(expected: Builtins, actual: Builtins): { problems: string[]; hints: string[] } {
+  if (actual.major !== expected.major) {
+    return {
+      problems: [],
+      hints: [`Eingebaute Funktionen nicht geprüft: Der Sollbestand gilt für PostgreSQL ${expected.major}, der Server hat ${actual.major}`],
+    };
+  }
+  const found = new Map(actual.functions.map((fn) => [fn.name, fn.hash]));
+  const known = new Set(expected.functions.map((fn) => fn.name));
+  const problems: string[] = [];
+  for (const fn of expected.functions) {
+    const hash = found.get(fn.name);
+    if (hash === undefined) problems.push(`Eingebaute Funktion ${fn.name} fehlt oder wurde verändert`);
+    else if (hash !== fn.hash) problems.push(`Eingebaute Funktion ${fn.name} wurde verändert`);
+  }
+  for (const fn of actual.functions) if (!known.has(fn.name)) problems.push(`Eingebaute Funktion ${fn.name} durch eigenen Code ersetzt`);
+  return { problems, hints: [] };
 }

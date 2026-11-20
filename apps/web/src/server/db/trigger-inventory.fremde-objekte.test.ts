@@ -71,6 +71,32 @@ describe.skipIf(!testDatabaseUrl)("Fremde Funktionen, Operatoren und Casts (Post
     });
   });
 
+  // Ein Superuser kann eingebaute Funktionen an Ort und Stelle ersetzen; die OID bleibt dabei unter 16384
+  it.each([
+    [
+      "create or replace function pg_catalog.to_jsonb(anyelement) returns jsonb language sql stable as $$ select pg_catalog.to_json($1)::jsonb $$",
+      "Eingebaute Funktion pg_catalog.to_jsonb(anyelement) durch eigenen Code ersetzt",
+    ],
+    [
+      `create or replace function pg_catalog.age(timestamp without time zone) returns interval language sql stable strict parallel safe as
+        $$ select interval '0' $$`,
+      "Eingebaute Funktion pg_catalog.age(timestamp without time zone) wurde verändert",
+    ],
+    [
+      "alter function pg_catalog.age(timestamp without time zone) security definer",
+      "Eingebaute Funktion pg_catalog.age(timestamp without time zone) wurde verändert",
+    ],
+  ])("meldet eine an Ort und Stelle ersetzte eingebaute Funktion: %s", async (statement, text) => {
+    await rolledBack(async (tx) => {
+      const [{ oid }] = (await tx.execute<{ oid: number }>(
+        query`select oid::text::integer as oid from pg_catalog.pg_proc where oid = 'pg_catalog.to_jsonb(anyelement)'::pg_catalog.regprocedure`,
+      )) as unknown as [{ oid: number }];
+      expect(oid).toBeLessThan(16384);
+      await tx.execute(query.raw(statement));
+      expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund(text)]);
+    });
+  });
+
   it("meldet ein Schema im Suchpfad der Verbindung, etwa mit dem Namen der Anmeldung", async () => {
     await rolledBack(async (tx) => {
       const [{ name }] = (await tx.execute<{ name: string }>(query`select current_user as name`)) as unknown as [{ name: string }];

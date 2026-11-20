@@ -3834,5 +3834,443 @@
       "sourceHash": "88314bfb98aa3943e6a52f822077e51a080b353c9f1569a25b43ce16fd538ec5",
       "definitionHash": "ff547426053244fabee4f51bfb81c8557295ee7d0e886176db96c613efa197c3"
     }
-  ]
+  ],
+  "builtins": {
+    "major": 18,
+    "functions": [
+      {
+        "name": "pg_catalog.\"overlaps\"(time without time zone, interval, time without time zone, interval)",
+        "hash": "e10909e3cbfb136651977482dd5fe2e8a64fa13e81f7e74edd307ad7f20bc2ed"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(time without time zone, interval, time without time zone, time without time zone)",
+        "hash": "e10909e3cbfb136651977482dd5fe2e8a64fa13e81f7e74edd307ad7f20bc2ed"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(time without time zone, time without time zone, time without time zone, interval)",
+        "hash": "e10909e3cbfb136651977482dd5fe2e8a64fa13e81f7e74edd307ad7f20bc2ed"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(timestamp with time zone, interval, timestamp with time zone, interval)",
+        "hash": "b151eb3cd9ea4dd7c5d8b530b68807f4817cf529aafbe03ea97b78e238037933"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(timestamp with time zone, interval, timestamp with time zone, timestamp with time zone)",
+        "hash": "b151eb3cd9ea4dd7c5d8b530b68807f4817cf529aafbe03ea97b78e238037933"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(timestamp with time zone, timestamp with time zone, timestamp with time zone, interval)",
+        "hash": "b151eb3cd9ea4dd7c5d8b530b68807f4817cf529aafbe03ea97b78e238037933"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(timestamp without time zone, interval, timestamp without time zone, interval)",
+        "hash": "e10909e3cbfb136651977482dd5fe2e8a64fa13e81f7e74edd307ad7f20bc2ed"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(timestamp without time zone, interval, timestamp without time zone, timestamp without time zone)",
+        "hash": "e10909e3cbfb136651977482dd5fe2e8a64fa13e81f7e74edd307ad7f20bc2ed"
+      },
+      {
+        "name": "pg_catalog.\"overlaps\"(timestamp without time zone, timestamp without time zone, timestamp without time zone, interval)",
+        "hash": "e10909e3cbfb136651977482dd5fe2e8a64fa13e81f7e74edd307ad7f20bc2ed"
+      },
+      { "name": "pg_catalog.\"substring\"(text, text, text)", "hash": "cce9e728df821a090c84f57d9c781c4ed27211012bb6a583fc45cd67ed6ef445" },
+      { "name": "pg_catalog.age(timestamp with time zone)", "hash": "f377f623972b8e8bc447e9539ec74a463ae54f2c7f900120e7e2f2222c323643" },
+      { "name": "pg_catalog.age(timestamp without time zone)", "hash": "f377f623972b8e8bc447e9539ec74a463ae54f2c7f900120e7e2f2222c323643" },
+      { "name": "pg_catalog.anytextcat(anynonarray, text)", "hash": "105224b6b2b5fb9aa70c48bd73f1b714af255c87dfcbe9ed01cc23e284332820" },
+      {
+        "name": "pg_catalog.big5_to_euc_tw(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "03bd9b5270d3f2e14513209b9cc61d4d7dee694d77aaa9eb2096d8f195d1f8af"
+      },
+      {
+        "name": "pg_catalog.big5_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "cc0c64f8fdefbe3c1f0cc1efe0f2a55c661c806cc51c205e5fa4008a51bf13fc"
+      },
+      {
+        "name": "pg_catalog.big5_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "608a0a963db4dcf43c603f467f487be695b2797282c85741360034a3f41b23ef"
+      },
+      { "name": "pg_catalog.bit_length(bit)", "hash": "8a75b81367692a833ee317250a491af783384635a81493105729f77f624a373b" },
+      { "name": "pg_catalog.bit_length(bytea)", "hash": "8a75b81367692a833ee317250a491af783384635a81493105729f77f624a373b" },
+      { "name": "pg_catalog.bit_length(text)", "hash": "8a75b81367692a833ee317250a491af783384635a81493105729f77f624a373b" },
+      { "name": "pg_catalog.col_description(oid, integer)", "hash": "6a1bab384a3c0a78133f235f3a1aaad6ba9b170d149363e8c4c061e0a6d25cfa" },
+      { "name": "pg_catalog.date_part(text, date)", "hash": "0f5d47a1ca0ff9f74f338a9fbec62ced5cde070cc24d40bbd7465f821cfedb55" },
+      { "name": "pg_catalog.dsnowball_init(internal)", "hash": "a85acc321f95b5bf4be67ff2f61f3cd6fbc0ef88ce3111d34481e30cee7a1608" },
+      {
+        "name": "pg_catalog.dsnowball_lexize(internal, internal, internal, internal)",
+        "hash": "46a2fe6b78f40ae0da68e0123554d511ba495669fdb699734d4e6cb725b0d4e3"
+      },
+      {
+        "name": "pg_catalog.euc_cn_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "ebf3ee8830d833b1c6adb246581886417f16fd7909824cdb10318f287044298e"
+      },
+      {
+        "name": "pg_catalog.euc_cn_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "7886b31f34696ec7d143cb5279602b0dbb7764c5910b794e986d39a82f85c4cf"
+      },
+      {
+        "name": "pg_catalog.euc_jis_2004_to_shift_jis_2004(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "17d0549f0b2c933edba5b0d0f977f5efa25eeee7248db167273a057d6a1d4775"
+      },
+      {
+        "name": "pg_catalog.euc_jis_2004_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "966ea1f67edb193e63551afa16908176d8f2045a23bb6de11203fa6c5961d39d"
+      },
+      {
+        "name": "pg_catalog.euc_jp_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "d1a492cdd31c3cff7044684f1e2ac09d24e1f83916400662776bc469f4ada2a8"
+      },
+      {
+        "name": "pg_catalog.euc_jp_to_sjis(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "138142fede8b4d432dfab883f79d9ab00ccd5d63fe0a018fc4bc9238a89ceead"
+      },
+      {
+        "name": "pg_catalog.euc_jp_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "a1b016d465070bb54d2b85f78ad7df0996d6dc0125d9aa605b9f2528a84ba665"
+      },
+      {
+        "name": "pg_catalog.euc_kr_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "1e92d8b0eabdc2a4596f2af89b50ce51bf766a28e929830f8642d6fefd22c662"
+      },
+      {
+        "name": "pg_catalog.euc_kr_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "244ff9f6370b9047e1bfdf71eaaff0ba2c5f418c51ac74fe6234f7bbdc5ba3bd"
+      },
+      {
+        "name": "pg_catalog.euc_tw_to_big5(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "79ca847791303268258a2ace59f8515a31aaee65e8237dab4c8121513a6d4399"
+      },
+      {
+        "name": "pg_catalog.euc_tw_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "9a0cf7c545caa889df97b27c49e4a4ce7e31155aa5441b58327ad9e6bd3cfb26"
+      },
+      {
+        "name": "pg_catalog.euc_tw_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "8633bbf02a35874af32a74d94abee0cadba580ee03f423a6c6722537ba0340ef"
+      },
+      {
+        "name": "pg_catalog.gb18030_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "39b7cc8cc20afae8f033ff2778eaf8275fc55452c00d522d3e4b6ddca65f5644"
+      },
+      {
+        "name": "pg_catalog.gbk_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "e0dc0ea32c5e724df4875167fa1bc054866dc9f59f9c227022770c1c33f605b8"
+      },
+      { "name": "pg_catalog.int8pl_inet(bigint, inet)", "hash": "1569cbe13bc1a3d06ebe2fa3f293c8cbf1d615f88151279ed28887fde99d1b51" },
+      { "name": "pg_catalog.integer_pl_date(integer, date)", "hash": "86d4b94a0298169a188a6d356b98daccf3294237e9f45d6255ff3ebb68949717" },
+      { "name": "pg_catalog.interval_pl_date(interval, date)", "hash": "5c41b8c3795267b840dc983ef9737a06e9c4bfab8b99702fdcf9568366e9e727" },
+      { "name": "pg_catalog.interval_pl_time(interval, time without time zone)", "hash": "12b4a333e50c76c1811c1ce6fc28ab04fb8a66ee4d47ba5638465589acaf371c" },
+      {
+        "name": "pg_catalog.interval_pl_timestamp(interval, timestamp without time zone)",
+        "hash": "5c41b8c3795267b840dc983ef9737a06e9c4bfab8b99702fdcf9568366e9e727"
+      },
+      {
+        "name": "pg_catalog.interval_pl_timestamptz(interval, timestamp with time zone)",
+        "hash": "b1122023fbc85c389eed6bc439e055d8cf14bbbfb70390c78209cd57ebbc5313"
+      },
+      { "name": "pg_catalog.interval_pl_timetz(interval, time with time zone)", "hash": "69f4cbacbfdb9bcdecd9c5aa531af94de3243b9fcf25145479b65c083f6e861e" },
+      {
+        "name": "pg_catalog.iso8859_1_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "10f03d465f79cb8501c6e7095d696973c2a7dea5a5d43ae7df6eb114141a462b"
+      },
+      {
+        "name": "pg_catalog.iso8859_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "f2373ba4b4f9ef7e7d5ed196e6afc71ba5cba31d2907584e0587d874567c9738"
+      },
+      {
+        "name": "pg_catalog.iso_to_koi8r(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "e634f18b4f86d7b5f1f0b245a7c3a8c97e84c1dcb0caafa103679e9c24f404ef"
+      },
+      {
+        "name": "pg_catalog.iso_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "55c59faabb690e9d9e2d0c59f49db0851ac691e4647b5602abbe3f6807962446"
+      },
+      {
+        "name": "pg_catalog.iso_to_win1251(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "bfe2c27fadf04511a8219e145729ed00baca5088452b149c6aaeffc2ae3ee56a"
+      },
+      {
+        "name": "pg_catalog.iso_to_win866(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "9b9b6145926a11d6a8f3b2502f3424afd78ab78c1e2498f39d6f04b3923dfe3e"
+      },
+      {
+        "name": "pg_catalog.johab_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "d2a620c2ff6c290c98a794e3d0aaf647371a28005123ef9e416cad02a76f9cbb"
+      },
+      {
+        "name": "pg_catalog.koi8r_to_iso(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "37689bfef9d60ae6526af18ac5839a34eaa699fe0a059044371861270dfa3f72"
+      },
+      {
+        "name": "pg_catalog.koi8r_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "fac709831eb515c48b6af7b70c04e9bc253f696b6fd01a9543f24ae3dd914266"
+      },
+      {
+        "name": "pg_catalog.koi8r_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "ca9ea1fc8844952d7fdd0adf193eebb73df5da5789c6368fc301447babb79ed4"
+      },
+      {
+        "name": "pg_catalog.koi8r_to_win1251(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "22042142db628ed5c5eebde744802a58058573a0589790ccfc8fb96a3af8f63c"
+      },
+      {
+        "name": "pg_catalog.koi8r_to_win866(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "5bb19b32e2b005694bc498f607991dd8a2fb9b5a758e19950a76ff909dfd15f1"
+      },
+      {
+        "name": "pg_catalog.koi8u_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "25b0459de79e20313f09711c20aad092c47afd19dadc582ebdc14306af557427"
+      },
+      {
+        "name": "pg_catalog.latin1_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "e01eb5c0b2a30eecefeb4b062f138c003a50b1e188eae36fa59b6f31e50b7549"
+      },
+      {
+        "name": "pg_catalog.latin2_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "e8177041781dc1586a5157ab367532454f5a50bb22bcd6fabe0c8116c9ff8210"
+      },
+      {
+        "name": "pg_catalog.latin2_to_win1250(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "c645003de203c8d0c30e7517d3c6964cdcbd2a80fde89cf9cdc71682e2dd827a"
+      },
+      {
+        "name": "pg_catalog.latin3_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "2e07c1db261df2fca868e7b841f23ad0d679193070432bf3ab2bf6eef3324cde"
+      },
+      {
+        "name": "pg_catalog.latin4_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "e0d180f75b31e3c5bf5e4c73077bf1c18ecdf5f9ffd0286cb7185c474f49ca43"
+      },
+      { "name": "pg_catalog.log(numeric)", "hash": "00e827db91e0f104f2e20aaaee9296a8b3e450430cdae184aa8d0c16b259374d" },
+      { "name": "pg_catalog.log10(numeric)", "hash": "00e827db91e0f104f2e20aaaee9296a8b3e450430cdae184aa8d0c16b259374d" },
+      { "name": "pg_catalog.lpad(text, integer)", "hash": "cce9e728df821a090c84f57d9c781c4ed27211012bb6a583fc45cd67ed6ef445" },
+      {
+        "name": "pg_catalog.mic_to_big5(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "d28849d5afcaea6c14877060e434ce4cc7207cc51bfba343cfe3472810c331e1"
+      },
+      {
+        "name": "pg_catalog.mic_to_euc_cn(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "93cb3bd2f08ef9b3e9b64fd1256cd2705aa6cf372e86cc5c8cdf5a88887e93f0"
+      },
+      {
+        "name": "pg_catalog.mic_to_euc_jp(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "38a24fd6affabcce77d11247fd1fc7ae6c53cfd120d62ffae24dff241ae076be"
+      },
+      {
+        "name": "pg_catalog.mic_to_euc_kr(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "f6f38e3f225d91016a7ef4fa64e745bb9640688f49d421d792a85f05daaf9f3c"
+      },
+      {
+        "name": "pg_catalog.mic_to_euc_tw(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "dd9ac6b17fabfdf7d1e390d052a5404f8f23fa65d8b4244e252cd7677fd919a4"
+      },
+      {
+        "name": "pg_catalog.mic_to_iso(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "d74830ae4228de2fac97781935161f6522f39d1cee5d046db9b072edda51c530"
+      },
+      {
+        "name": "pg_catalog.mic_to_koi8r(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "00415d84436ccf96e733a124a4455803227ffae5e3bd7db1342d5ff700c4b90b"
+      },
+      {
+        "name": "pg_catalog.mic_to_latin1(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "53bca427acfb23072920d8c174fed01deed00e0c66b7012821ab5538cd52bb73"
+      },
+      {
+        "name": "pg_catalog.mic_to_latin2(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "4da6e6554971f00bea2dcb8f54870c746c0755dcd072f49c31e800fbbd8464ee"
+      },
+      {
+        "name": "pg_catalog.mic_to_latin3(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "1214ca6d84343bce751875ac6e5e3bc994f4854b616eb783c8448396ae282e3c"
+      },
+      {
+        "name": "pg_catalog.mic_to_latin4(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "dd429669c5de158138e59528915777c234e5150fb78c51b52a0edfaa35af9bf7"
+      },
+      {
+        "name": "pg_catalog.mic_to_sjis(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "4a00450633da4ea175fc30ae84138242e292f317834a5a4cfe58e7f002a7a70c"
+      },
+      {
+        "name": "pg_catalog.mic_to_win1250(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "6269c3f234c5c3f88ee7015a7731406973ea9c32cbbb97fbbf868da98839c9b4"
+      },
+      {
+        "name": "pg_catalog.mic_to_win1251(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "0ea89f428296efff162c0fcbe7f538fbc858b5e87a5af4d6980b57c39195915e"
+      },
+      {
+        "name": "pg_catalog.mic_to_win866(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "aa66a5c2c414a1eb959c54759208a532b03669c981397c03f8e4e8ea6b244e1c"
+      },
+      { "name": "pg_catalog.numeric_pl_pg_lsn(numeric, pg_lsn)", "hash": "5be189d2e2ceb8f3f192307b64d9f4aaf1320903f2eeecbbafed71e65ce78614" },
+      { "name": "pg_catalog.obj_description(oid)", "hash": "6a1bab384a3c0a78133f235f3a1aaad6ba9b170d149363e8c4c061e0a6d25cfa" },
+      { "name": "pg_catalog.obj_description(oid, name)", "hash": "6a1bab384a3c0a78133f235f3a1aaad6ba9b170d149363e8c4c061e0a6d25cfa" },
+      { "name": "pg_catalog.path_contain_pt(path, point)", "hash": "c791f97129813a66715752c4b0f7c4baa680b56c50afcbbf4ab71ab2c9acdbab" },
+      { "name": "pg_catalog.pg_relation_size(regclass)", "hash": "5560c1ef956c7c7ce243166837b394ad92a554e31295eb43b5c1621365ddf925" },
+      { "name": "pg_catalog.pg_sleep_for(interval)", "hash": "2b147e7149b6cc5c74726b568f1fe508f008352f200777453263ae73b96f32b5" },
+      { "name": "pg_catalog.pg_sleep_until(timestamp with time zone)", "hash": "2b147e7149b6cc5c74726b568f1fe508f008352f200777453263ae73b96f32b5" },
+      { "name": "pg_catalog.plpgsql_call_handler()", "hash": "b424fd4f7fdea0bee846b63827523689939d52405d0e9c14fb9f836249955c13" },
+      { "name": "pg_catalog.plpgsql_inline_handler(internal)", "hash": "d08b3aa02c670fab401d714020126da07b8eba70eaf8258812d87a95ee38ae52" },
+      { "name": "pg_catalog.plpgsql_validator(oid)", "hash": "ba9a67ea0dcd72473ff1c7d8fe30b145c75a2d4516ff1e14637c54bb58ea5564" },
+      { "name": "pg_catalog.polygon(circle)", "hash": "712fdb21f6a77c856d01ebaf756960a4b9fd15557fd787cb3ccd1e68d4186e7e" },
+      { "name": "pg_catalog.quote_literal(anyelement)", "hash": "a469ffb08393496f5551af4be7dff8248225686847378d93b9e7213b21cd71a8" },
+      { "name": "pg_catalog.quote_nullable(anyelement)", "hash": "f9b6989d0318e96090b202bfdca831aba384123dc3cc259d45d15e2d5393083e" },
+      { "name": "pg_catalog.round(numeric)", "hash": "00e827db91e0f104f2e20aaaee9296a8b3e450430cdae184aa8d0c16b259374d" },
+      { "name": "pg_catalog.rpad(text, integer)", "hash": "cce9e728df821a090c84f57d9c781c4ed27211012bb6a583fc45cd67ed6ef445" },
+      {
+        "name": "pg_catalog.shift_jis_2004_to_euc_jis_2004(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "7483fd6b4372089c2b7f7ef826ce9c3bc92b7e83e8d47f1440537b6b41f6a2e6"
+      },
+      {
+        "name": "pg_catalog.shift_jis_2004_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "e11b4993c87ca3ddecef3d044074d90546ba4a1242438681d6196908cc22bf2e"
+      },
+      { "name": "pg_catalog.shobj_description(oid, name)", "hash": "6a1bab384a3c0a78133f235f3a1aaad6ba9b170d149363e8c4c061e0a6d25cfa" },
+      {
+        "name": "pg_catalog.sjis_to_euc_jp(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "7e1d494b8f64d07e3ba8d8cbb296178bb032e1668d1a09ff265bd4fedc7915a0"
+      },
+      {
+        "name": "pg_catalog.sjis_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "3488d34762948a2de1fb91831ae105a0a5daedd9cd44e23e5969e13019336121"
+      },
+      {
+        "name": "pg_catalog.sjis_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "6ab91608f354de5212edc773ed8e52de76720f26854213cb2f1dbd5e6b2e6c3d"
+      },
+      { "name": "pg_catalog.textanycat(text, anynonarray)", "hash": "54b75040a4779c82213bfcd6a6e2c0f939fff74603303b0ad4e2d08d13c23d22" },
+      { "name": "pg_catalog.timedate_pl(time without time zone, date)", "hash": "5c41b8c3795267b840dc983ef9737a06e9c4bfab8b99702fdcf9568366e9e727" },
+      { "name": "pg_catalog.timestamptz(date, time without time zone)", "hash": "b1122023fbc85c389eed6bc439e055d8cf14bbbfb70390c78209cd57ebbc5313" },
+      { "name": "pg_catalog.timetzdate_pl(time with time zone, date)", "hash": "f6e70d140786389b810ff5c84d8cf6e03861e0612e0cc8a297d11f96f254daf8" },
+      { "name": "pg_catalog.trunc(numeric)", "hash": "00e827db91e0f104f2e20aaaee9296a8b3e450430cdae184aa8d0c16b259374d" },
+      {
+        "name": "pg_catalog.ts_debug(config regconfig, document text, OUT alias text, OUT description text, OUT token text, OUT dictionaries regdictionary[], OUT dictionary regdictionary, OUT lexemes text[])",
+        "hash": "217667e47b7feb6bd4542c411597bc0bec48f7f1d2b99879d226ac774ac968c6"
+      },
+      {
+        "name": "pg_catalog.ts_debug(document text, OUT alias text, OUT description text, OUT token text, OUT dictionaries regdictionary[], OUT dictionary regdictionary, OUT lexemes text[])",
+        "hash": "217667e47b7feb6bd4542c411597bc0bec48f7f1d2b99879d226ac774ac968c6"
+      },
+      {
+        "name": "pg_catalog.uhc_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "f6c1ba0dbb160394398ba1df93bcd71dda9a24294dc0fd4b25907d9555346603"
+      },
+      {
+        "name": "pg_catalog.utf8_to_big5(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "0efe83c0dfc16d3b103b2341633f148d7c8832abdf493b2792504e3f09a4d12c"
+      },
+      {
+        "name": "pg_catalog.utf8_to_euc_cn(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "6c6cda1cf881ac8edf44b2dc3441653c179c83f891c90daf2f550e8da03b82d6"
+      },
+      {
+        "name": "pg_catalog.utf8_to_euc_jis_2004(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "af2872a69e37eb831f7305469cd4cc8de2af0f9616c6d0dfd6c1f4f8f0614b49"
+      },
+      {
+        "name": "pg_catalog.utf8_to_euc_jp(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "fec798f1a85960b96a074169809a68787cf491bc8213f2e55e9d153e1607bbf2"
+      },
+      {
+        "name": "pg_catalog.utf8_to_euc_kr(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "2bead8559a0ecf72912e1e370942f1e1f5243f7874a153cc105019ca6823518e"
+      },
+      {
+        "name": "pg_catalog.utf8_to_euc_tw(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "568e43aa5a8f82a5dfa0b1c30125a0a0ea6d30b7639570c18c5bc4c4c20f92d6"
+      },
+      {
+        "name": "pg_catalog.utf8_to_gb18030(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "7a808ca148d1b81b939f1c6e7d9554e01550536e5651af05c06872b6f16e08bd"
+      },
+      {
+        "name": "pg_catalog.utf8_to_gbk(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "47905a2a904908fb5c85e20d5197dd03eeb85081104867fbb28baaac9154c9da"
+      },
+      {
+        "name": "pg_catalog.utf8_to_iso8859(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "5b838ac51bf69a00dd86c99b19ab2c19112521176eaad81479c6dc623e31a37d"
+      },
+      {
+        "name": "pg_catalog.utf8_to_iso8859_1(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "03c2bc67b370d273f232f5a81149e902a8de3e6f908d63a5127be38391d24259"
+      },
+      {
+        "name": "pg_catalog.utf8_to_johab(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "ac68f28cafd72bef81fb22a8c1b800205e4037962d94ede5aefef85531edb653"
+      },
+      {
+        "name": "pg_catalog.utf8_to_koi8r(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "a04917bf4686d0e1dcaab607e43b48852e1ae1804648a11b2c686f17870e9457"
+      },
+      {
+        "name": "pg_catalog.utf8_to_koi8u(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "2932501d4f3dbf818072a1b71620941bc586e39efb4355a2657525f2e6c8d9fe"
+      },
+      {
+        "name": "pg_catalog.utf8_to_shift_jis_2004(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "cf0925a063f24e3671199e06c8d48fcd057ffe4a8d96ec106c43a3e01a77bc56"
+      },
+      {
+        "name": "pg_catalog.utf8_to_sjis(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "144d3246768e01fb72632ee2d4652609985f2f988e3332433d83a9806991653a"
+      },
+      {
+        "name": "pg_catalog.utf8_to_uhc(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "38cdb44c7012126128a92310e366ff8204d5689e2bfc23c47f64be86acf85966"
+      },
+      {
+        "name": "pg_catalog.utf8_to_win(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "33ed5524f1d43847179b175832952b3e94d3529b2c150791f2f0e67c777870b8"
+      },
+      {
+        "name": "pg_catalog.win1250_to_latin2(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "05a03d946878b5339c434989839cb74ba9da54ce8f0bdc594b68db2016f9c215"
+      },
+      {
+        "name": "pg_catalog.win1250_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "8782513343f62a4f47476b4ebc533037f5ba99979f4198c34ad07f5e5e7cfff6"
+      },
+      {
+        "name": "pg_catalog.win1251_to_iso(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "50018746a0d6bbe7f4cda69679200bbba1def94f033e51bda78104e312c410ea"
+      },
+      {
+        "name": "pg_catalog.win1251_to_koi8r(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "1a428998db5a112aa57aaa811ab0d82703b96aba156221dbe467bbf25a434252"
+      },
+      {
+        "name": "pg_catalog.win1251_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "da4927d866ac6f9713fb94bcd61041e6cef5073bb43ed06f72e2a73da8c2cc33"
+      },
+      {
+        "name": "pg_catalog.win1251_to_win866(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "be73a792bdc40ae95ffc1c0c505e8f91c9856fb726c12bde68b5c08c10daf3c6"
+      },
+      {
+        "name": "pg_catalog.win866_to_iso(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "2628c41a785f9d9c9dcb953f3629c6c38318d2ce89937592cd4ced9f6608dde8"
+      },
+      {
+        "name": "pg_catalog.win866_to_koi8r(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "f9eb495cfd0b016006dbed7a8c81a395c1a001086de5d75237995f38d86bab49"
+      },
+      {
+        "name": "pg_catalog.win866_to_mic(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "dc3abad46341b9713f6596138c19e03b1042ea262738d3e2f7090ba227102865"
+      },
+      {
+        "name": "pg_catalog.win866_to_win1251(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "e43d467526542d5cf59ec530ee7af0e5c80b5b39592915c3effa334bd8973b74"
+      },
+      {
+        "name": "pg_catalog.win_to_utf8(integer, integer, cstring, internal, integer, boolean)",
+        "hash": "2d15d5bab17e9013a68991fadcf6da4570f64b98cd7c392eb70c584d193fcdca"
+      },
+      { "name": "pg_catalog.xpath(text, xml)", "hash": "7e5b8c2858a9d7989c379dbbd6c289e4d3f1b15928cd4269a17f330bd3b67e7e" },
+      { "name": "pg_catalog.xpath_exists(text, xml)", "hash": "c791f97129813a66715752c4b0f7c4baa680b56c50afcbbf4ab71ab2c9acdbab" }
+    ]
+  }
 }

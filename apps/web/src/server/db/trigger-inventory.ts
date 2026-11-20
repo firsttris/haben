@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { type CatalogObjects, catalogFindings, readCatalogObjects } from "./catalog-objects.ts";
+import { type Builtins, builtinFindings, type CatalogObjects, catalogFindings, readBuiltinFunctions, readCatalogObjects } from "./catalog-objects.ts";
 import type { Db } from "./index.ts";
 import expected from "./trigger-inventory.json";
 import { replicationDefaults } from "./trigger-defaults.ts";
@@ -11,6 +11,8 @@ type Reader = { transaction<T>(read: (tx: Connection) => Promise<T>, config?: { 
 export interface TriggerInventory {
   triggers: { table: string; name: string; enabled: string; definition: string; function: string }[];
   functions: { name: string; sourceHash: string; definitionHash: string; config: string[]; language: string; securityDefiner: boolean }[];
+  /** Eingebaute Funktionen von PostgreSQL, die nicht fest eingebaut sind (catalog-objects.ts) */
+  builtins: Builtins;
 }
 
 export interface TriggerProblem {
@@ -76,6 +78,7 @@ async function readSnapshot(reader: Reader): Promise<{ inventory: TriggerInvento
             sourceHash: sha256(source),
             definitionHash: sha256(definition),
           })),
+          builtins: await readBuiltinFunctions(tx),
         };
         return { inventory, defaults: await replicationDefaults(tx), schemas: setting!.schemas, catalog: await readCatalogObjects(tx) };
       } finally {
@@ -127,10 +130,11 @@ export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems:
     schemas,
     expected.functions.map((fn) => fn.name),
   );
-  for (const message of foreign.problems) problem("Datenbank", message);
+  const builtin = builtinFindings(expected.builtins, actual.builtins);
+  for (const message of [...foreign.problems, ...builtin.problems]) problem("Datenbank", message);
   // Eigene Betreibertrigger gehören nicht zum Sollbestand und beweisen keine beschädigte Sperre, auch wenn sie aus sind.
   for (const trigger of triggers.values()) hints.push(`Zusätzlicher Trigger ${key(trigger)}`);
-  hints.push(...foreign.hints);
+  hints.push(...foreign.hints, ...builtin.hints);
   return { problems, hints };
 }
 

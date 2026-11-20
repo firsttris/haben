@@ -31,7 +31,10 @@ try {
   });
   if (formatted.status !== 0) throw new Error(`Sollbestand konnte nicht formatiert werden: ${formatted.stderr}`);
   writeFileSync(file, formatted.stdout);
-  console.info(`Sollbestand aus frischen Migrationen: ${inventory.triggers.length} Trigger, ${inventory.functions.length} Funktionen`);
+  console.info(
+    `Sollbestand aus frischen Migrationen: ${inventory.triggers.length} Trigger, ${inventory.functions.length} Funktionen, ` +
+      `${inventory.builtins.functions.length} eingebaute Funktionen von PostgreSQL ${inventory.builtins.major}`,
+  );
 } finally {
   await client.end();
   if (created) await admin`drop database ${admin(name)}`;
