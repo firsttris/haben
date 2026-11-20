@@ -132,6 +132,7 @@ export {
 export {
   bestaetigeNummer,
   bestaetigeUstId,
+  evatrAbgeschaltet,
   evatrMoeglich,
   letzteBestaetigungen,
   listUstIdBestaetigungen,

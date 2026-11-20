@@ -27,7 +27,7 @@ export { filingsFor, loadFilingProtocol, vermerkeAbgabe, type VatReturnFiling, t
 export { assertUstvaOffen, ustvaLabels, ustvaOpenItems, ustvaPosten, ustvaPostenForPeriod, type UstvaPostenUebersicht } from "./zahlung.ts";
 export { gesendeteAbweichungen, gesendetText, type GesendetAbweichung } from "./gesendet-pruefen.ts";
 export { quartalVon, ZM_POSTEN, zmAbweichungen, zmAbweichungenImJahr, type ZmAbweichung } from "./zm-pruefen.ts";
-export { bestaetigeZmNummern } from "./zm-bestaetigung.ts";
+export { bestaetigeZmNummern, zuBestaetigendeNummern } from "./zm-bestaetigung.ts";
 export { anteilZumRechnungsdatum, ausfuehrungMitFreigabe, belegTotals, vorsteuerAnteile, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 export { freigabeAmAusfuehrung, freigabeNachziehen, freigabeStornieren } from "./vorsteuer-freigabe.ts";
 export { belegAusAlterVersion } from "./alte-version.ts";
