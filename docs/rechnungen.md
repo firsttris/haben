@@ -205,7 +205,7 @@ In Einleitung und Hinweis von Rechnung und Angebot, auch aus einem Textbaustein,
 
 Kopierst du eine Rechnung oder ein Angebot oder machst aus einem Angebot eine Rechnung, kommen Einleitung und Hinweis mit den Platzhaltern mit, nicht mit den Werten des Originals; die Auftragsbestätigung setzt die Werte der gewählten Positionen ein.
 
-Beispiel für einen Hinweis: „Bitte überweisen Sie {betrag} bis zum {faellig} auf das Konto {iban} unter Angabe der Rechnungsnummer {nummer}.“ Datum und Betrag stehen in der Sprache der Rechnung. Ein unbekannter Platzhalter bleibt stehen, so fällt ein Tippfehler in der Vorschau auf. In wiederkehrenden Rechnungen kommen `{monat}`, `{jahr}`, `{quartal}` und `{zeitraum}` dazu; die setzt Haben schon beim Anlegen des Entwurfs ein.
+Beispiel für einen Hinweis: „Bitte überweisen Sie {betrag} bis zum {faellig} auf das Konto {iban} unter Angabe der Rechnungsnummer {nummer}.“ Datum und Betrag stehen in der Sprache der Rechnung. Ein unbekannter Platzhalter bleibt stehen, so fällt ein Tippfehler in der Vorschau auf. In [wiederkehrenden Rechnungen](#wiederkehrende-rechnungen) kommen deren Platzhalter dazu; die setzt Haben schon beim Anlegen des Entwurfs ein.
 
 ### Umsatzsteuer auf der Rechnung
 
