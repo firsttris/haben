@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import type { TokenScope } from "../mcp/index.ts";
 import { articleQuerySchema, createArticleHandler, getArticleHandler, listArticlesHandler, updateArticleHandler } from "./articles.ts";
+import { BANK_IMPORT_DESCRIPTION, createBankImportHandler, listBankSourcesHandler } from "./bankimporte.ts";
 import { createContactHandler, getContactHandler, listContactsHandler, updateContactHandler } from "./contacts.ts";
 import type { Handler } from "./http.ts";
 import { createDocumentHandler, getDocumentHandler, listDocumentsHandler } from "./documents.ts";
@@ -26,7 +27,7 @@ export interface ApiRoute {
   scope: TokenScope;
   summary: string;
   description?: string;
-  tag: "Kontakte" | "Rechnungen" | "Angebote" | "Belege" | "Artikel" | "Leistungen";
+  tag: "Kontakte" | "Rechnungen" | "Angebote" | "Belege" | "Artikel" | "Leistungen" | "Bank";
   query?: z.ZodObject;
   /** Name in requestSchemas */
   requestBody?: string;
@@ -295,5 +296,35 @@ export const API_ROUTES: ApiRoute[] = [
     summary: "Leistungseintrag löschen",
     responses: { 204: { schema: null, description: "Gelöscht" } },
     handler: deleteServiceEntryHandler,
+  },
+  {
+    method: "GET",
+    path: "/bankquellen",
+    scope: "bank:importieren",
+    tag: "Bank",
+    summary: "Freigegebene Quellen auflisten",
+    description: "Die am Konto freigegebenen externen Quellen mit Stichtag, Abrufstand und offenen Konflikten; daraus plant ein Dienst sein nächstes Fenster.",
+    responses: { 200: { schema: "BankSourceList", description: "Alle freigegebenen Quellen" } },
+    handler: listBankSourcesHandler,
+  },
+  {
+    method: "POST",
+    path: "/bankimporte",
+    scope: "bank:importieren",
+    tag: "Bank",
+    summary: "Bankumsätze liefern",
+    description: BANK_IMPORT_DESCRIPTION,
+    requestBody: "BankImport",
+    responses: {
+      201: { schema: "BankImportResult", description: "Angenommen; Umsätze angelegt" },
+      200: { schema: "BankImportResult", description: "Dieselbe Lieferung kam schon; nichts neu angelegt" },
+    },
+    errors: {
+      404: "Die Quelle (provider, externalAccountId) ist in Haben nicht freigegeben",
+      409: "Konflikt: eine schon übernommene Bewegung kommt mit anderem Betrag, Tag oder anderer Art, die Quelle hat noch einen offenen Konflikt, oder derselbe idempotencyKey kam mit anderem Inhalt. Klären in Haben unter Bank.",
+      413: "Mehr als 1.000 Bewegungen in einer Lieferung",
+      422: "Verstoß gegen den Importvertrag (Version, Feld, Fenster, Kontoart); eine Bewegung in anderer Währung oder vor dem Stichtag nimmt Haben nicht an und nennt sie in warnings",
+    },
+    handler: createBankImportHandler,
   },
 ];

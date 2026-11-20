@@ -1,4 +1,5 @@
 import { formatEuro } from "@haben/core";
+import { isInternalProvider } from "@haben/import/anbieter";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { type FormEvent, useState } from "react";
@@ -42,17 +43,18 @@ function Spalte({ titel, umsatz, zuordnung }: { titel: string; umsatz: Umsatz; z
   );
 }
 
-/** Wer liefert: der Bankabruf (Bank › Automatischer Abruf) oder der Etsy-Abruf (Einstellungen › Bank) */
+/** Wer liefert: der Bankabruf (Bank › Automatischer Abruf), der Abruf von Etsy, PayPal oder Stripe oder ein Dienst über den REST-Import */
 const QUELLEN = {
   bank: { wer: "Die Bank", von: "von der Bank", angaben: "der Bank", abruf: "aus dem Abruf dieses Kontos" },
   etsy: { wer: "Etsy", von: "von Etsy", angaben: "von Etsy", abruf: "aus dem Etsy-Abruf" },
   paypal: { wer: "PayPal", von: "von PayPal", angaben: "von PayPal", abruf: "aus dem PayPal-Abruf" },
   stripe: { wer: "Stripe", von: "von Stripe", angaben: "von Stripe", abruf: "aus dem Stripe-Abruf" },
+  extern: { wer: "Der Dienst", von: "vom Dienst", angaben: "des Dienstes", abruf: "aus dieser Quelle" },
 } as const;
 
-/** Wer geliefert hat; andere Anbieter als Etsy, PayPal und Stripe sind Bankabrufe */
-const quelleVon = (provider: string) =>
-  provider === "etsy" ? QUELLEN.etsy : provider === "paypal" ? QUELLEN.paypal : provider === "stripe" ? QUELLEN.stripe : QUELLEN.bank;
+/** Texte zum Anbieter einer Quelle (`import_sources.provider`): Etsy, PayPal und Stripe mit eigenem Namen, übrige interne sind Bankabrufe */
+export const quelleZuAnbieter = (provider: string): keyof typeof QUELLEN =>
+  provider === "etsy" || provider === "paypal" || provider === "stripe" ? provider : isInternalProvider(provider) ? "bank" : "extern";
 
 const ENTSCHEIDUNGEN = [
   {
@@ -188,7 +190,7 @@ type Bezug = { id: string; bookingDate: string; amount: number };
 /** Hinweis in der Detailansicht: am bisherigen Umsatz die nach einem Konflikt übernommenen, am übernommenen der bisherige */
 export function KlaerungHinweis({ klaerung }: { klaerung: { provider: string; added: Bezug[]; previous: Bezug | null } | null }) {
   if (!klaerung) return null;
-  const { wer } = quelleVon(klaerung.provider);
+  const { wer } = QUELLEN[quelleZuAnbieter(klaerung.provider)];
   const verweis = (u: Bezug) => (
     <Link from="/bank" to="/bank" search={(prev) => ({ ...prev, umsatz: u.id })}>
       {formatDate(u.bookingDate)}, {betrag(u.amount)}

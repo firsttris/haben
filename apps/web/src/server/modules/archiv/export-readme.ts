@@ -76,8 +76,9 @@ bank/importe.csv         Importierte Kontoauszugsdateien und Kontoabrufe mit SHA
                          verbunden hat (etwa vom 30.12.), auch im Jahr dieses Umsatzes.
                          Die Auszugsdateien selbst speichert Haben nicht.
 bank/quellen.csv         Nur wenn vorhanden: Herkunft der abgerufenen Umsätze: je
-                         Ereignis (Bankabruf oder Etsy) die Quelle mit Stichtag, der
-                         Abruf, der Umsatz, den Haben angelegt oder verbunden hat,
+                         Ereignis (Bankabruf, Etsy, PayPal, REST-Import) die Quelle
+                         mit Stichtag, der Abruf, der Umsatz, den Haben angelegt oder
+                         verbunden hat,
                          und die gelieferten Referenzen (Anbieterreferenz,
                          Ereigniscode, EndToEndId, Bezug, Auszahlung, Bestellung).
 bank/klaerungen.csv      Nur wenn vorhanden: geklärte Konflikte im Abruf: bisheriger und

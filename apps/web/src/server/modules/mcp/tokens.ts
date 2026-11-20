@@ -36,6 +36,7 @@ export const TOKEN_SCOPES = [
   "artikel:schreiben",
   "leistungen:lesen",
   "leistungen:schreiben",
+  "bank:importieren",
 ] as const;
 export type TokenScope = (typeof TOKEN_SCOPES)[number];
 
@@ -53,6 +54,7 @@ export const TOKEN_SCOPE_LABELS: Record<TokenScope, string> = {
   "artikel:schreiben": "API: Katalogartikel lesen, anlegen und ändern",
   "leistungen:lesen": "API: Leistungseinträge lesen",
   "leistungen:schreiben": "API: Leistungseinträge lesen, anlegen und löschen (Zeiterfassung)",
+  "bank:importieren": "API: Bankumsätze in freigegebene Quellen liefern; liest keine Umsätze und bucht nichts",
 };
 
 /** Ein Recht schließt ein anderes mit ein: wer schreiben darf, darf auch lesen */

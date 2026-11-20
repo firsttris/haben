@@ -33,7 +33,10 @@ export type StatementFormat =
   | "etsy-ledger"
   | "googleplay-earnings"
   | "appstore-finance"
-  | "store-payout";
+  | "store-payout"
+  /** Lieferung eines Dienstes über den REST-Import (#306), ins Bankkonto bzw. ins Konto eines Zahlungsdienstleisters */
+  | "importvertrag"
+  | "importvertrag-psp";
 
 /** Exporte von Zahlungsdienstleistern: nur in ein Konto mit diesem Zweck importierbar */
 export const PSP_FORMATS: StatementFormat[] = [
@@ -48,6 +51,7 @@ export const PSP_FORMATS: StatementFormat[] = [
   "googleplay-earnings",
   "appstore-finance",
   "store-payout",
+  "importvertrag-psp",
 ];
 
 /** Ein Umsatz, wie er in der Datei steht. Eingänge positiv, Ausgänge negativ. */

@@ -79,6 +79,27 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
     expect(doc.components.schemas.ArticlePatch).not.toHaveProperty("required");
   });
 
+  it("beschreibt den REST-Import von Bankumsätzen mit eigenem Recht, Vertrag als Eingabe und den Fehlern (#306)", () => {
+    expect(doc.paths["/bankimporte"]).toMatchObject({
+      post: {
+        security: [{ token: ["bank:importieren"] }],
+        requestBody: { content: { "application/json": { schema: { $ref: "#/components/schemas/BankImport" } } } },
+        responses: {
+          201: { content: { "application/json": { schema: { $ref: "#/components/schemas/BankImportResult" } } } },
+          200: { content: { "application/json": { schema: { $ref: "#/components/schemas/BankImportResult" } } } },
+        },
+      },
+    });
+    expect(Object.keys((doc.paths["/bankimporte"] as { post: { responses: object } }).post.responses)).toEqual(
+      expect.arrayContaining(["404", "409", "413", "422"]),
+    );
+    expect(doc.paths["/bankquellen"]).toMatchObject({ get: { security: [{ token: ["bank:importieren"] }] } });
+    const lieferung = doc.components.schemas.BankImport as { required: string[]; properties: Record<string, unknown> };
+    expect(lieferung.required).toEqual(
+      expect.arrayContaining(["contractVersion", "provider", "externalAccountId", "idempotencyKey", "coverage", "part", "movements"]),
+    );
+  });
+
   it("beschreibt Angebote nur zum Lesen, mit eigenem Recht und der Art jeder Position", () => {
     expect(Object.keys(doc.paths["/angebote"]!)).toEqual(["get"]);
     expect(Object.keys(doc.paths["/angebote/{id}"]!)).toEqual(["get"]);

@@ -6,6 +6,7 @@ import { TransactionStatus } from "../../components/BankStatus.tsx";
 import { UmsatzBetrag, useGebuehrZeilen } from "../../components/BankGebuehr.tsx";
 import { formatDate, daysUntil } from "../../lib/format.ts";
 import { getBankOverview } from "../../server/functions/bank.ts";
+import { getExternalBankSources } from "../../server/functions/bank-quellen.ts";
 import { ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
 import { isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { BestaetigenLeiste, useBestaetigen, useLeertasteMarkiert, ZeilenMarkierung } from "../../components/BankBestaetigen.tsx";
@@ -14,6 +15,7 @@ import type { Data } from "./-bank-daten.ts";
 import { AllocationPanel } from "./-bank-zuordnung.tsx";
 import { BankSync } from "./-bank-verbindung.tsx";
 import { AccountSettings, ImportControls, SearchBox } from "./-bank-konto.tsx";
+import { ExterneQuelle } from "../../components/ExterneQuelle.tsx";
 
 const searchSchema = z.object({
   /** Ein Konto oder „alle“ (#617) */
@@ -39,17 +41,23 @@ export const Route = createFileRoute("/_app/bank")({
     sort: search.sort,
     dir: search.dir,
   }),
-  loader: ({ deps }) =>
-    getBankOverview({
-      data: {
-        konto: deps.konto,
-        filter: deps.filter ?? "offen",
-        suche: deps.suche ?? "",
-        umsatz: deps.umsatz,
-        sort: deps.sort ?? "datum",
-        dir: deps.dir ?? "ab",
-      },
-    }),
+  loader: async ({ deps }) => {
+    const [overview, quellen] = await Promise.all([
+      getBankOverview({
+        data: {
+          konto: deps.konto,
+          filter: deps.filter ?? "offen",
+          suche: deps.suche ?? "",
+          umsatz: deps.umsatz,
+          sort: deps.sort ?? "datum",
+          dir: deps.dir ?? "ab",
+        },
+      }),
+      // Externe Quellen für den REST-Import (#306, Schritt 4)
+      getExternalBankSources(),
+    ]);
+    return { ...overview, ...quellen };
+  },
   head: () => ({ meta: [{ title: "Bank · Haben" }] }),
   component: BankPage,
 });
@@ -57,31 +65,33 @@ export const Route = createFileRoute("/_app/bank")({
 const FORMAT_LABEL = (format: string) =>
   format === "enablebanking" || format === "fints"
     ? "Abruf"
-    : format.startsWith("camt")
-      ? "CAMT.053"
-      : format === "paypal-csv"
-        ? "PayPal"
-        : format === "paypal-api"
-          ? "PayPal (Abruf)"
-          : format === "stripe-csv"
-            ? "Stripe"
-            : format === "stripe-api"
-              ? "Stripe (Abruf)"
-              : format === "shopify-payments-csv"
-                ? "Shopify"
-                : format === "ebay-csv"
-                  ? "eBay"
-                  : format === "etsy-csv"
-                    ? "Etsy"
-                    : format === "etsy-ledger"
-                      ? "Etsy (Abruf)"
-                      : format === "googleplay-earnings"
-                        ? "Google Play"
-                        : format === "appstore-finance"
-                          ? "App Store"
-                          : format === "store-payout"
-                            ? "Auszahlung"
-                            : "CSV";
+    : format.startsWith("importvertrag")
+      ? "REST-Import"
+      : format.startsWith("camt")
+        ? "CAMT.053"
+        : format === "paypal-csv"
+          ? "PayPal"
+          : format === "paypal-api"
+            ? "PayPal (Abruf)"
+            : format === "stripe-csv"
+              ? "Stripe"
+              : format === "stripe-api"
+                ? "Stripe (Abruf)"
+                : format === "shopify-payments-csv"
+                  ? "Shopify"
+                  : format === "ebay-csv"
+                    ? "eBay"
+                    : format === "etsy-csv"
+                      ? "Etsy"
+                      : format === "etsy-ledger"
+                        ? "Etsy (Abruf)"
+                        : format === "googleplay-earnings"
+                          ? "Google Play"
+                          : format === "appstore-finance"
+                            ? "App Store"
+                            : format === "store-payout"
+                              ? "Auszahlung"
+                              : "CSV";
 
 /** J/K springen zum nächsten bzw. vorigen Umsatz */
 function useUmsatzTasten(transactions: Data["transactions"], index: number) {
@@ -184,6 +194,7 @@ function BankPage() {
               excludeBlockedBy={data.excludeBlockedBy}
             />
           )}
+          {selectedAccount && <ExterneQuelle key={`quelle-${selectedAccount.id}`} account={selectedAccount} daten={data} />}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
