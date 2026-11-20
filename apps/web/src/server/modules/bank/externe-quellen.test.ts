@@ -166,6 +166,19 @@ describe.skipIf(!testDatabaseUrl)("Externe Quellen und REST-Import (Postgres)", 
     });
   });
 
+  it("liefert von außen nicht in die Quelle des Stripe-Abrufs (#1237)", async () => {
+    const [konto] = await sql<{ id: string }[]>`insert into bank_accounts (name, purpose, provider) values ('Stripe', 'zahlungsdienstleister', 'stripe')
+      returning id`;
+    // So legt der Stripe-Abruf seine Bindung an (stripe/import.ts): Anbieter stripe, Kennung acct_…
+    await sql`insert into import_sources (bank_account_id, provider, external_account_id, account_kind, cutover_date)
+      values (${konto!.id}, 'stripe', 'acct_beispiel', 'psp', '2026-10-01')`;
+    expect(await quellen.importExternalBatch("api:t:Dienst", lieferung({ provider: "stripe", konto: "acct_beispiel", key: "st-1" }))).toMatchObject({
+      status: "not_found",
+    });
+    expect(await umsaetze(konto!.id)).toHaveLength(0);
+    expect((await quellen.externalSources()).map((q) => q.provider)).not.toContain("stripe");
+  });
+
   it("zählt ein Konto mit Bankabruf ohne Stichtag (Bindung aus v0.11.0) als gebunden", async () => {
     const [konto] = await sql<{ id: string }[]>`insert into bank_accounts (name, iban) values ('Giro', 'DE89370400440532013000') returning id`;
     await sql`insert into import_sources (bank_account_id, provider, external_account_id, account_kind) values (${konto!.id}, 'enablebanking', 'hash-alt', 'bank')`;
