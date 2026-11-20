@@ -38,7 +38,7 @@ Die Liste steht nach Name aufsteigend. Die Spaltenköpfe sortieren nach Name, E-
 
 ## Ansprechpartner
 
-Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine oder mehrere Personen mit Name, E-Mail, Telefon und Funktion (etwa „Einkauf“). Im Entwurf von Rechnung und Angebot wählst du unter **Kunde** den **Ansprechpartner**; das Feld erscheint nur, wenn der Kunde Personen hat, und setzt sich beim Wechsel des Kunden zurück.
+Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine oder mehrere Personen mit Name, E-Mail, Telefon und Funktion (etwa „Einkauf“). Im Entwurf von Rechnung und Angebot wählst du unter **Kunde** den **Ansprechpartner**; das Feld erscheint nur, wenn der Kunde Personen hat. Hat er genau einen aktiven Ansprechpartner, ist dieser gleich ausgewählt, auch über **Rechnung schreiben** auf der Kontaktseite; mit **Keiner** wählst du ihn ab. Bei mehreren aktiven bleibt es bei **Keiner**, bis du jemanden wählst. Beim Wechsel des Kunden setzt sich das Feld entsprechend neu.
 
 - **PDF:** Hinter dem Firmennamen steht eine Zeile **z. Hd. <Name>**, englisch **FAO <Name>**; Firmenname und Anschrift bleiben. Das gilt für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung, in der Vorschau wie im PDF. Die Zeile kommt als Eintrag im Feld `recipient` bei der Vorlage an, auch bei [eigenen Belegvorlagen](belegvorlagen.md).
 - **E-Rechnung:** Der Name steht als **BT-56** (Ansprechpartner des Käufers), in XRechnung (CII und UBL) und in ZUGFeRD. Die E-Mail des Kontakts bleibt BT-49 und BT-58; E-Mail, Telefon und Funktion der Person stehen nicht in der Datei und nicht im PDF.
@@ -65,9 +65,9 @@ Für innergemeinschaftliche Lieferungen muss die USt-IdNr. des Kunden gültig se
 
 ## Rechnungen und Belege am Kontakt
 
-**Vom Kontakt aus abrechnen.** Oben auf der Detailseite eines Kunden öffnet **Rechnung schreiben** einen Entwurf, in dem der Kunde mit seinen Vorgaben (Format, Sprache, Skonto) schon gewählt ist; bei einem archivierten Kontakt bleibt die Auswahl leer. **Zeiteinträge** führt zu seinen [Zeiteinträgen](leistungen.md). Liegen offene Einträge vor, nennt der Knopf ihre abrechenbare Dauer, etwa „Zeiteinträge · 3:30 offen“, und die Liste zeigt nur diese. Dort legst du mit **Neuer Eintrag** einen Eintrag für den Kunden an oder rechnest ab, solange er nicht archiviert ist. Ein reiner Lieferant hat den Knopf nur, wenn es bei ihm Einträge gibt, auch abgerechnete.
+**Vom Kontakt aus abrechnen.** Oben auf der Detailseite eines Kunden öffnet **Rechnung schreiben** einen Entwurf, in dem der Kunde mit seinen Vorgaben (Format, Sprache, Skonto, der einzige aktive [Ansprechpartner](#ansprechpartner)) schon gewählt ist; bei einem archivierten Kontakt bleibt die Auswahl leer. **Zeiteinträge** führt zu seinen [Zeiteinträgen](leistungen.md). Liegen offene Einträge vor, nennt der Knopf ihre abrechenbare Dauer, etwa „Zeiteinträge · 3:30 offen“, und die Liste zeigt nur diese. Dort legst du mit **Neuer Eintrag** einen Eintrag für den Kunden an oder rechnest ab, solange er nicht archiviert ist. Ein reiner Lieferant hat den Knopf nur, wenn es bei ihm Einträge gibt, auch abgerechnete.
 
-Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/firsttris/haben/issues/587)):
+Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/Speicherstadt/haben/issues/587)):
 
 - **Umsatz und Rechnungen** (Kunde): festgeschriebene Rechnungen aus Haben und die Einnahmen aus dem Archiv des Umzugs. Entwürfe zählen nicht. Stornorechnung, Rechnungskorrektur und Gutschrift mindern mit ihrem negativen Betrag, und zwar im Jahr ihres eigenen Datums: Ein Storno im Januar zu einer Rechnung vom Dezember mindert das neue Jahr.
 - **Ausgaben und Belege** (Lieferant): gebuchte [Belege](belege.md), in der Spalte „Art“ mit der Kategorie und der Nummer ihres Standardkontos (beim Anlagegut ohne Nummer), und die Ausgaben aus dem Archiv. Ein stornierter Beleg steht in der Liste, zählt aber nicht; ungebuchte Belege fehlen.

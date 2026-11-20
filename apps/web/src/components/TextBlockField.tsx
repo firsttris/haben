@@ -38,6 +38,7 @@ export function TextBlockField({
   blocks,
   contactId,
   placeholder,
+  hint,
 }: {
   label: string;
   kind: TextBlockOption["kind"];
@@ -46,6 +47,8 @@ export function TextBlockField({
   blocks: TextBlockOption[];
   contactId: string | null;
   placeholder?: string;
+  /** Hinweis am Feld, mit dem Feld verknüpft (aria-describedby über Field) */
+  hint?: string;
 }) {
   const { customer, general, other } = blocksFor(blocks, kind, contactId);
   const any = customer.length + general.length + other.length > 0;
@@ -57,7 +60,7 @@ export function TextBlockField({
     ));
   return (
     <div className="field-group">
-      <Field label={label}>
+      <Field label={label} hint={hint}>
         {(control) => <FormattedTextarea {...control} value={value} onChange={(e) => onChange(e.target.value)} maxLength={2000} placeholder={placeholder} />}
       </Field>
       {any && (

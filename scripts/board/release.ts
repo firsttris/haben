@@ -13,7 +13,7 @@ import { istFertigeVersion, kommentar, vorigeFertigeVersion, zuSchliessen } from
 
 const [tag, schalter] = process.argv.slice(2);
 const probe = schalter === "--probe";
-const repo = process.env.GITHUB_REPOSITORY ?? "firsttris/haben";
+const repo = process.env.GITHUB_REPOSITORY ?? "Speicherstadt/haben";
 const token = process.env.GITHUB_TOKEN ?? "";
 
 if (!tag || !istFertigeVersion(tag)) {

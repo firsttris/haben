@@ -1,6 +1,6 @@
 # haben-db
 
-Datenbank für [Haben](https://github.com/firsttris/haben), die selbst gehostete Buchhaltung: das offizielle Image `postgres:18`, dazu die Programme der älteren PostgreSQL-Versionen ab 16.
+Datenbank für [Haben](https://github.com/Speicherstadt/haben), die selbst gehostete Buchhaltung: das offizielle Image `postgres:18`, dazu die Programme der älteren PostgreSQL-Versionen ab 16.
 
 Findet der Container beim Start im Volume einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade --copy` auf die Version des Images an und startet danach wie `postgres`. Ein Update auf ein neues PostgreSQL ist damit nur noch ein neues Image:
 
@@ -10,8 +10,8 @@ Findet der Container beim Start im Volume einen Datenbestand einer älteren Vers
 
 Das Volume gehört nach `/var/lib/postgresql/data` (wie bei den älteren postgres-Images und in Habens `compose.yml` und Quadlet) oder nach `/var/lib/postgresql` (Vorgabe von `postgres` ab 18). Umgebungsvariablen wie beim offiziellen Image (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`).
 
-- Compose: Dienst `db` in [`deploy/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.yml).
-- Podman Quadlets: [`haben-db.container`](https://github.com/firsttris/haben/blob/main/deploy/quadlet/haben-db.container).
+- Compose: Dienst `db` in [`deploy/compose.yml`](https://github.com/Speicherstadt/haben/blob/main/deploy/compose.yml).
+- Podman Quadlets: [`haben-db.container`](https://github.com/Speicherstadt/haben/blob/main/deploy/quadlet/haben-db.container).
 - Anleitung und Aufräumen danach: [Backup und Updates › PostgreSQL-Update](https://haben.app/installation-backup.html#postgresql-update).
 
 Die Tags folgen Haben (`:latest`, `:0.2`, `:0.2.0`, `:next`).

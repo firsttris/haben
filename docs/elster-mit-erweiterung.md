@@ -36,7 +36,7 @@ Die Werte liegen nur im Sitzungsspeicher der Erweiterung und sind weg, sobald du
 
 ## Einrichten
 
-Die Erweiterung liegt jedem [Release von Haben](https://github.com/firsttris/haben/releases/latest) als ZIP bei, mit derselben Version wie Haben. Sie läuft in Chrome, Edge, Brave und anderen Chromium-Browsern. In den Chrome Web Store kommt sie später; bis dahin lädst du sie selbst:
+Die Erweiterung liegt jedem [Release von Haben](https://github.com/Speicherstadt/haben/releases/latest) als ZIP bei, mit derselben Version wie Haben. Sie läuft in Chrome, Edge, Brave und anderen Chromium-Browsern. In den Chrome Web Store kommt sie später; bis dahin lädst du sie selbst:
 
 1. Beim Release deiner Haben-Version unter **Assets** `haben-fuer-mein-elster-chrome-<Version>.zip` herunterladen und in einen eigenen Ordner entpacken, etwa `haben-fuer-mein-elster`.
 2. Im Browser `chrome://extensions` öffnen (Brave: `brave://extensions`), oben rechts den **Entwicklermodus** einschalten.
@@ -81,4 +81,4 @@ Der Gewinn aus freiberuflicher Tätigkeit steht in der Anlage S als Eintrag eine
 - Ändert Mein ELSTER die Feldnamen, findet die Erweiterung die Felder nicht mehr; sie listet die Werte dann unter „noch auf keiner besuchten Seite gefunden“.
 - Mehrfachzeilen legt sie nicht selbst an.
 - Werte in Auswahllisten setzt sie nur, wenn die Liste genau diesen Schlüssel anbietet; sonst steht das Feld unter „Ließ sich nicht setzen“.
-- Wie beim [KI-Assistenten](elster-mit-assistent.md) ist offen, wie die Nutzungsbedingungen von Mein ELSTER das Ausfüllen durch eine Erweiterung sehen ([#124](https://github.com/firsttris/haben/issues/124)). Die Verantwortung für die Abgabe liegt bei dir.
+- Wie beim [KI-Assistenten](elster-mit-assistent.md) ist offen, wie die Nutzungsbedingungen von Mein ELSTER das Ausfüllen durch eine Erweiterung sehen ([#124](https://github.com/Speicherstadt/haben/issues/124)). Die Verantwortung für die Abgabe liegt bei dir.

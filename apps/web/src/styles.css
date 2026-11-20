@@ -1082,13 +1082,20 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sort-head.num { justify-content: flex-end; }
 .sort-head:hover { color: var(--ink); }
 .sort-head.aktiv { color: var(--ink); font-weight: 500; }
-/* Vorschläge bestätigen (#1440): Das Markierfeld liegt im linken Rand der Zeile und macht die Liste nicht breiter */
-.tx-wrap { position: relative; }
-.tx-check { position: absolute; left: 4px; top: 6px; width: 24px; display: flex; justify-content: center; z-index: 1; }
-/* 24 × 24 px: Mindestgröße des Ziels (WCAG 2.2, 2.5.8) */
-.tx-check input { margin: 0; width: 24px; height: 24px; }
-/* Mit Markierfeldern bekommt die Liste links Platz dafür, Kopf und Zeilen bleiben bündig */
-.card:has(.tx-check) .tx-cols { padding-left: 36px; }
+/* Vorschläge bestätigen (#1440): Mit Markierfeldern hat jede Zeile links eine Spalte von 28 px für das Kästchen (`.row-check` wie
+   in den anderen Listen). Zeilenlinie, Hover und die Markierung der gewählten Zeile liegen auf dem Umschlag, der Link beginnt
+   rechts der Spalte: Keine Fläche reicht näher als 14 px an die Mitte des Kästchens, das erfüllt WCAG 2.2 (2.5.8) über den
+   Abstand. Kopf und Zeilen bleiben bündig. */
+.card:has(.tx-check) .tx-wrap { display: grid; grid-template-columns: 28px minmax(0, 1fr); border-top: 1px solid var(--line-soft); }
+.card:has(.tx-check) .tx-wrap:hover { background: var(--ground); }
+.card:has(.tx-check) .tx-wrap:has(> .tx-row.selected) { background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
+.tx-wrap > .tx-check { grid-column: 1; grid-row: 1; align-self: start; display: flex; justify-content: center; padding-top: 12px; }
+.tx-check input { margin: 0; }
+.tx-wrap > .tx-row { grid-column: 2; grid-row: 1; }
+.card:has(.tx-check) .tx-wrap > .tx-row { border-top: 0; }
+.card:has(.tx-check) .tx-wrap > .tx-row:is(:hover, .selected) { background: none; box-shadow: none; }
+.card:has(.tx-check) .tx-wrap .tx-cols { padding-left: 8px; }
+.card:has(.tx-check) .table-row.head.tx-cols { padding-left: 36px; }
 @media (min-width: 761px) {
   .card:has(.tx-check) .tx-cols { grid-template-columns: 84px minmax(0, 1fr) 112px 112px; }
 }

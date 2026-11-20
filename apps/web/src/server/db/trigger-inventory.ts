@@ -30,7 +30,7 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
  * https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-SEARCH-PATH
  * https://www.postgresql.org/docs/18/catalog-pg-trigger.html
  * https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE
- * https://github.com/firsttris/haben/issues/764#issuecomment-6837874131
+ * https://github.com/Speicherstadt/haben/issues/764#issuecomment-6837874131
  */
 async function readSnapshot(reader: Reader): Promise<{ inventory: TriggerInventory; defaults: string[] }> {
   return reader.transaction(

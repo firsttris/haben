@@ -30,4 +30,6 @@ export { quartalVon, ZM_POSTEN, zmAbweichungen, zmAbweichungenImJahr, type ZmAbw
 export { bestaetigeZmNummern } from "./zm-bestaetigung.ts";
 export { anteilZumRechnungsdatum, ausfuehrungMitFreigabe, belegTotals, vorsteuerAnteile, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 export { freigabeAmAusfuehrung, freigabeNachziehen, freigabeStornieren } from "./vorsteuer-freigabe.ts";
-export { belegAusAlterVersion } from "./vat-journal.ts";
+export { belegAusAlterVersion } from "./alte-version.ts";
+export { belegeWieHeute } from "./beleg-alte-version.ts";
+export { zahlungenWieHeute } from "./zahlung-alte-version.ts";

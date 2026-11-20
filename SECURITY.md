@@ -7,13 +7,13 @@ wie unter [Updates](https://haben.app/installation-backup.html#updates) beschrie
 
 | Version | Unterstützt |
 | --- | --- |
-| [neuestes Release](https://github.com/firsttris/haben/releases/latest) | ja |
+| [neuestes Release](https://github.com/Speicherstadt/haben/releases/latest) | ja |
 | ältere Releases | nein |
 
 ## Eine Lücke melden
 
 Bitte **kein öffentliches Issue** für ein Sicherheitsproblem. Melde es privat über GitHub:
-[Security › Report a vulnerability](https://github.com/firsttris/haben/security/advisories/new).
+[Security › Report a vulnerability](https://github.com/Speicherstadt/haben/security/advisories/new).
 
 Eine gute Meldung nennt die Version (steht unten in der Navigation), wie sich das Problem nachstellen lässt und was
 ein Angreifer damit erreicht. Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten mitschicken. Wir bestätigen

@@ -8,8 +8,8 @@ site_description: >-
   selbst gehostet: E-Rechnung (ZUGFeRD, XRechnung), Bankabgleich, EÜR oder Bilanz mit E-Bilanz,
   Umsatzsteuer-Voranmeldung und Jahreserklärungen per ELSTER. Alternative zu Lexware Office und sevDesk.
 site_url: https://haben.app/
-repo_url: https://github.com/firsttris/haben
-repo_name: firsttris/haben
+repo_url: https://github.com/Speicherstadt/haben
+repo_name: Speicherstadt/haben
 edit_uri: edit/main/docs/
 copyright: >-
   Lizenz AGPL-3.0 · Keine Steuerberatung. ELSTER und ERiC sind Angebote der
@@ -214,7 +214,7 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/firsttris/haben
+      link: https://github.com/Speicherstadt/haben
       name: Quellcode auf GitHub
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/tristanteu/haben

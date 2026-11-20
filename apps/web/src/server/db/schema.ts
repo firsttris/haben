@@ -1407,6 +1407,12 @@ export const invoices = pgTable(
     intro: text("intro").notNull().default(""),
     /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
+    /**
+     * Einleitung und Hinweis mit Platzhaltern, wie sie im Entwurf standen (#1334): beim Festschreiben gesetzt, wenn
+     * Platzhalter eingesetzt wurden (intro/note tragen dann die Werte), sonst leer. Kopieren nimmt sie statt der Werte.
+     */
+    introVorlage: text("intro_vorlage").notNull().default(""),
+    noteVorlage: text("note_vorlage").notNull().default(""),
     /** Aufbewahrungshinweis für Grundstücksleistungen (§ 14 Abs. 4 Satz 1 Nr. 9 UStG), getrennt vom freien Fußtext */
     propertyRetention: boolean("property_retention").notNull().default(false),
     /**
@@ -1664,6 +1670,9 @@ export const quotes = pgTable(
     /** Einleitung über den Positionen (Kopftext) */
     intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
+    /** Einleitung und Hinweis mit Platzhaltern wie bei Rechnungen (#1334); Kopie, Rechnung und Auftragsbestätigung nehmen sie */
+    introVorlage: text("intro_vorlage").notNull().default(""),
+    noteVorlage: text("note_vorlage").notNull().default(""),
     /**
      * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
      * Lieferschein (BT-16). Gehen in die Rechnung aus dem Angebot über.

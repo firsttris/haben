@@ -35,7 +35,7 @@ export function BankSortierKopf({ sort = "datum", dir = "ab" }: Props) {
   };
 
   return (
-    <div className="table-row head tx-cols" style={{ padding: "0 20px" }}>
+    <div className="table-row head tx-cols">
       {kopf("datum", "Datum")}
       {kopf("gegenpartei", "Gegenpartei · Verwendungszweck")}
       {kopf("betrag", "Betrag", "sort-head num")}

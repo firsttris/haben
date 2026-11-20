@@ -1,8 +1,8 @@
 # Haben mit Docker Compose: App, PostgreSQL und Caddy (HTTPS mit automatischem Zertifikat).
 #
 #   mkdir haben && cd haben
-#   curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
-#   curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+#   curl -O https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.yml
+#   curl -o .env https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.env.example
 #   # .env ausfüllen: Domain, Datenbank-Passwort, die beiden Schlüssel und das Backup-Passwort
 #   docker compose up -d
 #

@@ -6,7 +6,7 @@ import type { TaxShare } from "./posting.ts";
  * #853: Bereits vereinnahmte Umsatzsteuer mindert sich erst mit der Rückzahlung (§ 17 UStG, UStAE 17.1 Abs. 2 Satz 3,
  * BFH V R 34/09), nur in Höhe der Überzahlung. Sie verteilt sich auf die Sätze im Verhältnis der Minderung der
  * gekennzeichneten Korrekturen je Satz (Entscheidung des Maintainers zu #1228; zuvor
- * https://github.com/firsttris/haben/pull/1228#issuecomment-6940857265).
+ * https://github.com/Speicherstadt/haben/pull/1228#issuecomment-6940857265).
  */
 const s19 = (base: number, tax: number): TaxShare => ({ rate: 1900, base, tax });
 const s7 = (base: number, tax: number): TaxShare => ({ rate: 700, base, tax });

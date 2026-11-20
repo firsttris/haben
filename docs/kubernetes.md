@@ -7,20 +7,20 @@ description: >-
 
 # Kubernetes
 
-Das Helm-Chart [`deploy/helm`](https://github.com/firsttris/haben/tree/main/deploy/helm) startet dieselben Images wie
+Das Helm-Chart [`deploy/helm`](https://github.com/Speicherstadt/haben/tree/main/deploy/helm) startet dieselben Images wie
 [Docker Compose](installation.md#docker-compose): die App, daneben im selben Pod das tägliche Backup, und auf Wunsch
 PostgreSQL als StatefulSet. Haben läuft immer mit genau einem Pod; ein Update beendet ihn, bevor der neue startet, weil
 die Migrationen beim Start nur vorwärts gehen. Jede Einstellung ist in
-[`values.yaml`](https://github.com/firsttris/haben/blob/main/deploy/helm/values.yaml) erklärt, für deine Version im Klon
+[`values.yaml`](https://github.com/Speicherstadt/haben/blob/main/deploy/helm/values.yaml) erklärt, für deine Version im Klon
 unter `haben/deploy/helm/values.yaml`.
 
 ## Installieren
 
 1. Das Chart in der Version holen, die du installierst
-   ([aktuelle Version](https://github.com/firsttris/haben/releases/latest)), damit Chart und Image zusammenpassen:
+   ([aktuelle Version](https://github.com/Speicherstadt/haben/releases/latest)), damit Chart und Image zusammenpassen:
 
     ```sh
-    git clone --depth 1 --branch v0.10.0 https://github.com/firsttris/haben.git
+    git clone --depth 1 --branch v0.10.0 https://github.com/Speicherstadt/haben.git
     ```
 
 2. Eine Datei `werte.yaml` anlegen und mit `chmod 600 werte.yaml` nur für dich lesbar machen:
@@ -110,7 +110,7 @@ metadata:
   namespace: haben
 spec:
   interval: 1h
-  url: https://github.com/firsttris/haben
+  url: https://github.com/Speicherstadt/haben
   ref:
     tag: v0.11.0
   ignore: |                         # nur das Chart, nicht das ganze Repository

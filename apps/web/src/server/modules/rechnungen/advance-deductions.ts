@@ -138,7 +138,7 @@ export async function deductionProblems(
       problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Umsatzsteuer-Behandlung`);
     else {
       // Ungeklärte Angaben dürfen keinen bekannten Widerspruch zwischen anderen Abschlägen verdecken.
-      // Produktgrenze: https://github.com/firsttris/haben/issues/433#issuecomment-6853419682
+      // Produktgrenze: https://github.com/Speicherstadt/haben/issues/433#issuecomment-6853419682
       const conflict = [input.taxDetails, ...chosen.map((a) => a.taxDetails)]
         .map((details) => outgoingTaxDetailConflict(input.taxTreatment ?? "regulaer", abschlag.taxDetails, details))
         .find((problem) => problem !== null);

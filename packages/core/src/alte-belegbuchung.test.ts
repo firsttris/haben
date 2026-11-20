@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mitBemessungWieHeute } from "./alte-belegbuchung.ts";
+import { mitBemessungWieHeute, privatJeErwerbssatz } from "./alte-belegbuchung.ts";
 import { documentSplitPosting } from "./document-split.ts";
 import type { InvoiceTotals } from "./invoice.ts";
 import { kennzahlenAusJournal, type JournalKennzahlen, type JournalZeile } from "./journal-kennzahlen.ts";
@@ -120,6 +120,39 @@ describe.each(["SKR03", "SKR04"] as const)("Belegbuchung von vor #551 mit der Be
     expect(salden(alt)).toEqual(salden(heute));
     expect(alt.filter((z) => z.taxCode === "keineVSt")).toEqual([]);
     expect(mitBemessungWieHeute(kr, alt)).toEqual(alt);
+  });
+
+  it.each([
+    [true, 30],
+    [false, 30],
+    [true, 10],
+    [false, 33],
+  ])(
+    "Erwerb zu 19 %% und 7 %% mit Privatanteil, Vorsteuerabzug %s, %i Prozent: mit der Aufteilung aus dem Beleg wie heute, auch storniert",
+    (abzug, anteil) => {
+      // Gerade Beträge und solche mit Rundung je Satz (splitPrivateShare)
+      const t = totals({ rate: 1900, base: 10_001 }, { rate: 700, base: 4_999 });
+      const heute = documentPosting(t, "wareneinkauf", kr, "einzelunternehmen", "privat", abzug, undefined, anteil, "ig_erwerb");
+      const alt = wieVor551(kr, heute);
+      const privat = privatJeErwerbssatz(
+        t.taxes.map((r) => ({ taxRate: r.rate, net: r.base, tax: r.tax })),
+        anteil,
+      );
+      expect(kennzahlen(kr, mitBemessungWieHeute(kr, alt, privat))).toEqual(kennzahlen(kr, heute));
+      expect(kennzahlen(kr, mitBemessungWieHeute(kr, alt, privat))).toMatchObject({ kz89: 10_001, kz93: 4_999 });
+      expect(verprobeBuchung(kr, "soll", mitBemessungWieHeute(kr, alt, privat))).toEqual([]);
+      expect(kennzahlen(kr, mitBemessungWieHeute(kr, negiert(alt), privat))).toEqual(kennzahlen(kr, negiert(heute)));
+    },
+  );
+
+  it("Erwerb zu 19 % und 7 % mit Privatanteil: passt die Aufteilung aus dem Beleg nicht zum gebuchten privaten Teil, bleibt er, wie gebucht", () => {
+    const t = totals({ rate: 1900, base: 10_000 }, { rate: 700, base: 5_000 });
+    const alt = wieVor551(kr, documentPosting(t, "wareneinkauf", kr, "einzelunternehmen", "privat", true, undefined, 30, "ig_erwerb"));
+    const privat = privatJeErwerbssatz(
+      t.taxes.map((r) => ({ taxRate: r.rate, net: r.base, tax: r.tax })),
+      20,
+    );
+    expect(mitBemessungWieHeute(kr, alt, privat)).toEqual(alt);
   });
 
   it("Aufgeteilter Beleg mit § 13b ohne Vorsteuerabzug auf zwei Konten: Kz 46 ist die Summe der Netto", () => {

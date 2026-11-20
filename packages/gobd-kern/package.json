@@ -7,10 +7,10 @@
   "description": "Bausteine für unveränderbare Aufbewahrung nach GoBD: Dateispeicher unter SHA-256, Prüfwert der Hash-Kette, index.xml nach dem Beschreibungsstandard, SQL-Vorlage für Hash-Kette, Siegel und Sperren in Postgres, Bausteine der Verfahrensdokumentation (Datenmodell, Angaben zum Betrieb, Texte zum Kern, Markdown)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/firsttris/haben.git",
+    "url": "git+https://github.com/Speicherstadt/haben.git",
     "directory": "packages/gobd-kern"
   },
-  "homepage": "https://github.com/firsttris/haben/tree/main/packages/gobd-kern#readme",
+  "homepage": "https://github.com/Speicherstadt/haben/tree/main/packages/gobd-kern#readme",
   "keywords": [
     "gobd",
     "archiv",

@@ -1,0 +1,136 @@
+{
+  "transaction_details": [
+    {
+      "transaction_info": {
+        "paypal_account_id": "ACC01XXXXXXXX",
+        "transaction_id": "SBX02XXXXXXXXXXXX",
+        "paypal_reference_id": "SBX03XXXXXXXXXXXX",
+        "paypal_reference_id_type": "TXN",
+        "transaction_event_code": "T0000",
+        "transaction_initiation_date": "2026-11-19T17:40:12Z",
+        "transaction_updated_date": "2026-11-19T17:40:12Z",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "100.00"
+        },
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "-2.25"
+        },
+        "transaction_status": "S",
+        "ending_balance": {
+          "currency_code": "EUR",
+          "value": "97.75"
+        },
+        "available_balance": {
+          "currency_code": "EUR",
+          "value": "97.75"
+        },
+        "protection_eligibility": "01",
+        "instrument_type": "PayPal",
+        "instrument_sub_type": "PayPal Wallet"
+      },
+      "payer_info": {
+        "account_id": "ACC01XXXXXXXX",
+        "email_address": "kaeufer@example.com",
+        "phone_number": {
+          "country_code": "49",
+          "national_number": ""
+        },
+        "address_status": "N",
+        "payer_status": "Y",
+        "payer_name": {
+          "given_name": "Erika",
+          "surname": "Beispiel",
+          "alternate_full_name": "Erika Beispiel"
+        },
+        "country_code": "DE",
+        "address": {
+          "line1": "",
+          "city": "",
+          "state": "",
+          "country_code": "DE",
+          "postal_code": ""
+        }
+      },
+      "shipping_info": {
+        "name": "Erika Beispiel",
+        "address": {
+          "line1": "",
+          "city": "",
+          "state": "",
+          "country_code": "DE",
+          "postal_code": ""
+        }
+      },
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "ACC01XXXXXXXX",
+        "transaction_id": "SBX04XXXXXXXXXXXX",
+        "paypal_reference_id": "SBX02XXXXXXXXXXXX",
+        "paypal_reference_id_type": "TXN",
+        "transaction_event_code": "T1107",
+        "transaction_initiation_date": "2026-11-19T17:45:03Z",
+        "transaction_updated_date": "2026-11-19T17:45:03Z",
+        "transaction_amount": {
+          "currency_code": "EUR",
+          "value": "-20.00"
+        },
+        "fee_amount": {
+          "currency_code": "EUR",
+          "value": "0.38"
+        },
+        "transaction_status": "S",
+        "ending_balance": {
+          "currency_code": "EUR",
+          "value": "78.13"
+        },
+        "available_balance": {
+          "currency_code": "EUR",
+          "value": "78.13"
+        },
+        "protection_eligibility": "02",
+        "instrument_type": "PayPal",
+        "instrument_sub_type": "PayPal Wallet"
+      },
+      "payer_info": {
+        "account_id": "ACC01XXXXXXXX",
+        "email_address": "kaeufer@example.com",
+        "address_status": "N",
+        "payer_status": "Y",
+        "payer_name": {
+          "given_name": "Erika",
+          "surname": "Beispiel",
+          "alternate_full_name": "Erika Beispiel"
+        },
+        "country_code": "DE",
+        "address": {
+          "line1": "",
+          "city": "",
+          "state": "",
+          "country_code": "DE",
+          "postal_code": ""
+        }
+      },
+      "shipping_info": {
+        "name": "Erika Beispiel"
+      },
+      "cart_info": {},
+      "store_info": {},
+      "auction_info": {},
+      "incentive_info": {}
+    }
+  ],
+  "account_number": "ACC05XXXXXXXX",
+  "start_date": "2026-11-19T18:00:00Z",
+  "end_date": "2026-11-19T18:00:00Z",
+  "last_refreshed_datetime": "2026-11-19T18:00:00Z",
+  "page": 1,
+  "total_items": 2,
+  "total_pages": 1
+}

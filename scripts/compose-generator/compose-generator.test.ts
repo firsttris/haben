@@ -178,9 +178,9 @@ describe("compose.override.yml", () => {
 
   test("Image und Tag für alle Dienste von Haben", () => {
     const override = overrideFile({ ...standard, registry: "ghcr", imageTag: "next" });
-    expect(override).toContain("    image: ghcr.io/firsttris/haben-db:next");
-    expect(override).toContain("    image: ghcr.io/firsttris/haben:next");
-    expect(override.match(/image: ghcr\.io\/firsttris\/haben-backup:next/g)).toHaveLength(2);
+    expect(override).toContain("    image: ghcr.io/speicherstadt/haben-db:next");
+    expect(override).toContain("    image: ghcr.io/speicherstadt/haben:next");
+    expect(override.match(/image: ghcr\.io\/speicherstadt\/haben-backup:next/g)).toHaveLength(2);
     expect(override).not.toContain("caddy:");
   });
 

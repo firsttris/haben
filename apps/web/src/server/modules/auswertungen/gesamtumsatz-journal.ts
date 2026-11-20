@@ -117,7 +117,7 @@ function monetaryAccount(account: string, kr: Kontenrahmen) {
 
 /**
  * § 19 Abs. 2 UStG: https://www.gesetze-im-internet.de/ustg_1980/__19.html — vereinnahmtes Entgelt, keine Forderung.
- * Bestätigter enger Nachweis: https://github.com/firsttris/haben/pull/926#issuecomment-6904783330.
+ * Bestätigter enger Nachweis: https://github.com/Speicherstadt/haben/pull/926#issuecomment-6904783330.
  * Erst die manuelle Kassen-/Erlösbuchung samt ausdrücklichem KU-Schlüssel belegt die Inlandsleistung; das Konto allein nicht.
  */
 function manualKuCashAmount(entry: Journal): number | null {

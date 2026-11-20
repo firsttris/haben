@@ -10,7 +10,7 @@ description: >-
 Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den automatischen Prüfungen die Kriterien der WCAG 2.2 auf Stufe AA. Jede Änderung wird in der CI mit [axe-core](https://github.com/dequelabs/axe-core) und eigenen Tastaturtests geprüft (siehe [Wie das geprüft wird](#wie-das-geprüft-wird)).
 
 > [!NOTE]
-> Automatische Prüfungen finden etwa ein Drittel bis die Hälfte aller Barrieren. Mit Screenreadern (NVDA, VoiceOver, Orca) ist Haben noch nicht systematisch getestet. Wenn dir etwas auffällt, freuen wir uns über ein [Issue](https://github.com/firsttris/haben/issues).
+> Automatische Prüfungen finden etwa ein Drittel bis die Hälfte aller Barrieren. Mit Screenreadern (NVDA, VoiceOver, Orca) ist Haben noch nicht systematisch getestet. Wenn dir etwas auffällt, freuen wir uns über ein [Issue](https://github.com/Speicherstadt/haben/issues).
 
 ## Mit der Tastatur bedienen
 
@@ -37,7 +37,7 @@ Tastenkürzel einzelner Seiten:
 
 | Seite | Kürzel |
 | --- | --- |
-| [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz |
+| [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz, `Leertaste` markiert einen Umsatz mit bestätigbarem Vorschlag zum gemeinsamen Bestätigen |
 | [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` / `⌘+Enter` bucht, `Esc` zurück zur Liste |
 
 Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` bucht einen Beleg auch aus einem Eingabefeld. Haben zeigt die Kürzel so, wie sie auf deiner Tastatur stehen: am Mac, iPhone und iPad mit `⌘`, sonst mit `Strg`.
@@ -68,12 +68,12 @@ Findet axe einen Verstoß, nennt der Testbericht Regel, Element und Grund. Wie d
 Für neue Oberflächen gilt:
 
 - Bedienelemente sind `<button>`, `<a>` oder Formularelemente, keine `<div>` mit `onClick`.
-- Formularfelder und Auswahllisten stehen immer in `Field`, Dateien wählt `FilePicker` oder `UploadButton`; die Regeln dazu stehen in [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md#felder) unter „Felder“ und „Datei-Felder“.
+- Formularfelder und Auswahllisten stehen immer in `Field`, Dateien wählt `FilePicker` oder `UploadButton`; die Regeln dazu stehen in [`DESIGN.md`](https://github.com/Speicherstadt/haben/blob/main/DESIGN.md#felder) unter „Felder“ und „Datei-Felder“.
 - Farben über die Variablen in `styles.css`: Text in Akzentfarbe mit `var(--link)`, nicht `var(--accent)`, sonst fällt der Kontrast in den dunklen Themes durch.
 - Wer `outline: none` setzt, zeigt den Fokus anders (z. B. `:focus-within` am umgebenden Element).
 - Was beim Scrollen stehen bleibt, verdeckt kein Element mit Fokus (WCAG 2.4.11): Unter dem festen Seitenkopf beginnt es bei `var(--below-head)`, `scroll-padding-top` an `html` rechnet den Kopf schon ein. Bleibt darunter noch etwas stehen, bekommt es eine feste Höhe, die `scroll-padding-top` dazurechnet. In Formular-Dialogen hält `FormDialog` das Feld mit Fokus über der stehenden Knopfzeile, auch wenn es nur halb dahinter läge; das prüft `belege-steuern.spec.ts` an „Abgabe vermerken“. `kopfzeile.spec.ts` tabbt dazu durch den langen Rechnungsentwurf und den Kontaktdialog. Bei sehr niedrigem Fenster (400 % Zoom, bis 300 px Höhe) scrollt der Kopf mit, weil er sonst das Fenster füllte.
 - Was eine Aktion im stehenden Kopf meldet oder nachfragt, liegt sonst oft außer Sicht: `NoticeBanner` holt sich selbst ins Bild, eigene Hinweise über `useRevealWhen`.
-- Folge der Knöpfe und Tab-Reihenfolge: [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md#reihenfolge-der-knöpfe), „Reihenfolge der Knöpfe“; `knopfreihenfolge.spec.ts` prüft sie.
+- Folge der Knöpfe und Tab-Reihenfolge: [`DESIGN.md`](https://github.com/Speicherstadt/haben/blob/main/DESIGN.md#reihenfolge-der-knöpfe), „Reihenfolge der Knöpfe“; `knopfreihenfolge.spec.ts` prüft sie.
 - Dialoge sind `<dialog>` mit `showModal()`: Der Fokus geht hinein, in Formular-Dialogen auf das erste Feld, Esc schließt, der Rest der Seite ist nicht bedienbar, und beim Schließen kehrt der Fokus auf den Auslöser zurück (`FormDialog`, Vorschau in `DocumentPreview.tsx`).
 - Eine Suche mit Trefferliste nutzt `Combobox.tsx` nach dem Muster „Editable Combobox With List Autocomplete“ der [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/): Der Fokus bleibt im Feld, `aria-activedescendant` zeigt den aktiven Eintrag. Für kurze, feste Auswahlen bleibt es beim `<select>` in `Field` (siehe `DESIGN.md`), es ist von Haus aus zugänglich und auf dem Handy besser.
 - Ein Split-Button (Vorschau der Belegeditoren) folgt dem Muster „Menu Button“ der [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/): Hauptaktion und Pfeil sind getrennt fokussierbar, der Pfeil trägt `aria-haspopup="menu"` und `aria-expanded`, Enter, Leertaste und die Pfeiltasten öffnen das Menü mit dem Fokus auf dem ersten Eintrag, Esc schließt es zurück auf den Pfeil. `vorschau.spec.ts` prüft das.

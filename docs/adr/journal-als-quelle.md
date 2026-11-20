@@ -8,7 +8,7 @@ description: >-
 # Entscheidung: Voranmeldung und EÜR aus dem Journal
 
 **Status:** umgesetzt in den Schritten unten (siehe „Entschieden und offen“); Stichjahr und Gegenprobe aus den Nebenbüchern überholt durch [Entscheidung: nur noch das Journal](journal-einzige-quelle.md) (#1116). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
-**Bezug:** [#542](https://github.com/firsttris/haben/issues/542), [#502](https://github.com/firsttris/haben/issues/502),
+**Bezug:** [#542](https://github.com/Speicherstadt/haben/issues/542), [#502](https://github.com/Speicherstadt/haben/issues/502),
 [Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-im-journal).
 DATEV-Hilfe-Center: [1080673](https://help-center.apps.datev.de/documents/1080673) (Ist-Versteuerung),
 [1049448](https://help-center.apps.datev.de/documents/1049448) (Steuerschlüssel bei Zahlung),
