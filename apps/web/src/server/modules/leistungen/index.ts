@@ -25,6 +25,7 @@ export {
   listServiceEntries,
   serviceEntrySchema,
   ServiceEntryError,
+  serviceSummaryOfContact,
   updateServiceEntry,
   upsertExternalServiceEntry,
   billedExternalIds,

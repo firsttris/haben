@@ -296,4 +296,18 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     expect(await abrechnen.previewBilling({ contactId: ohneSatz, ...zeitraum })).toMatchObject({ entries: 0, withoutRate: 1 });
     expect((await sql`select count(*)::int as n from invoices`)[0]!.n).toBe(0);
   });
+
+  it("die Kontaktseite: Zahl der Einträge und offene, abrechenbare Zeit des Kunden (#1557)", async () => {
+    const leer = await neuerKunde("Rheinpixel GmbH", null);
+    expect(await entries.serviceSummaryOfContact(leer)).toEqual({ entries: 0, openMinutes: 0 });
+
+    await eintrag({ workedOn: "2026-03-02", minutes: 90 });
+    await abrechnen_();
+    // offen: die erfasste Dauer, oder die abrechenbare, wenn sie abweicht; nicht abrechenbar zählt nicht
+    await eintrag({ workedOn: "2026-04-01", minutes: 60 });
+    await eintrag({ workedOn: "2026-04-02", minutes: 100, billableMinutes: 30 });
+    await eintrag({ workedOn: "2026-04-03", minutes: 45, nonBillable: true });
+    await eintrag({ contactId: leer, workedOn: "2026-04-01", minutes: 15 });
+    expect(await entries.serviceSummaryOfContact(kunde)).toEqual({ entries: 4, openMinutes: 90 });
+  });
 });

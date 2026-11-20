@@ -29,7 +29,9 @@ export function ServiceEntryForm({
   const save = useServerFn(saveServiceEntry);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contactId, setContactId] = useState(entry?.contactId ?? defaultContactId ?? "");
+  // Archivierte und reine Lieferanten nur am eigenen Eintrag; eine Vorgabe aus ?kunde= nur, wenn sie angeboten wird
+  const offered = customers.filter((c) => !c.inactive || c.id === entry?.contactId);
+  const [contactId, setContactId] = useState(entry?.contactId ?? offered.find((c) => c.id === defaultContactId)?.id ?? "");
   const customerRate = customers.find((c) => c.id === contactId)?.hourlyRateCents ?? null;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -85,13 +87,11 @@ export function ServiceEntryForm({
               <option value="" disabled>
                 Kunde wählen
               </option>
-              {customers
-                .filter((c) => !c.inactive || c.id === entry?.contactId)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+              {offered.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           )}
         </Field>

@@ -128,6 +128,19 @@ export async function listServiceEntries(filter: ServiceEntryFilter = {}): Promi
     .orderBy(desc(schema.serviceEntries.workedOn), desc(schema.serviceEntries.createdAt));
 }
 
+/** Für die Kontaktseite (#1557): Zahl aller Einträge des Kunden und die offene, abrechenbare Zeit (wie billableMinutes in @haben/core) */
+export async function serviceSummaryOfContact(contactId: string): Promise<{ entries: number; openMinutes: number }> {
+  const e = schema.serviceEntries;
+  const [row] = await db
+    .select({
+      entries: sql<number>`count(*)::int`,
+      openMinutes: sql<number>`coalesce(sum(coalesce(${e.billableMinutes}, ${e.minutes})) filter (where not ${e.nonBillable} and not ${onActiveInvoice}), 0)::int`,
+    })
+    .from(e)
+    .where(eq(e.contactId, contactId));
+  return row ?? { entries: 0, openMinutes: 0 };
+}
+
 export interface EntryCustomer {
   id: string;
   name: string;
