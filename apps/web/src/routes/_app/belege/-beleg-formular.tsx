@@ -1,5 +1,7 @@
 import { formatDecimal, formatEuro } from "@haben/core";
 import { Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { DocumentSplits } from "../../../components/DocumentSplits.tsx";
 import { SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
@@ -7,6 +9,7 @@ import { Icon } from "../../../components/Icon.tsx";
 import { UstIdVorBuchen } from "../../../components/UstIdVorFestschreiben.tsx";
 import { steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
+import { checkSameInvoiceNumber } from "../../../server/functions/documents.ts";
 import { BelegAktionen, useBelegAktionen } from "./-beleg-aktionen.tsx";
 import { Belegdaten } from "./-beleg-belegdaten.tsx";
 import { Betraege } from "./-beleg-betraege.tsx";
@@ -19,6 +22,7 @@ export function DocumentForm({ data, inhaber, onDirtyChange }: { data: Detail; i
   const aktionen = useBelegAktionen(f, data);
   const { readOnly, splitting, dirty, form, onSave } = f;
   const { issues } = data;
+  const gleicheNummer = useGleicheNummer(data, f);
 
   return (
     <form ref={form} className="stack" onSubmit={onSave} noValidate>
@@ -41,6 +45,7 @@ export function DocumentForm({ data, inhaber, onDirtyChange }: { data: Detail; i
           </span>
         </div>
       )}
+      {gleicheNummer.length > 0 && <MoeglicheDublette belege={gleicheNummer} offen={!f.locked && !readOnly} />}
       <ConfirmDialog
         open={aktionen.confirming}
         title="Beleg buchen?"
@@ -56,6 +61,12 @@ export function DocumentForm({ data, inhaber, onDirtyChange }: { data: Detail; i
         onClose={() => aktionen.setConfirming(false)}
       >
         <p>Der Beleg wird gebucht und festgeschrieben; danach ist er nicht mehr änderbar.</p>
+        {gleicheNummer.length > 0 && (
+          <p>
+            <strong>Mögliche Dublette:</strong> Vom selben Lieferanten gibt es schon einen Beleg mit dieser Rechnungsnummer. Ist es dieselbe Rechnung, stünde
+            die Ausgabe nach dem Buchen doppelt in den Büchern, mit Vorsteuerabzug auch die Vorsteuer.
+          </p>
+        )}
         <UstIdVorBuchen open={aktionen.confirming} reverseCharge={f.reverseCharge} contactId={f.supplierContactId} ustId={f.supplierUstId} />
       </ConfirmDialog>
       <ConfirmDialog
@@ -139,4 +150,63 @@ function BelegAufteilung({ f, data }: { f: DocumentFormState; data: Detail }) {
       />
     </div>
   );
+}
+
+/**
+ * Hinweis auf eine mögliche Dublette (#1314): andere Belege desselben Lieferanten mit derselben Rechnungsnummer, mit
+ * Datum, Betrag, Stand und Link. Nur ein Hinweis; Speichern und Buchen bleiben möglich.
+ */
+function MoeglicheDublette({ belege, offen }: { belege: Detail["gleicheNummer"]; offen: boolean }) {
+  return (
+    <div className="banner" role="status">
+      <Icon name="alert" />
+      <span>
+        Mögliche Dublette: Vom selben Lieferanten gibt es schon {belege.length === 1 ? "einen Beleg" : `${belege.length} Belege`} mit dieser Rechnungsnummer:{" "}
+        {belege.map((b, i) => (
+          <span key={b.id}>
+            {i > 0 && "; "}
+            <Link to="/belege/$id" params={{ id: b.id }}>
+              {b.supplierName} {b.invoiceNumber}
+            </Link>
+            {b.documentDate && ` vom ${formatDate(b.documentDate)}`}, {formatEuro(b.gross)}, {b.gebucht ? "gebucht" : "noch nicht gebucht"}
+          </span>
+        ))}
+        .{offen && " Ist es dieselbe Rechnung, buche sie nur einmal; Speichern und Buchen bleiben möglich, weil manche Lieferanten Nummern doppelt vergeben."}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Mögliche Dubletten zu den Eingaben (#1314, #1378): ohne Änderung an Lieferant und Nummer der Stand vom Laden, sonst
+ * kurz nach dem Tippen neu vom Server. So stimmen Hinweis und Buchungsdialog auch vor dem Speichern.
+ */
+function useGleicheNummer(data: Detail, f: DocumentFormState): Detail["gleicheNummer"] {
+  const pruefen = useServerFn(checkSameInvoiceNumber);
+  const [treffer, setTreffer] = useState(data.gleicheNummer);
+  const { document: doc, gleicheNummer: gespeichert } = data;
+  const { supplierName, supplierUstId, supplierContactId, invoiceNumber, gross, locked, readOnly } = f;
+  useEffect(() => {
+    const unveraendert =
+      supplierName === doc.supplierName &&
+      supplierUstId === doc.supplierUstId &&
+      supplierContactId === doc.supplierContactId &&
+      invoiceNumber === doc.invoiceNumber;
+    if (unveraendert || locked || readOnly) {
+      setTreffer(gespeichert);
+      return;
+    }
+    let gilt = true;
+    const warten = setTimeout(() => {
+      const eingaben = { supplierName, supplierUstId, supplierContactId, invoiceNumber, gross: gross ?? 0 };
+      pruefen({ data: { id: doc.id, recurringDocumentId: doc.recurringDocumentId, ...eingaben } })
+        .then((neu) => gilt && setTreffer(neu))
+        .catch(() => {});
+    }, 400);
+    return () => {
+      gilt = false;
+      clearTimeout(warten);
+    };
+  }, [pruefen, doc, gespeichert, supplierName, supplierUstId, supplierContactId, invoiceNumber, gross, locked, readOnly]);
+  return treffer;
 }

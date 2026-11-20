@@ -1,5 +1,5 @@
 import type { JournalZeile } from "./journal-kennzahlen.ts";
-import type { Cents } from "./money.ts";
+import { splitPrivateShare, type Cents, type Prozent } from "./money.ts";
 import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
 
 /*
@@ -13,16 +13,40 @@ import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
  * erste Aufwandszeile je Steuerschlüssel die Bemessungsgrundlage (`basis`), die eine heutige Buchung trüge:
  * Aufwand mit Schlüssel + Entnahmen ohne Schlüssel − selbst geschuldete Steuer + Vorsteuer daraus. Heutige Buchungen erkennt
  * man an einer Zeile mit „keineVSt“ (Steuer ohne Abzug) oder einer Entnahme mit Steuerschlüssel (privates Netto); mit
- * vollem Vorsteuerabzug und ohne Privatanteil ist die Korrektur null. Den Privatanteil ordnet die Funktion nur zu, wenn die
- * Buchung genau einen dieser Steuerschlüssel trägt; Erwerb zu 19 % und 7 % mit Privatanteil auf einem Beleg bleibt, wie
- * gebucht. Der Aufrufer wendet die Funktion nur auf Belegbuchungen an, die vor dem Update auf das Journal angelegt wurden
- * (belegAusAlterVersion in apps/web); die Form allein unterscheidet keine Versionen.
+ * vollem Vorsteuerabzug und ohne Privatanteil ist die Korrektur null. Trägt die Buchung genau einen dieser Steuerschlüssel,
+ * gehört der private Teil zu ihm. Beim Erwerb zu 19 % und 7 % mit Privatanteil auf einem Beleg steht er in einer Summe auf
+ * den Entnahmen; aufteilen lässt er sich nur mit dem Beleg (privatJeErwerbssatz, wie documentRatePosting heute je Satz).
+ * Ohne diese Aufteilung, oder wenn sie nicht zum gebuchten Teil passt, bleibt die Buchung, wie gebucht. Der Aufrufer wendet
+ * die Funktion nur auf Belegbuchungen an, die vor dem Update auf das Journal angelegt wurden (belegAusAlterVersion in
+ * apps/web); die Form allein unterscheidet keine Versionen.
  */
 
 const SELBST_GESCHULDET: ReadonlySet<string> = new Set(["RC13bEU", "RC13bDrittland", "IGE19", "IGE7"]);
 
-/** Die Zeilen einer Belegbuchung, bei einer Buchung von vor #551 mit der Bemessungsgrundlage wie heute */
-export function mitBemessungWieHeute(kontenrahmen: Kontenrahmen, zeilen: readonly JournalZeile[]): JournalZeile[] {
+/**
+ * Privater Teil (Netto und Steuer) je Steuerschlüssel eines Erwerbs, aus den Beträgen und dem Privatanteil des Belegs, je
+ * Satz gerundet wie in documentRatePosting (#1502)
+ */
+export function privatJeErwerbssatz(amounts: readonly { taxRate: number; net: Cents; tax: Cents }[], privateShare: Prozent): Map<string, Cents> {
+  const result = new Map<string, Cents>();
+  for (const a of amounts) {
+    const code = a.taxRate === 1900 ? "IGE19" : a.taxRate === 700 ? "IGE7" : null;
+    if (!code) continue;
+    const privat = splitPrivateShare(a.net, privateShare).private + splitPrivateShare(a.tax, privateShare).private;
+    result.set(code, (result.get(code) ?? 0) + privat);
+  }
+  return result;
+}
+
+/**
+ * Die Zeilen einer Belegbuchung, bei einer Buchung von vor #551 mit der Bemessungsgrundlage wie heute; `privatJeSchluessel`:
+ * der private Teil je Steuerschlüssel aus dem Beleg (privatJeErwerbssatz), nur für den Erwerb zu zwei Sätzen nötig
+ */
+export function mitBemessungWieHeute(
+  kontenrahmen: Kontenrahmen,
+  zeilen: readonly JournalZeile[],
+  privatJeSchluessel?: ReadonlyMap<string, Cents>,
+): JournalZeile[] {
   const a = ACCOUNTS[kontenrahmen];
   if (zeilen.some((z) => z.taxCode === "keineVSt" || (z.account === a.privatentnahmen && z.taxCode !== null))) return [...zeilen];
   const steuer = new Map<string, string | null>([
@@ -52,10 +76,17 @@ export function mitBemessungWieHeute(kontenrahmen: Kontenrahmen, zeilen: readonl
     else if (vorsteuer.has(z.account)) add(vorsteuer.get(z.account)!, z.debit - z.credit);
     else if (z.account === a.privatentnahmen) privat += z.debit - z.credit;
   }
-  // Erwerb zu 19 % und 7 % mit Privatanteil: Das private Netto lässt sich keinem Satz centgenau zuordnen; ohne es wäre auch
-  // der Abzug der Steuer falsch, also wie gebucht
-  if (aufwand.size > 1 && privat !== 0) return [...zeilen];
   if (aufwand.size === 1) add([...aufwand.keys()][0]!, privat);
+  else if (privat !== 0) {
+    // Erwerb zu 19 % und 7 % mit Privatanteil: Aus dem Journal allein lässt sich der private Teil keinem Satz centgenau
+    // zuordnen, ohne ihn wäre auch der Abzug der Steuer falsch. Mit der Aufteilung aus dem Beleg, wenn sie in der Summe
+    // genau den gebuchten Teil ergibt (beim Storno mit umgekehrtem Vorzeichen); sonst wie gebucht.
+    const aufteilung = [...(privatJeSchluessel ?? [])].filter(([, betrag]) => betrag !== 0);
+    const summe = aufteilung.reduce((s, [, betrag]) => s + betrag, 0);
+    const vorzeichen = summe === privat ? 1 : summe === -privat ? -1 : 0;
+    if (vorzeichen === 0 || aufteilung.some(([code]) => !aufwand.has(code))) return [...zeilen];
+    for (const [code, betrag] of aufteilung) add(code, vorzeichen * betrag);
+  }
   return zeilen.map((z, i) => {
     for (const [code, index] of aufwand) {
       const k = korrektur.get(code) ?? 0;
