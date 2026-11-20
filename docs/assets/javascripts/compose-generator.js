@@ -195,7 +195,7 @@ const overrideServices = (cfg) => {
   const add = (service, ...lines) => services.set(service, [...(services.get(service) ?? []), ...lines]);
 
   if (cfg.registry !== "dockerhub" || cfg.imageTag !== "latest") {
-    const prefix = cfg.registry === "ghcr" ? "ghcr.io/firsttris" : "tristanteu";
+    const prefix = cfg.registry === "ghcr" ? "ghcr.io/speicherstadt" : "tristanteu";
     const images = { db: "haben-db", app: "haben", backup: "haben-backup", restore: "haben-backup" };
     for (const [service, image] of Object.entries(images)) add(service, `image: ${prefix}/${image}:${yamlScalar(cfg.imageTag)}`);
   }
@@ -228,7 +228,7 @@ export const overrideFile = (cfg) => {
 export const startCommands = (withOverride) =>
   [
     "mkdir haben && cd haben",
-    "curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml",
+    "curl -O https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.yml",
     withOverride ? "# .env und compose.override.yml aus dem Generator hier ablegen" : "# .env aus dem Generator hier ablegen",
     "chmod 600 .env",
     "docker compose up -d --wait db",

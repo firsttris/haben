@@ -5,7 +5,7 @@
 domain: ""
 
 image:
-  # Version von Haben in Anführungszeichen, etwa "0.9.0" (https://github.com/firsttris/haben/releases). Gilt für App,
+  # Version von Haben in Anführungszeichen, etwa "0.9.0" (https://github.com/Speicherstadt/haben/releases). Gilt für App,
   # Backup und Datenbank. Für ein Update: Backup, dann anheben.
   tag: ""
   pullPolicy: IfNotPresent

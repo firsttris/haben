@@ -183,7 +183,7 @@ describe("checkTitleIssues", () => {
 
   it("zählt im Titel nur eigene Nummern, nicht #35 für #357 und nicht owner/repo#12 oder Anker", () => {
     expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Umgesetzt #35")).toHaveLength(1);
-    expect(checkTitleIssues("Bilder: aus firsttris/haben-bilder#12", "Umgesetzt #12")).toHaveLength(1);
+    expect(checkTitleIssues("Bilder: aus Speicherstadt/haben-bilder#12", "Umgesetzt #12")).toHaveLength(1);
     expect(checkTitleIssues("Doku: Link auf mitwirken.html#12", "Umgesetzt #12")).toHaveLength(1);
   });
 });

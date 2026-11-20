@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 
-/** Übergangsentscheidung: https://github.com/firsttris/haben/issues/853#issuecomment-6910075659 */
+/** Übergangsentscheidung: https://github.com/Speicherstadt/haben/issues/853#issuecomment-6910075659 */
 describe.skipIf(!testDatabaseUrl)("Neue Vorauszahlung auf unmarkierte normale Alt-Rechnung (Postgres)", () => {
   let sql: postgres.Sql;
   let bank: typeof import("./index.ts");
@@ -203,7 +203,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Vorauszahlung auf unmarkierte normale Al
   });
 
   // Ist ohne Bilanz: Der bisherige Weg ist dort steuerlich schon richtig (§ 13 Abs. 1 Nr. 1 b UStG, § 11 EStG).
-  // Entscheidung: https://github.com/firsttris/haben/pull/1228#issuecomment-6925771896
+  // Entscheidung: https://github.com/Speicherstadt/haben/pull/1228#issuecomment-6925771896
   it("Einzelunternehmen/SKR03/Ist: lässt die Zahlung vor der Leistung auf dem bisherigen Weg zu", async () => {
     await sql`update company set rechtsform = 'einzelunternehmen', versteuerung = 'ist'`;
     const invoice = await legacyInvoice();

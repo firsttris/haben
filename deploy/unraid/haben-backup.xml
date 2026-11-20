@@ -7,12 +7,12 @@
   <Network>haben</Network>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/firsttris/haben/issues</Support>
+  <Support>https://github.com/Speicherstadt/haben/issues</Support>
   <Project>https://haben.app/</Project>
   <Overview>Tägliches Backup von Haben: Datenbank und Belege, verschlüsselt mit restic, mit Test-Restore. Ersetzt nicht das Plugin Appdata Backup und umgekehrt.[br][br]Daily encrypted backup (restic) of Haben's database and receipts, with restore checks.</Overview>
   <Category>Backup: Productivity:</Category>
-  <TemplateURL>https://raw.githubusercontent.com/firsttris/haben/main/deploy/unraid/haben-backup.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/firsttris/haben/main/apps/web/public/icon-512.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/unraid/haben-backup.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Speicherstadt/haben/main/apps/web/public/icon-512.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <Requires>haben-db und haben: https://haben.app/unraid.html</Requires>
   <Config Name="Datenbank-Passwort" Target="PGPASSWORD" Default="" Mode="" Description="Dasselbe Passwort wie in haben-db" Type="Variable" Display="always" Required="true" Mask="true"/>

@@ -1,6 +1,6 @@
 # Haben hinter einem Reverse Proxy, der schon auf dem Server läuft (Caddy, nginx, Nginx Proxy Manager, Traefik …).
 #
-#   curl -o compose.override.yml https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.override.example.yml
+#   curl -o compose.override.yml https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.override.example.yml
 #   # DEIN_PROXY_NETZ unten ersetzen, dann:
 #   docker compose up -d
 #

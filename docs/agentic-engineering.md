@@ -78,11 +78,11 @@ flowchart TB
   class Issue,Geplant,Zuweisen,CI,Naechstes,Erledigt auto
 ```
 
-Die Farben sind dieselben wie bei den Karten oben, kleingeschriebene Namen wie `board-pflegen` oder `tdd-review` sind [Skills](https://github.com/firsttris/haben/tree/main/.claude/skills) im Repository. „Frisch“ heißt: ein neuer Agent ohne den Verlauf dessen, der den Code geschrieben hat. Er kennt nur den Pull Request und das Repository und prüft deshalb, was dasteht. Was gemeint war, weiß er nicht.
+Die Farben sind dieselben wie bei den Karten oben, kleingeschriebene Namen wie `board-pflegen` oder `tdd-review` sind [Skills](https://github.com/Speicherstadt/haben/tree/main/.claude/skills) im Repository. „Frisch“ heißt: ein neuer Agent ohne den Verlauf dessen, der den Code geschrieben hat. Er kennt nur den Pull Request und das Repository und prüft deshalb, was dasteht. Was gemeint war, weiß er nicht.
 
 ## Ein Beispiel: der Satz auf dem Storno { #beispiel }
 
-Issue [#716](https://github.com/firsttris/haben/issues/716) mit den Pull Requests [#814](https://github.com/firsttris/haben/pull/814) und [#821](https://github.com/firsttris/haben/pull/821), vom `/übernehmen` bis zum letzten Merge in gut acht Stunden, einmal durch den Ablauf oben und einmal über „so nicht“ zurück.
+Issue [#716](https://github.com/Speicherstadt/haben/issues/716) mit den Pull Requests [#814](https://github.com/Speicherstadt/haben/pull/814) und [#821](https://github.com/Speicherstadt/haben/pull/821), vom `/übernehmen` bis zum letzten Merge in gut acht Stunden, einmal durch den Ablauf oben und einmal über „so nicht“ zurück.
 
 1. **Planen:** Ein Nutzer meldet, dass das Storno einer unbezahlten Rechnung über 1 € verspricht: „Der Betrag wird Ihnen erstattet.“ Der Maintainer stellt den Fehler nach und setzt die Karte nach „Geplant“.
 2. **Bauen:** Ein Collaborator kommentiert `/übernehmen` mit einem kurzen Plan. Sekunden später ist das Issue ihm zugewiesen und die Karte steht in „In Arbeit“. Sein Agent richtet in #814 den Satz am Zahlstand aus, ohne Zahlung sagt das Storno keine Erstattung mehr zu. Zuerst kommen rote Tests, dann der Fix.
@@ -133,6 +133,6 @@ Jede Regel steht einmal in `docs/` oder `DESIGN.md`, kurz und auf Deutsch. Ein S
 <p class="showcase-claim">Eine Karte aus dem Board aussuchen, im Issue <code>/übernehmen</code> kommentieren und
 mit dem Agenten deiner Wahl loslegen. Die Skills liegen im Repository und gelten für jeden Agenten.</p>
 
-[Etwas übernehmen](mitwirken.md#etwas-übernehmen){ .md-button .md-button--primary } [Einstiegs-Issues](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg){ .md-button }
+[Etwas übernehmen](mitwirken.md#etwas-übernehmen){ .md-button .md-button--primary } [Einstiegs-Issues](https://github.com/Speicherstadt/haben/issues?q=is%3Aopen+label%3Aeinstieg){ .md-button }
 
 </div>

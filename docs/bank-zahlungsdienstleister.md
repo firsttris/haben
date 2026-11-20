@@ -85,7 +85,7 @@ Statt des Aktivitätenexports (CSV) kann Haben die Umsätze von PayPal selbst ab
 - **Tag:** Der Export nennt den Tag der Fertigstellung, Haben nimmt den Beginn der Transaktion (`transaction_initiation_date`), weil er sich nicht mehr ändert. Beide fallen bei sofortigen Zahlungen zusammen, bei verzögerten (Lastschrift) nicht.
 - **Nur Euro:** Andere Währungen (Betrag oder Gebühr) meldet Haben und übernimmt sie nicht.
 - **Saldo:** Haben übernimmt keinen Saldo (`/v1/reporting/balances` dient nur der Kennung), weil es bei Zahlungsdienstleistern keinen Kontostand prüft.
-- **Nicht an echten Daten geprüft:** Der Abruf wurde gegen nachgebaute Antworten im Aufbau der API-Referenz geprüft, nicht gegen die Sandbox oder ein Konto im Livebetrieb. Offen ist vor allem das Vorzeichen von `fee_amount` (Haben erwartet es wie in der Spalte „Gebühr“ des Exports; eine Zahlung mit positiver Gebühr übernimmt es nicht, sondern meldet sie) und das Format des Zeitstempels.
+- **Nur teilweise an echten Daten geprüft:** Der Abruf wurde an der Sandbox von PayPal geprüft (eine Zahlung mit Gebühr und eine Teilerstattung): Die Gebühr ist bei einer Zahlung negativ und bei einer Erstattung positiv, der Zeitstempel ist UTC mit `Z`, die Erstattung nennt die Zahlung in `paypal_reference_id`. Nicht an echten Antworten geprüft sind ausstehende, abgelehnte und zurückgebuchte Zahlungen (`P`, `D`, `V`), Rückbuchungen, Abbuchungen auf die Bank und Fremdwährungen, und nichts an einem Konto im Livebetrieb.
 
 ## Etsy-Zahlungsverlauf über die API
 

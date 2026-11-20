@@ -9,6 +9,7 @@ import { quoteChoices } from "./quote-choices.ts";
 import { documentReferences, type ReferenceColumns } from "./order-references.ts";
 import { orderLines, quoteDocumentFor } from "./quotes.ts";
 import { today } from "../../today.ts";
+import { angebotMitPlatzhaltern, mitVorlage } from "./beleg-platzhalter.ts";
 
 /**
  * Auftragsbestätigung und Lieferschein entstehen auf Abruf aus festgeschriebenen Angeboten und
@@ -35,10 +36,13 @@ async function acceptedQuote(id: string) {
 export async function confirmationPdf(quoteId: string) {
   const { quote, lines, choices } = await acceptedQuote(quoteId);
   const buyer = await withCurrentBuyer(db, quote.buyer, quote.contactId);
-  const doc = quoteDocumentFor(quote, lines, withCurrentSeller(quote.seller, await loadCompany()), buyer, quote.number, {
-    choices,
-    withPlan: quote.paymentPlanInConfirmation,
-  });
+  // Platzhalter mit den Werten der Bestätigung (gewählte Positionen), nicht mit denen des Angebots (#1334)
+  const doc = angebotMitPlatzhaltern(
+    quoteDocumentFor({ ...quote, ...mitVorlage(quote) }, lines, withCurrentSeller(quote.seller, await loadCompany()), buyer, quote.number, {
+      choices,
+      withPlan: quote.paymentPlanInConfirmation,
+    }),
+  );
   const pdf = await withCustomLayout("auftragsbestaetigung", await loadLetterhead(), (letterhead) =>
     buildConfirmationPdf({ ...doc, ...letterhead }, today(quote.decidedAt)),
   );

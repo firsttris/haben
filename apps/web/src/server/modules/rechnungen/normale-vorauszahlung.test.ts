@@ -13,7 +13,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
  * https://www.gesetze-im-internet.de/ustg_1980/__13.html
  * https://www.gesetze-im-internet.de/hgb/__252.html
  * https://www.gesetze-im-internet.de/hgb/__266.html
- * https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung (Postgres)", () => {
   let sql: postgres.Sql;

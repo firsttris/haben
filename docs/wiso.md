@@ -107,4 +107,4 @@ Die laufenden Werte entstehen aus der Buchhaltung in Haben; [EÜR](auswertungen.
 - [ ] Erste Bankumsätze, Rechnungsnummern, AfA-Pläne und Auswertungen kontrolliert.
 - [ ] Zugriff auf die alten Daten und Originalbelege bleibt für Nachfragen und Prüfungen erhalten.
 
-Grundlage der WISO-Hinweise: [anonymisierte Exportbeispiele](https://github.com/user-attachments/files/34634518/01_WISO_Beispieldateien_anonymisiert_2026-11-10.zip), [Rückmeldung zu AfA und Länderfeld](https://github.com/firsttris/haben/issues/565#issuecomment-6802857673) und [Klärung zum Jahreswechsel](https://github.com/firsttris/haben/issues/565#issuecomment-6808458708).
+Grundlage der WISO-Hinweise: [anonymisierte Exportbeispiele](https://github.com/user-attachments/files/34634518/01_WISO_Beispieldateien_anonymisiert_2026-11-10.zip), [Rückmeldung zu AfA und Länderfeld](https://github.com/Speicherstadt/haben/issues/565#issuecomment-6802857673) und [Klärung zum Jahreswechsel](https://github.com/Speicherstadt/haben/issues/565#issuecomment-6808458708).

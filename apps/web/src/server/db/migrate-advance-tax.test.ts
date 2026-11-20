@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Anzahlungsart: vorhandene Absch
       const oldAudit = await sql`select * from audit_log order by seq`;
       await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
       expect(
-        await sql`select to_jsonb(i)-'advance_type'-'property_retention'-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on'-'reduction_rule'-'number_contact_id'
+        await sql`select to_jsonb(i)-'advance_type'-'property_retention'-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on'-'reduction_rule'-'number_contact_id'-'intro_vorlage'-'note_vorlage'
           as value from invoices i where id=${id}`,
       ).toEqual(oldInvoice);
       expect(await sql`select tax_details from invoices where id=${id}`).toEqual([{ tax_details: null }]);

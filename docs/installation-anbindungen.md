@@ -26,7 +26,7 @@ Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/
 
 | | Compose | Quadlet |
 | --- | --- | --- |
-| Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/eric:/opt/eric:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml)) | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
+| Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/eric:/opt/eric:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/Speicherstadt/haben/blob/main/deploy/compose.override.example.yml)) | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
 | Variable | `ERIC_HOME=/opt/eric` in `.env` | `ERIC_HOME=/opt/eric` in `haben.env` einkommentieren |
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
@@ -44,7 +44,7 @@ Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund
 2. **Laufzeit anlegen:** auf dem Host als root, mit derselben Version wie das App-Image. Das Skript kommt vom Tag dieser Version, damit Skript und App zusammenpassen:
    ```sh
    VERSION=x.y.z   # Version deines App-Images
-   curl -O https://raw.githubusercontent.com/firsttris/haben/v$VERSION/deploy/eric-x86_64/einrichten.sh
+   curl -O https://raw.githubusercontent.com/Speicherstadt/haben/v$VERSION/deploy/eric-x86_64/einrichten.sh
    sudo QEMU=/pfad/zu/qemu-x86_64 sh einrichten.sh $VERSION /opt/haben-x86_64
    ```
    Das Skript lädt das amd64-Image von Haben, entpackt es nach `/opt/haben-x86_64/root` (rund 730 MB), kopiert QEMU daneben und legt `worker.sh` an, den Befehl für `ERIC_WORKER_COMMAND`. Den lokalen Tag des Images setzt es danach zurück: Lag das Image der App schon auf dem Rechner, zeigt der Tag wieder darauf, sonst wird er entfernt. So startet die App beim nächsten Mal nicht das amd64-Image.
@@ -52,7 +52,7 @@ Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund
 
    | | Compose | Quadlet |
    | --- | --- | --- |
-   | Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/haben-x86_64:/opt/haben-x86_64:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.override.example.yml); der [Compose-Generator](compose-generator.md) erzeugt Mount und Variable) | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
+   | Verzeichnis mounten | in `compose.override.yml` beim Dienst `app` unter `volumes` `- /opt/haben-x86_64:/opt/haben-x86_64:ro` eintragen (Beispiel in [`compose.override.example.yml`](https://github.com/Speicherstadt/haben/blob/main/deploy/compose.override.example.yml); der [Compose-Generator](compose-generator.md) erzeugt Mount und Variable) | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
    | Variable | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `.env` | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `haben.env` einkommentieren |
    | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
@@ -201,7 +201,7 @@ Optional. Über FinTS (früher HBCI) holt Haben die Umsätze direkt bei der Bank
 
 ### Produkt registrieren
 
-FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (DK) registriert ist. Haben bringt keine Registrierungsnummer mit: Wer Haben betreibt, registriert sich selbst, wie bei der [Hersteller-ID für ELSTER](einrichtung-elster.md#hersteller-id-wer-ist-hersteller). Das hat die DK für Haben bestätigt; die Nummer gilt nur im registrierten Produkt und gehört nicht in den veröffentlichten Quellcode ([Antwort der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6820986969)).
+FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (DK) registriert ist. Haben bringt keine Registrierungsnummer mit: Wer Haben betreibt, registriert sich selbst, wie bei der [Hersteller-ID für ELSTER](einrichtung-elster.md#hersteller-id-wer-ist-hersteller). Das hat die DK für Haben bestätigt; die Nummer gilt nur im registrierten Produkt und gehört nicht in den veröffentlichten Quellcode ([Antwort der DK in #654](https://github.com/Speicherstadt/haben/issues/654#issuecomment-6820986969)).
 
 1. Das Formular der [Produktregistrierung](https://www.fints.org/de/hersteller/produktregistrierung) ausfüllen und an die DK schicken, Produktkategorie **Web-Server**. Die Registrierung ist derzeit kostenlos ([FAQ der DK](https://www.fints.org/de/hersteller/faq-produktregistrierung)); die DK nennt 10 bis 15 Werktage.
 2. Die Registrierungsnummer aus der Antwort als `FINTS_PRODUKT_ID` eintragen und Haben neu starten:
@@ -218,7 +218,7 @@ FinTS-Zugang gibt es nur für Software, die bei der Deutschen Kreditwirtschaft (
 3. Unter **Einstellungen › Bank** steht dann bei **Kontoabruf über FinTS** „Eingerichtet“ (die Nummer zeigt Haben nicht), unter **Bank** der Knopf **Über FinTS verbinden**. Ablauf, TAN und Fehler stehen in [Abruf über FinTS](bank-fints.md).
 
 > [!NOTE]
-> Die Nummer gilt nicht sofort bei allen Banken. Die DK gibt neue Registrierungen gesammelt an die Institute weiter, derzeit etwa einmal pro Woche, und wann eine Bank sie übernimmt, entscheidet die Bank: Das dauert Tage bis Wochen ([Hinweis der DK in #654](https://github.com/firsttris/haben/issues/654#issuecomment-6915898298)). Bis dahin lehnt die Bank die Anmeldung ab, mit „FinTS-Produkt ist nicht registriert“ (9078 in den [Rückmeldungscodes der DK](https://www.fints.org/de/spezifikation)) oder, wie eine Bank im [Test zu #1289](https://github.com/firsttris/haben/pull/1289), mit „Das Kundenprodukt wird nicht unterstützt.“ (9952); Haben weist bei beiden darauf hin. Stimmt die Nummer in `FINTS_PRODUKT_ID`, später noch einmal versuchen.
+> Die Nummer gilt nicht sofort bei allen Banken. Die DK gibt neue Registrierungen gesammelt an die Institute weiter, derzeit etwa einmal pro Woche, und wann eine Bank sie übernimmt, entscheidet die Bank: Das dauert Tage bis Wochen ([Hinweis der DK in #654](https://github.com/Speicherstadt/haben/issues/654#issuecomment-6915898298)). Bis dahin lehnt die Bank die Anmeldung ab, mit „FinTS-Produkt ist nicht registriert“ (9078 in den [Rückmeldungscodes der DK](https://www.fints.org/de/spezifikation)) oder, wie eine Bank im [Test zu #1289](https://github.com/Speicherstadt/haben/pull/1289), mit „Das Kundenprodukt wird nicht unterstützt.“ (9952); Haben weist bei beiden darauf hin. Stimmt die Nummer in `FINTS_PRODUKT_ID`, später noch einmal versuchen.
 
 Ohne `FINTS_PRODUKT_ID` bleibt FinTS aus; Enable Banking und der Dateiimport laufen weiter. Haben prüft beim Start nur die Form (bis 25 Buchstaben und Ziffern), ob die Nummer gilt, sagt erst die Bank. Die Nummer ist kein Geheimnis, sie geht mit jeder Anmeldung an die Bank. Trag sie trotzdem nur in `.env` bzw. `haben.env` ein, nicht ins Repository oder Image.
 

@@ -20,7 +20,7 @@ vi.mock("@haben/einvoice", async (importOriginal) => {
 /**
  * #750: Eine unbezahlte Anforderung hat noch keine Journalbuchung, ihr festgeschriebenes Bilanzverfahren gehört aber
  * weiterhin zur GmbH/UG. Der Wechsel zur EÜR darf diese Entscheidung weder in der App noch am SQL-Weg umgehen.
- * Entscheidung: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * Entscheidung: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsanforderung (Postgres)", () => {
   let sql: postgres.Sql;

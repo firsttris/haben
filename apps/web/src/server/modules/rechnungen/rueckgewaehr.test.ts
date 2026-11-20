@@ -10,7 +10,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
  * #853: Storno und Korrektur mindern bereits vereinnahmte Umsatzsteuer erst mit der Rückzahlung (§ 17 UStG, UStAE 17.1
  * Abs. 2 Satz 3, BFH V R 34/09), mit und ohne Leistungstag, bei Soll wie bei Ist. Das Kennzeichen setzt das
  * Festschreiben; vorher festgeschriebene Korrekturen behalten das bisherige Verfahren. Entscheidungen:
- * https://github.com/firsttris/haben/pull/1228#issuecomment-6925771896, …#issuecomment-6940857265
+ * https://github.com/Speicherstadt/haben/pull/1228#issuecomment-6925771896, …#issuecomment-6940857265
  */
 describe.skipIf(!testDatabaseUrl)("Minderung erst mit der Rückzahlung (Postgres)", () => {
   let sql: postgres.Sql;

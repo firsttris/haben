@@ -5,7 +5,7 @@ import { invoiceTaxReader } from "./invoice-tax.ts";
 /**
  * Derselbe realisierte Anspruch trotz neuer Schlussbelegnummer; bestehende Zahlungszeilen bleiben am Original.
  * Nur versiegelt verbundene neue Schlussbelege zusammennehmen, keine Betrags-/Textsuche oder Anzahlungszahlungen.
- * Entscheidung: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * Entscheidung: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 export async function invoicePaymentGroups(ids: string[], q: Db | Tx = db): Promise<Map<string, string[]>> {
   const result = new Map(ids.map((id) => [id, [id]]));

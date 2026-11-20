@@ -186,6 +186,27 @@ Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußt
 - Aus einem Angebot übernimmt die Rechnung die Einleitung des Angebots.
 - Nicht mehr gebrauchte Bausteine archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
 
+#### Platzhalter in Einleitung und Hinweis
+
+In Einleitung und Hinweis von Rechnung und Angebot, auch aus einem Textbaustein, setzt Haben Platzhalter ein: in der Vorschau, im Entwurfs-PDF und beim Festschreiben. Im Entwurf bleibt der Platzhalter stehen, damit du ihn noch ändern kannst; nach dem Festschreiben stehen in Rechnung, PDF und XML die Werte. Die Namen sind die der [E-Mail-Vorlagen](#per-e-mail-versenden):
+
+| Platzhalter | Wert |
+| --- | --- |
+| `{art}` | Rechnung, Abschlagsrechnung, Schlussrechnung, Stornorechnung, Rechnungskorrektur bzw. Angebot |
+| `{nummer}` | Nummer des Belegs; in Vorschau und Entwurfs-PDF die voraussichtliche bzw. „ENTWURF“ |
+| `{datum}` | Rechnungs- bzw. Angebotsdatum |
+| `{betrag}` | Gesamtbetrag brutto in der Währung der Rechnung, wie in der E-Mail; bei der Schlussrechnung nach Abzug der Abschläge, bei Storno und Korrektur negativ |
+| `{faellig}` | Fälligkeit (nur Rechnung) |
+| `{gueltig}` | gültig bis (nur Angebot) |
+| `{leistungszeitraum}` | Leistungszeitraum („01.10.2026 – 31.10.2026“) oder Leistungsdatum, leer ohne Angabe |
+| `{kunde}` | Name des Kunden |
+| `{firma}` | dein Firmenname |
+| `{iban}`, `{bic}` | IBAN (in Vierergruppen) und BIC deines Bankkontos aus den Firmendaten, etwa um sie größer als in der Fußzeile auf die Rechnung zu setzen |
+
+Kopierst du eine Rechnung oder ein Angebot oder machst aus einem Angebot eine Rechnung, kommen Einleitung und Hinweis mit den Platzhaltern mit, nicht mit den Werten des Originals; die Auftragsbestätigung setzt die Werte der gewählten Positionen ein.
+
+Beispiel für einen Hinweis: „Bitte überweisen Sie {betrag} bis zum {faellig} auf das Konto {iban} unter Angabe der Rechnungsnummer {nummer}.“ Datum und Betrag stehen in der Sprache der Rechnung. Ein unbekannter Platzhalter bleibt stehen, so fällt ein Tippfehler in der Vorschau auf. In [wiederkehrenden Rechnungen](#wiederkehrende-rechnungen) kommen deren Platzhalter dazu; die setzt Haben schon beim Anlegen des Entwurfs ein.
+
 ### Umsatzsteuer auf der Rechnung
 
 Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt wird. Gespeichert wird die Auswahl an der Rechnung; sie bestimmt Erlöskonto, Kennzahl der [Voranmeldung](umsatzsteuer.md), Steuerkategorie im XML und den Pflichthinweis. Unter der Auswahl steht ein Hinweis mit der Vorschrift, etwa § 4 Nr. 1 Buchst. b UStG.
@@ -397,7 +418,7 @@ Ein neuer Abschlag ist vorbelegt eine **Anzahlung vor Leistung**. Bei regulärer
 
 Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue Anzahlungsrechnungen fällig; spätere Zahlungen versteuern sie nicht nochmals. Für eine solche Schlussrechnung zählt der eingetragene Leistungstag, sonst ihr Rechnungsdatum. Bei der Übernahme aus einem Angebot schlägt der Entwurf dafür den heutigen Tag vor; geplante Leistungsdaten des Angebots gelten nicht automatisch als tatsächlich erbrachte Schlussleistung. Prüfe das Datum und passe es vor der Festschreibung an den tatsächlichen Leistungstag beziehungsweise das Ende des Leistungszeitraums an. Ist-Versteuerung bleibt zahlungsbezogen. Bei neuen erbrachten Teil- und Schlussleistungen bleibt nach einem Verfahrenswechsel das Verfahren des Leistungsjahres maßgeblich ([UStAE 13.6 Abs. 3](https://ao.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-6.html)). Für EU-Leistungen mit Reverse Charge gelten unabhängig von Ist/Soll die [Meldezeitpunkte nach Leistung](umsatzsteuer.md#umsätze-ohne-steuer-kz-21-41-43-45-und-48). Die übrigen Auslands-Meldezeitpunkte bleiben erhalten. Vor diesem Update festgeschriebene Abschläge und ihre Korrekturen behalten ihre bisherige Versteuerung. Die Buchung und den Umgang mit später zugeordneten Zahlungen beschreibt [Buchhaltung](buchhaltung.md#anzahlungen-vor-leistung).
 
-**Schlussrechnung bei GmbH und UG ersetzen:** Im neuen Bilanzverfahren bleibt die bereits erbrachte Schlussleistung beim bloßen Rechnungsstorno bestehen. Für einen Ersatz nach diesem Storno müssen dieselben Abschläge, derselbe Kunde, dieselbe Steuerbehandlung, derselbe Leistungstag und dieselben Netto-/Steuerbeträge je Satz vorliegen. Haben verbindet den Ersatz mit dem eindeutigen Vorgänger; bisherige Zahlungen zählen auf den offenen Rest, ihre Zuordnungen bleiben am ursprünglichen Beleg. Das Papierstorno eröffnet keine Erstattung. Eine echte Rückzahlung nach Storno einer Anforderung vor Leistung bleibt möglich ([bestätigter Ablauf in #750](https://github.com/firsttris/haben/issues/750#issuecomment-6837873675)).
+**Schlussrechnung bei GmbH und UG ersetzen:** Im neuen Bilanzverfahren bleibt die bereits erbrachte Schlussleistung beim bloßen Rechnungsstorno bestehen. Für einen Ersatz nach diesem Storno müssen dieselben Abschläge, derselbe Kunde, dieselbe Steuerbehandlung, derselbe Leistungstag und dieselben Netto-/Steuerbeträge je Satz vorliegen. Haben verbindet den Ersatz mit dem eindeutigen Vorgänger; bisherige Zahlungen zählen auf den offenen Rest, ihre Zuordnungen bleiben am ursprünglichen Beleg. Das Papierstorno eröffnet keine Erstattung. Eine echte Rückzahlung nach Storno einer Anforderung vor Leistung bleibt möglich ([bestätigter Ablauf in #750](https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675)).
 
 Abweichende Beträge oder Abzüge, eine mehrdeutige Vorgängerkette und bereits vorhandene Entgeltkorrekturen werden beim Ersatz abgelehnt. Eine echte Entgeltminderung braucht eine eigene datierte Korrektur im Zeitraum der Änderung; das Datum des Ersatzbelegs weist diesen Zeitpunkt nicht nach ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Für den Ausfall einer noch unbilanzierten Anforderung gilt die Grenze unter [Anzahlungen vor Leistung](buchhaltung.md#anzahlungen-vor-leistung).
 
@@ -674,7 +695,7 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 - Ausfuhrlieferungen nur an Kunden mit Anschrift außerhalb der EU; den Ausfuhrnachweis führt Haben nicht.
 - Skonto nur vom ganzen Rechnungsbetrag (kein Basisbetrag nach BR-DE-18), höchstens drei Stufen, nur in Euro. Keine Zuschläge auf Belegebene; Abschläge auf Belegebene nur als [Gesamtrabatt](#rabatte).
 - Höchstens 200 Positionen je Rechnung.
-- Storno und neue Rechnung für dieselbe Leistung (Rechnungsaustausch) erkennt Haben noch nicht als Austausch: Hängt eine Zahlung an der stornierten Rechnung oder liegt das Storno in einem späteren Monat als die Leistung, steht die Umsatzsteuer bis dahin doppelt im Leistungsmonat und wird erst mit Rückzahlung, Aufhebung oder Storno gemindert. Ebenso übernimmt eine neue Zuordnung desselben Bankumsatzes nach einer [datierten Aufhebung](bank.md#zuordnung-aufheben) nicht den Tag der Aufhebung. Beides behandelt [#1454](https://github.com/firsttris/haben/issues/1454).
+- Storno und neue Rechnung für dieselbe Leistung (Rechnungsaustausch) erkennt Haben noch nicht als Austausch: Hängt eine Zahlung an der stornierten Rechnung oder liegt das Storno in einem späteren Monat als die Leistung, steht die Umsatzsteuer bis dahin doppelt im Leistungsmonat und wird erst mit Rückzahlung, Aufhebung oder Storno gemindert. Ebenso übernimmt eine neue Zuordnung desselben Bankumsatzes nach einer [datierten Aufhebung](bank.md#zuordnung-aufheben) nicht den Tag der Aufhebung. Beides behandelt [#1454](https://github.com/Speicherstadt/haben/issues/1454).
 - Ohne **Leistung von**/**bis** grenzt Haben eine frühere Zahlung nicht als Vorauszahlung ab, auch wenn bar bei der Leistung bezahlt und die Rechnung später ausgestellt wurde; das Rechnungsdatum ersetzt keinen Leistungsnachweis. Trag den Leistungstag vor dem Festschreiben ein.
 - Rechnungen gehen per E-Mail über deinen SMTP-Zugang oder über [Microsoft 365](einrichtung-email.md#e-mail-über-microsoft-365), nicht über Peppol oder die Portale öffentlicher Auftraggeber. Über Microsoft 365 gehen Anhänge nur bis 2,5 MB zusammen.
 - Zusätzliche Anhänge nur als PDF, bis 20 MB je Datei und zehn je Rechnung. Viele Mailserver nehmen Mails ab etwa 25 MB nicht mehr an; das Versandprotokoll zeigt dann die Meldung des Servers. Anhänge lassen sich nur in Haben hochladen, nicht über die [REST-API](api.md); [wiederkehrende Rechnungen](#wiederkehrende-rechnungen) haben keine Anhänge und versenden ohne sie. Mahnungen gehen ohne die Anhänge der Rechnung.

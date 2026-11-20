@@ -19,6 +19,6 @@ IT-Dienstleister, Hoster und Steuerberatungen, die Haben für ihre Kunden einric
 
 ## Fragen
 
-Fragen zur Nutzung beantworten wir öffentlich in den [Discussions](https://github.com/firsttris/haben/discussions),
-im [Discord](https://discord.gg/CT2GQytSYH) oder in den [Issues](https://github.com/firsttris/haben/issues), damit alle
+Fragen zur Nutzung beantworten wir öffentlich in den [Discussions](https://github.com/Speicherstadt/haben/discussions),
+im [Discord](https://discord.gg/CT2GQytSYH) oder in den [Issues](https://github.com/Speicherstadt/haben/issues), damit alle
 etwas davon haben. Größere Einführungen übernehmen wir auch als bezahltes Projekt.

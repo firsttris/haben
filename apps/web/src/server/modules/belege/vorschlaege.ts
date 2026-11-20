@@ -16,17 +16,23 @@ export interface Lieferant {
   supplierContactId: string | null;
 }
 
-/** Gebuchte, nicht stornierte Belege desselben Lieferanten; null ohne jedes Merkmal */
-function desselbenLieferanten({ supplierName, supplierUstId, supplierContactId }: Lieferant): SQL | null {
+/** Belege desselben Lieferanten: derselbe Kontakt, dieselbe USt-IdNr. oder derselbe Name; null ohne jedes Merkmal */
+export function lieferantGleich({ supplierName, supplierUstId, supplierContactId }: Lieferant): SQL | null {
   const name = supplierName.trim();
-  const ustId = supplierUstId.trim();
+  // Wie updateDocument sie speichert: ohne Leerzeichen und groß, damit auch die Eingabe vor dem Speichern passt
+  const ustId = supplierUstId.replace(/\s/g, "").toUpperCase();
   const merkmale = [
     supplierContactId ? eq(schema.documents.supplierContactId, supplierContactId) : null,
     ustId ? eq(schema.documents.supplierUstId, ustId) : null,
     name ? sql`lower(btrim(${schema.documents.supplierName})) = lower(${name})` : null,
   ].filter((m): m is SQL => m !== null);
-  if (merkmale.length === 0) return null;
-  return and(eq(schema.documents.status, "gebucht"), documentNotCancelled(), or(...merkmale)) ?? null;
+  return merkmale.length === 0 ? null : (or(...merkmale) ?? null);
+}
+
+/** Gebuchte, nicht stornierte Belege desselben Lieferanten; null ohne jedes Merkmal */
+function desselbenLieferanten(lieferant: Lieferant): SQL | null {
+  const gleich = lieferantGleich(lieferant);
+  return gleich ? (and(eq(schema.documents.status, "gebucht"), documentNotCancelled(), gleich) ?? null) : null;
 }
 
 /**
