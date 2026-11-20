@@ -70,7 +70,7 @@ export function BestaetigenLeiste({ b }: { b: Bestaetigen }) {
     <>
       <div className="tx-confirm-bar">
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-          <input type="checkbox" checked={alle} onChange={(e) => b.setAlle(e.target.checked)} disabled={b.busy} />
+          <input type="checkbox" className="row-check" checked={alle} onChange={(e) => b.setAlle(e.target.checked)} disabled={b.busy} />
           <span>
             {b.markierbar.length > grenze
               ? `Die ersten ${grenze} von ${b.markierbar.length} Vorschlägen markieren`
@@ -91,7 +91,14 @@ export function ZeilenMarkierung({ id, b, label }: { id: string; b: Bestaetigen;
   if (!b.markierbar.includes(id)) return null;
   return (
     <span className="tx-check">
-      <input type="checkbox" aria-label={`${label} markieren`} checked={b.marked.has(id)} onChange={() => b.toggle(id)} disabled={b.busy} />
+      <input
+        type="checkbox"
+        className="row-check"
+        aria-label={`${label} markieren`}
+        checked={b.marked.has(id)}
+        onChange={() => b.toggle(id)}
+        disabled={b.busy}
+      />
     </span>
   );
 }
