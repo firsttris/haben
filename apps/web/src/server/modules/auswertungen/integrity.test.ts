@@ -272,6 +272,39 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     ]);
   });
 
+  // Die Kette rechnet haben_audit_hash nach. Weichen Trigger oder Funktionen vom Sollbestand ab, bestätigt der Vergleich
+  // nichts: Wer sie ändern kann, kann auch das Nachrechnen fälschen.
+  it("bestätigt einen Prüfwert nicht, solange Trigger oder Funktionen vom Sollbestand abweichen", async () => {
+    await lockedEntry();
+    const head = (await integrity.chainHead())!;
+    const [before] = await sql`select pg_get_functiondef('haben_audit_hash(bytea, audit_log)'::regprocedure) as definition`;
+    const [original] = await sql`select actor from audit_log where seq = 2`;
+    const actor = original!.actor === null ? "null::text" : `'${String(original!.actor).replaceAll("'", "''")}'`;
+    try {
+      // Ein Eintrag geändert und die Hash-Funktion so ersetzt, dass sie für ihn den alten Inhalt nachrechnet
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update audit_log set actor = 'jemand' where seq = 2`;
+      });
+      await sql.unsafe(`create or replace function haben_audit_hash(prev bytea, r audit_log) returns bytea language sql stable as $$
+        select sha256(prev || convert_to(jsonb_build_array(r.seq, to_char(r.at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          case when r.seq = 2 then ${actor} else r.actor end, r.table_name, r.row_id, r.action, r.old_value, r.new_value)::text, 'UTF8')) $$`);
+      expect((await problems()).filter((p) => p.art === "kette")).toEqual([]);
+      expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({
+        status: "unbestaetigt",
+        seq: head.seq,
+        befunde: [expect.stringContaining("Funktion public.haben_audit_hash(prev bytea, r audit_log) wurde verändert")],
+      });
+    } finally {
+      await sql.unsafe(before!.definition);
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update audit_log set actor = ${original!.actor} where seq = 2`;
+      });
+    }
+    expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({ status: "ok", seq: head.seq });
+  });
+
   it("eine neu berechnete Kette fällt erst beim Prüfwert von außerhalb auf", async () => {
     await lockedEntry();
     const head = (await integrity.chainHead())!;
