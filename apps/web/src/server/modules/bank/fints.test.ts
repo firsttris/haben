@@ -325,4 +325,16 @@ describe.skipIf(!testDatabaseUrl)("Kontoabruf über FinTS (Postgres)", () => {
     expect(abrufe.length).toBeGreaterThan(0);
     expect(abrufe.every((a) => a.segmente.includes("HKTAN"))).toBe(true);
   });
+
+  it("verbindet kein Konto, das schon eine externe Quelle hat (#306)", async () => {
+    await sql`delete from fints_connections`;
+    await sql`delete from bank_connections`;
+    const [b] = await sql`select id from bank_accounts where iban = ${IBAN_B}`;
+    const { addExternalSource } = await import("./externe-quellen.ts");
+    await addExternalSource(ACTOR, { accountId: b!.id, provider: "eigener-dienst", externalAccountId: "tagesgeld-1" });
+    const wahl = await fints.fintsVerbinden(ACTOR, zugang(), "2026-10-29");
+    if (wahl.art !== "verfahren") throw new Error("Verfahren erwartet");
+    await expect(vorgang.vorgangFortsetzen(ACTOR, wahl.vorgang, { verfahren: 921 })).rejects.toThrow(/schon über die Schnittstelle \(eigener-dienst\)/);
+    expect(await sql`select id from fints_connections`).toHaveLength(0);
+  });
 });
