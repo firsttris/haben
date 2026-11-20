@@ -24,11 +24,17 @@ import type { ParsedStatement } from "./types.ts";
  * Soll und Haben. „Abweichender Empfänger“ bleibt unberücksichtigt: dort steht bei einer Umbuchung auf ein eigenes Konto
  * der eigene Name. Die Fußzeile ist der Kontostand am Ende, kein Umsatz.
  *
- * Die ältere Generation bis Anfang 2024 (19 Spalten, „IBAN“ statt „IBAN / Kontonummer“, Betrag nur in Soll und Haben,
- * Windows-1252) erkennt Haben bewusst nicht; für sie bleibt die Spaltenzuordnung (bank-zuordnung/) der Weg.
+ * Bis Anfang 2024 exportierte die Gruppe eine ältere Fassung (Windows-1252, 19 Spalten): „IBAN“ statt „IBAN / Kontonummer“,
+ * dazu „Abweichender Auftraggeber“, und der Betrag steht nur in Soll oder Haben. Ihr Kopfblock nennt keine eigene IBAN;
+ * dort wählt man das Konto beim Import wie bei N26. Beide Fassungen erkennt Haben an den Spaltennamen.
  */
 export function isDeutscheBankGroupHeader(c: Columns): boolean {
   return c.has("buchungstag") && c.has("wert") && c.has("umsatzart") && c.has("begünstigter") && c.has("ibankontonummer");
+}
+
+/** Export bis Anfang 2024: „IBAN“ statt „IBAN / Kontonummer“, dazu „Abweichender Auftraggeber“. */
+export function isDeutscheBankGroupAltHeader(c: Columns): boolean {
+  return c.has("buchungstag") && c.has("umsatzart") && c.has("begünstigter") && c.has("abweichenderauftraggeber") && !c.has("ibankontonummer");
 }
 
 interface Header {
@@ -103,7 +109,11 @@ function counterpartyIbanOf(value: string, own: string | undefined): string | un
 function applyBalances(statement: ParsedStatement, opening: Cents | undefined, closing: { date?: string; amount: Cents } | undefined): void {
   if (closing === undefined) return;
   const sum = statement.transactions.reduce((acc, t) => acc + t.amount, 0);
-  if (opening === undefined || opening + sum !== closing.amount) {
+  if (opening === undefined) {
+    statement.warnings.push("Der Kopfblock nennt keinen letzten Kontostand; die Salden lassen sich nicht prüfen und werden nicht übernommen.");
+    return;
+  }
+  if (opening + sum !== closing.amount) {
     statement.warnings.push("Letzter Kontostand und Kontostand am Ende gehen nicht mit den Umsätzen auf; Salden werden nicht übernommen.");
     return;
   }
@@ -121,7 +131,7 @@ export function parseDeutscheBankGroup(rows: string[][], headerRow: number): Par
     kind: c.getter("umsatzart"),
     party: c.getter("begünstigter"),
     purpose: c.getter("verwendungszweck"),
-    iban: c.getter("ibankontonummer"),
+    iban: c.getter("ibankontonummer", "iban"),
     reference: c.getter("kundenreferenz"),
     mandate: c.getter("mandatsreferenz"),
     creditorId: c.getter("gläubigerid"),

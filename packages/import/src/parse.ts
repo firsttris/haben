@@ -3,7 +3,7 @@ import { isCamt053, parseCamt053 } from "./camt.ts";
 import { parseCsv } from "./csv.ts";
 import { decodeText } from "./decode.ts";
 import { isCommerzbankHeader, parseCommerzbank } from "./commerzbank.ts";
-import { isDeutscheBankGroupHeader, parseDeutscheBankGroup } from "./deutsche-bank-group.ts";
+import { isDeutscheBankGroupAltHeader, isDeutscheBankGroupHeader, parseDeutscheBankGroup } from "./deutsche-bank-group.ts";
 import { isDkbAltHeader, isDkbHeader, parseDkb, parseDkbAlt } from "./dkb.ts";
 import { isEbayHeader, parseEbay } from "./ebay.ts";
 import { StatementParseError } from "./errors.ts";
@@ -60,6 +60,8 @@ function detect(text: string, label: string): Detected {
   if (ing >= 0) return { format: "ing-csv", rows: parseCsv(text, ";"), headerRow: ing };
   const deutscheBank = findHeaderRow(semicolon, isDeutscheBankGroupHeader);
   if (deutscheBank >= 0) return { format: "deutsche-bank-group-csv", rows: parseCsv(text, ";"), headerRow: deutscheBank };
+  const deutscheBankAlt = findHeaderRow(semicolon, isDeutscheBankGroupAltHeader);
+  if (deutscheBankAlt >= 0) return { format: "deutsche-bank-group-csv", rows: parseCsv(text, ";"), headerRow: deutscheBankAlt };
   const ebaySemicolon = findHeaderRow(semicolon, isEbayHeader);
   if (ebaySemicolon >= 0) return { format: "ebay-csv", rows: parseCsv(text, ";"), headerRow: ebaySemicolon };
 

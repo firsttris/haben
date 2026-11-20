@@ -109,6 +109,13 @@ describe("Deutsche Bank, Norisbank und Postbank (CSV)", () => {
     expect(s.warnings.join()).toMatch(/gehen nicht mit den Umsätzen auf/);
   });
 
+  it("lässt die Salden weg, wenn der Kopfblock keinen letzten Kontostand nennt", () => {
+    const s = parseStatement(ersetzt("Letzter Kontostand;;;;2.000,00;EUR", ""));
+    expect(s.openingBalance).toBeUndefined();
+    expect(s.closingBalance).toBeUndefined();
+    expect(s.warnings.join()).toMatch(/keinen letzten Kontostand/);
+  });
+
   it("meldet Fremdwährung wie die anderen Parser", () => {
     const s = parseStatement(ersetzt(";1.190;;;;;1.190;EUR", ";1.190;;;;;1.190;USD"));
     expect(s.warnings.join()).toMatch(/Fremdwährung.*USD/);
@@ -123,6 +130,39 @@ describe("Deutsche Bank, Norisbank und Postbank (CSV)", () => {
   });
 });
 
+describe("Deutsche Bank, Norisbank und Postbank (CSV), ältere Fassung bis Anfang 2024", () => {
+  const datei = readFileSync(join(import.meta.dirname, "..", "test-fixtures", "deutsche-bank-group-alt.csv"));
+
+  it("erkennt die 19 Spalten mit „IBAN“ und „Abweichender Auftraggeber“, ohne eigene IBAN", () => {
+    const auszug = parseStatement(new Uint8Array(datei));
+    expect(auszug.format).toBe("deutsche-bank-group-csv");
+    expect(auszug.accountIban).toBeUndefined();
+    expect(auszug.accountName).toBeUndefined();
+    expect(auszug.periodFrom).toBe("2024-01-01");
+    expect(auszug.periodTo).toBe("2024-03-31");
+  });
+
+  it("nimmt den Betrag nur aus Soll und Haben, weil „Betrag“ leer ist", () => {
+    const t = parseStatement(new Uint8Array(datei)).transactions;
+    expect(t.map((x) => x.amount)).toEqual([-23_800, 100_000, -990]);
+  });
+
+  it("liest Buchungstag, Wertstellung, Gegenseite und Referenz wie in der aktuellen Fassung", () => {
+    const t = parseStatement(new Uint8Array(datei)).transactions;
+    expect(t.map((x) => x.bookingDate)).toEqual(["2024-01-10", "2024-01-15", "2024-01-31"]);
+    expect(t.map((x) => x.valueDate)).toEqual(["2024-01-10", "2024-01-16", "2024-01-31"]);
+    expect(t.map((x) => x.counterpartyName)).toEqual(["Musterwerk GmbH", "Beispiel AG", ""]);
+    expect(t.map((x) => x.counterpartyIban)).toEqual(["DE02120300000000202051", "DE89370400440532013000", undefined]);
+    expect(t[1]?.bankReference).toBeUndefined();
+  });
+
+  it("ohne letzten Kontostand im Kopf: keine Salden, der Grund steht im Hinweis", () => {
+    const auszug = parseStatement(new Uint8Array(datei));
+    expect(auszug.openingBalance).toBeUndefined();
+    expect(auszug.closingBalance).toBeUndefined();
+    expect(auszug.warnings).toEqual(["Der Kopfblock nennt keinen letzten Kontostand; die Salden lassen sich nicht prüfen und werden nicht übernommen."]);
+  });
+});
 describe("Deutsche Bank, Norisbank und Postbank (CSV) ohne Umsätze", () => {
   const datei = readFileSync(join(import.meta.dirname, "..", "test-fixtures", "deutsche-bank-group-leer.csv"));
 
