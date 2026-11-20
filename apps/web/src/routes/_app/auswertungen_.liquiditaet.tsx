@@ -104,13 +104,19 @@ function tagesText(vorschau: Vorschau, datum: string): string {
   return posten.length > 3 ? `${texte.join(", ")} und ${posten.length - 3} weitere` : texte.join(", ");
 }
 
+/** „1 Konto“, „3 Konten“: Konten im Bestand mit bekanntem Stand */
+function anzahlKonten(konten: Kontostaende): string {
+  const n = konten.konten.filter((k) => k.zweck !== "ruecklage" && k.stand !== null).length;
+  return `${n} ${n === 1 ? "Konto" : "Konten"}`;
+}
+
 function Kennzahlen({ vorschau, konten }: { vorschau: Vorschau; konten: Kontostaende }) {
   return (
     <div className="grid-4 liq-kennzahlen">
       <div className="card">
         <div className="kpi-label">Kontostand heute</div>
         <div className="kpi-value">{formatEuro(vorschau.start)}</div>
-        <div className="small muted">{konten.konten.filter((k) => k.zweck !== "ruecklage" && k.stand !== null).length} Konten</div>
+        <div className="small muted">{anzahlKonten(konten)}</div>
       </div>
       <div className="card">
         <div className="kpi-label">Tiefpunkt</div>
