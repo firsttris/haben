@@ -2171,6 +2171,13 @@
       "when": 1795159583896,
       "tag": "0309_platzhalter_vorlage",
       "breakpoints": true
+    },
+    {
+      "idx": 310,
+      "version": "7",
+      "when": 1795167811463,
+      "tag": "0310_siegel_unabgedeckte_spalten",
+      "breakpoints": true
     }
   ]
 }
