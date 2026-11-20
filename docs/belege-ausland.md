@@ -53,6 +53,14 @@ Abzugrenzen sind:
 - **Händler aus dem EU-Ausland mit deutscher Umsatzsteuer** auf der Rechnung, etwa im Versandhandel oder über einen Marktplatz: ein gewöhnlicher Beleg mit Vorsteuer. Der Sitz des Händlers oder der Marktplatz allein machen keinen Erwerb.
 - Ein Storno zählt wie bei allen Belegen im Monat des Stornos mit umgekehrtem Vorzeichen (Kz 89/93 und 61).
 
+## USt-IdNr. des Lieferanten bestätigen
+
+Der innergemeinschaftliche Erwerb und § 13b für eine EU-Leistung setzen voraus, dass ein Unternehmer an dich leistet ([§ 1a Abs. 1 Nr. 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__1a.html), [§ 13b Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13b.html)). Öffnest du bei einem solchen Beleg **Bestätigen und buchen**, prüft Haben in der Rückfrage die USt-IdNr. des Lieferanten wie [am Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen): die vom Beleg, sonst die des gewählten Kontakts. Ist die letzte Antwort des BZSt älter als 30 Tage oder nicht gültig, fragt Haben einfach nach und speichert die Antwort am Lieferanten-Kontakt.
+
+- Ist die Nummer laut BZSt nicht gültig oder der Dienst nicht erreichbar, steht ein Hinweis in der Rückfrage; buchen kannst du trotzdem. Bei § 13b sagt er auch, wenn sich die Nummer gar nicht bestätigen lässt, etwa bei falschem Aufbau oder einer deutschen Nummer; beim Erwerb sperrt das schon „Vor dem Buchen“.
+- Ist der Lieferant nur als Name eingetragen, gibt es keinen Kontakt für den Nachweis: Haben fragt nicht und sagt das. Wähl oder leg dafür unter **Lieferant** einen Kontakt an.
+- Bei § 13b aus dem Drittland, bei normalen Belegen und mit `HABEN_EVATR=off` fragt Haben nicht.
+
 ## Einfuhrumsatzsteuer
 
 Bei der Einfuhr von Waren aus dem Drittland erhebt der Zoll die Einfuhrumsatzsteuer. Sie ist als Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 2 UStG) und steht in der Voranmeldung in Kz 62. Lade den Bescheid des Zolls (Einfuhrabgabenbescheid) als Beleg hoch und wähle die Kategorie **Einfuhrumsatzsteuer (Bescheid des Zolls)**. Der Beleg enthält nur die Steuer, als **ein Betrag zu 0 %**; die Rechnung des Lieferanten über die Ware buchst du getrennt (ohne Vorsteuer, mit der Kategorie der Ware). Zölle und andere Abgaben auf demselben Bescheid gehören nicht in diesen Beleg, sondern zu den Kosten der Ware.
