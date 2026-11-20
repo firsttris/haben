@@ -88,6 +88,9 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     ["2700", "2799", "neutral"],
     ["2890", "2900", "kalkulatorisch"], // S. 18, „Verrechnete kalkulatorische Kosten“
     ["3100", "3199", "fremdleistungen"], // S. 19, 3100 „Fremdleistungen“
+    // S. 20, „Aufwendungen für Roh-, Hilfs- und Betriebsstoffe und für bezogene Waren“: 3600 bis 3669 „Nicht abziehbare
+    // Vorsteuer“ wie 2170 bis 2176
+    ["3600", "3669", "neutral"],
     ["4200", "4299", "raum"], // S. 22, 4200 „Raumkosten“ bis 4290 „Grundstücksaufwendungen“
     ["4300", "4306", "neutral"], // S. 23, 4300 bis 4306 „Nicht abziehbare Vorsteuer“ wie 2170 bis 2176
     ["4320", "4339", "ertragsteuern"], // S. 23, 4320 „Gewerbesteuer“, GuV-Posten „Steuern vom Einkommen und vom Ertrag“
@@ -115,6 +118,9 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     ["4900", "4939", "neutral"],
     // S. 18, 4960 „Periodenfremde Erträge“ wie SKR03 2520, 4970 bis 4992 wie SKR03 2742 bis 2764
     ["4960", "4999", "neutral"],
+    // S. 19, „Aufwendungen für Roh-, Hilfs- und Betriebsstoffe und für bezogene Waren“: 5600 bis 5669 „Nicht abziehbare
+    // Vorsteuer“ wie SKR03 3600 bis 3669
+    ["5600", "5669", "neutral"],
     ["5900", "5999", "fremdleistungen"], // S. 20, 5900 „Fremdleistungen“
     ["6280", "6291", "neutral"], // S. 22, Forderungsverluste „soweit unüblich hoch“ wie SKR03 2430 bis 2441
     // S. 23, 6305 „Raumkosten“ bis 6350 „Grundstücksaufwendungen, betrieblich“ wie SKR03 4200 bis 4299

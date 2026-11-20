@@ -11,7 +11,8 @@ const PASSEND: Record<GuvPosten, readonly Kostenart[]> = {
   // Grundstückserträge (SKR03 2750, SKR04 4860) sind Umsatzerlöse der GuV und in Form 01 neutral
   umsatzerloese: ["erloese", "neutralErtrag"],
   sonstigeErtraege: ["sonstigeErloese", "bestandsveraenderungen", "eigenleistungen", "zinsertrag", "neutralErtrag"],
-  materialaufwand: ["material", "fremdleistungen"],
+  // Nicht abziehbare Vorsteuer beim Wareneingang (SKR03 3600, SKR04 5600)
+  materialaufwand: ["material", "fremdleistungen", "neutralAufwand"],
   personalaufwand: ["personal"],
   // Forderungsverluste, soweit unüblich hoch (SKR03 2430, SKR04 6280)
   abschreibungen: ["abschreibungen", "neutralAufwand"],
@@ -88,6 +89,9 @@ describe("Kostenart der BWA (DATEV-Kontenrahmen 2026)", () => {
     ["2170", "6860", "neutralAufwand"],
     ["2171", "6865", "neutralAufwand"],
     ["2176", "6871", "neutralAufwand"],
+    ["3600", "5600", "neutralAufwand"],
+    ["3610", "5610", "neutralAufwand"],
+    ["3660", "5660", "neutralAufwand"],
     ["2150", "6880", "neutralAufwand"],
     ["2151", "6881", "neutralAufwand"],
     ["2660", "4840", "neutralErtrag"],
