@@ -50,7 +50,7 @@ Unter **Buchhaltung › Jahresabschluss** zeigt Haben für eine GmbH oder UG Bil
 - **Bilanz** nur mit den Posten, die in § 266 Abs. 2 und 3 HGB Buchstaben tragen (§ 266 Abs. 1 Satz 4): Anlagevermögen, Umlaufvermögen, Rechnungsabgrenzung; Eigenkapital, Rückstellungen, Verbindlichkeiten, Rechnungsabgrenzung. Jeder Posten klappt die Konten auf, die in ihm stehen.
 - **GuV** nach § 275 Abs. 5 HGB: Umsatzerlöse, sonstige Erträge, Materialaufwand, Personalaufwand, Abschreibungen, sonstige Aufwendungen, Steuern und als Ergebnis Jahresüberschuss oder Jahresfehlbetrag. Zinserträge zählen zu den sonstigen Erträgen, Zinsaufwand zu den sonstigen Aufwendungen.
 
-Unterjährig zeigt die [BWA](auswertungen.md#bwa-für-gmbh-und-ug) dieselben Erfolgskonten als Kurzfristige Erfolgsrechnung nach DATEV-Form 01, mit Zinsen, neutralen Posten und Steuern vom Einkommen und Ertrag in eigenen Zeilen; über das Jahr ergibt sie den Jahresüberschuss der GuV.
+Unterjährig zeigt die [BWA](auswertungen.md#bwa-für-gmbh-und-ug) dieselben Erfolgskonten als Kurzfristige Erfolgsrechnung nach DATEV-Form 01, mit Zinsen, neutralen Posten und Steuern vom Einkommen und Ertrag in eigenen Zeilen.
 
 Die Salden sind die der [Saldenliste](buchhaltung.md#die-seite-konten) zum 31.12., mit Vortrag. Das Jahresergebnis steht im Eigenkapital. Ein Konto des Umlaufvermögens mit Haben-Saldo (überzogene Bank, Umsatzsteuer-Zahllast) steht unter den Verbindlichkeiten, eine Verbindlichkeit mit Soll-Saldo (der Gesellschafter schuldet der GmbH) im Umlaufvermögen.
 
