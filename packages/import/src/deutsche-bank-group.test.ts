@@ -156,8 +156,17 @@ describe("Deutsche Bank, Norisbank und Postbank (CSV), ältere Fassung bis Anfan
     expect(t[1]?.bankReference).toBeUndefined();
   });
 
-  it("ohne letzten Kontostand im Kopf: keine Salden, der Grund steht im Hinweis", () => {
+  it("übernimmt die Salden wie in der aktuellen Fassung", () => {
     const auszug = parseStatement(new Uint8Array(datei));
+    expect(auszug.openingBalance).toBe(100_000);
+    expect(auszug.closingBalance).toBe(175_210);
+    expect(auszug.statedBalance).toEqual({ date: "2024-03-31", amount: 175_210 });
+    expect(auszug.warnings).toEqual([]);
+  });
+
+  it("ohne letzten Kontostand im Kopf: keine Salden, der Grund steht im Hinweis", () => {
+    const ohne = new TextDecoder("windows-1252").decode(datei).replace("Letzter Kontostand;;;;1.000,00;EUR", "");
+    const auszug = parseStatement(new TextEncoder().encode(ohne));
     expect(auszug.openingBalance).toBeUndefined();
     expect(auszug.closingBalance).toBeUndefined();
     expect(auszug.warnings).toEqual(["Der Kopfblock nennt keinen letzten Kontostand; die Salden lassen sich nicht prüfen und werden nicht übernommen."]);
