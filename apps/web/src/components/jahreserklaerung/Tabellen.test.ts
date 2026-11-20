@@ -57,6 +57,25 @@ describe("UstTabelle", () => {
     expect(teile(markup).davor).toContain("Erstattung");
     expect(teile(markup).davor).toContain("Überschuss");
   });
+
+  it("zeigt Überschuss und Erstattung ohne Minus, die Beschriftung nennt die Richtung (#1412)", () => {
+    const erstattung = { ...data.ust, steuer: -11638, anzeige: { ...data.ust.anzeige, vorauszahlungen: 0, abschluss: -11638 } };
+    const { davor } = teile(renderToStaticMarkup(createElement(UstTabelle, { data: { ...data, ust: erstattung } as Data })));
+    for (const label of ["Überschuss", "Erstattung"]) {
+      expect(zeile(davor, label)).toContain("116,38");
+      expect(zeile(davor, label), `${label} mit Vorzeichen`).not.toMatch(/[-−]\s*116,38/);
+    }
+  });
+
+  it("auch mit Vermerk steht die Erstattung ohne Minus; Zahllast und Abschlusszahlung bleiben positiv", () => {
+    const vermerk = { ...data.ust, anzeige: { vorauszahlungen: 0, abschluss: -2500, ausVermerk: { vorauszahlungen: true, abschluss: true } } };
+    const mitVermerk = teile(renderToStaticMarkup(createElement(UstTabelle, { data: { ...data, ust: vermerk } as Data }))).davor;
+    expect(zeile(mitVermerk, "Erstattung laut Vermerk")).toContain("25,00");
+    expect(zeile(mitVermerk, "Erstattung laut Vermerk")).not.toMatch(/[-−]\s*25,00/);
+    const { davor } = teile(html(UstTabelle));
+    expect(zeile(davor, "Umsatzsteuer")).toContain("972,80");
+    expect(zeile(davor, "Abschlusszahlung")).toContain("772,80");
+  });
 });
 
 describe("EuerTabelle", () => {

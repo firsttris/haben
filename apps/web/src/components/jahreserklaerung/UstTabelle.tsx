@@ -17,7 +17,8 @@ function UstSummen({ anzeige }: { anzeige: Data["ust"]["anzeige"] }) {
       />
       <Row
         label={`${anzeige.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"}${zusatz(anzeige.ausVermerk.abschluss)}`}
-        value={formatEuro(anzeige.abschluss)}
+        // Die Beschriftung nennt die Richtung, der Betrag steht ohne Vorzeichen wie bei der Voranmeldung (#1412)
+        value={formatEuro(Math.abs(anzeige.abschluss))}
         total
       />
     </>
@@ -45,7 +46,8 @@ export function UstTabelle({ data }: { data: Data }) {
             </tr>
           </thead>
           <tbody>
-            <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} value={formatEuro(ust.steuer)} total />
+            {/* Wie „Erstattung“: die Richtung steht in der Beschriftung, die Zeilen mit Kennzahl behalten das Vorzeichen (#1412) */}
+            <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} value={formatEuro(Math.abs(ust.steuer))} total />
             <UstSummen anzeige={ust.anzeige} />
           </tbody>
         </table>
