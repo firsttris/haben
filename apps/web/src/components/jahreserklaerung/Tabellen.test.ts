@@ -67,7 +67,7 @@ describe("UstTabelle", () => {
     }
   });
 
-  it("auch mit Vermerk steht die Erstattung ohne Minus; Zahllast und Abschlusszahlung bleiben positiv", () => {
+  it("auch mit Vermerk steht die Erstattung ohne Minus; Umsatzsteuer und Abschlusszahlung bleiben positiv", () => {
     const vermerk = { ...data.ust, anzeige: { vorauszahlungen: 0, abschluss: -2500, ausVermerk: { vorauszahlungen: true, abschluss: true } } };
     const mitVermerk = teile(renderToStaticMarkup(createElement(UstTabelle, { data: { ...data, ust: vermerk } as Data }))).davor;
     expect(zeile(mitVermerk, "Erstattung laut Vermerk")).toContain("25,00");
@@ -75,6 +75,14 @@ describe("UstTabelle", () => {
     const { davor } = teile(html(UstTabelle));
     expect(zeile(davor, "Umsatzsteuer")).toContain("972,80");
     expect(zeile(davor, "Abschlusszahlung")).toContain("772,80");
+  });
+
+  it("Überschuss mit schon gezahlten Vorauszahlungen: die Abzugszeile behält ihr Vorzeichen, die Summenzeilen nennen die Richtung", () => {
+    const gemischt = { ...data.ust, steuer: -11638, anzeige: { ...data.ust.anzeige, vorauszahlungen: 20000, abschluss: -31638 } };
+    const { davor } = teile(renderToStaticMarkup(createElement(UstTabelle, { data: { ...data, ust: gemischt } as Data })));
+    expect(zeile(davor, "Überschuss")).toMatch(/>116,38/);
+    expect(zeile(davor, "Vorauszahlungssoll")).toMatch(/[-−]200,00/);
+    expect(zeile(davor, "Erstattung")).toMatch(/>316,38/);
   });
 });
 
