@@ -133,6 +133,14 @@ describe.skipIf(!testDatabaseUrl)("Vorschläge bestätigen (Postgres)", () => {
     expect(await zuordnungen()).toBe(vorher + 1);
   });
 
+  it("mehr als 200 Umsätze auf einmal lehnt der Server ab, ohne etwas zu buchen", async () => {
+    await mitGelerntemVorschlag();
+    const vorher = await zuordnungen();
+    const ids = Array.from({ length: 201 }, () => crypto.randomUUID());
+    await expect(bestaetigen.bestaetigeVorschlaege(actor, ids)).rejects.toThrow(/Höchstens 200 Umsätze/);
+    expect(await zuordnungen()).toBe(vorher);
+  });
+
   it("ein einzelner Umsatz lässt sich bestätigen, ein leerer Stapel nicht", async () => {
     await mitGelerntemVorschlag();
     await bestaetigen.bestaetigeVorschlaege(actor, [await idVon("Reparatur drei")]);

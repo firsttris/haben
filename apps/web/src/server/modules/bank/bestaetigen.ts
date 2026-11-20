@@ -1,4 +1,5 @@
 import { withActor } from "../../db/actor.ts";
+import { BESTAETIGEN_HOECHSTENS } from "../../../lib/bestaetigen-grenze.ts";
 import { listAccounts, ownAccounts } from "./accounts.ts";
 import { allocateIn } from "./allocation.ts";
 import { openItems } from "./offene-posten.ts";
@@ -7,9 +8,6 @@ import { BankError } from "./bank-error.ts";
 import { mitHinweisen } from "./umsatzauswahl.ts";
 
 const germanDate = (day: string) => day.split("-").reverse().join(".");
-
-/** Wie viele Umsätze eine Sammelbestätigung höchstens umfasst; die Liste zeigt selbst höchstens 500 */
-export const BESTAETIGEN_HOECHSTENS = 200;
 
 /**
  * Bestätigt die Vorschläge der Liste (#1440): bucht je Umsatz genau das, was die Liste als Vorschlag zeigt, über
