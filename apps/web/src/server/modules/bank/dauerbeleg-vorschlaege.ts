@@ -43,7 +43,7 @@ async function pendingDauerbelegItems(): Promise<{ item: OpenItem; selfAssessed:
 /**
  * Vorschläge aus ungebuchten Dauerbelegen für einen Umsatz: nur Treffer mit passendem Betrag, damit ein Klick nicht
  * einen falschen Beleg bucht. selfAssessed: Der Beleg wurde auf § 13b oder innergemeinschaftlichen Erwerb umgestellt;
- * gebucht wird er dann nur auf der Belegseite, deren Rückfrage die USt-IdNr. beim BZSt prüft (#1595).
+ * gebucht wird er dann nur auf der Belegseite, deren Rückfrage bei § 13b EU und Erwerb die USt-IdNr. beim BZSt prüft (#1595).
  */
 export async function dauerbelegSuggestions(tx: MatchTransaction): Promise<(Suggestion & { selfAssessed: boolean })[]> {
   const pending = await pendingDauerbelegItems();

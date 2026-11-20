@@ -30,8 +30,8 @@ const vorschlag = (selfAssessed: boolean): Vorschlag => ({
 const render = (suggestions: Vorschlag[]) => renderToStaticMarkup(createElement(DauerbelegVorschlaege, { suggestions, busy: false, onBook: () => {} }));
 
 /*
- * #1595: Einen Beleg mit § 13b oder innergemeinschaftlichem Erwerb bucht nur die Belegseite, deren Rückfrage die
- * USt-IdNr. beim BZSt prüft (#1568). Im Bankabgleich bleibt dafür nur „Beleg prüfen“.
+ * #1595: Einen Beleg mit § 13b oder innergemeinschaftlichem Erwerb bucht nur die Belegseite, deren Rückfrage bei § 13b EU
+ * und Erwerb die USt-IdNr. beim BZSt prüft (#1568). Im Bankabgleich bleibt dafür nur „Beleg prüfen“.
  */
 describe("Dauerbeleg, noch zu prüfen", () => {
   it("bietet ohne § 13b oder Erwerb Prüfen und Buchen an", () => {

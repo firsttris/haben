@@ -317,8 +317,8 @@ describe.skipIf(!testDatabaseUrl)("Dauerbelege (Postgres)", () => {
 
   /*
    * #1595: Wer den Beleg eines Dauerbelegs auf eine selbst geschuldete Steuer umstellt, bucht ihn auf der Belegseite;
-   * nur dort fragt die Rückfrage „Beleg buchen?“ die USt-IdNr. beim BZSt ab (#1568). Der Abgleich schlägt ihn weiter
-   * vor, aber nur zum Prüfen.
+   * nur dort fragt die Rückfrage „Beleg buchen?“ bei § 13b EU und Erwerb die USt-IdNr. beim BZSt ab (#1568). Der Abgleich
+   * schlägt ihn weiter vor, aber nur zum Prüfen.
    */
   it.each(["eu", "drittland", "ig_erwerb"] as const)(
     "Buchen und zuordnen: mit selbst geschuldeter Steuer (%s) nur über die Belegseite",

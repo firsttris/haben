@@ -5,8 +5,8 @@ import { Icon } from "./Icon.tsx";
 
 /**
  * Bankabgleich: ungebuchte Belege aus Dauerbelegen mit passendem Betrag. Gebucht wird erst auf Klick, zusammen mit der
- * Zuordnung; wer erst prüfen will, öffnet den Beleg. Mit § 13b oder Erwerb bleibt nur das Prüfen: Die Rückfrage der
- * Belegseite prüft die USt-IdNr. beim BZSt (#1595).
+ * Zuordnung; wer erst prüfen will, öffnet den Beleg. Mit § 13b oder Erwerb bleibt nur das Prüfen: Gebucht wird auf der
+ * Belegseite, deren Rückfrage bei § 13b EU und Erwerb die USt-IdNr. beim BZSt prüft (#1595).
  */
 export function DauerbelegVorschlaege({
   suggestions,

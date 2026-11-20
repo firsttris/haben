@@ -152,7 +152,7 @@ export async function bookAndAllocateDauerbeleg(actor: string, input: z.infer<ty
       .for("update");
     if (!doc?.recurringDocumentId) throw new DauerbelegError("Der Beleg stammt nicht aus einem Dauerbeleg.");
     if (doc.status !== "gebucht") {
-      // Selbst geschuldete Steuer nur über die Rückfrage der Belegseite: Nur sie prüft die USt-IdNr. beim BZSt (#1568, #1595)
+      // Selbst geschuldete Steuer nur über die Rückfrage der Belegseite: Nur sie prüft bei § 13b EU und Erwerb die USt-IdNr. beim BZSt (#1568, #1595)
       if (doc.reverseCharge) throw new DauerbelegError("Belege mit § 13b oder innergemeinschaftlichem Erwerb buchst du auf der Belegseite.");
       await bookDocumentIn(tx, input.documentId);
     }
