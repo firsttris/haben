@@ -178,8 +178,22 @@ describe.skipIf(!testDatabaseUrl)("Siegel aus älteren Schemaständen (Postgres)
   });
 
   // #1580: Den Standardwert liest die Prüfung der Siegel aus dem Katalog. Wer ihn nachzieht und die alte Zeile auf
-  // denselben Wert setzt, fällt ihr nicht auf, dem Sollbestand der Standardwerte schon.
-  it("meldet über den Sollbestand, wenn der Standardwert einer nicht abgedeckten Spalte nachgezogen ist", async () => {
+  // denselben Wert setzt, fällt ihr nicht auf, dem Sollbestand der Standardwerte schon. Dasselbe gilt für eine Spalte,
+  // die durch eine erzeugte Spalte mit festem Wert ersetzt wird: Auch deren Ausdruck steht in pg_attrdef.
+  it.each([
+    [
+      "der Standardwert von vat_returns.kz41 nachgezogen ist",
+      "vat_returns",
+      "Standardwert von vat_returns.kz41 wurde verändert",
+      ["alter table vat_returns alter column kz41 set default 500000", `update vat_returns set kz41 = 500000 where id = '${ID.voranmeldung}'`],
+    ],
+    [
+      "journal_lines.basis durch eine erzeugte Spalte mit festem Wert ersetzt ist",
+      "journal_lines",
+      "Zusätzlicher Standardwert von journal_lines.basis",
+      ["alter table journal_lines drop column basis, add column basis integer generated always as (99999) stored"],
+    ],
+  ])("meldet über den Sollbestand, wenn %s", async (_fall, tabelle, befund, statements) => {
     const { sql: query } = await import("drizzle-orm");
     const { drizzle } = await import("drizzle-orm/postgres-js");
     const { checkTriggerIntegrity } = await import("./trigger-inventory.ts");
@@ -189,8 +203,7 @@ describe.skipIf(!testDatabaseUrl)("Siegel aus älteren Schemaständen (Postgres)
     await drizzle(sql)
       .transaction(async (tx) => {
         await tx.execute(query`set local session_replication_role = replica`);
-        await tx.execute(query`alter table vat_returns alter column kz41 set default 500000`);
-        await tx.execute(query`update vat_returns set kz41 = 500000 where id = ${ID.voranmeldung}`);
+        for (const statement of statements) await tx.execute(query.raw(statement));
         await tx.execute(query`set local session_replication_role = origin`);
         siegel = [...(await tx.execute(query`select art, tabelle, zeile, befund from haben_integrity_problems()`))];
         sperren = (await checkTriggerIntegrity(tx)).problems;
@@ -200,7 +213,7 @@ describe.skipIf(!testDatabaseUrl)("Siegel aus älteren Schemaständen (Postgres)
         if (error !== rollback) throw error;
       });
     expect(siegel).toEqual([]);
-    expect(sperren).toEqual([{ art: "sperre", tabelle: "vat_returns", zeile: null, seq: null, befund: "Standardwert von vat_returns.kz41 wurde verändert" }]);
+    expect(sperren).toEqual([{ art: "sperre", tabelle, zeile: null, seq: null, befund }]);
   });
 
   it("bricht ab, wenn ein Siegel eine Kindtabelle nennt, die die Prüfung nicht kennt", async () => {

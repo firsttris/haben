@@ -64,6 +64,15 @@ describe.skipIf(!testDatabaseUrl)("Standardwerte versiegelter Tabellen im Sollbe
     });
   });
 
+  // Der Ausdruck einer erzeugten Spalte steht wie ein Standardwert in pg_attrdef, und die Prüfung der Siegel liest ihn
+  // dort ohne Unterschied (0310): Auch er gehört zum Vergleich.
+  it("meldet eine Spalte, die durch eine erzeugte Spalte mit festem Wert ersetzt wurde", async () => {
+    await rolledBack(async (tx) => {
+      await tx.execute(query`alter table public.journal_lines drop column basis, add column basis integer generated always as (99999) stored`);
+      expect((await checkTriggerIntegrity(tx)).problems).toEqual([befund("journal_lines", "Zusätzlicher Standardwert von journal_lines.basis")]);
+    });
+  });
+
   it("nimmt die Tabellen aus dem Sollbestand, nicht aus haben_seal_columns der geprüften Instanz", async () => {
     await rolledBack(async (tx) => {
       await tx.execute(query`create or replace function public.haben_seal_columns(tbl text) returns jsonb language sql as $$ select '{}'::jsonb $$`);
