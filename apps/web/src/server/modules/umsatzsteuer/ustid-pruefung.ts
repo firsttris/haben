@@ -10,7 +10,8 @@ import { bestaetigeNummer, type EvatrVerbindung, evatrMoeglich, letzteBestaetigu
  * Höchstens einmal am Tag, zwischen 7 und 22 Uhr (das BZSt wartet seinen Dienst zwischen 23 und 5 Uhr), fragt der Lauf jede
  * Nummer aus festgeschriebenen Rechnungen mit Reverse Charge oder innergemeinschaftlicher Lieferung der letzten 12 Monate,
  * deren letzte Antwort älter als 30 Tage ist (EVATR_FRIST_TAGE); so ist jede höchstens einmal im Monat dran. Einfach,
- * nacheinander, nach einem Ausfall nicht weiter (das BZSt bittet, später erneut zu fragen); der Nachweis kommt an den Kontakt
+ * nacheinander, nach einem Ausfall nicht weiter (das BZSt bittet, bei Timeouts zu einer anderen Tageszeit erneut zu fragen;
+ * Wartung und Bitte: Seite „Bestätigung ausländischer USt-IdNrn.“ auf bzst.de, gelesen 2026-11-20); der Nachweis kommt an den Kontakt
  * der jüngsten Rechnung, wie beim Knopf der ZM. Die qualifizierte Abfrage bleibt bei Kontakt und Festschreiben, so fallen
  * keine Abfragen gegen deren Höchstzahl an (evatr-0008). Abgeschaltet oder ohne eigene USt-IdNr. läuft nichts.
  */
