@@ -8,7 +8,7 @@ export const BELEG_PLATZHALTER = {
   art: "Art des Belegs (Rechnung, Schlussrechnung …, Angebot)",
   nummer: "Nummer, in der Vorschau eines Entwurfs die voraussichtliche",
   datum: "Rechnungs- bzw. Angebotsdatum",
-  betrag: "Gesamtbetrag brutto",
+  betrag: "Gesamtbetrag brutto wie in der E-Mail (Schlussrechnung: nach Abzug der Abschläge)",
   faellig: "Fälligkeit (nur Rechnung)",
   gueltig: "gültig bis (nur Angebot)",
   leistungszeitraum: "Leistungszeitraum bzw. Leistungsdatum, leer ohne Angabe",

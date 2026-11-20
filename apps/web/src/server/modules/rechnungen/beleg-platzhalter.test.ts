@@ -89,4 +89,39 @@ describe.skipIf(!testDatabaseUrl)("Platzhalter in Einleitung und Hinweis (Postgr
     expect(angebot.intro).toBe(`Angebot ${angebot.number} für Nordwerk Software GmbH, Leistung am 01.12.2026:`);
     expect(angebot.note).toBe("Gültig bis 30.11.2026, Summe 119,00 €.");
   }, 60_000);
+
+  it("Kopie und Rechnung aus dem Angebot bekommen die Platzhalter, nicht die Werte des Originals", async () => {
+    const entwurf = await invoices.createDraft(actor, {
+      contactId,
+      issueDate: "2026-11-02",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      intro: "Ohne Platzhalter.",
+      note: hinweis,
+      lines: [zeile],
+    });
+    const rechnung = await invoices.finalizeInvoice(actor, entwurf.id, kleinunternehmerStand);
+    // Die Vorlage hält den Text mit Platzhaltern nur dort, wo etwas eingesetzt wurde
+    expect((await sql`select intro_vorlage, note_vorlage from invoices where id = ${rechnung.id}`)[0]).toEqual({ intro_vorlage: "", note_vorlage: hinweis });
+    const kopie = await invoices.copyInvoice(actor, rechnung.id, "2026-12-01");
+    expect({ intro: kopie.intro, note: kopie.note }).toEqual({ intro: "Ohne Platzhalter.", note: hinweis });
+
+    const angebotsEntwurf = await quotes.createQuoteDraft(actor, {
+      contactId,
+      issueDate: "2026-11-02",
+      validUntil: "2026-11-30",
+      serviceFrom: null,
+      serviceTo: null,
+      intro: "Gemäß {art} {nummer}:",
+      note: "",
+      lines: [zeile],
+    });
+    const angebot = await quotes.finalizeQuote(actor, angebotsEntwurf.id);
+    expect((await quotes.copyQuote(actor, angebot.id, "2026-12-01")).intro).toBe("Gemäß {art} {nummer}:");
+    await quotes.setQuoteDecision(actor, angebot.id, "angenommen");
+    const ausAngebot = await quotes.quoteToInvoice(actor, angebot.id, "2026-12-01");
+    expect((await sql`select intro from invoices where id = ${ausAngebot.id}`)[0]?.intro).toBe("Gemäß {art} {nummer}:");
+  }, 60_000);
 });

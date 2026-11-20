@@ -186,7 +186,6 @@ Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußt
 - Aus einem Angebot übernimmt die Rechnung die Einleitung des Angebots.
 - Nicht mehr gebrauchte Bausteine archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
 
-<a id="platzhalter-in-einleitung-und-hinweis"></a>
 #### Platzhalter in Einleitung und Hinweis
 
 In Einleitung und Hinweis von Rechnung und Angebot, auch aus einem Textbaustein, setzt Haben Platzhalter ein: in der Vorschau, im Entwurfs-PDF und beim Festschreiben. Im Entwurf bleibt der Platzhalter stehen, damit du ihn noch ändern kannst; nach dem Festschreiben stehen in Rechnung, PDF und XML die Werte. Die Namen sind die der [E-Mail-Vorlagen](#per-e-mail-versenden):
@@ -196,13 +195,15 @@ In Einleitung und Hinweis von Rechnung und Angebot, auch aus einem Textbaustein,
 | `{art}` | Rechnung, Abschlagsrechnung, Schlussrechnung, Stornorechnung, Rechnungskorrektur bzw. Angebot |
 | `{nummer}` | Nummer des Belegs; in Vorschau und Entwurfs-PDF die voraussichtliche bzw. „ENTWURF“ |
 | `{datum}` | Rechnungs- bzw. Angebotsdatum |
-| `{betrag}` | Gesamtbetrag brutto, in der Währung der Rechnung |
+| `{betrag}` | Gesamtbetrag brutto in der Währung der Rechnung, wie in der E-Mail; bei der Schlussrechnung nach Abzug der Abschläge, bei Storno und Korrektur negativ |
 | `{faellig}` | Fälligkeit (nur Rechnung) |
 | `{gueltig}` | gültig bis (nur Angebot) |
 | `{leistungszeitraum}` | Leistungszeitraum („01.10.2026 – 31.10.2026“) oder Leistungsdatum, leer ohne Angabe |
 | `{kunde}` | Name des Kunden |
 | `{firma}` | dein Firmenname |
 | `{iban}`, `{bic}` | IBAN (in Vierergruppen) und BIC deines Bankkontos aus den Firmendaten, etwa um sie größer als in der Fußzeile auf die Rechnung zu setzen |
+
+Kopierst du eine Rechnung oder ein Angebot oder machst aus einem Angebot eine Rechnung, kommen Einleitung und Hinweis mit den Platzhaltern mit, nicht mit den Werten des Originals; die Auftragsbestätigung setzt die Werte der gewählten Positionen ein.
 
 Beispiel für einen Hinweis: „Bitte überweisen Sie {betrag} bis zum {faellig} auf das Konto {iban} unter Angabe der Rechnungsnummer {nummer}.“ Datum und Betrag stehen in der Sprache der Rechnung. Ein unbekannter Platzhalter bleibt stehen, so fällt ein Tippfehler in der Vorschau auf. In wiederkehrenden Rechnungen kommen `{monat}`, `{jahr}`, `{quartal}` und `{zeitraum}` dazu; die setzt Haben schon beim Anlegen des Entwurfs ein.
 

@@ -57,7 +57,7 @@ import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema, referencesFromQuote } from "./order-references.ts";
 import { defaultSkonto } from "./skonto.ts";
 import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
-import { angebotMitPlatzhaltern } from "./beleg-platzhalter.ts";
+import { angebotMitPlatzhaltern, mitVorlage, textMitVorlage } from "./beleg-platzhalter.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
@@ -514,8 +514,7 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
         net: doc.totals.net,
         tax: doc.totals.tax,
         gross: doc.totals.gross,
-        intro: doc.intro ?? "",
-        note: doc.note ?? "",
+        ...textMitVorlage(quote, doc),
         pdf: Buffer.from(pdf),
         pdfSha256: sha256(pdf),
         lockedAt: now,
@@ -612,7 +611,7 @@ export async function quoteToInvoice(
         paymentTermDays: company.paymentTermDays,
         skonto: defaultSkonto(company, contact, company.paymentTermDays),
         format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
-        intro: locked.intro,
+        intro: mitVorlage(locked).intro,
         note: texts(locked.language).fromQuote(locked.number ?? "", texts(locked.language).date(locked.issueDate)),
         ...referencesFromQuote(locked),
         taxTreatment: locked.taxTreatment,
@@ -665,8 +664,8 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     validUntil: addDays(today, validDays || QUOTE_VALID_DAYS),
     serviceFrom: null,
     serviceTo: null,
-    intro: quote.intro,
-    note: quote.note,
+    // Mit Platzhaltern, wie im Entwurf des Originals, nicht mit dessen Werten (#1334)
+    ...mitVorlage(quote),
     ...referenceColumns(quote),
     taxTreatment: quote.taxTreatment,
     exemptionReason: quote.exemptionReason,

@@ -27,7 +27,7 @@ import { assertNumberingCurrent, circleContact, circleFor, customerNumberConflic
 import { assertQuotesLocked, billsWholeQuote, lockQuotes, quotesTouching, syncQuoteBilling } from "./quote-billing.ts";
 import { pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
-import { rechnungMitPlatzhaltern } from "./beleg-platzhalter.ts";
+import { rechnungMitPlatzhaltern, textMitVorlage } from "./beleg-platzhalter.ts";
 
 /* Festschreiben einer Rechnung: Prüfungen, Nummer, PDF und XML, Sperre und Buchung (GoBD) */
 
@@ -269,8 +269,7 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
         gross: totals.gross,
         // Ab hier fest: der Tag, an dem die Leistung ausgeführt wurde (#694)
         serviceDate: invoice.serviceDate,
-        intro: doc.intro ?? "",
-        note: doc.note ?? "",
+        ...textMitVorlage(invoice, doc),
         pdf: Buffer.from(rendered.pdf),
         pdfSha256: sha256(rendered.pdf),
         xml: rendered.xml,

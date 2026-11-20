@@ -1,4 +1,5 @@
 import type { BELEG_PLATZHALTER } from "@haben/core";
+import { gruppierteIban } from "@haben/core";
 import { type InvoiceDocument, type QuoteDocument, texts } from "@haben/einvoice";
 
 /*
@@ -15,13 +16,6 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 
 type Werte = Record<keyof typeof BELEG_PLATZHALTER, string>;
 
-const ibanInGruppen = (iban: string) =>
-  iban
-    .replace(/\s/g, "")
-    .toUpperCase()
-    .replace(/(.{4})/g, "$1 ")
-    .trim();
-
 function gemeinsameWerte(doc: InvoiceDocument | QuoteDocument, t: ReturnType<typeof texts>) {
   const { serviceFrom: von, serviceTo: bis } = doc;
   const leistungszeitraum = von && bis && von !== bis ? `${t.date(von)} – ${t.date(bis)}` : von || bis ? t.date((von ?? bis)!) : "";
@@ -32,7 +26,7 @@ function gemeinsameWerte(doc: InvoiceDocument | QuoteDocument, t: ReturnType<typ
     leistungszeitraum,
     kunde: doc.buyer.name,
     firma: doc.seller.name,
-    iban: doc.seller.iban ? ibanInGruppen(doc.seller.iban) : "",
+    iban: doc.seller.iban ? gruppierteIban(doc.seller.iban) : "",
     bic: doc.seller.bic ?? "",
   };
 }
@@ -65,3 +59,20 @@ export function mitPlatzhaltern<D extends InvoiceDocument | QuoteDocument>(doc: 
 
 export const rechnungMitPlatzhaltern = (doc: InvoiceDocument) => mitPlatzhaltern(doc, rechnungsWerte(doc));
 export const angebotMitPlatzhaltern = (doc: QuoteDocument) => mitPlatzhaltern(doc, angebotsWerte(doc));
+
+type Texte = { intro: string; note: string; introVorlage: string; noteVorlage: string };
+
+/**
+ * Was beim Festschreiben in den Beleg geht (#1334): in intro/note die Werte wie auf dem Blatt, in die Vorlage der Text
+ * mit Platzhaltern, aber nur, wenn eingesetzt wurde; ohne Platzhalter bleibt sie leer
+ */
+export function textMitVorlage(entwurf: Pick<Texte, "intro" | "note">, blatt: { intro?: string; note?: string }): Texte {
+  const intro = blatt.intro ?? "";
+  const note = blatt.note ?? "";
+  return { intro, note, introVorlage: intro === entwurf.intro ? "" : entwurf.intro, noteVorlage: note === entwurf.note ? "" : entwurf.note };
+}
+
+/** Einleitung und Hinweis mit Platzhaltern für Kopie, Rechnung aus Angebot und Auftragsbestätigung; ohne Vorlage der Text selbst */
+export function mitVorlage(beleg: Texte): Pick<Texte, "intro" | "note"> {
+  return { intro: beleg.introVorlage || beleg.intro, note: beleg.noteVorlage || beleg.note };
+}

@@ -2164,6 +2164,13 @@
       "when": 1795128807249,
       "tag": "0308_stripe_zugang_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 309,
+      "version": "7",
+      "when": 1795159583896,
+      "tag": "0309_platzhalter_vorlage",
+      "breakpoints": true
     }
   ]
 }
