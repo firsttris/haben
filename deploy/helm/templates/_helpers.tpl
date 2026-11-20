@@ -16,7 +16,7 @@
 {{/* list Repository Tag Name-des-Werts */}}
 {{- define "haben.image" -}}
 {{- if not (index . 1) -}}
-{{- fail (printf "%s fehlt, etwa \"0.9.0\" (https://github.com/firsttris/haben/releases)" (index . 2)) -}}
+{{- fail (printf "%s fehlt, etwa \"0.9.0\" (https://github.com/Speicherstadt/haben/releases)" (index . 2)) -}}
 {{- end -}}
 {{- include "haben.text" (list (index . 2) (index . 1)) -}}
 {{- printf "%s:%s" (index . 0) (index . 1) -}}

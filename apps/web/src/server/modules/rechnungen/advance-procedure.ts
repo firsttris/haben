@@ -145,7 +145,7 @@ async function sameAmounts(invoice: Invoice, previous: Invoice[], tx: Tx): Promi
  * Verfahrensentscheidung vor dem Festschreiben; Abzugsoriginale sind bereits durch den Aufrufer gesperrt.
  * Die Leistung bleibt bei bloßem Schluss-Storno erbracht. Ein Ersatz übernimmt sie nur mit eindeutigen Bezügen und
  * unveränderten Beträgen; Altbelege und ihre Korrekturketten behalten ihr Verfahren.
- * Quelle: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * Quelle: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 export async function advanceProcedure(invoice: Invoice, lines: readonly Deduction[], company: { rechtsform: Rechtsform }, tx: Tx): Promise<AdvanceProcedure> {
   if (invoice.status === "final") return { advanceAccounting: invoice.advanceAccounting, replacesInvoiceId: invoice.replacesInvoiceId };

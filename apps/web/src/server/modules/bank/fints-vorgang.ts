@@ -65,9 +65,9 @@ export function vorgangVerwerfen(actor: string, id: string): void {
 /**
  * Die Bank kennt die Registrierungsnummer nicht: 9078 „Dialog abgebrochen – FinTS-Produkt ist nicht registriert“ nach der
  * Liste „FinTS Rückmeldungscodes“ der DK (Stand 03.02.2026, fints.org › Spezifikation). 9952 „Das Kundenprodukt wird nicht
- * unterstützt“ steht nicht in der Liste; damit lehnte eine echte Bank beim ersten Test (firsttris/haben#1289) eine neue
+ * unterstützt“ steht nicht in der Liste; damit lehnte eine echte Bank beim ersten Test (Speicherstadt/haben#1289) eine neue
  * Nummer ab, die sie noch nicht übernommen hatte. Die DK gibt neue Nummern etwa wöchentlich weiter, und die Banken
- * übernehmen sie nach Tagen bis Wochen (Hinweis der DK zur Registrierung, zitiert in firsttris/haben#654).
+ * übernehmen sie nach Tagen bis Wochen (Hinweis der DK zur Registrierung, zitiert in Speicherstadt/haben#654).
  */
 const PRODUKT_UNBEKANNT = [9078, 9952];
 

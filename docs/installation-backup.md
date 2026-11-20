@@ -207,7 +207,7 @@ Nur das alte Image ohne das alte Backup reicht nicht: Die alte Version startet d
 Bisher lief das Backup der Quadlets als `~/.config/haben/backup.sh` mit restic auf dem Host. Der Container ersetzt es, restic auf dem Host brauchst du danach nicht mehr. Das bestehende Repository und seine Stände bleiben nutzbar.
 
 ```sh
-RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
+RAW=https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy
 # Passwort des bisherigen Repositorys als Secret, ohne den Zeilenumbruch am Ende der Datei: restic nimmt
 # RESTIC_PASSWORD wörtlich, nur RESTIC_PASSWORD_FILE schneidet ihn ab
 tr -d '\n' < ~/.config/haben/restic-password | podman secret create haben-restic-password -
@@ -274,7 +274,7 @@ Schlägt das Upgrade fehl, bricht der Container mit der Meldung von `pg_upgrade`
 
 ```sh
 docker compose exec backup backup.sh   # Stand vor dem Update sichern
-curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
+curl -O https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/compose.yml
 docker compose pull && docker compose up -d
 docker compose logs db                 # „Upgrade auf PostgreSQL 18 fertig“
 ```
@@ -284,7 +284,7 @@ Hast du `compose.yml` angepasst statt eine `compose.override.yml` zu nutzen, än
 ```sh
 systemctl --user start haben-backup    # Stand vor dem Update sichern
 curl -o ~/.config/containers/systemd/haben-db.container \
-  https://raw.githubusercontent.com/firsttris/haben/main/deploy/quadlet/haben-db.container
+  https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/quadlet/haben-db.container
 systemctl --user daemon-reload
 systemctl --user restart haben-db haben-app
 journalctl --user -u haben-db -n 20    # „Upgrade auf PostgreSQL 18 fertig“

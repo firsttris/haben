@@ -6,8 +6,8 @@ nicht belegt; deshalb liegen die Daten je Version getrennt.
 
 | Ordner | Herkunft |
 | --- | --- |
-| `buchhaltung-1.0/` | Testkonto Buchhaltungsversion 1.0 ([#343](https://github.com/firsttris/haben/issues/343), [#472](https://github.com/firsttris/haben/issues/472)) |
-| `buchhaltung-2.0/` | Berichte aus [#472](https://github.com/firsttris/haben/issues/472) und [#1106](https://github.com/firsttris/haben/issues/1106), Tarif Buchhaltung, Version 2.0: DATEV-Export, Storno-Paar, zwei Sätze GET-Antworten eines Melders, Belege mit `taxRule` 12, 14 und 9 eines zweiten und eine zweite Runde aus dessen Echt- und Testkonto |
+| `buchhaltung-1.0/` | Testkonto Buchhaltungsversion 1.0 ([#343](https://github.com/Speicherstadt/haben/issues/343), [#472](https://github.com/Speicherstadt/haben/issues/472)) |
+| `buchhaltung-2.0/` | Berichte aus [#472](https://github.com/Speicherstadt/haben/issues/472) und [#1106](https://github.com/Speicherstadt/haben/issues/1106), Tarif Buchhaltung, Version 2.0: DATEV-Export, Storno-Paar, zwei Sätze GET-Antworten eines Melders, Belege mit `taxRule` 12, 14 und 9 eines zweiten und eine zweite Runde aus dessen Echt- und Testkonto |
 
 ## Dateien
 
@@ -37,7 +37,7 @@ Nur `buchhaltung-1.0/`:
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
 - `beleg-aus-vorlage.json`: eine Vorlage wiederkehrender Belege (`voucherType` RV) mit `document` und ein daraus erzeugter Beleg (`voucherType` VOU) ohne `document`, dessen `origin` auf die Vorlage zeigt. Im Konto hatten 30 solche Belege seit Mai 2024 keine Datei; die Datei der Vorlage wurde laut `GET /Document/{id}` (`create`) erst im Februar 2026 hochgeladen.
 - `document-download.json`: Hülle von `GET /Document/{id}/download`, Datei als Base64 in `objects`.
-- `dateistand.json`: woran sich der Dateistand eines Belegs erkennen lässt ([#345](https://github.com/firsttris/haben/issues/345)), nur Metadaten ohne Dateiinhalt: Beleg mit `document` und dazu `GET /Document/{id}`, Beleg ohne `document` und ohne `origin`, fertige Rechnung mit ihrem Eintrag aus `GET /Document` (`baseObject` zeigt auf die Rechnung), Rechnungsentwurf ohne Eintrag, ein Eintrag aus `GET /Document` ohne Bezug, die leere Antwort von `GET /Document` mit `object[objectName]=Voucher` und der Fehler von `GET /Voucher/{id}/getDocuments`.
+- `dateistand.json`: woran sich der Dateistand eines Belegs erkennen lässt ([#345](https://github.com/Speicherstadt/haben/issues/345)), nur Metadaten ohne Dateiinhalt: Beleg mit `document` und dazu `GET /Document/{id}`, Beleg ohne `document` und ohne `origin`, fertige Rechnung mit ihrem Eintrag aus `GET /Document` (`baseObject` zeigt auf die Rechnung), Rechnungsentwurf ohne Eintrag, ein Eintrag aus `GET /Document` ohne Bezug, die leere Antwort von `GET /Document` mit `object[objectName]=Voucher` und der Fehler von `GET /Voucher/{id}/getDocuments`.
 
 Nur `buchhaltung-2.0/`:
 
@@ -89,7 +89,7 @@ Die Dateien der zweiten Runde sind wie die übrigen angeglichen: Belegnummern `X
 | Auftrags-PDF ändert den Auftrag nicht (`getPdf`) | ja | ja, an einem Entwurf |
 | `taxRule` am Beleg | nein | 1, 4, 9, 10, 11, 12, 14, 15, 22; an Rechnungen 1, 3, 11, 17, 21; dazu `taxType` `default` und `noteu` |
 
-Offen für 2.0 ([#472](https://github.com/firsttris/haben/issues/472)): echte Beträge und damit Steueraufteilung und Summen, Teilzahlungen (Status 750), nachfällige Vorlagen, Mahnstufe 2 und Mahngebühren, Bedeutung von `taxRule` 15 und 22 an Belegen. Ob D bei „KFZ-Versicherung“ eine Erstattung ist, lässt sich an den maskierten Beträgen nicht prüfen.
+Offen für 2.0 ([#472](https://github.com/Speicherstadt/haben/issues/472)): echte Beträge und damit Steueraufteilung und Summen, Teilzahlungen (Status 750), nachfällige Vorlagen, Mahnstufe 2 und Mahngebühren, Bedeutung von `taxRule` 15 und 22 an Belegen. Ob D bei „KFZ-Versicherung“ eine Erstattung ist, lässt sich an den maskierten Beträgen nicht prüfen.
 
 `/Asset` hat kein Feld für die bisherige AfA und keins für die Methode, nur Anschaffungsdatum, Kaufpreis, Nutzungsdauer in Jahren und Verkaufsdatum. Im Konto aus 1.0 (29 Anlagen) war `purchasePrice` gleich `sumNet` der Belegposition, also netto; `status` 100 stand nur bei Nutzungsdauer über 0, 500 nur bei 0. `GET /Depreciation` antwortet mit einer leeren Liste, Methoden wie `getDepreciation` gibt es an `Asset` nicht; die OpenAPI nennt `/Asset` nicht. Die Beträge in `asset.json` und `vat-report.json` (auch in `reportingValues`) sind maskiert und tragen keine Summen.
 

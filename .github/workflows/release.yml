@@ -119,7 +119,7 @@ jobs:
       dockerfile: deploy/backup/Containerfile
       context: deploy/backup
       ghcr: true
-      ghcr-image: firsttris/haben-backup
+      ghcr-image: speicherstadt/haben-backup
       readme: deploy/backup/README.md
       github-release: false
     secrets: inherit
@@ -137,7 +137,7 @@ jobs:
       dockerfile: deploy/db/Containerfile
       context: deploy/db
       ghcr: true
-      ghcr-image: firsttris/haben-db
+      ghcr-image: speicherstadt/haben-db
       readme: deploy/db/README.md
       github-release: false
     secrets: inherit
@@ -156,7 +156,7 @@ jobs:
       dockerfile: apps/firmenportal/Containerfile
       context: .
       ghcr: true
-      ghcr-image: firsttris/haben-firmenportal
+      ghcr-image: speicherstadt/haben-firmenportal
       readme: apps/firmenportal/README.md
       github-release: false
     secrets: inherit

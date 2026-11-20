@@ -8,7 +8,7 @@ description: >-
 # TrueNAS SCALE
 
 Haben läuft auf TrueNAS SCALE als eigene App aus einer Datei,
-[`deploy/truenas/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/truenas/compose.yml), mit denselben
+[`deploy/truenas/compose.yml`](https://github.com/Speicherstadt/haben/blob/main/deploy/truenas/compose.yml), mit denselben
 Images wie mit [Docker Compose](installation.md#docker-compose): App, Datenbank und das tägliche Backup, dazu der kurze
 Dienst `schluessel`, der beim ersten Start die Schlüssel erzeugt. Du änderst darin nur eine Zeile, die Adresse.
 
@@ -21,7 +21,7 @@ Dienst `schluessel`, der beim ersten Start die Schlüssel erzeugt. Du änderst d
 ## App installieren
 
 1. **Apps › Discover Apps › Custom App › Install via YAML**, Name `haben`.
-2. Den Inhalt von [`deploy/truenas/compose.yml`](https://raw.githubusercontent.com/firsttris/haben/main/deploy/truenas/compose.yml)
+2. Den Inhalt von [`deploy/truenas/compose.yml`](https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/truenas/compose.yml)
    einfügen und in der Zeile `BETTER_AUTH_URL` deine Adresse eintragen, mit `https://`, etwa
    `BETTER_AUTH_URL: https://haben.example.de`. Passkeys hängen an dieser Adresse; später nicht mehr ändern.
 3. Speichern. Der erste Start lädt die Images, das dauert ein paar Minuten.

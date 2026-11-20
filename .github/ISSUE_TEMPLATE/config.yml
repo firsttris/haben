@@ -4,10 +4,10 @@ contact_links:
     url: https://haben.app/
     about: Installation, Einrichtung, ELSTER, Umzug und Roadmap. Viele Fragen sind dort schon beantwortet.
   - name: Frage stellen (Discussions)
-    url: https://github.com/firsttris/haben/discussions/categories/q-a
+    url: https://github.com/Speicherstadt/haben/discussions/categories/q-a
     about: Fragen zu Einrichtung und Bedienung, deren Antwort auffindbar bleiben soll. Durchsuchbar, eine Antwort lässt sich als Lösung markieren.
   - name: Idee besprechen (Discussions)
-    url: https://github.com/firsttris/haben/discussions/categories/ideas
+    url: https://github.com/Speicherstadt/haben/discussions/categories/ideas
     about: Eine Idee erst einmal zur Diskussion stellen. Wird daraus ein konkreter Wunsch, entsteht ein Issue fürs Board.
   - name: Discord
     url: https://discord.gg/CT2GQytSYH

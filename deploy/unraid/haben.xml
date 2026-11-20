@@ -7,12 +7,12 @@
   <Network>haben</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/firsttris/haben/issues</Support>
+  <Support>https://github.com/Speicherstadt/haben/issues</Support>
   <Project>https://haben.app/</Project>
   <Overview>Haben: selbst gehostete Buchhaltung für Freelancer und kleine Firmen. Rechnungen mit ZUGFeRD und XRechnung, Belege, Bankabgleich, EÜR und Umsatzsteuer-Voranmeldung an ELSTER. Braucht haben-db, ein tägliches Backup macht haben-backup. HTTPS ist Pflicht (Reverse Proxy), ELSTER nur auf x86_64.[br][br]Haben: self-hosted bookkeeping for German freelancers and small companies (e-invoices, receipts, bank reconciliation, VAT returns to ELSTER). Needs haben-db; haben-backup runs daily backups. HTTPS via a reverse proxy is required.</Overview>
   <Category>Productivity: Tools:</Category>
-  <TemplateURL>https://raw.githubusercontent.com/firsttris/haben/main/deploy/unraid/haben.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/firsttris/haben/main/apps/web/public/icon-512.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/Speicherstadt/haben/main/deploy/unraid/haben.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Speicherstadt/haben/main/apps/web/public/icon-512.png</Icon>
   <ExtraParams>--restart unless-stopped --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true</ExtraParams>
   <Requires>haben-db, Netzwerk haben, Ordner mit Eigentümer 1000 und ein Reverse Proxy mit HTTPS: https://haben.app/unraid.html</Requires>
   <Config Name="Port" Target="3000" Default="3000" Mode="tcp" Description="Für den Reverse Proxy; nicht ins Internet freigeben" Type="Port" Display="always" Required="true" Mask="false">3000</Config>

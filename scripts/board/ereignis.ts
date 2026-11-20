@@ -9,7 +9,7 @@ import { STATUS, schritte, zielStatus } from "./regel.ts";
  */
 
 const token = process.env.PROJECT_TOKEN;
-const repo = process.env.GITHUB_REPOSITORY ?? "firsttris/haben";
+const repo = process.env.GITHUB_REPOSITORY ?? "Speicherstadt/haben";
 const name = process.env.GITHUB_EVENT_NAME ?? "";
 const payload = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8"));
 

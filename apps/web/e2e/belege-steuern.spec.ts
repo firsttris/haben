@@ -606,7 +606,7 @@ test("Version: installierte Version ohne Fehlermeldung, Update-Anleitung verlink
   await expect(card.getByRole("alert")).toHaveCount(0);
   await expect(card.getByRole("link", { name: "Versionshinweise" })).toHaveAttribute(
     "href",
-    /^https:\/\/github\.com\/firsttris\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
+    /^https:\/\/github\.com\/Speicherstadt\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
   );
   await card.getByText("So aktualisierst du").click();
   await expect(card.getByRole("link", { name: "Docker Compose und Podman Quadlets" })).toHaveAttribute(
@@ -624,7 +624,7 @@ test("Eingesetzte Versionen: Verlauf und Versionshinweise anzeigen (#841)", asyn
   await expect(rows.first()).toContainText(/v\d+\.\d+\.\d+/);
   await expect(rows.first().getByRole("link", { name: /Versionshinweise/ })).toHaveAttribute(
     "href",
-    /^https:\/\/github\.com\/firsttris\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
+    /^https:\/\/github\.com\/Speicherstadt\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
   );
 });
 

@@ -6,7 +6,7 @@ import { kleinunternehmerStand } from "../auswertungen/test-umsatz-stand.ts";
 /**
  * #750: Ein Papierstorno nimmt die erbrachte Schlussleistung nicht zurück. Zahlungen gehören weiter zu dieser
  * Leistung, auch wenn der betragsgleiche Ersatz eine neue Belegnummer bekommt; die gesiegelten Zahlungen bleiben stehen.
- * Entscheidung: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * Entscheidung: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussrechnung (Postgres)", () => {
   let sql: postgres.Sql;

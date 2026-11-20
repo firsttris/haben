@@ -47,7 +47,7 @@ describe("verweise", () => {
 });
 
 describe("schliessendeStichwoerter", () => {
-  it.each(["Closes #1", "fixes #2", "Resolved: #3", "close firsttris/haben#4", "Fixed #5"])("findet „%s“", (text) => {
+  it.each(["Closes #1", "fixes #2", "Resolved: #3", "close Speicherstadt/haben#4", "Fixed #5"])("findet „%s“", (text) => {
     expect(schliessendeStichwoerter(text)).toHaveLength(1);
   });
 
@@ -138,8 +138,8 @@ describe("Release", () => {
   });
 
   it("schreibt den Kommentar mit Version, Pull Requests und Weg zum neuen Issue", () => {
-    const text = kommentar("firsttris/haben", "v0.7.0", 583, [630]);
-    expect(text).toContain("[v0.7.0](https://github.com/firsttris/haben/releases/tag/v0.7.0)");
+    const text = kommentar("Speicherstadt/haben", "v0.7.0", 583, [630]);
+    expect(text).toContain("[v0.7.0](https://github.com/Speicherstadt/haben/releases/tag/v0.7.0)");
     expect(text).toContain("umgesetzt in #630");
     expect(text).toContain("neues Issue");
     expect(text).toContain("(#583)");

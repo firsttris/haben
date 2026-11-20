@@ -23,7 +23,7 @@ type Schritt = Awaited<ReturnType<typeof continueFints>>;
 type Offen = Exclude<Schritt, { art: "fertig" }>;
 type Meldung = { tone: "ok" | "danger" | "info"; text: string };
 
-export const FINTS_ANLEITUNG = "https://github.com/firsttris/haben/blob/main/docs/installation-anbindungen.md#kontoabruf-über-fints";
+export const FINTS_ANLEITUNG = "https://github.com/Speicherstadt/haben/blob/main/docs/installation-anbindungen.md#kontoabruf-über-fints";
 
 /** Name mit den letzten vier Ziffern der IBAN; neue Konten tragen sie schon im Namen („Testbank Girokonto …2051“) */
 const kontoName = (a: { name: string; iban: string }) => (a.name.endsWith(a.iban.slice(-4)) ? a.name : `${a.name} …${a.iban.slice(-4)}`);

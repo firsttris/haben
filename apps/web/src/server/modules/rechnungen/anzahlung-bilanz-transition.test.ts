@@ -16,7 +16,7 @@ const MIGRATIONS = fileURLToPath(new URL("../../../../drizzle", import.meta.url)
 /**
  * Echter Prä-0223-Bestand wie in db/migrate-advance-balance.test.ts, anschließend normale gemischte Schlusskette.
  * Das neue Papierstorno erhält die Schlussleistung auch dann, wenn einer ihrer Abzüge das alte Bilanzverfahren hat.
- * Entscheidung: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * Entscheidung: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schlusskette (Postgres)", () => {
   it("erhält den alten Erlös und die Siegel und nimmt beim neuen Papierstorno auch den alten unbezahlten Leistungsanteil nicht zurück", async () => {
@@ -152,7 +152,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       await invoices.cancelInvoice(actor, final.id, "2027-02-12");
       // Den tatsächlichen Papierzwischenraum vor dem Ersatz prüfen: Ein später gespeicherter Ersatz trägt wieder
       // das Januar-Leistungsdatum und darf einen zwischenzeitlich falschen Februarstand nicht rückblickend verdecken.
-      // Leistungsfortbestand: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+      // Leistungsfortbestand: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
       expect(await reports.openPositions("2027-02-28")).toMatchObject({
         receivables: [{ id: oldId, open: 23_800 }],
         unbilledReceivables: [{ id: final.id, open: 59_500 }],
@@ -201,7 +201,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
       // Ein Papieraustausch der neuen gemischten Schlusskette nimmt auch die bereits erbrachte alte Teilforderung
       // nicht zurück: Die unbezahlten 200 € netto/38 € USt bleiben im Januar, ohne Februar-Minderung/März-Neuerfassung.
-      // Bestätigter Leistungsfortbestand: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+      // Bestätigter Leistungsfortbestand: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
       const figures = await Promise.all([1, 2, 3].map((month) => vat.computeVatFigures({ year: 2027, month })));
       expect(figures.map(({ kz81, tax81 }) => ({ base: kz81, tax: tax81 }))).toEqual([
         { base: 70_000, tax: 13_300 },

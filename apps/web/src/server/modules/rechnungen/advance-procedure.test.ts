@@ -11,7 +11,7 @@ type Fixture = Partial<typeof schema.invoices.$inferInsert>;
 /**
  * #750: Das neue Verfahren ändert keinen Altbeleg. Eine Ersatzrechnung ist nur dann dieselbe Leistung, wenn Bezüge,
  * Leistungsdatum und gespeicherte Centbeträge je Satz eindeutig übereinstimmen; ein Papierstorno nimmt sie nicht zurück.
- * Quelle: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * Quelle: https://github.com/Speicherstadt/haben/issues/750#issuecomment-6837873675
  */
 describe.skipIf(!testDatabaseUrl)("Bilanzverfahren und eindeutiger Schlussrechnungsersatz (Postgres)", () => {
   let sql: postgres.Sql;
