@@ -150,4 +150,19 @@ describe.skipIf(!testDatabaseUrl)("Liquiditätsvorschau: Konten und offene Poste
     },
     30_000,
   );
+
+  it("eine Erstattung an den Kunden nach dem Storno einer bezahlten Rechnung bleibt ohne überfällige Forderungen ein Ausgang", async () => {
+    await firma(sql, { kontenrahmen: "SKR03", versteuerung: "ist" });
+    const contactId = await kunde(contacts);
+    const bezahlt = await rechnung(contactId, 100_000, "2026-10-01");
+    await bank.importStatement(ACTOR, dkbCsv([["05.10.26", "Nordwerk", "Rechnung", "1.190,00"]]), null);
+    const [tx] = await sql<{ id: string }[]>`select id from bank_transactions`;
+    await bank.allocate(ACTOR, { kind: "invoice", transactionId: tx!.id, invoiceId: bezahlt.id, amount: 119_000 });
+    await invoices.cancelInvoice(ACTOR, bezahlt.id, "2026-10-20");
+    const k = await kontext.ladeKontext("2026-11-20", "13w");
+    for (const ueberfaellige of [true, false]) {
+      const posten = await offene.offenePostenPosten(k, { ueberfaellige });
+      expect(posten.map((p) => [p.betrag, p.richtung])).toEqual([[119_000, "aus"]]);
+    }
+  }, 30_000);
 });

@@ -35,7 +35,8 @@ async function forderungen(k: Kontext, receivables: OpenPosition[], ueberfaellig
   const naechsterTag = naechsterWerktag(addDays(k.heute, 1), k.bundesland);
   return receivables.flatMap((r) => {
     const ueberfaellig = r.dueDate < k.heute;
-    if (ueberfaellig && !ueberfaellige) return [];
+    // Weggelassen werden nur Eingänge: eine Erstattung an den Kunden (Storno einer bezahlten Rechnung) bleibt zu zahlen
+    if (ueberfaellig && !ueberfaellige && r.open > 0) return [];
     const datum = ueberfaellig ? naechsterTag : r.dueDate;
     const rechnung = steuern.get(r.id);
     const steuer =
