@@ -277,12 +277,8 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
   };
 
   // „Abbrechen“ bei einem Schritt der Bank: Ab dem Abruf der Umsätze hat Verbinden die Verbindung samt ID schon ersetzt.
-  // Erst neu laden, dann schließen; bis dahin sperrt busy „Trennen“ an der alten Zeile
-  const schrittAbbrechen = () =>
-    void run("neu", async () => {
-      await router.invalidate({ sync: true });
-      schliessen();
-    });
+  // Erst neu laden, dann schließen; solange ein Schritt offen ist, sind die Knöpfe an den Zeilen gesperrt
+  const schrittAbbrechen = () => void router.invalidate({ sync: true }).then(schliessen);
 
   return (
     <>
@@ -326,16 +322,15 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
             {c.lastError && <span className="field-error">{c.lastError}</span>}
           </div>
           <div className="actions">
-            <button type="button" className="btn btn-danger" disabled={busy !== null} onClick={() => setTrennt(c)}>
+            <button type="button" className="btn btn-danger" disabled={busy !== null || offen !== null} onClick={() => setTrennt(c)}>
               Trennen
             </button>
             {c.status === "fehler" && fints.configured && (
               <button
                 type="button"
                 className="btn"
-                disabled={busy !== null}
+                disabled={busy !== null || offen !== null}
                 onClick={() => {
-                  setOffen(null);
                   setVorlage(c);
                   setVerbinden(true);
                 }}
