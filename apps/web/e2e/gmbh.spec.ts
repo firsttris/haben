@@ -102,6 +102,21 @@ test("Eröffnung nicht am 1. Januar: der Fehler steht am Datum und der Fokus dor
   await expect(form.getByLabel("Datum")).toHaveAccessibleDescription(/1\. Januar/);
 });
 
+test("Eröffnung nach geleertem Datum: „Wähle das Datum.“ steht am Feld, nicht als Meldung des Servers (Review #1608)", async () => {
+  await go("/buchungen/neu");
+  const form = page.getByRole("form", { name: "Manuelle Buchung" });
+  await form.getByLabel("Datum").fill("");
+  await form.getByLabel("Eröffnungsbuchung").check();
+  await form.getByLabel("Buchungstext").fill("Eröffnung ohne Datum");
+  await form.getByLabel("Konto Zeile 1").fill("1800");
+  await form.getByLabel("Soll Zeile 1").fill("100,00");
+  await form.getByLabel("Konto Zeile 2").fill("9000");
+  await form.getByLabel("Haben Zeile 2").fill("100,00");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(form.getByLabel("Datum")).toBeFocused();
+  await expect(form.getByLabel("Datum")).toHaveAccessibleDescription(/Wähle das Datum/);
+});
+
 test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () => {
   await go("/buchungen");
   await page.getByRole("link", { name: "Buchung erfassen" }).click();
