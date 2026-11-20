@@ -5,6 +5,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { sha256Of } from "../../storage.ts";
+import { gebundeneKonten } from "./abruf-bindung.ts";
 import { BankError } from "./bank-error.ts";
 import { MovementConflictError, type BatchResult, storeBatch, type StoreBatchInput } from "./import-batch.ts";
 import { recordRefusedBatch } from "./import-konflikt.ts";
@@ -43,6 +44,9 @@ export async function addExternalSource(actor: string, input: z.input<typeof ext
     if (account.excludedAt) throw new BankError(`Das Konto ${account.name} ist ausgeschlossen.`);
     const [vorhanden] = await tx.select().from(schema.importSources).where(eq(schema.importSources.bankAccountId, account.id));
     if (vorhanden) throw new BankError(`Das Konto ${account.name} hat schon eine Quelle (${vorhanden.provider}); ein Konto bekommt Umsätze nur aus einer.`);
+    if ((await gebundeneKonten(tx)).includes(account.id)) {
+      throw new BankError(`Das Konto ${account.name} hat schon einen Abruf in Haben; ein Konto bekommt Umsätze nur aus einer Quelle.`);
+    }
     const [taken] = await tx
       .select()
       .from(schema.importSources)
@@ -106,13 +110,9 @@ export async function externalSources() {
   return rows.map((r) => ({ ...r, complete: complete.get(r.id) ?? false }));
 }
 
-/**
- * Konten mit irgendeiner Quelle (Bankabruf, Etsy, extern), auch ohne Stichtag (Bindungen aus v0.11.0): Ein Konto bekommt
- * Umsätze nur aus einer, „Externe Quelle hinzufügen“ steht dort deshalb nicht
- */
+/** Konten mit irgendeiner Quelle (`gebundeneKonten`): „Externe Quelle hinzufügen“ steht dort nicht */
 export async function boundAccountIds(): Promise<string[]> {
-  const rows = await db.selectDistinct({ id: schema.importSources.bankAccountId }).from(schema.importSources);
-  return rows.map((r) => r.id);
+  return gebundeneKonten(db);
 }
 
 /** Ob die jüngste Lieferung je Quelle ihren Zeitraum vollständig abgeschlossen hat */

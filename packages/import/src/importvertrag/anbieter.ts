@@ -2,7 +2,8 @@
 
 /**
  * Anbieter mit eigener Anbindung in Haben: Ihre Quellen entstehen beim Verbinden, nie über den REST-Import (#306, Schritt
- * 4). Eine neue Anbindung in Haben gehört hier dazu, sonst könnte ein Dienst von außen in ihre Quelle liefern.
+ * 4). Eine neue Anbindung in Haben gehört hier dazu, sonst könnte ein Dienst von außen in ihre Quelle liefern; welche Konten
+ * sie bindet, sagt `gebundeneKonten` (apps/web, modules/bank/abruf-bindung.ts), das tsc für jeden Eintrag verlangt.
  */
 export const INTERNAL_PROVIDERS = ["enablebanking", "etsy", "paypal", "stripe"] as const;
 
