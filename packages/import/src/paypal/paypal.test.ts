@@ -4,14 +4,15 @@ import { findHeaderRow } from "../table.ts";
 import { isPayPalHeader, parsePayPal } from "../psp.ts";
 import { validateBatch } from "../importvertrag/index.ts";
 import { withDedupHashes } from "../dedup.ts";
-import { PayPalClient, type PayPalTransaction } from "./client.ts";
+import { centsOf, PayPalClient, type PayPalTransaction } from "./client.ts";
 import { paypalBatch } from "./batch.ts";
 import { classify, localDay, type PayPalEntry, type PayPalWindow } from "./eintraege.ts";
 import { paypalEventOf, paypalStatement } from "./statement.ts";
 
 /*
  * Einordnung, Lieferung und Auszug der Transaction Search (#1512) an den nachgebauten Antworten in
- * test-fixtures/paypal (erfundene Werte im Aufbau der API-Referenz, keine echten Antworten).
+ * test-fixtures/paypal (erfundene Werte im Aufbau der API-Referenz) und an einer echten, anonymisierten Antwort der
+ * PayPal-Sandbox (sandbox-transaktionen.json, letzte Gruppe unten).
  */
 
 const raw = readFileSync(new URL("../../test-fixtures/paypal/transaktionen.json", import.meta.url), "utf8");
@@ -363,7 +364,7 @@ describe("Echte Antwort der PayPal-Sandbox (anonymisiert)", () => {
   });
 
   it("stimmt mit dem Saldo der Antwort überein: Betrag plus Gebühr jeder Zeile ergibt den ending_balance", () => {
-    const cents = (v: string) => Math.round(Number(v) * 100);
+    const cents = (v: string) => centsOf(v, "sandbox");
     let saldo = 0;
     for (const z of echt.transaction_details) {
       saldo += cents(z.transaction_info.transaction_amount.value) + cents(z.transaction_info.fee_amount.value);
