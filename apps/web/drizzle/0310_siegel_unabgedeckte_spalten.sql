@@ -10,6 +10,11 @@
 -- An einem älteren Siegel steht in ihr also NULL oder ihr Standardwert, und die Kindtabelle hat zu dem Datensatz keine
 -- Zeile. Der Standardwert kommt aus dem Katalog; eine Migration, die ihn ändert oder eine solche Spalte füllt, ließe
 -- die Prüfung am Altbestand anschlagen (siegel-altbestand.test.ts).
+--
+-- Quelle für den Standardwert: PostgreSQL 18, ALTER TABLE (https://www.postgresql.org/docs/18/sql-altertable.html).
+-- „Notes“: ADD COLUMN mit einem nicht volatilen DEFAULT wertet ihn einmal aus, und vorhandene Zeilen liefern diesen
+-- Wert. „SET/DROP DEFAULT“: Ein neuer Standardwert gilt nur für spätere INSERT und UPDATE, vorhandene Zeilen ändert er
+-- nicht.
 CREATE OR REPLACE FUNCTION haben_integrity_problems(max_rows integer DEFAULT 100)
 RETURNS TABLE (art text, tabelle text, zeile text, seq bigint, befund text)
 LANGUAGE plpgsql STABLE AS $$
