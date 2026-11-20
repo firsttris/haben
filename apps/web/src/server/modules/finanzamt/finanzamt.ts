@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { isKapitalgesellschaft, toElsterSteuernummer, type Cents, type Prognose, type Rechtsform } from "@haben/core";
+import { hochrechnungAufsJahr, isKapitalgesellschaft, toElsterSteuernummer, type Cents, type Prognose, type Rechtsform } from "@haben/core";
 import {
   buildBankverbindungXml,
   buildNachrichtXml,
@@ -45,8 +45,6 @@ export const messageSchema = z.object({
 
 export type MessageInput = z.input<typeof messageSchema>;
 
-const dayOfYear = (date: string) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${date.slice(0, 4)}-01-01T00:00:00Z`)) / 86_400_000) + 1;
-
 export interface PrepaymentBasis {
   year: number;
   /** Stichtag der Zahlen (heute) */
@@ -70,9 +68,7 @@ export interface PrepaymentBasis {
 export async function prepaymentBasis(today: string): Promise<PrepaymentBasis> {
   const year = Number(today.slice(0, 4));
   const [current, last, company, latest] = await Promise.all([euerForYear(year), euerForYear(year - 1), loadCompany(), latestEstAngaben(year)]);
-  const days = dayOfYear(today);
-  const daysInYear = dayOfYear(`${year}-12-31`);
-  const profitForecast = Math.round((current.gewinn * daysInYear) / days / 100) * 100;
+  const profitForecast = hochrechnungAufsJahr(current.gewinn, today);
   const priorYear = latest.fromYear !== null && latest.fromYear < year;
   // Haben schreibt Leistungen des Vorjahres nicht für das laufende Jahr fort; aktuelle Angaben zählen weiter (§ 32b EStG).
   // Das ist Habens Schätzung: § 37 Abs. 3 EStG nimmt grundsätzlich die letzte Veranlagung und erlaubt die Anpassung.
