@@ -1,6 +1,15 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { type Builtins, builtinFindings, type CatalogObjects, catalogFindings, readBuiltinFunctions, readCatalogObjects } from "./catalog-objects.ts";
+import {
+  type Builtins,
+  builtinFindings,
+  type CatalogObjects,
+  catalogFindings,
+  type Extensions,
+  extensionMembers,
+  readBuiltinFunctions,
+  readCatalogObjects,
+} from "./catalog-objects.ts";
 import type { Db } from "./index.ts";
 import expected from "./trigger-inventory.json";
 import { replicationDefaults } from "./trigger-defaults.ts";
@@ -13,6 +22,8 @@ export interface TriggerInventory {
   functions: { name: string; sourceHash: string; definitionHash: string; config: string[]; language: string; securityDefiner: boolean }[];
   /** Eingebaute Funktionen von PostgreSQL, die nicht fest eingebaut sind (catalog-objects.ts) */
   builtins: Builtins;
+  /** Mitglieder der Erweiterungen einer frischen Installation (catalog-objects.ts) */
+  extensions: Extensions;
 }
 
 export interface TriggerProblem {
@@ -35,15 +46,19 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
  * https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE
  * https://github.com/Speicherstadt/haben/issues/764#issuecomment-6837874131
  */
-async function readSnapshot(reader: Reader): Promise<{ inventory: TriggerInventory; defaults: string[]; schemas: string[]; catalog: CatalogObjects }> {
+async function readSnapshot(
+  reader: Reader,
+): Promise<{ inventory: TriggerInventory; defaults: string[]; schemas: string[]; temp: string | null; catalog: CatalogObjects }> {
   return reader.transaction(
     async (tx) => {
       // current_schemas vor dem Umstellen: der Suchpfad, mit dem die Verbindung die Prüffunktionen aufruft
-      const [setting] = await tx.execute<{ path: string; schemas: string[] }>(
-        sql`select pg_catalog.current_setting('search_path') as path, pg_catalog.current_schemas(true)::text[] as schemas`,
+      const [setting] = await tx.execute<{ path: string; schemas: string[]; temp: string | null }>(
+        sql`select pg_catalog.current_setting('search_path') as path, pg_catalog.current_schemas(true)::text[] as schemas,
+          (select n.nspname::text from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) as temp`,
       );
       await tx.execute(sql`select pg_catalog.set_config('search_path', 'pg_catalog', true)`);
       try {
+        const catalog = await readCatalogObjects(tx);
         const triggers = await tx.execute<TriggerInventory["triggers"][number]>(sql`
         select format('%I.%I', n.nspname, c.relname) as "table", t.tgname as name, t.tgenabled as enabled,
           pg_get_triggerdef(t.oid, false) as definition,
@@ -79,8 +94,9 @@ async function readSnapshot(reader: Reader): Promise<{ inventory: TriggerInvento
             definitionHash: sha256(definition),
           })),
           builtins: await readBuiltinFunctions(tx),
+          extensions: extensionMembers(catalog),
         };
-        return { inventory, defaults: await replicationDefaults(tx), schemas: setting!.schemas, catalog: await readCatalogObjects(tx) };
+        return { inventory, defaults: await replicationDefaults(tx), schemas: setting!.schemas, temp: setting!.temp, catalog };
       } finally {
         await tx.execute(sql`select pg_catalog.set_config('search_path', ${setting!.path}, true)`);
       }
@@ -96,7 +112,7 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
 
 /** Der ausgelieferte Sollbestand stammt aus frischen Testmigrationen, niemals aus der geprüften Instanz. */
 export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems: TriggerProblem[]; hints: string[] }> {
-  const { inventory: actual, defaults, schemas, catalog } = await readSnapshot(reader);
+  const { inventory: actual, defaults, schemas, temp, catalog } = await readSnapshot(reader);
   const problems: TriggerProblem[] = [];
   const hints: string[] = [];
   const problem = (table: string, befund: string) => problems.push({ art: "sperre", tabelle: table.replace(/^public\./, ""), zeile: null, seq: null, befund });
@@ -125,11 +141,7 @@ export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems:
     else if (JSON.stringify(found) !== JSON.stringify(fn)) problem(table, `Funktion ${fn.name} wurde verändert`);
   }
   // Fremde Objekte, die Aufrufe der Prüffunktionen übernehmen können (catalog-objects.ts)
-  const foreign = catalogFindings(
-    catalog,
-    schemas,
-    expected.functions.map((fn) => fn.name),
-  );
+  const foreign = catalogFindings(catalog, { schemas, temp, functions: expected.functions.map((fn) => fn.name), extensions: expected.extensions });
   const builtin = builtinFindings(expected.builtins, actual.builtins);
   for (const message of [...foreign.problems, ...builtin.problems]) problem("Datenbank", message);
   // Eigene Betreibertrigger gehören nicht zum Sollbestand und beweisen keine beschädigte Sperre, auch wenn sie aus sind.
