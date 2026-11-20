@@ -149,7 +149,8 @@ const KOSTEN: readonly Form01Zeile[] = [
 ];
 
 /**
- * Konten der Ergebnisverwendung nach dem Jahresergebnis (§ 158 AktG), ohne GuV-Posten (hgb.ts); DATEV-Kontenrahmen 2026.
+ * Konten der Ergebnisverwendung nach dem Jahresergebnis (§ 158 AktG; § 275 Abs. 4 HGB: Veränderungen der Gewinnrücklagen erst
+ * nach dem Posten „Jahresüberschuss/Jahresfehlbetrag“), ohne GuV-Posten (hgb.ts); DATEV-Kontenrahmen 2026.
  * Einstellungen in und Entnahmen aus Rücklagen, Gewinn- und Verlustvortrag, Vorabausschüttung und Ertrag aus der
  * Kapitalherabsetzung ändern das Ergebnis nicht, sie verteilen es.
  */
