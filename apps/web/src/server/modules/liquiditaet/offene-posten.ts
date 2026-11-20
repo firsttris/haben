@@ -55,7 +55,7 @@ async function forderungen(k: Kontext, receivables: OpenPosition[], ueberfaellig
 
 /** Offene Posten als Posten der Vorschau; Überfälliges außer Forderungen rückt der Kern auf heute */
 export async function offenePostenPosten(k: Kontext, { ueberfaellige }: { ueberfaellige: boolean }): Promise<LiquiditaetsPosten[]> {
-  const { receivables, payables, vat } = await openPositions(k.heute);
+  const { receivables, advanceRequests, advanceRefunds, payables, vat } = await openPositions(k.heute);
   const verbindlichkeiten = payables.flatMap((p) =>
     // Als Verbindlichkeit positiv: geht ab
     postenAus(-p.open, { datum: p.dueDate, text: text(p), quelle: { art: "beleg", id: p.id }, sicherheit: "fest" }),
@@ -69,5 +69,8 @@ export async function offenePostenPosten(k: Kontext, { ueberfaellige }: { ueberf
       sicherheit: v.open > 0 ? "fest" : "erwartet",
     }),
   );
-  return [...(await forderungen(k, receivables, ueberfaellige)), ...verbindlichkeiten, ...voranmeldungen];
+  // Im neuen Anzahlungsverfahren der GmbH stehen Rechnungen vor der Leistung als Anforderung und Erstattungen von
+  // Anzahlungen getrennt (`advanceOpenPositions`); gezahlt wird beides wie eine Forderung
+  const forderungsListe = [...receivables, ...advanceRequests, ...advanceRefunds];
+  return [...(await forderungen(k, forderungsListe, ueberfaellige)), ...verbindlichkeiten, ...voranmeldungen];
 }
