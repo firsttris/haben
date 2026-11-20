@@ -74,3 +74,28 @@ export function moveActive(active: number, count: number, key: "ArrowDown" | "Ar
   if (key === "ArrowDown") return active + 1 >= count ? 0 : active + 1;
   return active <= 0 ? count - 1 : active - 1;
 }
+
+/** Was eine Taste im Feld mit der Liste bewirkt; `prevent` verhindert die Standardaktion, `stop` das Weiterreichen */
+type ListKeyStep = { prevent: boolean; stop?: true } & ({ action: "open" | "close" } | { action: "move" | "commit"; row: number });
+
+/**
+ * Tasten nach dem WAI-ARIA-Muster der Combobox: Pfeile öffnen und bewegen, Alt+Pfeil öffnet und schließt, Enter übernimmt
+ * (schickt aber nie das Formular ab), Escape schließt, Tab übernimmt nur mit commitOnTab und nie die Zeile zum Anlegen.
+ * null heißt: Die Liste verbraucht die Taste nicht.
+ */
+export function listKey(
+  key: string,
+  altKey: boolean,
+  { open, active, rows, createIndex, commitOnTab }: { open: boolean; active: number; rows: number; createIndex: number; commitOnTab: boolean },
+): ListKeyStep | null {
+  if (key === "ArrowDown" || key === "ArrowUp") {
+    if (altKey) return { action: key === "ArrowDown" ? "open" : "close", prevent: true };
+    if (!open) return { action: "open", prevent: true };
+    return { action: "move", row: moveActive(active, rows, key), prevent: true };
+  }
+  if (!open) return null;
+  if (key === "Enter") return active >= 0 ? { action: "commit", row: active, prevent: true } : { action: "close", prevent: true };
+  if (key === "Escape") return { action: "close", prevent: true, stop: true };
+  if (key === "Tab" && commitOnTab && active >= 0 && active !== createIndex) return { action: "commit", row: active, prevent: false };
+  return null;
+}

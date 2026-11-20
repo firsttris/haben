@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
-import { defaultRow, moveActive, type SearchResult } from "../lib/combobox.ts";
+import { defaultRow, listKey, type SearchResult } from "../lib/combobox.ts";
 import { Icon } from "./Icon.tsx";
 
 export interface ComboboxOption {
@@ -15,6 +15,9 @@ export interface ComboboxCreate {
   label: string;
   run: () => void;
 }
+
+/** id einer Zeile der Liste, für aria-activedescendant */
+const optionId = (listId: string, row: number) => `${listId}-${row}`;
 
 /**
  * Eingabefeld mit Trefferliste nach dem WAI-ARIA-Muster „Editable Combobox With List Autocomplete“
@@ -88,7 +91,7 @@ export function Combobox<T>({
   // Bei freier Eingabe ohne Zeilen (noch kein Artikel im Katalog) gibt es nichts zu zeigen
   const popup = open && (rows > 0 || !freeText);
   const expanded = open && rows > 0;
-  const rowId = (row: number) => `${listId}-${row}`;
+  const rowId = (row: number) => optionId(listId, row);
 
   function close() {
     setOpen(false);
@@ -104,29 +107,15 @@ export function Combobox<T>({
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.nativeEvent.isComposing) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      if (event.altKey) {
-        if (event.key === "ArrowDown") setOpen(true);
-        else close();
-      } else if (!open) {
-        setOpen(true);
-      } else {
-        const next = moveActive(active, rows, event.key);
-        setMoved(next);
-        document.getElementById(rowId(next))?.scrollIntoView({ block: "nearest" });
-      }
-    } else if (event.key === "Enter" && open) {
-      // Enter in der Liste schickt nie das Formular ab
-      event.preventDefault();
-      if (active >= 0) commit(active);
-      else close();
-    } else if (event.key === "Escape" && open) {
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    } else if (event.key === "Tab" && open && commitOnTab && active >= 0 && active !== createIndex) {
-      commit(active);
+    const step = listKey(event.key, event.altKey, { open, active, rows, createIndex, commitOnTab });
+    if (step?.prevent) event.preventDefault();
+    if (step?.stop) event.stopPropagation();
+    if (step?.action === "open") setOpen(true);
+    else if (step?.action === "close") close();
+    else if (step?.action === "commit") commit(step.row);
+    else if (step?.action === "move") {
+      setMoved(step.row);
+      document.getElementById(rowId(step.row))?.scrollIntoView({ block: "nearest" });
     }
     if (!event.defaultPrevented) afterKey?.(event);
   }
@@ -174,51 +163,76 @@ export function Combobox<T>({
         }}
       />
       {popup && (
-        // Ein Klick in die Liste nimmt dem Feld nicht den Fokus, sonst schlösse sie vor dem Klick
-        <div className="combobox-popup" onMouseDown={(event) => event.preventDefault()}>
-          {rows > 0 ? (
-            <div id={listId} role="listbox" aria-label="Treffer">
-              {options.map((option, row) => (
-                <div
-                  key={option.key}
-                  id={rowId(row)}
-                  role="option"
-                  tabIndex={-1}
-                  aria-selected={option.selected === true}
-                  className={row === active ? "combobox-option active" : "combobox-option"}
-                  onClick={() => commit(row)}
-                >
-                  <span>{option.label}</span>
-                  {option.meta && <span className="combobox-meta">{option.meta}</span>}
-                </div>
-              ))}
-              {createRow && (
-                <div
-                  id={rowId(createIndex)}
-                  role="option"
-                  tabIndex={-1}
-                  aria-selected={false}
-                  className={active === createIndex ? "combobox-option combobox-create active" : "combobox-option combobox-create"}
-                  onClick={() => commit(createIndex)}
-                >
-                  <Icon name="plus" size={16} />
-                  <span>{createRow.label}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="combobox-note">Keine Treffer</p>
-          )}
-          {total > hits.length && (
-            <p className="combobox-note">
-              {hits.length} von {total} Treffern. Weiter tippen grenzt die Liste ein.
-            </p>
-          )}
-          <span role="status" className="visually-hidden">
-            {total === 1 ? "1 Treffer" : `${total} Treffer`}
-          </span>
-        </div>
+        <ComboboxPopup listId={listId} options={options} createRow={createRow} createIndex={createIndex} active={active} total={total} commit={commit} />
       )}
+    </div>
+  );
+}
+
+/** Die aufgeklappte Liste: Treffer, die Zeile zum Anlegen, Hinweise und die Ansage der Trefferzahl */
+function ComboboxPopup({
+  listId,
+  options,
+  createRow,
+  createIndex,
+  active,
+  total,
+  commit,
+}: {
+  listId: string;
+  /** Die gezeigten Treffer, höchstens total */
+  options: ComboboxOption[];
+  createRow: ComboboxCreate | null;
+  createIndex: number;
+  active: number;
+  total: number;
+  commit: (row: number) => void;
+}) {
+  const rowId = (row: number) => optionId(listId, row);
+  return (
+    // Ein Klick in die Liste nimmt dem Feld nicht den Fokus, sonst schlösse sie vor dem Klick
+    <div className="combobox-popup" onMouseDown={(event) => event.preventDefault()}>
+      {options.length > 0 || createRow ? (
+        <div id={listId} role="listbox" aria-label="Treffer">
+          {options.map((option, row) => (
+            <div
+              key={option.key}
+              id={rowId(row)}
+              role="option"
+              tabIndex={-1}
+              aria-selected={option.selected === true}
+              className={row === active ? "combobox-option active" : "combobox-option"}
+              onClick={() => commit(row)}
+            >
+              <span>{option.label}</span>
+              {option.meta && <span className="combobox-meta">{option.meta}</span>}
+            </div>
+          ))}
+          {createRow && (
+            <div
+              id={rowId(createIndex)}
+              role="option"
+              tabIndex={-1}
+              aria-selected={false}
+              className={active === createIndex ? "combobox-option combobox-create active" : "combobox-option combobox-create"}
+              onClick={() => commit(createIndex)}
+            >
+              <Icon name="plus" size={16} />
+              <span>{createRow.label}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="combobox-note">Keine Treffer</p>
+      )}
+      {total > options.length && (
+        <p className="combobox-note">
+          {options.length} von {total} Treffern. Weiter tippen grenzt die Liste ein.
+        </p>
+      )}
+      <span role="status" className="visually-hidden">
+        {total === 1 ? "1 Treffer" : `${total} Treffer`}
+      </span>
     </div>
   );
 }

@@ -9,13 +9,15 @@ import {
 } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Field } from "./Field.tsx";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { errorKind } from "./ErrorBanner.tsx";
-import { MAX_PEM_SIZE, MailGraphFields } from "./MailGraphFields.tsx";
+import { mailInput } from "./mail-form-lesen.ts";
+import { MailGraphFields } from "./MailGraphFields.tsx";
+import { MailSmtpFields, type SmtpServer } from "./MailSmtpFields.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeMail, saveMail, sendMailTest, type getMailSettings } from "../server/functions/mail.ts";
 
@@ -32,9 +34,7 @@ export function MailCard({ data }: { data: Data }) {
   const s = data.settings;
   const [transport, setTransport] = useState<"smtp" | "graph">(s?.transport ?? "smtp");
   const [graphAuth, setGraphAuth] = useState<"secret" | "certificate">(s?.graphAuth ?? "certificate");
-  const [host, setHost] = useState(s?.host ?? "");
-  const [port, setPort] = useState(String(s?.port ?? 465));
-  const [secure, setSecure] = useState(s?.secure ?? true);
+  const [server, setServer] = useState<SmtpServer>({ host: s?.host ?? "", port: String(s?.port ?? 465), secure: s?.secure ?? true });
   const [days, setDays] = useState<number[]>(s?.reminderDays ?? [7, 1]);
   const [templates, setTemplates] = useState<MailTemplates>(s?.templates ?? {});
   const action = useAction();
@@ -47,56 +47,18 @@ export function MailCard({ data }: { data: Data }) {
       await router.invalidate();
     });
 
-  function preset(key: string) {
-    const p = data.presets[key as keyof typeof data.presets];
-    if (!p) return;
-    setHost(p.host);
-    setPort(String(p.port));
-    setSecure(p.secure);
-  }
-
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const text = (name: string) => String(form.get(name) ?? "").trim();
-    const common = {
-      fromAddress: text("fromAddress"),
-      fromName: text("fromName"),
-      reminderTo: text("reminderTo"),
-      remindersEnabled: form.get("remindersEnabled") === "on",
-      reminderDays: days,
-      templates,
-      pruefwertMail: form.get("pruefwertMail") === "on",
-    };
+    const element = event.currentTarget;
+    const form = new FormData(element);
     void run(async () => {
+      await save({ data: await mailInput(form, { transport, graphAuth, server, days, templates }) });
       if (transport === "smtp") {
-        await save({ data: { transport, host, port: Number(port), secure, username: text("username"), password: text("password") || undefined, ...common } });
-        (event.target as HTMLFormElement).querySelector<HTMLInputElement>("input[name=password]")!.value = "";
+        element.querySelector<HTMLInputElement>("input[name=password]")!.value = "";
       } else {
-        const pem = async (name: string) => {
-          const file = form.get(name);
-          if (!(file instanceof File) || file.size === 0) return undefined;
-          if (file.size > MAX_PEM_SIZE) throw new Error("Die Datei ist zu groß für ein Zertifikat oder einen Schlüssel.");
-          return file.text();
-        };
-        await save({
-          data: {
-            transport,
-            graphTenantId: text("graphTenantId"),
-            graphClientId: text("graphClientId"),
-            graphAuth,
-            graphMailbox: text("graphMailbox"),
-            clientSecret: graphAuth === "secret" ? text("clientSecret") || undefined : undefined,
-            certificatePem: graphAuth === "certificate" ? await pem("certificate") : undefined,
-            privateKeyPem: graphAuth === "certificate" ? await pem("privateKey") : undefined,
-            ...common,
-          },
+        element.querySelectorAll<HTMLInputElement>("input[name=clientSecret], input[name=certificate], input[name=privateKey]").forEach((input) => {
+          input.value = "";
         });
-        (event.target as HTMLFormElement)
-          .querySelectorAll<HTMLInputElement>("input[name=clientSecret], input[name=certificate], input[name=privateKey]")
-          .forEach((input) => {
-            input.value = "";
-          });
       }
       return { tone: "ok", text: "E-Mail-Zugang gespeichert." };
     });
@@ -119,54 +81,7 @@ export function MailCard({ data }: { data: Data }) {
       </Field>
       {transport === "graph" && <MailGraphFields stored={s} auth={graphAuth} onAuthChange={setGraphAuth} />}
       {transport === "smtp" && (
-        <>
-          <Field label="Anbieter">
-            {(control) => (
-              <select {...control} defaultValue="" onChange={(e) => preset(e.target.value)}>
-                <option value="">Eigener Server</option>
-                {Object.entries(data.presets).map(([key, p]) => (
-                  <option key={key} value={key}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          <div className="form-row cols-server">
-            <Field label="SMTP-Server">
-              {(control) => <input {...control} name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.gmail.com" required />}
-            </Field>
-            <Field label="Port">
-              {(control) => (
-                <input {...control} name="port" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
-              )}
-            </Field>
-            <Field label="Verschlüsselung">
-              {(control) => (
-                <select {...control} value={secure ? "tls" : "starttls"} onChange={(e) => setSecure(e.target.value === "tls")}>
-                  <option value="tls">TLS (meist Port 465)</option>
-                  <option value="starttls">STARTTLS (meist Port 587)</option>
-                </select>
-              )}
-            </Field>
-          </div>
-          <div className="form-row cols-2">
-            <Field label="Benutzername">
-              {(control) => <input {...control} name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />}
-            </Field>
-            <Field label="Passwort">
-              {(control) => (
-                <input
-                  {...control}
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder={s?.transport === "smtp" ? "unverändert lassen" : undefined}
-                />
-              )}
-            </Field>
-          </div>
-        </>
+        <MailSmtpFields stored={s} presets={data.presets} server={server} set={(patch) => setServer((current) => ({ ...current, ...patch }))} />
       )}
       <div className="form-row cols-2">
         <Field label="Absender">{(control) => <input {...control} name="fromAddress" type="email" defaultValue={s?.fromAddress ?? ""} required />}</Field>
@@ -174,32 +89,7 @@ export function MailCard({ data }: { data: Data }) {
           {(control) => <input {...control} name="fromName" defaultValue={s?.fromName ?? ""} placeholder={data.companyName || "Haben"} />}
         </Field>
       </div>
-      <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 12 }}>
-        <legend className="small" style={{ fontWeight: 500, marginBottom: 8 }}>
-          Erinnern vor einer Frist
-        </legend>
-        <label className="checkbox">
-          <input type="checkbox" name="remindersEnabled" defaultChecked={s?.remindersEnabled ?? true} />
-          Erinnerungen an Fristen per E-Mail
-        </label>
-        <div className="chip-row" role="group" aria-label="Tage vorher">
-          {STUFEN.map((d) => (
-            <button
-              key={d}
-              type="button"
-              className={`chip${days.includes(d) ? " active" : ""}`}
-              aria-pressed={days.includes(d)}
-              onClick={() => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d]))}
-            >
-              {d === 0 ? "am Tag" : `${d} Tag${d === 1 ? "" : "e"} vorher`}
-            </button>
-          ))}
-        </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          Morgens nach 7 Uhr, mehrere Fristen in einer Mail; Überfälliges einmal. Erledigte Fristen werden nicht erinnert.
-        </p>
-        <Field label="Erinnerungen an">{(control) => <input {...control} name="reminderTo" type="email" defaultValue={s?.reminderTo ?? ""} required />}</Field>
-      </fieldset>
+      <ReminderFields stored={s} days={days} setDays={setDays} />
       <div className="checkbox-hinted">
         <label className="checkbox">
           <input type="checkbox" name="pruefwertMail" defaultChecked={s?.pruefwertMail ?? true} aria-describedby="pruefwert-mail-hint" />
@@ -254,23 +144,62 @@ export function MailCard({ data }: { data: Data }) {
         </button>
       </div>
       <NoticeBanner notice={notice} />
-      {data.last.length > 0 && (
-        <ul className="small muted" style={{ margin: 0, paddingLeft: 20 }}>
-          {data.last.map((m, i) => (
-            <li key={i}>
-              {formatDateTime(m.createdAt)}: {m.subject}{" "}
-              {m.ok ? (
-                ""
-              ) : (
-                <span style={{ color: "var(--danger-ink)" }} title={m.error ?? ""}>
-                  · nicht gesendet ({errorKind(m.error ?? "")})
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      {data.last.length > 0 && <SentMails last={data.last} />}
     </form>
+  );
+}
+
+/** Tage vor einer Frist, an denen Haben erinnert, und an welche Adresse */
+function ReminderFields({ stored, days, setDays }: { stored: Data["settings"]; days: number[]; setDays: Dispatch<SetStateAction<number[]>> }) {
+  return (
+    <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 12 }}>
+      <legend className="small" style={{ fontWeight: 500, marginBottom: 8 }}>
+        Erinnern vor einer Frist
+      </legend>
+      <label className="checkbox">
+        <input type="checkbox" name="remindersEnabled" defaultChecked={stored?.remindersEnabled ?? true} />
+        Erinnerungen an Fristen per E-Mail
+      </label>
+      <div className="chip-row" role="group" aria-label="Tage vorher">
+        {STUFEN.map((d) => (
+          <button
+            key={d}
+            type="button"
+            className={`chip${days.includes(d) ? " active" : ""}`}
+            aria-pressed={days.includes(d)}
+            onClick={() => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d]))}
+          >
+            {d === 0 ? "am Tag" : `${d} Tag${d === 1 ? "" : "e"} vorher`}
+          </button>
+        ))}
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>
+        Morgens nach 7 Uhr, mehrere Fristen in einer Mail; Überfälliges einmal. Erledigte Fristen werden nicht erinnert.
+      </p>
+      <Field label="Erinnerungen an">
+        {(control) => <input {...control} name="reminderTo" type="email" defaultValue={stored?.reminderTo ?? ""} required />}
+      </Field>
+    </fieldset>
+  );
+}
+
+/** Die zuletzt gesendeten Mails, nicht gesendete mit der Art des Fehlers */
+function SentMails({ last }: { last: Data["last"] }) {
+  return (
+    <ul className="small muted" style={{ margin: 0, paddingLeft: 20 }}>
+      {last.map((m, i) => (
+        <li key={i}>
+          {formatDateTime(m.createdAt)}: {m.subject}{" "}
+          {m.ok ? (
+            ""
+          ) : (
+            <span style={{ color: "var(--danger-ink)" }} title={m.error ?? ""}>
+              · nicht gesendet ({errorKind(m.error ?? "")})
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
