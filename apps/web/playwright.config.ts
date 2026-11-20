@@ -14,6 +14,7 @@ import {
   PAYPAL_PORT,
   portFuer,
   SEVDESK_PORT,
+  STRIPE_PORT,
 } from "./e2e/durchlaeufe.ts";
 
 /**
@@ -87,6 +88,9 @@ function webServer(durchlauf?: Durchlauf) {
       // PayPal (#1512) nur im Durchlauf „paypal-abruf“ gegen die nachgebaute API; sonst die echten Hosts, die ohne
       // gespeicherten Zugang nie gefragt werden
       ...(durchlauf === "paypal-abruf" ? { PAYPAL_API_URL: `http://127.0.0.1:${PAYPAL_PORT}` } : {}),
+      // Stripe (#1280) nur im Durchlauf „stripe-abruf“ gegen die nachgebaute API; sonst die echte, die ohne gespeicherten
+      // Schlüssel nie gefragt wird
+      ...(durchlauf === "stripe-abruf" ? { STRIPE_API_URL: `http://127.0.0.1:${STRIPE_PORT}` } : {}),
       // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
       HABEN_FIRMEN: durchlauf === "firmen" ? habenFirmen(serverURL) : "",
     },

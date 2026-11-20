@@ -47,10 +47,12 @@ const QUELLEN = {
   bank: { wer: "Die Bank", von: "von der Bank", angaben: "der Bank", abruf: "aus dem Abruf dieses Kontos" },
   etsy: { wer: "Etsy", von: "von Etsy", angaben: "von Etsy", abruf: "aus dem Etsy-Abruf" },
   paypal: { wer: "PayPal", von: "von PayPal", angaben: "von PayPal", abruf: "aus dem PayPal-Abruf" },
+  stripe: { wer: "Stripe", von: "von Stripe", angaben: "von Stripe", abruf: "aus dem Stripe-Abruf" },
 } as const;
 
-/** Wer geliefert hat; andere Anbieter als Etsy und PayPal sind Bankabrufe */
-const quelleVon = (provider: string) => (provider === "etsy" ? QUELLEN.etsy : provider === "paypal" ? QUELLEN.paypal : QUELLEN.bank);
+/** Wer geliefert hat; andere Anbieter als Etsy, PayPal und Stripe sind Bankabrufe */
+const quelleVon = (provider: string) =>
+  provider === "etsy" ? QUELLEN.etsy : provider === "paypal" ? QUELLEN.paypal : provider === "stripe" ? QUELLEN.stripe : QUELLEN.bank;
 
 const ENTSCHEIDUNGEN = [
   {

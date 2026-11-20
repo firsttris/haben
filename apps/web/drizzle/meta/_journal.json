@@ -2150,6 +2150,20 @@
       "when": 1795126616239,
       "tag": "0306_paypal_zugang_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 307,
+      "version": "7",
+      "when": 1795128803610,
+      "tag": "0307_stripe_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 308,
+      "version": "7",
+      "when": 1795128807249,
+      "tag": "0308_stripe_zugang_trigger",
+      "breakpoints": true
     }
   ]
 }

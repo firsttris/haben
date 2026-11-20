@@ -1,0 +1,282 @@
+import { z } from "zod";
+import { networkErrorText } from "@haben/core";
+import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
+
+export const STRIPE_DEFAULT_BASE_URL = "https://api.stripe.com";
+
+/** Fehler beim Zugriff auf die Stripe-API */
+export class StripeApiError extends Error {
+  /** HTTP-Status; 0 bei Netzwerkfehlern */
+  readonly status: number;
+  readonly path: string;
+  constructor(message: string, status: number, path: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "StripeApiError";
+    this.status = status;
+    this.path = path;
+  }
+}
+
+export interface StripeClientOptions {
+  /** Eingeschränkter API-Schlüssel (`rk_…`) mit Lesezugriff auf Balance und Konto; ein geheimer Schlüssel (`sk_…`) geht auch */
+  apiKey: string;
+  baseUrl?: string;
+  fetch?: typeof fetch;
+  now?: () => number;
+  /** Für Tests injizierbar; Standard setTimeout */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/** Angaben des Kunden am Charge (`ch_…`, bei SEPA und Wallets `py_…`), nicht an der Balance Transaction */
+const chargeDetailsShape = {
+  billing_details: z.looseObject({ name: z.string().nullish(), email: z.string().nullish() }).nullish(),
+  receipt_email: z.string().nullish(),
+  description: z.string().nullish(),
+  /** Stripe-Rechnung, zu der die Zahlung gehört: ID, aufgeklappt das Objekt */
+  invoice: z.union([z.string(), z.looseObject({ id: z.string(), number: z.string().nullish() })]).nullish(),
+};
+
+const balanceTransactionSchema = z.looseObject({
+  id: z.string(),
+  /** Bruttobetrag in der kleinsten Einheit, mit Vorzeichen */
+  amount: z.number().int(),
+  /** Unix-Sekunden */
+  created: z.number().int(),
+  /** Kleingeschrieben, etwa „eur“ */
+  currency: z.string(),
+  description: z.string().nullish(),
+  /** Einbehaltene Gebühr, positiv */
+  fee: z.number().int(),
+  net: z.number().int(),
+  reporting_category: z.string().nullish(),
+  /**
+   * Zugehöriges Objekt (`ch_`, `re_`, `po_` …). Der Abruf klappt `source.charge` auf (`expand`); dann ist es das
+   * Objekt, bei Erstattung und Streit mit der Zahlung, auf die es sich bezieht.
+   */
+  source: z
+    .union([
+      z.string(),
+      z.looseObject({
+        id: z.string(),
+        ...chargeDetailsShape,
+        charge: z
+          .union([
+            z.string(),
+            z.looseObject({
+              ...chargeDetailsShape,
+              balance_transaction: z.union([z.string(), z.looseObject({ id: z.string() })]).nullish(),
+            }),
+          ])
+          .nullish(),
+      }),
+    ])
+    .nullish(),
+  status: z.string().nullish(),
+  type: z.string(),
+});
+
+/**
+ * Balance Transaction mit `source` als ID und, bei Erstattung und Streit, der Balance Transaction der ursprünglichen
+ * Zahlung (`relatedTransactionId`), sofern Stripe sie nennt.
+ */
+export interface StripeBalanceTransaction {
+  id: string;
+  /** Bruttobetrag in der kleinsten Einheit, mit Vorzeichen */
+  amount: number;
+  /** Unix-Sekunden */
+  created: number;
+  /** Kleingeschrieben, etwa „eur“ */
+  currency: string;
+  description?: string | null;
+  /** Einbehaltene Gebühr, positiv */
+  fee: number;
+  net: number;
+  reporting_category?: string | null;
+  source?: string | null;
+  status?: string | null;
+  type: string;
+  relatedTransactionId?: string;
+  /** Aus dem Charge (bei Erstattung und Streit aus dem der ursprünglichen Zahlung): Name des Kunden, sonst seine E-Mail-Adresse */
+  customerName?: string;
+  /** Beschreibung des Charge, falls die Balance Transaction keine hat */
+  chargeDescription?: string;
+  /** Nummer der Stripe-Rechnung, aufgeklappt, sonst ihre ID (`in_…`) */
+  invoice?: string;
+}
+
+type ChargeDetails = {
+  billing_details?: { name?: string | null; email?: string | null } | null;
+  receipt_email?: string | null;
+  description?: string | null;
+  invoice?: string | { id: string; number?: string | null } | null;
+};
+
+/** Kundenangaben aus einem aufgeklappten Charge; was fehlt, bleibt weg */
+function chargeInfo(charge: ChargeDetails | null | undefined) {
+  if (!charge) return {};
+  const name = charge.billing_details?.name?.trim() || charge.billing_details?.email?.trim() || charge.receipt_email?.trim();
+  const description = charge.description?.trim();
+  const invoice = typeof charge.invoice === "object" && charge.invoice ? charge.invoice.number?.trim() || charge.invoice.id : charge.invoice || undefined;
+  return {
+    ...(name ? { customerName: name } : {}),
+    ...(description ? { chargeDescription: description } : {}),
+    ...(invoice ? { invoice } : {}),
+  };
+}
+
+function normalize(raw: z.infer<typeof balanceTransactionSchema>): StripeBalanceTransaction {
+  const { source, ...rest } = raw;
+  if (!source || typeof source === "string") return { ...rest, source: source ?? null };
+  const charge = typeof source.charge === "object" && source.charge ? source.charge : null;
+  const bt = charge?.balance_transaction;
+  const related = typeof bt === "string" ? bt : bt?.id;
+  // Zahlung: der Charge ist die Quelle selbst; Erstattung und Streit verweisen mit `charge` auf die Zahlung
+  return { ...rest, source: source.id, ...chargeInfo(charge ?? source), ...(related ? { relatedTransactionId: related } : {}) };
+}
+
+const listSchema = z.looseObject({ data: z.array(balanceTransactionSchema), has_more: z.boolean() });
+const accountSchema = z.looseObject({ id: z.string() });
+
+/** Schutz gegen eine Endlosschleife; bei 100 je Seite sind das eine Million Bewegungen */
+const MAX_PAGES = 10_000;
+const PAGE_SIZE = 100;
+/** Wiederholungen lesender Abrufe bei 429/502/503/504 und Netzwerkfehlern */
+const MAX_RETRIES = 3;
+
+const startOfDay = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000);
+
+/** Lesender Client für die Balance Transactions von Stripe (https://docs.stripe.com/api/balance_transactions/list). */
+export class StripeClient {
+  readonly #apiKey: string;
+  readonly #baseUrl: string;
+  readonly #fetch: typeof fetch;
+  readonly #now: () => number;
+  readonly #sleep: (ms: number) => Promise<void>;
+  #ohneDetails = false;
+
+  constructor(options: StripeClientOptions) {
+    if (!options.apiKey.trim()) throw new Error("Stripe-API-Schlüssel fehlt");
+    this.#apiKey = options.apiKey.trim();
+    this.#baseUrl = (options.baseUrl ?? STRIPE_DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.#now = options.now ?? Date.now;
+    this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  }
+
+  /** ID des Kontos (`acct_…`), das zum Schlüssel gehört: die Kontokennung der Quellenbindung */
+  async accountId(): Promise<string> {
+    return (await this.#json("/v1/account", accountSchema)).id;
+  }
+
+  /**
+   * Der letzte Abruf kam ohne Zahlungsdetails (Name des Kunden, Bezug von Erstattung und Streit), weil der Schlüssel das
+   * Aufklappen von `source` nicht erlaubt (403). Die Umsätze selbst sind vollständig; nur diese Angaben fehlen.
+   */
+  get ohneZahlungsdetails(): boolean {
+    return this.#ohneDetails;
+  }
+
+  /**
+   * Alle Balance Transactions, deren `created` in den Tagen von `dateFrom` bis `dateTo` (UTC, einschließlich) liegt, über
+   * alle Seiten. Erlaubt ein eingeschränkter Schlüssel das Aufklappen von `source` nicht (403), holt der Client sie ohne.
+   */
+  async balanceTransactions(dateFrom: string, dateTo: string): Promise<StripeBalanceTransaction[]> {
+    this.#ohneDetails = false;
+    try {
+      return await this.#alle(dateFrom, dateTo, true);
+    } catch (error) {
+      if (!(error instanceof StripeApiError) || error.status !== 403) throw error;
+      // Ohne Rechte am Guthaben scheitert auch dieser Anlauf mit 403 und die Meldung von Stripe erreicht den Aufrufer
+      const result = await this.#alle(dateFrom, dateTo, false);
+      this.#ohneDetails = true;
+      return result;
+    }
+  }
+
+  async #alle(dateFrom: string, dateTo: string, details: boolean): Promise<StripeBalanceTransaction[]> {
+    const all: StripeBalanceTransaction[] = [];
+    const seen = new Set<string>();
+    let startingAfter: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const query = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        "created[gte]": String(startOfDay(dateFrom)),
+        // Erste Sekunde nach dem letzten Tag, ausgeschlossen
+        "created[lt]": String(startOfDay(dateTo) + 86_400),
+      });
+      // `source` klappt bei einer Zahlung den Charge mit Name, E-Mail und Beschreibung des Kunden auf, `source.charge`
+      // bei Erstattung und Streit die Zahlung, auf die sie sich beziehen. Andere Arten haben keinen Charge.
+      if (details) {
+        query.append("expand[]", "data.source");
+        query.append("expand[]", "data.source.charge");
+      }
+      if (startingAfter) query.set("starting_after", startingAfter);
+      const result = await this.#json(`/v1/balance_transactions?${query}`, listSchema);
+      // Eine Bewegung, die auf zwei Seiten steht, zählt einmal; der Importvertrag lehnte sonst die ganze Lieferung ab
+      for (const raw of result.data) {
+        if (seen.has(raw.id)) continue;
+        seen.add(raw.id);
+        all.push(normalize(raw));
+      }
+      const last = result.data.at(-1);
+      if (!result.has_more || !last) return all;
+      startingAfter = last.id;
+    }
+    throw new StripeApiError("Zu viele Seiten beim Abruf der Balance Transactions", 0, "/v1/balance_transactions");
+  }
+
+  async #json<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+    const response = await this.#request(path);
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch (cause) {
+      throw new StripeApiError("Antwort ist kein JSON", response.status, path, { cause });
+    }
+    const parsed = schema.safeParse(json);
+    if (!parsed.success) {
+      throw new StripeApiError(`Unerwartete Antwort von Stripe: ${parsed.error.issues[0]?.message ?? ""}`, response.status, path);
+    }
+    return parsed.data;
+  }
+
+  async #request(path: string): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      let response: Response;
+      try {
+        response = await this.#fetch(`${this.#baseUrl}${path}`, {
+          method: "GET",
+          headers: { authorization: `Bearer ${this.#apiKey}`, accept: "application/json" },
+        });
+      } catch (cause) {
+        if (attempt < MAX_RETRIES) {
+          await this.#sleep(backoff(attempt));
+          continue;
+        }
+        throw new StripeApiError(`Stripe nicht erreichbar: ${networkErrorText(cause)}`, 0, path, { cause });
+      }
+      if (response.ok) return response;
+      const text = await response.text().catch(() => "");
+      if (RETRY_STATUSES.has(response.status) && attempt < MAX_RETRIES) {
+        await this.#sleep(parseRetryAfter(response.headers.get("retry-after"), this.#now()) ?? backoff(attempt));
+        continue;
+      }
+      // Stripe maskiert den Schlüssel in seinen Meldungen; ein Rumpf, der kein JSON ist, tut es nicht
+      throw new StripeApiError(errorText(response.status, text, this.#apiKey), response.status, path);
+    }
+  }
+}
+
+/** Fehlermeldung aus der Antwort: Stripe liefert {error: {message, type, code}} */
+function errorText(status: number, body: string, apiKey: string): string {
+  // Den Schlüssel vor dem Kürzen entfernen, sonst bliebe ein Stück an der Schnittstelle stehen
+  let detail = body.replaceAll(apiKey, "…").slice(0, 300);
+  try {
+    const message = (JSON.parse(body) as { error?: { message?: unknown } }).error?.message;
+    if (typeof message === "string" && message) detail = message.replaceAll(apiKey, "…");
+  } catch {
+    // kein JSON
+  }
+  const prefix = status === 401 || status === 403 ? "Zugriff abgelehnt" : status === 429 ? "Zu viele Abrufe" : `HTTP ${status}`;
+  return detail ? `${prefix}: ${detail}` : prefix;
+}

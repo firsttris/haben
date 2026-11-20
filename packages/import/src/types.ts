@@ -24,6 +24,8 @@ export type StatementFormat =
   /** Abruf der Transaction Search über die PayPal-API (#1512) */
   | "paypal-api"
   | "stripe-csv"
+  /** Abruf der Balance Transactions über die Stripe-API (#1280) */
+  | "stripe-api"
   | "shopify-payments-csv"
   | "ebay-csv"
   | "etsy-csv"
@@ -38,6 +40,7 @@ export const PSP_FORMATS: StatementFormat[] = [
   "paypal-csv",
   "paypal-api",
   "stripe-csv",
+  "stripe-api",
   "shopify-payments-csv",
   "ebay-csv",
   "etsy-csv",

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "txn_Beispiel001",
+    "amount": -4800,
+    "created": 1547034221,
+    "currency": "eur",
+    "description": "Chargeback withdrawal for ch_Beispiel004",
+    "fee": 1500,
+    "net": -6300,
+    "reporting_category": "dispute",
+    "source": "dp_Beispiel002",
+    "status": "available",
+    "type": "adjustment",
+    "relatedTransactionId": "txn_Beispiel003"
+  },
+  {
+    "id": "txn_Beispiel003",
+    "amount": 4800,
+    "created": 1547034221,
+    "currency": "eur",
+    "description": "Rechnung 2026-046",
+    "fee": 164,
+    "net": 4636,
+    "reporting_category": "charge",
+    "source": "ch_Beispiel004",
+    "status": "available",
+    "type": "charge"
+  },
+  {
+    "id": "txn_Beispiel005",
+    "amount": -7582,
+    "created": 1547168697,
+    "currency": "eur",
+    "description": "STRIPE PAYOUT",
+    "fee": 0,
+    "net": -7582,
+    "reporting_category": "payout",
+    "source": "po_Beispiel006",
+    "status": "available",
+    "type": "payout"
+  },
+  {
+    "id": "txn_Beispiel007",
+    "amount": 11900,
+    "created": 1793380480,
+    "currency": "eur",
+    "description": null,
+    "fee": 400,
+    "net": 11500,
+    "reporting_category": "charge",
+    "source": "ch_Beispiel008",
+    "status": "available",
+    "type": "charge"
+  },
+  {
+    "id": "txn_Beispiel009",
+    "amount": -500,
+    "created": 1793380482,
+    "currency": "eur",
+    "description": "REFUND FOR CHARGE",
+    "fee": 0,
+    "net": -500,
+    "reporting_category": "refund",
+    "source": "re_Beispiel010",
+    "status": "available",
+    "type": "refund",
+    "relatedTransactionId": "txn_Beispiel007"
+  },
+  {
+    "id": "txn_Beispiel011",
+    "amount": 11900,
+    "created": 1793388121,
+    "currency": "eur",
+    "description": null,
+    "fee": 35,
+    "net": 11865,
+    "reporting_category": "charge",
+    "source": "py_Beispiel012",
+    "status": "available",
+    "type": "payment"
+  }
+]
