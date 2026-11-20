@@ -20,6 +20,8 @@ function bekannteBank(config: FinTSConfig): boolean {
 
 function unbekanntesMedium(client: FinTSClient, response: ClientResponse): boolean {
   const config = client.config;
+  // Eine aktuelle 3920 darf eine ältere Erlaubnis aus gespeicherten BPD einschränken.
+  const aktuellErlaubt = response.bankAnswers.find((a) => a.code === 3920);
   return (
     !response.success &&
     !response.requiresTan &&
@@ -28,6 +30,7 @@ function unbekanntesMedium(client: FinTSClient, response: ClientResponse): boole
     bekannteBank(config) &&
     !config.tanMediaName &&
     (!config.tanMethodId || config.tanMethodId === PUSH) &&
+    (!aktuellErlaubt || !!aktuellErlaubt.params?.includes(String(PUSH))) &&
     response.bankAnswers.some((a) => a.code === 9955) &&
     !response.bankAnswers.some((a) => ZUGANG_GESPERRT.has(a.code) || (a.code >= 9000 && !ZULAESSIGE_FEHLER.has(a.code)))
   );
