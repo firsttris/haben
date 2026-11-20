@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { istFertigeVersion, kommentar, schliessendeStichwoerter, schritte, verweise, vorigeFertigeVersion, zielStatus, zuSchliessen } from "./regel.ts";
+import {
+  istFertigeVersion,
+  kommentar,
+  prNummer,
+  schliessendeStichwoerter,
+  schritte,
+  verweise,
+  vorigeFertigeVersion,
+  zielStatus,
+  zuSchliessen,
+} from "./regel.ts";
 
 describe("verweise", () => {
   it("trennt Refs und Umgesetzt", () => {
@@ -135,6 +145,28 @@ describe("Release", () => {
         [587, [640]],
       ]),
     );
+  });
+
+  it("zählt ein nach dem Merge gesetztes Umgesetzt aus der heutigen Beschreibung", () => {
+    // wie #1419: der Commit von #1441 sagt Refs, die Beschreibung wurde danach auf Umgesetzt geändert
+    const commits = ["Belege: Mails nach dem Abruf verschieben oder löschen (#1419) (#1441)\n\nRefs #1419", "Belege: Teil (#1450)\n\nRefs #113"];
+    const beschreibungen = new Map([
+      [1441, "Umgesetzt #1419"],
+      [1450, "Refs #113"],
+    ]);
+    expect(zuSchliessen(commits, beschreibungen)).toEqual(new Map([[1419, [1441]]]));
+    expect(zuSchliessen(commits)).toEqual(new Map());
+  });
+
+  it("schließt kein Issue, das erst nach dem Merge in die Beschreibung kam", () => {
+    const commits = ["Bank: Teil 1 (#1500)\n\nRefs #1417"];
+    const beschreibungen = new Map([[1500, "Umgesetzt #1417, #999"]]);
+    expect(zuSchliessen(commits, beschreibungen)).toEqual(new Map([[1417, [1500]]]));
+  });
+
+  it("liest die Nummer des Pull Requests aus der ersten Zeile", () => {
+    expect(prNummer("Belege: Mails (#1419) (#1441)\n\nRefs #1419")).toBe(1441);
+    expect(prNummer("Release v0.7.0")).toBeNull();
   });
 
   it("schreibt den Kommentar mit Version, Pull Requests und Weg zum neuen Issue", () => {

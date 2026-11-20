@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { issueLesen, kommentieren, schliessen } from "./github.ts";
-import { istFertigeVersion, kommentar, vorigeFertigeVersion, zuSchliessen } from "./regel.ts";
+import { istFertigeVersion, kommentar, prNummer, verweise, vorigeFertigeVersion, zuSchliessen } from "./regel.ts";
 
 /*
  * Schließt beim Release einer fertigen Version alle Issues, die seit der vorigen fertigen Version mit
- * `Umgesetzt #…` gemergt wurden, mit einem Kommentar (.github/workflows/release.yml). Ein Release Candidate
+ * `Umgesetzt #…` gemergt wurden, mit einem Kommentar (.github/workflows/release.yml). Zählt auch ein `Refs`,
+ * das erst nach dem Merge in der Beschreibung zu `Umgesetzt` wurde. Ein Release Candidate
  * schließt nichts. Das Board schiebt geschlossene Karten selbst nach „Erledigt“.
  *
  *   bun scripts/board/release.ts v0.7.0            schließt (GITHUB_TOKEN mit issues: write)
@@ -31,7 +32,19 @@ if (!vorher) {
 const commits = git("log", "--format=%B%x00", `${vorher}..${tag}`)
   .split("\0")
   .map((nachricht) => nachricht.trim());
-const liste = zuSchliessen(commits.filter(Boolean));
+// Heutige Beschreibung der Pull Requests, deren Commit nur `Refs` hat: ein nach dem Merge gesetztes `Umgesetzt`
+// steht nicht im Commit (zuSchliessen). Scheitert das Lesen, zählt wie bisher nur der Commit.
+const beschreibungen = new Map<number, string>();
+for (const nachricht of commits) {
+  const pr = prNummer(nachricht);
+  if (pr === null || verweise(nachricht).refs.length === 0) continue;
+  try {
+    beschreibungen.set(pr, (await issueLesen(token, repo, pr)).body ?? "");
+  } catch (fehler) {
+    console.log(`#${pr}: Beschreibung nicht lesbar, es zählt nur der Commit (${fehler instanceof Error ? fehler.message : fehler})`);
+  }
+}
+const liste = zuSchliessen(commits.filter(Boolean), beschreibungen);
 console.log(`Issues schließen: ${liste.size} umgesetzt zwischen ${vorher} und ${tag}`);
 
 for (const [issue, prs] of liste) {

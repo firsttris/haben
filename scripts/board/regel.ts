@@ -100,17 +100,29 @@ export function vorigeFertigeVersion(tags: string[], tag: string): string | null
   return vorher.at(-1) ?? null;
 }
 
+/** Nummer des Pull Requests aus der ersten Zeile eines Squash-Commits („… (#1441)“), sonst null */
+export function prNummer(nachricht: string): number | null {
+  const pr = /\(#(\d+)\)\s*$/.exec(nachricht.split("\n")[0])?.[1];
+  return pr ? Number(pr) : null;
+}
+
 /**
  * Issues, die ein Release schließt, mit den Pull Requests, die sie umgesetzt haben. Die Nachricht eines
  * Squash-Commits auf main ist die PR-Beschreibung, ihre erste Zeile endet mit „(#PR)“.
+ *
+ * `beschreibungen` sind die heutigen Beschreibungen dieser Pull Requests. Wer `Refs #…` erst nach dem Merge zu
+ * `Umgesetzt #…` macht, ändert den Commit nicht mehr; mit der heutigen Beschreibung zählt es trotzdem. Nur ein
+ * Issue, das der Commit schon mit `Refs` nennt, kann so umgesetzt werden: Ein später ergänztes Issue schließt nichts.
  */
-export function zuSchliessen(commits: string[]): Map<number, number[]> {
+export function zuSchliessen(commits: string[], beschreibungen: ReadonlyMap<number, string> = new Map()): Map<number, number[]> {
   const ergebnis = new Map<number, number[]>();
   for (const nachricht of commits) {
-    const pr = /\(#(\d+)\)\s*$/.exec(nachricht.split("\n")[0])?.[1];
-    for (const issue of verweise(nachricht).umgesetzt) {
+    const pr = prNummer(nachricht);
+    const imCommit = verweise(nachricht);
+    const heute = pr === null ? [] : verweise(beschreibungen.get(pr) ?? "").umgesetzt.filter((issue) => imCommit.refs.includes(issue));
+    for (const issue of new Set([...imCommit.umgesetzt, ...heute])) {
       const prs = ergebnis.get(issue) ?? [];
-      if (pr && !prs.includes(Number(pr))) prs.push(Number(pr));
+      if (pr !== null && !prs.includes(pr)) prs.push(pr);
       ergebnis.set(issue, prs);
     }
   }
