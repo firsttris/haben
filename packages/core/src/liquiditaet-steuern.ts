@@ -140,7 +140,7 @@ export function umsatzsteuerPosten(zeitraeume: readonly (UstZeitraum & { gebucht
 
 /**
  * Sondervorauszahlung bei Dauerfristverlängerung und monatlicher Abgabe: anzumelden und zu zahlen bis zum 10. Februar
- * (§ 48 Abs. 1 UStDV). Der für das Jahr angemeldete Betrag ist fest; fehlt er noch, schätzt Haben den des letzten Jahres
+ * (§ 48 Abs. 2 UStDV). Der für das Jahr angemeldete Betrag ist fest; fehlt er noch, schätzt Haben den des letzten Jahres
  * davor. Angerechnet wird sie in der letzten Voranmeldung des Jahres (Kz 39), deren Fälligkeit nach dem längsten
  * Horizont liegt; für ein Jahr mit angemeldetem Betrag steckt der Abzug schon in `gebucht`.
  */
