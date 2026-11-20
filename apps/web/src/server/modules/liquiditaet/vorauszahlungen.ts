@@ -63,8 +63,9 @@ async function viertelDerPrognose(heute: string): Promise<Cents> {
 
 export async function vorauszahlungPosten(k: Kontext): Promise<LiquiditaetsPosten[]> {
   const kapg = isKapitalgesellschaft(k.rechtsform);
-  // Keine Einkommensteuer-Vorauszahlungen festgesetzt (#1240): auch keine für Soli und Kirchensteuer
-  const ohneEst = kapg || k.taxpayer.keineVorauszahlungen === true;
+  // Keine Einkommensteuer-Vorauszahlungen festgesetzt (#1240): auch keine für Soli und Kirchensteuer. Die GmbH hat keine
+  // Einkommensteuer (steuerartenFor), zahlt den Soli aber auf die Körperschaftsteuer
+  const ohneEst = !kapg && k.taxpayer.keineVorauszahlungen === true;
   const arten = steuerartenFor(k.rechtsform).filter(
     (art): art is VorauszahlungsArt => (VORAUSZAHLUNGS_ARTEN as readonly string[]).includes(art) && !(ohneEst && ["est", "soli", "kist"].includes(art)),
   );
@@ -84,7 +85,7 @@ export async function vorauszahlungPosten(k: Kontext): Promise<LiquiditaetsPoste
   );
   // Ohne jede Zahlung zur Einkommensteuer: ein Viertel der Prognose; sie rechnet Soli und Kirchensteuer mit
   const estGezahlt = zahlungen.some((z) => ["est", "soli", "kist"].includes(z.art));
-  if (!ohneEst && !estGezahlt && k.taxpayer.a) {
+  if (!kapg && !ohneEst && !estGezahlt && k.taxpayer.a) {
     posten.push(
       ...vorauszahlungsPosten({
         ...gemeinsam,
