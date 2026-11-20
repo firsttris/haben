@@ -125,6 +125,21 @@ describe.skipIf(!testDatabaseUrl)("Belege mit gleicher Rechnungsnummer desselben
     expect(await ids(await beleg({ nummer: "D-1" }))).toEqual([]);
   }, 30_000);
 
+  it("zeigt am stornierten Beleg keinen Hinweis auf die Neuerfassung: Er steht nicht mehr doppelt in den Büchern", async () => {
+    const storniert = await beleg({ nummer: "G-1", buchen: true });
+    await cancellation.cancelDocument(actor, storniert.id, { reason: "Falscher Betrag" }, "2026-09-20");
+    const neu = await beleg({ nummer: "G-1" });
+    expect(await ids(storniert)).toEqual([]);
+    expect(await ids(neu)).toEqual([]);
+  }, 30_000);
+
+  it("erkennt die USt-IdNr. auch so, wie sie im Formular getippt ist (klein, mit Leerzeichen), noch vor dem Speichern", async () => {
+    const alt = await beleg({ lieferant: "Muster GmbH", ustId: "DE123456789", nummer: "H-1" });
+    // Eingaben im Formular vor dem Speichern: updateDocument speichert die USt-IdNr. erst ohne Leerzeichen und groß
+    const eingabe = { ...(await pruefling(alt.id)), id: crypto.randomUUID(), supplierName: "Muster Bürobedarf", supplierUstId: "de 123 456 789" };
+    expect(await ids(eingabe)).toEqual([alt.id]);
+  }, 30_000);
+
   it("nennt keine Gutschrift zur Rechnung mit derselben Nummer, wohl aber eine zweite Gutschrift", async () => {
     await beleg({ nummer: "F-1", buchen: true });
     const gutschrift = await beleg({ nummer: "F-1", netto: -2_000 });
