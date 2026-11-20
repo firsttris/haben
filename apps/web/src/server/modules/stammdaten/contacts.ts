@@ -175,6 +175,9 @@ export interface UstIdMatch {
   archived: boolean;
 }
 
+/** Gespeichert ist die Nummer, wie sie eingegeben wurde; verglichen wird wie normalizeUstId (ohne Punkte und Bindestriche, GR als EL) */
+const ustIdWieNormalisiert = sql`regexp_replace(regexp_replace(upper(${schema.contacts.ustId}), '[[:space:]./-]', '', 'g'), '^GR', 'EL')`;
+
 /**
  * Kontakte aller Rollen mit derselben USt-IdNr., auch archivierte; excludeId nimmt den Kontakt aus, den das Formular
  * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen. Aus mehr als fünf
@@ -198,13 +201,7 @@ export async function findContactsByUstId(
       archivedAt: schema.contacts.archivedAt,
     })
     .from(schema.contacts)
-    // Gespeichert ist die Nummer, wie sie eingegeben wurde; verglichen wird wie normalizeUstId (ohne Punkte und Bindestriche, GR als EL)
-    .where(
-      and(
-        sql`regexp_replace(regexp_replace(upper(${schema.contacts.ustId}), '[[:space:]./-]', '', 'g'), '^GR', 'EL') = ${nummer}`,
-        excludeId ? ne(schema.contacts.id, excludeId) : undefined,
-      ),
-    )
+    .where(and(sql`${ustIdWieNormalisiert} = ${nummer}`, excludeId ? ne(schema.contacts.id, excludeId) : undefined))
     // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken; dann die mit den
     // gewünschten Rollen, damit sie nicht hinter fünf anderen aus der Liste fallen
     .orderBy(
