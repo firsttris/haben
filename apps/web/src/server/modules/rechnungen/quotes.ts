@@ -57,6 +57,7 @@ import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema, referencesFromQuote } from "./order-references.ts";
 import { defaultSkonto } from "./skonto.ts";
 import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
+import { angebotMitPlatzhaltern } from "./beleg-platzhalter.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
@@ -492,7 +493,8 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     }
     const counter = await peekNumber(tx, "angebot", circle, numberContactId);
     const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, quote.issueDate, counter, buyer.kundennummer);
-    const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
+    // Platzhalter in Einleitung und Hinweis (#1334) auflösen; so stehen sie auch im Angebot
+    const doc = angebotMitPlatzhaltern(quoteDocumentFor(quote, lines, seller, buyer, number));
     const pdf = await withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuotePdf({ ...doc, ...letterhead }));
     const now = new Date();
     await takeNumber(tx, "angebot", circle, counter, numberContactId);
@@ -512,6 +514,8 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
         net: doc.totals.net,
         tax: doc.totals.tax,
         gross: doc.totals.gross,
+        intro: doc.intro ?? "",
+        note: doc.note ?? "",
         pdf: Buffer.from(pdf),
         pdfSha256: sha256(pdf),
         lockedAt: now,

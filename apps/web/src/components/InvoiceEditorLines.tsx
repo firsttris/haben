@@ -10,6 +10,7 @@ import { LineKind } from "./LineKind.tsx";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { TextBlockField } from "./TextBlockField.tsx";
 import type { InvoiceEditorModel } from "./use-invoice-editor.ts";
+import { BELEG_PLATZHALTER } from "@haben/core";
 
 // Karte „Positionen“: Einleitung, je Zeile eine Position, Gesamtrabatt und Hinweis
 
@@ -101,6 +102,15 @@ export function InvoiceEditorLines({ editor }: { editor: InvoiceEditorModel }) {
         contactId={contactId || null}
       />
       {!quote && <PropertyRetentionField checked={propertyRetention} onChange={touch(setPropertyRetention)} inherited={!editable} />}
+      {editable && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Platzhalter in Einleitung und Hinweis, eingesetzt in der Vorschau und beim Festschreiben:{" "}
+          {Object.entries(BELEG_PLATZHALTER)
+            .map(([key, label]) => `{${key}} (${label})`)
+            .join(", ")}
+          .
+        </p>
+      )}
     </section>
   );
 }

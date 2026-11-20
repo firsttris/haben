@@ -186,6 +186,26 @@ Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußt
 - Aus einem Angebot übernimmt die Rechnung die Einleitung des Angebots.
 - Nicht mehr gebrauchte Bausteine archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
 
+<a id="platzhalter-in-einleitung-und-hinweis"></a>
+#### Platzhalter in Einleitung und Hinweis
+
+In Einleitung und Hinweis von Rechnung und Angebot, auch aus einem Textbaustein, setzt Haben Platzhalter ein: in der Vorschau, im Entwurfs-PDF und beim Festschreiben. Im Entwurf bleibt der Platzhalter stehen, damit du ihn noch ändern kannst; nach dem Festschreiben stehen in Rechnung, PDF und XML die Werte. Die Namen sind die der [E-Mail-Vorlagen](#per-e-mail-versenden):
+
+| Platzhalter | Wert |
+| --- | --- |
+| `{art}` | Rechnung, Abschlagsrechnung, Schlussrechnung, Stornorechnung, Rechnungskorrektur bzw. Angebot |
+| `{nummer}` | Nummer des Belegs; in Vorschau und Entwurfs-PDF die voraussichtliche bzw. „ENTWURF“ |
+| `{datum}` | Rechnungs- bzw. Angebotsdatum |
+| `{betrag}` | Gesamtbetrag brutto, in der Währung der Rechnung |
+| `{faellig}` | Fälligkeit (nur Rechnung) |
+| `{gueltig}` | gültig bis (nur Angebot) |
+| `{leistungszeitraum}` | Leistungszeitraum („01.10.2026 – 31.10.2026“) oder Leistungsdatum, leer ohne Angabe |
+| `{kunde}` | Name des Kunden |
+| `{firma}` | dein Firmenname |
+| `{iban}`, `{bic}` | IBAN (in Vierergruppen) und BIC deines Bankkontos aus den Firmendaten, etwa um sie größer als in der Fußzeile auf die Rechnung zu setzen |
+
+Beispiel für einen Hinweis: „Bitte überweisen Sie {betrag} bis zum {faellig} auf das Konto {iban} unter Angabe der Rechnungsnummer {nummer}.“ Datum und Betrag stehen in der Sprache der Rechnung. Ein unbekannter Platzhalter bleibt stehen, so fällt ein Tippfehler in der Vorschau auf. In wiederkehrenden Rechnungen kommen `{monat}`, `{jahr}`, `{quartal}` und `{zeitraum}` dazu; die setzt Haben schon beim Anlegen des Entwurfs ein.
+
 ### Umsatzsteuer auf der Rechnung
 
 Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt wird. Gespeichert wird die Auswahl an der Rechnung; sie bestimmt Erlöskonto, Kennzahl der [Voranmeldung](umsatzsteuer.md), Steuerkategorie im XML und den Pflichthinweis. Unter der Auswahl steht ein Hinweis mit der Vorschrift, etwa § 4 Nr. 1 Buchst. b UStG.

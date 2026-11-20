@@ -27,6 +27,7 @@ import { assertNumberingCurrent, circleContact, circleFor, customerNumberConflic
 import { assertQuotesLocked, billsWholeQuote, lockQuotes, quotesTouching, syncQuoteBilling } from "./quote-billing.ts";
 import { pruefeUmsatzgrenze, type UmsatzStand } from "./umsatzgrenze.ts";
 import { versteuerungIssues } from "./versteuerung-pruefung.ts";
+import { rechnungMitPlatzhaltern } from "./beleg-platzhalter.ts";
 
 /* Festschreiben einer Rechnung: Prüfungen, Nummer, PDF und XML, Sperre und Buchung (GoBD) */
 
@@ -76,18 +77,20 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (invoice.currency !== "EUR") issues.push(...currencyIssues(invoice, lines, company));
   issues.push(...(await directDebitIssues(invoice, company, q)), ...(await serviceEntryCustomerIssues(q, id, invoice.contactId)));
   if (contact && issues.length === 0) {
-    const preview = documentFor(
-      invoice,
-      lines,
-      await invoiceDocumentTotals(id, q),
-      (await invoiceTotalsById([id], q)).get(id)!,
-      sellerFrom(company),
-      buyerFrom(contact, await ansprechpartnerSnapshot(q, invoice.contactPersonId)),
-      "VORSCHAU",
-      data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
-      await deductedRefs(lines, q),
-      await directDebitFor(invoice, company, q),
-      await loadUnitCodes(q),
+    const preview = rechnungMitPlatzhaltern(
+      documentFor(
+        invoice,
+        lines,
+        await invoiceDocumentTotals(id, q),
+        (await invoiceTotalsById([id], q)).get(id)!,
+        sellerFrom(company),
+        buyerFrom(contact, await ansprechpartnerSnapshot(q, invoice.contactPersonId)),
+        "VORSCHAU",
+        data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
+        await deductedRefs(lines, q),
+        await directDebitFor(invoice, company, q),
+        await loadUnitCodes(q),
+      ),
     );
     issues.push(...validateForFormat(preview));
   }
@@ -226,18 +229,21 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
   const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter, buyer.kundennummer);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, umsatzStand, bestaetigt);
-  const doc = documentFor(
-    invoice,
-    lines,
-    await invoiceDocumentTotals(id, tx),
-    totals,
-    seller,
-    buyer,
-    number,
-    corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
-    await deductedRefs(lines, tx),
-    await directDebitFor(invoice, company, tx),
-    await loadUnitCodes(tx),
+  // Platzhalter in Einleitung und Hinweis (#1334) mit Nummer und Beträgen auflösen; so stehen sie auch in der Rechnung
+  const doc = rechnungMitPlatzhaltern(
+    documentFor(
+      invoice,
+      lines,
+      await invoiceDocumentTotals(id, tx),
+      totals,
+      seller,
+      buyer,
+      number,
+      corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
+      await deductedRefs(lines, tx),
+      await directDebitFor(invoice, company, tx),
+      await loadUnitCodes(tx),
+    ),
   );
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
@@ -263,6 +269,8 @@ export async function finalizeDraft(tx: Tx, id: string, umsatzStand: UmsatzStand
         gross: totals.gross,
         // Ab hier fest: der Tag, an dem die Leistung ausgeführt wurde (#694)
         serviceDate: invoice.serviceDate,
+        intro: doc.intro ?? "",
+        note: doc.note ?? "",
         pdf: Buffer.from(rendered.pdf),
         pdfSha256: sha256(rendered.pdf),
         xml: rendered.xml,
