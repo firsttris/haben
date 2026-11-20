@@ -113,7 +113,9 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
     // Aus Lexware Office übernommen: der Kontakt steht nur am archivierten Beleg (wie auf der Kontaktseite, lieferant-belege.ts)
     if (lexwareKontakt) {
       const [imp] = await sql<{ id: string }[]>`insert into lexoffice_imports (progress) values ('{}'::jsonb) returning id`;
-      const [v] = await sql<{ id: string }[]>`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, date, status, contact_id, net, tax, gross, taxes, categories, raw)
+      const [v] = await sql<
+        { id: string }[]
+      >`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, date, status, contact_id, net, tax, gross, taxes, categories, raw)
         values (${crypto.randomUUID()}, ${imp!.id}, 'purchaseinvoice', 'ausgabe', ${date}, 'open', ${lexwareKontakt}, ${net}, 0, ${net}, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb) returning id`;
       await sql`update documents set lexoffice_voucher_id = ${v!.id} where id = ${id}`;
     }
@@ -214,7 +216,10 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
         });
         await bank.importStatement(
           actor,
-          { bytes: dkbCsv([umsatz("10.03.26", `RE ${r1.number}`, "1190,00"), umsatz("10.03.27", `RE ${r2.number}`, "1190,00")]), filename: `${crypto.randomUUID()}.csv` },
+          {
+            bytes: dkbCsv([umsatz("10.03.26", `RE ${r1.number}`, "1190,00"), umsatz("10.03.27", `RE ${r2.number}`, "1190,00")]),
+            filename: `${crypto.randomUUID()}.csv`,
+          },
           null,
         );
         const txs = await sql<{ id: string }[]>`select id from bank_transactions order by booking_date`;
