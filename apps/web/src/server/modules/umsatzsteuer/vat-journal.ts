@@ -2,7 +2,6 @@ import {
   JOURNAL_KENNZAHLEN,
   kennzahlenAusJournal,
   leereJournalKennzahlen,
-  mitBemessungWieHeute,
   periodRange,
   type JournalKennzahlen,
   type JournalZeile,
@@ -14,6 +13,7 @@ import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
 import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { belegAusAlterVersion } from "./alte-version.ts";
+import { belegeWieHeute } from "./beleg-alte-version.ts";
 import { zahlungenWieHeute } from "./zahlung-alte-version.ts";
 
 /*
@@ -87,16 +87,14 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });
   }
-  // Zahlungen bei Ist von vor #552 mit der Bemessungsgrundlage wie heute (#1502)
-  const gelesen = await zahlungenWieHeute([...buchungen.values()], q);
+  // Belege mit § 13b oder Erwerb von vor #551 (#1396) und Zahlungen bei Ist von vor #552 (#1502) mit der
+  // Bemessungsgrundlage wie heute
+  const gelesen = await belegeWieHeute(await zahlungenWieHeute([...buchungen.values()], q), q);
   const summe = leereJournalKennzahlen();
   // Ein Jahr hat einen Kontenrahmen; je Kontenrahmen gerechnet, falls ein Zeitraum doch beide sieht
   for (const kr of ["SKR03", "SKR04"] as const)
     for (const mode of ["ist", "soll"] as const) {
-      // Belegbuchungen alter Versionen mit § 13b oder Erwerb mit der Bemessungsgrundlage wie heute (#1396)
-      const eigene = gelesen
-        .filter((b) => b.kontenrahmen === kr && b.versteuerung === mode)
-        .map((b) => (b.alt ? mitBemessungWieHeute(kr, b.zeilen) : b.zeilen));
+      const eigene = gelesen.filter((b) => b.kontenrahmen === kr && b.versteuerung === mode).map((b) => b.zeilen);
       if (eigene.length === 0) continue;
       const k = kennzahlenAusJournal(kr, mode, eigene);
       for (const feld of JOURNAL_KENNZAHLEN) summe[feld] += k[feld];
