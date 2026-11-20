@@ -137,6 +137,7 @@ export {
   letzteBestaetigungen,
   listUstIdBestaetigungen,
   ustIdBestaetigungen,
+  ustIdVorBuchen,
   ustIdVorFestschreiben,
   type EvatrVerbindung,
   type UstIdBestaetigung,
