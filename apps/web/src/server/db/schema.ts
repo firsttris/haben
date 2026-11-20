@@ -144,9 +144,6 @@ export const company = pgTable(
     /** Vorgabe für das Skonto neuer Rechnungen, je Stufe Frist in Tagen und Satz in Basispunkten; leer = kein Skonto */
     skonto: jsonb("skonto").$type<SkontoStufe[]>().notNull().default([]),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
-    /** Vorgabe für die Einleitung über den Positionen neuer Rechnungen bzw. Angebote; im Beleg änderbar */
-    invoiceIntro: text("invoice_intro").notNull().default(""),
-    quoteIntro: text("quote_intro").notNull().default(""),
     /** Vorlagen für den Zahlungsplan im Angebot, z. B. „30/40/30“ und „50/50“ */
     paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
@@ -1941,6 +1938,9 @@ export const articles = pgTable(
 
 export const textBlockKinds = ["kopf", "fuss"] as const;
 export type TextBlockKind = (typeof textBlockKinds)[number];
+/** Belegarten, für die ein Textbaustein Standard sein kann (#1494) */
+export const textBlockStandards = ["rechnung", "angebot", "auftragsbestaetigung", "lieferschein", "mahnung"] as const;
+export type TextBlockStandard = (typeof textBlockStandards)[number];
 
 /**
  * Textbausteine zum Einfügen in Rechnungen, Angebote und wiederkehrende Rechnungen: Kopftext (Einleitung über den
@@ -1957,6 +1957,11 @@ export const textBlocks = pgTable(
     text: text("text").notNull(),
     /** Optional einem Kunden zugeordnet: steht bei dessen Belegen oben in der Auswahl */
     contactId: uuid("contact_id").references(() => contacts.id),
+    /**
+     * Standard für diese Belegart (#1494): füllt neue Belege vor, Kopftext die Einleitung, Fußtext den Hinweis bzw.
+     * Schlusstext. Höchstens ein aktiver Baustein je Belegart und Art; null = kein Standard
+     */
+    standardFuer: text("standard_fuer", { enum: textBlockStandards }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1964,6 +1969,16 @@ export const textBlocks = pgTable(
   (t) => [
     index("text_blocks_contact").on(t.contactId),
     check("text_blocks_kind", sql`${t.kind} in ('kopf', 'fuss')`),
+    check(
+      "text_blocks_standard_fuer",
+      sql`${t.standardFuer} is null or ${t.standardFuer} in ('rechnung', 'angebot', 'auftragsbestaetigung', 'lieferschein', 'mahnung')`,
+    ),
+    // Der Lieferschein hat nur einen Hinweis; ein Standard gilt für alle Kunden
+    check(
+      "text_blocks_standard_passt",
+      sql`${t.standardFuer} is null or (${t.contactId} is null and not (${t.standardFuer} = 'lieferschein' and ${t.kind} = 'kopf'))`,
+    ),
+    uniqueIndex("text_blocks_standard").on(t.standardFuer, t.kind).where(sql`${t.standardFuer} is not null and ${t.archivedAt} is null`),
     index("text_blocks_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
     index("text_blocks_text_trgm_idx").using("gin", sql`haben_unaccent(${t.text}) gin_trgm_ops`),
   ],

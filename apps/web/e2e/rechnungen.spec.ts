@@ -1000,17 +1000,21 @@ test("Textknöpfe: im gescrollten Artikel-Dialog schneidet der Rand die Leiste n
   }
 });
 
-test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und Angebote vorbelegt und änderbar", async () => {
-  const firma = page.getByRole("form", { name: "Firmendaten" });
-  const speichern = async () => {
-    await firma.getByRole("button", { name: "Speichern" }).click();
-    await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
-    await page.waitForLoadState("networkidle");
+test("Standard-Textbaustein: je für Rechnungen und Angebote vorbelegt und änderbar, archiviert kein Standard mehr (#1494)", async () => {
+  const standardBaustein = async (name: string, text: string, standardFuer: string) => {
+    await go("/textbausteine");
+    await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
+    const formular = page.getByRole("form", { name: "Neuer Textbaustein" });
+    await formular.getByLabel("Bezeichnung").fill(name);
+    await formular.getByLabel("Art").selectOption("kopf");
+    await formular.getByLabel("Text", { exact: true }).fill(text);
+    await formular.getByLabel("Standard für").selectOption({ label: standardFuer });
+    await formular.getByRole("button", { name: "Anlegen" }).click();
+    await expect(page.getByText("Textbaustein angelegt.")).toBeVisible();
   };
-  await go("/einstellungen");
-  await firma.getByLabel("Standard-Einleitung für Rechnungen").fill("Für die erbrachten Leistungen berechne ich Ihnen:");
-  await firma.getByLabel("Standard-Einleitung für Angebote").fill("Gerne biete ich Ihnen an:");
-  await speichern();
+  await standardBaustein("Einleitung Rechnung", "Für die erbrachten Leistungen berechne ich Ihnen:", "Rechnungen");
+  await standardBaustein("Einleitung Angebot", "Gerne biete ich Ihnen an:", "Angebote");
+  await expect(page.getByRole("region", { name: "Textbausteine" })).toContainText("Standard für Rechnungen");
 
   const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
   await go("/rechnungen/neu");
@@ -1020,11 +1024,12 @@ test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und
   await go("/angebote/neu");
   await expect(einleitung).toHaveValue("Gerne biete ich Ihnen an:");
 
-  // Die folgenden Tests rechnen mit leerer Einleitung
-  await go("/einstellungen");
-  await firma.getByLabel("Standard-Einleitung für Rechnungen").fill("");
-  await firma.getByLabel("Standard-Einleitung für Angebote").fill("");
-  await speichern();
+  // Die folgenden Tests rechnen mit leerer Einleitung: archivierte Bausteine sind kein Standard mehr
+  await go("/textbausteine");
+  for (const name of ["Einleitung Rechnung", "Einleitung Angebot"]) {
+    await page.locator(".table-row").filter({ hasText: name }).getByRole("button", { name: "Archivieren" }).click();
+    await expect(page.getByText("Textbaustein archiviert.")).toBeVisible();
+  }
   await go("/rechnungen/neu");
   await expect(einleitung).toHaveValue("");
 });

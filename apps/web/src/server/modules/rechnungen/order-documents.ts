@@ -3,7 +3,7 @@ import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type OrderRefer
 import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { loadCompany, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import { loadCompany, loadLetterhead, standardTexte, withCustomLayout } from "../stammdaten/index.ts";
 import { withCurrentBuyer, withCurrentSeller } from "./invoice-document.ts";
 import { quoteChoices } from "./quote-choices.ts";
 import { documentReferences, type ReferenceColumns } from "./order-references.ts";
@@ -36,9 +36,13 @@ async function acceptedQuote(id: string) {
 export async function confirmationPdf(quoteId: string) {
   const { quote, lines, choices } = await acceptedQuote(quoteId);
   const buyer = await withCurrentBuyer(db, quote.buyer, quote.contactId);
+  // Ohne Entwurf greift der Standard beim Erzeugen (#1494): er ersetzt Einleitung bzw. Hinweis des Angebots
+  const standard = await standardTexte("auftragsbestaetigung");
+  const texte = mitVorlage(quote);
+  const mitStandard = { intro: standard.kopf || texte.intro, note: standard.fuss || texte.note };
   // Platzhalter mit den Werten der Bestätigung (gewählte Positionen), nicht mit denen des Angebots (#1334)
   const doc = angebotMitPlatzhaltern(
-    quoteDocumentFor({ ...quote, ...mitVorlage(quote) }, lines, withCurrentSeller(quote.seller, await loadCompany()), buyer, quote.number, {
+    quoteDocumentFor({ ...quote, ...mitStandard }, lines, withCurrentSeller(quote.seller, await loadCompany()), buyer, quote.number, {
       choices,
       withPlan: quote.paymentPlanInConfirmation,
     }),
@@ -110,6 +114,8 @@ export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string
   const base = await deliverySource(source, id);
   const seller = withCurrentSeller(base.seller, await loadCompany());
   const buyer = await withCurrentBuyer(db, base.buyer, base.contactId);
+  // Der Lieferschein hat keinen Entwurf: Ein Standard-Fußtext steht beim Erzeugen als Hinweis darauf (#1494)
+  const { fuss } = await standardTexte("lieferschein");
   const pdf = await withCustomLayout("lieferschein", await loadLetterhead(), (letterhead) =>
     buildDeliveryNotePdf({
       reference: { kind: source, number: base.number, issueDate: base.issueDate },
@@ -119,6 +125,7 @@ export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string
       buyer,
       language: base.language,
       references: base.references,
+      ...(fuss ? { note: fuss } : {}),
       lines: base.lines.map((l, i) => ({
         position: i + 1,
         description: l.description,

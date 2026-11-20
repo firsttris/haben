@@ -68,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       // PostgreSQL-Text umfasst auch Zeitstempel, Binärdaten, Hash-Kette und die gespeicherten Siegelspalten.
       const snapshot = async () => ({
         company:
-          await sql`select (to_jsonb(c)-'ohne_vorsteuerabzug'-'archive_search'-'founded_on'-'invoice_counter_per_customer'-'quote_counter_per_customer')::text as bytes from company c order by id`,
+          await sql`select (to_jsonb(c)-'ohne_vorsteuerabzug'-'archive_search'-'founded_on'-'invoice_counter_per_customer'-'quote_counter_per_customer'-'invoice_intro'-'quote_intro')::text as bytes from company c order by id`,
         invoice:
           await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on'-'reduction_rule'-'number_contact_id'-'intro_vorlage'-'note_vorlage')::text as bytes from invoices i order by id`,
         invoiceLines: await sql`select to_jsonb(l)::text as bytes from invoice_lines l order by id`,

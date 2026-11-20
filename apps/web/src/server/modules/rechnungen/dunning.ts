@@ -15,7 +15,7 @@ import { asDraft, buildDunningDraftPdf, buildDunningPdf, type DraftPdf, type Dun
 import { desc, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/index.ts";
+import { loadCompany, standardTexte } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { type DocumentPreview, renderPreview, withDesign } from "./document-preview.ts";
@@ -148,7 +148,7 @@ export async function dunningDraft(invoiceId: string, today: string) {
     dueDate: addDays(today, dunning.deadlineDays),
     fee: dunning.fees[String(level) as "1" | "2" | "3"] ?? 0,
     baseRate: dunning.baseRate,
-    texts: DUNNING_TEXTS,
+    texts: mahnTexte(await standardTexte("mahnung")),
     /** Für Vorschau und Gestaltung, wie im Rechnungseditor */
     design,
     logo: logo?.sha256 ?? null,
@@ -301,4 +301,13 @@ export async function loadDunningPdf(id: string) {
     .where(eq(schema.dunnings.id, id));
   if (!row) return null;
   return { pdf: row.pdf, filename: `${DUNNING_LEVELS[row.level as DunningLevel].title.replace(/ /g, "-")}-${row.number}.pdf` };
+}
+
+/** Texte je Stufe: Standard-Kopftext als Einleitung, Standard-Fußtext als Schlusstext (#1494), sonst die Vorgabe der Stufe */
+function mahnTexte(standard: { kopf: string; fuss: string }): typeof DUNNING_TEXTS {
+  const stufe = (level: keyof typeof DUNNING_TEXTS) => ({
+    intro: standard.kopf || DUNNING_TEXTS[level].intro,
+    closing: standard.fuss || DUNNING_TEXTS[level].closing,
+  });
+  return { 1: stufe(1), 2: stufe(2), 3: stufe(3) };
 }

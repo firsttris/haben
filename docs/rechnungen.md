@@ -30,7 +30,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 5. **E-Rechnungsformat** prüfen.
 6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
 7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#nettopreise-oder-bruttopreise)). Vorgabe ist netto.
-8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
+8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit dem [Standard-Kopftext für Rechnungen](#standard-je-belegart), der Hinweis mit dem Standard-Fußtext, wenn es sie gibt. **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
 9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
 10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein. Für private Grundstücksleistungen darunter den [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen) einschalten.
 11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt in einem Dialog nach und nennt Nummer, Kunde und Betrag; erst **Festschreiben** dort führt es aus. Liegt das Rechnungsdatum vor dem der zuletzt festgeschriebenen Rechnung im Nummernkreis, weist der Dialog darauf hin; festschreiben lässt sich trotzdem.
@@ -163,7 +163,7 @@ In der Einleitung, im mehrzeiligen Text zu einer Position und im Hinweis stehen 
 | `__Text__` | unterstrichen |
 | `___Text___` | kursiv und unterstrichen |
 
-Du musst die Zeichen nicht tippen: Sobald du Text markierst, erscheinen direkt darüber die Knöpfe **F**, **K** und **U**, am Handy rechts über dem Feld. Oder nimm <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>B</kbd>, <kbd>I</kbd> oder <kbd>U</kbd>; ohne Markierung gilt das Kürzel für das Wort unter dem Cursor. Ein zweiter Klick nimmt die Auszeichnung zurück. Die Knöpfe zeichnen immer ganze Wörter aus, auch wenn nur ein Teil markiert ist. <kbd>Esc</kbd> blendet die Knöpfe aus. Du findest sie auch bei Artikeln, Textbausteinen, den Standard-Einleitungen und in Einleitung und Schluss einer [Mahnung](rechnungen-zahlung.md#mahnwesen).
+Du musst die Zeichen nicht tippen: Sobald du Text markierst, erscheinen direkt darüber die Knöpfe **F**, **K** und **U**, am Handy rechts über dem Feld. Oder nimm <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>B</kbd>, <kbd>I</kbd> oder <kbd>U</kbd>; ohne Markierung gilt das Kürzel für das Wort unter dem Cursor. Ein zweiter Klick nimmt die Auszeichnung zurück. Die Knöpfe zeichnen immer ganze Wörter aus, auch wenn nur ein Teil markiert ist. <kbd>Esc</kbd> blendet die Knöpfe aus. Du findest sie auch bei Artikeln, Textbausteinen und in Einleitung und Schluss einer [Mahnung](rechnungen-zahlung.md#mahnwesen).
 
 Die Vorschau und das PDF zeigen dieselbe Formatierung. Kombinationen wie `*_fett und kursiv_*` sind möglich.
 Leerzeilen bleiben Absätze. Die Zeichen müssen den Text direkt umschließen; `* Text *` bleibt wörtlich.
@@ -185,6 +185,24 @@ Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußt
 - In wiederkehrenden Rechnungen gelten in der Einleitung dieselben Platzhalter wie in Beschreibung und Hinweis.
 - Aus einem Angebot übernimmt die Rechnung die Einleitung des Angebots.
 - Nicht mehr gebrauchte Bausteine archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
+
+#### Standard je Belegart
+
+Unter **Standard für** machst du einen Baustein zum Standard einer Belegart. Er füllt dann neue Belege dieser Art von selbst vor; im Entwurf änderst oder leerst du den Text wie jeden anderen, und Belege, die es schon gibt, ändern sich nicht. In der Liste steht „Standard für …“ am Baustein.
+
+| Belegart | Kopftext | Fußtext |
+| --- | --- | --- |
+| Rechnung, Angebot | Einleitung des neuen Entwurfs | Hinweis des neuen Entwurfs |
+| Mahnung | Einleitung, für jede Stufe | Schluss, für jede Stufe |
+| Auftragsbestätigung | ersetzt beim Erzeugen die Einleitung des Angebots | ersetzt beim Erzeugen den Hinweis des Angebots |
+| Lieferschein | – | Hinweis, beim Erzeugen |
+
+- Je Belegart und Art gibt es höchstens einen Standard. Machst du einen weiteren zum Standard, löst er den bisherigen ab. Ein archivierter Baustein ist kein Standard mehr, auch nicht nach dem Wiederherstellen.
+- Ein Standard gilt für alle Kunden; ein Baustein für einen bestimmten Kunden kann kein Standard sein. Der Lieferschein hat nur einen Hinweis, dort geht nur ein Fußtext.
+- Auftragsbestätigung und Lieferschein haben keinen Entwurf: Der Standard greift jedes Mal, wenn du sie erzeugst, auch für ein schon angenommenes Angebot. Ohne Standard bleibt es bei den Texten des Angebots bzw. ohne Hinweis.
+- Bei der Mahnung ersetzt ein Standard die Vorlage der Stufe, und zwar für alle Stufen gleich; ohne Standard bleiben die Vorlagen je Stufe (siehe [Mahnwesen](rechnungen-zahlung.md#mahnwesen)).
+- [Platzhalter](#platzhalter-in-einleitung-und-hinweis) bleiben im Entwurf stehen und werden in Rechnung und Angebot bei Vorschau und Festschreiben eingesetzt, in der Auftragsbestätigung beim Erzeugen. In Mahnung und Lieferschein setzt Haben keine Platzhalter ein.
+- Die frühere **Standard-Einleitung** aus den Firmendaten hat Haben beim Update in je einen Kopftext-Baustein mit Standard für Rechnungen bzw. Angebote übernommen, ebenso beim Übernehmen der Einstellungen aus einer älteren Exportdatei.
 
 #### Platzhalter in Einleitung und Hinweis
 
