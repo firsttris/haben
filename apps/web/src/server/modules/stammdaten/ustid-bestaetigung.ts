@@ -301,15 +301,16 @@ export async function ustIdVorFestschreiben(
  */
 export async function ustIdVorBuchen(
   actor: string,
-  lieferant: { contactId: string | null; ustId: string },
+  lieferant: { contactId: string | null; ustId: string; behandlung: "ig_erwerb" | "eu" },
   jetzt = new Date(),
   via: EvatrVerbindung = verbindung(),
 ): Promise<{ hinweis: string | null }> {
   if (evatrAbgeschaltet()) return { hinweis: null };
   const contact = lieferant.contactId ? await ladeKontakt(lieferant.contactId) : null;
   const nummer = normalizeUstId(lieferant.ustId || contact?.ustId || "");
-  // Ohne Nummer oder mit falschem Aufbau meldet „Vor dem Buchen“ selbst, was fehlt (igErwerbIssues); bei § 13b ist sie keine Pflicht
-  if (!evatrPruefbar(nummer)) return { hinweis: null };
+  // Bei § 1a sperrt „Vor dem Buchen“ eine fehlende oder falsch aufgebaute Nummer selbst (igErwerbIssues). Bei § 13b ist sie
+  // keine Pflicht; eine, die sich nicht bestätigen lässt, nennt der Hinweis wie vor dem Festschreiben
+  if (!evatrPruefbar(nummer)) return { hinweis: lieferant.behandlung === "eu" && nummer ? `${nummer}: ${ZUSTAND_TEXT["nicht-pruefbar"]}` : null };
   const vorher = (await letzteBestaetigungen([nummer])).get(nummer);
   if (evatrFrischGueltig(vorher, jetzt)) return { hinweis: null };
   // Eine Antwort von einem anderen Kontakt, etwa „nicht vergeben“, gehört in den Hinweis

@@ -55,18 +55,26 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
 
   it("fragt ohne frische gültige Antwort einmal einfach und speichert die Antwort am Lieferanten-Kontakt", async () => {
     const { via, anfragen } = dienst(ok("nl"));
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "nl 123456789 b01", behandlung: "ig_erwerb" }, AM_TAG, via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "nl 123456789 b01", behandlung: "ig_erwerb" }, AM_TAG, via)).toEqual({
+      hinweis: null,
+    });
     expect(anfragen).toEqual([{ anfragendeUstid: "DE123456788", angefragteUstid: "NL123456789B01" }]);
     const [antwort] = await modul.listUstIdBestaetigungen(lieferant);
     expect(antwort).toMatchObject({ art: "einfach", angefragteUstid: "NL123456789B01", status: "evatr-0000", bzstId: "nl" });
 
     // Frisch und gültig: keine Abfrage, auch für einen Beleg ohne Kontakt mit derselben Nummer
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
-    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({
+      hinweis: null,
+    });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({
+      hinweis: null,
+    });
 
     // Nach 30 Tagen fragt Haben neu
     const neu = dienst(ok("nl2"));
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, NACH_31_TAGEN, neu.via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, NACH_31_TAGEN, neu.via)).toEqual({
+      hinweis: null,
+    });
     expect(neu.anfragen).toHaveLength(1);
   });
 
@@ -77,14 +85,24 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
   });
 
   it("laut BZSt nicht vergeben: Hinweis, und die Antwort steht als Nachweis am Kontakt", async () => {
-    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst(fehler(404, "evatr-2001")).via);
+    const ergebnis = await modul.ustIdVorBuchen(
+      actor,
+      { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" },
+      AM_TAG,
+      dienst(fehler(404, "evatr-2001")).via,
+    );
     expect(ergebnis).toEqual({ hinweis: "Laut BZSt ist NL123456789B01 nicht gültig: Nicht vergeben." });
     expect((await modul.listUstIdBestaetigungen(lieferant))[0]?.status).toBe("evatr-2001");
   });
 
   it("Dienst nicht erreichbar: Hinweis mit dem letzten Stand, nichts gespeichert", async () => {
     await modul.bestaetigeNummer(actor, lieferant, "NL123456789B01", dienst(ok("alt")).via);
-    const ergebnis = await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, NACH_31_TAGEN, dienst("kein-netz").via);
+    const ergebnis = await modul.ustIdVorBuchen(
+      actor,
+      { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" },
+      NACH_31_TAGEN,
+      dienst("kein-netz").via,
+    );
     expect(ergebnis.hinweis).toMatch(
       /^NL123456789B01 ließ sich gerade nicht beim BZSt bestätigen: Keine Antwort vom BZSt .*\. Zuletzt am 18\.11\.2026: Gültig\.$/,
     );
@@ -100,10 +118,14 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
 
   it("abgeschaltet, ohne Nummer oder mit einer Nummer, die das BZSt nicht bestätigt: keine Abfrage, kein Hinweis", async () => {
     process.env.HABEN_EVATR = "off";
-    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({
+      hinweis: null,
+    });
     delete process.env.HABEN_EVATR;
     expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
-    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "DE123456788", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({ hinweis: null });
+    expect(await modul.ustIdVorBuchen(actor, { contactId: null, ustId: "DE123456788", behandlung: "ig_erwerb" }, AM_TAG, dienst().via)).toEqual({
+      hinweis: null,
+    });
     expect(await modul.listUstIdBestaetigungen(lieferant)).toHaveLength(0);
   });
 

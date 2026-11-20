@@ -26,5 +26,5 @@ export const ustIdVorFestschreibenFn = createServerFn({ method: "POST" })
 /** Beim Öffnen der Rückfrage zum Buchen eines Belegs mit § 1a oder § 13b für eine EU-Leistung, mit dem Stand im Formular (#1490) */
 export const ustIdVorBuchenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ contactId: z.uuid().nullable(), ustId: z.string().max(40) }))
+  .validator(z.object({ contactId: z.uuid().nullable(), ustId: z.string().max(40), behandlung: z.enum(["ig_erwerb", "eu"]) }))
   .handler(({ data, context }) => ustIdVorBuchen(context.user.id, data));

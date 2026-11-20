@@ -69,7 +69,8 @@ export function UstIdVorFestschreiben({ open, contactId, behandlung }: { open: b
 }
 
 /** Nur beim innergemeinschaftlichen Erwerb und bei § 13b für eine EU-Leistung; Drittland und normale Belege nicht (#1490) */
-export const ustIdVorBuchenNoetig = (reverseCharge: SelfAssessedTax | null) => reverseCharge === "ig_erwerb" || reverseCharge === "eu";
+export const ustIdVorBuchenNoetig = (reverseCharge: SelfAssessedTax | null): reverseCharge is "ig_erwerb" | "eu" =>
+  reverseCharge === "ig_erwerb" || reverseCharge === "eu";
 
 /**
  * Hinweis in der Rückfrage zum Buchen eines Belegs (#1490), mit dem Stand im Formular: Ist die USt-IdNr. des Lieferanten
@@ -87,7 +88,9 @@ export function UstIdVorBuchen({
   ustId: string;
 }) {
   const pruefe = useServerFn(ustIdVorBuchenFn);
-  const schluessel = ustIdVorBuchenNoetig(reverseCharge) && (contactId || ustId.trim()) ? `${contactId}:${ustId}` : null;
-  const stand = usePruefung(open, schluessel, () => pruefe({ data: { contactId, ustId } }));
+  const behandlung = ustIdVorBuchenNoetig(reverseCharge) && (contactId || ustId.trim()) ? reverseCharge : null;
+  const stand = usePruefung(open, behandlung && `${behandlung}:${contactId}:${ustId}`, () =>
+    behandlung ? pruefe({ data: { contactId, ustId, behandlung } }) : Promise.resolve({ hinweis: null }),
+  );
   return <Hinweis stand={stand} wer="des Lieferanten" trotzdem="Buchen geht trotzdem" contactId={contactId} />;
 }

@@ -57,7 +57,7 @@ Abzugrenzen sind:
 
 Beim innergemeinschaftlichen Erwerb und bei § 13b für eine EU-Leistung leistet ein Unternehmer an dich, deshalb schuldest du die Steuer ([§ 1a Abs. 1 Nr. 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__1a.html), [§ 13b Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13b.html)). Öffnest du bei einem solchen Beleg **Bestätigen und buchen**, prüft Haben in der Rückfrage die USt-IdNr. des Lieferanten wie [am Kontakt](kontakte.md#ust-idnr-beim-bzst-bestätigen): die vom Beleg, sonst die des gewählten Kontakts. Ist die letzte Antwort des BZSt älter als 30 Tage oder nicht gültig, fragt Haben einfach nach und speichert die Antwort am Lieferanten-Kontakt.
 
-- Ist die Nummer laut BZSt nicht gültig oder der Dienst nicht erreichbar, steht ein Hinweis in der Rückfrage; buchen kannst du trotzdem.
+- Ist die Nummer laut BZSt nicht gültig oder der Dienst nicht erreichbar, steht ein Hinweis in der Rückfrage; buchen kannst du trotzdem. Bei § 13b sagt er auch, wenn sich die Nummer gar nicht bestätigen lässt, etwa bei falschem Aufbau oder einer deutschen Nummer; beim Erwerb sperrt das schon „Vor dem Buchen“.
 - Ist der Lieferant nur als Name eingetragen, gibt es keinen Kontakt für den Nachweis: Haben fragt nicht und sagt das. Wähl oder leg dafür unter **Lieferant** einen Kontakt an.
 - Bei § 13b aus dem Drittland, bei normalen Belegen und mit `HABEN_EVATR=off` fragt Haben nicht.
 
