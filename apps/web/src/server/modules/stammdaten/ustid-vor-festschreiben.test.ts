@@ -70,6 +70,12 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. vor dem Festschreiben bestätigen (
     expect(ergebnis).toEqual({ hinweis: "Laut BZSt ist ATU12345678 nicht gültig: Nicht vergeben." });
   });
 
+  it("laut BZSt syntaktisch falsch: Hinweis wie bei einer ungültigen Nummer, nicht „gerade nicht“ (#1578)", async () => {
+    const ergebnis = await modul.ustIdVorFestschreiben(actor, contactId, "reverse_charge", AM_TAG, dienst(fehler(400, "evatr-0005")).via);
+    expect(ergebnis).toEqual({ hinweis: "Laut BZSt ist ATU12345678 nicht gültig: Das BZSt hält die USt-IdNr. für syntaktisch falsch." });
+    expect((await modul.listUstIdBestaetigungen(contactId)).map((b) => b.status)).toEqual(["evatr-0005"]);
+  });
+
   it("zuletzt ungültig fragt auch innerhalb der Frist neu", async () => {
     await modul.bestaetigeUstId(actor, contactId, {}, dienst(fehler(404, "evatr-2001")).via);
     const { via, anfragen } = dienst(ok("e"), ok("q", { ergOrt: "A" }));

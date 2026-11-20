@@ -10,7 +10,6 @@ import {
   evatrMeldung,
   evatrNachweis,
   evatrNeuNoetig,
-  evatrNummerFehler,
   evatrQualifiziertBestaetigt,
   evatrPruefbar,
   evatrQualifizierbar,
@@ -235,9 +234,9 @@ export async function bestaetigeNummer(
   if (!evatrPruefbar(ustId)) return { hinweis: `${ustId}: ${ZUSTAND_TEXT["nicht-pruefbar"]}`, ausfall: false };
   const anfrage: EvatrAnfrage = { anfragendeUstid: normalizeUstId(company.ustId), angefragteUstid: normalizeUstId(ustId) };
   const antwort = await frage(anfrage, via);
-  // Ausfall: keine lesbare Antwort oder ein Fehler, der nicht nur diese Nummer betrifft (Dienst, eigene USt-IdNr.)
-  if (!antwort.ok)
-    return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, grund: antwort.hinweis, ausfall: !evatrNummerFehler(antwort.status ?? "") };
+  // Ohne Nachweis ein Ausfall: keine lesbare Antwort oder ein Fehler, der nicht nur diese Nummer betrifft (Dienst, eigene
+  // USt-IdNr.); Fehler der Nummer selbst sind ein Nachweis (evatrNachweis)
+  if (!antwort.ok) return { hinweis: `${anfrage.angefragteUstid}: ${antwort.hinweis}`, grund: antwort.hinweis, ausfall: true };
   await speichere(actor, contactId, "einfach", anfrage, antwort);
   return { hinweis: null, ausfall: false };
 }

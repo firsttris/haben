@@ -95,6 +95,13 @@ describe.skipIf(!testDatabaseUrl)("USt-IdNr. des Lieferanten vor dem Buchen best
     expect((await modul.listUstIdBestaetigungen(lieferant))[0]?.status).toBe("evatr-2001");
   });
 
+  it("laut BZSt syntaktisch falsch: Hinweis wie bei einer ungültigen Nummer, nicht „gerade nicht“ (#1578)", async () => {
+    const lieferung = { contactId: lieferant, ustId: "NL123456789B01", behandlung: "ig_erwerb" } as const;
+    const ergebnis = await modul.ustIdVorBuchen(actor, lieferung, AM_TAG, dienst(fehler(400, "evatr-0005")).via);
+    expect(ergebnis).toEqual({ hinweis: "Laut BZSt ist NL123456789B01 nicht gültig: Das BZSt hält die USt-IdNr. für syntaktisch falsch." });
+    expect((await modul.listUstIdBestaetigungen(lieferant))[0]?.status).toBe("evatr-0005");
+  });
+
   it("Dienst nicht erreichbar: Hinweis mit dem letzten Stand, nichts gespeichert", async () => {
     await modul.bestaetigeNummer(actor, lieferant, "NL123456789B01", dienst(ok("alt")).via);
     const ergebnis = await modul.ustIdVorBuchen(

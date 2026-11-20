@@ -95,8 +95,10 @@ describe("Antwort", () => {
 describe("Status", () => {
   it("speichert nur Antworten zur Nummer als Nachweis", () => {
     for (const status of ["evatr-0000", "evatr-2001", "evatr-2002", "evatr-2006", "evatr-2008"]) expect(evatrNachweis(status)).toBe(true);
-    // Limit, eigene Nummer ungültig, Syntax, Dienst nicht verfügbar
-    for (const status of ["evatr-0008", "evatr-2005", "evatr-0005", "evatr-1001", "evatr-2011"]) expect(evatrNachweis(status)).toBe(false);
+    // Syntax und Länderkennzeichen der angefragten Nummer (#1578): eine falsche Prüfziffer ergibt evatr-0005
+    for (const status of ["evatr-0005", "evatr-0012", "evatr-2003"]) expect(evatrNachweis(status)).toBe(true);
+    // Limit, eigene Nummer falsch oder ungültig, Dienst nicht verfügbar
+    for (const status of ["evatr-0008", "evatr-0004", "evatr-2005", "evatr-1001", "evatr-2011"]) expect(evatrNachweis(status)).toBe(false);
   });
 
   it("gültig sind evatr-0000 und evatr-2008", () => {
@@ -113,6 +115,7 @@ describe("Status", () => {
       "Noch nicht gültig",
       "Nicht mehr gültig",
     ]);
+    expect(["evatr-0005", "evatr-0012", "evatr-2003"].map(evatrWort)).toEqual(["Syntaktisch falsch", "Syntaktisch falsch", "Syntaktisch falsch"]);
   });
 
   it("nennt die Zeiträume aus gueltigAb und gueltigBis", () => {
