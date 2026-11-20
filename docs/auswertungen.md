@@ -1,13 +1,13 @@
 ---
 title: "Auswertungen: EÜR, offene Posten und Jahresexport"
 description: >-
-  Einnahmen-Überschuss-Rechnung, BWA mit Vorjahresvergleich, Einnahmen und Ausgaben je Monat,
+  Einnahmen-Überschuss-Rechnung, BWA mit Vorjahresvergleich, Liquiditätsvorschau, Einnahmen und Ausgaben je Monat,
   offene Posten und das Jahresarchiv als ZIP mit DATEV-Export.
 ---
 
 # Auswertungen und Jahresexport
 
-Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten; unter „BWA“ die betriebswirtschaftliche Auswertung für einen Monat, ein Quartal oder einen freien Zeitraum mit Vergleich. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
+Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten; unter „BWA“ die betriebswirtschaftliche Auswertung für einen Monat, ein Quartal oder einen freien Zeitraum mit Vergleich, in der [Liquiditätsvorschau](#liquiditätsvorschau) den erwarteten Kontostand der nächsten Wochen und Monate. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
 
 Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR. Bei ihr zeigt die Seite Einnahmen und Ausgaben je Monat nach Zahlung, den Überschuss nach Zahlung und die offenen Posten, aber keine EÜR-Tabelle und kein „EÜR als CSV“; den Gewinn zeigt der [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug).
 
@@ -162,6 +162,36 @@ Sie rechnet aus den Salden der Erfolgskonten im Journal nach Buchungsdatum, mit 
 Über ein ganzes Jahr ist das vorläufige Ergebnis der Jahresüberschuss bzw. Jahresfehlbetrag der [GuV im Jahresabschluss](gmbh-abschluss.md), solange nichts unter „Kontenklasse unbesetzt“ steht (die GuV führt solche Konten als nicht zugeordnet). Vorläufig ist es, weil Abschlussbuchungen (Rückstellungen, Abgrenzungen, AfA) erst gebucht zählen; was davon noch fehlt, fehlt auch hier.
 
 Ein Klick auf eine Zeile zeigt ihre Konten mit Betrag, ohne „Warum?“; die Kontonummer öffnet das Kontenblatt für genau den Zeitraum der BWA. Reicht der Zeitraum über den Jahreswechsel, zeigt das Kontenblatt das letzte Jahr darin ab dem 1. Januar.
+
+## Liquiditätsvorschau
+
+Die Liquiditätsvorschau (`/auswertungen/liquiditaet`) zeigt, wie sich der Kontostand in den nächsten 4 oder 13 Wochen bzw. 6 oder 12 Monaten entwickelt: oben Kontostand heute, Tiefpunkt mit Datum, Stand am Ende und Rücklage, darunter die Kurve je Tag und die Tabelle je Woche (Montag bis Sonntag) bzw. Kalendermonat mit Anfang, Eingängen, Ausgängen, Ende und tiefstem Stand. Der Zeitraum mit dem Tiefpunkt ist hervorgehoben; ein Klick auf einen Zeitraum zeigt seine Posten mit Datum, Sicherheit und Link zur Quelle. Die Vorschau rechnet nur und bucht nichts. Horizont, Schalter und aufgeklappter Zeitraum stehen in der Adresse. Die Steuerberatung sieht die Seite auch; Links auf Seiten, die sie nicht öffnen kann, stehen als Text.
+
+**Start** ist die Summe der Kontostände von Geschäfts-, Steuer- und Zahlungsdienstleisterkonten: der Schlusssaldo des letzten Kontoauszugs oder Abrufs, beim Zahlungsdienstleister die Summe seiner Umsätze. Rücklagekonten stehen nur daneben, private und ausgeschlossene Konten zählen nicht. Ein Hinweis nennt Konten ohne Saldo (etwa Dateien ohne Kontostand), Stände, die älter als drei Tage sind, und noch nicht zugeordnete Umsätze: Deren Rechnung oder Beleg steht sonst noch als offen in der Vorschau.
+
+| Posten | Termin | Sicherheit |
+| --- | --- | --- |
+| Offene Rechnungen | Fälligkeit; überfällige am nächsten Werktag, per Schalter ausblendbar | erwartet, überfällige geschätzt |
+| Offene Belege mit Zahlung „Bank“ | Fälligkeit, ohne sie das Belegdatum | fest |
+| Abgegebene Voranmeldungen | Fälligkeit wie unter [Offene Posten](#offene-posten) | Zahllast fest, Erstattung erwartet |
+| Aktive [Dauerbelege](belege.md#dauerbelege) mit Zahlung „Bank“ | jeder Termin ab dem nächsten, plus Zahlungsziel | erwartet |
+| Aktive [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen) | jeder Termin ab dem nächsten, plus Zahlungsziel | erwartet |
+| Umsatzsteuer der noch nicht abgegebenen Zeiträume | Fälligkeit des Zeitraums, mit Dauerfristverlängerung einen Monat später | geschätzt |
+| Sondervorauszahlung bei Dauerfrist und monatlicher Abgabe | 10. Februar (§ 48 Abs. 1 UStDV) | angemeldet fest, sonst geschätzt wie im Vorjahr |
+| Vorauszahlungen zu Einkommen-, Körperschaftsteuer, Soli und Kirchensteuer | 10. März, Juni, September, Dezember (§ 37 Abs. 1 EStG, § 31 Abs. 1 KStG) | wie zuletzt gezahlt erwartet, aus der Prognose geschätzt |
+| Gewerbesteuer-Vorauszahlung | 15. Februar, Mai, August, November (§ 19 Abs. 1 GewStG) | wie zuletzt gezahlt erwartet |
+
+**Fest** heißt, Betrag und Termin stehen; **erwartet**, der Betrag steht, der Termin hängt am Gegenüber; **geschätzt**, Haben hat den Betrag gerechnet. Fällt ein Steuertermin auf ein Wochenende oder einen Feiertag, gilt der nächste Werktag (§ 108 Abs. 3 AO). Was schon fällig war und noch offen ist, steht heute.
+
+**Umsatzsteuer:** Für jeden Zeitraum ohne abgegebene Voranmeldung nimmt Haben, was bis heute gebucht ist (wie in der Voranmeldung, im letzten Zeitraum des Jahres abzüglich der Sondervorauszahlung), und zählt die Steuer der Posten dazu, die im Zeitraum entsteht: bei Istversteuerung die Umsatzsteuer offener und wiederkehrender Rechnungen am erwarteten Zahlungseingang, bei Sollversteuerung die wiederkehrender Rechnungen am Rechnungsdatum (offene Rechnungen sind dann schon gebucht), dazu die Vorsteuer aus Dauerbelegen mit ausgewiesener Steuer am Belegdatum. Kleinunternehmer haben keine.
+
+**Vorauszahlungen:** Die Beträge aus den Bescheiden kennt Haben nicht. Es schreibt je Steuerart die letzte im Bankabgleich zugeordnete Zahlung fort, die als Steuer für das Jahr der Zahlung erfasst ist und höchstens 400 Tage zurückliegt; Nachzahlungen für frühere Jahre zählen nicht. Ohne solche Zahlung steht für die Einkommensteuer ein Viertel der [Steuerprognose](finanzamt.md#steuerprognose), mit „Keine Einkommensteuer-Vorauszahlungen festgesetzt“ gar nichts. Im Einzelunternehmen tragen Einkommensteuer, Soli und Kirchensteuer den Vermerk „privat“ (§ 12 Nr. 3 EStG); sie stehen trotzdem in der Vorschau, weil sie meist vom Geschäftskonto gehen.
+
+Grenzen:
+
+- Löhne, Darlehensraten, Privatentnahmen, Zahlungspläne aus Angeboten und das Zahlungsverhalten je Kunde fehlen noch.
+- Körperschaft- und Gewerbesteuer der GmbH ohne frühere Zahlung fehlen; für sie gibt es keine Prognose des laufenden Jahres.
+- Ein Beleg aus einem Dauerbeleg, der noch „Zu prüfen“ ist, fehlt, bis er gebucht ist.
 
 ## Offene Posten
 
