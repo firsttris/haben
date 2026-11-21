@@ -152,7 +152,7 @@ ${GERUEST}
 
 ## Prüfen
 
-Haben bietet unter Einstellungen › Beleggestaltung › Layouts die eingebauten Layouts als Grundlage und die Beispieldaten zum Herunterladen an. Die Beispieldaten sind eine Liste aus \`name\` und \`data\`; ein Beispiel daraus geht mit der Typst-CLI so (die Schriften oben gibt es frei unter der SIL Open Font License, etwa bei Google Fonts):
+Haben bietet unter Einstellungen › Beleggestaltung › Layouts die eingebauten Layouts in jeder Variante als Grundlage und die Beispieldaten zum Herunterladen an. In einer solchen Datei stehen die Optionen der Variante fest als \`#let optionen = (…)\`, denn ein eigenes Layout bekommt \`look.options\` leer. Die Beispieldaten sind eine Liste aus \`name\` und \`data\`; ein Beispiel daraus geht mit der Typst-CLI so (die Schriften oben gibt es frei unter der SIL Open Font License, etwa bei Google Fonts):
 
 \`\`\`sh
 jq '.[0].data' beispieldaten-beleg.json > beispiel.json

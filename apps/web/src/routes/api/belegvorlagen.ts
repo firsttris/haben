@@ -1,4 +1,5 @@
-import { layoutAnleitung, layoutBeispiele, layoutJsonSchema, startvorlage } from "@haben/einvoice";
+import { eingebautesLayout } from "@haben/core";
+import { eingebautesLayoutAlsDatei, layoutAnleitung, layoutBeispiele, layoutJsonSchema, startvorlage } from "@haben/einvoice";
 import { createFileRoute } from "@tanstack/react-router";
 import { fileResponse } from "../../server/file-response.ts";
 import { layoutSource } from "../../server/modules/stammdaten/index.ts";
@@ -8,8 +9,8 @@ const text = (inhalt: string, filename: string, mimeType = "text/plain") => file
 const json = (inhalt: unknown, filename: string) => text(`${JSON.stringify(inhalt, null, 2)}\n`, filename, "application/json");
 
 /**
- * Downloads für eigene Belegvorlagen: Startvorlage je Art, Beispieldaten, Feldvertrag als JSON Schema, die Anleitung für
- * KI-Agenten und ein gespeichertes Layout (?id=…)
+ * Downloads für eigene Belegvorlagen: Startvorlage je Art, ein eingebautes Layout in einer Variante (?layout=…&<option>=<wert>),
+ * Beispieldaten, Feldvertrag als JSON Schema, die Anleitung für KI-Agenten und ein gespeichertes Layout (?id=…)
  */
 export const Route = createFileRoute("/api/belegvorlagen")({
   server: {
@@ -22,6 +23,19 @@ export const Route = createFileRoute("/api/belegvorlagen")({
         switch (url.searchParams.get("datei")) {
           case "start":
             return text(startvorlage(art), art === "mahnung" ? "klassisch-mahnung.typ" : "klassisch-beleg.typ");
+          case "eingebaut": {
+            const layout = eingebautesLayout(url.searchParams.get("layout") ?? "");
+            if (!layout) return new Response("Layout nicht gefunden", { status: 404 });
+            // Unbekannte und gesperrte Werte löst layoutOptionen auf, wie beim Setzen
+            const gewaehlt = Object.fromEntries(
+              layout.optionen.flatMap((option) => {
+                const wert = url.searchParams.get(option.id);
+                return wert === null ? [] : [[option.id, wert]];
+              }),
+            );
+            const { dateiname, inhalt } = eingebautesLayoutAlsDatei(layout, gewaehlt, art);
+            return text(inhalt, dateiname);
+          }
           case "beispiele":
             return json(
               layoutBeispiele()
