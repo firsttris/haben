@@ -1,4 +1,4 @@
-import { MONTHS, bwaZeileLeer, formatEuro, sichtbareZeilen, type Zeitraum } from "@haben/core";
+import { MONTHS, bwaZeileLeer, formatEuro, sichtbareZeilen, type BasisPoints, type Zeitraum } from "@haben/core";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
@@ -6,8 +6,8 @@ import type { BwaBericht, BwaZeileWerte } from "../server/modules/auswertungen/i
 import { ScrollTable } from "./ScrollTable.tsx";
 
 /*
- * Tabelle der BWA (#1380) für Form 43 und Form 01: Zeitraum, Vergleich mit Abweichung, kumuliert; eine Zeile öffnet sich per
- * Link. „Leere Zeilen anzeigen“ (#1635) setzt `leer` in der Adresse.
+ * Tabelle der BWA (#1380) für Form 43 und Form 01: Zeitraum mit Anteil (#1635), Vergleich mit Abweichung, kumuliert; eine
+ * Zeile öffnet sich per Link. „Leere Zeilen anzeigen“ (#1635) setzt `leer` in der Adresse.
  */
 
 const kurzerMonat = (monat: number) => MONTHS[monat - 1]!.slice(0, 3);
@@ -33,6 +33,13 @@ export function zeitraumText({ von, bis }: Zeitraum, kurz = false): string {
 /** Abweichung in Prozent mit einer Nachkommastelle, damit die Spalte bündig steht */
 const prozentFormat = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
 const prozent = (basispunkte: number) => `${prozentFormat.format(basispunkte / 100)}\u00a0%`;
+
+/** Anteil und Kennzahl: eine Nachkommastelle, ohne Plus; „–“ ohne Wert */
+const anteilFormat = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+export const anteilText = (wert: BasisPoints | null) => (wert === null ? "–" : `${anteilFormat.format(wert / 100)}\u00a0%`);
+
+const ANTEIL_43 = "Erlöse in % der Summe der Erlöse, Kosten in % der Summe der Kosten";
+const ANTEIL_01 = "Leistung und Material in % der Gesamtleistung, Kostenarten in % der Gesamtkosten";
 
 export function BwaTabelle({
   bericht,
@@ -65,6 +72,7 @@ export function BwaTabelle({
         </label>
       </div>
       {children}
+      <p className="small muted">Anteil: {bericht.kapitalgesellschaft ? ANTEIL_01 : ANTEIL_43}.</p>
       <ScrollTable className="report-table euer-table">
         <caption className="visually-hidden">BWA {zeitraumText(zeitraum)}</caption>
         <thead>
@@ -72,6 +80,9 @@ export function BwaTabelle({
             <th scope="col">Position</th>
             <th scope="col" className="num">
               {zeitraumText(zeitraum, true)}
+            </th>
+            <th scope="col" className="num">
+              Anteil
             </th>
             {mitVergleich && (
               <>
@@ -145,6 +156,7 @@ function BwaZeile({
         )}
       </th>
       <td className="num">{formatEuro(z.betrag)}</td>
+      <td className="num">{anteilText(z.anteil)}</td>
       {mitVergleich && (
         <>
           <td className="num">{formatEuro(z.vergleich ?? 0)}</td>

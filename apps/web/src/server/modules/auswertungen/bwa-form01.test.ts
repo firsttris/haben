@@ -159,6 +159,25 @@ describe.skipIf(!testDatabaseUrl)("BWA nach DATEV-Form 01 (Postgres, #1380)", ()
         expect(zeile(jahr, "ertragsteuern").betrag).toBe(2_000);
         expect(zeile(jahr, "umsatzerloese").vergleich).toBe(0);
 
+        // Anteile (#1635): Leistung in % der Gesamtleistung, Kostenarten in % der Gesamtkosten; Neutrales und Ergebnisse ohne
+        const anteile = (keys: string[]) => keys.map((key) => zeile(jahr, key).anteil);
+        expect(anteile(["umsatzerloese", "gesamtleistung", "rohertrag", "betrieblicherRohertrag", "instandhaltung", "gesamtkosten"])).toEqual([
+          10000, 10000, 10000, 10000, 10000, 10000,
+        ]);
+        expect(anteile(["material", "personal"])).toEqual([0, 0]);
+        expect(
+          anteile(["betriebsergebnis", "neutralAufwand", "neutralerAufwand", "zinsertrag", "neutralerErtrag", "ergebnisVorSteuern", "ertragsteuern"]),
+        ).toEqual(Array(7).fill(null));
+        expect(zeile(jahr, "vorlaeufigesErgebnis").anteil).toBeNull();
+        // Kennzahlen in % der Gesamtleistung; ohne Material kein Aufschlag, Vorjahr ohne Gesamtleistung ohne Wert
+        expect(jahr.kennzahlen.zeitraum.map((k) => [k.key, k.wert])).toEqual([
+          ["rohertragsquote", 10000],
+          ["personalkostenquote", 0],
+          ["kostenquote", 2000],
+          ["umsatzrendite", 7300],
+        ]);
+        expect(jahr.kennzahlen.vergleich?.map((k) => k.wert)).toEqual([null, null, null, null]);
+
         // Periodengerecht nach Buchungsdatum: im März die Rechnung, im April der Beleg, unabhängig von der Zahlung
         const maerz = await bwa.bwaBericht(bwaZeitraum("monat", 2027, 3), "vorperiode");
         expect(zeile(maerz, "umsatzerloese").betrag).toBe(100_000);
@@ -168,6 +187,11 @@ describe.skipIf(!testDatabaseUrl)("BWA nach DATEV-Form 01 (Postgres, #1380)", ()
         expect(zeile(april, "instandhaltung").betrag).toBe(20_000);
         expect(zeile(april, "instandhaltung").kumuliert).toBe(20_000);
         expect(zeile(april, "umsatzerloese").kumuliert).toBe(100_000);
+        // Im April nur Kosten: kein Anteil an der Gesamtleistung; kumuliert seit Januar mit den Erlösen des März
+        expect([zeile(april, "instandhaltung").anteil, zeile(april, "umsatzerloese").anteil]).toEqual([10000, null]);
+        expect(zeile(april, "umsatzerloese").anteilKumuliert).toBe(10000);
+        expect(april.kennzahlen.kumuliert.find((k) => k.key === "kostenquote")?.wert).toBe(2000);
+        expect(april.kennzahlen.vergleich).toBeNull();
 
         // Drilldown: die Konten der Zeile, je mit Betrag
         const neutral = await form01.bwaForm01Konten(bwaZeitraum("jahr", 2027), "neutralAufwand");

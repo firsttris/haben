@@ -83,7 +83,8 @@ export const FORM43: readonly BwaZeileDefinition<Form43Zeile, Form43Summe>[] = [
 ];
 
 const EINNAHMEN: ReadonlySet<Form43Zeile> = new Set(["erloese", "sonstigeErloese", "umsatzsteuer", "ustErstattung"]);
-const KOSTEN: ReadonlySet<Form43Zeile> = new Set([
+/** Kostenzeilen der Form 43, die die Summe der Kosten bilden; Bezugsgröße der Anteile in `bwa-kennzahlen.ts` */
+export const FORM43_KOSTEN: ReadonlySet<Form43Zeile> = new Set([
   "material",
   "fremdleistungen",
   "personal",
@@ -238,7 +239,7 @@ export function form43(anteile: readonly Form43Anteil[], zeitraum: Zeitraum): Fo
   const summe = (zeilen: ReadonlySet<Form43Zeile>) => [...zeilen].reduce((s, z) => s + w[z], 0);
   w.summeErloese = w.erloese + w.sonstigeErloese;
   w.summeEinnahmen = summe(EINNAHMEN);
-  w.summeKosten = summe(KOSTEN);
+  w.summeKosten = summe(FORM43_KOSTEN);
   w.summeAusgaben = w.summeKosten + w.buchwertAnlagenabgang + w.sonstigeAufwendungen + w.vorsteuer + w.ustZahlung;
   w.ergebnis = w.summeEinnahmen - w.summeAusgaben;
   w.gewinnEuer = w.ergebnis + w.nichtAbziehbar;

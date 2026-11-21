@@ -2,6 +2,7 @@ import {
   FORM01,
   FORM43,
   abweichung,
+  anteil,
   euerZeileLabel,
   euerZeilenKonto,
   form43,
@@ -9,17 +10,22 @@ import {
   imZeitraum,
   isKapitalgesellschaft,
   jahreVon,
+  kennzahlen,
   kumuliert,
   vergleichszeitraum,
   vorjahreszeitraum,
   zerlegeAbweichung,
   type BasisPoints,
   type BwaEuerPosten,
+  type BwaForm,
+  type BwaKennzahl,
   type Cents,
   type Form01Summe,
+  type Form01Werte,
   type Form01Zeile,
   type Form43Anteil,
   type Form43Summe,
+  type Form43Werte,
   type Form43Zeile,
   type Vergleich,
   type Warum,
@@ -50,6 +56,17 @@ export interface BwaZeileWerte {
   vergleich: Cents | null;
   vergleichKumuliert: Cents | null;
   abweichung: { betrag: Cents; prozent: BasisPoints | null } | null;
+  /** Anteil an der Bezugsgröße (#1635), etwa Kosten in % der Summe der Kosten; null ohne Anteil */
+  anteil: BasisPoints | null;
+  anteilKumuliert: BasisPoints | null;
+}
+
+/** Kennzahlen je Spalte (#1635); ohne Vergleich null */
+export interface BwaKennzahlen {
+  zeitraum: BwaKennzahl[];
+  kumuliert: BwaKennzahl[];
+  vergleich: BwaKennzahl[] | null;
+  vergleichKumuliert: BwaKennzahl[] | null;
 }
 
 export interface BwaBericht {
@@ -61,6 +78,7 @@ export interface BwaBericht {
   /** Kumulierter Vergleich nur mit dem Vorjahr; „seit Jahresbeginn“ der Vorperiode wäre ein anderes Jahr */
   vergleichKumuliert: Zeitraum | null;
   zeilen: BwaZeileWerte[];
+  kennzahlen: BwaKennzahlen;
   /** Jahre im Zeitraum, deren AfA noch nicht gebucht ist: Die BWA zeigt bis dahin keine Abschreibungen aus dem Anlagenverzeichnis */
   afaOffen: number[];
 }
@@ -95,21 +113,39 @@ async function anteile(zeitraeume: readonly (Zeitraum | null)[], q: Db | Tx): Pr
   return (await euerPosten(jahre, q)).flatMap(form43Anteile);
 }
 
-/** Die Zeilen einer Form mit den Beträgen je Spalte; ohne Vergleich null */
-function zeilenWerte<K extends string>(
-  form: readonly { key: K; label: string; art: BwaZeileWerte["art"] }[],
-  [werte, werteKum, werteVgl, werteVglKum]: readonly (Record<K, Cents> | null)[],
-): BwaZeileWerte[] {
-  return form.map((d) => ({
-    key: d.key as BwaZeileWerte["key"],
-    label: d.label,
-    art: d.art,
-    betrag: werte![d.key],
-    kumuliert: werteKum![d.key],
-    vergleich: werteVgl ? werteVgl[d.key] : null,
-    vergleichKumuliert: werteVglKum ? werteVglKum[d.key] : null,
-    abweichung: werteVgl ? abweichung(werte![d.key], werteVgl[d.key]) : null,
-  }));
+/** Die Zeilen einer Form mit den Beträgen und Anteilen je Spalte und ihre Kennzahlen; ohne Vergleich null */
+function zeilenWerte(
+  form: BwaForm,
+  [werte, werteKum, werteVgl, werteVglKum]: readonly (Form43Werte | Form01Werte | null)[],
+): { zeilen: BwaZeileWerte[]; kennzahlen: BwaKennzahlen } {
+  const spalte = (x: Form43Werte | Form01Werte | null | undefined, key: string) => (x ? (x as Readonly<Record<string, Cents>>)[key]! : null);
+  const definitionen: readonly { key: string; label: string; art: BwaZeileWerte["art"] }[] = form === "form01" ? FORM01 : FORM43;
+  const kennzahlenVon = (x: Form43Werte | Form01Werte | null | undefined) => (x ? kennzahlen(form, x) : null);
+  const zeilen = definitionen.map((d) => {
+    const betrag = spalte(werte, d.key)!;
+    const vergleich = spalte(werteVgl, d.key);
+    return {
+      key: d.key as BwaZeileWerte["key"],
+      label: d.label,
+      art: d.art,
+      betrag,
+      kumuliert: spalte(werteKum, d.key)!,
+      vergleich,
+      vergleichKumuliert: spalte(werteVglKum, d.key),
+      abweichung: vergleich === null ? null : abweichung(betrag, vergleich),
+      anteil: anteil(form, werte!, d.key),
+      anteilKumuliert: anteil(form, werteKum!, d.key),
+    };
+  });
+  return {
+    zeilen,
+    kennzahlen: {
+      zeitraum: kennzahlenVon(werte)!,
+      kumuliert: kennzahlenVon(werteKum)!,
+      vergleich: kennzahlenVon(werteVgl),
+      vergleichKumuliert: kennzahlenVon(werteVglKum),
+    },
+  };
 }
 
 export async function bwaBericht(zeitraum: Zeitraum, vergleich: Vergleich, q: Db | Tx = db): Promise<BwaBericht> {
@@ -118,19 +154,19 @@ export async function bwaBericht(zeitraum: Zeitraum, vergleich: Vergleich, q: Db
   const vgl = vergleichszeitraum(zeitraum, vergleich);
   const vglKum = vergleich === "vorjahr" ? kumuliert(vorjahreszeitraum(zeitraum)) : null;
   const zeitraeume = [zeitraum, kum, vgl, vglKum];
-  let zeilen: BwaZeileWerte[];
-  if (kapitalgesellschaft) zeilen = zeilenWerte(FORM01, await form01Werte(zeitraeume, q));
+  let spalten: { zeilen: BwaZeileWerte[]; kennzahlen: BwaKennzahlen };
+  if (kapitalgesellschaft) spalten = zeilenWerte("form01", await form01Werte(zeitraeume, q));
   else {
     const alle = await anteile(zeitraeume, q);
-    zeilen = zeilenWerte(
-      FORM43,
+    spalten = zeilenWerte(
+      "form43",
       zeitraeume.map((z) => (z ? form43(alle, z) : null)),
     );
   }
   const afaOffen: number[] = [];
   // Alle Jahre des Zeitraums; kumuliert liegt im letzten davon
   for (const jahr of jahreVon(zeitraum)) if ((await listAssets(jahr, q)).some((a) => a.pending)) afaOffen.push(jahr);
-  return { kapitalgesellschaft, zeitraum, kumuliert: kum, vergleich: vgl, vergleichKumuliert: vglKum, afaOffen, zeilen };
+  return { kapitalgesellschaft, zeitraum, kumuliert: kum, vergleich: vgl, vergleichKumuliert: vglKum, afaOffen, ...spalten };
 }
 
 export interface BwaVorgang {
