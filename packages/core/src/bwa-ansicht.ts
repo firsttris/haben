@@ -2,7 +2,7 @@ import type { BwaZeileDefinition } from "./bwa.ts";
 import type { Cents } from "./money.ts";
 
 /*
- * Was die BWA (#1380) zeigt, gemeinsam für Seite und Export (#1635): ohne Schalter fehlen Zeilen, die in allen Spalten 0
+ * Was die BWA (#1380) zeigt, gemeinsam für die Seite und später den Export (#1635): ohne Schalter fehlen Zeilen, die in allen Spalten 0
  * sind, mit „Leere Zeilen anzeigen“ steht jede Zeile der Form, damit die BWA Zeile für Zeile neben die der Steuerberatung
  * passt. Summen und Ergebnis stehen immer.
  */
