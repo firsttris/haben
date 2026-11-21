@@ -20,6 +20,11 @@ import type { ParsedStatement } from "./types.ts";
  *    „EREF+…MREF+…CRED+…SVWZ+…“, ohne Trenner.
  *
  * „Info“ nennt den Status: „Umsatz gebucht“, sonst vorgemerkt.
+ *
+ * Wahrscheinlich ist das der CSV-Export der Sparkassen: Die BW-Bank gehört über die LBBW zur Sparkassen-Finanzgruppe, und
+ * die Köpfe gleichen den Sparkassen-Vorlagen in https://github.com/nicolettas-muggelbude/RechnungsFee. Mit einer echten
+ * Sparkassen-Datei ist das nicht geprüft; das Format heißt deshalb `bw-bank-csv`. Weicht eine Sparkasse ab, lässt sich
+ * die Bank an der BLZ in „Auftragskonto“ unterscheiden (BW-Bank: 600 501 01).
  */
 export function isBwBankHeader(c: Columns): boolean {
   return c.has("auftragskonto") && c.has("buchungstag") && c.has("valutadatum") && c.has("beguenstigterzahlungspflichtiger") && c.has("betrag");
