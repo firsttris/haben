@@ -40,22 +40,7 @@ export async function storeLegacyVoucher(
     .onConflictDoNothing({ target: schema.lexofficeVouchers.lexofficeId })
     .returning({ id: schema.lexofficeVouchers.id });
   if (!row) return null;
-  const seen = new Set<string>();
-  for (const file of files) {
-    const sha256 = sha256Of(file.bytes);
-    if (seen.has(sha256)) continue;
-    seen.add(sha256);
-    await storeFile(file.bytes);
-    await tx.insert(schema.lexofficeVoucherFiles).values({
-      voucherId: row.id,
-      role: file.role,
-      lexofficeFileId: file.sourceFileId,
-      filename: file.filename.slice(0, 200),
-      mimeType: file.mimeType.split(";")[0]!.trim() || "application/octet-stream",
-      sha256,
-      size: file.bytes.byteLength,
-    });
-  }
+  const angehaengt = await attachVoucherFiles(tx, row.id, files);
   for (const payment of payments)
     await tx.insert(schema.legacyVoucherPayments).values({
       voucherId: row.id,
@@ -67,7 +52,31 @@ export async function storeLegacyVoucher(
       accountName: payment.accountName,
       raw: payment.evidence,
     });
-  return { id: row.id, files: seen.size };
+  return { id: row.id, files: angehaengt };
+}
+
+/**
+ * Hängt Dateien an einen Beleg, gleiche Prüfungen wie beim Anlegen: je Beleg zählt jede Datei einmal, nach ihrem
+ * Inhalt. Ein zweiter Lauf holt damit eine Datei nach, die beim ersten Mal nicht kam (#1504).
+ */
+export async function attachVoucherFiles(tx: Tx, voucherId: string, files: LegacyOriginalFile[]): Promise<number> {
+  const seen = new Set<string>();
+  for (const file of files) {
+    const sha256 = sha256Of(file.bytes);
+    if (seen.has(sha256)) continue;
+    seen.add(sha256);
+    await storeFile(file.bytes);
+    await tx.insert(schema.lexofficeVoucherFiles).values({
+      voucherId,
+      role: file.role,
+      lexofficeFileId: file.sourceFileId,
+      filename: file.filename.slice(0, 200),
+      mimeType: file.mimeType.split(";")[0]!.trim() || "application/octet-stream",
+      sha256,
+      size: file.bytes.byteLength,
+    });
+  }
+  return seen.size;
 }
 
 /** Derselbe Auftragsdokumentbestand für Anbieterabruf und lokale Originalpakete. */

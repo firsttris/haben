@@ -41,7 +41,7 @@ import { env } from "../../env.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import type { LegacyCategoryRow, LegacyFileState, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sniff } from "../../storage.ts";
-import { storeLegacyVoucher } from "./legacy-store.ts";
+import { attachVoucherFiles, storeLegacyVoucher } from "./legacy-store.ts";
 import { latestFastbillImport } from "./fastbill.ts";
 import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillWaitingChecks } from "./fastbill-abgleich.ts";
 import { fastbillWaitingByYear } from "./fastbill-belege.ts";
@@ -312,6 +312,8 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
   const categories = new Map((await client.postingCategories()).map((c) => [c.id, c.name]));
   const listed = await sammleBelegliste(client, progress, save);
   const done = new Set((await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers)).map((r) => r.id));
+  // Belege mit fehlender Datei sind nicht abgeschlossen; eine spätere Sicherung kann die Datei enthalten (#1504)
+  const nachzuladen = await offeneDateien();
 
   // 3. Je Beleg Details, Zahlungen und Dateien; Fehler einzelner Belege halten den Lauf nicht auf
   progress.phase = "belege";
@@ -319,7 +321,19 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
   for (const item of listed) {
     signal.throwIfAborted();
     if (done.has(item.id)) {
-      progress.skipped += 1;
+      const offen = nachzuladen.get(item.id);
+      if (!offen) {
+        progress.skipped += 1;
+        continue;
+      }
+      try {
+        if (await nachladenDateien(actor, importId, client, item, offen)) progress.nachgeladen = (progress.nachgeladen ?? 0) + 1;
+      } catch (error) {
+        if (error instanceof LexofficeApiError && (error.status === 401 || error.status === 403)) throw error;
+        if (signal.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+        progress.failed.push({ lexofficeId: item.id, number: offen[0]!.number, message: progressMessage(error) });
+      }
+      await save();
       continue;
     }
     try {
@@ -339,6 +353,76 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
 }
 
 type DateiEintrag = { role: "pdf" | "xml" | "anhang"; lexofficeFileId: string | null; file: LexFile };
+type OffeneDatei = { voucherId: string; number: string; role: "pdf" | "xml" | "anhang"; fileId: string };
+
+/**
+ * Belege, deren jüngster Dateistand „Abruf fehlgeschlagen“ ist und die die Kennung der fehlenden Datei nennt. Ein
+ * späterer Lauf holt sie nach, statt den Beleg dauerhaft mit offenem Punkt stehen zu lassen (#1504). PDF und XML der
+ * Rechnung tragen keine Kennung; sie kommen nur mit dem Beleg selbst und bleiben davon unberührt.
+ */
+async function offeneDateien(): Promise<Map<string, OffeneDatei[]>> {
+  const rows = await db
+    .selectDistinctOn([schema.legacyFileStates.voucherId], {
+      lexofficeId: schema.lexofficeVouchers.lexofficeId,
+      number: schema.lexofficeVouchers.number,
+      voucherId: schema.legacyFileStates.voucherId,
+      role: schema.legacyFileStates.role,
+      fileId: schema.legacyFileStates.sourceFileId,
+      state: schema.legacyFileStates.state,
+    })
+    .from(schema.legacyFileStates)
+    .innerJoin(schema.lexofficeVouchers, eq(schema.lexofficeVouchers.id, schema.legacyFileStates.voucherId))
+    .where(eq(schema.lexofficeVouchers.source, "lexoffice"))
+    .orderBy(schema.legacyFileStates.voucherId, desc(schema.legacyFileStates.createdAt), desc(schema.legacyFileStates.id));
+  const out = new Map<string, OffeneDatei[]>();
+  for (const row of rows) {
+    if (row.state !== "abruf_fehlgeschlagen" || !row.fileId || !row.role) continue;
+    const liste = out.get(row.lexofficeId) ?? [];
+    liste.push({ voucherId: row.voucherId, number: row.number, role: row.role, fileId: row.fileId });
+    out.set(row.lexofficeId, liste);
+  }
+  return out;
+}
+
+/** Holt die fehlenden Dateien eines früheren Belegs nach; true, wenn mindestens eine ankam */
+async function nachladenDateien(
+  actor: string,
+  importId: string,
+  client: LexofficeSource,
+  item: { id: string; type: string },
+  offen: OffeneDatei[],
+): Promise<boolean> {
+  const files: DateiEintrag[] = [];
+  const weiterhin: FehlendeDatei[] = [];
+  await ladeDateien(
+    files,
+    weiterhin,
+    offen.map((e) => [e.role, e.fileId, () => client.file(e.fileId)] as const),
+  );
+  if (files.length === 0) return false;
+  const voucherId = offen[0]!.voucherId;
+  const number = offen[0]!.number || item.id;
+  await withActor(actor, async (tx) => {
+    await attachVoucherFiles(
+      tx,
+      voucherId,
+      files.map((entry) => ({
+        role: entry.role,
+        sourceFileId: entry.lexofficeFileId,
+        filename: entry.file.filename ?? fallbackName({ number, lexofficeId: item.id }, entry.role, entry.file.bytes),
+        mimeType: entry.file.mimeType,
+        bytes: entry.file.bytes,
+      })),
+    );
+    await recordFileState(
+      tx,
+      voucherId,
+      { state: "nachgeladen", role: null, sourceFileId: null, message: "Datei aus einer späteren Sicherung nachgeladen." },
+      { actor, importId },
+    );
+  });
+  return true;
+}
 /** Eine Datei, die der Beleg führt und die nicht kommt; sie wird am Beleg vermerkt, nicht als Grund, ihn wegzulassen (#1504) */
 type FehlendeDatei = { role: "pdf" | "xml" | "anhang"; fileId: string | null; message: string };
 
@@ -356,7 +440,8 @@ async function ladeDateien(
       const file = await laden();
       if (file) files.push({ role, lexofficeFileId: fileId, file });
     } catch (error) {
-      if (error instanceof LexofficeApiError && (error.status === 401 || error.status === 403)) throw error;
+      // Ungültiger Schlüssel und Abbruch gelten für den ganzen Lauf; den Abbruch meldet der Client mit Status 0
+      if (error instanceof LexofficeApiError && [0, 401, 403].includes(error.status)) throw error;
       if (error instanceof Error && error.name === "AbortError") throw error;
       missing.push({ role, fileId, message: progressMessage(error) });
     }
@@ -459,7 +544,7 @@ async function importVoucher(
   });
 }
 
-export function fallbackName(voucher: LegacyVoucher, role: "pdf" | "xml" | "anhang", bytes: Uint8Array): string {
+export function fallbackName(voucher: Pick<LegacyVoucher, "number" | "lexofficeId">, role: "pdf" | "xml" | "anhang", bytes: Uint8Array): string {
   const base = (voucher.number || voucher.lexofficeId).replace(/[^\w.-]+/g, "_");
   const kind = sniff(bytes)?.kind;
   const extension = role === "xml" ? "xml" : kind === "jpeg" ? "jpg" : (kind ?? "pdf");

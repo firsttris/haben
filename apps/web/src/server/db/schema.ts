@@ -3480,6 +3480,8 @@ export type LexofficeImportProgress = {
    * bekannte Belegart (Angebote, Aufträge, Lieferscheine, Unbekanntes). Bis 0.12.0 fielen beide ohne Vermerk heraus.
    */
   ignored?: { drafts: number; types: { type: string; count: number }[] };
+  /** Belege aus früheren Läufen, deren fehlende Datei in diesem Lauf doch noch ankam (#1504) */
+  nachgeladen?: number;
   /** sevDesk: Vorlagen wiederkehrender Belege, in diesem Lauf als Dauerbelege übernommen */
   recurring?: number;
   /** BuchhaltungsButler: Archivdateien mit dem DATEV-Stapel des Exports, auch wenn sie schon vorher im Archiv lagen */

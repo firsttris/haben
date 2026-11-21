@@ -14,6 +14,9 @@ const fixture = (name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(new URL(`../../../../../../packages/import/test-fixtures/lexoffice/${name}`, import.meta.url), "utf8"));
 
 const VOUCHER = fixture("voucher-gross.json");
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
+/** Steuert, ob der Abruf die Anhangsdatei herausgibt; der zweite Lauf holt sie damit nach (#1504) */
+let dateiKlappt = false;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -53,7 +56,10 @@ function fakeApi() {
     }
     if (path === `/vouchers/${VOUCHER.id}`) return json(VOUCHER);
     // Genau der Fall aus #1504: Der Beleg führt eine Datei, der Abruf liefert sie nicht
-    if (path.startsWith("/files/")) return json({ message: "Datei nicht in der Sicherung" }, 500);
+    if (path.startsWith("/files/")) {
+      if (!dateiKlappt) return json({ message: "Datei nicht in der Sicherung" }, 500);
+      return new Response(JPEG, { headers: { "content-type": "image/jpeg", "content-disposition": "attachment; filename=Quittung.jpg" } });
+    }
     if (path.startsWith("/payments/")) return json({ message: "not found" }, 404);
     return json({ message: `unbekannt ${path}` }, 404);
   }) as typeof fetch;
@@ -63,6 +69,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice: fehlende Belegdatei (#1504)", () =
   let lexoffice: typeof import("./lexoffice.ts");
   const actor = "test-user";
   let sql: postgres.Sql;
+  let voucherId = "";
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -89,6 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice: fehlende Belegdatei (#1504)", () =
 
     const [voucher] = await sql`select id, number, gross from lexoffice_vouchers where number = '2023-4711'`;
     expect(voucher).toMatchObject({ number: "2023-4711", gross: 12_970 });
+    voucherId = String(voucher!.id);
 
     // Der Stand hängt am Beleg, mit Grund und Kennung der Datei
     const [stand] = await sql`select state, role, source_file_id, message from legacy_file_states where voucher_id = ${voucher!.id}`;
@@ -106,6 +114,24 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice: fehlende Belegdatei (#1504)", () =
     const jahr = (await lexoffice.reconciliation()).years.find((y) => y.year === 2023)!;
     const check = jahr.checks.find((c) => c.label === "Jeder Beleg hat eine Datei")!;
     expect(check).toMatchObject({ ok: false, detail: "1 Abruf fehlgeschlagen" });
+  });
+
+  it("holt die fehlende Datei aus einem späteren Lauf nach und löst den offenen Punkt", async () => {
+    // Eine neue Sicherung enthält die Datei: der Beleg ist schon da, die Datei kommt jetzt
+    dateiKlappt = true;
+    await lexoffice.startImport(actor, { wait: true });
+    const run = await lexoffice.latestImport();
+    expect(run!.progress).toMatchObject({ nachgeladen: 1, failed: [] });
+
+    const [datei] =
+      await sql`select role, mime_type from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = '2023-4711'`;
+    expect(datei).toMatchObject({ role: "anhang", mime_type: "image/jpeg" });
+
+    // Der Stand am Beleg ist aufgelöst, der Abgleich wieder grün
+    const [stand] = await sql`select state from legacy_file_states where voucher_id = ${voucherId} order by created_at desc, id desc limit 1`;
+    expect(stand!.state).toBe("nachgeladen");
+    const jahr = (await lexoffice.reconciliation()).years.find((y) => y.year === 2023)!;
+    expect(jahr.checks.find((c) => c.label === "Jeder Beleg hat eine Datei")).toMatchObject({ ok: true, detail: "alle mit Datei" });
   });
 
   it("fasst übergangene Arten zusammen und lässt Leeres weg", () => {
