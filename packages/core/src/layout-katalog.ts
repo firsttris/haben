@@ -149,10 +149,10 @@ export const EINGEBAUTE_LAYOUTS: readonly EingebautesLayout[] = [
     ],
   },
   {
-    id: "premium",
+    id: "atelier",
     name: "Atelier",
     beschreibung: "Display-Serif, Haarlinien in Gold, viel Weißraum",
-    vorlagen: vorlagen("premium-unten"),
+    vorlagen: vorlagen("atelier-unten"),
     vorgaben: { font: "figtree", accent: "#B5862A" },
     logo: ["rechts", "links", "mitte"],
     optionen: [
@@ -160,8 +160,8 @@ export const EINGEBAUTE_LAYOUTS: readonly EingebautesLayout[] = [
         id: "fuss",
         name: "Fuß",
         werte: [
-          { id: "unten", name: "Unten", vorlagen: vorlagen("premium-unten") },
-          { id: "rechts", name: "In der Randspalte", vorlagen: vorlagen("premium-rechts") },
+          { id: "unten", name: "Unten", vorlagen: vorlagen("atelier-unten") },
+          { id: "rechts", name: "In der Randspalte", vorlagen: vorlagen("atelier-rechts") },
         ],
       },
       kerndaten([

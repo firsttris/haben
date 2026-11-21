@@ -256,10 +256,10 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
   }, 60_000);
 
   it("ordnet jedes eingebaute Layout aus dem Katalog zu, ein unbekanntes nicht", async () => {
-    await layouts.assignLayout(actor, "rechnung", { kind: "eingebaut", id: "premium" });
+    await layouts.assignLayout(actor, "rechnung", { kind: "eingebaut", id: "atelier" });
     await layouts.assignLayout(actor, "mahnung", { kind: "eingebaut", id: "elegant" });
     const design = await letterhead.loadDesign();
-    expect(design.layouts.rechnung).toEqual({ kind: "eingebaut", id: "premium" });
+    expect(design.layouts.rechnung).toEqual({ kind: "eingebaut", id: "atelier" });
     expect(design.layouts.mahnung).toEqual({ kind: "eingebaut", id: "elegant" });
     await expect(layouts.assignLayout(actor, "angebot", { kind: "eingebaut", id: "gibtsnicht" })).rejects.toThrow(/gibt es nicht/);
   }, 60_000);

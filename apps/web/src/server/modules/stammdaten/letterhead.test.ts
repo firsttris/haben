@@ -74,10 +74,10 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
   });
 
   it("führt die Optionen je Layout zusammen und speichert nur, was der Katalog kennt", async () => {
-    await letterhead.saveDesign(actor, { layoutOptions: { premium: { fuss: "rechts", kerndaten: "zweispaltig" } } });
+    await letterhead.saveDesign(actor, { layoutOptions: { atelier: { fuss: "rechts", kerndaten: "zweispaltig" } } });
     await letterhead.saveDesign(actor, { layoutOptions: { klar: { fassung: "klassisch", farbe: "rot" }, fremd: { a: "b" } } });
     // Gesperrte Werte (zweispaltig bei Fuß rechts) bleiben gespeichert, damit die Wahl beim Zurückschalten wieder gilt
-    expect((await letterhead.loadDesign()).layoutOptions).toEqual({ premium: { fuss: "rechts", kerndaten: "zweispaltig" }, klar: { fassung: "klassisch" } });
+    expect((await letterhead.loadDesign()).layoutOptions).toEqual({ atelier: { fuss: "rechts", kerndaten: "zweispaltig" }, klar: { fassung: "klassisch" } });
   });
 
   it("übergibt Logo und Schalter an das PDF", async () => {

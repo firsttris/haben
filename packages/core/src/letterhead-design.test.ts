@@ -57,7 +57,7 @@ describe("Schrift und Briefpapier in der Gestaltung", () => {
   });
 
   it("nimmt „layout“ als Schrift und Optionen je Layout an", () => {
-    expect(letterheadDesignInputSchema.safeParse({ font: "layout", accentFromLayout: false, layoutOptions: { premium: { fuss: "rechts" } } }).success).toBe(
+    expect(letterheadDesignInputSchema.safeParse({ font: "layout", accentFromLayout: false, layoutOptions: { atelier: { fuss: "rechts" } } }).success).toBe(
       true,
     );
   });

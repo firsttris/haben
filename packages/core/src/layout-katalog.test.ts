@@ -15,7 +15,7 @@ import {
   wertErlaubt,
 } from "./layout-katalog.ts";
 
-const premium = EINGEBAUTE_LAYOUTS.find((layout) => layout.id === "premium") as EingebautesLayout;
+const atelier = EINGEBAUTE_LAYOUTS.find((layout) => layout.id === "atelier") as EingebautesLayout;
 const elegant = EINGEBAUTE_LAYOUTS.find((layout) => layout.id === "elegant") as EingebautesLayout;
 
 /** Alle Kombinationen, die die Gestaltung anbieten kann: je Option nur erlaubte Werte */
@@ -74,15 +74,15 @@ describe("Katalog der eingebauten Layouts", () => {
   });
 
   it("löst gesperrte Werte zum ersten erlaubten auf und lässt unbekannte weg", () => {
-    expect(layoutOptionen(premium, { fuss: "rechts", kerndaten: "zweispaltig", unbekannt: "x" })).toEqual({ fuss: "rechts", kerndaten: "liste" });
-    expect(layoutOptionen(premium, { fuss: "unten", kerndaten: "zweispaltig" })).toEqual({ fuss: "unten", kerndaten: "zweispaltig" });
-    expect(layoutOptionen(premium, { fuss: "oben" })).toEqual({ fuss: "unten", kerndaten: "liste" });
+    expect(layoutOptionen(atelier, { fuss: "rechts", kerndaten: "zweispaltig", unbekannt: "x" })).toEqual({ fuss: "rechts", kerndaten: "liste" });
+    expect(layoutOptionen(atelier, { fuss: "unten", kerndaten: "zweispaltig" })).toEqual({ fuss: "unten", kerndaten: "zweispaltig" });
+    expect(layoutOptionen(atelier, { fuss: "oben" })).toEqual({ fuss: "unten", kerndaten: "liste" });
   });
 
   it("wählt die Vorlage nach dem Fuß und beschränkt das Logo in der Randspalte", () => {
-    expect(layoutVorlagen(premium, { fuss: "rechts" }).beleg).toBe("layout-premium-rechts.typ");
-    expect(layoutVorlagen(premium, { fuss: "unten" }).mahnung).toBe("layout-premium-unten-mahnung.typ");
-    expect(layoutLogo(premium, { fuss: "rechts" })).toEqual(["rechts", "links", "mitte"]);
+    expect(layoutVorlagen(atelier, { fuss: "rechts" }).beleg).toBe("layout-atelier-rechts.typ");
+    expect(layoutVorlagen(atelier, { fuss: "unten" }).mahnung).toBe("layout-atelier-unten-mahnung.typ");
+    expect(layoutLogo(atelier, { fuss: "rechts" })).toEqual(["rechts", "links", "mitte"]);
     expect(layoutLogo(elegant, { fuss: "rechts" })).toEqual(["rechts", "links"]);
     expect(logoStelle(elegant, { fuss: "rechts" }, "mitte")).toBe("rechts");
     expect(logoStelle(elegant, { fuss: "unten" }, "mitte")).toBe("mitte");
@@ -91,16 +91,16 @@ describe("Katalog der eingebauten Layouts", () => {
   it("behält von der gespeicherten Wahl nur Bekanntes, auch gesperrte Werte", () => {
     expect(
       bekannteLayoutOptionen({
-        premium: { fuss: "rechts", kerndaten: "zweispaltig", farbe: "rot" },
+        atelier: { fuss: "rechts", kerndaten: "zweispaltig", farbe: "rot" },
         klar: { x: "y" },
         fremd: { fuss: "unten" },
         modern: { akzent: "bunt" },
       }),
-    ).toEqual({ premium: { fuss: "rechts", kerndaten: "zweispaltig" }, klar: {}, modern: {} });
+    ).toEqual({ atelier: { fuss: "rechts", kerndaten: "zweispaltig" }, klar: {}, modern: {} });
   });
 
   it("bietet der Gestaltung je Option den aufgelösten Wert und graut gesperrte Werte aus", () => {
-    const wahl = optionenZurWahl(premium, { fuss: "rechts", kerndaten: "zweispaltig" });
+    const wahl = optionenZurWahl(atelier, { fuss: "rechts", kerndaten: "zweispaltig" });
     expect(wahl.map((option) => [option.id, option.wert])).toEqual([
       ["fuss", "rechts"],
       ["kerndaten", "liste"],
@@ -109,6 +109,6 @@ describe("Katalog der eingebauten Layouts", () => {
       { id: "liste", name: "Liste", erlaubt: true },
       { id: "zweispaltig", name: "Zweispaltig", erlaubt: false },
     ]);
-    expect(optionenZurWahl(premium, { fuss: "unten" })[1]!.werte.every((wert) => wert.erlaubt)).toBe(true);
+    expect(optionenZurWahl(atelier, { fuss: "unten" })[1]!.werte.every((wert) => wert.erlaubt)).toBe(true);
   });
 });

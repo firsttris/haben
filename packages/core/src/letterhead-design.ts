@@ -92,7 +92,7 @@ export interface LetterheadOptions {
 /** Gestaltung eines Briefkopf-Profils (#113). Neue Einstellungen brauchen eine Vorgabe in DEFAULT_DESIGN, ältere Zeilen kennen sie nicht */
 export interface LetterheadDesign extends LetterheadOptions {
   layouts: LayoutAssignment;
-  /** Gewählte Optionen je eingebautem Layout, etwa { premium: { fuss: "rechts" } }; aufgelöst mit layoutOptionen */
+  /** Gewählte Optionen je eingebautem Layout, etwa { atelier: { fuss: "rechts" } }; aufgelöst mit layoutOptionen */
   layoutOptions: Record<string, Record<string, string>>;
   /** #RRGGBB */
   accent: string;
