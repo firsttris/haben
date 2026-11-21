@@ -20,8 +20,9 @@ export const PAYMENT_PROVIDERS = {
   etsy: { label: "Etsy Payments", pattern: /etsy/i },
   ebay: { label: "eBay", pattern: /ebay/i },
   sumup: { label: "SumUp", pattern: /sum ?up/i },
-  // Auszahlender laut Auszahlungsbeleg: Google Payment Ireland Ltd bzw. Apple Distribution International Ltd; an echten
-  // Kontoauszügen noch zu bestätigen (Plan Google Play und App Store, „Offen“)
+  // Auszahlender laut Auszahlungsbeleg: Google Payment Ireland Ltd bzw. Apple Distribution International Ltd. Für Apple an
+  // echten Kontoauszügen bestätigt („APPLE DISTRIBUTION INTL LTD“, #1628); den Absender „Apple Inc“ erkennt
+  // stores/payout.ts am Verwendungszweck. Google noch zu bestätigen.
   googleplay: { label: "Google Play", pattern: /google\s*(payment|commerce|ireland)/i },
   appstore: { label: "App Store", pattern: /apple\s*distribution|itunes/i },
   sonstige: { label: "Anderer Zahlungsdienstleister", pattern: null },
