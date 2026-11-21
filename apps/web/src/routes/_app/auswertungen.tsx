@@ -80,6 +80,9 @@ function ReportsPage() {
           <Link className="btn" to="/auswertungen/bwa" search={{ jahr: year }}>
             BWA
           </Link>
+          <Link className="btn" to="/auswertungen/liquiditaet">
+            Liquidität
+          </Link>
           {!gesellschaft && (
             <a className="btn btn-primary" href={`/api/auswertungen/${year}`} download>
               EÜR als CSV

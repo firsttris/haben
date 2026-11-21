@@ -2,14 +2,17 @@ import { expect, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
 /*
- * Liquiditätsvorschau (#1381) mit den Daten aus app.spec.ts (offene Rechnungen, Dauerbeleg Miete): Horizont umschalten,
- * einen Zeitraum aufklappen und von einem Posten zu seiner Quelle springen, überfällige Forderungen ausblenden.
+ * Liquiditätsvorschau (#1381) mit den Daten aus app.spec.ts (offene Rechnungen, Dauerbeleg Miete): über den Link der Auswertungen
+ * öffnen, Horizont umschalten, einen Zeitraum aufklappen und von einem Posten zu seiner Quelle springen, überfällige Forderungen
+ * ausblenden.
  */
 
 test.use({ storageState: SESSION });
 
 test("Liquidität: Horizont umschalten, Zeitraum aufklappen, Posten bis zur Quelle", async ({ page }) => {
-  await page.goto("/auswertungen/liquiditaet");
+  await page.goto("/auswertungen");
+  await page.locator(".page-head").getByRole("link", { name: "Liquidität" }).click();
+  await expect(page).toHaveURL(/\/auswertungen\/liquiditaet$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Liquiditätsvorschau");
   await expect(page.getByRole("table", { name: "Liquiditätsvorschau 13 Wochen" })).toBeVisible();
 
