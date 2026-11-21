@@ -1,7 +1,7 @@
 // Geldtransit zwischen eigenen Konten und Auszahlungen der Zahlungsdienstleister
 import { insertAllocation } from "./settlement-store.ts";
 import { BankError } from "./bank-error.ts";
-import { providerPattern, directPosting, findTransferCounterpart, payoutKey, aufKontoAngeboten } from "@haben/core";
+import { providerMatcher, type ProviderMatcher, directPosting, findTransferCounterpart, payoutKey, aufKontoAngeboten } from "@haben/core";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -12,13 +12,13 @@ import { onLedger, PRIVAT_NICHT_BUCHBAR } from "./allocation.ts";
 
 /**
  * Ganz offene Gegenbuchung eines Geldtransits auf einem der anderen Konten (± 5 Tage, gleicher Betrag), deren Gegenkonto
- * das Ausgangskonto ist (sourceIban) bzw. deren Gegenpartei der Dienstleister ist (pattern)
+ * das Ausgangskonto ist (sourceIban) bzw. die vom Dienstleister kommt (fromProvider)
  */
 export async function transferCounterpart(
   tx: { id: string; bookingDate: string; amount: number },
   sourceIban: string | null,
   accountIds: string[],
-  pattern: RegExp | null,
+  fromProvider: ProviderMatcher | null,
 ) {
   if (accountIds.length === 0) return null;
   const rows = await db
@@ -28,6 +28,7 @@ export async function transferCounterpart(
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
       counterpartyIban: schema.bankTransactions.counterpartyIban,
+      purpose: schema.bankTransactions.purpose,
       open: openAmountSql.mapWith(Number),
     })
     .from(schema.bankTransactions)
@@ -39,7 +40,7 @@ export async function transferCounterpart(
         bankDuplicateProposalEligibleSql,
       ),
     );
-  const match = findTransferCounterpart(tx, sourceIban, rows, pattern);
+  const match = findTransferCounterpart(tx, sourceIban, rows, fromProvider);
   return match ? { id: match.id, bookingDate: match.bookingDate, amount: match.amount, counterpartyName: match.counterpartyName } : null;
 }
 
@@ -96,6 +97,7 @@ export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferS
         bookingDate: schema.bankTransactions.bookingDate,
         counterpartyName: schema.bankTransactions.counterpartyName,
         counterpartyIban: schema.bankTransactions.counterpartyIban,
+        text: schema.bankTransactions.purpose,
         bankReference: schema.bankTransactions.bankReference,
         accountIban: schema.bankAccounts.iban,
         provider: schema.bankAccounts.provider,
@@ -126,10 +128,10 @@ export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferS
     if (!first || !second) throw new BankError("Umsatz nicht gefunden.");
     const provider = [first, second].find((r) => r.provider);
     if (provider) {
-      // Zahlungsdienstleister ohne IBAN: die Bankseite muss ihn als Gegenpartei nennen (Auszahlung von PayPal)
+      // Zahlungsdienstleister ohne IBAN: die Bankseite muss ihn nennen (Auszahlung von PayPal), als Gegenpartei oder,
+      // beim App Store, im Verwendungszweck
       const bankSide = provider === first ? second : first;
-      const pattern = providerPattern(provider);
-      if (bankSide.provider || !pattern || !pattern.test(bankSide.counterpartyName)) {
+      if (bankSide.provider || !providerMatcher(provider)?.({ counterpartyName: bankSide.counterpartyName, purpose: bankSide.text })) {
         throw new BankError("Auf dem Bankkonto ist nicht der Zahlungsdienstleister die Gegenpartei.");
       }
     } else {
