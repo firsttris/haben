@@ -24,6 +24,8 @@ export interface WarumPosten {
 export type WarumArt = "neu" | "gestiegen" | "gesunken" | "weggefallen";
 
 export interface WarumTeil {
+  /** Eindeutig je Teil, auch bei zwei Teilen gleichen Namens ohne Kontakt (Schlüssel der Gruppe aus lieferantGruppen) */
+  schluessel: string;
   kontaktId: string | null;
   name: string;
   art: WarumArt;
@@ -69,7 +71,7 @@ export function zerlegeAbweichung(posten: readonly WarumPosten[], zeitraum: Zeit
   const je = new Map<string, Omit<WarumTeil, "art" | "differenz" | "jeVorgang" | "jeVorgangVergleich"> & { datum: string }>();
   zaehlen.forEach((p, i) => {
     const key = gruppen[i] ?? "ohne";
-    const k = je.get(key) ?? { kontaktId: null, name: OHNE_KONTAKT, datum: "", betrag: 0, vergleich: 0, anzahl: 0, anzahlVergleich: 0 };
+    const k = je.get(key) ?? { schluessel: key, kontaktId: null, name: OHNE_KONTAKT, datum: "", betrag: 0, vergleich: 0, anzahl: 0, anzahlVergleich: 0 };
     // Der Kontakt gibt der Gruppe Link und Namen; der Name des jüngsten Postens gilt, falls er sich geändert hat
     const name = p.kontakt.name.trim();
     if (p.kontakt.id ? !k.kontaktId || p.datum >= k.datum : !k.kontaktId && p.datum >= k.datum && name)

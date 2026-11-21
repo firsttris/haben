@@ -98,6 +98,25 @@ describe("Abweichung einer BWA-Zeile nach Kontakt", () => {
     expect(w.unveraendert).toBe(1);
   });
 
+  it("jeder Teil hat einen eigenen Schlüssel, auch zwei Teile gleichen Namens ohne Kontakt", () => {
+    // Zwei Kontakte mit derselben USt-IdNr. (etwa nach einem Import): Der Beleg mit ihr passt zu beiden, der ohne zu keinem
+    const w = zerlegeAbweichung(
+      [
+        p("2027-01-01", 100, { id: "k1", name: "Bar Nord", ustIds: ["DE9"] }),
+        p("2027-01-02", 200, { id: "k2", name: "Bar Süd", ustIds: ["DE9"] }),
+        p("2026-02-01", 500, { name: "Bar AG", ustIds: ["DE9"] }),
+        p("2026-03-01", 700, { name: "Bar AG" }),
+        // Ohne Namen heißen beide „Ohne Kontakt“
+        p("2027-02-01", 30, { ustIds: ["DE8"] }),
+        p("2027-02-02", 40),
+      ],
+      ZEITRAUM,
+      VERGLEICH,
+    );
+    expect(new Set(w.teile.map((t) => t.schluessel)).size).toBe(w.teile.length);
+    expect(w.teile.reduce((s, t) => s + t.differenz, 0)).toBe(w.abweichung);
+  });
+
   it("die Gruppe heißt wie ihr Kontakt, auch wenn ein Beleg ohne Kontakt jünger ist", () => {
     const w = zerlegeAbweichung(
       [p("2027-01-01", 1_000, { id: "k9", name: "Muster Hosting", namen: ["MH GmbH"] }), p("2027-04-01", 2_000, { name: "mh gmbh" })],
