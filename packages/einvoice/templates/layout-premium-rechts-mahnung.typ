@@ -1,4 +1,4 @@
-// Premium, Fuß rechts (#113) für Mahnungen: wie Premium, aber Angaben zum Beleg und Fuß in einer Randspalte rechts, getrennt durch eine
+// Atelier, Fuß rechts (#113) für Mahnungen: wie Atelier, aber Angaben zum Beleg und Fuß in einer Randspalte rechts, getrennt durch eine
 // Haarlinie in der Akzentfarbe ab Höhe der Absenderzeile. Display-Serif Cormorant Garamond. Nach DIN 5008 Form B.
 #import "layout-basis.typ": *
 

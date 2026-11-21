@@ -150,7 +150,7 @@ export const EINGEBAUTE_LAYOUTS: readonly EingebautesLayout[] = [
   },
   {
     id: "premium",
-    name: "Premium",
+    name: "Atelier",
     beschreibung: "Display-Serif, Haarlinien in Gold, viel Weißraum",
     vorlagen: vorlagen("premium-unten"),
     vorgaben: { font: "figtree", accent: "#B5862A" },

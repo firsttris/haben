@@ -43,7 +43,7 @@ export async function saveDesign(actor: string, input: LetterheadDesignInput): P
       .onConflictDoUpdate({
         target: profiles.isDefault,
         targetWhere: sql`${profiles.isDefault}`,
-        // Optionen je Layout zusammenführen: Die Wahl für Premium überschreibt nicht die für Elegant
+        // Optionen je Layout zusammenführen: Die Wahl für Atelier überschreibt nicht die für Elegant
         set: {
           settings: optionen
             ? sql`letterhead_profiles.settings || ${JSON.stringify(changes)}::jsonb || jsonb_build_object('layoutOptions', coalesce(letterhead_profiles.settings -> 'layoutOptions', '{}'::jsonb) || ${JSON.stringify(optionen)}::jsonb)`

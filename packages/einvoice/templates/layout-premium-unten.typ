@@ -1,4 +1,4 @@
-// Premium, Fuß unten (#113): Display-Serif Cormorant Garamond für Name, Überschrift und Beträge, die Schrift der Gestaltung
+// Atelier, Fuß unten (#113): Display-Serif Cormorant Garamond für Name, Überschrift und Beträge, die Schrift der Gestaltung
 // für den Rest, Haarlinien in der Akzentfarbe (Vorgabe Gold #B5862A) unter dem Kopf und über dem Fuß, Beschriftungen klein
 // und gesperrt. Option Kerndaten: Liste oder zweispaltig. Nach DIN 5008 Form B.
 #import "layout-basis.typ": *

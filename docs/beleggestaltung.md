@@ -20,7 +20,7 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 
 ## Akzentfarbe
 
-Unter **Einstellungen › Beleggestaltung › Akzentfarbe** stellst du die Farbe der Spaltenköpfe und Linien ein, etwa passend zu deinem Logo. Ab Werk ist **Farbe des Layouts** an: Jedes [Layout](#layouts) setzt seine eigene Farbe, Klar etwa das Grün `#1F6F5C`, Premium ein Gold. Übernimmst du eine eigene Farbe, gilt sie für alle Layouts, bis du **Farbe des Layouts** wieder einschaltest.
+Unter **Einstellungen › Beleggestaltung › Akzentfarbe** stellst du die Farbe der Spaltenköpfe und Linien ein, etwa passend zu deinem Logo. Ab Werk ist **Farbe des Layouts** an: Jedes [Layout](#layouts) setzt seine eigene Farbe, Klar etwa das Grün `#1F6F5C`, Atelier ein Gold. Übernimmst du eine eigene Farbe, gilt sie für alle Layouts, bis du **Farbe des Layouts** wieder einschaltest.
 
 - Text, Adressen, Beschriftungen, Positionen, dünne Linien und Fußzeile stehen in Grautönen, die Haben aus der Akzentfarbe ableitet: gleiche Helligkeit wie ab Werk, aber mit ihrem Farbton. Bei Blau sind sie leicht bläulich, bei einer grauen Akzentfarbe neutral grau; mit dem Standardgrün bleibt alles wie bisher.
 - Du wählst sie mit dem Farbfeld oder trägst sie als Hex-Wert in der Form `#RRGGBB` ein; **Auf Standard zurücksetzen** stellt das Grün wieder her.
@@ -80,7 +80,7 @@ Unter **Einstellungen › Beleggestaltung › Layouts** wählst du ein Layout f�
 | Modern | Akzentfarbe farbig oder sparsam; Linie über dem Fuß (ab Werk ohne) |
 | Strukturiert | Infoblock als Tabelle oder im Kasten |
 | Elegant | Fuß in der Randspalte (ab Werk) oder unten; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten) |
-| Premium | Fuß unten (ab Werk) oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben; die Linie unter dem Kopf steht bei jeder Logogröße gleich hoch |
+| Atelier | Fuß unten (ab Werk) oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben; die Linie unter dem Kopf steht bei jeder Logogröße gleich hoch |
 
 - Die Optionen stehen unter der Zuordnung, je eingebautem Layout einmal; sie gelten für jede Belegart mit diesem Layout. Ein Wert, den eine andere Option ausschließt, ist ausgegraut.
 - In der [Vorschau](rechnungen.md#vorschau) zeigt das Zahnrad das Layout der Belegart mit seinen Optionen; eine Änderung dort siehst du sofort und speicherst sie mit **Gestaltung speichern**.

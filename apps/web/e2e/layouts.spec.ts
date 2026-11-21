@@ -150,10 +150,10 @@ test("Ein Layout, das nur look.logoLeft kennt: Hinweis zu „Mitte“, der Knopf
 test("Eingebautes Layout mit Optionen: zuordnen, gesperrte Werte ausgegraut, Wahl bleibt gespeichert", async ({ browser }) => {
   const page = await einstellungen(browser);
   try {
-    await (await layoutFuer(page, "Angebot")).selectOption({ label: "Premium (eingebaut)" });
+    await (await layoutFuer(page, "Angebot")).selectOption({ label: "Atelier (eingebaut)" });
     await expect(karte(page).getByRole("status").first()).toContainText("Gespeichert");
-    const fuss = karte(page).getByRole("group", { name: "Fuß (Premium)" });
-    const kerndaten = karte(page).getByRole("group", { name: "Kerndaten (Premium)" });
+    const fuss = karte(page).getByRole("group", { name: "Fuß (Atelier)" });
+    const kerndaten = karte(page).getByRole("group", { name: "Kerndaten (Atelier)" });
     await expect(kerndaten.getByRole("button", { name: "Zweispaltig" })).toBeEnabled();
     await fuss.getByRole("button", { name: "In der Randspalte" }).click();
     await expect(fuss.getByRole("button", { name: "In der Randspalte" })).toHaveAttribute("aria-pressed", "true");
@@ -161,13 +161,13 @@ test("Eingebautes Layout mit Optionen: zuordnen, gesperrte Werte ausgegraut, Wah
     await expect(kerndaten.getByRole("button", { name: "Zweispaltig" })).toBeDisabled();
     await page.reload();
     await page.waitForLoadState("networkidle");
-    await expect(karte(page).getByRole("group", { name: "Fuß (Premium)" }).getByRole("button", { name: "In der Randspalte" })).toHaveAttribute(
+    await expect(karte(page).getByRole("group", { name: "Fuß (Atelier)" }).getByRole("button", { name: "In der Randspalte" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
   } finally {
     await (await layoutFuer(page, "Angebot")).selectOption({ label: "Klar (eingebaut)" });
-    await expect(karte(page).getByRole("group", { name: "Fuß (Premium)" })).toHaveCount(0);
+    await expect(karte(page).getByRole("group", { name: "Fuß (Atelier)" })).toHaveCount(0);
   }
   await page.context().close();
 });
