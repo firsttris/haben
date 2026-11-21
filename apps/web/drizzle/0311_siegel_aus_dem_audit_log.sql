@@ -5,7 +5,8 @@
 -- seals ist nur anhängbar: Ein Eintrag ohne Siegel heißt, dass es gelöscht wurde.
 --
 -- haben_integrity_problems wie in 0310_siegel_unabgedeckte_spalten, um den Block vor dem Abgleich der Siegel mit der Kette
--- erweitert. Nur lesend, an Daten und Siegeln ändert die Migration nichts.
+-- erweitert. Beide Blöcke begrenzen je Tabelle wie die übrigen, weil integrity.ts „oder mehr“ je Art und Tabelle meldet.
+-- Nur lesend, an Daten und Siegeln ändert die Migration nichts.
 CREATE OR REPLACE FUNCTION haben_integrity_problems(max_rows integer DEFAULT 100)
 RETURNS TABLE (art text, tabelle text, zeile text, seq bigint, befund text)
 LANGUAGE plpgsql STABLE AS $$
@@ -160,18 +161,20 @@ BEGIN
    WHERE x.nr <= max_rows
    ORDER BY x.eintrag;
 
-  -- Ein Siegel gilt nur so, wie es in der Kette steht
+  -- Ein Siegel gilt nur so, wie es in der Kette steht. Höchstens max_rows je Tabelle wie oben (bis 0310 über alle zusammen).
   RETURN QUERY
-  SELECT 'siegel'::text, s.table_name, s.row_id::text, a.seq,
-    CASE WHEN a.id IS NULL THEN 'Siegel fehlt im Audit-Log' ELSE 'Siegel weicht vom Eintrag im Audit-Log ab' END
-    FROM seals s
-    LEFT JOIN audit_log a ON a.table_name = 'seals' AND a.row_id = s.id::text AND a.action = 'INSERT'
-   WHERE a.id IS NULL
-      OR a.new_value ->> 'digest' IS DISTINCT FROM s.digest
-      OR a.new_value -> 'columns' IS DISTINCT FROM s.columns
-      OR a.new_value ->> 'row_id' IS DISTINCT FROM s.row_id::text
-      OR a.new_value ->> 'table_name' IS DISTINCT FROM s.table_name
-   ORDER BY s.id
-   LIMIT max_rows;
+  SELECT 'siegel'::text, x.siegel_tabelle, x.siegel_zeile, x.eintrag, x.meldung
+    FROM (SELECT s.id AS siegel, s.table_name AS siegel_tabelle, s.row_id::text AS siegel_zeile, a.seq AS eintrag,
+                 CASE WHEN a.id IS NULL THEN 'Siegel fehlt im Audit-Log' ELSE 'Siegel weicht vom Eintrag im Audit-Log ab' END AS meldung,
+                 row_number() OVER (PARTITION BY s.table_name ORDER BY s.id) AS nr
+            FROM seals s
+            LEFT JOIN audit_log a ON a.table_name = 'seals' AND a.row_id = s.id::text AND a.action = 'INSERT'
+           WHERE a.id IS NULL
+              OR a.new_value ->> 'digest' IS DISTINCT FROM s.digest
+              OR a.new_value -> 'columns' IS DISTINCT FROM s.columns
+              OR a.new_value ->> 'row_id' IS DISTINCT FROM s.row_id::text
+              OR a.new_value ->> 'table_name' IS DISTINCT FROM s.table_name) x
+   WHERE x.nr <= max_rows
+   ORDER BY x.siegel;
 END;
 $$;
