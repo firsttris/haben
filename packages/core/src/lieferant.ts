@@ -1,7 +1,8 @@
 /*
  * Derselbe Lieferant (#1514): derselbe Kontakt, dieselbe USt-IdNr. oder derselbe Name (ohne Groß- und Kleinschreibung, ohne
- * Leerzeichen am Rand). Die Vorschläge (#295) filtern damit in SQL die Belege zu einem Beleg (lieferantGleich in
- * apps/web/src/server/modules/belege/vorschlaege.ts), „Warum?“ der BWA fasst damit viele Belege und Rechnungen zu Gruppen.
+ * Leerzeichen am Rand). „Warum?“ der BWA fasst damit viele Belege und Rechnungen zu Gruppen (lieferantGruppen). Die
+ * Vorschläge (#295) filtern dieselben Merkmale in SQL (lieferantGleich in apps/web/src/server/modules/belege/vorschlaege.ts)
+ * und teilen von hier die Schreibweise der USt-IdNr.
  */
 
 /** Was einen Lieferanten (oder Kunden) erkennt; Name und USt-IdNr. können mehrere sein, etwa am Beleg und am Kontakt */
@@ -23,12 +24,6 @@ const merkmale = ({ ustIds, namen }: LieferantMerkmale): string[] => [
     ...namen.map(nameVergleichbar).flatMap((n) => (n ? [`name:${n}`] : [])),
   ]),
 ];
-
-export function derselbeLieferant(a: LieferantMerkmale, b: LieferantMerkmale): boolean {
-  if (a.kontaktId && a.kontaktId === b.kontaktId) return true;
-  const mb = new Set(merkmale(b));
-  return merkmale(a).some((x) => mb.has(x));
-}
 
 /**
  * Ordnet Belege bzw. Rechnungen zu Gruppen desselben Lieferanten, auch über mehrere Schritte (Kontakt, gleiche USt-IdNr.,

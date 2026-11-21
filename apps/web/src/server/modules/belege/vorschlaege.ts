@@ -17,8 +17,8 @@ export interface Lieferant {
 }
 
 /**
- * Belege desselben Lieferanten: derselbe Kontakt, dieselbe USt-IdNr. oder derselbe Name, wie derselbeLieferant in
- * packages/core/src/lieferant.ts, hier als Filter in SQL; null ohne jedes Merkmal
+ * Belege desselben Lieferanten: derselbe Kontakt, dieselbe USt-IdNr. oder derselbe Name, dieselben Merkmale wie
+ * lieferantGruppen in packages/core/src/lieferant.ts, hier als Filter in SQL; null ohne jedes Merkmal
  */
 export function lieferantGleich({ supplierName, supplierUstId, supplierContactId }: Lieferant): SQL | null {
   const name = supplierName.trim();

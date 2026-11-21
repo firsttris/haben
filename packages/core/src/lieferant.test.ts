@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { derselbeLieferant, type LieferantMerkmale, lieferantGruppen, ustIdVergleichbar } from "./lieferant.ts";
+import { type LieferantMerkmale, lieferantGruppen, ustIdVergleichbar } from "./lieferant.ts";
 
 /*
- * Derselbe Lieferant (#1514): eine Regel für die Vorschläge (#295) und „Warum?“ der BWA (#1380). Erfundene Lieferanten.
+ * Derselbe Lieferant (#1514): Gruppen für „Warum?“ der BWA (#1380), mit den Merkmalen der Vorschläge (#295). Erfundene Lieferanten.
  */
 
 const m = (merkmale: Partial<LieferantMerkmale>): LieferantMerkmale => ({ kontaktId: null, ustIds: [], namen: [], ...merkmale });
@@ -16,19 +16,8 @@ const gruppen = (eintraege: LieferantMerkmale[]) => {
   return [...je.values()];
 };
 
-describe("derselbe Lieferant", () => {
-  it("derselbe Kontakt, dieselbe USt-IdNr. oder derselbe Name (ohne Groß- und Kleinschreibung, ohne Leerzeichen am Rand)", () => {
-    expect(derselbeLieferant(m({ kontaktId: "k1" }), m({ kontaktId: "k1", namen: ["Anders"] }))).toBe(true);
-    expect(derselbeLieferant(m({ ustIds: ["DE 999 999 999"] }), m({ ustIds: ["de999999999"] }))).toBe(true);
-    expect(derselbeLieferant(m({ namen: [" muster hosting "] }), m({ namen: ["Muster Hosting"] }))).toBe(true);
-    expect(derselbeLieferant(m({ namen: ["Muster Hosting"] }), m({ namen: ["Muster Hosting GmbH"] }))).toBe(false);
-  });
-
-  it("leere Merkmale verbinden nichts", () => {
-    expect(derselbeLieferant(m({ namen: [""], ustIds: [" "] }), m({ namen: [" "], ustIds: [""] }))).toBe(false);
-  });
-
-  it("die USt-IdNr. wie updateDocument sie speichert: ohne Leerzeichen und groß", () => {
+describe("USt-IdNr. vergleichbar", () => {
+  it("wie updateDocument sie speichert: ohne Leerzeichen und groß", () => {
     expect(ustIdVergleichbar(" de 123 456 789 ")).toBe("DE123456789");
   });
 });
