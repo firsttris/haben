@@ -76,7 +76,7 @@ Deine eigenen Daten holst du für den Umzug über die Web-Oberfläche: Ein Skrip
 
 Das Skript ändert nichts in Lexware Office. Es ruft nur die Adressen auf, die die Web-Oberfläche beim Anzeigen selbst abfragt, mit kurzen Pausen dazwischen, und schickt nichts an Haben oder sonst wohin: Die Daten landen nur als Download in deinem Browser.
 
-Belege, die das Skript nicht laden konnte, stehen in der ZIP-Datei und nach dem Hochladen in Schritt 2 unter „nicht übernommen“. Lässt du das Skript später noch einmal laufen und lädst die neue Sicherung hoch, überspringt Haben alles, was schon da ist, und holt die fehlenden nach.
+Belege, die das Skript nicht laden konnte, stehen in der ZIP-Datei und nach dem Hochladen in Schritt 2 unter den offenen Punkten beim Abruf. Lässt du das Skript später noch einmal laufen und lädst die neue Sicherung hoch, überspringt Haben alles, was schon da ist, und holt die fehlenden nach — auch das Original-PDF einer Rechnung und jeden einzelnen fehlenden Anhang eines Belegs.
 
 Buchungen, Bankumsätze, Voranmeldungen und Anlagen holst du wie beim Abruf über die API aus den Exporten (Schritt 4).
 
@@ -163,7 +163,7 @@ Haben liest nur. Es legt in Lexware Office nichts an und ändert nichts. Nach de
 „Alles abrufen“ startet den Abruf im Hintergrund. Du kannst die Seite verlassen; der Fortschritt aktualisiert sich alle zwei Sekunden. Der Abruf läuft in drei Phasen:
 
 1. **Kontakte:** alle Kontakte mit Name, Rolle (Kunde, Lieferant oder beides; ohne Rolle als Kunde), Kunden- und Lieferantennummer, Rechnungsadresse (sonst Lieferadresse), erster E-Mail-Adresse und USt-IdNr. Archivierte Kontakte werden in Haben archiviert angelegt.
-2. **Belegliste:** alle Ausgangsrechnungen, Gutschriften und Abschlagsrechnungen aus dem Rechnungsmodul sowie alle Einnahme- und Ausgabebelege samt Gutschriften aus der Buchhaltung, archiviert und nicht archiviert. Entwürfe bleiben draußen.
+2. **Belegliste:** alle Ausgangsrechnungen, Gutschriften und Abschlagsrechnungen aus dem Rechnungsmodul sowie alle Einnahme- und Ausgabebelege samt Gutschriften aus der Buchhaltung, archiviert und nicht archiviert. Entwürfe bleiben draußen; Schritt 2 nennt ihre Zahl unter „Übergangen, kein Beleg“.
 3. **Belege und Dateien:** je Beleg die Details, der Zahlungsstatus mit den einzelnen Zahlungen, das Original-PDF, bei E-Rechnungen das XML und bei Buchhaltungsbelegen alle angehängten Dateien. Die Kategorien aus Lexware Office kommen mit ihrem Namen dazu.
 
 Die Antwort der API wird je Beleg vollständig gespeichert, zum Nachweis. Beträge rechnet Haben in Cent um; maßgeblich sind Brutto und Steuer des Belegs, Netto ergibt sich daraus. Bei Schlussrechnungen rechnet Haben die verrechneten Abschläge je Steuersatz heraus, die Beträge entsprechen also dem geforderten Restbetrag. Die Abschlagsrechnungen sind eigene Belege; so zählen ihre Umsätze und Steuern im Abgleich und bei den offenen Posten nicht doppelt. Das gilt für Belege, die mit dieser Version abgerufen werden; schon gespeicherte Belege bleiben unverändert.
@@ -180,6 +180,7 @@ Die API erlaubt etwa zwei Anfragen pro Sekunde. Haben hält zwischen zwei Anfrag
 - Wird der Server während des Abrufs neu gestartet, markiert Haben den Lauf nach drei Minuten ohne Fortschritt als abgebrochen. Auch dann setzt „Erneut abrufen“ fort.
 - Ist der Schlüssel ungültig oder fehlt die Berechtigung (Tarif gewechselt), bricht der Lauf mit Fehlermeldung ab.
 - Schlägt ein einzelner Beleg fehl, läuft der Abruf weiter. Die fehlgeschlagenen Belege stehen mit Nummer und Fehlermeldung in einer aufklappbaren Liste; der nächste Abruf versucht sie erneut.
+- Kommt nur eine Datei eines Belegs nicht (PDF, XML der E-Rechnung oder ein Anhang), legt Haben den Beleg trotzdem an und vermerkt die Datei am Beleg ([Dateistand](sevdesk.md#dateistand)). Der nächste Abruf holt sie nach; meldet Lexware Office dann ohne Fehler kein XML, ist nichts mehr offen. Fehlt das PDF einer Rechnung, das XML ihrer E-Rechnung oder bei einem Ausgabebeleg jede Datei, lässt er sich bis dahin in Schritt 3 nicht übernehmen.
 
 Der Schritt ist erledigt, wenn ein Lauf fertig ist und die Liste der fehlgeschlagenen Belege leer ist.
 
@@ -251,6 +252,8 @@ Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren 
 | Umsatzsteuer an das Finanzamt | Die Zahlung im Bankabgleich als „Umsatzsteuer an das Finanzamt“ zuordnen (eine Sondervorauszahlung als „Sondervorauszahlung (Dauerfristverlängerung)“), siehe oben |
 | Betrag nicht positiv | Gutschriften werden nicht übernommen |
 | keine Datei aus Lexoffice | Erst die Datei in Lexware Office anhängen und erneut abrufen |
+| XML der E-Rechnung fehlt | Erneut abrufen; bei der Sicherung das Skript noch einmal laufen lassen und die neue Sicherung hochladen |
+| Datei erwartet, Abruf aus Lexoffice fehlgeschlagen | Ebenso |
 
 Warum eine Teilzahlung vor dem Stichtag sperrt: Die Rechnung in Haben trägt den Betrag des Original-PDFs, und offen ist in Haben, was keine Zahlung im Bankabgleich deckt. Für die Zahlung vor dem Stichtag gibt es in Haben keinen Bankumsatz. Sie als Ausbuchung zu erfassen, minderte die Umsatzsteuer wie eine Änderung der Bemessungsgrundlage (§ 17 Abs. 1 UStG), obwohl das Entgelt gezahlt ist. Eine Teilzahlung nach dem Stichtag sperrt nicht: Am Stichtag war der ganze Betrag offen, und die Zahlung kommt in Haben an.
 

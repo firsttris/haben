@@ -80,7 +80,7 @@ function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string,
   if (voucher.gross <= 0) return "Betrag nicht positiv";
   // Dateistand (#345): ein fehlendes XML neben dem PDF blockiert ebenso, das XML einer E-Rechnung ist das Original
   if (fileState === "anhang_fehlt") return `XML der E-Rechnung fehlt – „Erneut abrufen“ versucht es noch einmal`;
-  if (!hasPdf) return takeoverFileIssue(fileState) ?? `keine Datei aus ${SOURCE_LABEL[voucher.source]}`;
+  if (!hasPdf) return takeoverFileIssue(fileState, SOURCE_LABEL[voucher.source]) ?? `keine Datei aus ${SOURCE_LABEL[voucher.source]}`;
   return null;
 }
 

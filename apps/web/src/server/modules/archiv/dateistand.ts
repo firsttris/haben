@@ -46,7 +46,7 @@ export const FILE_STATE_LABELS: Record<LegacyFileState, string> = {
   bestaetigt_ohne_datei: "ohne Datei bestätigt",
   bestaetigung_zurueckgenommen: "Bestätigung zurückgenommen",
   nachgeladen: "Datei nachgeladen",
-  kein_anhang: "Anhang entfällt, sevDesk führt keinen",
+  kein_anhang: "Anhang entfällt, die Quelle führt keinen",
 };
 
 /** Ein Beleg dieses Stands braucht noch Arbeit, bevor das Jahr vollständig ist */
@@ -117,9 +117,9 @@ export async function latestFileStates(voucherIds: string[]): Promise<Map<string
   return new Map(rows.map((r) => [r.voucherId, r.state]));
 }
 
-/** Warum ein offener Posten ohne Datei nicht übernommen werden kann, nach seinem Dateistand */
-export function takeoverFileIssue(state: LegacyFileState | null): string | null {
-  if (state === "abruf_fehlgeschlagen") return "Datei erwartet, Abruf aus sevDesk fehlgeschlagen – „Erneut abrufen“ versucht es noch einmal";
+/** Warum ein offener Posten ohne Datei nicht übernommen werden kann, nach seinem Dateistand und seiner Quelle */
+export function takeoverFileIssue(state: LegacyFileState | null, quelle = "sevDesk"): string | null {
+  if (state === "abruf_fehlgeschlagen") return `Datei erwartet, Abruf aus ${quelle} fehlgeschlagen – „Erneut abrufen“ versucht es noch einmal`;
   if (state === "ohne_datei") return "laut sevDesk ohne Datei – in sevDesk prüfen, dann in der Belegansicht bestätigen und in Haben von Hand erfassen";
   if (state === "bestaetigt_ohne_datei") return "ohne Datei (bestätigt) – in Haben von Hand erfassen";
   // Nach einer Rücknahme gilt wieder der offene Stand, sonst fiele der Hinweis still weg (#1317)
@@ -201,7 +201,7 @@ export async function confirmWithoutFile(actor: string, voucherId: string, note:
     if (!standOffen)
       throw new FileStateError(
         latest?.state === "abruf_fehlgeschlagen"
-          ? "sevDesk nennt zu diesem Beleg eine Datei. Einen neuen Abruf starten, statt ohne Datei zu bestätigen."
+          ? `${voucher.source === "lexoffice" ? "Die Sicherung" : "sevDesk"} nennt zu diesem Beleg eine Datei. Einen neuen Abruf starten, statt ohne Datei zu bestätigen.`
           : "Erst ein Abruf aus sevDesk stellt fest, ob der Beleg eine Datei nennt.",
       );
     const text = note.trim();

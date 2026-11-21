@@ -3475,6 +3475,14 @@ export type LexofficeImportProgress = {
   skipped: number;
   files: number;
   failed: { lexofficeId: string; number: string; message: string }[];
+  /**
+   * Entwürfe, die gar nicht erst in die Belegliste kommen (#1504), weil sie keine Belege sind. Vorgänge ohne Belegart
+   * zählt Haben nicht: die API liefert sie ohnehin nicht, und die Sicherung aus der Web-Oberfläche lässt sie schon beim
+   * Packen draußen (#183).
+   */
+  ignored?: { drafts: number };
+  /** Belege aus früheren Läufen, deren fehlende Datei in diesem Lauf doch noch ankam (#1504) */
+  nachgeladen?: number;
   /** sevDesk: Vorlagen wiederkehrender Belege, in diesem Lauf als Dauerbelege übernommen */
   recurring?: number;
   /** BuchhaltungsButler: Archivdateien mit dem DATEV-Stapel des Exports, auch wenn sie schon vorher im Archiv lagen */
