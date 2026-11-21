@@ -27,9 +27,11 @@ import type { ParsedStatement } from "./types.ts";
  * Bis Anfang 2024 exportierte die Gruppe eine ältere Fassung (Windows-1252, 19 Spalten): „IBAN“ statt „IBAN / Kontonummer“,
  * dazu „Abweichender Auftraggeber“, und der Betrag steht nur in Soll oder Haben. Ihr Kopfblock nennt keine eigene IBAN;
  * dort wählt man das Konto beim Import wie bei N26. Beide Fassungen erkennt Haben an den Spaltennamen. Formatquelle der
- * älteren Fassung: der Banana-Testfall csv_deutschebank_example_format3_20240131.csv (Kopfblock mit Kundennummer statt
- * IBAN, „Letzter Kontostand“ und Fußzeile „Kontostand“, „Betrag“ leer, Soll negativ), wie format5 unter
- * https://github.com/BananaAccounting/Germany/tree/master/importApps/deutschebank_import_bank_statement_csv/test/testcases
+ * älteren Fassung: der Banana-Testfall csv_deutschebank_example_format3_20240131.csv (19 Spalten, „Betrag“ leer, Soll
+ * negativ, Kopfblock ohne IBAN). Dessen Kopf- und Fußzeilen hat Banana unkenntlich gemacht; im Klartext steht derselbe
+ * Aufbau im Kommentar zu Format 2 (Export von 2014) in ch.banana.germany.import.deutschebank.js: „Kundennummer“ statt
+ * IBAN im Kopfblock, „Letzter Kontostand“ und die Fußzeile „Kontostand“. Beides wie format5 unter
+ * https://github.com/BananaAccounting/Germany/tree/master/importApps/deutschebank_import_bank_statement_csv
  */
 export function isDeutscheBankGroupHeader(c: Columns): boolean {
   return c.has("buchungstag") && c.has("wert") && c.has("umsatzart") && c.has("begünstigter") && c.has("ibankontonummer");
