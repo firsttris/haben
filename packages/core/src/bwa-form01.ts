@@ -134,7 +134,8 @@ const HABEN: ReadonlySet<Form01Zeile> = new Set([
   "unbesetzt",
 ]);
 
-const KOSTEN: readonly Form01Zeile[] = [
+/** Kostenarten der Form 01, die die Gesamtkosten bilden; Bezugsgröße der Anteile in `bwa-kennzahlen.ts` */
+export const FORM01_KOSTEN: readonly Form01Zeile[] = [
   "personal",
   "raum",
   "betrieblicheSteuern",
@@ -205,7 +206,7 @@ export function form01(salden: readonly Form01Saldo[]): Form01Werte {
   w.gesamtleistung = w.umsatzerloese + w.bestandsveraenderungen + w.eigenleistungen;
   w.rohertrag = w.gesamtleistung - w.material;
   w.betrieblicherRohertrag = w.rohertrag + w.sonstigeErloese;
-  w.gesamtkosten = KOSTEN.reduce((s, z) => s + w[z], 0);
+  w.gesamtkosten = FORM01_KOSTEN.reduce((s, z) => s + w[z], 0);
   w.betriebsergebnis = w.betrieblicherRohertrag - w.gesamtkosten;
   w.neutralerAufwand = w.zinsaufwand + w.neutralAufwand;
   w.neutralerErtrag = w.zinsertrag + w.neutralErtrag + w.kalkulatorisch;

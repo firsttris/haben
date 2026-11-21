@@ -72,6 +72,7 @@ export function BwaTabelle({
         </label>
       </div>
       {children}
+      <p className="small muted">Anteil: {bericht.kapitalgesellschaft ? ANTEIL_01 : ANTEIL_43}.</p>
       <ScrollTable className="report-table euer-table">
         <caption className="visually-hidden">BWA {zeitraumText(zeitraum)}</caption>
         <thead>
@@ -80,7 +81,7 @@ export function BwaTabelle({
             <th scope="col" className="num">
               {zeitraumText(zeitraum, true)}
             </th>
-            <th scope="col" className="num" title={bericht.kapitalgesellschaft ? ANTEIL_01 : ANTEIL_43}>
+            <th scope="col" className="num">
               Anteil
             </th>
             {mitVergleich && (

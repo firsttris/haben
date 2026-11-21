@@ -1,5 +1,5 @@
-import type { Form43Summe, Form43Werte, Form43Zeile } from "./bwa.ts";
-import type { Form01Summe, Form01Werte, Form01Zeile } from "./bwa-form01.ts";
+import { FORM43_KOSTEN, type Form43Summe, type Form43Werte, type Form43Zeile } from "./bwa.ts";
+import { FORM01_KOSTEN, type Form01Summe, type Form01Werte, type Form01Zeile } from "./bwa-form01.ts";
 import { roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
 
 /*
@@ -15,32 +15,6 @@ export type BwaForm = "form43" | "form01";
 type BwaWerte = Form43Werte | Form01Werte;
 
 const LEISTUNG_01: readonly Form01Zeile[] = ["umsatzerloese", "bestandsveraenderungen", "eigenleistungen", "material", "sonstigeErloese"];
-const KOSTEN_01: readonly Form01Zeile[] = [
-  "personal",
-  "raum",
-  "betrieblicheSteuern",
-  "versicherungen",
-  "besondereKosten",
-  "kfz",
-  "werbeReise",
-  "warenabgabe",
-  "abschreibungen",
-  "instandhaltung",
-  "sonstigeKosten",
-];
-const KOSTEN_43: readonly Form43Zeile[] = [
-  "material",
-  "fremdleistungen",
-  "personal",
-  "raum",
-  "steuernVersicherungenBeitraege",
-  "kfz",
-  "werbeReise",
-  "warenabgabe",
-  "instandhaltung",
-  "abschreibungen",
-  "verschiedeneKosten",
-];
 
 /** Bezugsgröße je Zeile; was fehlt, hat keinen Anteil */
 const BASIS: { form01: Partial<Record<Form01Zeile | Form01Summe, Form01Summe>>; form43: Partial<Record<Form43Zeile | Form43Summe, Form43Summe>> } = {
@@ -50,14 +24,14 @@ const BASIS: { form01: Partial<Record<Form01Zeile | Form01Summe, Form01Summe>>; 
     gesamtleistung: "gesamtleistung",
     rohertrag: "gesamtleistung",
     betrieblicherRohertrag: "gesamtleistung",
-    ...Object.fromEntries(KOSTEN_01.map((z) => [z, "gesamtkosten"])),
+    ...Object.fromEntries(FORM01_KOSTEN.map((z) => [z, "gesamtkosten"])),
     gesamtkosten: "gesamtkosten",
   },
   form43: {
     erloese: "summeErloese",
     sonstigeErloese: "summeErloese",
     summeErloese: "summeErloese",
-    ...Object.fromEntries(KOSTEN_43.map((z) => [z, "summeKosten"])),
+    ...Object.fromEntries([...FORM43_KOSTEN].map((z) => [z, "summeKosten"])),
     summeKosten: "summeKosten",
   },
 };
