@@ -47,10 +47,26 @@ Neue Migrationen: `git diff --name-only --diff-filter=A <letzter-tag>..origin/ma
 - **Karten in „Im nächsten Release“, deren PR nur `Refs` hat:** Die schließt das Release nicht. Dem Maintainer melden; er schließt sie danach von Hand (Skill `board-pflegen`).
 - **Offene Teile:** Karten in „In Arbeit“, deren Pull Requests seit der vorigen fertigen Version alle nur mit `Refs` gemergt sind und für die kein offener Pull Request mehr da ist. Als Liste dem Maintainer vorlegen, bevor er das Release freigibt: Was fertig ist, bekommt im letzten Pull Request `Umgesetzt` (zählt auch nach dem Merge, `scripts/board/release.ts`) oder wird nach dem Release geschlossen (Skill `board-pflegen`, „offene Teile“).
 - **Offene Pull Requests**, die mit hinein sollen: beim Maintainer nachfragen.
+- **Hinweise für das Release:** die Abschnitte `## Für das Release` aus den Squash-Commits (`docs/mitwirken.md`, „Branches, Titel und Commits“), beim RC seit dem letzten Tag, bei einer fertigen Version seit der vorigen fertigen Version. Je Pull Request eine Überschrift mit seinem Titel:
+
+  ```sh
+  git log --format='%x1e%s%n%b' <von>..origin/main | awk 'BEGIN { RS = "\036" }
+    /\n## Für das Release/ {
+      n = split($0, z, "\n"); drin = 0; text = ""
+      for (i = 2; i <= n; i++) {
+        if (z[i] ~ /^## Für das Release/) { drin = 1; continue }
+        if (drin && z[i] ~ /^(## |🤖|---|Co-authored-by:)/) break
+        if (drin) text = text z[i] "\n"
+      }
+      print "### " z[1] "\n" text
+    }' > hinweise.md
+  ```
+
+  Der Abschnitt endet an der nächsten Überschrift `##`, an „🤖 Generated with …“ oder an den `Co-authored-by:`-Zeilen. Was nur für Entwickler gilt, streichen; Zeilenumbrüche mitten im Satz zusammenziehen.
 
 ## 4. Vorschlag an den Maintainer
 
-Kurz: vorgeschlagene Art und Version mit Grund, die Liste der Änderungen (Titel der Squash-Commits), die Issues, die geschlossen werden, und offene Punkte aus Schritt 3. Auf sein OK warten.
+Kurz: vorgeschlagene Art und Version mit Grund, die Liste der Änderungen (Titel der Squash-Commits), die Issues, die geschlossen werden, die Hinweise für das Release im Wortlaut und offene Punkte aus Schritt 3. Auf sein OK warten, auch für den Text der Hinweise.
 
 ## 5. Auslösen
 
@@ -61,6 +77,15 @@ Actions → **Bump version** (`bump.yml`) mit `bump` = die gewählte Art, auf `m
 - `release.yml` auf dem Tag: alle Jobs grün (`checks` übersprungen, wenn `main` schon geprüft war).
 - Docker Hub und GHCR: Tags `:x.y.z` und `:x.y`, `:latest` nur bei einer fertigen Version; beim RC `:x.y.z-rc.n` und `:next`.
 - GitHub-Release mit der Erweiterung „Haben für Mein ELSTER“ als ZIP; beim RC als Pre-release.
+- Hinweise aus Schritt 3, wenn es welche gibt, über die erzeugten Notizen setzen:
+
+  ```sh
+  gh release view vX.Y.Z --json body -q .body > notizen.md
+  { printf '## Hinweise zum Update\n\n'; cat hinweise.md; printf '\n'; cat notizen.md; } > release.md
+  gh release edit vX.Y.Z --notes-file release.md
+  ```
+
+  Die Ankündigung in Discord (`discord-release.yml`) ging schon ohne die Hinweise raus. Betrifft ein Hinweis Daten, den Maintainer fragen, ob er sie mit Actions → *Discord-Release* und dem Tag noch einmal ankündigen will.
 - Fertige Version: Job `issues-schliessen` grün, seine Ausgabe nennt die geschlossenen Issues; im Project stehen sie in „Erledigt“.
 - Etwas rot: nicht neu taggen; Ursache melden, beheben, beim RC `prerelease`, sonst `patch`.
 
