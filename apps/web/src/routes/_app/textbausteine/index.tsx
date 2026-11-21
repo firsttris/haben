@@ -20,6 +20,15 @@ type Data = Awaited<ReturnType<typeof getTextBlocks>>;
 type Block = Data["blocks"][number];
 
 const KIND_LABEL = { kopf: "Kopftext", fuss: "Fußtext" } as const;
+/** Belegarten für „Standard für“ (#1494), wie text_blocks.standard_fuer */
+const STANDARD_LABEL = {
+  rechnung: "Rechnungen",
+  angebot: "Angebote",
+  auftragsbestaetigung: "Auftragsbestätigungen",
+  lieferschein: "Lieferscheine",
+  mahnung: "Mahnungen",
+} as const;
+const STANDARD_WERTE = Object.keys(STANDARD_LABEL) as (keyof typeof STANDARD_LABEL)[];
 
 function TextBlockForm({ block, contacts, onDone }: { block: Block | null; contacts: ContactChoice[]; onDone: (notice: Notice) => void }) {
   const router = useRouter();
@@ -44,6 +53,7 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
             kind: value("kind") === "fuss" ? "fuss" : "kopf",
             text: value("text"),
             contactId: contactId || null,
+            standardFuer: STANDARD_WERTE.find((w) => w === value("standardFuer")) ?? null,
           },
         },
       });
@@ -97,6 +107,22 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
         <Field label="Kunde (optional)" hint="Bei Belegen an diesen Kunden steht der Baustein in der Auswahl oben." style={{ gridColumn: "1 / -1" }}>
           {(control) => (
             <ContactCombobox {...control} rolle="kunde" contacts={contacts} contactId={contactId} placeholder="Für alle Kunden" onChoose={setContactId} />
+          )}
+        </Field>
+        <Field
+          label="Standard für"
+          hint="Füllt neue Belege dieser Art vor: ein Kopftext die Einleitung, ein Fußtext den Hinweis (bei der Mahnung den Schlusstext, beim Lieferschein nur ein Fußtext). Ein neuer Standard löst den bisherigen derselben Art ab; ein Standard gilt für alle Kunden."
+          style={{ gridColumn: "1 / -1" }}
+        >
+          {(control) => (
+            <select {...control} name="standardFuer" defaultValue={block?.standardFuer ?? ""}>
+              <option value="">Kein Standard</option>
+              {STANDARD_WERTE.map((w) => (
+                <option key={w} value={w}>
+                  {STANDARD_LABEL[w]}
+                </option>
+              ))}
+            </select>
           )}
         </Field>
       </div>
@@ -167,7 +193,8 @@ function TextBlocksPage() {
       </div>
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
         Kopf- und Fußtexte legst du einmal an und fügst sie in Rechnung, Angebot oder wiederkehrender Rechnung mit „Textbaustein einfügen“ ein. Eingefügt wird
-        eine Kopie: Sie lässt sich im Beleg noch anpassen, und spätere Änderungen am Baustein ändern keine geschriebene Rechnung.
+        eine Kopie: Sie lässt sich im Beleg noch anpassen, und spätere Änderungen am Baustein ändern keine geschriebene Rechnung. Als „Standard für“ eine
+        Belegart füllt ein Baustein neue Belege dieser Art von selbst vor.
       </p>
       <div className="stack" style={{ gap: 16 }}>
         {formOpen && (
@@ -204,6 +231,7 @@ function TextBlocksPage() {
                     <div style={{ fontWeight: 500 }}>{b.name}</div>
                     <div className="small muted">
                       {KIND_LABEL[b.kind]} · {contactName(b.contactId)}
+                      {b.standardFuer && <strong> · Standard für {STANDARD_LABEL[b.standardFuer]}</strong>}
                     </div>
                     <div className="small" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", marginTop: 4 }}>
                       <FormattedText text={b.text} />

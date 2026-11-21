@@ -17,6 +17,7 @@ import {
   gestaltungUebernehmen,
   kontakteUebernehmen,
   textbausteineUebernehmen,
+  alteStandardEinleitungen,
 } from "../stammdaten/index.ts";
 import { saveFrequencyIn } from "../umsatzsteuer/index.ts";
 import { procedureDetailsSchema, putProcedureDetails } from "../verfahrensdoku/index.ts";
@@ -85,6 +86,7 @@ async function uebernehmen(tx: Tx, actor: string, datei: SettingsFile, today: st
   await artikelUebernehmen(tx, datei.articles);
   await kontakteUebernehmen(tx, actor, datei.contacts, datei.contactPersons);
   await textbausteineUebernehmen(tx, datei.textBlocks);
+  if (datei.company) await alteStandardEinleitungen(tx, datei.company);
   for (const raw of datei.ownAccounts) {
     const konto = geprueft(ownAccountSchema, raw, "Eigenes Konto");
     await mitBezeichnung(`Eigenes Konto ${konto.account}`, () => insertImportedOwnAccount(tx, actor, { ...konto, archived: konto.archivedAt !== null }));

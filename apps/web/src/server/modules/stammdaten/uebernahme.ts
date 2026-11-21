@@ -10,7 +10,7 @@ import { contactPersonInputSchema, insertContactPerson } from "./contact-persons
 import { contactSchema, insertContact } from "./contacts.ts";
 import { PLAN_TEMPLATES_MAX, planTemplatesProblem } from "./plan-templates.ts";
 import { taxpayerSchema } from "./taxpayer.ts";
-import { insertTextBlock, textBlockInputSchema } from "./text-blocks.ts";
+import { insertTextBlock, standardTexte, textBlockInputSchema } from "./text-blocks.ts";
 import { insertUnit } from "./units.ts";
 
 /*
@@ -152,6 +152,26 @@ export async function textbausteineUebernehmen(tx: Tx, blocks: readonly unknown[
     const input = geprueft(textBlockInputSchema, raw, bezeichnung);
     const { archivedAt } = geprueft(archiviert, raw, bezeichnung);
     const created = await mitBezeichnung(bezeichnung, () => insertTextBlock(tx, input, { uebernommen: true }));
-    if (archivedAt) await tx.update(schema.textBlocks).set({ archivedAt: new Date() }).where(eq(schema.textBlocks.id, created.id));
+    // Archiviert ist kein Standard mehr (#1494), wie bei setTextBlockArchived
+    if (archivedAt) await tx.update(schema.textBlocks).set({ archivedAt: new Date(), standardFuer: null }).where(eq(schema.textBlocks.id, created.id));
+  }
+}
+
+/**
+ * Eine Exportdatei von vor #1494 trägt die Standard-Einleitungen noch in den Firmendaten (invoiceIntro, quoteIntro):
+ * Sie werden wie bei der Migration zu Kopftext-Bausteinen mit Standard, wenn die Datei dafür keinen Baustein mitbringt
+ */
+export async function alteStandardEinleitungen(tx: Tx, company: unknown): Promise<void> {
+  const alt = z
+    .object({ invoiceIntro: z.string().trim().max(2000).catch(""), quoteIntro: z.string().trim().max(2000).catch("") })
+    .partial()
+    .parse(company ?? {});
+  const vorgaben = [
+    { text: alt.invoiceIntro ?? "", standardFuer: "rechnung" as const, name: "Standard-Einleitung für Rechnungen" },
+    { text: alt.quoteIntro ?? "", standardFuer: "angebot" as const, name: "Standard-Einleitung für Angebote" },
+  ];
+  for (const { text, standardFuer, name } of vorgaben) {
+    if (!text || (await standardTexte(standardFuer, tx)).kopf) continue;
+    await insertTextBlock(tx, { name, kind: "kopf", text, contactId: null, standardFuer }, { uebernommen: true });
   }
 }

@@ -120,7 +120,7 @@ Seltenes steht eingeklappt, mit dem Gesetzten in der Überschrift: **Handelsregi
 | Standard-Zahlungsziel in Tagen | Vorgabe für neue Rechnungen (0 bis 120 Tage) |
 | Skonto | Vorgabe für neue Rechnungen, bis zu drei Stufen aus Satz und Frist in Tagen, z. B. 2 % in 10 Tagen; am Kunden und in der Rechnung änderbar (siehe [Skonto](rechnungen-zahlung.md#skonto)) |
 | Standardformat für Rechnungen | ZUGFeRD (PDF mit eingebettetem XML), XRechnung (CII) oder XRechnung (UBL). Vorgabe für neue Rechnungen |
-| Standard-Einleitung für Rechnungen, für Angebote | Steht in neuen Rechnungen bzw. Angeboten als Einleitung über den Positionen, etwa eine Anrede oder „Für die erbrachten Leistungen berechne ich Ihnen:“. Im Beleg änderbar; bestehende Belege ändern sich nicht. Leer = keine Einleitung, höchstens 2000 Zeichen |
+| Standard-Texte | Einleitung und Hinweis neuer Rechnungen und Angebote, Einleitung und Schluss von Mahnungen und die Texte von Auftragsbestätigung und Lieferschein legst du als [Standard-Textbaustein](rechnungen.md#standard-je-belegart) unter **Textbausteine** fest, etwa eine Anrede oder „Für die erbrachten Leistungen berechne ich Ihnen:“. Die Firmendaten verweisen dorthin. |
 | Versteuerung | Ist oder Soll, siehe unten |
 | Kleinunternehmer nach § 19 UStG | Haken setzen, wenn du die Kleinunternehmerregelung nutzt, siehe unten |
 | Gründungsdatum | Datum der tatsächlichen Aufnahme deiner unternehmerischen Tätigkeit, siehe [Kleinunternehmer](#kleinunternehmer) |

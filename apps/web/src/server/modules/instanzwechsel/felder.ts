@@ -67,8 +67,6 @@ export const FELDER = {
       "paymentTermDays",
       "skonto",
       "defaultFormat",
-      "invoiceIntro",
-      "quoteIntro",
       "paymentPlanTemplates",
       "invoiceNumberFormat",
       "quoteNumberFormat",
@@ -162,7 +160,10 @@ export const FELDER = {
     createdBy: ANGELEGT_VON,
     createdAt: ANGELEGT,
   }),
-  textBlocks: felder(schema.textBlocks, ["id", "name", "kind", "text", "contactId", "archivedAt"], { createdAt: ANGELEGT, updatedAt: GEAENDERT }),
+  textBlocks: felder(schema.textBlocks, ["id", "name", "kind", "text", "contactId", "standardFuer", "archivedAt"], {
+    createdAt: ANGELEGT,
+    updatedAt: GEAENDERT,
+  }),
   ownAccounts: felder(schema.ownAccounts, ["id", "kontenrahmen", "account", "name", "parentCategory", "archivedAt"], {
     createdBy: ANGELEGT_VON,
     createdAt: ANGELEGT,

@@ -87,9 +87,6 @@ export const companySchema = z
     /** Vorgabe für das Skonto neuer Rechnungen; fehlt = unverändert */
     skonto: z.optional(skontoStufenSchema),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
-    /** Vorgabe für die Einleitung neuer Rechnungen und Angebote; so lang wie das Feld im Beleg */
-    invoiceIntro: z.string().trim().max(2000).default(""),
-    quoteIntro: z.string().trim().max(2000).default(""),
     kleinunternehmer: z.boolean(),
     foundedOn: z.iso
       .date()

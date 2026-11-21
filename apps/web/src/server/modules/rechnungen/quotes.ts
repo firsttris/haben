@@ -39,7 +39,7 @@ import { buildQuotePdf, texts, type QuoteDocument, type QuoteDocumentLine } from
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { ansprechpartnerSnapshot, contactPersonProblem, contactRoleProblem, loadCompany, sellerIssues } from "../stammdaten/index.ts";
+import { ansprechpartnerSnapshot, contactPersonProblem, contactRoleProblem, loadCompany, sellerIssues, standardTexte } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
@@ -266,15 +266,16 @@ export async function deleteQuoteDraft(actor: string, id: string): Promise<void>
 
 /** Neues Angebot mit den Vorgaben aus den Firmendaten */
 export async function newQuoteDefaults(today: string) {
-  const company = await loadCompany();
+  // Standard-Textbausteine für Angebote (#1494): Kopftext als Einleitung, Fußtext als Hinweis
+  const [company, standard] = await Promise.all([loadCompany(), standardTexte("angebot")]);
   return {
     contactId: null,
     issueDate: today,
     validUntil: addDays(today, QUOTE_VALID_DAYS),
     serviceFrom: null,
     serviceTo: null,
-    intro: company.quoteIntro,
-    note: "",
+    intro: standard.kopf,
+    note: standard.fuss,
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
     priceMode: "netto" as PriceMode,

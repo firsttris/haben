@@ -14,7 +14,7 @@ import {
 import { asc, eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
-import { contactPersonProblem, contactRoleProblem, loadCompany, type Company, type RateFields } from "../stammdaten/index.ts";
+import { contactPersonProblem, contactRoleProblem, loadCompany, standardTexte, type Company, type RateFields } from "../stammdaten/index.ts";
 import { deductionLinesFor, deductionProblems } from "./advance-deductions.ts";
 import { lockInvoice } from "./advance-vat.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
@@ -240,7 +240,8 @@ export async function deleteDraft(actor: string, id: string) {
 
 /** Neue Rechnung mit den Vorgaben aus den Firmendaten */
 export async function newDraftDefaults(today: string) {
-  const company = await loadCompany();
+  // Standard-Textbausteine für Rechnungen (#1494): Kopftext als Einleitung, Fußtext als Hinweis
+  const [company, standard] = await Promise.all([loadCompany(), standardTexte("rechnung")]);
   return {
     contactId: null,
     issueDate: today,
@@ -249,8 +250,8 @@ export async function newDraftDefaults(today: string) {
     paymentTermDays: company.paymentTermDays,
     skonto: defaultSkonto(company, null, company.paymentTermDays),
     format: company.defaultFormat,
-    intro: company.invoiceIntro,
-    note: "",
+    intro: standard.kopf,
+    note: standard.fuss,
     propertyRetention: false,
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",

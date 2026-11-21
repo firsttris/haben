@@ -36,8 +36,6 @@ function frueher({ form, company, rechtsform, skonto, fees, privatanteile }: Ein
     paymentTermDays: Number(text("paymentTermDays") || 14),
     skonto,
     defaultFormat: text("defaultFormat") || "zugferd",
-    invoiceIntro: text("invoiceIntro"),
-    quoteIntro: text("quoteIntro"),
     kleinunternehmer: form.get("kleinunternehmer") === "on",
     foundedOn: text("foundedOn") || null,
     ohneVorsteuerabzug: form.get("ohneVorsteuerabzug") === "on",

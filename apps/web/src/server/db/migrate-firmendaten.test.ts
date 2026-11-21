@@ -48,7 +48,8 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
         await tx`update company set kleinunternehmer = true where id = 1`;
       });
       const before = {
-        company: await sql`select to_jsonb(company) as value from company`,
+        // Die Standard-Einleitungen entfernt Migration 0312 (#1494); sie stehen dann als Textbausteine da
+        company: await sql`select to_jsonb(company) - 'invoice_intro' - 'quote_intro' as value from company`,
         audit: await sql`select * from audit_log order by seq`,
         entries: await sql`select * from journal_entries order by id`,
         lines: await sql`select * from journal_lines order by id`,

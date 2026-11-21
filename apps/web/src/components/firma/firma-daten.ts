@@ -56,8 +56,6 @@ export function firmaDaten({
     paymentTermDays: Number(text("paymentTermDays") || 14),
     skonto,
     defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
-    invoiceIntro: text("invoiceIntro"),
-    quoteIntro: text("quoteIntro"),
     kleinunternehmer: form.get("kleinunternehmer") === "on",
     foundedOn: text("foundedOn") || null,
     ohneVorsteuerabzug: form.get("ohneVorsteuerabzug") === "on",
