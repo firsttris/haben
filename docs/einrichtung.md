@@ -70,7 +70,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Bereiche** ([Menüpunkte ein- und ausblenden](#bereiche-ausblenden)), **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, [Einstellungen für eine neue Instanz](einrichtung-echtbetrieb.md), DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Bereiche** ([Menüpunkte ein- und ausblenden](#bereiche-ausblenden)), **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **[Beleggestaltung](beleggestaltung.md)**, **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Eigene Konten** ([Sachkonten mit eigener Nummer](buchhaltung.md#eigene-konten)), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, [Einstellungen für eine neue Instanz](einrichtung-echtbetrieb.md), DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
 
 Ebenfalls unten links wählst du **Farbe** und **Modus**: Wald (Grün, Standard), Ozean, Pflaume oder Graphit, jeweils hell, dunkel oder **System**, das der Einstellung deines Geräts folgt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jeder Farbe gleich.
 
@@ -138,90 +138,11 @@ Unter **Einstellungen › Firma › Zeichen in der Navigation** wählst du, wora
 
 - **„H“ in der Farbe des Themes:** wie ab Werk.
 - **„H“ in eigener Farbe:** mit dem Farbfeld oder als Hex-Wert `#RRGGBB`. Die Schrift darauf ist weiß oder schwarz, je nachdem, was sich besser liest; so ist das „H“ in jeder Farbe lesbar (Kontrast mindestens 4,5 : 1 nach WCAG). Hebt sich eine sehr dunkle Farbe kaum von der Navigation ab, bekommt die Kachel eine feine helle Kante.
-- **Logo aus der Beleggestaltung:** statt des „H“ steht das [Logo](#logo) der Belege auf weißer Fläche, in einem Quadrat so groß wie das „H“. Am besten wirkt ein quadratisches Bildzeichen; ein breiter Schriftzug wird darin klein. Das geht nur, wenn ein Logo hochgeladen ist, und es ändert sich mit diesem Logo. Wird es entfernt, zeigt die Navigation wieder die eigene Farbe bzw. das „H“ des Themes.
+- **Logo aus der Beleggestaltung:** statt des „H“ steht das [Logo](beleggestaltung.md#logo) der Belege auf weißer Fläche, in einem Quadrat so groß wie das „H“. Am besten wirkt ein quadratisches Bildzeichen; ein breiter Schriftzug wird darin klein. Das geht nur, wenn ein Logo hochgeladen ist, und es ändert sich mit diesem Logo. Wird es entfernt, zeigt die Navigation wieder die eigene Farbe bzw. das „H“ des Themes.
 
 Mit [Firmenportal](installation.md#firmenportal) steht das Zeichen auch dort auf der Kachel der Firma, nach dem nächsten Abgleich mit `portal` oder, ohne Werkzeug, nachdem es jemand dort eingetragen hat.
 
-Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](steuerberatung.md), und hängt nicht an der Beleggestaltung: Ändern sich [Akzentfarbe](#akzentfarbe), Layout oder Logo-Einstellungen der Belege, bleibt die eigene Farbe, und Firmen mit gleich aussehenden Belegen haben trotzdem verschiedene Zeichen. Das Theme (Hell, Dunkel, Farbe der Oberfläche) wählt dagegen jeder Zugang für sich. Die Änderung steht im Änderungsprotokoll.
-
-### Logo
-
-Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
-
-- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Stelle legst du unter [Logo und Blatt](#logo-und-blatt) fest. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
-- Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
-- Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
-- Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
-
-### Akzentfarbe
-
-Unter **Einstellungen › Beleggestaltung › Akzentfarbe** stellst du die Farbe der Spaltenköpfe und Linien ein, etwa passend zu deinem Logo. Ab Werk ist **Farbe des Layouts** an: Jedes [Layout](#layouts) setzt seine eigene Farbe, Klar etwa das Grün `#1F6F5C`, Premium ein Gold. Übernimmst du eine eigene Farbe, gilt sie für alle Layouts, bis du **Farbe des Layouts** wieder einschaltest.
-
-- Text, Adressen, Beschriftungen, Positionen, dünne Linien und Fußzeile stehen in Grautönen, die Haben aus der Akzentfarbe ableitet: gleiche Helligkeit wie ab Werk, aber mit ihrem Farbton. Bei Blau sind sie leicht bläulich, bei einer grauen Akzentfarbe neutral grau; mit dem Standardgrün bleibt alles wie bisher.
-- Du wählst sie mit dem Farbfeld oder trägst sie als Hex-Wert in der Form `#RRGGBB` ein; **Auf Standard zurücksetzen** stellt das Grün wieder her.
-- Sie gilt für Rechnungen und Angebote, die ab dann festgeschrieben werden, und für die Vorschau im Editor; schon festgeschriebene PDFs bleiben unverändert.
-- Eine Mahnung, Auftragsbestätigung oder ein Lieferschein zu einem älteren Beleg entsteht neu und bekommt deshalb die dann aktuelle Farbe und das aktuelle Logo.
-- Ist eine eigene Farbe auf weißem Papier schwer zu lesen (Kontrast unter 4,5 : 1 nach WCAG), weist Haben darauf hin. Speichern geht trotzdem; eine dunklere Variante des Logo-Farbtons liest sich besser.
-- Die Änderung steht im Änderungsprotokoll.
-
-### Logo und Blatt
-
-Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) legst du fest, wie das Blatt aussieht. Es gilt für alles, was ab dann erzeugt wird, auch für Mahnung, Auftragsbestätigung und Lieferschein zu älteren Belegen; schon festgeschriebene PDFs bleiben unverändert.
-
-| Einstellung | Bedeutung |
-| --- | --- |
-| Schrift | **Wie im Layout** (ab Werk; jedes Layout bringt seine Schrift mit), IBM Plex Sans, IBM Plex Serif, Source Sans 3, Figtree, Fira Sans, Inter, Libre Franklin, Literata, Lora oder Nunito Sans; im PDF eingebettet, wie PDF/A es verlangt |
-| Logo S, M, L | Höchstens 12 × 40 mm, 18 × 60 mm (ab Werk) oder 24 × 80 mm; auch L endet über dem Anschriftfeld |
-| Logo links, Mitte, rechts | Stelle im Briefkopf; „Mitte“ steht mittig auf dem Blatt. Elegant mit Fuß in der Randspalte kennt keine Mitte und setzt das Logo dann rechts; in der Vorschau ist „Mitte“ dort aus. Ein eigenes Layout, das nur `look.logoLeft` kennt, setzt es bei „Mitte“ rechts |
-| Falz- und Lochmarken | Striche am linken Rand für den Fensterumschlag nach DIN 5008 |
-| GiroCode | QR-Code für die Überweisung, auf Rechnung und Mahnung |
-| Kundennummer | Nur auf dem Blatt; das XML der E-Rechnung nennt sie weiter |
-| Artikelnummer | Spalte „Art.-Nr.“, sobald eine Position eine Nummer hat; nur auf dem Blatt, das XML der E-Rechnung nennt sie weiter |
-| Spalte USt je Position | Entfällt nur, wenn alle Positionen denselben Steuersatz haben; bei mehreren Sätzen bleibt sie stehen |
-
-Pflichtangaben und Summen lassen sich hier nicht ausblenden; zur Fußzeile auf dem Briefpapier siehe [Briefpapier](#briefpapier).
-
-### Briefpapier
-
-Unter **Einstellungen › Beleggestaltung › Briefpapier** legst du ein Bild hinter den Beleg, etwa deinen gedruckten Briefbogen als Scan.
-
-- Es geht PNG, JPEG oder PDF bis 2 MB, am besten im Format A4 hochkant mit mindestens 1240 × 1754 Pixeln. Ein abweichendes Seitenverhältnis wird beschnitten, damit die Seite voll bedeckt ist.
-- Von einem PDF nimmt Haben die erste Seite und wandelt sie mit 200 dpi in ein Bild um, denn die Belege sind PDF/A-3 und können kein PDF einbetten. Beschädigte Dateien und Bilder im Farbraum CMYK lehnt Haben ab, weil sich aus ihnen kein PDF/A erzeugen lässt; speichere sie als RGB.
-- **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Die Vorschau zeigt es genauso, auf jeder Seite des Belegs.
-- Logo und Falzmarken liegen über dem Bild. Hat dein Briefbogen schon ein Logo, entferne das hochgeladene.
-- Trägt dein Briefbogen auch den Fuß, schalte **Fußzeile steht auf dem Briefpapier** ein. Haben fragt nach, denn dann druckt es nur noch die Seitenzahl: Steuernummer oder USt-IdNr. muss auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2 UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Prüfen kann Haben das im Bild nicht. Entfernst du das Briefpapier (nach einer Rückfrage), druckt Haben die Fußzeile wieder.
-- Jedes neu erzeugte PDF enthält das Bild, schon festgeschriebene PDFs bleiben unverändert. Im Änderungsprotokoll steht, wann es sich geändert hat, mit SHA-256, aber ohne die Bilddaten.
-
-### Fußzeile
-
-Unter **Einstellungen › Beleggestaltung › Fußzeile** schaltest du von der automatischen Fußzeile auf eigene Spalten um. Ab Werk setzt Haben sie aus den Firmendaten zusammen: Kontakt, Bank, Steuernummern.
-
-- Du wählst zwei bis vier Spalten mit je höchstens fünf Zeilen und schreibst freien Text mit Platzhaltern: `{firma}`, `{strasse}`, `{plz}`, `{ort}`, `{email}`, `{telefon}`, `{bank}`, `{kontoinhaber}`, `{iban}`, `{bic}`, `{steuernummer}`, `{ustid}`. Unten in der Karte siehst du, wie sie auf dem Blatt steht.
-- Text lässt sich auszeichnen wie in den Belegtexten: markieren und **F**, **K** oder **U** wählen, oder die Zeichen tippen (`*fett*`, `_kursiv_`, `__unterstrichen__`). Das gilt für deinen Text, auch um Platzhalter herum; Zeichen aus den Firmendaten bleiben wörtlich.
-- Fehlt der Wert zu einem Platzhalter, entfällt die ganze Zeile: Ohne Telefonnummer erscheint keine Zeile „Telefon“.
-- Steuernummer oder USt-IdNr. muss auf der Rechnung stehen (§ 14 Abs. 4 Nr. 2 UStG). Haben speichert die Fußzeile nur, wenn `{steuernummer}` oder `{ustid}` vorkommt. Die Pflichtangaben einer GmbH oder UG stehen weiter darunter.
-- Hat deine Firma die genannte Nummer nicht, setzt Haben die vorhandene ans Ende der letzten Spalte. Bei Reverse Charge und innergemeinschaftlicher Lieferung steht die USt-IdNr. immer auf der Rechnung (§ 14a UStG).
-- Bricht eine Zeile um oder sind die Spalten hoch, wächst der untere Rand mit; es steht dann weniger Inhalt auf der Seite.
-- Dein Text wird nicht übersetzt: Auf englischen Belegen steht er so, wie du ihn schreibst.
-- Sie gilt wie die übrige Gestaltung für alles, was ab dann erzeugt wird.
-
-### Layouts
-
-Unter **Einstellungen › Beleggestaltung › Layouts** wählst du ein Layout für alle Belegarten: ein eingebautes oder ein eigenes, das du hochgeladen hast. Unter **Je Belegart abweichend wählen** bekommt eine Belegart ein anderes, etwa das Angebot; weicht eine ab, steht die Tabelle offen und oben „Je Belegart verschieden“. Ein eigenes Layout ist entweder für Belege oder für Mahnungen; wählst du es für alle, behält die übrige Art ihr Layout. Wie man ein Layout schreibt, was Haben beim Hochladen prüft und wie Pakete freigegeben werden, steht unter [Eigene Belegvorlagen](belegvorlagen.md).
-
-| Layout | Optionen |
-| --- | --- |
-| Klar (ab Werk) | Fassung Standard oder Klassisch (das bisherige Layout von Haben); in der Fassung Standard Kerndaten mit Linie oder auf einer Karte |
-| Modern | Akzentfarbe farbig oder sparsam; Linie über dem Fuß (ab Werk ohne) |
-| Strukturiert | Infoblock als Tabelle oder im Kasten |
-| Elegant | Fuß in der Randspalte (ab Werk) oder unten; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten) |
-| Premium | Fuß unten (ab Werk) oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben; die Linie unter dem Kopf steht bei jeder Logogröße gleich hoch |
-
-- Die Optionen stehen unter der Zuordnung, je eingebautem Layout einmal; sie gelten für jede Belegart mit diesem Layout. Ein Wert, den eine andere Option ausschließt, ist ausgegraut.
-- In der [Vorschau](rechnungen.md#vorschau) zeigt das Zahnrad das Layout der Belegart mit seinen Optionen; eine Änderung dort siehst du sofort und speicherst sie mit **Gestaltung speichern**.
-- Bestehende Installationen behalten beim Update ihr Aussehen: Klar in der Fassung Klassisch, ihre Schrift und ihre Akzentfarbe.
-
-Verwendet ein eigenes Layout eine Einstellung der Gestaltung nicht, etwa den GiroCode oder die Falz- und Lochmarken, steht darunter ein Hinweis mit dem Namen des Layouts. Wirkt die Einstellung auf keinen Beleg mehr, ist sie aus; siehe [Einstellungen, die das Layout nicht verwendet](belegvorlagen.md#hochladen-und-zuordnen).
+Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](steuerberatung.md), und hängt nicht an der [Beleggestaltung](beleggestaltung.md): Ändern sich dort Farbe, Layout oder Logo, bleibt die eigene Farbe, und Firmen mit gleich aussehenden Belegen haben trotzdem verschiedene Zeichen. Das Theme (Hell, Dunkel, Farbe der Oberfläche) wählt dagegen jeder Zugang für sich. Die Änderung steht im Änderungsprotokoll.
 
 ## Persönliche Angaben
 

@@ -1,5 +1,5 @@
 import { distinctVatRates, CURRENCY_CODE, formatEuro } from "@haben/core";
-import { useRef } from "react";
+import { type ComponentProps, useRef } from "react";
 import { formatDate } from "../lib/format.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { ActionBar } from "./ActionBar.tsx";
@@ -19,6 +19,16 @@ import { useInvoiceEditor } from "./use-invoice-editor.ts";
 
 export type { AbschlagOption, EditorInitial, QuoteOption } from "./invoice-editor-types.ts";
 export { previewNumber } from "./invoice-editor-number.ts";
+
+type EditorDesignPanelProps = Omit<ComponentProps<typeof DesignPanel>, "vatRates" | "layoutType"> & {
+  kind: string;
+  lines: readonly (Parameters<typeof distinctVatRates>[0][number] & { valid: boolean })[];
+};
+
+/** Gestaltung neben der Vorschau; Storno und Korrektur folgen dem Layout der Rechnung */
+function EditorDesignPanel({ kind, lines, ...rest }: EditorDesignPanelProps) {
+  return <DesignPanel {...rest} vatRates={distinctVatRates(lines.filter((l) => l.valid))} layoutType={kind === "angebot" ? "angebot" : "rechnung"} />;
+}
 
 export function InvoiceEditor(props: InvoiceEditorProps) {
   const editor = useInvoiceEditor(props);
@@ -100,15 +110,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       <PreviewLayout
         preview={preview}
         design={{
-          panel: (
-            <DesignPanel
-              draft={designDraft}
-              vatRates={distinctVatRates(parsed.filter((l) => l.valid))}
-              logo={logo}
-              onLogoChanged={setLogo}
-              layoutType={kind === "angebot" ? "angebot" : "rechnung"}
-            />
-          ),
+          panel: <EditorDesignPanel draft={designDraft} kind={kind} lines={parsed} logo={logo} onLogoChanged={setLogo} />,
           onClosed: designDraft.discard,
         }}
         label="Vorschau"
