@@ -1,5 +1,5 @@
 import { dauerfristActive, type DauerfristSetting } from "./dauerfrist.ts";
-import { vorauszahlungstermine } from "./fristen.ts";
+import { gewerbesteuertermine, vorauszahlungstermine } from "./fristen.ts";
 import { addDays, naechsterWerktag } from "./holidays.ts";
 import { postenAus, type LiquiditaetsPosten, type Sicherheit } from "./liquiditaet.ts";
 import type { Cents } from "./money.ts";
@@ -13,11 +13,6 @@ import { filingPeriodOfMonth, frequencyAt, type VatFrequencySetting } from "./vo
  * Voranmeldungszeiträume und die Sondervorauszahlung. Fällt ein Termin auf ein Wochenende oder einen Feiertag, gilt der
  * nächste Werktag (§ 108 Abs. 3 AO), wie bei den übrigen Fristen (fristen.ts).
  */
-
-/** Gewerbesteuer-Vorauszahlungen: 15. Februar, Mai, August und November (§ 19 Abs. 1 Satz 1 GewStG) */
-export function gewerbesteuertermine(year: number, bundesland: Bundesland | null): string[] {
-  return ["02", "05", "08", "11"].map((month) => naechsterWerktag(`${year}-${month}-15`, bundesland));
-}
 
 /** Steuerarten mit Vorauszahlungen */
 export type VorauszahlungsArt = Extract<Steuerart, "est" | "soli" | "kist" | "kst" | "gewst">;

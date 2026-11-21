@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { DauerfristSetting } from "./dauerfrist.ts";
 import type { LiquiditaetsPosten } from "./liquiditaet.ts";
 import {
-  gewerbesteuertermine,
   offeneUstZeitraeume,
   sondervorauszahlungsPosten,
   umsatzsteuerPosten,
@@ -17,14 +16,6 @@ const QUARTAL: VatFrequencySetting[] = [{ year: 2026, fromMonth: 1, frequency: "
 const DAUERFRIST: DauerfristSetting[] = [{ year: 2026, active: true, sondervorauszahlung: 110_000 }];
 
 describe("Termine der Vorauszahlungen", () => {
-  it("Gewerbesteuer am 15. Februar, Mai, August und November, verschoben auf den nächsten Werktag", () => {
-    // 15.05.2027 ist ein Samstag, der Montag danach Pfingstmontag; 15.08.2027 ein Sonntag
-    expect(gewerbesteuertermine(2027, "BW")).toEqual(["2027-02-15", "2027-05-18", "2027-08-16", "2027-11-15"]);
-    // Mariä Himmelfahrt ist nur im Saarland landesweit Feiertag
-    expect(gewerbesteuertermine(2025, "SL")[2]).toBe("2025-08-18");
-    expect(gewerbesteuertermine(2025, "BW")[2]).toBe("2025-08-15");
-  });
-
   it("Einkommen- und Körperschaftsteuer mit Soli und Kirchensteuer am 10. des letzten Quartalsmonats, über den Jahreswechsel", () => {
     expect(vorauszahlungsTermineZwischen("est", HEUTE, "2027-11-19", "BW")).toEqual(["2026-12-10", "2027-03-10", "2027-06-10", "2027-09-10"]);
     expect(vorauszahlungsTermineZwischen("kst", HEUTE, "2027-03-10", "BW")).toEqual(["2026-12-10", "2027-03-10"]);
