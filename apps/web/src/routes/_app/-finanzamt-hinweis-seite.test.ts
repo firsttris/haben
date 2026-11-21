@@ -23,32 +23,42 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => createElement("a", { href: to }, children),
   useRouter: () => ({ invalidate: async () => {} }),
 }));
+import type { Basis } from "./-finanzamt-daten.ts";
 import { Route } from "./finanzamt.tsx";
 
-/** Zahlen der Schätzrechnung; Nullen genügen, es geht um den Hinweis darüber */
-const basis = {
+/**
+ * Zahlen der Schätzrechnung; Nullen genügen, es geht um den Hinweis darüber. Vollständig, weil die Seite jede Zeile
+ * der Prognose druckt: fehlt ein Feld, steht im HTML „NaN €" statt eines Betrags.
+ */
+const basis: Basis = {
   year: 2026,
   until: "2026-11-01",
   profitSoFar: 0,
-  profitLastYear: 0,
   profitForecast: 0,
+  profitLastYear: 0,
+  einkunftsart: "gewerbe",
   angabenAus: null,
   priorBenefitsOmitted: false,
-  einkunftsart: "gewerbe",
   prognose: {
-    jeQuartal: 0,
+    year: 2026,
     einkuenfteArbeit: 0,
-    steuerabzug: 0,
-    soli: 0,
-    kirchensteuer: 0,
+    gesamtbetragEinkuenfte: 0,
     erstattungsueberhang: 0,
-    zvE: 0,
     vorsorge: 0,
     sonderausgaben: 0,
-    kinderfreibetrag: 0,
     kinderbetreuung: 0,
-    einkommensteuer: 0,
     aussergewoehnlich: 0,
+    zvE: 0,
+    kinderfreibetrag: false,
+    tariflich: 0,
+    ermaessigung35a: 0,
+    einkommensteuer: 0,
+    soli: 0,
+    kirchensteuer: 0,
+    gesamt: 0,
+    steuerabzug: 0,
+    verbleibend: 0,
+    jeQuartal: 0,
   },
 };
 
@@ -86,8 +96,11 @@ describe("Finanzamt: Hinweis bei gesetztem Haken (#1287)", () => {
     const html = render();
     expect(html).toContain("keine Vorauszahlungen festgesetzt");
     expect(html).toContain("gegenstandslos");
-    // Das Formular bleibt erreichbar: die Überschrift des Antrags steht weiter da
+    // Kein NaN aus einer unvollständigen Prognose
+    expect(html).not.toContain("NaN");
+    // Das Formular bleibt erreichbar: die Überschrift des Antrags und der Knopf zum Absenden stehen weiter da
     expect(html).toContain("Einkommensteuer-Vorauszahlungen 2026");
+    expect(html).toContain("Prüfen und testweise senden");
   });
 
   it("zeigt ohne Haken keinen Hinweis", () => {

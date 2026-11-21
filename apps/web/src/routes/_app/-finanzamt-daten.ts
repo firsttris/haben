@@ -29,8 +29,9 @@ export const DATENART_LABEL: Record<string, string> = {
 
 /**
  * Hinweis im Reiter „Vorauszahlungen herabsetzen“, wenn die Person angegeben hat, dass nichts festgesetzt ist (#1287).
- * Ein Herabsetzungsantrag setzt eine Festsetzung durch Vorauszahlungsbescheid voraus (§ 37 Abs. 3 Satz 1 EStG,
- * https://www.gesetze-im-internet.de/estg/__37.html); ohne Bescheid ist der Antrag gegenstandslos.
+ * Ein Herabsetzungsantrag setzt eine Festsetzung durch Vorauszahlungsbescheid voraus und ändert sie anschließend
+ * (§ 37 Abs. 3 Satz 1 und 3 EStG, https://www.gesetze-im-internet.de/estg/__37.html); ohne Bescheid ist der Antrag
+ * gegenstandslos.
  * Der Antrag bleibt verfügbar: Der Haken ist eine Angabe der Person, kein Bescheid. Wer ihn zu Unrecht gesetzt hat,
  * kommt so weiterhin zum Antrag; wer wirklich nichts festgesetzt hat, spart sich einen gegenstandslosen Brief.
  */
