@@ -1,0 +1,11 @@
+Umsätze des Kontos;Filial-/Kontonummer;Kundennummer
+Girokonto;123 4567890 00;7654321
+
+1.1.2024 - 31.3.2024
+Letzter Kontostand;;;;1.000,00;EUR
+Vorgemerkte und noch nicht gebuchte Umsätze sind nicht Bestandteil dieser Übersicht.
+Buchungstag;Wert;Umsatzart;Begünstigter / Auftraggeber;Verwendungszweck;IBAN;BIC;Kundenreferenz;Mandatsreferenz ;Gläubiger ID;Fremde Gebühren;Betrag;Abweichender Empfänger;Abweichender Auftraggeber;Anzahl der Aufträge;Anzahl der Schecks;Soll;Haben;Währung
+10.1.2024;10.1.2024;SEPA Überweisung;Musterwerk GmbH;Rechnung 2024-001;DE02120300000000202051;BYLADEM1001;2024-001;;;;;;;;;-238,00;;EUR
+15.1.2024;16.1.2024;SEPA Gutschrift;Beispiel AG;Rechnung 2024-002;DE89370400440532013000;COBADEFFXXX;NOTPROVIDED;;;;;;;;;;1.000,00;EUR
+31.1.2024;31.1.2024;Entgelt;;Kontoführung Januar;;;;;;;;;;;;-9,90;;EUR
+Kontostand;31.3.2024;;;1.752,10;EUR

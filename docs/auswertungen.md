@@ -146,7 +146,10 @@ Mit einem Vergleich steht darüber „Warum?“: die Abweichung der Zeile nach K
 
 - **neu**: im Vergleich keine Zahlung mit dem Kontakt; **weggefallen**: jetzt keine; sonst **gestiegen** oder **gesunken**.
 - Die Spalte „Vorgänge“ zeigt Anzahl und Betrag je Zahlung („3 × 240,00 € statt 1 × 90,00 €“), also ob es mehr Zahlungen waren oder höhere Beträge; drei Teilzahlungen auf eine Rechnung zählen dreimal.
-- Kontakt ist der Kunde der bezahlten Rechnung bzw. der Lieferant des Belegs. Ohne verknüpften Kontakt zählt der Name auf der Rechnung bzw. am Beleg; ohne Namen und bei Zahlungen ohne Rechnung und Beleg (Pauschalen, Lohn, Finanzamt) steht der Betrag unter „Ohne Kontakt“. Ein verknüpfter Kontakt ist verlinkt, für die Steuerberatung nicht, weil sie keine Kontakte öffnet.
+- Kontakt ist der Kunde der bezahlten Rechnung bzw. der Lieferant des Belegs; bei einer Rechnung oder einem Beleg aus Lexware Office ohne eigenen Kontakt der Kontakt am archivierten Beleg. Ein verknüpfter Kontakt ist verlinkt, für die Steuerberatung nicht, weil sie keine Kontakte öffnet.
+  - Vorgänge desselben Kunden bzw. Lieferanten stehen in einer Zeile, mit und ohne Kontakt: gleicher Kontakt, gleiche USt-IdNr. oder gleicher Name (ohne Groß- und Kleinschreibung, auch Name und USt-IdNr. am Kontakt), auch über mehrere Schritte.
+  - Zwei Kontakte stehen nie in einer Zeile. Passen Vorgänge ohne Kontakt, allein oder erst zusammen, zu zwei Kontakten, stehen sie bei keinem, sondern in einer eigenen Zeile mit den übrigen Vorgängen ohne Kontakt, die bei keinem Kontakt stehen und denselben Namen oder dieselbe USt-IdNr. tragen.
+  - Ohne Kontakt, Namen und USt-IdNr. und bei Zahlungen ohne Rechnung und Beleg (Pauschalen, Lohn, Finanzamt) steht der Betrag unter „Ohne Kontakt“.
 
 Grenzen:
 

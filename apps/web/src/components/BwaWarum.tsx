@@ -72,8 +72,7 @@ export function BwaWarum({ warum, zeitraum, vergleich, rolle }: { warum: Warum; 
           </thead>
           <tbody>
             {warum.teile.map((t) => (
-              // Ohne Kontakt fasst der Rechenkern nach dem Namen zusammen; der Name ist dann eindeutig
-              <TeilZeile key={t.kontaktId ?? `name:${t.name}`} teil={t} rolle={rolle} />
+              <TeilZeile key={t.schluessel} teil={t} rolle={rolle} />
             ))}
             {warum.uebrige && (
               <tr>

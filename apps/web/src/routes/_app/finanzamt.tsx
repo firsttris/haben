@@ -5,7 +5,7 @@ import { EricHinweis } from "../../components/EricHinweis.tsx";
 import { getFinanzamt } from "../../server/functions/finanzamt.ts";
 import { today } from "../../server/today.ts";
 import styles from "../../styles/auswertungen.css?url";
-import type { Topic } from "./-finanzamt-daten.ts";
+import { type Topic, vorauszahlungHinweis } from "./-finanzamt-daten.ts";
 import { History, Postfach } from "./-finanzamt-postfach.tsx";
 import { BankChangeForm, MessageForm } from "./-finanzamt-nachrichten.tsx";
 import { PrepaymentForm } from "./-finanzamt-vorauszahlung.tsx";
@@ -24,6 +24,7 @@ function FinanzamtPage() {
   const basis = data.basis;
   const tabs = basis ? (["vorauszahlung", "nachricht", "bankverbindung"] as const) : (["nachricht", "bankverbindung"] as const);
   const [tab, setTab] = useState<Tab>(tabs[0]);
+  const hinweis = vorauszahlungHinweis(data.keineVorauszahlungen);
 
   return (
     <>
@@ -58,7 +59,17 @@ function FinanzamtPage() {
         ))}
       </div>
 
-      {tab === "vorauszahlung" && basis && <PrepaymentForm key="v" data={data} basis={basis} />}
+      {tab === "vorauszahlung" && basis && (
+        <>
+          {hinweis && (
+            <div className="banner" role="status">
+              <Icon name="alert" />
+              <span>{hinweis}</span>
+            </div>
+          )}
+          <PrepaymentForm key="v" data={data} basis={basis} />
+        </>
+      )}
       {tab === "nachricht" && <MessageForm key="n" data={data} topic="nachricht" initial={{ betreff: "", text: "" }} />}
       {tab === "bankverbindung" && <BankChangeForm data={data} />}
 

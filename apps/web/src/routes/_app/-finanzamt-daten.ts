@@ -27,6 +27,22 @@ export const DATENART_LABEL: Record<string, string> = {
   DivaSonstigerVA: "Sonstiger Bescheid",
 };
 
+/**
+ * Hinweis im Reiter „Vorauszahlungen herabsetzen“, wenn die Person angegeben hat, dass nichts festgesetzt ist (#1287).
+ * Ein Herabsetzungsantrag setzt eine Festsetzung durch Vorauszahlungsbescheid voraus und ändert sie anschließend
+ * (§ 37 Abs. 3 Satz 1 und 3 EStG, https://www.gesetze-im-internet.de/estg/__37.html); ohne Bescheid ist der Antrag
+ * gegenstandslos.
+ * Der Antrag bleibt verfügbar: Der Haken ist eine Angabe der Person, kein Bescheid. Wer ihn zu Unrecht gesetzt hat,
+ * kommt so weiterhin zum Antrag; wer wirklich nichts festgesetzt hat, spart sich einen gegenstandslosen Brief.
+ */
+export function vorauszahlungHinweis(keineVorauszahlungen: boolean): string | null {
+  if (!keineVorauszahlungen) return null;
+  return (
+    "Nach deinen Angaben sind keine Vorauszahlungen festgesetzt. Ein Herabsetzungsantrag ist dann gegenstandslos, " +
+    "es sei denn, das Finanzamt hat inzwischen wieder etwas festgesetzt. Die Angabe steht unter Einstellungen › Persönliche Angaben."
+  );
+}
+
 /** Formloser Antrag nach § 37 Abs. 3 EStG mit den Zahlen aus der Buchhaltung */
 export function prepaymentLetter(data: Data, b: Basis, current: number | null, wanted: number | null, reason: string, usePrognose: boolean) {
   const art = b.einkunftsart === "gewerbe" ? "Gewerbebetrieb" : "selbständiger Arbeit";

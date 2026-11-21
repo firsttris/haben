@@ -1,0 +1,9 @@
+﻿Umsätze
+Konto;Filial-/Kontonummer;IBAN;Währung
+Top-Zinskonto;987 6543210 00;DE75512108001245126199;EUR
+
+1.1.2026 - 31.12.2026
+Letzter Kontostand;;;;0;EUR
+Vorgemerkte und noch nicht gebuchte Umsätze sind nicht Bestandteil dieser Übersicht.
+Buchungstag;Wert;Umsatzart;Begünstigter / Auftraggeber;Verwendungszweck;IBAN / Kontonummer;BIC;Kundenreferenz;Mandatsreferenz;Gläubiger ID;Fremde Gebühren;Betrag;Abweichender Empfänger;Anzahl der Aufträge;Anzahl der Schecks;Soll;Haben;Währung
+Kontostand;31.12.2026;;;0;EUR
