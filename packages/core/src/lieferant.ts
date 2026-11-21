@@ -28,9 +28,9 @@ const merkmale = ({ ustIds, namen }: LieferantMerkmale): string[] => [
 /**
  * Ordnet Belege bzw. Rechnungen zu Gruppen desselben Lieferanten, auch über mehrere Schritte (Kontakt, gleiche USt-IdNr.,
  * dann gleicher Name). Gibt je Eintrag einen Schlüssel der Gruppe zurück, null ohne jedes Merkmal. Zwei Kontakte bleiben
- * immer getrennt. Ein Eintrag ohne Kontakt, der selbst zu zwei Kontakten passt, bleibt bei keinem und verbindet nichts;
- * nur gleich mehrdeutige stehen zusammen. Verbinden erst mehrere Einträge ohne Kontakt zwei Kontakte, bleiben sie zusammen
- * für sich: Haben rät keine Zuordnung.
+ * immer getrennt. Ein Eintrag ohne Kontakt, der selbst zu zwei Kontakten passt, bleibt bei keinem und verbindet keine
+ * Kontakte; er steht nur bei Einträgen, die ebenfalls zu keinem Kontakt gehören. Verbinden erst mehrere Einträge ohne
+ * Kontakt zwei Kontakte, bleiben sie zusammen für sich: Haben rät keine Zuordnung.
  */
 export function lieferantGruppen(eintraege: readonly LieferantMerkmale[]): (string | null)[] {
   const je = eintraege.map(merkmale);
@@ -65,11 +65,23 @@ export function lieferantGruppen(eintraege: readonly LieferantMerkmale[]): (stri
     const w = wurzel(i);
     for (const k of passtZu[i]!) kontakteJe.set(w, (kontakteJe.get(w) ?? new Set()).add(k));
   });
+  const kontaktVon = eintraege.map(({ kontaktId }, i) => {
+    const kontakte = kontaktId || mehrdeutig[i] ? undefined : kontakteJe.get(wurzel(i));
+    return kontakte?.size === 1 ? [...kontakte][0]! : null;
+  });
+  // Was bei keinem Kontakt steht, verbindet sich nun auch mit den mehrdeutigen; einen Kontakt bekommt dadurch keiner
+  const ohne = new Map<string, number>();
+  eintraege.forEach(({ kontaktId }, i) => {
+    if (kontaktId || kontaktVon[i]) return;
+    for (const x of je[i]!) {
+      const j = ohne.get(x);
+      if (j === undefined) ohne.set(x, i);
+      else eltern[wurzel(i)] = wurzel(j);
+    }
+  });
   return eintraege.map(({ kontaktId }, i) => {
     if (kontaktId) return `kontakt:${kontaktId}`;
-    if (je[i]!.length === 0) return null;
-    const w = wurzel(i);
-    const kontakte = mehrdeutig[i] ? new Set<string>() : (kontakteJe.get(w) ?? new Set<string>());
-    return kontakte.size === 1 ? `kontakt:${[...kontakte][0]}` : `gruppe:${w}`;
+    if (kontaktVon[i]) return `kontakt:${kontaktVon[i]}`;
+    return je[i]!.length === 0 ? null : `gruppe:${wurzel(i)}`;
   });
 }

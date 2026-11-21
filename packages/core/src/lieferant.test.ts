@@ -70,6 +70,18 @@ describe("Gruppen derselben Lieferanten", () => {
     ).toEqual([[0], [1, 3], [2, 4]]);
   });
 
+  it("ein mehrdeutiger Beleg steht bei gleichnamigen Belegen, die zu keinem Kontakt gehören", () => {
+    expect(
+      gruppen([
+        // Zwei Kontakte mit derselben USt-IdNr., etwa nach einem Import
+        m({ kontaktId: "k1", namen: ["Bar Nord"], ustIds: ["DE999999999"] }),
+        m({ kontaktId: "k2", namen: ["Bar Süd"], ustIds: ["DE999999999"] }),
+        m({ namen: ["Bar AG"], ustIds: ["DE999999999"] }),
+        m({ namen: ["bar ag"] }),
+      ]),
+    ).toEqual([[0], [1], [2, 3]]);
+  });
+
   it("verbinden erst Belege ohne Kontakt zwei Kontakte, bleiben sie zusammen für sich", () => {
     expect(
       gruppen([
