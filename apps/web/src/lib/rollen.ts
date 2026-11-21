@@ -27,6 +27,7 @@ const STEUERBERATUNG_SEITEN = [
   /^\/steuerberatung$/,
   /^\/auswertungen$/,
   /^\/auswertungen\/bwa$/,
+  /^\/auswertungen\/liquiditaet$/,
   /^\/buchungen$/,
   /^\/konten$/,
   /^\/konten\/\d{4,8}$/,

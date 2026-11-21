@@ -26,6 +26,11 @@ export function vorauszahlungstermine(year: number, bundesland: Bundesland | nul
   return ["03", "06", "09", "12"].map((month) => naechsterWerktag(`${year}-${month}-10`, bundesland));
 }
 
+/** Gewerbesteuer-Vorauszahlungen: 15. Februar, Mai, August und November (§ 19 Abs. 1 Satz 1 GewStG) */
+export function gewerbesteuertermine(year: number, bundesland: Bundesland | null): string[] {
+  return ["02", "05", "08", "11"].map((month) => naechsterWerktag(`${year}-${month}-15`, bundesland));
+}
+
 /** Tage von heute bis zum Datum; negativ, wenn es vorbei ist */
 export function tageBis(isoDate: string, today: string): number {
   return Math.round((Date.parse(`${isoDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);

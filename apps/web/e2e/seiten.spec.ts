@@ -63,6 +63,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["fristen", "/fristen"],
     ["auswertungen", "/auswertungen"],
     ["bwa", `/auswertungen/bwa?jahr=${YEAR}&zeitraum=jahr`],
+    ["liquiditaet", "/auswertungen/liquiditaet?horizont=12m"],
     ["kontakte", "/kontakte"],
     ["kontakt", details.kontakt],
     ["archiv", "/archiv"],

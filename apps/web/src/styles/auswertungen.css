@@ -198,3 +198,16 @@
 .bwa-warum table { white-space: nowrap; }
 /* Kartenkopf der BWA: Titel links, „Leere Zeilen anzeigen“ rechts, am Handy darunter (#1635) */
 .bwa-kopf { align-items: center; }
+
+/* Liquiditätsvorschau (#1381): Zeitraum mit dem Tiefpunkt auf weicher Warnfläche, negative Stände in der Farbe für Gefahr */
+.liq-wahl { align-items: end; flex-wrap: wrap; }
+/* Am Handy scrollt die Kopfzeile sonst seitlich und schneidet den Schalter ab: Horizont und Schalter brechen um */
+.page-head .actions.liq-wahl { flex-wrap: wrap; overflow: visible; }
+.betrag-negativ { color: var(--danger-ink); }
+.liq-table .liq-tief > th, .liq-table .liq-tief > td { background: var(--warn-soft); }
+.liq-umschalter { display: inline-flex; align-items: center; gap: 4px; }
+.liq-umschalter .small { margin-left: 4px; }
+.liq-ohne { padding-left: 20px; }
+.liq-aufgeklappt > td { padding: 0 0 12px 20px; }
+.liq-posten { font-size: 13px; }
+.liq-hinweise { margin: 0; padding-left: 20px; }
