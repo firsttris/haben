@@ -5,9 +5,18 @@ import { Icon } from "./Icon.tsx";
 
 /**
  * Bankabgleich: ungebuchte Belege aus Dauerbelegen mit passendem Betrag. Gebucht wird erst auf Klick, zusammen mit der
- * Zuordnung; wer erst prüfen will, öffnet den Beleg.
+ * Zuordnung; wer erst prüfen will, öffnet den Beleg. Mit § 13b oder Erwerb bleibt nur das Prüfen: Gebucht wird auf der
+ * Belegseite, deren Rückfrage bei § 13b EU und Erwerb die USt-IdNr. beim BZSt prüft (#1595).
  */
-export function DauerbelegVorschlaege({ suggestions, busy, onBook }: { suggestions: Suggestion[]; busy: boolean; onBook: (documentId: string) => void }) {
+export function DauerbelegVorschlaege({
+  suggestions,
+  busy,
+  onBook,
+}: {
+  suggestions: (Suggestion & { selfAssessed: boolean })[];
+  busy: boolean;
+  onBook: (documentId: string) => void;
+}) {
   if (suggestions.length === 0) return null;
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -33,19 +42,28 @@ export function DauerbelegVorschlaege({ suggestions, busy, onBook }: { suggestio
               </li>
             ))}
           </ul>
+          {s.selfAssessed && (
+            <p className="small muted" style={{ margin: 0 }}>
+              Mit § 13b oder innergemeinschaftlichem Erwerb buchst du den Beleg auf der Belegseite.
+            </p>
+          )}
           <div className="actions">
             <Link to="/belege/$id" params={{ id: s.item.id }} className="btn btn-sm">
               Beleg prüfen
             </Link>
-            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => onBook(s.item.id)}>
-              Buchen und zuordnen
-            </button>
+            {!s.selfAssessed && (
+              <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => onBook(s.item.id)}>
+                Buchen und zuordnen
+              </button>
+            )}
           </div>
         </div>
       ))}
-      <p className="small muted" style={{ margin: 0 }}>
-        Bucht den Beleg wie „Bestätigen und buchen“ und danach Verbindlichkeiten an Bank.
-      </p>
+      {suggestions.some((s) => !s.selfAssessed) && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Bucht den Beleg wie „Bestätigen und buchen“ und danach Verbindlichkeiten an Bank.
+        </p>
+      )}
     </div>
   );
 }

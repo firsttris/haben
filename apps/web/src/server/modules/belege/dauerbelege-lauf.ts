@@ -141,12 +141,21 @@ export async function bookAndAllocateDauerbeleg(actor: string, input: z.infer<ty
     // Sperren wie bei jeder Zuordnung: erst der Umsatz, dann der Beleg, beides vor dem ersten Schreiben (Audit-Kette)
     await tx.select({ id: schema.bankTransactions.id }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, input.transactionId)).for("update");
     const [doc] = await tx
-      .select({ status: schema.documents.status, gross: schema.documents.gross, recurringDocumentId: schema.documents.recurringDocumentId })
+      .select({
+        status: schema.documents.status,
+        gross: schema.documents.gross,
+        recurringDocumentId: schema.documents.recurringDocumentId,
+        reverseCharge: schema.documents.reverseCharge,
+      })
       .from(schema.documents)
       .where(eq(schema.documents.id, input.documentId))
       .for("update");
     if (!doc?.recurringDocumentId) throw new DauerbelegError("Der Beleg stammt nicht aus einem Dauerbeleg.");
-    if (doc.status !== "gebucht") await bookDocumentIn(tx, input.documentId);
+    if (doc.status !== "gebucht") {
+      // Selbst geschuldete Steuer nur über die Rückfrage der Belegseite: Nur sie prüft bei § 13b EU und Erwerb die USt-IdNr. beim BZSt (#1568, #1595)
+      if (doc.reverseCharge) throw new DauerbelegError("Belege mit § 13b oder innergemeinschaftlichem Erwerb buchst du auf der Belegseite.");
+      await bookDocumentIn(tx, input.documentId);
+    }
     await allocateIn(tx, { kind: "document", transactionId: input.transactionId, documentId: input.documentId, amount: documentOpen(doc.gross, 0) });
   });
 }
