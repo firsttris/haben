@@ -91,6 +91,17 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
     return invoices.finalizeInvoice(actor, draft.id, kleinunternehmerStand);
   }
 
+  /** Archivierter Beleg aus Lexware Office mit Kontakt */
+  async function archivBeleg(date: string, net: number, contactId: string, direction: "einnahme" | "ausgabe") {
+    const [imp] = await sql<{ id: string }[]>`insert into lexoffice_imports (progress) values ('{}'::jsonb) returning id`;
+    const type = direction === "ausgabe" ? "purchaseinvoice" : "invoice";
+    const [v] = await sql<
+      { id: string }[]
+    >`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, date, status, contact_id, net, tax, gross, taxes, categories, raw)
+      values (${crypto.randomUUID()}, ${imp!.id}, ${type}, ${direction}, ${date}, 'open', ${contactId}, ${net}, 0, ${net}, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb) returning id`;
+    return v!.id;
+  }
+
   /** Beleg über EDV (Instandhaltung), privat bezahlt: Abfluss am Belegdatum */
   async function beleg(date: string, net: number, supplierName: string, supplierContactId: string | null = null, supplierUstId = "", lexwareKontakt?: string) {
     docSeq++;
@@ -111,14 +122,7 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
       reverseCharge: null,
     });
     // Aus Lexware Office übernommen: der Kontakt steht nur am archivierten Beleg (wie auf der Kontaktseite, lieferant-belege.ts)
-    if (lexwareKontakt) {
-      const [imp] = await sql<{ id: string }[]>`insert into lexoffice_imports (progress) values ('{}'::jsonb) returning id`;
-      const [v] = await sql<
-        { id: string }[]
-      >`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, date, status, contact_id, net, tax, gross, taxes, categories, raw)
-        values (${crypto.randomUUID()}, ${imp!.id}, 'purchaseinvoice', 'ausgabe', ${date}, 'open', ${lexwareKontakt}, ${net}, 0, ${net}, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb) returning id`;
-      await sql`update documents set lexoffice_voucher_id = ${v!.id} where id = ${id}`;
-    }
+    if (lexwareKontakt) await sql`update documents set lexoffice_voucher_id = ${await archivBeleg(date, net, lexwareKontakt, "ausgabe")} where id = ${id}`;
     await documents.bookDocument(actor, id);
     return id;
   }
@@ -252,6 +256,36 @@ describe.skipIf(!testDatabaseUrl)("BWA: Warum? je Zeile (Postgres, #1380)", () =
     ["SKR03", "ist"],
     ["SKR04", "soll"],
   ] as const) {
+    it(`eine aus Lexware Office übernommene Rechnung ohne Kunden zählt über den archivierten Beleg zum Kunden (#1514, ${kontenrahmen}, ${versteuerung})`, async () => {
+      await reset(versteuerung, kontenrahmen);
+      const kunde = (await contacts.createContact(actor, kontakt("Nordwerk Software GmbH", "kunde"))).id;
+      const r1 = await invoice(kunde, "2026-03-02", 100_000);
+      const r2 = await invoice(kunde, "2027-03-01", 120_000);
+      // Im Vorjahr übernommen: ohne Kunden, mit anderem Namen, der Kunde steht nur am archivierten Beleg
+      const archiv = await archivBeleg("2026-03-02", 100_000, kunde, "einnahme");
+      await sql.begin(async (tx) => {
+        // An Haben vorbei, wie eine übernommene Rechnung ohne Kontakt; die Sperre lässt das sonst nicht zu
+        await tx`set local session_replication_role = replica`;
+        await tx`update invoices set contact_id = null, lexoffice_voucher_id = ${archiv}, buyer = jsonb_set(buyer, '{name}', '"NW Altname"') where id = ${r1.id}`;
+      });
+      await bank.importStatement(
+        actor,
+        {
+          bytes: dkbCsv([umsatz("10.03.26", `RE ${r1.number}`, "1190,00"), umsatz("10.03.27", `RE ${r2.number}`, "1428,00")]),
+          filename: `${crypto.randomUUID()}.csv`,
+        },
+        null,
+      );
+      const txs = await sql<{ id: string }[]>`select id from bank_transactions order by booking_date`;
+      await bank.allocate(actor, { kind: "invoice", transactionId: txs[0]!.id, invoiceId: r1.id, amount: 119_000 });
+      await bank.allocate(actor, { kind: "invoice", transactionId: txs[1]!.id, invoiceId: r2.id, amount: 142_800 });
+
+      const warum = (await bwa.bwaWarum(bwaZeitraum("jahr", 2027), "vorjahr", "erloese"))!;
+      expect(warum.teile.map((t) => [t.name, t.kontaktId, t.art, t.differenz, t.anzahl, t.anzahlVergleich])).toEqual([
+        ["Nordwerk Software GmbH", kunde, "gestiegen", 20_000, 1, 1],
+      ]);
+    }, 60_000);
+
     it(`Skonto und Forderungsausfall zählen nicht als eigener Vorgang; die Teile ergeben die Zeile (${kontenrahmen}, ${versteuerung})`, async () => {
       await reset(versteuerung, kontenrahmen);
       const kunde = (await contacts.createContact(actor, kontakt("Nordwerk Software GmbH", "kunde"))).id;
