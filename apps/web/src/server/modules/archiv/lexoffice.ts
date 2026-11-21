@@ -217,17 +217,10 @@ export async function finish(id: string, progress: LexofficeImportProgress, stat
     .where(eq(schema.lexofficeImports.id, id));
 }
 
-/** Was die Belegliste übergangen hat, nach Art gezählt (#1504); leer, wenn nichts übergangen wurde */
-export function ignoredSummary(drafts: number, ignored: { type: string; number: string }[]): LexofficeImportProgress["ignored"] {
-  const counts = new Map<string, number>();
-  for (const entry of ignored) counts.set(entry.type, (counts.get(entry.type) ?? 0) + 1);
-  const types = [...counts].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count || a.type.localeCompare(b.type, "de"));
-  return types.length > 0 || drafts > 0 ? { drafts, types } : undefined;
-}
-
 /**
- * Belegliste des Laufs. Entwürfe und Vorgänge ohne Belegart sind keine Belege; sie werden übergangen und gezählt,
- * damit ihre Zahl sichtbar bleibt (#1504).
+ * Belegliste des Laufs. Entwürfe sind keine Belege; der Abruf übergeht sie und zählt ihre Zahl, damit sie nicht still
+ * verschwindet (#1504). Vorgänge ohne Belegart kommen über die API gar nicht erst in die Liste — die Sicherung aus der
+ * Web-Oberfläche lässt sie schon beim Packen draußen (#183), deshalb gibt es dafür keinen Zähler.
  */
 async function sammleBelegliste(
   client: LexofficeSource,
@@ -245,7 +238,7 @@ async function sammleBelegliste(
     progress.listed = listed.length;
     await save();
   }
-  progress.ignored = ignoredSummary(drafts, client.ignoredVouchers?.() ?? []);
+  progress.ignored = drafts > 0 ? { drafts } : undefined;
   await save(true);
   return listed;
 }
@@ -357,9 +350,10 @@ type OffeneDatei = { voucherId: string; number: string; type: string; role: "pdf
 
 /**
  * Belege mit einer offenen Datei, je Datei der jüngste Stand. Der Stand nennt Rolle und Kennung in der Quelle; offen ist
- * eine Datei, solange kein späterer Stand genau diese Rolle und Kennung ablöst. Ein späterer Lauf holt deshalb jede
- * offene Datei nach und nicht nur eine je Beleg (#1504, #1624). PDF und XML der Rechnung tragen keine Kennung; sie
- * kommen nur mit dem Beleg selbst und stehen deshalb mit leerer Kennung da.
+ * eine Datei, solange kein späterer Stand genau diese Rolle und Kennung ablöst. Offen sind beide Stände: ein
+ * fehlgeschlagener Abruf (`abruf_fehlgeschlagen`) und ein fehlender Anhang (`anhang_fehlt`, etwa das XML einer
+ * E-Rechnung). Ein späterer Lauf holt deshalb jede offene Datei nach und nicht nur eine je Beleg (#1504, #1624). PDF und
+ * XML der Rechnung tragen keine Kennung; sie kommen nur mit dem Beleg selbst und stehen deshalb mit leerer Kennung da.
  */
 async function offeneDateien(): Promise<Map<string, OffeneDatei[]>> {
   const rows = await db
@@ -384,7 +378,7 @@ async function offeneDateien(): Promise<Map<string, OffeneDatei[]>> {
     );
   const out = new Map<string, OffeneDatei[]>();
   for (const row of rows) {
-    if (row.state !== "abruf_fehlgeschlagen" || !row.role) continue;
+    if ((row.state !== "abruf_fehlgeschlagen" && row.state !== "anhang_fehlt") || !row.role) continue;
     const liste = out.get(row.lexofficeId) ?? [];
     liste.push({ voucherId: row.voucherId, number: row.number, type: row.type, role: row.role, fileId: row.fileId });
     out.set(row.lexofficeId, liste);
@@ -472,23 +466,30 @@ async function ladeDateien(
 }
 
 /**
- * Der Beleg steht, die Datei fehlt: offener Punkt am Beleg statt stillem Verlust. Die Quelle nennt die Datei, sie
- * kommt nicht — genau der Stand „Abruf fehlgeschlagen“. Bestätigen lässt er sich nicht, „ohne Beleg“ trägt der Beleg
- * nicht (#1318, #1504).
+ * Der Beleg steht, die Datei fehlt: offener Punkt am Beleg statt stillem Verlust. Fehlt die Hauptdatei (PDF bzw. der
+ * Anhang eines Buchhaltungsbelegs), nennt die Quelle sie und sie kommt nicht — genau der Stand „Abruf fehlgeschlagen“.
+ * Fehlt dagegen das XML einer E-Rechnung neben dem PDF, ist das Original unvollständig, aber der Beleg ist da: derselbe
+ * Stand wie bei sevDesk, `anhang_fehlt` mit Rolle `xml` (#345). Bestätigen lässt sich keiner davon, „ohne Beleg“ trägt
+ * der Beleg nicht (#1318, #1504).
  */
 async function vermerkeFehlendeDateien(tx: Tx, voucherId: string, missing: FehlendeDatei[], by: { actor: string; importId: string }): Promise<void> {
-  for (const entry of missing)
+  for (const entry of missing) {
+    const xml = entry.role === "xml";
     await recordFileState(
       tx,
       voucherId,
       {
-        state: "abruf_fehlgeschlagen",
+        state: xml ? "anhang_fehlt" : "abruf_fehlgeschlagen",
         role: entry.role,
         sourceFileId: entry.fileId,
-        message: `Datei fehlt in der Sicherung oder kam nicht: ${entry.message}`.slice(0, 500),
+        message: `${xml ? "XML der E-Rechnung fehlt in der Sicherung oder kam nicht" : "Datei fehlt in der Sicherung oder kam nicht"}: ${entry.message}`.slice(
+          0,
+          500,
+        ),
       },
       by,
     );
+  }
 }
 
 async function importVoucher(
