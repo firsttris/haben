@@ -68,6 +68,15 @@ async function zugangEingeben(pin = "12345") {
   await form.getByRole("button", { name: "Verbinden" }).click();
 }
 
+async function verbindungsIds(): Promise<string[]> {
+  const sql = postgres(databaseUrlFuer("fints-abruf"), { max: 1, onnotice: () => {} });
+  try {
+    return (await sql<{ id: string }[]>`select id from fints_connections`).map((r) => r.id);
+  } finally {
+    await sql.end();
+  }
+}
+
 test("Einrichtung", async () => {
   await einrichten(page);
 });
@@ -189,4 +198,97 @@ test("Trennen löscht die Verbindung, die Umsätze bleiben", async () => {
   await expect(abruf().getByText("Testbank", { exact: true })).toHaveCount(0);
   await expect(abruf().getByText(/Noch keine Bank verbunden/)).toBeVisible();
   await expect(page.getByText("RE-2026-0050").first()).toBeVisible();
+});
+
+test("erneut verbinden, bei der Wahl des TAN-Verfahrens abgebrochen: die bisherige Verbindung bleibt, wie sie ist", async () => {
+  await abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "chipTAN manuell" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  await expect(abruf().getByText(/^Testbank verbunden/)).toBeVisible();
+  const ids = await verbindungsIds();
+  const zuletzt = abruf().getByText(/^Zuletzt abgerufen/);
+  const vorher = (await zuletzt.textContent())!;
+
+  await abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
+  await zugangEingeben();
+  await freigabe().getByRole("button", { name: "Abbrechen" }).click();
+  await expect(freigabe()).toHaveCount(0);
+  await expect(page.getByRole("form", { name: "Über FinTS verbinden" })).toHaveCount(0);
+  await expect(zuletzt).toHaveText(vorher);
+  expect(await verbindungsIds()).toEqual(ids);
+});
+
+test("erneut verbinden, bei der TAN für die Umsätze abgebrochen: „Trennen“ an der Zeile trennt die neue Verbindung", async () => {
+  bank.zustand.scaBeiUmsaetzen = true;
+  const ids = await verbindungsIds();
+  await abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "chipTAN manuell" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  // Verbinden hat die Verbindung samt ID schon ersetzt, erst der Abruf der Umsätze fragt die TAN (#1614)
+  await expect(freigabe().getByLabel("TAN", { exact: true })).toBeVisible();
+  expect(await verbindungsIds()).not.toEqual(ids);
+  await expect(abruf().getByRole("button", { name: "Trennen" })).toBeDisabled();
+  // Das Formular schließt erst mit der neuen Verbindung, auch wenn die Seite langsam neu lädt; sonst schickte „Trennen“
+  // gleich danach die alte ID („Verbindung nicht gefunden.“)
+  const neuLaden = (url: URL) => url.pathname.startsWith("/_serverFn/");
+  await page.route(neuLaden, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await new Promise((fertig) => setTimeout(fertig, 1500));
+    await route.continue();
+  });
+  await freigabe().getByRole("button", { name: "Abbrechen" }).click();
+  await expect(abruf().getByRole("button", { name: "Trennen" })).toBeDisabled();
+  await expect(freigabe()).toHaveCount(0);
+  await abruf().getByRole("button", { name: "Trennen" }).click();
+  await bestaetigen(page, "Trennen");
+  await expect(abruf().getByText(/Noch keine Bank verbunden/)).toBeVisible();
+  await page.unrouteAll({ behavior: "wait" });
+  await expect(abruf().getByText("Verbindung nicht gefunden.")).toHaveCount(0);
+  bank.zustand.scaBeiUmsaetzen = false;
+});
+
+test("erneut verbinden, das Formular oben mit „Über FinTS verbinden“ zugeklappt, während die Bank wartet: wie „Abbrechen“", async () => {
+  const oeffnen = () => abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
+  await oeffnen();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "chipTAN manuell" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  await expect(abruf().getByText(/^Testbank verbunden/)).toBeVisible();
+  const ids = await verbindungsIds();
+
+  // Vor dem Ersetzen, bei der Wahl des TAN-Verfahrens: Die Zeile bleibt, wie sie ist, und ihre Knöpfe gehen wieder
+  await oeffnen();
+  await zugangEingeben();
+  await expect(freigabe().getByLabel("TAN-Verfahren")).toBeVisible();
+  await oeffnen();
+  await expect(freigabe()).toHaveCount(0);
+  await expect(abruf().getByRole("button", { name: "Trennen" })).toBeEnabled();
+  expect(await verbindungsIds()).toEqual(ids);
+
+  // Nach dem Ersetzen, bei der TAN für die Umsätze: „Trennen“ trennt die neue Verbindung, auch wenn die Seite langsam neu lädt
+  bank.zustand.scaBeiUmsaetzen = true;
+  await oeffnen();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "chipTAN manuell" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  await expect(freigabe().getByLabel("TAN", { exact: true })).toBeVisible();
+  expect(await verbindungsIds()).not.toEqual(ids);
+  await page.route(
+    (url) => url.pathname.startsWith("/_serverFn/"),
+    async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      await new Promise((fertig) => setTimeout(fertig, 1500));
+      await route.continue();
+    },
+  );
+  await oeffnen();
+  await expect(freigabe()).toHaveCount(0);
+  await abruf().getByRole("button", { name: "Trennen" }).click();
+  await bestaetigen(page, "Trennen");
+  await expect(abruf().getByText(/Noch keine Bank verbunden/)).toBeVisible();
+  await page.unrouteAll({ behavior: "wait" });
+  await expect(abruf().getByText("Verbindung nicht gefunden.")).toHaveCount(0);
+  bank.zustand.scaBeiUmsaetzen = false;
 });

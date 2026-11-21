@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { defaultFetchFrom, fetchFromForConnect } from "../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime } from "../lib/format.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
@@ -236,6 +236,7 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
   const router = useRouter();
   const sync = useServerFn(syncFints);
   const disconnect = useServerFn(disconnectFints);
+  const verwerfen = useServerFn(cancelFints);
   const [offen, setOffen] = useState<{ fuer: string; schritt: Offen } | null>(null);
   const [vorlage, setVorlage] = useState<Verbindung | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -276,11 +277,24 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
     setOffen(null);
   };
 
+  // „Abbrechen“ bei einem Schritt der Bank: Ab dem Abruf der Umsätze hat Verbinden die Verbindung samt ID schon ersetzt.
+  // Erst neu laden, dann schließen; solange ein Schritt offen ist, sind die Knöpfe an den Zeilen gesperrt
+  const schrittAbbrechen = () => void router.invalidate({ sync: true }).then(schliessen);
+
+  // Klappt „Über FinTS verbinden“ oben das Formular zu, während die Bank beim Verbinden auf einen Schritt wartet, gilt das
+  // wie „Abbrechen“; sonst blieben die Knöpfe an den Zeilen gesperrt, ohne dass ein Schritt zu sehen ist
+  // biome-ignore lint/correctness/useExhaustiveDependencies: nur, wenn das Formular zuklappt oder ein Schritt kommt
+  useEffect(() => {
+    if (verbinden || offen?.fuer !== "neu") return;
+    void verwerfen({ data: offen.schritt.vorgang }).catch(() => undefined);
+    schrittAbbrechen();
+  }, [verbinden, offen]);
+
   return (
     <>
       {verbinden &&
         (offen?.fuer === "neu" ? (
-          <SchrittForm key={offen.schritt.vorgang} schritt={offen.schritt} onSchritt={(s) => ergebnis("neu", s)} onAbbrechen={schliessen} />
+          <SchrittForm key={offen.schritt.vorgang} schritt={offen.schritt} onSchritt={(s) => ergebnis("neu", s)} onAbbrechen={schrittAbbrechen} />
         ) : (
           // Nicht die ID der Verbindung allein: Die trägt schon ihre Zeile unten, und mit demselben Schlüssel blieb das
           // Formular nach „Zugang ändern“ im DOM stehen
@@ -318,16 +332,15 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
             {c.lastError && <span className="field-error">{c.lastError}</span>}
           </div>
           <div className="actions">
-            <button type="button" className="btn btn-danger" disabled={busy !== null} onClick={() => setTrennt(c)}>
+            <button type="button" className="btn btn-danger" disabled={busy !== null || offen !== null} onClick={() => setTrennt(c)}>
               Trennen
             </button>
             {c.status === "fehler" && fints.configured && (
               <button
                 type="button"
                 className="btn"
-                disabled={busy !== null}
+                disabled={busy !== null || offen !== null}
                 onClick={() => {
-                  setOffen(null);
                   setVorlage(c);
                   setVerbinden(true);
                 }}
