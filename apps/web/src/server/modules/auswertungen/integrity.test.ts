@@ -120,15 +120,29 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
   it("meldet einen festgeschriebenen Datensatz, der samt Siegel gelöscht wurde", async () => {
     const entry = await lockedEntry();
     const [seal] = await sql`select id from seals where table_name = 'journal_entries' and row_id = ${entry}`;
+    const [audited] = await sql`select seq from audit_log where table_name = 'seals' and action = 'INSERT' and row_id = ${seal!.id}::text`;
     const found = await rolledBack(async (tx) => {
       await tamper(tx, async () => {
         await tx`delete from journal_lines where entry_id = ${entry}`;
         await tx`delete from journal_entries where id = ${entry}`;
         await tx`delete from seals where id = ${seal!.id}`;
       });
+      return tx`select art, tabelle, zeile, seq, befund from haben_integrity_problems()`;
+    });
+    // Die Nummer ist die des Siegels in der Kette: Dort steht, was das Siegel festhielt.
+    expect(found).toEqual([{ art: "siegel", tabelle: "journal_entries", zeile: entry, seq: audited!.seq, befund: "Siegel fehlt, steht aber im Audit-Log" }]);
+  });
+
+  it("meldet ein gelöschtes Siegel am festgeschriebenen Datensatz und am Eintrag im Audit-Log", async () => {
+    const entry = await lockedEntry();
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`delete from seals where table_name = 'journal_entries' and row_id = ${entry}`);
       return problems(tx);
     });
-    expect(found).toEqual([{ art: "siegel", tabelle: "journal_entries", zeile: entry, befund: "Siegel fehlt, steht aber im Audit-Log" }]);
+    expect(found).toEqual([
+      expect.objectContaining({ tabelle: "journal_entries", zeile: entry, befund: "Festgeschrieben, aber ohne Siegel" }),
+      { art: "siegel", tabelle: "journal_entries", zeile: entry, befund: "Siegel fehlt, steht aber im Audit-Log" },
+    ]);
   });
 
   it("erkennt geänderte Buchungszeilen, Positionen und Steuerbeträge", async () => {
