@@ -8,8 +8,9 @@ import { anteilText, zeitraumText } from "./BwaTabelle.tsx";
 
 export function BwaKennzahlen({ bericht }: { bericht: BwaBericht }) {
   const { zeitraum, vergleich } = bericht.kennzahlen;
+  // Mit „Aufschlag“ fünf Karten: `.grid-5`, damit sie am Desktop in einer Reihe stehen (DESIGN.md, Karten)
   return (
-    <section className="grid-4 bwa-kennzahlen" aria-label="Kennzahlen">
+    <section className={`${zeitraum.length > 4 ? "grid-5" : "grid-4"} bwa-kennzahlen`} aria-label="Kennzahlen">
       {zeitraum.map((k) => {
         const vgl = vergleich?.find((v) => v.key === k.key);
         return (
