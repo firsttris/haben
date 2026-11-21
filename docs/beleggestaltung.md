@@ -7,7 +7,7 @@ description: >-
 
 # Beleggestaltung
 
-Wie Rechnungen, Angebote, Auftragsbestätigungen, Lieferscheine und Mahnungen aussehen: Logo, Farbe, Schrift, Briefpapier, Fußzeile und Layout. Alles hier gilt für das, was ab dann erzeugt wird; schon festgeschriebene PDFs bleiben unverändert.
+Wie Rechnungen, Angebote, Auftragsbestätigungen, Lieferscheine und Mahnungen aussehen: Logo, Farbe, Schrift, Briefpapier, Fußzeile und Layout. Alles hier gilt für das, was ab dann erzeugt wird, auch für Mahnung, Auftragsbestätigung und Lieferschein zu älteren Belegen; schon festgeschriebene PDFs bleiben unverändert.
 
 ## Logo
 
@@ -15,7 +15,6 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 
 - Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Stelle legst du unter [Logo und Blatt](#logo-und-blatt) fest. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
 - Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
-- Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
 ## Akzentfarbe
@@ -24,14 +23,13 @@ Unter **Einstellungen › Beleggestaltung › Akzentfarbe** stellst du die Farbe
 
 - Text, Adressen, Beschriftungen, Positionen, dünne Linien und Fußzeile stehen in Grautönen, die Haben aus der Akzentfarbe ableitet: gleiche Helligkeit wie ab Werk, aber mit ihrem Farbton. Bei Blau sind sie leicht bläulich, bei einer grauen Akzentfarbe neutral grau; mit dem Standardgrün bleibt alles wie bisher.
 - Du wählst sie mit dem Farbfeld oder trägst sie als Hex-Wert in der Form `#RRGGBB` ein; **Auf Standard zurücksetzen** stellt das Grün wieder her.
-- Sie gilt für Rechnungen und Angebote, die ab dann festgeschrieben werden, und für die Vorschau im Editor; schon festgeschriebene PDFs bleiben unverändert.
-- Eine Mahnung, Auftragsbestätigung oder ein Lieferschein zu einem älteren Beleg entsteht neu und bekommt deshalb die dann aktuelle Farbe und das aktuelle Logo.
+- Die Vorschau im Editor zeigt sie ebenfalls.
 - Ist eine eigene Farbe auf weißem Papier schwer zu lesen (Kontrast unter 4,5 : 1 nach WCAG), weist Haben darauf hin. Speichern geht trotzdem; eine dunklere Variante des Logo-Farbtons liest sich besser.
 - Die Änderung steht im Änderungsprotokoll.
 
 ## Logo und Blatt
 
-Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) legst du fest, wie das Blatt aussieht. Es gilt für alles, was ab dann erzeugt wird, auch für Mahnung, Auftragsbestätigung und Lieferschein zu älteren Belegen; schon festgeschriebene PDFs bleiben unverändert.
+Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) legst du fest, wie das Blatt aussieht.
 
 | Einstellung | Bedeutung |
 | --- | --- |
@@ -55,7 +53,7 @@ Unter **Einstellungen › Beleggestaltung › Briefpapier** legst du ein Bild hi
 - **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Die Vorschau zeigt es genauso, auf jeder Seite des Belegs.
 - Logo und Falzmarken liegen über dem Bild. Hat dein Briefbogen schon ein Logo, entferne das hochgeladene.
 - Trägt dein Briefbogen auch den Fuß, schalte **Fußzeile steht auf dem Briefpapier** ein. Haben fragt nach, denn dann druckt es nur noch die Seitenzahl: Steuernummer oder USt-IdNr. muss auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2 UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Prüfen kann Haben das im Bild nicht. Entfernst du das Briefpapier (nach einer Rückfrage), druckt Haben die Fußzeile wieder.
-- Jedes neu erzeugte PDF enthält das Bild, schon festgeschriebene PDFs bleiben unverändert. Im Änderungsprotokoll steht, wann es sich geändert hat, mit SHA-256, aber ohne die Bilddaten.
+- Im Änderungsprotokoll steht, wann es sich geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
 ## Fußzeile
 
@@ -68,7 +66,6 @@ Unter **Einstellungen › Beleggestaltung › Fußzeile** schaltest du von der a
 - Hat deine Firma die genannte Nummer nicht, setzt Haben die vorhandene ans Ende der letzten Spalte. Bei Reverse Charge und innergemeinschaftlicher Lieferung steht die USt-IdNr. immer auf der Rechnung (§ 14a UStG).
 - Bricht eine Zeile um oder sind die Spalten hoch, wächst der untere Rand mit; es steht dann weniger Inhalt auf der Seite.
 - Dein Text wird nicht übersetzt: Auf englischen Belegen steht er so, wie du ihn schreibst.
-- Sie gilt wie die übrige Gestaltung für alles, was ab dann erzeugt wird.
 
 ## Layouts
 
