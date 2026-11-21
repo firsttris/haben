@@ -76,6 +76,9 @@ const MAX_ROWS = 100;
 function readSnapshot(now: string) {
   return db.transaction(
     async (tx) => {
+      // Vor haben_integrity_problems: Den Suchpfad liest die Prüfung so, wie die Prüffunktionen ihn vorfinden. Eine fremde
+      // Funktion, die sie aufrufen, könnte ihn bis zum Ende der Transaktion ändern.
+      const triggers = await checkTriggerIntegrity(tx);
       const rows = await tx.execute<{ art: IntegrityProblem["art"]; tabelle: string; zeile: string | null; seq: string | null; befund: string }>(
         sql`select art, tabelle, zeile, seq, befund from haben_integrity_problems(${MAX_ROWS})`,
       );
@@ -90,7 +93,6 @@ function readSnapshot(now: string) {
         .from(schema.ownAccounts)
         .orderBy(schema.ownAccounts.kontenrahmen, schema.ownAccounts.account);
       const accountCollisions = ownAccounts.filter((account) => reservedAccountNumbers(account.kontenrahmen).has(account.account));
-      const triggers = await checkTriggerIntegrity(tx);
       return { rows: [...rows, ...triggers.problems], triggerHints: triggers.hints, head, entries: entries!.n, seals: seals!.n, abgleich, accountCollisions };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
