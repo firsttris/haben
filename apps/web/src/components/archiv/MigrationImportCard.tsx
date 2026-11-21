@@ -219,6 +219,13 @@ function ImportProgress({
             <strong>{progress.recurring}</strong>
           </div>
         )}
+        {/* Schon übernommene Belege, deren fehlende Datei eine spätere Sicherung mitbrachte (#1504, #1624) */}
+        {(progress.nachgeladen ?? 0) > 0 && (
+          <div>
+            <span className="small muted">Belege nachgeladen</span>
+            <strong>{progress.nachgeladen}</strong>
+          </div>
+        )}
       </div>
       {running && <ImportWaitNotice waitingUntil={progress.waitingUntil} fastbill={source === "fastbill"} updatedAt={run.updatedAt} />}
       {source === "sevdesk" && (
