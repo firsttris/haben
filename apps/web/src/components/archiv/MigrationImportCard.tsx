@@ -168,6 +168,14 @@ function ImportProgress({
   running: boolean;
 }) {
   const accountable = source === "accountable";
+  // Was die Belegliste übergangen hat (#1504): Entwürfe und Arten, die kein Beleg sind
+  const ignored = progress.ignored;
+  const ignoredText = [
+    ignored && ignored.drafts > 0 ? `${ignored.drafts} ${ignored.drafts === 1 ? "Entwurf" : "Entwürfe"}` : "",
+    ...(ignored?.types ?? []).map((t) => `${t.count} × ${t.type}`),
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <div className="stack" style={{ gap: 12 }} aria-live="polite">
       <div className="small">
@@ -247,6 +255,11 @@ function ImportProgress({
         <div className="banner banner-danger" role="alert">
           {run.error}
         </div>
+      )}
+      {ignoredText && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Übergangen, kein Beleg: {ignoredText}
+        </p>
       )}
       {progress.failed.length > 0 && (
         <details>

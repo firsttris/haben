@@ -38,7 +38,7 @@ import { withActor } from "../../db/actor.ts";
 import { ohneJit } from "../../db/ohne-jit.ts";
 import { loadSevdeskAccountCategories, sevdeskCategories, sevdeskPositionAccounts } from "./sevdesk-kategorie.ts";
 import { env } from "../../env.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import type { LegacyCategoryRow, LegacyFileState, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sniff } from "../../storage.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
@@ -49,7 +49,16 @@ import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
 import { customTaxSetId, legacyTaxSetFields, vatFieldsOf } from "./sevdesk-steuerarten.ts";
 import { ohneBelegGrund, ohneDateiBestaetigbar } from "./ohne-datei.ts";
-import { FILE_STATUS_LABELS, fileCheck, fileCounts, fileStateHistory, latestFileStateSql, legacyFileStatus, OPEN_FILE_STATUSES } from "./dateistand.ts";
+import {
+  FILE_STATUS_LABELS,
+  fileCheck,
+  fileCounts,
+  fileStateHistory,
+  latestFileStateSql,
+  legacyFileStatus,
+  OPEN_FILE_STATUSES,
+  recordFileState,
+} from "./dateistand.ts";
 
 export class LexofficeError extends UserError {}
 
@@ -208,6 +217,39 @@ export async function finish(id: string, progress: LexofficeImportProgress, stat
     .where(eq(schema.lexofficeImports.id, id));
 }
 
+/** Was die Belegliste übergangen hat, nach Art gezählt (#1504); leer, wenn nichts übergangen wurde */
+export function ignoredSummary(drafts: number, ignored: { type: string; number: string }[]): LexofficeImportProgress["ignored"] {
+  const counts = new Map<string, number>();
+  for (const entry of ignored) counts.set(entry.type, (counts.get(entry.type) ?? 0) + 1);
+  const types = [...counts].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count || a.type.localeCompare(b.type, "de"));
+  return types.length > 0 || drafts > 0 ? { drafts, types } : undefined;
+}
+
+/**
+ * Belegliste des Laufs. Entwürfe und Vorgänge ohne Belegart sind keine Belege; sie werden übergangen und gezählt,
+ * damit ihre Zahl sichtbar bleibt (#1504).
+ */
+async function sammleBelegliste(
+  client: LexofficeSource,
+  progress: LexofficeImportProgress,
+  save: (force?: boolean) => Promise<void>,
+): Promise<{ id: string; type: string; number: string }[]> {
+  const listed: { id: string; type: string; number: string }[] = [];
+  let drafts = 0;
+  for await (const item of client.voucherList([...SALES_TYPES, ...BOOKKEEPING_TYPES])) {
+    if (item.voucherStatus === "draft") {
+      drafts += 1;
+      continue;
+    }
+    listed.push({ id: item.id, type: item.voucherType, number: item.voucherNumber ?? "" });
+    progress.listed = listed.length;
+    await save();
+  }
+  progress.ignored = ignoredSummary(drafts, client.ignoredVouchers?.() ?? []);
+  await save(true);
+  return listed;
+}
+
 async function runImport(actor: string, importId: string, client: LexofficeSource, progress: LexofficeImportProgress, signal: AbortSignal) {
   let lastSave = 0;
   const save = async (force = false) => {
@@ -268,13 +310,7 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
   progress.phase = "liste";
   await save(true);
   const categories = new Map((await client.postingCategories()).map((c) => [c.id, c.name]));
-  const listed: { id: string; type: string; number: string }[] = [];
-  for await (const item of client.voucherList([...SALES_TYPES, ...BOOKKEEPING_TYPES])) {
-    if (item.voucherStatus === "draft") continue;
-    listed.push({ id: item.id, type: item.voucherType, number: item.voucherNumber ?? "" });
-    progress.listed = listed.length;
-    await save();
-  }
+  const listed = await sammleBelegliste(client, progress, save);
   const done = new Set((await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers)).map((r) => r.id));
 
   // 3. Je Beleg Details, Zahlungen und Dateien; Fehler einzelner Belege halten den Lauf nicht auf
@@ -302,6 +338,51 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
   await save(true);
 }
 
+type DateiEintrag = { role: "pdf" | "xml" | "anhang"; lexofficeFileId: string | null; file: LexFile };
+/** Eine Datei, die der Beleg führt und die nicht kommt; sie wird am Beleg vermerkt, nicht als Grund, ihn wegzulassen (#1504) */
+type FehlendeDatei = { role: "pdf" | "xml" | "anhang"; fileId: string | null; message: string };
+
+/**
+ * Holt die Dateien eines Belegs einzeln. Was nicht kommt, landet in `missing`; nur ein ungültiger Schlüssel und ein
+ * Abbruch gelten für den ganzen Lauf und werden weitergereicht.
+ */
+async function ladeDateien(
+  files: DateiEintrag[],
+  missing: FehlendeDatei[],
+  anfragen: readonly (readonly ["pdf" | "xml" | "anhang", string | null, () => Promise<LexFile | null>])[],
+): Promise<void> {
+  for (const [role, fileId, laden] of anfragen) {
+    try {
+      const file = await laden();
+      if (file) files.push({ role, lexofficeFileId: fileId, file });
+    } catch (error) {
+      if (error instanceof LexofficeApiError && (error.status === 401 || error.status === 403)) throw error;
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      missing.push({ role, fileId, message: progressMessage(error) });
+    }
+  }
+}
+
+/**
+ * Der Beleg steht, die Datei fehlt: offener Punkt am Beleg statt stillem Verlust. Die Quelle nennt die Datei, sie
+ * kommt nicht — genau der Stand „Abruf fehlgeschlagen“. Bestätigen lässt er sich nicht, „ohne Beleg“ trägt der Beleg
+ * nicht (#1318, #1504).
+ */
+async function vermerkeFehlendeDateien(tx: Tx, voucherId: string, missing: FehlendeDatei[], by: { actor: string; importId: string }): Promise<void> {
+  for (const entry of missing)
+    await recordFileState(
+      tx,
+      voucherId,
+      {
+        state: "abruf_fehlgeschlagen",
+        role: entry.role,
+        sourceFileId: entry.fileId,
+        message: `Datei fehlt in der Sicherung oder kam nicht: ${entry.message}`.slice(0, 500),
+      },
+      by,
+    );
+}
+
 async function importVoucher(
   actor: string,
   importId: string,
@@ -312,20 +393,25 @@ async function importVoucher(
 ): Promise<boolean> {
   let voucher: LegacyVoucher;
   let raw: unknown;
-  const files: { role: "pdf" | "xml" | "anhang"; lexofficeFileId: string | null; file: LexFile }[] = [];
+  const files: DateiEintrag[] = [];
+  const missing: FehlendeDatei[] = [];
   if (isSalesType(item.type)) {
-    raw = await client.salesDocument(item.type, item.id);
-    voucher = mapSalesDocument(item.type, raw as Parameters<typeof mapSalesDocument>[1], item.id);
-    const pdf = await client.salesDocumentPdf(item.type, item.id);
-    if (pdf) files.push({ role: "pdf", lexofficeFileId: null, file: pdf });
-    const xml = await client.salesDocumentXml(item.type, item.id);
-    if (xml) files.push({ role: "xml", lexofficeFileId: null, file: xml });
+    // Als eigene Konstante, sonst verliert TypeScript die Verengung in den Pfeilfunktionen der Helfer
+    const type = item.type;
+    raw = await client.salesDocument(type, item.id);
+    voucher = mapSalesDocument(type, raw as Parameters<typeof mapSalesDocument>[1], item.id);
+    await ladeDateien(files, missing, [
+      ["pdf", null, () => client.salesDocumentPdf(type, item.id)],
+      ["xml", null, () => client.salesDocumentXml(type, item.id)],
+    ]);
   } else {
     raw = await client.voucher(item.id);
     voucher = mapVoucher(raw as Parameters<typeof mapVoucher>[0], item.id);
-    for (const fileId of voucher.fileIds) {
-      files.push({ role: "anhang", lexofficeFileId: fileId, file: await client.file(fileId) });
-    }
+    await ladeDateien(
+      files,
+      missing,
+      voucher.fileIds.map((fileId) => ["anhang", fileId, () => client.file(fileId)] as const),
+    );
   }
   const payments = await client.payments(item.id);
 
@@ -368,6 +454,7 @@ async function importVoucher(
     );
     if (!row) return false;
     progress.files += row.files;
+    await vermerkeFehlendeDateien(tx, row.id, missing, { actor, importId });
     return true;
   });
 }
