@@ -11,7 +11,7 @@ Haben setzt Belege mit Typst aus einer Vorlage. Neben den eingebauten Layouts ka
 
 ## Mit einem KI-Agenten
 
-Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Haben bietet ihn unter **Einstellungen › Beleggestaltung › Layouts** als „Anleitung für KI-Agenten“ zum Herunterladen an, dazu die eingebauten Layouts als Grundlage (eine Datei je Art, ohne Importe), Beispieldaten und den Feldvertrag als JSON Schema. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
+Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Haben bietet ihn unter **Einstellungen › Beleggestaltung › Layouts** als „Anleitung für KI-Agenten“ zum Herunterladen an, dazu das eingebaute Layout Klar in der Fassung Klassisch als Grundlage (eine Datei je Art, ohne Importe), Beispieldaten und den Feldvertrag als JSON Schema. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
 
 ## Hochladen und zuordnen
 
