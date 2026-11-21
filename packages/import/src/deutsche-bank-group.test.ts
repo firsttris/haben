@@ -39,6 +39,16 @@ describe("Deutsche Bank, Norisbank und Postbank (CSV)", () => {
     expect(t.map((x) => x.amount)).toEqual([119_000, -8_450, 50_000, -3_999, -2_790, -1_200, -990]);
   });
 
+  // Akzeptanzkriterium #1582: „Betrag“ und Soll/Haben ergeben denselben Cent-Wert, auch bei Tausenderpunkt und negativ
+  it.each([
+    { fall: "Eingang 1.190", zeile: ";1.190;;;;;1.190;EUR", betrag: ";1.190;;;;;1.190;EUR", sollHaben: ";;;;;;1.190;EUR", index: 0, cent: 119_000 },
+    { fall: "Ausgang -84,5", zeile: ";-84,5;;;;-84,5;;EUR", betrag: ";-84,5;;;;-84,5;;EUR", sollHaben: ";;;;;-84,5;;EUR", index: 1, cent: -8_450 },
+    { fall: "Ausgang -2.500", zeile: ";-12,00;;;;-12,00;;EUR", betrag: ";-2.500;;;;-2.500;;EUR", sollHaben: ";;;;;-2.500;;EUR", index: 5, cent: -250_000 },
+  ])("dieselbe Zeile über „Betrag“ und nur über Soll/Haben ergibt denselben Cent-Wert: $fall", ({ zeile, betrag, sollHaben, index, cent }) => {
+    expect(parseStatement(ersetzt(zeile, betrag)).transactions[index]?.amount).toBe(cent);
+    expect(parseStatement(ersetzt(zeile, sollHaben)).transactions[index]?.amount).toBe(cent);
+  });
+
   it("liest Buchungstag und Wert als TT.MM.JJJJ", () => {
     expect(t.map((x) => x.bookingDate)).toEqual(["2026-09-01", "2026-09-03", "2026-09-07", "2026-09-10", "2026-09-14", "2026-09-18", "2026-09-30"]);
     expect(t.map((x) => x.valueDate)).toEqual(["2026-09-01", "2026-09-05", "2026-09-07", "2026-09-10", "2026-09-14", "2026-09-18", "2026-09-30"]);
