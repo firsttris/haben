@@ -1,4 +1,13 @@
-import { addMonthsAnchored, computeInvoiceTotals, invoiceDueDate, type LiquiditaetsPosten } from "@haben/core";
+import {
+  addMonthsAnchored,
+  computeInvoiceTotals,
+  invoiceDueDate,
+  leistungsdatum,
+  servicePeriodFor,
+  type LiquiditaetsPosten,
+  type RecurringInterval,
+  type ServicePeriodMode,
+} from "@haben/core";
 import { listRecurring } from "../rechnungen/index.ts";
 import type { Kontext } from "./kontext.ts";
 
@@ -6,7 +15,8 @@ import type { Kontext } from "./kontext.ts";
  * Künftige wiederkehrende Rechnungen: aktive Vorlagen, je Termin ab `nextDate` bis zum Ende des Horizonts der Bruttobetrag
  * zur Fälligkeit (Rechnungsdatum plus Zahlungsziel, `invoiceDueDate`), erwartet. Die Summen rechnet `computeInvoiceTotals`
  * wie bei der Rechnung, die der Lauf daraus anlegt. Die Umsatzsteuer entsteht bei Istversteuerung mit dem Zahlungseingang
- * (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), bei Sollversteuerung mit der Rechnung (Buchst. a).
+ * (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), bei Sollversteuerung mit Ablauf des Monats, in dem die Leistung ausgeführt ist
+ * (Buchst. a Satz 1): am letzten Tag des Leistungszeitraums, wie der Lauf ihn setzt (`invoiceForDate`, `invoice-finalize.ts`).
  */
 
 const HOECHSTENS_TERMINE = 60;
@@ -20,7 +30,9 @@ export async function wiederkehrendPosten(k: Kontext): Promise<LiquiditaetsPoste
     let termin = vorlage.nextDate;
     for (let i = 0; i < HOECHSTENS_TERMINE && termin <= k.bis && (!vorlage.endDate || termin <= vorlage.endDate); i++) {
       const datum = invoiceDueDate(termin, vorlage.paymentTermDays, k.bundesland);
-      const steuerAm = k.versteuerung(termin) === "ist" ? datum : termin;
+      const zeitraum = servicePeriodFor(termin, vorlage.intervalMonths as RecurringInterval, vorlage.servicePeriod as ServicePeriodMode);
+      const steuerAm =
+        k.versteuerung(termin) === "ist" ? datum : leistungsdatum({ belegdatum: termin, leistungVon: zeitraum?.from, leistungBis: zeitraum?.to });
       posten.push({
         datum,
         betrag: Math.abs(gross),

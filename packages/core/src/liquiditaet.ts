@@ -49,7 +49,7 @@ export interface LiquiditaetsPosten {
   ueberfaellig?: boolean;
   /**
    * Umsatzsteuer (positiv) bzw. Vorsteuer (negativ), die der Posten in einem noch nicht abgegebenen Voranmeldungszeitraum
-   * auslöst, mit dem Tag, an dem sie entsteht (Ist: Zahlungseingang, Soll: Rechnungsdatum; Vorsteuer: Belegdatum). Daraus
+   * auslöst, mit dem Tag, an dem sie entsteht (Ist: Zahlungseingang, Soll: Ende der Leistung; Vorsteuer: Belegdatum). Daraus
    * schätzt `umsatzsteuerPosten` die Zahllast.
    */
   steuer?: { betrag: Cents; datum: string };
