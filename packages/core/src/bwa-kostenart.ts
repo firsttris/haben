@@ -86,7 +86,9 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
     ["2600", "2659", "zinsen"], // S. 16 f., „Zinserträge“: Beteiligungen, Wertpapiere, 2650 „Sonstige Zinsen und ähnliche Erträge“
     ["2660", "2669", "neutral"], // S. 17, 2660/2661 „Erträge aus der Währungsumrechnung“, 2666 Bewertung Finanzmittelfonds
     ["2670", "2699", "zinsen"], // S. 17, „Zinserträge“: 2680 bis 2689 „Zinsähnliche Erträge“
-    // S. 17 f., „Sonstige Erträge“ 2700 bis 2764 (auch 2750 „Grundstückserträge“), 2790 bis 2794 Erträge aus Verlustübernahme
+    // S. 17 f., „Sonstige Erträge“ 2700 bis 2764 (auch 2750 „Grundstückserträge“), 2790 bis 2794 Erträge aus Verlustübernahme;
+    // 2700 heißt „Andere betriebs- und/oder periodenfremde (neutrale) sonstige Erträge“, 2705 und 2707 sind reserviert („R“).
+    // Die betrieblichen sonstigen Erträge 8603, 8605 und 8609 (S. 27) entsprechen SKR04 4830, 4835 und 4841
     ["2700", "2799", "neutral"],
     ["2890", "2900", "kalkulatorisch"], // S. 18, „Verrechnete kalkulatorische Kosten“
     ["3100", "3199", "fremdleistungen"], // S. 19, 3100 „Fremdleistungen“
@@ -116,7 +118,8 @@ const BEREICHE: Record<Kontenrahmen, readonly Bereich[]> = {
   SKR04: [
     ["4800", "4819", "bestandsveraenderungen"], // S. 17, „Bestandsveränderungen“ wie SKR03 8960 bis 8980
     ["4820", "4829", "eigenleistungen"], // S. 17, „Andere aktivierte Eigenleistungen“ wie SKR03 8990 bis 8995
-    // S. 17, 4839 „Sonstige Erträge unregelmäßig“ wie SKR03 2709, 4840 „Erträge aus der Währungsumrechnung“ wie SKR03 2660
+    // S. 17, 4830 bis 4838 nicht neutral: 4830, 4835 wie SKR03 8603, 8605, 4834/4836 wie 8649/8640 (4837 reserviert, „R“);
+    // 4839 „Sonstige Erträge unregelmäßig“ wie SKR03 2709, 4840 „Erträge aus der Währungsumrechnung“ wie SKR03 2660
     ["4839", "4840", "neutral"],
     ["4843", "4843", "neutral"], // S. 17, „Erträge aus Bewertung Finanzmittelfonds“ wie SKR03 2666
     // S. 17, 4844 bis 4852 „Erlöse aus Verkäufen …“ bei Buchgewinn wie SKR03 8820 bis 8839, dazwischen 4847 „Erträge aus der
