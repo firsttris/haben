@@ -75,7 +75,7 @@ Du prüfst, wählst die Kategorie und buchst.
 
 ## Enter, und die Zahlung ist zugeordnet
 
-Die Umsätze kommen per PSD2 oder FinTS von selbst oder als Datei von DKB, Commerzbank, der Deutschen Bank, Norisbank, Postbank, ING, C24, N26, Swan, PayPal, Stripe und anderen.
+Die Umsätze kommen per PSD2 oder FinTS von selbst oder als Datei von DKB, Commerzbank, BW-Bank, der Deutschen Bank, Norisbank, Postbank, ING, C24, N26, Swan, PayPal, Stripe und anderen.
 Zu jedem Umsatz schlägt Haben die passende Rechnung oder den Beleg vor und sagt, warum: Betrag,
 Rechnungsnummer, IBAN, Name.
 

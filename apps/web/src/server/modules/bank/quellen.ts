@@ -18,6 +18,7 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "n26-csv": "N26",
   "swan-csv": "Swan",
   "commerzbank-csv": "Commerzbank",
+  "bw-bank-csv": "BW-Bank",
   "ing-csv": "ING",
   "c24-csv": "C24",
   "deutsche-bank-group-csv": "Deutsche Bank",

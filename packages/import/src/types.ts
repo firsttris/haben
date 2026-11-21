@@ -8,6 +8,8 @@ export type StatementFormat =
   | "swan-csv"
   /** Umsätze aus dem Online-Banking der Commerzbank (Semikolon-CSV ohne Kontostand) */
   | "commerzbank-csv"
+  /** Umsätze aus dem Online-Banking der BW-Bank, Baden-Württembergische Bank (Semikolon-CSV mit „Auftragskonto“, ohne Kontostand) */
+  | "bw-bank-csv"
   /** Umsatzanzeige der ING (Semikolon-CSV mit Kopfblock, Saldo je Zeile; auch als gefilterter Export) */
   | "ing-csv"
   /** Umsätze eines Kontos oder einer Pocket bei C24 (Komma-CSV ohne IBAN und Kontostand) */

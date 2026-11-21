@@ -9,6 +9,7 @@ import { isEbayHeader, parseEbay } from "./ebay.ts";
 import { StatementParseError } from "./errors.ts";
 import { isEtsyHeader, parseEtsy } from "./etsy.ts";
 import { isIngHeader, parseIng } from "./ing.ts";
+import { isBwBankHeader, parseBwBank } from "./bw-bank.ts";
 import { isN26Header, parseN26 } from "./n26.ts";
 import { isSwanHeader, parseSwan } from "./swan.ts";
 import { isPayPalHeader, isShopifyHeader, isStripeHeader, parsePayPal, parseShopify, parseStripe } from "./psp.ts";
@@ -56,6 +57,8 @@ function detect(text: string, label: string): Detected {
   if (dkbAlt >= 0) return { format: "dkb-csv-alt", rows: parseCsv(text, ";"), headerRow: dkbAlt };
   const commerzbank = findHeaderRow(semicolon, isCommerzbankHeader);
   if (commerzbank >= 0) return { format: "commerzbank-csv", rows: parseCsv(text, ";"), headerRow: commerzbank };
+  const bwBank = findHeaderRow(semicolon, isBwBankHeader);
+  if (bwBank >= 0) return { format: "bw-bank-csv", rows: parseCsv(text, ";"), headerRow: bwBank };
   const ing = findHeaderRow(semicolon, isIngHeader);
   if (ing >= 0) return { format: "ing-csv", rows: parseCsv(text, ";"), headerRow: ing };
   const deutscheBank = findHeaderRow(semicolon, isDeutscheBankGroupHeader);
@@ -87,7 +90,7 @@ function detect(text: string, label: string): Detected {
   if (etsy >= 0) return { format: "etsy-csv", rows: parseCsv(text, ","), headerRow: etsy };
 
   throw new StatementParseError(
-    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB, Commerzbank, Deutscher Bank, Norisbank, Postbank, ING, C24, N26 und Swan, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments, der Transaktionsbericht von eBay und die Monatsabrechnung von Etsy.`,
+    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB, Commerzbank, BW-Bank, Deutscher Bank, Norisbank, Postbank, ING, C24, N26 und Swan, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments, der Transaktionsbericht von eBay und die Monatsabrechnung von Etsy.`,
   );
 }
 
@@ -115,6 +118,8 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseSwan(detected.rows, detected.headerRow);
     case "commerzbank-csv":
       return parseCommerzbank(detected.rows, detected.headerRow);
+    case "bw-bank-csv":
+      return parseBwBank(detected.rows, detected.headerRow);
     case "ing-csv":
       return parseIng(detected.rows, detected.headerRow);
     case "c24-csv":

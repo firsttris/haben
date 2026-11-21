@@ -1,0 +1,5 @@
+"Auftragskonto";"Buchungstag";"Valutadatum";"Buchungstext";"Verwendungszweck";"Glaeubiger ID";"Mandatsreferenz";"Kundenreferenz (End-to-End)";"Sammlerreferenz";"Lastschrift Ursprungsbetrag";"Auslagenersatz Ruecklastschrift";"Beguenstigter/Zahlungspflichtiger";"Kontonummer/IBAN";"BIC (SWIFT-Code)";"Betrag";"Waehrung";"Info"
+"DE02120300000000202051";"13.11.26";"13.11.26";"FOLGELASTSCHRIFT";"7001/. Domains, Ihr Einkauf ";"DE98ZZZ09999999999";"MANDAT-1";"E2E-77";"7001";"";"";"Domainhandel GmbH";"DE89370400440532013000";"COBADEFFXXX";"-18,56";"EUR";"Umsatz gebucht"
+"DE02120300000000202051";"12.11.26";"12.11.26";"GUTSCHR. UEBERWEISUNG";"Rechnung 2026-034 Müller & Söhne";"";"";"NOTPROVIDED";"";"";"";"Müller & Söhne KG";"DE75512108001245126199";"SSKMDEMMXXX";"1.190,00";"EUR";"Umsatz gebucht"
+"DE02120300000000202051";"10.11.26";"10.11.26";"ENTGELTABSCHLUSS";"Abrechnung 31.10.2026 Kontoführung";"";"";"";"";"";"";"";"";"";"-9,90";"EUR";"Umsatz gebucht"
+"DE02120300000000202051";"14.11.26";"14.11.26";"KARTENZAHLUNG";"Tankstelle";"";"";"";"";"";"";"Tankstelle Nord";"";"";"-45,00";"EUR";"Umsatz vorgemerkt"

@@ -338,6 +338,7 @@ describe("Erkennung und Fehler", () => {
     ["n26-alt.csv", "n26-csv"],
     ["swan.csv", "swan-csv"],
     ["commerzbank.csv", "commerzbank-csv"],
+    ["bw-bank-camt.csv", "bw-bank-csv"],
     ["ing.csv", "ing-csv"],
     ["c24.csv", "c24-csv"],
     ["deutsche-bank-group.csv", "deutsche-bank-group-csv"],

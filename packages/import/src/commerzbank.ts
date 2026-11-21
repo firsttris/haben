@@ -1,7 +1,6 @@
 import { isValidIban } from "@haben/core";
-import { finish, indexed, optional, optionalReference, requireAmount, type Tx } from "./common.ts";
+import { accountIbanOf, finish, indexed, optional, optionalReference, requireAmount, type Tx } from "./common.ts";
 import { isBlankRow } from "./csv.ts";
-import { StatementParseError } from "./errors.ts";
 import { Columns } from "./table.ts";
 import { normalizeIban, normalizeText, parseDate, parseGermanAmount, requireDate } from "./text.ts";
 import type { ParsedStatement } from "./types.ts";
@@ -58,12 +57,6 @@ function counterpartyIban(head: string, own: string | undefined): string | undef
 function purposeOf(purpose: string, head: string, name: string): string {
   if (purpose) return purpose;
   return name && head.startsWith(name) ? head.slice(name.length).trim() : head;
-}
-
-function accountIbanOf(ibans: (string | undefined)[]): string | undefined {
-  const distinct = new Set(ibans.filter((iban): iban is string => iban !== undefined));
-  if (distinct.size > 1) throw new StatementParseError("Die CSV-Datei enthält Umsätze mehrerer Konten. Bitte je Konto eine Datei hochladen.");
-  return [...distinct][0];
 }
 
 export function parseCommerzbank(rows: string[][], headerRow: number): ParsedStatement {
