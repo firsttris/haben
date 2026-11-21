@@ -1,6 +1,7 @@
 import { isValidIban } from "@haben/core";
 import { accountIbanOf, finish, indexed, optional, optionalReference, pendingWarning, requireAmount, type Tx } from "./common.ts";
 import { isBlankRow } from "./csv.ts";
+import { StatementParseError } from "./errors.ts";
 import { Columns } from "./table.ts";
 import { normalizeIban, normalizeText, parseDate, parseGermanAmount, requireDate } from "./text.ts";
 import type { ParsedStatement } from "./types.ts";
@@ -8,16 +9,17 @@ import type { ParsedStatement } from "./types.ts";
 /*
  * Umsätze aus dem Online-Banking der BW-Bank (Baden-Württembergische Bank, https://www.bw-bank.de/): Semikolon-CSV in Windows-1252,
  * ohne Kopfblock und ohne Kontostand, Anführungszeichen um jedes Feld, Datum TT.MM.JJ. Die erste Spalte „Auftragskonto“
- * ist die eigene IBAN. Die Exporte „Excel (CSV-CAMT V2)“, „(CSV-CAMT V8)“, „(CSV-MT940)“ und „(CSV - gefilterte Einträge)“
- * haben zwei Aufbauten:
+ * ist die eigene IBAN. Haben liest nur den Export „Excel (CSV-CAMT V8)“: Auftragskonto, Buchungstag, Valutadatum,
+ * Buchungstext, Verwendungszweck, Glaeubiger ID, Mandatsreferenz, Kundenreferenz (End-to-End), Sammlerreferenz,
+ * Lastschrift Ursprungsbetrag, Auslagenersatz Ruecklastschrift, Beguenstigter/Zahlungspflichtiger, Kontonummer/IBAN,
+ * BIC (SWIFT-Code), Betrag, Waehrung, Info. Denselben Kopf haben auch ältere Standard-Exporte (2018 bis 2024).
  *
- *  - CSV-CAMT V2, V8 und gefilterte Einträge: Auftragskonto, Buchungstag, Valutadatum, Buchungstext, Verwendungszweck,
- *    Glaeubiger ID, Mandatsreferenz, Kundenreferenz (End-to-End), Sammlerreferenz, Lastschrift Ursprungsbetrag,
- *    Auslagenersatz Ruecklastschrift, Beguenstigter/Zahlungspflichtiger, Kontonummer/IBAN, BIC (SWIFT-Code), Betrag,
- *    Waehrung, Info; die gefilterten Einträge hängen „Kategorie“ an. Referenzen stehen in eigenen Spalten.
- *  - CSV-MT940: nur Auftragskonto bis Verwendungszweck, Beguenstigter/Zahlungspflichtiger, Kontonummer (enthält die
- *    IBAN), BLZ (enthält die BIC), Betrag, Waehrung, Info. Bei SEPA-Lastschriften steht alles im Zweck:
- *    „EREF+…MREF+…CRED+…SVWZ+…“, ohne Trenner.
+ * Die anderen Exporte erkennt Haben und lehnt sie ab, mit der Bitte um einen neuen Export in V8:
+ *  - „(CSV-CAMT V2)“ und „(CSV - gefilterte Einträge)“ hängen „Kategorie“ an. Bei Lastschriften steht die
+ *    End-to-End-Referenz dort in „Sammlerreferenz“, und die Gegenseite hat teils nur eine Kontonummer statt der IBAN.
+ *  - „(CSV-MT940)“ hat „Kontonummer“ und „BLZ“ statt IBAN und BIC und die SEPA-Felder im Verwendungszweck
+ *    („EREF+…SVWZ+…“), mit geänderten Zeichen und zusätzlichen Zeilen über 0,00 €. Gemischt mit V8 erkennt der
+ *    Dubletten-Hash die Umsätze desselben Zeitraums nicht wieder.
  *
  * „Info“ nennt den Status: „Umsatz gebucht“, sonst vorgemerkt.
  *
@@ -30,15 +32,14 @@ export function isBwBankHeader(c: Columns): boolean {
   return c.has("auftragskonto") && c.has("buchungstag") && c.has("valutadatum") && c.has("beguenstigterzahlungspflichtiger") && c.has("betrag");
 }
 
-const TAGS = /(EREF|KREF|MREF|CRED|SVWZ|ABWA|ABWE|IBAN|BIC)\+/;
+const NUR_V8 = "Bitte im Online-Banking als Excel (CSV-CAMT V8) exportieren; der enthält alle Angaben vollständig.";
 
-/** Felder „EREF+…“ aus dem Verwendungszweck der älteren Fassung; ohne Felder oder ohne „SVWZ+“ bleibt der Text, wie er ist */
-function splitPurpose(text: string): { purpose: string; fields: Map<string, string> } {
-  const parts = text.split(TAGS);
-  if (parts.length < 3 || parts[0] !== "") return { purpose: normalizeText(text), fields: new Map() };
-  const fields = new Map<string, string>();
-  for (let i = 1; i + 1 < parts.length; i += 2) if (!fields.has(parts[i]!)) fields.set(parts[i]!, parts[i + 1]!.trim());
-  return { purpose: normalizeText(fields.get("SVWZ") ?? text), fields };
+/** Haben liest nur CSV-CAMT V8; die anderen Exporte erkennt es am Kopf und verlangt einen neuen Export */
+function requireCamtV8(c: Columns): void {
+  if (c.has("blz") || !c.has("glaeubigerid")) throw new StatementParseError(`Das ist der Export „CSV-MT940“ der BW-Bank. ${NUR_V8}`);
+  if (c.has("kategorie")) {
+    throw new StatementParseError(`Das ist der Export „CSV-CAMT V2“ oder „CSV - gefilterte Einträge“ der BW-Bank. ${NUR_V8}`);
+  }
 }
 
 function counterpartyIban(value: string, own: string | undefined): string | undefined {
@@ -48,6 +49,7 @@ function counterpartyIban(value: string, own: string | undefined): string | unde
 
 export function parseBwBank(rows: string[][], headerRow: number): ParsedStatement {
   const c = new Columns(rows[headerRow]!);
+  requireCamtV8(c);
   const ownIban = c.getter("auftragskonto");
   const bookingDate = c.getter("buchungstag");
   const valueDate = c.getter("valutadatum");
@@ -58,7 +60,7 @@ export function parseBwBank(rows: string[][], headerRow: number): ParsedStatemen
   const endToEnd = c.getter("kundenreferenz");
   const collective = c.getter("sammlerreferenz");
   const name = c.getter("beguenstigterzahlungspflichtiger");
-  const iban = c.getter("kontonummeriban", "kontonummer");
+  const iban = c.getter("kontonummeriban");
   const amount = c.getter("betrag");
   const currency = c.getter("waehrung");
   const info = c.getter("info");
@@ -70,7 +72,6 @@ export function parseBwBank(rows: string[][], headerRow: number): ParsedStatemen
 
   const list: Tx[] = booked.map(({ row, where }) => {
     const cents = requireAmount(parseGermanAmount(amount(row)), amount(row), where);
-    const text = splitPurpose(purpose(row));
     return {
       bookingDate: requireDate(bookingDate(row), where),
       valueDate: parseDate(valueDate(row)) ?? undefined,
@@ -78,12 +79,12 @@ export function parseBwBank(rows: string[][], headerRow: number): ParsedStatemen
       currency: currency(row) || "EUR",
       counterpartyName: normalizeText(name(row)),
       counterpartyIban: counterpartyIban(iban(row), accountIban),
-      purpose: text.purpose,
+      purpose: normalizeText(purpose(row)),
       type: optional(normalizeText(kind(row))),
-      endToEndId: optionalReference(endToEnd(row) || text.fields.get("EREF") || text.fields.get("KREF")),
+      endToEndId: optionalReference(endToEnd(row)),
       bankReference: optionalReference(collective(row)),
-      mandateReference: optional(mandate(row) || text.fields.get("MREF") || ""),
-      creditorId: optional(creditorId(row) || text.fields.get("CRED") || ""),
+      mandateReference: optional(mandate(row)),
+      creditorId: optional(creditorId(row)),
     };
   });
 

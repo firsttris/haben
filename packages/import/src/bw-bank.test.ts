@@ -6,7 +6,7 @@ import { detectStatementFormat, parseStatement } from "./parse.ts";
 const lies = (name: string) => new Uint8Array(readFileSync(join(import.meta.dirname, "..", "test-fixtures", name)));
 const ersetzt = (name: string, von: string, nach: string) => new TextEncoder().encode(new TextDecoder("windows-1252").decode(lies(name)).replace(von, nach));
 
-describe("BW-Bank-CSV (CSV-CAMT)", () => {
+describe("BW-Bank-CSV (CSV-CAMT V8)", () => {
   const auszug = parseStatement(lies("bw-bank-camt.csv"), "20261115-umsatz.csv");
   const t = auszug.transactions;
 
@@ -48,28 +48,25 @@ describe("BW-Bank-CSV (CSV-CAMT)", () => {
   });
 });
 
-describe("BW-Bank-CSV (CSV-MT940)", () => {
-  const auszug = parseStatement(lies("bw-bank-mt940.csv"), "umsatz.csv");
-  const t = auszug.transactions;
+describe("andere Exporte der BW-Bank", () => {
+  // CSV-CAMT V2 und „gefilterte Einträge“ hängen „Kategorie“ an
+  const v2 = () => {
+    const text = new TextDecoder("windows-1252").decode(lies("bw-bank-camt.csv"));
+    const lines = text.split(/\r?\n/).map((l, i) => (l ? `${l};${i === 0 ? '"Kategorie"' : '""'}` : l));
+    return new TextEncoder().encode(lines.join("\n"));
+  };
 
-  it("liest IBAN aus „Kontonummer“ und die SEPA-Felder aus dem Verwendungszweck", () => {
-    expect(auszug.format).toBe("bw-bank-csv");
-    expect(t[0]).toMatchObject({
-      amount: -1856,
-      counterpartyIban: "DE89370400440532013000",
-      purpose: "7001/. Domains, Ihr Einkauf",
-      endToEndId: "E2E-77",
-      mandateReference: "MANDAT-1",
-      creditorId: "DE98ZZZ09999999999",
-    });
+  it("erkennt CSV-MT940 und verlangt CSV-CAMT V8", () => {
+    expect(detectStatementFormat(lies("bw-bank-mt940.csv"))).toBe("bw-bank-csv");
+    expect(() => parseStatement(lies("bw-bank-mt940.csv"))).toThrow(
+      "Das ist der Export „CSV-MT940“ der BW-Bank. Bitte im Online-Banking als Excel (CSV-CAMT V8) exportieren; der enthält alle Angaben vollständig.",
+    );
   });
 
-  it("lässt einen Zweck ohne Felder, wie er ist", () => {
-    expect(t[1]?.purpose).toBe("Rechnung 2026-034 Müller & Söhne");
-  });
-
-  it("behält den ganzen Zweck, wenn Felder ohne SVWZ+ darin stehen", () => {
-    const s = parseStatement(ersetzt("bw-bank-mt940.csv", '"Rechnung 2026-034 Müller & Söhne";"Müller', '"EREF+2026-034 Müller & Söhne";"Müller'));
-    expect(s.transactions[1]).toMatchObject({ endToEndId: "2026-034 Müller & Söhne", purpose: "EREF+2026-034 Müller & Söhne" });
+  it("erkennt CSV-CAMT V2 und gefilterte Einträge und verlangt CSV-CAMT V8", () => {
+    expect(detectStatementFormat(v2())).toBe("bw-bank-csv");
+    expect(() => parseStatement(v2())).toThrow(
+      "Das ist der Export „CSV-CAMT V2“ oder „CSV - gefilterte Einträge“ der BW-Bank. Bitte im Online-Banking als Excel (CSV-CAMT V8) exportieren; der enthält alle Angaben vollständig.",
+    );
   });
 });
