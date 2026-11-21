@@ -49,13 +49,21 @@ export function AccentColorCard({ color, fromLayout, hint }: { color: string; fr
         Färbt Spaltenköpfe und Linien auf Rechnungen, Angeboten, Auftragsbestätigungen, Lieferscheinen und Mahnungen, etwa passend zum Logo; Text,
         Beschriftungen und Fußzeile bekommen dazu passende Grautöne. Schon festgeschriebene Belege behalten ihr PDF.
       </p>
-      <label className="checkbox">
-        <input type="checkbox" checked={fromLayout} disabled={off} onChange={(event) => void storeFromLayout(event.target.checked)} />
-        Farbe des Layouts
-      </label>
-      <p className="small muted" style={{ margin: 0 }}>
-        Jedes eingebaute Layout bringt eine eigene Farbe mit. Eine Farbe, die du hier übernimmst, gilt stattdessen für alle Layouts.
-      </p>
+      <div className="checkbox-hinted">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={fromLayout}
+            disabled={off}
+            aria-describedby="accent-from-layout-hint"
+            onChange={(event) => void storeFromLayout(event.target.checked)}
+          />
+          Farbe des Layouts
+        </label>
+        <span id="accent-from-layout-hint" className="field-hint">
+          Jedes eingebaute Layout bringt eine eigene Farbe mit. Eine Farbe, die du hier übernimmst, gilt stattdessen für alle Layouts.
+        </span>
+      </div>
       <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
         <Field label="Farbe wählen" describedBy={hintId}>
           {(control) => (

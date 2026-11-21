@@ -30,7 +30,7 @@ export function LayoutOptionFields({
     <>
       {optionen.map((option) => (
         <fieldset key={option.id} className="field">
-          <legend className="field-label">{option.name}</legend>
+          <legend>{option.name}</legend>
           <Segmented
             label={`${option.name} (${layout.name})`}
             options={option.werte.map((wert) => ({ value: wert.id, label: wert.name, name: wert.name }))}
