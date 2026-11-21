@@ -177,6 +177,16 @@ test("pushTAN: fragt die TAN ab, wenn die Bank bei der Anmeldung eine aus der Ap
   await expect(freigabe().getByText("Bitte generieren Sie eine TAN mit Ihrer Banking App oder Ihrem TAN Generator und geben diese hier ein.")).toBeVisible();
   await expect(freigabe().getByRole("button", { name: "Freigegeben, weiter" })).toHaveCount(0);
   await freigabe().getByLabel("TAN", { exact: true }).fill("123456");
+  // Verbinden ersetzt die Verbindung samt ID. Auch wenn die Seite langsam neu lädt, kommt die Meldung erst mit der neuen
+  // Verbindung; sonst schickte „Trennen“ im nächsten Test die alte ID („Verbindung nicht gefunden.“). Die Verzögerung
+  // endet erst dort: Endete sie mit der Meldung, ging der Abruf des Loaders oft unverzögert durch, und ohne den Fix blieb
+  // „Trennen“ meist grün
+  const neuLaden = (url: URL) => url.pathname.startsWith("/_serverFn/");
+  await page.route(neuLaden, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await new Promise((fertig) => setTimeout(fertig, 1500));
+    await route.continue();
+  });
   await freigabe().getByRole("button", { name: "TAN senden" }).click();
   await expect(abruf().getByText("Testbank verbunden, 0 neue Umsätze.")).toBeVisible();
   await expect(abruf().getByText("Aktiv")).toBeVisible();
@@ -186,6 +196,8 @@ test("pushTAN: fragt die TAN ab, wenn die Bank bei der Anmeldung eine aus der Ap
 test("Trennen löscht die Verbindung, die Umsätze bleiben", async () => {
   await abruf().getByRole("button", { name: "Trennen" }).click();
   await bestaetigen(page, "Trennen");
+  // Ende der Verzögerung aus dem Test davor; „wait“ lässt verzögerte Anfragen noch fertig laufen
+  await page.unrouteAll({ behavior: "wait" });
   await expect(abruf().getByText("Testbank", { exact: true })).toHaveCount(0);
   await expect(abruf().getByText(/Noch keine Bank verbunden/)).toBeVisible();
   await expect(page.getByText("RE-2026-0050").first()).toBeVisible();

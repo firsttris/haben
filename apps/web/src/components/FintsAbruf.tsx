@@ -248,8 +248,8 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
       return;
     }
     // Erst neu laden, dann Formular schließen und melden: Verbinden ersetzt die Verbindung samt ID, und „Trennen“ an der
-    // alten Zeile fände sie nicht mehr
-    await router.invalidate();
+    // alten Zeile fände sie nicht mehr. Ohne sync endete invalidate schon mit den alten Daten und lüde im Hintergrund nach
+    await router.invalidate({ sync: true });
     setOffen(null);
     if (fuer === "neu") {
       setVerbinden(false);
