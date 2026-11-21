@@ -247,8 +247,8 @@ export function FintsAbruf({ fints, verbinden, setVerbinden }: { fints: Fints; v
       setOffen({ fuer, schritt: s });
       return;
     }
-    // Erst neu laden, dann Formular schließen und melden: Verbinden ersetzt die Verbindung samt ID, und „Trennen“ an der
-    // alten Zeile fände sie nicht mehr
+    // Erst neu laden, dann Formular schließen und melden: Nach dem ersten Verbinden steht die Verbindung erst dann auf der
+    // Seite
     await router.invalidate();
     setOffen(null);
     if (fuer === "neu") {
