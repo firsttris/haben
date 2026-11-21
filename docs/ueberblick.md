@@ -21,6 +21,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [Erste Schritte](einrichtung.md) | Konto und Passkey, Fragen zur Einrichtung, Bereiche ausblenden, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, KI-Auslesung, Bankkonten |
+| [Beleggestaltung](beleggestaltung.md) | Logo, Akzentfarbe, Schrift, Briefpapier, Fußzeile und die eingebauten Layouts mit ihren Optionen |
 | [ELSTER einrichten](einrichtung-elster.md) | Zertifikatsdatei, eigene Hersteller-ID, ERiC-Version, Unterschied zu Lexoffice |
 | [E-Mail-Versand](einrichtung-email.md) | Versand über SMTP oder Microsoft 365 (Graph) |
 | [Von der Testinstanz in den Echtbetrieb](einrichtung-echtbetrieb.md) | Einstellungen und Stammdaten als Datei in eine neue Instanz übernehmen |

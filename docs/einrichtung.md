@@ -144,6 +144,10 @@ Mit [Firmenportal](installation.md#firmenportal) steht das Zeichen auch dort auf
 
 Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](steuerberatung.md), und hängt nicht an der [Beleggestaltung](beleggestaltung.md): Ändern sich dort Farbe, Layout oder Logo, bleibt die eigene Farbe, und Firmen mit gleich aussehenden Belegen haben trotzdem verschiedene Zeichen. Das Theme (Hell, Dunkel, Farbe der Oberfläche) wählt dagegen jeder Zugang für sich. Die Änderung steht im Änderungsprotokoll.
 
+### Beleggestaltung
+
+<a id="logo"></a><a id="akzentfarbe"></a><a id="logo-und-blatt"></a><a id="briefpapier"></a><a id="fußzeile"></a><a id="layouts"></a>Logo, Akzentfarbe, Schrift, Briefpapier, Fußzeile und Layouts stehen unter [Beleggestaltung](beleggestaltung.md).
+
 ## Persönliche Angaben
 
 Unter **Einstellungen › Persönliche Angaben** stehen die Angaben zu dir als Person, die ELSTER für manche Vorgänge braucht: Anrede, steuerliche Identifikationsnummer (Steuer-ID), Vor- und Nachname, Geburtsdatum, Religion und ausgeübter Beruf. Bei der Zusammenveranlagung kommen das Heiratsdatum und dieselben Angaben zum Ehegatten dazu.
