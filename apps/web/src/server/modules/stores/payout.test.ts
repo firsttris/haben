@@ -185,6 +185,12 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Auszahlung der App-Stores ($konte
     );
   });
 
+  it("hält die Auszahlungen unveränderlich", async () => {
+    await expect(sql`delete from store_payouts`).rejects.toThrow();
+    const [count] = await sql`select count(*)::int as n from store_payouts`;
+    expect(count!.n).toBe(3);
+  });
+
   it("App Store: erkennt die Auszahlung am Verwendungszweck, auch vom Absender „Apple Inc“ (#1628)", async () => {
     // Namen und Verwendungszweck aus echten Kontoauszügen (CAMT.053), Referenznummern erfunden
     const proceeds = (n: number) => `CCI : 030000000${n},PURP:DEVELOPER PROCEEDS,APPLE`;
@@ -204,17 +210,20 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Auszahlung der App-Stores ($konte
       expect(await stores.storePayoutView(await idOf(reference)), reference).toMatchObject({ store: "appstore", accountName: "App Store" });
     }
     expect(await stores.storePayoutView(await idOf("bank-apple-erstattung"))).toBeNull();
-    // Auch die Übernahme nimmt den Eingang als den des App Store an und scheitert erst am schon bezahlten Monat
-    const paid = await idOf("appstore-finance-2026-09-EUR");
-    await expect(stores.takeOverStorePayout(actor, { transactionId: await idOf("bank-apple-inc"), monthIds: [paid] })).rejects.toThrow(/schon ausgezahlt/);
-    await expect(stores.takeOverStorePayout(actor, { transactionId: await idOf("bank-apple-erstattung"), monthIds: [paid] })).rejects.toThrow(
-      /kein Eingang von Google Play oder App Store/,
-    );
-  });
+    await expect(
+      stores.takeOverStorePayout(actor, { transactionId: await idOf("bank-apple-erstattung"), monthIds: [await idOf("appstore-finance-2026-09-EUR")] }),
+    ).rejects.toThrow(/kein Eingang von Google Play oder App Store/);
 
-  it("hält die Auszahlungen unveränderlich", async () => {
-    await expect(sql`delete from store_payouts`).rejects.toThrow();
-    const [count] = await sql`select count(*)::int as n from store_payouts`;
-    expect(count!.n).toBe(3);
+    // „Als Auszahlung buchen“ geht für „Apple Inc“ bis zum Geldtransit durch
+    await put(ids.apple, { format: "appstore-finance", transactions: [tx("2026-12-06", 400, "App Store", "appstore-finance-2026-11-EUR", 20)] });
+    const deposit = await idOf("bank-apple-inc");
+    const month = (await stores.storePayoutView(deposit))!.months.find((m) => m.amount === 400)!;
+    expect(await stores.takeOverStorePayout(actor, { transactionId: deposit, monthIds: [month.id] })).toEqual({ difference: 0 });
+    expect(await ledger(deposit)).toEqual(
+      [
+        { account: c.bank, debit: 400, credit: 0 },
+        { account: c.transit, debit: 0, credit: 400 },
+      ].sort((a, b) => a.account.localeCompare(b.account)),
+    );
   });
 });
