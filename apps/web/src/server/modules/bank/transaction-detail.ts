@@ -1,6 +1,6 @@
 // Ein Umsatz mit Zuordnungen und Vorschlägen für den offenen Teil
 
-import { providerPattern, findPayoutGroup, payoutKey, aufKontoAngeboten, suggestDirectBooking, suggestLohnsteuer, suggestMatches } from "@haben/core";
+import { providerMatcher, findPayoutGroup, payoutKey, aufKontoAngeboten, suggestDirectBooking, suggestLohnsteuer, suggestMatches } from "@haben/core";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { bankOpenAmountSql as openAmountSql } from "../../db/bank-open.ts";
@@ -62,11 +62,11 @@ export async function transactionDetail(id: string) {
       const parts = (await payoutCandidates([account.id], tx.bookingDate)).filter((p) => payoutKey(p.bankReference) === key);
       const total = parts.reduce((s, p) => s + p.amount, 0);
       const bank = parts.every((p) => p.open === p.amount)
-        ? await transferCounterpart({ ...tx, amount: total }, null, targets, providerPattern(account))
+        ? await transferCounterpart({ ...tx, amount: total }, null, targets, providerMatcher(account))
         : null;
       counterpart = bank ? { ...bank, payoutIds: parts.filter((p) => p.id !== tx.id).map((p) => p.id) } : null;
     } else {
-      counterpart = await transferCounterpart(tx, account.iban, targets, providerPattern(account));
+      counterpart = await transferCounterpart(tx, account.iban, targets, providerMatcher(account));
       if (!counterpart && direct.counterAccountId && account.purpose !== "zahlungsdienstleister") {
         // Eingang auf der Bank aus mehreren Teilen einer Auszahlung im Konto des Dienstleisters
         const group = findPayoutGroup(tx, await payoutCandidates([direct.counterAccountId], tx.bookingDate));

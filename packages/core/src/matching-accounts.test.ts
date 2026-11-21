@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findTransferCounterpart, suggestDirectBooking, type OwnAccount } from "./matching.ts";
+import { findTransferCounterpart, providerMatcher, suggestDirectBooking, type OwnAccount } from "./matching.ts";
 
 const business: OwnAccount = { id: "g", name: "Geschäftskonto", iban: "DE02100100100006820101", purpose: "geschaeft" };
 const tax: OwnAccount = { id: "s", name: "Steuerkonto", iban: "DE12120300001234567890", purpose: "steuer" };
@@ -127,6 +127,40 @@ describe("Zahlungsdienstleister", () => {
       { id: "x", bookingDate: "2026-10-06", amount: 466_450, open: 466_450, counterpartyIban: "LU89751000135104200E", counterpartyName: "PayPal Europe" },
       { id: "y", bookingDate: "2026-10-05", amount: 466_450, open: 466_450, counterpartyIban: "DE02100100100006820101", counterpartyName: "Kunde" },
     ];
-    expect(findTransferCounterpart({ bookingDate: "2026-10-05", amount: -466_450 }, null, candidates, /paypal/i)?.id).toBe("x");
+    expect(findTransferCounterpart({ bookingDate: "2026-10-05", amount: -466_450 }, null, candidates, providerMatcher(paypal))?.id).toBe("x");
+  });
+
+  describe("App Store: Auszahlung am Verwendungszweck, auch vom Absender „Apple Inc“ (#1628)", () => {
+    const appstore: OwnAccount = { id: "as", name: "App Store", iban: null, purpose: "zahlungsdienstleister", provider: "appstore" };
+    const proceeds = "CCI : 0300000003,PURP:DEVELOPER PROCEEDS,APPLE";
+
+    it("auf der Bank: Geldtransit mit Gegenbuchung, eine andere Zahlung von „Apple Inc“ nicht", () => {
+      for (const counterpartyName of ["APPLE DISTRIBUTION INTL LTD 062", "Apple Inc"]) {
+        expect(suggestDirectBooking(tx({ amount: 40_000, counterpartyName, purpose: proceeds }), business, [...all, appstore]), counterpartyName).toMatchObject(
+          {
+            kind: "geldtransit",
+            counterAccountId: "as",
+            requiresCounterpart: true,
+          },
+        );
+      }
+      expect(
+        suggestDirectBooking(tx({ amount: 40_000, counterpartyName: "Apple Inc", purpose: "Erstattung Bestellung W000000001" }), business, [...all, appstore]),
+      ).toBeNull();
+    });
+
+    it("Gegenbuchung auf der Bank über den Verwendungszweck", () => {
+      const candidate = { bookingDate: "2026-10-06", amount: 40_000, open: 40_000, counterpartyIban: "GB33BUKB20201555555555", counterpartyName: "Apple Inc" };
+      const candidates = [
+        { ...candidate, id: "erstattung", purpose: "Erstattung Bestellung W000000001" },
+        { ...candidate, id: "auszahlung", bookingDate: "2026-10-07", purpose: proceeds },
+      ];
+      expect(findTransferCounterpart({ bookingDate: "2026-10-05", amount: -40_000 }, null, candidates, providerMatcher(appstore))?.id).toBe("auszahlung");
+    });
+
+    it("der Verwendungszweck gilt nur für den App Store", () => {
+      expect(providerMatcher(paypal)!({ counterpartyName: "Apple Inc", purpose: proceeds })).toBe(false);
+      expect(providerMatcher({ provider: "sonstige" })).toBeNull();
+    });
   });
 });

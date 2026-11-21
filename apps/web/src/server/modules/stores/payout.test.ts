@@ -190,4 +190,40 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Auszahlung der App-Stores ($konte
     const [count] = await sql`select count(*)::int as n from store_payouts`;
     expect(count!.n).toBe(3);
   });
+
+  it("App Store: erkennt die Auszahlung am Verwendungszweck, auch vom Absender „Apple Inc“ (#1628)", async () => {
+    // Namen und Verwendungszweck aus echten Kontoauszügen (CAMT.053), Referenznummern erfunden
+    const proceeds = (n: number) => `CCI : 030000000${n},PURP:DEVELOPER PROCEEDS,APPLE`;
+    const [account] = await sql`select id from bank_accounts where iban = ${IBAN}`;
+    await put(account!.id, {
+      format: "camt053",
+      accountIban: IBAN,
+      transactions: [
+        { ...tx("2026-12-10", 400, "APPLE DISTRIBUTION INTL LTD", "bank-apple-intl", 10), purpose: proceeds(1) },
+        { ...tx("2026-12-11", 400, "APPLE DISTRIBUTION INTL LTD 062", "bank-apple-intl-062", 11), purpose: proceeds(2) },
+        { ...tx("2026-12-12", 400, "Apple Inc", "bank-apple-inc", 12), purpose: proceeds(3) },
+        // „Apple Inc“ schickt auch anderes, etwa die Erstattung einer Bestellung
+        { ...tx("2026-12-13", 400, "Apple Inc", "bank-apple-erstattung", 13), purpose: "Erstattung Bestellung W000000001" },
+      ],
+    });
+    for (const reference of ["bank-apple-intl", "bank-apple-intl-062", "bank-apple-inc"]) {
+      expect(await stores.storePayoutView(await idOf(reference)), reference).toMatchObject({ store: "appstore", accountName: "App Store" });
+    }
+    expect(await stores.storePayoutView(await idOf("bank-apple-erstattung"))).toBeNull();
+    await expect(
+      stores.takeOverStorePayout(actor, { transactionId: await idOf("bank-apple-erstattung"), monthIds: [await idOf("appstore-finance-2026-09-EUR")] }),
+    ).rejects.toThrow(/kein Eingang von Google Play oder App Store/);
+
+    // „Als Auszahlung buchen“ geht für „Apple Inc“ bis zum Geldtransit durch
+    await put(ids.apple, { format: "appstore-finance", transactions: [tx("2026-12-06", 400, "App Store", "appstore-finance-2026-11-EUR", 20)] });
+    const deposit = await idOf("bank-apple-inc");
+    const month = (await stores.storePayoutView(deposit))!.months.find((m) => m.amount === 400)!;
+    expect(await stores.takeOverStorePayout(actor, { transactionId: deposit, monthIds: [month.id] })).toEqual({ difference: 0 });
+    expect(await ledger(deposit)).toEqual(
+      [
+        { account: c.bank, debit: 400, credit: 0 },
+        { account: c.transit, debit: 0, credit: 400 },
+      ].sort((a, b) => a.account.localeCompare(b.account)),
+    );
+  });
 });

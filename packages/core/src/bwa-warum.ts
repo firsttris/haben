@@ -1,4 +1,5 @@
 import { imZeitraum, type Zeitraum } from "./bwa-zeitraum.ts";
+import { lieferantGruppen } from "./lieferant.ts";
 import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 
 /*
@@ -7,7 +8,8 @@ import { roundHalfAwayFromZero, type Cents } from "./money.ts";
  * Cent. Die Art sagt, wie sie zustande kam: neu (im Vergleich kein Vorgang), weggefallen (jetzt keiner), gestiegen oder gesunken.
  * Anzahl und Betrag je Vorgang trennen eine Preiserhöhung von mehr Vorgängen.
  *
- * Ein Posten ohne Kontakt zählt nach dem Namen am Beleg (Lieferant ohne Eintrag in den Kontakten), ohne Namen als
+ * Posten desselben Lieferanten bzw. Kunden zählen zusammen, mit und ohne Kontakt (lieferantGruppen: Kontakt, USt-IdNr.,
+ * Name, #1514); die Gruppe trägt den Kontakt und seinen Namen. Ohne Kontakt, USt-IdNr. und Namen zählt ein Posten als
  * „Ohne Kontakt“ (Pauschalen, Lohn, Zahlungen an das Finanzamt).
  */
 
@@ -15,12 +17,15 @@ import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 export interface WarumPosten {
   datum: string;
   betrag: Cents;
-  kontakt: { id: string | null; name: string };
+  /** Der Name zeigt die Gruppe; weitere Namen (etwa am Beleg neben dem des Kontakts) und USt-IdNr. verbinden nur */
+  kontakt: { id: string | null; name: string; namen?: readonly string[]; ustIds?: readonly string[] };
 }
 
 export type WarumArt = "neu" | "gestiegen" | "gesunken" | "weggefallen";
 
 export interface WarumTeil {
+  /** Eindeutig je Teil, auch bei zwei Teilen gleichen Namens ohne Kontakt (Schlüssel der Gruppe aus lieferantGruppen) */
+  schluessel: string;
   kontaktId: string | null;
   name: string;
   art: WarumArt;
@@ -48,8 +53,6 @@ export interface Warum {
 
 export const OHNE_KONTAKT = "Ohne Kontakt";
 
-const schluessel = ({ id, name }: WarumPosten["kontakt"]) => (id ? `id:${id}` : name.trim() ? `name:${name.trim().toLocaleLowerCase("de")}` : "ohne");
-
 const jeVorgang = (betrag: Cents, anzahl: number): Cents | null => (anzahl === 0 ? null : roundHalfAwayFromZero(betrag / anzahl));
 
 /** Nach den Vorgängen, nicht nach dem Betrag: Gleichen sich Zahlung und Erstattung aus, gab es trotzdem Vorgänge */
@@ -61,35 +64,30 @@ function art({ betrag, vergleich, anzahl, anzahlVergleich }: Pick<WarumTeil, "be
 
 /** Zerlegt die Abweichung von `zeitraum` zu `vergleich` nach Kontakt; Posten außerhalb beider Zeiträume zählen nicht */
 export function zerlegeAbweichung(posten: readonly WarumPosten[], zeitraum: Zeitraum, vergleich: Zeitraum, { hoechstens = Infinity } = {}): Warum {
+  const zaehlen = posten.filter((p) => imZeitraum(zeitraum, p.datum) || imZeitraum(vergleich, p.datum));
+  const gruppen = lieferantGruppen(
+    zaehlen.map(({ kontakt }) => ({ kontaktId: kontakt.id, ustIds: kontakt.ustIds ?? [], namen: [kontakt.name, ...(kontakt.namen ?? [])] })),
+  );
   const je = new Map<string, Omit<WarumTeil, "art" | "differenz" | "jeVorgang" | "jeVorgangVergleich"> & { datum: string }>();
-  for (const p of posten) {
-    const imZeitraumP = imZeitraum(zeitraum, p.datum);
-    const imVergleichP = imZeitraum(vergleich, p.datum);
-    if (!imZeitraumP && !imVergleichP) continue;
-    const key = schluessel(p.kontakt);
-    const k = je.get(key) ?? {
-      kontaktId: p.kontakt.id,
-      name: p.kontakt.name.trim() || OHNE_KONTAKT,
-      datum: "",
-      betrag: 0,
-      vergleich: 0,
-      anzahl: 0,
-      anzahlVergleich: 0,
-    };
-    // Der Name des jüngsten Postens gilt, falls er sich geändert hat
-    if (p.datum >= k.datum && p.kontakt.name.trim()) Object.assign(k, { name: p.kontakt.name.trim(), datum: p.datum });
+  zaehlen.forEach((p, i) => {
+    const key = gruppen[i] ?? "ohne";
+    const k = je.get(key) ?? { schluessel: key, kontaktId: null, name: OHNE_KONTAKT, datum: "", betrag: 0, vergleich: 0, anzahl: 0, anzahlVergleich: 0 };
+    // Der Kontakt gibt der Gruppe Link und Namen; der Name des jüngsten Postens gilt, falls er sich geändert hat
+    const name = p.kontakt.name.trim();
+    if (p.kontakt.id ? !k.kontaktId || p.datum >= k.datum : !k.kontaktId && p.datum >= k.datum && name)
+      Object.assign(k, { kontaktId: p.kontakt.id, name: name || k.name, datum: p.datum });
     // Überschneiden sich die Zeiträume (freier Zeitraum über mehr als ein Jahr gegen das Vorjahr), zählt ein Posten wie in
     // der BWA auf beiden Seiten
-    if (imZeitraumP) {
+    if (imZeitraum(zeitraum, p.datum)) {
       k.betrag += p.betrag;
       k.anzahl++;
     }
-    if (imVergleichP) {
+    if (imZeitraum(vergleich, p.datum)) {
       k.vergleich += p.betrag;
       k.anzahlVergleich++;
     }
     je.set(key, k);
-  }
+  });
   const alle = [...je.values()].map(
     ({ datum: _datum, ...k }): WarumTeil => ({
       ...k,

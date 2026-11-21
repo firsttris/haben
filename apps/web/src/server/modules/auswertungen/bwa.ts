@@ -193,7 +193,10 @@ interface QuellenAngabe {
 
 /**
  * Text und Kontakt je Rechnung bzw. Beleg, gesammelt in Blöcken geladen. Kunde einer Rechnung ist der Name auf der Rechnung,
- * sonst der des Kontakts; Lieferant eines Belegs der verknüpfte Kontakt, sonst der Name am Beleg ohne Kontakt.
+ * sonst der des Kontakts; Lieferant eines Belegs der verknüpfte Kontakt, sonst der Name am Beleg ohne Kontakt. Ein aus
+ * Lexware Office übernommener Vorgang ohne Kontakt gehört über den archivierten Beleg zum Kontakt (wie auf der Kontaktseite,
+ * belege/lieferant-belege.ts). Namen und USt-IdNr. von Vorgang und Kontakt fassen in „Warum?“ denselben Lieferanten bzw.
+ * Kunden zusammen (lieferantGruppen, #1514).
  */
 async function quellenAngaben(treffer: readonly Form43Anteil[], q: Db | Tx): Promise<Map<string, QuellenAngabe>> {
   const angaben = new Map<string, QuellenAngabe>();
@@ -201,26 +204,50 @@ async function quellenAngaben(treffer: readonly Form43Anteil[], q: Db | Tx): Pro
   const belege = [...new Set(treffer.flatMap((a) => (a.quelle.belegId ? [a.quelle.belegId] : [])))];
   const i = schema.invoices;
   const c = schema.contacts;
+  const v = schema.lexofficeVouchers;
+  const kontakt = { kontaktName: c.name, kontaktUstId: c.ustId };
   for (const block of bloecke(rechnungen))
     for (const r of await q
-      .select({ id: i.id, nummer: i.number, kontaktId: i.contactId, kunde: sql<string | null>`coalesce(nullif(${i.buyer} ->> 'name', ''), ${c.name})` })
+      .select({
+        id: i.id,
+        nummer: i.number,
+        kontaktId: sql<string | null>`coalesce(${i.contactId}, ${v.contactId})`,
+        kunde: sql<string | null>`coalesce(nullif(${i.buyer} ->> 'name', ''), ${c.name})`,
+        ustId: sql<string | null>`${i.buyer} ->> 'ustId'`,
+        ...kontakt,
+      })
       .from(i)
-      .leftJoin(c, sql`${c.id} = ${i.contactId}`)
+      .leftJoin(v, sql`${v.id} = ${i.lexofficeVoucherId}`)
+      .leftJoin(c, sql`${c.id} = coalesce(${i.contactId}, ${v.contactId})`)
       .where(inArray(i.id, block)))
       angaben.set(r.id, {
         text: [r.nummer ?? "Entwurf", r.kunde].filter(Boolean).join(" · "),
-        kontakt: { id: r.kontaktId, name: r.kunde ?? "" },
+        kontakt: { id: r.kontaktId, name: r.kunde ?? "", namen: [r.kontaktName ?? ""], ustIds: [r.ustId ?? "", r.kontaktUstId ?? ""] },
       });
   const d = schema.documents;
   for (const block of bloecke(belege))
     for (const r of await q
-      .select({ id: d.id, lieferant: d.supplierName, nummer: d.invoiceNumber, datei: d.filename, kontaktId: d.supplierContactId, kontaktName: c.name })
+      .select({
+        id: d.id,
+        lieferant: d.supplierName,
+        nummer: d.invoiceNumber,
+        datei: d.filename,
+        ustId: d.supplierUstId,
+        kontaktId: sql<string | null>`coalesce(${d.supplierContactId}, ${v.contactId})`,
+        ...kontakt,
+      })
       .from(d)
-      .leftJoin(c, sql`${c.id} = ${d.supplierContactId}`)
+      .leftJoin(v, sql`${v.id} = ${d.lexofficeVoucherId}`)
+      .leftJoin(c, sql`${c.id} = coalesce(${d.supplierContactId}, ${v.contactId})`)
       .where(inArray(d.id, block)))
       angaben.set(r.id, {
         text: [r.lieferant || r.datei, r.nummer].filter(Boolean).join(" · "),
-        kontakt: r.kontaktId ? { id: r.kontaktId, name: r.kontaktName || r.lieferant } : { id: null, name: r.lieferant },
+        kontakt: {
+          id: r.kontaktId,
+          name: (r.kontaktId && r.kontaktName) || r.lieferant,
+          namen: [r.lieferant],
+          ustIds: [r.ustId, r.kontaktUstId ?? ""],
+        },
       });
   return angaben;
 }

@@ -53,6 +53,7 @@ const PAGES = [
   "/auswertungen",
   "/auswertungen/bwa?zeitraum=jahr&zeile=erloese",
   "/auswertungen/liquiditaet?horizont=12m",
+  "/auswertungen/bwa?zeitraum=jahr&leer=1",
   "/buchungen",
   "/buchungen/neu",
   `/abschluss/${YEAR - 1}`,

@@ -36,7 +36,7 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
   `fix(bereich): …`, `test: …` mit Beschreibung auf Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for
   review“. Was bei einem Pull Request nur mit Doku geprüft wird, steht unter
   [Branches, Titel und Commits](https://haben.app/mitwirken.html#branches-titel-und-commits).
-- Issues in der Beschreibung mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…`.
+- Issues in der Beschreibung mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, bei einem Teil mit `Refs #…`.
   Nie `Closes` oder `Fixes`: Das Issue schließt das Release, nicht der Merge.
 - Mit KI-Werkzeugen zu arbeiten ist in Ordnung. Der Transparenz halber bitte kennzeichnen: `Co-Authored-By:` im
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe

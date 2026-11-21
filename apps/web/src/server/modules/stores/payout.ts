@@ -1,4 +1,4 @@
-import { formatEuro, formatRateMonth, PAYMENT_PROVIDERS } from "@haben/core";
+import { formatEuro, formatRateMonth, providerMatcher } from "@haben/core";
 import { and, asc, eq, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { allocateExchangeDifferenceIn, allocateTransferIn, BankError, storeStatement } from "../bank/index.ts";
@@ -27,12 +27,9 @@ const MAX_DIFFERENCE_SHARE = 0.1;
 /** Feste Referenzen der Monatsumsätze (stores/reports.ts) */
 const MONTHLY_REFERENCE: Record<Store, string> = { googleplay: "googleplay-earnings-%", appstore: "appstore-finance-%" };
 
-/** Welcher Store ist die Gegenpartei eines Bankumsatzes; null, wenn keiner */
-export function storeOfCounterparty(name: string): Store | null {
-  for (const store of ["googleplay", "appstore"] as const) {
-    if (PAYMENT_PROVIDERS[store].pattern.test(name)) return store;
-  }
-  return null;
+/** Von welchem Store kommt ein Bankeingang, nach Gegenpartei oder (App Store) Verwendungszweck; null, wenn von keinem */
+export function storeOfInflow(counterpartyName: string, purpose: string): Store | null {
+  return (["googleplay", "appstore"] as const).find((provider) => providerMatcher({ provider })?.({ counterpartyName, purpose })) ?? null;
 }
 
 async function storeAccount(q: typeof db | Tx, store: Store) {
@@ -95,6 +92,7 @@ export async function storePayoutView(transactionId: string) {
       id: schema.bankTransactions.id,
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
+      text: schema.bankTransactions.purpose,
       purpose: schema.bankAccounts.purpose,
       open: bankOpenAmountSql.mapWith(Number),
     })
@@ -102,7 +100,7 @@ export async function storePayoutView(transactionId: string) {
     .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
     .where(and(eq(schema.bankTransactions.id, transactionId), bankDuplicateProposalEligibleSql));
   if (!bank || bank.purpose === "zahlungsdienstleister" || bank.amount <= 0 || bank.open !== bank.amount) return null;
-  const store = storeOfCounterparty(bank.counterpartyName);
+  const store = storeOfInflow(bank.counterpartyName, bank.text);
   if (!store) return null;
   const account = await storeAccount(db, store);
   if (!account) return { store, label: STORE_LABELS[store], accountName: null, months: [] };
@@ -188,6 +186,7 @@ async function storeInflow(tx: Tx, transactionId: string) {
       amount: schema.bankTransactions.amount,
       bookingDate: schema.bankTransactions.bookingDate,
       counterpartyName: schema.bankTransactions.counterpartyName,
+      text: schema.bankTransactions.purpose,
       accountName: schema.bankAccounts.name,
       purpose: schema.bankAccounts.purpose,
       open: bankOpenAmountSql.mapWith(Number),
@@ -198,7 +197,7 @@ async function storeInflow(tx: Tx, transactionId: string) {
     .where(eq(schema.bankTransactions.id, transactionId));
   if (!bank) throw new BankError("Umsatz nicht gefunden.");
   if (!bank.eligible) throw new BankError("Kläre zuerst den Dublettenvermerk zum Zahlungseingang.");
-  const store = storeOfCounterparty(bank.counterpartyName);
+  const store = storeOfInflow(bank.counterpartyName, bank.text);
   if (!store || bank.purpose === "zahlungsdienstleister" || bank.amount <= 0)
     throw new BankError("Das ist kein Eingang von Google Play oder App Store auf einem Bankkonto.");
   if (bank.open !== bank.amount) throw new BankError("Der Eingang muss noch ganz offen sein.");

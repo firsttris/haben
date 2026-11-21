@@ -83,6 +83,49 @@ describe("Abweichung einer BWA-Zeile nach Kontakt", () => {
     expect(w.teile).toEqual([expect.objectContaining({ kontaktId: "k1", name: "Cloudwerk GmbH", art: "gestiegen", differenz: 2_000 })]);
   });
 
+  it("fasst denselben Lieferanten mit und ohne Kontakt zusammen (#1514): Name und Link vom Kontakt, keine Differenz", () => {
+    // Beispiel aus dem Issue: Vorjahr ohne Kontakt (übernommen), dieses Jahr mit Kontakt
+    const w = zerlegeAbweichung(
+      [
+        p("2026-02-01", 48_000, { name: "Muster Hosting GmbH", ustIds: ["DE999999999"] }),
+        p("2027-02-01", 48_000, { id: "k9", name: "Muster Hosting", ustIds: ["DE 999999999"] }),
+        p("2027-03-01", 1_000, { name: "Papierladen" }),
+      ],
+      ZEITRAUM,
+      VERGLEICH,
+    );
+    expect(w.teile.map((t) => [t.kontaktId, t.name, t.art, t.differenz])).toEqual([[null, "Papierladen", "neu", 1_000]]);
+    expect(w.unveraendert).toBe(1);
+  });
+
+  it("jeder Teil hat einen eigenen Schlüssel, auch zwei Teile gleichen Namens ohne Kontakt", () => {
+    // Zwei Kontakte mit derselben USt-IdNr. (etwa nach einem Import): Der Beleg mit ihr passt zu beiden, der ohne zu keinem
+    const w = zerlegeAbweichung(
+      [
+        p("2027-01-01", 100, { id: "k1", name: "Bar Nord", ustIds: ["DE9"] }),
+        p("2027-01-02", 200, { id: "k2", name: "Bar Süd", ustIds: ["DE9"] }),
+        p("2026-02-01", 500, { name: "Bar AG", ustIds: ["DE9"] }),
+        p("2026-03-01", 700, { name: "Bar AG" }),
+        // Ohne Namen heißen beide „Ohne Kontakt“
+        p("2027-02-01", 30, { ustIds: ["DE8"] }),
+        p("2027-02-02", 40),
+      ],
+      ZEITRAUM,
+      VERGLEICH,
+    );
+    expect(new Set(w.teile.map((t) => t.schluessel)).size).toBe(w.teile.length);
+    expect(w.teile.reduce((s, t) => s + t.differenz, 0)).toBe(w.abweichung);
+  });
+
+  it("die Gruppe heißt wie ihr Kontakt, auch wenn ein Beleg ohne Kontakt jünger ist", () => {
+    const w = zerlegeAbweichung(
+      [p("2027-01-01", 1_000, { id: "k9", name: "Muster Hosting", namen: ["MH GmbH"] }), p("2027-04-01", 2_000, { name: "mh gmbh" })],
+      ZEITRAUM,
+      VERGLEICH,
+    );
+    expect(w.teile).toEqual([expect.objectContaining({ kontaktId: "k9", name: "Muster Hosting", betrag: 3_000, anzahl: 2 })]);
+  });
+
   it("über der Höchstzahl laufen die kleineren Teile in „übrige“ zusammen, die Summe bleibt", () => {
     const posten = Array.from({ length: 8 }, (_, i) => p("2027-03-01", (i + 1) * 1_000, { id: `k${i}`, name: `Lieferant ${i}` }));
     const w = zerlegeAbweichung(posten, ZEITRAUM, VERGLEICH, { hoechstens: 3 });

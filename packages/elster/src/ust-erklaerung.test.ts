@@ -63,6 +63,19 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(tag(xml, "E3011401")).toBe("-100,00");
   });
 
+  it("meldet Überschuss und Erstattung weiter mit Minus, auch wenn die Jahreserklärung sie ohne Vorzeichen zeigt (#1412)", () => {
+    const ueberschuss = { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 11_638 };
+    const ohneVorauszahlung = buildUstErklaerungXml({ ...base, versteuerung: "ist", figures: { ...ueberschuss, vorauszahlungen: 0 } });
+    expect(tag(ohneVorauszahlung, "E3010601")).toBe("-116,38");
+    expect(tag(ohneVorauszahlung, "E3011101")).toBe("-116,38");
+    expect(tag(ohneVorauszahlung, "E3011401")).toBe("-116,38");
+    // Überschuss 116,38 und 200,00 schon gezahlt: Erstattung 316,38, im XML negativ
+    const mitVorauszahlung = buildUstErklaerungXml({ ...base, versteuerung: "ist", figures: { ...ueberschuss, vorauszahlungen: 20_000 } });
+    expect(tag(mitVorauszahlung, "E3011101")).toBe("-116,38");
+    expect(tag(mitVorauszahlung, "E3011301")).toBe("200,00");
+    expect(tag(mitVorauszahlung, "E3011401")).toBe("-316,38");
+  });
+
   it("lehnt eine leere Erklärung und alte Jahre ab", () => {
     const zero = { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0 };
     expect(() => buildUstErklaerungXml({ ...base, versteuerung: "ist", figures: zero })).toThrow(/Nullerklärung/);

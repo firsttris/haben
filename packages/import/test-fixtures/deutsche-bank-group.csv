@@ -1,0 +1,16 @@
+﻿Umsätze
+Konto;Filial-/Kontonummer;IBAN;Währung
+Geschäftskonto;123 4567890 00;DE60123456780012345678;EUR
+
+1.9.2026 - 30.9.2026
+Letzter Kontostand;;;;2.000,00;EUR
+Vorgemerkte und noch nicht gebuchte Umsätze sind nicht Bestandteil dieser Übersicht.
+Buchungstag;Wert;Umsatzart;Begünstigter / Auftraggeber;Verwendungszweck;IBAN / Kontonummer;BIC;Kundenreferenz;Mandatsreferenz;Gläubiger ID;Fremde Gebühren;Betrag;Abweichender Empfänger;Anzahl der Aufträge;Anzahl der Schecks;Soll;Haben;Währung
+1.9.2026;1.9.2026;SEPA Überweisung;Musterwerk GmbH;Rechnung 2026-014;DE02120300000000202051;BYLADEM1001;2026-014;;;;1.190;;;;;1.190;EUR
+3.9.2026;5.9.2026;SEPA Lastschrift;Stadtwerke Musterstadt;Abschlag Strom September;DE02500105170137075030;INGDDEFFXXX;NOTPROVIDED;MND-77;DE98ZZZ09999999999;;-84,5;;;;-84,5;;EUR
+7.9.2026;7.9.2026;Bargeldeinzahlung;;Einzahlung 07.09.2026 11:20 Karte 09;;;;;;;500;;;;;500;EUR
+10.9.2026;10.9.2026;SEPA Lastschrift;Telefonanbieter AG;Rechnung September;DE02100500000054540402;BELADEBEXXX;REF-4711;MND-0815;DE98ZZZ09999999999;;;;;;-39,99;;EUR
+14.9.2026;14.9.2026;Kartenzahlung;Musterladen;Einkauf Filiale 12;DE60123456780012345678;TESTDEFFXXX;;;;;-27,90;Max Mustermann;;;-27,90;;EUR
+18.9.2026;18.9.2026;SEPA Überweisung;Fehlerhafte Bank AG;Test ungültige Prüfziffer;DE60123456780012345679;ABCDEFGH;NOTPROVIDED;;;;-12,00;;;;-12,00;;EUR
+30.9.2026;30.9.2026;Entgelt;;Kontoführung September;;;;;;;-9,90;;;;-9,90;;EUR
+Kontostand;30.9.2026;;;3.515,71;EUR

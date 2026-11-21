@@ -367,7 +367,7 @@ Ein Tag `vX.Y.Z` veröffentlicht eine Version über `.github/workflows/release.y
 1. Der Tag muss zu `version` in der `package.json` im Wurzelverzeichnis passen.
 2. Die komplette CI läuft, außer die CI auf `main` hat denselben Code schon geprüft.
 3. Das Image geht für `linux/amd64` und `linux/arm64` als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/speicherstadt/haben`).
-4. Danach entsteht das GitHub-Release mit erzeugten Notizen und der Erweiterung „Haben für Mein ELSTER“ als ZIP. Eine fertige Version schließt die umgesetzten Issues (siehe [Branches, Titel und Commits](mitwirken.md#branches-titel-und-commits)).
+4. Danach entsteht das GitHub-Release mit erzeugten Notizen und der Erweiterung „Haben für Mein ELSTER“ als ZIP. Über die Notizen kommen von Hand die [Hinweise für das Release](mitwirken.md#branches-titel-und-commits) aus den Pull Requests. Eine fertige Version schließt die umgesetzten Issues (siehe [Branches, Titel und Commits](mitwirken.md#branches-titel-und-commits)).
 
 Den Tag legt Actions → *Bump version* (`bump.yml`) mit patch, minor oder major an: Er committet `Release vX.Y.Z` auf `main` und taggt, mit dem Deploy Key aus `BUMP_DEPLOY_KEY`, der auf der Bypass-Liste des Rulesets steht ([firsttris/workflows](https://github.com/firsttris/workflows#bump-version)). Wer selbst auf der Bypass-Liste steht, kann lokal `bun run release:patch` (oder `:minor`, `:major`) nehmen. Von Hand gestartet (Actions → Release → Run workflow) veröffentlicht der Workflow nur `:edge`, ohne Release.
 

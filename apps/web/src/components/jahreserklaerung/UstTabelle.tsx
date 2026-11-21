@@ -1,4 +1,5 @@
 import { formatDeduction, formatEuro, isKapitalgesellschaft } from "@haben/core";
+import { jahresergebnisFakt } from "../../lib/elster.ts";
 import { Block } from "./Block.tsx";
 import { Row } from "./Row.tsx";
 import type { Data } from "./typen.ts";
@@ -9,17 +10,15 @@ import type { Data } from "./typen.ts";
  */
 function UstSummen({ anzeige }: { anzeige: Data["ust"]["anzeige"] }) {
   const zusatz = (ausVermerk: boolean) => (ausVermerk ? " laut Vermerk" : "");
+  // Wie im Senden-Dialog: „Abschlusszahlung“ oder „Erstattung“, der Betrag ohne Vorzeichen (#1412)
+  const ergebnis = jahresergebnisFakt("ust", anzeige.abschluss)!;
   return (
     <>
       <Row
         label={`Vorauszahlungssoll (gesendete Voranmeldungen)${zusatz(anzeige.ausVermerk.vorauszahlungen)}`}
         value={formatDeduction(anzeige.vorauszahlungen)}
       />
-      <Row
-        label={`${anzeige.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"}${zusatz(anzeige.ausVermerk.abschluss)}`}
-        value={formatEuro(anzeige.abschluss)}
-        total
-      />
+      <Row label={`${ergebnis.label}${zusatz(anzeige.ausVermerk.abschluss)}`} value={ergebnis.value} total />
     </>
   );
 }
@@ -45,7 +44,8 @@ export function UstTabelle({ data }: { data: Data }) {
             </tr>
           </thead>
           <tbody>
-            <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} value={formatEuro(ust.steuer)} total />
+            {/* Wie „Erstattung“: die Richtung steht in der Beschriftung, die Zeilen mit Kennzahl behalten das Vorzeichen (#1412) */}
+            <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} value={formatEuro(Math.abs(ust.steuer))} total />
             <UstSummen anzeige={ust.anzeige} />
           </tbody>
         </table>
