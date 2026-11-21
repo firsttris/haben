@@ -1,5 +1,5 @@
 import { type FintsClient, type FintsZugang, fintsClient, fintsKonten, fintsSynchronisieren, fintsTanVerfahren } from "@haben/import";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban } from "./accounts.ts";
 import { BankError } from "./bank-error.ts";
@@ -115,8 +115,10 @@ function hinweiseZuKonten(neu: string[], ohneIban: number, fremd: string[]): str
 }
 
 /**
- * Legt die Verbindung an und ordnet die Konten über die IBAN zu (fehlende werden angelegt). Ein neuer Zugang derselben
- * Bank mit demselben Anmeldenamen (etwa nach einer neuen PIN) löst den alten ab und übernimmt dessen Abrufstand.
+ * Legt die Verbindung an und ordnet die Konten über die IBAN zu (fehlende werden angelegt). Derselbe Zugang neu (Bank
+ * und Anmeldename, etwa nach einer neuen PIN) behält seine Verbindung samt ID (#1617): Sie bekommt PIN, Bankdaten,
+ * TAN-Verfahren und Konten; Status und „Zuletzt abgerufen“ schreibt erst der Abruf. Bricht er ab, gilt die neue PIN
+ * trotzdem; die abgelehnte noch einmal zu schicken, sperrte bei vielen Banken den Zugang.
  * Konten, die bisher eine andere Verbindung abruft, gehen auf diese über; eine Zustimmung bei Enable Banking ohne
  * Konten endet ganz.
  */
@@ -133,14 +135,14 @@ async function speichern(v: Verbindung): Promise<FintsSchritt> {
   const bankName = (info.bpd?.bankName || `Bank ${v.zugang.blz}`).slice(0, 100);
   const neu: string[] = [];
   const { id, accounts, beenden } = await withActor(v.actor, async (tx) => {
-    const andere = await tx.select().from(schema.fintsConnections);
+    const alle = await tx.select().from(schema.fintsConnections);
     const accounts: BankConnectionAccount[] = [];
     for (const konto of abrufbar) {
       const iban = konto.iban!.replace(/\s/g, "").toUpperCase();
       const [bekannt] = await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, iban));
       const bankAccount = await accountForIban(tx, iban, `${bankName}${konto.product ? ` ${konto.product}` : ""} …${iban.slice(-4)}`.slice(0, 100));
       if (!bekannt) neu.push(bankAccount.name);
-      const vorher = andere.flatMap((o) => o.accounts).find((a) => a.bankAccountId === bankAccount.id);
+      const vorher = alle.flatMap((o) => o.accounts).find((a) => a.bankAccountId === bankAccount.id);
       accounts.push({
         uid: iban,
         iban,
@@ -150,25 +152,27 @@ async function speichern(v: Verbindung): Promise<FintsSchritt> {
         ...accountFetchFrom(vorher, v.fetchFrom),
       });
     }
-    // Derselbe Zugang neu (etwa nach einer neuen PIN) löst den alten ab; dessen Abrufstand steht schon in accounts
-    await tx
-      .delete(schema.fintsConnections)
-      .where(and(eq(schema.fintsConnections.bankCode, v.zugang.blz), eq(schema.fintsConnections.login, v.zugang.benutzer)));
+    // Nimmt die Konten auch der eigenen Verbindung; sie bekommt sie gleich mit dem Abrufstand aus accounts zurück
     const beenden = await kontenUebernehmen(tx, new Set(accounts.map((a) => a.bankAccountId)));
-    const [row] = await tx
-      .insert(schema.fintsConnections)
-      .values({
-        bankName,
-        bankCode: v.zugang.blz,
-        url: v.zugang.url,
-        login: v.zugang.benutzer,
-        customerId: v.zugang.kundenId ?? null,
-        ciphertext: fintsGeheimnisVerschluesseln({ pin: v.zugang.pin, bankdaten: info }),
-        tanMethod: v.client.config.tanMethodId ?? null,
-        tanMedium: v.client.config.tanMediaName ?? null,
-        accounts,
-      })
-      .returning({ id: schema.fintsConnections.id });
+    const werte = {
+      bankName,
+      url: v.zugang.url,
+      customerId: v.zugang.kundenId ?? null,
+      ciphertext: fintsGeheimnisVerschluesseln({ pin: v.zugang.pin, bankdaten: info }),
+      tanMethod: v.client.config.tanMethodId ?? null,
+      tanMedium: v.client.config.tanMediaName ?? null,
+      accounts,
+    };
+    const zeile = { id: schema.fintsConnections.id };
+    const bisher = alle.find((o) => o.bankCode === v.zugang.blz && o.login === v.zugang.benutzer);
+    const [behalten] = bisher ? await tx.update(schema.fintsConnections).set(werte).where(eq(zeile.id, bisher.id)).returning(zeile) : [];
+    // Ohne bisherige Verbindung, oder „Trennen“ kam ihr eben zuvor
+    const [row] = behalten
+      ? [behalten]
+      : await tx
+          .insert(schema.fintsConnections)
+          .values({ ...werte, bankCode: v.zugang.blz, login: v.zugang.benutzer })
+          .returning(zeile);
     return { id: row!.id, accounts, beenden };
   });
   await zustimmungenBeenden(beenden);
