@@ -136,11 +136,13 @@ describe("Zahlungsdienstleister", () => {
 
     it("auf der Bank: Geldtransit mit Gegenbuchung, eine andere Zahlung von „Apple Inc“ nicht", () => {
       for (const counterpartyName of ["APPLE DISTRIBUTION INTL LTD 062", "Apple Inc"]) {
-        expect(suggestDirectBooking(tx({ amount: 40_000, counterpartyName, purpose: proceeds }), business, [...all, appstore]), counterpartyName).toMatchObject({
-          kind: "geldtransit",
-          counterAccountId: "as",
-          requiresCounterpart: true,
-        });
+        expect(suggestDirectBooking(tx({ amount: 40_000, counterpartyName, purpose: proceeds }), business, [...all, appstore]), counterpartyName).toMatchObject(
+          {
+            kind: "geldtransit",
+            counterAccountId: "as",
+            requiresCounterpart: true,
+          },
+        );
       }
       expect(
         suggestDirectBooking(tx({ amount: 40_000, counterpartyName: "Apple Inc", purpose: "Erstattung Bestellung W000000001" }), business, [...all, appstore]),

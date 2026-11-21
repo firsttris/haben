@@ -22,7 +22,7 @@ export const PAYMENT_PROVIDERS = {
   sumup: { label: "SumUp", pattern: /sum ?up/i },
   // Auszahlender laut Auszahlungsbeleg: Google Payment Ireland Ltd bzw. Apple Distribution International Ltd. Für Apple an
   // echten Kontoauszügen bestätigt („APPLE DISTRIBUTION INTL LTD“, #1628); den Absender „Apple Inc“ erkennt
-  // stores/payout.ts am Verwendungszweck. Google noch zu bestätigen.
+  // providerMatcher am Verwendungszweck. Google noch zu bestätigen.
   googleplay: { label: "Google Play", pattern: /google\s*(payment|commerce|ireland)/i },
   appstore: { label: "App Store", pattern: /apple\s*distribution|itunes/i },
   sonstige: { label: "Anderer Zahlungsdienstleister", pattern: null },
@@ -45,9 +45,22 @@ export interface OwnAccount {
 /** Auszahlung vom Guthaben des Dienstleisters auf ein Bankkonto, wie sie im Export steht */
 const PAYOUT_PURPOSE = /auszahlung|abbuchung|payout|withdrawal|transfer to bank|überweisung auf (dein|ihr) bank/i;
 
-/** Muster, an dem die Gegenpartei auf der Bank den Dienstleister erkennt; null bei „sonstige“ */
-export function providerPattern(account: Pick<OwnAccount, "provider">): RegExp | null {
-  return account.provider ? PAYMENT_PROVIDERS[account.provider].pattern : null;
+/**
+ * Verwendungszweck, den Apple jeder Auszahlung des App Store mitgibt („…,PURP:DEVELOPER PROCEEDS,APPLE“). Der Absender
+ * wechselt (bis Januar 2026 „APPLE DISTRIBUTION INTL LTD“, danach „Apple Inc“), und unter „Apple Inc“ kommen auch andere
+ * Zahlungen; der Zweck bleibt. Beides aus echten Kontoauszügen (#1628).
+ */
+const APP_STORE_PAYOUT_PURPOSE = /developer\s+proceeds\W+apple/i;
+
+/** Prüft an einem Umsatz auf der Bank, ob er vom Dienstleister kommt */
+export type ProviderMatcher = (bank: { counterpartyName?: string | null; purpose?: string | null }) => boolean;
+
+/** Erkennt den Dienstleister eines Kontos auf der Bank: an der Gegenpartei, den App Store auch am Verwendungszweck; null bei „sonstige“ */
+export function providerMatcher(account: Pick<OwnAccount, "provider">): ProviderMatcher | null {
+  const pattern = account.provider ? PAYMENT_PROVIDERS[account.provider].pattern : null;
+  if (!pattern) return null;
+  const purpose = account.provider === "appstore" ? APP_STORE_PAYOUT_PURPOSE : null;
+  return (bank) => pattern.test(bank.counterpartyName ?? "") || (purpose?.test(bank.purpose ?? "") ?? false);
 }
 
 export interface DirectSuggestion {
@@ -89,7 +102,7 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
     return null;
   }
   // Auf der Bank: Gegenpartei ist ein eigener Zahlungsdienstleister (Auszahlung von PayPal, Aufladung)
-  const provider = ownAccounts.find((a) => a.purpose === "zahlungsdienstleister" && providerPattern(a)?.test(tx.counterpartyName));
+  const provider = ownAccounts.find((a) => a.purpose === "zahlungsdienstleister" && providerMatcher(a)?.(tx));
   if (provider) {
     return {
       kind: "geldtransit",
@@ -168,20 +181,18 @@ const normalizeIban = (iban: string | null | undefined) => iban?.replace(/\s/g, 
  * Eine fremde Zahlung über denselben Betrag (Erstattung, Kunde) zählt nicht.
  */
 export function findTransferCounterpart<
-  T extends { id: string; bookingDate: string; amount: Cents; open: Cents; counterpartyIban?: string | null; counterpartyName?: string },
+  T extends { id: string; bookingDate: string; amount: Cents; open: Cents; counterpartyIban?: string | null; counterpartyName?: string; purpose?: string },
 >(
   tx: { bookingDate: string; amount: Cents },
-  /** IBAN des Ausgangskontos; bei einem Zahlungsdienstleister leer, dann erkennt pattern dessen Namen auf der Bank */
+  /** IBAN des Ausgangskontos; bei einem Zahlungsdienstleister leer, dann erkennt fromProvider ihn auf der Bank */
   sourceIban: string | null,
   candidates: T[],
-  pattern: RegExp | null = null,
+  fromProvider: ProviderMatcher | null = null,
 ): T | null {
   const source = normalizeIban(sourceIban);
   const fitting = candidates.filter((c) => c.amount === -tx.amount && c.open === c.amount && daysBetween(c.bookingDate, tx.bookingDate) <= 5);
   const byDate = (a: T, b: T) => daysBetween(a.bookingDate, tx.bookingDate) - daysBetween(b.bookingDate, tx.bookingDate);
-  const withIban = fitting
-    .filter((c) => (source !== null && normalizeIban(c.counterpartyIban) === source) || pattern?.test(c.counterpartyName ?? ""))
-    .sort(byDate);
+  const withIban = fitting.filter((c) => (source !== null && normalizeIban(c.counterpartyIban) === source) || fromProvider?.(c)).sort(byDate);
   const withoutIban = fitting.filter((c) => !c.counterpartyIban).sort(byDate);
   return withIban[0] ?? withoutIban[0] ?? null;
 }

@@ -1,4 +1,4 @@
-import { formatEuro, formatRateMonth, PAYMENT_PROVIDERS } from "@haben/core";
+import { formatEuro, formatRateMonth, providerMatcher } from "@haben/core";
 import { and, asc, eq, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { allocateExchangeDifferenceIn, allocateTransferIn, BankError, storeStatement } from "../bank/index.ts";
@@ -27,19 +27,9 @@ const MAX_DIFFERENCE_SHARE = 0.1;
 /** Feste Referenzen der Monatsumsätze (stores/reports.ts) */
 const MONTHLY_REFERENCE: Record<Store, string> = { googleplay: "googleplay-earnings-%", appstore: "appstore-finance-%" };
 
-/**
- * Verwendungszweck, den Apple jeder Auszahlung des App Store mitgibt („…,PURP:DEVELOPER PROCEEDS,APPLE“). Der Absender
- * wechselt (bis Januar 2026 „APPLE DISTRIBUTION INTL LTD“, danach „Apple Inc“), und unter „Apple Inc“ kommen auch andere
- * Zahlungen; der Zweck bleibt. Beides aus echten Kontoauszügen (#1628).
- */
-const APP_STORE_PAYOUT_PURPOSE = /developer\s+proceeds\W+apple/i;
-
 /** Von welchem Store kommt ein Bankeingang, nach Gegenpartei oder (App Store) Verwendungszweck; null, wenn von keinem */
 export function storeOfInflow(counterpartyName: string, purpose: string): Store | null {
-  for (const store of ["googleplay", "appstore"] as const) {
-    if (PAYMENT_PROVIDERS[store].pattern.test(counterpartyName)) return store;
-  }
-  return APP_STORE_PAYOUT_PURPOSE.test(purpose) ? "appstore" : null;
+  return (["googleplay", "appstore"] as const).find((provider) => providerMatcher({ provider })?.({ counterpartyName, purpose })) ?? null;
 }
 
 async function storeAccount(q: typeof db | Tx, store: Store) {
