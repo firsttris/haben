@@ -256,6 +256,36 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     });
   });
 
+  it("übernimmt jedes eingebaute Layout aus dem Katalog samt Optionen (#113)", async () => {
+    await testinstanz();
+    const settings = { accent: "#1F6FEB", font: "layout", accentFromLayout: true, layouts: { rechnung: { kind: "eingebaut", id: "modern" } }, layoutOptions: { modern: { akzent: "sparsam" } } };
+    await sql`update letterhead_profiles set settings = ${JSON.stringify(settings)}::jsonb`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    const [profil] = await sql`select settings from letterhead_profiles where is_default`;
+    expect(profil!.settings).toMatchObject({ ...settings, layouts: { rechnung: { kind: "eingebaut", id: "modern" } } });
+  });
+
+  it("liest eine Datei von vor Migration 0312 wie die Migration: bisheriges Layout, bisherige Schrift, eigene Farbe (#113)", async () => {
+    await testinstanz();
+    // So stand das Profil vor 0312 in der Datenbank: eingebaut hieß „klassisch“, Schrift und accentFromLayout fehlen
+    const alt = { accent: "#1F6FEB", logoSize: "l", layouts: { rechnung: { kind: "eingebaut", id: "klassisch" }, mahnung: { kind: "eingebaut", id: "klassisch" } } };
+    await sql`update letterhead_profiles set settings = ${JSON.stringify(alt)}::jsonb`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    const [profil] = await sql`select settings from letterhead_profiles where is_default`;
+    expect(profil!.settings).toMatchObject({
+      accent: "#1F6FEB",
+      logoSize: "l",
+      font: "plex-sans",
+      accentFromLayout: false,
+      layouts: { rechnung: { kind: "eingebaut", id: "klar" }, mahnung: { kind: "eingebaut", id: "klar" } },
+      layoutOptions: { klar: { fassung: "klassisch" } },
+    });
+  });
+
   it("übernimmt ein Layout mit Paketen als freigegeben, geladen werden sie erst auf Klick; Pakete müssen zum Quelltext passen", async () => {
     await testinstanz();
     const source = `#import "@preview/cetz:0.3.4": canvas\n${startvorlage("beleg")}`;
