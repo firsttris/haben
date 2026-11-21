@@ -107,10 +107,11 @@ describe.skipIf(!testDatabaseUrl)("Privatkonto: jede Buchungsart gegen Entnahme 
 
   /** Firma im gewünschten Profil; jeder Fall beginnt bei null */
   async function firma(optionen: { rechtsform?: "einzelunternehmen" | "gmbh"; kontenrahmen?: "SKR03" | "SKR04"; versteuerung?: "ist" | "soll" } = {}) {
-    await leeren(sql)`truncate seals, write_offs, allocations, journal_lines, journal_entries, bank_transactions, bank_imports,
+    await leeren(sql)`truncate seals, audit_log, audit_chain, write_offs, allocations, journal_lines, journal_entries, bank_transactions, bank_imports,
       bank_accounts, vat_returns, loans, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts,
       document_cancellations, document_settlements, document_amounts, document_splits, documents, payslip_cancellations, payslips,
       payroll_runs, employees, company cascade`;
+    await sql`insert into audit_chain (id, seq, hash) values (1, 0, haben_audit_genesis())`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, iban, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Beispielfirma', 'Beispielstraße 1', '28195', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', ${FIRMEN_IBAN},
               ${optionen.kontenrahmen ?? "SKR03"}, ${optionen.versteuerung ?? "ist"}, ${optionen.rechtsform ?? "einzelunternehmen"})`;

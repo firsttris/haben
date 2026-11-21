@@ -115,6 +115,63 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     expect(await problems()).toEqual([]);
   });
 
+  // Datensatz und Siegel zusammen gelöscht: Keine Prüfung geht von einem Siegel oder Datensatz aus, den es nicht mehr gibt.
+  // Der Eintrag des Siegels im Audit-Log bleibt aber stehen.
+  it("meldet einen festgeschriebenen Datensatz, der samt Siegel gelöscht wurde", async () => {
+    const entry = await lockedEntry();
+    const [seal] = await sql`select id from seals where table_name = 'journal_entries' and row_id = ${entry}`;
+    const [audited] = await sql`select seq from audit_log where table_name = 'seals' and action = 'INSERT' and row_id = ${seal!.id}::text`;
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        await tx`delete from journal_lines where entry_id = ${entry}`;
+        await tx`delete from journal_entries where id = ${entry}`;
+        await tx`delete from seals where id = ${seal!.id}`;
+      });
+      return tx`select art, tabelle, zeile, seq, befund from haben_integrity_problems()`;
+    });
+    // Die Nummer ist die des Siegels in der Kette: Dort steht, was das Siegel festhielt.
+    expect(found).toEqual([{ art: "siegel", tabelle: "journal_entries", zeile: entry, seq: audited!.seq, befund: "Siegel fehlt, steht aber im Audit-Log" }]);
+  });
+
+  it("meldet ein gelöschtes Siegel am festgeschriebenen Datensatz und am Eintrag im Audit-Log", async () => {
+    const entry = await lockedEntry();
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`delete from seals where table_name = 'journal_entries' and row_id = ${entry}`);
+      return problems(tx);
+    });
+    expect(found).toEqual([
+      expect.objectContaining({ tabelle: "journal_entries", zeile: entry, befund: "Festgeschrieben, aber ohne Siegel" }),
+      { art: "siegel", tabelle: "journal_entries", zeile: entry, befund: "Siegel fehlt, steht aber im Audit-Log" },
+    ]);
+  });
+
+  // Die Prüfung zeigt je Art und Tabelle höchstens 100 Befunde und sagt erst dann „oder mehr“ (truncated in
+  // integrity.ts). Eine gemeinsame Grenze über alle Tabellen schnitte Befunde ab, ohne dass die Meldung es sagt.
+  it("zeigt Siegel ohne Eintrag im Audit-Log je Tabelle bis zur Grenze", async () => {
+    const je = 60;
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        const entries = await tx<{ id: string }[]>`insert into journal_entries (date, description, source_type, source_id, kontenrahmen, locked_at)
+          select '2026-01-10', 'Buchung ' || i, 'invoice', gen_random_uuid(), 'SKR03', now() from generate_series(1, ${je}) i returning id`;
+        const ids = entries.map((e) => e.id);
+        await tx`insert into journal_lines (entry_id, account, debit, credit)
+          select id, '1400', 11900, 0 from unnest(${ids}::uuid[]) id
+          union all select id, '8400', 0, 11900 from unnest(${ids}::uuid[]) id`;
+        const cash = await tx<{ id: string }[]>`insert into cash_entries (number, date, amount, kind, text)
+          select 100000 + i, '2026-03-01', 100, 'einlage', 'Einlage ' || i from generate_series(1, ${je}) i returning id`;
+        // Passende Siegel wie von haben_seal, aber ohne Eintrag im Audit-Log
+        await tx`insert into seals (table_name, row_id, columns, digest)
+          select t.name, t.id, haben_seal_columns(t.name), haben_seal_digest(t.name, t.id, haben_seal_columns(t.name))
+            from (select 'journal_entries' as name, unnest(${ids}::uuid[]) as id
+                  union all select 'cash_entries', unnest(${cash.map((c) => c.id)}::uuid[])) t`;
+      });
+      return problems(tx);
+    });
+    const count = (tabelle: string) => found.filter((p) => p.tabelle === tabelle && p.befund === "Siegel fehlt im Audit-Log").length;
+    expect({ journal_entries: count("journal_entries"), cash_entries: count("cash_entries") }).toEqual({ journal_entries: je, cash_entries: je });
+    expect(found).toHaveLength(2 * je);
+  });
+
   it("erkennt geänderte Buchungszeilen, Positionen und Steuerbeträge", async () => {
     const entry = await lockedEntry();
     const invoice = await lockedInvoice();
