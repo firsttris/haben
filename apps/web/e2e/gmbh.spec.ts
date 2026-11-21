@@ -1216,6 +1216,20 @@ test("BWA der GmbH nach DATEV-Form 01: Forderungsverlust neutral, Zeile bis zum 
   await expect(tabelle.getByRole("rowheader", { name: "Vorläufiges Ergebnis" })).toBeVisible();
   await expect(tabelle.getByRole("rowheader", { name: "Gewinn laut EÜR" })).toHaveCount(0);
 
+  // Anteil (#1635): Kostenarten in % der Gesamtkosten, Ergebnisse ohne; Kennzahlen in % der Gesamtleistung
+  await expect(tabelle.locator("thead th").nth(2)).toHaveText("Anteil");
+  const anteil = (zeile: string) =>
+    tabelle
+      .locator("tbody tr")
+      .filter({ has: page.getByRole("rowheader", { name: zeile, exact: true }) })
+      .locator("td")
+      .nth(1);
+  await expect(anteil("Gesamtkosten")).toHaveText("100,0\u00a0%");
+  await expect(anteil("Vorläufiges Ergebnis")).toHaveText("–");
+  const kennzahlen = page.getByRole("region", { name: "Kennzahlen" });
+  await expect(kennzahlen.getByText("Rohertragsquote", { exact: true })).toBeVisible();
+  await expect(kennzahlen.getByText("Vorläufiges Ergebnis in % der Gesamtleistung")).toBeVisible();
+
   // Leere Zeilen anzeigen: alle Zeilen der Form 01, Summen und Ergebnis stehen ohnehin
   const zeilen = tabelle.locator("tbody tr");
   await expect(zeilen).not.toHaveCount(FORM01.length);

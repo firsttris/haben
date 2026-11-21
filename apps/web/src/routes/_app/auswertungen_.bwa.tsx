@@ -14,6 +14,7 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { z } from "zod/mini";
 import { BwaKonten, Form01Hinweis } from "../../components/BwaForm01.tsx";
+import { BwaKennzahlen } from "../../components/BwaKennzahlen.tsx";
 import { BwaTabelle, zeitraumText } from "../../components/BwaTabelle.tsx";
 import { BwaWarum } from "../../components/BwaWarum.tsx";
 import { Field } from "../../components/Field.tsx";
@@ -121,6 +122,7 @@ function BwaPage() {
             : ", Restbuchwerte und die Privatnutzung von Fahrzeugen; die EÜR rechnet sie schon aus dem Anlagenverzeichnis, ihr Gewinn weicht deshalb ab."}
         </div>
       )}
+      <BwaKennzahlen bericht={bericht} />
       {bericht.kapitalgesellschaft ? (
         <>
           <BwaTabelle
