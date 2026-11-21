@@ -7,8 +7,9 @@ import { checkTriggerIntegrity } from "./trigger-inventory.ts";
 
 /*
  * Zeilensicherheit (Row Level Security): Der Eigentümer einer Tabelle kann sie einschalten und mit einer Policy Zeilen vor
- * anderen Rollen verbergen, auch vor der App-Anmeldung. Ein festgeschriebener Datensatz samt Siegel verschwände so aus App
- * und Prüfung. Haben selbst nutzt keine Zeilensicherheit; der Sollbestand nennt, was eine frische Installation hat.
+ * anderen Rollen verbergen, auch vor der App-Anmeldung. Ein festgeschriebener Datensatz samt Siegel verschwände so aus der
+ * App und aus den Prüfungen, die von Datensätzen oder Siegeln ausgehen. Haben selbst nutzt keine Zeilensicherheit; der
+ * Sollbestand nennt, was eine frische Installation hat.
  * https://www.postgresql.org/docs/18/ddl-rowsecurity.html
  */
 describe.skipIf(!testDatabaseUrl)("Zeilensicherheit im Sollbestand (Postgres)", () => {
@@ -46,7 +47,9 @@ describe.skipIf(!testDatabaseUrl)("Zeilensicherheit im Sollbestand (Postgres)", 
     });
   });
 
-  // Der Fall aus der Meldung: Für eine Rolle ohne Eigentum an den Tabellen verschwinden Voranmeldung und Siegel
+  // Der Fall aus der Meldung: Für eine Rolle ohne Eigentum an den Tabellen verschwinden Voranmeldung und Siegel. Zwei Prüfungen
+  // schlagen an: Der Sollbestand meldet die Zeilensicherheit, und weil das Audit-Log sichtbar bleibt, meldet
+  // haben_integrity_problems das Siegel, das dort steht, aber fehlt (0311).
   it("meldet Zeilensicherheit, die eine festgeschriebene Voranmeldung samt Siegel vor der prüfenden Rolle verbirgt", async () => {
     await rolledBack(async (tx) => {
       await tx.execute(query`insert into company (id, name) values (1, 'Probe') on conflict (id) do nothing`);
@@ -64,7 +67,9 @@ describe.skipIf(!testDatabaseUrl)("Zeilensicherheit im Sollbestand (Postgres)", 
       await tx.execute(query.raw(`create policy verbergen on public.seals using (row_id <> '${id}')`));
       await tx.execute(query`set local role probe_pruefung`);
       expect(await tx.execute(query`select count(*)::integer as n from vat_returns where id = ${id}`)).toEqual([{ n: 0 }]);
-      expect(await tx.execute(query`select art, tabelle, befund from haben_integrity_problems()`)).toEqual([]);
+      expect(await tx.execute(query`select art, tabelle, zeile, befund from haben_integrity_problems()`)).toEqual([
+        { art: "siegel", tabelle: "vat_returns", zeile: id, befund: "Siegel fehlt, steht aber im Audit-Log" },
+      ]);
       expect((await checkTriggerIntegrity(tx)).problems).toEqual([
         befund("seals", "Zeilensicherheit auf seals eingeschaltet"),
         befund("seals", "Policy verbergen auf seals angelegt"),
