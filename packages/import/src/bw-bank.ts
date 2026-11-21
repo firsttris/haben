@@ -28,13 +28,13 @@ export function isBwBankHeader(c: Columns): boolean {
 
 const TAGS = /(EREF|KREF|MREF|CRED|SVWZ|ABWA|ABWE|IBAN|BIC)\+/;
 
-/** Felder „EREF+…“ aus dem Verwendungszweck der älteren Fassung; ohne Felder bleibt der Text, wie er ist */
+/** Felder „EREF+…“ aus dem Verwendungszweck der älteren Fassung; ohne Felder oder ohne „SVWZ+“ bleibt der Text, wie er ist */
 function splitPurpose(text: string): { purpose: string; fields: Map<string, string> } {
   const parts = text.split(TAGS);
   if (parts.length < 3 || parts[0] !== "") return { purpose: normalizeText(text), fields: new Map() };
   const fields = new Map<string, string>();
   for (let i = 1; i + 1 < parts.length; i += 2) if (!fields.has(parts[i]!)) fields.set(parts[i]!, parts[i + 1]!.trim());
-  return { purpose: normalizeText(fields.get("SVWZ") ?? ""), fields };
+  return { purpose: normalizeText(fields.get("SVWZ") ?? text), fields };
 }
 
 function counterpartyIban(value: string, own: string | undefined): string | undefined {
