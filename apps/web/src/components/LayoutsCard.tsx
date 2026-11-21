@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { BUILTIN_LAYOUTS, type LayoutDocumentType, type LayoutRef, type LetterheadDesign } from "@haben/core";
+import { BUILTIN_LAYOUTS, type LetterheadDesign } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { LayoutOptionsSections } from "./LayoutOptionFields.tsx";
@@ -48,8 +48,6 @@ function PackageDialog({ packages, onConfirm, onClose }: { packages: string[] | 
 }
 
 const ART_LABEL = { beleg: "Belege", mahnung: "Mahnungen" } as const;
-const _artFor = (type: LayoutDocumentType) => (type === "mahnung" ? "mahnung" : "beleg");
-const _refValue = (ref: LayoutRef) => `${ref.kind}:${ref.id}`;
 const DOWNLOAD = "/api/belegvorlagen";
 export const LAYOUTS_DOCS = "https://haben.app/belegvorlagen.html";
 
