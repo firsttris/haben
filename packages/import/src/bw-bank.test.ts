@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { detectStatementFormat, parseStatement } from "./parse.ts";
 
 const lies = (name: string) => new Uint8Array(readFileSync(join(import.meta.dirname, "..", "test-fixtures", name)));
+const ersetzt = (name: string, von: string, nach: string) => new TextEncoder().encode(new TextDecoder("windows-1252").decode(lies(name)).replace(von, nach));
 
 describe("BW-Bank-CSV (CSV-CAMT)", () => {
   const auszug = parseStatement(lies("bw-bank-camt.csv"), "20261115-umsatz.csv");
@@ -40,6 +41,11 @@ describe("BW-Bank-CSV (CSV-CAMT)", () => {
     expect(t[1]?.endToEndId).toBeUndefined();
     expect(t[2]?.counterpartyIban).toBeUndefined();
   });
+
+  it("lehnt eine Datei mit Umsätzen mehrerer Konten ab", () => {
+    const zwei = ersetzt("bw-bank-camt.csv", '"DE02120300000000202051";"12.11.26"', '"DE75512108001245126199";"12.11.26"');
+    expect(() => parseStatement(zwei)).toThrow(/mehrerer Konten/);
+  });
 });
 
 describe("BW-Bank-CSV (CSV-MT940)", () => {
@@ -60,5 +66,10 @@ describe("BW-Bank-CSV (CSV-MT940)", () => {
 
   it("lässt einen Zweck ohne Felder, wie er ist", () => {
     expect(t[1]?.purpose).toBe("Rechnung 2026-034 Müller & Söhne");
+  });
+
+  it("behält den ganzen Zweck, wenn Felder ohne SVWZ+ darin stehen", () => {
+    const s = parseStatement(ersetzt("bw-bank-mt940.csv", '"Rechnung 2026-034 Müller & Söhne";"Müller', '"EREF+2026-034 Müller & Söhne";"Müller'));
+    expect(s.transactions[1]).toMatchObject({ endToEndId: "2026-034 Müller & Söhne", purpose: "EREF+2026-034 Müller & Söhne" });
   });
 });
