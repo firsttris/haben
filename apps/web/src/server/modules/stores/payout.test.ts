@@ -185,6 +185,33 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Auszahlung der App-Stores ($konte
     );
   });
 
+  it("App Store: erkennt die Auszahlung am Verwendungszweck, auch vom Absender „Apple Inc“ (#1628)", async () => {
+    // Namen und Verwendungszweck aus echten Kontoauszügen (CAMT.053), Referenznummern erfunden
+    const proceeds = (n: number) => `CCI : 030000000${n},PURP:DEVELOPER PROCEEDS,APPLE`;
+    const [account] = await sql`select id from bank_accounts where iban = ${IBAN}`;
+    await put(account!.id, {
+      format: "camt053",
+      accountIban: IBAN,
+      transactions: [
+        { ...tx("2026-12-10", 400, "APPLE DISTRIBUTION INTL LTD", "bank-apple-intl", 10), purpose: proceeds(1) },
+        { ...tx("2026-12-11", 400, "APPLE DISTRIBUTION INTL LTD 062", "bank-apple-intl-062", 11), purpose: proceeds(2) },
+        { ...tx("2026-12-12", 400, "Apple Inc", "bank-apple-inc", 12), purpose: proceeds(3) },
+        // „Apple Inc“ schickt auch anderes, etwa die Erstattung einer Bestellung
+        { ...tx("2026-12-13", 400, "Apple Inc", "bank-apple-erstattung", 13), purpose: "Erstattung Bestellung W000000001" },
+      ],
+    });
+    for (const reference of ["bank-apple-intl", "bank-apple-intl-062", "bank-apple-inc"]) {
+      expect(await stores.storePayoutView(await idOf(reference)), reference).toMatchObject({ store: "appstore", accountName: "App Store" });
+    }
+    expect(await stores.storePayoutView(await idOf("bank-apple-erstattung"))).toBeNull();
+    // Auch die Übernahme nimmt den Eingang als den des App Store an und scheitert erst am schon bezahlten Monat
+    const paid = await idOf("appstore-finance-2026-09-EUR");
+    await expect(stores.takeOverStorePayout(actor, { transactionId: await idOf("bank-apple-inc"), monthIds: [paid] })).rejects.toThrow(/schon ausgezahlt/);
+    await expect(stores.takeOverStorePayout(actor, { transactionId: await idOf("bank-apple-erstattung"), monthIds: [paid] })).rejects.toThrow(
+      /kein Eingang von Google Play oder App Store/,
+    );
+  });
+
   it("hält die Auszahlungen unveränderlich", async () => {
     await expect(sql`delete from store_payouts`).rejects.toThrow();
     const [count] = await sql`select count(*)::int as n from store_payouts`;
