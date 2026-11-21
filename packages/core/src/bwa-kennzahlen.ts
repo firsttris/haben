@@ -11,8 +11,7 @@ import { roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts"
 
 export type BwaForm = "form43" | "form01";
 
-type Schluessel<F extends BwaForm> = F extends "form43" ? Form43Zeile | Form43Summe : Form01Zeile | Form01Summe;
-type Werte<F extends BwaForm> = F extends "form43" ? Form43Werte : Form01Werte;
+type BwaWerte = Form43Werte | Form01Werte;
 
 const LEISTUNG_01: readonly Form01Zeile[] = ["umsatzerloese", "bestandsveraenderungen", "eigenleistungen", "material", "sonstigeErloese"];
 const KOSTEN_01: readonly Form01Zeile[] = [
@@ -43,7 +42,7 @@ const KOSTEN_43: readonly Form43Zeile[] = [
 ];
 
 /** Bezugsgröße je Zeile; was fehlt, hat keinen Anteil */
-const BASIS: { [F in BwaForm]: Partial<Record<Schluessel<F>, Schluessel<F>>> } = {
+const BASIS: { form01: Partial<Record<Form01Zeile | Form01Summe, Form01Summe>>; form43: Partial<Record<Form43Zeile | Form43Summe, Form43Summe>> } = {
   form01: {
     ...Object.fromEntries(LEISTUNG_01.map((z) => [z, "gesamtleistung"])),
     // „Betrieblicher Rohertrag“ steht in der Musterauswertung wie der Rohertrag in % der Gesamtleistung
@@ -66,15 +65,15 @@ const BASIS: { [F in BwaForm]: Partial<Record<Schluessel<F>, Schluessel<F>>> } =
 const quote = (zaehler: Cents, nenner: Cents): BasisPoints | null => (nenner > 0 ? roundHalfAwayFromZero((zaehler * 10_000) / nenner) : null);
 
 /** Die Zeile, auf die sich der Anteil einer Zeile bezieht; null ohne Anteil */
-export function anteilBasis<F extends BwaForm>(form: F, key: Schluessel<F>): Schluessel<F> | null {
-  return (BASIS[form] as Partial<Record<Schluessel<F>, Schluessel<F>>>)[key] ?? null;
+export function anteilBasis(form: BwaForm, key: string): string | null {
+  return (BASIS[form] as Partial<Record<string, string>>)[key] ?? null;
 }
 
 /** Anteil einer Zeile an ihrer Bezugsgröße in Basispunkten (10000 = 100 %) */
-export function anteil<F extends BwaForm>(form: F, werte: Werte<F>, key: Schluessel<F>): BasisPoints | null {
+export function anteil(form: BwaForm, werte: BwaWerte, key: string): BasisPoints | null {
   const basis = anteilBasis(form, key);
-  const w = werte as Record<Schluessel<F>, Cents>;
-  return basis === null ? null : quote(w[key], w[basis]);
+  const w = werte as Readonly<Record<string, Cents>>;
+  return basis === null ? null : quote(w[key] ?? 0, w[basis] ?? 0);
 }
 
 export type BwaKennzahlKey = "rohertragsquote" | "personalkostenquote" | "kostenquote" | "umsatzrendite" | "aufschlag";
@@ -104,7 +103,7 @@ const kennzahl = (key: BwaKennzahlKey, erklaerung: string, wert: BasisPoints | n
  * Umsatzrendite netto ohne Umsatz- und Vorsteuer, die im Monat mit den Zahlungen an das Finanzamt schwanken (DATEV rechnet
  * das Ergebnis brutto in % der Betriebseinnahmen).
  */
-export function kennzahlen<F extends BwaForm>(form: F, werte: Werte<F>): BwaKennzahl[] {
+export function kennzahlen(form: BwaForm, werte: BwaWerte): BwaKennzahl[] {
   if (form === "form01") {
     const w = werte as Form01Werte;
     const g = w.gesamtleistung;

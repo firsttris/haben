@@ -14,6 +14,19 @@ function dkbCsv(rows: string[][]) {
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
+const KOSTEN_43 = [
+  "material",
+  "fremdleistungen",
+  "personal",
+  "raum",
+  "steuernVersicherungenBeitraege",
+  "kfz",
+  "werbeReise",
+  "warenabgabe",
+  "instandhaltung",
+  "abschreibungen",
+  "verschiedeneKosten",
+];
 const umsatz = (date: string, purpose: string, amount: string) => [
   date,
   date,
@@ -183,6 +196,35 @@ describe.skipIf(!testDatabaseUrl)("BWA nach Zufluss und Abfluss (Postgres, #1380
         expect(zeile(februar, "werbeReise").betrag).toBe(10_000);
         expect(zeile(februar, "nichtAbziehbar").betrag).toBe(3_000);
         expect(zeile(februar, "werbeReise").vergleich).toBe(0);
+
+        // Anteile (#1635): Erlöse in % der Summe der Erlöse, Kosten in % der Summe der Kosten, je Block zusammen 100 %
+        const jahr2027 = await bwa.bwaBericht(bwaZeitraum("jahr", 2027), "vorjahr");
+        const anteile = (keys: string[]) => keys.map((k) => zeile(jahr2027, k).anteil);
+        expect(anteile(["erloese", "summeErloese", "instandhaltung", "werbeReise", "summeKosten"])).toEqual([10000, 10000, 6667, 3333, 10000]);
+        expect(anteile(["umsatzsteuer", "summeEinnahmen", "vorsteuer", "summeAusgaben", "ergebnis", "nichtAbziehbar", "gewinnEuer"])).toEqual(
+          Array(7).fill(null),
+        );
+        const kostenzeilen = jahr2027.zeilen.filter((z) => KOSTEN_43.includes(z.key));
+        expect(Math.abs(kostenzeilen.reduce((s, z) => s + (z.anteil ?? 0), 0) - 10000)).toBeLessThanOrEqual(kostenzeilen.length);
+        // Über das Jahr ist kumuliert der Zeitraum
+        expect(jahr2027.zeilen.map((z) => z.anteilKumuliert)).toEqual(jahr2027.zeilen.map((z) => z.anteil));
+
+        // Kennzahlen für Zeitraum, Vergleich und kumuliert, in % der Erlöse
+        const quote = (z: number, n: number) => Math.sign(z) * Math.round(Math.abs(z * 10_000) / n);
+        const erloese2027 = zeile(jahr2027, "summeErloese").betrag;
+        expect(jahr2027.kennzahlen.zeitraum.map((k) => [k.key, k.wert])).toEqual([
+          ["rohertragsquote", 10000],
+          ["personalkostenquote", 0],
+          ["kostenquote", quote(30_000, erloese2027)],
+          ["umsatzrendite", quote(erloese2027 - 30_000, erloese2027)],
+        ]);
+        expect(jahr2027.kennzahlen.kumuliert).toEqual(jahr2027.kennzahlen.zeitraum);
+        const erloese2026 = zeile(jahr2027, "summeErloese").vergleich!;
+        expect(jahr2027.kennzahlen.vergleich?.find((k) => k.key === "umsatzrendite")?.wert).toBe(quote(erloese2026, erloese2026));
+        expect(jahr2027.kennzahlen.vergleichKumuliert).toEqual(jahr2027.kennzahlen.vergleich);
+        expect(februar.kennzahlen.vergleichKumuliert).toBeNull();
+        // Februar 2027 ohne Erlöse: Kennzahlen ohne Wert
+        expect(februar.kennzahlen.zeitraum.map((k) => k.wert)).toEqual([null, null, null, null]);
 
         // Drilldown: die Erlöse des Januars führen zur Rechnung, mit Nummer und Kunde
         const details = await bwa.bwaZeileDetails(bwaZeitraum("monat", 2027, 1), "erloese");
