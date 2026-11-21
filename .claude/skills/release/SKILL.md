@@ -55,14 +55,14 @@ Neue Migrationen: `git diff --name-only --diff-filter=A <letzter-tag>..origin/ma
       n = split($0, z, "\n"); drin = 0; text = ""
       for (i = 2; i <= n; i++) {
         if (z[i] ~ /^## Für das Release/) { drin = 1; continue }
-        if (drin && z[i] ~ /^(## |🤖|---|Co-authored-by:)/) break
+        if (drin && z[i] ~ /^(## |🤖|---|[Cc]o-[Aa]uthored-[Bb]y:)/) break
         if (drin) text = text z[i] "\n"
       }
       print "### " z[1] "\n" text
     }' > hinweise.md
   ```
 
-  Der Abschnitt endet an der nächsten Überschrift `##`, an „🤖 Generated with …“ oder an den `Co-authored-by:`-Zeilen. Was nur für Entwickler gilt, streichen; Zeilenumbrüche mitten im Satz zusammenziehen.
+  Der Abschnitt endet an der nächsten Überschrift `##`, an „🤖 Generated with …“ oder an den Zeilen `Co-authored-by:` (auch groß geschrieben) und der Trennlinie `---------` davor. Was nur für Entwickler gilt, streichen; Zeilenumbrüche mitten im Satz zusammenziehen.
 
 ## 4. Vorschlag an den Maintainer
 
