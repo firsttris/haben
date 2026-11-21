@@ -40,6 +40,13 @@ export function finish(statement: ParsedStatement): ParsedStatement {
   return statement;
 }
 
+/** Die eine eigene IBAN einer Datei; nennt sie Umsätze mehrerer Konten, lehnt Haben sie ab. */
+export function accountIbanOf(ibans: (string | undefined)[]): string | undefined {
+  const distinct = new Set(ibans.filter((iban): iban is string => iban !== undefined));
+  if (distinct.size > 1) throw new StatementParseError("Die CSV-Datei enthält Umsätze mehrerer Konten. Bitte je Konto eine Datei hochladen.");
+  return [...distinct][0];
+}
+
 export function pendingWarning(count: number): string[] {
   if (count === 0) return [];
   return [count === 1 ? "1 vorgemerkter Umsatz wurde übersprungen." : `${count} vorgemerkte Umsätze wurden übersprungen.`];
