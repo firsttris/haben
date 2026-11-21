@@ -67,6 +67,20 @@ describe("withDedupHashes", () => {
     expect(bekannt.has(andere[4]!.dedupHash)).toBe(false);
   });
 
+  it("erkennt dieselben Deutsche-Bank-Gruppe-Umsätze in überlappenden Exporten", () => {
+    const text = new TextDecoder().decode(fixture("deutsche-bank-group.csv"));
+    const zeilen = text.trimEnd().split("\n");
+    const [kopf, daten, fuss] = [zeilen.slice(0, 8), zeilen.slice(8, -1), zeilen.at(-1)!];
+    // Zweiter Export: der jüngste Umsatz (Entgelt 30.09.) fehlt, ein neuer ist dazugekommen
+    const neuer = `29.9.2026;29.9.2026;SEPA Überweisung;Beispiel AG;Rechnung 2026-020;DE02120300000000202051;BYLADEM1001;2026-020;;;;250;;;;;250;EUR`;
+    const zweiter = new TextEncoder().encode([...kopf, ...daten.slice(0, -1), neuer, fuss].join("\n"));
+    const erste = withDedupHashes(parseStatement(fixture("deutsche-bank-group.csv")).transactions);
+    const andere = withDedupHashes(parseStatement(zweiter).transactions);
+    const bekannt = new Set(erste.map((t) => t.dedupHash));
+    expect(andere.filter((t) => bekannt.has(t.dedupHash)).map((t) => t.index)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(bekannt.has(andere[6]!.dedupHash)).toBe(false);
+  });
+
   it("erkennt dieselben Umsätze in CSV und CAMT der gleichen Bank", () => {
     const camt = withDedupHashes(parseStatement(fixture("camt053-001-02.xml")).transactions);
     const altHashes = new Set(alt.map((t) => t.dedupHash));

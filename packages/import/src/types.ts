@@ -12,6 +12,8 @@ export type StatementFormat =
   | "ing-csv"
   /** Umsätze eines Kontos oder einer Pocket bei C24 (Komma-CSV ohne IBAN und Kontostand) */
   | "c24-csv"
+  /** Umsätze aus dem Online-Banking der Deutschen Bank, Norisbank und Postbank (Semikolon-CSV mit Kopfblock) */
+  | "deutsche-bank-group-csv"
   /** Unbekannte Bank-CSV, Spalten von Hand zugeordnet (#1275) */
   | "csv-zuordnung"
   | "camt053"
