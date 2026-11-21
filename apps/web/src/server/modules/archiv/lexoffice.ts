@@ -353,18 +353,20 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
 }
 
 type DateiEintrag = { role: "pdf" | "xml" | "anhang"; lexofficeFileId: string | null; file: LexFile };
-type OffeneDatei = { voucherId: string; number: string; role: "pdf" | "xml" | "anhang"; fileId: string };
+type OffeneDatei = { voucherId: string; number: string; type: string; role: "pdf" | "xml" | "anhang"; fileId: string | null };
 
 /**
- * Belege, deren jüngster Dateistand „Abruf fehlgeschlagen“ ist und die die Kennung der fehlenden Datei nennt. Ein
- * späterer Lauf holt sie nach, statt den Beleg dauerhaft mit offenem Punkt stehen zu lassen (#1504). PDF und XML der
- * Rechnung tragen keine Kennung; sie kommen nur mit dem Beleg selbst und bleiben davon unberührt.
+ * Belege mit einer offenen Datei, je Datei der jüngste Stand. Der Stand nennt Rolle und Kennung in der Quelle; offen ist
+ * eine Datei, solange kein späterer Stand genau diese Rolle und Kennung ablöst. Ein späterer Lauf holt deshalb jede
+ * offene Datei nach und nicht nur eine je Beleg (#1504, #1624). PDF und XML der Rechnung tragen keine Kennung; sie
+ * kommen nur mit dem Beleg selbst und stehen deshalb mit leerer Kennung da.
  */
 async function offeneDateien(): Promise<Map<string, OffeneDatei[]>> {
   const rows = await db
-    .selectDistinctOn([schema.legacyFileStates.voucherId], {
+    .selectDistinctOn([schema.legacyFileStates.voucherId, schema.legacyFileStates.role, schema.legacyFileStates.sourceFileId], {
       lexofficeId: schema.lexofficeVouchers.lexofficeId,
       number: schema.lexofficeVouchers.number,
+      type: schema.lexofficeVouchers.type,
       voucherId: schema.legacyFileStates.voucherId,
       role: schema.legacyFileStates.role,
       fileId: schema.legacyFileStates.sourceFileId,
@@ -373,18 +375,24 @@ async function offeneDateien(): Promise<Map<string, OffeneDatei[]>> {
     .from(schema.legacyFileStates)
     .innerJoin(schema.lexofficeVouchers, eq(schema.lexofficeVouchers.id, schema.legacyFileStates.voucherId))
     .where(eq(schema.lexofficeVouchers.source, "lexoffice"))
-    .orderBy(schema.legacyFileStates.voucherId, desc(schema.legacyFileStates.createdAt), desc(schema.legacyFileStates.id));
+    .orderBy(
+      schema.legacyFileStates.voucherId,
+      schema.legacyFileStates.role,
+      schema.legacyFileStates.sourceFileId,
+      desc(schema.legacyFileStates.createdAt),
+      desc(schema.legacyFileStates.id),
+    );
   const out = new Map<string, OffeneDatei[]>();
   for (const row of rows) {
-    if (row.state !== "abruf_fehlgeschlagen" || !row.fileId || !row.role) continue;
+    if (row.state !== "abruf_fehlgeschlagen" || !row.role) continue;
     const liste = out.get(row.lexofficeId) ?? [];
-    liste.push({ voucherId: row.voucherId, number: row.number, role: row.role, fileId: row.fileId });
+    liste.push({ voucherId: row.voucherId, number: row.number, type: row.type, role: row.role, fileId: row.fileId });
     out.set(row.lexofficeId, liste);
   }
   return out;
 }
 
-/** Holt die fehlenden Dateien eines früheren Belegs nach; true, wenn mindestens eine ankam */
+/** Holt die offenen Dateien eines früheren Belegs nach; true, wenn mindestens eine ankam */
 async function nachladenDateien(
   actor: string,
   importId: string,
@@ -392,13 +400,23 @@ async function nachladenDateien(
   item: { id: string; type: string },
   offen: OffeneDatei[],
 ): Promise<boolean> {
+  // Das PDF und ein XML der Rechnung hängen nicht an einer Kennung; sie kommen über den Beleg selbst
+  const salesType = isSalesType(item.type) ? item.type : null;
+  const anfragen: (readonly ["pdf" | "xml" | "anhang", string | null, () => Promise<LexFile | null>])[] = [];
+  for (const eintrag of offen) {
+    if (eintrag.role === "anhang") {
+      const fileId = eintrag.fileId;
+      if (fileId !== null) anfragen.push(["anhang", fileId, () => client.file(fileId)]);
+      continue;
+    }
+    if (salesType === null) continue;
+    const role = eintrag.role;
+    anfragen.push([role, null, () => (role === "pdf" ? client.salesDocumentPdf(salesType, item.id) : client.salesDocumentXml(salesType, item.id))]);
+  }
+  if (anfragen.length === 0) return false;
   const files: DateiEintrag[] = [];
   const weiterhin: FehlendeDatei[] = [];
-  await ladeDateien(
-    files,
-    weiterhin,
-    offen.map((e) => [e.role, e.fileId, () => client.file(e.fileId)] as const),
-  );
+  await ladeDateien(files, weiterhin, anfragen);
   if (files.length === 0) return false;
   const voucherId = offen[0]!.voucherId;
   const number = offen[0]!.number || item.id;
@@ -414,13 +432,18 @@ async function nachladenDateien(
         bytes: entry.file.bytes,
       })),
     );
-    await recordFileState(
-      tx,
-      voucherId,
-      { state: "nachgeladen", role: null, sourceFileId: null, message: "Datei aus einer späteren Sicherung nachgeladen." },
-      { actor, importId },
-    );
+    // Ein Stand je Datei mit Rolle und Kennung: er löst genau diese Datei und trägt den Zeitpunkt für „(nachgeladen)“ (#1624)
+    for (const entry of files)
+      await recordFileState(
+        tx,
+        voucherId,
+        { state: "nachgeladen", role: entry.role, sourceFileId: entry.lexofficeFileId, message: "Datei aus einer späteren Sicherung nachgeladen." },
+        { actor, importId },
+      );
   });
+  // Was weiterhin fehlt, wird danach in einem eigenen Schritt vermerkt: mit dem jüngeren Zeitstempel bleibt der Beleg
+  // offen, auch wenn eine der Dateien ankam (#1624)
+  if (weiterhin.length > 0) await withActor(actor, (tx) => vermerkeFehlendeDateien(tx, voucherId, weiterhin, { actor, importId }));
   return true;
 }
 /** Eine Datei, die der Beleg führt und die nicht kommt; sie wird am Beleg vermerkt, nicht als Grund, ihn wegzulassen (#1504) */
