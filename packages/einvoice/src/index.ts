@@ -31,7 +31,7 @@ export {
 export { layoutAnleitung, TYPST_VERSION } from "./layout-anleitung.ts";
 export { fehlendeAngaben, ungenutztePflichtfelder } from "./layout-pflicht.ts";
 export { type GestaltungsHinweis, gestaltungsHinweise, type LayoutJeBeleg, ungenutzteGestaltung } from "./layout-gestaltung.ts";
-export { startvorlage, vorlageAlsDatei } from "./layout-startvorlage.ts";
+export { eingebautesLayoutAlsDatei, startvorlage, varianteName, vorlageAlsDatei } from "./layout-startvorlage.ts";
 export { buildQuoteDraftPdf, buildQuotePdf, quotePdfData, type QuoteDocument, type QuoteDocumentLine } from "./quote.ts";
 export { buildConfirmationPdf, buildDeliveryNotePdf, confirmationPdfData, deliveryNotePdfData, type DeliveryNoteDocument } from "./order.ts";
 export { buildSteuerbescheinigungPdf, steuerbescheinigungPdfData, type SteuerbescheinigungDocument } from "./steuerbescheinigung.ts";

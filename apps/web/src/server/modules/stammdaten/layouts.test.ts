@@ -1,10 +1,10 @@
-import { LAYOUT_DOCUMENT_TYPES } from "@haben/core";
+import { EINGEBAUTE_LAYOUTS, LAYOUT_DOCUMENT_TYPES, layoutOptionen } from "@haben/core";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dunningAmounts } from "@haben/core";
-import { buildDeliveryNotePdf, buildDunningPdf, buildEInvoice, LAYOUT_PFLICHTFELDER, startvorlage } from "@haben/einvoice";
+import { buildDeliveryNotePdf, buildDunningPdf, buildEInvoice, eingebautesLayoutAlsDatei, LAYOUT_PFLICHTFELDER, startvorlage } from "@haben/einvoice";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { gmbhSeller, sampleBuyer, sampleDocument, sampleSeller } from "../../../../../../packages/einvoice/src/samples.ts";
@@ -237,6 +237,28 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     await expect(anlegen({ name: "Ohne Hinweis", art: "beleg", source: ohne })).rejects.toThrow(/verwendet diese Pflichtfelder nicht: taxNote/);
     expect(await sql`select 1 from beleg_layouts`).toHaveLength(0);
   });
+
+  // Jede Variante, die die Gestaltung anbieten kann; dass sie dasselbe setzt wie das eingebaute, prüft layout-startvorlage.test.ts
+  const varianten = EINGEBAUTE_LAYOUTS.flatMap((layout) => {
+    let kombinationen: Record<string, string>[] = [{}];
+    for (const option of layout.optionen)
+      kombinationen = kombinationen.flatMap((bisher) => option.werte.map((wert) => layoutOptionen(layout, { ...bisher, [option.id]: wert.id })));
+    const eindeutig = [...new Map(kombinationen.map((k) => [JSON.stringify(k), k])).values()];
+    return eindeutig.map((optionen) => [`${layout.name} ${JSON.stringify(optionen)}`, layout, optionen] as const);
+  });
+
+  it.each(varianten)(
+    "ein heruntergeladenes eingebautes Layout besteht die Prüfung beim Hochladen und setzt Beleg und Mahnung: %s",
+    async (_name, layout, optionen) => {
+      for (const art of ["beleg", "mahnung"] as const) {
+        const { dateiname, inhalt } = eingebautesLayoutAlsDatei(layout, optionen, art);
+        const { id } = await anlegen({ name: dateiname, art, source: inhalt });
+        const [row] = await sql`select source from beleg_layouts where id = ${id}`;
+        expect(row?.source).toBe(inhalt);
+      }
+    },
+    120_000,
+  );
 
   it("verlangt eindeutige Namen", async () => {
     await anlegen({ name: "Doppelt", art: "mahnung", source: eigene("mahnung") });
