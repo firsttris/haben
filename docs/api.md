@@ -18,6 +18,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | --- | --- |
 | Kontakte | auflisten und suchen, lesen, anlegen, ändern (nicht löschen: Kontakte sind versioniert) |
 | Rechnungen | alle lesen, auch festgeschriebene; Entwürfe anlegen, ändern und löschen, solange sie Entwurf sind |
+| Wiederkehrende Rechnungen | [Vorlagen anlegen](#wiederkehrende-rechnungen) |
 | Angebote | alle lesen, auch festgeschriebene, mit der Antwort des Kunden und der Rechnung daraus |
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
 | Artikel | Katalogartikel auflisten, suchen, lesen, anlegen und ändern |
@@ -40,6 +41,7 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `kontakte:schreiben` | dazu `POST /kontakte`, `PATCH /kontakte/{id}` |
 | `rechnungen:lesen` | `GET /rechnungen`, `GET /rechnungen/{id}` |
 | `rechnungen:entwuerfe` | dazu `POST /rechnungen`, `PATCH /rechnungen/{id}`, `DELETE /rechnungen/{id}` |
+| `rechnungen:vorlagen-anlegen` | `POST /rechnungen/wiederkehrend` |
 | `angebote:lesen` | `GET /angebote`, `GET /angebote/{id}` |
 | `belege:lesen` | `GET /belege`, `GET /belege/{id}` |
 | `belege:anlegen` | dazu `POST /belege` |
@@ -50,7 +52,7 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `bank:importieren` | `GET /bankquellen`, `POST /bankimporte` |
 | `haben:lesen` | nur die Werkzeuge über [MCP](ki-assistenten.md), nicht die REST-API |
 
-Schreiben und anlegen schließen lesen ein. Ein Token ohne das nötige Recht bekommt `403`.
+„Dazu“ bedeutet, dass das Recht auch die Lesezugriffe der Zeile darüber erlaubt. Ein Token ohne das nötige Recht bekommt `403`.
 
 ## Grundlagen
 
@@ -213,6 +215,24 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 2. `GET /kontakte?q=<E-Mail>`; ist `total` 0, den Kontakt mit `POST /kontakte` anlegen.
 3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
 4. In Haben die Entwürfe prüfen und festschreiben, dann wie gewohnt versenden.
+
+## Wiederkehrende Rechnungen
+
+`POST /rechnungen/wiederkehrend` legt eine [Vorlage](rechnungen.md#wiederkehrende-rechnungen) für einen vorhandenen Kunden an. Beispiel für einen monatlichen Termin:
+
+```json
+{
+  "name": "Monatlicher Service",
+  "contactId": "00000000-0000-4000-8000-000000000000",
+  "nextDate": "2027-01-31",
+  "intervalMonths": 1,
+  "lines": [
+    { "description": "Servicepauschale", "quantity": 1000, "unit": "Stk.", "unitPrice": 5000, "taxRate": 1900 }
+  ]
+}
+```
+
+`intervalMonths` erlaubt 1, 3, 6 oder 12 Monate. Die Antwort `201 Created` enthält die ID und unter `url` den Link zur Vorlage. Öffne die pausierte Vorlage in Haben, prüfe die Daten und aktiviere sie dort. Nach der Aktivierung legt Haben zu jedem Termin einen Rechnungsentwurf an. Pro erfolgreichem Aufruf entsteht eine Vorlage.
 
 ## Angebote
 

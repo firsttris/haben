@@ -22,7 +22,7 @@ const DESCRIPTION = [
   "nichts, schreibt nichts fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
   "",
   "Anmeldung mit einem API-Token aus Einstellungen → KI-Assistenten und API als `Authorization: Bearer hb_…`. Jeder",
-  "Endpunkt verlangt ein Recht (scope); schreiben schließt lesen ein.",
+  "Endpunkt verlangt das in seiner Beschreibung genannte Recht (scope).",
   "",
   "Geld in ganzen Cent (5712 = 57,12 €), Steuersätze in Basispunkten (1900 = 19 %), Mengen in Tausendsteln (1 Stück = 1000),",
   "Datumsangaben JJJJ-MM-TT. Fehler kommen immer als `{ error: { code, message, issues? } }` mit deutscher Meldung.",

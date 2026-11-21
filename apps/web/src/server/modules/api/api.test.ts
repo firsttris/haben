@@ -73,6 +73,46 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
     ...extra,
   });
 
+  describe("Wiederkehrende Rechnungen", () => {
+    const path = "/rechnungen/wiederkehrend";
+    const vorlage = (contactId: unknown) => ({
+      name: "Monatlicher Service",
+      contactId,
+      nextDate: `${year}-01-31`,
+      intervalMonths: 1,
+      lines: draft().lines,
+    });
+
+    it("legt eine Vorlage pausiert an und liefert einen Link zur Prüfung", async () => {
+      const t = await token(["kontakte:schreiben", "rechnungen:vorlagen-anlegen"]);
+      const contact = await call(t, "POST", "/kontakte", kunde);
+      const response = await call(t, "POST", path, vorlage(contact.json!.id));
+      expect(response.status).toBe(201);
+      const id = response.json!.id as string;
+      const url = `http://localhost:3000/rechnungen/wiederkehrend/${id}`;
+      expect(response.json).toEqual({ id, active: false, url });
+      expect(response.headers.get("location")).toBe(url);
+      const saved = await rechnungen.getRecurring(id);
+      expect(saved?.recurring).toMatchObject({
+        ...vorlage(contact.json!.id),
+        active: false,
+        mode: "entwurf",
+        sendByMail: false,
+        anchorDay: 31,
+      });
+      expect(saved?.invoices).toEqual([]);
+    });
+
+    it("verlangt das Vorlagenrecht und lehnt die Aktivierung per API ab", async () => {
+      const draftToken = await token(["rechnungen:entwuerfe"]);
+      const write = await token(["rechnungen:vorlagen-anlegen"]);
+      const body = vorlage("00000000-0000-4000-8000-000000000000");
+      expect((await call(draftToken, "POST", path, body)).status).toBe(403);
+      expect((await call(write, "POST", path, { ...body, active: true })).status).toBe(400);
+      expect((await call(write, "POST", path, body)).status).toBe(422);
+    });
+  });
+
   describe("Anmeldung und Rechte", () => {
     it("lehnt fehlende, falsche, widerrufene Tokens und ausgeschalteten Zugang mit 401 im JSON-Format ab", async () => {
       const t = await token(["kontakte:lesen"]);
@@ -634,9 +674,11 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
         "/leistungen",
         "/leistungen/{id}",
         "/rechnungen",
+        "/rechnungen/wiederkehrend",
         "/rechnungen/{id}",
       ]);
       expect(doc.paths["/rechnungen"]!.post!.security).toEqual([{ token: ["rechnungen:entwuerfe"] }]);
+      expect(doc.paths["/rechnungen/wiederkehrend"]!.post!.security).toEqual([{ token: ["rechnungen:vorlagen-anlegen"] }]);
       expect(doc.paths["/leistungen"]!.post!.security).toEqual([{ token: ["leistungen:schreiben"] }]);
       expect(doc.paths["/angebote"]!.get!.security).toEqual([{ token: ["angebote:lesen"] }]);
       expect(doc.paths["/bankimporte"]!.post!.security).toEqual([{ token: ["bank:importieren"] }]);
