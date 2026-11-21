@@ -145,6 +145,33 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     ]);
   });
 
+  // Die Prüfung zeigt je Art und Tabelle höchstens 100 Befunde und sagt erst dann „oder mehr“ (truncated in
+  // integrity.ts). Eine gemeinsame Grenze über alle Tabellen schnitte Befunde ab, ohne dass die Meldung es sagt.
+  it("zeigt Siegel ohne Eintrag im Audit-Log je Tabelle bis zur Grenze", async () => {
+    const je = 60;
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        const entries = await tx<{ id: string }[]>`insert into journal_entries (date, description, source_type, source_id, kontenrahmen, locked_at)
+          select '2026-01-10', 'Buchung ' || i, 'invoice', gen_random_uuid(), 'SKR03', now() from generate_series(1, ${je}) i returning id`;
+        const ids = entries.map((e) => e.id);
+        await tx`insert into journal_lines (entry_id, account, debit, credit)
+          select id, '1400', 11900, 0 from unnest(${ids}::uuid[]) id
+          union all select id, '8400', 0, 11900 from unnest(${ids}::uuid[]) id`;
+        const cash = await tx<{ id: string }[]>`insert into cash_entries (number, date, amount, kind, text)
+          select 100000 + i, '2026-03-01', 100, 'einlage', 'Einlage ' || i from generate_series(1, ${je}) i returning id`;
+        // Passende Siegel wie von haben_seal, aber ohne Eintrag im Audit-Log
+        await tx`insert into seals (table_name, row_id, columns, digest)
+          select t.name, t.id, haben_seal_columns(t.name), haben_seal_digest(t.name, t.id, haben_seal_columns(t.name))
+            from (select 'journal_entries' as name, unnest(${ids}::uuid[]) as id
+                  union all select 'cash_entries', unnest(${cash.map((c) => c.id)}::uuid[])) t`;
+      });
+      return problems(tx);
+    });
+    const count = (tabelle: string) => found.filter((p) => p.tabelle === tabelle && p.befund === "Siegel fehlt im Audit-Log").length;
+    expect({ journal_entries: count("journal_entries"), cash_entries: count("cash_entries") }).toEqual({ journal_entries: je, cash_entries: je });
+    expect(found).toHaveLength(2 * je);
+  });
+
   it("erkennt geänderte Buchungszeilen, Positionen und Steuerbeträge", async () => {
     const entry = await lockedEntry();
     const invoice = await lockedInvoice();
