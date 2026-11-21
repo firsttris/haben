@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { paketArchiv } from "../src/server/modules/stammdaten/test-paket.ts";
@@ -202,5 +203,31 @@ test("Die Downloads liefern die eingebauten Layouts, Beispieldaten, Feldvertrag 
   const vertrag = (await (await page.request.get("/api/belegvorlagen?datei=feldvertrag")).json()) as { version: number };
   expect(vertrag.version).toBe(1);
   expect(await (await page.request.get("/api/belegvorlagen?datei=anleitung")).text()).toContain('name: "belegvorlage"');
+  await page.context().close();
+});
+
+test("Ein eingebautes Layout in einer Variante herunterladen und als eigenes hochladen", async ({ browser }) => {
+  const page = await einstellungen(browser);
+  const eingebaut = karte(page).getByRole("region", { name: "Eingebaute Layouts" });
+  const atelier = eingebaut.getByRole("listitem").filter({ hasText: "Atelier" });
+  // Zweispaltig nur mit dem Fuß unten, wie in der Gestaltung
+  await atelier.getByRole("group", { name: "Fuß (Atelier)" }).getByRole("button", { name: "In der Randspalte" }).click();
+  await expect(atelier.getByRole("group", { name: "Kerndaten (Atelier)" }).getByRole("button", { name: "Zweispaltig" })).toBeDisabled();
+  await atelier.getByRole("group", { name: "Fuß (Atelier)" }).getByRole("button", { name: "Unten" }).click();
+  await atelier.getByRole("group", { name: "Kerndaten (Atelier)" }).getByRole("button", { name: "Zweispaltig" }).click();
+  const [download] = await Promise.all([page.waitForEvent("download"), atelier.getByRole("link", { name: "Atelier für Belege herunterladen" }).click()]);
+  expect(download.suggestedFilename()).toBe("atelier-unten-zweispaltig-beleg.typ");
+  const quelltext = await readFile(await download.path(), "utf8");
+  expect(quelltext).toContain('#let optionen = (fuss: "unten", kerndaten: "zweispaltig")');
+
+  await datei(page, "Atelier zweispaltig", quelltext);
+  await expect(meldung(page)).toContainText("Geprüft und gespeichert");
+  const zeile = karte(page).getByRole("region", { name: "Eigene Layouts" }).getByRole("listitem").filter({ hasText: "Atelier zweispaltig" });
+  await zeile.getByRole("button", { name: "Löschen" }).click();
+  await page
+    .getByRole("dialog", { name: /Layout „Atelier zweispaltig“ löschen\?/ })
+    .getByRole("button", { name: "Layout löschen" })
+    .click();
+  await expect(zeile).toHaveCount(0);
   await page.context().close();
 });
