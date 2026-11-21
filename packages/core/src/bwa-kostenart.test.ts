@@ -169,6 +169,12 @@ describe("Kostenart der BWA (DATEV-Kontenrahmen 2026)", () => {
     ["8603", "4830", "sonstigeErloese"],
     ["8605", "4835", "sonstigeErloese"],
     ["8609", "4841", "sonstigeErloese"],
+    // Gleich benannt: SKR03 S. 27, SKR04 S. 17
+    ["8649", "4834", "sonstigeErloese"], // „Sonstige Erträge betrieblich und regelmäßig 16 % USt“
+    ["8640", "4836", "sonstigeErloese"], // „Sonstige Erträge betrieblich und regelmäßig 19 % USt“
+    ["8606", "4832", "sonstigeErloese"], // „Sonstige betriebliche Erträge von verbundenen Unternehmen“
+    ["8604", "4838", "sonstigeErloese"], // „Erstattete Vorsteuer anderer Länder“
+    ["8625", "4842", "sonstigeErloese"], // „Sonstige betriebliche Erträge, steuerfrei z. B. § 4 Nr. 2 bis 7 UStG“
     ["4971", "6879", "sonstigeKosten"],
   ];
   it.each(PAARE)("SKR03 %s und SKR04 %s → %s", (skr03, skr04, erwartet) => {
