@@ -7,8 +7,9 @@ import { checkTriggerIntegrity } from "./trigger-inventory.ts";
 
 /*
  * Zeilensicherheit (Row Level Security): Der Eigentümer einer Tabelle kann sie einschalten und mit einer Policy Zeilen vor
- * anderen Rollen verbergen, auch vor der App-Anmeldung. Ein festgeschriebener Datensatz samt Siegel verschwände so aus App
- * und Prüfung. Haben selbst nutzt keine Zeilensicherheit; der Sollbestand nennt, was eine frische Installation hat.
+ * anderen Rollen verbergen, auch vor der App-Anmeldung. Ein festgeschriebener Datensatz samt Siegel verschwände so aus der
+ * App und aus den Prüfungen, die von Datensätzen oder Siegeln ausgehen. Haben selbst nutzt keine Zeilensicherheit; der
+ * Sollbestand nennt, was eine frische Installation hat.
  * https://www.postgresql.org/docs/18/ddl-rowsecurity.html
  */
 describe.skipIf(!testDatabaseUrl)("Zeilensicherheit im Sollbestand (Postgres)", () => {
