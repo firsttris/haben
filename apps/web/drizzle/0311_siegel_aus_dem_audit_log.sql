@@ -149,14 +149,16 @@ BEGIN
 
   -- Jedes Siegel aus der Kette gibt es noch: Wer einen festgeschriebenen Datensatz samt Siegel löscht, hinterlässt keine
   -- Zeile, von der die Prüfungen oben ausgehen. Der Eintrag des Siegels im Audit-Log bleibt aber stehen; ihn zu löschen reißt
-  -- eine Lücke in die Kette.
+  -- eine Lücke in die Kette. Höchstens max_rows je Tabelle wie oben: integrity.ts meldet „oder mehr“ je Art und Tabelle.
   RETURN QUERY
-  SELECT 'siegel'::text, a.new_value ->> 'table_name', a.new_value ->> 'row_id', a.seq, 'Siegel fehlt, steht aber im Audit-Log'::text
-    FROM audit_log a
-   WHERE a.table_name = 'seals' AND a.action = 'INSERT'
-     AND NOT EXISTS (SELECT 1 FROM seals s WHERE s.id::text = a.row_id)
-   ORDER BY a.seq
-   LIMIT max_rows;
+  SELECT 'siegel'::text, x.siegel_tabelle, x.siegel_zeile, x.eintrag, 'Siegel fehlt, steht aber im Audit-Log'::text
+    FROM (SELECT a.new_value ->> 'table_name' AS siegel_tabelle, a.new_value ->> 'row_id' AS siegel_zeile, a.seq AS eintrag,
+                 row_number() OVER (PARTITION BY a.new_value ->> 'table_name' ORDER BY a.seq) AS nr
+            FROM audit_log a
+           WHERE a.table_name = 'seals' AND a.action = 'INSERT'
+             AND NOT EXISTS (SELECT 1 FROM seals s WHERE s.id::text = a.row_id)) x
+   WHERE x.nr <= max_rows
+   ORDER BY x.eintrag;
 
   -- Ein Siegel gilt nur so, wie es in der Kette steht
   RETURN QUERY
