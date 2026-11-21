@@ -218,7 +218,7 @@ Unter **Einstellungen › Beleggestaltung › Layouts** wählst du ein Layout f�
 | Premium | Fuß unten oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben; die Linie unter dem Kopf steht bei jeder Logogröße gleich hoch |
 
 - Die Optionen stehen unter der Zuordnung, je eingebautem Layout einmal; sie gelten für jede Belegart mit diesem Layout. Ein Wert, den eine andere Option ausschließt, ist ausgegraut.
-- In der [Vorschau](rechnungen.md#vorschau) zeigt das Zahnrad das Layout der Belegart mit seinen Optionen; eine Änderung dort siehst du sofort und speicherst sie mit **Für alle Belege speichern**.
+- In der [Vorschau](rechnungen.md#vorschau) zeigt das Zahnrad das Layout der Belegart mit seinen Optionen; eine Änderung dort siehst du sofort und speicherst sie mit **Gestaltung speichern**.
 - Bestehende Installationen behalten beim Update ihr Aussehen: Klar in der Fassung Klassisch, ihre Schrift und ihre Akzentfarbe.
 
 Verwendet ein eigenes Layout eine Einstellung der Gestaltung nicht, etwa den GiroCode oder die Falz- und Lochmarken, steht darunter ein Hinweis mit dem Namen des Layouts. Wirkt die Einstellung auf keinen Beleg mehr, ist sie aus; siehe [Einstellungen, die das Layout nicht verwendet](belegvorlagen.md#hochladen-und-zuordnen).

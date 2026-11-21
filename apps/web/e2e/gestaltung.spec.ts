@@ -99,11 +99,11 @@ test("Die Spalte Gestaltung zeigt Änderungen sofort und verwirft sie", async ({
 
   await panel(page).getByRole("button", { name: "Blau" }).click();
   await expect.poll(() => brand(page)).toBe("#1D4E89");
-  await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeEnabled();
+  await expect(panel(page).getByRole("button", { name: "Gestaltung speichern" })).toBeEnabled();
 
   await panel(page).getByRole("button", { name: "Verwerfen" }).click();
   await expect.poll(() => brand(page)).toBe(vorher);
-  await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeDisabled();
+  await expect(panel(page).getByRole("button", { name: "Gestaltung speichern" })).toBeDisabled();
   await page.context().close();
 });
 
@@ -213,7 +213,7 @@ test("Speichern gilt nach dem Neuladen und lässt das Formular stehen", async ({
   const vorher = await brand(page);
 
   await panel(page).getByRole("button", { name: "Violett" }).click();
-  await panel(page).getByRole("button", { name: "Für alle Belege speichern" }).click();
+  await panel(page).getByRole("button", { name: "Gestaltung speichern" }).click();
   await expect(panel(page).getByRole("status")).toContainText("Gespeichert");
   await dialog(page).getByRole("button", { name: "Schließen" }).click();
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Eingabe bleibt");
@@ -246,13 +246,13 @@ test("Änderungen, die während des Speicherns entstehen, bleiben als ungespeich
   });
 
   await panel(page).getByRole("button", { name: "Violett" }).click();
-  await panel(page).getByRole("button", { name: "Für alle Belege speichern" }).click();
+  await panel(page).getByRole("button", { name: "Gestaltung speichern" }).click();
   await panel(page).getByRole("button", { name: "Blau" }).click();
   weiter();
   await expect(panel(page).getByRole("status")).toContainText("Gespeichert");
 
   await expect.poll(() => brand(page)).toBe("#1D4E89");
-  await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeEnabled();
+  await expect(panel(page).getByRole("button", { name: "Gestaltung speichern" })).toBeEnabled();
 
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");

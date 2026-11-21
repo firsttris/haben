@@ -313,7 +313,8 @@ export function DesignPanel({
       </div>
       <div className="design-panel-foot">
         <p className="small muted">
-          Standardgestaltung: gilt für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe. Festgeschriebene PDFs bleiben unverändert.
+          Gilt für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; ohne Speichern ist es nur eine Vorschau. Festgeschriebene PDFs bleiben
+          unverändert.
           {draft.dirty && " Beim Schließen der Vorschau gehen ungespeicherte Änderungen verloren."}
         </p>
         <NoticeBanner notice={notice} />
@@ -322,7 +323,7 @@ export function DesignPanel({
             Verwerfen
           </button>
           <button type="button" className="btn btn-primary" disabled={busy || !draft.dirty} onClick={() => void onSave()}>
-            Für alle Belege speichern
+            Gestaltung speichern
           </button>
         </div>
       </div>
