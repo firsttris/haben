@@ -138,7 +138,7 @@ Es ist eine eigene Auswertung von Haben, keine Auswertung von DATEV; im Einzelun
 | Abweichung, in % | Zeitraum minus Vergleich, in Prozent des Vergleichs; ohne Prozent, wenn der Vergleich 0 ist |
 | Kumuliert | Vom 1. Januar bis zum Ende des Zeitraums; beim Vorjahresvergleich daneben dasselbe im Vorjahr |
 
-Zeilen, die in allen Spalten 0 sind, fehlen; mit **Leere Zeilen anzeigen** steht jede Zeile der Form, etwa um die BWA Zeile für Zeile neben die der Steuerberatung zu legen.
+Zeilen, die in allen Spalten 0 sind, fehlen, Summen und Ergebnisse ausgenommen; mit **Leere Zeilen anzeigen** steht jede Zeile der Form, etwa um die BWA Zeile für Zeile neben die der Steuerberatung zu legen.
 
 Anders als die EÜR zählt die BWA nicht abziehbare Ausgaben (30 % der Bewirtung, Gewerbesteuer, nicht abziehbare Nebenleistungen) als Kosten, denn bezahlt sind sie trotzdem. Die Zeile „nicht abziehbare Ausgaben“ darunter führt zum Gewinn laut EÜR. Eine Umsatzsteuer-Vorauszahlung, die die EÜR dem Vorjahr zurechnet ([Vorauszahlung um den Jahreswechsel](#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)), steht in der BWA am 31. Dezember des Vorjahres.
 
