@@ -37,10 +37,8 @@ export function LayoutOptionFields({
             value={option.wert}
             disabled={disabled}
             disabledValues={option.werte.filter((wert) => !wert.erlaubt).map((wert) => wert.id)}
-            onChange={(wert) => {
-              const neu = Object.fromEntries(optionenZurWahl(layout, { ...gewaehlt, [option.id]: wert }).map((o) => [o.id, o.wert]));
-              onChange({ ...design.layoutOptions, [layoutId]: neu });
-            }}
+            // Die Wahl, nicht das Aufgelöste: Ein gesperrter Wert bleibt gespeichert und gilt wieder, sobald die Sperre fällt
+            onChange={(wert) => onChange({ ...design.layoutOptions, [layoutId]: { ...gewaehlt, [option.id]: wert } })}
           />
         </fieldset>
       ))}
