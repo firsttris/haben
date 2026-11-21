@@ -68,6 +68,15 @@ async function zugangEingeben(pin = "12345") {
   await form.getByRole("button", { name: "Verbinden" }).click();
 }
 
+async function verbindungsIds(): Promise<string[]> {
+  const sql = postgres(databaseUrlFuer("fints-abruf"), { max: 1, onnotice: () => {} });
+  try {
+    return (await sql<{ id: string }[]>`select id from fints_connections`).map((r) => r.id);
+  } finally {
+    await sql.end();
+  }
+}
+
 test("Einrichtung", async () => {
   await einrichten(page);
 });
@@ -181,6 +190,29 @@ test("pushTAN: fragt die TAN ab, wenn die Bank bei der Anmeldung eine aus der Ap
   await expect(abruf().getByText("Testbank verbunden, 0 neue Umsätze.")).toBeVisible();
   await expect(abruf().getByText("Aktiv")).toBeVisible();
   bank.zustand.appTanEintippen = false;
+});
+
+test("erneut verbinden, bei der TAN für die Umsätze abgebrochen: die bisherige Verbindung bleibt und ruft ab", async () => {
+  const ids = await verbindungsIds();
+  const zuletzt = abruf().getByText(/^Zuletzt abgerufen/);
+  const vorher = (await zuletzt.textContent())!;
+  bank.zustand.scaBeiUmsaetzen = true;
+  await abruf().getByRole("button", { name: "Über FinTS verbinden" }).click();
+  await zugangEingeben();
+  await freigabe().getByLabel("TAN-Verfahren").selectOption({ label: "chipTAN manuell" });
+  await freigabe().getByRole("button", { name: "Weiter" }).click();
+  await expect(freigabe().getByLabel("TAN", { exact: true })).toBeVisible();
+  await freigabe().getByRole("button", { name: "Abbrechen" }).click();
+  await expect(freigabe()).toHaveCount(0);
+
+  // Gleiche ID, „Zuletzt abgerufen“ wie vorher, auch nach dem Neuladen (#1617)
+  expect(await verbindungsIds()).toEqual(ids);
+  await gehe(page, "/bank");
+  await expect(zuletzt).toHaveText(vorher);
+  await abruf().getByRole("button", { name: "Jetzt abrufen" }).click();
+  await freigabe().getByLabel("TAN", { exact: true }).fill("123456");
+  await freigabe().getByRole("button", { name: "TAN senden" }).click();
+  await expect(abruf().getByText("Testbank, 0 neue Umsätze.")).toBeVisible();
 });
 
 test("Trennen löscht die Verbindung, die Umsätze bleiben", async () => {
