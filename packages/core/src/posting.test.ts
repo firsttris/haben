@@ -573,6 +573,14 @@ describe("Kapitalgesellschaft: Gesellschafter-Verrechnungskonto statt Privat", (
   });
 });
 
+describe("Kontennamen", () => {
+  // DATEV-Kontenrahmen 2026: SKR03 2150 S. 14, 2660 S. 17; SKR04 4840 S. 17, 6880 S. 24
+  it.each(["SKR03", "SKR04"] as const)("%s: Kursdifferenzen tragen die Namen aus DATEV 2026", (kr) => {
+    expect(ACCOUNT_NAMES[kr][ACCOUNTS[kr].kursAufwand]).toBe("Aufwendungen aus der Währungsumrechnung");
+    expect(ACCOUNT_NAMES[kr][ACCOUNTS[kr].kursErtrag]).toBe("Erträge aus der Währungsumrechnung");
+  });
+});
+
 describe("Beschriftung nach Rechtsform", () => {
   it("Bank und Kasse", () => {
     expect(directBookingLabel("privat", "einzelunternehmen")).toBe("Privat (Entnahme oder Einlage)");
