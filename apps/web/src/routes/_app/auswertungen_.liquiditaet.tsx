@@ -88,8 +88,8 @@ function LiquiditaetPage() {
         <h2 id="liq-verlauf-titel">Verlauf</h2>
         <p className="small muted">
           Eigene Vorschau aus Kontoständen, offenen Posten, Dauerbelegen, wiederkehrenden Rechnungen, Umsatzsteuer und Vorauszahlungen; sie bucht nichts.
-          Sicherheit: fest heißt Betrag und Termin stehen, erwartet heißt der Betrag steht, geschätzt heißt Haben hat ihn gerechnet. Ein Zeitraum öffnet seine
-          Posten.
+          Sicherheit: fest heißt Betrag und Termin stehen, erwartet heißt der Betrag kommt aus Rechnung, Voranmeldung, Vorlage oder letzter Zahlung, ob und wann
+          er fließt, ist offen, geschätzt heißt Haben hat ihn gerechnet. Ein Zeitraum öffnet seine Posten.
         </p>
         <LiquiditaetVerlauf vorschau={vorschau} offen={suche.zeitraum} rolle={user.role} />
       </section>

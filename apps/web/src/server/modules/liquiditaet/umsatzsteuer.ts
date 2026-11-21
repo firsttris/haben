@@ -15,8 +15,8 @@ import { abgegebeneZeitraeume, computedValues, loadDauerfrist, loadFrequencies }
 import type { Kontext } from "./kontext.ts";
 
 /*
- * Umsatzsteuer der noch nicht abgegebenen Zeiträume (#1381): Was bis heute gebucht ist (Kz 83 wie in der Voranmeldung,
- * `computedValues`), plus die Steuer der erwarteten Posten, die im Zeitraum entsteht (`umsatzsteuerPosten` im Kern).
+ * Umsatzsteuer der noch nicht abgegebenen Zeiträume (#1381): Kz 83, wie die Voranmeldung des Zeitraums heute
+ * stünde (`computedValues`, auch für künftige Zeiträume), plus die Steuer der erwarteten Posten, die im Zeitraum entsteht (`umsatzsteuerPosten` im Kern).
  * Abgegebene Voranmeldungen kommen als offene Posten (offene-posten.ts). Kleinunternehmer geben keine ab.
  */
 

@@ -77,7 +77,7 @@ export function vorauszahlungsPosten(input: {
   }));
 }
 
-/** Ein noch nicht abgegebener Voranmeldungszeitraum mit dem, was für ihn bis heute gebucht ist */
+/** Ein noch nicht abgegebener Voranmeldungszeitraum mit Fälligkeit */
 export interface UstZeitraum {
   zeitraum: VatPeriod;
   /** Erster Tag und erster Tag danach (ausschließlich) */
@@ -121,8 +121,8 @@ export function offeneUstZeitraeume(input: {
 }
 
 /**
- * Geschätzte Zahllast (Ausgang) bzw. Erstattung (Eingang) je Zeitraum: was bis heute gebucht ist (`gebucht`, Kz 83 aus
- * dem Journal, mit dem Abzug der Sondervorauszahlung) plus die Steuer jedes erwarteten Postens, die im Zeitraum entsteht
+ * Geschätzte Zahllast (Ausgang) bzw. Erstattung (Eingang) je Zeitraum: was für den Zeitraum gebucht ist (`gebucht`, Kz 83
+ * wie in der Voranmeldung, mit dem Abzug der Sondervorauszahlung) plus die Steuer jedes erwarteten Postens, die im Zeitraum entsteht
  * (`steuer.datum`). So steigt die Zahllast nicht linear, sondern mit den Zahlungen, die die Vorschau schon kennt (#1381).
  */
 export function umsatzsteuerPosten(zeitraeume: readonly (UstZeitraum & { gebucht: Cents })[], posten: readonly LiquiditaetsPosten[]): LiquiditaetsPosten[] {
