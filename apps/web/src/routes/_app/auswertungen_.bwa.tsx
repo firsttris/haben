@@ -57,7 +57,8 @@ function auswahl(s: Suche): { jahr: number; art: string; zeitraum: Zeitraum; ver
 
 export const Route = createFileRoute("/_app/auswertungen_/bwa")({
   validateSearch: search,
-  loaderDeps: ({ search }) => search,
+  // „leer“ filtert nur die Anzeige: kein neuer Aufruf beim Umschalten
+  loaderDeps: ({ search: { leer: _leer, ...deps } }) => deps,
   loader: async ({ deps, context }) => {
     const { zeitraum, vergleich } = auswahl(deps);
     // GmbH und UG: Form 01, eine Zeile öffnet ihre Konten; sonst Form 43 mit Vorgängen und „Warum?“
