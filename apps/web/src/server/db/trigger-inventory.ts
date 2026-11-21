@@ -13,6 +13,7 @@ import {
 import { type ColumnDefault, columnDefaults, sealedTables } from "./column-defaults.ts";
 import type { Db } from "./index.ts";
 import expected from "./trigger-inventory.json";
+import { type RowSecurity, readRowSecurity, rowSecurityFindings } from "./row-security.ts";
 import { replicationDefaults } from "./trigger-defaults.ts";
 
 type Connection = Pick<Db, "execute">;
@@ -57,7 +58,14 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 async function readSnapshot(
   reader: Reader,
   sealed?: string[],
-): Promise<{ inventory: TriggerInventory; replication: string[]; schemas: string[]; temp: string | null; catalog: CatalogObjects }> {
+): Promise<{
+  inventory: TriggerInventory;
+  replication: string[];
+  schemas: string[];
+  temp: string | null;
+  catalog: CatalogObjects;
+  rowSecurity: RowSecurity;
+}> {
   return reader.transaction(
     async (tx) => {
       // current_schemas vor dem Umstellen: der Suchpfad, mit dem die Verbindung die Prüffunktionen aufruft
@@ -112,7 +120,14 @@ async function readSnapshot(
           builtins: await readBuiltinFunctions(tx),
           extensions: extensionMembers(catalog),
         };
-        return { inventory, replication: await replicationDefaults(tx), schemas: setting!.schemas, temp: setting!.temp, catalog };
+        return {
+          inventory,
+          replication: await replicationDefaults(tx),
+          schemas: setting!.schemas,
+          temp: setting!.temp,
+          catalog,
+          rowSecurity: await readRowSecurity(tx),
+        };
       } finally {
         await tx.execute(sql`select pg_catalog.set_config('search_path', ${setting!.path}, true)`);
       }
@@ -128,7 +143,7 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
 
 /** Der ausgelieferte Sollbestand stammt aus frischen Testmigrationen, niemals aus der geprüften Instanz. */
 export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems: TriggerProblem[]; hints: string[] }> {
-  const { inventory: actual, replication, schemas, temp, catalog } = await readSnapshot(reader, expected.sealedTables);
+  const { inventory: actual, replication, schemas, temp, catalog, rowSecurity } = await readSnapshot(reader, expected.sealedTables);
   const problems: TriggerProblem[] = [];
   const hints: string[] = [];
   const problem = (table: string, befund: string) => problems.push({ art: "sperre", tabelle: table.replace(/^public\./, ""), zeile: null, seq: null, befund });
@@ -166,6 +181,7 @@ export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems:
     defaults.delete(column(entry));
   }
   for (const entry of defaults.values()) problem(entry.table, `Zusätzlicher Standardwert von ${column(entry)}`);
+  for (const finding of rowSecurityFindings(rowSecurity)) problem(finding.table, finding.befund);
   // Fremde Objekte, die Aufrufe der Prüffunktionen übernehmen können (catalog-objects.ts)
   const foreign = catalogFindings(catalog, { schemas, temp, functions: expected.functions.map((fn) => fn.name), extensions: expected.extensions });
   const builtin = builtinFindings(expected.builtins, actual.builtins);
