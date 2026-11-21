@@ -52,7 +52,8 @@ export function templateInputs(data: object, letterhead: Letterhead): object {
     logoPosition: stelle,
     foldMarks: options.foldMarks,
     backgroundPages: options.backgroundPages,
-    options: optionen,
+    // Feldvertrag: leer bei eigenen Layouts; die tragen kein eingebautes Layout im Briefkopf (withCustomLayout)
+    options: letterhead.layout ? optionen : {},
   };
   // „Wie im Layout“: Schrift und Akzentfarbe aus den Vorgaben des Layouts, eine eigene Wahl gilt immer
   const vorgaben = layoutVorgaben(layout, optionen);
