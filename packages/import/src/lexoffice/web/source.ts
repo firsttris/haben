@@ -144,20 +144,6 @@ export function webExportSource(data: WebExport): LexofficeSource {
       return webPostingCategories(data.entries.values());
     },
 
-    /**
-     * Was die Belegliste stillschweigend weglässt (#1504): Einträge, deren Art keine Belegart ist. Das sind die
-     * Angebote, Aufträge und Lieferscheine, aber auch jede Art, die diese Fassung noch nicht kennt.
-     */
-    ignoredVouchers() {
-      const out: { type: string; number: string }[] = [];
-      for (const e of data.entries.values()) {
-        if (webVoucherType(e.list) !== null) continue;
-        const item = webListItem(e.list);
-        out.push({ type: item.voucherType, number: item.voucherNumber ?? "" });
-      }
-      return out;
-    },
-
     async *voucherList(types: LexVoucherListType[]) {
       const wanted = new Set<string>(types);
       for (const e of data.entries.values()) {

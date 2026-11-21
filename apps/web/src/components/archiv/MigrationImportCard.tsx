@@ -168,14 +168,9 @@ function ImportProgress({
   running: boolean;
 }) {
   const accountable = source === "accountable";
-  // Was die Belegliste übergangen hat (#1504): Entwürfe und Arten, die kein Beleg sind
+  // Was die Belegliste übergeht (#1504): Entwürfe, die keine Belege sind
   const ignored = progress.ignored;
-  const ignoredText = [
-    ignored && ignored.drafts > 0 ? `${ignored.drafts} ${ignored.drafts === 1 ? "Entwurf" : "Entwürfe"}` : "",
-    ...(ignored?.types ?? []).map((t) => `${t.count} × ${t.type}`),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const ignoredText = ignored && ignored.drafts > 0 ? `${ignored.drafts} ${ignored.drafts === 1 ? "Entwurf" : "Entwürfe"}` : "";
   return (
     <div className="stack" style={{ gap: 12 }} aria-live="polite">
       <div className="small">

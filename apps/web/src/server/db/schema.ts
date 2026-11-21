@@ -3476,10 +3476,11 @@ export type LexofficeImportProgress = {
   files: number;
   failed: { lexofficeId: string; number: string; message: string }[];
   /**
-   * Vorgänge, die gar nicht erst in die Belegliste kommen (#1504): Entwürfe, die keine Belege sind, und Einträge ohne
-   * bekannte Belegart (Angebote, Aufträge, Lieferscheine, Unbekanntes). Bis 0.12.0 fielen beide ohne Vermerk heraus.
+   * Entwürfe, die gar nicht erst in die Belegliste kommen (#1504), weil sie keine Belege sind. Vorgänge ohne Belegart
+   * zählt Haben nicht: die API liefert sie ohnehin nicht, und die Sicherung aus der Web-Oberfläche lässt sie schon beim
+   * Packen draußen (#183).
    */
-  ignored?: { drafts: number; types: { type: string; count: number }[] };
+  ignored?: { drafts: number };
   /** Belege aus früheren Läufen, deren fehlende Datei in diesem Lauf doch noch ankam (#1504) */
   nachgeladen?: number;
   /** sevDesk: Vorlagen wiederkehrender Belege, in diesem Lauf als Dauerbelege übernommen */

@@ -92,7 +92,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice: fehlende Belegdatei (#1504)", () =
     // Der Lauf bleibt grün: eine fehlende Datei ist kein fehlgeschlagener Beleg
     expect(run!.progress).toMatchObject({ listed: 1, imported: 1, files: 0, failed: [] });
     // Der Entwurf stand in der Liste, ist aber kein Beleg; er wird gezählt statt still übergangen
-    expect(run!.progress.ignored).toEqual({ drafts: 1, types: [] });
+    expect(run!.progress.ignored).toEqual({ drafts: 1 });
 
     const [voucher] = await sql`select id, number, gross from lexoffice_vouchers where number = '2023-4711'`;
     expect(voucher).toMatchObject({ number: "2023-4711", gross: 12_970 });
@@ -134,44 +134,11 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice: fehlende Belegdatei (#1504)", () =
     expect(jahr.checks.find((c) => c.label === "Jeder Beleg hat eine Datei")).toMatchObject({ ok: true, detail: "alle mit Datei" });
   });
 
-  it("fasst übergangene Arten zusammen und lässt Leeres weg", () => {
-    expect(lexoffice.ignoredSummary(0, [])).toBeUndefined();
-    expect(lexoffice.ignoredSummary(2, [])).toEqual({ drafts: 2, types: [] });
-    expect(
-      lexoffice.ignoredSummary(1, [
-        { type: "quotation", number: "AN-1" },
-        { type: "quotation", number: "AN-2" },
-        { type: "unbekannt", number: "" },
-      ]),
-    ).toEqual({
-      drafts: 1,
-      types: [
-        { type: "quotation", count: 2 },
-        { type: "unbekannt", count: 1 },
-      ],
-    });
-  });
-});
-
-describe("Sicherung: was keine Belegart hat", () => {
-  it("meldet die übergangenen Vorgänge mit ihrer Art", async () => {
-    const { webExportSource } = await import("@haben/import");
-    const quotation = JSON.parse(
-      readFileSync(new URL("../../../../../../packages/import/test-fixtures/lexoffice-web/list-quotation.json", import.meta.url), "utf8"),
-    ) as { entityId: string };
-    type WebExport = Parameters<typeof webExportSource>[0];
-    const data = {
-      createdAt: "",
-      contacts: [],
-      entries: new Map([[quotation.entityId, { list: quotation, files: [], details: {} }]]),
-      files: new Map(),
-      failures: new Map(),
-    } as unknown as WebExport;
-    expect(
-      webExportSource(data)
-        .ignoredVouchers?.()
-        .map((e) => e.type),
-    ).toEqual(["quotation"]);
+  it("zählt nur noch die Entwürfe: Arten, die kein Beleg sind, zeigt der Abruf nicht mehr", async () => {
+    // Der Lauf hat einen Entwurf gesehen, aber keinen Vorgang ohne Belegart
+    await lexoffice.startImport(actor, { wait: true });
+    const run = await lexoffice.latestImport();
+    expect(run!.progress.ignored).toEqual({ drafts: 1 });
   });
 });
 
