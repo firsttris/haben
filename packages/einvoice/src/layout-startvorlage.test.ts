@@ -82,7 +82,7 @@ describe("Eingebautes Layout je Variante herunterladen", () => {
   });
 
   it("benennt die Datei nach Layout, Variante und Art; gesperrte Werte löst sie auf wie die Gestaltung", () => {
-    const atelier = eingebautesLayout("premium")!;
+    const atelier = eingebautesLayout("atelier")!;
     expect(eingebautesLayoutAlsDatei(atelier, { fuss: "unten", kerndaten: "zweispaltig" }, "mahnung").dateiname).toBe("atelier-unten-zweispaltig-mahnung.typ");
     // Zweispaltig nur mit dem Fuß unten
     const rechts = eingebautesLayoutAlsDatei(atelier, { fuss: "rechts", kerndaten: "zweispaltig" }, "beleg");
