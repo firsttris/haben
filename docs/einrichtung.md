@@ -211,11 +211,11 @@ Unter **Einstellungen › Beleggestaltung › Layouts** wählst du ein Layout f�
 
 | Layout | Optionen |
 | --- | --- |
-| Klar (ab Werk) | Fassung Standard oder Klassisch (das bisherige Layout von Haben); Kerndaten mit Linie oder auf einer Karte |
-| Modern | Linie über dem Fuß (ab Werk ohne) |
+| Klar (ab Werk) | Fassung Standard oder Klassisch (das bisherige Layout von Haben); in der Fassung Standard Kerndaten mit Linie oder auf einer Karte |
+| Modern | Akzentfarbe farbig oder sparsam; Linie über dem Fuß (ab Werk ohne) |
 | Strukturiert | Infoblock als Tabelle oder im Kasten |
-| Elegant | Fuß unten oder in der Randspalte |
-| Premium | Fuß unten oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben; die Linie unter dem Kopf steht bei jeder Logogröße gleich hoch |
+| Elegant | Fuß in der Randspalte (ab Werk) oder unten; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten) |
+| Premium | Fuß unten (ab Werk) oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben; die Linie unter dem Kopf steht bei jeder Logogröße gleich hoch |
 
 - Die Optionen stehen unter der Zuordnung, je eingebautem Layout einmal; sie gelten für jede Belegart mit diesem Layout. Ein Wert, den eine andere Option ausschließt, ist ausgegraut.
 - In der [Vorschau](rechnungen.md#vorschau) zeigt das Zahnrad das Layout der Belegart mit seinen Optionen; eine Änderung dort siehst du sofort und speicherst sie mit **Gestaltung speichern**.
