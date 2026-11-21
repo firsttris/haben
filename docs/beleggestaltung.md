@@ -1,3 +1,10 @@
+---
+title: "Beleggestaltung in Haben: Logo, Farbe, Briefpapier und Layouts"
+description: >-
+  Wie Rechnungen, Angebote und Mahnungen aussehen: Logo, Akzentfarbe, Schrift, Briefpapier,
+  Fußzeile und die eingebauten Layouts mit ihren Optionen.
+---
+
 # Beleggestaltung
 
 Wie Rechnungen, Angebote, Auftragsbestätigungen, Lieferscheine und Mahnungen aussehen: Logo, Farbe, Schrift, Briefpapier, Fußzeile und Layout. Alles hier gilt für das, was ab dann erzeugt wird; schon festgeschriebene PDFs bleiben unverändert.
