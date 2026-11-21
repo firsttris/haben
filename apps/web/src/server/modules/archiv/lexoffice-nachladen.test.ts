@@ -220,3 +220,193 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice: fehlendes XML einer E-Rechnung (#1
     expect(items.map((i) => [i.number, i.blocker])).toEqual([["RE1019", null]]);
   });
 });
+
+/** Antwortet die Quelle ohne Fehler, dass es keine E-Rechnung gibt (406), statt mit einem Fehler (500)? */
+let ohneErechnung = false;
+
+/** Nachgebaute Lexware-API: eine offene Rechnung, deren XML es nicht gibt */
+function fakeApiOhneErechnung() {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const path = url.pathname.replace(/^\/v1/, "");
+    const accept = new Headers(init?.headers).get("accept") ?? "";
+    if (new Headers(init?.headers).get("authorization") !== "Bearer schluessel-1234567890-abcdefghij") return json({ message: "Unauthorized" }, 401);
+    if (path === "/profile") return json(fixture("profile.json"));
+    if (path === "/posting-categories") return json([]);
+    if (path === "/contacts") return json(page([]));
+    if (path === "/voucherlist") {
+      if (url.searchParams.get("archived") === "true") return json(page([]));
+      return json(page([listItem(String(RECHNUNG.id), "invoice", "open", "RE1019")]));
+    }
+    if (path === `/invoices/${RECHNUNG.id}`) return json(RECHNUNG);
+    if (path === `/invoices/${RECHNUNG.id}/file`) {
+      if (accept.includes("xml")) {
+        if (ohneErechnung) return json({ message: "Für diesen Beleg gibt es keine E-Rechnung" }, 406);
+        return json({ message: "Datei nicht in der Sicherung" }, 500);
+      }
+      return new Response(PDF, { headers: { "content-type": "application/pdf", "content-disposition": 'attachment; filename="RE1019.pdf"' } });
+    }
+    if (path.startsWith("/payments/")) return json({ message: "not found" }, 404);
+    return json({ message: `unbekannt ${path}` }, 404);
+  }) as typeof fetch;
+}
+
+/*
+ * Die zweite Form aus der Nachprüfung: Erst scheitert der XML-Abruf (500), dann antwortet die Quelle ohne Fehler „keine
+ * E-Rechnung“ (406). Ohne den Stand `kein_anhang` bliebe die Rechnung für immer gesperrt, weil jeder weitere Lauf
+ * dasselbe „kein XML“ hört und nie eine Datei ankommt.
+ */
+describe.skipIf(!testDatabaseUrl)("Lexoffice: keine E-Rechnung, kein offener Punkt (#1624)", () => {
+  let lexoffice: typeof import("./lexoffice.ts");
+  const actor = "test-user";
+  let sql: postgres.Sql;
+  let rechnungId = "";
+
+  beforeAll(async () => {
+    sql = await setupTestDb();
+    lexoffice = await import("./lexoffice.ts");
+    const importPkg = await import("@haben/import");
+    lexoffice.setLexofficeClientFactory(
+      (o) => new importPkg.LexofficeClient({ ...o, fetch: fakeApiOhneErechnung(), minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
+    );
+    await lexoffice.saveApiKey(actor, "schluessel-1234567890-abcdefghij");
+  }, 30_000);
+
+  afterAll(async () => {
+    await sql?.end();
+  });
+
+  it("hält die Rechnung nach einem fehlgeschlagenen XML-Abruf offen", async () => {
+    await lexoffice.startImport(actor, { wait: true });
+    const [rechnung] = await sql`select id from lexoffice_vouchers where number = 'RE1019'`;
+    rechnungId = String(rechnung!.id);
+    const [stand] = await sql`select state, role from legacy_file_states where voucher_id = ${rechnung!.id}`;
+    expect(stand).toMatchObject({ state: "anhang_fehlt", role: "xml" });
+    const detail = await lexoffice.legacyVoucherDetail(rechnungId);
+    expect(detail!.fileState.status).toBe("anhang_fehlt");
+  });
+
+  it("gibt die Rechnung frei, wenn die Quelle ohne Fehler kein XML nennt", async () => {
+    ohneErechnung = true;
+    await lexoffice.startImport(actor, { wait: true });
+    const run = await lexoffice.latestImport();
+    // Nichts kam an, also nichts nachgeladen; der Beleg ist trotzdem nicht mehr offen
+    expect(run!.progress.failed).toEqual([]);
+    expect(run!.progress.nachgeladen ?? 0).toBe(0);
+
+    const [stand] = await sql`select state, role from legacy_file_states where voucher_id = ${rechnungId} order by created_at desc, id desc limit 1`;
+    expect(stand).toMatchObject({ state: "kein_anhang", role: "xml" });
+
+    // N1b: Belegstand und Stand der XML-Datei sagen dasselbe
+    const detail = await lexoffice.legacyVoucherDetail(rechnungId);
+    expect(detail!.fileState.status).toBe("vollstaendig");
+    expect(detail!.fileState.status).not.toBe("anhang_fehlt");
+
+    // Und ein dritter Lauf fragt nichts mehr an: der Stand ist zu
+    await lexoffice.startImport(actor, { wait: true });
+    const [danach] = await sql`select count(*)::int as n from legacy_file_states where voucher_id = ${rechnungId}`;
+    expect(danach!.n).toBe(2);
+  });
+});
+
+/** Der erste Lauf bringt keine der beiden Dateien; ab dem zweiten liegt das PDF in der Sicherung, ein XML nennt die Quelle nie */
+let pdfKommt = false;
+/** Zählt die Abrufe der Rechnungsdatei, damit „ein späterer Lauf fragt nichts mehr an“ belegt ist */
+let dateiAbrufe = 0;
+/** Antwortet die Quelle inzwischen ohne Fehler, dass es keine E-Rechnung gibt, statt mit einem Fehler? */
+let xmlNenntKeins = false;
+
+/** Nachgebaute Lexware-API: eine offene Rechnung ohne E-Rechnung, deren PDF erst im zweiten Lauf in der Sicherung liegt */
+function fakeApiOhnePdf() {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const path = url.pathname.replace(/^\/v1/, "");
+    const accept = new Headers(init?.headers).get("accept") ?? "";
+    if (new Headers(init?.headers).get("authorization") !== "Bearer schluessel-1234567890-abcdefghij") return json({ message: "Unauthorized" }, 401);
+    if (path === "/profile") return json(fixture("profile.json"));
+    if (path === "/posting-categories") return json([]);
+    if (path === "/contacts") return json(page([]));
+    if (path === "/voucherlist") {
+      if (url.searchParams.get("archived") === "true") return json(page([]));
+      return json(page([listItem(String(RECHNUNG.id), "invoice", "open", "RE1019")]));
+    }
+    if (path === `/invoices/${RECHNUNG.id}`) return json(RECHNUNG);
+    if (path === `/invoices/${RECHNUNG.id}/file`) {
+      dateiAbrufe += 1;
+      if (accept.includes("xml")) {
+        // Erst ein Fehler, später die Auskunft „keine E-Rechnung“: ohne Fehler, also kein Grund für einen weiteren Versuch
+        if (!xmlNenntKeins) return json({ message: "Datei nicht in der Sicherung" }, 500);
+        return json({ message: "Für diesen Beleg gibt es keine E-Rechnung" }, 406);
+      }
+      if (!pdfKommt) return json({ message: "Datei nicht in der Sicherung" }, 500);
+      return new Response(PDF, { headers: { "content-type": "application/pdf", "content-disposition": 'attachment; filename="RE1019.pdf"' } });
+    }
+    if (path.startsWith("/payments/")) return json({ message: "not found" }, 404);
+    return json({ message: `unbekannt ${path}` }, 404);
+  }) as typeof fetch;
+}
+
+/*
+ * Die zweite Form aus der Nachprüfung: Fehlen PDF und XML in einem Lauf, und bringt der nächste Lauf nur das PDF, muss der
+ * Beleg `vollstaendig` werden. Ohne den Stand `kein_anhang` bliebe der Stand des XML auf `anhang_fehlt`: jeder weitere
+ * Lauf fragte das XML erneut an, und ein einzelner späterer 500 sperrte die Rechnung wieder.
+ */
+describe.skipIf(!testDatabaseUrl)("Lexoffice: nur das PDF kommt nach, das XML nennt die Quelle nicht (#1624)", () => {
+  let lexoffice: typeof import("./lexoffice.ts");
+  const actor = "test-user";
+  let sql: postgres.Sql;
+  let rechnungId = "";
+
+  beforeAll(async () => {
+    sql = await setupTestDb();
+    lexoffice = await import("./lexoffice.ts");
+    const importPkg = await import("@haben/import");
+    lexoffice.setLexofficeClientFactory(
+      (o) => new importPkg.LexofficeClient({ ...o, fetch: fakeApiOhnePdf(), minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
+    );
+    await lexoffice.saveApiKey(actor, "schluessel-1234567890-abcdefghij");
+  }, 30_000);
+
+  afterAll(async () => {
+    await sql?.end();
+  });
+
+  it("vermerkt PDF und XML als offen, wenn der erste Lauf keine der beiden Dateien bringt", async () => {
+    pdfKommt = false;
+    xmlNenntKeins = false;
+    await lexoffice.startImport(actor, { wait: true });
+    const run = await lexoffice.latestImport();
+    expect(run!.progress).toMatchObject({ listed: 1, imported: 1, failed: [] });
+
+    const [rechnung] = await sql`select id from lexoffice_vouchers where number = 'RE1019'`;
+    rechnungId = String(rechnung!.id);
+    const staende = await sql`select state, role from legacy_file_states where voucher_id = ${rechnung!.id} order by role`;
+    expect(staende.map((s) => [s.role, s.state])).toEqual([
+      ["pdf", "abruf_fehlgeschlagen"],
+      ["xml", "anhang_fehlt"],
+    ]);
+    const detail = await lexoffice.legacyVoucherDetail(rechnungId);
+    // Beide Stände sind offen; welcher als jüngster gilt, entscheidet bei gleichem Zeitstempel die id, deshalb nur „offen“
+    expect(["anhang_fehlt", "abruf_fehlgeschlagen"]).toContain(detail!.fileState.status);
+  });
+
+  it("wird vollständig, wenn nur das PDF kommt und die Quelle kein XML nennt", async () => {
+    pdfKommt = true;
+    xmlNenntKeins = true;
+    await lexoffice.startImport(actor, { wait: true });
+    const run = await lexoffice.latestImport();
+    expect(run!.progress).toMatchObject({ nachgeladen: 1, failed: [] });
+
+    const [pdf] = await sql`select state from legacy_file_states where voucher_id = ${rechnungId} and role = 'pdf' order by created_at desc, id desc limit 1`;
+    expect(pdf).toMatchObject({ state: "nachgeladen" });
+    const [xml] = await sql`select state from legacy_file_states where voucher_id = ${rechnungId} and role = 'xml' order by created_at desc, id desc limit 1`;
+    expect(xml).toMatchObject({ state: "kein_anhang" });
+    const detail = await lexoffice.legacyVoucherDetail(rechnungId);
+    expect(detail!.fileState.status).toBe("vollstaendig");
+
+    // Und ein dritter Lauf fragt keine Datei dieses Belegs mehr an: der Stand ist zu
+    const vorher = dateiAbrufe;
+    await lexoffice.startImport(actor, { wait: true });
+    expect(dateiAbrufe).toBe(vorher);
+  });
+});

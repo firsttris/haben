@@ -46,7 +46,7 @@ export const FILE_STATE_LABELS: Record<LegacyFileState, string> = {
   bestaetigt_ohne_datei: "ohne Datei bestätigt",
   bestaetigung_zurueckgenommen: "Bestätigung zurückgenommen",
   nachgeladen: "Datei nachgeladen",
-  kein_anhang: "Anhang entfällt, sevDesk führt keinen",
+  kein_anhang: "Anhang entfällt, die Quelle führt keinen",
 };
 
 /** Ein Beleg dieses Stands braucht noch Arbeit, bevor das Jahr vollständig ist */

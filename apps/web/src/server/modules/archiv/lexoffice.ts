@@ -410,22 +410,24 @@ async function nachladenDateien(
   if (anfragen.length === 0) return false;
   const files: DateiEintrag[] = [];
   const weiterhin: FehlendeDatei[] = [];
-  await ladeDateien(files, weiterhin, anfragen);
-  if (files.length === 0) return false;
+  const ohneAnhang: ("pdf" | "xml" | "anhang")[] = [];
+  await ladeDateien(files, weiterhin, anfragen, ohneAnhang);
+  if (files.length === 0 && ohneAnhang.length === 0) return false;
   const voucherId = offen[0]!.voucherId;
   const number = offen[0]!.number || item.id;
   await withActor(actor, async (tx) => {
-    await attachVoucherFiles(
-      tx,
-      voucherId,
-      files.map((entry) => ({
-        role: entry.role,
-        sourceFileId: entry.lexofficeFileId,
-        filename: entry.file.filename ?? fallbackName({ number, lexofficeId: item.id }, entry.role, entry.file.bytes),
-        mimeType: entry.file.mimeType,
-        bytes: entry.file.bytes,
-      })),
-    );
+    if (files.length > 0)
+      await attachVoucherFiles(
+        tx,
+        voucherId,
+        files.map((entry) => ({
+          role: entry.role,
+          sourceFileId: entry.lexofficeFileId,
+          filename: entry.file.filename ?? fallbackName({ number, lexofficeId: item.id }, entry.role, entry.file.bytes),
+          mimeType: entry.file.mimeType,
+          bytes: entry.file.bytes,
+        })),
+      );
     // Ein Stand je Datei mit Rolle und Kennung: er löst genau diese Datei und trägt den Zeitpunkt für „(nachgeladen)“ (#1624)
     for (const entry of files)
       await recordFileState(
@@ -434,28 +436,41 @@ async function nachladenDateien(
         { state: "nachgeladen", role: entry.role, sourceFileId: entry.lexofficeFileId, message: "Datei aus einer späteren Sicherung nachgeladen." },
         { actor, importId },
       );
+    // Die Quelle nennt ohne Fehler kein XML: nichts mehr offen, auch wenn nichts ankam. Sonst bliebe die Rechnung für
+    // immer gesperrt, weil jeder weitere Lauf dasselbe „kein XML“ hört (#1624)
+    if (ohneAnhang.length > 0)
+      await recordFileState(
+        tx,
+        voucherId,
+        { state: "kein_anhang", role: "xml", sourceFileId: null, message: "Die Quelle nennt keine E-Rechnung." },
+        { actor, importId },
+      );
   });
   // Was weiterhin fehlt, wird danach in einem eigenen Schritt vermerkt: mit dem jüngeren Zeitstempel bleibt der Beleg
   // offen, auch wenn eine der Dateien ankam (#1624)
   if (weiterhin.length > 0) await withActor(actor, (tx) => vermerkeFehlendeDateien(tx, voucherId, weiterhin, { actor, importId }));
-  return true;
+  return files.length > 0;
 }
 /** Eine Datei, die der Beleg führt und die nicht kommt; sie wird am Beleg vermerkt, nicht als Grund, ihn wegzulassen (#1504) */
 type FehlendeDatei = { role: "pdf" | "xml" | "anhang"; fileId: string | null; message: string };
 
 /**
  * Holt die Dateien eines Belegs einzeln. Was nicht kommt, landet in `missing`; nur ein ungültiger Schlüssel und ein
- * Abbruch gelten für den ganzen Lauf und werden weitergereicht.
+ * Abbruch gelten für den ganzen Lauf und werden weitergereicht. Antwortet die Quelle für das XML der E-Rechnung ohne
+ * Fehler „gibt es nicht“, landet die Rolle in `ohneAnhang`: das ist eine Auskunft und keine Lücke (#1624).
  */
 async function ladeDateien(
   files: DateiEintrag[],
   missing: FehlendeDatei[],
   anfragen: readonly (readonly ["pdf" | "xml" | "anhang", string | null, () => Promise<LexFile | null>])[],
+  ohneAnhang: ("pdf" | "xml" | "anhang")[] = [],
 ): Promise<void> {
   for (const [role, fileId, laden] of anfragen) {
     try {
       const file = await laden();
       if (file) files.push({ role, lexofficeFileId: fileId, file });
+      // Eine Rechnung ohne E-Rechnung (406): nichts, was ein weiterer Abruf je nachholen könnte
+      else if (role === "xml") ohneAnhang.push(role);
     } catch (error) {
       // Ungültiger Schlüssel und Abbruch gelten für den ganzen Lauf; den Abbruch meldet der Client mit Status 0
       if (error instanceof LexofficeApiError && [0, 401, 403].includes(error.status)) throw error;
