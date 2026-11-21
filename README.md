@@ -7,6 +7,7 @@
   <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung über 1.725,50 € festgeschrieben, Zahlungseingang zugeordnet, in der Voranmeldung Oktober mit Kennzahl 81 enthalten und an ELSTER übermittelt" width="900">
 </picture>
 
+**Haben ist, was dir gehört.**<br>
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
 direkt an ELSTER. Für die GoBD gebaut, auf deinem Server; Daten gehen nur an Dienste, die du selbst einschaltest.
@@ -46,12 +47,15 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server; Daten gehen nur an Di
 
 ## Warum Haben?
 
-**Haben ist, was dir gehört. Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
+**Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
 
 Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
 Lexware Office (früher lexoffice) oder sevDesk, und deine Rechnungen liegen nicht auf fremden Servern. Haben ist die
 Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
 auf deinem eigenen Server betreibst.
+
+**Für wen?** Freiberufler und Selbstständige mit EÜR, Kleinunternehmer nach § 19 UStG und kleine GmbHs oder
+UGs mit Bilanz. Du brauchst einen Server oder Rechner mit Docker; die Steuerberatung kann einen eigenen Zugang bekommen.
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **Nachprüfbar statt „vertrau uns“**: Beim Umzug rechnet Haben deine alten Jahre nach, zum Vergleich mit deinen
