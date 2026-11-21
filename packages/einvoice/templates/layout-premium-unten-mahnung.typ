@@ -23,12 +23,14 @@
 // Angaben zum Beleg untereinander, Beschriftung über dem Wert, rechtsbündig mit der Tabelle (bis 190 mm)
 #let angabe(m) = stack(spacing: 1.3mm, text(size: 6.4pt, fill: muted, tracking: 0.08em, upper(m.label)), text(font: serif, size: 10.5pt, zusammen(m.value)))
 // Option „Kerndaten“: Liste (untereinander, rechtsbündig) oder zweispaltig
-#place(top + left, dx: 125mm - links, dy: info-oben - oben, box(width: 190mm - 125mm, if option("kerndaten", "liste") == "zweispaltig" {
+#let kerndaten = box(width: 190mm - 125mm, if option("kerndaten", "liste") == "zweispaltig" {
   info-zweispaltig(info-rechts, angabe)
 } else {
   stack(spacing: 3.2mm, ..info-rechts.map(m => align(right, angabe(m))))
-}))
-#bis-betreff()
+})
+#place(top + left, dx: 125mm - links, dy: info-oben - oben, kerndaten)
+// Die Liste ist höher als bei den anderen Layouts; ist sie lang, rückt der Inhalt darunter nach unten
+#bis-betreff(ueber: kerndaten)
 #if info-rest.len() > 0 {
   let haelfte = calc.ceil(info-rest.len() / 2)
   let spalte(zeilen) = grid(columns: (auto, 1fr), column-gutter: 4mm, row-gutter: 2.2mm,

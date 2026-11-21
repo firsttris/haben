@@ -282,8 +282,12 @@
   ))
 }
 
-// Betreffzeile bei 98,46 mm von oben; davor wenn nötig der Überlauf des Infoblocks
-#let bis-betreff() = v(98.46mm - oben)
+// Betreffzeile bei 98,46 mm von oben; davor wenn nötig der Überlauf des Infoblocks. ueber ist ein an info-oben gesetzter
+// Block (etwa die Kerndaten); reicht er weiter hinunter, beginnt der Inhalt 5 mm darunter
+#let bis-betreff(ueber: none) = context {
+  let hoehe = if ueber == none { 0pt } else { measure(ueber).height }
+  v(calc.max((98.46mm - oben).to-absolute(), (info-oben - oben + hoehe + 5mm).to-absolute()))
+}
 
 #let titel(groesse: 16pt, farbe: ink, schnitt: "semibold", bezug-farbe: muted) = {
   let t = text(size: groesse, fill: farbe, d.title)
