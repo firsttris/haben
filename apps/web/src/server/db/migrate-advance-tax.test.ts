@@ -65,10 +65,14 @@ describe.skipIf(!testDatabaseUrl)("Migration der Anzahlungsart: vorhandene Absch
       expect(await sql`select * from journal_entries order by id`).toEqual(oldEntries);
       expect(await sql`select * from journal_lines order by id`).toEqual(oldLines);
       expect(await sql`select * from seals order by id`).toEqual(oldSeals);
-      // Bisherige Einträge unverändert; neu ist nur die Zeile der Prüfung beim Update (Migration 0275, #1116)
+      // Bisherige Einträge unverändert; neu sind nur die Zeile der Prüfung beim Update (Migration 0275, #1116) und das
+      // Briefkopf-Profil mit dem bisherigen Layout für die eingerichtete Firma (Migration 0312, #113)
       const audit = await sql`select * from audit_log order by seq`;
       expect(audit.slice(0, oldAudit.length)).toEqual(oldAudit);
-      expect(audit.slice(oldAudit.length).map((a) => [a.table_name, a.action])).toEqual([["journal_umstellung", "INSERT"]]);
+      expect(audit.slice(oldAudit.length).map((a) => [a.table_name, a.action])).toEqual([
+        ["journal_umstellung", "INSERT"],
+        ["letterhead_profiles", "INSERT"],
+      ]);
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
     } finally {
       await sql.end();

@@ -7,11 +7,11 @@ description: >-
 
 # Eigene Belegvorlagen
 
-Haben setzt Belege mit Typst aus einer Vorlage. Neben dem eingebauten Layout kannst du eigene hochladen und je Belegart zuordnen. Die Vorlage bekommt die Daten des Belegs fertig formatiert, sie rechnet nichts; das PDF/A-3 und die eingebettete E-Rechnung erzeugt Haben selbst.
+Haben setzt Belege mit Typst aus einer Vorlage. Neben den eingebauten Layouts kannst du eigene hochladen und zuordnen. Die Vorlage bekommt die Daten des Belegs fertig formatiert, sie rechnet nichts; das PDF/A-3 und die eingebettete E-Rechnung erzeugt Haben selbst.
 
 ## Mit einem KI-Agenten
 
-Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Haben bietet ihn unter **Einstellungen › Beleggestaltung › Layouts** als „Anleitung für KI-Agenten“ zum Herunterladen an, dazu die eingebauten Layouts als Grundlage (eine Datei je Art, ohne Importe), Beispieldaten und den Feldvertrag als JSON Schema. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
+Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Haben bietet ihn unter **Einstellungen › Beleggestaltung › Layouts** als „Anleitung für KI-Agenten“ zum Herunterladen an, dazu das eingebaute Layout Klar in der Fassung Klassisch als Grundlage (eine Datei je Art, ohne Importe), Beispieldaten und den Feldvertrag als JSON Schema. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
 
 ## Hochladen und zuordnen
 
@@ -21,10 +21,10 @@ Unter **Einstellungen › Beleggestaltung › Layouts**:
 
 - **Hochladen:** Name, Art (Belege oder Mahnung) und die `.typ`-Datei, bis 256 KB. Zuerst sucht Haben im Quelltext jedes Pflichtfeld (Spalte „Pflicht im Layout“ in den [Feldern](#felder)), etwa `taxNote` für den Hinweis bei Reverse Charge, auch wenn kein Beispiel es füllt. Dann setzt das Layout mit jedem Beispiel seiner Art, darunter Entwurf, Bruttopreise mit 40 Positionen, ein Infoblock mit 15 Zeilen, Fremdwährung, Kleinunternehmer, Storno und Lieferschein, und liest das PDF. Fehlt eine Pflichtangabe (Absender mit vollständiger Anschrift, Empfänger, Bezeichnung des Belegs, bei Storno der Bezug auf die Rechnung, Nummer und Daten, Positionen, Summen mit Umsatzsteuer und Steuersatz, Hinweis ohne Steuerausweis, Hinweis auf Skonto, auf Rechnungen Steuernummer oder USt-IdNr., bei GmbH und UG die Angaben nach § 35a GmbHG) oder auf einer Seite der Vermerk „ENTWURF“, oder braucht ein Lauf länger als 5 Sekunden, wird nichts gespeichert und die Meldung nennt den Grund.
 - **Grenzen des Betreibers:** Mit `LAYOUTS_MAX_COUNT` (Anzahl) und `LAYOUTS_MAX_MB` (Speicher samt Paketen) begrenzt der Betreiber die eigenen Layouts, ohne Angabe gilt keine Grenze ([Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen)). Ist sie erreicht, lehnt Haben das Hochladen mit dem Grund ab.
-- **Zuordnen:** Je Belegart wählst du das eingebaute oder ein eigenes Layout. Storno und Korrektur folgen der Rechnung, Mahnungen brauchen ein Layout der Art Mahnung. Das gilt für alles, was ab dann erzeugt wird, auch für Entwürfe und die Vorschau; festgeschriebene Belege behalten ihr PDF.
+- **Zuordnen:** wie unter [Layouts](beleggestaltung.md#layouts). Storno und Korrektur folgen der Rechnung, Mahnungen brauchen ein Layout der Art Mahnung. Das gilt für alles, was ab dann erzeugt wird, auch für Entwürfe und die Vorschau; festgeschriebene Belege behalten ihr PDF.
 - **Einstellungen, die das Layout nicht verwendet:** Unter Logo und Blatt, Briefpapier und Akzentfarbe ist eine Einstellung aus, wenn kein Layout, das sie zeigen könnte, ihr Feld nennt, etwa der GiroCode, wenn die Layouts für Rechnung und Mahnung `qr` nicht verwenden. Der Hinweis darunter nennt Layout und Feld. Zeigt ein anderes Layout die Einstellung noch, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Welche Einstellung an welchem Feld hängt, steht unter [Einstellungen der Gestaltung](#einstellungen-der-gestaltung). Auch das ist nur ein Blick in den Quelltext, keine Gewähr.
-- **Ersetzen, umbenennen, löschen:** Ersetzen prüft wie das Hochladen. Nach dem Löschen gilt dort, wo das Layout zugeordnet war, wieder das eingebaute.
-- **Fehler beim Erzeugen:** Lässt sich ein zugeordnetes Layout nicht setzen, etwa nach einem Update von Typst, meldet Haben das mit dem Namen des Layouts. Es fällt nicht still auf das eingebaute zurück; wähle dann ein anderes Layout.
+- **Ersetzen, umbenennen, löschen:** Ersetzen prüft wie das Hochladen. Nach dem Löschen gilt dort, wo das Layout zugeordnet war, das eingebaute Layout Klar.
+- **Fehler beim Erzeugen:** Lässt sich ein zugeordnetes Layout nicht setzen, etwa nach einem Update von Typst, meldet Haben das mit dem Namen des Layouts. Es fällt nicht still auf ein eingebautes zurück; wähle dann ein anderes Layout.
 
 ### Pakete
 

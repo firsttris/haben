@@ -2547,6 +2547,9 @@ test("Beleggestaltung: Einstellungen, die das zugeordnete eigene Layout nicht ve
   const giroCode = blatt.getByRole("checkbox", { name: "GiroCode" });
   const falzmarken = blatt.getByRole("checkbox", { name: "Falz- und Lochmarken" });
   const zuordnen = async (art: string, layout: string) => {
+    // Die Wahl je Belegart steht eingeklappt, solange alle Belegarten dasselbe Layout haben
+    const jeBeleg = karte.locator("details.layouts-je-beleg");
+    if (!(await jeBeleg.evaluate((element: HTMLDetailsElement) => element.open))) await jeBeleg.locator("summary").click();
     await karte.getByLabel(`Layout für ${art}`).selectOption({ label: layout });
     await expect(karte.getByRole("status").first()).toContainText("Gespeichert");
     await go("/einstellungen?bereich=gestaltung");

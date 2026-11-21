@@ -2,13 +2,14 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { EINGEBAUTE_LAYOUTS, layoutVorlagen, wertErlaubt } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import { BEISPIEL_PNG, layoutBeispiele } from "./layout-beispiele.ts";
 import { layoutAnleitung } from "./layout-anleitung.ts";
 import { fehlendeAngaben, ungenutztePflichtfelder } from "./layout-pflicht.ts";
 import { LAYOUT_PFLICHTFELDER, layoutJsonSchema } from "./layout-schema.ts";
 import { flattenSchema } from "./layout-schema-paths.ts";
-import { startvorlage } from "./layout-startvorlage.ts";
+import { startvorlage, vorlageAlsDatei } from "./layout-startvorlage.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 
 const hasPoppler = spawnSync("pdftotext", ["-v"]).status === 0;
@@ -143,4 +144,33 @@ describe("Pflichtfelder im Quelltext", () => {
     expect(ungenutztePflichtfelder("d.closingFormatted d.introFormatted", "mahnung")).not.toContain("intro|introFormatted");
     expect(ungenutztePflichtfelder("d.docTitle", "beleg")).toContain("title");
   });
+});
+
+describe.skipIf(!hasPoppler)("Eingebaute Layouts mit allen Optionen", () => {
+  // Jede Kombination, die die Gestaltung anbieten kann, mit jedem Beispiel: Pflichtangaben auf dem Blatt und Pflichtfelder im Quelltext
+  const faelle = EINGEBAUTE_LAYOUTS.flatMap((layout) => {
+    let kombinationen: Record<string, string>[] = [{}];
+    for (const option of layout.optionen) {
+      kombinationen = kombinationen.flatMap((bisher) =>
+        option.werte.filter((wert) => wertErlaubt(wert, bisher)).map((wert) => ({ ...bisher, [option.id]: wert.id })),
+      );
+    }
+    return kombinationen.map((optionen) => [`${layout.id} ${JSON.stringify(optionen)}`, layout, optionen] as const);
+  });
+
+  it.each(faelle)(
+    "%s",
+    (_name, layout, optionen) => {
+      const vorlagen = layoutVorlagen(layout, optionen);
+      expect(ungenutztePflichtfelder(vorlageAlsDatei(vorlagen.beleg), "beleg")).toEqual([]);
+      expect(ungenutztePflichtfelder(vorlageAlsDatei(vorlagen.mahnung), "mahnung")).toEqual([]);
+      for (const beispiel of layoutBeispiele()) {
+        const daten = beispiel.data as { look: object };
+        const mitOptionen = { ...daten, look: { ...daten.look, options: optionen } };
+        const vorlage = beispiel.art === "beleg" ? vorlagen.beleg : vorlagen.mahnung;
+        expect(fehlendeAngaben(beispiel, seiten(vorlage, mitOptionen)), beispiel.name).toEqual([]);
+      }
+    },
+    60_000,
+  );
 });

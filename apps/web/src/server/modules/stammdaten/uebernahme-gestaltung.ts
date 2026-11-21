@@ -1,4 +1,13 @@
-import { DEFAULT_LAYOUT, designWithDefaults, LAYOUT_DOCUMENT_TYPES, type LayoutAssignment, letterheadDesignInputSchema } from "@haben/core";
+import {
+  bekannteLayoutOptionen,
+  designWithDefaults,
+  eingebautesLayout,
+  LAYOUT_DOCUMENT_TYPES,
+  type LayoutAssignment,
+  type LetterheadDesignInput,
+  letterheadDesignInputSchema,
+  STANDARD_LAYOUT_ID,
+} from "@haben/core";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { schema, type Tx } from "../../db/index.ts";
@@ -60,14 +69,19 @@ export async function gestaltungUebernehmen(tx: Tx, gestaltung: Gestaltung): Pro
 
 async function standardprofilUebernehmen(tx: Tx, raw: unknown, arten: ReadonlyMap<string, LayoutArt>): Promise<void> {
   const profil = geprueft(profilSchema, raw, "Beleggestaltung");
-  const optionen = geprueft(letterheadDesignInputSchema, profil.settings, "Beleggestaltung");
+  // Vor Migration 0312 (#113) gab es accentFromLayout nicht, und das eingebaute Layout hieß „klassisch“
+  const vor0312 = !("accentFromLayout" in profil.settings);
+  const optionen = bisherigesLayout(geprueft(letterheadDesignInputSchema, profil.settings, "Beleggestaltung"), vor0312);
   const layouts: Partial<LayoutAssignment> = {};
   for (const type of LAYOUT_DOCUMENT_TYPES) {
     const ref = profil.settings.layouts[type];
     if (!ref) continue;
-    // Wie assignLayout: nur das eingebaute Layout oder ein eigenes der passenden Art aus derselben Datei
-    if (ref.kind === "eingebaut" && ref.id !== DEFAULT_LAYOUT.id)
-      throw new UebernahmeError(`Beleggestaltung: Das eingebaute Layout „${ref.id}“ gibt es nicht.`);
+    if (vor0312 && ref.kind === "eingebaut" && ref.id === "klassisch") {
+      layouts[type] = { kind: "eingebaut", id: STANDARD_LAYOUT_ID };
+      continue;
+    }
+    // Wie assignLayout: ein eingebautes Layout aus dem Katalog oder ein eigenes der passenden Art aus derselben Datei
+    if (ref.kind === "eingebaut" && !eingebautesLayout(ref.id)) throw new UebernahmeError(`Beleggestaltung: Das eingebaute Layout „${ref.id}“ gibt es nicht.`);
     if (ref.kind === "eigen" && arten.get(ref.id) !== artFor(type))
       throw new UebernahmeError(`Beleggestaltung: Das Layout für ${type} fehlt in der Datei oder passt nicht zur Belegart.`);
     layouts[type] = ref;
@@ -79,4 +93,14 @@ async function standardprofilUebernehmen(tx: Tx, raw: unknown, arten: ReadonlyMa
     .insert(profiles)
     .values({ name: profil.name || "Standard", isDefault: true, settings })
     .onConflictDoUpdate({ target: profiles.isDefault, targetWhere: sql`${profiles.isDefault}`, set: { settings, updatedAt: new Date() } });
+}
+
+/**
+ * Gestaltung aus einer Datei von vor Migration 0312 wie die Migration: das bisherige Layout (Klar in der Fassung
+ * „Klassisch“), die bisherige Schrift (Vorgabe war IBM Plex Sans) und die eigene Akzentfarbe. Optionen nur aus dem Katalog.
+ */
+function bisherigesLayout(optionen: LetterheadDesignInput, vor0312: boolean): LetterheadDesignInput {
+  const layoutOptions = bekannteLayoutOptionen(optionen.layoutOptions ?? {});
+  if (!vor0312) return { ...optionen, layoutOptions };
+  return { font: "plex-sans", ...optionen, accentFromLayout: false, layoutOptions: { ...layoutOptions, klar: { fassung: "klassisch" } } };
 }

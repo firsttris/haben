@@ -20,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
   let background: typeof import("./background.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
-  const klassisch = { kind: "eingebaut", id: "klassisch" };
+  const klar = { kind: "eingebaut", id: "klar" };
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
   it("jede Belegart hat ihr eigenes Layout, ab Werk das eingebaute", async () => {
     const { layouts } = await letterhead.loadDesign();
     expect(Object.keys(layouts).sort()).toEqual([...LAYOUT_DOCUMENT_TYPES].sort());
-    for (const type of LAYOUT_DOCUMENT_TYPES) expect(layouts[type]).toEqual(klassisch);
+    for (const type of LAYOUT_DOCUMENT_TYPES) expect(layouts[type]).toEqual(klar);
   });
 
   it("speichert die Farbe groß geschrieben im Standardprofil und protokolliert sie", async () => {
@@ -62,7 +62,22 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
     await letterhead.saveDesign(actor, { foldMarks: false });
     const rows = await sql`select settings from letterhead_profiles`;
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.settings).toMatchObject({ layouts: { rechnung: klassisch }, accent: "#0055AA", logoSize: "l", foldMarks: false, giroCode: true });
+    expect(rows[0]!.settings).toMatchObject({ layouts: { rechnung: klar }, accent: "#0055AA", logoSize: "l", foldMarks: false, giroCode: true });
+  });
+
+  it("eine eigene Farbe gilt statt der des Layouts, bis „Wie im Layout“ sie ausdrücklich abschaltet", async () => {
+    expect((await letterhead.loadDesign()).accentFromLayout).toBe(true);
+    await letterhead.saveDesign(actor, { accent: "#0055aa" });
+    expect(await letterhead.loadDesign()).toMatchObject({ accent: "#0055AA", accentFromLayout: false });
+    await letterhead.saveDesign(actor, { accentFromLayout: true });
+    expect(await letterhead.loadDesign()).toMatchObject({ accent: "#0055AA", accentFromLayout: true });
+  });
+
+  it("führt die Optionen je Layout zusammen und speichert nur, was der Katalog kennt", async () => {
+    await letterhead.saveDesign(actor, { layoutOptions: { atelier: { fuss: "rechts", kerndaten: "zweispaltig" } } });
+    await letterhead.saveDesign(actor, { layoutOptions: { klar: { fassung: "klassisch", farbe: "rot" }, fremd: { a: "b" } } });
+    // Gesperrte Werte (zweispaltig bei Fuß rechts) bleiben gespeichert, damit die Wahl beim Zurückschalten wieder gilt
+    expect((await letterhead.loadDesign()).layoutOptions).toEqual({ atelier: { fuss: "rechts", kerndaten: "zweispaltig" }, klar: { fassung: "klassisch" } });
   });
 
   it("übergibt Logo und Schalter an das PDF", async () => {

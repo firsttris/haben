@@ -120,7 +120,7 @@ function NewDunningPage() {
       <PreviewLayout
         preview={preview}
         design={{
-          panel: <DesignPanel draft={designDraft} vatRates={0} positions={false} logo={logo} onLogoChanged={setLogo} />,
+          panel: <DesignPanel draft={designDraft} vatRates={0} positions={false} logo={logo} onLogoChanged={setLogo} layoutType="mahnung" />,
           onClosed: designDraft.discard,
         }}
         label="Vorschau"

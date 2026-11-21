@@ -12,6 +12,8 @@ const FONT_FILES = [
     ["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].map((style) => `${family}-${style}.ttf`),
   ),
   ...["Regular", "Medium", "Semibold", "It", "SemiboldIt"].map((style) => `SourceSans3-${style}.ttf`),
+  // Display-Schrift des Layouts Atelier, nicht in der Auswahl der Gestaltung
+  ...["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].map((style) => `CormorantGaramond-${style}.ttf`),
 ];
 const FONTS = FONT_FILES.map((file) => join(PACKAGE_DIR, "fonts", file));
 

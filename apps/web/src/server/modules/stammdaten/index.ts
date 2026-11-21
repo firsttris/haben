@@ -97,8 +97,10 @@ export { typstMeldung } from "./layout-pruefung.ts";
 export {
   artFor,
   assignLayout,
+  assignLayoutToAll,
   createLayout,
   customLayoutFor,
+  mitEingebautemLayout,
   deleteLayout,
   LayoutError,
   LayoutRenderError,

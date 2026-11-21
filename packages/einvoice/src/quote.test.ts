@@ -17,7 +17,7 @@ describe("Angebot", () => {
       { label: "Angebotsnummer", value: "AN-2026-007" },
       { label: "Angebotsdatum", value: "01.10.2026" },
       { label: "Gültig bis", value: "31.10.2026" },
-      { label: "Leistungszeitraum", value: "01.11.2026 – 30.11.2026" },
+      { label: "Leistungszeitraum", value: "01.–30.11.2026" },
       { label: "Kundennummer", value: "K-1007" },
     ]);
     expect(data.totals.gross.label).toBe("Angebotssumme");

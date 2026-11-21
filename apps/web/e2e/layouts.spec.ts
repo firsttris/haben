@@ -35,6 +35,12 @@ async function einstellungen(browser: Browser): Promise<Page> {
 }
 
 const karte = (p: Page) => p.getByRole("region", { name: "Layouts", exact: true });
+/** Auswahl einer Belegart; die Tabelle steht eingeklappt, solange alle dasselbe Layout haben */
+async function layoutFuer(p: Page, art: string) {
+  const jeBeleg = karte(p).locator("details.layouts-je-beleg");
+  if (!(await jeBeleg.evaluate((element: HTMLDetailsElement) => element.open))) await jeBeleg.locator("summary").click();
+  return karte(p).getByLabel(`Layout für ${art}`);
+}
 const hochladen = (p: Page) => karte(p).getByRole("form", { name: "Layout hochladen" });
 /** Meldung nach dem Hochladen; der Hinweis „Keine Gewähr“ steht immer darüber */
 const meldung = (p: Page) => hochladen(p).locator(".banner:not(.banner-warn)");
@@ -89,7 +95,7 @@ test("Hochladen, dem Angebot zuordnen, in der Vorschau sehen und löschen", asyn
   await expect(meldung(page)).toContainText("Geprüft und gespeichert");
   // Die Dateiauswahl ist danach wieder leer, für das nächste Layout
   await expect(hochladen(page).getByText("Keine Datei gewählt")).toBeVisible();
-  const auswahl = karte(page).getByLabel("Layout für Angebot");
+  const auswahl = await layoutFuer(page, "Angebot");
   try {
     await auswahl.selectOption({ label: "Rotes Angebot" });
     await expect(karte(page).getByRole("status").first()).toContainText("Gespeichert");
@@ -111,7 +117,7 @@ test("Hochladen, dem Angebot zuordnen, in der Vorschau sehen und löschen", asyn
       .click();
     await expect(karte(page).getByText("Rotes Angebot", { exact: true })).toHaveCount(0);
   }
-  await expect(karte(page).getByLabel("Layout für Angebot")).toHaveValue("eingebaut:klassisch");
+  await expect(await layoutFuer(page, "Angebot")).toHaveValue("eingebaut:klar");
   await page.context().close();
 });
 
@@ -122,7 +128,7 @@ test("Ein Layout, das nur look.logoLeft kennt: Hinweis zu „Mitte“, der Knopf
   await datei(page, "Altes Angebot", alt);
   await expect(meldung(page)).toContainText("Geprüft und gespeichert");
   try {
-    await karte(page).getByLabel("Layout für Angebot").selectOption({ label: "Altes Angebot" });
+    await (await layoutFuer(page, "Angebot")).selectOption({ label: "Altes Angebot" });
     await expect(karte(page).getByRole("status").first()).toContainText("Gespeichert");
     await page.reload();
     await page.waitForLoadState("networkidle");
@@ -137,6 +143,53 @@ test("Ein Layout, das nur look.logoLeft kennt: Hinweis zu „Mitte“, der Knopf
       .getByRole("button", { name: "Layout löschen" })
       .click();
     await expect(karte(page).getByText("Altes Angebot", { exact: true })).toHaveCount(0);
+  }
+  await page.context().close();
+});
+
+test("Eingebautes Layout mit Optionen: zuordnen, gesperrte Werte ausgegraut, Wahl bleibt gespeichert", async ({ browser }) => {
+  const page = await einstellungen(browser);
+  try {
+    await (await layoutFuer(page, "Angebot")).selectOption({ label: "Atelier (eingebaut)" });
+    await expect(karte(page).getByRole("status").first()).toContainText("Gespeichert");
+    const fuss = karte(page).getByRole("group", { name: "Fuß (Atelier)" });
+    const kerndaten = karte(page).getByRole("group", { name: "Kerndaten (Atelier)" });
+    await expect(kerndaten.getByRole("button", { name: "Zweispaltig" })).toBeEnabled();
+    await fuss.getByRole("button", { name: "In der Randspalte" }).click();
+    await expect(fuss.getByRole("button", { name: "In der Randspalte" })).toHaveAttribute("aria-pressed", "true");
+    // Zweispaltig geht nur mit dem Fuß unten
+    await expect(kerndaten.getByRole("button", { name: "Zweispaltig" })).toBeDisabled();
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(karte(page).getByRole("group", { name: "Fuß (Atelier)" }).getByRole("button", { name: "In der Randspalte" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  } finally {
+    await (await layoutFuer(page, "Angebot")).selectOption({ label: "Klar (eingebaut)" });
+    await expect(karte(page).getByRole("group", { name: "Fuß (Atelier)" })).toHaveCount(0);
+  }
+  await page.context().close();
+});
+
+test("Ein Layout für alle Belegarten: oben wählen, die Tabelle bleibt zu; weicht eine ab, steht sie offen", async ({ browser }) => {
+  const page = await einstellungen(browser);
+  const alle = karte(page).getByLabel("Layout", { exact: true });
+  try {
+    await alle.selectOption({ label: "Modern (eingebaut)" });
+    await expect(karte(page).getByRole("status").first()).toContainText("Gespeichert");
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(alle).toHaveValue("eingebaut:modern");
+    await expect(karte(page).locator("details.layouts-je-beleg")).not.toHaveAttribute("open");
+    await (await layoutFuer(page, "Mahnung")).selectOption({ label: "Klar (eingebaut)" });
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+    await expect(alle.locator("option:checked")).toHaveText("Je Belegart verschieden");
+    await expect(karte(page).locator("details.layouts-je-beleg")).toHaveAttribute("open");
+  } finally {
+    await alle.selectOption({ label: "Klar (eingebaut)" });
+    await expect(alle).toHaveValue("eingebaut:klar");
   }
   await page.context().close();
 });

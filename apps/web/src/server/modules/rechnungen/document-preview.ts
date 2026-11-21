@@ -40,6 +40,7 @@ import { UserError } from "../../errors.ts";
 import {
   type Company,
   customLayoutFor,
+  mitEingebautemLayout,
   customLayoutJob,
   dataForVersion,
   ansprechpartnerSnapshot,
@@ -136,8 +137,11 @@ export interface DocumentPreview extends RenderedSheet {
 
 /** Ungespeicherte Gestaltung aus dem Panel über der gespeicherten */
 export function withDesign(letterhead: Letterhead, design: Input["design"]): Letterhead {
-  const { accent, ...options } = design;
-  return { ...letterhead, ...(accent ? { accent } : {}), options: { ...DEFAULT_OPTIONS, ...letterhead.options, ...options } };
+  // Die Optionen der Layouts gehören nicht zu den Schaltern; renderPreview nimmt sie mit dem Layout der Belegart
+  const { accent, layoutOptions: _layoutOptions, ...options } = design;
+  // Wie beim Speichern (saveDesign): Eine eigene Farbe gilt statt der des Layouts, solange das Panel nichts anderes sagt
+  const eigeneFarbe = accent ? { accentFromLayout: false } : {};
+  return { ...letterhead, ...(accent ? { accent } : {}), options: { ...DEFAULT_OPTIONS, ...letterhead.options, ...eigeneFarbe, ...options } };
 }
 
 async function previewBuyer(contactId: string | null, contactPersonId: string | null): Promise<Buyer> {
@@ -264,7 +268,14 @@ export async function documentPreview(input: Input): Promise<DocumentPreview> {
       ? quotePdfData(angebotMitPlatzhaltern(quoteDocument(input, company, buyer, letterhead)))
       : pdfData(rechnungMitPlatzhaltern(invoiceDocument(input, company, buyer, letterhead, directDebit)));
   const { draft: _noMark, ...sheet } = asDraft(data, t);
-  return renderPreview(input.kind === "angebot" ? "angebot" : "rechnung", "rechnung.typ", sheet, letterhead, () => sheetText(sheet as unknown as SheetData));
+  return renderPreview(
+    input.kind === "angebot" ? "angebot" : "rechnung",
+    "rechnung.typ",
+    sheet,
+    letterhead,
+    () => sheetText(sheet as unknown as SheetData),
+    input.design.layoutOptions,
+  );
 }
 
 /**
@@ -277,11 +288,13 @@ export async function renderPreview(
   sheet: object,
   letterhead: Letterhead,
   text: () => SheetTextPart[],
+  /** Ungespeicherte Optionen der eingebauten Layouts aus dem Panel */
+  layoutOptions?: Record<string, Record<string, string>>,
 ): Promise<DocumentPreview> {
   const layout = await customLayoutFor(type);
   const job = layout
     ? await customLayoutJob(layout, dataForVersion(layout.schemaVersion, templateInputs(sheet, letterhead)), letterhead)
-    : renderJob(template, sheet, letterhead);
+    : renderJob(template === "mahnung.typ" ? "mahnung" : "beleg", sheet, await mitEingebautemLayout(type, letterhead, layoutOptions));
   try {
     const renderer = layout ? await rendererFor(layout) : layoutRenderer;
     return { ...(await renderer.render(job)), text: text() };

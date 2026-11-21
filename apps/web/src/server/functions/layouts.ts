@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
 import {
   assignLayout,
+  assignLayoutToAll,
   createLayout,
   deleteLayout,
   layoutOverview,
@@ -56,6 +57,12 @@ export const removeLayout = createServerFn({ method: "POST" })
     await deleteLayout(context.user.id, data);
     return { ok: true };
   });
+
+/** Ein Layout für alle Belegarten, zu denen es passt; nennt die, die es bekommen haben */
+export const assignLayoutToAllFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ ref: layoutRefSchema }))
+  .handler(async ({ data, context }) => ({ types: await assignLayoutToAll(context.user.id, data.ref) }));
 
 export const assignLayoutFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

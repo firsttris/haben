@@ -52,6 +52,7 @@ nav:
       - Gehostet oder mit Partner: gehostet.md
   - Einrichten:
       - Erste Schritte: einrichtung.md
+      - Beleggestaltung: beleggestaltung.md
       - ELSTER einrichten: einrichtung-elster.md
       - E-Mail-Versand: einrichtung-email.md
       - Von der Testinstanz in den Echtbetrieb: einrichtung-echtbetrieb.md

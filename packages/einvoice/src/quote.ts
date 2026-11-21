@@ -44,7 +44,7 @@ export interface QuoteDocument extends Letterhead {
 export function quoteDetails(doc: QuoteDocument, t: Texts): MetaZeile[] {
   const meta: MetaZeile[] = [];
   if (doc.serviceFrom && doc.serviceTo && doc.serviceFrom !== doc.serviceTo) {
-    meta.push({ label: t.servicePeriod, value: `${t.date(doc.serviceFrom)} – ${t.date(doc.serviceTo)}` });
+    meta.push({ label: t.servicePeriod, value: t.period(doc.serviceFrom, doc.serviceTo) });
   } else if (doc.serviceFrom ?? doc.serviceTo) {
     meta.push({ label: t.serviceDate, value: t.date((doc.serviceFrom ?? doc.serviceTo)!) });
   }

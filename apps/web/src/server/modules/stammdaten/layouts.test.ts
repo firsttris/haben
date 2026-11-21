@@ -1,3 +1,4 @@
+import { LAYOUT_DOCUMENT_TYPES } from "@haben/core";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -246,12 +247,32 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const { id } = await anlegen({ name: "Rechnungslayout", art: "beleg", source: eigene("beleg") });
     await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
     expect((await letterhead.loadDesign()).layouts.rechnung).toEqual({ kind: "eigen", id });
-    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
+    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klar" });
     const { pdf, xml } = await layouts.withCustomLayout("rechnung", {}, (lh) => buildEInvoice({ ...sampleDocument(), ...lh }));
     expect(pdfText(pdf)).toContain("EIGENES LAYOUT");
     // Das XML hängt Haben weiter an, auch an ein eigenes Layout
     expect(Buffer.from(pdf).toString("latin1")).toContain("factur-x.xml");
     expect(xml).toContain("2026-034");
+  }, 60_000);
+
+  it("ordnet jedes eingebaute Layout aus dem Katalog zu, ein unbekanntes nicht", async () => {
+    await layouts.assignLayout(actor, "rechnung", { kind: "eingebaut", id: "atelier" });
+    await layouts.assignLayout(actor, "mahnung", { kind: "eingebaut", id: "elegant" });
+    const design = await letterhead.loadDesign();
+    expect(design.layouts.rechnung).toEqual({ kind: "eingebaut", id: "atelier" });
+    expect(design.layouts.mahnung).toEqual({ kind: "eingebaut", id: "elegant" });
+    await expect(layouts.assignLayout(actor, "angebot", { kind: "eingebaut", id: "gibtsnicht" })).rejects.toThrow(/gibt es nicht/);
+  }, 60_000);
+
+  it("ordnet ein Layout allen passenden Belegarten auf einmal zu; ein eigenes für Belege lässt die Mahnung", async () => {
+    expect(await layouts.assignLayoutToAll(actor, { kind: "eingebaut", id: "modern" })).toEqual(LAYOUT_DOCUMENT_TYPES);
+    expect(Object.values((await letterhead.loadDesign()).layouts)).toEqual(LAYOUT_DOCUMENT_TYPES.map(() => ({ kind: "eingebaut", id: "modern" })));
+    const { id } = await anlegen({ name: "Für alle", art: "beleg", source: eigene("beleg") });
+    expect(await layouts.assignLayoutToAll(actor, { kind: "eigen", id })).toEqual(["rechnung", "angebot", "auftragsbestaetigung", "lieferschein"]);
+    const design = await letterhead.loadDesign();
+    expect(design.layouts.angebot).toEqual({ kind: "eigen", id });
+    expect(design.layouts.mahnung).toEqual({ kind: "eingebaut", id: "modern" });
+    await layouts.assignLayoutToAll(actor, { kind: "eingebaut", id: "klar" });
   }, 60_000);
 
   it("passt die Art nicht, wird nichts zugeordnet", async () => {
@@ -263,7 +284,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const { id } = await anlegen({ name: "Weg", art: "beleg", source: eigene("beleg") });
     await layouts.assignLayout(actor, "angebot", { kind: "eigen", id });
     await layouts.deleteLayout(actor, id);
-    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
+    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klar" });
   }, 60_000);
 
   it("Löschen und gleichzeitiges Speichern der Gestaltung verhaken sich nicht", async () => {
@@ -279,7 +300,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
       await t`update letterhead_profiles set updated_at = now() where is_default`;
     });
     await loeschen;
-    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klassisch" });
+    expect((await letterhead.loadDesign()).layouts.angebot).toEqual({ kind: "eingebaut", id: "klar" });
   }, 60_000);
 
   it("fällt beim Setzen nicht still auf das eingebaute zurück", async () => {

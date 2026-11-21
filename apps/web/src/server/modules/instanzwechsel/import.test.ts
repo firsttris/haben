@@ -121,8 +121,9 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
     await sql`insert into own_accounts(kontenrahmen, account, name, parent_category, created_by) values ('SKR04', '6999', 'Software-Abos', 'software', 'test-user')`;
     await sql`insert into beleg_layouts(id, name, art, source, sha256, schema_version, packages)
       values (${LAYOUT}, 'Mein Layout', 'beleg', ${startvorlage("beleg")}, 'x', 1, '[]'::jsonb)`;
+    // Wie ein Profil seit Migration 0312 (#113), mit accentFromLayout; ohne gilt es als Datei von davor
     await sql`insert into letterhead_profiles(name, is_default, settings)
-      values ('Standard', true, ${JSON.stringify({ accent: "#1F6FEB", font: "plex-sans", layouts: { rechnung: { kind: "eigen", id: LAYOUT } } })}::jsonb)`;
+      values ('Standard', true, ${JSON.stringify({ accent: "#1F6FEB", font: "plex-sans", accentFromLayout: false, layouts: { rechnung: { kind: "eigen", id: LAYOUT } } })}::jsonb)`;
     await sql`insert into company_logo(id, logo, format, sha256) values (1, ${Buffer.from(PNG)}, 'png', 'x')`;
     const sha256 = await storage.storeFile(PDF);
     await sql`insert into quote_default_attachments(filename, mime_type, sha256, size) values ('AGB.pdf', 'application/pdf', ${sha256}, ${PDF.length})`;
@@ -253,6 +254,46 @@ describe.skipIf(!testDatabaseUrl)("Einstellungen übernehmen (Postgres)", () => 
       username: "versand@example.org",
       from_name: "Muster Design",
       templates: { "rechnung:de": { subject: "Rechnung {nummer}", body: "Hallo" } },
+    });
+  });
+
+  it("übernimmt jedes eingebaute Layout aus dem Katalog samt Optionen (#113)", async () => {
+    await testinstanz();
+    const settings = {
+      accent: "#1F6FEB",
+      font: "layout",
+      accentFromLayout: true,
+      layouts: { rechnung: { kind: "eingebaut", id: "modern" } },
+      layoutOptions: { modern: { akzent: "sparsam" } },
+    };
+    await sql`update letterhead_profiles set settings = ${JSON.stringify(settings)}::jsonb`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    const [profil] = await sql`select settings from letterhead_profiles where is_default`;
+    expect(profil!.settings).toMatchObject({ ...settings, layouts: { rechnung: { kind: "eingebaut", id: "modern" } } });
+  });
+
+  it("liest eine Datei von vor Migration 0312 wie die Migration: bisheriges Layout, bisherige Schrift, eigene Farbe (#113)", async () => {
+    await testinstanz();
+    // So stand das Profil vor 0312 in der Datenbank: eingebaut hieß „klassisch“, Schrift und accentFromLayout fehlen
+    const alt = {
+      accent: "#1F6FEB",
+      logoSize: "l",
+      layouts: { rechnung: { kind: "eingebaut", id: "klassisch" }, mahnung: { kind: "eingebaut", id: "klassisch" } },
+    };
+    await sql`update letterhead_profiles set settings = ${JSON.stringify(alt)}::jsonb`;
+
+    await instanzwechsel.importSettings(actor, await exportierenUndNeu(), HEUTE);
+
+    const [profil] = await sql`select settings from letterhead_profiles where is_default`;
+    expect(profil!.settings).toMatchObject({
+      accent: "#1F6FEB",
+      logoSize: "l",
+      font: "plex-sans",
+      accentFromLayout: false,
+      layouts: { rechnung: { kind: "eingebaut", id: "klar" }, mahnung: { kind: "eingebaut", id: "klar" } },
+      layoutOptions: { klar: { fassung: "klassisch" } },
     });
   });
 

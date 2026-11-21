@@ -99,11 +99,11 @@ test("Die Spalte Gestaltung zeigt Änderungen sofort und verwirft sie", async ({
 
   await panel(page).getByRole("button", { name: "Blau" }).click();
   await expect.poll(() => brand(page)).toBe("#1D4E89");
-  await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeEnabled();
+  await expect(panel(page).getByRole("button", { name: "Gestaltung speichern" })).toBeEnabled();
 
   await panel(page).getByRole("button", { name: "Verwerfen" }).click();
   await expect.poll(() => brand(page)).toBe(vorher);
-  await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeDisabled();
+  await expect(panel(page).getByRole("button", { name: "Gestaltung speichern" })).toBeDisabled();
   await page.context().close();
 });
 
@@ -213,7 +213,7 @@ test("Speichern gilt nach dem Neuladen und lässt das Formular stehen", async ({
   const vorher = await brand(page);
 
   await panel(page).getByRole("button", { name: "Violett" }).click();
-  await panel(page).getByRole("button", { name: "Für alle Belege speichern" }).click();
+  await panel(page).getByRole("button", { name: "Gestaltung speichern" }).click();
   await expect(panel(page).getByRole("status")).toContainText("Gespeichert");
   await dialog(page).getByRole("button", { name: "Schließen" }).click();
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Eingabe bleibt");
@@ -246,13 +246,13 @@ test("Änderungen, die während des Speicherns entstehen, bleiben als ungespeich
   });
 
   await panel(page).getByRole("button", { name: "Violett" }).click();
-  await panel(page).getByRole("button", { name: "Für alle Belege speichern" }).click();
+  await panel(page).getByRole("button", { name: "Gestaltung speichern" }).click();
   await panel(page).getByRole("button", { name: "Blau" }).click();
   weiter();
   await expect(panel(page).getByRole("status")).toContainText("Gespeichert");
 
   await expect.poll(() => brand(page)).toBe("#1D4E89");
-  await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeEnabled();
+  await expect(panel(page).getByRole("button", { name: "Gestaltung speichern" })).toBeEnabled();
 
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
@@ -314,11 +314,14 @@ test("Die Einstellungen nennen je Belegart das eingebaute Layout", async ({ brow
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
   const karte = page.getByRole("region", { name: "Layouts", exact: true });
+  // Oben ein Layout für alle; die Tabelle je Belegart steht eingeklappt, solange alle dasselbe haben
+  await expect(karte.getByLabel("Layout", { exact: true })).toHaveValue("eingebaut:klar");
+  await karte.getByText("Je Belegart abweichend wählen").click();
   await expect(karte.getByRole("row")).toHaveCount(6);
   // Ohne eigene Zuordnung steht je Belegart das eingebaute Layout in der Auswahl
   const mahnung = karte.getByLabel("Layout für Mahnung");
-  await expect(mahnung).toHaveValue("eingebaut:klassisch");
-  await expect(mahnung.locator("option:checked")).toHaveText("Klassisch (eingebaut)");
+  await expect(mahnung).toHaveValue("eingebaut:klar");
+  await expect(mahnung.locator("option:checked")).toHaveText("Klar (eingebaut)");
   await page.context().close();
 });
 

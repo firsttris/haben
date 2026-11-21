@@ -45,13 +45,21 @@ describe("Gestaltung der Belege", () => {
 });
 
 describe("Schrift und Briefpapier in der Gestaltung", () => {
-  it("nimmt ab Werk die bisherige Schrift und legt Briefpapier nur auf die erste Seite", () => {
-    expect(DEFAULT_DESIGN.font).toBe("plex-sans");
-    expect(DEFAULT_DESIGN.backgroundPages).toBe("erste");
+  it("nimmt ab Werk Schrift und Akzentfarbe des Layouts, das Standardlayout Klar und Briefpapier nur auf der ersten Seite", () => {
+    expect(DEFAULT_DESIGN).toMatchObject({ font: "layout", accentFromLayout: true, backgroundPages: "erste", layoutOptions: {} });
+    expect(DEFAULT_DESIGN.layouts.rechnung).toEqual({ kind: "eingebaut", id: "klar" });
   });
 
-  it("ergänzt beides bei gespeicherten Profilen von früher", () => {
-    expect(designWithDefaults({ accent: "#123456" })).toMatchObject({ font: "plex-sans", backgroundPages: "erste" });
+  it("ergänzt fehlende Einstellungen bei gespeicherten Profilen; was dort steht, bleibt", () => {
+    // Bestehende Installationen bekommen Schrift, Akzentfarbe und Klar in der Fassung „Klassisch“ per Migration fest eingetragen (0312)
+    expect(designWithDefaults({ accent: "#123456" })).toMatchObject({ accent: "#123456", font: "layout", backgroundPages: "erste" });
+    expect(designWithDefaults({ font: "plex-sans", accentFromLayout: false })).toMatchObject({ font: "plex-sans", accentFromLayout: false });
+  });
+
+  it("nimmt „layout“ als Schrift und Optionen je Layout an", () => {
+    expect(letterheadDesignInputSchema.safeParse({ font: "layout", accentFromLayout: false, layoutOptions: { atelier: { fuss: "rechts" } } }).success).toBe(
+      true,
+    );
   });
 
   it("nimmt nur Schriften aus der Auswahl an", () => {
