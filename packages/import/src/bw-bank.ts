@@ -6,8 +6,7 @@ import { normalizeIban, normalizeText, parseDate, parseGermanAmount, requireDate
 import type { ParsedStatement } from "./types.ts";
 
 /*
- * Umsätze aus dem Online-Banking der BW-Bank (Baden-Württembergische Bank, https://www.bw-bank.de/; Exportformate:
- * https://meine.bw-bank.de/fragen/welches-dateiformat-verwende-ich-am-besten-fuer-den-export-n): Semikolon-CSV in Windows-1252,
+ * Umsätze aus dem Online-Banking der BW-Bank (Baden-Württembergische Bank, https://www.bw-bank.de/): Semikolon-CSV in Windows-1252,
  * ohne Kopfblock und ohne Kontostand, Anführungszeichen um jedes Feld, Datum TT.MM.JJ. Die erste Spalte „Auftragskonto“
  * ist die eigene IBAN. Die Exporte „Excel (CSV-CAMT V2)“, „(CSV-CAMT V8)“, „(CSV-MT940)“ und „(CSV - gefilterte Einträge)“
  * haben zwei Aufbauten:
