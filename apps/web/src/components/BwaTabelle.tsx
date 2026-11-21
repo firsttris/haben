@@ -1,11 +1,14 @@
-import { MONTHS, formatEuro, type Zeitraum } from "@haben/core";
-import { Link } from "@tanstack/react-router";
+import { MONTHS, bwaZeileLeer, formatEuro, sichtbareZeilen, type Zeitraum } from "@haben/core";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import type { BwaBericht, BwaZeileWerte } from "../server/modules/auswertungen/index.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 
-/* Tabelle der BWA (#1380) für Form 43 und Form 01: Zeitraum, Vergleich mit Abweichung, kumuliert; eine Zeile öffnet sich per Link */
+/*
+ * Tabelle der BWA (#1380) für Form 43 und Form 01: Zeitraum, Vergleich mit Abweichung, kumuliert; eine Zeile öffnet sich per
+ * Link. „Leere Zeilen anzeigen“ (#1635) setzt `leer` in der Adresse.
+ */
 
 const kurzerMonat = (monat: number) => MONTHS[monat - 1]!.slice(0, 3);
 
@@ -31,13 +34,11 @@ export function zeitraumText({ von, bis }: Zeitraum, kurz = false): string {
 const prozentFormat = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
 const prozent = (basispunkte: number) => `${prozentFormat.format(basispunkte / 100)}\u00a0%`;
 
-/** Zeilen ohne Betrag in allen Spalten blenden wir aus; Summen und Ergebnis bleiben */
-const leer = (z: BwaZeileWerte) => z.art === "zeile" && [z.betrag, z.kumuliert, z.vergleich ?? 0, z.vergleichKumuliert ?? 0].every((b) => b === 0);
-
 export function BwaTabelle({
   bericht,
   zeitraum,
   offen,
+  leer,
   titel,
   aufklappbar,
   children,
@@ -45,15 +46,24 @@ export function BwaTabelle({
   bericht: BwaBericht;
   zeitraum: Zeitraum;
   offen: string | undefined;
+  /** Auch Zeilen, die in allen Spalten 0 sind */
+  leer: boolean;
   titel: string;
   /** Zeilen mit Beträgen, die sich öffnen lassen */
   aufklappbar: readonly string[];
   children: ReactNode;
 }) {
   const mitVergleich = bericht.vergleich !== null;
+  const navigate = useNavigate({ from: "/auswertungen/bwa" });
   return (
     <section className="card">
-      <h2>{titel}</h2>
+      <div className="chart-head bwa-kopf">
+        <h2>{titel}</h2>
+        <label className="checkbox">
+          <input type="checkbox" checked={leer} onChange={(e) => navigate({ search: (s) => ({ ...s, leer: e.target.checked ? 1 : undefined }) })} />
+          Leere Zeilen anzeigen
+        </label>
+      </div>
       {children}
       <ScrollTable className="report-table euer-table">
         <caption className="visually-hidden">BWA {zeitraumText(zeitraum)}</caption>
@@ -87,18 +97,16 @@ export function BwaTabelle({
           </tr>
         </thead>
         <tbody>
-          {bericht.zeilen
-            .filter((z) => !leer(z))
-            .map((z) => (
-              <BwaZeile
-                key={z.key}
-                zeile={z}
-                mitVergleich={mitVergleich}
-                kumuliertVergleich={bericht.vergleichKumuliert !== null}
-                offen={z.key === offen}
-                aufklappbar={z.art === "zeile" && aufklappbar.includes(z.key)}
-              />
-            ))}
+          {sichtbareZeilen(bericht.zeilen, leer).map((z) => (
+            <BwaZeile
+              key={z.key}
+              zeile={z}
+              mitVergleich={mitVergleich}
+              kumuliertVergleich={bericht.vergleichKumuliert !== null}
+              offen={z.key === offen}
+              aufklappbar={z.art === "zeile" && aufklappbar.includes(z.key)}
+            />
+          ))}
         </tbody>
       </ScrollTable>
     </section>
@@ -118,7 +126,8 @@ function BwaZeile({
   offen: boolean;
   aufklappbar: boolean;
 }) {
-  const klasse = z.art === "summe" ? "euer-total" : z.art === "ergebnis" ? "euer-result" : undefined;
+  // Leere Zeilen (nur mit „Leere Zeilen anzeigen“) leise wie in der EÜR
+  const klasse = z.art === "summe" ? "euer-total" : z.art === "ergebnis" ? "euer-result" : bwaZeileLeer(z) ? "euer-zero" : undefined;
   return (
     <tr className={klasse}>
       <th scope="row" className={z.art === "zeile" ? "euer-label" : undefined}>

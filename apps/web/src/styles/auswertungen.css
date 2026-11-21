@@ -196,3 +196,5 @@
 .bwa-warum h3 { margin: 16px 0 4px; font-size: 14px; font-weight: 600; }
 /* Kontakt und „3 × 240,00 € statt 1 × 90,00 €“ je in einer Zeile; am Handy scrollt die Tabelle statt hoher Zeilen */
 .bwa-warum table { white-space: nowrap; }
+/* Kartenkopf der BWA: Titel links, „Leere Zeilen anzeigen“ rechts, am Handy darunter (#1635) */
+.bwa-kopf { align-items: center; }
