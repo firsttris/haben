@@ -46,7 +46,8 @@ describe.skipIf(!testDatabaseUrl)("Zeilensicherheit im Sollbestand (Postgres)", 
     });
   });
 
-  // Der Fall aus der Meldung: Für eine Rolle ohne Eigentum an den Tabellen verschwinden Voranmeldung und Siegel
+  // Der Fall aus der Meldung: Für eine Rolle ohne Eigentum an den Tabellen verschwinden Voranmeldung und Siegel. Die Kette
+  // bemerkt das fehlende Siegel über das Audit-Log (0311), der Katalogbefund nennt die Ursache.
   it("meldet Zeilensicherheit, die eine festgeschriebene Voranmeldung samt Siegel vor der prüfenden Rolle verbirgt", async () => {
     await rolledBack(async (tx) => {
       await tx.execute(query`insert into company (id, name) values (1, 'Probe') on conflict (id) do nothing`);
@@ -64,7 +65,9 @@ describe.skipIf(!testDatabaseUrl)("Zeilensicherheit im Sollbestand (Postgres)", 
       await tx.execute(query.raw(`create policy verbergen on public.seals using (row_id <> '${id}')`));
       await tx.execute(query`set local role probe_pruefung`);
       expect(await tx.execute(query`select count(*)::integer as n from vat_returns where id = ${id}`)).toEqual([{ n: 0 }]);
-      expect(await tx.execute(query`select art, tabelle, befund from haben_integrity_problems()`)).toEqual([]);
+      expect(await tx.execute(query`select art, tabelle, befund from haben_integrity_problems()`)).toEqual([
+        { art: "siegel", tabelle: "vat_returns", befund: "Siegel fehlt, steht aber im Audit-Log" },
+      ]);
       expect((await checkTriggerIntegrity(tx)).problems).toEqual([
         befund("seals", "Zeilensicherheit auf seals eingeschaltet"),
         befund("seals", "Policy verbergen auf seals angelegt"),
