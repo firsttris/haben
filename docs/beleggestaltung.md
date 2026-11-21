@@ -82,5 +82,6 @@ Unter **Einstellungen › Beleggestaltung › Layouts** wählst du ein Layout f�
 - Die Optionen stehen unter der Zuordnung, je eingebautem Layout einmal; sie gelten für jede Belegart mit diesem Layout. Ein Wert, den eine andere Option ausschließt, ist ausgegraut.
 - In der [Vorschau](rechnungen.md#vorschau) zeigt das Zahnrad das Layout der Belegart mit seinen Optionen; eine Änderung dort siehst du sofort und speicherst sie mit **Gestaltung speichern**.
 - Bestehende Installationen behalten beim Update ihr Layout: Klar in der Fassung Klassisch, ihre Schrift und ihre Akzentfarbe. Neu in Klassisch: Der Infoblock steht auf Höhe der Absenderzeile (58 mm) und auf der Fluchtlinie der Tabelle, weitere Referenzen stehen vor dem Betreff, und das Leistungsdatum steht als Datum.
+- Unter **Eingebaute Layouts** lädst du jedes Layout in einer Variante seiner Optionen herunter, für Belege und für Mahnungen, als Grundlage für ein [eigenes Layout](belegvorlagen.md). Die Variante steht fest in der Datei; die Auswahl dort ändert die Gestaltung nicht.
 
 Verwendet ein eigenes Layout eine Einstellung der Gestaltung nicht, etwa den GiroCode oder die Falz- und Lochmarken, steht darunter ein Hinweis mit dem Namen des Layouts. Wirkt die Einstellung auf keinen Beleg mehr, ist sie aus; siehe [Einstellungen, die das Layout nicht verwendet](belegvorlagen.md#hochladen-und-zuordnen).
