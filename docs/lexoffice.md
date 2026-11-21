@@ -78,8 +78,6 @@ Das Skript ändert nichts in Lexware Office. Es ruft nur die Adressen auf, die d
 
 Belege, die das Skript nicht laden konnte, stehen in der ZIP-Datei und nach dem Hochladen in Schritt 2 unter den offenen Punkten beim Abruf. Lässt du das Skript später noch einmal laufen und lädst die neue Sicherung hoch, überspringt Haben alles, was schon da ist, und holt die fehlenden nach — auch das Original-PDF einer Rechnung und jeden einzelnen fehlenden Anhang eines Belegs.
 
-Entwürfe und Vorgänge, die kein Beleg sind (etwa Angebote oder Lieferscheine), schreibt das Skript nicht in die ZIP-Datei; Haben übernimmt sie deshalb nicht.
-
 Buchungen, Bankumsätze, Voranmeldungen und Anlagen holst du wie beim Abruf über die API aus den Exporten (Schritt 4).
 
 ### Darf ich das?
@@ -182,6 +180,7 @@ Die API erlaubt etwa zwei Anfragen pro Sekunde. Haben hält zwischen zwei Anfrag
 - Wird der Server während des Abrufs neu gestartet, markiert Haben den Lauf nach drei Minuten ohne Fortschritt als abgebrochen. Auch dann setzt „Erneut abrufen“ fort.
 - Ist der Schlüssel ungültig oder fehlt die Berechtigung (Tarif gewechselt), bricht der Lauf mit Fehlermeldung ab.
 - Schlägt ein einzelner Beleg fehl, läuft der Abruf weiter. Die fehlgeschlagenen Belege stehen mit Nummer und Fehlermeldung in einer aufklappbaren Liste; der nächste Abruf versucht sie erneut.
+- Kommt nur eine Datei eines Belegs nicht (PDF, XML der E-Rechnung oder ein Anhang), legt Haben den Beleg trotzdem an und vermerkt die Datei am Beleg ([Dateistand](sevdesk.md#dateistand)). Der nächste Abruf holt sie nach; meldet Lexware Office dann ohne Fehler kein XML, ist nichts mehr offen. Fehlt das PDF einer Rechnung, das XML ihrer E-Rechnung oder bei einem Ausgabebeleg jede Datei, lässt er sich bis dahin in Schritt 3 nicht übernehmen.
 
 Der Schritt ist erledigt, wenn ein Lauf fertig ist und die Liste der fehlgeschlagenen Belege leer ist.
 
@@ -253,6 +252,8 @@ Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren 
 | Umsatzsteuer an das Finanzamt | Die Zahlung im Bankabgleich als „Umsatzsteuer an das Finanzamt“ zuordnen (eine Sondervorauszahlung als „Sondervorauszahlung (Dauerfristverlängerung)“), siehe oben |
 | Betrag nicht positiv | Gutschriften werden nicht übernommen |
 | keine Datei aus Lexoffice | Erst die Datei in Lexware Office anhängen und erneut abrufen |
+| XML der E-Rechnung fehlt | Erneut abrufen; bei der Sicherung das Skript noch einmal laufen lassen und die neue Sicherung hochladen |
+| Datei erwartet, Abruf aus Lexoffice fehlgeschlagen | Ebenso |
 
 Warum eine Teilzahlung vor dem Stichtag sperrt: Die Rechnung in Haben trägt den Betrag des Original-PDFs, und offen ist in Haben, was keine Zahlung im Bankabgleich deckt. Für die Zahlung vor dem Stichtag gibt es in Haben keinen Bankumsatz. Sie als Ausbuchung zu erfassen, minderte die Umsatzsteuer wie eine Änderung der Bemessungsgrundlage (§ 17 Abs. 1 UStG), obwohl das Entgelt gezahlt ist. Eine Teilzahlung nach dem Stichtag sperrt nicht: Am Stichtag war der ganze Betrag offen, und die Zahlung kommt in Haben an.
 
