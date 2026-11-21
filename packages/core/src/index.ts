@@ -26,6 +26,7 @@ export * from "./bwa.ts";
 export * from "./bwa-kostenart.ts";
 export * from "./bwa-form01.ts";
 export * from "./bwa-zeitraum.ts";
+export * from "./bwa-ansicht.ts";
 export * from "./bwa-warum.ts";
 export * from "./datev-eroeffnung.ts";
 export * from "./hinterlegung.ts";
