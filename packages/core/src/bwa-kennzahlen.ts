@@ -4,9 +4,10 @@ import { roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts"
 
 /*
  * Anteile und Kennzahlen der BWA (#1635) nach der DATEV-Musterauswertung BWA (2016), für Seite, Export und das MCP-Werkzeug
- * (#1517) an einer Stelle. Form 01 (S. 3): Leistung und Material in % der Gesamtleistung, Kostenarten in % der Gesamtkosten.
- * Form 43 (S. 32): Erlöse in % der Summe der Erlöse, Kosten in % der Summe der Kosten. Neutrales, Steuern und Ergebnisse
- * bekommen keinen Anteil. Ist die Bezugsgröße 0 oder negativ, gibt es keinen Anteil: Ein Prozentsatz davon sagt nichts.
+ * (#1517) an einer Stelle. DATEV zeigt mehrere Prozentspalten, Haben je Zeile eine (abgestimmt in #1380): Form 01 (S. 3)
+ * Leistung und Material in % der Gesamtleistung, Kostenarten in % der Gesamtkosten; Form 43 (S. 32) Erlöse in % der Summe der
+ * Erlöse, Kosten in % der Summe der Kosten. Neutrales, Steuern und Ergebnisse bekommen keinen Anteil, auch wo DATEV sie in
+ * % der Gesamtleistung zeigt. Ist die Bezugsgröße 0 oder negativ, gibt es keinen Anteil: Ein Prozentsatz davon sagt nichts.
  */
 
 export type BwaForm = "form43" | "form01";

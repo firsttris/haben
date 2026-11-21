@@ -141,7 +141,7 @@ Es ist eine eigene Auswertung von Haben, keine Auswertung von DATEV; im Einzelun
 
 Zeilen, die in allen Spalten 0 sind, fehlen, Summen und Ergebnisse ausgenommen; mit **Leere Zeilen anzeigen** steht jede Zeile der Form, etwa um die BWA Zeile für Zeile neben die der Steuerberatung zu legen.
 
-Über der Tabelle stehen **Kennzahlen** für den Zeitraum, mit Vergleich klein darunter der Wert im Vergleichszeitraum, dazu in einer Zeile, was durch was geteilt ist. Die Formeln folgen der DATEV-Musterauswertung BWA (Form 01 S. 3, Form 43 S. 32):
+Über der Tabelle stehen **Kennzahlen** für den Zeitraum, mit Vergleich klein darunter der Wert im Vergleichszeitraum, dazu in einer Zeile, was durch was geteilt ist. Die Formeln folgen der DATEV-Musterauswertung BWA (Form 01 S. 3, Form 43 S. 32, Spalte „% Ges.-Erlöse“); die Rohertragsquote des Einzelunternehmens zieht wie der Rohertrag der Form 01 Material und Fremdleistungen ab:
 
 | Kennzahl | Einzelunternehmen (Form 43) | GmbH und UG (Form 01) |
 | --- | --- | --- |
