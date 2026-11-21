@@ -134,14 +134,14 @@ Es ist eine eigene Auswertung von Haben, keine Auswertung von DATEV; im Einzelun
 | Spalte | Bedeutung |
 | --- | --- |
 | Zeitraum | Zahlungen (GmbH und UG: Buchungen) im gewählten Zeitraum, beide Tage eingeschlossen; von–bis über höchstens drei Kalenderjahre |
-| Anteil | Erlöse in % der Summe der Erlöse, Kosten in % der Summe der Kosten (GmbH und UG [siehe unten](#bwa-für-gmbh-und-ug)); Umsatzsteuer, Vorsteuer, Buchwert der Anlagenabgänge, Zinsen und sonstige Aufwendungen, Summen der Ein- und Ausgaben und Ergebnisse ohne Anteil, ebenso, wenn die Summe 0 oder negativ ist |
+| Anteil | Erlöse in % der Summe der Erlöse, Kosten in % der Summe der Kosten (GmbH und UG [siehe unten](#bwa-für-gmbh-und-ug)), die übrigen Zeilen ohne Anteil, ebenso, wenn die Summe 0 oder negativ ist. DATEV zeigt mehrere Prozentspalten (etwa Kosten auch in % der Gesamtleistung bzw. der Erlöse, in Form 01 auch Neutrales und Ergebnisse), Haben je Zeile eine |
 | Vergleich | **Vorjahreszeitraum**: dieselben Kalendertage ein Jahr früher, ganze Monate als ganze Monate (Februar mit Februar, auch im Schaltjahr); **Vorperiode**: gleich viele ganze Monate direkt davor (der Monat, das Quartal, das Jahr davor); bei einem freien Zeitraum, der nicht aus ganzen Monaten besteht, gleich viele Tage direkt davor |
 | Abweichung, in % | Zeitraum minus Vergleich, in Prozent des Vergleichs; ohne Prozent, wenn der Vergleich 0 ist |
 | Kumuliert | Vom 1. Januar bis zum Ende des Zeitraums; beim Vorjahresvergleich daneben dasselbe im Vorjahr |
 
 Zeilen, die in allen Spalten 0 sind, fehlen, Summen und Ergebnisse ausgenommen; mit **Leere Zeilen anzeigen** steht jede Zeile der Form, etwa um die BWA Zeile für Zeile neben die der Steuerberatung zu legen.
 
-Über der Tabelle stehen **Kennzahlen** für den Zeitraum, mit Vergleich klein darunter der Wert im Vergleichszeitraum, dazu in einer Zeile, was durch was geteilt ist. Die Formeln folgen der DATEV-Musterauswertung BWA (Form 01 S. 3, Form 43 S. 32, Spalte „% Ges.-Erlöse“); die Rohertragsquote des Einzelunternehmens zieht wie der Rohertrag der Form 01 Material und Fremdleistungen ab:
+Über der Tabelle stehen **Kennzahlen** für den Zeitraum, mit Vergleich klein darunter der Wert im Vergleichszeitraum, dazu in einer Zeile, was durch was geteilt ist. Die Formeln folgen der DATEV-Musterauswertung BWA (Form 01 S. 3, Spalten „% Ges.-Leistg.“ und „Aufschlag“; Form 43 S. 32, Spalte „% Ges.-Erlöse“); die Rohertragsquote des Einzelunternehmens zieht wie der Rohertrag der Form 01 Material und Fremdleistungen ab:
 
 | Kennzahl | Einzelunternehmen (Form 43) | GmbH und UG (Form 01) |
 | --- | --- | --- |
@@ -151,7 +151,7 @@ Zeilen, die in allen Spalten 0 sind, fehlen, Summen und Ergebnisse ausgenommen; 
 | Umsatzrendite | (Summe der Erlöse − Summe der Kosten − Buchwert der Anlagenabgänge − Zinsen und sonstige Aufwendungen) / Summe der Erlöse | Vorläufiges Ergebnis / Gesamtleistung |
 | Aufschlag | – | Rohertrag / Material- und Wareneinkauf, nur wenn Material gebucht ist |
 
-Die Umsatzrendite im Einzelunternehmen rechnet ohne Umsatzsteuer und Vorsteuer, denn die schwanken im Monat mit den Zahlungen an das Finanzamt; DATEV teilt dort das Ergebnis mit Steuern durch die Betriebseinnahmen. Ist die Summe der Erlöse bzw. die Gesamtleistung 0 oder negativ, steht „–“.
+Die Umsatzrendite im Einzelunternehmen rechnet ohne Umsatzsteuer und Vorsteuer, denn die schwanken im Monat mit den Zahlungen an das Finanzamt; DATEV teilt dort das Ergebnis mit Steuern durch die Betriebseinnahmen. Ist der Nenner 0 oder negativ, steht „–“.
 
 Anders als die EÜR zählt die BWA nicht abziehbare Ausgaben (30 % der Bewirtung, Gewerbesteuer, nicht abziehbare Nebenleistungen) als Kosten, denn bezahlt sind sie trotzdem. Die Zeile „nicht abziehbare Ausgaben“ darunter führt zum Gewinn laut EÜR. Eine Umsatzsteuer-Vorauszahlung, die die EÜR dem Vorjahr zurechnet ([Vorauszahlung um den Jahreswechsel](#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)), steht in der BWA am 31. Dezember des Vorjahres.
 
