@@ -76,6 +76,9 @@ const MAX_ROWS = 100;
 function readSnapshot(now: string) {
   return db.transaction(
     async (tx) => {
+      // Vor haben_integrity_problems: Den Suchpfad liest die Prüfung so, wie die Prüffunktionen ihn vorfinden. Eine fremde
+      // Funktion, die sie aufrufen, könnte ihn bis zum Ende der Transaktion ändern.
+      const triggers = await checkTriggerIntegrity(tx);
       const rows = await tx.execute<{ art: IntegrityProblem["art"]; tabelle: string; zeile: string | null; seq: string | null; befund: string }>(
         sql`select art, tabelle, zeile, seq, befund from haben_integrity_problems(${MAX_ROWS})`,
       );
@@ -90,7 +93,6 @@ function readSnapshot(now: string) {
         .from(schema.ownAccounts)
         .orderBy(schema.ownAccounts.kontenrahmen, schema.ownAccounts.account);
       const accountCollisions = ownAccounts.filter((account) => reservedAccountNumbers(account.kontenrahmen).has(account.account));
-      const triggers = await checkTriggerIntegrity(tx);
       return { rows: [...rows, ...triggers.problems], triggerHints: triggers.hints, head, entries: entries!.n, seals: seals!.n, abgleich, accountCollisions };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
@@ -130,6 +132,11 @@ export type PruefwertResult =
   | { status: "ok"; seq: number }
   /** Hash stimmt, aber ein früherer Eintrag passt nicht mehr zur Kette (bei abgeschalteten Triggern geändert) */
   | { status: "beschaedigt"; seq: number; first: number; befund: string }
+  /**
+   * Hash stimmt und die Kette scheint lückenlos, aber Trigger, Funktionen oder andere Objekte der Datenbank weichen vom
+   * Sollbestand ab (checkTriggerIntegrity). Wer sie ändern kann, kann auch das Nachrechnen der Kette fälschen.
+   */
+  | { status: "unbestaetigt"; seq: number; befunde: string[] }
   /** Eintrag vorhanden, Hash anders: die Kette wurde bis zu diesem Eintrag neu berechnet */
   | { status: "abweichend"; seq: number; expected: string; actual: string }
   /** Kein Eintrag mit dieser Nummer: Einträge gelöscht oder ein älteres Backup eingespielt */
@@ -137,15 +144,25 @@ export type PruefwertResult =
 
 /**
  * Vergleicht einen Prüfwert von außerhalb (Mail, Jahresarchiv) mit dem Eintrag dieser Nummer und rechnet die Kette
- * bis dorthin nach. Erst beides zusammen zeigt, dass kein Eintrag bis zu dieser Nummer verändert wurde.
+ * bis dorthin nach. Erst beides zusammen zeigt, dass kein Eintrag bis zu dieser Nummer verändert wurde, und nur, solange
+ * Trigger und Funktionen dem Sollbestand entsprechen: Das Nachrechnen läuft über haben_audit_hash in derselben Datenbank.
  */
 export async function checkPruefwert(seq: number, hash: string): Promise<PruefwertResult> {
-  const [row] = await db.select({ hash: schema.auditLog.rowHash }).from(schema.auditLog).where(eq(schema.auditLog.seq, seq));
-  if (!row) return { status: "fehlt", seq, head: (await chainHead())?.seq ?? null };
-  const actual = row.hash.toString("hex");
-  if (actual !== hash.toLowerCase()) return { status: "abweichend", seq, expected: hash.toLowerCase(), actual };
-  const [broken] = await db.execute<{ seq: string; befund: string }>(
-    sql`select seq, befund from haben_integrity_problems(1) where art = 'kette' and seq <= ${seq} order by seq limit 1`,
+  return db.transaction(
+    async (tx): Promise<PruefwertResult> => {
+      const [row] = await tx.select({ hash: schema.auditLog.rowHash }).from(schema.auditLog).where(eq(schema.auditLog.seq, seq));
+      if (!row) return { status: "fehlt", seq, head: (await chainHead(tx))?.seq ?? null };
+      const actual = row.hash.toString("hex");
+      if (actual !== hash.toLowerCase()) return { status: "abweichend", seq, expected: hash.toLowerCase(), actual };
+      // Zuerst der Katalog: Weicht er ab, ist auch das Nachrechnen der Kette nicht verlässlich
+      const catalog = await checkTriggerIntegrity(tx);
+      const [broken] = await tx.execute<{ seq: string; befund: string }>(
+        sql`select seq, befund from haben_integrity_problems(1) where art = 'kette' and seq <= ${seq} order by seq limit 1`,
+      );
+      if (broken) return { status: "beschaedigt", seq, first: Number(broken.seq), befund: broken.befund };
+      if (catalog.problems.length > 0) return { status: "unbestaetigt", seq, befunde: catalog.problems.map((p) => `${p.tabelle}: ${p.befund}`) };
+      return { status: "ok", seq };
+    },
+    { isolationLevel: "repeatable read", accessMode: "read only" },
   );
-  return broken ? { status: "beschaedigt", seq, first: Number(broken.seq), befund: broken.befund } : { status: "ok", seq };
 }

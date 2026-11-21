@@ -27,7 +27,8 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: vierte unabhängige Reviewrunde 
   beforeEach(async () => {
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
-      await tx`truncate seals, company, contacts, invoices, cash_entries, journal_entries, external_imports, lexoffice_imports cascade`;
+      await tx`truncate seals, audit_log, audit_chain, company, contacts, invoices, cash_entries, journal_entries, external_imports, lexoffice_imports cascade`;
+      await tx`insert into audit_chain (id, seq, hash) values (1, 0, haben_audit_genesis())`;
     });
     await sql`insert into company (id,name,kleinunternehmer,rechtsform,kontenrahmen,bundesland)
       values (1,'Erfundener Ausfuhrbetrieb',false,'einzelunternehmen','SKR03','NI')`;

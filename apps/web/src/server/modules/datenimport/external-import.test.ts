@@ -64,7 +64,8 @@ describe.skipIf(!testDatabaseUrl)("Allgemeiner Belegimport im gemeinsamen Umzugs
   beforeEach(async () => {
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
-      await tx`truncate seals, company, contacts, quotes, invoices, cash_entries, journal_entries, external_imports, lexoffice_imports, invoice_number_counters, quote_number_counters cascade`;
+      await tx`truncate seals, audit_log, audit_chain, company, contacts, quotes, invoices, cash_entries, journal_entries, external_imports, lexoffice_imports, invoice_number_counters, quote_number_counters cascade`;
+      await tx`insert into audit_chain (id, seq, hash) values (1, 0, haben_audit_genesis())`;
     });
     await sql`insert into company (id,name,kleinunternehmer,rechtsform,kontenrahmen,bundesland) values (1,'Testbetrieb',true,'einzelunternehmen','SKR03','NI')`;
   });

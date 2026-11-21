@@ -115,6 +115,63 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     expect(await problems()).toEqual([]);
   });
 
+  // Datensatz und Siegel zusammen gelöscht: Keine Prüfung geht von einem Siegel oder Datensatz aus, den es nicht mehr gibt.
+  // Der Eintrag des Siegels im Audit-Log bleibt aber stehen.
+  it("meldet einen festgeschriebenen Datensatz, der samt Siegel gelöscht wurde", async () => {
+    const entry = await lockedEntry();
+    const [seal] = await sql`select id from seals where table_name = 'journal_entries' and row_id = ${entry}`;
+    const [audited] = await sql`select seq from audit_log where table_name = 'seals' and action = 'INSERT' and row_id = ${seal!.id}::text`;
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        await tx`delete from journal_lines where entry_id = ${entry}`;
+        await tx`delete from journal_entries where id = ${entry}`;
+        await tx`delete from seals where id = ${seal!.id}`;
+      });
+      return tx`select art, tabelle, zeile, seq, befund from haben_integrity_problems()`;
+    });
+    // Die Nummer ist die des Siegels in der Kette: Dort steht, was das Siegel festhielt.
+    expect(found).toEqual([{ art: "siegel", tabelle: "journal_entries", zeile: entry, seq: audited!.seq, befund: "Siegel fehlt, steht aber im Audit-Log" }]);
+  });
+
+  it("meldet ein gelöschtes Siegel am festgeschriebenen Datensatz und am Eintrag im Audit-Log", async () => {
+    const entry = await lockedEntry();
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`delete from seals where table_name = 'journal_entries' and row_id = ${entry}`);
+      return problems(tx);
+    });
+    expect(found).toEqual([
+      expect.objectContaining({ tabelle: "journal_entries", zeile: entry, befund: "Festgeschrieben, aber ohne Siegel" }),
+      { art: "siegel", tabelle: "journal_entries", zeile: entry, befund: "Siegel fehlt, steht aber im Audit-Log" },
+    ]);
+  });
+
+  // Die Prüfung zeigt je Art und Tabelle höchstens 100 Befunde und sagt erst dann „oder mehr“ (truncated in
+  // integrity.ts). Eine gemeinsame Grenze über alle Tabellen schnitte Befunde ab, ohne dass die Meldung es sagt.
+  it("zeigt Siegel ohne Eintrag im Audit-Log je Tabelle bis zur Grenze", async () => {
+    const je = 60;
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        const entries = await tx<{ id: string }[]>`insert into journal_entries (date, description, source_type, source_id, kontenrahmen, locked_at)
+          select '2026-01-10', 'Buchung ' || i, 'invoice', gen_random_uuid(), 'SKR03', now() from generate_series(1, ${je}) i returning id`;
+        const ids = entries.map((e) => e.id);
+        await tx`insert into journal_lines (entry_id, account, debit, credit)
+          select id, '1400', 11900, 0 from unnest(${ids}::uuid[]) id
+          union all select id, '8400', 0, 11900 from unnest(${ids}::uuid[]) id`;
+        const cash = await tx<{ id: string }[]>`insert into cash_entries (number, date, amount, kind, text)
+          select 100000 + i, '2026-03-01', 100, 'einlage', 'Einlage ' || i from generate_series(1, ${je}) i returning id`;
+        // Passende Siegel wie von haben_seal, aber ohne Eintrag im Audit-Log
+        await tx`insert into seals (table_name, row_id, columns, digest)
+          select t.name, t.id, haben_seal_columns(t.name), haben_seal_digest(t.name, t.id, haben_seal_columns(t.name))
+            from (select 'journal_entries' as name, unnest(${ids}::uuid[]) as id
+                  union all select 'cash_entries', unnest(${cash.map((c) => c.id)}::uuid[])) t`;
+      });
+      return problems(tx);
+    });
+    const count = (tabelle: string) => found.filter((p) => p.tabelle === tabelle && p.befund === "Siegel fehlt im Audit-Log").length;
+    expect({ journal_entries: count("journal_entries"), cash_entries: count("cash_entries") }).toEqual({ journal_entries: je, cash_entries: je });
+    expect(found).toHaveLength(2 * je);
+  });
+
   it("erkennt geänderte Buchungszeilen, Positionen und Steuerbeträge", async () => {
     const entry = await lockedEntry();
     const invoice = await lockedInvoice();
@@ -270,6 +327,64 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
       expect.objectContaining({ art: "kopf", befund: `Kopf steht bei ${seq}, das Audit-Log endet bei ${seq - 1}` }),
       expect.objectContaining({ art: "siegel", tabelle: "journal_entries", befund: "Siegel fehlt im Audit-Log" }),
     ]);
+  });
+
+  // Die Kette rechnet haben_audit_hash nach. Weichen Trigger oder Funktionen vom Sollbestand ab, bestätigt der Vergleich
+  // nichts: Wer sie ändern kann, kann auch das Nachrechnen fälschen.
+  it("bestätigt einen Prüfwert nicht, solange Trigger oder Funktionen vom Sollbestand abweichen", async () => {
+    await lockedEntry();
+    const head = (await integrity.chainHead())!;
+    const [before] = await sql`select pg_get_functiondef('haben_audit_hash(bytea, audit_log)'::regprocedure) as definition`;
+    const [original] = await sql`select actor from audit_log where seq = 2`;
+    const actor = original!.actor === null ? "null::text" : `'${String(original!.actor).replaceAll("'", "''")}'`;
+    try {
+      // Ein Eintrag geändert und die Hash-Funktion so ersetzt, dass sie für ihn den alten Inhalt nachrechnet
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update audit_log set actor = 'jemand' where seq = 2`;
+      });
+      await sql.unsafe(`create or replace function haben_audit_hash(prev bytea, r audit_log) returns bytea language sql stable as $$
+        select sha256(prev || convert_to(jsonb_build_array(r.seq, to_char(r.at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          case when r.seq = 2 then ${actor} else r.actor end, r.table_name, r.row_id, r.action, r.old_value, r.new_value)::text, 'UTF8')) $$`);
+      expect((await problems()).filter((p) => p.art === "kette")).toEqual([]);
+      expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({
+        status: "unbestaetigt",
+        seq: head.seq,
+        befunde: ["Funktionen: Funktion public.haben_audit_hash(prev bytea, r public.audit_log) wurde verändert"],
+      });
+    } finally {
+      await sql.unsafe(before!.definition);
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update audit_log set actor = ${original!.actor} where seq = 2`;
+      });
+    }
+    expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({ status: "ok", seq: head.seq });
+  });
+
+  // Eine unterbrochene Kette ist ein Beweis, ein abweichender Sollbestand nur ein Grund zum Misstrauen
+  it("meldet eine unterbrochene Kette auch bei abweichendem Sollbestand als beschädigt", async () => {
+    await lockedEntry();
+    const head = (await integrity.chainHead())!;
+    const [original] = await sql`select actor from audit_log where seq = 2`;
+    const setActor = (actor: string | null) =>
+      sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update audit_log set actor = ${actor} where seq = 2`;
+      });
+    await setActor("jemand");
+    await sql`alter table year_closings disable trigger year_closings_append_only`;
+    try {
+      expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({
+        status: "beschaedigt",
+        seq: head.seq,
+        first: 2,
+        befund: "Inhalt passt nicht zum Hash",
+      });
+    } finally {
+      await sql`alter table year_closings enable trigger year_closings_append_only`;
+      await setActor(original!.actor);
+    }
   });
 
   it("eine neu berechnete Kette fällt erst beim Prüfwert von außerhalb auf", async () => {

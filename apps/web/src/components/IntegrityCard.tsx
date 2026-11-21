@@ -2,7 +2,7 @@ import { formatEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
-import { integrityNotice, weitereText } from "../lib/pruefbericht.ts";
+import { integrityNotice, pruefwertNotice, weitereText } from "../lib/pruefbericht.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { comparePruefwert, runFileAndIntegrityCheck, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
@@ -82,28 +82,7 @@ export function IntegrityCard({ head }: { head: Head }) {
   function onCompare(event: FormEvent) {
     event.preventDefault();
     void action.run(async () => {
-      const result = await compare({ data: { text } });
-      if (result.status === "ok") {
-        action.setNotice({
-          tone: "ok",
-          text: `Prüfwert Nr. ${result.seq} stimmt und die Kette ist bis dorthin lückenlos: Das Protokoll ist bis zu diesem Eintrag unverändert. Siegel und spätere Einträge prüft „Kette prüfen“.`,
-        });
-      } else if (result.status === "beschaedigt") {
-        action.setNotice({
-          tone: "danger",
-          text: `Prüfwert Nr. ${result.seq} stimmt, aber Eintrag Nr. ${result.first} davor passt nicht mehr zur Kette (${result.befund}). Er wurde nachträglich verändert.`,
-        });
-      } else if (result.status === "abweichend") {
-        action.setNotice({
-          tone: "danger",
-          text: `Prüfwert Nr. ${result.seq} stimmt nicht. Das Protokoll wurde bis zu diesem Eintrag verändert und neu verkettet. Erwartet ${result.expected}, gefunden ${result.actual}.`,
-        });
-      } else {
-        action.setNotice({
-          tone: "danger",
-          text: `Eintrag Nr. ${result.seq} fehlt, das Protokoll endet bei Nr. ${result.head ?? "–"}. Entweder wurde ein älteres Backup eingespielt oder Einträge wurden gelöscht.`,
-        });
-      }
+      action.setNotice(pruefwertNotice(await compare({ data: { text } })));
     });
   }
 
