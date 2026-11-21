@@ -207,7 +207,7 @@ Unter **Einstellungen › Beleggestaltung › Fußzeile** schaltest du von der a
 
 ### Layouts
 
-Unter **Einstellungen › Beleggestaltung › Layouts** wählst du je Belegart ein Layout: ein eingebautes oder ein eigenes, das du hochgeladen hast. Wie man ein Layout schreibt, was Haben beim Hochladen prüft und wie Pakete freigegeben werden, steht unter [Eigene Belegvorlagen](belegvorlagen.md).
+Unter **Einstellungen › Beleggestaltung › Layouts** wählst du ein Layout für alle Belegarten: ein eingebautes oder ein eigenes, das du hochgeladen hast. Unter **Je Belegart abweichend wählen** bekommt eine Belegart ein anderes, etwa das Angebot; weicht eine ab, steht die Tabelle offen und oben „Je Belegart verschieden“. Ein eigenes Layout ist entweder für Belege oder für Mahnungen; wählst du es für alle, behält die übrige Art ihr Layout. Wie man ein Layout schreibt, was Haben beim Hochladen prüft und wie Pakete freigegeben werden, steht unter [Eigene Belegvorlagen](belegvorlagen.md).
 
 | Layout | Optionen |
 | --- | --- |
@@ -215,7 +215,7 @@ Unter **Einstellungen › Beleggestaltung › Layouts** wählst du je Belegart e
 | Modern | Linie über dem Fuß (ab Werk ohne) |
 | Strukturiert | Infoblock als Tabelle oder im Kasten |
 | Elegant | Fuß unten oder in der Randspalte |
-| Premium | Fuß unten oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben |
+| Premium | Fuß unten oder in der Randspalte; Kerndaten als Liste oder zweispaltig (nur mit Fuß unten). Steht das Logo links, steht der Name rechts daneben; die Linie unter dem Kopf steht bei jeder Logogröße gleich hoch |
 
 - Die Optionen stehen unter der Zuordnung, je eingebautem Layout einmal; sie gelten für jede Belegart mit diesem Layout. Ein Wert, den eine andere Option ausschließt, ist ausgegraut.
 - In der [Vorschau](rechnungen.md#vorschau) zeigt das Zahnrad das Layout der Belegart mit seinen Optionen; eine Änderung dort siehst du sofort und speicherst sie mit **Für alle Belege speichern**.

@@ -314,6 +314,9 @@ test("Die Einstellungen nennen je Belegart das eingebaute Layout", async ({ brow
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
   const karte = page.getByRole("region", { name: "Layouts", exact: true });
+  // Oben ein Layout für alle; die Tabelle je Belegart steht eingeklappt, solange alle dasselbe haben
+  await expect(karte.getByLabel("Layout", { exact: true })).toHaveValue("eingebaut:klar");
+  await karte.getByText("Je Belegart abweichend wählen").click();
   await expect(karte.getByRole("row")).toHaveCount(6);
   // Ohne eigene Zuordnung steht je Belegart das eingebaute Layout in der Auswahl
   const mahnung = karte.getByLabel("Layout für Mahnung");

@@ -1,3 +1,4 @@
+import { LAYOUT_DOCUMENT_TYPES } from "@haben/core";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -261,6 +262,17 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     expect(design.layouts.rechnung).toEqual({ kind: "eingebaut", id: "premium" });
     expect(design.layouts.mahnung).toEqual({ kind: "eingebaut", id: "elegant" });
     await expect(layouts.assignLayout(actor, "angebot", { kind: "eingebaut", id: "gibtsnicht" })).rejects.toThrow(/gibt es nicht/);
+  }, 60_000);
+
+  it("ordnet ein Layout allen passenden Belegarten auf einmal zu; ein eigenes für Belege lässt die Mahnung", async () => {
+    expect(await layouts.assignLayoutToAll(actor, { kind: "eingebaut", id: "modern" })).toEqual(LAYOUT_DOCUMENT_TYPES);
+    expect(Object.values((await letterhead.loadDesign()).layouts)).toEqual(LAYOUT_DOCUMENT_TYPES.map(() => ({ kind: "eingebaut", id: "modern" })));
+    const { id } = await anlegen({ name: "Für alle", art: "beleg", source: eigene("beleg") });
+    expect(await layouts.assignLayoutToAll(actor, { kind: "eigen", id })).toEqual(["rechnung", "angebot", "auftragsbestaetigung", "lieferschein"]);
+    const design = await letterhead.loadDesign();
+    expect(design.layouts.angebot).toEqual({ kind: "eigen", id });
+    expect(design.layouts.mahnung).toEqual({ kind: "eingebaut", id: "modern" });
+    await layouts.assignLayoutToAll(actor, { kind: "eingebaut", id: "klar" });
   }, 60_000);
 
   it("passt die Art nicht, wird nichts zugeordnet", async () => {

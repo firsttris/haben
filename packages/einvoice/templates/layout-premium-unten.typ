@@ -9,7 +9,8 @@
 
 #show: seite.with(groesse: 9pt, leading: 0.62em, fuss-farbe: accent)
 
-// Kopf: Logo, Name oder beides, darunter eine Haarlinie in der Akzentfarbe über die ganze Breite, immer mit Abstand zum Logo
+// Kopf: Logo, Name oder beides, darunter eine Haarlinie in der Akzentfarbe über die ganze Breite. Sie steht fest 4 mm unter
+// dem größten Logo (L, 24 mm hoch, LOGO_SIZES), damit der Kopf bei jeder Größe und auch ohne Logo gleich hoch ist
 // Steht das Logo links, steht der Name rechts daneben; mittig oder rechts steht nur das Logo
 #if d.at("logo", default: none) != none {
   logo()
@@ -17,10 +18,7 @@
 } else {
   place(top + left, dy: 4mm, text(font: serif, size: 21pt, tracking: 0.02em, d.author))
 }
-#context {
-  let logo-hoehe = if d.at("logo", default: none) == none { 0mm } else { measure(image(d.logo, height: look.logoHeight * 1mm)).height }
-  place(top + left, dy: calc.max(17mm.to-absolute(), logo-hoehe + 4mm), line(length: satzbreite, stroke: haar))
-}
+#place(top + left, dy: 28mm, line(length: satzbreite, stroke: haar))
 #anschrift()
 // Angaben zum Beleg untereinander, Beschriftung über dem Wert, rechtsbündig mit der Tabelle (bis 190 mm)
 #let angabe(m) = stack(spacing: 1.3mm, text(size: 6.4pt, fill: muted, tracking: 0.08em, upper(m.label)), text(font: serif, size: 10.5pt, zusammen(m.value)))
